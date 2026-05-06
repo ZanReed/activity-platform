@@ -12,10 +12,9 @@
     "clean": "pnpm -r clean"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
-    "vitest": "^1.6.0",
     "@types/node": "^20.12.0",
-    "esbuild": "^0.21.0"
-  },
-  "packageManager": "[email protected]"
+    "esbuild": "^0.21.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
 }
