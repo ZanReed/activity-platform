@@ -34,7 +34,7 @@
 //   STORAGE_BUCKET is set to).
 // =============================================================================
 
-import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/[email protected]';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   renderActivity,
   ActivityDocument,
