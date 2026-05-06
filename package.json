@@ -1,0 +1,21 @@
+{
+  "name": "activity-platform",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "bundle:renderer": "node scripts/bundle-renderer.mjs",
+    "test": "pnpm -r test",
+    "test:watch": "pnpm -r test:watch",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r clean"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0",
+    "@types/node": "^20.12.0",
+    "esbuild": "^0.21.0"
+  },
+  "packageManager": "[email protected]"
+}

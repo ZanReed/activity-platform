@@ -1,0 +1,62 @@
+# =============================================================================
+# .gitignore — files git should never track
+# -----------------------------------------------------------------------------
+# Anything matching a pattern here is invisible to `git add` and won't get
+# committed. Comments are inline so future-you remembers why each entry is
+# here.
+# =============================================================================
+
+# ---- Dependencies ----------------------------------------------------------
+# Installed packages live here. They're reproducible from package.json +
+# pnpm-lock.yaml, so committing them would just bloat the repo.
+node_modules/
+.pnpm-store/
+
+# ---- Build output ----------------------------------------------------------
+# TypeScript compiled output and other generated artifacts. Always reproducible
+# from source.
+dist/
+build/
+*.tsbuildinfo
+
+# Generated bundle of the renderer for Edge Function consumption. Produced by
+# `pnpm bundle:renderer` before each deploy. Don't commit — it's derivative
+# of packages/renderer source and would just go stale.
+supabase/functions/_shared/renderer.bundle.js
+supabase/functions/_shared/renderer.bundle.js.map
+
+# ---- Environment + secrets -------------------------------------------------
+# NEVER commit these. They contain API keys, JWT secrets, etc. The .env.example
+# file (if you make one) is fine to commit because it has placeholder values.
+.env
+.env.local
+.env.*.local
+*.env
+
+# ---- Supabase CLI working files --------------------------------------------
+# The Supabase CLI creates these when you run `supabase start` locally.
+# They're per-machine state, not part of the project.
+supabase/.temp/
+supabase/.branches/
+
+# ---- Editor + OS clutter ---------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+# Allow shared VS Code config if you ever want to commit it:
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# ---- Logs ------------------------------------------------------------------
+*.log
+npm-debug.log*
+pnpm-debug.log*
+logs/
+
+# ---- Test output -----------------------------------------------------------
+coverage/
+.nyc_output/

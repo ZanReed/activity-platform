@@ -1,0 +1,17 @@
+import { z } from 'zod';
+
+// Phase 1: URL-only. No upload pipeline; teachers paste a public URL.
+// Phase 2+: a separate variant with a Supabase Storage upload, with src
+// pointing to a signed URL. Schema is forward-compatible — adding a new
+// `source` discriminator field later is non-breaking if existing rows are
+// treated as `source: 'url'` by default.
+export const ImageBlock = z.object({
+  id: z.string().uuid(),
+  type: z.literal('image'),
+  src: z.string().url(),
+  // alt is required for accessibility but defaults to empty string for
+  // decorative images. Editors should warn (not block) on empty alt.
+  alt: z.string().default(''),
+  caption: z.string().optional(),
+});
+export type ImageBlock = z.infer<typeof ImageBlock>;

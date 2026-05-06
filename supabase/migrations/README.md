@@ -1,0 +1,177 @@
+# Supabase migrations
+
+Phase 1 schema for the activity platform. Three core migrations plus an optional dev seed.
+
+## Files
+
+| File | What it does |
+|---|---|
+| `0001_initial_schema.sql` | Extensions, enum types, all tables, indexes. RLS enabled and forced on every user-data table; no policies yet (so RLS denies everything by default). |
+| `0002_rls_policies.sql` | Adds the policies that grant specific access patterns (owner reads own activities, teacher reads own assignments' submissions, etc.). |
+| `0003_functions.sql` | Triggers (auto-create user row on signup), RPC functions (`ingest_submission`, `publish_activity`), the aggregate-stats view, and the soft-delete cron function. |
+| `0004_seed_dev.sql` | **Dev only.** Seeds your email into the allowlist so you can sign up. Edit the email first. |
+
+Run order is the file order. Each builds on the previous.
+
+## How to run them
+
+There are two practical ways to apply these migrations.
+
+### Option A: Supabase CLI (recommended)
+
+```bash
+# One-time setup
+npm install -g supabase
+supabase login
+supabase init                                  # in your repo root
+supabase link --project-ref <your-project-ref> # from the Supabase dashboard URL
+
+# Move these migration files into ./supabase/migrations/ in your repo, then:
+supabase db push
+```
+
+The CLI normally names migrations with timestamps (`20240505140000_initial_schema.sql`). When you `supabase migration new <name>`, it generates a stub with a timestamp. For these initial files, you can either rename them to use timestamps or leave the numeric prefixes — the CLI applies them in lexicographic order either way.
+
+### Option B: Paste into the SQL editor
+
+Open your Supabase project → SQL Editor → New query. Paste the contents of `0001`, run, paste `0002`, run, paste `0003`, run. For `0004`, edit the email first.
+
+This works but isn't reproducible. Use Option A once you're past the prototype stage.
+
+## What changed from `schema.md`
+
+A few additions that came out of conversation:
+
+- **`activities.draft_content jsonb`** — mutable in-progress edit, separate from the append-only `activity_versions`. Autosave writes here; publish copies it into a new version row and clears the draft.
+- **`submissions.constraint submissions_identity_present`** — CHECK constraint that enforces every submission has either an `opaque_token` (Phase 3) or a non-empty `display_name` (Phase 1).
+- **Documented shape for `submissions.responses`** — keyed by stable `blank.id` so per-blank aggregation queries work even when blocks are reordered between document versions. Locked in now to avoid migrating historical data later.
+- **`publish_activity()` RPC** — atomic publish flow: insert version row, point activity at it, clear draft, audit log. Called by the publish Edge Function after it validates the draft.
+- **Hardened `ingest_submission()`** — now checks the identity-present constraint and the `responses` jsonb shape (belt-and-suspenders alongside the Edge Function's Zod parser).
+- **Permission helper functions** (`can_read_activity`, `can_edit_activity`, `can_access_assignment`) — defined at the top of `0002_rls_policies.sql`. RLS policies on `activity_versions`, `assignment_students`, and `submissions` call these helpers instead of inlining `EXISTS (SELECT 1 FROM activities ...)` clauses. `publish_activity` also calls `can_edit_activity` for its authorization check. Phase 3+ access patterns (collaborators, marketplace purchasers) are added by extending the helper bodies — no policy rewrites required.
+
+## After the migrations are applied
+
+A few one-time setup steps in the Supabase dashboard:
+
+1. **Enable `pg_cron` extension** (Database → Extensions). Then schedule the soft-delete purge:
+   ```sql
+   select cron.schedule(
+     'purge-soft-deleted',
+     '0 3 * * *',
+     'select purge_soft_deleted();'
+   );
+   ```
+
+2. **Configure auth providers** (Authentication → Providers). For Phase 1 with the allowlist, you'll likely want only Google OAuth enabled (since teachers are signing in with school accounts).
+
+3. **Set up service role key** for the Edge Functions. The submission and publish Edge Functions both need to call SECURITY DEFINER functions with elevated privileges; they use the service role key from environment variables (never expose it to the browser).
+
+4. **Edit `0004_seed_dev.sql`** with your real email and run it.
+
+## Test plan
+
+After applying all migrations, run the script below to verify RLS is working. This is a sanity check, not a full test suite — for ongoing repeatable testing once Phase 1 is real, use `supabase test db` with **pgTAP**, which handles fixtures and rollback properly. The manual version here is fine for verifying schema changes haven't broken anything.
+
+### Prerequisites
+
+You need two test users before the test will run. The trigger in `0003` requires their emails to be allowlisted before signup, so the order matters.
+
+**1. Allowlist two test emails:**
+
+```sql
+insert into allowlist (email, notes) values
+  ('[email protected]', 'RLS test fixture'),
+  ('[email protected]', 'RLS test fixture')
+on conflict (email) do nothing;
+```
+
+**2. Create the users via the dashboard:** Authentication → Users → Add user → Create new user, using each of the emails above. Set any password (you'll never log in as them). The signup trigger will fire and create matching `public.users` rows.
+
+**3. Get the UUIDs:**
+
+```sql
+select id, email from public.users where email like 'rls-test-%';
+```
+
+Copy the two UUIDs that come back; you'll paste them into the test script below.
+
+### Diagnostic queries
+
+If anything goes wrong during setup, these tell you what state you're actually in:
+
+```sql
+select * from allowlist where email like 'rls-test-%';   -- Should have 2 rows
+select id, email from auth.users where email like 'rls-test-%';   -- Should have 2 rows
+select id, email from public.users where email like 'rls-test-%'; -- Should have 2 rows
+```
+
+If `auth.users` has rows but `public.users` doesn't, the signup trigger isn't firing — check `select * from pg_trigger where tgname = 'on_auth_user_created';` and make sure `0003` was applied.
+
+### The test
+
+Replace `PUT-TEACHER-A-UUID-HERE` and `PUT-TEACHER-B-UUID-HERE` with the real UUIDs from step 3. Highlight the entire block in SQL Editor and run it as one query — the `BEGIN`/`ROLLBACK` must wrap everything so `set local` actually persists across statements. The `ROLLBACK` at the end means nothing is saved; you can re-run this as many times as you want without polluting the database.
+
+```sql
+-- ============================================================================
+-- RLS test plan
+-- Expected outcomes are noted next to each query. If any of them is wrong,
+-- RLS is broken and that needs to be fixed before anything else ships.
+-- ============================================================================
+
+begin;
+
+-- ---- As Teacher A ----
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "PUT-TEACHER-A-UUID-HERE", "role": "authenticated"}';
+
+-- A creates their own activity. SHOULD SUCCEED.
+insert into activities (owner_id, title, slug)
+  values ('PUT-TEACHER-A-UUID-HERE', 'A''s activity', 'a-activity');
+
+-- A reads their activities. EXPECT: 1
+select count(*) as a_sees_own_activity from activities;
+
+-- ---- As Teacher B ----
+set local request.jwt.claims = '{"sub": "PUT-TEACHER-B-UUID-HERE", "role": "authenticated"}';
+
+-- B tries to read A's activity. EXPECT: 0
+select count(*) as b_sees_a_activity from activities;
+
+-- B tries to update A's activity. EXPECT: 0 rows affected
+update activities set title = 'hijacked' where slug = 'a-activity';
+
+-- B tries to read assignment_students rows. EXPECT: 0 (privacy-critical)
+select count(*) as b_sees_a_assignment_students from assignment_students;
+
+-- B tries to read submissions. EXPECT: 0
+select count(*) as b_sees_a_submissions from submissions;
+
+-- ---- Back as Teacher A ----
+set local request.jwt.claims = '{"sub": "PUT-TEACHER-A-UUID-HERE", "role": "authenticated"}';
+
+-- A confirms title is unchanged. EXPECT: A's activity (NOT 'hijacked')
+select title from activities where slug = 'a-activity';
+
+rollback;
+```
+
+### What to do if a check fails
+
+If `b_sees_a_activity` returns anything other than 0, or the update affected more than 0 rows, or the title comes back as 'hijacked' — **stop**. Data leakage between teachers is the worst kind of bug this system can have, and a small RLS mistake at this stage compounds into a privacy disaster once real student data is involved. Re-read the policies in `0002_rls_policies.sql`, identify which one is too permissive, and fix it before doing anything else.
+
+### Tests deliberately not here
+
+A separate scenario worth testing once it becomes relevant is the failing INSERT — verifying that B *cannot* forge an activity with `owner_id = A`. Postgres's WITH CHECK rejection raises an exception, which aborts the transaction and prevents any later statements in the same `BEGIN` block from running. Testing it requires either a separate transaction or a `SAVEPOINT`/`ROLLBACK TO` dance. The pgTAP framework handles this cleanly; pure SQL doesn't. For now, the SELECT/UPDATE checks above are sufficient to confirm cross-user reads and writes are blocked.
+
+## What's deliberately NOT here
+
+The schema does not include:
+
+- Public/marketplace visibility policies (Phase 3+ — additional `select` policies on `activities` and `activity_versions`).
+- Purchase/entitlement table (Phase 5).
+- Organization/team tables (Phase 6).
+- Comments, ratings, reviews (Phase 5+).
+- A `students` table — we don't store student accounts. Ever.
+- Messaging or notifications.
+
+These are intentional omissions. Phase 1 is the smallest possible schema that supports the auth → create → edit → publish → submit → review loop.
