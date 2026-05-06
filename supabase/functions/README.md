@@ -7,7 +7,7 @@ Phase 1 Edge Functions for the activity platform. Two will exist by end of Phase
 | Function | Purpose | Status |
 |---|---|---|
 | `publish-activity` | Take a draft, atomically snapshot a version, render to HTML, upload to Storage, return URLs. | ✅ Phase 1 |
-| `ingest-submission` | Receive student submissions from published HTML, validate, write to `submissions`. | ⏳ Phase 1 (next) |
+| `ingest-submission` | Receive student submissions from published HTML, validate, write to `submissions`. | ✅ Phase 1 |
 
 ## Shared code
 
@@ -42,11 +42,19 @@ on conflict (id) do nothing;
 
 ### 2. Set environment secrets
 
-The publish function needs to know where the submission endpoint lives. After deploying both functions:
+After both functions are deployed, point publish-activity at the real ingest URL:
 
 ```bash
 supabase secrets set SUBMISSION_ENDPOINT="https://<project-ref>.supabase.co/functions/v1/ingest-submission"
 ```
+
+Set an IP hash salt for ingest-submission (a random string, generate with `openssl rand -hex 32`):
+
+```bash
+supabase secrets set IP_HASH_SALT="<random 32-byte hex string>"
+```
+
+Without IP_HASH_SALT, IPs are still hashed but unsalted, which is recoverable by brute force on a known IP range. The salt makes the hash effectively one-way.
 
 Optionally, restrict allowed origins for prod:
 
