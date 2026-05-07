@@ -1,0 +1,9 @@
+node_modules
+dist
+.vite
+**/renderer.bundle.js
+pnpm-lock.yaml
+
+# Hand-formatted; reflowing loses intent
+*.md
+supabase/migrations/**
