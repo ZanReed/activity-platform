@@ -33,19 +33,51 @@ export const runtimeJs = `
     catch (e) { /* private mode etc — ignore */ }
   }
 
+  // ---- Answer evaluation strategies -----------------------------------------
+  // Each strategy answers one question: "given a trimmed, non-empty typed
+  // value and the blank element's metadata, is the answer correct?" Strategies
+  // are pure boolean checks — they don't touch the DOM beyond reading data-*
+  // attributes off the blank, and they don't handle empty input (caller does).
+  //
+  // Phase 1 ships only 'list'. Phase 2.5 (parameterized problems) will add
+  // 'expression' (e.g. math.js-style equivalence) and possibly 'computed' (a
+  // parameterized problem with a variant-aware answer key). Adding a strategy
+  // is one entry here plus the renderer emitting data-blank-strategy="<name>"
+  // on the input — no changes to gatherResponses or checkBlank.
+  var strategies = {
+    list: function(input, typed) {
+      var answers = (input.getAttribute('data-blank-answers') || '').split('|');
+      return answers.indexOf(typed) !== -1;
+    },
+  };
+
+  function evaluateAnswer(input, typed) {
+    var name = input.getAttribute('data-blank-strategy') || 'list';
+    var strategy = strategies[name];
+    if (!strategy) {
+      // Misconfigured activity. Don't break submission for students — warn
+      // (visible in DevTools) and fall back to list comparison so existing
+      // data-blank-answers still scores something.
+      if (window.console) {
+        console.warn('Unknown blank strategy "' + name + '", falling back to list');
+      }
+      strategy = strategies.list;
+    }
+    return strategy(input, typed);
+  }
+
   // ---- Blank validation -----------------------------------------------------
   // On blur, mark a blank correct/incorrect. Comparison is whitespace-trimmed
-  // and case-sensitive — the case sensitivity matches what teachers expect
-  // for math (variable names, function names). If you want case-insensitive
-  // for verbal answers, that's a future answer-key option.
+  // and case-sensitive — the case sensitivity matches what teachers expect for
+  // math (variable names, function names). Case-insensitive comparison for
+  // verbal answers is a future per-strategy concern, not a global one.
   function checkBlank(input) {
     var value = input.value.replace(/^\\s+|\\s+$/g, '');
     if (value === '') {
       input.classList.remove('correct', 'incorrect');
       return null; // unscored
     }
-    var answers = (input.getAttribute('data-blank-answers') || '').split('|');
-    var correct = answers.indexOf(value) !== -1;
+    var correct = evaluateAnswer(input, value);
     input.classList.toggle('correct', correct);
     input.classList.toggle('incorrect', !correct);
     return correct;
