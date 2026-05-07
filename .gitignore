@@ -60,3 +60,8 @@ logs/
 # ---- Test output -----------------------------------------------------------
 coverage/
 .nyc_output/
+
+# Editor backups
+*~
+*.swp
+.DS_Store
