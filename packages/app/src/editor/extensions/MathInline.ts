@@ -1,0 +1,53 @@
+import { Node, mergeAttributes } from '@tiptap/core';
+import { ReactNodeViewRenderer } from '@tiptap/react';
+import MathInlineView from '../nodeViews/MathInlineView';
+
+declare module '@tiptap/core' {
+    interface Commands<ReturnType> {
+        mathInline: {
+            insertMathInline: (latex: string) => ReturnType;
+        };
+    }
+}
+
+export const MathInline = Node.create({
+    name: 'mathInline',
+    group: 'inline',
+    inline: true,
+    atom: true,
+    selectable: true,
+
+    addAttributes() {
+        return {
+            latex: {
+                default: '',
+                    parseHTML: (element) => element.getAttribute('data-latex') ?? '',
+                                      renderHTML: (attributes) => ({ 'data-latex': attributes.latex }),
+            },
+        };
+    },
+
+    parseHTML() {
+        return [{ tag: 'span[data-math-inline]' }];
+    },
+
+    renderHTML({ HTMLAttributes }) {
+        return ['span', mergeAttributes({ 'data-math-inline': '' }, HTMLAttributes)];
+    },
+
+    addNodeView() {
+        return ReactNodeViewRenderer(MathInlineView);
+    },
+
+    addCommands() {
+        return {
+            insertMathInline:
+            (latex: string) =>
+            ({ chain }) =>
+            chain()
+            .focus()
+            .insertContent({ type: this.name, attrs: { latex } })
+            .run(),
+        };
+    },
+});

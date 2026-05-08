@@ -13,12 +13,19 @@
     "@activity/renderer": "workspace:*",
     "@activity/schema": "workspace:*",
     "@supabase/supabase-js": "^2.105.3",
+    "@tiptap/core": "^3.22.5",
+    "@tiptap/pm": "^3.22.5",
+    "@tiptap/react": "^3.22.5",
+    "@tiptap/starter-kit": "^3.22.5",
+    "katex": "^0.16.10",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router": "^7.15.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@tailwindcss/vite": "^4.0.0",
+    "@types/katex": "^0.16.7",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
