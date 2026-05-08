@@ -7,6 +7,7 @@ import { MathBlock } from './extensions/MathBlock';
 import './editor.css';
 import { SlashMenu } from './extensions/SlashMenu';
 import { BlockReorderShortcuts } from './extensions/BlockReorderShortcuts';
+import 'mathlive';
 
 interface EditorProps {
     initialContent: JSONContent;

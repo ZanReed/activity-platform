@@ -21,6 +21,7 @@
     "@tiptap/starter-kit": "^3.23.1",
     "@tiptap/suggestion": "^3.23.1",
     "katex": "^0.16.10",
+    "mathlive": "^0.109.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router": "^7.15.0",
