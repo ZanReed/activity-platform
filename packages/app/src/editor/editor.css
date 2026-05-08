@@ -78,14 +78,15 @@
 }
 
 .math-inline-input {
-    font-family: ui-monospace, monospace;
-    font-size: 0.75rem;
+    /* Match KaTeX's inline rendering scale so typing doesn't visibly shrink the math */
+    font-size: 1.21em;
     padding: 0.125rem 0.375rem;
     border: 1px solid rgb(148 163 184);
     border-radius: 0.25rem;
     background-color: white;
-    min-width: 10rem;
+    min-width: 4rem;
     outline: none;
+    vertical-align: middle;
 }
 
 .math-inline-input:focus {
@@ -119,14 +120,13 @@
     display: block;
     width: 100%;
     margin-top: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-family: ui-monospace, monospace;
-    font-size: 0.875rem;
+    padding: 0.75rem 1rem;
+    /* Match KaTeX display-mode rendering scale */
+    font-size: 1.21em;
     line-height: 1.4;
     border: 1px solid rgb(148 163 184);
     border-radius: 0.25rem;
     background-color: white;
-    resize: vertical;
     outline: none;
 }
 
