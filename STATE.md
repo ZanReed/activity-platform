@@ -4,7 +4,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 ## Current focus
 
-**Phase 1 — Tiptap playground, stages 5–6 remaining.** Editor base (StarterKit), toolbar, custom math nodes (inline + block with KaTeX), and slash menu are all working in `/playground` (dev-only route). Drag handle and a JSON inspector panel are the last playground items. After that: MathLive integration in the math NodeView, then leave playground and build the serialize layer + Supabase wiring.
+**Phase 1 — Playground week complete; MathLive integration is up next.** Editor base (StarterKit), toolbar, custom math nodes (inline + block with KaTeX), slash menu, drag handle (mouse + `Mod+Shift+Arrow` keyboard reorder), and the JSON inspector panel are all working in `/playground` (dev-only route). After MathLive: leave playground and build the serialize layer + Supabase wiring.
 
 ## Status by area
 
@@ -26,9 +26,10 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 | Editor toolbar (B/I/code/H1-H3/lists/quote/math) | ✅ |
 | Custom math NodeViews (inline + block) | ✅ KaTeX render with lifecycle discipline |
 | Slash menu (`/` trigger + tippy popover) | ✅ Filter, arrow-key nav with scroll-into-view, click-to-select |
-| Drag handle | ⏳ Stage 5 |
-| JSON inspector panel | ⏳ Stage 6 |
-| MathLive integration in math NodeView | ⏳ After playground, before serialize layer |
+| Drag handle (mouse) | ✅ Notion-style, hover-revealed, left-gutter |
+| Block reorder (keyboard) | ✅ `Mod+Shift+ArrowUp/Down`, top-level blocks |
+| JSON inspector panel | ✅ Sticky right-side panel in `/playground`, copy + node count |
+| MathLive integration in math NodeView | ⏳ Next |
 | Serialize layer (Tiptap JSON ↔ ActivityDocument) | ⏳ After MathLive |
 | Dashboard (activity list, create, open) | ⏳ Not started |
 | Editor wired to Supabase (autosave drafts) | ⏳ Not started |
@@ -47,7 +48,8 @@ activity-platform/
 │           ├── editor/
 │           │   ├── Editor.tsx, Toolbar.tsx, editor.css
 │           │   ├── SlashMenuPopover.tsx, slashMenuItems.ts
-│           │   ├── extensions/   — MathInline, MathBlock, SlashMenu
+│           │   ├── JsonInspector.tsx
+│           │   ├── extensions/   — MathInline, MathBlock, SlashMenu, BlockReorderShortcuts
 │           │   └── nodeViews/    — MathInlineView, MathBlockView
 │           ├── routes/           — Home.tsx, Playground.tsx (dev-only)
 │           ├── lib/              — supabase.ts
@@ -101,6 +103,10 @@ activity-platform/
 - **MathLive in published HTML is a Phase 2.5 decision, not committed.** Editor-only commitment now. Bundle-size hit only matters for student-facing pages, not the editor.
 - **Toolbar UX: static (always-visible) over BubbleMenu/FloatingMenu** — discoverability beats elegance for non-technical teachers.
 - **Slash menu architecture:** `@tiptap/suggestion` for trigger plumbing + `tippy.js` for popover positioning + Tiptap's `ReactRenderer` to bridge ProseMirror callbacks to a React component (the `useImperativeHandle` pattern). Menu items live in `slashMenuItems.ts` as a flat array — single source of truth; adding a block type to the menu is one entry.
+- **Drag handle: Notion-style, mouse-only** via `@tiptap/extension-drag-handle-react`. Hover-revealed in the left gutter; the extension manages its own visibility (hidden when no block is hovered). That hidden-by-default behavior means the handle isn't Tab-reachable, and that's correct: drag handles are fundamentally mouse affordances. The keyboard equivalent isn't a focusable handle, it's a shortcut that acts on the cursor's block.
+- **Keyboard reorder via `Mod+Shift+ArrowUp/Down`** — custom `BlockReorderShortcuts` extension. Operates on whichever top-level block contains the cursor. Matches Tiptap's official move-node-button convention. Within the editor this overrides macOS's "extend selection to start of doc" — `Mod+Shift+Home` remains for users who need that. Nested reordering (inside lists, blockquotes) is a future enhancement.
+- **`Editor` exposes `onUpdate(json)` callback prop** as the single hook for "react to doc changes." Multi-purpose: `/playground` uses it for the JSON inspector; `/activity/:id` will use it for Supabase autosave; future word counter, validation badge, etc. all subscribe through the same prop. Both `onCreate` and `onUpdate` from Tiptap forward through it, so the consumer sees Tiptap's normalized view from first render. `Editor` itself never knows about consumers — keeps it reusable across routes.
+- **JSON inspector lives in `Playground.tsx`, not `Editor.tsx`.** Standard "lift state up" — Playground holds the JSON state and renders both editor and inspector as siblings. Editor stays clean of debug-only UI. The inspector is dev-only and physically excluded from production builds along with the rest of `/playground`.
 
 ## Standing constraints
 
@@ -110,12 +116,14 @@ activity-platform/
 - Adding a new block type touches: schema file, factory, renderer file, styles, `slashMenuItems.ts` (to surface in the slash menu), and a Tiptap extension + NodeView. Pattern in `MathInline.ts` / `MathInlineView.tsx` is the canonical reference for the editor side; `problem.ts` / `fill-in-blank.ts` for the schema side.
 - The Supabase `service_role` key never leaves the server. Frontend uses publishable (anon) key only; RLS does access control.
 - Math NodeView lifecycle pattern (5 commitments above) applies to every NodeView, not just math.
+- **All `@tiptap/*` packages stay on the same version.** They share internal state via `@tiptap/pm` (a shared ProseMirror bundle); mixing versions causes subtle bugs that look like editor weirdness but are actually version skew. When adding a Tiptap extension, install the version matching the rest of the family or update everything together.
+- **Drag handle button has `tabIndex={-1}`** to make its mouse-only nature explicit. Keyboard reorder is the keyboard a11y story, not Tab traversal of the handle.
 
 ## Open questions / deferred decisions
 
 - **MathLive integration:** locked-in choice for editor's math NodeView; install + wiring deferred to its own task after playground week.
 - **Phase 2.5 published-HTML math input strategy:** MathLive lazy-loaded? Custom toolbar? Smarter plain-text answer normalization? Decide when 2.5 actually ships.
-- **Floating UI vs Tippy long-term:** Tippy works now; Floating UI is the modern direction. No urgency to switch.
+- **Floating UI vs Tippy long-term:** Tippy works now; Floating UI is the modern direction. (Drag handle already uses floating-ui internally via the Tiptap component — eventual unification is plausible.) No urgency to switch the slash menu.
 - **Editor styling beyond minimum:** Tailwind Typography plugin vs custom CSS. Current `editor.css` rules are enough for now.
 - **Mobile/touch slash menu:** `/` trigger isn't natural on touch keyboards. Phase 2+ concern.
 - **Hosting for the React app:** Cloudflare Pages vs Vercel. Deferred until app is ready to deploy.
@@ -127,13 +135,11 @@ activity-platform/
 
 ## Nearest next steps
 
-1. **Stage 5 — Drag handle.** Install `@tiptap/extension-drag-handle-react` (verify exact package name at install — Tiptap has reshuffled this one across releases).
-2. **Stage 6 — JSON inspector panel.** Side panel showing live editor JSON for understanding what the serialize layer will translate. Doubles as a debugging aid.
-3. **MathLive integration** in math NodeViews — replace `<textarea>` / `<input>` + KaTeX preview with `<math-field>` for WYSIWYG editing. Schema/data shape unchanged (still a LaTeX string in `attrs.latex`).
-4. **Serialize layer** — `serialize.ts` in `@activity/app` translates Tiptap JSON ↔ `ActivityDocument`. Bridges editor and schema; renderer doesn't touch it.
-5. **Wire editor to Supabase** — activity list, create activity, open editor, autosave drafts via the serialize layer (debounced ~1s, optimistic UI, "Saving…/Saved" indicator).
-6. **Housekeeping (before #7):** run `pnpm bundle:renderer` and redeploy `publish-activity` so the deployed bundle picks up the strategy-dispatch refactor.
-7. **End-to-end manual test** — publish from the editor, view as student, submit, view in teacher dashboard. Closes the Phase 1 loop.
+1. **MathLive integration** in math NodeViews — replace `<textarea>` / `<input>` + KaTeX preview with `<math-field>` for WYSIWYG editing. Schema/data shape unchanged (still a LaTeX string in `attrs.latex`). Watch for: web-component-in-React event wiring, MathLive's keyboard handling vs ProseMirror's, the 5-commitments NodeView lifecycle pattern still applies.
+2. **Serialize layer** — `serialize.ts` in `@activity/app` translates Tiptap JSON ↔ `ActivityDocument`. Bridges editor and schema; renderer doesn't touch it. The JSON inspector panel was specifically built to make this layer easier to write — refer to it during development.
+3. **Wire editor to Supabase** — activity list, create activity, open editor, autosave drafts via the serialize layer (debounced ~1s, optimistic UI, "Saving…/Saved" indicator). Subscribe via `Editor.onUpdate`.
+4. **Housekeeping (before #5):** run `pnpm bundle:renderer` and redeploy `publish-activity` so the deployed bundle picks up the strategy-dispatch refactor.
+5. **End-to-end manual test** — publish from the editor, view as student, submit, view in teacher dashboard. Closes the Phase 1 loop.
 
 ## Things NOT to do
 
@@ -144,6 +150,7 @@ activity-platform/
 - Don't conflate ProseMirror selection state (`selected`) with React UI state (`editing`) in NodeViews. They're separate concerns; mixing them up causes the "input deselects after one keystroke" class of bug.
 - Don't add MathLive to published HTML in Phase 1. That's a Phase 2.5 decision.
 - Don't regress flowing-water UX as features land — performance budget, optimistic autosave, visible state indicators, predictable shortcuts. The user is more friction-tolerant than average users will be; flag friction risks even if they shrug.
+- Don't mix `@tiptap/*` package versions. Update the family together.
 
 ## Working with the author (notes for the next AI session)
 
@@ -152,17 +159,19 @@ Solo dev: Dallas ISD Algebra II teacher, working-level JS/Python, learning the s
 Specific friction patterns where unstated assumptions have caused loops:
 
 - **Git workflow isn't automatic.** Lay out `git add <paths>` → `git status` (verify) → `git commit` → `git push` as separate steps.
+- **Git command batches skip the verify step.** When the four steps above get pasted as a single shell line, the `git status` output flies past unread and unstaged files (e.g., `package.json` after fresh installs, lockfile updates, CSS that pairs with new code) get left out of the commit. The verify step is *the moment* to catch that. Emphasize separate-step entry, AND if a staged file list looks suspiciously short relative to the work just done, flag it before suggesting `git commit`.
 - **Hidden files (leading `.`) deserve a callout** when pointing at `.env.local`, `.gitignore`, etc. `ls -la` shows them.
 - **Editor commands aren't implicit.** Name nano's `Ctrl+O` (write out) / `Ctrl+X` (exit), or vim's `:wq`, when those editors come up.
 - **pnpm workspace patterns are new.** When using `--filter @activity/foo` or `workspace:*`, a brief context sentence the first time.
 - **pnpm strict-mode imports:** missing direct deps surface as Vite "Failed to resolve import" errors, even when the package exists transitively. The fix is always `pnpm add --filter @activity/app <package>`. Recognize the pattern when the user pastes that error.
 - **"Replace X" instructions are easy to misread as "replace the whole file"** — or as "add the new code without removing the old." When pointing at a partial replacement (especially restructurings like "consolidate two returns into one"), name the delete-from / keep boundaries explicitly. Include "the rest of the file is unchanged" reassurance.
 - **Babel TSX parser trips on nested generics in `forwardRef<A, B<C>>`.** Workaround: extract the inner type to a top-level alias.
-- **New tooling concepts get one sentence of context the first time** — flat ESLint config, Tailwind v4 `@theme`, Zod discriminated unions, Tiptap's `useImperativeHandle` bridge for ProseMirror callbacks, React Router v7 declarative mode, ProseMirror NodeViews, the marks-on-text-runs model, etc.
+- **New tooling concepts get one sentence of context the first time** — flat ESLint config, Tailwind v4 `@theme`, Zod discriminated unions, Tiptap's `useImperativeHandle` bridge for ProseMirror callbacks, React Router v7 declarative mode, ProseMirror NodeViews, the marks-on-text-runs model, floating-ui (used inside the drag handle), `:focus-visible`, etc.
 - **Don't conflate URLs with API keys** when describing dashboard navigation.
+- **Don't overstate accessibility behavior without thinking through the rendered state.** Stage 5a, "the handle button is reachable by Tab" turned out to be false because the parent extension hides the element when no block is hovered. The actual fix was a keyboard shortcut acting on the cursor's block, not making a hidden element focusable. General lesson: when claiming an a11y property, walk through the actual rendered DOM and keyboard flow before saying it works.
 
 When something fails, the user pastes terminal output. Read the actual output before assuming what happened — "command ran successfully" vs "command exited without doing anything" can look similar at first glance. Likewise, when the user pastes a file's contents, scan for duplicated code, dead code after a `return`, or missing exports before assuming the bug is elsewhere.
 
 ---
 
-**Last updated:** Stages 1–4 of the playground week complete and committed. Editor base, toolbar, math nodes (inline + block), and slash menu all working. NodeView lifecycle pattern (the "5 commitments") and React-state-vs-ProseMirror-state distinction locked in as standing constraints. Next session resumes at Stage 5 (drag handle) per the "Nearest next steps" list.
+**Last updated:** Playground week complete. Stages 5 (drag handle, mouse + keyboard reorder via `Mod+Shift+Arrow`) and 6 (JSON inspector panel) committed. `Editor.onUpdate` callback prop added as the canonical hook for subscribing to doc changes — used by inspector now, autosave later. Next session resumes at MathLive integration per the "Nearest next steps" list.
