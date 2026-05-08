@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { JSONContent } from '@tiptap/react';
 import Editor from '../editor/Editor';
+import JsonInspector from '../editor/JsonInspector';
 
 const helloDoc: JSONContent = {
     type: 'doc',
@@ -42,14 +44,19 @@ const helloDoc: JSONContent = {
 };
 
 export default function Playground() {
+    const [json, setJson] = useState<JSONContent>(helloDoc);
+
     return (
         <main className="min-h-screen bg-slate-50 p-8">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-7xl">
         <h1 className="text-3xl font-bold text-slate-900">Playground</h1>
         <p className="mt-2 mb-8 text-slate-600">
         Tiptap editor sandbox — dev only.
         </p>
-        <Editor initialContent={helloDoc} />
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <Editor initialContent={helloDoc} onUpdate={setJson} />
+        <JsonInspector json={json} />
+        </div>
         </div>
         </main>
     );

@@ -10,12 +10,19 @@ import { BlockReorderShortcuts } from './extensions/BlockReorderShortcuts';
 
 interface EditorProps {
     initialContent: JSONContent;
+    onUpdate?: (json: JSONContent) => void;
 }
 
-export default function Editor({ initialContent }: EditorProps) {
+export default function Editor({ initialContent, onUpdate }: EditorProps) {
     const editor = useEditor({
         extensions: [StarterKit, MathInline, MathBlock, SlashMenu, BlockReorderShortcuts],
         content: initialContent,
+        onCreate: ({ editor }) => {
+            onUpdate?.(editor.getJSON());
+        },
+        onUpdate: ({ editor }) => {
+            onUpdate?.(editor.getJSON());
+        },
     });
 
     return (
