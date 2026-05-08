@@ -4,6 +4,7 @@ import Toolbar from './Toolbar';
 import { MathInline } from './extensions/MathInline';
 import { MathBlock } from './extensions/MathBlock';
 import './editor.css';
+import { SlashMenu } from './extensions/SlashMenu';
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -11,7 +12,7 @@ interface EditorProps {
 
 export default function Editor({ initialContent }: EditorProps) {
     const editor = useEditor({
-        extensions: [StarterKit, MathInline, MathBlock],
+        extensions: [StarterKit, MathInline, MathBlock, SlashMenu],
         content: initialContent,
     });
 

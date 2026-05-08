@@ -133,3 +133,58 @@
 .math-block-input:focus {
     border-color: rgb(59 130 246);
 }
+/* Slash menu */
+.slash-menu {
+    width: 280px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+    padding: 0.25rem;
+}
+
+.slash-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.slash-menu-item.is-selected {
+    background-color: rgb(241 245 249);
+}
+
+.slash-menu-item-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgb(15 23 42);
+}
+
+.slash-menu-item-desc {
+    font-size: 0.75rem;
+    color: rgb(100 116 139);
+    margin-top: 0.125rem;
+}
+
+.slash-menu-empty {
+    padding: 0.75rem;
+    text-align: center;
+    color: rgb(148 163 184);
+    font-size: 0.875rem;
+}
+
+/* Strip Tippy's default popover chrome — our SlashMenu provides its own. */
+.tippy-box[data-theme~='slash-menu'] {
+    background: transparent;
+    box-shadow: none;
+}
+.tippy-box[data-theme~='slash-menu'] .tippy-content {
+    padding: 0;
+}
