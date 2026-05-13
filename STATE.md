@@ -14,7 +14,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 | Permission helper functions | ✅ In place; future collaboration extends helpers |
 | `@activity/schema` package | ✅ Tested, on GitHub |
 | `@activity/renderer` package | ✅ 17/17 tests passing; runtime refactored to strategy dispatch |
-| Renderer bundle for Edge Functions | ✅ Working — deployed bundle one commit behind source. Redeploy before next real publish. |
+| Renderer bundle for Edge Functions | ✅ Tracked in git as of 9b. Rebuild before any Edge Function deploy; bundle commits with the source it supports. |
 | `publish-activity` Edge Function | ✅ Deployed |
 | `ingest-submission` Edge Function | ✅ Deployed; enforces `schemaVersion: 2` on incoming responses (rejects v1 with 400); returns `attempt_number` alongside `submission_id`. |
 | Edge Function secrets | ✅ Set |
