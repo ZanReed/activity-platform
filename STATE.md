@@ -16,8 +16,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 | `@activity/renderer` package | ✅ 17/17 tests passing; runtime refactored to strategy dispatch |
 | Renderer bundle for Edge Functions | ✅ Working — deployed bundle one commit behind source. Redeploy before next real publish. |
 | `publish-activity` Edge Function | ✅ Deployed |
-| `ingest-submission` Edge Function | ✅ Deployed (will need update in 9b for attempt_number) |
-| Storage bucket `activities` | ✅ Public |
+| `ingest-submission` Edge Function | ✅ Deployed; enforces `schemaVersion: 2` on incoming responses (rejects v1 with 400); returns `attempt_number` alongside `submission_id`. |
 | Edge Function secrets | ✅ Set |
 | React app (`@activity/app`) | ✅ Scaffolded — Vite + React 19 + TS + Tailwind v4 |
 | Auth flow stub | ✅ Google OAuth via Supabase; allowlist gate verified |
@@ -33,7 +32,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 | Serialize layer (Tiptap JSON ↔ ActivityDocument) | ✅ `serialize.ts` with `tiptapToActivity` / `activityToTiptap`; 18 round-trip tests passing |
 | Checkpoint + feedback architecture | ✅ Designed; see RUNTIME.md + architecture decisions below |
 | Schema additions for checkpoints/feedback (Stage 9a) | ✅ Complete; 30 tests passing |
-| DB migration 0005 (attempt_number) (Stage 9b) | ⏳ After 9a |
+| DB migration 0005 (attempt_number) (Stage 9b) | ✅ Applied; `ingest_submission` now returns `jsonb {submission_id, attempt_number}` with retry-on-unique-violation. |
 | Tiptap section_break + isCheckpoint UI (Stage 9c) | ⏳ After 9a, parallelizable with 9b |
 | Editor wired to Supabase + basic dashboard (Stage 10) | ⏳ After 9b/9c |
 | Runtime file split + build pipeline (Stage 11) | ⏳ Not started |
@@ -98,7 +97,7 @@ After Stage 11: `packages/renderer/src/runtime/` will be added, and `bundle-rend
 - **Permission helpers as SQL functions** so Phase 3+ collaboration changes one function, not eight policies.
 - **Submission identity always present** — Pattern B: name field on the page, gate submit until non-empty. CHECK constraint enforces at storage layer.
 - **Responses jsonb keyed by stable `blank.id`**, not array index.
-- **`schemaVersion: 1`** on `ActivityDocument` stays at 1 — Stage 9a additions are all optional-with-defaults, so existing stored documents parse cleanly without modification. `SubmissionResponses.schemaVersion` bumps to 2 in 9a (real shape change for `attemptNumber` and `checkpointResults`) with migrate-on-read for v1 submissions.
+- **`schemaVersion: 1`** on `ActivityDocument` stays at 1 — Stage 9a additions are all optional-with-defaults, so existing stored documents parse cleanly without modification. `SubmissionResponses.schemaVersion` bumped to 2 in 9a, adding only the optional `checkpointResults` map and per-blank `confidence`; migrate-on-read handles v1 submissions in storage. **`attempt_number` does NOT live in the responses jsonb** — it's a column on the `submissions` table, derived server-side by the `ingest_submission` RPC (`max + 1` over the student's identity scope, with `unique_violation` retry against the two partial unique indexes added in 0005). The Edge Function returns the canonical value in its HTTP response so the runtime can reconcile its optimistic guess. The runtime's local `attempt_number` is advisory. Schema package convention: `SubmissionResponses` always names the current version; `SubmissionResponsesV1` is the legacy preserved for migration.
 - **Runtime answer scoring is strategy-dispatched** — `evaluateAnswer(input, typed)` reads `data-blank-strategy`, defaulting to `'list'`.
 - **Parameterized problems are a planned Phase 2.5 feature.** Don't add to Phase 1.
 - **Math nodes are atoms** with `attrs.latex` as the source of truth. Serialize as `<span data-math-inline data-latex="...">` / `<div data-math-block data-latex="...">`. No editable text content inside.
@@ -220,6 +219,9 @@ Specific friction patterns where unstated assumptions have caused loops:
 - **New tooling concepts get one sentence of context the first time** — flat ESLint config, Tailwind v4 `@theme`, Zod discriminated unions, Tiptap's `useImperativeHandle` bridge for ProseMirror callbacks, React Router v7 declarative mode, ProseMirror NodeViews, the marks-on-text-runs model, floating-ui (used inside the drag handle), `:focus-visible`, esbuild bundler options, etc.
 - **Don't conflate URLs with API keys** when describing dashboard navigation.
 - **Don't overstate accessibility behavior without thinking through the rendered state.** Stage 5a, "the handle button is reachable by Tab" turned out to be false because the parent extension hides the element when no block is hovered. The actual fix was a keyboard shortcut acting on the cursor's block, not making a hidden element focusable. General lesson: when claiming an a11y property, walk through the actual rendered DOM and keyboard flow before saying it works.
+- **Schema versioning convention. SubmissionResponses always names the current schema; SubmissionResponsesV1 is the legacy preserved for migration. There is no SubmissionResponsesV2 symbol — when the next version lands, SubmissionResponses becomes v3 and a SubmissionResponsesV2 will be introduced as the new legacy name. "Rename when demoting, not when promoting."
+
+
 
 When something fails, the user pastes terminal output. Read the actual output before assuming what happened — "command ran successfully" vs "command exited without doing anything" can look similar at first glance. Likewise, when the user pastes a file's contents, scan for duplicated code, dead code after a `return`, or missing exports before assuming the bug is elsewhere.
 
