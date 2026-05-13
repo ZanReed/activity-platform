@@ -22,7 +22,6 @@ build/
 # Generated bundle of the renderer for Edge Function consumption. Produced by
 # `pnpm bundle:renderer` before each deploy. Don't commit — it's derivative
 # of packages/renderer source and would just go stale.
-supabase/functions/_shared/renderer.bundle.js
 supabase/functions/_shared/renderer.bundle.js.map
 
 # ---- Environment + secrets -------------------------------------------------

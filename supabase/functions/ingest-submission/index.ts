@@ -31,8 +31,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  SubmissionResponsesV2,
-  type SubmissionResponsesV2 as SubmissionResponsesV2Type,
+  SubmissionResponses,
+  type SubmissionResponses as SubmissionResponsesType,
 } from '../_shared/renderer.bundle.js';
 import {
   handlePreflight,
@@ -160,13 +160,13 @@ return errorResponse(
   }
 
   // ---- Validate responses with Zod (v2 only) ----------------------------
-  const parsed = SubmissionResponsesV2.safeParse(body.responses);
+  const parsed = SubmissionResponses.safeParse(body.responses);
   if (!parsed.success) {
     return errorResponse(req, 422, 'responses failed schema validation', {
       issues: parsed.error.issues,
     });
   }
-  const responses: SubmissionResponsesV2Type = parsed.data;
+  const responses: SubmissionResponsesType = parsed.data;
 
   // ---- Score (optional, must be in [0, 1]) ------------------------------
   let score: number | null = null;
