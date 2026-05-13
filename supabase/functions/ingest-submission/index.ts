@@ -11,9 +11,12 @@
 // leaves the Edge runtime.
 //
 // Validation happens in three layers, defense in depth:
-//   1. Edge Function (this file): shape check, Zod parse, score range
-//   2. SQL function ingest_submission: activity is published, identity present
-//   3. submissions CHECK constraint: identity present at storage layer
+//   1. Edge Function (this file): shape check, schemaVersion=2 check, Zod parse,
+//      score range
+//   2. SQL function ingest_submission: activity is published, identity present,
+//      attempt_number derivation (NEVER from client input)
+//   3. submissions CHECK constraint + partial unique indexes: identity present
+//      at storage layer; attempt_number uniqueness per identity
 //
 // Environment variables:
 //   SUPABASE_URL                — auto-injected
@@ -28,8 +31,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  SubmissionResponses,
-  type SubmissionResponses as SubmissionResponsesType,
+  SubmissionResponsesV2,
+  type SubmissionResponsesV2 as SubmissionResponsesV2Type,
 } from '../_shared/renderer.bundle.js';
 import {
   handlePreflight,
@@ -44,6 +47,7 @@ const IP_HASH_SALT = Deno.env.get('IP_HASH_SALT') ?? '';
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('Missing required Supabase environment variables');
 }
+
 if (!IP_HASH_SALT) {
   console.warn(
     '[ingest-submission] IP_HASH_SALT not set — ip_hash will be unsalted (recoverable by brute force)',
@@ -60,6 +64,7 @@ interface SubmissionRequest {
 
 interface SubmissionResponse {
   submission_id: string;
+  attempt_number: number;
 }
 
 // Loose UUID syntax check. The DB does the authoritative check via the uuid
@@ -78,8 +83,8 @@ async function hashIp(ip: string): Promise<string> {
   const data = new TextEncoder().encode(IP_HASH_SALT + ':' + ip);
   const buffer = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(buffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  .map((b) => b.toString(16).padStart(2, '0'))
+  .join('');
 }
 
 /**
@@ -123,21 +128,45 @@ Deno.serve(async (req: Request) => {
   // must be present. SQL CHECK constraint and the RPC also enforce this; we
   // catch it early to give a clean error to the student's browser.
   const hasName =
-    typeof body.display_name === 'string' && body.display_name.trim().length > 0;
+  typeof body.display_name === 'string' && body.display_name.trim().length > 0;
   const hasToken =
-    typeof body.opaque_token === 'string' && body.opaque_token.length > 0;
+  typeof body.opaque_token === 'string' && body.opaque_token.length > 0;
   if (!hasName && !hasToken) {
     return errorResponse(req, 400, 'Must provide display_name or opaque_token');
   }
 
-  // ---- Validate responses with Zod --------------------------------------
-  const parsed = SubmissionResponses.safeParse(body.responses);
+  // ---- Reject non-v2 responses ------------------------------------------
+  // v2-only enforcement: the runtime emits v2; v1 only exists as
+  // already-stored data and is handled by migrateSubmissionResponses on read.
+  // Reject v1 cleanly rather than silently accepting it through a discriminated
+  // union — this is the canonical place to enforce wire-format version, and a
+  // schemaVersion mismatch is a clear "your client is out of date" signal we
+  // want surfaced.
+  const rawResponses = body.responses as { schemaVersion?: unknown } | null;
+  if (
+    typeof rawResponses !== 'object' ||
+    rawResponses === null ||
+    rawResponses.schemaVersion !== 2
+  ) {
+    const got =
+    typeof rawResponses === 'object' && rawResponses !== null
+    ? String(rawResponses.schemaVersion ?? 'missing')
+    : 'missing';
+return errorResponse(
+  req,
+  400,
+  `responses must use schemaVersion 2 (received: ${got})`,
+);
+  }
+
+  // ---- Validate responses with Zod (v2 only) ----------------------------
+  const parsed = SubmissionResponsesV2.safeParse(body.responses);
   if (!parsed.success) {
     return errorResponse(req, 422, 'responses failed schema validation', {
       issues: parsed.error.issues,
     });
   }
-  const responses: SubmissionResponsesType = parsed.data;
+  const responses: SubmissionResponsesV2Type = parsed.data;
 
   // ---- Score (optional, must be in [0, 1]) ------------------------------
   let score: number | null = null;
@@ -154,37 +183,51 @@ Deno.serve(async (req: Request) => {
   const ipHash = await hashIp(clientIp);
 
   // ---- Call RPC ---------------------------------------------------------
+  // ingest_submission returns jsonb { submission_id, attempt_number }.
+  // attempt_number is derived server-side from max+1 over the student's
+  // identity scope — we don't read it from the client even if it's present
+  // in the payload. The runtime sends a local guess for optimistic UI; the
+  // server's value is canonical and gets returned here for reconciliation.
   const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
-
-  const { data: submissionId, error: rpcError } = await adminClient.rpc('ingest_submission', {
+  const { data: rpcResult, error: rpcError } = await adminClient.rpc('ingest_submission', {
     p_activity_id:  body.activity_id,
     p_opaque_token: hasToken ? body.opaque_token! : null,
     p_display_name: hasName ? body.display_name!.trim() : null,
-    p_responses:    responses,
-    p_score:        score,
-    p_user_agent:   userAgent,
-    p_ip_hash:      ipHash,
+                                                                     p_responses:    responses,
+                                                                     p_score:        score,
+                                                                     p_user_agent:   userAgent,
+                                                                     p_ip_hash:      ipHash,
   });
 
   if (rpcError) {
     const msg = rpcError.message ?? 'Submission failed';
     // Map known RPC exception messages to appropriate HTTP statuses.
     const status =
-      msg.includes('not found') || msg.includes('not published') ? 404 :
-      msg.includes('Invalid token')                                ? 401 :
-      msg.includes('requires')                                     ? 400 :
-                                                                     500;
+    msg.includes('not found') || msg.includes('not published') ? 404 :
+    msg.includes('Invalid token')                                ? 401 :
+    msg.includes('requires')                                     ? 400 :
+    500;
     console.error('[ingest-submission] RPC error:', rpcError);
     return errorResponse(req, status, msg);
   }
 
-  if (typeof submissionId !== 'string') {
-    console.error('[ingest-submission] RPC returned unexpected value:', submissionId);
+  // supabase-js gives a `returns jsonb` RPC result back as `data` directly.
+  if (
+    !rpcResult ||
+    typeof rpcResult !== 'object' ||
+    typeof (rpcResult as { submission_id?: unknown }).submission_id !== 'string' ||
+    typeof (rpcResult as { attempt_number?: unknown }).attempt_number !== 'number'
+  ) {
+    console.error('[ingest-submission] RPC returned unexpected value:', rpcResult);
     return errorResponse(req, 500, 'Submission RPC returned unexpected value');
   }
 
-  const response: SubmissionResponse = { submission_id: submissionId };
+  const result = rpcResult as { submission_id: string; attempt_number: number };
+  const response: SubmissionResponse = {
+    submission_id:  result.submission_id,
+    attempt_number: result.attempt_number,
+  };
   return jsonResponse(req, response, { status: 200 });
 });

@@ -32,7 +32,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 | MathLive integration in math NodeView | ✅ `<math-field>` web component wired; font-size set to 1.21em to match KaTeX scale |
 | Serialize layer (Tiptap JSON ↔ ActivityDocument) | ✅ `serialize.ts` with `tiptapToActivity` / `activityToTiptap`; 18 round-trip tests passing |
 | Checkpoint + feedback architecture | ✅ Designed; see RUNTIME.md + architecture decisions below |
-| Schema additions for checkpoints/feedback (Stage 9a) | ⏳ In progress |
+| Schema additions for checkpoints/feedback (Stage 9a) | ✅ Complete; 30 tests passing |
 | DB migration 0005 (attempt_number) (Stage 9b) | ⏳ After 9a |
 | Tiptap section_break + isCheckpoint UI (Stage 9c) | ⏳ After 9a, parallelizable with 9b |
 | Editor wired to Supabase + basic dashboard (Stage 10) | ⏳ After 9b/9c |
@@ -133,6 +133,9 @@ After Stage 11: `packages/renderer/src/runtime/` will be added, and `bundle-rend
 - **Source maps emitted for runtime.** Always-on, external. Modern browsers only fetch them when DevTools is open; zero performance cost for students; without them, teacher-reported bugs in minified code aren't debuggable.
 - **Runtime does NOT import from `@activity/schema`.** Parallel minimal TypeScript interfaces mirror the data-attribute contract. Deliberate duplication — keeping the runtime under the 20KB performance budget rules out bundling Zod.
 - **Pedagogical block types planned for Phase 2** (cheap to add then per the existing "adding block types is cheap" architecture): worked example block, faded worked example / completion problem, learning objectives + success criteria (combined block), self-explanation/reflection block.
+- **Skill tagging, not standards.** `skills: string[]` on ActivityMeta, FillInBlankBlock, and ProblemBlock, NOT `standards`. Action-oriented and framework-neutral — "simplifying rational expressions" rather than "TEKS A.10A" — so the system stays portable across Texas/CCSS/UK National Curriculum/etc. The field doesn't validate against any framework; teachers who want to use TEKS or CCSS codes can put them in the array. Phase 5 marketplace will add controlled vocabulary on top; an optional separate `standards` field for compliance reporting is additive whenever it's needed.
+- **Test directory convention:** `packages/<pkg>/tests/` for public-API tests (import from `'../src/index.js'`); `packages/<pkg>/src/__tests__/` for unit-level tests of new features (import from internal paths). Both directories are picked up by Vitest's default discovery.
+- **Barrel export discipline:** `packages/schema/src/index.ts` uses explicit named re-exports, not wildcards. New types added to a source file must be added to the barrel too. This caught the missing `SubmissionResponsesV1` / `migrateSubmissionResponses` exports during Stage 9a testing — the friction is working as designed.
 
 ## Standing constraints
 
