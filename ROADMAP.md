@@ -41,7 +41,12 @@ Quality-of-life improvements that make the Phase 1 loop pleasant rather than bar
 
 **User-visible**: Paste a markdown list of problems and get blocks (port of the existing bulk-importer pattern). Upload images directly instead of pasting URLs. Submission viewer shows aggregate per-blank stats ("78% got blank #3 correct"). Self-signup with email verification replaces the allowlist for general use, with the allowlist remaining as an admin override for restricted contexts. Section color tinting and a few more block types (table, divider, video embed) earn their way in if teachers ask for them.
 
-**Architectural delta**: Image upload to Supabase Storage (Phase 2 — public bucket but with size limits and a cleanup policy). Aggregate-stats query/view. Email verification flow in Supabase Auth. Markdown parser package (likely a thin port of the existing bulk-importer.js into TypeScript, with the same line-anchor logic).
+**Vocabulary definitions**: teachers can select a word or phrase in the editor and attach an inline definition. Students see the defined term subtly underlined; click or tap (or focus + Enter) opens a popover with the definition. Targets the math-specific vocabulary barrier — "factor" as verb vs. noun, "rational expression," "domain," "coefficient" — that disproportionately gates Algebra II for ELL students and kids who arrived without earlier-grade terminology internalized. Inline-only in Phase 2; the activity-level glossary that lets a teacher define "factor" once and have every marked instance share that definition is a Phase 4 extension of the same mark.
+
+
+**Architectural delta**: Image upload to Supabase Storage (Phase 2 — public bucket but with size limits and a cleanup policy). Aggregate-stats query/view. Email verification flow in Supabase Auth. Markdown parser package (likely a thin port of the existing bulk-importer.js into TypeScript, with the same line-anchor logic). A new Tiptap mark (definition) joins the bold/italic/code mark set, carrying an inline definition string. Renderer emits <span class="definition" data-definition="..." tabindex="0" role="button"> with full keyboard accessibility (Tab to reach, Enter/Space to open, Esc to dismiss; floating-ui for positioning, already a transitive dependency via the drag handle). Runtime gains a definition-popover handler — a new interactive element class in the data-attribute contract. Attribute names (data-definition, data-glossary-key) are designed now so the Phase 4 glossary layer is additive, not a rename.
+
+
 
 **Decisions deferred to the start of this phase**:
 - Image hosting limits and lifecycle: per-teacher quota? Auto-delete after N days of non-use?
@@ -108,6 +113,10 @@ Districts and schools become first-class concepts. Until now, every teacher is a
 - How invoicing works at the district level (probably moves to Phase 5 alongside marketplace billing).
 
 **Done when**: Two districts are using the system independently with their own teacher rosters, and the data isolation between them is bulletproof (cross-district reads are impossible at the RLS level).
+**
+-**Activity-level (and eventually district-level) glossary**. ActivityMeta.glossary becomes a map of stable keys to {term, definition}. The Phase 2 definition mark gains a glossaryKey field that resolves against this map at render time, so a teacher who defines "factor" once in the glossary has every marked instance share the same definition (and editing the glossary updates them all). Editor adds a glossary-management panel; marketplace authors (Phase 5) can ship activities with curated glossaries. The mark schema is forward-compatible from Phase 2 — glossaryKey is an additive optional field, no migration.
+
+
 
 ---
 
