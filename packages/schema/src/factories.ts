@@ -53,14 +53,22 @@ export function createCalloutBlock(variant: CalloutVariant = 'info'): CalloutBlo
 }
 
 export function createProblemBlock(): ProblemBlock {
-  return { id: uuid(), type: 'problem', content: [] };
+  return { id: uuid(), type: 'problem', content: [], skills: [] };
 }
 
 export function createFillInBlankBlock(): FillInBlankBlock {
-  return { id: uuid(), type: 'fill_in_blank', content: [] };
+  return {
+    id: uuid(),
+    type: 'fill_in_blank',
+    content: [],
+    hasConfidenceRating: false,
+    skills: [],
+  };
 }
 
 export function createBlankToken(answer: string): BlankToken {
+  // hint and mistakeFeedback are both optional — omitted by default. The
+  // editor's UI for fill-in-blank gets explicit fields for them in Stage 14.
   return {
     id: uuid(),
     type: 'blank',
@@ -72,7 +80,7 @@ export function createBlankToken(answer: string): BlankToken {
 // ---- Structure --------------------------------------------------------------
 
 export function createSection(title?: string): Section {
-  return { id: uuid(), title, blocks: [] };
+  return { id: uuid(), title, blocks: [], isCheckpoint: false };
 }
 
 export function createEmptyDocument(meta: Partial<ActivityMeta> = {}): ActivityDocument {
@@ -82,6 +90,10 @@ export function createEmptyDocument(meta: Partial<ActivityMeta> = {}): ActivityD
       title: meta.title ?? 'Untitled activity',
       course: meta.course ?? 'Algebra II',
       ...(meta.unit !== undefined && { unit: meta.unit }),
+      submissionMode: meta.submissionMode ?? 'free',
+      revisionMode: meta.revisionMode ?? 'free',
+      activityType: meta.activityType ?? 'worksheet',
+      skills: meta.skills ?? [],
     },
     sections: [createSection()],
   };

@@ -47,13 +47,34 @@ export type InlineMathNode = z.infer<typeof InlineMathNode>;
 //
 // width is in CSS chars (`ch` units) — used to size the input. Optional
 // because the renderer has a sensible default (~6 chars).
+//
+// hint and mistakeFeedback are the per-blank feedback layers (block-level
+// fields — solution, hasConfidenceRating, skills — live on FillInBlankBlock).
+// The runtime reads both at init but does NOT inject anything into the DOM
+// until the student clicks "Check this section." On a wrong answer, the
+// runtime first looks for a matching mistakeFeedback entry (exact string
+// match for Phase 1); if none matches, it falls back to hint; if hint is
+// also absent, it shows the generic ✗.
 export const BlankToken = z.object({
   type: z.literal('blank'),
-  id: z.string().uuid(),
-  answer: z.string().min(1),
-  // Alternative correct answers. Empty array is the common case.
-  acceptableAnswers: z.array(z.string()).default([]),
-  width: z.number().int().positive().optional(),
+                                   id: z.string().uuid(),
+                                   answer: z.string().min(1),
+                                   // Alternative correct answers. Empty array is the common case.
+                                   acceptableAnswers: z.array(z.string()).default([]),
+                                   width: z.number().int().positive().optional(),
+                                   // Optional teacher-authored nudge shown when this blank is wrong and no
+                                   // mistakeFeedback entry matches. Single string for Phase 1; tiered hints
+                                   // could come in Phase 2 if teachers ask for them.
+                                   hint: z.string().optional(),
+                                   // Optional list of anticipated wrong answers paired with specific feedback.
+                                   // If the student's wrong answer matches a `match` string (Phase 1: exact
+                                   // match; the strategy-dispatch hook in the runtime supports smarter
+                                   // matching later), the corresponding feedback is shown instead of the
+                                   // generic hint. First match wins.
+                                   mistakeFeedback: z.array(z.object({
+                                     match: z.string(),
+                                                                     feedback: z.string(),
+                                   })).optional(),
 });
 export type BlankToken = z.infer<typeof BlankToken>;
 

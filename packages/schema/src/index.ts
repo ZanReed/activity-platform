@@ -39,7 +39,11 @@ export {
 // Submissions
 export {
   BlankResponse,
+  CheckpointResult,
+  ConfidenceLevel,
   SubmissionResponses,
+  SubmissionResponsesV1,
+  migrateSubmissionResponses,
 } from './submission.js';
 
 // Factories
