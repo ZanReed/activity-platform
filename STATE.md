@@ -47,6 +47,8 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 ```
 activity-platform/
+├── docs/
+│   └── design/        — Phase 2+ design docs captured ahead of implementation
 ├── packages/
 │   ├── schema/        — Zod types, document model, factories
 │   ├── renderer/      — Pure JSON → HTML string. KaTeX inlined. No DOM.
