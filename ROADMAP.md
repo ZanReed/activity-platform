@@ -78,6 +78,42 @@ The renderer's runtime evaluator (which currently just compares against a static
 **Done when**: A teacher can write a single rational-expression simplification template and have either 12 static variants saved as a worksheet, or have every student see different numbers, with scoring working correctly in both cases.
 
 ---
+## Phase 2.7 — Interactive graphing
+
+Graph blocks that students manipulate — plot a point, drag a line into 
+position, shade a region — with tolerance-based scoring against teacher-
+authored answer keys. The Algebra II feature most likely to replace what 
+teachers currently leave the platform to use Desmos for.
+
+**User-visible**: Teacher inserts a graph block, chooses an interaction 
+type, drags handles to set the correct answer, sets tolerance bounds. 
+Student sees a coordinate plane with draggable handles, manipulates them 
+to answer, gets per-section checkpoint feedback like fill-in-blank already 
+provides. Full keyboard and screen-reader support for students who need it.
+
+**Architectural delta**: New `interactive_graph` block type with a 
+discriminated union over interaction types (point, line, region, 
+eventually parabola and transformations). Lazy-loaded JSXGraph widget — 
+the main runtime stays under 20KB; pages with graph blocks dynamic-import 
+a separate `graph-widget.js` bundle. New scoring strategies join the 
+`evaluateAnswer` dispatch (`'graph-point'`, `'graph-line'`, `'graph-region'`). 
+`SubmissionResponses` bumps to v3 with a parallel `graphResponses` map 
+(distinct from blanks because the answer shape is structured, not string). 
+Server-side grading (Phase 5) becomes more urgent here than for fill-in-
+blank — the structured answer key in published HTML is more leakable.
+
+Design captured in `docs/design/interactive-graph-block.md`.
+
+**Decisions deferred to the start of this phase**:
+- Final library choice (JSXGraph leading, Mafs and GeoGebra also evaluated).
+- Equation parsing library — reuse whatever Phase 2.5 chose.
+- Whether `correctEquation` authoring uses plain string input or MathLive WYSIWYG.
+- Print behavior for interactive graphs (probably static axes + empty answer space).
+
+**Done when**: A teacher can author a "plot the line y = 2x + 3" problem, 
+a student can solve it on a Chromebook (with or without a mouse, with or 
+without a screen reader), and the teacher dashboard shows the student's 
+plotted slope and intercept alongside whether it was within tolerance.
 
 ## Phase 3 — Classroom integration
 
