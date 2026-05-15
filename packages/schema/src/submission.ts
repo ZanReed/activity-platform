@@ -20,6 +20,29 @@
 //                       checkpointResults. v1 submissions migrate-on-read
 //                       to v2 by setting schemaVersion: 2 (other fields
 //                       are unchanged or optional-and-absent in v1).
+//
+// Extension pattern — adding new response shapes (Phase 2+):
+//   When a new question category needs a different response shape — MC
+//   selections, ordering arrangements, matching pairs, graph inputs, file
+//   uploads, essay text, annotations — it gets its own keyed-by-uuid
+//   optional map on SubmissionResponses, sibling to `blanks`. Don't widen
+//   BlankResponse.answer to a union with object types; that forces every
+//   consumer (teacher dashboard, future analytics, per-blank aggregation
+//   queries) to add type guards on what should remain a uuid-keyed-string
+//   map. Type purity at the consumer boundary is the goal.
+//
+//   Planned future maps (each lands with the block type that needs it):
+//     choices         — Phase 2 multiple choice (single + multi-select)
+//     orderings       — Phase 2 ordering / sequencing
+//     matches         — Phase 2 matching pairs
+//     freeResponses   — Phase 2.6 short_answer / essay
+//     graphResponses  — Phase 2.7 interactive graphs
+//     files           — Phase 2.8 audio / video / file upload
+//     annotations     — Phase 2.9 highlight / label / region
+//
+//   Each addition is an optional field at a schemaVersion bump; older
+//   submissions read forward through migrateSubmissionResponses, which
+//   returns the current shape with absent maps simply undefined.
 // =============================================================================
 
 import { z } from 'zod';
