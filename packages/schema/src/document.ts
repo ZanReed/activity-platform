@@ -45,6 +45,18 @@ export type Section = z.infer<typeof Section>;
 //   'locked' — final submit is final; no resubmissions
 // revisionMode is ignored when submissionMode === 'single'.
 //
+// gradingMode controls who scores the activity:
+//   'auto'   — Phase 1 default. Runtime computes scores client-side from
+//              answer keys baked into the published HTML.
+//   'manual' — Phase 2.6+. No auto-scoring; submissions land in the
+//              teacher dashboard pending rubric application.
+//   'mixed'  — Phase 2.6+. Some blocks auto-graded, some manually graded
+//              (e.g., 5 MC questions + 1 essay). Final score combines both.
+// Inert in Phase 1 — no manual-graded block types exist yet, so the
+// runtime treats 'manual'/'mixed' the same as 'auto' until Phase 2.6
+// lands per-block grading metadata. Field exists now so existing stored
+// documents parse cleanly when those block types arrive.
+//
 // activityType drives presentation: an exit_ticket renders as a single-page
 // focused layout; a worksheet renders with full section navigation; etc.
 //
@@ -59,6 +71,7 @@ export const ActivityMeta = z.object({
                                      unit: z.string().optional(),
                                      submissionMode: z.enum(['single', 'locked', 'free']).default('free'),
                                      revisionMode: z.enum(['free', 'locked']).default('free'),
+                                     gradingMode: z.enum(['auto', 'manual', 'mixed']).default('auto'),
                                      activityType: z.enum(['worksheet', 'exit_ticket', 'warm_up', 'review']).default('worksheet'),
                                      skills: z.array(z.string()).default([]),
 });
@@ -67,9 +80,30 @@ export type ActivityMeta = z.infer<typeof ActivityMeta>;
 // The top-level document. Always validate user-facing input through this
 // before storing. The Edge Functions parse incoming drafts with this schema
 // and reject malformed documents with a 400.
+// ReferencePanel: optional sticky-sidebar content students consult while
+// working — formula charts, periodic tables, vocabulary lists, conversion
+// tables, unit-circle diagrams, sentence-stem prompts, foreign-language
+// verb tables, primary-source excerpts, maps. The blocks array uses the
+// same Block schema as section content; no new block types are needed
+// for the panel.
+//
+// Phase 1: the schema accepts the field as forward-compat; the editor
+// doesn't surface it, and the renderer ignores it. Phase 2 wires up the
+// authoring UI and the sidebar layout in published HTML. Field is
+// optional with no default on ActivityDocument, so existing stored
+// documents parse cleanly.
+//
+// Renderer will treat reference content as data-block-category="scaffold"
+// (Phase 2+) — doesn't contribute to scoring or checkpoint behavior.
+export const ReferencePanel = z.object({
+  title: z.string().optional(),
+                                       blocks: z.array(Block),
+});
+export type ReferencePanel = z.infer<typeof ReferencePanel>;
 export const ActivityDocument = z.object({
   schemaVersion: z.literal(1),
                                          meta: ActivityMeta,
                                          sections: z.array(Section),
+                                         referencePanel: ReferencePanel.optional(),
 });
 export type ActivityDocument = z.infer<typeof ActivityDocument>;

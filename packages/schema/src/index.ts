@@ -37,6 +37,7 @@ export {
   Section,
   ActivityMeta,
   ActivityDocument,
+  ReferencePanel,
 } from './document.js';
 
 // Submissions
