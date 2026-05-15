@@ -8,7 +8,7 @@ Update at the end of each work session that touches the runtime — replace the 
 
 The runtime is the JavaScript bundle (`runtime.js`) embedded by reference in every published activity. It handles:
 
-- Student input state (what they've typed into blanks)
+- Student input state (what they've typed into blanks, selected, ordered, recorded, etc.)
 - Per-section checkpoint scoring against answer keys baked into the HTML
 - Feedback rendering (✓/✗, hints, mistake-specific feedback, solutions after checking)
 - Revision mode enforcement (free / locked)
@@ -34,13 +34,15 @@ It does NOT handle:
 
 **Data-attribute contract is a public API.** The HTML emitted by the renderer is the interface. Once activities are published, that contract is frozen for those activities forever. Additive changes (new attributes) are safe. Removing or renaming existing attributes breaks published activities. Treat with the same versioning discipline as a REST API.
 
-**Pure scoring, init pass builds maps.** On init, the runtime walks the DOM once and builds two in-memory `Map`s (blanks by id, sections by id). Every scoring/feedback function operates on these maps, not by querying the DOM. Scoring functions are pure functions of the maps + input values — testable without a DOM. The DOM gets touched only in init (read) and render (write).
+**Pure scoring, init pass builds maps.** On init, the runtime walks the DOM once and builds in-memory `Map`s for each interactive element category (blanks by id, sections by id, and — when new block categories land in Phase 2+ — choices, orderings, matches, graphs, etc.). Every scoring/feedback function operates on these maps, not by querying the DOM. Scoring functions are pure functions of the maps + input values — testable without a DOM. The DOM gets touched only in init (read) and render (write).
 
 **Source maps emitted, always.** `runtime.js.map` is built alongside `runtime.js` and uploaded with it. Modern browsers only fetch the source map when DevTools is open, so zero performance cost for students. Without it, teacher-reported bugs in minified runtime are not debuggable.
 
 **Defensive attribute reads everywhere.** Every `dataset.X` read uses a `?? default` fallback. Every JSON-encoded attribute is wrapped in try/catch. An old published activity loading against a newer runtime degrades gracefully to default behavior. The runtime never throws to the student.
 
 **Error boundaries on init and event handlers.** Init wrapped in try/catch with fallback to "basic submit only" mode (every blank read, no checkpoint behavior, no feedback). Every event handler wrapped in try/catch. A scoring bug for one section's check button does not break submission of the whole activity.
+
+**Block category awareness.** The renderer emits `data-block-category="content|question|scaffold"` on every block. The runtime uses this to drive init-pass partitioning: only `question`-category blocks register response handlers and contribute to scoring; `content` blocks are inert presentational; `scaffold` blocks (worked examples, hints, learning objectives) are presentational but may have their own progressive-disclosure UI later. Adding a new block kind doesn't require sniffing `data-block-type` — its category tells the runtime how to treat it. Categories are deliberately coarse; finer-grained discrimination still uses `data-block-type` and the registry pattern below.
 
 ## The data-attribute contract
 
@@ -55,22 +57,55 @@ This is the API between renderer (emits) and runtime (reads). FROZEN for already
   data-submission-mode="single | locked | free"
   data-revision-mode="free | locked"
   data-activity-type="worksheet | exit_ticket | warm_up | review"
+  data-grading-mode="auto | manual | mixed"
   data-schema-version="1">
 ```
 
-`data-submission-mode` is the master switch for checkpoint behavior. `single` means no checkpoints render at all; `locked` and `free` enable checkpoint UI per section. `data-revision-mode` controls post-submission behavior — `free` allows resubmit, `locked` does not.
+`data-submission-mode` is the master switch for checkpoint behavior. `single` means no checkpoints render at all; `locked` and `free` enable checkpoint UI per section. `data-revision-mode` controls post-submission behavior — `free` allows resubmit, `locked` does not. `data-grading-mode` (added in Stage 9e) signals whether the runtime is responsible for scoring (`auto`), whether scoring is fully deferred to the teacher (`manual`, Phase 2.6+), or both apply within a single activity (`mixed`, Phase 2.6+). Phase 1 activities all use `auto`; the runtime treats `manual` and `mixed` as defaulting to `auto` until Phase 2.6's per-block grading metadata lands.
 
 ### Section
 
 ```
 <section
+  data-block-category="content"
   data-section-id="<uuid>"
   data-is-checkpoint="true | false">
   <!-- blocks -->
 </section>
 ```
 
-`data-is-checkpoint="true"` is rendered only when the activity's submissionMode is `locked` or `free`. In `single` mode the attribute is omitted (sections still exist for layout but have no checkpoint button).
+`data-is-checkpoint="true"` is rendered only when the activity's submissionMode is `locked` or `free`. In `single` mode the attribute is omitted (sections still exist for layout but have no checkpoint button). Sections themselves are content (organizational), not questions; their `data-block-category` is `content`.
+
+### Reference panel (Phase 2)
+
+```
+<aside class="reference-panel"
+       data-reference-panel
+       data-block-category="scaffold">
+  <header class="reference-panel-title"><!-- optional title --></header>
+  <div class="reference-panel-content">
+    <!-- block-rendered content from ActivityDocument.referencePanel.blocks -->
+  </div>
+</aside>
+```
+
+The reference panel is a sticky sidebar (collapsible on mobile) holding student-facing reference content (formula charts, periodic tables, vocabulary lists, conversion tables, maps). The renderer emits it only when `ActivityDocument.referencePanel` is present. Content blocks inside use the same block schema as the activity body — no new block types needed. `data-block-category="scaffold"` signals to the runtime that nothing inside contributes to scoring or checkpoint behavior. Phase 1 Stage 9e adds the schema field as forward-compatibility; renderer layout and editor authoring UX are Phase 2.
+
+Optional collapse/expand for mobile uses native `<details>` / `<summary>` elements where possible, keeping the basic UI script-free. Any runtime behavior beyond that (remembering open/closed state across sections, smart scroll positioning) is a Phase 2 implementation decision.
+
+### Block category attribute (every block)
+
+```
+<... data-block-category="content | question | scaffold" data-block-type="<type>" ...>
+```
+
+Every top-level block emitted by the renderer carries `data-block-category` and `data-block-type`. Phase 1 categories:
+
+- `content` — paragraph, heading, image, callout, list, divider, math_block, section, table (Phase 2)
+- `question` — problem, fill_in_blank, multiple_choice (Phase 2), matching (Phase 2), ordering (Phase 2), interactive_graph (Phase 2.7), short_answer (Phase 2.6), essay (Phase 2.6), audio_response / video_response / file_upload (Phase 2.8), annotate_text / annotate_image (Phase 2.9)
+- `scaffold` — worked_example (Phase 2), faded_worked_example (Phase 2), learning_objective (Phase 2), self_explanation (Phase 2)
+
+The category is the coarse discriminator. The `data-block-type` is the fine discriminator. The runtime's init registry keys on `data-block-type`; category exists so future analytics and dashboard features can reason about block kinds without enumerating every block-type string.
 
 ### Checkpoint button (only when section is a checkpoint)
 
@@ -89,6 +124,8 @@ This is the API between renderer (emits) and runtime (reads). FROZEN for already
 
 ```
 <span class="blank-wrapper"
+  data-block-category="question"
+  data-block-type="fill_in_blank"
   data-blank-id="<uuid>"
   data-blank-strategy="list"
   data-blank-answers='["x+2","x + 2"]'
@@ -155,6 +192,7 @@ interface RuntimeState {
   submissionMode: 'single' | 'locked' | 'free';
   revisionMode: 'free' | 'locked';
   activityType: 'worksheet' | 'exit_ticket' | 'warm_up' | 'review';
+  gradingMode: 'auto' | 'manual' | 'mixed';
 
   // Mutable
   submitted: boolean;
@@ -205,6 +243,8 @@ const sections = new Map<string, SectionRef>();
 
 State changes; refs don't. Treat refs as `Readonly<>` after init.
 
+In Phase 2 and beyond, additional refs maps will be added for each new question category (`choices`, `orderings`, `matches`, `graphs`, `freeResponses`, `files`, `annotations`). The init registry pattern keeps this additive — adding a new question-block kind registers a handler in the init registry, allocates a refs map, and contributes scoring strategies to the `evaluateAnswer` dispatch. No refactoring of init for each new kind.
+
 ## Build pipeline
 
 `scripts/bundle-renderer.mjs` (or a new sibling `scripts/bundle-runtime.mjs` if it grows too complex):
@@ -219,6 +259,8 @@ State changes; refs don't. Treat refs as `Readonly<>` after init.
 - **External:** nothing (no externals; everything bundles in)
 
 The `publish-activity` Edge Function reads both `index.html` (built per-activity from the document) and `runtime.js` + `runtime.js.map` (built once, shared across all activities published from this renderer bundle version) and uploads all three to the versioned Storage path.
+
+Phase 2.7+ adds a second esbuild entry for `graph-widget.js` (lazy-loaded), and Phase 2.9+ adds a third for `annotation-widget.js`. The main runtime stays small; pages without those block types pay nothing for them.
 
 ## Error handling philosophy
 
@@ -254,10 +296,14 @@ Tests live at `packages/renderer/src/runtime/__tests__/`. The suite must exist B
 
 - **No JS dependencies.** Runtime is hand-written vanilla TypeScript bundled to a single file. Adding utility libraries (lodash, date-fns, etc.) would blow the size budget and add attack surface for no benefit. Inline the small helpers you need.
 
+- **Heavy widgets are lazy-loaded into separate bundles.** Interactive graphs (Phase 2.7) and annotation widgets (Phase 2.9) are dynamic imports from the main runtime. Pages without those block types never pay for them. Each lazy widget follows the same architectural commitments as the main runtime (source maps, defensive reads, graceful degradation).
+
 - **Naming convention discipline:**
   - TypeScript fields: `camelCase` (`attemptNumber`, `revisionMode`)
   - HTML data attributes: `kebab-case` (`data-attempt-number`, `data-revision-mode`)
   - The renderer is the only layer that maps between them.
+
+- **Block category as the coarse type discriminator.** The init pass routes by `data-block-category` first, then by `data-block-type`. New block kinds register through a small init-registry pattern (`registerBlockKind('multiple_choice', { init, score, render })`) so that adding a kind is one entry, not a refactor.
 
 ## Open questions / deferred decisions
 
@@ -268,6 +314,12 @@ Tests live at `packages/renderer/src/runtime/__tests__/`. The suite must exist B
 - **MathLive in published HTML:** Phase 2.5 decision per ROADMAP. If MathLive is included for student-side math input, the runtime bundle size budget must be re-evaluated.
 
 - **Server-side scoring (Phase 5):** when this lands, the runtime's scoring functions remain in place for instant feedback, but final submission stops trusting them. The Edge Function re-scores against the answer keys server-side. The data-attribute contract for answers (`data-blank-answers`) likely changes — answers may not be in the published HTML at all. Plan a v2 of the runtime then; don't try to support both models in v1.
+
+- **Media capture browser quirks (Phase 2.8):** MediaRecorder API has had iOS Safari quirks historically. Decide at phase start whether to launch with both in-browser recording and upload, or upload-only with recording as a follow-up. The runtime side either way is a media-capture widget that emits a Blob + metadata for the submission payload.
+
+- **Annotation coordinate stability (Phase 2.9):** when the runtime captures annotation positions, what coordinate system does it use? Character indices into rendered text (stable across CSS changes but breaks on content edits) vs DOM anchors (stable across content edits but breaks on rendering changes) vs normalized fractions of rendered geometry. Decide at phase start.
+
+- **Audio narration of activity prose (Phase 4 UDL):** browser Web Speech API vs server-rendered audio files. The runtime side is a play-button + word-level highlight handler either way; the question is where the audio comes from. Web Speech is free but quality varies; server-rendered is consistent but adds a service dependency.
 
 ## Things NOT to do
 
@@ -283,6 +335,10 @@ Tests live at `packages/renderer/src/runtime/__tests__/`. The suite must exist B
 
 - **Don't make breaking changes to the data-attribute contract.** Add new attributes; never rename or remove existing ones. A renamed attribute breaks every activity published before the rename, forever, because that HTML is static and immutable in Storage.
 
+- **Don't bake the answer key into the DOM for manually-graded blocks.** Phase 2.6's short_answer and essay blocks have no auto-scoring; the data-attribute payload should not pretend they do. The block category (`question`) and block type drive runtime behavior; the runtime's scoring path skips manual-graded blocks entirely.
+
 - **Don't render feedback inside a NodeView that re-renders aggressively.** This is mostly an editor concern but worth noting here: the published HTML is static, so this rule doesn't apply to runtime rendering — the runtime is the master of the DOM after init and the DOM doesn't get torn down behind it.
 
-- **Don't conflate runtime state with submission payload.** State has many fields (refs to DOM nodes, transient UI state). Submission payload has only what the Edge Function needs (blanks, attemptNumber, checkpointResults, studentName, confidence per blank). Build the payload from state at submit time; don't try to make state and payload the same shape.
+- **Don't conflate runtime state with submission payload.** State has many fields (refs to DOM nodes, transient UI state). Submission payload has only what the Edge Function needs (blanks, attemptNumber, checkpointResults, studentName, confidence per blank, and the future parallel maps for new question categories). Build the payload from state at submit time; don't try to make state and payload the same shape.
+
+- **Don't sniff `data-block-type` when `data-block-category` is enough.** Category-level decisions (is this block interactive? does it contribute to scoring? does it have a checkpoint contribution?) should branch on category. Block-type sniffing is for type-specific behavior only.
