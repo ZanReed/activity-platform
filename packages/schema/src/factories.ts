@@ -108,6 +108,7 @@ export function createEmptyDocument(meta: Partial<ActivityMeta> = {}): ActivityD
       revisionMode: meta.revisionMode ?? 'free',
       activityType: meta.activityType ?? 'worksheet',
       skills: meta.skills ?? [],
+      gradingMode: 'auto',        // ← ADD
     },
     sections: [createSection()],
   };

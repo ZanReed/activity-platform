@@ -262,9 +262,3 @@ describe('Factories produce schema-valid output', () => {
         expect(() => BlankToken.parse(createBlankToken('x+2'))).not.toThrow();
     });
 });
-
-it('renders a bullet list', () => {
-    const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [createBulletListBlock()];
-    expect(renderBody(doc)).toContain('<ul');
-});

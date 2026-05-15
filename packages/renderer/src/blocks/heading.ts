@@ -7,7 +7,8 @@ export function renderHeading(block: HeadingBlock): string {
   const tag = 'h' + block.level;
   return (
     '<' + tag + ' class="block block-heading block-heading-' + block.level + '"' +
-    ' data-id="' + attr(block.id) + '">' +
+    ' data-block-category="content"' +
+    ' data-id="' + attr(block.id) + '">' + +
       inner +
     '</' + tag + '>'
   );

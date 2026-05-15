@@ -6,7 +6,7 @@ export function renderImage(block: ImageBlock): string {
     ? '<figcaption>' + escape(block.caption) + '</figcaption>'
     : '';
   return (
-    '<figure class="block block-image" data-id="' + attr(block.id) + '">' +
+    '<figure class="block block-image" data-block-category="content" data-id="' + attr(block.id) + '">' + +
       '<img src="' + attr(block.src) + '"' +
       ' alt="' + attr(block.alt) + '"' +
       ' loading="lazy"' +

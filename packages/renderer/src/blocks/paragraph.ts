@@ -5,7 +5,7 @@ import { attr } from '../html.js';
 export function renderParagraph(block: ParagraphBlock): string {
   const inner = block.content.map(renderInline).join('');
   return (
-    '<p class="block block-paragraph" data-id="' + attr(block.id) + '">' +
+    '<p class="block block-paragraph" data-block-category="content" data-id="' + attr(block.id) + '">' +
       inner +
     '</p>'
   );

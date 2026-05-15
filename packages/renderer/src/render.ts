@@ -39,7 +39,7 @@ function renderSection(section: Section, nextProblemNumber: () => number): strin
   }).join('');
 
   return (
-    '<section class="activity-section" data-id="' + attr(section.id) + '">' +
+    '<section class="activity-section" data-block-category="content" data-id="' + attr(section.id) + '">' +
       titleHtml +
       blocksHtml +
     '</section>'

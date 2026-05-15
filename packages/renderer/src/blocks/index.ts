@@ -15,6 +15,7 @@ import { renderImage } from './image.js';
 import { renderCallout } from './callout.js';
 import { renderProblem } from './problem.js';
 import { renderFillInBlank } from './fill-in-blank.js';
+import { renderBulletList, renderOrderedList } from './lists.js';
 
 export interface BlockRenderContext {
   /** Auto-incremented across problem and fill_in_blank blocks. */
@@ -37,6 +38,10 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
       return renderProblem(block, ctx);
     case 'fill_in_blank':
       return renderFillInBlank(block, ctx);
+    case 'bullet_list':
+      return renderBulletList(block);
+    case 'ordered_list':
+      return renderOrderedList(block);
     default: {
       // Exhaustiveness check — if a new block type is added to the schema
       // and not handled here, TypeScript emits an error on this assignment.

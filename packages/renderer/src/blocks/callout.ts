@@ -13,6 +13,7 @@ export function renderCallout(block: CalloutBlock): string {
   const inner = block.content.map(renderInline).join('');
   return (
     '<aside class="block block-callout block-callout-' + block.variant + '"' +
+    ' data-block-category="content"' +
     ' data-id="' + attr(block.id) + '"' +
     ' role="note">' +
       '<span class="block-callout-icon" aria-hidden="true">' + ICON[block.variant] + '</span>' +

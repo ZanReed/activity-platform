@@ -11,7 +11,7 @@ export function renderProblem(block: ProblemBlock, ctx: ProblemRenderContext): s
   const num = block.number ?? ctx.problemNumber;
   const inner = block.content.map(renderInline).join('');
   return (
-    '<div class="block block-problem" data-id="' + attr(block.id) + '">' +
+    '<div class="block block-problem" data-block-category="question" data-id="' + attr(block.id) + '">' +
       '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
       '<div class="block-problem-body">' + inner + '</div>' +
     '</div>'

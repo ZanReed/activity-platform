@@ -16,7 +16,7 @@ import { attr } from '../html.js';
 
 export function renderBulletList(block: BulletListBlock): string {
     return (
-        '<ul class="activity-list activity-list--bullet" data-id="' + attr(block.id) + '">' +
+        '<ul class="activity-list activity-list--bullet" data-block-category="content" data-id="' + attr(block.id) + '">' +
         block.items.map(renderListItem).join('') +
         '</ul>'
     );
@@ -24,14 +24,14 @@ export function renderBulletList(block: BulletListBlock): string {
 
 export function renderOrderedList(block: OrderedListBlock): string {
     return (
-        '<ol class="activity-list activity-list--ordered" data-id="' + attr(block.id) + '">' +
+        '<ol class="activity-list activity-list--ordered" data-block-category="content" data-id="' + attr(block.id) + '">' +
         block.items.map(renderListItem).join('') +
         '</ol>'
     );
 }
 
 function renderListItem(item: ListItem): string {
-    const inlineHtml = renderInline(item.content);
+    const inlineHtml = item.content.map(renderInline).join('');
     const childrenHtml = (item.children ?? [])
     .map((child) =>
     child.type === 'bullet_list'
