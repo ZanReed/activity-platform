@@ -17,7 +17,7 @@ import { z } from 'zod';
 // <em><strong>...</strong></em> structure); a single TextNode can have
 // multiple marks applied. Order doesn't matter — render output is
 // canonicalized.
-export const Mark = z.enum(['bold', 'italic', 'underline', 'code']);
+export const Mark = z.enum(['bold', 'italic', 'underline', 'code', 'subscript', 'superscript']);
 export type Mark = z.infer<typeof Mark>;
 
 // ---- Text node --------------------------------------------------------------

@@ -48,6 +48,16 @@ function renderText(node: TextNode): string {
       case 'code':
         html = '<code>' + html + '</code>';
         break;
+      case 'subscript':
+        html = '<sub>' + html + '</sub>';
+        break;
+      case 'superscript':
+        html = '<sup>' + html + '</sup>';
+        break;
+      default: {
+        const _exhaustive: never = mark;
+        void _exhaustive;
+      }
     }
   }
   return html;

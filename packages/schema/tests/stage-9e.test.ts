@@ -80,4 +80,59 @@ describe('Stage 9e — schema additions', () => {
             expect(reparsed.referencePanel).toEqual(parsed.referencePanel);
         });
     });
+    describe('Mark — subscript and superscript', () => {
+        it('accepts subscript and superscript on text nodes', () => {
+            expect(() => ActivityDocument.parse({
+                schemaVersion: 1,
+                meta: { title: 'Test' },
+                sections: [{
+                    id: '11111111-1111-1111-1111-111111111111',
+                    isCheckpoint: false,
+                    blocks: [{
+                        id: '22222222-2222-2222-2222-222222222222',
+                        type: 'paragraph',
+                        content: [
+                            { type: 'text', text: 'H' },
+                            { type: 'text', text: '2', marks: ['subscript'] },
+                            { type: 'text', text: 'O' },
+                            { type: 'text', text: 'x' },
+                            { type: 'text', text: '2', marks: ['superscript'] },
+                        ],
+                    }],
+                }],
+            })).not.toThrow();
+        });
+
+        it('accepts both marks together on the same text run', () => {
+            expect(() => ActivityDocument.parse({
+                schemaVersion: 1,
+                meta: { title: 'Test' },
+                sections: [{
+                    id: '11111111-1111-1111-1111-111111111111',
+                    isCheckpoint: false,
+                    blocks: [{
+                        id: '22222222-2222-2222-2222-222222222222',
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: 'x', marks: ['bold', 'superscript'] }],
+                    }],
+                }],
+            })).not.toThrow();
+        });
+
+        it('rejects unknown mark values', () => {
+            expect(() => ActivityDocument.parse({
+                schemaVersion: 1,
+                meta: { title: 'Test' },
+                sections: [{
+                    id: '11111111-1111-1111-1111-111111111111',
+                    isCheckpoint: false,
+                    blocks: [{
+                        id: '22222222-2222-2222-2222-222222222222',
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: 'x', marks: ['strikethrough'] }],
+                    }],
+                }],
+            })).toThrow();
+        });
+    });
 });

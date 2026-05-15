@@ -222,4 +222,28 @@ describe('Problem numbering', () => {
     expect(body).toContain('>2.<');
     expect(body).toContain('>3.<');
   });
+  it('wraps subscript marks in <sub> and superscript marks in <sup>', () => {
+    const doc: ActivityDocument = {
+      schemaVersion: 1,
+      meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
+      sections: [{
+        id: '11111111-1111-1111-1111-111111111111',
+        isCheckpoint: false,
+        blocks: [{
+          id: '22222222-2222-2222-2222-222222222222',
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'H', marks: [] },
+            { type: 'text', text: '2', marks: ['subscript'] },
+            { type: 'text', text: 'O', marks: [] },
+            { type: 'text', text: ' x', marks: [] },
+            { type: 'text', text: '2', marks: ['superscript'] },
+          ],
+        }],
+      }],
+    };
+    const body = renderBody(doc);
+    expect(body).toContain('<sub>2</sub>');
+    expect(body).toContain('<sup>2</sup>');
+  });
 });
