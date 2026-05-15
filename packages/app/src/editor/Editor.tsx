@@ -8,6 +8,7 @@ import './editor.css';
 import { SlashMenu } from './extensions/SlashMenu';
 import { BlockReorderShortcuts } from './extensions/BlockReorderShortcuts';
 import 'mathlive';
+import { SectionBreak } from './extensions/SectionBreak';
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -16,7 +17,17 @@ interface EditorProps {
 
 export default function Editor({ initialContent, onUpdate }: EditorProps) {
     const editor = useEditor({
-        extensions: [StarterKit, MathInline, MathBlock, SlashMenu, BlockReorderShortcuts],
+        extensions: [
+            StarterKit.configure({
+                blockquote: false,
+                codeBlock: false,
+            }),
+            MathInline,
+            MathBlock,
+            SlashMenu,
+            BlockReorderShortcuts,
+            SectionBreak,
+        ],
         content: initialContent,
         onCreate: ({ editor }) => {
             onUpdate?.(editor.getJSON());

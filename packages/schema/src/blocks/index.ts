@@ -16,6 +16,7 @@ import { ImageBlock } from './image.js';
 import { CalloutBlock } from './callout.js';
 import { ProblemBlock } from './problem.js';
 import { FillInBlankBlock } from './fill-in-blank.js';
+import { BulletListBlock, OrderedListBlock, ListItem } from './list.js';
 
 export const Block = z.discriminatedUnion('type', [
   ParagraphBlock,
@@ -25,6 +26,8 @@ export const Block = z.discriminatedUnion('type', [
   CalloutBlock,
   ProblemBlock,
   FillInBlankBlock,
+  BulletListBlock,
+  OrderedListBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -37,6 +40,9 @@ export {
   CalloutBlock,
   ProblemBlock,
   FillInBlankBlock,
+  BulletListBlock,
+  OrderedListBlock,
+  ListItem,
 };
 export type { HeadingLevel } from './heading.js';
 export type { CalloutVariant } from './callout.js';

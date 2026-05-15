@@ -150,7 +150,7 @@ describe('BlankToken — Stage 9a additions', () => {
         });
         expect(parsed.hint).toBe('Combine the like terms.');
         expect(parsed.mistakeFeedback).toHaveLength(2);
-        expect(parsed.mistakeFeedback?.[0].match).toBe('2x');
+        expect(parsed.mistakeFeedback?.[0]?.match).toBe('2x');
     });
 });
 
@@ -184,8 +184,8 @@ describe('SubmissionResponses v2 — Stage 9a additions', () => {
                 },
             },
         });
-        expect(parsed.blanks[BLANK_ID].confidence).toBe('certain');
-        expect(parsed.checkpointResults?.[SECTION_ID].score).toBe(4);
+        expect(parsed.blanks[BLANK_ID]?.confidence).toBe('certain');
+        expect(parsed.checkpointResults?.[SECTION_ID]?.score).toBe(4);
     });
 
     it('rejects invalid confidence value', () => {
@@ -261,4 +261,10 @@ describe('Factories produce schema-valid output', () => {
         expect(() => FillInBlankBlock.parse(createFillInBlankBlock())).not.toThrow();
         expect(() => BlankToken.parse(createBlankToken('x+2'))).not.toThrow();
     });
+});
+
+it('renders a bullet list', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    doc.sections[0]!.blocks = [createBulletListBlock()];
+    expect(renderBody(doc)).toContain('<ul');
 });

@@ -23,6 +23,9 @@ import type {
   CalloutBlock,
   ProblemBlock,
   FillInBlankBlock,
+  BulletListBlock,
+  OrderedListBlock,
+  ListItem,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
@@ -64,6 +67,17 @@ export function createFillInBlankBlock(): FillInBlankBlock {
     hasConfidenceRating: false,
     skills: [],
   };
+}
+export function createListItem(): ListItem {
+  return { id: uuid(), content: [] };
+}
+
+export function createBulletListBlock(): BulletListBlock {
+  return { id: uuid(), type: 'bullet_list', items: [createListItem()] };
+}
+
+export function createOrderedListBlock(): OrderedListBlock {
+  return { id: uuid(), type: 'ordered_list', items: [createListItem()] };
 }
 
 export function createBlankToken(answer: string): BlankToken {

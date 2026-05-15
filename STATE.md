@@ -4,7 +4,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 ## Current focus
 
-**Phase 1 — Stage 9c (Tiptap `section_break` block + isCheckpoint UI).** Stages 1–8 complete (playground week through serialize layer). Stages 9a (schema additions) and 9b (DB migration 0005 + `ingest-submission` v2-only enforcement) complete. Now landing the editor-side piece that lets teachers create section breaks and mark sections as checkpoints. Editor-to-Supabase wiring (Stage 10) is the next gate after that. Runtime architecture decisions captured in `packages/renderer/RUNTIME.md`.
+**Phase 1 — Stage 10 (Editor wired to Supabase + basic dashboard).** Stages 9c (Tiptap `section_break` block + isCheckpoint UI + multi-section serialize) and 9d (bullet/ordered lists + StarterKit trim) complete. The two Stage-6 open decisions — lists/blockquote/codeBlock in the schema, section_break title-carrying — are both resolved. Editor-to-Supabase wiring is the next gate. Runtime architecture decisions captured in `packages/renderer/RUNTIME.md`.
 
 ## Status by area
 
@@ -33,8 +33,8 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 | Checkpoint + feedback architecture | ✅ Designed; see RUNTIME.md + architecture decisions below |
 | Schema additions for checkpoints/feedback (Stage 9a) | ✅ Complete; 30 tests passing |
 | DB migration 0005 (attempt_number) (Stage 9b) | ✅ Applied; `ingest_submission` now returns `jsonb {submission_id, attempt_number}` with retry-on-unique-violation. |
-| Tiptap section_break + isCheckpoint UI (Stage 9c) | ⏳ After 9a, parallelizable with 9b |
-| Editor wired to Supabase + basic dashboard (Stage 10) | ⏳ After 9b/9c |
+| Tiptap section_break + isCheckpoint UI (Stage 9c) | ✅ Atom node + NodeView + slash entry + multi-section serialize; 34 serialize tests pass |
+| Lists + StarterKit trim (Stage 9d) | ✅ Bullet/ordered/nested in schema, renderer, serialize; blockquote+codeBlock removed from toolbar || Editor wired to Supabase + basic dashboard (Stage 10) | ⏳ After 9b/9c |
 | Runtime file split + build pipeline (Stage 11) | ⏳ Not started |
 | Runtime: checkpoint scoring + feedback rendering (Stages 12–13) | ⏳ Not started |
 | Runtime: submission flow + revision + ingest-submission update (Stage 14) | ⏳ Not started |
@@ -59,8 +59,8 @@ activity-platform/
 │           │   ├── Editor.tsx, Toolbar.tsx, editor.css
 │           │   ├── SlashMenuPopover.tsx, slashMenuItems.ts
 │           │   ├── JsonInspector.tsx
-│           │   ├── extensions/   — MathInline, MathBlock, SlashMenu, BlockReorderShortcuts
-│           │   └── nodeViews/    — MathInlineView, MathBlockView
+│           │   ├── extensions/   — MathInline, MathBlock, SlashMenu, BlockReorderShortcuts, SectionBreak
+│           │   └── nodeViews/    — MathInlineView, MathBlockView, SectionBreakView
 │           ├── routes/           — Home.tsx, Playground.tsx (dev-only)
 │           ├── lib/              — supabase.ts, serialize.ts
 │           └── App.tsx, main.tsx, index.css
@@ -137,6 +137,9 @@ After Stage 11: `packages/renderer/src/runtime/` will be added, and `bundle-rend
 - **Skill tagging, not standards.** `skills: string[]` on ActivityMeta, FillInBlankBlock, and ProblemBlock, NOT `standards`. Action-oriented and framework-neutral — "simplifying rational expressions" rather than "TEKS A.10A" — so the system stays portable across Texas/CCSS/UK National Curriculum/etc. The field doesn't validate against any framework; teachers who want to use TEKS or CCSS codes can put them in the array. Phase 5 marketplace will add controlled vocabulary on top; an optional separate `standards` field for compliance reporting is additive whenever it's needed.
 - **Test directory convention:** `packages/<pkg>/tests/` for public-API tests (import from `'../src/index.js'`); `packages/<pkg>/src/__tests__/` for unit-level tests of new features (import from internal paths). Both directories are picked up by Vitest's default discovery.
 - **Barrel export discipline:** `packages/schema/src/index.ts` uses explicit named re-exports, not wildcards. New types added to a source file must be added to the barrel too. This caught the missing `SubmissionResponsesV1` / `migrateSubmissionResponses` exports during Stage 9a testing — the friction is working as designed.
+- **Section breaks carry the *next* section's metadata.** Tiptap doc is flat: `[block, block, sectionBreak(title, isCheckpoint), block, ...]`. The serialize layer walks the block stream and splits at each break; the break's attrs go onto the Section that opens at that break. First section is implicit with defaults when no leading break is present (Stage 9c UX); a teacher who wants the first section titled or marked as a checkpoint inserts a leading section_break. Round-trip rule: `activityToTiptap` emits a leading section_break only when the first section has non-default metadata, so brand-new activities don't render with a phantom divider at the top. Section title sized to 2.25rem (above H1's 1.875rem) to reflect that sections are *structurally above* the heading hierarchy within them, not a fifth heading level.
+- **Zod recursive types with default-laden inner schemas need `z.ZodType<T, ZodTypeDef, unknown>`.** Default values in Zod widen the schema's input type (optional) relative to its output (required). Recursive declarations via `z.ZodType<T>` assert input === output, which fails to type-check when any inner schema has `.default()`. The `unknown` escape hatch in the third type parameter lets the recursion typecheck cleanly; runtime validation is unaffected. Pattern applied to `ListItem` (which contains `InlineNode[]`, where the text node defaults marks to `[]`).
+- **List blocks (`bullet_list`, `ordered_list`) are recursive via `ListItem.children`.** Mirrors Tiptap's listItem > paragraph + nested list shape end-to-end so Tab-indent in the editor round-trips through autosave cleanly. Only `ListItem` needs `z.lazy` (it carries the cyclic edge); `BulletListBlock` and `OrderedListBlock` are plain `z.object`s so `z.discriminatedUnion('type', [...])` in `Block` can still introspect their discriminator. `StarterKit.configure({ blockquote: false, codeBlock: false })` is the right shape for trimming individual extensions out of StarterKit — preferred over removing the toolbar buttons alone, which leaves the underlying extension installed and triggerable via Markdown shortcuts.
 
 ## Standing constraints
 
@@ -155,6 +158,7 @@ After Stage 11: `packages/renderer/src/runtime/` will be added, and `bundle-rend
 - **Per-blank confidence ratings are opt-in.** Default off. Teacher enables per-blank via `hasConfidenceRating: true`.
 - **Accessibility commitments for the runtime:** focus moves to first incorrect feedback after check (or to score summary if all correct); ✓/✗ uses icon + color, never color alone; `prefers-reduced-motion` respected on any feedback transitions; KaTeX MathML output kept on for screen readers; touch targets ≥ 44×44px on interactive elements.
 - **Print CSS is part of the renderer's output from Stage 11.** `@media print` styles hide all interactive elements (checkpoint buttons, feedback slots, confidence ratings, submit button) and format the content for paper. Retrofit is expensive; build it in now.
+- **For Zod recursive types where any inner schema uses `.default()`, declare as `z.ZodType<T, z.ZodTypeDef, unknown>` rather than `z.ZodType<T>`.** The latter asserts input === output and breaks because `.default()` widens the input type. Standing rule for any future recursive schema in this codebase.
 
 ## Open questions / deferred decisions
 
@@ -203,6 +207,7 @@ After Stage 11: `packages/renderer/src/runtime/` will be added, and `bundle-rend
 - Don't trust the client's `attempt_number`. Server derives it from `max + 1`.
 - Don't reveal solutions before a section is checked. The HTML carries the data; the runtime decides when to render it.
 - Don't add JS dependencies to the runtime. Single-file vanilla TypeScript by design.
+- **Don't disable `noUncheckedIndexedAccess` to silence index-access errors.** It catches real bugs; the latent errors in `stage-9a.test.ts` (using `arr[0].x` where `arr[0]` could be undefined) only surfaced when tsc was run as part of the build, and they're correct errors. Fix the call sites with `?.` chaining instead.
 
 ## Working with the author (notes for the next AI session)
 
@@ -222,11 +227,11 @@ Specific friction patterns where unstated assumptions have caused loops:
 - **Don't conflate URLs with API keys** when describing dashboard navigation.
 - **Don't overstate accessibility behavior without thinking through the rendered state.** Stage 5a, "the handle button is reachable by Tab" turned out to be false because the parent extension hides the element when no block is hovered. The actual fix was a keyboard shortcut acting on the cursor's block, not making a hidden element focusable. General lesson: when claiming an a11y property, walk through the actual rendered DOM and keyboard flow before saying it works.
 - **Schema versioning convention. SubmissionResponses always names the current schema; SubmissionResponsesV1 is the legacy preserved for migration. There is no SubmissionResponsesV2 symbol — when the next version lands, SubmissionResponses becomes v3 and a SubmissionResponsesV2 will be introduced as the new legacy name. "Rename when demoting, not when promoting."
-
+- **Vitest does not enforce TS strict mode.** It uses esbuild/swc under the hood, which transpiles but doesn't type-check. Latent type errors can accumulate, passing `vitest run` while failing `tsc --noEmit`. Run `pnpm --filter <pkg> build` periodically (or wire it into CI per the housekeeping note in Nearest next steps) to surface them before they compound.
 
 
 When something fails, the user pastes terminal output. Read the actual output before assuming what happened — "command ran successfully" vs "command exited without doing anything" can look similar at first glance. Likewise, when the user pastes a file's contents, scan for duplicated code, dead code after a `return`, or missing exports before assuming the bug is elsewhere.
 
 ---
 
-**Last updated:** Stage 9b complete. Migration 0005 adds the `attempt_number` column on `submissions`, two partial unique indexes (link-share and assignment identity scopes), and replaces `ingest_submission` with a retry-on-unique-violation loop. RPC return type changed `uuid` → `jsonb {submission_id, attempt_number}`. Edge Function enforces `schemaVersion: 2` on incoming responses (rejects v1 with 400) and returns the canonical attempt number to the runtime. Renderer bundle now tracked in git so HEAD == what's deployed. Naming-convention friction caught and corrected mid-stage: `SubmissionResponses` IS the current (v2) schema, no `SubmissionResponsesV2` symbol exists; convention is "rename when demoting, not when promoting." Small phantom-identity bug also fixed: `display_name` is now trimmed before insert, not just for the identity check. Next: Stage 9c — Tiptap `section_break` block + `isCheckpoint` UI.
+**Last updated:** Stages 9c + 9d complete. 9c: Tiptap `section_break` atom node (title + isCheckpoint attrs on the block, NodeView with controlled-input title field and checkpoint toggle, slash menu entry, keyboard-reorder support); serialize layer splits the flat block stream at section_breaks into multiple Sections, emitting a leading break only when the first section has non-default metadata; 34 serialize tests passing. 9d: bullet and ordered list blocks added recursively via `z.lazy()` with the `z.ZodType<T, ZodTypeDef, unknown>` pattern; renderer recurses through nested lists; serialize handles Tiptap listItem ↔ schema ListItem; blockquote and codeBlock disabled via `StarterKit.configure`. Stage-9a.test.ts type errors caught by tsc and fixed (three `?.` additions for indexed-access undefined-handling — `noUncheckedIndexedAccess` was on but vitest's esbuild path didn't enforce). `serialize.ts` + `serialize.test.ts` moved to `packages/app/src/lib/` to match documented architecture. Next: Stage 10 — Editor wired to Supabase + basic dashboard.

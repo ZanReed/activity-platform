@@ -26,6 +26,9 @@ export {
   CalloutBlock,
   ProblemBlock,
   FillInBlankBlock,
+  BulletListBlock,
+  OrderedListBlock,
+  ListItem,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 

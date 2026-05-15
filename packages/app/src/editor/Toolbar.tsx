@@ -84,12 +84,6 @@ export default function Toolbar({ editor }: ToolbarProps) {
         >
         1. List
         </ToolbarButton>
-        <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        active={editor.isActive('blockquote')}
-        >
-        Quote
-        </ToolbarButton>
         </div>
     );
 }

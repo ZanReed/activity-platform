@@ -75,4 +75,12 @@ export const slashMenuItems: SlashMenuItem[] = [
         .run();
     },
 },
+{
+    title: 'Section break',
+    description: 'Start a new section. Optionally a checkpoint.',
+    keywords: ['section', 'break', 'divider', 'checkpoint'],
+    command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertSectionBreak().run();
+    },
+},
 ];

@@ -29,6 +29,10 @@ import type {
     Block,
     InlineNode,
     Mark,
+    Section,
+    BulletListBlock,
+    OrderedListBlock,
+    ListItem,
 } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 
@@ -55,20 +59,57 @@ export function tiptapToActivity(
         );
     }
 
-    const blocks = (tiptap.content ?? [])
-    .map(tiptapBlockToActivity)
-    .filter((b): b is Block => b !== null);
-
     return {
         schemaVersion: 1,
         meta,
-        sections: [
-            {
-                id: crypto.randomUUID(),
-                blocks,
-            },
-        ],
+        sections: splitTiptapBlocksIntoSections(tiptap.content ?? []),
     };
+}
+
+// Walks the flat Tiptap block list and splits at every `sectionBreak` node.
+// Each break opens a new Section that inherits its title and isCheckpoint
+// attrs. If the doc doesn't start with a sectionBreak, an implicit first
+// section is created with default metadata — this is the Stage 9c first-
+// section UX: a teacher who wants to title or check the first section
+// inserts a leading sectionBreak; otherwise defaults are used.
+function splitTiptapBlocksIntoSections(nodes: JSONContent[]): Section[] {
+    const sections: Section[] = [];
+    const startsWithBreak = nodes[0]?.type === 'sectionBreak';
+
+    let current: Section = startsWithBreak
+        ? sectionFromBreak(nodes[0]!)
+        : { id: crypto.randomUUID(), isCheckpoint: false, blocks: [] };
+
+    for (let i = startsWithBreak ? 1 : 0; i < nodes.length; i++) {
+        const node = nodes[i]!;
+        if (node.type === 'sectionBreak') {
+            sections.push(current);
+            current = sectionFromBreak(node);
+        } else {
+            const block = tiptapBlockToActivity(node);
+            if (block) current.blocks.push(block);
+        }
+    }
+
+    sections.push(current);
+    return sections;
+}
+
+// Builds a fresh Section from a sectionBreak node's attrs. Nullish/empty
+// titles normalize to "no title" — the schema accepts title="" but the
+// editor's NodeView strips empties to null on its way out, and we mirror
+// that on the way back in so the schema-side never carries phantom empties.
+function sectionFromBreak(node: JSONContent): Section {
+    const rawTitle = node.attrs?.title as string | null | undefined;
+    const section: Section = {
+        id: crypto.randomUUID(),
+        isCheckpoint: Boolean(node.attrs?.isCheckpoint),
+        blocks: [],
+    };
+    if (typeof rawTitle === 'string' && rawTitle.length > 0) {
+        section.title = rawTitle;
+    }
+    return section;
 }
 
 function tiptapBlockToActivity(node: JSONContent): Block | null {
@@ -98,6 +139,12 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
                 latex: (node.attrs?.latex as string | undefined) ?? '',
             };
 
+        case 'bulletList':
+            return tiptapBulletListToActivity(node);
+
+        case 'orderedList':
+            return tiptapOrderedListToActivity(node);
+
         default:
             // bulletList, orderedList, blockquote, codeBlock, horizontalRule
             // (StarterKit defaults), and any other unrecognized type fall
@@ -107,6 +154,63 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             );
             return null;
     }
+}
+
+function tiptapBulletListToActivity(node: JSONContent): BulletListBlock {
+    return {
+        id: crypto.randomUUID(),
+        type: 'bullet_list',
+        items: (node.content ?? [])
+        .map(tiptapListItemToActivity)
+        .filter((i): i is ListItem => i !== null),
+    };
+}
+
+function tiptapOrderedListToActivity(node: JSONContent): OrderedListBlock {
+    return {
+        id: crypto.randomUUID(),
+        type: 'ordered_list',
+        items: (node.content ?? [])
+        .map(tiptapListItemToActivity)
+        .filter((i): i is ListItem => i !== null),
+    };
+}
+
+// A Tiptap listItem contains a paragraph (the item's inline content) and
+// optionally nested bulletList/orderedList nodes. Standard Tiptap behavior
+// produces exactly one paragraph per item — if a doc somehow has more, take
+// the first paragraph's content and ignore the rest (warned). Children are
+// recursively serialized.
+function tiptapListItemToActivity(node: JSONContent): ListItem | null {
+    if (node.type !== 'listItem') {
+        console.warn(`[serialize] Unexpected node inside list: ${node.type}`);
+        return null;
+    }
+
+    const item: ListItem = {
+        id: crypto.randomUUID(),
+        content: [],
+    };
+    const children: Array<BulletListBlock | OrderedListBlock> = [];
+    let paragraphSeen = false;
+
+    for (const child of node.content ?? []) {
+        if (child.type === 'paragraph') {
+            if (!paragraphSeen) {
+                item.content = tiptapInlineToActivity(child.content ?? []);
+                paragraphSeen = true;
+            }
+            // Additional paragraphs in a single list item aren't a thing
+            // Tiptap produces under normal authoring; silently drop.
+        } else if (child.type === 'bulletList') {
+            children.push(tiptapBulletListToActivity(child));
+        } else if (child.type === 'orderedList') {
+            children.push(tiptapOrderedListToActivity(child));
+        }
+    }
+
+    if (children.length > 0) item.children = children;
+    return item;
 }
 
 function tiptapInlineToActivity(content: JSONContent[]): InlineNode[] {
@@ -154,16 +258,48 @@ function extractMarks(marks?: Array<{ type: string }>): Mark[] {
 // =============================================================================
 
 export function activityToTiptap(doc: ActivityDocument): JSONContent {
-    // Phase 1: sections aren't surfaced in the editor. Flatten all
-    // sections' blocks into one content array. Stage 9 (section_break)
-    // changes this — sections become explicit dividers in the Tiptap content.
-    const blocks = doc.sections.flatMap((s) => s.blocks);
-
     return {
         type: 'doc',
-        content: blocks
-        .map(activityBlockToTiptap)
-        .filter((n): n is JSONContent => n !== null),
+        content: emitSectionsAsTiptapBlocks(doc.sections),
+    };
+}
+
+// Emits the Tiptap content array: one `sectionBreak` before each section,
+// then that section's blocks. The first section is special — a leading
+// break is emitted ONLY when the first section has non-default metadata
+// (title set or isCheckpoint true). Without that rule a teacher would see
+// a section_break at the top of every brand-new document, contradicting
+// the Stage 9c implicit-first-section UX.
+function emitSectionsAsTiptapBlocks(sections: Section[]): JSONContent[] {
+    const out: JSONContent[] = [];
+
+    sections.forEach((section, index) => {
+        const hasMetadata =
+            (section.title !== undefined && section.title !== '') ||
+            section.isCheckpoint;
+        const isFirst = index === 0;
+        if (!isFirst || hasMetadata) {
+            out.push(sectionBreakNode(section));
+        }
+        for (const block of section.blocks) {
+            const node = activityBlockToTiptap(block);
+            if (node) out.push(node);
+        }
+    });
+
+    return out;
+}
+
+// Both attrs are always emitted (with null/false for absent values) to
+// match what Tiptap produces from a live section_break instance — keeping
+// the shape exact preserves round-trip equality with editor JSON.
+function sectionBreakNode(section: Section): JSONContent {
+    return {
+        type: 'sectionBreak',
+        attrs: {
+            title: section.title ?? null,
+            isCheckpoint: section.isCheckpoint,
+        },
     };
 }
 
@@ -188,6 +324,12 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
                 attrs: { latex: block.latex },
             };
 
+        case 'bullet_list':
+            return activityBulletListToTiptap(block);
+
+        case 'ordered_list':
+            return activityOrderedListToTiptap(block);
+
             // Block types in the schema that don't have a Tiptap extension yet.
             // When the corresponding NodeViews exist, add cases above this group.
         case 'image':
@@ -206,6 +348,40 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
             return _exhaustive;
         }
     }
+}
+
+function activityBulletListToTiptap(block: BulletListBlock): JSONContent {
+    return {
+        type: 'bulletList',
+        content: block.items.map(activityListItemToTiptap),
+    };
+}
+
+function activityOrderedListToTiptap(block: OrderedListBlock): JSONContent {
+    return {
+        type: 'orderedList',
+        content: block.items.map(activityListItemToTiptap),
+    };
+}
+
+function activityListItemToTiptap(item: ListItem): JSONContent {
+    const content: JSONContent[] = [
+        {
+            type: 'paragraph',
+            content: activityInlineToTiptap(item.content),
+        },
+    ];
+    for (const child of item.children ?? []) {
+        content.push(
+            child.type === 'bullet_list'
+        ? activityBulletListToTiptap(child)
+        : activityOrderedListToTiptap(child),
+        );
+    }
+    return {
+        type: 'listItem',
+        content,
+    };
 }
 
 function activityInlineToTiptap(content: InlineNode[]): JSONContent[] {
