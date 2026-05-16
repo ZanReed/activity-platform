@@ -1,6 +1,5 @@
 import type { Editor } from '@tiptap/react';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
 
 // editor.isActive(markName) returns false when a mark is "armed" on a collapsed
 // cursor — ProseMirror's stored-marks state, applied to the next typed character.

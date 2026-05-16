@@ -1,12 +1,10 @@
+import type { DetailedHTMLProps, HTMLAttributes } from 'react';
 import type { MathfieldElement } from 'mathlive';
 
-declare global {
+declare module 'react' {
     namespace JSX {
         interface IntrinsicElements {
-            'math-field': React.DetailedHTMLProps<
-            React.HTMLAttributes<MathfieldElement>,
-            MathfieldElement
-            >;
+            'math-field': DetailedHTMLProps<HTMLAttributes<MathfieldElement>, MathfieldElement>;
         }
     }
 }

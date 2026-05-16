@@ -9,13 +9,13 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
-import { ActivityDocument, type ActivityMeta } from '@activity/schema';
+import { ActivityDocument, ActivityMeta } from '@activity/schema';
 import { activityToTiptap, tiptapToActivity } from './serialize';
 
-const META: ActivityMeta = {
+const META = ActivityMeta.parse({
     title: 'Test Activity',
     course: 'Algebra II',
-};
+});
 
 // Round-trip from the Tiptap side.
 function roundTrip(input: JSONContent): JSONContent {
@@ -268,9 +268,9 @@ describe('graceful degradation', () => {
             ],
         };
         const result = tiptapToActivity(doc, META);
-        expect(result.sections[0].blocks).toHaveLength(2);
-        expect(result.sections[0].blocks[0].type).toBe('paragraph');
-        expect(result.sections[0].blocks[1].type).toBe('paragraph');
+        expect(result.sections[0]!.blocks).toHaveLength(2);
+        expect(result.sections[0]!.blocks[0]!.type).toBe('paragraph');
+        expect(result.sections[0]!.blocks[1]!.type).toBe('paragraph');
     });
 
     it('drops unsupported marks (e.g., strike) silently', () => {
@@ -290,9 +290,9 @@ describe('graceful degradation', () => {
             ],
         };
         const result = tiptapToActivity(doc, META);
-        const block = result.sections[0].blocks[0];
+        const block = result.sections[0]!.blocks[0]!;
         if (block.type !== 'paragraph') throw new Error('expected paragraph');
-        const text = block.content[0];
+        const text = block.content[0]!;
         if (text.type !== 'text') throw new Error('expected text node');
         expect(text.marks).toEqual(['bold']);
     });
@@ -325,16 +325,9 @@ describe('schema validity', () => {
 describe('meta and sections', () => {
     it('preserves meta in the result', () => {
         const doc: JSONContent = { type: 'doc', content: [] };
-        const result = tiptapToActivity(doc, {
-            title: 'Quadratic Equations',
-            course: 'Algebra II',
-            unit: 'Polynomials',
-        });
-        expect(result.meta).toEqual({
-            title: 'Quadratic Equations',
-            course: 'Algebra II',
-            unit: 'Polynomials',
-        });
+        const meta = { ...META, title: 'Quadratic Equations', unit: 'Polynomials' };
+        const result = tiptapToActivity(doc, meta);
+        expect(result.meta).toEqual(meta);
     });
 
     it('wraps blocks in exactly one section with a uuid id', () => {
@@ -344,7 +337,7 @@ describe('meta and sections', () => {
         };
         const result = tiptapToActivity(doc, META);
         expect(result.sections).toHaveLength(1);
-        expect(result.sections[0].id).toMatch(
+        expect(result.sections[0]!.id).toMatch(
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
         );
     });
@@ -358,8 +351,8 @@ describe('section breaks', () => {
         };
         const result = tiptapToActivity(doc, META);
         expect(result.sections).toHaveLength(1);
-        expect(result.sections[0].title).toBeUndefined();
-        expect(result.sections[0].isCheckpoint).toBe(false);
+        expect(result.sections[0]!.title).toBeUndefined();
+        expect(result.sections[0]!.isCheckpoint).toBe(false);
     });
 
     it('first section takes the leading sectionBreak attrs when doc starts with one', () => {
@@ -372,9 +365,9 @@ describe('section breaks', () => {
         };
         const result = tiptapToActivity(doc, META);
         expect(result.sections).toHaveLength(1);
-        expect(result.sections[0].title).toBe('Warm-up');
-        expect(result.sections[0].isCheckpoint).toBe(true);
-        expect(result.sections[0].blocks).toHaveLength(1);
+        expect(result.sections[0]!.title).toBe('Warm-up');
+        expect(result.sections[0]!.isCheckpoint).toBe(true);
+        expect(result.sections[0]!.blocks).toHaveLength(1);
     });
 
     it('splits content at a mid-doc sectionBreak', () => {
@@ -388,11 +381,11 @@ describe('section breaks', () => {
         };
         const result = tiptapToActivity(doc, META);
         expect(result.sections).toHaveLength(2);
-        expect(result.sections[0].title).toBeUndefined();
-        expect(result.sections[0].isCheckpoint).toBe(false);
-        expect(result.sections[0].blocks).toHaveLength(1);
-        expect(result.sections[1].title).toBe('Practice');
-        expect(result.sections[1].blocks).toHaveLength(1);
+        expect(result.sections[0]!.title).toBeUndefined();
+        expect(result.sections[0]!.isCheckpoint).toBe(false);
+        expect(result.sections[0]!.blocks).toHaveLength(1);
+        expect(result.sections[1]!.title).toBe('Practice');
+        expect(result.sections[1]!.blocks).toHaveLength(1);
     });
 
     it('produces a trailing empty section for a trailing sectionBreak', () => {
@@ -405,8 +398,8 @@ describe('section breaks', () => {
         };
         const result = tiptapToActivity(doc, META);
         expect(result.sections).toHaveLength(2);
-        expect(result.sections[1].title).toBe('Last');
-        expect(result.sections[1].blocks).toHaveLength(0);
+        expect(result.sections[1]!.title).toBe('Last');
+        expect(result.sections[1]!.blocks).toHaveLength(0);
     });
 
     it('handles consecutive sectionBreaks — empty first, second carries the latter break', () => {
@@ -420,11 +413,11 @@ describe('section breaks', () => {
         };
         const result = tiptapToActivity(doc, META);
         expect(result.sections).toHaveLength(2);
-        expect(result.sections[0].title).toBe('A');
-        expect(result.sections[0].blocks).toHaveLength(0);
-        expect(result.sections[1].title).toBe('B');
-        expect(result.sections[1].isCheckpoint).toBe(true);
-        expect(result.sections[1].blocks).toHaveLength(1);
+        expect(result.sections[0]!.title).toBe('A');
+        expect(result.sections[0]!.blocks).toHaveLength(0);
+        expect(result.sections[1]!.title).toBe('B');
+        expect(result.sections[1]!.isCheckpoint).toBe(true);
+        expect(result.sections[1]!.blocks).toHaveLength(1);
     });
 
     it('round-trip: doc without sectionBreaks (default first section)', () => {

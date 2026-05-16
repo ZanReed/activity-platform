@@ -3,6 +3,7 @@ import type { Editor, Range } from '@tiptap/core';
 export interface SlashMenuItem {
     title: string;
     description: string;
+    keywords?: string[];
     command: (props: { editor: Editor; range: Range }) => void;
 }
 
