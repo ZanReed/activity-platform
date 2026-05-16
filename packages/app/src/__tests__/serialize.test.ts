@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
 import { ActivityDocument, ActivityMeta } from '@activity/schema';
-import { activityToTiptap, tiptapToActivity } from './serialize';
+import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
 
 const META = ActivityMeta.parse({
     title: 'Test Activity',
