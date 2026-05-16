@@ -17,10 +17,14 @@ export const SlashMenu = Extension.create({
                 char: '/',
                 startOfLine: true,
 
-                items: ({ query }) =>
-                slashMenuItems.filter((item) =>
-                item.title.toLowerCase().includes(query.toLowerCase()),
-                ),
+                items: ({ query }) => {
+                    const q = query.toLowerCase();
+                    return slashMenuItems.filter(
+                        (item) =>
+                        item.title.toLowerCase().includes(q) ||
+                        (item.keywords?.some((kw) => kw.includes(q)) ?? false),
+                    );
+                },
 
                 command: ({ editor, range, props }) => {
                     props.command({ editor, range });
