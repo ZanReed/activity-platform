@@ -43,6 +43,8 @@ const SUPPORTED_MARKS: ReadonlySet<Mark> = new Set<Mark>([
     'italic',
     'underline',
     'code',
+    'subscript',
+    'superscript',
 ]);
 
 // =============================================================================

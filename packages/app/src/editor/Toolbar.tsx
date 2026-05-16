@@ -1,5 +1,16 @@
 import type { Editor } from '@tiptap/react';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
+
+// editor.isActive(markName) returns false when a mark is "armed" on a collapsed
+// cursor — ProseMirror's stored-marks state, applied to the next typed character.
+// For toolbar UX we want both states to show as active: the button reflects
+// "mark will apply to what you type / is applied to what's selected," which
+// matches how Word, Google Docs, and most editors visualize it.
+function isMarkActive(editor: Editor, markName: string): boolean {
+    if (editor.isActive(markName)) return true;
+    return editor.state.storedMarks?.some((m) => m.type.name === markName) ?? false;
+}
 
 interface ToolbarProps {
     editor: Editor | null;
@@ -12,21 +23,33 @@ export default function Toolbar({ editor }: ToolbarProps) {
         <div className="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 p-2">
         <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
-        active={editor.isActive('bold')}
+        active={isMarkActive(editor, 'bold')}
         >
         <strong>B</strong>
         </ToolbarButton>
         <ToolbarButton
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        active={editor.isActive('italic')}
+        active={isMarkActive(editor, 'italic')}
         >
         <em>I</em>
         </ToolbarButton>
         <ToolbarButton
         onClick={() => editor.chain().focus().toggleCode().run()}
-        active={editor.isActive('code')}
+        active={isMarkActive(editor, 'code')}
         >
         <code>{'<>'}</code>
+        </ToolbarButton>
+        <ToolbarButton
+        onClick={() => editor.chain().focus().toggleSubscript().run()}
+        active={isMarkActive(editor, 'subscript')}
+        >
+        X<sub>2</sub>
+        </ToolbarButton>
+        <ToolbarButton
+        onClick={() => editor.chain().focus().toggleSuperscript().run()}
+        active={isMarkActive(editor, 'superscript')}
+        >
+        X<sup>2</sup>
         </ToolbarButton>
 
         <Divider />

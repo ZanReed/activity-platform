@@ -70,6 +70,47 @@ describe('paragraphs', () => {
         expect(roundTrip(doc)).toEqual(doc);
     });
 
+    it('preserves subscript marks', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        { type: 'text', text: 'H' },
+                        {
+                            type: 'text',
+                            text: '2',
+                            marks: [{ type: 'subscript' }],
+                        },
+                        { type: 'text', text: 'O' },
+                    ],
+                },
+            ],
+        };
+        expect(roundTrip(doc)).toEqual(doc);
+    });
+
+    it('preserves superscript marks', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        { type: 'text', text: 'x' },
+                        {
+                            type: 'text',
+       text: '2',
+       marks: [{ type: 'superscript' }],
+                        },
+                    ],
+                },
+            ],
+        };
+        expect(roundTrip(doc)).toEqual(doc);
+    });
+
     it('preserves multiple marks on one text run', () => {
         const doc: JSONContent = {
             type: 'doc',
