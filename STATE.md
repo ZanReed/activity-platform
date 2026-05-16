@@ -3,8 +3,8 @@
 A living "where am I" snapshot. Update at the end of each work session — replace the relevant sections, don't append. Keep it short; if it grows past two screens, prune.
 
 ## Current focus
-
-**Phase 1 — Stage 9e (architectural future-proofing cleanup) → Stage 10 (Editor wired to Supabase + basic dashboard).** Stages 9c and 9d complete. The cross-subject architecture audit and the sustainability-model conversation (this session) surfaced five cheap pre-emptive moves and a handful of future phase additions; the moves are bundled as Stage 9e to lock in the seams before Stage 10's larger surface area lands. Runtime architecture decisions captured in `packages/renderer/RUNTIME.md`; sustainability model captured as a cross-cutting concern in `ROADMAP.md`.
+## 
+ "Stage 10 — Editor wired to Supabase + basic dashboard. Stage 9e complete." (the architectural seams are now all locked in).
 
 ## Status by area
 
@@ -35,7 +35,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 | DB migration 0005 (attempt_number) (Stage 9b) | ✅ Applied; `ingest_submission` now returns `jsonb {submission_id, attempt_number}` with retry-on-unique-violation. |
 | Tiptap section_break + isCheckpoint UI (Stage 9c) | ✅ Atom node + NodeView + slash entry + multi-section serialize; 34 serialize tests pass |
 | Lists + StarterKit trim (Stage 9d) | ✅ Bullet/ordered/nested in schema, renderer, serialize; blockquote+codeBlock removed from toolbar |
-| Stage 9e — architectural future-proofing cleanup | ⏳ Next |
+| Stage 9e — architectural future-proofing cleanup row → ✅ Complete.|
 | Editor wired to Supabase + basic dashboard (Stage 10) | ⏳ After 9e |
 | Runtime file split + build pipeline (Stage 11) | ⏳ Not started |
 | Runtime: checkpoint scoring + feedback rendering (Stages 12–13) | ⏳ Not started |
@@ -218,15 +218,9 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 
 ## Nearest next steps
 
-1. **Stage 9e — Architectural future-proofing cleanup.** Six cheap moves from the cross-subject audit and sustainability conversation, locked in before Stage 10's larger surface area lands:
-   - Add `subscript` / `superscript` marks to the schema, renderer, serialize layer, and toolbar.
-   - Add `gradingMode: 'auto' | 'manual' | 'mixed'` field to `ActivityMeta` (default `'auto'`).
-   - Add `data-block-category="content|question|scaffold"` to renderer output for every block. Update RUNTIME.md data-attribute contract.
-   - Add a documentation comment in `submission.ts` capturing the parallel-map convention for future response shapes (`choices`, `orderings`, `matches`, `graphs`, `files`, `essays`, `annotations`).
-   - Add `account_tier` enum to the users table (`'free' | 'supporter' | 'institutional' | 'comp'`, default `'free'`) via a new migration. Set collaborator-teacher accounts to `'comp'` after the migration runs.
-   - Add `referencePanel?: { title?: string, blocks: Block[] }` as an optional field on `ActivityDocument` in the schema package. Field exists, accepts content, but isn't rendered or surfaced in the editor until Phase 2. Renderer ignores it for now. Round-trip test: an activity with a `referencePanel` should serialize and deserialize without data loss even though the editor doesn't yet expose it.
-   - ~1 short session.
-2. **Stage 10 — Editor wired to Supabase + basic dashboard.** Activity list, create activity, open editor, autosave drafts via the serialize layer (debounced ~1s, optimistic UI, "Saving…/Saved" indicator). Subscribe via `Editor.onUpdate`. This is the foundational editor-to-backend wiring that everything subsequent depends on for end-to-end testing. ~1–2 sessions.
+1. **Stage 10 — Editor wired to Supabase + basic dashboard.** Activity list, create activity, open editor, autosave drafts via the serialize layer (debounced ~1s, optimistic UI, "Saving…/Saved" indicator). Subscribe via `Editor.onUpdate`. This is the foundational editor-to-backend wiring that everything subsequent depends on for end-to-end testing. ~1–2 sessions.
+2. App package build cleanup. pnpm --filter @activity/app build surfaces ~35 latent type errors that Vitest's transpile-only path never caught. Three categories: mathlive.d.ts uses the React 18 declare global { namespace JSX } pattern and needs the React 19 declare module 'react' form (the syntax error was fixed in the Stage 9e Item 1 commit; the namespace pattern remains); slashMenuItems.ts has a keywords field not present in the SlashMenuItem type; serialize.test.ts has a META declaration missing ActivityMeta's default-bearing fields plus numerous noUncheckedIndexedAccess violations. All pre-existing; best handled as a focused session of its own before Stage 10's app work compounds it.
+
 3. **Stage 11 — Runtime file split + build pipeline.** Extract inline `<script>` from renderer into `runtime/index.ts`; add esbuild step to `bundle-renderer.mjs` for runtime.js + source map; update `publish-activity` to upload both. Per RUNTIME.md architecture. Include print CSS in renderer output. ~1 session.
 4. **Stages 12–13 — Runtime logic.** Init pass + maps + checkpoint scoring + feedback rendering + revision mode enforcement. Tests in JSDOM. ~2 sessions.
 5. **Stage 14 — Runtime: submission flow.** Final submit, attempt tracking via server-derived attempt_number, localStorage retry on network failure, resubmit flow for revisionMode === 'free'. ~1 session.
@@ -283,4 +277,4 @@ When something fails, the user pastes terminal output. Read the actual output be
 
 ---
 
-**Last updated:** Cross-subject architecture audit + sustainability-model conversation complete. Architecture decisions added: subject portability as first-class commitment; parallel-map pattern locks in for `SubmissionResponses` extension; `gradingMode` on `ActivityMeta`; `data-block-category` in data-attribute contract; rubric-based grading model named for Phase 2.6; subscript/superscript marks as inline marks; `account_tier` field on users (free / supporter / institutional / comp); `referencePanel` as a future optional field on `ActivityDocument`. Five new ROADMAP entries: Phase 2 expansion (MC/matching/ordering + reference panel), Phase 2.6 (manual grading + rubrics), Phase 2.8 (media submissions), Phase 2.9 (annotation responses), plus a Sustainability model cross-cutting concern. Stage 9e (architectural cleanup) expanded to six items and remains the immediate next step before Stage 10 — Editor wired to Supabase + basic dashboard.
+**Last updated:** Stage 9e complete — all six architectural future-proofing items landed (subscript/superscript marks, gradingMode, data-block-category, parallel-map doc, account_tier, referencePanel). App-package build cleanup identified as the next near-term task before Stage 10.
