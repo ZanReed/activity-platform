@@ -10,6 +10,9 @@ import {
   createFillInBlankBlock,
   createBlankToken,
   createSection,
+  createBulletListBlock,
+  createOrderedListBlock,
+  createListItem,
 } from '@activity/schema';
 import { renderActivity, renderBody, type RenderContext } from '../src/index.js';
 
@@ -245,5 +248,127 @@ describe('Problem numbering', () => {
     const body = renderBody(doc);
     expect(body).toContain('<sub>2</sub>');
     expect(body).toContain('<sup>2</sup>');
+  });
+});
+
+describe('lists', () => {
+  it('renders a bullet list as <ul> with content category', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    doc.sections[0]!.blocks = [
+      Object.assign(createBulletListBlock(), {
+        items: [
+          Object.assign(createListItem(), {
+            content: [{ type: 'text', text: 'first item', marks: [] }],
+          }),
+          Object.assign(createListItem(), {
+            content: [{ type: 'text', text: 'second item', marks: [] }],
+          }),
+        ],
+      }),
+    ];
+    const body = renderBody(doc);
+    expect(body).toContain(
+      '<ul class="activity-list activity-list--bullet" data-block-category="content"',
+    );
+    expect(body).toContain('</ul>');
+    expect(body).toContain('<li data-id=');
+    expect(body).toContain('first item');
+    expect(body).toContain('second item');
+  });
+
+  it('renders an ordered list as <ol> with content category', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    doc.sections[0]!.blocks = [
+      Object.assign(createOrderedListBlock(), {
+        items: [
+          Object.assign(createListItem(), {
+            content: [{ type: 'text', text: 'step one', marks: [] }],
+          }),
+        ],
+      }),
+    ];
+    const body = renderBody(doc);
+    expect(body).toContain(
+      '<ol class="activity-list activity-list--ordered" data-block-category="content"',
+    );
+    expect(body).toContain('</ol>');
+    expect(body).toContain('step one');
+  });
+
+  it('renders a nested bullet list inside its parent list item', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    doc.sections[0]!.blocks = [
+      Object.assign(createBulletListBlock(), {
+        items: [
+          Object.assign(createListItem(), {
+            content: [{ type: 'text', text: 'outer item', marks: [] }],
+            children: [
+              Object.assign(createBulletListBlock(), {
+                items: [
+                  Object.assign(createListItem(), {
+                    content: [{ type: 'text', text: 'inner item', marks: [] }],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ];
+    const body = renderBody(doc);
+    expect(body).toContain('outer item');
+    expect(body).toContain('inner item');
+    // The nested <ul> opens immediately after the parent item's inline
+    // content — i.e. inside the parent <li>, not as a sibling block.
+    expect(body).toContain('outer item<ul ');
+  });
+
+  it('dispatches mixed nesting (a bullet list inside an ordered list)', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    doc.sections[0]!.blocks = [
+      Object.assign(createOrderedListBlock(), {
+        items: [
+          Object.assign(createListItem(), {
+            content: [{ type: 'text', text: 'numbered parent', marks: [] }],
+            children: [
+              Object.assign(createBulletListBlock(), {
+                items: [
+                  Object.assign(createListItem(), {
+                    content: [
+                      { type: 'text', text: 'bulleted child', marks: [] },
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ];
+    const body = renderBody(doc);
+    expect(body).toContain('activity-list--ordered');
+    expect(body).toContain('activity-list--bullet');
+    expect(body).toContain('numbered parent<ul ');
+    expect(body).toContain('bulleted child');
+  });
+
+  it('renders inline marks inside a list item', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    doc.sections[0]!.blocks = [
+      Object.assign(createBulletListBlock(), {
+        items: [
+          Object.assign(createListItem(), {
+            content: [
+              { type: 'text', text: 'plain ', marks: [] },
+              { type: 'text', text: 'bold', marks: ['bold'] },
+            ],
+          }),
+        ],
+      }),
+    ];
+    const body = renderBody(doc);
+    expect(body).toContain('plain ');
+    expect(body).toContain('bold');
+    expect(body).toContain('<strong>');
   });
 });

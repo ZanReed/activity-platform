@@ -51,6 +51,7 @@ export {
 } from './submission.js';
 
 // Factories
+// Factories
 export {
   createParagraphBlock,
   createHeadingBlock,
@@ -59,6 +60,9 @@ export {
   createCalloutBlock,
   createProblemBlock,
   createFillInBlankBlock,
+  createBulletListBlock,
+  createOrderedListBlock,
+  createListItem,
   createBlankToken,
   createSection,
   createEmptyDocument,
