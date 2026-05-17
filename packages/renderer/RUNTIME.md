@@ -48,12 +48,12 @@ It does NOT handle:
 
 This is the API between renderer (emits) and runtime (reads). Additive changes only — once an activity is published, the attributes in its HTML are frozen for it forever. Document every attribute here; if it's not in this section, it doesn't exist.
 
-**Status tags.** The runtime is built in Stages 11–14, *after* the renderer, so parts of this contract are still a target the renderer has not met. Each attribute group below is tagged:
+**Status tags.** The runtime is built in Stages 11–14, *after* the renderer, so parts of this contract are still a target the renderer has not met. Attribute groups below carry a status tag:
 
 - **[emitted today]** — current renderer output; relied on by shipping code and tests. Safe to build against.
 - **[target — Stage N]** / **[target — Phase N]** — the shape the renderer must emit when that stage or phase lands. Not in current HTML; the exact shape may still shift until then. Do not assume it is present.
 
-"If it's not in this section it doesn't exist" still holds — but "in this section" now distinguishes *emitted* from *targeted*.
+"If it's not in this section it doesn't exist" still holds — but "in this section" now distinguishes *emitted* from *targeted*. (The Document root group below predates this convention and has not been re-audited against the renderer.)
 
 ### Document root
 
@@ -73,17 +73,21 @@ This is the API between renderer (emits) and runtime (reads). Additive changes o
 ### Section
 
 ```
-<section
-  data-block-category="content"
-  data-section-id="<uuid>"
-  data-is-checkpoint="true | false">
-  <!-- blocks -->
+<!-- [emitted today] -->
+<section class="activity-section"
+         data-block-category="content"
+         data-section-id="<uuid>">
+  <!-- optional <h2 class="section-title">, then blocks -->
 </section>
 ```
 
-`data-is-checkpoint="true"` is rendered only when the activity's submissionMode is `locked` or `free`. In `single` mode the attribute is omitted (sections still exist for layout but have no checkpoint button). Sections themselves are content (organizational), not questions; their `data-block-category` is `content`.
+`<section>` is content (organizational), not a question — `data-block-category` is always `content`. Sections carry no `data-block-type`: they are containers, not blocks (see "Block identity attributes" below).
+
+**[target — Stage 12–13]** When `submissionMode` is `locked` or `free`, the `<section>` additionally carries `data-is-checkpoint="true | false"`; in `single` mode the attribute is omitted entirely. Not emitted today — `render.ts` emits no checkpoint metadata yet.
 
 ### Reference panel (Phase 2)
+
+**[target — Phase 2] — not emitted today.** The schema field exists (Stage 9e); the renderer layout and editor authoring UX are Phase 2 work.
 
 ```
 <aside class="reference-panel"
@@ -103,18 +107,32 @@ Optional collapse/expand for mobile uses native `<details>` / `<summary>` elemen
 ### Block identity attributes (every block)
 
 ```
-<... data-block-category="content | question | scaffold" data-block-type="<type>" ...>
+<!-- [emitted today] — every top-level block -->
+<… data-block-category="content | question | scaffold"
+    data-block-type="<schema discriminant>"
+    data-block-id="<uuid>" …>
+
+<!-- [emitted today] — sections: containers, not blocks -->
+<section data-block-category="content" data-section-id="<uuid>" …>
 ```
 
-Every top-level block emitted by the renderer carries `data-block-category` and `data-block-type`. Phase 1 categories:
+Every top-level block emitted by the renderer carries `data-block-category`, `data-block-type`, and `data-block-id`.
 
-- `content` — paragraph, heading, image, callout, list, divider, math_block, section, table (Phase 2)
-- `question` — problem, fill_in_blank, multiple_choice (Phase 2), matching (Phase 2), ordering (Phase 2), interactive_graph (Phase 2.7), short_answer (Phase 2.6), essay (Phase 2.6), audio_response / video_response / file_upload (Phase 2.8), annotate_text / annotate_image (Phase 2.9)
-- `scaffold` — worked_example (Phase 2), faded_worked_example (Phase 2), learning_objective (Phase 2), self_explanation (Phase 2)
+- `data-block-type` is the Zod schema discriminant **verbatim** — snake_case (`paragraph`, `heading`, `math_block`, `image`, `callout`, `problem`, `fill_in_blank`, `bullet_list`, `ordered_list`). It is deliberately *not* the kebab-case used in CSS class names (`math_block` renders with class `block-math`): the class is a styling namespace, `data-block-type` is an identity namespace. The Stage 11 init registry keys on this value (`registerBlockKind('fill_in_blank', …)`), so it must equal the schema literal exactly — there is no kebab↔snake mapping layer anywhere.
+- `data-block-id` is the block's stable document `id` (uuid).
+- `data-block-category` is the coarse discriminator; `data-block-type` is the fine one. Category exists so analytics and dashboard features can reason about block kinds without enumerating every block-type string.
 
-The category is the coarse discriminator. The `data-block-type` is the fine discriminator. The runtime's init registry keys on `data-block-type`; category exists so future analytics and dashboard features can reason about block kinds without enumerating every block-type string.
+`<section>` and `<li>` are **not** blocks: `<section>` is a container carrying `data-block-category` + `data-section-id` only; list items carry neither category nor block-type. The init registry never registers them as block kinds.
 
-### Checkpoint button (only when section is a checkpoint)
+Phase 1 block types by category:
+
+- `content` — `paragraph`, `heading`, `image`, `callout`, `math_block`, `bullet_list`, `ordered_list` (plus `divider`, `table` in Phase 2)
+- `question` — `problem`, `fill_in_blank` (plus `multiple_choice`, `matching`, `ordering` in Phase 2; `short_answer`, `essay` in Phase 2.6; `interactive_graph` in Phase 2.7; `audio_response`, `video_response`, `file_upload` in Phase 2.8; `annotate_text`, `annotate_image` in Phase 2.9)
+- `scaffold` — (Phase 2+) `worked_example`, `faded_worked_example`, `learning_objective`, `self_explanation`
+
+### Checkpoint button
+
+**[target — Stage 12–13] — not emitted today.** `render.ts` renders sections with content only; no checkpoint button is produced yet. This is the shape the renderer must emit when checkpoint scoring lands (rendered per section, only when that section is a checkpoint):
 
 ```
 <button class="js-checkpoint-btn" data-for-section="<uuid>" type="button">
@@ -125,47 +143,76 @@ The category is the coarse discriminator. The `data-block-type` is the fine disc
 </div>
 ```
 
-`type="button"` is non-negotiable — without it, browsers default to `type="submit"` which submits the parent form if one exists. The runtime then doesn't get to handle the click.
+`type="button"` is non-negotiable — without it, browsers default to `type="submit"`, which submits the parent form if one exists and the runtime never gets the click.
 
 ### Fill-in-blank
 
+A fill-in-blank renders as **two nested levels**: the block `<div>`, carrying block-level metadata, and one or more blank-token `<input>` elements inside its body. Block-level fields (`solution`, `hasConfidenceRating`, `skills`) belong on the block; per-blank fields (`answer`, `hint`, `mistakeFeedback`) belong on each token. Earlier drafts of this contract collapsed both onto a single `<span class="blank-wrapper">` — that element does not exist; ignore it.
+
+#### Fill-in-blank block
+
 ```
-<span class="blank-wrapper"
-  data-block-category="question"
-  data-block-type="fill_in_blank"
-  data-blank-id="<uuid>"
-  data-blank-strategy="list"
-  data-blank-answers='["x+2","x + 2"]'
-  data-hint="..."
-  data-mistake-feedback='[{"match":"2x","feedback":"..."}]'
-  data-solution="..."
-  data-has-confidence-rating="true | false"
-  data-standards='["A.7C"]'>
-
-  <input class="js-blank-input"
-    type="text"
-    autocomplete="off"
-    inputmode="text"
-    aria-label="Answer for ..." />
-
-  <span class="js-blank-feedback"
-    data-for-blank="<uuid>"
-    aria-live="polite"
-    hidden></span>
-
-  <!-- if data-has-confidence-rating="true": -->
-  <fieldset class="js-confidence-rating" data-for-blank="<uuid>">
-    <legend>How confident are you?</legend>
-    <label><input type="radio" name="conf-<uuid>" value="unsure" /> Unsure</label>
-    <label><input type="radio" name="conf-<uuid>" value="think_so" /> Think so</label>
-    <label><input type="radio" name="conf-<uuid>" value="certain" /> Certain</label>
-  </fieldset>
-</span>
+<!-- [emitted today] -->
+<div class="block block-fill-in-blank"
+     data-block-category="question"
+     data-block-type="fill_in_blank"
+     data-block-id="<uuid>">
+  <div class="block-problem-number">3.</div>
+  <div class="block-problem-body">
+    <!-- inline content: text, inline math, and blank-token <input>s -->
+  </div>
+</div>
 ```
 
-JSON-encoded attributes (`data-blank-answers`, `data-mistake-feedback`, `data-standards`) are HTML-entity-escaped by the renderer. The runtime parses them once during init and stores the result in the blank's map entry; never re-parses on user input.
+**[target — Stage 12–13]** The block `<div>` additionally carries `data-solution="..."` and `data-has-confidence-rating="true | false"`. When `data-has-confidence-rating="true"`, **one** confidence fieldset is rendered **per block — not per blank** (`hasConfidenceRating` is a `FillInBlankBlock` field; the runtime applies the single rating uniformly to every blank in the block):
 
-`aria-live="polite"` MUST be set in the HTML, not added dynamically by the runtime. Setting `aria-live` on an element that already exists is unreliable across screen readers; setting it in the source HTML works consistently.
+```
+<fieldset class="js-confidence-rating" data-for-block="<uuid>">
+  <legend>How confident are you?</legend>
+  <label><input type="radio" name="conf-<uuid>" value="unsure" />   Unsure</label>
+  <label><input type="radio" name="conf-<uuid>" value="think_so" /> Think so</label>
+  <label><input type="radio" name="conf-<uuid>" value="certain" />  Certain</label>
+</fieldset>
+```
+
+**[target — Phase 2]** The block `<div>` also carries `data-skills='[...]'` (JSON array) once the editor surfaces problem-level skill tagging. The field is `skills`, not `standards` — an earlier draft named this `data-standards`, which is dead.
+
+#### Blank token
+
+```
+<!-- [emitted today] one <input> per blank, sitting directly in block-problem-body -->
+<input type="text"
+       class="blank"
+       data-blank-id="<uuid>"
+       data-blank-answers="x+2|x + 2"
+       aria-label="Blank 1 of 3"
+       style="--blank-width:6ch"
+       autocomplete="off"
+       autocapitalize="off"
+       autocorrect="off"
+       spellcheck="false" />
+```
+
+- `data-blank-answers` is **pipe-delimited** (`answer|alt1|alt2`), *not* JSON. The first segment is the canonical `answer`; the rest are `acceptableAnswers`. The runtime splits on `|`. (A literal `|` in a math answer would be unusual; switch to JSON if that ever changes.)
+- `--blank-width` (CSS custom property, `ch` units) sizes the input; defaults to `6`.
+- The `autocomplete` / `autocapitalize` / `autocorrect` / `spellcheck` quartet disables browser interference with math input.
+- There is **no wrapper element today** — the bare `<input class="blank">` is the whole token.
+
+**[target — Stage 12–13]** The blank token additionally carries `data-hint="..."` and `data-mistake-feedback='[{"match":"2x","feedback":"..."}]'` (a JSON array), and gains a sibling feedback slot:
+
+```
+<span class="js-blank-feedback" data-for-blank="<uuid>" aria-live="polite" hidden></span>
+```
+
+Because an `<input>` is a void element, the feedback `<span>` cannot be its child — it must be a sibling, which means the blank token will need a wrapper element. The wrapper's tag and class, and whether the `blank` class moves onto it, are **not decided** — settle that when the Stage 12–13 feedback work begins (tracked in Open questions below).
+
+**[target — Phase 2.5]** `data-blank-strategy="list | expression | computed"` selects the scoring strategy; when absent the runtime defaults to `"list"`. Not a `BlankToken` schema field yet — it arrives with parameterized problems.
+
+**JSON-encoded attributes** (`data-mistake-feedback`, `data-skills`) are HTML-entity-escaped by the renderer; the runtime parses each once at init and stores the result, never re-parsing on user input. `data-blank-answers` is the pipe-delimited exception above.
+
+**`aria-live`** on the future `js-blank-feedback` span MUST be set in the source HTML by the renderer, not added later by the runtime — setting `aria-live` on an already-existing element is unreliable across screen readers.
+
+**Accessibility — positional label.** Each blank `<input>` carries a renderer-supplied `aria-label`. With multiple blanks in the block it is positional — `Blank 1 of 3`, `Blank 2 of 3`, … — numbered in document order; a lone blank is labelled `Fill in the blank`. Without it, a blank inside prose is announced by screen readers only as "edit text", giving the student no cue which blank has focus.
 
 ### Reading discipline
 
@@ -173,18 +220,24 @@ JSON-encoded attributes (`data-blank-answers`, `data-mistake-feedback`, `data-st
 // CORRECT — defensive read with default
 const revisionMode = (root.dataset.revisionMode ?? 'free') as RevisionMode;
 
-// CORRECT — JSON parse wrapped in try/catch with default
-let answers: string[] = [];
+// CORRECT — data-blank-answers is pipe-delimited, not JSON. Split on `|`;
+// an absent attribute yields a safe empty list.
+const answers: string[] =
+  (blank.dataset.blankAnswers ?? '').split('|').filter(Boolean);
+
+// CORRECT — JSON-encoded attributes (e.g. data-mistake-feedback) are parsed
+// inside try/catch with a default.
+let mistakeFeedback: Array<{ match: string; feedback: string }> = [];
 try {
-  answers = JSON.parse(blank.dataset.blankAnswers ?? '[]');
+  mistakeFeedback = JSON.parse(blank.dataset.mistakeFeedback ?? '[]');
 } catch {
-  // malformed JSON — log and continue with empty answer list
-  console.warn(`Malformed blank-answers for blank ${blank.dataset.blankId}`);
+  // malformed JSON — log and continue with no mistake-specific feedback
+  console.warn(`Malformed mistake-feedback for blank ${blank.dataset.blankId}`);
 }
 
-// WRONG — assumes attribute exists, throws on undefined
-const revisionMode = root.dataset.revisionMode;  // could be undefined
-const answers = JSON.parse(blank.dataset.blankAnswers);  // throws on malformed
+// WRONG — assumes attributes exist / are valid
+const revisionMode = root.dataset.revisionMode;        // could be undefined
+const mf = JSON.parse(blank.dataset.mistakeFeedback);  // throws on malformed
 ```
 
 ## State shape
@@ -327,6 +380,8 @@ Tests live at `packages/renderer/src/runtime/__tests__/`. The suite must exist B
 - **Annotation coordinate stability (Phase 2.9):** when the runtime captures annotation positions, what coordinate system does it use? Character indices into rendered text (stable across CSS changes but breaks on content edits) vs DOM anchors (stable across content edits but breaks on rendering changes) vs normalized fractions of rendered geometry. Decide at phase start.
 
 - **Audio narration of activity prose (Phase 4 UDL):** browser Web Speech API vs server-rendered audio files. The runtime side is a play-button + word-level highlight handler either way; the question is where the audio comes from. Web Speech is free but quality varies; server-rendered is consistent but adds a service dependency.
+
+- **Blank-token wrapper element (Stage 12–13):** the feedback `<span>` for a blank cannot be a child of the `<input>` (a void element), so it must be a sibling — which means the blank token needs a wrapper. The renderer emits a bare `<input class="blank">` with no wrapper today. Decide the wrapper's tag and class, and whether the `blank` class moves onto it, when the feedback-rendering work starts. Until then the only frozen part of the blank-token contract is the bare `<input>`.
 
 ## Things NOT to do
 

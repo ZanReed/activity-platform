@@ -174,6 +174,29 @@ describe('Inline rendering', () => {
     expect(body).toContain('data-blank-id="' + blank.id + '"');
     expect(body).toContain('data-blank-answers="correct|CORRECT|Correct"');
   });
+  it('gives each blank a positional aria-label', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const fill = createFillInBlankBlock();
+    fill.content = [
+      { type: 'text', text: 'x = ', marks: [] },
+      createBlankToken('a'),
+     { type: 'text', text: ', y = ', marks: [] },
+     createBlankToken('b'),
+    ];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('aria-label="Blank 1 of 2"');
+    expect(body).toContain('aria-label="Blank 2 of 2"');
+  });
+
+  it('labels a lone blank without a count', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const fill = createFillInBlankBlock();
+    fill.content = [createBlankToken('a')];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('aria-label="Fill in the blank"');
+  });
 
   it('handles invalid LaTeX without throwing', () => {
     const doc = createEmptyDocument({ title: 'T' });

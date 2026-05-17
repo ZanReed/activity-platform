@@ -1,10 +1,10 @@
 // =============================================================================
 // inline.ts — Render inline content (text, math_inline, blanks)
 // -----------------------------------------------------------------------------
-// renderInline accepts either an InlineNode or a FillInBlankInline. The
-// type system enforces that blanks only appear in fill_in_blank blocks
-// (because the schema forbids them elsewhere); this function just dispatches
-// on the discriminator.
+// renderInline handles standard inline nodes (text + inline math). Blank
+// tokens are NOT handled here: they only ever appear inside a fill_in_blank
+// block, and that block's content is rendered through renderFillInBlankContent,
+// which numbers each blank so the renderer can give it a positional aria-label.
 // =============================================================================
 
 import type {
@@ -17,15 +17,32 @@ import type {
 import { escape, attr } from './html.js';
 import { renderMath } from './math.js';
 
-export function renderInline(node: InlineNode | FillInBlankInline): string {
+export function renderInline(node: InlineNode): string {
   switch (node.type) {
     case 'text':
       return renderText(node);
     case 'math_inline':
       return renderInlineMath(node);
-    case 'blank':
-      return renderBlank(node);
   }
+}
+
+// Renders the inline content of a fill_in_blank block. Equivalent to mapping
+// renderInline over the array, except blank tokens are dispatched to
+// renderBlank with their 1-based position (index + total) so each <input>
+// can carry a positional aria-label. Blanks are counted once, up front.
+export function renderFillInBlankContent(content: FillInBlankInline[]): string {
+  const total = content.reduce(
+    (count, node) => (node.type === 'blank' ? count + 1 : count),
+    0,
+  );
+  let index = 0;
+  return content
+    .map((node) =>
+      node.type === 'blank'
+        ? renderBlank(node, ++index, total)
+        : renderInline(node),
+    )
+    .join('');
 }
 
 function renderText(node: TextNode): string {
@@ -68,7 +85,12 @@ function renderInlineMath(node: InlineMathNode): string {
   return renderMath(node.latex, { displayMode: false });
 }
 
-function renderBlank(node: BlankToken): string {
+// index/total are the blank's 1-based position within its fill_in_blank block.
+// They exist only to build the aria-label: a blank inside prose with no label
+// is announced by screen readers as just "edit text", which gives the student
+// no way to tell which blank has focus. A positional label ("Blank 2 of 3")
+// fixes that; a lone blank gets "Fill in the blank" (no awkward "1 of 1").
+function renderBlank(node: BlankToken, index: number, total: number): string {
   // The width attribute drives a CSS variable on the input. Default ~6 chars
   // (a typical short answer). The answer key is embedded as a data attribute
   // for client-side scoring — see the security ceiling note in the
@@ -79,11 +101,13 @@ function renderBlank(node: BlankToken): string {
   // a `|` in an actual math answer would be unusual; if it ever matters,
   // switch to a JSON-encoded data attribute.
   const acceptable = [node.answer, ...node.acceptableAnswers].join('|');
+  const label = total > 1 ? `Blank ${index} of ${total}` : 'Fill in the blank';
   return (
     '<input type="text"' +
     ' class="blank"' +
     ' data-blank-id="' + attr(node.id) + '"' +
     ' data-blank-answers="' + attr(acceptable) + '"' +
+    ' aria-label="' + attr(label) + '"' +
     ' style="--blank-width:' + width + 'ch"' +
     ' autocomplete="off"' +
     ' autocapitalize="off"' +
