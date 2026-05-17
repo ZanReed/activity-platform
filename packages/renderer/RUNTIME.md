@@ -93,7 +93,7 @@ The reference panel is a sticky sidebar (collapsible on mobile) holding student-
 
 Optional collapse/expand for mobile uses native `<details>` / `<summary>` elements where possible, keeping the basic UI script-free. Any runtime behavior beyond that (remembering open/closed state across sections, smart scroll positioning) is a Phase 2 implementation decision.
 
-### Block category attribute (every block)
+### Block identity attributes (every block)
 
 ```
 <... data-block-category="content | question | scaffold" data-block-type="<type>" ...>

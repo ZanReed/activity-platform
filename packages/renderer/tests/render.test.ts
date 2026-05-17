@@ -372,3 +372,50 @@ describe('lists', () => {
     expect(body).toContain('<strong>');
   });
 });
+
+
+describe('block identity attributes', () => {
+  it('emits data-block-type (the snake_case schema discriminant) for every block type', () => {
+    const doc = createEmptyDocument({ title: 'All blocks' });
+    doc.sections[0]!.blocks = [
+      createParagraphBlock(),
+     createHeadingBlock(2),
+     Object.assign(createMathBlock(), { latex: 'x' }),
+     createImageBlock('https://example.com/i.png', 'alt'),
+     createCalloutBlock('info'),
+     createProblemBlock(),
+     createFillInBlankBlock(),
+     Object.assign(createBulletListBlock(), { items: [createListItem()] }),
+     Object.assign(createOrderedListBlock(), { items: [createListItem()] }),
+    ];
+    const body = renderBody(doc);
+    expect(body).toContain('data-block-type="paragraph"');
+    expect(body).toContain('data-block-type="heading"');
+    expect(body).toContain('data-block-type="math_block"');
+    expect(body).toContain('data-block-type="image"');
+    expect(body).toContain('data-block-type="callout"');
+    expect(body).toContain('data-block-type="problem"');
+    expect(body).toContain('data-block-type="fill_in_blank"');
+    expect(body).toContain('data-block-type="bullet_list"');
+    expect(body).toContain('data-block-type="ordered_list"');
+  });
+
+  it('emits the block id under data-block-id, not data-id', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const para = createParagraphBlock();
+    doc.sections[0]!.blocks = [para];
+    const body = renderBody(doc);
+    expect(body).toContain('data-block-id="' + para.id + '"');
+    // the old bare attribute must be gone for blocks
+    expect(body).not.toContain(' data-id="' + para.id + '"');
+  });
+
+  it('emits data-section-id on <section>, not data-id', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const sectionId = doc.sections[0]!.id;
+    const body = renderBody(doc);
+    expect(body).toContain('data-section-id="' + sectionId + '"');
+    expect(body).not.toContain(' data-id="' + sectionId + '"');
+  });
+});
+

@@ -27,8 +27,8 @@ export function renderBody(doc: ActivityDocument): string {
 
 function renderSection(section: Section, nextProblemNumber: () => number): string {
   const titleHtml = section.title
-    ? '<h2 class="section-title">' + escape(section.title) + '</h2>'
-    : '';
+  ? '<h2 class="section-title">' + escape(section.title) + '</h2>'
+  : '';
 
   const blocksHtml = section.blocks.map((block) => {
     // Increment the counter BEFORE rendering so the rendered number is
@@ -39,9 +39,11 @@ function renderSection(section: Section, nextProblemNumber: () => number): strin
   }).join('');
 
   return (
-    '<section class="activity-section" data-block-category="content" data-id="' + attr(section.id) + '">' +
-      titleHtml +
-      blocksHtml +
+    '<section class="activity-section"' +
+    ' data-block-category="content"' +
+    ' data-section-id="' + attr(section.id) + '">' +
+    titleHtml +
+    blocksHtml +
     '</section>'
   );
 }

@@ -14,10 +14,11 @@ export function renderCallout(block: CalloutBlock): string {
   return (
     '<aside class="block block-callout block-callout-' + block.variant + '"' +
     ' data-block-category="content"' +
-    ' data-id="' + attr(block.id) + '"' +
+    ' data-block-type="callout"' +
+    ' data-block-id="' + attr(block.id) + '"' +
     ' role="note">' +
-      '<span class="block-callout-icon" aria-hidden="true">' + ICON[block.variant] + '</span>' +
-      '<div class="block-callout-body">' + inner + '</div>' +
+    '<span class="block-callout-icon" aria-hidden="true">' + ICON[block.variant] + '</span>' +
+    '<div class="block-callout-body">' + inner + '</div>' +
     '</aside>'
   );
 }

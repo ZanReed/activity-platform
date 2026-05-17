@@ -16,7 +16,10 @@ import { attr } from '../html.js';
 
 export function renderBulletList(block: BulletListBlock): string {
     return (
-        '<ul class="block block-bullet-list" data-block-category="content" data-id="' + attr(block.id) + '">' +
+        '<ul class="block block-bullet-list"' +
+        ' data-block-category="content"' +
+        ' data-block-type="bullet_list"' +
+        ' data-block-id="' + attr(block.id) + '">' +
         block.items.map(renderListItem).join('') +
         '</ul>'
     );
@@ -24,7 +27,10 @@ export function renderBulletList(block: BulletListBlock): string {
 
 export function renderOrderedList(block: OrderedListBlock): string {
     return (
-        '<ol class="block block-ordered-list" data-block-category="content" data-id="' + attr(block.id) + '">' +
+        '<ol class="block block-ordered-list"' +
+        ' data-block-category="content"' +
+        ' data-block-type="ordered_list"' +
+        ' data-block-id="' + attr(block.id) + '">' +
         block.items.map(renderListItem).join('') +
         '</ol>'
     );
