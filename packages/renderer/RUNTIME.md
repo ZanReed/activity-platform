@@ -46,7 +46,14 @@ It does NOT handle:
 
 ## The data-attribute contract
 
-This is the API between renderer (emits) and runtime (reads). FROZEN for already-published activities. Additive changes only. Document every attribute here; if it's not in this section, it doesn't exist.
+This is the API between renderer (emits) and runtime (reads). Additive changes only — once an activity is published, the attributes in its HTML are frozen for it forever. Document every attribute here; if it's not in this section, it doesn't exist.
+
+**Status tags.** The runtime is built in Stages 11–14, *after* the renderer, so parts of this contract are still a target the renderer has not met. Each attribute group below is tagged:
+
+- **[emitted today]** — current renderer output; relied on by shipping code and tests. Safe to build against.
+- **[target — Stage N]** / **[target — Phase N]** — the shape the renderer must emit when that stage or phase lands. Not in current HTML; the exact shape may still shift until then. Do not assume it is present.
+
+"If it's not in this section it doesn't exist" still holds — but "in this section" now distinguishes *emitted* from *targeted*.
 
 ### Document root
 
