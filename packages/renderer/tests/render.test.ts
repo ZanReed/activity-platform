@@ -13,6 +13,7 @@ import {
   createBulletListBlock,
   createOrderedListBlock,
   createListItem,
+  type ActivityDocument,
 } from '@activity/schema';
 import { renderActivity, renderBody, type RenderContext } from '../src/index.js';
 
@@ -110,6 +111,17 @@ describe('renderBody (body fragment only)', () => {
     expect(body).toContain('class="block block-problem"');
     expect(body).toContain('class="block block-fill-in-blank"');
     expect(body).toContain('class="blank"');
+    expect(body).toContain('class="blank"');
+
+    // Content survives rendering — not just the wrapper class. Without these,
+    // a bug that coerces inline content to a wrong value (the `'">' + +content`
+    // → "NaN" bug) passes every class check above undetected.
+    expect(body).toContain('A paragraph.');
+    expect(body).toContain('A heading');
+    expect(body).toContain('Heads up.');
+    expect(body).toContain('Solve for x.');
+    expect(body).toContain('The answer is');
+    expect(body).toContain('alt="a picture"');
   });
 });
 

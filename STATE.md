@@ -1,4 +1,4 @@
-# STATE.md
+<!-- # STATE.md -->
 
 A living "where am I" snapshot. Update at the end of each work session — replace the relevant sections, don't append. Keep it short; if it grows past two screens, prune.
 
@@ -222,7 +222,7 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 ## Nearest next steps
 
 1. **Stage 10 — Editor wired to Supabase + basic dashboard.** Activity list, create activity, open editor, autosave drafts via the serialize layer (debounced ~1s, optimistic UI, "Saving…/Saved" indicator). Subscribe via `Editor.onUpdate`. This is the foundational editor-to-backend wiring that everything subsequent depends on for end-to-end testing. ~1–2 sessions.
-2. App package build cleanup. pnpm --filter @activity/app build surfaces ~35 latent type errors that Vitest's transpile-only path never caught. Three categories: mathlive.d.ts uses the React 18 declare global { namespace JSX } pattern and needs the React 19 declare module 'react' form (the syntax error was fixed in the Stage 9e Item 1 commit; the namespace pattern remains); slashMenuItems.ts has a keywords field not present in the SlashMenuItem type; serialize.test.ts has a META declaration missing ActivityMeta's default-bearing fields plus numerous noUncheckedIndexedAccess violations. All pre-existing; best handled as a focused session of its own before Stage 10's app work compounds it.
+2. ~~App package build cleanup. pnpm --filter @activity/app build surfaces ~35 latent type errors that Vitest's transpile-only path never caught. Three categories: mathlive.d.ts uses the React 18 declare global { namespace JSX } pattern and needs the React 19 declare module 'react' form (the syntax error was fixed in the Stage 9e Item 1 commit; the namespace pattern remains); slashMenuItems.ts has a keywords field not present in the SlashMenuItem type; serialize.test.ts has a META declaration missing ActivityMeta's default-bearing fields plus numerous noUncheckedIndexedAccess violations. All pre-existing; best handled as a focused session of its own before Stage 10's app work compounds it.~~
 
 3. **Stage 11 — Runtime file split + build pipeline.** Extract inline `<script>` from renderer into `runtime/index.ts`; add esbuild step to `bundle-renderer.mjs` for runtime.js + source map; update `publish-activity` to upload both. Per RUNTIME.md architecture. Include print CSS in renderer output. ~1 session.
 4. **Stages 12–13 — Runtime logic.** Init pass + maps + checkpoint scoring + feedback rendering + revision mode enforcement. Tests in JSDOM. ~2 sessions.
