@@ -268,8 +268,8 @@ describe('lists', () => {
     ];
     const body = renderBody(doc);
     expect(body).toContain(
-      '<ul class="activity-list activity-list--bullet" data-block-category="content"',
-    );
+'<ul class="block block-bullet-list" data-block-category="content"',
+                           );
     expect(body).toContain('</ul>');
     expect(body).toContain('<li data-id=');
     expect(body).toContain('first item');
@@ -289,8 +289,8 @@ describe('lists', () => {
     ];
     const body = renderBody(doc);
     expect(body).toContain(
-      '<ol class="activity-list activity-list--ordered" data-block-category="content"',
-    );
+'<ol class="block block-ordered-list" data-block-category="content"',
+                           );
     expect(body).toContain('</ol>');
     expect(body).toContain('step one');
   });
@@ -346,8 +346,8 @@ describe('lists', () => {
       }),
     ];
     const body = renderBody(doc);
-    expect(body).toContain('activity-list--ordered');
-    expect(body).toContain('activity-list--bullet');
+    expect(body).toContain('block-ordered-list');
+    expect(body).toContain('block-bullet-list');
     expect(body).toContain('numbered parent<ul ');
     expect(body).toContain('bulleted child');
   });

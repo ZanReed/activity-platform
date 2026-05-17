@@ -215,6 +215,11 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 - **Manual grading workflow shape (Phase 2.6):** does each grading pass amend the existing submission row, or create a new "grading" row that joins to it? Decide at Phase 2.6 start. Implication for the dashboard: amend means simpler row count, join means full grading-history audit trail. Probably the join, for the same audit-trail reasons attempts are separate rows.
 - **Media submission storage and privacy posture (Phase 2.8):** student-uploaded media is a stronger privacy posture than student-typed text. Storage bucket separation, per-teacher quotas, automated content scanning (or not), retention policy on student-generated media after assignment archival. Decide at Phase 2.8 start.
 - **Annotation response coordinate space (Phase 2.9):** are positions stored as CSS-pixel offsets, normalized fractions of the rendered passage size, or DOM-anchor + character-offset pairs? Each has trade-offs for stability across rendering contexts (print vs screen vs reflowed mobile). Decide at Phase 2.9 start; the answer probably depends on whether we want annotations to survive content edits to the underlying passage.
+- **data-block-type renderer-wide gap — RUNTIME.md says every block carries it; renderer emits it nowhere. Also <section> uses data-id vs the contract's data-section-id. ~8 files + RUNTIME.md reconciliation. Address before Stage 11's init registry. (You said ASAP — so this is the next thing after the overhaul closes.)
+Renderer block tests assert classes, not content — the gap that let + + through. Add content assertions to render.test.ts.
+ActivityDocument import in render.test.ts — item A, still a one-line fix, not yet applied.
+
+
 
 ## Nearest next steps
 

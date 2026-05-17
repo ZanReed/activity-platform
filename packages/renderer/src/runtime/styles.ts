@@ -163,6 +163,21 @@ body {
   margin: 1.25rem 0;
   align-items: start;
 }
+.block-bullet-list,
+.block-ordered-list {
+  padding-left: 1.5rem;
+}
+.block-bullet-list li,
+.block-ordered-list li {
+  margin: 0.25rem 0;
+}
+/* Nested lists sit tighter than the .block 1rem default. */
+.block-bullet-list .block-bullet-list,
+.block-bullet-list .block-ordered-list,
+.block-ordered-list .block-bullet-list,
+.block-ordered-list .block-ordered-list {
+  margin: 0.25rem 0;
+}
 .block-problem-number {
   font-weight: 600;
   text-align: right;
