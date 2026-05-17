@@ -1,10 +1,10 @@
-<!-- # STATE.md -->
+# STATE.md
 
 A living "where am I" snapshot. Update at the end of each work session — replace the relevant sections, don't append. Keep it short; if it grows past two screens, prune.
 
 ## Current focus
-## 
- "Stage 10 — Editor wired to Supabase + basic dashboard. Stage 9e complete." (the architectural seams are now all locked in).
+
+Stage 10 — Editor wired to Supabase + basic dashboard. Stage 9e complete; the architectural seams are now all locked in.
 
 ## Status by area
 
@@ -13,7 +13,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 | Database schema (migrations 0001–0004) | ✅ Applied to Supabase, RLS verified |
 | Permission helper functions | ✅ In place; future collaboration extends helpers |
 | `@activity/schema` package | ✅ Tested, on GitHub |
-| `@activity/renderer` package | ✅ 17/17 tests passing; runtime refactored to strategy dispatch |
+| `@activity/renderer` package | ✅ Tests passing; runtime refactored to strategy dispatch |
 | Renderer bundle for Edge Functions | ✅ Tracked in git as of 9b. Rebuild before any Edge Function deploy; bundle commits with the source it supports. |
 | `publish-activity` Edge Function | ✅ Deployed |
 | `ingest-submission` Edge Function | ✅ Deployed; enforces `schemaVersion: 2` on incoming responses (rejects v1 with 400); returns `attempt_number` alongside `submission_id`. |
@@ -222,15 +222,13 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 ## Nearest next steps
 
 1. **Stage 10 — Editor wired to Supabase + basic dashboard.** Activity list, create activity, open editor, autosave drafts via the serialize layer (debounced ~1s, optimistic UI, "Saving…/Saved" indicator). Subscribe via `Editor.onUpdate`. This is the foundational editor-to-backend wiring that everything subsequent depends on for end-to-end testing. ~1–2 sessions.
-2. ~~App package build cleanup. pnpm --filter @activity/app build surfaces ~35 latent type errors that Vitest's transpile-only path never caught. Three categories: mathlive.d.ts uses the React 18 declare global { namespace JSX } pattern and needs the React 19 declare module 'react' form (the syntax error was fixed in the Stage 9e Item 1 commit; the namespace pattern remains); slashMenuItems.ts has a keywords field not present in the SlashMenuItem type; serialize.test.ts has a META declaration missing ActivityMeta's default-bearing fields plus numerous noUncheckedIndexedAccess violations. All pre-existing; best handled as a focused session of its own before Stage 10's app work compounds it.~~
-
-3. **Stage 11 — Runtime file split + build pipeline.** Extract inline `<script>` from renderer into `runtime/index.ts`; add esbuild step to `bundle-renderer.mjs` for runtime.js + source map; update `publish-activity` to upload both. Per RUNTIME.md architecture. Include print CSS in renderer output. ~1 session.
-4. **Stages 12–13 — Runtime logic.** Init pass + maps + checkpoint scoring + feedback rendering + revision mode enforcement. Tests in JSDOM. ~2 sessions.
-5. **Stage 14 — Runtime: submission flow.** Final submit, attempt tracking via server-derived attempt_number, localStorage retry on network failure, resubmit flow for revisionMode === 'free'. ~1 session.
-6. **Stage 15 — Editor UI for new feature fields.** Checkpoint toggle (per section), submissionMode/revisionMode/activityType pickers (activity-level), hint + mistake-feedback + solution + hasConfidenceRating + standards fields on fill-in-blank, solution + standards on problem. ~1–2 sessions.
-7. **Stage 16 — Submissions dashboard with all-attempts toggle.** Teacher views activity submissions: all attempts (every row) vs best-score-plus-count view (one row per student). Filter by activityType where useful. ~1–2 sessions.
-8. **Housekeeping (parallel):** UX validation with 2–3 other teachers, CI workflow setup (GitHub Actions: `pnpm test` + `pnpm lint` on push), redeploy renderer bundle after Stage 11.
-9. **End-to-end manual test** — publish from editor, view as student, work through checkpoints (single / locked / free), submit, revise, view in teacher dashboard. Closes the Phase 1 loop.
+2. **Stage 11 — Runtime file split + build pipeline.** Extract inline `<script>` from renderer into `runtime/index.ts`; add esbuild step to `bundle-renderer.mjs` for runtime.js + source map; update `publish-activity` to upload both. Per RUNTIME.md architecture. Include print CSS in renderer output. ~1 session.
+3. **Stages 12–13 — Runtime logic.** Init pass + maps + checkpoint scoring + feedback rendering + revision mode enforcement. Tests in JSDOM. ~2 sessions.
+4. **Stage 14 — Runtime: submission flow.** Final submit, attempt tracking via server-derived attempt_number, localStorage retry on network failure, resubmit flow for revisionMode === 'free'. ~1 session.
+5. **Stage 15 — Editor UI for new feature fields.** Checkpoint toggle (per section), submissionMode/revisionMode/activityType pickers (activity-level), hint + mistake-feedback + solution + hasConfidenceRating + standards fields on fill-in-blank, solution + standards on problem. ~1–2 sessions.
+6. **Stage 16 — Submissions dashboard with all-attempts toggle.** Teacher views activity submissions: all attempts (every row) vs best-score-plus-count view (one row per student). Filter by activityType where useful. ~1–2 sessions.
+7. **Housekeeping (parallel):** UX validation with 2–3 other teachers, CI workflow setup (GitHub Actions: `pnpm test` + `pnpm lint` on push), redeploy renderer bundle after Stage 11.
+8. **End-to-end manual test** — publish from editor, view as student, work through checkpoints (single / locked / free), submit, revise, view in teacher dashboard. Closes the Phase 1 loop.
 
 ## Things NOT to do
 
@@ -280,4 +278,4 @@ When something fails, the user pastes terminal output. Read the actual output be
 
 ---
 
-**Last updated:** Stage 9e complete — all six architectural future-proofing items landed (subscript/superscript marks, gradingMode, data-block-category, parallel-map doc, account_tier, referencePanel). App-package build cleanup identified as the next near-term task before Stage 10.
+**Last updated:** Closed the pre-Stage-10 deferred items — the `data-block-type` / `data-block-id` / `data-section-id` reconciliation between the renderer and RUNTIME.md's data-attribute contract, and renderer block tests now assert rendered content survives (with the latent `ActivityDocument` import fixed in `render.test.ts`). App-package build cleanup also complete. Next: Stage 10 — editor wired to Supabase + basic dashboard.
