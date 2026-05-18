@@ -125,7 +125,7 @@ The current `BlankResponse` shape (`{ answer: string, correct: boolean, confiden
 1. **Widen `BlankResponse.answer` to `z.union([z.string(), z.record(...)])`.** Backward-compatible but blurs the type. Teacher dashboard code that reads `response.answer` as a string starts needing type guards.
 2. **Add a parallel `graphResponses` map on `SubmissionResponses`.** Cleaner separation: graphs aren't blanks, the data is shaped differently, the dashboard renders them differently.
 
-**Decision: parallel map.** Bumps `SubmissionResponses.schemaVersion` to 3, follows the "rename when demoting, not when promoting" convention established in Stage 9a (current schema stays named `SubmissionResponses`; the v2 shape gets renamed to `SubmissionResponsesV2` and added as a legacy export; `migrateSubmissionResponses` gains a v2 → v3 branch).
+**Decision: parallel map.** Bumps `SubmissionResponses.schemaVersion` to 3, follows the "rename when demoting, not when promoting" convention established in Stage 9a (current schema stays named `SubmissionResponses`; the v2 shape gets renamed to `SubmissionResponsesV2` and added as a legacy export; `migrateSubmissionResponses` gains a v2 → v3 branch). Note: "v3" here assumes graph blocks are the next SubmissionResponses bump. If the Phase 2 MC/matching/ordering maps ship first, they take v3 and this becomes v4 — the number is whatever's next at implementation time, and the SubmissionResponsesV(N-1) rename / migrateSubmissionResponses branch follow from that, not from a literal 3.
 
 ```typescript
 // In submission.ts at Phase 2.7:

@@ -1,6 +1,6 @@
 # Supabase migrations
 
-Phase 1 schema for the activity platform. Three core migrations plus an optional dev seed.
+Phase 1 schema for the activity platform. Five core migrations plus an optional dev seed.
 
 ## Files
 
@@ -10,8 +10,10 @@ Phase 1 schema for the activity platform. Three core migrations plus an optional
 | `0002_rls_policies.sql` | Adds the policies that grant specific access patterns (owner reads own activities, teacher reads own assignments' submissions, etc.). |
 | `0003_functions.sql` | Triggers (auto-create user row on signup), RPC functions (`ingest_submission`, `publish_activity`), the aggregate-stats view, and the soft-delete cron function. |
 | `0004_seed_dev.sql` | **Dev only.** Seeds your email into the allowlist so you can sign up. Edit the email first. |
+| `0005_attempt_number.sql` | Adds the `attempt_number` column on `submissions` plus two partial unique indexes for per-student attempt scoping; replaces `ingest_submission` to derive `attempt_number` server-side (it now returns `jsonb {submission_id, attempt_number}`). |
+| `0006_account_tier.sql` | Adds the `account_tier` enum and the `users.account_tier` column; extends the `users_update_self` RLS policy to block client-side tier escalation. |
 
-Run order is the file order. Each builds on the previous.
+Run order is the file order. Each builds on the previous. `0004` is the dev seed and only matters on a dev project; the schema migrations `0005` and `0006` come after it numerically and run after it.
 
 ## How to run them
 
@@ -34,20 +36,22 @@ The CLI normally names migrations with timestamps (`20240505140000_initial_schem
 
 ### Option B: Paste into the SQL editor
 
-Open your Supabase project → SQL Editor → New query. Paste the contents of `0001`, run, paste `0002`, run, paste `0003`, run. For `0004`, edit the email first.
+Open your Supabase project → SQL Editor → New query. Paste and run `0001`, `0002`, `0003`, `0005`, and `0006` in order. `0004` is the dev seed — edit the email first, then run it any time after `0003` (only against a dev project).
 
 This works but isn't reproducible. Use Option A once you're past the prototype stage.
 
-## What changed from `schema.md`
+## Notable decisions baked into these migrations
 
-A few additions that came out of conversation:
+A few things worth calling out, mostly additions that came out of conversation:
 
 - **`activities.draft_content jsonb`** — mutable in-progress edit, separate from the append-only `activity_versions`. Autosave writes here; publish copies it into a new version row and clears the draft.
-- **`submissions.constraint submissions_identity_present`** — CHECK constraint that enforces every submission has either an `opaque_token` (Phase 3) or a non-empty `display_name` (Phase 1).
-- **Documented shape for `submissions.responses`** — keyed by stable `blank.id` so per-blank aggregation queries work even when blocks are reordered between document versions. Locked in now to avoid migrating historical data later.
+- **`submissions` constraint `submissions_identity_present`** — CHECK constraint that enforces every submission has either an `opaque_token` (Phase 3) or a non-empty `display_name` (Phase 1).
+- **Documented shape for `submissions.responses`** — keyed by stable `blank.id` so per-blank aggregation queries work even when blocks are reordered between document versions. Locked in early to avoid migrating historical data later.
 - **`publish_activity()` RPC** — atomic publish flow: insert version row, point activity at it, clear draft, audit log. Called by the publish Edge Function after it validates the draft.
-- **Hardened `ingest_submission()`** — now checks the identity-present constraint and the `responses` jsonb shape (belt-and-suspenders alongside the Edge Function's Zod parser).
-- **Permission helper functions** (`can_read_activity`, `can_edit_activity`, `can_access_assignment`) — defined at the top of `0002_rls_policies.sql`. RLS policies on `activity_versions`, `assignment_students`, and `submissions` call these helpers instead of inlining `EXISTS (SELECT 1 FROM activities ...)` clauses. `publish_activity` also calls `can_edit_activity` for its authorization check. Phase 3+ access patterns (collaborators, marketplace purchasers) are added by extending the helper bodies — no policy rewrites required.
+- **Hardened `ingest_submission()`** — checks the identity-present constraint and the `responses` jsonb shape (belt-and-suspenders alongside the Edge Function's Zod parser).
+- **Permission helper functions** (`can_read_activity`, `can_edit_activity`, `can_access_assignment`) — defined at the top of `0002_rls_policies.sql`. RLS policies on `activity_versions`, `assignment_students`, and `submissions` call these helpers instead of inlining `EXISTS (SELECT 1 FROM activities ...)` clauses. `publish_activity` also calls `can_edit_activity` for its authorization check. Phase 3+ access patterns (collaborators, marketplace purchasers) are added by extending the helper bodies — no policy rewrites required. (Policies *on the `activities` table itself* still inline the owner check — calling a helper that selects from `activities` inside an `activities` policy risks RLS recursion.)
+- **`submissions.attempt_number`** (added in `0005`) — per-student attempt counter for revision cycles, derived server-side by `ingest_submission` via `max + 1` over the student's identity scope, with two partial unique indexes guarding the SELECT-max → INSERT race.
+- **`users.account_tier`** (added in `0006`) — per-user tier (`free` / `supporter` / `institutional` / `comp`), separate from `role`; inert in Phase 1. The `users_update_self` policy is extended so clients cannot escalate their own tier.
 
 ## After the migrations are applied
 
@@ -169,7 +173,7 @@ The schema does not include:
 
 - Public/marketplace visibility policies (Phase 3+ — additional `select` policies on `activities` and `activity_versions`).
 - Purchase/entitlement table (Phase 5).
-- Organization/team tables (Phase 6).
+- Organization/team tables (Phase 4 — multi-tenancy).
 - Comments, ratings, reviews (Phase 5+).
 - A `students` table — we don't store student accounts. Ever.
 - Messaging or notifications.

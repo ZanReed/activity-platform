@@ -1,6 +1,6 @@
 # Edge Functions
 
-Phase 1 Edge Functions for the activity platform. Two will exist by end of Phase 1; this directory currently holds one.
+Phase 1 Edge Functions for the activity platform. Two functions, both built and deployed.
 
 ## Functions
 
@@ -66,7 +66,7 @@ supabase secrets set ALLOWED_ORIGINS="https://your-spa-domain.com,https://activi
 
 ## Build + deploy
 
-The publish function imports a bundled renderer. Build it before deploying:
+Both functions import the bundled renderer (the bundle carries the schema too, which `ingest-submission` uses for validation). Build it before deploying:
 
 ```bash
 # From the repo root:
@@ -74,6 +74,7 @@ pnpm install                  # one-time, installs esbuild and friends
 pnpm bundle:renderer          # produces supabase/functions/_shared/renderer.bundle.js
 
 supabase functions deploy publish-activity
+supabase functions deploy ingest-submission
 ```
 
 If you change anything in `packages/renderer` or `packages/schema`, re-run `pnpm bundle:renderer` before re-deploying. CI should automate this — every push that touches those packages should trigger a re-bundle and deploy.
@@ -121,4 +122,4 @@ supabase start                # spin up a local Supabase stack
 supabase functions serve publish-activity --env-file ./supabase/functions/.env.local
 ```
 
-You'll need a `.env.local` with the secrets above. The local stack mirrors production tightly — same Postgres, same Auth, same Storage. The only difference is URLs (local uses `http://localhost:54321`).
+Swap `publish-activity` for `ingest-submission` to serve that function instead. You'll need a `.env.local` with the secrets above. The local stack mirrors production tightly — same Postgres, same Auth, same Storage. The only difference is URLs (local uses `http://localhost:54321`).
