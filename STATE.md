@@ -4,8 +4,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 ## Current focus
 
-Stage 10 — Editor wired to Supabase + basic dashboard. Stage 9e complete; the architectural seams are now all locked in.
-
+Stage 11 — Runtime file split + build pipeline. Stage 10 complete: the editor is wired to Supabase end to end — sign in → activity list → create → edit → autosave.
 ## Status by area
 
 | Area | Status |
@@ -19,8 +18,8 @@ Stage 10 — Editor wired to Supabase + basic dashboard. Stage 9e complete; the 
 | `ingest-submission` Edge Function | ✅ Deployed; enforces `schemaVersion: 2` on incoming responses (rejects v1 with 400); returns `attempt_number` alongside `submission_id`. |
 | Edge Function secrets | ✅ Set |
 | React app (`@activity/app`) | ✅ Scaffolded — Vite + React 19 + TS + Tailwind v4 |
-| Auth flow stub | ✅ Google OAuth via Supabase; allowlist gate verified |
-| React Router v7 | ✅ `/` (Home) + `/playground` (dev-only via `import.meta.env.DEV`) |
+| Auth | ✅ Google OAuth via Supabase; `SessionProvider` context + `RequireAuth` route guard; allowlist gate verified |
+| React Router v7 | ✅ `/` (Home), `/activities`, `/activity/:id`, `/playground` (dev-only via `import.meta.env.DEV`) |
 | Tiptap editor base + StarterKit | ✅ |
 | Editor toolbar (B/I/code/H1-H3/lists/quote/math) | ✅ |
 | Custom math NodeViews (inline + block) | ✅ KaTeX render with lifecycle discipline |
@@ -36,14 +35,14 @@ Stage 10 — Editor wired to Supabase + basic dashboard. Stage 9e complete; the 
 | Tiptap section_break + isCheckpoint UI (Stage 9c) | ✅ Atom node + NodeView + slash entry + multi-section serialize; 34 serialize tests pass |
 | Lists + StarterKit trim (Stage 9d) | ✅ Bullet/ordered/nested in schema, renderer, serialize; blockquote+codeBlock removed from toolbar |
 | Stage 9e — architectural future-proofing cleanup row → ✅ Complete.|
-| Editor wired to Supabase + basic dashboard (Stage 10) | ⏳ After 9e |
+| Editor wired to Supabase + basic dashboard (Stage 10) | ✅ Activity list, create-with-slug, `/activity/:id` editor route, debounced autosave |
 | Runtime file split + build pipeline (Stage 11) | ⏳ Not started |
 | Runtime: checkpoint scoring + feedback rendering (Stages 12–13) | ⏳ Not started |
 | Runtime: submission flow + revision + ingest-submission update (Stage 14) | ⏳ Not started |
 | Editor UI for new feature fields (Stage 15) | ⏳ Not started |
 | Dashboard with all-attempts toggle / submissions viewer (Stage 16) | ⏳ Not started |
 | Markdown paste import | ⏳ Phase 1 polish |
-| End-to-end manual test | ⏳ Blocked on stages 10+ |
+| End-to-end manual test | ⏳ Blocked on stages 11–16 |
 
 ## Repo layout
 
@@ -62,6 +61,12 @@ activity-platform/
 │           │   ├── SlashMenuPopover.tsx, slashMenuItems.ts
 │           │   ├── JsonInspector.tsx
 │           │   ├── extensions/   — MathInline, MathBlock, SlashMenu, BlockReorderShortcuts, SectionBreak
+│           │   └── nodeViews/    — MathInlineView, MathBlockView, SectionBreakView
+│           ├── components/       — RequireAuth.tsx
+│           ├── routes/           — Home.tsx, Activities.tsx, ActivityEditor.tsx, Playground.tsx (dev-only)
+│           ├── lib/              — supabase.ts, serialize.ts, SessionContext.tsx, slug.ts, useAutosave.ts
+│           ├── __tests__/        — serialize.test.ts, slug.test.ts
+│           └── App.tsx, main.tsx, index.css
 │           │   └── nodeViews/    — MathInlineView, MathBlockView, SectionBreakView
 │           ├── routes/           — Home.tsx, Playground.tsx (dev-only)
 │           ├── lib/              — supabase.ts, serialize.ts
@@ -114,6 +119,7 @@ After Stage 11: `packages/renderer/src/runtime/` will be added, and `bundle-rend
   This is the canonical reference for every future custom block (problem, fill-in-blank, image, callout).
 - **React state vs ProseMirror state in NodeViews:** UI concerns (is this NodeView in editing mode?) → React `useState`. Document concerns (selection, content, marks) → ProseMirror (`updateAttributes`, `editor.isActive`). Mixing them up was the cause of the "input deselects after one keystroke" bug; rule of thumb: if the answer should outlast a re-render of this NodeView because it's a property of the document, it's ProseMirror state, otherwise React state.
 - **Math editor input — MathLive / `<math-field>`** is the implementation in math NodeViews. WYSIWYG math editing in the editor. `font-size: 1.21em` on math-field classes to match KaTeX's render scale.
+- **Math NodeView edit-mode focus.** Entering edit mode must explicitly `.focus()` the `<math-field>`, deferred one animation frame (MathLive custom elements don't autofocus, and a focus issued the same tick the element mounts can be dropped). Exiting edit mode is wired to the field's `onBlur` — so an unfocused field can never blur, stranding the node in edit mode and never re-rendering the KaTeX view. Fix lives in both `MathBlockView` and `MathInlineView`.
 - **MathLive in published HTML is a Phase 2.5 decision, not committed.** Editor-only commitment now. Bundle-size hit only matters for student-facing pages, not the editor.
 - **Toolbar UX: static (always-visible) over BubbleMenu/FloatingMenu** — discoverability beats elegance for non-technical teachers.
 - **Slash menu architecture:** `@tiptap/suggestion` for trigger plumbing + `tippy.js` for popover positioning + Tiptap's `ReactRenderer` to bridge ProseMirror callbacks to a React component (the `useImperativeHandle` pattern). Menu items live in `slashMenuItems.ts` as a flat array — single source of truth; adding a block type to the menu is one entry.
@@ -173,6 +179,20 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 
 - **`ActivityDocument.referencePanel` as a future optional field.** Reference content during an activity — formula charts, periodic tables, vocabulary lists, conversion tables, maps, anything a student might consult while working — is a Phase 2 polish feature. Architecturally it's an optional field on `ActivityDocument`: `referencePanel?: { title?: string, blocks: Block[] }`. The blocks inside are existing block types (math, list, image, table); no new block types needed. Renderer puts the panel in a sticky sidebar (collapsible on mobile). Runtime treats reference blocks as `data-block-category="scaffold"` — they don't contribute to scoring, don't trigger checkpoint behavior, and can be safely lazy-rendered. Field is additive (optional), so existing activities parse cleanly without migration. Implementation deferred to Phase 2; the field shape is locked in now so editor work after Stage 10 doesn't have to relitigate it.
 
+### Editor ↔ Supabase wiring decisions (Stage 10)
+
+- **Autosave is debounced (~1s) via the `useAutosave` hook** (`lib/useAutosave.ts`). Change detection runs on a stable `JSON.stringify({ tiptap, meta })` fingerprint — **not** on the serialized `ActivityDocument`, because `tiptapToActivity` mints fresh UUIDs every call, so two serializations of unchanged content compare unequal. The first non-null fingerprint is the loaded baseline (skips the editor's `onCreate` echo). The hook guarantees no overlapping writes, a trailing save when the doc changes mid-write, and a fire-and-forget flush on unmount.
+
+- **Activity title lives in two places, written together.** `activities.title` (column) is what the list queries; `draft_content.meta.title` is what the editor loads. The autosave `UPDATE` sets both from the same value in one statement so they never drift. A blank title persists as `'Untitled activity'` — `meta.title` is `z.string().min(1)`, so an empty title would make the draft fail validation on the next load.
+
+- **Slug is derived from the title at creation only, then frozen** (`lib/slug.ts`). It ends up in the published storage path, so it must be stable. Generation: `slugify` the title, then attempt the insert and retry on a `23505` unique-violation against `unique (owner_id, slug)` with an incrementing suffix — the DB constraint is the race arbiter. The title stays freely editable and may diverge from the slug.
+
+- **Session is a shared context.** `SessionProvider` / `useSession` (`lib/SessionContext.tsx`) lift the Supabase session out of `Home`; `RequireAuth` (`components/RequireAuth.tsx`) gates `/activities` and `/activity/:id`, redirecting to `/` when signed out — but only after the initial session check resolves, to avoid a flash-redirect.
+
+- **The editor route loads the draft before mounting `<Editor>`.** `Editor` consumes `initialContent` only at creation (no reactive content prop), so `/activity/:id` fetches + `safeParse`s `draft_content`, converts via `activityToTiptap`, and shows a spinner until ready. `key={id}` on `<Editor>` ties the editor instance to the activity. A brand-new activity serializes to `content: []`, which ProseMirror's `doc` (content `block+`) rejects — the route substitutes a single empty paragraph.
+
+- **No migration for Stage 10.** Create is a single-table insert (RLS enforces `owner_id = auth.uid()`); draft save is a plain `UPDATE` of `draft_content` + `title` + `updated_at`. No RPC — `publish_activity` is an RPC only because publish is atomic-multi-table.
+
 ## Standing constraints
 
 - The renderer package must stay pure: no DOM access, no `process.env`, no I/O. JSON-in-string-out only.
@@ -195,6 +215,7 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 - **`SubmissionResponses` extends by parallel maps, never by widening `BlankResponse.answer`.** Each new response category is a sibling map at a `schemaVersion` bump. Type purity at the consumer boundary is worth the schema overhead.
 - **Phase 1 features are free for all users.** No tier-gating in Phase 1, regardless of who's logged in. The `account_tier` field exists but doesn't change behavior anywhere yet. This is deliberate: gating now sacrifices adoption when adoption is the most valuable thing.
 - **New media-heavy features must declare a quota strategy at design time.** Anything that grows storage or bandwidth per student (Phase 2.8 onward) must specify per-teacher caps, retention windows, and overage behavior in its design doc. Retrofitting limits onto features that shipped unlimited is a customer-experience nightmare.
+- **Activity title is stored in two places and must be written together.** `activities.title` (the column the list queries) and `draft_content.meta.title` (what the editor loads) are kept in sync by writing both in the same `UPDATE`. Any future code path that changes a title must update both, or the list and editor will disagree.
 
 ## Open questions / deferred decisions
 
@@ -215,18 +236,18 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 - **Manual grading workflow shape (Phase 2.6):** does each grading pass amend the existing submission row, or create a new "grading" row that joins to it? Decide at Phase 2.6 start. Implication for the dashboard: amend means simpler row count, join means full grading-history audit trail. Probably the join, for the same audit-trail reasons attempts are separate rows.
 - **Media submission storage and privacy posture (Phase 2.8):** student-uploaded media is a stronger privacy posture than student-typed text. Storage bucket separation, per-teacher quotas, automated content scanning (or not), retention policy on student-generated media after assignment archival. Decide at Phase 2.8 start.
 - **Annotation response coordinate space (Phase 2.9):** are positions stored as CSS-pixel offsets, normalized fractions of the rendered passage size, or DOM-anchor + character-offset pairs? Each has trade-offs for stability across rendering contexts (print vs screen vs reflowed mobile). Decide at Phase 2.9 start; the answer probably depends on whether we want annotations to survive content edits to the underlying passage.
+- **Autosave hardening (Phase 1 polish):** the debounced autosave flushes a pending change on in-app navigation, but a hard browser-tab close within the ~1s debounce window can still drop the last edit (a `beforeunload` guard would close that gap). A failed save retries when the user keeps editing but not if they stop on it. Both acceptable for now; revisit if they bite.
 
 
 ## Nearest next steps
 
-1. **Stage 10 — Editor wired to Supabase + basic dashboard.** Activity list, create activity, open editor, autosave drafts via the serialize layer (debounced ~1s, optimistic UI, "Saving…/Saved" indicator). Subscribe via `Editor.onUpdate`. This is the foundational editor-to-backend wiring that everything subsequent depends on for end-to-end testing. ~1–2 sessions.
-2. **Stage 11 — Runtime file split + build pipeline.** Extract inline `<script>` from renderer into `runtime/index.ts`; add esbuild step to `bundle-renderer.mjs` for runtime.js + source map; update `publish-activity` to upload both. Per RUNTIME.md architecture. Include print CSS in renderer output. ~1 session.
-3. **Stages 12–13 — Runtime logic.** Init pass + maps + checkpoint scoring + feedback rendering + revision mode enforcement. Tests in JSDOM. ~2 sessions.
-4. **Stage 14 — Runtime: submission flow.** Final submit, attempt tracking via server-derived attempt_number, localStorage retry on network failure, resubmit flow for revisionMode === 'free'. ~1 session.
-5. **Stage 15 — Editor UI for new feature fields.** Checkpoint toggle (per section), submissionMode/revisionMode/activityType pickers (activity-level), hint + mistake-feedback + solution + hasConfidenceRating + standards fields on fill-in-blank, solution + standards on problem. ~1–2 sessions.
-6. **Stage 16 — Submissions dashboard with all-attempts toggle.** Teacher views activity submissions: all attempts (every row) vs best-score-plus-count view (one row per student). Filter by activityType where useful. ~1–2 sessions.
-7. **Housekeeping (parallel):** UX validation with 2–3 other teachers, CI workflow setup (GitHub Actions: `pnpm test` + `pnpm lint` on push), redeploy renderer bundle after Stage 11.
-8. **End-to-end manual test** — publish from editor, view as student, work through checkpoints (single / locked / free), submit, revise, view in teacher dashboard. Closes the Phase 1 loop.
+1. **Stage 11 — Runtime file split + build pipeline.** Extract inline `<script>` from renderer into `runtime/index.ts`; add esbuild step to `bundle-renderer.mjs` for runtime.js + source map; update `publish-activity` to upload both. Per RUNTIME.md architecture. Include print CSS in renderer output. ~1 session.
+2. **Stages 12–13 — Runtime logic.** Init pass + maps + checkpoint scoring + feedback rendering + revision mode enforcement. Tests in JSDOM. ~2 sessions.
+3. **Stage 14 — Runtime: submission flow.** Final submit, attempt tracking via server-derived attempt_number, localStorage retry on network failure, resubmit flow for revisionMode === 'free'. ~1 session.
+4. **Stage 15 — Editor UI for new feature fields.** Checkpoint toggle (per section), submissionMode/revisionMode/activityType pickers (activity-level), hint + mistake-feedback + solution + hasConfidenceRating + standards fields on fill-in-blank, solution + standards on problem. ~1–2 sessions.
+5. **Stage 16 — Submissions dashboard with all-attempts toggle.** Teacher views activity submissions: all attempts (every row) vs best-score-plus-count view (one row per student). Filter by activityType where useful. ~1–2 sessions.
+6. **Housekeeping (parallel):** UX validation with 2–3 other teachers, CI workflow setup (GitHub Actions: `pnpm test` + `pnpm lint` on push), redeploy renderer bundle after Stage 11.
+7. **End-to-end manual test** — publish from editor, view as student, work through checkpoints (single / locked / free), submit, revise, view in teacher dashboard. Closes the Phase 1 loop.
 
 ## Things NOT to do
 
@@ -250,6 +271,7 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 - **Don't pre-build Stripe / subscription / billing infrastructure.** Phase 4+ work. Pre-building it costs time that should go to adoption-driving features and locks in design decisions before there's any customer conversation to inform them. The architectural commitment now (`account_tier` field + planned `organizations` table) is enough to keep the door open.
 - **Don't paywall Phase 1 features under any circumstance.** All teachers — regardless of `account_tier` — see identical functionality through Phase 1. The tier field exists so collaborator-teacher accounts are already flagged when premium features land, not so anything is gated now.
 - **Don't add real-time usage counters to the hot path.** Usage tracking aggregates from `audit_log` and existing tables via materialized views or scheduled jobs. Don't add per-write counter columns that cause write-amplification on every submission or publish.
+- **Don't diff serialized `ActivityDocument`s for change detection.** `tiptapToActivity` mints fresh block/section UUIDs on every call, so two serializations of unchanged content compare unequal. Dirty-tracking (autosave, an unsaved-changes badge, etc.) must fingerprint the Tiptap JSON, not the `ActivityDocument`.
 
 ## Working with the author (notes for the next AI session)
 
@@ -276,4 +298,4 @@ When something fails, the user pastes terminal output. Read the actual output be
 
 ---
 
-**Last updated:** Closed the pre-Stage-10 deferred items — the `data-block-type` / `data-block-id` / `data-section-id` reconciliation between the renderer and RUNTIME.md's data-attribute contract, and renderer block tests now assert rendered content survives (with the latent `ActivityDocument` import fixed in `render.test.ts`). App-package build cleanup also complete. Next: Stage 10 — editor wired to Supabase + basic dashboard.
+**Last updated:** Stage 10 complete — the editor is wired to Supabase end to end. Added a shared `SessionProvider` + `RequireAuth` guard, the `/activities` list with create-from-title (slugify + retry-on-`23505`, slug frozen at creation), the `/activity/:id` editor route (loads + `safeParse`s `draft_content`, mounts the editor with the loaded content), and debounced autosave (`useAutosave` — change-key fingerprint, baseline-skip, no-overlap, trailing save, flush-on-unmount). Also fixed a pre-existing math NodeView bug: the `<math-field>` wasn't focused on entering edit mode, which (since edit-mode exit is wired to `onBlur`) stranded math nodes in edit mode. Next: Stage 11 — runtime file split + build pipeline.
