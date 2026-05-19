@@ -21,8 +21,11 @@ export default function MathBlockView({ node, updateAttributes }: NodeViewProps)
         });
     }, [latex]);
 
-    // Configure the math-field on creation: manual virtual keyboard so
-    // we control when it shows (only on focus, not on every render).
+    // Configure the math-field when edit mode is entered. Focus it so the
+    // caret appears on the *first* click — without this the field mounts
+    // unfocused, and since setEditing(false) is wired only to onBlur, an
+    // unfocused field can never blur, so the block gets stuck in edit mode
+    // and never returns to the rendered view. Also set manual keyboard policy.
     useLayoutEffect(() => {
         if (!editing || !mathFieldRef.current) return;
         const mf = mathFieldRef.current;
@@ -31,7 +34,14 @@ export default function MathBlockView({ node, updateAttributes }: NodeViewProps)
         const hideKeyboard = () => window.mathVirtualKeyboard?.hide();
         mf.addEventListener('focusin', showKeyboard);
         mf.addEventListener('focusout', hideKeyboard);
+
+        // Defer the focus one frame: a focus() issued the same tick the
+        // math-field mounts can be dropped before MathLive finishes wiring
+        // up its internal editable region.
+        const raf = requestAnimationFrame(() => mf.focus());
+
         return () => {
+            cancelAnimationFrame(raf);
             mf.removeEventListener('focusin', showKeyboard);
             mf.removeEventListener('focusout', hideKeyboard);
         };
