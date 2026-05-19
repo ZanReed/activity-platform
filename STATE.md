@@ -41,6 +41,7 @@ Stage 11 — Runtime file split + build pipeline. Stage 10 complete: the editor 
 | Runtime: submission flow + revision + ingest-submission update (Stage 14) | ⏳ Not started |
 | Editor UI for new feature fields (Stage 15) | ⏳ Not started |
 | Dashboard with all-attempts toggle / submissions viewer (Stage 16) | ⏳ Not started |
+| Print feature — teacher-configurable printables (post-Stage-16) | ⏳ Designed; `docs/design/print-and-printables.md` |
 | Markdown paste import | ⏳ Phase 1 polish |
 | End-to-end manual test | ⏳ Blocked on stages 11–16 |
 
@@ -49,7 +50,7 @@ Stage 11 — Runtime file split + build pipeline. Stage 10 complete: the editor 
 ```
 activity-platform/
 ├── docs/
-│   └── design/        — Phase 2+ design docs captured ahead of implementation
+│   └── design/        — design docs captured ahead of implementation
 ├── packages/
 │   ├── schema/        — Zod types, document model, factories
 │   ├── renderer/      — Pure JSON → HTML string. KaTeX inlined. No DOM.
@@ -66,10 +67,6 @@ activity-platform/
 │           ├── routes/           — Home.tsx, Activities.tsx, ActivityEditor.tsx, Playground.tsx (dev-only)
 │           ├── lib/              — supabase.ts, serialize.ts, SessionContext.tsx, slug.ts, useAutosave.ts
 │           ├── __tests__/        — serialize.test.ts, slug.test.ts
-│           └── App.tsx, main.tsx, index.css
-│           │   └── nodeViews/    — MathInlineView, MathBlockView, SectionBreakView
-│           ├── routes/           — Home.tsx, Playground.tsx (dev-only)
-│           ├── lib/              — supabase.ts, serialize.ts
 │           └── App.tsx, main.tsx, index.css
 ├── supabase/
 │   ├── migrations/    — 0001 schema, 0002 RLS+helpers, 0003 RPCs+triggers, 0004 seed
@@ -135,11 +132,10 @@ After Stage 11: `packages/renderer/src/runtime/` will be added, and `bundle-rend
 - **Confidence rating opt-in per blank.** `hasConfidenceRating: boolean` field on FillInBlank, default false. When true, students see a 3-point confidence selector (unsure / think_so / certain) before checking. Stored per-blank in the submission responses. Captures metacognitive calibration data without cluttering activities that don't use it. Activity-level toggle was considered and rejected — opt-in per blank matches "no UI clutter unless deliberate."
 - **`activityType` on ActivityMeta** — `worksheet | exit_ticket | warm_up | review`, default `worksheet`. Drives published HTML structure (exit ticket gets focused single-page layout, etc.) and dashboard filtering.
 - **Standards tagging at two levels.** `standards: string[]` on ActivityMeta (activity-level tags) AND on Problem and FillInBlank blocks (problem-level tags). Field is in the schema from day one; editor UI for problem-level tagging is deferred to Phase 2. The field existing now is what enables future per-standard analytics to reach back to Phase 1 activities.
-- **Runtime JS is a separate file** (`packages/renderer/src/runtime/index.ts`), built by `bundle-renderer.mjs` as `runtime.js` + `runtime.js.map`. Uploaded as `v{N}/runtime.js` with each publish. HTML references it as `<script type="module" src="./runtime.js">`. `data-runtime-version="1"` on the activity root from day one — migration anchor for Phase 3+ CDN-hosted shared runtime. See `packages/renderer/RUNTIME.md` for the full runtime architecture.
+- **Runtime: real modules in source, inlined in output.** The runtime source is restructured from a single string literal into proper TypeScript modules under `packages/renderer/src/runtime/` (entry `runtime/index.ts`), built by an esbuild step in `bundle-renderer.mjs` (minified, `chrome90` target). The built output is *inlined* into the published HTML by `document.ts` — exactly as the current minimal runtime already is — so there is no separate `runtime.js` file and `publish-activity` is untouched. Inlining is the right call for a Phase 1 runtime: one fewer request on a slow Chromebook, and the runtime stays co-versioned with the HTML it ships in. Because the renderer must stay pure (no I/O — it runs inside Edge Functions), the esbuild step also emits a generated module re-exporting the built JS as a string for `document.ts` to import. The esbuild source map is kept as a dev/debug artifact, not shipped (an inline data-URI map would bloat every page). The separate-file model — and a `runtimeVersion` selector — is a Phase 3+ change for when a CDN-hosted shared runtime makes the split worthwhile. See `packages/renderer/RUNTIME.md` for the full runtime architecture.
 - **Runtime state pattern:** plain JS object as single source of truth. All user actions mutate state then call `render()`. `render()` is the only DOM mutator. Every DOM write guarded by a change check (only write if value differs). Idempotent, prevents layout thrashing.
 - **Data-attribute contract is a public API.** Renderer emits; runtime reads. Frozen for already-published activities; additive changes only. Every attribute read uses `?? default` fallback. Init and event handlers wrapped in try/catch — graceful degradation to basic submit if init fails. Full contract documented in `RUNTIME.md`.
 - **Runtime scoring is pure / DOM reads happen once.** Init pass builds in-memory `blanks` and `sections` maps from the DOM. Scoring functions operate on those maps. No DOM queries inside scoring or feedback logic.
-- **Source maps emitted for runtime.** Always-on, external. Modern browsers only fetch them when DevTools is open; zero performance cost for students; without them, teacher-reported bugs in minified code aren't debuggable.
 - **Runtime does NOT import from `@activity/schema`.** Parallel minimal TypeScript interfaces mirror the data-attribute contract. Deliberate duplication — keeping the runtime under the 20KB performance budget rules out bundling Zod.
 - **Pedagogical block types planned for Phase 2** (cheap to add then per the existing "adding block types is cheap" architecture): worked example block, faded worked example / completion problem, learning objectives + success criteria (combined block), self-explanation/reflection block.
 - **Skill tagging, not standards.** `skills: string[]` on ActivityMeta, FillInBlankBlock, and ProblemBlock, NOT `standards`. Action-oriented and framework-neutral — "simplifying rational expressions" rather than "TEKS A.10A" — so the system stays portable across Texas/CCSS/UK National Curriculum/etc. The field doesn't validate against any framework; teachers who want to use TEKS or CCSS codes can put them in the array. Phase 5 marketplace will add controlled vocabulary on top; an optional separate `standards` field for compliance reporting is additive whenever it's needed.
@@ -209,7 +205,7 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 - **Server derives `attempt_number`.** Edge Function reads `max(attempt_number) + 1` for the student's identity; never trusts the client's value.
 - **Per-blank confidence ratings are opt-in.** Default off. Teacher enables per-blank via `hasConfidenceRating: true`.
 - **Accessibility commitments for the runtime:** focus moves to first incorrect feedback after check (or to score summary if all correct); ✓/✗ uses icon + color, never color alone; `prefers-reduced-motion` respected on any feedback transitions; KaTeX MathML output kept on for screen readers; touch targets ≥ 44×44px on interactive elements.
-- **Print CSS is part of the renderer's output from Stage 11.** `@media print` styles hide all interactive elements (checkpoint buttons, feedback slots, confidence ratings, submit button) and format the content for paper. Retrofit is expensive; build it in now.
+- **Baseline print CSS ships with the renderer's output from Stage 11.** A small `@media print` layer: hide interactive elements (checkpoint buttons, feedback slots, confidence ratings, submit button), keep problems from splitting across page breaks (`break-inside: avoid` on problems, `break-before` on sections), stay grayscale-safe (B&W printers — no meaning in color alone; use borders/labels). Table stakes only. The print *feature* — teacher-configurable layout, work space, headers, answer-key copies — is a separate post-Stage-16 effort: `docs/design/print-and-printables.md`. Retrofitting the baseline is expensive; build it in now.
 - **For Zod recursive types where any inner schema uses `.default()`, declare as `z.ZodType<T, z.ZodTypeDef, unknown>` rather than `z.ZodType<T>`.** The latter asserts input === output and breaks because `.default()` widens the input type. Standing rule for any future recursive schema in this codebase.
 - **Subject-portable framing for new features.** When extending the schema or renderer, generalize where the cost is low. Name blocks for their shape, not their subject. Skill tags are the only first-class taxonomic dimension; don't add subject-specific enum fields without a strong reason.
 - **`SubmissionResponses` extends by parallel maps, never by widening `BlankResponse.answer`.** Each new response category is a sibling map at a `schemaVersion` bump. Type purity at the consumer boundary is worth the schema overhead.
@@ -229,8 +225,8 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 - **Image upload (vs current image-by-URL only):** Phase 2.
 - **Multi-tenancy / district-scoped activities:** Phase 4+. Helpers are designed for it.
 - **Governance model when a teacher leaves a district:** pick before designing org features. Not urgent.
-- **CDN-hosted shared runtime (Phase 3+):** when to move from versioned-per-publish to CDN-hosted. `data-runtime-version` attribute already in place to support the migration. Trigger: when republishing activities for a runtime bug fix becomes painful (~50+ active activities).
-- **Print CSS scope:** which interactive elements need print-time replacement (e.g., do fill-in-blank inputs become underline placeholders for handwritten answers?) vs. simple hiding. Decide during Stage 11 implementation.
+- **CDN-hosted shared runtime (Phase 3+):** when to move from versioned-per-publish to CDN-hosted. A `runtimeVersion` selector is added at that point (Phase 3+; not emitted today — with the runtime inlined there is nothing to version-select yet). Trigger: when republishing activities for a runtime bug fix becomes painful (~50+ active activities).
+- **Print CSS — remaining Stage 11 sub-decisions:** baseline scope is settled (see Standing constraints). Two narrow calls remain: whether fill-in-blank `<input>`s print as hand-fillable underline placeholders vs. simple hiding, and whether responsive `--blank-width` sizing is pulled into the baseline as an early win. Print-*feature* open questions are tracked in `docs/design/print-and-printables.md` (scheduled after Stage 16).
 - **Phase 2 block type priority order:** worked example, faded worked example, learning objectives + success criteria, self-explanation. Decide order when Phase 2 starts based on which gap is most painful.
 - **UX validation with other teachers:** at least 2–3 informal reviews of checkpoint UI patterns (button placement, feedback animation, confidence rating UI) before locking them in. Cost is near-zero now (no UI exists yet); cost rises sharply once built.
 - **Manual grading workflow shape (Phase 2.6):** does each grading pass amend the existing submission row, or create a new "grading" row that joins to it? Decide at Phase 2.6 start. Implication for the dashboard: amend means simpler row count, join means full grading-history audit trail. Probably the join, for the same audit-trail reasons attempts are separate rows.
@@ -241,7 +237,7 @@ The "should I paywall?" conversation resolved into a phased model: free for indi
 
 ## Nearest next steps
 
-1. **Stage 11 — Runtime file split + build pipeline.** Extract inline `<script>` from renderer into `runtime/index.ts`; add esbuild step to `bundle-renderer.mjs` for runtime.js + source map; update `publish-activity` to upload both. Per RUNTIME.md architecture. Include print CSS in renderer output. ~1 session.
+1. **Stage 11 — Runtime file split + build pipeline.** Restructure the runtime from the single string literal in `runtime/runtime.ts` into real TypeScript modules under `runtime/` (entry `runtime/index.ts`); add an esbuild step to `bundle-renderer.mjs` that builds the runtime (minified, `chrome90` target) and emits a generated string module for `document.ts` to inline. Output stays inlined — no separate `runtime.js` file, `publish-activity` untouched; the esbuild source map is a dev/debug artifact only. Per RUNTIME.md architecture. Include the baseline print CSS in renderer output (see Standing constraints; the authored print feature is a separate post-Stage-16 effort — `docs/design/print-and-printables.md`). ~1 session.
 2. **Stages 12–13 — Runtime logic.** Init pass + maps + checkpoint scoring + feedback rendering + revision mode enforcement. Tests in JSDOM. ~2 sessions.
 3. **Stage 14 — Runtime: submission flow.** Final submit, attempt tracking via server-derived attempt_number, localStorage retry on network failure, resubmit flow for revisionMode === 'free'. ~1 session.
 4. **Stage 15 — Editor UI for new feature fields.** Checkpoint toggle (per section), submissionMode/revisionMode/activityType pickers (activity-level), hint + mistake-feedback + solution + hasConfidenceRating + standards fields on fill-in-blank, solution + standards on problem. ~1–2 sessions.
