@@ -194,12 +194,14 @@ body {
 .block-problem-body > :last-child { margin-bottom: 0; }
 
 /* The blank-token wrapper keeps an <input class="blank"> and its sibling
- f eedba*ck span (.js-blank-feedback) on the same inline-flow line, so they
- can't wrap apart mid-prose. The wrapper is structural only — the \`blank\`
- class stays on the <input> itself, so every existing .blank selector
- continues to target the input directly. align-items: baseline lines the
- input baseline up with the surrounding prose; the gap doesn't take effect
- while the feedback span is \`hidden\` (display: none has no flex item). */
+ a fford*ances (.js-blank-hint, .js-blank-hint-text, .js-blank-feedback) on
+ the same inline-flow line, so they can't wrap apart mid-prose. The
+ wrapper is structural only — the \`blank\` class stays on the <input>
+ itself, so every existing .blank selector continues to target the input
+ directly. align-items: baseline lines the input baseline up with the
+ surrounding prose; the gap controls spacing between input, hint button,
+revealed hint text, and feedback. (Hidden siblings have display: none
+via the \`hidden\` attribute and don't participate in the gap.) */
 .blank-wrapper {
   display: inline-flex;
   align-items: baseline;
@@ -232,9 +234,100 @@ body {
   border-color: var(--color-blank-incorrect-border);
 }
 
+/* Hint affordance. The .js-blank-hint button is always available next to
+ t he bl*ank when the teacher authored a hint; clicking it toggles the
+ adjacent .js-blank-hint-text span between hidden and visible (Stage 13
+ runtime work). The button is a small circular \`?\` icon — discoverable
+ without dominating the line. Long hints will wrap within the wrapper;
+ keep hints short. A popover-style reveal is a Phase 2+ polish option.
+ The hint text uses --color-note-bg as a subtle visual marker so the
+ reveal is unambiguous against the surrounding prose. */
+.js-blank-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: white;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.js-blank-hint:hover {
+  color: var(--color-text);
+  border-color: var(--color-text);
+}
+.js-blank-hint:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.js-blank-hint-text {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  font-style: italic;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: var(--color-note-bg);
+}
+
 /* .js-blank-feedback visible-state styling lands in Stage 13 once the
  r untim*e starts rendering content into it. Until then it stays hidden
  by the \`hidden\` attribute on the element. */
+
+/* Confidence rating fieldset (Stage 12 step 3). One per fill-in-blank
+ b lock *when hasConfidenceRating is true. Sits inside the problem body
+ so it aligns under the problem number with the rest of the body
+ content. Default browser fieldset styling is heavy; we tone it down
+ to a thin bordered container with a small muted legend. Radios use
+ plain inline-block layout (vs inline-flex) — simpler whitespace
+ handling between input and label text, predictable across browsers. */
+.js-confidence-rating {
+  margin: 0.75rem 0 0;
+  padding: 0.4rem 0.75rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+.js-confidence-rating legend {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  padding: 0 0.4rem;
+}
+.js-confidence-rating label {
+  display: inline-block;
+  margin-right: 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.js-confidence-rating label:last-child {
+  margin-right: 0;
+}
+.js-confidence-rating input[type="radio"] {
+  margin-right: 0.25rem;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+/* Solution slot. Hidden in source HTML; the Stage 13 runtime toggles
+\`hidden\` when the section is checked. Visual treatment: subtle
+ left-accent + tinted background so a revealed solution reads clearly
+ as "the teacher's explanation" rather than continuation of the
+ problem prose. */
+.js-solution {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-info-bg);
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95rem;
+}
 
 .math-error {
   font-family: monospace;
@@ -300,13 +393,18 @@ body {
 
   /* Hide interactive elements. The js-* selectors are documented in
    R UNT*IME.md but not all emitted yet (Stages 12–14); listed here so the
-   baseline is correct the moment those land. */
+   baseline is correct the moment those land. Printable hints +
+   solutions are a post-Stage-16 print-feature configuration (answer-
+   key variant), not a baseline. */
   .identity-prompt,
   .submit-area,
   .js-checkpoint-btn,
   .js-section-score,
   .js-confidence-rating,
-  .js-blank-feedback {
+  .js-blank-feedback,
+  .js-blank-hint,
+  .js-blank-hint-text,
+  .js-solution {
     display: none;
   }
 

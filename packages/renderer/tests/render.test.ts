@@ -248,12 +248,262 @@ describe('Inline rendering', () => {
     expect(feedbackIdx).toBeGreaterThan(inputIdx);
   });
 
+  it('emits data-hint, a hint button, and a hint text span when hint is set', () => {
+    // The hint button is the always-available `?` affordance (decision 2).
+    // data-hint on the input is the runtime's data contract (RUNTIME.md);
+    // the hint text is also statically rendered into the span, paired with
+    // the button via aria-controls. The Stage 13 runtime will toggle hidden
+    // + aria-expanded on click — Step 2 only emits the static markup.
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('answer');
+    blank.hint = 'Try factoring first.';
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+
+    expect(body).toContain('data-hint="Try factoring first."');
+    expect(body).toContain(
+      '<button class="js-blank-hint" type="button"' +
+      ' aria-expanded="false"' +
+      ' aria-controls="hint-' + blank.id + '"' +
+      ' aria-label="Show hint">?</button>',
+    );
+    expect(body).toContain(
+      '<span class="js-blank-hint-text" id="hint-' + blank.id + '" hidden>' +
+      'Try factoring first.' +
+      '</span>',
+    );
+  });
+
+  it('escapes HTML in the hint (both attribute and text contexts)', () => {
+    // Hint text containing HTML-special characters must not appear raw
+    // anywhere in the output. Tested with & and < (escaped in both
+    // attribute and element-text contexts) rather than " (attribute-only)
+    // to avoid attr-vs-text escaping ambiguity.
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('answer');
+    blank.hint = 'a & b < c';
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).not.toContain('a & b < c');
+    expect(body).toContain('data-hint="a &amp; b &lt; c"');
+    expect(body).toContain('>a &amp; b &lt; c<');
+  });
+
+  it('omits all hint emission when hint is undefined or empty', () => {
+    // No hint authored → no button, no text span, no data-hint attribute.
+    // The absence of the attribute is the signal "this blank has no hint
+    // to reveal"; the runtime checks for presence, not value.
+    const docs = [
+      // hint undefined (default)
+      (() => {
+        const d = createEmptyDocument({ title: 'T' });
+        const b = createBlankToken('a');
+        const f = createFillInBlankBlock();
+        f.content = [b];
+        d.sections[0]!.blocks = [f];
+        return d;
+      })(),
+     // hint empty string (treated as "no hint" per renderBlank's hint?
+     // narrowing — an empty hint would surface a useless reveal)
+     (() => {
+       const d = createEmptyDocument({ title: 'T' });
+       const b = createBlankToken('a');
+       b.hint = '';
+       const f = createFillInBlankBlock();
+       f.content = [b];
+       d.sections[0]!.blocks = [f];
+       return d;
+     })(),
+    ];
+    for (const doc of docs) {
+      const body = renderBody(doc);
+      expect(body).not.toContain('data-hint=');
+      expect(body).not.toContain('js-blank-hint');
+    }
+  });
+
+  it('emits mistakeFeedback as JSON in data-mistake-feedback', () => {
+    // mistakeFeedback is a JSON-encoded array on the input; the runtime
+    // parses it once at init and dispatches the matching entry into
+    // .js-blank-feedback at check time (Stage 13). JSON keys/values appear
+    // with " escaped to &quot; (attribute-context escaping); browsers
+    // decode back to JSON.parse-able text.
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('answer');
+    blank.mistakeFeedback = [
+      { match: '2x', feedback: 'Did you forget the constant?' },
+      { match: '0', feedback: 'Check your sign.' },
+    ];
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('data-mistake-feedback="');
+    // The JSON keys and individual entries appear escaped — testing
+    // properties rather than the exact serialized blob keeps the test
+    // resilient to JSON.stringify whitespace differences across runtimes.
+    expect(body).toContain('&quot;match&quot;:&quot;2x&quot;');
+    expect(body).toContain(
+      '&quot;feedback&quot;:&quot;Did you forget the constant?&quot;',
+    );
+    expect(body).toContain('&quot;match&quot;:&quot;0&quot;');
+    expect(body).toContain('&quot;feedback&quot;:&quot;Check your sign.&quot;');
+  });
+
+  it('omits data-mistake-feedback when the array is empty or undefined', () => {
+    // Same single-signal philosophy as the hint: the absence of the
+    // attribute means "no targeted feedback to consider", so an empty
+    // array shouldn't emit a useless data-mistake-feedback="[]".
+    const docs = [
+      (() => {
+        const d = createEmptyDocument({ title: 'T' });
+        const b = createBlankToken('a');
+        // mistakeFeedback undefined (default)
+        const f = createFillInBlankBlock();
+        f.content = [b];
+        d.sections[0]!.blocks = [f];
+        return d;
+      })(),
+     (() => {
+       const d = createEmptyDocument({ title: 'T' });
+       const b = createBlankToken('a');
+       b.mistakeFeedback = [];
+       const f = createFillInBlankBlock();
+       f.content = [b];
+       d.sections[0]!.blocks = [f];
+       return d;
+     })(),
+    ];
+    for (const doc of docs) {
+      expect(renderBody(doc)).not.toContain('data-mistake-feedback');
+    }
+  });
+
   it('handles invalid LaTeX without throwing', () => {
     const doc = createEmptyDocument({ title: 'T' });
     doc.sections[0]!.blocks = [
       Object.assign(createMathBlock(), { latex: '\\unknownmacro{x}' }),
     ];
     expect(() => renderBody(doc)).not.toThrow();
+  });
+});
+
+describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
+  it('emits data-solution and a hidden solution slot when solution is set', () => {
+    // Solution text appears in two places: as the runtime read contract
+    // (data-solution on the block) and as static text inside .js-solution
+    // (the slot the runtime will reveal at check time). Both are emitted;
+    // the slot starts hidden so the student doesn't see the solution at
+    // page load even if the runtime fails to initialize (fail-closed).
+    const doc = createEmptyDocument({ title: 'T' });
+    const fill = createFillInBlankBlock();
+    fill.solution = 'Combine like terms, then divide.';
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('data-solution="Combine like terms, then divide."');
+    expect(body).toContain(
+      '<div class="js-solution" data-for-block="' + fill.id + '" hidden>' +
+      'Combine like terms, then divide.' +
+      '</div>',
+    );
+  });
+
+  it('escapes HTML in the solution (attribute + text contexts)', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const fill = createFillInBlankBlock();
+    fill.solution = 'Use a & b < c';
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).not.toContain('Use a & b < c');
+    expect(body).toContain('data-solution="Use a &amp; b &lt; c"');
+    expect(body).toContain('>Use a &amp; b &lt; c<');
+  });
+
+  it('omits all solution emission when solution is undefined or empty', () => {
+    const docs = [
+      (() => {
+        const d = createEmptyDocument({ title: 'T' });
+        // factory leaves solution undefined
+        d.sections[0]!.blocks = [createFillInBlankBlock()];
+        return d;
+      })(),
+     (() => {
+       const d = createEmptyDocument({ title: 'T' });
+       const f = createFillInBlankBlock();
+       f.solution = '';
+       d.sections[0]!.blocks = [f];
+       return d;
+     })(),
+    ];
+    for (const doc of docs) {
+      const body = renderBody(doc);
+      expect(body).not.toContain('data-solution=');
+      expect(body).not.toContain('js-solution');
+    }
+  });
+
+  it('emits data-has-confidence-rating and a fieldset when hasConfidenceRating is true', () => {
+    // The fieldset is rendered exactly once per block (not once per blank),
+    // even when the block contains multiple blanks. The Stage 13 runtime
+    // captures the single selected value and replicates it across every
+    // BlankResponse for this block.
+    const doc = createEmptyDocument({ title: 'T' });
+    const fill = createFillInBlankBlock();
+    fill.hasConfidenceRating = true;
+    // Two blanks to confirm the fieldset still renders only once.
+    fill.content = [createBlankToken('a'), createBlankToken('b')];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('data-has-confidence-rating="true"');
+    expect(body).toContain(
+      '<fieldset class="js-confidence-rating" data-for-block="' + fill.id + '">',
+    );
+    expect(body).toContain('<legend>How confident are you?</legend>');
+    // Three radio options with snake_case values and the block-namespaced
+    // name (so multiple confidence groups on the same page don't share
+    // radio-group state).
+    expect(body).toContain('name="conf-' + fill.id + '" value="unsure"');
+    expect(body).toContain('name="conf-' + fill.id + '" value="think_so"');
+    expect(body).toContain('name="conf-' + fill.id + '" value="certain"');
+    // Fieldset opens exactly once for the whole block.
+    const fieldsetMatches = body.match(/<fieldset class="js-confidence-rating"/g);
+    expect(fieldsetMatches?.length).toBe(1);
+  });
+
+  it('omits the confidence fieldset and attribute when hasConfidenceRating is false', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    // factory returns hasConfidenceRating: false (schema default)
+    doc.sections[0]!.blocks = [createFillInBlankBlock()];
+    const body = renderBody(doc);
+    expect(body).not.toContain('data-has-confidence-rating');
+    expect(body).not.toContain('js-confidence-rating');
+  });
+
+  it('emits data-skills as JSON when skills is non-empty', () => {
+    // skills lives on the block; editor UI is Phase 2 but the renderer
+    // emits it now so per-skill analytics can reach back to Phase 1
+    // blocks when the editor and dashboard features land.
+    const doc = createEmptyDocument({ title: 'T' });
+    const fill = createFillInBlankBlock();
+    fill.skills = ['factoring-quadratics', 'distributive-property'];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('data-skills="');
+    // JSON-array form with " escaped to &quot; in attribute context.
+    expect(body).toContain('&quot;factoring-quadratics&quot;');
+    expect(body).toContain('&quot;distributive-property&quot;');
+  });
+
+  it('omits data-skills when skills is empty (the schema default)', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    // factory returns skills: [] (schema default)
+    doc.sections[0]!.blocks = [createFillInBlankBlock()];
+    const body = renderBody(doc);
+    expect(body).not.toContain('data-skills');
   });
 });
 
