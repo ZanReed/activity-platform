@@ -7,11 +7,18 @@
 // over the network.
 //
 // Class names match what the renderer emits (block-problem, block-callout,
-// etc.). When the editor's NodeViews are written, they apply these same
-// classes so the editor canvas and the published page look identical.
+// .activity-container, .identity-prompt, .submit-area, etc.). When the
+// editor's NodeViews are written, they apply these same classes so the editor
+// canvas and the published page look identical.
 //
 // KaTeX styles are NOT here — they're loaded from a CDN <link> in
 // document.ts. KaTeX's CSS is large and well-cached at the CDN.
+//
+// The @media print block at the bottom is the Stage 11 BASELINE print layer
+// (STATE.md standing constraints): hide interactive controls, page-break
+// integrity, grayscale safety. The richer print FEATURE — multi-column,
+// teacher-configured work space, answer-key variant — is a post-Stage-16
+// effort (print-and-printables.md).
 // =============================================================================
 
 export const blockStyles = `
@@ -49,7 +56,7 @@ body {
   padding: 1rem;
 }
 
-.activity {
+.activity-container {
   max-width: var(--max-width);
   margin: 0 auto;
 }
@@ -70,7 +77,7 @@ body {
   font-size: 0.875rem;
 }
 
-.name-prompt {
+.identity-prompt {
   background: var(--color-info-bg);
   border: 1px solid var(--color-info);
   border-radius: 6px;
@@ -82,12 +89,12 @@ body {
   flex-wrap: wrap;
 }
 
-.name-prompt label {
+.identity-prompt label {
   font-weight: 600;
   color: var(--color-info);
 }
 
-.name-prompt input {
+.identity-prompt input {
   flex: 1 1 200px;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--color-border);
@@ -220,7 +227,7 @@ body {
   border-radius: 3px;
 }
 
-.activity-footer {
+.submit-area {
   border-top: 2px solid var(--color-border);
   padding-top: 1.5rem;
   margin-top: 2.5rem;
@@ -251,15 +258,78 @@ body {
 .submit-status.success { color: var(--color-success); }
 .submit-status.error   { color: var(--color-warning); }
 
+/* =============================================================================
+ B aseli*ne print layer (Stage 11)
+ -----------------------------------------------------------------------------
+ Goal: a published activity that looks broken on paper today, doesn't.
+ This is NOT the print FEATURE (multi-column layout, work space, configured
+ header, answer key) — that lives post-Stage-16 (print-and-printables.md).
+ Scope of this layer:
+ - Maximize printable area: @page margin 0.5in (floor for safe edge across
+ unknown classroom printers — most laser printers have ~0.25in hardware
+ non-printable margin).
+ - Hide interactive controls so students don't print a Submit button.
+ - Page-break integrity: never split a problem; let sections flow.
+ - Grayscale safety: don't encode meaning in color alone (callouts vary by
+ border STYLE; blank correct/incorrect state is neutralized — pre-lesson
+ printables are blank worksheets, no scored state to distinguish).
+ - Print typography is deliberately unchanged: it's a configurable feature
+ (--print-font-size) reserved for the post-Stage-16 print work.
+ ============================================================================= */
 @media print {
+  @page { margin: 0.5in; }
+
   body { padding: 0; }
-  .name-prompt, .activity-footer { display: none; }
-  .blank {
+
+  /* Hide interactive elements. The js-* selectors are documented in
+   R UNT*IME.md but not emitted yet (Stages 12–14); listed here so the
+   baseline is correct the moment those land. */
+  .identity-prompt,
+  .submit-area,
+  .js-checkpoint-btn,
+  .js-section-score,
+  .js-confidence-rating,
+  .js-blank-feedback {
+    display: none;
+  }
+
+  /* Page-break integrity. Modern break-* names; legacy page-break-* aliases
+   omit*ted (RUNTIME.md support matrix is Chrome/Firefox/Safari/Edge). */
+  .block-problem,
+  .block-fill-in-blank {
+    break-inside: avoid;
+  }
+  .activity-section {
+    break-before: auto; /* explicit: flow naturally, don't force a page */
+  }
+  .activity-header h1,
+  .section-title,
+  .block-heading-1,
+  .block-heading-2,
+  .block-heading-3 {
+    break-after: avoid; /* don't strand a heading at a page bottom */
+  }
+
+  /* Blanks print as underlined fill-ins. Correct/incorrect state classes
+   a re *neutralized — a printed worksheet is the BLANK version a teacher
+   hands out before the lesson, so there is no scored state to convey. */
+  .blank,
+  .blank.correct,
+  .blank.incorrect {
     background: transparent;
-    border-bottom: 1px solid black;
     border-top: none;
     border-left: none;
     border-right: none;
+    border-bottom: 1px solid black;
   }
+
+  /* Callouts: solid borders carry color on screen; in B&W the variants
+   b eco*me indistinguishable. Encode the variant in border STYLE so an
+   info callout looks different from a warning even in grayscale. The
+   icons remain (they survive grayscale too — belt and suspenders). */
+  .block-callout-info    { border-left-style: solid;  }
+  .block-callout-warning { border-left-style: dashed; }
+  .block-callout-success { border-left-style: double; }
+  .block-callout-note    { border-left-style: dotted; }
 }
 `.trim();

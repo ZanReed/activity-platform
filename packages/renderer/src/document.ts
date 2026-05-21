@@ -11,14 +11,17 @@
 //   * submissionEndpoint — URL to POST submissions to
 //
 // These come from the RenderContext passed in at render time. The renderer
-// itself stays pure — values flow through args, never read from environment.
+// itself stays pure (no I/O — it runs in Edge Functions): the runtime JS is
+// baked in at build time as a string constant (runtime/generated/
+// runtime-bundle.ts, produced by scripts/bundle-renderer.mjs), never read from
+// disk here. RenderContext values flow through args, never from environment.
 // =============================================================================
 
 import type { ActivityDocument } from '@activity/schema';
 import { escape, attr } from './html.js';
 import { renderBody } from './render.js';
 import { blockStyles } from './runtime/styles.js';
-import { runtimeJs } from './runtime/runtime.js';
+import { runtimeJs } from './runtime/generated/runtime-bundle.js';
 
 export interface RenderContext {
   /** UUID of the activity, included in submissions. */
@@ -97,7 +100,8 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     JSON.stringify(config).replace(/<\/script/gi, '<\\/script') +
     '</script>' +
 
-    // Runtime JS (vanilla, no framework)
+    // Runtime JS (vanilla, no framework) — baked in at build time as a string
+    // constant by scripts/bundle-renderer.mjs; see runtime/generated/.
     '<script>' + runtimeJs + '</script>' +
 
     '</body>' +

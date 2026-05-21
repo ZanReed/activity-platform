@@ -57,7 +57,12 @@ describe('renderActivity (full document)', () => {
   it('includes the runtime JS', () => {
     const doc = createEmptyDocument({ title: 'Test' });
     const html = renderActivity(doc, ctx);
-    expect(html).toContain('STORAGE_KEY_NAME');
+    // The runtime is minified into the bundle; identifier names are mangled
+    // (STORAGE_KEY_NAME → some short var). Assert on the localStorage key VALUE
+    // instead — that string is a literal in the source, survives minification,
+    // and is a deliberately-stable contract (changing it would break cross-
+    // activity name carry-over for students).
+    expect(html).toContain('activity_student_name');
   });
 
   it('includes the identity prompt and submit button', () => {

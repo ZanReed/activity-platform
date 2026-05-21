@@ -240,8 +240,7 @@ A fill-in-blank renders as **two nested levels**: the block `<div>`, carrying bl
 - The `autocomplete` / `autocapitalize` / `autocorrect` / `spellcheck` quartet disables browser interference with math input.
 - There is **no wrapper element today** — the bare `<input class="blank">` is the whole token.
 
-The current runtime confirms it reads `class="blank"`, `data-blank-id`, `data-blank-answers` (pipe-delimited), and `data-blank-strategy`. The aria-label / --blank-width / autocomplete attributes are emitted by inline.ts's renderBlank, verified against that file — the whole <input> shape above is confirmed [emitted today].
-
+The current runtime confirms it reads `class="blank"`, `data-blank-id`, `data-blank-answers` (pipe-delimited), and `data-blank-strategy`. The `aria-label` / `--blank-width` / autocomplete attributes are emitted by `inline.ts`'s `renderBlank`, verified against that file — the whole `<input>` shape above is confirmed `[emitted today]`.
 
 **[target — Stage 12–13]** The blank token additionally carries `data-hint="..."` and `data-mistake-feedback='[{"match":"2x","feedback":"..."}]'` (a JSON array), and gains a sibling feedback slot:
 
