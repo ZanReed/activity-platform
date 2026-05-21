@@ -8,10 +8,6 @@
 // Why Record (not Map) for the three keyed sub-stores: state is JSON-
 // serializable so it can be diffed in dev and (eventually) serialized into
 // submission payloads. Plain objects serialize naturally; Map does not.
-//
-// Stage 13 Session 1 expansion: BlankState and BlockState join SectionState
-// as the three per-entity state maps. Together they carry every mutable bit
-// the runtime needs — render() reads from these, never from the DOM.
 // =============================================================================
 
 import type { Refs } from './refs.js';
@@ -23,7 +19,11 @@ export interface SectionState {
     locked: boolean;
     /** Number of blanks scored correct in this section at last check. */
     score: number;
-    /** Number of blanks attempted (non-empty) in this section at last check. */
+    /**
+     * Total blanks in this section — the denominator for the score display.
+     * Equals sectionRef.blankIds.length, NOT the attempted (non-empty) count.
+     * Empty blanks count as omissions in the score "{score} / {total} correct".
+     */
     total: number;
     /** ISO timestamp of the most recent check (null until first checked). */
     checkedAt: string | null;
@@ -39,14 +39,12 @@ export interface BlankState {
     /**
      * Matched mistake-feedback text from BlankRef.mistakeFeedback, or null
      * when the typed value didn't match any configured mistake. Set by the
-     * scoring path (event handler); read by render. Populated in Session 2;
-     * stays null in Session 1.
+     * scoring path (event handler); read by render.
      */
     matchedMistake: string | null;
     /**
      * Whether the student has clicked this blank's hint button. Drives the
      * hint text's hidden attribute and the button's aria-expanded value.
-     * Populated in Session 2; stays false in Session 1.
      */
     hintRevealed: boolean;
 }
@@ -54,13 +52,14 @@ export interface BlankState {
 export interface BlockState {
     /**
      * Whether this fill_in_blank block's solution slot has been revealed
-     * (true after the containing section is checked, when the block has a
-     * solution authored). Populated in Session 2.
+     * (true after the containing section is checked, when the block has
+     * a solution authored). Once true, never unset — re-checking in free
+     * mode keeps solutions visible.
      */
     solutionRevealed: boolean;
     /**
      * Student's selected confidence value for this block. Null until the
-     * student picks one. Populated in Session 3.
+     * student picks one. Populated in Session 4.
      */
     confidence: 'unsure' | 'think_so' | 'certain' | null;
 }

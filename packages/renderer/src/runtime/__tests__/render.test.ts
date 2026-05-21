@@ -8,17 +8,30 @@
 // construct a state + a minimal DOM fragment mirroring renderer output,
 // call render(), and assert the resulting DOM state.
 //
-// Session 2 scope expands from Session 1's class-only coverage to also
-// exercise aria-invalid (screen reader signal), the feedback slot text +
-// hidden behavior, and the hint affordance state.
+// Session 3 scope expands beyond per-blank rendering to cover renderBlock
+// (solution slot) and renderSection (score text + check-button disabled).
+// Also exercises renderBlank's locked-mode input freeze, which reads
+// SectionState.locked via the third state parameter.
 // =============================================================================
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render } from '../render.js';
-import type { Refs, BlankRef } from '../refs.js';
-import type { RuntimeState, BlankState } from '../state.js';
+import type {
+    Refs,
+    BlankRef,
+    FillInBlankRef,
+    SectionRef,
+} from '../refs.js';
+import type {
+    RuntimeState,
+    BlankState,
+    BlockState,
+    SectionState,
+} from '../state.js';
 
-/** Minimal BlankRef — no hint affordance, no mistake feedback. */
+/** Minimal BlankRef — no hint affordance, no mistake feedback. sectionId
+ *  is hardcoded to 'sec-1' for tests; the few locked-mode tests below set
+ *  up a matching SectionState entry. */
 function makeBlankRef(blankId: string): BlankRef {
     const wrapper = document.createElement('span');
     wrapper.className = 'blank-wrapper';
@@ -81,6 +94,64 @@ function makeBlankRefWithHint(blankId: string): BlankRef {
     };
 }
 
+function makeFillInBlankRef(
+    blockId: string,
+    solution: string | null,
+): FillInBlankRef {
+    const el = document.createElement('div');
+    el.className = 'block block-fill-in-blank';
+    el.setAttribute('data-block-id', blockId);
+    let solutionEl: HTMLElement | null = null;
+    if (solution !== null) {
+        solutionEl = document.createElement('div');
+        solutionEl.className = 'js-solution';
+        solutionEl.hidden = true;
+        solutionEl.textContent = solution;
+        el.appendChild(solutionEl);
+    }
+    document.body.appendChild(el);
+    return {
+        el,
+        blankIds: [],
+        solution,
+        solutionEl,
+        hasConfidenceRating: false,
+        confidenceFieldset: null,
+        skills: [],
+        sectionId: 'sec-1',
+    };
+}
+
+function makeSectionRefHelper(
+    sectionId: string,
+    withCheckButton: boolean,
+): SectionRef {
+    const el = document.createElement('section');
+    el.className = 'activity-section';
+    el.setAttribute('data-section-id', sectionId);
+    let checkButton: HTMLButtonElement | null = null;
+    let scoreEl: HTMLElement | null = null;
+    if (withCheckButton) {
+        checkButton = document.createElement('button');
+        checkButton.className = 'js-checkpoint-btn';
+        checkButton.type = 'button';
+        scoreEl = document.createElement('div');
+        scoreEl.className = 'js-section-score';
+        scoreEl.hidden = true;
+        el.appendChild(checkButton);
+        el.appendChild(scoreEl);
+    }
+    document.body.appendChild(el);
+    return {
+        el,
+        isCheckpoint: withCheckButton,
+        blankIds: [],
+        blockIds: [],
+        checkButton,
+        scoreEl,
+    };
+}
+
 function makeBlankState(
     result: boolean | null,
     overrides: Partial<BlankState> = {},
@@ -93,22 +164,26 @@ function makeBlankState(
     };
 }
 
-function makeRefs(blanks: Map<string, BlankRef>): Refs {
-    return {
-        blanks,
-        fillInBlanks: new Map(),
-        sections: new Map(),
-    };
+function makeRefs(
+    blanks: Map<string, BlankRef> = new Map(),
+                  fillInBlanks: Map<string, FillInBlankRef> = new Map(),
+                  sections: Map<string, SectionRef> = new Map(),
+): Refs {
+    return { blanks, fillInBlanks, sections };
 }
 
-function makeState(blankStates: Record<string, BlankState>): RuntimeState {
+function makeState(
+    blankStates: Record<string, BlankState> = {},
+    blockStates: Record<string, BlockState> = {},
+    sectionStates: Record<string, SectionState> = {},
+): RuntimeState {
     return {
         submitted: false,
         attemptNumber: 1,
         studentName: '',
-        sections: {},
+        sections: sectionStates,
         blanks: blankStates,
-        blocks: {},
+        blocks: blockStates,
     };
 }
 
@@ -324,5 +399,242 @@ describe('render — hint affordance', () => {
             'b1': makeBlankState(null, { hintRevealed: true }),
         });
         expect(() => render(state, refs)).not.toThrow();
+    });
+});
+
+describe('render — block solution slot', () => {
+    it('reveals the solution slot when solutionRevealed=true', () => {
+        const blockRef = makeFillInBlankRef('block-1', 'Combine like terms.');
+        const refs = makeRefs(
+            new Map(),
+                              new Map([['block-1', blockRef]]),
+        );
+        const state = makeState(
+            {},
+            { 'block-1': { solutionRevealed: true, confidence: null } },
+        );
+        render(state, refs);
+        expect(blockRef.solutionEl!.hidden).toBe(false);
+    });
+
+    it('keeps the solution slot hidden when solutionRevealed=false', () => {
+        const blockRef = makeFillInBlankRef('block-1', 'Combine like terms.');
+        const refs = makeRefs(
+            new Map(),
+                              new Map([['block-1', blockRef]]),
+        );
+        const state = makeState(
+            {},
+            { 'block-1': { solutionRevealed: false, confidence: null } },
+        );
+        render(state, refs);
+        expect(blockRef.solutionEl!.hidden).toBe(true);
+    });
+
+    it('no-ops on blocks without a solution slot', () => {
+        const blockRef = makeFillInBlankRef('block-1', null);
+        const refs = makeRefs(
+            new Map(),
+                              new Map([['block-1', blockRef]]),
+        );
+        const state = makeState(
+            {},
+            { 'block-1': { solutionRevealed: true, confidence: null } },
+        );
+        expect(() => render(state, refs)).not.toThrow();
+    });
+
+    it('transitions hidden → revealed when state flips (matches checkSection)', () => {
+        const blockRef = makeFillInBlankRef('block-1', 'Combine like terms.');
+        const refs = makeRefs(
+            new Map(),
+                              new Map([['block-1', blockRef]]),
+        );
+        const blockState: BlockState = {
+            solutionRevealed: false,
+            confidence: null,
+        };
+        const state = makeState({}, { 'block-1': blockState });
+        render(state, refs);
+        expect(blockRef.solutionEl!.hidden).toBe(true);
+        blockState.solutionRevealed = true;
+        render(state, refs);
+        expect(blockRef.solutionEl!.hidden).toBe(false);
+    });
+});
+
+describe('render — section score', () => {
+    it('populates score text with "{score} / {total} correct" on check', () => {
+        const sectionRef = makeSectionRefHelper('sec-1', true);
+        const refs = makeRefs(
+            new Map(),
+                              new Map(),
+                              new Map([['sec-1', sectionRef]]),
+        );
+        const state = makeState({}, {}, {
+            'sec-1': {
+                checked: true,
+                locked: false,
+                score: 4,
+                total: 6,
+                checkedAt: '2026-01-01T00:00:00.000Z',
+            },
+        });
+        render(state, refs);
+        expect(sectionRef.scoreEl!.textContent).toBe('4 / 6 correct');
+        expect(sectionRef.scoreEl!.hidden).toBe(false);
+    });
+
+    it('keeps score hidden before first check', () => {
+        const sectionRef = makeSectionRefHelper('sec-1', true);
+        const refs = makeRefs(
+            new Map(),
+                              new Map(),
+                              new Map([['sec-1', sectionRef]]),
+        );
+        const state = makeState({}, {}, {
+            'sec-1': {
+                checked: false,
+                locked: false,
+                score: 0,
+                total: 0,
+                checkedAt: null,
+            },
+        });
+        render(state, refs);
+        expect(sectionRef.scoreEl!.hidden).toBe(true);
+    });
+
+    it('disables the check button when SectionState.locked=true', () => {
+        const sectionRef = makeSectionRefHelper('sec-1', true);
+        const refs = makeRefs(
+            new Map(),
+                              new Map(),
+                              new Map([['sec-1', sectionRef]]),
+        );
+        const state = makeState({}, {}, {
+            'sec-1': {
+                checked: true,
+                locked: true,
+                score: 1,
+                total: 1,
+                checkedAt: '2026-01-01T00:00:00.000Z',
+            },
+        });
+        render(state, refs);
+        expect(sectionRef.checkButton!.disabled).toBe(true);
+    });
+
+    it('leaves the check button enabled in free mode (locked=false)', () => {
+        const sectionRef = makeSectionRefHelper('sec-1', true);
+        const refs = makeRefs(
+            new Map(),
+                              new Map(),
+                              new Map([['sec-1', sectionRef]]),
+        );
+        const state = makeState({}, {}, {
+            'sec-1': {
+                checked: true,
+                locked: false,
+                score: 1,
+                total: 1,
+                checkedAt: '2026-01-01T00:00:00.000Z',
+            },
+        });
+        render(state, refs);
+        expect(sectionRef.checkButton!.disabled).toBe(false);
+    });
+
+    it('no-ops on sections without a check button or score slot', () => {
+        const sectionRef = makeSectionRefHelper('sec-1', false);
+        const refs = makeRefs(
+            new Map(),
+                              new Map(),
+                              new Map([['sec-1', sectionRef]]),
+        );
+        const state = makeState({}, {}, {
+            'sec-1': {
+                checked: true,
+                locked: false,
+                score: 0,
+                total: 0,
+                checkedAt: null,
+            },
+        });
+        expect(() => render(state, refs)).not.toThrow();
+    });
+});
+
+describe('render — locked-mode input freeze', () => {
+    it('disables a blank input when its section is locked', () => {
+        const ref = makeBlankRef('b1'); // sectionId hardcoded to 'sec-1'
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState(
+            { 'b1': makeBlankState(true) },
+                                {},
+                                {
+                                    'sec-1': {
+                                        checked: true,
+                                        locked: true,
+                                        score: 1,
+                                        total: 1,
+                                        checkedAt: null,
+                                    },
+                                },
+        );
+        render(state, refs);
+        expect(ref.input.disabled).toBe(true);
+    });
+
+    it('leaves a blank input enabled when its section is not locked', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState(
+            { 'b1': makeBlankState(true) },
+                                {},
+                                {
+                                    'sec-1': {
+                                        checked: true,
+                                        locked: false,
+                                        score: 1,
+                                        total: 1,
+                                        checkedAt: null,
+                                    },
+                                },
+        );
+        render(state, refs);
+        expect(ref.input.disabled).toBe(false);
+    });
+
+    it('leaves a blank input enabled when no SectionState entry exists', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({ 'b1': makeBlankState(true) });
+        render(state, refs);
+        expect(ref.input.disabled).toBe(false);
+    });
+
+    it('transitions disabled → enabled when locked flips (forward compat)', () => {
+        // Locked-state never unsets in Phase 1, but render is forward-
+        // compatible — re-rendering with locked=false re-enables.
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const sectionState: SectionState = {
+            checked: true,
+            locked: true,
+            score: 1,
+            total: 1,
+            checkedAt: null,
+        };
+        const state = makeState(
+            { 'b1': makeBlankState(true) },
+                                {},
+                                { 'sec-1': sectionState },
+        );
+        render(state, refs);
+        expect(ref.input.disabled).toBe(true);
+        sectionState.locked = false;
+        render(state, refs);
+        expect(ref.input.disabled).toBe(false);
     });
 });

@@ -5,15 +5,15 @@
 // scripts/bundle-renderer.mjs into a generated string module, which
 // document.ts inlines into a <script> tag in every published activity page.
 //
-// Post-Session-2 orchestration:
+// Post-Session-3 orchestration:
 //   1. Call init() — builds config + refs + state in one DOM pass.
 //   2. On null (missing/malformed config), log + return. The page stays
 //      static, which is the graceful-degradation contract RUNTIME.md promises.
 //   3. Define onUpdate as the single render trigger — every state mutation
-//      site (blur, input, hint click, future check button, future submit)
+//      site (blur, input, hint click, check button click, future submit)
 //      flows through here.
-//   4. Wire blanks (blur + input handlers), hints (click handler), and the
-//      submit button against refs + state + onUpdate.
+//   4. Wire blanks (blur + input), hints (click), checkpoints (click on
+//      each section's check button), and the submit button.
 //
 // Name persistence: loaded from localStorage before wiring and mirrored to
 // state.studentName so the runtime has a single source of truth post-init.
@@ -24,6 +24,7 @@ import { $ } from './dom.js';
 import { init } from './init.js';
 import { loadStoredName } from './storage.js';
 import { wireBlanks, wireHints } from './blanks.js';
+import { wireCheckpoints } from './checkpoints.js';
 import { render } from './render.js';
 import { submit } from './submission.js';
 
@@ -48,6 +49,7 @@ function bootstrap(): void {
 
   wireBlanks(state, refs, onUpdate);
   wireHints(state, refs, onUpdate);
+  wireCheckpoints(config, state, refs, onUpdate);
 
   const button = $<HTMLButtonElement>('.submit-button');
   if (button) {

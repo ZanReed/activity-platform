@@ -1,0 +1,597 @@
+/**
+ * @vitest-environment jsdom
+ */
+// =============================================================================
+// checkpoints.test.ts — JSDOM-backed tests for per-section check + score
+// -----------------------------------------------------------------------------
+// Tests drive checkSection directly with fixtured config + state + refs;
+// wireCheckpoints is exercised by simulating a click event on the
+// section's checkButton.
+//
+// checkSection internally calls scoreBlankAndUpdateState, which reads
+// data-blank-answers off each blank's <input>. The fixtures construct
+// real (JSDOM) inputs with those attributes so the scoring path runs end
+// to end without mocking strategies.ts.
+//
+// Fixture builder pattern: a single buildFixture() that takes a
+// declarative FixtureSpec and produces { config, state, refs } with
+// matching JSDOM nodes wired into the document. Each test specifies just
+// the shape of the activity it cares about — sections, blocks, blanks,
+// values, expected answers — without per-test DOM construction boilerplate.
+// =============================================================================
+
+import { describe, it, expect, beforeEach } from 'vitest';
+import { checkSection, wireCheckpoints } from '../checkpoints.js';
+import type { RuntimeConfig } from '../config.js';
+import type {
+    Refs,
+    BlankRef,
+    FillInBlankRef,
+    SectionRef,
+} from '../refs.js';
+import type {
+    RuntimeState,
+    BlankState,
+    BlockState,
+    SectionState,
+} from '../state.js';
+
+interface FixtureSpec {
+    submissionMode: 'single' | 'locked' | 'free';
+    sections: Array<{
+        id: string;
+        isCheckpoint: boolean;
+        withCheckButton: boolean;
+        blocks: Array<{
+            id: string;
+            solution: string | null;
+            blanks: Array<{ id: string; answers: string[]; value: string }>;
+        }>;
+    }>;
+}
+
+interface Fixture {
+    config: RuntimeConfig;
+    state: RuntimeState;
+    refs: Refs;
+}
+
+function makeBlankRef(
+    id: string,
+    blockId: string,
+    sectionId: string,
+    answers: string[],
+    value: string,
+): BlankRef {
+    const wrapper = document.createElement('span');
+    wrapper.className = 'blank-wrapper';
+    const input = document.createElement('input');
+    input.className = 'blank';
+    input.setAttribute('data-blank-id', id);
+    input.setAttribute('data-blank-answers', answers.join('|'));
+    input.value = value;
+    const feedbackEl = document.createElement('span');
+    feedbackEl.className = 'js-blank-feedback';
+    wrapper.appendChild(input);
+    wrapper.appendChild(feedbackEl);
+    document.body.appendChild(wrapper);
+    return {
+        input,
+        feedbackEl,
+        hintButton: null,
+        hintTextEl: null,
+        answers,
+        strategy: 'list',
+        hint: null,
+        mistakeFeedback: [],
+        blockId,
+        sectionId,
+    };
+}
+
+function makeBlockRef(
+    blockId: string,
+    sectionId: string,
+    blankIds: string[],
+    solution: string | null,
+): FillInBlankRef {
+    const el = document.createElement('div');
+    el.className = 'block block-fill-in-blank';
+    el.setAttribute('data-block-type', 'fill_in_blank');
+    el.setAttribute('data-block-id', blockId);
+    let solutionEl: HTMLElement | null = null;
+    if (solution !== null) {
+        solutionEl = document.createElement('div');
+        solutionEl.className = 'js-solution';
+        solutionEl.hidden = true;
+        solutionEl.textContent = solution;
+        el.appendChild(solutionEl);
+    }
+    document.body.appendChild(el);
+    return {
+        el,
+        blankIds,
+        solution,
+        solutionEl,
+        hasConfidenceRating: false,
+        confidenceFieldset: null,
+        skills: [],
+        sectionId,
+    };
+}
+
+function makeSectionRef(
+    sectionId: string,
+    blankIds: string[],
+    blockIds: string[],
+    isCheckpoint: boolean,
+    withCheckButton: boolean,
+): SectionRef {
+    const el = document.createElement('section');
+    el.className = 'activity-section';
+    el.setAttribute('data-section-id', sectionId);
+    if (isCheckpoint) el.setAttribute('data-is-checkpoint', 'true');
+    let checkButton: HTMLButtonElement | null = null;
+    let scoreEl: HTMLElement | null = null;
+    if (withCheckButton) {
+        checkButton = document.createElement('button');
+        checkButton.className = 'js-checkpoint-btn';
+        checkButton.type = 'button';
+        checkButton.setAttribute('data-for-section', sectionId);
+        checkButton.textContent = 'Check this section';
+        scoreEl = document.createElement('div');
+        scoreEl.className = 'js-section-score';
+        scoreEl.setAttribute('data-for-section', sectionId);
+        scoreEl.hidden = true;
+        el.appendChild(checkButton);
+        el.appendChild(scoreEl);
+    }
+    document.body.appendChild(el);
+    return {
+        el,
+        isCheckpoint,
+        blankIds,
+        blockIds,
+        checkButton,
+        scoreEl,
+    };
+}
+
+function makeBlankState(): BlankState {
+    return { result: null, matchedMistake: null, hintRevealed: false };
+}
+
+function makeBlockState(): BlockState {
+    return { solutionRevealed: false, confidence: null };
+}
+
+function makeSectionState(): SectionState {
+    return {
+        checked: false,
+        locked: false,
+        score: 0,
+        total: 0,
+        checkedAt: null,
+    };
+}
+
+function buildFixture(spec: FixtureSpec): Fixture {
+    const blanks = new Map<string, BlankRef>();
+    const fillInBlanks = new Map<string, FillInBlankRef>();
+    const sections = new Map<string, SectionRef>();
+    const blanksState: Record<string, BlankState> = {};
+    const blocksState: Record<string, BlockState> = {};
+    const sectionsState: Record<string, SectionState> = {};
+
+    for (const section of spec.sections) {
+        const sectionBlankIds: string[] = [];
+        const sectionBlockIds: string[] = [];
+        for (const block of section.blocks) {
+            const blockBlankIds: string[] = [];
+            for (const blank of block.blanks) {
+                blanks.set(
+                    blank.id,
+                    makeBlankRef(
+                        blank.id,
+                        block.id,
+                        section.id,
+                        blank.answers,
+                        blank.value,
+                    ),
+                );
+                blanksState[blank.id] = makeBlankState();
+                blockBlankIds.push(blank.id);
+            }
+            fillInBlanks.set(
+                block.id,
+                makeBlockRef(
+                    block.id,
+                    section.id,
+                    blockBlankIds,
+                    block.solution,
+                ),
+            );
+            blocksState[block.id] = makeBlockState();
+            sectionBlockIds.push(block.id);
+            sectionBlankIds.push(...blockBlankIds);
+        }
+        sections.set(
+            section.id,
+            makeSectionRef(
+                section.id,
+                sectionBlankIds,
+                sectionBlockIds,
+                section.isCheckpoint,
+                section.withCheckButton,
+            ),
+        );
+        sectionsState[section.id] = makeSectionState();
+    }
+
+    const config: RuntimeConfig = {
+        activityId: 'a1',
+        versionNum: 1,
+        submissionEndpoint: 'https://example.com/submit',
+        submissionMode: spec.submissionMode,
+        revisionMode: 'free',
+        gradingMode: 'auto',
+    };
+
+    const state: RuntimeState = {
+        submitted: false,
+        attemptNumber: 1,
+        studentName: '',
+        sections: sectionsState,
+        blanks: blanksState,
+        blocks: blocksState,
+    };
+
+    return {
+        config,
+        state,
+        refs: { blanks, fillInBlanks, sections },
+    };
+}
+
+beforeEach(() => {
+    document.body.innerHTML = '';
+});
+
+describe('checkSection — scoring aggregation', () => {
+    it('writes correct count and section total to state', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: null,
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                                { id: 'b2', answers: ['y'], value: 'y' },
+                                { id: 'b3', answers: ['z'], value: 'wrong' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        checkSection(config, state, refs, 'sec-1');
+        expect(state.sections['sec-1']?.checked).toBe(true);
+        expect(state.sections['sec-1']?.score).toBe(2);
+        expect(state.sections['sec-1']?.total).toBe(3);
+    });
+
+    it('counts empty blanks toward the section total (B-format)', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: null,
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                                { id: 'b2', answers: ['y'], value: '' },
+                                { id: 'b3', answers: ['z'], value: '' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        checkSection(config, state, refs, 'sec-1');
+        // 1 right of 3 total — not "1 of 1 attempted"
+        expect(state.sections['sec-1']?.score).toBe(1);
+        expect(state.sections['sec-1']?.total).toBe(3);
+    });
+
+    it('sets checkedAt to a valid ISO timestamp', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: null,
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        checkSection(config, state, refs, 'sec-1');
+        const stamp = state.sections['sec-1']?.checkedAt;
+        expect(typeof stamp).toBe('string');
+        // Round-trip through Date — throws if it isn't a valid ISO.
+        expect(() => new Date(stamp as string).toISOString()).not.toThrow();
+    });
+
+    it('updates per-blank state via scoreBlankAndUpdateState', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: null,
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                                { id: 'b2', answers: ['y'], value: 'wrong' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        checkSection(config, state, refs, 'sec-1');
+        expect(state.blanks['b1']?.result).toBe(true);
+        expect(state.blanks['b2']?.result).toBe(false);
+    });
+
+    it('returns silently when sectionId is unknown', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [],
+        });
+        expect(() =>
+        checkSection(config, state, refs, 'nonexistent'),
+        ).not.toThrow();
+    });
+});
+
+describe('checkSection — locked mode', () => {
+    it('flips SectionState.locked true in locked submissionMode', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'locked',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: null,
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        checkSection(config, state, refs, 'sec-1');
+        expect(state.sections['sec-1']?.locked).toBe(true);
+    });
+
+    it('leaves SectionState.locked false in free submissionMode', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: null,
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        checkSection(config, state, refs, 'sec-1');
+        expect(state.sections['sec-1']?.locked).toBe(false);
+    });
+});
+
+describe('checkSection — solution reveal', () => {
+    it('flips solutionRevealed true for blocks that have a solution', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: 'Combine like terms.',
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        checkSection(config, state, refs, 'sec-1');
+        expect(state.blocks['block-1']?.solutionRevealed).toBe(true);
+    });
+
+    it('leaves solutionRevealed false for blocks without a solution', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: null,
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        checkSection(config, state, refs, 'sec-1');
+        expect(state.blocks['block-1']?.solutionRevealed).toBe(false);
+    });
+
+    it('keeps solutionRevealed true on a re-check (never unset once true)', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: 'Combine like terms.',
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        checkSection(config, state, refs, 'sec-1');
+        expect(state.blocks['block-1']?.solutionRevealed).toBe(true);
+        // Student edits and re-checks — solution stays revealed.
+        const blankRef = refs.blanks.get('b1');
+        if (blankRef) blankRef.input.value = 'wrong';
+        checkSection(config, state, refs, 'sec-1');
+        expect(state.blocks['block-1']?.solutionRevealed).toBe(true);
+    });
+});
+
+describe('checkSection — re-check (free mode)', () => {
+    it('recomputes score against current input values', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: null,
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'wrong' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        checkSection(config, state, refs, 'sec-1');
+        expect(state.sections['sec-1']?.score).toBe(0);
+        // Student fixes the answer.
+        const blankRef = refs.blanks.get('b1');
+        if (blankRef) blankRef.input.value = 'x';
+        checkSection(config, state, refs, 'sec-1');
+        expect(state.sections['sec-1']?.score).toBe(1);
+    });
+});
+
+describe('wireCheckpoints', () => {
+    it('attaches click handlers that run checkSection + onUpdate', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'free',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: true,
+                    withCheckButton: true,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: null,
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        let updates = 0;
+        wireCheckpoints(config, state, refs, () => {
+            updates += 1;
+        });
+        const button = refs.sections.get('sec-1')?.checkButton;
+        button?.click();
+        expect(updates).toBe(1);
+        expect(state.sections['sec-1']?.checked).toBe(true);
+        expect(state.sections['sec-1']?.score).toBe(1);
+    });
+
+    it('skips sections without a check button (no error)', () => {
+        const { config, state, refs } = buildFixture({
+            submissionMode: 'single',
+            sections: [
+                {
+                    id: 'sec-1',
+                    isCheckpoint: false,
+                    withCheckButton: false,
+                    blocks: [
+                        {
+                            id: 'block-1',
+                            solution: null,
+                            blanks: [
+                                { id: 'b1', answers: ['x'], value: 'x' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        expect(() =>
+        wireCheckpoints(config, state, refs, () => {}),
+        ).not.toThrow();
+    });
+});
