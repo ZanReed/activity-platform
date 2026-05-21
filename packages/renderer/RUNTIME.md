@@ -36,18 +36,27 @@ It does NOT handle:
 
 ## Current state (what ships today)
 
-The runtime today is a *minimal* script — pre-Stage-11. It lives as an inline JavaScript string exported from `packages/renderer/src/runtime/runtime.ts`. The renderer's `document.ts` concatenates that string into a `<script>` tag in every published page. There is no separate `runtime.js` file, no build step of its own, and no source map — the string is bundled into `renderer.bundle.js` along with the rest of the renderer.
+The runtime is a minimal script — same behaviours as pre-Stage-11, but Stage 11 restructured how it's built. The source is six TypeScript modules under `packages/renderer/src/runtime/`:
+
+- `index.ts` — entry point: parses the activity-config blob, restores the stored name, wires blanks, wires the submit button, runs on DOM-ready.
+- `dom.ts` — `$` / `$$` query helpers.
+- `storage.ts` — student-name persistence (try/catch-wrapped `localStorage`).
+- `strategies.ts` — `evaluateAnswer` dispatch + the `list` strategy.
+- `blanks.ts` — `trimValue`, `checkBlank` (blur-driven correct/incorrect toggle), `wireBlanks`.
+- `submission.ts` — `gatherResponses`, `computeScore`, `submit`, `setStatus`, `setScore`.
+
+The renderer's `document.ts` still inlines the runtime via a `<script>` tag in every published page — there is no separate `runtime.js` file shipped, and that's a deliberate Stage 11 decision (one fewer request on a Chromebook on slow Wi-Fi; the runtime stays co-versioned with the HTML it ships in). The path from source to inline script runs through an esbuild sub-step in `scripts/bundle-renderer.mjs` that produces a generated TypeScript string module at `runtime/generated/runtime-bundle.ts`, which `document.ts` imports. See the **Build pipeline** section for details. Source maps are emitted to `packages/renderer/dist/runtime.js.map` as a dev-only debugging artifact — gitignored, never uploaded; debugging a teacher-reported runtime bug means reproducing against the local unminified build.
+
+The runtime has its own `tsconfig.json` (DOM lib, `noEmit`) excluded from the renderer's no-DOM tsconfig; the renderer package's `build` and `typecheck` scripts run both `tsc` invocations in sequence so the runtime cannot silently rot. Test seed at `packages/renderer/src/runtime/__tests__/strategies.test.ts` covers `evaluateAnswer` dispatch + fallback and the `computeScore` arithmetic; JSDOM-backed tests for `wireBlanks`, `gatherResponses`, and `submit` are Stages 12–14 work.
 
 What it does:
 
 - Reads `<script id="activity-config" type="application/json">` for `{ activityId, versionNum, submissionEndpoint }`.
 - Restores the student's name from `localStorage` (carried across activities on the same domain).
 - Wires every `.blank` input: on blur, trims the value and toggles `correct` / `incorrect` classes, scored through `evaluateAnswer(input, typed)` — a strategy dispatch reading `data-blank-strategy`, with only the `list` strategy implemented (pipe-split `data-blank-answers`, case-sensitive exact match).
-- On submit: validates a non-empty name, gathers every blank into `{ answer, correct }`, computes a fraction score, and POSTs `{ activityId, displayName, responses, score }` to the submission endpoint. Disables the submit button during the request; re-enables on failure.
+- On submit: validates a non-empty name, gathers every blank into `{ answer, correct }`, computes a fraction score, and POSTs `{ activityId, displayName, responses: { schemaVersion: 2, blanks }, score }` to the submission endpoint. Persists the validated name to `localStorage` so the next activity prefills it. Disables the submit button during the request; re-enables on failure. (The pre-Stage-11 runtime sent `schemaVersion: 1` and was rejected by `ingest-submission` with a 400; Stage 11 fixed this while rewriting the file.)
 
 What it does NOT do (all of this is Stages 12–14 target): per-section checkpoint scoring, submission/revision modes, feedback rendering (hints / mistakeFeedback / solutions), confidence ratings, attempt tracking, the `localStorage` retry queue, the state-object/`render()` architecture, and the init-pass refs maps.
-
-**Known defect.** The submit payload sets `responses.schemaVersion: 1`, but the `ingest-submission` Edge Function enforces v2 and rejects v1 with a 400. The blanks it sends (`{ answer, correct }`) are already a valid v2 `BlankResponse`, so the fix is the single token `1` → `2`. Tracked in STATE.md's Nearest next steps; do it before the end-to-end test.
 
 Everything below this section is the target design unless tagged otherwise.
 
@@ -55,7 +64,7 @@ Everything below this section is the target design unless tagged otherwise.
 
 Except where a paragraph notes otherwise, the decisions below describe the **target** runtime (Stages 11–14). They are the committed design; see **Current state** for what is actually built.
 
-**Separate file vs. inline — open (Stage 11).** Today the runtime is inlined into the published HTML (see Current state) — for a tiny Phase 1 runtime that is the right call: one fewer request on a school Chromebook. This document originally specified a separate bundled `runtime.js` referenced by `<script type="module" src="./runtime.js">`, versioned per publish; that model's real payoff is the Phase 3+ CDN-hosted shared runtime. Whether Stage 11 actually moves to the separate-file model, or keeps inlining until Phase 3 forces the split, is an open Stage 11 decision. The build-pipeline section below assumes the separate-file model as the eventual target.
+**Inline runtime, not a separate `runtime.js` file [resolved Stage 11].** The runtime is bundled by esbuild into a generated string module that `document.ts` inlines via a `<script>` tag in every published page. There is no separate `runtime.js` served from Storage. Rationale: one fewer request on a school Chromebook on slow Wi-Fi; the runtime stays co-versioned with the HTML it ships in; the Phase 1 runtime is small enough (~2.6 KiB minified — well under the 20 KiB budget) that a separately-cacheable file doesn't yet pay for the extra round trip. The separate-file model's real payoff is the Phase 3+ CDN-hosted shared runtime, where many activities can share one cached file across publishes — at that point the question is revisited (the trigger, per STATE.md's open questions, is roughly 50+ active activities, when republishing every activity for a runtime bug fix becomes painful). Until then, inline is correct.
 
 **`runtimeVersion` — Phase 3+ migration anchor [target].** Not emitted today (the runtime is inlined, so there is nothing to version-select, and there is no `#activity-root` element to carry it). When the CDN-hosted shared runtime lands, a runtime version selector is needed so the loader picks the right file; it lives wherever the loader can read it earliest — likely a `data-*` attribute on a container. Decide its exact home then.
 
@@ -65,7 +74,7 @@ Except where a paragraph notes otherwise, the decisions below describe the **tar
 
 **[target — Stages 12–13] Pure scoring, init pass builds maps.** On init, the runtime walks the DOM once and builds in-memory `Map`s for each interactive element category (blanks by id, fill-in-blank blocks by id, sections by id, and — when new block categories land in Phase 2+ — choices, orderings, matches, graphs, etc.). Every scoring/feedback function operates on these maps, not by querying the DOM. Scoring functions are pure functions of the maps + input values — testable without a DOM. The DOM gets touched only in init (read) and render (write).
 
-**[target — Stage 11] Source maps emitted, always.** If the separate-file model is adopted, `runtime.js.map` is built alongside `runtime.js` and uploaded with it. Modern browsers only fetch the source map when DevTools is open, so zero performance cost for students. Without it, teacher-reported bugs in minified runtime are not debuggable.
+**Source maps — dev-only, gitignored, never shipped [resolved Stage 11].** esbuild emits an external source map to `packages/renderer/dist/runtime.js.map` alongside the minified bundle. The file is gitignored, never included in any deployed bundle, and never reaches a student's browser. The dev-only choice flows from the inline decision above: there is no hosted `runtime.js` to pair a source map with, and a sourcemap for a script living inside a `<script>` tag in HTML isn't something the browser knows how to fetch. Debugging a teacher-reported runtime bug means reproducing locally against the unminified build, where the modular source under `src/runtime/` provides better debugging surface than a sourcemap-back-to-a-bundled-string would. Phase 3+ revisits this if the CDN-hosted shared runtime materializes — then a source map ships alongside the CDN file.
 
 **Defensive attribute reads everywhere.** Every `dataset.X` read uses a `?? default` fallback. Every JSON-encoded attribute is wrapped in try/catch. An old published activity loading against a newer runtime degrades gracefully to default behavior. The runtime never throws to the student.
 
@@ -378,22 +387,42 @@ In Phase 2 and beyond, additional refs maps will be added for each new question 
 
 ## Build pipeline
 
-**[target — Stage 11; assumes the separate-file runtime model.]** *Today* there is no runtime build of its own: `scripts/bundle-renderer.mjs` bundles `packages/renderer/src/index.ts` into `supabase/functions/_shared/renderer.bundle.js` for the Edge Functions, and the runtime string in `runtime/runtime.ts` is pulled into that bundle as ordinary source, then inlined into published HTML by `document.ts`. The spec below applies only if Stage 11 adopts the separate-file model.
+A single script — `scripts/bundle-renderer.mjs` — produces both build artifacts in order, because the renderer bundle depends on the runtime build. Run it with `pnpm run bundle:renderer`.
 
-`scripts/bundle-renderer.mjs` (or a new sibling `scripts/bundle-runtime.mjs` if it grows too complex):
+**Step 1 — Runtime build.** esbuild bundles `packages/renderer/src/runtime/index.ts` into a minified IIFE held in memory, then writes that text into a generated TypeScript module that the renderer imports.
 
-- **Entry:** `packages/renderer/src/runtime/index.ts` (today the runtime source is `runtime.ts`; Stage 11 establishes the build entry).
-- **Output:** `packages/renderer/dist/runtime.js` + `packages/renderer/dist/runtime.js.map`
-- **Format:** `esm`
-- **Bundle:** `true` (single file, no remote imports)
-- **Target:** `chrome90` (covers school Chromebooks on supported ChromeOS versions; also Firefox 88+, Safari 14+, Edge 90+)
-- **Minify:** `true` in production, `false` in dev
-- **Source maps:** `external`, always emitted
-- **External:** nothing (no externals; everything bundles in)
+- **Entry:** `packages/renderer/src/runtime/index.ts`
+- **Format:** `iife` (not ESM — the output is inlined into a plain `<script>` tag by `document.ts`; an ESM bundle cannot be inlined that way)
+- **Platform / target:** `browser`, `chrome90` (covers school-issued Chromebooks per the ChromeOS support window, plus Firefox 88+ / Safari 14+ / Edge 90+)
+- **Bundle:** `true`, no externals (everything bundles in — the runtime has no JS dependencies by design)
+- **Minify:** `true`, always (not dev/prod conditional — the size budget applies in both)
+- **`write: false`:** the bundled JS stays in memory as a string. esbuild still returns it in `outputFiles`, and step 1b folds it into the generated TS module. The runtime is never written to disk as a `.js` file.
+- **Source map:** `external`, written to `packages/renderer/dist/runtime.js.map` as a dev-only debugging artifact (gitignored, never shipped — see the inline / source-maps decisions in **Architecture decisions** for rationale).
 
-The `publish-activity` Edge Function would then read both `index.html` (built per-activity from the document) and `runtime.js` + `runtime.js.map` (built once, shared across all activities published from this renderer bundle version) and upload all three to the versioned Storage path.
+**Step 1b — Generated string module.** The in-memory runtime text is serialized into `packages/renderer/src/runtime/generated/runtime-bundle.ts`, a one-export TS module:
 
-Phase 2.7+ adds a second esbuild entry for `graph-widget.js` (lazy-loaded), and Phase 2.9+ adds a third for `annotation-widget.js`. The main runtime stays small; pages without those block types pay nothing for them.
+```ts
+export const runtimeJs = "…minified IIFE…";
+```
+
+`document.ts` imports `runtimeJs` and inlines it into a `<script>` tag in every published page. The serialization is `JSON.stringify` (which handles backslashes, quotes, and newlines correctly), with one extra pass: any `</script` substring is rewritten to `<\/script` as defense-in-depth against the eventual HTML embedding. Minified JS realistically never contains that sequence, but `document.ts` applies the same guard to its config blob and the runtime string matches that discipline. The generated module is committed to git so a clean checkout can typecheck the renderer without first running the bundler (same convention as `supabase/functions/_shared/renderer.bundle.js`).
+
+**Size budget enforcement.** The script enforces the runtime size constraint from the bottom of this file directly: soft target 20 KiB (build prints a warning), hard ceiling 40 KiB (build throws and aborts). Phase 1 runtime sits around 2.6 KiB minified, well under both. The ceiling exists so a careless dependency or feature creep cannot silently bloat the student-facing bundle.
+
+**Step 2 — Renderer bundle (pre-existing, unchanged).** esbuild bundles `packages/renderer/src/index.ts` into `supabase/functions/_shared/renderer.bundle.js` — the file the Edge Functions import. This step is the original renderer build; step 1 was added in front of it without changing it. Different settings than step 1 because the consumer is different:
+
+- `format: 'esm'`, `platform: 'neutral'`, `target: 'es2022'` — the consumer is Deno Edge Functions, not a browser
+- `minify: false` — stack-trace readability in Edge Function logs matters more than bundle size for this consumer
+- `sourcemap: 'inline'`
+- No externals; KaTeX bundles in along with schema and renderer code
+
+`document.ts` lives inside this bundle and imports the generated module written in step 1b — which is the entire reason these two builds live in one script and must run in this order. Running the renderer build against a stale or missing generated module is the failure mode this ordering prevents.
+
+**`publish-activity` is untouched.** Because the runtime is inlined by `document.ts`, the Edge Function uploads only the rendered HTML per publish — no separate `runtime.js`, no source map, no extra Storage objects. The Edge Function code is unchanged from pre-Stage-11.
+
+**Re-run after** any change to `packages/schema`, `packages/renderer`, or the runtime source. The renderer bundle commits with the source it supports (STATE.md's standing constraints). CI should run `pnpm run bundle:renderer` on push so deploys never use a stale bundle — still a housekeeping todo as of Stage 11.
+
+**Lazy widgets (Phase 2.7, Phase 2.9).** Phase 2.7's interactive graph widget and Phase 2.9's annotation widget are lazy-loaded by the main runtime via dynamic import on pages that need them. Unlike the main runtime they cannot be inlined — they ship as separate files under the published activity's Storage path, fetched on demand. The main runtime stays small; pages without those block types pay nothing for them. The script grows when these land — the runtime build above becomes the first of N widget builds, each independently size-budgeted, each producing its own generated string module or (for the lazy widgets) a real `.js` file uploaded by `publish-activity`.
 
 ## Error handling philosophy
 
@@ -444,7 +473,6 @@ Tests live at `packages/renderer/src/runtime/__tests__/`.
 
 ## Open questions / deferred decisions
 
-- **Separate-file vs. inline runtime (Stage 11):** the runtime ships inlined today. Whether Stage 11 moves to a separate bundled `runtime.js` referenced by URL, or keeps inlining until Phase 3's CDN-hosted shared runtime forces the split, is undecided. The build-pipeline section assumes the separate-file model as the eventual target.
 
 - **CDN-hosted shared runtime (Phase 3+):** when this moves from versioned-per-publish to CDN-hosted, a `runtimeVersion` selector picks which CDN runtime file to load. Migration is additive. Decide CDN provider when the move is made (Cloudflare or Supabase Storage with long cache TTL are both reasonable).
 
