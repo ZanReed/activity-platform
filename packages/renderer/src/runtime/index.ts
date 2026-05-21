@@ -2,48 +2,56 @@
 // runtime/index.ts — Runtime entry point
 // -----------------------------------------------------------------------------
 // The esbuild entry. Bundled (iife, minified, chrome90) by
-// scripts/bundle-renderer.mjs into a generated string module, which document.ts
-// inlines into a <script> tag in every published activity page.
+// scripts/bundle-renderer.mjs into a generated string module, which
+// document.ts inlines into a <script> tag in every published activity page.
 //
-// Responsibilities: parse the activity-config blob, restore the student's
-// name, wire blanks and the submit button, and run on DOM-ready. Name
-// persistence (saveName) lives inside submission.ts's submit(), called once
-// the name is validated — index.ts only wires the click.
+// Post-6b orchestration:
+//   1. Call init() — builds config + refs + state in one DOM pass.
+//   2. On null (missing/malformed config), log + return. The page stays
+//      static (no scoring, no submission), which is the graceful-
+//      degradation contract RUNTIME.md promises.
+//   3. On success, wire blanks and the submit button against refs + state.
+//
+// Name persistence: the value is loaded from localStorage before wiring
+// and mirrored to state.studentName so the runtime has a single source of
+// truth post-init. saveName() runs inside submit() once the name is
+// validated.
 // =============================================================================
 
 import { $ } from './dom.js';
+import { init } from './init.js';
 import { loadStoredName } from './storage.js';
 import { wireBlanks } from './blanks.js';
-import { submit, type RuntimeConfig } from './submission.js';
+import { submit } from './submission.js';
 
-function init(): void {
-  const configEl = document.getElementById('activity-config');
-  if (!configEl) return;
-
-  let config: RuntimeConfig;
-  try {
-    config = JSON.parse(configEl.textContent || '{}');
-  } catch {
-    console.error('Invalid activity config');
+function bootstrap(): void {
+  const result = init();
+  if (!result) {
+    console.error('[activity-runtime] init failed; falling back to no-op runtime');
     return;
   }
+  const { config, refs, state } = result;
 
   // Restore the name from a previous activity on this domain.
   const nameInput = $<HTMLInputElement>('#student-name');
-  if (nameInput) nameInput.value = loadStoredName();
+  if (nameInput) {
+    const stored = loadStoredName();
+    nameInput.value = stored;
+    state.studentName = stored;
+  }
 
-  wireBlanks();
+  wireBlanks(refs);
 
   const button = $<HTMLButtonElement>('.submit-button');
   if (button) {
     button.addEventListener('click', () => {
-      submit(config);
+      submit(config, refs, state);
     });
   }
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', bootstrap);
 } else {
-  init();
+  bootstrap();
 }
