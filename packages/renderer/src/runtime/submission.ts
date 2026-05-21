@@ -1,24 +1,19 @@
 // =============================================================================
 // runtime/submission.ts — Response gathering + submission
 // -----------------------------------------------------------------------------
-// Post-6b: iterates refs.blanks (built by init()) instead of re-walking the
-// DOM at submit time. Each blank is re-checked via checkBlank, so the final
-// submit also refreshes the correct/incorrect classes on every blank
-// (preserves pre-6b behavior).
+// Post-Session-1: gatherResponses now writes through state (via
+// scoreBlankAndUpdateState) rather than mutating DOM classes directly.
+// After gathering, submit() calls onUpdate() to render the now-up-to-date
+// state. This preserves the pre-Session-1 behavior where final submit also
+// refreshed the visual feedback on every blank — just routed through
+// state→DOM instead of writing the DOM directly.
 //
 // SCHEMA VERSION: the payload sends `responses.schemaVersion: 2`. Stage 11
-// fixed the pre-Stage-11 bug that ingest-submission was rejecting v1 with
-// a 400; 6b keeps that fix in place.
-//
-// RuntimeConfig is now imported from config.ts (single source of truth
-// post-6a). Submission only uses three of its six fields today
-// (activityId, versionNum, submissionEndpoint) but importing the wider
-// interface is fine — unused fields don't affect anything, and Stage 14's
-// resubmit flow will pick up submissionMode / revisionMode here.
+// fixed the bug where ingest-submission was rejecting v1 with a 400.
 // =============================================================================
 
 import { $ } from './dom.js';
-import { checkBlank, trimValue } from './blanks.js';
+import { scoreBlankAndUpdateState, trimValue } from './blanks.js';
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
@@ -43,14 +38,21 @@ export function computeScore(totalCorrect: number, totalScored: number): number 
   return totalScored > 0 ? totalCorrect / totalScored : 0;
 }
 
-/** Iterate refs.blanks, score each blank, and assemble the payload. */
-export function gatherResponses(refs: Refs): GatheredResponses {
+/**
+ * Iterate refs.blanks, score each blank into state, assemble the payload.
+ * The state writes here are why submit() calls onUpdate() afterward —
+ * the final classes for every blank need to reflect this re-scoring.
+ */
+export function gatherResponses(
+  state: RuntimeState,
+  refs: Refs,
+): GatheredResponses {
   const blanks: Record<string, BlankResult> = {};
   let totalCorrect = 0;
   let totalScored = 0;
 
   for (const [blankId, ref] of refs.blanks) {
-    const correct = checkBlank(ref);
+    const correct = scoreBlankAndUpdateState(state, blankId, ref);
     if (correct !== null) totalScored += 1;
     if (correct === true) totalCorrect += 1;
     blanks[blankId] = {
@@ -82,20 +84,21 @@ export function setScore(score: number, total: number): void {
 }
 
 /**
- * Validate the name, gather responses, POST to ingest-submission. On
- * success, persist the name to localStorage and mark state.submitted.
- * On HTTP error, surface the error message and re-enable the submit
- * button. On network failure, fall through to the catch with a generic
- * try-again message.
+ * Validate the name, gather responses (which scores every blank into
+ * state), call onUpdate() to render the final state, then POST to
+ * ingest-submission. On success, persist the name to localStorage and
+ * mark state.submitted. On HTTP error, surface the error message and
+ * re-enable the submit button.
  *
  * Stage 14 will wire localStorage-backed retry, attempt-number
  * reconciliation against the server's canonical value, and revisionMode
- * resubmission. 6b preserves the pre-6b single-shot flow.
+ * resubmission.
  */
 export function submit(
   config: RuntimeConfig,
   refs: Refs,
   state: RuntimeState,
+  onUpdate: () => void,
 ): void {
   const nameInput = $<HTMLInputElement>('#student-name');
   const name = nameInput ? trimValue(nameInput.value) : '';
@@ -109,7 +112,11 @@ export function submit(
   // Persist the validated name so the next activity on this domain prefills it.
   saveName(name);
 
-  const data = gatherResponses(refs);
+  const data = gatherResponses(state, refs);
+  // Render once after the gather pass so every blank's final score
+  // reflects in the DOM (was previously done inline by checkBlank).
+  onUpdate();
+
   const payload = {
     activityId: config.activityId,
     displayName: name,

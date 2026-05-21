@@ -5,15 +5,13 @@
 // handlers mutate state; render() reads state. The DOM is never queried for
 // "current value" — state is.
 //
-// Why Record (not Map) for sections: state is JSON-serializable so it can
-// be diffed in dev and (eventually) serialized into submission payloads.
-// Plain objects serialize naturally; Map does not.
+// Why Record (not Map) for the three keyed sub-stores: state is JSON-
+// serializable so it can be diffed in dev and (eventually) serialized into
+// submission payloads. Plain objects serialize naturally; Map does not.
 //
-// State is intentionally narrow in Step 6 — it carries only what the
-// minimal current behavior needs (submitted, attemptNumber, studentName,
-// per-section status with sensible defaults). The shapes here are the
-// targets for Stage 13's checkpoint scoring + feedback rendering, which
-// populates fields that initialize to safe defaults today.
+// Stage 13 Session 1 expansion: BlankState and BlockState join SectionState
+// as the three per-entity state maps. Together they carry every mutable bit
+// the runtime needs — render() reads from these, never from the DOM.
 // =============================================================================
 
 import type { Refs } from './refs.js';
@@ -31,6 +29,42 @@ export interface SectionState {
     checkedAt: string | null;
 }
 
+export interface BlankState {
+    /**
+     * Scoring result. True = correct, false = incorrect, null = unscored
+     * (empty input, or never blurred/checked). Render uses this to drive
+     * the .correct / .incorrect classes on the input.
+     */
+    result: boolean | null;
+    /**
+     * Matched mistake-feedback text from BlankRef.mistakeFeedback, or null
+     * when the typed value didn't match any configured mistake. Set by the
+     * scoring path (event handler); read by render. Populated in Session 2;
+     * stays null in Session 1.
+     */
+    matchedMistake: string | null;
+    /**
+     * Whether the student has clicked this blank's hint button. Drives the
+     * hint text's hidden attribute and the button's aria-expanded value.
+     * Populated in Session 2; stays false in Session 1.
+     */
+    hintRevealed: boolean;
+}
+
+export interface BlockState {
+    /**
+     * Whether this fill_in_blank block's solution slot has been revealed
+     * (true after the containing section is checked, when the block has a
+     * solution authored). Populated in Session 2.
+     */
+    solutionRevealed: boolean;
+    /**
+     * Student's selected confidence value for this block. Null until the
+     * student picks one. Populated in Session 3.
+     */
+    confidence: 'unsure' | 'think_so' | 'certain' | null;
+}
+
 export interface RuntimeState {
     /** True once the final submit has completed successfully. */
     submitted: boolean;
@@ -44,13 +78,18 @@ export interface RuntimeState {
     studentName: string;
     /** Per-section status, keyed by section.id. */
     sections: Record<string, SectionState>;
+    /** Per-blank status, keyed by blank.id. */
+    blanks: Record<string, BlankState>;
+    /** Per-fill-in-blank-block status, keyed by block.id. */
+    blocks: Record<string, BlockState>;
 }
 
 /**
- * Build the initial state. Every section gets a SectionState entry in
- * sensible defaults (unchecked, unlocked, zero score); studentName starts
- * empty (the name-persistence layer populates it from localStorage as a
- * separate concern during event-handler wiring).
+ * Build the initial state. Every section/blank/block gets an entry with
+ * sensible defaults (unchecked, unlocked, zero score; result null; not
+ * revealed; no confidence selected). studentName starts empty — the
+ * name-persistence layer in index.ts populates it from localStorage as a
+ * separate concern during event-handler wiring.
  *
  * Pure function of refs — no DOM access, no globals read. Replays
  * deterministically against the same refs.
@@ -66,10 +105,27 @@ export function createInitialState(refs: Refs): RuntimeState {
             checkedAt: null,
         };
     }
+    const blanks: Record<string, BlankState> = {};
+    for (const [id] of refs.blanks) {
+        blanks[id] = {
+            result: null,
+            matchedMistake: null,
+            hintRevealed: false,
+        };
+    }
+    const blocks: Record<string, BlockState> = {};
+    for (const [id] of refs.fillInBlanks) {
+        blocks[id] = {
+            solutionRevealed: false,
+            confidence: null,
+        };
+    }
     return {
         submitted: false,
         attemptNumber: 1,
         studentName: '',
         sections,
+        blanks,
+        blocks,
     };
 }
