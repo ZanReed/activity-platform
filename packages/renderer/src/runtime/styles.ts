@@ -19,6 +19,11 @@
 // integrity, grayscale safety. The richer print FEATURE — multi-column,
 // teacher-configured work space, answer-key variant — is a post-Stage-16
 // effort (print-and-printables.md).
+//
+// Note: CSS comments below use single quotes (e.g. 'hidden') where you
+// might expect backticks — backtick escapes inside this template literal
+// are fragile across copy-paste, and single quotes carry the same meaning
+// without the escape risk.
 // =============================================================================
 
 export const blockStyles = `
@@ -196,12 +201,12 @@ body {
 /* The blank-token wrapper keeps an <input class="blank"> and its sibling
  a fford*ances (.js-blank-hint, .js-blank-hint-text, .js-blank-feedback) on
  the same inline-flow line, so they can't wrap apart mid-prose. The
- wrapper is structural only — the \`blank\` class stays on the <input>
+ wrapper is structural only — the 'blank' class stays on the <input>
  itself, so every existing .blank selector continues to target the input
  directly. align-items: baseline lines the input baseline up with the
  surrounding prose; the gap controls spacing between input, hint button,
 revealed hint text, and feedback. (Hidden siblings have display: none
-via the \`hidden\` attribute and don't participate in the gap.) */
+via the 'hidden' attribute and don't participate in the gap.) */
 .blank-wrapper {
   display: inline-flex;
   align-items: baseline;
@@ -237,7 +242,7 @@ via the \`hidden\` attribute and don't participate in the gap.) */
 /* Hint affordance. The .js-blank-hint button is always available next to
  t he bl*ank when the teacher authored a hint; clicking it toggles the
  adjacent .js-blank-hint-text span between hidden and visible (Stage 13
- runtime work). The button is a small circular \`?\` icon — discoverable
+ runtime work). The button is a small circular '?' icon — discoverable
  without dominating the line. Long hints will wrap within the wrapper;
  keep hints short. A popover-style reveal is a Phase 2+ polish option.
  The hint text uses --color-note-bg as a subtle visual marker so the
@@ -279,7 +284,7 @@ via the \`hidden\` attribute and don't participate in the gap.) */
 
 /* .js-blank-feedback visible-state styling lands in Stage 13 once the
  r untim*e starts rendering content into it. Until then it stays hidden
- by the \`hidden\` attribute on the element. */
+ by the 'hidden' attribute on the element. */
 
 /* Confidence rating fieldset (Stage 12 step 3). One per fill-in-blank
  b lock *when hasConfidenceRating is true. Sits inside the problem body
@@ -316,9 +321,9 @@ via the \`hidden\` attribute and don't participate in the gap.) */
 }
 
 /* Solution slot. Hidden in source HTML; the Stage 13 runtime toggles
-\`hidden\` when the section is checked. Visual treatment: subtle
+ ' hidde*n' when the section is checked. Visual treatment: subtle
  left-accent + tinted background so a revealed solution reads clearly
- as "the teacher's explanation" rather than continuation of the
+ as the teacher's explanation rather than continuation of the
  problem prose. */
 .js-solution {
   margin-top: 0.75rem;
@@ -327,6 +332,46 @@ via the \`hidden\` attribute and don't participate in the gap.) */
   background: var(--color-info-bg);
   border-radius: 0 4px 4px 0;
   font-size: 0.95rem;
+}
+
+/* Checkpoint controls (Stage 12 step 4). Per-section button + score
+ d ispla*y in locked/free submissionMode. Button visual: secondary
+ (accent border, white fill) so it doesn't compete with the final
+ submit button at the bottom of the page; hover fills it for clear
+ affordance. .js-section-score reveals on check with text like
+ "4 / 6 correct" — subdued status text inline with the button. */
+.js-checkpoint-btn {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.5rem 1.25rem;
+  background: white;
+  color: var(--color-accent);
+  border: 2px solid var(--color-accent);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.js-checkpoint-btn:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: white;
+}
+.js-checkpoint-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.js-checkpoint-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.js-section-score {
+  display: inline-block;
+  margin-left: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--color-muted);
+  font-weight: 600;
 }
 
 .math-error {
@@ -392,10 +437,10 @@ via the \`hidden\` attribute and don't participate in the gap.) */
   body { padding: 0; }
 
   /* Hide interactive elements. The js-* selectors are documented in
-   R UNT*IME.md but not all emitted yet (Stages 12–14); listed here so the
-   baseline is correct the moment those land. Printable hints +
-   solutions are a post-Stage-16 print-feature configuration (answer-
-   key variant), not a baseline. */
+   R UNT*IME.md; some not all emitted yet, listed here so the baseline is
+   correct the moment those land. Printable hints + solutions are a
+   post-Stage-16 print-feature configuration (answer-key variant), not
+   a baseline. */
   .identity-prompt,
   .submit-area,
   .js-checkpoint-btn,
