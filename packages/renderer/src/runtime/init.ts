@@ -35,11 +35,6 @@ export interface InitResult {
     state: RuntimeState;
 }
 
-/**
- * Run the init pass. Returns null when config is unavailable (the caller
- * falls back to a no-op runtime). All DOM access happens here; downstream
- * code consumes the typed refs maps.
- */
 export function init(doc: Document = document): InitResult | null {
     const config = parseConfig(doc);
     if (!config) return null;
@@ -49,11 +44,6 @@ export function init(doc: Document = document): InitResult | null {
     return { config, refs, state };
 }
 
-/**
- * Walk the body and build the three refs maps. Exported so tests can
- * exercise the DOM-walk without going through parseConfig (useful when
- * fixturing a partial document without the config blob).
- */
 export function buildRefs(doc: Document = document): Refs {
     const sections = new Map<string, SectionRef>();
     const fillInBlanks = new Map<string, FillInBlankRef>();
@@ -69,9 +59,6 @@ export function buildRefs(doc: Document = document): Refs {
         const sectionBlockIds: string[] = [];
         const sectionBlankIds: string[] = [];
 
-        // Walk fill-in-blank blocks inside this section. data-block-type uses
-        // the snake_case schema discriminant verbatim ('fill_in_blank'), per
-        // STATE.md's "Block identity attributes" decision.
         for (const blockEl of $$<HTMLElement>(
             '[data-block-type="fill_in_blank"]',
             sectionEl,
@@ -119,10 +106,6 @@ function buildBlankRef(
         return null;
     }
 
-    // The wrapper holds the input and its sibling feedback / hint elements
-    // (Step 1 introduced this structural wrapper). Without a wrapper there's
-    // no feedback slot to render into, so we skip the blank rather than
-    // populate a half-refs entry.
     const wrapper = input.parentElement;
     if (!wrapper) {
         warn('Blank ' + blankId + ' has no parent element; skipping.');
@@ -135,8 +118,6 @@ function buildBlankRef(
         return null;
     }
 
-    // Hint affordances are only emitted when the blank has a hint, so a null
-    // here is normal (not a malformed state). Same for hintTextEl.
     const hintButton = wrapper.querySelector<HTMLButtonElement>('.js-blank-hint');
     const hintTextEl = wrapper.querySelector<HTMLElement>('.js-blank-hint-text');
 
@@ -183,6 +164,16 @@ function buildFillInBlankRef(
     const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
         '.js-confidence-rating',
     );
+    // Walk radios once at init. Empty array when no fieldset exists or
+    // the fieldset contains no radios. Downstream (render, wireConfidence)
+    // consumes this and never re-queries the DOM.
+    const confidenceRadios: HTMLInputElement[] = confidenceFieldset
+    ? Array.prototype.slice.call(
+        confidenceFieldset.querySelectorAll<HTMLInputElement>(
+            'input[type="radio"]',
+        ),
+    )
+    : [];
 
     let skills: string[] = [];
     const rawSkills = el.dataset.skills;
@@ -204,6 +195,7 @@ function buildFillInBlankRef(
         solutionEl,
         hasConfidenceRating,
         confidenceFieldset,
+        confidenceRadios,
         skills,
         sectionId,
     };
@@ -214,12 +206,6 @@ function buildSectionRef(
     blockIds: string[],
     blankIds: string[],
 ): SectionRef {
-    // data-is-checkpoint is absent entirely in single submissionMode.
-    // Present-and-"true" means this specific section is a checkpoint.
-    // Present-and-"false" means the activity uses checkpoints but this
-    // section isn't one. We surface only the boolean here; the checkButton
-    // / scoreEl presence already encodes the "is the activity in checkpoint
-    // mode at all" signal via the renderer's omission pattern.
     const isCheckpoint = el.dataset.isCheckpoint === 'true';
     const checkButton = el.querySelector<HTMLButtonElement>('.js-checkpoint-btn');
     const scoreEl = el.querySelector<HTMLElement>('.js-section-score');

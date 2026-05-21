@@ -8,13 +8,13 @@
 //
 // Change-guard pattern: every write checks the current DOM state and only
 // touches the DOM when it differs from the target. For class toggles,
-// classList.toggle(name, condition) is inherently idempotent. For attribute
-// and text updates, explicit current-vs-target checks guard each write.
+// classList.toggle(name, condition) is inherently idempotent. For attribute,
+// hidden, and checked updates, explicit current-vs-target checks guard
+// each write.
 //
-// Stage 13 Session 3 expands rendering from per-blank only to per-blank +
-// per-block + per-section. renderBlank now takes the full state object so
-// it can look up SectionState.locked for its parent section (cleaner than
-// denormalizing locked into BlankState).
+// Stage 13 Session 4 adds confidence radio reflection to renderBlock, so a
+// restored-on-load confidence selection re-checks the right radio when the
+// page first renders (bootstrap calls render() after applyStoredState).
 // =============================================================================
 
 import type { Refs, BlankRef, FillInBlankRef, SectionRef } from './refs.js';
@@ -44,16 +44,6 @@ export function render(state: RuntimeState, refs: Refs): void {
     }
 }
 
-/**
- * Apply per-blank state to the DOM. Drives five things, in order:
- *   1. .correct / .incorrect class on the input (visual signal)
- *   2. aria-invalid attribute on the input (screen reader signal)
- *   3. Feedback slot text + hidden attribute (mistake-specific text only)
- *   4. Hint button aria-expanded + hint text hidden attribute
- *   5. input.disabled — locked-mode freeze, read from SectionState
- *
- * Each write is change-guarded against the current DOM value.
- */
 function renderBlank(
     blankState: BlankState,
     ref: BlankRef,
@@ -66,8 +56,6 @@ function renderBlank(
     ref.input.classList.toggle('incorrect', result === false);
 
     // 2. aria-invalid — screen reader signal complementing the visual class.
-    // Removed (not set to "false") when result is null so the attribute
-    // doesn't shout "this is valid" before the student has even attempted.
     const targetAriaInvalid: 'true' | 'false' | null =
     result === null ? null : result ? 'false' : 'true';
     const currentAriaInvalid = ref.input.getAttribute('aria-invalid');
@@ -79,9 +67,7 @@ function renderBlank(
         }
     }
 
-    // 3. Feedback slot — mistake-specific text only. Hidden in every other
-    // case (correct, incorrect-without-match, unscored). The visual class
-    // + aria-invalid carry the always-on feedback.
+    // 3. Feedback slot — mistake-specific text only.
     if (matchedMistake !== null) {
         if (ref.feedbackEl.textContent !== matchedMistake) {
             ref.feedbackEl.textContent = matchedMistake;
@@ -103,12 +89,9 @@ function renderBlank(
         }
     }
 
-    // 5. Locked-mode input freeze. Reads SectionState.locked for this
-    // blank's parent section. SectionState.locked is set only by
-    // checkSection in locked submissionMode; in free/single mode (and
-    // pre-check in locked mode) it stays false and the input is editable.
-    // Absent SectionState (refs/state disagreement) is treated as not-
-    // locked — graceful degradation, never throw to the student.
+    // 5. Locked-mode input freeze — section locked == this blank's
+    // input.disabled. Absent SectionState (refs/state disagreement)
+    // treated as not-locked.
     const sectionState = state.sections[ref.sectionId];
     const wantDisabled = sectionState?.locked === true;
     if (ref.input.disabled !== wantDisabled) {
@@ -116,32 +99,31 @@ function renderBlank(
     }
 }
 
-/**
- * Apply per-block state to the DOM. Drives one thing today: the
- * .js-solution slot's hidden attribute. Session 4 will add confidence
- * rating UI state (which radio is checked).
- *
- * Blocks without a solution slot (renderer doesn't emit it when the
- * block has no solution authored) get a null solutionEl — silently no-op.
- */
 function renderBlock(blockState: BlockState, ref: FillInBlankRef): void {
+    // Solution slot — hidden until solutionRevealed flips true.
     if (ref.solutionEl) {
         const wantHidden = !blockState.solutionRevealed;
         if (ref.solutionEl.hidden !== wantHidden) {
             ref.solutionEl.hidden = wantHidden;
         }
     }
+
+    // Confidence radio reflection — sync each radio's checked state to
+    // state.blocks[id].confidence. Drives restoration-on-load (a stored
+    // confidence selection re-checks the right radio when bootstrap
+    // renders for the first time) and keeps state ↔ DOM consistent if
+    // anything other than the user's click ever sets state.
+    //
+    // No explicit guard for hasConfidenceRating — when confidenceRadios
+    // is empty (no fieldset), the loop iterates zero times.
+    for (const radio of ref.confidenceRadios) {
+        const wantChecked = radio.value === blockState.confidence;
+        if (radio.checked !== wantChecked) {
+            radio.checked = wantChecked;
+        }
+    }
 }
 
-/**
- * Apply per-section state to the DOM. Drives two things:
- *   1. .js-section-score text + hidden — "{score} / {total} correct" on
- *      a checkpoint section that's been checked at least once.
- *   2. .js-checkpoint-btn disabled — true after a locked-mode check.
- *
- * Sections without a check button or score slot (single mode, non-
- * checkpoint sections) have null refs — silently no-op on those.
- */
 function renderSection(
     sectionState: SectionState,
     ref: SectionRef,
@@ -160,9 +142,6 @@ function renderSection(
     }
 
     if (ref.checkButton) {
-        // SectionState.locked is true only post-check in locked mode, so
-        // reading it covers both "stay enabled in free mode" and "disable
-        // after one click in locked mode" without branching on config.
         if (ref.checkButton.disabled !== sectionState.locked) {
             ref.checkButton.disabled = sectionState.locked;
         }

@@ -8,10 +8,9 @@
 // construct a state + a minimal DOM fragment mirroring renderer output,
 // call render(), and assert the resulting DOM state.
 //
-// Session 3 scope expands beyond per-blank rendering to cover renderBlock
-// (solution slot) and renderSection (score text + check-button disabled).
-// Also exercises renderBlank's locked-mode input freeze, which reads
-// SectionState.locked via the third state parameter.
+// Session 4 adds the "render — confidence reflection" describe block,
+// covering the renderBlock confidence-radio sync. makeFillInBlankRef
+// gains an optional withConfidence flag for the fixture.
 // =============================================================================
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -29,9 +28,6 @@ import type {
     SectionState,
 } from '../state.js';
 
-/** Minimal BlankRef — no hint affordance, no mistake feedback. sectionId
- *  is hardcoded to 'sec-1' for tests; the few locked-mode tests below set
- *  up a matching SectionState entry. */
 function makeBlankRef(blankId: string): BlankRef {
     const wrapper = document.createElement('span');
     wrapper.className = 'blank-wrapper';
@@ -58,7 +54,6 @@ function makeBlankRef(blankId: string): BlankRef {
     };
 }
 
-/** BlankRef with hint affordance — for hint-state rendering tests. */
 function makeBlankRefWithHint(blankId: string): BlankRef {
     const wrapper = document.createElement('span');
     wrapper.className = 'blank-wrapper';
@@ -97,6 +92,7 @@ function makeBlankRefWithHint(blankId: string): BlankRef {
 function makeFillInBlankRef(
     blockId: string,
     solution: string | null,
+    withConfidence: boolean = false,
 ): FillInBlankRef {
     const el = document.createElement('div');
     el.className = 'block block-fill-in-blank';
@@ -109,14 +105,30 @@ function makeFillInBlankRef(
         solutionEl.textContent = solution;
         el.appendChild(solutionEl);
     }
+    let confidenceFieldset: HTMLFieldSetElement | null = null;
+    const confidenceRadios: HTMLInputElement[] = [];
+    if (withConfidence) {
+        confidenceFieldset = document.createElement('fieldset');
+        confidenceFieldset.className = 'js-confidence-rating';
+        for (const value of ['unsure', 'think_so', 'certain']) {
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'conf-' + blockId;
+            radio.value = value;
+            confidenceFieldset.appendChild(radio);
+            confidenceRadios.push(radio);
+        }
+        el.appendChild(confidenceFieldset);
+    }
     document.body.appendChild(el);
     return {
         el,
         blankIds: [],
         solution,
         solutionEl,
-        hasConfidenceRating: false,
-        confidenceFieldset: null,
+        hasConfidenceRating: withConfidence,
+        confidenceFieldset,
+        confidenceRadios,
         skills: [],
         sectionId: 'sec-1',
     };
@@ -463,6 +475,72 @@ describe('render — block solution slot', () => {
     });
 });
 
+describe('render — confidence reflection', () => {
+    it('checks the matching radio when confidence is set', () => {
+        const blockRef = makeFillInBlankRef('block-1', null, true);
+        const refs = makeRefs(
+            new Map(),
+                              new Map([['block-1', blockRef]]),
+        );
+        const state = makeState(
+            {},
+            { 'block-1': { solutionRevealed: false, confidence: 'think_so' } },
+        );
+        render(state, refs);
+        expect(blockRef.confidenceRadios[0]!.checked).toBe(false); // unsure
+        expect(blockRef.confidenceRadios[1]!.checked).toBe(true);  // think_so
+        expect(blockRef.confidenceRadios[2]!.checked).toBe(false); // certain
+    });
+
+    it('leaves all radios unchecked when confidence is null', () => {
+        const blockRef = makeFillInBlankRef('block-1', null, true);
+        const refs = makeRefs(
+            new Map(),
+                              new Map([['block-1', blockRef]]),
+        );
+        const state = makeState(
+            {},
+            { 'block-1': { solutionRevealed: false, confidence: null } },
+        );
+        render(state, refs);
+        for (const radio of blockRef.confidenceRadios) {
+            expect(radio.checked).toBe(false);
+        }
+    });
+
+    it('transitions checked radio when confidence value changes', () => {
+        const blockRef = makeFillInBlankRef('block-1', null, true);
+        const refs = makeRefs(
+            new Map(),
+                              new Map([['block-1', blockRef]]),
+        );
+        const blockState: BlockState = {
+            solutionRevealed: false,
+            confidence: 'unsure',
+        };
+        const state = makeState({}, { 'block-1': blockState });
+        render(state, refs);
+        expect(blockRef.confidenceRadios[0]!.checked).toBe(true);
+        blockState.confidence = 'certain';
+        render(state, refs);
+        expect(blockRef.confidenceRadios[0]!.checked).toBe(false);
+        expect(blockRef.confidenceRadios[2]!.checked).toBe(true);
+    });
+
+    it('no-ops on blocks without a confidence fieldset', () => {
+        const blockRef = makeFillInBlankRef('block-1', null, false);
+        const refs = makeRefs(
+            new Map(),
+                              new Map([['block-1', blockRef]]),
+        );
+        const state = makeState(
+            {},
+            { 'block-1': { solutionRevealed: false, confidence: 'certain' } },
+        );
+        expect(() => render(state, refs)).not.toThrow();
+    });
+});
+
 describe('render — section score', () => {
     it('populates score text with "{score} / {total} correct" on check', () => {
         const sectionRef = makeSectionRefHelper('sec-1', true);
@@ -567,7 +645,7 @@ describe('render — section score', () => {
 
 describe('render — locked-mode input freeze', () => {
     it('disables a blank input when its section is locked', () => {
-        const ref = makeBlankRef('b1'); // sectionId hardcoded to 'sec-1'
+        const ref = makeBlankRef('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
         const state = makeState(
             { 'b1': makeBlankState(true) },
@@ -615,8 +693,6 @@ describe('render — locked-mode input freeze', () => {
     });
 
     it('transitions disabled → enabled when locked flips (forward compat)', () => {
-        // Locked-state never unsets in Phase 1, but render is forward-
-        // compatible — re-rendering with locked=false re-enables.
         const ref = makeBlankRef('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
         const sectionState: SectionState = {

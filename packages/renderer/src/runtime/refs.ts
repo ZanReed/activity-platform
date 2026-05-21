@@ -54,6 +54,13 @@ export interface FillInBlankRef {
     hasConfidenceRating: boolean;
     /** The fieldset element when hasConfidenceRating is true — null otherwise. */
     confidenceFieldset: HTMLFieldSetElement | null;
+    /**
+     * Radio inputs inside the confidence fieldset, in document order.
+     * Empty array when hasConfidenceRating is false or no radios are
+     * present. Populated once at init time so render and wireConfidence
+     * don't re-query the DOM on every render/event tick.
+     */
+    confidenceRadios: HTMLInputElement[];
     /** Skill tags from data-skills (empty array when attribute is absent). */
     skills: string[];
     /** ID of the section this block belongs to. */
