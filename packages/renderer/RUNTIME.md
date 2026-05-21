@@ -10,8 +10,6 @@ Update at the end of each work session that touches the runtime — replace the 
 - The **architecture, state-shape, build-pipeline, error-handling, and testing** sections describe the Stage 11–14 *target* unless a paragraph says otherwise. Don't read them as descriptions of current code.
 - **Current state** is the authoritative description of what runs in students' browsers right now.
 
-*Last reconciled against code in the cross-package doc/code audit (see STATE.md footer).*
-
 ## What this is
 
 The runtime is the JavaScript that runs in students' browsers on every published activity page. Its eventual remit:

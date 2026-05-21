@@ -88,24 +88,24 @@ describe('renderBody (body fragment only)', () => {
     const fillIn = createFillInBlankBlock();
     fillIn.content = [
       { type: 'text', text: 'The answer is ', marks: [] },
-      blank,
+     blank,
     ];
     doc.sections[0]!.blocks = [
       Object.assign(createParagraphBlock(), {
         content: [{ type: 'text', text: 'A paragraph.', marks: [] }],
       }),
-      Object.assign(createHeadingBlock(2), {
-        content: [{ type: 'text', text: 'A heading', marks: [] }],
-      }),
-      Object.assign(createMathBlock(), { latex: 'x^2' }),
-      createImageBlock('https://example.com/img.png', 'a picture'),
-      Object.assign(createCalloutBlock('warning'), {
-        content: [{ type: 'text', text: 'Heads up.', marks: [] }],
-      }),
-      Object.assign(createProblemBlock(), {
-        content: [{ type: 'text', text: 'Solve for x.', marks: [] }],
-      }),
-      fillIn,
+     Object.assign(createHeadingBlock(2), {
+       content: [{ type: 'text', text: 'A heading', marks: [] }],
+     }),
+     Object.assign(createMathBlock(), { latex: 'x^2' }),
+     createImageBlock('https://example.com/img.png', 'a picture'),
+     Object.assign(createCalloutBlock('warning'), {
+       content: [{ type: 'text', text: 'Heads up.', marks: [] }],
+     }),
+     Object.assign(createProblemBlock(), {
+       content: [{ type: 'text', text: 'Solve for x.', marks: [] }],
+     }),
+     fillIn,
     ];
     const body = renderBody(doc);
     expect(body).toContain('class="block block-paragraph"');
@@ -115,7 +115,6 @@ describe('renderBody (body fragment only)', () => {
     expect(body).toContain('block-callout-warning');
     expect(body).toContain('class="block block-problem"');
     expect(body).toContain('class="block block-fill-in-blank"');
-    expect(body).toContain('class="blank"');
     expect(body).toContain('class="blank"');
 
     // Content survives rendering — not just the wrapper class. Without these,
@@ -203,6 +202,52 @@ describe('Inline rendering', () => {
     expect(body).toContain('aria-label="Fill in the blank"');
   });
 
+  it('wraps each blank in a .blank-wrapper span', () => {
+    // The wrapper is the structural change: it keeps the <input> and the
+    // sibling .js-blank-feedback span together as a single inline unit so
+    // they can't wrap apart mid-prose. The `blank` class deliberately stays
+    // on the input itself — every existing .blank selector keeps targeting
+    // the input directly with no change.
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('answer');
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('<span class="blank-wrapper">');
+    // Class stays on the <input>, NOT on the wrapper.
+    expect(body).toContain('<input type="text" class="blank"');
+    // Wrapper appears immediately before the input opening tag.
+    const wrapperIdx = body.indexOf('<span class="blank-wrapper">');
+    const inputIdx = body.indexOf('<input type="text" class="blank"');
+    expect(wrapperIdx).toBeGreaterThan(-1);
+    expect(inputIdx).toBeGreaterThan(wrapperIdx);
+  });
+
+  it('emits a hidden, aria-live feedback slot keyed to each blank id', () => {
+    // The feedback span is the input's next sibling. Hidden by default
+    // (the `hidden` attribute); aria-live="polite" is set in source HTML
+    // because setting aria-live later on an existing element is unreliable
+    // across screen readers (RUNTIME.md). data-for-blank carries the id
+    // so the runtime can look it up by relation without DOM-tree walking.
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('answer');
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain(
+      '<span class="js-blank-feedback" data-for-blank="' +
+      blank.id +
+      '" aria-live="polite" hidden>',
+    );
+    // Feedback span follows the input within the wrapper.
+    const inputIdx = body.indexOf('data-blank-id="' + blank.id + '"');
+    const feedbackIdx = body.indexOf('data-for-blank="' + blank.id + '"');
+    expect(inputIdx).toBeGreaterThan(-1);
+    expect(feedbackIdx).toBeGreaterThan(inputIdx);
+  });
+
   it('handles invalid LaTeX without throwing', () => {
     const doc = createEmptyDocument({ title: 'T' });
     doc.sections[0]!.blocks = [
@@ -217,8 +262,8 @@ describe('Problem numbering', () => {
     const doc = createEmptyDocument({ title: 'T' });
     doc.sections[0]!.blocks = [
       createProblemBlock(),
-      createProblemBlock(),
-      createProblemBlock(),
+     createProblemBlock(),
+     createProblemBlock(),
     ];
     const body = renderBody(doc);
     expect(body).toContain('>1.<');
@@ -244,8 +289,8 @@ describe('Problem numbering', () => {
     overridden.number = 99;
     doc.sections[0]!.blocks = [
       createProblemBlock(), // auto = 1
-      overridden,           // shows 99, counter advances to 2
-      createProblemBlock(), // auto = 3
+     overridden,           // shows 99, counter advances to 2
+     createProblemBlock(), // auto = 3
     ];
     const body = renderBody(doc);
     expect(body).toContain('>1.<');
@@ -257,8 +302,8 @@ describe('Problem numbering', () => {
     const doc = createEmptyDocument({ title: 'T' });
     doc.sections[0]!.blocks = [
       createProblemBlock(),
-      createFillInBlankBlock(),
-      createProblemBlock(),
+     createFillInBlankBlock(),
+     createProblemBlock(),
     ];
     const body = renderBody(doc);
     expect(body).toContain('>1.<');
@@ -308,8 +353,8 @@ describe('lists', () => {
     ];
     const body = renderBody(doc);
     expect(body).toContain(
-'<ul class="block block-bullet-list" data-block-category="content"',
-                           );
+      '<ul class="block block-bullet-list" data-block-category="content"',
+    );
     expect(body).toContain('</ul>');
     expect(body).toContain('<li data-id=');
     expect(body).toContain('first item');
@@ -329,8 +374,8 @@ describe('lists', () => {
     ];
     const body = renderBody(doc);
     expect(body).toContain(
-'<ol class="block block-ordered-list" data-block-category="content"',
-                           );
+      '<ol class="block block-ordered-list" data-block-category="content"',
+    );
     expect(body).toContain('</ol>');
     expect(body).toContain('step one');
   });
@@ -458,4 +503,3 @@ describe('block identity attributes', () => {
     expect(body).not.toContain(' data-id="' + sectionId + '"');
   });
 });
-

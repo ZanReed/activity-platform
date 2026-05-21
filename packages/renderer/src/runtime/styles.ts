@@ -193,6 +193,19 @@ body {
 .block-problem-body > :first-child { margin-top: 0; }
 .block-problem-body > :last-child { margin-bottom: 0; }
 
+/* The blank-token wrapper keeps an <input class="blank"> and its sibling
+ f eedba*ck span (.js-blank-feedback) on the same inline-flow line, so they
+ can't wrap apart mid-prose. The wrapper is structural only — the \`blank\`
+ class stays on the <input> itself, so every existing .blank selector
+ continues to target the input directly. align-items: baseline lines the
+ input baseline up with the surrounding prose; the gap doesn't take effect
+ while the feedback span is \`hidden\` (display: none has no flex item). */
+.blank-wrapper {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
 .blank {
   display: inline-block;
   width: var(--blank-width, 6ch);
@@ -218,6 +231,10 @@ body {
   background: var(--color-blank-incorrect-bg);
   border-color: var(--color-blank-incorrect-border);
 }
+
+/* .js-blank-feedback visible-state styling lands in Stage 13 once the
+ r untim*e starts rendering content into it. Until then it stays hidden
+ by the \`hidden\` attribute on the element. */
 
 .math-error {
   font-family: monospace;
@@ -259,7 +276,7 @@ body {
 .submit-status.error   { color: var(--color-warning); }
 
 /* =============================================================================
- B aseli*ne print layer (Stage 11)
+ B aseline* print layer (Stage 11)
  -----------------------------------------------------------------------------
  Goal: a published activity that looks broken on paper today, doesn't.
  This is NOT the print FEATURE (multi-column layout, work space, configured
@@ -282,7 +299,7 @@ body {
   body { padding: 0; }
 
   /* Hide interactive elements. The js-* selectors are documented in
-   R UNT*IME.md but not emitted yet (Stages 12–14); listed here so the
+   R UNT*IME.md but not all emitted yet (Stages 12–14); listed here so the
    baseline is correct the moment those land. */
   .identity-prompt,
   .submit-area,
@@ -291,6 +308,14 @@ body {
   .js-confidence-rating,
   .js-blank-feedback {
     display: none;
+  }
+
+  /* Don't establish an inline-flex formatting context in print — let the
+   i npu*t flow naturally as plain inline content. Equivalent in this single-
+   visible-child case to inline-flex, but explicit avoids relying on print
+   engines treating one-item flex identically to bare-inline. */
+  .blank-wrapper {
+    display: inline;
   }
 
   /* Page-break integrity. Modern break-* names; legacy page-break-* aliases

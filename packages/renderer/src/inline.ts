@@ -33,16 +33,16 @@ export function renderInline(node: InlineNode): string {
 export function renderFillInBlankContent(content: FillInBlankInline[]): string {
   const total = content.reduce(
     (count, node) => (node.type === 'blank' ? count + 1 : count),
-    0,
+                               0,
   );
   let index = 0;
   return content
-    .map((node) =>
-      node.type === 'blank'
-        ? renderBlank(node, ++index, total)
-        : renderInline(node),
-    )
-    .join('');
+  .map((node) =>
+  node.type === 'blank'
+  ? renderBlank(node, ++index, total)
+  : renderInline(node),
+  )
+  .join('');
 }
 
 function renderText(node: TextNode): string {
@@ -102,7 +102,27 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
   // switch to a JSON-encoded data attribute.
   const acceptable = [node.answer, ...node.acceptableAnswers].join('|');
   const label = total > 1 ? `Blank ${index} of ${total}` : 'Fill in the blank';
+  // The blank token renders as a wrapper around two siblings:
+  //   1. the actual <input> (still carrying class="blank" and every data-*
+  //      attribute it had before — every existing .blank selector and the
+  //      runtime's $('.blank') lookup keep working unchanged), and
+  //   2. a `js-blank-feedback` <span> the Stage 12–13 runtime renders ✓/✗
+  //      + targeted mistake feedback into after a checkpoint check.
+  //
+  // The wrapper exists because <input> is a void element — the feedback
+  // span cannot be its child. It also keeps the pair together as a single
+  // inline unit, so the input and its feedback can't wrap onto separate
+  // lines mid-prose. The wrapper itself carries no data-* attributes; it
+  // is purely structural (the runtime reaches the feedback via
+  // input.nextElementSibling or wrapper.querySelector('.js-blank-feedback')).
+  //
+  // `aria-live="polite"` MUST be in the source HTML — RUNTIME.md flags that
+  // setting aria-live later on an already-existing element is unreliable
+  // across screen readers. `hidden` keeps the slot out of layout (and out
+  // of the accessibility tree) until the runtime populates it; once visible,
+  // content changes are announced politely without interrupting focus.
   return (
+    '<span class="blank-wrapper">' +
     '<input type="text"' +
     ' class="blank"' +
     ' data-blank-id="' + attr(node.id) + '"' +
@@ -113,6 +133,11 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
     ' autocapitalize="off"' +
     ' autocorrect="off"' +
     ' spellcheck="false"' +
-    ' />'
+    ' />' +
+    '<span class="js-blank-feedback"' +
+    ' data-for-blank="' + attr(node.id) + '"' +
+    ' aria-live="polite"' +
+    ' hidden></span>' +
+    '</span>'
   );
 }
