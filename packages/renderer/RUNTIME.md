@@ -4,11 +4,13 @@ Architecture decisions and standing constraints for the published-activity runti
 
 Update at the end of each work session that touches the runtime — replace the relevant sections, don't append.
 
-**Current vs. target.** Most of this document is a *design spec* for the runtime built across Stages 11–14. The runtime that actually ships today is minimal — see **Current state** below. To keep the two separate:
+**Current vs. target.** This document is a design spec for the runtime built across Stages 11–13. Stages 11 and 12 are complete (source restructure + build pipeline + full renderer emission contract + state-object runtime architecture); Stage 13 builds checkpoint scoring + feedback rendering + mode enforcement + localStorage answer persistence on top of that. To track which parts of this doc describe what:
 
 - The **data-attribute contract** section tags each group `[emitted today]` (in current renderer output) or `[target — Stage N]` (planned).
-- The **architecture, state-shape, build-pipeline, error-handling, and testing** sections describe the Stage 11–14 *target* unless a paragraph says otherwise. Don't read them as descriptions of current code.
+- The **architecture, state-shape, build-pipeline, error-handling, and testing** sections describe the *current* runtime where they cover Stage 11–12 work, and the *target* runtime where they cover Stage 13–14 work. Each notes inline which is which.
 - **Current state** is the authoritative description of what runs in students' browsers right now.
+
+*Last reconciled against code at end of Stage 12.*
 
 ## What this is
 
@@ -34,51 +36,53 @@ It does NOT handle:
 
 ## Current state (what ships today)
 
-The runtime is a minimal script — same behaviours as pre-Stage-11, but Stage 11 restructured how it's built. The source is six TypeScript modules under `packages/renderer/src/runtime/`:
+The runtime is a TypeScript module graph rooted at `packages/renderer/src/runtime/index.ts`, built by `scripts/bundle-renderer.mjs` (esbuild, IIFE, minified, target `chrome90`, ~3 KiB minified) into a generated string module (`runtime/generated/runtime-bundle.ts`), which the renderer's `document.ts` inlines into a `<script>` tag in every published page. The source map (`packages/renderer/dist/runtime.js.map`) is a dev-only artifact, gitignored. The generated string module is committed so a clean checkout can typecheck the renderer without first running the bundler.
 
-- `index.ts` — entry point: parses the activity-config blob, restores the stored name, wires blanks, wires the submit button, runs on DOM-ready.
-- `dom.ts` — `$` / `$$` query helpers.
-- `storage.ts` — student-name persistence (try/catch-wrapped `localStorage`).
-- `strategies.ts` — `evaluateAnswer` dispatch + the `list` strategy.
-- `blanks.ts` — `trimValue`, `checkBlank` (blur-driven correct/incorrect toggle), `wireBlanks`.
-- `submission.ts` — `gatherResponses`, `computeScore`, `submit`, `setStatus`, `setScore`.
+File structure:
 
-The renderer's `document.ts` still inlines the runtime via a `<script>` tag in every published page — there is no separate `runtime.js` file shipped, and that's a deliberate Stage 11 decision (one fewer request on a Chromebook on slow Wi-Fi; the runtime stays co-versioned with the HTML it ships in). The path from source to inline script runs through an esbuild sub-step in `scripts/bundle-renderer.mjs` that produces a generated TypeScript string module at `runtime/generated/runtime-bundle.ts`, which `document.ts` imports. See the **Build pipeline** section for details. Source maps are emitted to `packages/renderer/dist/runtime.js.map` as a dev-only debugging artifact — gitignored, never uploaded; debugging a teacher-reported runtime bug means reproducing against the local unminified build.
+- `index.ts` — bootstrap. Calls `init()`; on null falls back to a no-op runtime (logs an error, page stays static).
+- `config.ts` — `RuntimeConfig` interface + `parseConfig()` (defensively returns null on missing or malformed config).
+- `refs.ts` — typed-DOM-pointer interfaces (`BlankRef`, `FillInBlankRef`, `SectionRef`) + `Refs` bundle.
+- `state.ts` — `RuntimeState` + `SectionState` + `createInitialState(refs)`.
+- `init.ts` — the only DOM walker. Returns `{config, refs, state} | null`.
+- `blanks.ts` — three-layer split: `scoreBlank` (pure), `applyBlankFeedback` (DOM-only), `checkBlank` (composition); `wireBlanks(refs)` for the blur handler.
+- `strategies.ts` — `evaluateAnswer(input, typed)` strategy dispatch. Only the `list` strategy is implemented (pipe-split `data-blank-answers`, case-sensitive exact match). Unknown strategy logs a warning and falls back to `list`.
+- `submission.ts` — `gatherResponses(refs)`, `submit(config, refs, state)`, `setStatus`, `setScore`, `computeScore`. Submission payload uses `responses.schemaVersion: 2`.
+- `storage.ts` — `loadStoredName` / `saveName` for cross-activity name persistence, wrapped in try/catch for private-mode browsers.
+- `dom.ts` — `$` / `$$` jQuery-style helpers.
 
-The runtime has its own `tsconfig.json` (DOM lib, `noEmit`) excluded from the renderer's no-DOM tsconfig; the renderer package's `build` and `typecheck` scripts run both `tsc` invocations in sequence so the runtime cannot silently rot. Test seed at `packages/renderer/src/runtime/__tests__/strategies.test.ts` covers `evaluateAnswer` dispatch + fallback and the `computeScore` arithmetic; JSDOM-backed tests for `wireBlanks`, `gatherResponses`, and `submit` are Stages 12–14 work.
+What the runtime does for students today:
 
-What it does:
+- On DOM ready, calls `init()`. `init` parses the activity-config blob (six fields: `activityId`, `versionNum`, `submissionEndpoint`, `submissionMode`, `revisionMode`, `gradingMode`); on null, the runtime logs an error and returns — the page stays static. On success, walks `.activity-section` → fill-in-blank blocks → blanks once, building typed `BlankRef` / `FillInBlankRef` / `SectionRef` maps keyed by uuid, and seeds initial state with every section unchecked / unlocked / zero-score.
+- Restores the student's name from `localStorage` and mirrors it to `state.studentName`.
+- Wires every blank's blur handler to `checkBlank(ref)`, which scores via `scoreBlank` (empty → null; else true/false from `evaluateAnswer`) and applies `.correct` / `.incorrect` classes via `applyBlankFeedback`.
+- On submit click: validates non-empty name; mirrors it to `state.studentName`; persists via `saveName`; iterates `refs.blanks` to gather a payload; POSTs `{ activityId, displayName, responses: { schemaVersion: 2, blanks }, score }` to the submission endpoint. Disables the submit button during the request; flips `state.submitted = true` on success; re-enables on failure.
 
-- Reads `<script id="activity-config" type="application/json">` for `{ activityId, versionNum, submissionEndpoint }`.
-- Restores the student's name from `localStorage` (carried across activities on the same domain).
-- Wires every `.blank` input: on blur, trims the value and toggles `correct` / `incorrect` classes, scored through `evaluateAnswer(input, typed)` — a strategy dispatch reading `data-blank-strategy`, with only the `list` strategy implemented (pipe-split `data-blank-answers`, case-sensitive exact match).
-- On submit: validates a non-empty name, gathers every blank into `{ answer, correct }`, computes a fraction score, and POSTs `{ activityId, displayName, responses: { schemaVersion: 2, blanks }, score }` to the submission endpoint. Persists the validated name to `localStorage` so the next activity prefills it. Disables the submit button during the request; re-enables on failure. (The pre-Stage-11 runtime sent `schemaVersion: 1` and was rejected by `ingest-submission` with a 400; Stage 11 fixed this while rewriting the file.)
+What the runtime does NOT do yet (all Stage 13 target): per-section checkpoint scoring (the check button click is not yet wired); feedback rendering beyond the correct/incorrect class toggle (hints aren't toggled; mistake feedback isn't dispatched; solutions aren't revealed); submission-mode enforcement (locked / free / single all behave the same — single is the only one fully accurate); revision-mode resubmission; localStorage answer persistence (typed values aren't saved across page loads); confidence-rating capture (the fieldset renders but its value isn't read); the `render(state, refs)` function with change-guarded DOM diffing.
 
-What it does NOT do (all of this is Stages 12–14 target): per-section checkpoint scoring, submission/revision modes, feedback rendering (hints / mistakeFeedback / solutions), confidence ratings, attempt tracking, the `localStorage` retry queue, the state-object/`render()` architecture, and the init-pass refs maps.
-
-Everything below this section is the target design unless tagged otherwise.
+The sections that follow describe both as-built and target code; each notes inline which it is.
 
 ## Architecture decisions
 
 Except where a paragraph notes otherwise, the decisions below describe the **target** runtime (Stages 11–14). They are the committed design; see **Current state** for what is actually built.
 
-**Inline runtime, not a separate `runtime.js` file [resolved Stage 11].** The runtime is bundled by esbuild into a generated string module that `document.ts` inlines via a `<script>` tag in every published page. There is no separate `runtime.js` served from Storage. Rationale: one fewer request on a school Chromebook on slow Wi-Fi; the runtime stays co-versioned with the HTML it ships in; the Phase 1 runtime is small enough (~2.6 KiB minified — well under the 20 KiB budget) that a separately-cacheable file doesn't yet pay for the extra round trip. The separate-file model's real payoff is the Phase 3+ CDN-hosted shared runtime, where many activities can share one cached file across publishes — at that point the question is revisited (the trigger, per STATE.md's open questions, is roughly 50+ active activities, when republishing every activity for a runtime bug fix becomes painful). Until then, inline is correct.
+**Inlined runtime — settled in Stage 11.** The runtime is inlined into every published page via the generated string module pattern (esbuild builds it as IIFE, writes the minified text into a committed TypeScript string constant, `document.ts` concatenates that into a `<script>` tag). The earlier "separate `runtime.js` file referenced by URL" model was the original design in this doc; Stage 11 chose inlining instead — one fewer request on a school Chromebook, and the runtime stays co-versioned with the HTML it ships in. The separate-file model is the Phase 3+ migration target when a CDN-hosted shared runtime becomes worth the request cost.
 
 **`runtimeVersion` — Phase 3+ migration anchor [target].** Not emitted today (the runtime is inlined, so there is nothing to version-select, and there is no `#activity-root` element to carry it). When the CDN-hosted shared runtime lands, a runtime version selector is needed so the loader picks the right file; it lives wherever the loader can read it earliest — likely a `data-*` attribute on a container. Decide its exact home then.
 
-**[target — Stages 12–14] Plain state object + render() with DOM diffing guards.** Single source of truth is a plain JS object. User actions mutate state, then call `render()`. `render()` is the only function that touches the DOM. Every DOM mutation is guarded: only write if the value actually changed (`if (el.textContent !== value) el.textContent = value`). Prevents layout thrashing and makes render() idempotent — safe to call multiple times with no side effects. (The current minimal runtime does not have this — it mutates the DOM directly in event handlers.)
+**Plain state object + render() with DOM diffing guards — partially in place; `render()` is Stage 13.** Single source of truth is a plain JS object (`RuntimeState`). User actions mutate state, then call `render()`. `render()` is the only function that touches the DOM. Every DOM mutation is guarded: only write if the value actually changed (`if (el.textContent !== value) el.textContent = value`). Prevents layout thrashing and makes render() idempotent — safe to call multiple times with no side effects. **Status post-Stage-12:** `RuntimeState` exists and is seeded by `createInitialState`. Submission flips `state.submitted` and `state.studentName`. `applyBlankFeedback` is the seed of state→DOM separation (DOM-only, no decisions). The actual `render(state, refs)` function — and the per-blank / per-section state fields it reads — are Stage 13 work.
 
 **Data-attribute contract is a public API.** The HTML emitted by the renderer is the interface. Once activities are published, that contract is frozen for those activities forever. Additive changes (new attributes) are safe. Removing or renaming existing attributes breaks published activities. Treat with the same versioning discipline as a REST API. The per-element attributes (`data-block-*`, `data-blank-*`, `data-section-id`) are emitted and read today; see the contract section for what is `[emitted today]` vs `[target]`.
 
-**[target — Stages 12–13] Pure scoring, init pass builds maps.** On init, the runtime walks the DOM once and builds in-memory `Map`s for each interactive element category (blanks by id, fill-in-blank blocks by id, sections by id, and — when new block categories land in Phase 2+ — choices, orderings, matches, graphs, etc.). Every scoring/feedback function operates on these maps, not by querying the DOM. Scoring functions are pure functions of the maps + input values — testable without a DOM. The DOM gets touched only in init (read) and render (write).
+**Pure scoring, init pass builds maps — done in Stage 12.** On init, the runtime walks the DOM once (in `init.ts`) and builds in-memory `Map`s of typed refs: `refs.blanks` by `blank.id`, `refs.fillInBlanks` by `block.id`, `refs.sections` by `section.id`. New block categories in Phase 2+ (choices, orderings, matches, graphs, etc.) will add parallel maps. Scoring functions (`scoreBlank` in `blanks.ts`) operate on these maps + the typed value, not by re-querying the DOM. One architectural leak remains: `evaluateAnswer` reads `data-*` attributes off the held `ref.input` rather than taking parsed values — refactor candidate for Stage 13 if it becomes friction.
 
-**Source maps — dev-only, gitignored, never shipped [resolved Stage 11].** esbuild emits an external source map to `packages/renderer/dist/runtime.js.map` alongside the minified bundle. The file is gitignored, never included in any deployed bundle, and never reaches a student's browser. The dev-only choice flows from the inline decision above: there is no hosted `runtime.js` to pair a source map with, and a sourcemap for a script living inside a `<script>` tag in HTML isn't something the browser knows how to fetch. Debugging a teacher-reported runtime bug means reproducing locally against the unminified build, where the modular source under `src/runtime/` provides better debugging surface than a sourcemap-back-to-a-bundled-string would. Phase 3+ revisits this if the CDN-hosted shared runtime materializes — then a source map ships alongside the CDN file.
+**Source maps — dev/debug artifact only, in Stage 11.** Because the runtime is inlined (not a separate file), there is no source map for students to fetch. Esbuild emits `packages/renderer/dist/runtime.js.map` as a dev artifact (gitignored); debugging a teacher-reported bug means reproducing against the local unminified build. When the runtime moves to a separate-file CDN model (Phase 3+), the source map ships alongside it for in-browser debugging.
 
 **Defensive attribute reads everywhere.** Every `dataset.X` read uses a `?? default` fallback. Every JSON-encoded attribute is wrapped in try/catch. An old published activity loading against a newer runtime degrades gracefully to default behavior. The runtime never throws to the student.
 
-**Error boundaries on init and event handlers.** Init wrapped in try/catch with fallback to "basic submit only" mode (every blank read, no checkpoint behavior, no feedback). Every event handler wrapped in try/catch. A scoring bug for one section's check button does not break submission of the whole activity. (The current runtime has the basic pieces — config-parse try/catch, fetch-error handling — but not the full init-fallback mode; see Error handling philosophy.)
+**Error boundaries on init and event handlers — partially in place; fuller version is Stage 13.** `init()` returns null on missing or malformed config and the caller falls back to a no-op runtime (page stays static, no scoring or submission). `parseConfig` is defensive (returns null on malformed JSON or wrong-typed required fields); `buildRefs` warns-and-skips malformed per-element attributes rather than throwing. **Still target for Stage 13:** every event handler (blur, check-button click, hint toggle, submit) wrapped in try/catch so a scoring bug for one section doesn't break the rest of the activity. `submit()` already has the fetch-failure path covered; the other handlers don't yet.
 
-**Block category awareness.** The renderer emits `data-block-category="content|question|scaffold"` on every block (this is emitted today). The runtime uses this to drive init-pass partitioning: only `question`-category blocks register response handlers and contribute to scoring; `content` blocks are inert presentational; `scaffold` blocks (worked examples, hints, learning objectives) are presentational but may have their own progressive-disclosure UI later. Adding a new block kind doesn't require sniffing `data-block-type` — its category tells the runtime how to treat it. Categories are deliberately coarse; finer-grained discrimination still uses `data-block-type` and the registry pattern below. (The category-driven init partitioning is target — Stages 12–14.)
+**Block category awareness — emitted today; full category-driven init is Stage 13+.** The renderer emits `data-block-category="content|question|scaffold"` on every block. Stage 12's `init.ts` walks specifically `[data-block-type="fill_in_blank"]` rather than partitioning by category — fine for Phase 1's single-question-type runtime. The category-driven routing pattern (only `question` blocks register response handlers; `content` blocks are inert; `scaffold` blocks may have progressive-disclosure UI later) becomes important as more question types land in Phase 2+; the per-question-type init handlers will register through the registry pattern described under Standing constraints.
 
 ## The data-attribute contract
 
@@ -95,23 +99,26 @@ This is the API between renderer (emits) and runtime (reads). Additive changes o
 
 The renderer's `document.ts` wraps the body in a full HTML document. Runtime parameters reach the runtime two ways, following the **split-by-purpose** rule (see STATE.md's architecture decisions): config the JS consumes goes in a JSON blob; values the CSS must select on go in `data-*` attributes on a container.
 
-**[emitted today]** The renderer emits a `<main class="activity-container">` wrapper and a JSON config blob:
+**[emitted today]** The renderer emits a `<main class="activity-container">` wrapper carrying `data-activity-type` and a JSON config blob with six fields:
 
 ```
-<main class="activity-container">
+<main class="activity-container" data-activity-type="worksheet">
   ...
 </main>
 <script id="activity-config" type="application/json">
-  {"activityId":"<uuid>","versionNum":<int>,"submissionEndpoint":"<url>"}
+  {"activityId":"<uuid>","versionNum":<int>,"submissionEndpoint":"<url>",
+   "submissionMode":"single|locked|free",
+   "revisionMode":"free|locked",
+   "gradingMode":"auto|manual|mixed"}
 </script>
 ```
 
-The runtime parses `#activity-config` once on startup. The renderer escapes any literal `</script` in the JSON. There is **no `#activity-root` element** and **no document-root `data-*` attributes**. An earlier draft of this contract specified `<div id="activity-root" data-submission-mode=… data-grading-mode=… data-schema-version=…>`; that design was never built and has been superseded by the split below. Ignore any reference to `#activity-root` anywhere.
+The runtime parses `#activity-config` once on startup (via `parseConfig` in `config.ts`, which defensively returns null on any malformed field). The renderer escapes any literal `</script` in the JSON. `data-activity-type` is a CSS hook (`worksheet | exit_ticket | warm_up | review`) so the stylesheet can vary layout per type without the runtime needing to read it. There is **no `#activity-root` element** and **no document-root `data-*` attributes** beyond `data-activity-type` on the container. An earlier draft of this contract specified `<div id="activity-root" data-submission-mode=… data-grading-mode=… data-schema-version=…>`; that design was never built and has been superseded by the split below. Ignore any reference to `#activity-root` anywhere.
 
-**[target — Stages 12–14]** When the real runtime needs activity-level semantics, they are placed by purpose:
+**Settled in Stage 12 step 5.** The split-by-purpose contract for activity-level config:
 
-- **CSS hooks → `data-*` on `activity-container`.** `data-activity-type` (`worksheet | exit_ticket | warm_up | review`) so the renderer's CSS can vary layout (e.g. `[data-activity-type="exit_ticket"] …`). `data-submission-mode` is a *candidate* — needed only if checkpoint-UI visibility is CSS-driven; if instead the renderer simply omits checkpoint markup in `single` mode, it is not needed. Settle that when checkpoint rendering is built (Stages 12–13).
-- **JS-only config → the `activity-config` blob.** `revisionMode`, `gradingMode`, and the submission `schemaVersion` constant join `activityId` / `versionNum` / `submissionEndpoint` in the blob when the Stage 12–14 runtime needs them. The runtime reads `activityType` (and `submissionMode`, if present) from the container attribute — no duplication into the blob.
+- **CSS hooks → `data-*` on `activity-container`.** `data-activity-type` is the sole instance today. `data-submission-mode` was considered as a candidate, but the renderer omits checkpoint markup entirely in `single` mode rather than relying on CSS to hide it, so the attribute isn't needed.
+- **JS-only config → the `activity-config` blob.** `submissionMode`, `revisionMode`, and `gradingMode` join the original three (`activityId`, `versionNum`, `submissionEndpoint`) in the blob. The runtime reads `activityType` from the container attribute — not duplicated into the blob.
 
 **[target — Phase 3+]** `runtimeVersion` is the migration anchor for the CDN-hosted shared runtime. Not emitted today. When the CDN move happens it lives wherever the loader reads it earliest — likely a `data-*` attribute. Decide then.
 
@@ -130,7 +137,7 @@ The deciding rule throughout: **CSS cannot read the JSON blob**, so anything CSS
 
 `<section>` is content (organizational), not a question — `data-block-category` is always `content`. Sections carry no `data-block-type`: they are containers, not blocks (see "Block identity attributes" below).
 
-**[target — Stage 12–13]** When `submissionMode` is `locked` or `free`, the `<section>` additionally carries `data-is-checkpoint="true | false"`; in `single` mode the attribute is omitted entirely. Not emitted today — `render.ts` emits no checkpoint metadata yet.
+**[emitted today, since Stage 12 step 4]** When `submissionMode` is `locked` or `free`, the `<section>` additionally carries `data-is-checkpoint="true | false"`; in `single` mode the attribute is omitted entirely.
 
 ### Reference panel (Phase 2)
 
@@ -179,18 +186,18 @@ Phase 1 block types by category:
 
 ### Checkpoint button
 
-**[target — Stage 12–13] — not emitted today.** `render.ts` renders sections with content only; no checkpoint button is produced yet. This is the shape the renderer must emit when checkpoint scoring lands (rendered per section, only when that section is a checkpoint):
+**[emitted today, since Stage 12 step 4]** Rendered per section, only when that section is a checkpoint (`isCheckpoint: true`) and `submissionMode` is `locked` or `free`:
 
 ```
 <button class="js-checkpoint-btn" data-for-section="<uuid>" type="button">
   Check this section
 </button>
 <div class="js-section-score" data-for-section="<uuid>" hidden>
-  <!-- populated by runtime: "4 / 6 correct" -->
+  <!-- populated by the runtime when Stage 13 wires the click handler: "4 / 6 correct" -->
 </div>
 ```
 
-`type="button"` is non-negotiable — without it, browsers default to `type="submit"`, which submits the parent form if one exists and the runtime never gets the click.
+`type="button"` is non-negotiable — without it, browsers default to `type="submit"`, which would submit a parent form if one existed. The button is wired by Stage 13; today it renders but does nothing on click.
 
 ### Fill-in-blank
 
@@ -213,7 +220,7 @@ A fill-in-blank renders as **two nested levels**: the block `<div>`, carrying bl
 
 (Confirmed against `renderer/src/blocks/fill-in-blank.ts`.)
 
-**[target — Stage 12–13]** The block `<div>` additionally carries `data-solution="..."` and `data-has-confidence-rating="true | false"`. When `data-has-confidence-rating="true"`, **one** confidence fieldset is rendered **per block — not per blank** (`hasConfidenceRating` is a `FillInBlankBlock` field; the runtime applies the single rating uniformly to every blank in the block):
+**[emitted today, since Stage 12 step 3]** The block `<div>` additionally carries `data-solution="..."`, `data-has-confidence-rating="true"`, and `data-skills='[…]'` (JSON-encoded array) — each is omitted entirely when the field is at its schema default (no solution / `hasConfidenceRating: false` / empty skills). The field is `skills`, not `standards` — an earlier draft of this doc named the attribute `data-standards`, which is dead. When `data-has-confidence-rating="true"`, **one** confidence fieldset is rendered **per block — not per blank** (`hasConfidenceRating` is a `FillInBlankBlock` field; the runtime applies the single rating uniformly to every blank in the block):
 
 ```
 <fieldset class="js-confidence-rating" data-for-block="<uuid>">
@@ -224,7 +231,7 @@ A fill-in-blank renders as **two nested levels**: the block `<div>`, carrying bl
 </fieldset>
 ```
 
-**[target — Phase 2]** The block `<div>` also carries `data-skills='[...]'` (JSON array) once the editor surfaces problem-level skill tagging. The field is `skills`, not `standards` — an earlier draft named this `data-standards`, which is dead.
+When `data-solution` is present, a hidden `<div class="js-solution" data-for-block="<uuid>" hidden>` is also rendered inside `block-problem-body`, statically containing the solution text. Stage 13 toggles its `hidden` attribute on check. The fieldset's selected value is not yet captured into the submission payload — that wiring is Stage 13. The editor doesn't yet surface skill-tagging UI, so in practice `data-skills` is always omitted today; the renderer side is in place for when the editor lands the feature.
 
 #### Blank token
 
@@ -249,19 +256,25 @@ A fill-in-blank renders as **two nested levels**: the block `<div>`, carrying bl
 
 The current runtime confirms it reads `class="blank"`, `data-blank-id`, `data-blank-answers` (pipe-delimited), and `data-blank-strategy`. The `aria-label` / `--blank-width` / autocomplete attributes are emitted by `inline.ts`'s `renderBlank`, verified against that file — the whole `<input>` shape above is confirmed `[emitted today]`.
 
-**[target — Stage 12–13]** The blank token additionally carries `data-hint="..."` and `data-mistake-feedback='[{"match":"2x","feedback":"..."}]'` (a JSON array), and gains a sibling feedback slot:
+**[emitted today, since Stage 12 steps 1–2]** The blank token sits inside a `<span class="blank-wrapper">` and gains sibling hint / feedback elements:
 
 ```
-<span class="js-blank-feedback" data-for-blank="<uuid>" aria-live="polite" hidden></span>
+<span class="blank-wrapper">
+  <input type="text" class="blank" ... />
+  <button class="js-blank-hint" type="button" aria-expanded="false"
+          aria-controls="hint-<uuid>" aria-label="Show hint">?</button>
+  <span class="js-blank-hint-text" id="hint-<uuid>" hidden>Try factoring out 2.</span>
+  <span class="js-blank-feedback" data-for-blank="<uuid>" aria-live="polite" hidden></span>
+</span>
 ```
 
-Because an `<input>` is a void element, the feedback `<span>` cannot be its child — it must be a sibling, which means the blank token will need a wrapper element. The wrapper's tag and class, and whether the `blank` class moves onto it, are **not decided** — settle that when the Stage 12–13 feedback work begins (tracked in Open questions below).
+The wrapper is needed because `<input>` is a void element — siblings can't be children. The `.blank` class **stays on the `<input>`** (does not migrate to the wrapper), preserving every existing CSS selector. The hint affordance is always-available (a `?` button next to the input); the original "reveal on incorrect" design was dropped in favor of student agency. The `.js-blank-hint` button and `.js-blank-hint-text` span are emitted only when `data-hint` is present; the `.js-blank-feedback` span is always emitted (the runtime needs it as a render target). The input itself also carries `data-hint="..."` (when set) and `data-mistake-feedback='[{"match":"2x","feedback":"..."}]'` (a JSON array, when non-empty). The hint button's click handler — toggling `hidden` on the text and flipping `aria-expanded` — is Stage 13 work.
 
 **[target — Phase 2.5]** `data-blank-strategy="list | expression | computed"` selects the scoring strategy; when absent the runtime defaults to `"list"`. The current runtime already implements this dispatch (`evaluateAnswer`), with only the `list` strategy defined. `expression` / `computed` arrive with parameterized problems.
 
 **JSON-encoded attributes** (`data-mistake-feedback`, `data-skills`) are HTML-entity-escaped by the renderer; the runtime parses each once at init and stores the result, never re-parsing on user input. `data-blank-answers` is the pipe-delimited exception above.
 
-**`aria-live`** on the future `js-blank-feedback` span MUST be set in the source HTML by the renderer, not added later by the runtime — setting `aria-live` on an already-existing element is unreliable across screen readers.
+**`aria-live`** on the `js-blank-feedback` span is set in the source HTML by the renderer (not added later by the runtime) — setting `aria-live` on an already-existing element is unreliable across screen readers.
 
 **Accessibility — positional label.** Each blank `<input>` carries a renderer-supplied `aria-label`. With multiple blanks in the block it is positional — `Blank 1 of 3`, `Blank 2 of 3`, … — numbered in document order; a lone blank is labelled `Fill in the blank`. Without it, a blank inside prose is announced by screen readers only as "edit text", giving the student no cue which blank has focus.
 
@@ -304,7 +317,7 @@ const mf = JSON.parse(blank.dataset.mistakeFeedback);  // throws on malformed
 
 ## State shape
 
-**[target — Stages 12–14].** None of this exists in the current runtime (see Current state) — the minimal runtime mutates the DOM directly. This is the committed design for when checkpoint / feedback / submission logic is built.
+**Status post-Stage-12: the state object and refs maps exist; per-blank / per-checkpoint state fields and the `render()` function are Stage 13 work.** The interfaces below match the as-built source in `packages/renderer/src/runtime/state.ts` and `packages/renderer/src/runtime/refs.ts`. Stage 13 expands `SectionState` (and likely adds a per-blank result map to `RuntimeState`) for checkpoint scoring; the fields that exist today initialize to safe defaults until then.
 
 The runtime maintains a single state object. Mutated by user actions. Synchronized to the DOM by `render()`.
 
@@ -341,14 +354,15 @@ In-memory reference maps built once on init (not part of state, never mutated):
 // Per-blank — mirrors the BlankToken schema. One per <input class="blank">.
 interface BlankRef {
   input: HTMLInputElement;
-  feedbackEl: HTMLElement;   // sibling feedback slot — see the "Blank-token
-                             // wrapper element" open question for placement
-  answers: string[];         // canonical answer + acceptableAnswers
-  strategy: 'list' | 'expression' | 'computed';
+  feedbackEl: HTMLElement;        // sibling .js-blank-feedback span
+  hintButton: HTMLButtonElement | null;  // .js-blank-hint, null when no hint
+  hintTextEl: HTMLElement | null; // .js-blank-hint-text, null when no hint
+  answers: string[];              // canonical answer + acceptableAnswers
+  strategy: string;               // 'list' (Phase 1); 'expression'/'computed' Phase 2.5+
   hint: string | null;
   mistakeFeedback: Array<{ match: string; feedback: string }>;
-  blockId: string;           // parent fill_in_blank block
-  sectionId: string;         // section the parent block belongs to
+  blockId: string;                // parent fill_in_blank block
+  sectionId: string;              // section the parent block belongs to
 }
 
 // Per fill_in_blank BLOCK. solution / hasConfidenceRating / skills are
@@ -358,6 +372,7 @@ interface FillInBlankRef {
   el: HTMLElement;
   blankIds: string[];
   solution: string | null;
+  solutionEl: HTMLElement | null; // .js-solution slot, null when no solution
   hasConfidenceRating: boolean;
   confidenceFieldset: HTMLFieldSetElement | null;
   skills: string[];
@@ -368,6 +383,7 @@ interface SectionRef {
   el: HTMLElement;
   isCheckpoint: boolean;
   blankIds: string[];
+  blockIds: string[];             // fill_in_blank blocks in this section
   checkButton: HTMLButtonElement | null;
   scoreEl: HTMLElement | null;
 }
@@ -379,54 +395,28 @@ const sections     = new Map<string, SectionRef>();
 
 State changes; refs don't. Treat refs as `Readonly<>` after init.
 
-Earlier drafts of this section put block-level fields (`solution`, `hasConfidenceRating`, `skills`) and the per-block confidence fieldset on `BlankRef`, and used the field name `standards` — all incorrect against the schema (it is `skills`, not `standards`; and those fields live on `FillInBlankBlock`, not `BlankToken`). The per-block / per-blank split above is the corrected shape; the precise ref model is finalised when the Stage 12–13 init pass is actually built.
+Note for future edits: an earlier draft of this section put block-level fields (`solution`, `hasConfidenceRating`, `skills`) and the per-block confidence fieldset on `BlankRef`, and used the field name `standards`. Both are wrong against the schema — the field is `skills` (not `standards`), and those fields live on `FillInBlankBlock` (not `BlankToken`). The split shown above is correct and matches `packages/renderer/src/runtime/refs.ts` as of Stage 12 step 6a.
 
 In Phase 2 and beyond, additional refs maps will be added for each new question category (`choices`, `orderings`, `matches`, `graphs`, `freeResponses`, `files`, `annotations`). The init registry pattern keeps this additive — adding a new question-block kind registers a handler in the init registry, allocates a refs map, and contributes scoring strategies to the `evaluateAnswer` dispatch. No refactoring of init for each new kind.
 
 ## Build pipeline
 
-A single script — `scripts/bundle-renderer.mjs` — produces both build artifacts in order, because the renderer bundle depends on the runtime build. Run it with `pnpm run bundle:renderer`.
+**As built in Stage 11.** `scripts/bundle-renderer.mjs` runs two esbuild builds in sequence:
 
-**Step 1 — Runtime build.** esbuild bundles `packages/renderer/src/runtime/index.ts` into a minified IIFE held in memory, then writes that text into a generated TypeScript module that the renderer imports.
+1. **Runtime build.** Entry `packages/renderer/src/runtime/index.ts` → output as an IIFE (not ESM, since it executes immediately when inlined into a `<script>` tag, with no module loader involved). Minified, target `chrome90` (covers school Chromebooks, Firefox 88+, Safari 14+, Edge 90+). External source map written to `packages/renderer/dist/runtime.js.map` (dev-only, gitignored). The minified text is written into a generated TypeScript string module at `packages/renderer/src/runtime/generated/runtime-bundle.ts`, which **is committed to git** so a clean checkout can typecheck the renderer without first running the bundler.
+2. **Renderer build.** Entry `packages/renderer/src/index.ts` → output as ESM at `supabase/functions/_shared/renderer.bundle.js`. The renderer's `document.ts` imports the generated string module from step 1 and inlines it into a `<script>` tag in every published page.
 
-- **Entry:** `packages/renderer/src/runtime/index.ts`
-- **Format:** `iife` (not ESM — the output is inlined into a plain `<script>` tag by `document.ts`; an ESM bundle cannot be inlined that way)
-- **Platform / target:** `browser`, `chrome90` (covers school-issued Chromebooks per the ChromeOS support window, plus Firefox 88+ / Safari 14+ / Edge 90+)
-- **Bundle:** `true`, no externals (everything bundles in — the runtime has no JS dependencies by design)
-- **Minify:** `true`, always (not dev/prod conditional — the size budget applies in both)
-- **`write: false`:** the bundled JS stays in memory as a string. esbuild still returns it in `outputFiles`, and step 1b folds it into the generated TS module. The runtime is never written to disk as a `.js` file.
-- **Source map:** `external`, written to `packages/renderer/dist/runtime.js.map` as a dev-only debugging artifact (gitignored, never shipped — see the inline / source-maps decisions in **Architecture decisions** for rationale).
+The inlined model means the `publish-activity` Edge Function only uploads `index.html` to Storage — there is no separate `runtime.js` to upload. When the runtime moves to a separate-file CDN model (Phase 3+), this changes: the runtime ships as `runtime.js` + `runtime.js.map` at a stable CDN path, versioned by `runtimeVersion`, fetched per-page-load rather than inlined.
 
-**Step 1b — Generated string module.** The in-memory runtime text is serialized into `packages/renderer/src/runtime/generated/runtime-bundle.ts`, a one-export TS module:
+Phase 2.7+ will add a second esbuild entry for `graph-widget.js` (lazy-loaded, dynamic-imported by the main runtime), and Phase 2.9+ adds a third for `annotation-widget.js`. The main runtime stays small; pages without those block types pay nothing for them.
 
-```ts
-export const runtimeJs = "…minified IIFE…";
-```
-
-`document.ts` imports `runtimeJs` and inlines it into a `<script>` tag in every published page. The serialization is `JSON.stringify` (which handles backslashes, quotes, and newlines correctly), with one extra pass: any `</script` substring is rewritten to `<\/script` as defense-in-depth against the eventual HTML embedding. Minified JS realistically never contains that sequence, but `document.ts` applies the same guard to its config blob and the runtime string matches that discipline. The generated module is committed to git so a clean checkout can typecheck the renderer without first running the bundler (same convention as `supabase/functions/_shared/renderer.bundle.js`).
-
-**Size budget enforcement.** The script enforces the runtime size constraint from the bottom of this file directly: soft target 20 KiB (build prints a warning), hard ceiling 40 KiB (build throws and aborts). Phase 1 runtime sits around 2.6 KiB minified, well under both. The ceiling exists so a careless dependency or feature creep cannot silently bloat the student-facing bundle.
-
-**Step 2 — Renderer bundle (pre-existing, unchanged).** esbuild bundles `packages/renderer/src/index.ts` into `supabase/functions/_shared/renderer.bundle.js` — the file the Edge Functions import. This step is the original renderer build; step 1 was added in front of it without changing it. Different settings than step 1 because the consumer is different:
-
-- `format: 'esm'`, `platform: 'neutral'`, `target: 'es2022'` — the consumer is Deno Edge Functions, not a browser
-- `minify: false` — stack-trace readability in Edge Function logs matters more than bundle size for this consumer
-- `sourcemap: 'inline'`
-- No externals; KaTeX bundles in along with schema and renderer code
-
-`document.ts` lives inside this bundle and imports the generated module written in step 1b — which is the entire reason these two builds live in one script and must run in this order. Running the renderer build against a stale or missing generated module is the failure mode this ordering prevents.
-
-**`publish-activity` is untouched.** Because the runtime is inlined by `document.ts`, the Edge Function uploads only the rendered HTML per publish — no separate `runtime.js`, no source map, no extra Storage objects. The Edge Function code is unchanged from pre-Stage-11.
-
-**Re-run after** any change to `packages/schema`, `packages/renderer`, or the runtime source. The renderer bundle commits with the source it supports (STATE.md's standing constraints). CI should run `pnpm run bundle:renderer` on push so deploys never use a stale bundle — still a housekeeping todo as of Stage 11.
-
-**Lazy widgets (Phase 2.7, Phase 2.9).** Phase 2.7's interactive graph widget and Phase 2.9's annotation widget are lazy-loaded by the main runtime via dynamic import on pages that need them. Unlike the main runtime they cannot be inlined — they ship as separate files under the published activity's Storage path, fetched on demand. The main runtime stays small; pages without those block types pay nothing for them. The script grows when these land — the runtime build above becomes the first of N widget builds, each independently size-budgeted, each producing its own generated string module or (for the lazy widgets) a real `.js` file uploaded by `publish-activity`.
+Bundle size today: the runtime IIFE is roughly 3 KiB minified — well under the 20 KiB target.
 
 ## Error handling philosophy
 
-*Current state:* the runtime already does config-parse try/catch, submit-button disable on click, and fetch-error handling. The init-fallback ("basic submit only") mode and the `localStorage` retry queue described below are **[target — Stage 14]**.
+*Current state (post-Stage-12):* `parseConfig` is defensive (returns null on missing/malformed config or wrong-typed required field); `buildRefs` warns-and-skips malformed per-element data attributes rather than throwing. The runtime's response to a null config is "no-op runtime" — the page stays static. Form double-submit protection and fetch error handling are in place. Still target for Stage 13–14: try/catch around event handlers (blur, check-button click, hint toggle, submit) so a scoring bug for one section doesn't break the rest of the activity; localStorage retry queue for network failures during submit.
 
-**Init can fail.** Malformed HTML, missing critical attributes, JSON parse errors — all possible if a renderer bug ships. If init throws, catch the error, log it to console with context, and fall back to "basic submit only" mode: every blank's input is read on final submit, no checkpoint behavior, no feedback rendering. Students never see a broken page.
+**Init can fail.** Malformed HTML, missing critical attributes, JSON parse errors — all possible if a renderer bug ships. Stage 12's `init()` returns null on missing/malformed config; the caller (in `index.ts`) logs to console and falls back to a no-op runtime (the page renders read-only with no scoring or submission). The earlier "basic submit only" design was considered and rejected — when init can't fully construct the refs/state, a half-working runtime is worse for students than a clearly-static page. Future: per-element parse failures (handled today by warn-and-skip in `buildRefs`) could be surfaced more loudly in dev builds.
 
 **Event handlers can fail.** A scoring bug for one section's check button must not break the rest of the activity. Wrap every handler in try/catch. On error, log to console and leave the UI in its last known good state.
 
@@ -436,15 +426,20 @@ export const runtimeJs = "…minified IIFE…";
 
 ## Testing strategy
 
-**[target — Stages 11–14].** No runtime tests exist yet; `packages/renderer/src/runtime/__tests__/` is not yet created. The suite must exist BEFORE the dashboard is built — student-side trust depends on runtime correctness.
+The runtime test suite lives at `packages/renderer/src/runtime/__tests__/`. Three files today:
 
-**Pure functions:** Vitest, no DOM needed. Scoring, normalization, state mutators, the migrate-on-read for old submission shapes — all testable as plain functions of inputs to outputs.
+- **`strategies.test.ts`** (Stage 11 seed, pure-function): `evaluateAnswer` dispatch (list strategy variants, unknown-strategy warns + falls back to list), `computeScore` arithmetic (zero / nonzero branches). Runs in the default `node` environment.
+- **`init.test.ts`** (Stage 12 step 6a, JSDOM): `parseConfig` (valid blob / missing tag / malformed JSON / missing required field), `buildRefs` for sections / fill-in-blank blocks / blanks (including cross-references between maps), `createInitialState` defaults, `init()` orchestration (success path + null on missing config). Uses the `@vitest-environment jsdom` docblock.
+- **`blanks.test.ts`** (Stage 12 step 6b, JSDOM): `trimValue` whitespace rules, `scoreBlank` empty / match / non-match / trim-before-compare / acceptableAnswers, `applyBlankFeedback` class toggling including correct → incorrect transitions, `checkBlank` composition.
 
-**DOM integration:** JSDOM. Feed `init()` a known HTML string, simulate user events (click checkpoint button, type into blank, click submit) via JSDOM's event API, assert the state shape AND the rendered DOM state. The render() diffing guards make this assertion straightforward — if a value didn't change, the DOM didn't change.
+**Test coverage still target:** all three submission modes (single / locked / free) end-to-end, revision attempt increment, network failure retry path, error-boundary fallback per event handler. These land in Stage 13 (checkpoint scoring) and Stage 14 (submission flow / retry).
 
-**Test coverage targets:** all scoring strategy variants, all three submission modes (single / locked / free), revision attempt increment, network failure retry path, malformed-attribute graceful degradation, error-boundary fallback to basic submit mode.
+**Patterns:**
 
-Tests live at `packages/renderer/src/runtime/__tests__/`.
+- Pure-function tests run in node (no docblock).
+- JSDOM-backed tests add `@vitest-environment jsdom` as a per-file docblock — the other files stay node so they're not paying for JSDOM setup.
+- For JSDOM tests, build a minimal HTML fragment that mirrors what the renderer emits for the case under test, install it into `document.body`, run the function under test, assert the state shape AND the rendered DOM state. The render() diffing guards (Stage 13) will make DOM-mutation assertions straightforward — if a value didn't change, the DOM didn't change.
+- JSDOM fragments are hand-written rather than generated by calling `renderActivity()` from `@activity/renderer`. The goal is to test runtime code in isolation against the data-attribute contract; a renderer regression would surface as a mismatch caught by the broader `render.test.ts` suite, not by these tests.
 
 ## Standing constraints
 
@@ -454,7 +449,7 @@ Tests live at `packages/renderer/src/runtime/__tests__/`.
 
 - **Browser support:** Chrome 90+, Firefox 88+, Safari 14+, Edge 90+. Covers all school-issued Chromebooks per Google's ChromeOS support window.
 
-- **`render()` is the only DOM mutator** (target — Stages 12–14). Every other function reads from state, never writes to DOM. Every DOM mutation in render() is guarded by a change check.
+- **`render()` is the only DOM mutator** (target — Stage 13). Every other function reads from state, never writes to DOM. Every DOM mutation in render() is guarded by a change check. Stage 12 seeded this with `applyBlankFeedback` (DOM-only, no state read); Stage 13 generalizes it.
 
 - **All attribute reads have a fallback.** No `dataset.X` access without `?? default`. No `JSON.parse(...)` without try/catch.
 
@@ -471,7 +466,6 @@ Tests live at `packages/renderer/src/runtime/__tests__/`.
 
 ## Open questions / deferred decisions
 
-
 - **CDN-hosted shared runtime (Phase 3+):** when this moves from versioned-per-publish to CDN-hosted, a `runtimeVersion` selector picks which CDN runtime file to load. Migration is additive. Decide CDN provider when the move is made (Cloudflare or Supabase Storage with long cache TTL are both reasonable).
 
 - **Service worker for offline mode:** Phase 1 has (target) localStorage retry. Full offline (compose answers without connectivity, sync later) is a Phase 3+ consideration. A service worker could intercept submission failures more elegantly than localStorage retry, but adds complexity and an install step.
@@ -486,8 +480,6 @@ Tests live at `packages/renderer/src/runtime/__tests__/`.
 
 - **Audio narration of activity prose (Phase 4 UDL):** browser Web Speech API vs server-rendered audio files. The runtime side is a play-button + word-level highlight handler either way; the question is where the audio comes from.
 
-- **Blank-token wrapper element (Stage 12–13):** the feedback `<span>` for a blank cannot be a child of the `<input>` (a void element), so it must be a sibling — which means the blank token needs a wrapper. The renderer emits a bare `<input class="blank">` with no wrapper today. Decide the wrapper's tag and class, and whether the `blank` class moves onto it, when the feedback-rendering work starts. Until then the only frozen part of the blank-token contract is the bare `<input>`.
-
 ## Things NOT to do
 
 - **Don't reintroduce `#activity-root`.** The document-root config mechanism is the `<script id="activity-config" type="application/json">` blob plus, where CSS needs them, `data-*` attributes on `activity-container` — see the Document root section. An earlier `#activity-root`-with-all-data-attributes design was superseded; don't resurrect it.
@@ -500,7 +492,7 @@ Tests live at `packages/renderer/src/runtime/__tests__/`.
 
 - **Don't trust client-supplied attempt_number.** The Edge Function derives `attempt_number` server-side from `max(attempt_number) + 1` for the student's identity. The runtime sends a local guess for optimistic UI, but the server's value is canonical.
 
-- **Don't reveal solutions before checking.** The runtime reads `data-solution` into memory but does NOT render it into the DOM until the student has checked that section (or submitted, in `single` mode). The solution being in HTML source is the existing security ceiling; don't make it worse by rendering it where students see it without working through the problem.
+- **Don't reveal solutions before checking.** The renderer emits a `.js-solution` slot containing the solution text with `hidden` set by default. The runtime's job at check time (Stage 13) is to toggle that `hidden` attribute. Until checking, the slot stays hidden — making it visible early defeats the pedagogical purpose. (The solution text being in HTML source at all is the existing security ceiling and is acceptable for formative assessment; the "don't render visible early" rule is the additional in-runtime discipline.)
 
 - **Don't make breaking changes to the data-attribute contract.** Add new attributes; never rename or remove existing ones. A renamed attribute breaks every activity published before the rename, forever, because that HTML is static and immutable in Storage.
 
