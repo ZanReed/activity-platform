@@ -1,27 +1,34 @@
 // =============================================================================
-// runtime/blanks.ts — Blank scoring + state updates
+// runtime/blanks.ts — Blank scoring, state updates, per-blank wiring
 // -----------------------------------------------------------------------------
-// Post-Stage-13-Session-1: the DOM-mutation layer is gone from this file.
-// scoreBlank stays as pure scoring; the renamed scoreBlankAndUpdateState
-// (was checkBlank) composes scoring with a state write but no DOM write —
-// render() handles DOM updates downstream.
+// Post-Stage-13-Session-2: covers all per-blank concerns — scoring, mistake
+// feedback dispatch, edit-to-clear, and the hint toggle. No DOM mutation
+// happens here; every state change routes through onUpdate → render.
 //
-// Three-layer split now:
-//   scoreBlank                — pure: ref + typed value → true/false/null
-//   scoreBlankAndUpdateState  — composition: read ref.input.value, score,
-//                               write to state.blanks[id]. No DOM writes.
-//   wireBlanks                — attaches blur handlers that call the above
-//                               and then trigger an onUpdate callback
-//                               (which the caller wires to render).
+// Layered API:
+//   trimValue                  — whitespace rule, shared with scoring + matching
+//   scoreBlank                 — pure: ref + typed → true/false/null
+//   matchMistakeFeedback       — pure: ref + typed → matched feedback text | null
+//   scoreBlankAndUpdateState   — composition: read input, score, write to state
+//                                (result + matchedMistake). No DOM writes.
+//   clearBlankState            — clear stale result + matchedMistake when the
+//                                student edits a previously-scored blank.
+//                                Returns boolean: did anything actually change?
+//                                The caller uses that to skip onUpdate when
+//                                there's nothing to render — avoids cascading
+//                                renders on every keystroke during initial
+//                                typing.
+//   wireBlanks                 — attaches blur (score) + input (clear) handlers
+//   wireHints                  — attaches click handlers to hint buttons
 //
-// Trim rule: leading/trailing whitespace only. Case-SENSITIVE comparison
-// matches what teachers expect for math (variable names, function names).
+// Mistake matching rule (Session 2 lock-in): exact string match against
+// BlankRef.mistakeFeedback entries' `match` field, case-sensitive, trim
+// before compare, first match wins. Mirrors the scoring rule so the
+// student's mental model stays consistent.
 //
-// Architectural note: evaluateAnswer (from strategies.ts) still reads
-// data-* off the ref.input element. That's the same small architectural
-// leak acknowledged in Stage 12; STATE.md flags refactoring as a Stage 13
-// candidate "if it becomes friction." It hasn't been friction in Session 1's
-// migration, so it stays as-is.
+// Architectural note: evaluateAnswer (strategies.ts) still reads data-*
+// off ref.input — same small leak acknowledged in Stage 12. It hasn't
+// been friction; STATE.md keeps it on the "refactor if friction" list.
 // =============================================================================
 
 import type { BlankRef, Refs } from './refs.js';
@@ -45,46 +52,94 @@ export function scoreBlank(ref: BlankRef, typed: string): boolean | null {
 }
 
 /**
- * Read ref.input.value, score it, write the result to state.blanks[id].
- * Returns the result so callers (gatherResponses) can use it directly.
+ * Pure: find a mistake-feedback entry whose `match` equals the trimmed
+ * typed value (case-sensitive). Returns the feedback text, or null when
+ * no entry matches.
  *
- * No DOM writes here — render(state, refs) handles propagation to the
- * .correct/.incorrect classes (and, in Session 2, the feedback slot text,
- * hint affordance state, and locked-mode input.disabled).
+ * Empty/whitespace-only typed values always return null — even if the
+ * teacher authored an entry with an empty match string, an empty answer
+ * is "unscored" rather than "wrong in a specific way," so no targeted
+ * feedback applies.
  *
- * id is passed explicitly rather than read from ref.input.dataset.blankId
- * to keep DOM reads out of the scoring path (RUNTIME.md "Don't query the
- * DOM inside scoring or state functions"). The caller has the id from
- * the Map iteration.
+ * First match wins. Teachers shouldn't author duplicate match strings;
+ * if they do, the array order in mistakeFeedback wins (which is document
+ * order from the schema).
+ */
+export function matchMistakeFeedback(
+  ref: BlankRef,
+  typed: string,
+): string | null {
+  const trimmed = trimValue(typed);
+  if (trimmed === '') return null;
+  for (const entry of ref.mistakeFeedback) {
+    if (entry.match === trimmed) return entry.feedback;
+  }
+  return null;
+}
+
+/**
+ * Read ref.input.value, score it, write result + matchedMistake to
+ * state.blanks[id]. Returns the result so callers (gatherResponses) can
+ * use it directly.
  *
- * Was checkBlank in Stage 12. Renamed because "check" hid the side effect
- * — the new name makes the state write explicit.
+ * matchedMistake is only populated when result === false AND a match
+ * exists. Correct or unscored answers always clear it — a stale message
+ * from a previous incorrect attempt would be confusing after the student
+ * fixes the answer.
  *
- * Silently no-ops the state write when state.blanks[id] is absent. This
- * is a graceful-degradation guard: if the refs map and state map ever
- * disagree (shouldn't happen post-init, but defense-in-depth), scoring
- * still returns the result without throwing.
+ * No DOM writes — render(state, refs) handles propagation.
+ *
+ * Silently no-ops the state write when state.blanks[id] is absent
+ * (graceful degradation — refs and state should always agree post-init,
+ * but defense-in-depth).
  */
 export function scoreBlankAndUpdateState(
   state: RuntimeState,
   id: string,
   ref: BlankRef,
 ): boolean | null {
-  const result = scoreBlank(ref, ref.input.value);
+  const typed = ref.input.value;
+  const result = scoreBlank(ref, typed);
   const blankState = state.blanks[id];
   if (blankState) {
     blankState.result = result;
-    // Session 2 will populate blankState.matchedMistake here, scanning
-    // ref.mistakeFeedback for a match against ref.input.value when result
-    // is false.
+    blankState.matchedMistake =
+    result === false ? matchMistakeFeedback(ref, typed) : null;
   }
   return result;
 }
 
 /**
- * Wire every blank in refs.blanks to validate on blur. After scoring,
- * the onUpdate callback fires — index.ts wires it to render(state, refs)
- * so the DOM reflects the new state in one trip.
+ * Clear stale result + matchedMistake on a blank. Used by the input
+ * event handler so an edited answer doesn't keep its green "correct"
+ * border (or stale mistake text) until the student blurs again.
+ *
+ * Returns true when anything actually changed; false when state was
+ * already clean. The caller uses this to skip a needless render — on
+ * keystrokes 2..N of a fresh edit there's nothing to clear, so onUpdate
+ * isn't called and render() doesn't run.
+ *
+ * Does NOT touch hintRevealed. Editing a blank shouldn't collapse an
+ * open hint — the hint is independent of the answer state.
+ */
+export function clearBlankState(state: RuntimeState, id: string): boolean {
+  const blankState = state.blanks[id];
+  if (!blankState) return false;
+  if (blankState.result === null && blankState.matchedMistake === null) {
+    return false;
+  }
+  blankState.result = null;
+  blankState.matchedMistake = null;
+  return true;
+}
+
+/**
+ * Wire every blank's blur (commit + score) and input (clear stale state).
+ * After either handler runs, the onUpdate callback fires — index.ts wires
+ * it to render(state, refs).
+ *
+ * Input handler is gated by clearBlankState's return — keystrokes that
+ * don't change state don't trigger renders.
  */
 export function wireBlanks(
   state: RuntimeState,
@@ -94,6 +149,35 @@ export function wireBlanks(
   for (const [id, ref] of refs.blanks) {
     ref.input.addEventListener('blur', () => {
       scoreBlankAndUpdateState(state, id, ref);
+      onUpdate();
+    });
+    ref.input.addEventListener('input', () => {
+      if (clearBlankState(state, id)) {
+        onUpdate();
+      }
+    });
+  }
+}
+
+/**
+ * Wire every blank that has a hint button. Click toggles hintRevealed;
+ * render handles the button's aria-expanded and the text span's hidden.
+ *
+ * Blanks without an authored hint have hintButton === null and are
+ * skipped silently — no hint affordance is emitted by the renderer for
+ * those blanks.
+ */
+export function wireHints(
+  state: RuntimeState,
+  refs: Refs,
+  onUpdate: () => void,
+): void {
+  for (const [id, ref] of refs.blanks) {
+    if (!ref.hintButton) continue;
+    ref.hintButton.addEventListener('click', () => {
+      const blankState = state.blanks[id];
+      if (!blankState) return;
+      blankState.hintRevealed = !blankState.hintRevealed;
       onUpdate();
     });
   }

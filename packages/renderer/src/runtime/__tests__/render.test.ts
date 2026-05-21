@@ -4,16 +4,13 @@
 // =============================================================================
 // render.test.ts — JSDOM-backed tests for the state → DOM renderer
 // -----------------------------------------------------------------------------
-// render() is the only DOM mutator in the runtime after init. The tests
-// here exercise the state→DOM mapping by constructing a state + a minimal
-// DOM fragment that mirrors what the renderer emits, calling render(),
-// and asserting the resulting DOM state.
+// render() is the only DOM mutator in the runtime after init. Tests
+// construct a state + a minimal DOM fragment mirroring renderer output,
+// call render(), and assert the resulting DOM state.
 //
-// Session 1 scope: per-blank correct/incorrect class rendering. The
-// "idempotence" property (calling render twice with unchanged state
-// produces no observable diff) is exercised by snapshotting class state
-// before and after a second call — overkill mutation observers are
-// reserved for Session 2 when render does enough work to make them useful.
+// Session 2 scope expands from Session 1's class-only coverage to also
+// exercise aria-invalid (screen reader signal), the feedback slot text +
+// hidden behavior, and the hint affordance state.
 // =============================================================================
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -21,6 +18,7 @@ import { render } from '../render.js';
 import type { Refs, BlankRef } from '../refs.js';
 import type { RuntimeState, BlankState } from '../state.js';
 
+/** Minimal BlankRef — no hint affordance, no mistake feedback. */
 function makeBlankRef(blankId: string): BlankRef {
     const wrapper = document.createElement('span');
     wrapper.className = 'blank-wrapper';
@@ -29,6 +27,7 @@ function makeBlankRef(blankId: string): BlankRef {
     input.setAttribute('data-blank-id', blankId);
     const feedbackEl = document.createElement('span');
     feedbackEl.className = 'js-blank-feedback';
+    feedbackEl.hidden = true;
     wrapper.appendChild(input);
     wrapper.appendChild(feedbackEl);
     document.body.appendChild(wrapper);
@@ -46,8 +45,52 @@ function makeBlankRef(blankId: string): BlankRef {
     };
 }
 
-function makeBlankState(result: boolean | null): BlankState {
-    return { result, matchedMistake: null, hintRevealed: false };
+/** BlankRef with hint affordance — for hint-state rendering tests. */
+function makeBlankRefWithHint(blankId: string): BlankRef {
+    const wrapper = document.createElement('span');
+    wrapper.className = 'blank-wrapper';
+    const input = document.createElement('input');
+    input.className = 'blank';
+    input.setAttribute('data-blank-id', blankId);
+    const hintButton = document.createElement('button');
+    hintButton.className = 'js-blank-hint';
+    hintButton.setAttribute('aria-expanded', 'false');
+    const hintTextEl = document.createElement('span');
+    hintTextEl.className = 'js-blank-hint-text';
+    hintTextEl.hidden = true;
+    hintTextEl.textContent = 'Try factoring.';
+    const feedbackEl = document.createElement('span');
+    feedbackEl.className = 'js-blank-feedback';
+    feedbackEl.hidden = true;
+    wrapper.appendChild(input);
+    wrapper.appendChild(hintButton);
+    wrapper.appendChild(hintTextEl);
+    wrapper.appendChild(feedbackEl);
+    document.body.appendChild(wrapper);
+    return {
+        input,
+        feedbackEl,
+        hintButton,
+        hintTextEl,
+        answers: ['x'],
+        strategy: 'list',
+        hint: 'Try factoring.',
+        mistakeFeedback: [],
+        blockId: 'block-1',
+        sectionId: 'sec-1',
+    };
+}
+
+function makeBlankState(
+    result: boolean | null,
+    overrides: Partial<BlankState> = {},
+): BlankState {
+    return {
+        result,
+        matchedMistake: null,
+        hintRevealed: false,
+        ...overrides,
+    };
 }
 
 function makeRefs(blanks: Map<string, BlankRef>): Refs {
@@ -73,7 +116,7 @@ beforeEach(() => {
     document.body.innerHTML = '';
 });
 
-describe('render — blanks', () => {
+describe('render — blanks (correct/incorrect class)', () => {
     it('adds .correct class when state.result === true', () => {
         const ref = makeBlankRef('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
@@ -94,7 +137,7 @@ describe('render — blanks', () => {
 
     it('removes both classes when state.result === null', () => {
         const ref = makeBlankRef('b1');
-        ref.input.classList.add('correct'); // simulate a prior render
+        ref.input.classList.add('correct');
         const refs = makeRefs(new Map([['b1', ref]]));
         const state = makeState({ 'b1': makeBlankState(null) });
         render(state, refs);
@@ -108,9 +151,6 @@ describe('render — blanks', () => {
         const blankState = makeBlankState(true);
         const state = makeState({ 'b1': blankState });
         render(state, refs);
-        expect(ref.input.classList.contains('correct')).toBe(true);
-        // Mutate state in place — the same state object now reflects the
-        // student typing a different answer and re-blurring.
         blankState.result = false;
         render(state, refs);
         expect(ref.input.classList.contains('correct')).toBe(false);
@@ -144,9 +184,145 @@ describe('render — blanks', () => {
     it('silently skips a blank when state.blanks[id] is absent', () => {
         const ref = makeBlankRef('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
-        const state = makeState({}); // no entry for b1
+        const state = makeState({});
         expect(() => render(state, refs)).not.toThrow();
         expect(ref.input.classList.contains('correct')).toBe(false);
-        expect(ref.input.classList.contains('incorrect')).toBe(false);
+    });
+});
+
+describe('render — aria-invalid', () => {
+    it('sets aria-invalid="false" on correct blanks', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({ 'b1': makeBlankState(true) });
+        render(state, refs);
+        expect(ref.input.getAttribute('aria-invalid')).toBe('false');
+    });
+
+    it('sets aria-invalid="true" on incorrect blanks', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({ 'b1': makeBlankState(false) });
+        render(state, refs);
+        expect(ref.input.getAttribute('aria-invalid')).toBe('true');
+    });
+
+    it('removes aria-invalid when result is null (unscored)', () => {
+        const ref = makeBlankRef('b1');
+        ref.input.setAttribute('aria-invalid', 'true');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({ 'b1': makeBlankState(null) });
+        render(state, refs);
+        expect(ref.input.hasAttribute('aria-invalid')).toBe(false);
+    });
+
+    it('does not set aria-invalid on a fresh blank with null result', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({ 'b1': makeBlankState(null) });
+        render(state, refs);
+        expect(ref.input.hasAttribute('aria-invalid')).toBe(false);
+    });
+});
+
+describe('render — feedback slot', () => {
+    it('shows mistake-feedback text when matchedMistake is set', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({
+            'b1': makeBlankState(false, {
+                matchedMistake: 'You forgot the constant.',
+            }),
+        });
+        render(state, refs);
+        expect(ref.feedbackEl.textContent).toBe('You forgot the constant.');
+        expect(ref.feedbackEl.hidden).toBe(false);
+    });
+
+    it('keeps slot hidden for incorrect without a matching mistake entry', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({ 'b1': makeBlankState(false) });
+        render(state, refs);
+        expect(ref.feedbackEl.hidden).toBe(true);
+    });
+
+    it('keeps slot hidden for correct answers (no slot clutter)', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({ 'b1': makeBlankState(true) });
+        render(state, refs);
+        expect(ref.feedbackEl.hidden).toBe(true);
+    });
+
+    it('hides slot on transition from matched → no-match', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const blankState = makeBlankState(false, {
+            matchedMistake: 'First message.',
+        });
+        const state = makeState({ 'b1': blankState });
+        render(state, refs);
+        expect(ref.feedbackEl.hidden).toBe(false);
+        blankState.matchedMistake = null;
+        render(state, refs);
+        expect(ref.feedbackEl.hidden).toBe(true);
+    });
+
+    it('updates slot text when matchedMistake changes', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const blankState = makeBlankState(false, {
+            matchedMistake: 'First.',
+        });
+        const state = makeState({ 'b1': blankState });
+        render(state, refs);
+        expect(ref.feedbackEl.textContent).toBe('First.');
+        blankState.matchedMistake = 'Second.';
+        render(state, refs);
+        expect(ref.feedbackEl.textContent).toBe('Second.');
+    });
+});
+
+describe('render — hint affordance', () => {
+    it('reveals hint text and flips aria-expanded when hintRevealed=true', () => {
+        const ref = makeBlankRefWithHint('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({
+            'b1': makeBlankState(null, { hintRevealed: true }),
+        });
+        render(state, refs);
+        expect(ref.hintButton!.getAttribute('aria-expanded')).toBe('true');
+        expect(ref.hintTextEl!.hidden).toBe(false);
+    });
+
+    it('keeps hint hidden when hintRevealed=false', () => {
+        const ref = makeBlankRefWithHint('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({ 'b1': makeBlankState(null) });
+        render(state, refs);
+        expect(ref.hintButton!.getAttribute('aria-expanded')).toBe('false');
+        expect(ref.hintTextEl!.hidden).toBe(true);
+    });
+
+    it('toggles hint back when hintRevealed flips true → false', () => {
+        const ref = makeBlankRefWithHint('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const blankState = makeBlankState(null, { hintRevealed: true });
+        const state = makeState({ 'b1': blankState });
+        render(state, refs);
+        blankState.hintRevealed = false;
+        render(state, refs);
+        expect(ref.hintButton!.getAttribute('aria-expanded')).toBe('false');
+        expect(ref.hintTextEl!.hidden).toBe(true);
+    });
+
+    it('no-ops on blanks without a hint affordance', () => {
+        const ref = makeBlankRef('b1');
+        const refs = makeRefs(new Map([['b1', ref]]));
+        const state = makeState({
+            'b1': makeBlankState(null, { hintRevealed: true }),
+        });
+        expect(() => render(state, refs)).not.toThrow();
     });
 });

@@ -5,25 +5,25 @@
 // scripts/bundle-renderer.mjs into a generated string module, which
 // document.ts inlines into a <script> tag in every published activity page.
 //
-// Post-Session-1 orchestration:
+// Post-Session-2 orchestration:
 //   1. Call init() — builds config + refs + state in one DOM pass.
 //   2. On null (missing/malformed config), log + return. The page stays
-//      static (no scoring, no submission), which is the graceful-
-//      degradation contract RUNTIME.md promises.
+//      static, which is the graceful-degradation contract RUNTIME.md promises.
 //   3. Define onUpdate as the single render trigger — every state mutation
-//      site (blur handler, submit's gather pass) flows through here.
-//   4. Wire blanks and the submit button against refs + state + onUpdate.
+//      site (blur, input, hint click, future check button, future submit)
+//      flows through here.
+//   4. Wire blanks (blur + input handlers), hints (click handler), and the
+//      submit button against refs + state + onUpdate.
 //
-// Name persistence: the value is loaded from localStorage before wiring
-// and mirrored to state.studentName so the runtime has a single source of
-// truth post-init. saveName() runs inside submit() once the name is
-// validated.
+// Name persistence: loaded from localStorage before wiring and mirrored to
+// state.studentName so the runtime has a single source of truth post-init.
+// saveName() runs inside submit() once the name is validated.
 // =============================================================================
 
 import { $ } from './dom.js';
 import { init } from './init.js';
 import { loadStoredName } from './storage.js';
-import { wireBlanks } from './blanks.js';
+import { wireBlanks, wireHints } from './blanks.js';
 import { render } from './render.js';
 import { submit } from './submission.js';
 
@@ -47,6 +47,7 @@ function bootstrap(): void {
   const onUpdate = (): void => render(state, refs);
 
   wireBlanks(state, refs, onUpdate);
+  wireHints(state, refs, onUpdate);
 
   const button = $<HTMLButtonElement>('.submit-button');
   if (button) {
