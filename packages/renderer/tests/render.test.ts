@@ -73,6 +73,56 @@ describe('renderActivity (full document)', () => {
   });
 });
 
+describe('Activity container + config blob (Stage 12 step 5)', () => {
+  it('emits data-activity-type on the activity-container', () => {
+    // Sourced from doc.meta.activityType; the CSS hook for layout variants
+    // ([data-activity-type="exit_ticket"] …) that distinguish a warm-up
+    // from a worksheet from a review without runtime involvement.
+    const doc = createEmptyDocument({ title: 'T', activityType: 'exit_ticket' });
+    const html = renderActivity(doc, ctx);
+    expect(html).toContain(
+      '<main class="activity-container" data-activity-type="exit_ticket">',
+    );
+  });
+
+  it('defaults activityType to worksheet via the factory + schema default', () => {
+    // Factory createEmptyDocument doesn't set activityType explicitly here,
+    // so its default ('worksheet') surfaces — matching the schema default.
+    const doc = createEmptyDocument({ title: 'T' });
+    const html = renderActivity(doc, ctx);
+    expect(html).toContain('data-activity-type="worksheet"');
+  });
+
+  it('includes submissionMode, revisionMode, gradingMode in the activity-config blob', () => {
+    // The Stage 13 runtime reads these from the JSON blob:
+    //   submissionMode → input-lockdown behavior in locked mode vs free
+    //     revision in free mode (decision 4 means data-submission-mode is
+    //     NOT on the container; the blob is the only home).
+    //   revisionMode → post-final-submit resubmission permission.
+    //   gradingMode → Phase 2.6 forward-compat; today auto everywhere.
+    const doc = createEmptyDocument({
+      title: 'T',
+      submissionMode: 'locked',
+      revisionMode: 'locked',
+    });
+    const html = renderActivity(doc, ctx);
+    expect(html).toContain('"submissionMode":"locked"');
+    expect(html).toContain('"revisionMode":"locked"');
+    expect(html).toContain('"gradingMode":"auto"');
+  });
+
+  it('reflects free-mode defaults in the config blob', () => {
+    // The factory defaults submissionMode='free', revisionMode='free',
+    // gradingMode='auto'. Explicit assertion guards against silent default
+    // drift if the factory or schema defaults change.
+    const doc = createEmptyDocument({ title: 'T' });
+    const html = renderActivity(doc, ctx);
+    expect(html).toContain('"submissionMode":"free"');
+    expect(html).toContain('"revisionMode":"free"');
+    expect(html).toContain('"gradingMode":"auto"');
+  });
+});
+
 describe('renderBody (body fragment only)', () => {
   it('produces no <html>/<body> wrapper', () => {
     const doc = createEmptyDocument({ title: 'Test' });
@@ -117,9 +167,6 @@ describe('renderBody (body fragment only)', () => {
     expect(body).toContain('class="block block-fill-in-blank"');
     expect(body).toContain('class="blank"');
 
-    // Content survives rendering — not just the wrapper class. Without these,
-    // a bug that coerces inline content to a wrong value (the `'">' + +content`
-    // → "NaN" bug) passes every class check above undetected.
     expect(body).toContain('A paragraph.');
     expect(body).toContain('A heading');
     expect(body).toContain('Heads up.');
@@ -448,10 +495,6 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
 
 describe('Section checkpoint emission (Stage 12 step 4)', () => {
   it('omits all checkpoint markup in single submissionMode', () => {
-    // Decision 4: single mode = no checkpoint contract at all. Even when
-    // a section is flagged isCheckpoint, single mode strips the attribute
-    // and never emits the button + score elements. The runtime sees a
-    // section with no checkpoint markup and treats the activity as flat.
     const doc = createEmptyDocument({ title: 'T', submissionMode: 'single' });
     doc.sections[0]!.isCheckpoint = true;
     const body = renderBody(doc);
@@ -461,10 +504,6 @@ describe('Section checkpoint emission (Stage 12 step 4)', () => {
   });
 
   it('emits data-is-checkpoint on every section in locked submissionMode', () => {
-    // In locked/free mode every section carries data-is-checkpoint with
-    // a true/false value. The PRESENCE of the attribute signals "this
-    // activity is in checkpoint mode"; the VALUE signals whether THIS
-    // section is one.
     const doc = createEmptyDocument({ title: 'T', submissionMode: 'locked' });
     doc.sections[0]!.isCheckpoint = false;
     const second = createSection();
@@ -476,8 +515,6 @@ describe('Section checkpoint emission (Stage 12 step 4)', () => {
   });
 
   it('emits data-is-checkpoint on every section in free submissionMode', () => {
-    // Free mode has the same checkpoint contract as locked — the
-    // difference is per-blank revision behavior, not per-section markup.
     const doc = createEmptyDocument({ title: 'T', submissionMode: 'free' });
     doc.sections[0]!.isCheckpoint = false;
     const body = renderBody(doc);
@@ -502,9 +539,6 @@ describe('Section checkpoint emission (Stage 12 step 4)', () => {
   });
 
   it('omits button + score on non-checkpoint sections (attribute still present)', () => {
-    // Per-section isCheckpoint=false in locked/free mode: the attribute
-    // is there (so the runtime knows it's a non-checkpoint section in a
-    // checkpoint-capable activity), but no button/score render for it.
     const doc = createEmptyDocument({ title: 'T', submissionMode: 'free' });
     doc.sections[0]!.isCheckpoint = false;
     const body = renderBody(doc);
@@ -514,8 +548,6 @@ describe('Section checkpoint emission (Stage 12 step 4)', () => {
   });
 
   it('places the checkpoint button after the section blocks', () => {
-    // Reading flow: blocks first, check button after. Matches the natural
-    // worksheet pattern (work through the problems, then check).
     const doc = createEmptyDocument({ title: 'T', submissionMode: 'free' });
     const section = doc.sections[0]!;
     section.isCheckpoint = true;
@@ -559,9 +591,9 @@ describe('Problem numbering', () => {
     const overridden = createProblemBlock();
     overridden.number = 99;
     doc.sections[0]!.blocks = [
-      createProblemBlock(), // auto = 1
-     overridden,           // shows 99, counter advances to 2
-     createProblemBlock(), // auto = 3
+      createProblemBlock(),
+     overridden,
+     createProblemBlock(),
     ];
     const body = renderBody(doc);
     expect(body).toContain('>1.<');

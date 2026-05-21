@@ -3,18 +3,33 @@
 // -----------------------------------------------------------------------------
 // Produces a self-contained HTML file: KaTeX CSS via CDN (cached well across
 // sites), block CSS inlined, runtime JS inlined, an activity-config script
-// tag with the runtime parameters (activity id, submission endpoint).
+// tag with the runtime parameters (activity id, submission endpoint, +
+// activity-level behavior modes since Stage 12 step 5).
 //
-// The runtime needs to know:
-//   * activityId — included in submission payload so the Edge Function knows
-//     which activity the submission belongs to
-//   * submissionEndpoint — URL to POST submissions to
+// Two paths into the runtime, one rule each (RUNTIME.md split-by-purpose):
 //
-// These come from the RenderContext passed in at render time. The renderer
-// itself stays pure (no I/O — it runs in Edge Functions): the runtime JS is
-// baked in at build time as a string constant (runtime/generated/
-// runtime-bundle.ts, produced by scripts/bundle-renderer.mjs), never read from
-// disk here. RenderContext values flow through args, never from environment.
+//   CSS hooks → data-* attributes on .activity-container.
+//     The only one today is data-activity-type, sourced from
+//     doc.meta.activityType. Lets layout variants live in plain CSS
+//     ([data-activity-type="exit_ticket"] …) without runtime involvement.
+//
+//   JS-only config → the activity-config JSON blob.
+//     activityId, versionNum, submissionEndpoint come from RenderContext
+//     (per-render values; not in the document).
+//     submissionMode, revisionMode, gradingMode come from doc.meta
+//     (document-level values; control checkpoint behavior, post-submit
+//     resubmission permission, and forward-compat manual-grading
+//     skipping respectively).
+//
+// data-submission-mode is deliberately NOT on the container — decision 4
+// elides checkpoint markup entirely in 'single' mode, so CSS never needs
+// to branch on the attribute. submissionMode lives only in the blob.
+//
+// The renderer itself stays pure (no I/O — runs in Edge Functions): the
+// runtime JS is baked in at build time as a string constant
+// (runtime/generated/runtime-bundle.ts, produced by scripts/bundle-renderer.mjs),
+// never read from disk here. RenderContext values flow through args, never
+// from environment.
 // =============================================================================
 
 import type { ActivityDocument } from '@activity/schema';
@@ -35,17 +50,26 @@ export interface RenderContext {
 }
 
 const DEFAULT_KATEX_CSS =
-  'https://cdn.jsdelivr.net/npm/[email protected]/dist/katex.min.css';
+'https://cdn.jsdelivr.net/npm/[email protected]/dist/katex.min.css';
 
 export function renderActivity(doc: ActivityDocument, ctx: RenderContext): string {
   const body = renderBody(doc);
   const katexCss = ctx.katexCssUrl ?? DEFAULT_KATEX_CSS;
 
   // Embedded JSON config that the runtime reads at startup.
+  // Per-render fields (from RenderContext) plus activity-level behavior
+  // modes (from doc.meta). The Stage 13 runtime reads submissionMode to
+  // distinguish locked-mode input lockdown from free-mode revision;
+  // revisionMode controls resubmission permission after final submit;
+  // gradingMode is Phase 2.6 forward-compat (auto for Phase 1; manual /
+  // mixed land when manually-graded block types arrive).
   const config = {
     activityId: ctx.activityId,
     versionNum: ctx.versionNum,
     submissionEndpoint: ctx.submissionEndpoint,
+    submissionMode: doc.meta.submissionMode,
+    revisionMode: doc.meta.revisionMode,
+    gradingMode: doc.meta.gradingMode,
   };
 
   // Activity header text
@@ -64,47 +88,51 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     '<style>' + blockStyles + '</style>' +
     '</head>' +
     '<body>' +
-    '<main class="activity-container">' +
+    // data-activity-type is the CSS hook for activity-type variants. The
+    // attribute value is constrained by the schema enum (worksheet |
+    // exit_ticket | warm_up | review); attr() is defensive regardless.
+    '<main class="activity-container"' +
+    ' data-activity-type="' + attr(doc.meta.activityType) + '">' +
 
     // Header
     '<header class="activity-header">' +
     '<h1>' + escape(doc.meta.title) + '</h1>' +
-    (headerMeta.length > 0
-      ? '<div class="meta">' + headerMeta.join(' &middot; ') + '</div>'
-      : '') +
-    '</header>' +
+  (headerMeta.length > 0
+  ? '<div class="meta">' + headerMeta.join(' &middot; ') + '</div>'
+  : '') +
+  '</header>' +
 
-    // Identity prompt (Pattern B: name field is upfront, validated at submit)
-    '<div class="identity-prompt">' +
-    '<label for="student-name">Your name:</label>' +
-    '<input id="student-name" type="text" autocomplete="name" />' +
-    '</div>' +
+  // Identity prompt (Pattern B: name field is upfront, validated at submit)
+  '<div class="identity-prompt">' +
+  '<label for="student-name">Your name:</label>' +
+  '<input id="student-name" type="text" autocomplete="name" />' +
+  '</div>' +
 
-    // Body
-    body +
+  // Body
+  body +
 
-    // Submit area
-    '<div class="submit-area">' +
-    '<button type="button" class="submit-button">Submit</button>' +
-    '<span class="submit-status"></span>' +
-    '<span class="score-display"></span>' +
-    '</div>' +
+  // Submit area
+  '<div class="submit-area">' +
+  '<button type="button" class="submit-button">Submit</button>' +
+  '<span class="submit-status"></span>' +
+  '<span class="score-display"></span>' +
+  '</div>' +
 
-    '</main>' +
+  '</main>' +
 
-    // Runtime config (read by runtime JS)
-    '<script id="activity-config" type="application/json">' +
-    // Note: this is JSON inside a <script>, NOT inline JS — only </script>
-    // could break out of it. Replace any literal </script> in the JSON to
-    // be safe (config values are renderer-controlled, but defense in depth).
-    JSON.stringify(config).replace(/<\/script/gi, '<\\/script') +
-    '</script>' +
+  // Runtime config (read by runtime JS)
+  '<script id="activity-config" type="application/json">' +
+  // Note: this is JSON inside a <script>, NOT inline JS — only </script>
+  // could break out of it. Replace any literal </script> in the JSON to
+  // be safe (config values are renderer-controlled, but defense in depth).
+  JSON.stringify(config).replace(/<\/script/gi, '<\\/script') +
+  '</script>' +
 
-    // Runtime JS (vanilla, no framework) — baked in at build time as a string
-    // constant by scripts/bundle-renderer.mjs; see runtime/generated/.
-    '<script>' + runtimeJs + '</script>' +
+  // Runtime JS (vanilla, no framework) — baked in at build time as a string
+  // constant by scripts/bundle-renderer.mjs; see runtime/generated/.
+  '<script>' + runtimeJs + '</script>' +
 
-    '</body>' +
-    '</html>'
+  '</body>' +
+  '</html>'
   );
 }
