@@ -85,17 +85,33 @@ function renderInlineMath(node: InlineMathNode): string {
   return renderMath(node.latex, { displayMode: false });
 }
 
+// Width formula for the blank input. Used when no explicit width is set on
+// the BlankToken — produces an input sized to roughly match the canonical
+// answer's character count, with a +1 to leave breathing room and a floor
+// of 4 to keep single-character answers from looking like a sliver. The
+// editor's BlankView.tsx uses the IDENTICAL formula so an authored chip
+// matches the published input. Stage 15 may add an author UI for explicit
+// width overrides; until then this default produces visually consistent
+// sizing across authoring and published views.
+//
+// IMPORTANT: keep this in sync with deriveBlankWidth() in
+// packages/app/src/editor/nodeViews/BlankView.tsx. The two formulas
+// MUST agree or author preview drifts from student view.
+function deriveBlankWidth(answer: string): number {
+  return Math.max(answer.length + 1, 4);
+}
+
 // index/total are the blank's 1-based position within its fill_in_blank block.
 // They exist only to build the aria-label: a blank inside prose with no label
 // is announced by screen readers as just "edit text", which gives the student
 // no way to tell which blank has focus. A positional label ("Blank 2 of 3")
 // fixes that; a lone blank gets "Fill in the blank" (no awkward "1 of 1").
 function renderBlank(node: BlankToken, index: number, total: number): string {
-  // The width attribute drives a CSS variable on the input. Default ~6 chars
-  // (a typical short answer). The answer key is embedded as a data attribute
-  // for client-side scoring — see the security ceiling note in the
-  // architecture discussion.
-  const width = node.width ?? 6;
+  // Width: explicit override if set on the BlankToken, otherwise auto-derive
+  // from the canonical answer's length. Drives a CSS variable on the input
+  // (--blank-width in ch units). See deriveBlankWidth above for the formula
+  // and its in-sync sibling in the editor.
+  const width = node.width ?? deriveBlankWidth(node.answer);
   // Acceptable answers are pipe-separated for compact transport in the
   // attribute. The runtime JS splits on `|` to compare. This is fine because
   // a `|` in an actual math answer would be unusual; if it ever matters,

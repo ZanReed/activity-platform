@@ -10,17 +10,26 @@
 //   tiptapToActivity — used at save / publish time
 //   activityToTiptap — used when loading an existing activity into the editor
 //
-// Phase 1 scope (Stage 8): paragraph, heading, math_block (block-level) +
-// text-with-marks, math_inline (inline-level). Other schema block types
-// (image, callout, problem, fill_in_blank) get translated when their Tiptap
-// extensions exist. Tiptap-only blocks (lists, blockquote, codeBlock from
-// StarterKit) are silently skipped — see the list/quote decision noted in
-// the commit thread.
+// Phase 1 scope: paragraph, heading, math_block, bullet_list, ordered_list
+// (block-level) + text-with-marks, math_inline (inline-level). Stage 13.5
+// adds fill_in_blank block plus blank inline tokens. Other schema block
+// types (image, callout, problem) get translated when their Tiptap
+// extensions exist.
+//
+// Inline alphabet split:
+//   - tiptapInlineToActivity / activityInlineToTiptap: standard inline
+//     (text + math_inline). Used by paragraph, heading.
+//   - tiptapFillInBlankInlineToActivity / activityFillInBlankInlineToTiptap:
+//     wider alphabet adding blank tokens. Used by fill_in_blank only.
+//   This mirrors the schema's split (InlineNode vs FillInBlankInline) so
+//   types narrow correctly at each call site — paragraph can't accidentally
+//   carry a blank, and fill_in_blank's blanks are typed.
 //
 // IDs: ActivityDocument blocks have UUIDs; Tiptap doesn't. tiptapToActivity
-// generates fresh UUIDs on every call. Structural identity is preserved
-// across round trips, but the IDs themselves are not stable. Phase 4
-// collaboration will require stable IDs; that's a separate problem.
+// generates fresh UUIDs on every call (including for blanks). Structural
+// identity is preserved across round trips, but the IDs themselves are not
+// stable. Phase 4 collaboration will require stable IDs; that's a separate
+// problem.
 // =============================================================================
 
 import type {
@@ -28,11 +37,14 @@ import type {
     ActivityMeta,
     Block,
     InlineNode,
+    FillInBlankInline,
+    BlankToken,
     Mark,
     Section,
     BulletListBlock,
     OrderedListBlock,
     ListItem,
+    FillInBlankBlock,
 } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 
@@ -147,10 +159,24 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
         case 'orderedList':
             return tiptapOrderedListToActivity(node);
 
+        case 'fillInBlank':
+            // `number` field is intentionally omitted — the renderer
+            // auto-numbers based on document position. Storing the number
+            // would create churn whenever a teacher reorders problems.
+            // Block-level fields solution / hasConfidenceRating / skills
+            // get their editor UIs in Stage 15; until then we emit defaults
+            // and the schema accepts the missing fields via its defaults.
+            return {
+                id: crypto.randomUUID(),
+                type: 'fill_in_blank',
+                content: tiptapFillInBlankInlineToActivity(node.content ?? []),
+                hasConfidenceRating: false,
+                skills: [],
+            };
+
         default:
-            // bulletList, orderedList, blockquote, codeBlock, horizontalRule
-            // (StarterKit defaults), and any other unrecognized type fall
-            // through here. See list/quote decision pending.
+            // blockquote, codeBlock, horizontalRule (StarterKit defaults), and
+            // any other unrecognized type fall through here.
             console.warn(
                 `[serialize] Skipping unsupported Tiptap block: ${node.type}`,
             );
@@ -215,6 +241,14 @@ function tiptapListItemToActivity(node: JSONContent): ListItem | null {
     return item;
 }
 
+// -----------------------------------------------------------------------------
+// Inline serialization — two parallel pairs for the two inline alphabets.
+// -----------------------------------------------------------------------------
+
+// Standard inline (text + math). Used by paragraph, heading. Blank tokens
+// encountered here are skipped with a warning — they shouldn't appear
+// outside fill_in_blank, but if a malformed document slips one through,
+// dropping it is safer than letting it through to fail Zod validation.
 function tiptapInlineToActivity(content: JSONContent[]): InlineNode[] {
     return content
     .map(tiptapInlineNodeToActivity)
@@ -242,6 +276,66 @@ function tiptapInlineNodeToActivity(node: JSONContent): InlineNode | null {
             );
             return null;
     }
+}
+
+// FillInBlank inline (text + math + blank). Used by fill_in_blank only.
+// Returns FillInBlankInline (the wider union) so blank tokens type correctly.
+function tiptapFillInBlankInlineToActivity(
+    content: JSONContent[],
+): FillInBlankInline[] {
+    return content
+    .map(tiptapFillInBlankInlineNodeToActivity)
+    .filter((n): n is FillInBlankInline => n !== null);
+}
+
+function tiptapFillInBlankInlineNodeToActivity(
+    node: JSONContent,
+): FillInBlankInline | null {
+    if (node.type === 'blank') {
+        return tiptapBlankToActivity(node);
+    }
+    // Delegate to the narrow helper for text + math_inline — types narrow
+    // correctly because InlineNode is a subset of FillInBlankInline.
+    return tiptapInlineNodeToActivity(node);
+}
+
+function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
+    const answer = (node.attrs?.answer as string | undefined) ?? '';
+    // BlankToken requires answer.min(1) per the schema. An empty answer
+    // would fail Zod validation at save time; drop it here with a warning
+    // so the rest of the document round-trips cleanly.
+    if (answer.length === 0) {
+        console.warn(
+            '[serialize] Dropping blank with empty answer; failed Zod validation if kept.',
+        );
+        return null;
+    }
+
+    const acceptableRaw = node.attrs?.acceptableAnswers;
+    const acceptableAnswers = Array.isArray(acceptableRaw)
+        ? acceptableRaw.filter((v): v is string => typeof v === 'string')
+        : [];
+
+    // Existing id is preserved if present and valid-looking; otherwise mint
+    // a fresh one. The editor's insertBlank / input rule both mint UUIDs at
+    // insertion, so existing nodes should already have one. The fallback
+    // covers pasted content or programmatic insertion paths that bypassed
+    // the chain command.
+    const rawId = node.attrs?.id;
+    const id =
+        typeof rawId === 'string' && rawId.length > 0
+            ? rawId
+            : crypto.randomUUID();
+
+    return {
+        type: 'blank',
+        id,
+        answer,
+        acceptableAnswers,
+        // hint, mistakeFeedback, width are optional and remain unset until
+        // Stage 15 introduces their editor UIs. The schema treats absence
+        // as "use default behavior" for all three.
+    };
 }
 
 function extractMarks(marks?: Array<{ type: string }>): Mark[] {
@@ -332,12 +426,14 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'ordered_list':
             return activityOrderedListToTiptap(block);
 
+        case 'fill_in_blank':
+            return activityFillInBlankToTiptap(block);
+
             // Block types in the schema that don't have a Tiptap extension yet.
             // When the corresponding NodeViews exist, add cases above this group.
         case 'image':
         case 'callout':
         case 'problem':
-        case 'fill_in_blank':
             console.warn(
                 `[serialize] No Tiptap mapping for ${block.type} yet; block omitted from editor view.`,
             );
@@ -386,6 +482,20 @@ function activityListItemToTiptap(item: ListItem): JSONContent {
     };
 }
 
+function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
+    // We emit `id` as an attr so the editor's NodeView has stable identity
+    // during a session. The schema's optional `number` field is intentionally
+    // not emitted — renderer + editor NodeView both auto-number from position.
+    // Block-level fields (solution, hasConfidenceRating, skills) get attrs
+    // in Stage 15 when their editor UIs land; until then they're absent from
+    // the Tiptap representation and re-emitted with defaults on save.
+    return {
+        type: 'fillInBlank',
+        attrs: { id: block.id },
+        content: activityFillInBlankInlineToTiptap(block.content),
+    };
+}
+
 function activityInlineToTiptap(content: InlineNode[]): JSONContent[] {
     return content.map(activityInlineNodeToTiptap);
 }
@@ -410,4 +520,44 @@ function activityInlineNodeToTiptap(node: InlineNode): JSONContent {
                 attrs: { latex: node.latex },
             };
     }
+}
+
+function activityFillInBlankInlineToTiptap(
+    content: FillInBlankInline[],
+): JSONContent[] {
+    return content.map(activityFillInBlankInlineNodeToTiptap);
+}
+
+function activityFillInBlankInlineNodeToTiptap(
+    node: FillInBlankInline,
+): JSONContent {
+    if (node.type === 'blank') {
+        return activityBlankToTiptap(node);
+    }
+    // text + math_inline: delegate to the narrow helper. Types narrow
+    // correctly because TextNode and InlineMathNode are members of both
+    // InlineNode and FillInBlankInline unions.
+    return activityInlineNodeToTiptap(node);
+}
+
+function activityBlankToTiptap(node: BlankToken): JSONContent {
+    // acceptableAnswers always emitted (even when empty) for round-trip
+    // exactness with Tiptap's stored attrs. Optional schema fields (hint,
+    // mistakeFeedback, width) are emitted only when present — Stage 15
+    // will surface them as editor attrs once their UIs land.
+    const attrs: Record<string, unknown> = {
+        id: node.id,
+        answer: node.answer,
+        acceptableAnswers: node.acceptableAnswers,
+    };
+    if (node.hint !== undefined) attrs.hint = node.hint;
+    if (node.mistakeFeedback !== undefined) {
+        attrs.mistakeFeedback = node.mistakeFeedback;
+    }
+    if (node.width !== undefined) attrs.width = node.width;
+
+    return {
+        type: 'blank',
+        attrs,
+    };
 }

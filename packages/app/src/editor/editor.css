@@ -290,3 +290,116 @@
 .section-break__checkpoint-label input[type="checkbox"] {
     cursor: pointer;
 }
+
+/* =============================================================================
+ *  FillInBlank block NodeView (Stage 13.5)
+ *  -----------------------------------------------------------------------
+ *  Two-column grid mirroring the renderer's .block-fill-in-blank layout —
+ *  problem number on the left, editable body on the right. Selected state
+ *  matches .math-block-wrapper.is-selected for visual consistency across
+ *  block NodeViews. The body is a NodeViewContent slot containing inline
+ *  content (text, math, blanks); ProseMirror enforces the content spec
+ *  so non-inline blocks cannot be inserted inside.
+ *  ========================================================================= */
+
+.fill-in-blank-block {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding: 0.5rem 0.75rem;
+    align-items: start;
+    border-radius: 0.375rem;
+    background-color: rgb(248 250 252); /* slate-50 — matches math-block-wrapper resting bg */
+    transition: background-color 0.15s;
+}
+
+.fill-in-blank-block:hover {
+    background-color: rgb(241 245 249); /* slate-100 */
+}
+
+.fill-in-blank-block.is-selected {
+    background-color: rgb(239 246 255); /* blue-50 — matches math-block-wrapper.is-selected */
+    outline: 2px solid rgb(59 130 246); /* blue-500 */
+}
+
+.fill-in-blank-block__number {
+    font-weight: 600;
+    text-align: right;
+    padding-right: 0.25rem;
+    padding-top: 0.125rem; /* nudge to align baseline with first line of body */
+    color: rgb(71 85 105); /* slate-600 */
+    user-select: none;
+}
+
+.fill-in-blank-block__body {
+    line-height: 1.6;
+    min-height: 1.5em; /* keeps empty block clickable */
+}
+
+.fill-in-blank-block__body p {
+    /* The fill-in-blank body holds inline content directly, not paragraphs.
+     * But ProseMirror may wrap during paste; reset margins so wrapped
+     * paragraphs don't introduce extra vertical space. */
+    margin: 0;
+}
+
+/* =============================================================================
+ *  Blank inline NodeView (Stage 13.5)
+ *  -----------------------------------------------------------------------
+ *  The chip + underline structure: a pill displays the canonical answer,
+ *  with an underline span beneath sized from answer length (auto-derived
+ *  width matches the renderer's published-page input width). Hovering the
+ *  chip shows acceptable answers via the native title attribute; Session 2
+ *  will replace this with a floating-ui popover that doubles as an
+ *  editing surface.
+ *
+ *  Why inline-flex with flex-direction column?
+ *    The chip and underline stack vertically (chip above, underline below)
+ *    but the whole unit needs to flow inline within prose. inline-flex +
+ *    column achieves both: outer participates in inline layout, inner
+ *    children stack.
+ *
+ *  vertical-align baseline keeps the chip's baseline aligned with the
+ *  surrounding text baseline — without it, the chip sits low.
+ *  ========================================================================= */
+
+.blank-chip {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
+    vertical-align: baseline;
+    cursor: pointer;
+    margin: 0 0.125rem;
+    line-height: 1;
+}
+
+.blank-chip.is-selected .blank-chip__answer {
+    background-color: rgb(219 234 254); /* blue-100 */
+    outline: 2px solid rgb(59 130 246); /* blue-500 */
+}
+
+.blank-chip__answer {
+    display: inline-block;
+    padding: 0.0625rem 0.375rem;
+    border-radius: 0.25rem;
+    background-color: rgb(241 245 249); /* slate-100 */
+    color: rgb(15 23 42); /* slate-900 */
+    font-size: 0.875em;
+    font-weight: 500;
+    white-space: nowrap;
+    /* Light border helps distinguish chip from surrounding prose when text
+     * itself is similar in tone. */
+    border: 1px solid rgb(226 232 240); /* slate-200 */
+}
+
+.blank-chip__underline {
+    display: block;
+    height: 2px;
+    margin-top: 2px;
+    background-color: rgb(148 163 184); /* slate-400 — matches renderer's blank input border-bottom in tone */
+    /* Width is set inline via style="width: Nch" (computed from answer
+     * length in the NodeView). 2px solid bottom communicates "blank input
+     * goes here" — students see this as the editable underline on paper
+     * and on screen. */
+}

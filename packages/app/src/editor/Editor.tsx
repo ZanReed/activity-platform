@@ -12,6 +12,8 @@ import 'mathlive';
 import { SectionBreak } from './extensions/SectionBreak';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
+import { FillInBlank } from './extensions/FillInBlank';
+import { Blank } from './extensions/Blank';
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -37,6 +39,14 @@ export default function Editor({ initialContent, onUpdate }: EditorProps) {
             SectionBreak,
             Subscript,
             Superscript,
+            // Stage 13.5 — question-block extensions. FillInBlank is the
+            // block container; Blank is the inline atom that lives inside
+            // its body (and only inside its body, per the schema's
+            // FillInBlankInline union). Both must be registered for the
+            // input rule + content spec to function — registering FillInBlank
+            // alone would allow the block to exist but reject blank insertion.
+            FillInBlank,
+            Blank,
         ],
         content: initialContent,
         onCreate: ({ editor }) => {

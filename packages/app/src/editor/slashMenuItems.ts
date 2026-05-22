@@ -84,4 +84,12 @@ export const slashMenuItems: SlashMenuItem[] = [
         editor.chain().focus().deleteRange(range).insertSectionBreak().run();
     },
 },
+{
+    title: 'Fill in the blank',
+    description: 'Problem with editable blanks. Type {{answer|alt}} inside to insert blanks.',
+    keywords: ['fill', 'blank', 'cloze', 'question', 'problem', 'fitb'],
+    command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertFillInBlank().run();
+    },
+},
 ];
