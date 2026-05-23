@@ -9,36 +9,47 @@ import BlankView from '../nodeViews/BlankView';
 // FillInBlankInline union is text | math_inline | blank). The block-level
 // extension's content spec enforces the placement at the ProseMirror level.
 //
-// Attrs in Stage 13.5 scope:
+// Attrs (Stage 13.5 Session 2, Drop 2a):
 //   - id: stable UUID. Used as the key in SubmissionResponses.blanks[<id>].
 //     Minted at insertion via the input rule / chain command.
 //   - answer: required, min 1 char (per schema). Canonical correct answer.
 //   - acceptableAnswers: array of alternative correct strings. Default [].
+//   - hint: optional teacher-authored nudge. Stored as undefined when absent
+//     to match the schema's optional field (avoid empty-string ambiguity).
+//   - mistakeFeedback: optional array of {match, feedback} pairs. Stored as
+//     undefined when absent or empty.
 //
-// Out of scope (Stage 15):
-//   - hint, mistakeFeedback per-blank attrs (UIs deferred)
-//   - width override (Stage 13.5 auto-derives from answer.length on both
-//     editor and renderer sides via deriveBlankWidth)
+// Drop 2a does NOT add any UI for editing hint or mistakeFeedback. Those
+// attrs exist in the schema but no popover, toolbar button, or other
+// authoring affordance reads or writes them yet. They'll get edit UIs in
+// Drops 2b and 2c.
+//
+// Out of scope for Stage 13.5 entirely:
+//   - inputMode (text vs math student input — Phase 2.5)
+//   - width override (Stage 15)
 //
 // Insertion paths:
-//   1. insertBlank chain command — used by the eventual toolbar button
-//      (Session 2) and callable programmatically.
-//   2. Eager input rule on {{answer}} or {{answer|alt1|alt2}} — fires when
-//      the closing }} is typed. Pipe-delimited matches the runtime's
-//      data-blank-answers="canonical|alt1|alt2" wire format.
+//   1. insertBlank chain command — programmatic insertion. Used by the
+//      eventual toolbar button (Drop 3).
+//   2. Eager input rule on {{answer}} or {{answer|alt1|alt2}}. Pipe-delimited
+//      matches the runtime's data-blank-answers="canonical|alt1|alt2" wire
+//      format. The input rule does NOT populate hint or mistakeFeedback —
+//      those get set later via updateBlankAttrs once the popover lands.
+//
+// Editing path (added in Drop 2a, used in 2b+):
+//   updateBlankAttrs chain command — called by the chip popover when the
+//   user edits any per-blank field. Targets a specific blank by node
+//   position (passed in from the popover, which knows the chip's pos).
+//   Does NOT use ProseMirror selection because the popover may be open
+//   while the user clicks elsewhere; updating by explicit position avoids
+//   the "where is the chip now?" race.
 //
 // Why raw InputRule + chain instead of nodeInputRule helper?
-//   nodeInputRule had a partial-consumption bug in Stage 13.5 Session 1
-//   testing — typing {{please|sumimasem|perdon}} produced a chip for "please"
-//   but left "|sumimasem|perdon}}" as orphan text. The regex matched
-//   correctly (verified via console logging of match[0]); only the deletion
-//   was short. Using raw InputRule with explicit range computed from
-//   match[0].length ensures the whole sentinel is consumed.
-//
-//   Critical detail: the handler must use chain() (or mutate the provided
-//   tr) to apply changes. An earlier attempt that created a fresh
-//   state.tr inside the handler and never dispatched it was a no-op —
-//   Tiptap auto-applies the handler's chain/tr, not arbitrary transactions.
+//   nodeInputRule had a partial-consumption bug — typing
+//   {{please|sumimasem|perdon}} produced a chip for "please" but left
+//   "|sumimasem|perdon}}" as orphan text. The regex matched correctly;
+//   only the deletion was short. Using raw InputRule with explicit range
+//   computed from match[0].length ensures the whole sentinel is consumed.
 // ============================================================================
 
 declare module '@tiptap/core' {
@@ -48,6 +59,22 @@ declare module '@tiptap/core' {
                 answer: string;
                 acceptableAnswers?: string[];
             }) => ReturnType;
+            // Update an existing blank's attrs by position. `pos` is the
+            // blank node's position in the doc (from a NodeView's getPos()
+            // or computed externally). `attrs` is a partial — only provided
+            // fields update; others preserved. Returns false if no blank
+            // node exists at that position.
+            updateBlankAttrs: (
+                pos: number,
+                attrs: Partial<{
+                    answer: string;
+                    acceptableAnswers: string[];
+                    hint: string | undefined;
+                    mistakeFeedback:
+                    | Array<{ match: string; feedback: string }>
+                    | undefined;
+                }>,
+            ) => ReturnType;
         };
     }
 }
@@ -64,9 +91,6 @@ export const Blank = Node.create({
     inline: true,
     atom: true,
     selectable: true,
-    // Inline atoms aren't draggable in our editor — dragging single blanks
-    // around is fiddly and not a natural authoring operation. Reordering
-    // happens at the block level via the drag handle.
     draggable: false,
 
     addAttributes() {
@@ -101,6 +125,58 @@ export const Blank = Node.create({
                         : {};
                     },
             },
+            // Optional hint string. Stored as undefined (not empty string)
+            // when absent, matching the schema's optional field semantics.
+            // parseHTML normalizes empty/missing to undefined so saved
+            // documents never carry phantom empty hints.
+            hint: {
+                default: undefined as string | undefined,
+                    parseHTML: (element) => {
+                        const raw = element.getAttribute('data-hint');
+                        return raw && raw.length > 0 ? raw : undefined;
+                    },
+                    renderHTML: (attributes) => {
+                        const v = attributes.hint as string | undefined;
+                        return v && v.length > 0 ? { 'data-hint': v } : {};
+                    },
+            },
+            // Optional array of {match, feedback} pairs. JSON-encoded into
+            // a single data attribute for compact transport. Stored as
+            // undefined when absent or empty so the schema's optional
+            // field stays clean.
+            mistakeFeedback: {
+                default: undefined as
+                    | Array<{ match: string; feedback: string }>
+                    | undefined,
+                    parseHTML: (element) => {
+                        const raw = element.getAttribute('data-mistake-feedback');
+                        if (!raw) return undefined;
+                        try {
+                            const parsed = JSON.parse(raw);
+                            if (!Array.isArray(parsed)) return undefined;
+                            // Filter to well-formed pairs only — defensive
+                            // against partially-corrupted stored data.
+                            const cleaned = parsed.filter(
+                                (p): p is { match: string; feedback: string } =>
+                                p &&
+                                typeof p === 'object' &&
+                                typeof p.match === 'string' &&
+                                typeof p.feedback === 'string',
+                            );
+                            return cleaned.length > 0 ? cleaned : undefined;
+                        } catch {
+                            return undefined;
+                        }
+                    },
+                    renderHTML: (attributes) => {
+                        const v = attributes.mistakeFeedback as
+                        | Array<{ match: string; feedback: string }>
+                        | undefined;
+                        return v && v.length > 0
+                        ? { 'data-mistake-feedback': JSON.stringify(v) }
+                        : {};
+                    },
+            },
         };
     },
 
@@ -132,6 +208,32 @@ export const Blank = Node.create({
                 },
             })
             .run(),
+
+                                 // Update a blank's attrs by position. Used by the popover (Drop
+                                 // 2b+) to apply edits. setNodeMarkup is the right ProseMirror
+                                 // primitive: changes a node's attrs in place without disturbing
+                                 // its content or surrounding nodes. For atom nodes (blanks have
+                                 // no content), this is equivalent to "change the chip's data
+                                 // without touching anything else."
+                                 //
+                                 // Why merge with existing attrs vs. replace?
+                                 //   The popover passes a Partial<> — only the fields the user
+                                 //   actually edited. Preserving unedited fields is correct
+                                 //   behavior. We read the current node's attrs at `pos` and
+                                 //   merge the partial on top.
+                                 updateBlankAttrs:
+                                 (pos, attrs) =>
+                                 ({ tr, state, dispatch }) => {
+                                     const node = state.doc.nodeAt(pos);
+                                     if (!node || node.type.name !== 'blank') {
+                                         return false;
+                                     }
+                                     const nextAttrs = { ...node.attrs, ...attrs };
+                                     if (dispatch) {
+                                         tr.setNodeMarkup(pos, undefined, nextAttrs);
+                                     }
+                                     return true;
+                                 },
         };
     },
 
@@ -142,9 +244,6 @@ export const Blank = Node.create({
             new InputRule({
                 find: BLANK_INPUT_REGEX,
                 handler: ({ range, match, chain }) => {
-                    // Parse the match groups. match[0] is the full sentinel
-                    // ({{...}}); match[1] is the canonical answer; match[2]
-                    // is the |alt|alt|... segment (possibly empty).
                     const canonical = (match[1] ?? '').trim();
                     const altSegment = match[2] ?? '';
                     const acceptableAnswers = altSegment
@@ -153,15 +252,9 @@ export const Blank = Node.create({
                     .filter((s) => s.length > 0);
 
                     if (canonical.length === 0) {
-                        // Schema requires answer.min(1). Don't fire on empty.
                         return null;
                     }
 
-                    // Compute the exact replacement range from match[0].length.
-                    // Tiptap's `range` here can sometimes be a shorter
-                    // lookback window than the full regex match; computing
-                    // `from` as cursor minus full match length ensures we
-                    // consume the entire sentinel.
                     const from = range.to - match[0].length;
                     const to = range.to;
 
