@@ -14,6 +14,7 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
+import BlankPopoverHost from './components/BlankPopoverHost';
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -43,8 +44,7 @@ export default function Editor({ initialContent, onUpdate }: EditorProps) {
             // block container; Blank is the inline atom that lives inside
             // its body (and only inside its body, per the schema's
             // FillInBlankInline union). Both must be registered for the
-            // input rule + content spec to function — registering FillInBlank
-            // alone would allow the block to exist but reject blank insertion.
+            // input rule + content spec to function.
             FillInBlank,
             Blank,
         ],
@@ -62,34 +62,42 @@ export default function Editor({ initialContent, onUpdate }: EditorProps) {
 
     return (
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <Toolbar editor={editor} />
-        <div className="p-6">
-        <DragHandle editor={editor}>
-        <button
-        type="button"
-        className="drag-handle-button"
-        tabIndex={-1}
-        aria-label="Drag to reorder block"
-        title="Drag to reorder"
-        >
-        <svg
-        width="12"
-        height="20"
-        viewBox="0 0 12 20"
-        fill="currentColor"
-        aria-hidden="true"
-        >
-        <circle cx="3" cy="4" r="1.5" />
-        <circle cx="9" cy="4" r="1.5" />
-        <circle cx="3" cy="10" r="1.5" />
-        <circle cx="9" cy="10" r="1.5" />
-        <circle cx="3" cy="16" r="1.5" />
-        <circle cx="9" cy="16" r="1.5" />
-        </svg>
-        </button>
-        </DragHandle>
-        <EditorContent editor={editor} />
-        </div>
+            <Toolbar editor={editor} />
+            <div className="p-6">
+                <DragHandle editor={editor}>
+                    <button
+                        type="button"
+                        className="drag-handle-button"
+                        tabIndex={-1}
+                        aria-label="Drag to reorder block"
+                        title="Drag to reorder"
+                    >
+                        <svg
+                            width="12"
+                            height="20"
+                            viewBox="0 0 12 20"
+                            fill="currentColor"
+                            aria-hidden="true"
+                        >
+                            <circle cx="3" cy="4" r="1.5" />
+                            <circle cx="9" cy="4" r="1.5" />
+                            <circle cx="3" cy="10" r="1.5" />
+                            <circle cx="9" cy="10" r="1.5" />
+                            <circle cx="3" cy="16" r="1.5" />
+                            <circle cx="9" cy="16" r="1.5" />
+                        </svg>
+                    </button>
+                </DragHandle>
+                <EditorContent editor={editor} />
+                {/*
+                  BlankPopoverHost sits as a sibling of EditorContent. It
+                  watches the editor's selection and shows a popover when a
+                  blank node is currently selected. Single instance — no
+                  per-chip mounting. The popover itself portals to
+                  document.body for stacking-context independence.
+                */}
+                <BlankPopoverHost editor={editor} />
+            </div>
         </div>
     );
 }
