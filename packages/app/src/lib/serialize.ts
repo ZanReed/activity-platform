@@ -12,9 +12,8 @@
 //
 // Phase 1 scope: paragraph, heading, math_block, bullet_list, ordered_list
 // (block-level) + text-with-marks, math_inline (inline-level). Stage 13.5
-// adds fill_in_blank block plus blank inline tokens. Other schema block
-// types (image, callout, problem) get translated when their Tiptap
-// extensions exist.
+// adds fill_in_blank block plus blank inline tokens. Stage 13.5 Drop 2c
+// extends blank serialization to include hint + mistakeFeedback.
 //
 // Inline alphabet split:
 //   - tiptapInlineToActivity / activityInlineToTiptap: standard inline
@@ -80,19 +79,13 @@ export function tiptapToActivity(
     };
 }
 
-// Walks the flat Tiptap block list and splits at every `sectionBreak` node.
-// Each break opens a new Section that inherits its title and isCheckpoint
-// attrs. If the doc doesn't start with a sectionBreak, an implicit first
-// section is created with default metadata — this is the Stage 9c first-
-// section UX: a teacher who wants to title or check the first section
-// inserts a leading sectionBreak; otherwise defaults are used.
 function splitTiptapBlocksIntoSections(nodes: JSONContent[]): Section[] {
     const sections: Section[] = [];
     const startsWithBreak = nodes[0]?.type === 'sectionBreak';
 
     let current: Section = startsWithBreak
-        ? sectionFromBreak(nodes[0]!)
-        : { id: crypto.randomUUID(), isCheckpoint: false, blocks: [] };
+    ? sectionFromBreak(nodes[0]!)
+    : { id: crypto.randomUUID(), isCheckpoint: false, blocks: [] };
 
     for (let i = startsWithBreak ? 1 : 0; i < nodes.length; i++) {
         const node = nodes[i]!;
@@ -109,10 +102,6 @@ function splitTiptapBlocksIntoSections(nodes: JSONContent[]): Section[] {
     return sections;
 }
 
-// Builds a fresh Section from a sectionBreak node's attrs. Nullish/empty
-// titles normalize to "no title" — the schema accepts title="" but the
-// editor's NodeView strips empties to null on its way out, and we mirror
-// that on the way back in so the schema-side never carries phantom empties.
 function sectionFromBreak(node: JSONContent): Section {
     const rawTitle = node.attrs?.title as string | null | undefined;
     const section: Section = {
@@ -160,12 +149,6 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             return tiptapOrderedListToActivity(node);
 
         case 'fillInBlank':
-            // `number` field is intentionally omitted — the renderer
-            // auto-numbers based on document position. Storing the number
-            // would create churn whenever a teacher reorders problems.
-            // Block-level fields solution / hasConfidenceRating / skills
-            // get their editor UIs in Stage 15; until then we emit defaults
-            // and the schema accepts the missing fields via its defaults.
             return {
                 id: crypto.randomUUID(),
                 type: 'fill_in_blank',
@@ -175,8 +158,6 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             };
 
         default:
-            // blockquote, codeBlock, horizontalRule (StarterKit defaults), and
-            // any other unrecognized type fall through here.
             console.warn(
                 `[serialize] Skipping unsupported Tiptap block: ${node.type}`,
             );
@@ -204,11 +185,6 @@ function tiptapOrderedListToActivity(node: JSONContent): OrderedListBlock {
     };
 }
 
-// A Tiptap listItem contains a paragraph (the item's inline content) and
-// optionally nested bulletList/orderedList nodes. Standard Tiptap behavior
-// produces exactly one paragraph per item — if a doc somehow has more, take
-// the first paragraph's content and ignore the rest (warned). Children are
-// recursively serialized.
 function tiptapListItemToActivity(node: JSONContent): ListItem | null {
     if (node.type !== 'listItem') {
         console.warn(`[serialize] Unexpected node inside list: ${node.type}`);
@@ -228,8 +204,6 @@ function tiptapListItemToActivity(node: JSONContent): ListItem | null {
                 item.content = tiptapInlineToActivity(child.content ?? []);
                 paragraphSeen = true;
             }
-            // Additional paragraphs in a single list item aren't a thing
-            // Tiptap produces under normal authoring; silently drop.
         } else if (child.type === 'bulletList') {
             children.push(tiptapBulletListToActivity(child));
         } else if (child.type === 'orderedList') {
@@ -241,14 +215,6 @@ function tiptapListItemToActivity(node: JSONContent): ListItem | null {
     return item;
 }
 
-// -----------------------------------------------------------------------------
-// Inline serialization — two parallel pairs for the two inline alphabets.
-// -----------------------------------------------------------------------------
-
-// Standard inline (text + math). Used by paragraph, heading. Blank tokens
-// encountered here are skipped with a warning — they shouldn't appear
-// outside fill_in_blank, but if a malformed document slips one through,
-// dropping it is safer than letting it through to fail Zod validation.
 function tiptapInlineToActivity(content: JSONContent[]): InlineNode[] {
     return content
     .map(tiptapInlineNodeToActivity)
@@ -278,8 +244,6 @@ function tiptapInlineNodeToActivity(node: JSONContent): InlineNode | null {
     }
 }
 
-// FillInBlank inline (text + math + blank). Used by fill_in_blank only.
-// Returns FillInBlankInline (the wider union) so blank tokens type correctly.
 function tiptapFillInBlankInlineToActivity(
     content: JSONContent[],
 ): FillInBlankInline[] {
@@ -294,16 +258,11 @@ function tiptapFillInBlankInlineNodeToActivity(
     if (node.type === 'blank') {
         return tiptapBlankToActivity(node);
     }
-    // Delegate to the narrow helper for text + math_inline — types narrow
-    // correctly because InlineNode is a subset of FillInBlankInline.
     return tiptapInlineNodeToActivity(node);
 }
 
 function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
     const answer = (node.attrs?.answer as string | undefined) ?? '';
-    // BlankToken requires answer.min(1) per the schema. An empty answer
-    // would fail Zod validation at save time; drop it here with a warning
-    // so the rest of the document round-trips cleanly.
     if (answer.length === 0) {
         console.warn(
             '[serialize] Dropping blank with empty answer; failed Zod validation if kept.',
@@ -313,29 +272,48 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
 
     const acceptableRaw = node.attrs?.acceptableAnswers;
     const acceptableAnswers = Array.isArray(acceptableRaw)
-        ? acceptableRaw.filter((v): v is string => typeof v === 'string')
-        : [];
+    ? acceptableRaw.filter((v): v is string => typeof v === 'string')
+    : [];
 
-    // Existing id is preserved if present and valid-looking; otherwise mint
-    // a fresh one. The editor's insertBlank / input rule both mint UUIDs at
-    // insertion, so existing nodes should already have one. The fallback
-    // covers pasted content or programmatic insertion paths that bypassed
-    // the chain command.
     const rawId = node.attrs?.id;
     const id =
-        typeof rawId === 'string' && rawId.length > 0
-            ? rawId
-            : crypto.randomUUID();
+    typeof rawId === 'string' && rawId.length > 0
+    ? rawId
+    : crypto.randomUUID();
 
-    return {
+    // Build the BlankToken with required + optional fields. hint and
+    // mistakeFeedback are optional in the schema — only include them when
+    // non-empty so the saved document doesn't carry phantom undefined keys
+    // and round-trip equality is preserved for blanks without those fields.
+    const result: BlankToken = {
         type: 'blank',
         id,
         answer,
         acceptableAnswers,
-        // hint, mistakeFeedback, width are optional and remain unset until
-        // Stage 15 introduces their editor UIs. The schema treats absence
-        // as "use default behavior" for all three.
     };
+
+    const rawHint = node.attrs?.hint;
+    if (typeof rawHint === 'string' && rawHint.length > 0) {
+        result.hint = rawHint;
+    }
+
+    const rawFeedback = node.attrs?.mistakeFeedback;
+    if (Array.isArray(rawFeedback)) {
+        const cleaned = rawFeedback.filter(
+            (p): p is { match: string; feedback: string } =>
+            p &&
+            typeof p === 'object' &&
+            typeof p.match === 'string' &&
+            typeof p.feedback === 'string' &&
+            p.match.length > 0 &&
+            p.feedback.length > 0,
+        );
+        if (cleaned.length > 0) {
+            result.mistakeFeedback = cleaned;
+        }
+    }
+
+    return result;
 }
 
 function extractMarks(marks?: Array<{ type: string }>): Mark[] {
@@ -360,19 +338,13 @@ export function activityToTiptap(doc: ActivityDocument): JSONContent {
     };
 }
 
-// Emits the Tiptap content array: one `sectionBreak` before each section,
-// then that section's blocks. The first section is special — a leading
-// break is emitted ONLY when the first section has non-default metadata
-// (title set or isCheckpoint true). Without that rule a teacher would see
-// a section_break at the top of every brand-new document, contradicting
-// the Stage 9c implicit-first-section UX.
 function emitSectionsAsTiptapBlocks(sections: Section[]): JSONContent[] {
     const out: JSONContent[] = [];
 
     sections.forEach((section, index) => {
         const hasMetadata =
-            (section.title !== undefined && section.title !== '') ||
-            section.isCheckpoint;
+        (section.title !== undefined && section.title !== '') ||
+        section.isCheckpoint;
         const isFirst = index === 0;
         if (!isFirst || hasMetadata) {
             out.push(sectionBreakNode(section));
@@ -386,9 +358,6 @@ function emitSectionsAsTiptapBlocks(sections: Section[]): JSONContent[] {
     return out;
 }
 
-// Both attrs are always emitted (with null/false for absent values) to
-// match what Tiptap produces from a live section_break instance — keeping
-// the shape exact preserves round-trip equality with editor JSON.
 function sectionBreakNode(section: Section): JSONContent {
     return {
         type: 'sectionBreak',
@@ -429,8 +398,6 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'fill_in_blank':
             return activityFillInBlankToTiptap(block);
 
-            // Block types in the schema that don't have a Tiptap extension yet.
-            // When the corresponding NodeViews exist, add cases above this group.
         case 'image':
         case 'callout':
         case 'problem':
@@ -440,8 +407,6 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
             return null;
 
         default: {
-            // Exhaustiveness check — TS errors if a new Block type is added
-            // to the schema's discriminated union without being handled here.
             const _exhaustive: never = block;
             return _exhaustive;
         }
@@ -483,12 +448,6 @@ function activityListItemToTiptap(item: ListItem): JSONContent {
 }
 
 function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
-    // We emit `id` as an attr so the editor's NodeView has stable identity
-    // during a session. The schema's optional `number` field is intentionally
-    // not emitted — renderer + editor NodeView both auto-number from position.
-    // Block-level fields (solution, hasConfidenceRating, skills) get attrs
-    // in Stage 15 when their editor UIs land; until then they're absent from
-    // the Tiptap representation and re-emitted with defaults on save.
     return {
         type: 'fillInBlank',
         attrs: { id: block.id },
@@ -503,9 +462,6 @@ function activityInlineToTiptap(content: InlineNode[]): JSONContent[] {
 function activityInlineNodeToTiptap(node: InlineNode): JSONContent {
     switch (node.type) {
         case 'text':
-            // Omit `marks` entirely when empty so the round-trip is exact —
-            // Tiptap's serializer doesn't include an empty marks array on
-            // unstyled text runs.
             return node.marks.length > 0
             ? {
                 type: 'text',
@@ -534,17 +490,14 @@ function activityFillInBlankInlineNodeToTiptap(
     if (node.type === 'blank') {
         return activityBlankToTiptap(node);
     }
-    // text + math_inline: delegate to the narrow helper. Types narrow
-    // correctly because TextNode and InlineMathNode are members of both
-    // InlineNode and FillInBlankInline unions.
     return activityInlineNodeToTiptap(node);
 }
 
 function activityBlankToTiptap(node: BlankToken): JSONContent {
-    // acceptableAnswers always emitted (even when empty) for round-trip
-    // exactness with Tiptap's stored attrs. Optional schema fields (hint,
-    // mistakeFeedback, width) are emitted only when present — Stage 15
-    // will surface them as editor attrs once their UIs land.
+    // Required attrs always emitted. Optional fields (hint, mistakeFeedback,
+    // width) only included when present so round-trip equality is preserved
+    // for blanks without those fields. acceptableAnswers always emitted
+    // (even when empty) for round-trip exactness with Tiptap's stored attrs.
     const attrs: Record<string, unknown> = {
         id: node.id,
         answer: node.answer,
