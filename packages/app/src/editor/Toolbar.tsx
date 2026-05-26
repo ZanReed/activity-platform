@@ -18,10 +18,6 @@ interface ToolbarProps {
 export default function Toolbar({ editor }: ToolbarProps) {
     if (!editor) return null;
 
-    // Context check for the Blank button: only enabled when cursor is inside
-    // a fillInBlank body. isActive walks the selection's parent chain so this
-    // returns true for any cursor position inside the block, regardless of
-    // depth (e.g., cursor between two text runs inside the body still counts).
     const isInFillInBlank = editor.isActive('fillInBlank');
 
     return (
@@ -117,14 +113,9 @@ export default function Toolbar({ editor }: ToolbarProps) {
 
             {/*
               Question group (Stage 13.5 Drop 3).
-              - Problem: inserts an empty fill_in_blank block. Always enabled;
-                authors can drop one anywhere a block can go.
+              - Problem: inserts an empty fill_in_blank block. Always enabled.
               - Blank: inserts an inline blank with placeholder answer "?".
-                Enabled only when cursor is inside a fill_in_blank body (the
-                schema's content spec wouldn't allow it elsewhere). The
-                placeholder answer is schema-compliant (min 1 char) and gets
-                immediately replaced when the auto-opening popover focuses
-                the answer field.
+                Enabled only when cursor is inside a fill_in_blank body.
             */}
             <ToolbarButton
                 onClick={() =>
@@ -136,34 +127,13 @@ export default function Toolbar({ editor }: ToolbarProps) {
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => {
-                    // Insert the blank with a placeholder answer. The chain
-                    // command sets cursor position after insertion; we then
-                    // explicitly select the just-inserted node so
-                    // BlankPopoverHost opens the popover for editing.
-                    //
-                    // Why two steps?
-                    //   insertContent leaves the selection AFTER the inserted
-                    //   node by default (text cursor, not node selection).
-                    //   We want the popover to open, which requires a
-                    //   NodeSelection on the blank. We compute the inserted
-                    //   blank's position from the pre-insertion selection
-                    //   position, then setNodeSelection there.
                     const { from } = editor.state.selection;
                     editor
                         .chain()
                         .focus()
                         .insertBlank({ answer: '?' })
                         .run();
-                    // After insertion, the blank lives at the previous cursor
-                    // position. setNodeSelection makes it the active node
-                    // selection so BlankPopoverHost opens the popover.
-                    // Wrap in rAF so ProseMirror has finished the insertion
-                    // transaction before we select.
                     requestAnimationFrame(() => {
-                        // Defensive: confirm a blank node exists at the
-                        // expected position before selecting. If something
-                        // unexpected happened (e.g., the insert was rejected
-                        // by the content spec), don't blow up.
                         const node = editor.state.doc.nodeAt(from);
                         if (node && node.type.name === 'blank') {
                             editor.commands.setNodeSelection(from);
@@ -178,6 +148,25 @@ export default function Toolbar({ editor }: ToolbarProps) {
                 }
             >
                 Blank
+            </ToolbarButton>
+
+            <Divider />
+
+            {/*
+              Structure group (Stage 13.5 polish).
+              - Section: inserts a section break. The SectionBreakView
+                renders an inline title input and Checkpoint checkbox, so
+                authors edit those by clicking into the inserted break.
+                Always enabled — section breaks are top-level structural
+                blocks that can go anywhere at doc level.
+            */}
+            <ToolbarButton
+                onClick={() =>
+                    editor.chain().focus().insertSectionBreak().run()
+                }
+                title="Insert a section break"
+            >
+                Section
             </ToolbarButton>
         </div>
     );

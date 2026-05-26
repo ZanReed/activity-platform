@@ -8,7 +8,7 @@ import {
     size,
 } from '@floating-ui/react';
 import { createPortal } from 'react-dom';
-import FocusTrap from 'focus-trap-react';
+import { FocusTrap } from 'focus-trap-react';
 
 // ============================================================================
 // BlankEditPopover — popover UI for editing a blank's per-blank fields.

@@ -18,24 +18,25 @@ import BlankView from '../nodeViews/BlankView';
 //   - mistakeFeedback: optional array of {match, feedback} pairs.
 //
 // Editing path:
-//   updateBlankAttrs chain command — called by BlankPopoverHost when the
-//   user edits any per-blank field. Targets a specific blank by node
-//   position.
+//   updateBlankAttrs — `preserveSelection` (default true) re-applies
+//   NodeSelection at the chip's position after setNodeMarkup so the
+//   popover stays open through edits. Close-time flushes pass false so
+//   the subsequent setTextSelection in onClose can move cleanly.
 //
-//   `preserveSelection` (default true) — re-applies NodeSelection at the
-//   chip's position after setNodeMarkup. Without re-apply, setNodeMarkup
-//   can invalidate the existing selection, causing the host to think no
-//   blank is selected and unmount the popover. This is desirable during
-//   normal field edits (Tab between fields, × remove a row) where we want
-//   the popover to stay open.
+// Input rule ({{answer|alt1|alt2}}):
+//   Uses insertContentAt with a range argument — a SINGLE transaction
+//   step that replaces the matched text range with the blank node in
+//   one atomic operation. Underneath this is ProseMirror's
+//   replaceRangeWith, which validates the result against the schema in
+//   one shot rather than going through an intermediate empty-content
+//   state.
 //
-//   When the popover is being CLOSED (Escape, outside click, etc.) and
-//   needs to flush pending edits, the caller passes preserveSelection:
-//   false. Without re-asserting selection, the subsequent setTextSelection
-//   in onClose can move the cursor off the chip cleanly. Without this,
-//   the re-asserted NodeSelection fights with the close-time selection
-//   move and the popover bounces open again, requiring a second click to
-//   actually close.
+//   The earlier chain pattern (.deleteRange().insertContentAt()) had
+//   two transaction steps with a transient empty-content state
+//   between them, which ProseMirror could interpret as "this
+//   fill_in_blank block is empty, remove it" if {{...}} was the only
+//   content. The range-based insertContentAt avoids the intermediate
+//   state.
 // ============================================================================
 
 declare module '@tiptap/core' {
@@ -187,12 +188,6 @@ export const Blank = Node.create({
                     const nextAttrs = { ...node.attrs, ...attrs };
                     if (dispatch) {
                         tr.setNodeMarkup(pos, undefined, nextAttrs);
-                        // Re-establish selection at this position so the
-                        // popover stays open through normal edits. Skip when
-                        // the caller is flushing-before-close — in that
-                        // case the subsequent setTextSelection in onClose
-                        // needs the selection free to move cleanly off
-                        // the chip.
                         const preserveSelection =
                             options?.preserveSelection ?? true;
                         if (preserveSelection) {
@@ -233,16 +228,25 @@ export const Blank = Node.create({
                     const from = range.to - match[0].length;
                     const to = range.to;
 
+                    // Single insertContentAt with a {from, to} range — Tiptap
+                    // translates this into a single ProseMirror replaceWith
+                    // transaction step, not a separate delete+insert. The
+                    // matched text is replaced with the blank node in one
+                    // schema-validated step, avoiding the transient empty
+                    // state that caused single-blank fill-in-blank blocks
+                    // to disappear.
                     chain()
-                        .deleteRange({ from, to })
-                        .insertContentAt(from, {
-                            type: nodeType.name,
-                            attrs: {
-                                id: crypto.randomUUID(),
-                                answer: canonical,
-                                acceptableAnswers,
+                        .insertContentAt(
+                            { from, to },
+                            {
+                                type: nodeType.name,
+                                attrs: {
+                                    id: crypto.randomUUID(),
+                                    answer: canonical,
+                                    acceptableAnswers,
+                                },
                             },
-                        })
+                        )
                         .run();
                 },
             }),
