@@ -8,6 +8,7 @@ import {
     size,
 } from '@floating-ui/react';
 import { createPortal } from 'react-dom';
+import FocusTrap from 'focus-trap-react';
 
 // ============================================================================
 // BlankEditPopover — popover UI for editing a blank's per-blank fields.
@@ -23,12 +24,28 @@ import { createPortal } from 'react-dom';
 //   one click.
 //
 // Positioning:
-//   floating-ui handles placement. The `size` middleware dynamically
-//   sets max-height based on available viewport space at the chosen
-//   placement — tall popovers near the bottom of the page anchor
-//   above the chip (via `flip`), short popovers anchor below as usual.
-//   The popover then scrolls internally when content exceeds the
-//   dynamically-computed max-height.
+//   floating-ui's `size` middleware dynamically sets max-height based
+//   on available viewport space. `flip()` picks the placement (above
+//   vs below the chip) with more space, so tall popovers near the
+//   page bottom anchor above.
+//
+// Focus management:
+//   FocusTrap (focus-trap-react) wraps the popover content. Tab cycles
+//   between fields within the popover; can't escape into the editor or
+//   page chrome until Escape / outside-click closes the popover.
+//
+//   - initialFocus: false — we keep our own rAF-based answer field focus
+//     so it works consistently with the popover open/reuse cycle (FocusTrap's
+//     initial focus runs synchronously on mount; ours runs after floating-ui
+//     has positioned the popover, which avoids a tiny flash of focus state).
+//   - returnFocusOnDeactivate: true — when the popover unmounts, focus
+//     returns to whatever held it before (typically the chip), important
+//     for screen reader continuity.
+//   - allowOutsideClick: true — our document-level mousedown handler
+//     handles outside-click closure; FocusTrap shouldn't swallow these.
+//   - escapeDeactivates: false — our document-level Escape handler runs
+//     flushAll() before close, which FocusTrap's default escape would
+//     bypass. Disabling FocusTrap's escape lets ours run.
 // ============================================================================
 
 interface MistakeFeedbackPair {
@@ -59,13 +76,7 @@ interface BlankEditPopoverProps {
     onClose: () => void;
 }
 
-// Minimum max-height: if available space is smaller than this, we keep this
-// floor and accept that some content will scroll. Better to have a usable
-// (if cramped) popover than a 50px sliver.
 const MIN_POPOVER_HEIGHT = 200;
-
-// Padding from viewport edge — leaves breathing room and prevents the
-// popover from butting up against the browser chrome.
 const VIEWPORT_PADDING = 12;
 
 export default function BlankEditPopover({
@@ -91,8 +102,6 @@ export default function BlankEditPopover({
     const [hintExpanded, setHintExpanded] = useState(false);
     const [feedbackExpanded, setFeedbackExpanded] = useState(false);
 
-    // Dynamically-computed max-height from floating-ui's size middleware.
-    // null = no constraint yet (initial render before measurement).
     const [maxHeight, setMaxHeight] = useState<number | null>(null);
 
     const answerRef = useRef(initialAnswer);
@@ -253,14 +262,6 @@ export default function BlankEditPopover({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, onClose, referenceElement]);
 
-    // floating-ui config with size middleware:
-    //   - offset(4): standard 4px gap from anchor
-    //   - flip(): prefer placement with more space (so tall popovers near
-    //     the page bottom anchor above the chip)
-    //   - shift({ padding: 8 }): keep popover horizontally within viewport
-    //   - size(): compute available space at chosen placement and cap our
-    //     max-height to it. We floor at MIN_POPOVER_HEIGHT so very tight
-    //     spaces still get a usable (if scrolly) popover.
     const { refs, floatingStyles } = useFloating({
         elements: { reference: referenceElement },
         placement: 'bottom-start',
@@ -271,9 +272,6 @@ export default function BlankEditPopover({
             size({
                 padding: VIEWPORT_PADDING,
                 apply({ availableHeight }) {
-                    // availableHeight is the height between the popover's
-                    // anchored edge and the viewport edge in the chosen
-                    // placement direction, minus the padding above.
                     setMaxHeight(
                         Math.max(MIN_POPOVER_HEIGHT, Math.floor(availableHeight)),
                     );
@@ -438,214 +436,241 @@ export default function BlankEditPopover({
         popoverRef.current = node;
     };
 
-    // Merge floating-ui's positioning styles with our dynamic max-height.
-    // floatingStyles sets position/top/left; we layer maxHeight on top.
-    // maxHeight is null until the size middleware first measures; while
-    // null we just don't constrain (uses fixed-content's natural height).
     const popoverStyle: React.CSSProperties = {
         ...floatingStyles,
         ...(maxHeight !== null ? { maxHeight: `${maxHeight}px` } : {}),
     };
 
     return createPortal(
-        <div
-            ref={setRefs}
-            className="blank-edit-popover"
-            style={popoverStyle}
-            onMouseDown={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-label="Edit blank"
+        <FocusTrap
+            active={isOpen}
+            focusTrapOptions={{
+                // We handle initial focus ourselves via the rAF effect above.
+                // FocusTrap's default focuses synchronously, which can race
+                // with floating-ui's positioning and cause a brief visual
+                // flash. Setting initialFocus: false defers to our logic.
+                initialFocus: false,
+                // Return focus to whatever held it before the popover opened
+                // (the chip, typically). Important for screen reader continuity
+                // and keyboard-only workflows.
+                returnFocusOnDeactivate: true,
+                // Our document-level mousedown handler handles outside-click
+                // closing. FocusTrap shouldn't swallow these clicks.
+                allowOutsideClick: true,
+                // Our document-level Escape handler runs flushAll() before
+                // close. FocusTrap's default Escape would call its own
+                // deactivate, bypassing our flush. Disabling it lets ours run.
+                escapeDeactivates: false,
+                // Don't error if no focusable element exists at trap-time
+                // (defensive — shouldn't happen in practice).
+                fallbackFocus: () => popoverRef.current ?? document.body,
+            }}
         >
-            <label className="blank-edit-popover__field">
-                <span className="blank-edit-popover__label">Answer</span>
-                <input
-                    ref={answerInputRef}
-                    type="text"
-                    className="blank-edit-popover__input"
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    onBlur={handleAnswerBlur}
-                    onKeyDown={handleAnswerKeyDown}
-                    aria-invalid={answerError ? 'true' : undefined}
-                    aria-describedby={
-                        answerError ? 'blank-edit-answer-error' : undefined
-                    }
-                />
-                {answerError && (
-                    <span
-                        id="blank-edit-answer-error"
-                        className="blank-edit-popover__error"
-                        role="alert"
-                    >
-                        {answerError}
-                    </span>
-                )}
-            </label>
+            <div
+                ref={setRefs}
+                className="blank-edit-popover"
+                style={popoverStyle}
+                onMouseDown={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-label="Edit blank"
+            >
+                <label className="blank-edit-popover__field">
+                    <span className="blank-edit-popover__label">Answer</span>
+                    <input
+                        ref={answerInputRef}
+                        type="text"
+                        className="blank-edit-popover__input"
+                        value={answer}
+                        onChange={(e) => setAnswer(e.target.value)}
+                        onBlur={handleAnswerBlur}
+                        onKeyDown={handleAnswerKeyDown}
+                        aria-invalid={answerError ? 'true' : undefined}
+                        aria-describedby={
+                            answerError ? 'blank-edit-answer-error' : undefined
+                        }
+                    />
+                    {answerError && (
+                        <span
+                            id="blank-edit-answer-error"
+                            className="blank-edit-popover__error"
+                            role="alert"
+                        >
+                            {answerError}
+                        </span>
+                    )}
+                </label>
 
-            <div className="blank-edit-popover__field">
-                <span className="blank-edit-popover__label">
-                    Acceptable answers
-                </span>
-                <div className="blank-edit-popover__list">
-                    {acceptableRows.map((value, index) => {
-                        const isTrailingEmpty = index === acceptableAnswers.length;
-                        return (
-                            <div
-                                className="blank-edit-popover__list-row"
-                                key={`acc-${index}`}
-                            >
-                                <input
-                                    type="text"
-                                    className="blank-edit-popover__input"
-                                    value={value}
-                                    placeholder={
-                                        isTrailingEmpty
-                                            ? 'Add another acceptable answer'
-                                            : undefined
-                                    }
-                                    onChange={(e) =>
-                                        updateAcceptableRow(index, e.target.value)
-                                    }
-                                    onBlur={commitAcceptable}
-                                    onKeyDown={handleAcceptableKeyDown}
-                                />
-                                {!isTrailingEmpty && (
-                                    <button
-                                        type="button"
-                                        className="blank-edit-popover__remove"
-                                        onClick={() => removeAcceptableRow(index)}
-                                        aria-label="Remove acceptable answer"
-                                        title="Remove"
-                                    >
-                                        ×
-                                    </button>
-                                )}
+                <div className="blank-edit-popover__field">
+                    <span className="blank-edit-popover__label">
+                        Acceptable answers
+                    </span>
+                    <div className="blank-edit-popover__list">
+                        {acceptableRows.map((value, index) => {
+                            const isTrailingEmpty =
+                                index === acceptableAnswers.length;
+                            return (
+                                <div
+                                    className="blank-edit-popover__list-row"
+                                    key={`acc-${index}`}
+                                >
+                                    <input
+                                        type="text"
+                                        className="blank-edit-popover__input"
+                                        value={value}
+                                        placeholder={
+                                            isTrailingEmpty
+                                                ? 'Add another acceptable answer'
+                                                : undefined
+                                        }
+                                        onChange={(e) =>
+                                            updateAcceptableRow(
+                                                index,
+                                                e.target.value,
+                                            )
+                                        }
+                                        onBlur={commitAcceptable}
+                                        onKeyDown={handleAcceptableKeyDown}
+                                    />
+                                    {!isTrailingEmpty && (
+                                        <button
+                                            type="button"
+                                            className="blank-edit-popover__remove"
+                                            onClick={() =>
+                                                removeAcceptableRow(index)
+                                            }
+                                            aria-label="Remove acceptable answer"
+                                            title="Remove"
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="blank-edit-popover__field">
+                    {hintExpanded ? (
+                        <>
+                            <span className="blank-edit-popover__label">Hint</span>
+                            <textarea
+                                className="blank-edit-popover__textarea"
+                                rows={2}
+                                value={hint}
+                                placeholder="Optional nudge shown when the student clicks the ? button"
+                                onChange={(e) => setHint(e.target.value)}
+                                onBlur={commitHint}
+                            />
+                        </>
+                    ) : (
+                        <button
+                            type="button"
+                            className="blank-edit-popover__add-section"
+                            onClick={() => setHintExpanded(true)}
+                        >
+                            + Add hint
+                        </button>
+                    )}
+                </div>
+
+                <div className="blank-edit-popover__field">
+                    {feedbackExpanded ? (
+                        <>
+                            <span className="blank-edit-popover__label">
+                                Mistake feedback
+                            </span>
+                            <div className="blank-edit-popover__sublabel">
+                                If the student types one of these wrong
+                                answers, show the matching feedback instead
+                                of the generic hint.
                             </div>
-                        );
-                    })}
+                            <div className="blank-edit-popover__list">
+                                {feedbackRows.map((pair, index) => {
+                                    const isTrailingEmpty =
+                                        index === mistakeFeedback.length;
+                                    return (
+                                        <div
+                                            className="blank-edit-popover__feedback-row"
+                                            key={`fb-${index}`}
+                                        >
+                                            <div className="blank-edit-popover__feedback-row-inner">
+                                                <input
+                                                    type="text"
+                                                    className="blank-edit-popover__input"
+                                                    value={pair.match}
+                                                    placeholder={
+                                                        isTrailingEmpty
+                                                            ? 'Wrong answer to match'
+                                                            : undefined
+                                                    }
+                                                    onChange={(e) =>
+                                                        updateFeedbackRow(
+                                                            index,
+                                                            'match',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    onBlur={commitFeedback}
+                                                    onKeyDown={
+                                                        handleFeedbackMatchKeyDown
+                                                    }
+                                                    aria-label="Wrong answer to match"
+                                                />
+                                                <textarea
+                                                    className="blank-edit-popover__textarea"
+                                                    rows={2}
+                                                    value={pair.feedback}
+                                                    placeholder={
+                                                        isTrailingEmpty
+                                                            ? 'Feedback to show'
+                                                            : undefined
+                                                    }
+                                                    onChange={(e) =>
+                                                        updateFeedbackRow(
+                                                            index,
+                                                            'feedback',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    onBlur={commitFeedback}
+                                                    aria-label="Feedback to show"
+                                                />
+                                            </div>
+                                            {!isTrailingEmpty && (
+                                                <button
+                                                    type="button"
+                                                    className="blank-edit-popover__remove"
+                                                    onClick={() =>
+                                                        removeFeedbackRow(index)
+                                                    }
+                                                    aria-label="Remove mistake feedback"
+                                                    title="Remove"
+                                                >
+                                                    ×
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    ) : (
+                        <button
+                            type="button"
+                            className="blank-edit-popover__add-section"
+                            onClick={() => setFeedbackExpanded(true)}
+                        >
+                            + Add mistake feedback
+                        </button>
+                    )}
+                </div>
+
+                <div className="blank-edit-popover__hint-text">
+                    Press Escape or click outside to close.
                 </div>
             </div>
-
-            <div className="blank-edit-popover__field">
-                {hintExpanded ? (
-                    <>
-                        <span className="blank-edit-popover__label">Hint</span>
-                        <textarea
-                            className="blank-edit-popover__textarea"
-                            rows={2}
-                            value={hint}
-                            placeholder="Optional nudge shown when the student clicks the ? button"
-                            onChange={(e) => setHint(e.target.value)}
-                            onBlur={commitHint}
-                        />
-                    </>
-                ) : (
-                    <button
-                        type="button"
-                        className="blank-edit-popover__add-section"
-                        onClick={() => setHintExpanded(true)}
-                    >
-                        + Add hint
-                    </button>
-                )}
-            </div>
-
-            <div className="blank-edit-popover__field">
-                {feedbackExpanded ? (
-                    <>
-                        <span className="blank-edit-popover__label">
-                            Mistake feedback
-                        </span>
-                        <div className="blank-edit-popover__sublabel">
-                            If the student types one of these wrong answers,
-                            show the matching feedback instead of the generic
-                            hint.
-                        </div>
-                        <div className="blank-edit-popover__list">
-                            {feedbackRows.map((pair, index) => {
-                                const isTrailingEmpty =
-                                    index === mistakeFeedback.length;
-                                return (
-                                    <div
-                                        className="blank-edit-popover__feedback-row"
-                                        key={`fb-${index}`}
-                                    >
-                                        <div className="blank-edit-popover__feedback-row-inner">
-                                            <input
-                                                type="text"
-                                                className="blank-edit-popover__input"
-                                                value={pair.match}
-                                                placeholder={
-                                                    isTrailingEmpty
-                                                        ? 'Wrong answer to match'
-                                                        : undefined
-                                                }
-                                                onChange={(e) =>
-                                                    updateFeedbackRow(
-                                                        index,
-                                                        'match',
-                                                        e.target.value,
-                                                    )
-                                                }
-                                                onBlur={commitFeedback}
-                                                onKeyDown={
-                                                    handleFeedbackMatchKeyDown
-                                                }
-                                                aria-label="Wrong answer to match"
-                                            />
-                                            <textarea
-                                                className="blank-edit-popover__textarea"
-                                                rows={2}
-                                                value={pair.feedback}
-                                                placeholder={
-                                                    isTrailingEmpty
-                                                        ? 'Feedback to show'
-                                                        : undefined
-                                                }
-                                                onChange={(e) =>
-                                                    updateFeedbackRow(
-                                                        index,
-                                                        'feedback',
-                                                        e.target.value,
-                                                    )
-                                                }
-                                                onBlur={commitFeedback}
-                                                aria-label="Feedback to show"
-                                            />
-                                        </div>
-                                        {!isTrailingEmpty && (
-                                            <button
-                                                type="button"
-                                                className="blank-edit-popover__remove"
-                                                onClick={() =>
-                                                    removeFeedbackRow(index)
-                                                }
-                                                aria-label="Remove mistake feedback"
-                                                title="Remove"
-                                            >
-                                                ×
-                                            </button>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </>
-                ) : (
-                    <button
-                        type="button"
-                        className="blank-edit-popover__add-section"
-                        onClick={() => setFeedbackExpanded(true)}
-                    >
-                        + Add mistake feedback
-                    </button>
-                )}
-            </div>
-
-            <div className="blank-edit-popover__hint-text">
-                Press Escape or click outside to close.
-            </div>
-        </div>,
+        </FocusTrap>,
         document.body,
     );
 }
