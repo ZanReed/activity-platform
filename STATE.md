@@ -4,9 +4,9 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 ## Current focus
 
-Stage 13 complete. The runtime now handles the full Phase 1 student loop end-to-end: per-blank scoring with mistake feedback and hint reveal, per-section checkpoints with score aggregation and solution reveal, locked-mode input freezing, confidence capture, and full state persistence across page reloads. Four sessions: state-architecture migration → per-blank feedback → checkpoint mechanics → persistence + confidence.
+Stage 13.5 complete. The editor now has full authoring UI for fill-in-the-blank problems: `fillInBlank` block + inline `blank` atom, slash menu insertion, sentinel parsing (`{{answer|alt1|alt2}}`), toolbar buttons (Problem, Blank, Section), and a per-blank edit popover at editor root with all four fields (answer, acceptable answers, hint, mistake feedback). Five drops across two effective sessions: scaffolding → popover with answer → full per-blank fields + persistence fixes → toolbar buttons → polish (dynamic max-height, focus trap, Section button).
 
-Immediate next step before any further runtime work: **redeploy renderer bundle to Edge Functions.** Stages 11, 12, and 13 all regenerated `supabase/functions/_shared/renderer.bundle.js` locally but never deployed; `publish-activity` is currently running the pre-Stage-11 bundle. Without the redeploy, end-to-end testing exercises stale code (missing the schemaVersion 1→2 fix from Stage 11, the entire data-attribute contract from Stage 12, and all of Stage 13's emission requirements). After redeploy, the full Stage 13 flow can be verified against a published activity.
+Immediate next step before further work: **redeploy renderer bundle to Edge Functions.** Stages 11/12/13 all regenerated `supabase/functions/_shared/renderer.bundle.js` locally but never deployed; `publish-activity` is currently running the pre-Stage-11 bundle. End-to-end testing — including verifying Stage 13.5's fill-in-blank data attributes (`data-hint`, `data-mistake-feedback`, `data-acceptable-answers`) reach the published HTML — is blocked on this.
 
 After verification: Stage 14 — submission flow polish (localStorage retry queue on network failure, attempt_number reconciliation, free-mode resubmit flow).
 
@@ -27,7 +27,7 @@ After verification: Stage 14 — submission flow polish (localStorage retry queu
 | React Router v7 | ✅ `/`, `/activities`, `/activity/:id`, `/playground` (dev-only) |
 | Tiptap editor + custom NodeViews + slash menu + drag handle + reorder | ✅ See architecture decisions for the full set |
 | MathLive integration | ✅ `<math-field>` web component; KaTeX render via NodeView |
-| Serialize layer (Tiptap JSON ↔ ActivityDocument) | ✅ 34 round-trip tests passing through Stage 9c |
+| Serialize layer (Tiptap JSON ↔ ActivityDocument) | ✅ Round-trips all blocks including Stage 13.5 blank fields (hint, mistakeFeedback) |
 | Stage 9a — schema additions (checkpoints/feedback/skills) | ✅ |
 | Stage 9b — DB migration 0005 (attempt_number) | ✅ |
 | Stage 9c — Tiptap section_break + isCheckpoint UI | ✅ |
@@ -37,8 +37,9 @@ After verification: Stage 14 — submission flow polish (localStorage retry queu
 | Stage 11 — Runtime file split + build pipeline | ✅ |
 | Stage 12 — Renderer emission contract + runtime state-object architecture | ✅ |
 | Stage 13 — Runtime feedback machinery + persistence (4 sessions) | ✅ |
+| Stage 13.5 — Editor authoring UI for fill-in-blanks + section button | ✅ |
 | Stage 14 — Submission flow polish (retry, resubmit, attempt reconciliation) | ⏳ Not started |
-| Stage 15 — Editor UI for new feature fields | ⏳ Not started |
+| Stage 15 — Editor UI for remaining feature fields | ⏳ Not started |
 | Stage 16 — Submissions dashboard with all-attempts toggle | ⏳ Not started |
 | Print feature — teacher-configurable printables (post-Stage-16) | ⏳ Designed; `docs/design/print-and-printables.md` |
 | Markdown paste import | ⏳ Phase 1 polish |
@@ -75,9 +76,13 @@ activity-platform/
 │   └── app/           — Vite + React 19 + TS + Tailwind v4 + React Router v7
 │       └── src/
 │           ├── editor/
+│           │   ├── extensions/        — Tiptap extensions (MathInline, MathBlock, SlashMenu, SectionBreak, BlockReorderShortcuts, FillInBlank, Blank)
+│           │   ├── nodeViews/         — React NodeViews (MathInlineView, MathBlockView, SectionBreakView, BlankView, FillInBlankView)
+│           │   ├── components/        — Stage 13.5 popover (BlankPopoverHost, BlankEditPopover)
+│           │   ├── Editor.tsx, Toolbar.tsx, slashMenuItems.ts, editor.css
 │           ├── components/
 │           ├── routes/
-│           ├── lib/
+│           ├── lib/                   — serialize.ts (Tiptap JSON ↔ ActivityDocument)
 │           ├── __tests__/
 │           └── App.tsx, main.tsx, index.css
 ├── supabase/
@@ -100,6 +105,7 @@ activity-platform/
 - **Storage bucket:** `activities` (public)
 - **Auth:** Google OAuth via Supabase. Site URL `http://localhost:5173` for dev. Allowlist-only signup (Phase 1).
 - **`packageManager` pin in package.json:** REMOVED
+- **Editor authoring dependencies added in Stage 13.5:** `@floating-ui/react` (popover positioning), `focus-trap-react` (popover focus management), `prosemirror-state` (for NodeSelection type narrowing in BlankPopoverHost).
 
 ## Architecture decisions made (and the reasoning, in case I forget)
 
@@ -202,6 +208,25 @@ activity-platform/
   5. Define `onUpdate = () => { render(state, refs); saveActivityState(config, refs, state); }`
   6. Wire blanks (blur + input), hints (click), checkpoints (click), confidence (change), submit (click)
 
+### Fill-in-blank authoring (Stage 13.5)
+
+- **Fill-in-blank block is a `fillInBlank` Tiptap node** with content spec `(text | mathInline | blank)*`. Inserted via slash menu, the "Problem" toolbar button, or markdown sentinel `{{answer|alt|alt}}` parsing.
+- **Blanks are inline atom nodes living ONLY inside fillInBlank blocks** (the schema's `FillInBlankInline` union: text | mathInline | blank). The block's content spec enforces placement at the ProseMirror level.
+- **Three insertion paths**: slash menu, sentinel `{{...}}` typed inline (pipe-delimited acceptable answers — matches runtime's `data-blank-answers` format), or "Blank" toolbar button (enabled only when cursor inside a fillInBlank).
+- **Chip rendering**: a small inline pill with the canonical answer + underline beneath. Width derived from answer length: `Math.max(answer.length + 1, 4)` ch. Formula must stay in sync between `BlankView.tsx` (editor) and `inline.ts` (renderer).
+- **Per-blank editing via a single popover at editor root**, not per-chip. `BlankPopoverHost` watches editor selection (via `instanceof NodeSelection` narrowing); renders `BlankEditPopover` when a `blank` node is the active selection. One floating-ui instance, one portal mount/unmount lifecycle tied to selection. Per-chip popover was tried in Drop 1 and broke widespread editor behavior (slash menu inline-render, fill-in-blanks uneditable, drag handles broken) — diagnosed as React reconciliation issues with N permanently-mounted popovers.
+- **Popover state lifecycle**: local React state for editing, refs mirror state for synchronous flush reads, initial-value refs hold the baseline for change diffs. Per-field save-on-blur is the normal commit path; `flushAll()` runs on every close path (Escape, outside click, Enter) so typed-but-not-blurred values survive close.
+- **`updateBlankAttrs(pos, attrs, options?)`** — chain command for updating blank attrs by position. `options.preserveSelection` (default `true`) re-applies NodeSelection at the chip's position after setNodeMarkup so the popover stays open across edits. Close-time flushes pass `false` so the subsequent setTextSelection in onClose can move selection cleanly off the chip in one click. Without the flag, the re-asserted selection fights with onClose's selection move and the popover bounces back open, requiring a second click.
+- **`onChange` thread carries options through**: BlankEditPopover → BlankPopoverHost.handleChange → editor.commands.updateBlankAttrs. Lets the popover request `preserveSelection: false` when flushing on close.
+- **Popover positioning**: floating-ui with `offset`, `flip`, `shift`, and `size` middleware. `size` dynamically computes `max-height` based on available viewport space at the chosen placement, floor `MIN_POPOVER_HEIGHT = 200`. `flip` lets the popover anchor above the chip when there's more space there (tall popovers near page bottom flip up). CSS no longer sets `max-height` — it's controlled by JS via inline style.
+- **Focus trap via `focus-trap-react`**. Tab cycles within the popover; Escape and outside-click still fire our handlers (`escapeDeactivates: false`, `allowOutsideClick: true`). Initial focus deferred to our rAF-based answer-field focus rather than FocusTrap's synchronous default. Focus returns to the chip on close (`returnFocusOnDeactivate: true`).
+- **Document-level outside-click handler** in BlankEditPopover closes the popover when mousedown lands outside both popover and chip. Covers page-chrome clicks where ProseMirror's selection-change wouldn't fire.
+- **Toolbar buttons for insertion**: Three new buttons across two groups.
+  - "Problem" (always enabled, inserts empty `fill_in_blank` block)
+  - "Blank" (enabled only when `editor.isActive('fillInBlank')`, inserts blank with `?` placeholder, then `setNodeSelection` via rAF so the popover auto-opens for immediate editing)
+  - "Section" (in a separate Structure group at toolbar end, inserts section break via `insertSectionBreak()` — SectionBreakView's existing inline UI handles title + checkpoint editing)
+- **Serialize layer extended for Stage 13.5**: `tiptapBlankToActivity` and `activityBlankToTiptap` round-trip all four blank fields (answer, acceptableAnswers, hint, mistakeFeedback). Optional fields (hint, mistakeFeedback) only serialized when non-empty for round-trip exactness.
+
 ## Standing constraints
 
 - **Pure renderer.** `@activity/renderer` is JSON-in, HTML-string-out. No I/O, no environment reads at render time. The runtime is the exception that proves the rule — its text is baked in at build time as a string constant.
@@ -214,9 +239,12 @@ activity-platform/
 - **Runtime: `render(state, refs)` is the only DOM mutator after init.** Every event handler writes to state, then calls `onUpdate` (which runs render + persist). The single permitted exception is `applyStoredState` setting `input.value` during bootstrap restoration, before the initial render runs.
 - **Runtime: `init.ts` is the only DOM walker.** All `querySelector` / `querySelectorAll` against arbitrary subtrees happen during init. Downstream consumes typed refs.
 - **Runtime persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION` is currently 1. If `BlankState`, `BlockState`, `SectionState`, or the blob shape changes incompatibly, bump it. Load returns null on mismatch → fresh state.
+- **Editor popover: single host, mount on selection.** Per-chip popover mounting broke editor behavior (Drop 1 attempt). Single `BlankPopoverHost` at editor root with selection-driven `BlankEditPopover` mount/unmount is the correct architecture; don't reintroduce per-chip mounting.
 
 ## Open questions / deferred decisions
 
+- **KNOWN BUG: empty fill_in_blank with only a sentinel-converted blank disappears.** Type `{{answer}}` as the sole content of an empty fill_in_blank → block vanishes on input rule fire. Workaround: type any character before/after the sentinel. Attempted fix in Stage 13.5 (single-step `insertContentAt` with range argument) didn't resolve. Suspected cause: ProseMirror auto-removing parent on transient empty-content states, or schema-level interaction we haven't identified. **Designated for a focused-debug session in a new chat** — well-bounded (Blank.ts input rule), needs deeper ProseMirror transaction inspection than a multi-purpose chat affords.
+- **Empty fill_in_blank blocks can't be dragged** until they have content. Drag handles only attach to non-empty fillInBlank instances. Minor issue; logged with the above bug.
 - **Section color tinting:** dropped from Phase 1 (cosmetic).
 - **Image upload (vs current image-by-URL only):** Phase 2.
 - **Multi-tenancy / district-scoped activities:** Phase 4+. Helpers are designed for it.
@@ -224,10 +252,13 @@ activity-platform/
 - **CDN-hosted shared runtime (Phase 3+):** when to move from versioned-per-publish to CDN-hosted. A `runtimeVersion` selector is added at that point. Trigger: when republishing activities for a runtime bug fix becomes painful (~50+ active activities).
 - **Responsive `--blank-width` sizing.** Considered for Stage 11 baseline; deferred to either Stage 15 or post-Stage-16 print feature.
 - **Phase 2 block type priority order:** worked example, faded worked example, learning objectives + success criteria, self-explanation. Decide order when Phase 2 starts based on which gap is most painful.
-- **UX validation with other teachers:** 2–3 informal reviews of the Stage 13 patterns (mistake feedback styling, hint affordance UX, confidence rating UI, section score display) before classroom adoption. Cost is low now; rises sharply once students start using activities.
+- **UX validation with other teachers:** 2–3 informal reviews of Stage 13 + Stage 13.5 patterns (chip popover UX, toolbar button discoverability, mistake feedback styling, section break inline UI) before classroom adoption. Cost is low now; rises sharply once students start using activities.
 - **Non-checkpoint sections in locked mode** have no lock affordance (no check button = no path to `SectionState.locked = true`). Stage 15 editor should enforce "in locked mode, every section is a checkpoint" as a validation rule. Runtime accepts what's emitted.
 - **Post-success edit edge case.** State is saved with `!state.submitted` gate; on submit success, `state.submitted = true` and `clearActivityState` fires. Between gather-render-persist and success-clear, the blob is briefly written then removed (wasteful but correct). Defense in depth — flag for Stage 14 when resubmit lands and `submitted` state becomes more nuanced.
 - **`init.test.ts` coverage** for `state.blanks` and `state.blocks` initialization is still a Session 1 follow-up. Tests pass without it (defaults work) but explicit coverage is overdue.
+- **No tests for Stage 13.5 work.** Serialize round-trip tests for the new blank fields (hint, mistakeFeedback) plus tests for the popover state machine are unwritten. Pick up in Session 3 of Stage 13.5 (post-end-to-end-test work) or fold into Stage 14.
+- **Selection-change unmount flush leak.** When the popover unmounts because selection moved to a different chip (not via Escape/outside-click), the unmount cleanup's `flushAll` calls `onChangeRef.current()` → host's `handleChange`, but by then `selectedBlank` is null so the guard returns silently. Outside-click and Escape are handled; selection-move-to-different-chip is a small leak (edits typed in chip A would be lost if user immediately clicks chip B). Stage 14 or polish-pass candidate.
+- **Section title/checkpoint inline UI exists in SectionBreakView** but there's no editor-level metadata panel. Stage 15 may add one; for now inline UI is adequate.
 - **Manual grading workflow shape (Phase 2.6):** does each grading pass amend the existing submission row, or create a new "grading" row that joins to it? Probably the join, for audit-trail reasons. Decide at Phase 2.6 start.
 - **Media submission storage and privacy posture (Phase 2.8):** student-uploaded media is a stronger privacy posture than typed text. Storage bucket separation, per-teacher quotas, retention policy. Decide at Phase 2.8 start.
 - **Annotation response coordinate space (Phase 2.9):** CSS pixels vs normalized fractions vs DOM-anchor + character-offset. Decide at Phase 2.9 start.
@@ -239,9 +270,12 @@ activity-platform/
    ```
    supabase functions deploy publish-activity
    ```
-   Verify by publishing a small test activity from the editor and inspecting the resulting HTML for Stage 12+ markup (blank wrappers, hint affordances, container `data-activity-type`, six-field config blob, per-block solution slots when applicable).
+   Verify by publishing a small test activity from the editor and inspecting the resulting HTML for Stage 12+ markup (blank wrappers, hint affordances, container `data-activity-type`, six-field config blob, per-block solution slots) AND Stage 13.5 attrs on blanks (`data-hint`, `data-mistake-feedback`, `data-acceptable-answers`).
 
-2. **End-to-end manual test** of the full Stage 13 student flow. Build a test activity with: multiple sections (at least one checkpoint), several fill-in-blank problems with hints and mistake-feedback entries authored, at least one block with a solution, at least one block with confidence rating enabled, in `free` mode first then re-test in `locked` mode. Verify:
+2. **End-to-end manual test** of the full Stage 13 student flow PLUS Stage 13.5 authoring → runtime round-trip. Build a test activity with: multiple sections (at least one checkpoint), several fill-in-blank problems with hints and mistake-feedback entries authored via the popover, at least one block with a solution, at least one block with confidence rating enabled, in `free` mode first then re-test in `locked` mode. Verify:
+   - Authoring works through the popover (Stage 13.5)
+   - Refresh persists all popover-authored fields (Stage 13.5)
+   - Published HTML carries all data attrs from popover fields
    - Blur a blank → see correct/incorrect class + aria-invalid
    - Type a known mistake → see targeted mistake feedback in the slot
    - Click hint button → see hint reveal, click again → hidden
@@ -251,31 +285,34 @@ activity-platform/
    - Submit → payload includes per-blank `confidence` and `responses.checkpointResults`
    - Reload after success → fresh form (persistence cleared)
 
-3. **Stage 14 — Submission flow polish.** Network failure handling (localStorage retry queue with exponential backoff: 1s, 4s, 16s), reconciliation of client `attemptNumber` against server's canonical value (returned in `ingest-submission` response), free-mode resubmit flow (button text change to "Resubmit", attempt increment, persistence handling across attempts — currently `clearActivityState` on success means a re-submitted attempt starts fresh, which is wrong for revision), beforeunload guard for the autosave window. ~1–2 sessions.
+3. **New chat: focused debug of disappearing-fill-in-blank bug.** Empty fill_in_blank containing only a sentinel-converted blank vanishes on input rule fire. Use a fresh chat focused on this specific issue — it needs deeper ProseMirror transaction inspection than a multi-purpose chat. Bring `packages/app/src/editor/extensions/Blank.ts` and `FillInBlank.ts`. Approach: console.log at every stage of the input rule transaction lifecycle to observe `state.doc` and `state.tr` mutations. Workaround (type a character before/after) is acceptable in the meantime.
 
-4. **Stage 15 — Editor UI for new feature fields.**
-   - Section-level: `isCheckpoint` toggle.
+4. **Stage 14 — Submission flow polish.** Network failure handling (localStorage retry queue with exponential backoff: 1s, 4s, 16s), reconciliation of client `attemptNumber` against server's canonical value (returned in `ingest-submission` response), free-mode resubmit flow (button text change to "Resubmit", attempt increment, persistence handling across attempts — currently `clearActivityState` on success means a re-submitted attempt starts fresh, which is wrong for revision), beforeunload guard for the autosave window. ~1–2 sessions.
+
+5. **Stage 15 — Editor UI for remaining feature fields.**
+   - Section-level: title editing already inline in SectionBreakView; isCheckpoint toggle already inline. Possibly a section-properties panel for additional fields if any are added.
    - Activity-level: `submissionMode` / `revisionMode` / `activityType` pickers.
-   - `FillInBlank` block: `hint`, `mistakeFeedback`, `solution`, `hasConfidenceRating`, `skills`.
+   - `FillInBlank` block: block-level fields (`solution`, `hasConfidenceRating`, `skills`). Per-blank fields are already authored via popover.
    - `Problem` block: `solution`, `skills`.
    - Validation: in locked mode, every section should be a checkpoint (warn at minimum, possibly block save).
    ~1–2 sessions.
 
-5. **Stage 16 — Submissions dashboard with all-attempts toggle.** All-attempts view (every row per student) vs best-score-plus-count view (one row per student). Display per-blank `confidence` and `checkpointResults` where useful. Filter by `activityType`. ~1–2 sessions.
+6. **Stage 16 — Submissions dashboard with all-attempts toggle.** All-attempts view (every row per student) vs best-score-plus-count view (one row per student). Display per-blank `confidence` and `checkpointResults` where useful. Filter by `activityType`. ~1–2 sessions.
 
-6. **Housekeeping (parallel):**
+7. **Housekeeping (parallel):**
    - `init.test.ts` coverage for `state.blanks` and `state.blocks` initialization (Session 1 leftover)
-   - UX validation with 2–3 other teachers on Stage 13 patterns
+   - Stage 13.5 test coverage: serialize round-trip for hint + mistakeFeedback, popover state machine tests
+   - UX validation with 2–3 other teachers on Stage 13 + Stage 13.5 patterns
    - CI workflow: GitHub Actions running `pnpm test` + `pnpm lint` + `pnpm run bundle:renderer` on push
 
-7. **Phase 1 polish (after Stage 16 closes the MVP loop):**
+8. **Phase 1 polish (after Stage 16 closes the MVP loop):**
    - Markdown paste import
    - Print feature (teacher-configurable printables — see `docs/design/print-and-printables.md`)
 
 ## Things NOT to do
 
 - Don't migrate old GitHub-Pages activities into the new system. Greenfield by design.
-- Don't add fields to the schema speculatively. YAGNI; migrations are cheap when needed. (Stage 9a, 9e, and Stage 13's state additions are all deliberate and grounded; resist "while we're here" extras.)
+- Don't add fields to the schema speculatively. YAGNI; migrations are cheap when needed. (Stage 9a, 9e, Stage 13's state additions, and Stage 13.5's blank attr additions are all deliberate and grounded; resist "while we're here" extras.)
 - Don't put auth or DB code in the renderer. Package boundary is the discipline.
 - Don't write RLS policies that inline ownership checks — call the helpers.
 - Don't conflate ProseMirror selection state (`selected`) with React UI state (`editing`) in NodeViews. Mixing them causes the "input deselects after one keystroke" class of bug.
@@ -299,6 +336,10 @@ activity-platform/
 - Don't add real-time usage counters to the hot path. Aggregate from `audit_log` via materialized views or scheduled jobs.
 - Don't diff serialized `ActivityDocument`s for change detection. `tiptapToActivity` mints fresh UUIDs per call; fingerprint Tiptap JSON instead.
 - Don't gitignore the runtime's generated string module. `packages/renderer/src/runtime/generated/runtime-bundle.ts` is committed so a clean checkout can typecheck the renderer without running the bundler.
+- **Don't reintroduce per-chip BlankEditPopover mounting.** Drop 1 of Stage 13.5 attempted this and broke widespread editor behavior. The single-host pattern at editor root with selection-driven mount/unmount is the correct architecture.
+- **Don't bypass `flushAll()` on popover close paths.** The lost-edit-on-immediate-close bug returns if any close path skips it.
+- **Don't change `updateBlankAttrs` to always preserve OR always release selection.** The optional `preserveSelection` flag exists because edit-time (preserve to keep popover open) and close-time (release so onClose can move selection cleanly) have opposite requirements.
+- **Don't import the SectionBreak NodeView's title input or checkpoint state into the toolbar's Section button logic.** Inline UI handles section properties; the toolbar button just inserts.
 
 ## Working with the author (notes for the next AI session)
 
@@ -314,7 +355,7 @@ Specific friction patterns where unstated assumptions have caused loops:
 - **pnpm strict-mode imports:** missing direct deps surface as Vite "Failed to resolve import" errors, even when the package exists transitively. The fix is always `pnpm add --filter @activity/app <package>`.
 - **"Replace X" instructions are easy to misread** as "replace the whole file" or "add the new code without removing the old." When pointing at a partial replacement, name the delete-from / keep boundaries explicitly. Include "the rest of the file is unchanged" reassurance.
 - **Babel TSX parser trips on nested generics in `forwardRef<A, B<C>>`.** Workaround: extract the inner type to a top-level alias.
-- **New tooling concepts get one sentence of context the first time** — flat ESLint config, Tailwind v4 `@theme`, Zod discriminated unions, Tiptap's `useImperativeHandle` bridge for ProseMirror callbacks, React Router v7 declarative mode, ProseMirror NodeViews, the marks-on-text-runs model, floating-ui, `:focus-visible`, esbuild bundler options, etc.
+- **New tooling concepts get one sentence of context the first time** — flat ESLint config, Tailwind v4 `@theme`, Zod discriminated unions, Tiptap's `useImperativeHandle` bridge for ProseMirror callbacks, React Router v7 declarative mode, ProseMirror NodeViews, the marks-on-text-runs model, floating-ui, focus-trap-react, `:focus-visible`, esbuild bundler options, etc.
 - **Don't conflate URLs with API keys** when describing dashboard navigation.
 - **Don't overstate accessibility behavior without thinking through the rendered state.** When claiming an a11y property, walk through the actual rendered DOM and keyboard flow before saying it works.
 - **Schema versioning convention.** `SubmissionResponses` always names the current schema; `SubmissionResponsesV1` is the legacy preserved for migration. There is no `SubmissionResponsesV2` symbol — when the next version lands, `SubmissionResponses` becomes v3 and a `SubmissionResponsesV2` will be introduced as the new legacy name. "Rename when demoting, not when promoting."
@@ -323,33 +364,49 @@ Specific friction patterns where unstated assumptions have caused loops:
 - **When sub-directory code has different lib needs than its package, give it its own tsconfig.** Discovered Stage 11: the runtime is DOM TypeScript inside a no-DOM package. Two tsconfigs + an exclude + two `tsc` invocations is the standard pattern.
 - **For one-shot mock cleanups in Vitest, prefer inline `try/finally` over `beforeEach`/`afterEach` with a typed shared variable.** Discovered Stage 11.
 - **Multi-file delivery — verify count of tail outputs.** When delivering N files in one message and asking for tail -3 verifications on each, if the pasted output shows fewer than N blocks-of-3-lines, the missing file is almost certainly empty on disk. Explicitly ask the user to confirm. Discovered Stage 12 step 6a: `config.ts` was empty after paste; 5 tail commands produced only 4 visible blocks.
+- **File-path collisions in multi-file drops are a real risk.** Discovered Stage 13.5: `BlankEditPopover.tsx` and `BlankPopoverHost.tsx` both belong in `packages/app/src/editor/components/`. A paste mix-up overwrote one file's contents with the other's, producing a TypeScript error blaming the wrong file. State the destination path explicitly at the top of every file in a multi-file drop. Diagnostic: `head -5 <path>` to see the actual contents.
+- **TypeScript `verbatimModuleSyntax` is strict about import styles.** Default imports from packages whose default export is treated as a "type-only thing" (e.g., focus-trap-react v10+ where `FocusTrap` is a named export) fail with TS1484. Switch to named imports (`import { FocusTrap } from ...`) when this happens.
+- **Tiptap `InputRule` handler returns `void | null`, not `Transaction | null`.** ProseMirror's underlying InputRule API returns a Transaction; Tiptap wraps and expects use of `chain()` / `commands.X()` helpers. The handler can't return `state.tr.replaceWith(...)` directly. Discovered Stage 13.5 attempting to fix the disappearing-block bug.
 
-### Stage 13 session-rhythm observations (useful for Stage 14+)
+### Stage 13 + 13.5 session-rhythm observations (useful for Stage 14+)
 
-- **Design pass → green light → code drop pattern works well.** Sessions 1–4 of Stage 13 all followed this. Brief design discussion surfacing real decisions, Zan responds with yes/no per item or counter, then code drop with verification steps. Don't skip the design pass even when the work looks straightforward — it surfaces decisions that would otherwise be silently assumed.
+- **Design pass → green light → code drop pattern works well.** Sessions of Stage 13 and 13.5 followed this. Brief design discussion surfacing real decisions, Zan responds with yes/no per item or counter, then code drop with verification steps. Don't skip the design pass even when the work looks straightforward — it surfaces decisions that would otherwise be silently assumed.
 
 - **Numbered decision lists in design passes get crisp responses.** Zan responds like "1. yes / 2. yeah / 3. okay" — keep this format. When a single answer was less terse ("we can split it up"), it covered all items implicitly; that's fine.
 
-- **Schema confirmation moment.** Stage 13 Session 4 needed `SubmissionResponses` v2 shape. Claude inferred from STATE.md / RUNTIME.md mentions and asked Zan to confirm against the actual file. Worth doing this explicitly for any cross-package shape questions — the inference matched but had two specifics (positive-int constraint on `total`, ISO datetime format on `checkedAt`) only visible in the actual Zod source.
+- **Schema confirmation moment.** Worth doing this explicitly for any cross-package shape questions — the inference often matches but specifics (positive-int constraints, ISO datetime formats, optional fields) only visible in the actual Zod source.
 
-- **"Best practice over shortcut" applies even when the shortcut is tempting.** Stage 13 Session 4 had a decision between adding `confidenceRadios` to refs (principled, ~12 lines of test fixture churn) or querying DOM in `renderBlock` (pragmatic, microsecond perf cost). Zan picked the principled solution with the rationale: writing code that reads cleanly to a future developer matters even at solo-dev scale. This is a useful mental model — when handing off code becomes a real possibility, the marginal cost of architectural consistency is small.
+- **"Best practice over shortcut" applies even when the shortcut is tempting.** Stage 13 had a decision between adding `confidenceRadios` to refs (principled, ~12 lines of test fixture churn) or querying DOM in `renderBlock` (pragmatic, microsecond perf cost). Zan picked the principled solution. Same pattern in Stage 13.5 — focus-trap-react chosen over hand-rolled focus management because future Phase 2+ modals will need it.
 
-- **Documentation lags code, deliberately or otherwise.** STATE.md and RUNTIME.md were updated AT END of Stage 13 (this update), not at the end of each session. The "vital context for future Claude" framing matters here — these docs are the bridge between chat sessions.
+- **Multi-drop staging for high-risk changes.** Stage 13.5's popover work split into Drop 2a (schema attrs) → 2b (popover with answer field) → 2c (full per-blank fields). When Drop 1 (per-chip popover) failed catastrophically, this allowed clean revert and re-design without losing the schema work. Validated the pattern. Apply to any large UI surface change.
 
-- **Multi-file drops work but tail-check verification is essential.** Stage 13 drops ranged from 5 to 11 files. The tail-3 verification at the end of each drop reliably caught empty-file paste errors.
+- **"Pilot error not popover error."** Mid-session diagnosis of editor blank screen turned out to be a wrong-URL typo (`/activity` vs `/activities`), not a code bug. When the symptoms don't make sense given the recent changes, ask "are you in the state you think you're in?" before diving into code.
+
+- **Documentation lags code, deliberately or otherwise.** STATE.md and RUNTIME.md are updated AT END of stages, not at the end of each session. The "vital context for future Claude" framing matters here — these docs are the bridge between chat sessions.
+
+- **Closeout pattern: write a bug report for any deferred bug in a format that can seed a new chat.** Done at end of Stage 13.5 for the disappearing-block bug. Lets the deferred issue actually get picked up rather than rotting in a TODO.
 
 ---
 
-**Last updated:** Stage 13 complete — runtime feedback machinery + persistence (four sessions).
+**Last updated:** Stage 13.5 complete — editor authoring UI for fill-in-the-blanks.
 
-- **Session 1**: `state.ts` expanded with `BlankState` and `BlockState`; `render.ts` introduced as the single DOM-mutator; `blanks.ts` migrated (`applyBlankFeedback` removed; `checkBlank` renamed to `scoreBlankAndUpdateState`; `wireBlanks` rewired to consume state + onUpdate). `index.ts` orchestrator updated to define `onUpdate = () => render(state, refs)` as the unified update trigger.
+- **Session 1**: scaffolding — `Blank.ts` (inline atom with input rule), `FillInBlank.ts` (block with `(text | mathInline | blank)*` content spec), `BlankView.tsx` + `FillInBlankView.tsx`, slash menu entry, serialize round-trip for the new block + blank types, renderer width formula on blank chips.
 
-- **Session 2**: per-blank feedback — `matchMistakeFeedback` dispatch (exact, case-sensitive, trim, first-match-wins), `scoreBlankAndUpdateState` now also writes `matchedMistake`, `aria-invalid` on the input as the SR signal, feedback slot text rendering (mistake-only; hidden otherwise), hint button toggle (`wireHints` in `blanks.ts`), edit-to-clear input handler with conditional re-render via `clearBlankState` boolean return.
+- **Session 2 Drop 2a**: added optional `hint` and `mistakeFeedback` attrs to `Blank.ts` with defensive parseHTML, added `updateBlankAttrs` chain command using `setNodeMarkup` for targeted attr updates.
 
-- **Session 3**: checkpoint mechanics — new `checkpoints.ts` with `checkSection` (pure mutator: iterates blanks, scores, aggregates score/total, sets `checkedAt`, flips `locked` in locked mode, reveals solutions) and `wireCheckpoints` (click handler). `render.ts` gained `renderBlock` (solution slot) and `renderSection` (score text, check-button disabled), and `renderBlank` now takes state as a third argument for locked-mode input freeze. Section score format locked in as "{score} / {sectionTotal} correct" (denominator = section total, NOT attempted count).
+- **Session 2 Drop 2b**: popover architecture redesign after Drop 1 (per-chip popover) broke widespread editor behavior. New pattern: `BlankPopoverHost` lives at editor root, watches `selectionUpdate` via `instanceof NodeSelection` narrowing, renders `BlankEditPopover` when a blank is selected. Drop 2b shipped with just the answer field.
 
-- **Session 4**: persistence + confidence — `storage.ts` expanded with `saveActivityState` / `loadActivityState` / `clearActivityState` / `applyStoredState` (per-version JSON blob keyed `activity_state_${id}_v${n}`, schema-versioned internally as `STORAGE_SCHEMA_VERSION = 1`, full state persisted including typed values, restored at bootstrap before initial render). New `confidence.ts` with `wireConfidence` (change handler on per-block fieldset radios). `refs.ts` gains `confidenceRadios` populated at init (kept the init-walks-DOM rule clean rather than querying in render — the principled choice with future-maintainer in mind). `submission.ts` payload now includes per-blank `confidence` (derived from per-block state via `blank.blockId`) and optional `checkpointResults` map (sections with `checked === true` AND `total > 0`); `clearActivityState` fires on submit success. `onUpdate` now composes render + persist.
+- **Session 2 Drop 2c**: full per-blank field UI (acceptable answers list with trailing-empty-slot pattern, collapsible hint textarea, collapsible mistake-feedback list of {match, feedback} pairs). Discovered and fixed:
+  - Persistence bug: serialize.ts wasn't reading/writing hint + mistakeFeedback → fixed in `tiptapBlankToActivity` and `activityBlankToTiptap`.
+  - Lost-edits-on-immediate-close: typing then clicking outside without Tab/Enter lost changes → fixed with refs-based `flushAll()` running on all close paths.
+  - Two-click close: re-asserted NodeSelection from `setNodeMarkup` fought with `onClose`'s `setTextSelection` → fixed with `preserveSelection: false` option on `updateBlankAttrs`, threaded through host's `handleChange`.
 
-Renderer bundle was regenerated across all four sessions; the Edge Function `publish-activity` is still running pre-Stage-11 code. The redeploy is the immediate next action before any end-to-end testing — without it, the deployed bundle is missing the schemaVersion 1→2 fix from Stage 11, the entire data-attribute contract from Stage 12 steps 1–5, and the full Stage 13 emission requirements (per-block solution slots, confidence fieldsets, checkpoint sections).
+- **Drop 3**: toolbar buttons "Problem" (always enabled, inserts empty fill_in_blank) and "Blank" (enabled only when cursor inside fillInBlank, inserts blank with `?` placeholder, auto-selects so popover opens for immediate edit). New Question group in Toolbar.tsx.
 
-Next: redeploy renderer bundle → end-to-end manual test through the full Stage 13 student flow → Stage 14 (submission flow polish: localStorage retry queue, attempt_number reconciliation, free-mode resubmit, beforeunload guard).
+- **Polish pass**: floating-ui `size` middleware for dynamic max-height (popover flips above the chip when near page bottom, sized to fit viewport, scrolls internally on overflow); `focus-trap-react` for Tab cycling within the popover; "Section" toolbar button in new Structure group at toolbar end (inserts section break — SectionBreakView's existing inline UI handles title + checkpoint).
+
+**Known issue deferred to a new chat**: empty fill_in_blank containing only a sentinel-converted blank disappears on input rule fire. Workaround: type any character before/after the sentinel. Attempted fix (single-step `insertContentAt` with range argument) didn't resolve. Designated for focused-debug session — see Open Questions for the bug report.
+
+Renderer bundle still pending redeploy (Stages 11/12/13/13.5 all regenerated locally). The redeploy is the immediate next action before any end-to-end testing.
+
+Next: redeploy renderer bundle → end-to-end manual test through full Stage 13 student flow + Stage 13.5 authoring round-trip → focused debug chat for disappearing-block bug (parallel) → Stage 14 (submission flow polish).
