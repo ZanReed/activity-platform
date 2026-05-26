@@ -11,41 +11,29 @@ import { createPortal } from 'react-dom';
 // ============================================================================
 // BlankEditPopover — popover UI for editing a blank's per-blank fields.
 // ----------------------------------------------------------------------------
-// Layout:
-//   - Answer (always visible) — single text input, auto-focused on open
-//   - Acceptable answers (always visible) — list of inputs + empty add slot
-//   - Hint (collapsible, expanded if non-empty) — multi-line textarea
-//   - Mistake feedback (collapsible, expanded if non-empty) — list of
-//     {match, feedback} pairs stacked, each with × remove
-//
 // Editing model — save-on-blur with force-commit-before-close:
-//   onBlur of each field commits the value via onChange. This is the normal
-//   path: user types, tabs away or clicks another field, value commits.
+//   onBlur of each field commits the value via onChange (normal path).
+//   On close (Escape, outside click, Enter), flushAll() commits any
+//   pending field state in a single bundled onChange call, then onClose
+//   fires. This prevents the "typed then clicked outside immediately"
+//   path from losing edits.
 //
-//   But if the user types in a field then immediately closes the popover
-//   (Escape, outside click, selection moves), the input would unmount before
-//   blur fires — the typed value would be lost. To prevent this, we mirror
-//   the latest local state into refs, and explicitly flush those refs via
-//   the commit functions at every close path. As a safety net, we also
-//   flush on unmount (catches selection-change unmounts the popover can't
-//   intercept).
-//
-// Closing paths (all flush state before closing):
-//   - Escape — keydown handler flushes then calls onClose
-//   - Outside click — document mousedown handler flushes then calls onClose
-//   - Enter on single-line inputs — explicit per-field commit then onClose
-//   - Selection moving away — host unmounts; effect cleanup flushes via refs
-//
-// Why refs + state instead of just state?
-//   React state updates are async; reading state inside a closure captures
-//   the value at closure creation, not at call time. Refs hold the current
-//   value at call time, which is what flush handlers need. We keep state
-//   for rendering and refs for flushing.
+//   The flush passes options.preserveSelection: false so the resulting
+//   transaction does NOT re-assert NodeSelection on the chip. Without this
+//   flag, the close-time setTextSelection in onClose would race with the
+//   re-asserted selection, the popover would bounce open, and the user
+//   would need a second click to actually close. With the flag, selection
+//   stays released after the flush, onClose's setTextSelection works
+//   cleanly, popover closes in one click.
 // ============================================================================
 
 interface MistakeFeedbackPair {
     match: string;
     feedback: string;
+}
+
+interface ChangeOptions {
+    preserveSelection?: boolean;
 }
 
 interface BlankEditPopoverProps {
@@ -62,6 +50,7 @@ interface BlankEditPopoverProps {
             hint: string | undefined;
             mistakeFeedback: MistakeFeedbackPair[] | undefined;
         }>,
+        options?: ChangeOptions,
     ) => void;
     onClose: () => void;
 }
@@ -89,16 +78,15 @@ export default function BlankEditPopover({
     const [hintExpanded, setHintExpanded] = useState(false);
     const [feedbackExpanded, setFeedbackExpanded] = useState(false);
 
-    // Mirror state into refs for synchronous reads during close/unmount.
-    // State updates async; refs hold latest value synchronously.
+    // Refs mirror state for synchronous reads at flush time. State updates
+    // are async; refs are not.
     const answerRef = useRef(initialAnswer);
     const acceptableRef = useRef<string[]>(initialAcceptableAnswers);
     const hintRef = useRef<string>(initialHint ?? '');
     const feedbackRef = useRef<MistakeFeedbackPair[]>(initialMistakeFeedback ?? []);
 
-    // Mirror initial-values into refs for diff comparison at flush time.
-    // These don't change between flushes; they reset only when props change
-    // (e.g., a new chip is selected).
+    // Initial-value refs hold the baseline for flush-diff comparisons.
+    // Reset when props change (new chip selected).
     const initialAnswerRef = useRef(initialAnswer);
     const initialAcceptableRef = useRef<string[]>(initialAcceptableAnswers);
     const initialHintRef = useRef<string | undefined>(initialHint);
@@ -106,9 +94,6 @@ export default function BlankEditPopover({
         initialMistakeFeedback,
     );
 
-    // onChange ref — captures the current onChange handler so flushes from
-    // effects can call the latest callback without re-registering effects
-    // on every render.
     const onChangeRef = useRef(onChange);
     useEffect(() => {
         onChangeRef.current = onChange;
@@ -117,7 +102,6 @@ export default function BlankEditPopover({
     const answerInputRef = useRef<HTMLInputElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
 
-    // Keep state and refs in sync after each render.
     useEffect(() => {
         answerRef.current = answer;
     }, [answer]);
@@ -131,7 +115,6 @@ export default function BlankEditPopover({
         feedbackRef.current = mistakeFeedback;
     }, [mistakeFeedback]);
 
-    // Reset state + initial refs when popover opens for a new chip / attrs.
     useEffect(() => {
         if (isOpen) {
             setAnswer(initialAnswer);
@@ -143,7 +126,6 @@ export default function BlankEditPopover({
             setFeedbackExpanded(
                 Boolean(initialMistakeFeedback && initialMistakeFeedback.length > 0),
             );
-            // Reset refs too — these track the baseline for commit diffs.
             answerRef.current = initialAnswer;
             acceptableRef.current = initialAcceptableAnswers;
             hintRef.current = initialHint ?? '';
@@ -170,11 +152,10 @@ export default function BlankEditPopover({
         return () => cancelAnimationFrame(raf);
     }, [isOpen]);
 
-    // Flush all current field state through onChange. Called before every
-    // close path, and on unmount as a safety net. Reads from refs (which
-    // hold the latest values synchronously) and diffs against initial refs
-    // to avoid no-op transactions. Bundles all pending field changes into a
-    // single onChange call so the host only dispatches one transaction.
+    // flushAll: commit any pending field state in a single bundled onChange
+    // call. Passes preserveSelection: false so the resulting transaction
+    // doesn't re-assert NodeSelection — letting the subsequent onClose
+    // move selection cleanly.
     const flushAll = () => {
         const updates: Partial<{
             answer: string;
@@ -183,8 +164,6 @@ export default function BlankEditPopover({
             mistakeFeedback: MistakeFeedbackPair[] | undefined;
         }> = {};
 
-        // Answer: skip if empty (would fail schema validation). The
-        // close-on-empty-answer case keeps the initial value implicitly.
         const trimmedAnswer = answerRef.current.trim();
         if (
             trimmedAnswer.length > 0 &&
@@ -193,7 +172,6 @@ export default function BlankEditPopover({
             updates.answer = trimmedAnswer;
         }
 
-        // Acceptable answers: strip empties, compare to initial.
         const strippedAcceptable = acceptableRef.current
             .map((s) => s.trim())
             .filter((s) => s.length > 0);
@@ -205,14 +183,12 @@ export default function BlankEditPopover({
             updates.acceptableAnswers = strippedAcceptable;
         }
 
-        // Hint: trim, empty → undefined.
         const trimmedHint = hintRef.current.trim();
         const hintValue = trimmedHint.length > 0 ? trimmedHint : undefined;
         if (hintValue !== initialHintRef.current) {
             updates.hint = hintValue;
         }
 
-        // Mistake feedback: strip incomplete pairs, compare to initial.
         const strippedFeedback = feedbackRef.current
             .map((p) => ({ match: p.match.trim(), feedback: p.feedback.trim() }))
             .filter((p) => p.match.length > 0 && p.feedback.length > 0);
@@ -231,26 +207,13 @@ export default function BlankEditPopover({
         }
 
         if (Object.keys(updates).length > 0) {
-            onChangeRef.current(updates);
+            // preserveSelection: false — release selection so onClose can
+            // move it cleanly off the chip in one click.
+            onChangeRef.current(updates, { preserveSelection: false });
         }
     };
 
-    // Flush on unmount as a safety net. Selection-change unmounts the
-    // popover via the host's state machine, and the popover doesn't get a
-    // chance to intercept that path explicitly. The unmount cleanup runs
-    // synchronously before React tears down the DOM, which is in time for
-    // the editor command to dispatch.
-    useEffect(() => {
-        return () => {
-            flushAll();
-        };
-        // Empty deps: this cleanup runs exactly once on unmount. flushAll
-        // reads from refs, so its closure capturing the initial function
-        // identity is fine — refs always point to the latest values.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Escape closes — flush then close.
+    // Escape closes.
     useEffect(() => {
         if (!isOpen) return;
         const handler = (e: KeyboardEvent) => {
@@ -265,7 +228,7 @@ export default function BlankEditPopover({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, onClose]);
 
-    // Outside click closes — flush then close.
+    // Outside click closes.
     useEffect(() => {
         if (!isOpen) return;
         const handler = (e: MouseEvent) => {
@@ -305,8 +268,8 @@ export default function BlankEditPopover({
     if (!isOpen) return null;
 
     // -----------------------------------------------------------------------
-    // Answer handlers — explicit save on blur for the visible "I tabbed away
-    // so this is final" UX, plus flushAll covers the close paths.
+    // Per-field handlers. Normal save-on-blur for Tab-between-fields UX
+    // (these keep popover open via the default preserveSelection: true).
     // -----------------------------------------------------------------------
     const handleAnswerBlur = () => {
         const trimmed = answer.trim();
@@ -332,9 +295,6 @@ export default function BlankEditPopover({
         }
     };
 
-    // -----------------------------------------------------------------------
-    // Acceptable answers handlers.
-    // -----------------------------------------------------------------------
     const updateAcceptableRow = (index: number, value: string) => {
         setAcceptableAnswers((prev) => {
             if (index < prev.length) {
@@ -379,9 +339,6 @@ export default function BlankEditPopover({
         }
     };
 
-    // -----------------------------------------------------------------------
-    // Hint handlers.
-    // -----------------------------------------------------------------------
     const commitHint = () => {
         const trimmed = hint.trim();
         const nextValue = trimmed.length > 0 ? trimmed : undefined;
@@ -391,9 +348,6 @@ export default function BlankEditPopover({
         }
     };
 
-    // -----------------------------------------------------------------------
-    // Mistake feedback handlers.
-    // -----------------------------------------------------------------------
     const updateFeedbackRow = (
         index: number,
         field: 'match' | 'feedback',

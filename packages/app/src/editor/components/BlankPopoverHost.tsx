@@ -26,12 +26,11 @@ import BlankEditPopover from './BlankEditPopover';
 //   NodeSelection from prosemirror-state (already a transitive dep via
 //   Tiptap).
 //
-// Why query the chip DOM via document.querySelector instead of ProseMirror's
-// view.nodeDOM(pos)?
-//   nodeDOM is the canonical lookup, but accessing the view object from
-//   the editor API is fiddly and can be brittle during transactions. The
-//   blank's data-blank-id is stable and unique, so a CSS selector is
-//   simpler and more reliable.
+// onChange options:
+//   The popover passes an optional `options` argument to onChange, threaded
+//   through to updateBlankAttrs. Used by the popover's close-time flush
+//   to skip selection re-assertion (so the subsequent close can move
+//   selection cleanly off the chip in one click).
 // ============================================================================
 
 interface BlankPopoverHostProps {
@@ -47,22 +46,23 @@ interface SelectedBlankState {
     mistakeFeedback: Array<{ match: string; feedback: string }> | undefined;
 }
 
+interface ChangeOptions {
+    preserveSelection?: boolean;
+}
+
 export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
     const [selectedBlank, setSelectedBlank] = useState<SelectedBlankState | null>(
         null,
     );
     const [referenceElement, setReferenceElement] =
-    useState<HTMLElement | null>(null);
+        useState<HTMLElement | null>(null);
 
-    // Resolve the chip's DOM element by blank id. Defensive escaping protects
-    // against future id format changes (UUIDs don't contain special CSS
-    // selector chars today, but the cost of CSS.escape is trivial).
     const resolveChipElement = useCallback((blankId: string) => {
         if (!blankId) return null;
         const escaped =
-        typeof CSS !== 'undefined' && CSS.escape
-        ? CSS.escape(blankId)
-        : blankId;
+            typeof CSS !== 'undefined' && CSS.escape
+                ? CSS.escape(blankId)
+                : blankId;
         return document.querySelector<HTMLElement>(
             `.blank-chip[data-blank-id="${escaped}"]`,
         );
@@ -74,8 +74,6 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
         const updateFromSelection = () => {
             const { selection } = editor.state;
 
-            // instanceof NodeSelection narrows selection.node to a typed
-            // ProseMirror Node, with .type and .attrs accessible.
             if (!(selection instanceof NodeSelection)) {
                 setSelectedBlank((prev) => (prev === null ? prev : null));
                 return;
@@ -91,15 +89,12 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             const blankId = (node.attrs.id as string) ?? '';
             const answer = (node.attrs.answer as string) ?? '';
             const acceptableAnswers =
-            (node.attrs.acceptableAnswers as string[]) ?? [];
+                (node.attrs.acceptableAnswers as string[]) ?? [];
             const hint = node.attrs.hint as string | undefined;
             const mistakeFeedback = node.attrs.mistakeFeedback as
-            | Array<{ match: string; feedback: string }>
-            | undefined;
+                | Array<{ match: string; feedback: string }>
+                | undefined;
 
-            // Identity-stable comparison: only update state if attrs actually
-            // changed. Avoids redundant renders + popover state resets when
-            // unrelated transactions fire.
             setSelectedBlank((prev) => {
                 if (
                     prev &&
@@ -125,8 +120,6 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
 
         editor.on('selectionUpdate', updateFromSelection);
         editor.on('transaction', updateFromSelection);
-        // Run once on mount in case selection is already on a blank when
-        // we attach (e.g., hot reload re-mounted the host).
         updateFromSelection();
 
         return () => {
@@ -135,9 +128,6 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
         };
     }, [editor]);
 
-    // Resolve the chip DOM element whenever the selected blank changes.
-    // requestAnimationFrame defers the query until after Tiptap renders —
-    // the chip's DOM may not yet exist when selectionUpdate fires.
     useEffect(() => {
         if (!selectedBlank) {
             setReferenceElement(null);
@@ -149,6 +139,9 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
         return () => cancelAnimationFrame(raf);
     }, [selectedBlank, resolveChipElement]);
 
+    // handleChange accepts an optional options object threaded to the
+    // editor command. preserveSelection: false is used by the popover's
+    // close-time flush to release selection so onClose can move it cleanly.
     const handleChange = useCallback(
         (
             attrs: Partial<{
@@ -156,21 +149,19 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 acceptableAnswers: string[];
                 hint: string | undefined;
                 mistakeFeedback:
-                | Array<{ match: string; feedback: string }>
-                | undefined;
+                    | Array<{ match: string; feedback: string }>
+                    | undefined;
             }>,
+            options?: ChangeOptions,
         ) => {
             if (!editor || !selectedBlank) return;
-            editor.commands.updateBlankAttrs(selectedBlank.pos, attrs);
+            editor.commands.updateBlankAttrs(selectedBlank.pos, attrs, options);
         },
         [editor, selectedBlank],
     );
 
     const handleClose = useCallback(() => {
         if (!editor) return;
-        // Move selection off the chip so the popover-watch effect closes.
-        // Position after the chip lets the user keep typing where they left
-        // off without manually clicking back into the prose.
         if (selectedBlank) {
             editor.commands.setTextSelection(selectedBlank.pos + 1);
         }
@@ -180,14 +171,14 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
 
     return (
         <BlankEditPopover
-        referenceElement={referenceElement}
-        isOpen={true}
-        initialAnswer={selectedBlank.answer}
-        initialAcceptableAnswers={selectedBlank.acceptableAnswers}
-        initialHint={selectedBlank.hint}
-        initialMistakeFeedback={selectedBlank.mistakeFeedback}
-        onChange={handleChange}
-        onClose={handleClose}
+            referenceElement={referenceElement}
+            isOpen={true}
+            initialAnswer={selectedBlank.answer}
+            initialAcceptableAnswers={selectedBlank.acceptableAnswers}
+            initialHint={selectedBlank.hint}
+            initialMistakeFeedback={selectedBlank.mistakeFeedback}
+            onChange={handleChange}
+            onClose={handleClose}
         />
     );
 }
