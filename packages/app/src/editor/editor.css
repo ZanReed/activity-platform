@@ -427,10 +427,7 @@
      display: flex;
      flex-direction: column;
      gap: 0.875rem;
-     /* Tall popovers (all sections expanded) scroll internally rather than
-      * overflow the viewport. floating-ui's flip middleware handles
-      * vertical positioning; this safeguards against viewport height. */
-     max-height: calc(100vh - 32px);
+     /* max-height intentionally NOT set here — see file header. */
      overflow-y: auto;
  }
 

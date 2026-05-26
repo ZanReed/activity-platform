@@ -5,6 +5,7 @@ import {
     offset,
     flip,
     shift,
+    size,
 } from '@floating-ui/react';
 import { createPortal } from 'react-dom';
 
@@ -14,17 +15,20 @@ import { createPortal } from 'react-dom';
 // Editing model — save-on-blur with force-commit-before-close:
 //   onBlur of each field commits the value via onChange (normal path).
 //   On close (Escape, outside click, Enter), flushAll() commits any
-//   pending field state in a single bundled onChange call, then onClose
-//   fires. This prevents the "typed then clicked outside immediately"
-//   path from losing edits.
+//   pending field state in a single bundled onChange call.
 //
-//   The flush passes options.preserveSelection: false so the resulting
-//   transaction does NOT re-assert NodeSelection on the chip. Without this
-//   flag, the close-time setTextSelection in onClose would race with the
-//   re-asserted selection, the popover would bounce open, and the user
-//   would need a second click to actually close. With the flag, selection
-//   stays released after the flush, onClose's setTextSelection works
-//   cleanly, popover closes in one click.
+//   The close-flush passes options.preserveSelection: false so the
+//   resulting transaction doesn't re-assert NodeSelection on the chip.
+//   This lets onClose's setTextSelection move selection cleanly in
+//   one click.
+//
+// Positioning:
+//   floating-ui handles placement. The `size` middleware dynamically
+//   sets max-height based on available viewport space at the chosen
+//   placement — tall popovers near the bottom of the page anchor
+//   above the chip (via `flip`), short popovers anchor below as usual.
+//   The popover then scrolls internally when content exceeds the
+//   dynamically-computed max-height.
 // ============================================================================
 
 interface MistakeFeedbackPair {
@@ -55,6 +59,15 @@ interface BlankEditPopoverProps {
     onClose: () => void;
 }
 
+// Minimum max-height: if available space is smaller than this, we keep this
+// floor and accept that some content will scroll. Better to have a usable
+// (if cramped) popover than a 50px sliver.
+const MIN_POPOVER_HEIGHT = 200;
+
+// Padding from viewport edge — leaves breathing room and prevents the
+// popover from butting up against the browser chrome.
+const VIEWPORT_PADDING = 12;
+
 export default function BlankEditPopover({
     referenceElement,
     isOpen,
@@ -78,15 +91,15 @@ export default function BlankEditPopover({
     const [hintExpanded, setHintExpanded] = useState(false);
     const [feedbackExpanded, setFeedbackExpanded] = useState(false);
 
-    // Refs mirror state for synchronous reads at flush time. State updates
-    // are async; refs are not.
+    // Dynamically-computed max-height from floating-ui's size middleware.
+    // null = no constraint yet (initial render before measurement).
+    const [maxHeight, setMaxHeight] = useState<number | null>(null);
+
     const answerRef = useRef(initialAnswer);
     const acceptableRef = useRef<string[]>(initialAcceptableAnswers);
     const hintRef = useRef<string>(initialHint ?? '');
     const feedbackRef = useRef<MistakeFeedbackPair[]>(initialMistakeFeedback ?? []);
 
-    // Initial-value refs hold the baseline for flush-diff comparisons.
-    // Reset when props change (new chip selected).
     const initialAnswerRef = useRef(initialAnswer);
     const initialAcceptableRef = useRef<string[]>(initialAcceptableAnswers);
     const initialHintRef = useRef<string | undefined>(initialHint);
@@ -152,10 +165,6 @@ export default function BlankEditPopover({
         return () => cancelAnimationFrame(raf);
     }, [isOpen]);
 
-    // flushAll: commit any pending field state in a single bundled onChange
-    // call. Passes preserveSelection: false so the resulting transaction
-    // doesn't re-assert NodeSelection — letting the subsequent onClose
-    // move selection cleanly.
     const flushAll = () => {
         const updates: Partial<{
             answer: string;
@@ -207,13 +216,10 @@ export default function BlankEditPopover({
         }
 
         if (Object.keys(updates).length > 0) {
-            // preserveSelection: false — release selection so onClose can
-            // move it cleanly off the chip in one click.
             onChangeRef.current(updates, { preserveSelection: false });
         }
     };
 
-    // Escape closes.
     useEffect(() => {
         if (!isOpen) return;
         const handler = (e: KeyboardEvent) => {
@@ -228,7 +234,6 @@ export default function BlankEditPopover({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, onClose]);
 
-    // Outside click closes.
     useEffect(() => {
         if (!isOpen) return;
         const handler = (e: MouseEvent) => {
@@ -248,10 +253,33 @@ export default function BlankEditPopover({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, onClose, referenceElement]);
 
+    // floating-ui config with size middleware:
+    //   - offset(4): standard 4px gap from anchor
+    //   - flip(): prefer placement with more space (so tall popovers near
+    //     the page bottom anchor above the chip)
+    //   - shift({ padding: 8 }): keep popover horizontally within viewport
+    //   - size(): compute available space at chosen placement and cap our
+    //     max-height to it. We floor at MIN_POPOVER_HEIGHT so very tight
+    //     spaces still get a usable (if scrolly) popover.
     const { refs, floatingStyles } = useFloating({
         elements: { reference: referenceElement },
         placement: 'bottom-start',
-        middleware: [offset(4), flip(), shift({ padding: 8 })],
+        middleware: [
+            offset(4),
+            flip(),
+            shift({ padding: 8 }),
+            size({
+                padding: VIEWPORT_PADDING,
+                apply({ availableHeight }) {
+                    // availableHeight is the height between the popover's
+                    // anchored edge and the viewport edge in the chosen
+                    // placement direction, minus the padding above.
+                    setMaxHeight(
+                        Math.max(MIN_POPOVER_HEIGHT, Math.floor(availableHeight)),
+                    );
+                },
+            }),
+        ],
         whileElementsMounted: autoUpdate,
         open: isOpen,
     });
@@ -267,10 +295,6 @@ export default function BlankEditPopover({
 
     if (!isOpen) return null;
 
-    // -----------------------------------------------------------------------
-    // Per-field handlers. Normal save-on-blur for Tab-between-fields UX
-    // (these keep popover open via the default preserveSelection: true).
-    // -----------------------------------------------------------------------
     const handleAnswerBlur = () => {
         const trimmed = answer.trim();
         if (trimmed.length === 0) {
@@ -414,11 +438,20 @@ export default function BlankEditPopover({
         popoverRef.current = node;
     };
 
+    // Merge floating-ui's positioning styles with our dynamic max-height.
+    // floatingStyles sets position/top/left; we layer maxHeight on top.
+    // maxHeight is null until the size middleware first measures; while
+    // null we just don't constrain (uses fixed-content's natural height).
+    const popoverStyle: React.CSSProperties = {
+        ...floatingStyles,
+        ...(maxHeight !== null ? { maxHeight: `${maxHeight}px` } : {}),
+    };
+
     return createPortal(
         <div
             ref={setRefs}
             className="blank-edit-popover"
-            style={floatingStyles}
+            style={popoverStyle}
             onMouseDown={(e) => e.stopPropagation()}
             role="dialog"
             aria-label="Edit blank"
