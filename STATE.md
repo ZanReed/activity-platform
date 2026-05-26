@@ -6,9 +6,16 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Stage 13.5 complete. The editor now has full authoring UI for fill-in-the-blank problems: `fillInBlank` block + inline `blank` atom, slash menu insertion, sentinel parsing (`{{answer|alt1|alt2}}`), toolbar buttons (Problem, Blank, Section), and a per-blank edit popover at editor root with all four fields (answer, acceptable answers, hint, mistake feedback). Five drops across two effective sessions: scaffolding → popover with answer → full per-blank fields + persistence fixes → toolbar buttons → polish (dynamic max-height, focus trap, Section button).
 
-Immediate next step before further work: **redeploy renderer bundle to Edge Functions.** Stages 11/12/13 all regenerated `supabase/functions/_shared/renderer.bundle.js` locally but never deployed; `publish-activity` is currently running the pre-Stage-11 bundle. End-to-end testing — including verifying Stage 13.5's fill-in-blank data attributes (`data-hint`, `data-mistake-feedback`, `data-acceptable-answers`) reach the published HTML — is blocked on this.
+Two pre-test issues now block end-to-end testing, in order:
+
+1. **Fix serialize layer's missing `blank` inline case** — `[serialize] Skipping unsupported Tiptap inline: blank` warning fires on every autosave, meaning blanks are silently dropped from saved `ActivityDocument`s. Surfaced during the disappearing-block debug session, separate concern. Small fix in `tiptapInlineNodeToActivity` in `serialize.ts` (~line 240).
+2. **Redeploy renderer bundle to Edge Functions.** Stages 11/12/13 all regenerated `supabase/functions/_shared/renderer.bundle.js` locally but never deployed; `publish-activity` is currently running the pre-Stage-11 bundle.
+
+Then end-to-end testing — including verifying Stage 13.5's fill-in-blank data attributes (`data-hint`, `data-mistake-feedback`, `data-acceptable-answers`) reach the published HTML — can run cleanly.
 
 After verification: Stage 14 — submission flow polish (localStorage retry queue on network failure, attempt_number reconciliation, free-mode resubmit flow).
+
+The previously-tracked "disappearing fill_in_blank on sentinel input rule" bug is fixed. Root cause was ProseMirror's content-fit algorithm auto-lifting an inline atom out of an emptied parent block during `replaceWith`. Resolved by adding `definingForContent: true` to FillInBlank — the targeted granular flag that prevents destination-side auto-removal without the asymmetric drag-reorder regression that `defining: true` caused.
 
 ## Status by area
 
@@ -27,7 +34,7 @@ After verification: Stage 14 — submission flow polish (localStorage retry queu
 | React Router v7 | ✅ `/`, `/activities`, `/activity/:id`, `/playground` (dev-only) |
 | Tiptap editor + custom NodeViews + slash menu + drag handle + reorder | ✅ See architecture decisions for the full set |
 | MathLive integration | ✅ `<math-field>` web component; KaTeX render via NodeView |
-| Serialize layer (Tiptap JSON ↔ ActivityDocument) | ✅ Round-trips all blocks including Stage 13.5 blank fields (hint, mistakeFeedback) |
+| Serialize layer (Tiptap JSON ↔ ActivityDocument) | ⚠ Blocks round-trip; `blank` inline node case missing in `tiptapInlineNodeToActivity` — blanks silently dropped on save (see Open Questions) |
 | Stage 9a — schema additions (checkpoints/feedback/skills) | ✅ |
 | Stage 9b — DB migration 0005 (attempt_number) | ✅ |
 | Stage 9c — Tiptap section_break + isCheckpoint UI | ✅ |
@@ -37,7 +44,7 @@ After verification: Stage 14 — submission flow polish (localStorage retry queu
 | Stage 11 — Runtime file split + build pipeline | ✅ |
 | Stage 12 — Renderer emission contract + runtime state-object architecture | ✅ |
 | Stage 13 — Runtime feedback machinery + persistence (4 sessions) | ✅ |
-| Stage 13.5 — Editor authoring UI for fill-in-blanks + section button | ✅ |
+| Stage 13.5 — Editor authoring UI for fill-in-blanks + section button + disappearing-block fix | ✅ |
 | Stage 14 — Submission flow polish (retry, resubmit, attempt reconciliation) | ⏳ Not started |
 | Stage 15 — Editor UI for remaining feature fields | ⏳ Not started |
 | Stage 16 — Submissions dashboard with all-attempts toggle | ⏳ Not started |
@@ -226,6 +233,7 @@ activity-platform/
   - "Blank" (enabled only when `editor.isActive('fillInBlank')`, inserts blank with `?` placeholder, then `setNodeSelection` via rAF so the popover auto-opens for immediate editing)
   - "Section" (in a separate Structure group at toolbar end, inserts section break via `insertSectionBreak()` — SectionBreakView's existing inline UI handles title + checkpoint editing)
 - **Serialize layer extended for Stage 13.5**: `tiptapBlankToActivity` and `activityBlankToTiptap` round-trip all four blank fields (answer, acceptableAnswers, hint, mistakeFeedback). Optional fields (hint, mistakeFeedback) only serialized when non-empty for round-trip exactness.
+- **`FillInBlank` carries `definingForContent: true`.** Prevents ProseMirror's content-fit algorithm from auto-lifting an inline atom out of a parent block it just emptied — root cause of the empty-block disappearing on the sentinel input rule. `defining: true` would also fix that symptom but breaks drag-reorder asymmetrically (it doubles as `definingAsContext`, which preserves drag-source context too aggressively and makes later blocks un-droppable above earlier ones). `definingForContent` is the targeted granular flag that isolates the destination-side preservation we want without the source-side regression. The Blank input rule handler passes `range` directly to `insertContentAt` (cleaner than the prior recomputed `from`/`to`, though that recomputation wasn't itself the bug).
 
 ## Standing constraints
 
@@ -243,8 +251,8 @@ activity-platform/
 
 ## Open questions / deferred decisions
 
-- **KNOWN BUG: empty fill_in_blank with only a sentinel-converted blank disappears.** Type `{{answer}}` as the sole content of an empty fill_in_blank → block vanishes on input rule fire. Workaround: type any character before/after the sentinel. Attempted fix in Stage 13.5 (single-step `insertContentAt` with range argument) didn't resolve. Suspected cause: ProseMirror auto-removing parent on transient empty-content states, or schema-level interaction we haven't identified. **Designated for a focused-debug session in a new chat** — well-bounded (Blank.ts input rule), needs deeper ProseMirror transaction inspection than a multi-purpose chat affords.
-- **Empty fill_in_blank blocks can't be dragged** until they have content. Drag handles only attach to non-empty fillInBlank instances. Minor issue; logged with the above bug.
+- **`[serialize] Skipping unsupported Tiptap inline: blank` warning fires on every autosave.** `tiptapInlineNodeToActivity` (`packages/app/src/lib/serialize.ts` around line 240) doesn't have a case for the `blank` node type — meaning blanks created in the editor are silently dropped from the persisted `ActivityDocument`. The companion functions `tiptapBlankToActivity` / `activityBlankToTiptap` exist (added in Stage 13.5), but either the dispatch in `tiptapInlineNodeToActivity` doesn't call them, or the case is wired in only one direction. **High-priority: invisible data loss.** Diagnose and fix before any end-to-end testing of the editor save/reload round-trip. Cheap fix — likely 10-20 lines in one switch statement.
+- **Empty fill_in_blank drag handle attachment** — pre-fix observation was that drag handles only attached to non-empty fillInBlank instances. Whether `definingForContent: true` changes this is unverified; re-test as part of Stage 14 drag-reorder pass. Minor either way.
 - **Section color tinting:** dropped from Phase 1 (cosmetic).
 - **Image upload (vs current image-by-URL only):** Phase 2.
 - **Multi-tenancy / district-scoped activities:** Phase 4+. Helpers are designed for it.
@@ -266,13 +274,15 @@ activity-platform/
 
 ## Nearest next steps
 
-1. **Redeploy renderer bundle.** Stages 11/12/13 all regenerated `supabase/functions/_shared/renderer.bundle.js` locally; `publish-activity` is still running the pre-Stage-11 bundle. Without this, end-to-end testing exercises stale code. Run from the project root:
+1. **Fix the serialize layer's missing `blank` inline case.** `[serialize] Skipping unsupported Tiptap inline: blank` warning fires on every autosave; blanks are silently dropped from the persisted `ActivityDocument`. Open `packages/app/src/lib/serialize.ts`, find `tiptapInlineNodeToActivity` (~line 240), and ensure the `blank` case dispatches to `tiptapBlankToActivity`. Verify the inverse path (`activityBlankToTiptap` reachable from `activityInlineNodeToTiptap`) at the same time. Add a serialize round-trip test for a fillInBlank containing one blank with all four fields populated (answer, acceptableAnswers, hint, mistakeFeedback). High-priority — invisible data loss until this lands.
+
+2. **Redeploy renderer bundle.** Stages 11/12/13 all regenerated `supabase/functions/_shared/renderer.bundle.js` locally; `publish-activity` is still running the pre-Stage-11 bundle. Without this, end-to-end testing exercises stale code. Run from the project root:
    ```
    supabase functions deploy publish-activity
    ```
    Verify by publishing a small test activity from the editor and inspecting the resulting HTML for Stage 12+ markup (blank wrappers, hint affordances, container `data-activity-type`, six-field config blob, per-block solution slots) AND Stage 13.5 attrs on blanks (`data-hint`, `data-mistake-feedback`, `data-acceptable-answers`).
 
-2. **End-to-end manual test** of the full Stage 13 student flow PLUS Stage 13.5 authoring → runtime round-trip. Build a test activity with: multiple sections (at least one checkpoint), several fill-in-blank problems with hints and mistake-feedback entries authored via the popover, at least one block with a solution, at least one block with confidence rating enabled, in `free` mode first then re-test in `locked` mode. Verify:
+3. **End-to-end manual test** of the full Stage 13 student flow PLUS Stage 13.5 authoring → runtime round-trip. Build a test activity with: multiple sections (at least one checkpoint), several fill-in-blank problems with hints and mistake-feedback entries authored via the popover, at least one block with a solution, at least one block with confidence rating enabled, in `free` mode first then re-test in `locked` mode. Verify:
    - Authoring works through the popover (Stage 13.5)
    - Refresh persists all popover-authored fields (Stage 13.5)
    - Published HTML carries all data attrs from popover fields
@@ -284,8 +294,6 @@ activity-platform/
    - Select confidence → restored on refresh
    - Submit → payload includes per-blank `confidence` and `responses.checkpointResults`
    - Reload after success → fresh form (persistence cleared)
-
-3. **New chat: focused debug of disappearing-fill-in-blank bug.** Empty fill_in_blank containing only a sentinel-converted blank vanishes on input rule fire. Use a fresh chat focused on this specific issue — it needs deeper ProseMirror transaction inspection than a multi-purpose chat. Bring `packages/app/src/editor/extensions/Blank.ts` and `FillInBlank.ts`. Approach: console.log at every stage of the input rule transaction lifecycle to observe `state.doc` and `state.tr` mutations. Workaround (type a character before/after) is acceptable in the meantime.
 
 4. **Stage 14 — Submission flow polish.** Network failure handling (localStorage retry queue with exponential backoff: 1s, 4s, 16s), reconciliation of client `attemptNumber` against server's canonical value (returned in `ingest-submission` response), free-mode resubmit flow (button text change to "Resubmit", attempt increment, persistence handling across attempts — currently `clearActivityState` on success means a re-submitted attempt starts fresh, which is wrong for revision), beforeunload guard for the autosave window. ~1–2 sessions.
 
@@ -301,7 +309,7 @@ activity-platform/
 
 7. **Housekeeping (parallel):**
    - `init.test.ts` coverage for `state.blanks` and `state.blocks` initialization (Session 1 leftover)
-   - Stage 13.5 test coverage: serialize round-trip for hint + mistakeFeedback, popover state machine tests
+   - Stage 13.5 test coverage: serialize round-trip for hint + mistakeFeedback (folds into step 1 above), popover state machine tests
    - UX validation with 2–3 other teachers on Stage 13 + Stage 13.5 patterns
    - CI workflow: GitHub Actions running `pnpm test` + `pnpm lint` + `pnpm run bundle:renderer` on push
 
@@ -340,6 +348,7 @@ activity-platform/
 - **Don't bypass `flushAll()` on popover close paths.** The lost-edit-on-immediate-close bug returns if any close path skips it.
 - **Don't change `updateBlankAttrs` to always preserve OR always release selection.** The optional `preserveSelection` flag exists because edit-time (preserve to keep popover open) and close-time (release so onClose can move selection cleanly) have opposite requirements.
 - **Don't import the SectionBreak NodeView's title input or checkpoint state into the toolbar's Section button logic.** Inline UI handles section properties; the toolbar button just inserts.
+- **Don't put `defining: true` on FillInBlank.** It fixes the empty-block-disappearing-on-sentinel bug as a side effect but breaks drag-reorder asymmetrically — later blocks can't move above earlier ones because `defining: true` doubles as `definingAsContext`, which preserves drag-source context too aggressively. Use `definingForContent: true` instead, which targets only the destination-side preservation that the input-rule case actually needs.
 
 ## Working with the author (notes for the next AI session)
 
@@ -386,9 +395,15 @@ Specific friction patterns where unstated assumptions have caused loops:
 
 - **Closeout pattern: write a bug report for any deferred bug in a format that can seed a new chat.** Done at end of Stage 13.5 for the disappearing-block bug. Lets the deferred issue actually get picked up rather than rotting in a TODO.
 
+- **When debugging a ProseMirror/Tiptap symptom, jump on the strongest signal first.** Disappearing-block-fix session: the strongest data point was "`defining: true` fixed it but broke drag-reorder." That uniquely fingerprints PM's content-fit algorithm and the defining-flag family. Detoured ~20 minutes on an off-by-one position-arithmetic hypothesis that didn't fit the symptom pattern (would have affected non-empty cases too, not specifically the empty-block one). Lesson: when you have a "this specific change fixed the symptom but had other consequences" data point in hand, follow it before generating new hypotheses.
+
+- **Code in fix instructions can collide on the same line when pasted.** Disappearing-block session, final hiccup: a multi-line comment ending in `// it just emptied.` had `chain()` paste onto the same line, commenting it out and causing an esbuild error. Worth ensuring code lines have explicit blank-line buffers around them in delivered snippets, and naming the structure ("a comment block followed by `chain()` on a new line").
+
 ---
 
-**Last updated:** Stage 13.5 complete — editor authoring UI for fill-in-the-blanks.
+**Last updated:** Stage 13.5 closeout session — disappearing-block bug fixed; serialize gap surfaced as new pre-test priority.
+
+Stage 13.5 work prior to closeout — editor authoring UI for fill-in-the-blanks:
 
 - **Session 1**: scaffolding — `Blank.ts` (inline atom with input rule), `FillInBlank.ts` (block with `(text | mathInline | blank)*` content spec), `BlankView.tsx` + `FillInBlankView.tsx`, slash menu entry, serialize round-trip for the new block + blank types, renderer width formula on blank chips.
 
@@ -405,8 +420,12 @@ Specific friction patterns where unstated assumptions have caused loops:
 
 - **Polish pass**: floating-ui `size` middleware for dynamic max-height (popover flips above the chip when near page bottom, sized to fit viewport, scrolls internally on overflow); `focus-trap-react` for Tab cycling within the popover; "Section" toolbar button in new Structure group at toolbar end (inserts section break — SectionBreakView's existing inline UI handles title + checkpoint).
 
-**Known issue deferred to a new chat**: empty fill_in_blank containing only a sentinel-converted blank disappears on input rule fire. Workaround: type any character before/after the sentinel. Attempted fix (single-step `insertContentAt` with range argument) didn't resolve. Designated for focused-debug session — see Open Questions for the bug report.
+**Known issue at Stage 13.5 close** (resolved in the following closeout session, see next paragraph): empty fill_in_blank containing only a sentinel-converted blank disappears on input rule fire. Workaround at the time: type any character before/after the sentinel. Attempted fix during Stage 13.5 (single-step `insertContentAt` with range argument) didn't resolve. Was designated for focused-debug session.
 
-Renderer bundle still pending redeploy (Stages 11/12/13/13.5 all regenerated locally). The redeploy is the immediate next action before any end-to-end testing.
+**Disappearing-block fix (post-Stage-13.5 closeout session)**: Root cause was ProseMirror's content-fit algorithm auto-lifting the new inline atom out of the parent block during `chain().insertContentAt(range, blankNode).run()`. With the block emptied of text and only an atom remaining, PM's fitting heuristic was free to discard the now-empty parent. Resolved by adding `definingForContent: true` to `FillInBlank` — the granular flag that prevents destination-side auto-removal without `defining: true`'s side effect of asymmetrically breaking drag-reorder (which is driven by `definingAsContext`). The Blank input rule handler was also tidied to pass `range` directly to `insertContentAt` rather than recomputing `from`/`to`; that recomputation was redundant but not the cause of the bug.
 
-Next: redeploy renderer bundle → end-to-end manual test through full Stage 13 student flow + Stage 13.5 authoring round-trip → focused debug chat for disappearing-block bug (parallel) → Stage 14 (submission flow polish).
+A prior hypothesis during the debug session — that the recomputed `from = range.to - match[0].length` was off-by-one and landing at the block boundary — was disproved by testing. Useful lesson for future debugging: when a specific symptom (works with leading char, fails on empty block) points at content-fitting behavior, jump straight to `definingForContent` / `definingAsContext` rather than chasing position arithmetic. The "`defining: true` fixed it but broke drag-reorder" data point Zan had from earlier was the strongest signal in retrospect.
+
+Renderer bundle still pending redeploy (Stages 11/12/13/13.5 all regenerated locally). Newly surfaced: `[serialize] Skipping unsupported Tiptap inline: blank` warning fires on every autosave — blanks are silently dropped from saved `ActivityDocument`s. **This is now the immediate priority before any end-to-end testing**, since the redeploy alone won't help if blanks vanish on save.
+
+Next: fix serialize gap → redeploy renderer bundle → end-to-end manual test through full Stage 13 student flow + Stage 13.5 authoring round-trip → Stage 14 (submission flow polish).

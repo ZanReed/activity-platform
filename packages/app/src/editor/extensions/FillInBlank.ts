@@ -2,6 +2,20 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import FillInBlankView from '../nodeViews/FillInBlankView';
 
+declare module '@tiptap/core' {
+    interface NodeConfig<Options, Storage> {
+        /**
+         * ProseMirror NodeSpec flag — preserves this node when content
+         * is replaced into it. Tiptap doesn't surface this granular
+         * field (only the combined `defining`), so we augment NodeConfig
+         * to accept it. Whether Tiptap forwards it to the underlying
+         * NodeSpec at runtime is verified by the empty-fillInBlank +
+         * sentinel input-rule test.
+         */
+        definingForContent?: boolean;
+    }
+}
+
 // ============================================================================
 // FillInBlank — Tiptap block node for a fill-in-the-blank problem.
 // ----------------------------------------------------------------------------
