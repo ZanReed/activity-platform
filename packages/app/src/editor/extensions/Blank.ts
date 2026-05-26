@@ -224,29 +224,22 @@ export const Blank = Node.create({
                     if (canonical.length === 0) {
                         return null;
                     }
-
-                    const from = range.to - match[0].length;
-                    const to = range.to;
-
-                    // Single insertContentAt with a {from, to} range — Tiptap
-                    // translates this into a single ProseMirror replaceWith
-                    // transaction step, not a separate delete+insert. The
-                    // matched text is replaced with the blank node in one
-                    // schema-validated step, avoiding the transient empty
-                    // state that caused single-blank fill-in-blank blocks
-                    // to disappear.
-                    chain()
-                        .insertContentAt(
-                            { from, to },
-                            {
-                                type: nodeType.name,
-                                attrs: {
-                                    id: crypto.randomUUID(),
-                                    answer: canonical,
-                                    acceptableAnswers,
-                                },
+                    // Replace the matched range with the blank node.
+                    // insertContentAt with a range arg is a single PM
+                    // replaceWith. The parent fillInBlank block survives
+                    // the replace because FillInBlank.definingForContent
+                    // is true — that prevents PM's content-fit algorithm
+                    // from auto-lifting the inline atom out of a parent
+                    // it just emptied.
+                        chain()
+                        .insertContentAt(range, {
+                            type: nodeType.name,
+                            attrs: {
+                                id: crypto.randomUUID(),
+                                answer: canonical,
+                                acceptableAnswers,
                             },
-                        )
+                        })
                         .run();
                 },
             }),

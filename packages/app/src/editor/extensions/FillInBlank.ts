@@ -38,6 +38,7 @@ declare module '@tiptap/core' {
     }
 }
 
+
 export const FillInBlank = Node.create({
     name: 'fillInBlank',
     group: 'block',
@@ -49,6 +50,7 @@ export const FillInBlank = Node.create({
                                        // the block itself is draggable as a unit.
                                        draggable: true,
                                        selectable: true,
+                                       definingForContent: true,
 
                                        addAttributes() {
                                            return {
