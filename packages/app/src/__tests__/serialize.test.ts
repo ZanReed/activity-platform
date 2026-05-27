@@ -7,7 +7,7 @@
 // strict deep-equal — no ID stripping needed.
 // =============================================================================
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
 import { ActivityDocument, ActivityMeta } from '@activity/schema';
 import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
@@ -651,4 +651,46 @@ describe('lists', () => {
         const activity = tiptapToActivity(doc, META);
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
     });
+    describe('fill_in_blank with blanks', () => {
+        it('round-trips a fillInBlank with one blank carrying all four fields', () => {
+            const blankAttrs = {
+                id: 'blank-1',
+                answer: '2x + 6',
+                acceptableAnswers: ['2x+6', '6 + 2x'],
+                hint: 'Distribute the 2.',
+                mistakeFeedback: [
+                    { match: '2x + 3', feedback: 'Did you forget to distribute to the 3?' },
+                    { match: 'x + 6', feedback: 'Distribute the 2 to both terms.' },
+                ],
+            };
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: { id: 'fib-1' },
+                        content: [
+                            { type: 'text', text: 'Simplify: 2(x + 3) = ' },
+           { type: 'blank', attrs: blankAttrs },
+                        ],
+                    },
+                ],
+            };
+            const result = roundTrip(doc);
+            // fillInBlank.attrs.id is intentionally re-minted by tiptapBlockToActivity
+            // (per the file header convention); assert on content shape rather than
+            // full doc equality. Blank ids ARE preserved.
+            const fib = result.content?.[0] as JSONContent;
+            expect(fib.type).toBe('fillInBlank');
+            expect(fib.content).toEqual([
+                { type: 'text', text: 'Simplify: 2(x + 3) = ' },
+                                        { type: 'blank', attrs: blankAttrs },
+            ]);
+        });
+
+        it('round-trips a fillInBlank with a blank that has no optional fields', () => {
+            const blankAttrs = {
+                id: 'blank-2',
+                answer: '5',
+                acceptableAnswers: [],
 });

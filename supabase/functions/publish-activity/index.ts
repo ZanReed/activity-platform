@@ -17,7 +17,11 @@
 //   6. Upload the HTML to Supabase Storage:
 //        - {activity_id}/v{N}/index.html  (immutable, long cache)
 //        - {activity_id}/index.html       (live alias, short cache)
-//   7. Return public URLs to the client.
+//   7. Return URLs to the client — pointed at the serve-activity Edge
+//      Function (the proxy), NOT the raw storage public URLs. Supabase
+//      Storage public buckets serve HTML as text/plain with a sandbox CSP
+//      as an anti-abuse measure; the serve-activity proxy reads the same
+//      stored files and rewrites Content-Type to text/html so they render.
 //
 // Environment variables required:
 //   SUPABASE_URL              — auto-injected
@@ -31,7 +35,8 @@
 // Storage bucket setup (one-time, manual):
 //   See README.md in this directory for the bucket creation SQL + dashboard
 //   instructions. Bucket must be PUBLIC and named 'activities' (or whatever
-//   STORAGE_BUCKET is set to).
+//   STORAGE_BUCKET is set to). MIME-type allowlist should be OFF; we serve
+//   via the serve-activity proxy regardless.
 // =============================================================================
 
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -204,8 +209,12 @@ Deno.serve(async (req: Request) => {
   }
 
   // ---- 6. Return URLs ---------------------------------------------------
-  const liveUrl = adminClient.storage.from(STORAGE_BUCKET).getPublicUrl(livePath).data.publicUrl;
-  const versionedUrl = adminClient.storage.from(STORAGE_BUCKET).getPublicUrl(versionedPath).data.publicUrl;
+  // Point at the serve-activity proxy, NOT the raw storage public URLs.
+  // Storage public URLs serve HTML as text/plain (Supabase anti-abuse policy);
+  // the proxy reads the same stored files and rewrites Content-Type to
+  // text/html so the page renders properly in a student's browser.
+  const liveUrl = `${SUPABASE_URL}/functions/v1/serve-activity/${activityId}`;
+  const versionedUrl = `${SUPABASE_URL}/functions/v1/serve-activity/${activityId}/v${version.version_num}`;
 
   const response: PublishResponse = {
     version_id: newVersionId,

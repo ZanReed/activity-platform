@@ -1,8 +1,20 @@
 // =============================================================================
 // ActivityEditor.tsx — the /activity/:id route
 // -----------------------------------------------------------------------------
-// Stage 10 step 4: loads an activity's draft, displays it in the editor, and
-// autosaves changes (title + body) back to Supabase, debounced.
+// Loads an activity's draft (or its published version if no draft exists),
+// displays it in the editor, autosaves changes (title + body) back to Supabase,
+// and provides a Publish action that snapshots the current draft to an
+// immutable, student-accessible static HTML page.
+//
+// Load priority on mount: prefer draft_content (a pending edit-in-progress) →
+// then current_version_id's content (post-publish, no edits yet) → then a
+// fresh empty doc (brand-new activity, shouldn't happen via Activities.tsx
+// flow which always inserts a draft, but defensive). This is the fix for
+// the "publish clears your editor" bug: the publish RPC clears draft_content
+// on success, so after a publish there's a window (until the next edit) where
+// draft is null. Before this fix, the editor showed an empty document during
+// that window; now it shows the just-published version as the starting point
+// for the next revision.
 // =============================================================================
 
 import {
@@ -23,11 +35,17 @@ import { supabase } from '../lib/supabase';
 import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
 import { useAutosave, type SaveStatus } from '../lib/useAutosave';
 import Editor from '../editor/Editor';
+import PublishControl from '../components/PublishControl';
 
 interface ActivityLoadRow {
     id: string;
     title: string;
     draft_content: unknown;
+    current_version_id: string | null;
+}
+
+interface ActivityVersionLoadRow {
+    content: unknown;
 }
 
 type LoadState =
@@ -77,7 +95,7 @@ export default function ActivityEditor() {
         (async () => {
             const { data, error } = await supabase
             .from('activities')
-            .select('id, title, draft_content')
+            .select('id, title, draft_content, current_version_id')
             .eq('id', id)
             .is('deleted_at', null)
             .maybeSingle();
@@ -94,12 +112,17 @@ export default function ActivityEditor() {
 
             const row = data as ActivityLoadRow;
 
-            // A published activity with no pending draft has draft_content === null
-            // — fall back to a fresh document seeded from the title column.
+            // Three-way load priority: draft > published version > fresh empty.
+            // The draft path is the common case (any activity with in-progress
+            // edits). The version path is the post-publish reopen case — the
+            // publish RPC clears draft_content, so without this fallback the
+            // editor would show an empty document for any activity that's been
+            // published but not yet re-edited. Fresh-empty is the defensive
+            // bottom case; Activities.tsx always inserts a draft on creation,
+            // so a row with neither a draft nor a current_version_id should be
+            // impossible via the normal flow.
             let doc: ActivityDocument;
-            if (row.draft_content === null) {
-                doc = createEmptyDocument({ title: row.title });
-            } else {
+            if (row.draft_content !== null) {
                 const parsed = ActivityDocument.safeParse(row.draft_content);
                 if (!parsed.success) {
                     setLoadState({
@@ -109,6 +132,35 @@ export default function ActivityEditor() {
                     return;
                 }
                 doc = parsed.data;
+            } else if (row.current_version_id) {
+                const { data: versionData, error: vErr } = await supabase
+                .from('activity_versions')
+                .select('content')
+                .eq('id', row.current_version_id)
+                .single();
+                if (cancelled) return;
+
+                if (vErr || !versionData) {
+                    setLoadState({
+                        status: 'error',
+                        message:
+                        "Couldn't load the published version of this activity.",
+                    });
+                    return;
+                }
+                const versionRow = versionData as ActivityVersionLoadRow;
+                const parsed = ActivityDocument.safeParse(versionRow.content);
+                if (!parsed.success) {
+                    setLoadState({
+                        status: 'error',
+                        message:
+                        "The published version of this activity is malformed.",
+                    });
+                    return;
+                }
+                doc = parsed.data;
+            } else {
+                doc = createEmptyDocument({ title: row.title });
             }
 
             // ProseMirror's `doc` requires at least one block child; a brand-new
@@ -217,8 +269,10 @@ export default function ActivityEditor() {
             );
         }
 
-        // status === 'ready'. meta is set in the same effect branch; guard narrows.
+        // status === 'ready'. meta and id are both set; guards narrow them for
+        // PublishControl's activityId: string prop.
         if (!meta) return null;
+        if (!id) return null;
 
         return (
             <Shell>
@@ -229,7 +283,10 @@ export default function ActivityEditor() {
             >
             ← All activities
             </Link>
+            <div className="flex items-center gap-4">
             <SaveIndicator status={status} />
+            <PublishControl activityId={id} saveStatus={status} />
+            </div>
             </div>
 
             <input
