@@ -14,32 +14,38 @@
 //      Edge Function and the renderer both refuse to operate on malformed
 //      input even though the editor's serialize layer should never produce it).
 //   5. Render to a self-contained HTML string via @activity/renderer.
-//   6. Upload the HTML to Supabase Storage:
+//   6. Upload the HTML to Cloudflare R2 via the S3-compatible API:
 //        - {activity_id}/v{N}/index.html  (immutable, long cache)
 //        - {activity_id}/index.html       (live alias, short cache)
-//   7. Return URLs to the client — pointed at the serve-activity Edge
-//      Function (the proxy), NOT the raw storage public URLs. Supabase
-//      Storage public buckets serve HTML as text/plain with a sandbox CSP
-//      as an anti-abuse measure; the serve-activity proxy reads the same
-//      stored files and rewrites Content-Type to text/html so they render.
+//   7. Return direct R2 public URLs to the client.
+//
+// Hosting note:
+//   Published HTML lives on Cloudflare R2, not Supabase Storage. Supabase's
+//   free tier rewrites text/html responses to text/plain (as anti-abuse) on
+//   both Storage public URLs and Edge Function responses. R2 serves HTML
+//   directly with the correct Content-Type and has zero egress cost.
+//   See STATE.md "Hosting platform" and ROADMAP.md cross-cutting concerns
+//   for the full reasoning.
 //
 // Environment variables required:
 //   SUPABASE_URL              — auto-injected
 //   SUPABASE_ANON_KEY         — auto-injected
-//   SUPABASE_SERVICE_ROLE_KEY — auto-injected
 //   SUBMISSION_ENDPOINT       — full URL of the ingest-submission Edge Function
 //                               (set with `supabase secrets set`)
+//   R2_ACCOUNT_ID             — Cloudflare account ID
+//   R2_ACCESS_KEY_ID          — R2 API token access key ID
+//   R2_SECRET_ACCESS_KEY      — R2 API token secret access key
+//   R2_BUCKET_NAME            — R2 bucket name (e.g., activity-platform-published)
+//   R2_PUBLIC_URL_BASE        — Public r2.dev URL or custom domain (no trailing slash)
 //   ALLOWED_ORIGINS           — optional, defaults to '*' (set in prod)
-//   STORAGE_BUCKET            — optional, defaults to 'activities'
 //
-// Storage bucket setup (one-time, manual):
-//   See README.md in this directory for the bucket creation SQL + dashboard
-//   instructions. Bucket must be PUBLIC and named 'activities' (or whatever
-//   STORAGE_BUCKET is set to). MIME-type allowlist should be OFF; we serve
-//   via the serve-activity proxy regardless.
+// Note: SUPABASE_SERVICE_ROLE_KEY is no longer required — Storage uploads
+//       migrated to R2 (no admin client needed). The auto-injected value
+//       remains available in the environment but is unused by this function.
 // =============================================================================
 
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { S3Client, PutObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.621.0';
 import {
   renderActivity,
   ActivityDocument,
@@ -53,18 +59,50 @@ import {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const SUBMISSION_ENDPOINT = Deno.env.get('SUBMISSION_ENDPOINT') ?? '';
-const STORAGE_BUCKET = Deno.env.get('STORAGE_BUCKET') ?? 'activities';
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Missing required Supabase environment variables');
+const R2_ACCOUNT_ID = Deno.env.get('R2_ACCOUNT_ID') ?? '';
+const R2_ACCESS_KEY_ID = Deno.env.get('R2_ACCESS_KEY_ID') ?? '';
+const R2_SECRET_ACCESS_KEY = Deno.env.get('R2_SECRET_ACCESS_KEY') ?? '';
+const R2_BUCKET_NAME = Deno.env.get('R2_BUCKET_NAME') ?? '';
+const R2_PUBLIC_URL_BASE = Deno.env.get('R2_PUBLIC_URL_BASE') ?? '';
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('Missing required Supabase environment variables (SUPABASE_URL, SUPABASE_ANON_KEY)');
+}
+if (
+  !R2_ACCOUNT_ID ||
+  !R2_ACCESS_KEY_ID ||
+  !R2_SECRET_ACCESS_KEY ||
+  !R2_BUCKET_NAME ||
+  !R2_PUBLIC_URL_BASE
+) {
+  throw new Error(
+    'Missing required R2 environment variables ' +
+    '(R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL_BASE)'
+  );
 }
 if (!SUBMISSION_ENDPOINT) {
   // Soft-fail at runtime instead of import time, so the function still boots
   // and can return a clean 500 rather than crashing the runtime.
   console.warn('[publish-activity] SUBMISSION_ENDPOINT not set — published HTML will have a broken submit button');
 }
+
+// Strip any accidental trailing slash on the public URL base so URL
+// concatenation stays clean regardless of how the secret was set.
+const PUBLIC_URL_BASE = R2_PUBLIC_URL_BASE.replace(/\/+$/, '');
+
+// One S3Client per cold start. R2 doesn't use AWS regions; 'auto' is the
+// convention. The endpoint is account-scoped; bucket name goes into the
+// PutObjectCommand parameters, not the URL.
+const r2Client = new S3Client({
+  region: 'auto',
+  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: R2_ACCESS_KEY_ID,
+    secretAccessKey: R2_SECRET_ACCESS_KEY,
+  },
+});
 
 interface PublishRequest {
   activity_id: string;
@@ -168,53 +206,56 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // ---- 5. Upload to Storage ---------------------------------------------
-  const adminClient: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
-
-  const versionedPath = `${activityId}/v${version.version_num}/index.html`;
-  const livePath = `${activityId}/index.html`;
+  // ---- 5. Upload to R2 --------------------------------------------------
+  // Object keys are bucket-relative paths; the bucket name itself goes in
+  // the Bucket parameter, not the Key.
+  const versionedKey = `${activityId}/v${version.version_num}/index.html`;
+  const liveKey = `${activityId}/index.html`;
   const bytes = new TextEncoder().encode(html);
 
-  // Versioned: immutable, long cache. We use upsert:false so a re-publish
-  // of the same version_num (which shouldn't happen) errors loudly.
-  const { error: vUploadErr } = await adminClient.storage
-    .from(STORAGE_BUCKET)
-    .upload(versionedPath, bytes, {
-      contentType: 'text/html; charset=utf-8',
-      cacheControl: '31536000, immutable',
-      upsert: false,
-    });
-  if (vUploadErr) {
-    console.error('[publish-activity] Versioned upload failed:', vUploadErr);
+  // Versioned: immutable, long cache. S3 PutObject overwrites by default;
+  // there's no equivalent to Supabase Storage's `upsert:false` flag in the
+  // base S3 API. R2 supports conditional headers (If-None-Match: *) on
+  // newer endpoints, but support is recent and not universally documented,
+  // so we rely on the upstream uniqueness guarantee instead: publish_activity
+  // derives version_num as max(version_num) + 1 server-side, so a collision
+  // on this path shouldn't happen.
+  try {
+    await r2Client.send(new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: versionedKey,
+      Body: bytes,
+      ContentType: 'text/html; charset=utf-8',
+      CacheControl: 'public, max-age=31536000, immutable',
+    }));
+  } catch (err) {
+    console.error('[publish-activity] Versioned upload failed:', err);
     return errorResponse(req, 500, 'Failed to upload versioned HTML', {
-      message: vUploadErr.message,
+      message: err instanceof Error ? err.message : String(err),
     });
   }
 
   // Live: rewrites on every publish, short cache so changes propagate quickly.
-  const { error: lUploadErr } = await adminClient.storage
-    .from(STORAGE_BUCKET)
-    .upload(livePath, bytes, {
-      contentType: 'text/html; charset=utf-8',
-      cacheControl: '300, public', // 5 min
-      upsert: true,
-    });
-  if (lUploadErr) {
-    console.error('[publish-activity] Live upload failed:', lUploadErr);
+  try {
+    await r2Client.send(new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: liveKey,
+      Body: bytes,
+      ContentType: 'text/html; charset=utf-8',
+      CacheControl: 'public, max-age=300', // 5 min
+    }));
+  } catch (err) {
+    console.error('[publish-activity] Live upload failed:', err);
     return errorResponse(req, 500, 'Failed to upload live HTML', {
-      message: lUploadErr.message,
+      message: err instanceof Error ? err.message : String(err),
     });
   }
 
   // ---- 6. Return URLs ---------------------------------------------------
-  // Point at the serve-activity proxy, NOT the raw storage public URLs.
-  // Storage public URLs serve HTML as text/plain (Supabase anti-abuse policy);
-  // the proxy reads the same stored files and rewrites Content-Type to
-  // text/html so the page renders properly in a student's browser.
-  const liveUrl = `${SUPABASE_URL}/functions/v1/serve-activity/${activityId}`;
-  const versionedUrl = `${SUPABASE_URL}/functions/v1/serve-activity/${activityId}/v${version.version_num}`;
+  // Direct R2 public URLs — no proxy needed. R2 serves HTML with the
+  // correct Content-Type, unlike Supabase Storage on free tier.
+  const liveUrl = `${PUBLIC_URL_BASE}/${liveKey}`;
+  const versionedUrl = `${PUBLIC_URL_BASE}/${versionedKey}`;
 
   const response: PublishResponse = {
     version_id: newVersionId,
