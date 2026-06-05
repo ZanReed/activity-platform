@@ -14,7 +14,7 @@ What landed this session:
   - **Renderer** — `renderInline` emits `<br>` for `hard_break`.
   - **Tests** — serialize round-trip + renderer `<br>` emission. Suites green (schema 30, renderer 54, app 47).
   - **Bundle regenerated** (`pnpm run bundle:renderer`); runtime unchanged (render-time only).
-  - ⚠ **`publish-activity` needs redeploy** (`supabase functions deploy publish-activity`) for the fix to reach live publishes — the function renders from the bundle. Plain Enter (new paragraph) was always fine; this only affects Shift+Enter.
+  - **`publish-activity` redeployed** so the fix is live. Plain Enter (new paragraph) was always fine; this only affected Shift+Enter.
 
 ## Status by area
 
@@ -406,4 +406,4 @@ Specific friction patterns where unstated assumptions have caused loops:
 
 ---
 
-**Last updated:** First published-activity bug fixed — newlines (Shift+Enter `hardBreak`) were dropped on publish; added a `hard_break` inline node end to end (schema + serialize + renderer + tests), bundle regenerated. `publish-activity` still needs a redeploy to push the fix live. Next: full e2e manual pass (Nearest next steps #2).
+**Last updated:** First published-activity bug fixed — newlines (Shift+Enter `hardBreak`) were dropped on publish; added a `hard_break` inline node end to end (schema + serialize + renderer + tests), bundle regenerated, `publish-activity` redeployed. Next: full e2e manual pass (Nearest next steps #2).
