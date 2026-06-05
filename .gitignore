@@ -38,6 +38,10 @@ supabase/functions/_shared/renderer.bundle.js.map
 supabase/.temp/
 supabase/.branches/
 
+# A stray supabase/ dir gets created here when the CLI is run from inside
+# packages/app (e.g. linked-project state). Per-machine scratch, never tracked.
+packages/app/supabase/
+
 # ---- Editor + OS clutter ---------------------------------------------------
 .DS_Store
 Thumbs.db

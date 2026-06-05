@@ -4,19 +4,18 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 ## Current focus
 
-Stage 13.5 complete. Stage 13.6 in progress — publish flow infrastructure.
+Stage 13.6 complete — publish flow now works end to end on Cloudflare R2. **Next: address bugs with the published activity function.**
 
-What landed this session (Stage 13.5 closeout work):
+What landed this session:
 
-- **Publish button (PublishControl).** New component at `packages/app/src/components/PublishControl.tsx`, wired into `/activity/:id` header to the right of `SaveIndicator`. Invokes the `publish-activity` Edge Function; on success surfaces the published URL with Copy + Open-in-new-tab affordances. Disabled while `saveStatus === 'saving'` to avoid stale-draft publishes. "Publish" → "Publishing..." → "Republish" label progression in-session.
-- **Post-publish editor load fallback.** `ActivityEditor.tsx` now has three-way load priority: `draft_content` (in-progress edits) → `current_version_id`'s content (post-publish, no edits yet) → fresh empty doc. The previous two-way load showed an empty editor after every publish because the publish RPC clears `draft_content` atomically. Discovered and fixed mid-session.
-- **Serialize "blank inline missing" warning was a false alarm.** The diagnosis in the previous closeout was wrong. `tiptapFillInBlankInlineNodeToActivity` (separate from `tiptapInlineNodeToActivity`) correctly handles blanks inside fillInBlank parents — which is where they belong per the schema. The warning fires only when a blank ends up orphaned in a paragraph/heading, which `definingForContent: true` on FillInBlank prevents from happening in normal use. Regression-guarded by four new tests in `serialize.test.ts` covering the legitimate round-trip and the orphan-warn behavior.
-
-What didn't land — Stage 13.6 outstanding:
-
-- **Cloudflare R2 migration.** Supabase Storage cannot serve HTML — it rewrites `text/html` responses to `text/plain` with a sandbox CSP as an anti-abuse measure (documented at https://supabase.com/docs/guides/functions/limits). The Edge Function proxy approach (`serve-activity`) was attempted and discovered to have the same restriction — Supabase applies the same rewrite to Edge Function responses. Only escape on free tier is a different host. R2 is the chosen destination (matches ROADMAP's existing Phase 2/3 plan, pulled forward to Phase 1). Next session implements.
-
-End-to-end manual test is blocked until R2 lands. Everything else — runtime, editor authoring, serialize round-trip, publish flow plumbing — is verified working in isolation.
+- **R2 migration done + deployed.** `publish-activity` Edge Function rewritten to upload to Cloudflare R2 via the S3-compatible API; both the live alias (`/index.html`, `Cache-Control: no-cache` → revalidate via ETag) and the immutable versioned permalink (`/v{N}/index.html`, `max-age=31536000`) publish to R2 and render correctly. Deployed.
+- **PublishControl forwards the user JWT.** `functions.invoke` now passes `Authorization: Bearer <session.access_token>` (errors if no session) so the publishable-key path authenticates the caller correctly.
+- **Hint modal landed (replaces the old inline `hintRevealed` reveal).** A single global modal element lives at the end of `<body>` (emitted by `document.ts`); the runtime tracks one `hintModalBlankId: string | null` on `RuntimeState` and a `HintModalRef` in refs. Clicking a blank's `?` button copies that blank's `data-hint` into the shared modal. Modal open state is NOT persisted across reload.
+- **Case-insensitive mistake matching.** `matchMistakeFeedback` now trims AND lowercases both sides before comparing (was case-sensitive). A student no longer loses targeted help over capitalization.
+- **`STORAGE_SCHEMA_VERSION` bumped 1 → 2.** `BlankState` shape changed (dropped `hintRevealed`); old persisted blobs fail the version check and fall back to fresh state.
+- **Bundles regenerated + committed** (`pnpm run bundle:renderer`) for both the inlined runtime and the Edge ESM bundle. Runtime ~10.5 KiB (within 20 KiB budget).
+- **Fixed pre-existing broken `serialize.test.ts`** (it was committed truncated at HEAD/d9a1724 — not caused by this work). Completed the cut-off round-trip test; full suite green (schema 30, renderer 53, app 46).
+- **`.gitignore`:** added `packages/app/supabase/` (per-machine CLI scratch).
 
 ## Status by area
 
@@ -27,7 +26,7 @@ End-to-end manual test is blocked until R2 lands. Everything else — runtime, e
 | `@activity/schema` package | ✅ Tested, on GitHub |
 | `@activity/renderer` package | ✅ Tests passing; runtime modular, esbuild-bundled, inlined; baseline print CSS in `styles.ts` |
 | Renderer bundle for Edge Functions | ✅ Deployed (Stages 11/12/13/13.5 bundle live) |
-| `publish-activity` Edge Function | ⚠ Deployed but returns dead `/functions/v1/serve-activity/...` URLs; rewritten in Stage 13.6 for R2 |
+| `publish-activity` Edge Function | ✅ Deployed; uploads to Cloudflare R2, returns live + versioned R2 URLs |
 | `ingest-submission` Edge Function | ✅ Deployed; enforces `schemaVersion: 2`; returns `attempt_number` |
 | Edge Function secrets | ✅ Set |
 | Supabase Storage `activities` bucket | ⚠ Exists; will be deleted after R2 migration verified |
@@ -39,7 +38,7 @@ End-to-end manual test is blocked until R2 lands. Everything else — runtime, e
 | Serialize layer (Tiptap JSON ↔ ActivityDocument) | ✅ Verified correct; orphan-blank warning is intentional defense |
 | Publish UI (`PublishControl`) | ✅ Implemented at `/activity/:id` header |
 | Editor post-publish load fallback | ✅ Three-way priority (draft → current version → empty) |
-| Cloudflare R2 hosting | ⏳ Migration pending (Stage 13.6 completion) |
+| Cloudflare R2 hosting | ✅ Live; published HTML serves from R2 with correct Content-Type |
 | Stage 9a — schema additions (checkpoints/feedback/skills) | ✅ |
 | Stage 9b — DB migration 0005 (attempt_number) | ✅ |
 | Stage 9c — Tiptap section_break + isCheckpoint UI | ✅ |
@@ -50,13 +49,13 @@ End-to-end manual test is blocked until R2 lands. Everything else — runtime, e
 | Stage 12 — Renderer emission contract + runtime state-object architecture | ✅ |
 | Stage 13 — Runtime feedback machinery + persistence (4 sessions) | ✅ |
 | Stage 13.5 — Editor authoring UI for fill-in-blanks + section button + disappearing-block fix | ✅ |
-| Stage 13.6 — Publish flow (PublishControl + load fallback + R2 hosting) | ⏳ R2 migration outstanding |
+| Stage 13.6 — Publish flow (PublishControl + load fallback + R2 hosting) | ✅ |
 | Stage 14 — Submission flow polish (retry, resubmit, attempt reconciliation) | ⏳ Not started |
 | Stage 15 — Editor UI for remaining feature fields | ⏳ Not started |
 | Stage 16 — Submissions dashboard with all-attempts toggle | ⏳ Not started |
 | Print feature — teacher-configurable printables (post-Stage-16) | ⏳ Designed; `docs/design/print-and-printables.md` |
 | Markdown paste import | ⏳ Phase 1 polish |
-| End-to-end manual test | ⏳ Blocked on R2 migration |
+| End-to-end manual test | ⏳ Now unblocked (R2 live); full pass still to run |
 
 ## Repo layout
 
@@ -102,7 +101,7 @@ activity-platform/
 │   ├── migrations/    — 0001 schema, 0002 RLS+helpers, 0003 RPCs+triggers, 0004 seed, 0005 attempt_number
 │   └── functions/
 │       ├── _shared/   — cors.ts (hand-edited), renderer.bundle.js (auto-generated)
-│       ├── publish-activity/   — to be rewritten Stage 13.6 for R2 uploads
+│       ├── publish-activity/   — uploads published HTML to Cloudflare R2 (S3 API)
 │       └── ingest-submission/
 ├── scripts/
 │   └── bundle-renderer.mjs   — runs two esbuild builds: runtime (iife, inlined) → renderer (esm, Edge)
@@ -168,19 +167,20 @@ activity-platform/
 - **Change-guard pattern in render.** Every DOM write checks the current DOM state and only writes when the target differs. For class toggles, `classList.toggle(name, condition)` is idempotent. For attribute / `hidden` / `checked` / `textContent` writes, explicit current-vs-target checks. Renders are idempotent — calling twice with the same state produces no observable diff.
 
 - **State shape (per-entity, all populated by `createInitialState`):**
-  - `BlankState`: `result` (true/false/null), `matchedMistake` (string or null), `hintRevealed` (boolean).
+  - `BlankState`: `result` (true/false/null), `matchedMistake` (string or null). (No `hintRevealed` — hint visibility is now global modal state, see below.)
   - `BlockState`: `solutionRevealed` (boolean), `confidence` (`'unsure' | 'think_so' | 'certain' | null`).
   - `SectionState`: `checked`, `locked`, `score`, `total`, `checkedAt`. `total` is section total (denominator for score display), NOT attempted count.
+  - Top-level `RuntimeState.hintModalBlankId` (`string | null`): which blank's hint the single global modal is showing, or null when closed. Not persisted.
 
 - **`scoreBlankAndUpdateState` renamed from `checkBlank`.** Pre-Stage-13, `checkBlank` mutated DOM via `applyBlankFeedback`. Post-Stage-13, the function mutates state only — render handles DOM. The rename makes the side effect explicit. Takes `(state, id, ref)`; id passed explicitly so the function doesn't read it from DOM (`ref.input.dataset.blankId` would violate the init-walks-DOM rule). Caller has id from Map iteration.
 
 - **`clearBlankState` returns boolean change indicator.** Used by the `input` event handler to skip `onUpdate` (render + persist) on keystrokes that don't actually change state — avoids cascading renders during fresh typing. Returns true only when result or matchedMistake was non-null and got cleared.
 
-- **Mistake feedback matching rules.** Exact string match against `BlankRef.mistakeFeedback` entries' `match` field. Case-sensitive. Trim before compare. First match wins. Same rules as answer scoring — consistent mental model. Computed at scoring time (in `scoreBlankAndUpdateState`) and stored in `BlankState.matchedMistake`; render reads it.
+- **Mistake feedback matching rules.** String match against `BlankRef.mistakeFeedback` entries' `match` field. Case-insensitive: trim AND lowercase both sides before compare (a student shouldn't lose targeted help over capitalization). First match wins. Computed at scoring time (in `scoreBlankAndUpdateState`) and stored in `BlankState.matchedMistake`; render reads it.
 
 - **Feedback slot policy.** `.js-blank-feedback` carries mistake-specific text only — populated when a wrong answer matches an authored mistake entry, hidden otherwise. Visual correct/incorrect signal lives on the input border class (`.correct` / `.incorrect`). Screen reader signal is `aria-invalid="true"|"false"` on the input itself (removed entirely when result is null, so the attribute doesn't claim "this is valid" before the student has tried). Avoids "Correct ✓" clutter on a 30-blank worksheet.
 
-- **Hint affordance.** `BlankState.hintRevealed` flips on hint button click. `render` toggles button `aria-expanded` and text span `hidden`. Persisted across page reloads (consistency principle: page reload shouldn't lose state).
+- **Hint affordance (global modal).** A single hint modal element lives at the end of `<body>` (emitted by `document.ts`); `refs.hintModal` is its `HintModalRef`. Clicking a blank's `?` button sets `RuntimeState.hintModalBlankId` to that blank's id; `render` copies the blank's `data-hint` into the shared modal body, unhides it, and flips that blank's button `aria-expanded`. Setting `hintModalBlankId` back to null closes it. Replaced the old per-blank inline-reveal (`hintRevealed` + `.js-blank-hint-text` span) — one modal gives more room and future rich formatting. Modal open state is NOT persisted across reload (transient UI, unlike scored results).
 
 - **Edit-to-clear behavior.** `wireBlanks` attaches both `blur` (score + render) and `input` (clear stale state + conditional render) handlers. When the student types into a blank that already has a scored result, the input handler clears it so a stale green "correct" border doesn't linger on an edited but un-re-blurred answer.
 
@@ -213,7 +213,7 @@ activity-platform/
 - **Success state shows the live URL inline.** Green pill displays `Published v{N}` + Copy URL button + Open-in-new-tab link. The Open link is the critical affordance — it's how the teacher previews as a student. Public URL (live alias) shown; versioned URL recorded internally but not surfaced for routine sharing.
 - **Editor load priority: draft → current version → fresh empty.** The publish RPC clears `draft_content` atomically on success. Without the version-content fallback, reloading the editor after publish shows an empty doc (real bug, first reported during Stage 13.6 sketching, fixed same session). Both queries are issued from the same `useEffect` with cancellation guards. `Activities.tsx` always inserts a draft on create, so the fresh-empty branch is defensive (theoretically unreachable via the normal flow).
 
-### Hosting platform (Stage 13.6, in progress)
+### Hosting platform (Stage 13.6)
 
 - **Published HTML hosts on Cloudflare R2, NOT Supabase Storage.** Supabase free-tier prohibits HTML content from being served on `*.supabase.co` domains:
   - **Storage**: public buckets serve HTML as `Content-Type: text/plain` with a sandbox CSP, as an anti-abuse measure to prevent the platform from being used for arbitrary web hosting. Documented at https://supabase.com/docs/guides/storage/quickstart.
@@ -240,7 +240,7 @@ activity-platform/
 - **Baseline print CSS.** Activities must look reasonable on paper out of the box: hide interactive controls, `break-inside: avoid` on problems with `break-before: auto` on sections, neutralize blanks back to bare underlines, encode callout variants in border style (solid/dashed/double/dotted) so they survive grayscale, `@page { margin: 0.5in }`.
 - **Runtime: `render(state, refs)` is the only DOM mutator after init.** Every event handler writes to state, then calls `onUpdate` (which runs render + persist). The single permitted exception is `applyStoredState` setting `input.value` during bootstrap restoration, before the initial render runs.
 - **Runtime: `init.ts` is the only DOM walker.** All `querySelector` / `querySelectorAll` against arbitrary subtrees happen during init. Downstream consumes typed refs.
-- **Runtime persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION` is currently 1. If `BlankState`, `BlockState`, `SectionState`, or the blob shape changes incompatibly, bump it. Load returns null on mismatch → fresh state.
+- **Runtime persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION` is currently 2 (bumped from 1 when `BlankState` dropped `hintRevealed`). If `BlankState`, `BlockState`, `SectionState`, or the blob shape changes incompatibly, bump it. Load returns null on mismatch → fresh state.
 - **Editor popover: single host, mount on selection.** Per-chip popover mounting broke editor behavior (Drop 1 attempt). Single `BlankPopoverHost` at editor root with selection-driven `BlankEditPopover` mount/unmount is the correct architecture; don't reintroduce per-chip mounting.
 - **Published HTML lives on Cloudflare R2.** Supabase Storage cannot serve HTML on free tier (rewritten to text/plain). Same restriction applies to Edge Functions. R2 is the destination; the Supabase Edge Function uploads to R2 instead of Supabase Storage.
 
@@ -272,15 +272,7 @@ activity-platform/
 
 ## Nearest next steps
 
-1. **Cloudflare R2 migration (Stage 13.6 completion).** The critical path to unblocking everything below.
-   - Sign up for free Cloudflare account, create R2 bucket (~5 min in dashboard)
-   - Generate R2 API token with read/write scope; copy account ID and bucket name
-   - Enable r2.dev public URL on the bucket (for now — custom domain is a later polish)
-   - Set Edge Function secrets: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL_BASE`
-   - Rewrite `supabase/functions/publish-activity/index.ts` to upload to R2 via S3-compatible API (likely `@aws-sdk/client-s3` via esm.sh). Replace both `adminClient.storage.upload(...)` calls; URL construction returns `${R2_PUBLIC_URL_BASE}/${activityId}/index.html` and `.../${activityId}/v${N}/index.html`.
-   - Deploy: `supabase functions deploy publish-activity`
-   - Test: click Publish, verify the green pill URL points to the R2 bucket, click Open in new tab, verify the page renders.
-   - ~30-60 min once design is settled.
+1. **Address bugs with the published activity function.** R2 publish now works, but the published activity surfaced bugs the author wants to fix before the full e2e pass. Scope to be defined next session — capture each as it's reproduced (steps, expected vs actual), fix, regenerate the bundle if runtime/renderer source changes, redeploy `publish-activity` if the function changes, re-verify against a real published URL.
 
 2. **End-to-end manual test** (now actually possible). Build a test activity with: multiple sections (at least one checkpoint), several fill-in-blank problems with hints and mistake-feedback entries authored via the popover, at least one block with a solution, at least one block with confidence rating enabled, in `free` mode first then re-test in `locked` mode. Verify:
    - Authoring works through the popover (Stage 13.5)
@@ -288,7 +280,7 @@ activity-platform/
    - Published HTML carries all data attrs from popover fields
    - Blur a blank → see correct/incorrect class + aria-invalid
    - Type a known mistake → see targeted mistake feedback in the slot
-   - Click hint button → see hint reveal, click again → hidden
+   - Click hint button → global hint modal opens with that blank's hint; close → modal hidden (open state not restored on refresh)
    - Click "Check this section" → see section score, solutions reveal, in locked mode inputs freeze
    - Refresh page → all state restored exactly (typed values, scores, solutions revealed, lock state, hint reveals)
    - Select confidence → restored on refresh
@@ -415,4 +407,4 @@ Specific friction patterns where unstated assumptions have caused loops:
 
 ---
 
-**Last updated:** Stage 13.6 in progress — publish flow infrastructure landed (PublishControl, post-publish load fallback). Cloudflare R2 migration outstanding; that's the next session's first item. Supabase HTML restriction discovered and documented under Hosting Platform; all `*.supabase.co` serving paths confirmed unviable for free tier.
+**Last updated:** Stage 13.6 complete — publish flow works end to end on Cloudflare R2 (publish-activity rewritten + deployed, PublishControl forwards the user JWT). Hint reveal converted to a single global modal (`hintModalBlankId` + `HintModalRef`, replacing `hintRevealed`); mistake matching is now case-insensitive; `STORAGE_SCHEMA_VERSION` bumped to 2; bundles regenerated. Next session: address bugs with the published activity function, then the full e2e manual pass.
