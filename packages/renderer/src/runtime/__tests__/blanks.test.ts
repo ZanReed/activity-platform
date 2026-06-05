@@ -7,7 +7,7 @@
 // Post-Session-2 scope:
 //   - trimValue: leading/trailing only, middle whitespace preserved
 //   - scoreBlank: empty input returns null (the "unscored" sentinel)
-//   - matchMistakeFeedback: exact match, case-sensitive, trim, first wins
+//   - matchMistakeFeedback: case-insensitive match, trim, first wins
 //   - scoreBlankAndUpdateState: writes result + matchedMistake to state
 //   - clearBlankState: clears stale state, returns change indicator
 //
@@ -57,7 +57,6 @@ function buildBlankRef(
         input,
         feedbackEl,
         hintButton: null,
-        hintTextEl: null,
         answers,
         strategy: 'list',
         hint: null,
@@ -75,12 +74,12 @@ function buildStateWithBlank(id: string = 'b1'): RuntimeState {
     const blankState: BlankState = {
         result: null,
         matchedMistake: null,
-        hintRevealed: false,
     };
     return {
         submitted: false,
         attemptNumber: 1,
         studentName: '',
+        hintModalBlankId: null,
         sections: {},
         blanks: { [id]: blankState },
         blocks: {},
@@ -155,12 +154,13 @@ describe('matchMistakeFeedback', () => {
         );
     });
 
-    it('is case-sensitive (consistent with scoring)', () => {
+    it('is case-insensitive (a student shouldnt lose targeted help over case)', () => {
         const ref = buildBlankRef(['x+3'], '', 'b1', [
-            { match: '2X', feedback: 'Capital X mistake.' },
+            { match: 'slope', feedback: 'Mind the slope.' },
         ]);
-        expect(matchMistakeFeedback(ref, '2x')).toBeNull();
-        expect(matchMistakeFeedback(ref, '2X')).toBe('Capital X mistake.');
+        expect(matchMistakeFeedback(ref, 'Slope')).toBe('Mind the slope.');
+        expect(matchMistakeFeedback(ref, 'SLOPE')).toBe('Mind the slope.');
+        expect(matchMistakeFeedback(ref, 'slope')).toBe('Mind the slope.');
     });
 
     it('returns the first match when multiple entries could apply', () => {
@@ -270,14 +270,6 @@ describe('clearBlankState', () => {
         const state = buildStateWithBlank('b1');
         const changed = clearBlankState(state, 'unknown');
         expect(changed).toBe(false);
-    });
-
-    it('does not touch hintRevealed (editing the answer is independent)', () => {
-        const state = buildStateWithBlank('b1');
-        state.blanks['b1']!.result = true;
-        state.blanks['b1']!.hintRevealed = true;
-        clearBlankState(state, 'b1');
-        expect(state.blanks['b1']?.hintRevealed).toBe(true);
     });
 
     it('returns true even when only matchedMistake was set (result already null)', () => {

@@ -120,6 +120,24 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
 
   '</main>' +
 
+  // Global hint modal (one per page). Hidden until the runtime opens it on a
+  // `?` click; the runtime writes the active blank's hint into .js-hint-modal-body
+  // and reveals the overlay. Closing: click the overlay outside the dialog,
+  // the × button, or Escape (all wired in the runtime). Lives outside <main>
+  // so its fixed-position overlay isn't affected by container styling. Starts
+  // `hidden` so it's invisible (and out of the a11y tree) even if JS never runs.
+  '<div class="js-hint-modal" id="hint-modal" role="dialog" aria-modal="true"' +
+  ' aria-labelledby="hint-modal-title" hidden>' +
+  '<div class="js-hint-modal-dialog" role="document">' +
+  '<div class="hint-modal-header">' +
+  '<h2 class="hint-modal-title" id="hint-modal-title">Hint</h2>' +
+  '<button type="button" class="js-hint-modal-close"' +
+  ' aria-label="Close hint">&times;</button>' +
+  '</div>' +
+  '<div class="js-hint-modal-body"></div>' +
+  '</div>' +
+  '</div>' +
+
   // Runtime config (read by runtime JS)
   '<script id="activity-config" type="application/json">' +
   // Note: this is JSON inside a <script>, NOT inline JS — only </script>

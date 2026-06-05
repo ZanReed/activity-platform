@@ -77,7 +77,6 @@ function makeBlankRef(
         input,
         feedbackEl,
         hintButton: null,
-        hintTextEl: null,
         answers,
         strategy: 'list',
         hint: null,
@@ -157,7 +156,7 @@ function makeSectionRef(
 }
 
 function makeBlankState(): BlankState {
-    return { result: null, matchedMistake: null, hintRevealed: false };
+    return { result: null, matchedMistake: null };
 }
 
 function makeBlockState(): BlockState {
@@ -240,6 +239,7 @@ function buildFixture(spec: FixtureSpec): Fixture {
         submitted: false,
         attemptNumber: 1,
         studentName: '',
+        hintModalBlankId: null,
         sections: sectionsState,
         blanks: blanksState,
         blocks: blocksState,
@@ -248,7 +248,7 @@ function buildFixture(spec: FixtureSpec): Fixture {
     return {
         config,
         state,
-        refs: { blanks, fillInBlanks, sections },
+        refs: { blanks, fillInBlanks, sections, hintModal: null },
     };
 }
 

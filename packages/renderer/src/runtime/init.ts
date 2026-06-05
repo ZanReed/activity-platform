@@ -25,6 +25,7 @@ import {
     type BlankRef,
     type FillInBlankRef,
     type SectionRef,
+    type HintModalRef,
 } from './refs.js';
 import { createInitialState, type RuntimeState } from './state.js';
 import { $$ } from './dom.js';
@@ -92,7 +93,28 @@ export function buildRefs(doc: Document = document): Refs {
         );
     }
 
-    return { blanks, fillInBlanks, sections };
+    return { blanks, fillInBlanks, sections, hintModal: buildHintModalRef(doc) };
+}
+
+/**
+ * Locate the single global hint-modal markup emitted by document.ts. Returns
+ * null when any required part is missing — the runtime then treats hint
+ * buttons as no-ops rather than throwing. All four nodes must be present for
+ * the modal to function, so it's all-or-nothing.
+ */
+function buildHintModalRef(doc: Document): HintModalRef | null {
+    const overlay = doc.querySelector<HTMLElement>('.js-hint-modal');
+    if (!overlay) return null;
+    const dialog = overlay.querySelector<HTMLElement>('.js-hint-modal-dialog');
+    const bodyEl = overlay.querySelector<HTMLElement>('.js-hint-modal-body');
+    const closeButton = overlay.querySelector<HTMLButtonElement>(
+        '.js-hint-modal-close',
+    );
+    if (!dialog || !bodyEl || !closeButton) {
+        warn('Hint modal markup is incomplete; hint buttons will be inert.');
+        return null;
+    }
+    return { overlay, dialog, bodyEl, closeButton };
 }
 
 function buildBlankRef(
@@ -119,7 +141,6 @@ function buildBlankRef(
     }
 
     const hintButton = wrapper.querySelector<HTMLButtonElement>('.js-blank-hint');
-    const hintTextEl = wrapper.querySelector<HTMLElement>('.js-blank-hint-text');
 
     const answers = (input.dataset.blankAnswers ?? '').split('|').filter(Boolean);
     const strategy = input.dataset.blankStrategy ?? 'list';
@@ -142,7 +163,6 @@ function buildBlankRef(
         input,
         feedbackEl,
         hintButton,
-        hintTextEl,
         answers,
         strategy,
         hint,

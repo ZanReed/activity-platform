@@ -199,13 +199,12 @@ body {
 .block-problem-body > :last-child { margin-bottom: 0; }
 
 /* The blank-token wrapper keeps an <input class="blank"> and its sibling
- a fford*ances (.js-blank-hint, .js-blank-hint-text, .js-blank-feedback) on
- the same inline-flow line, so they can't wrap apart mid-prose. The
- wrapper is structural only — the 'blank' class stays on the <input>
- itself, so every existing .blank selector continues to target the input
- directly. align-items: baseline lines the input baseline up with the
- surrounding prose; the gap controls spacing between input, hint button,
-revealed hint text, and feedback. (Hidden siblings have display: none
+ a fford*ances (.js-blank-hint, .js-blank-feedback) on the same inline-flow
+ line, so they can't wrap apart mid-prose. The wrapper is structural only —
+ the 'blank' class stays on the <input> itself, so every existing .blank
+ selector continues to target the input directly. align-items: baseline lines
+ the input baseline up with the surrounding prose; the gap controls spacing
+ between input, hint button, and feedback. (Hidden siblings have display: none
 via the 'hidden' attribute and don't participate in the gap.) */
 .blank-wrapper {
   display: inline-flex;
@@ -240,13 +239,10 @@ via the 'hidden' attribute and don't participate in the gap.) */
 }
 
 /* Hint affordance. The .js-blank-hint button is always available next to
- t he bl*ank when the teacher authored a hint; clicking it toggles the
- adjacent .js-blank-hint-text span between hidden and visible (Stage 13
- runtime work). The button is a small circular '?' icon — discoverable
- without dominating the line. Long hints will wrap within the wrapper;
- keep hints short. A popover-style reveal is a Phase 2+ polish option.
- The hint text uses --color-note-bg as a subtle visual marker so the
- reveal is unambiguous against the surrounding prose. */
+ t he bl*ank when the teacher authored a hint; clicking it opens the global
+ hint modal (.js-hint-modal) where the runtime shows the hint text. The
+ button is a small circular '?' icon — discoverable without dominating the
+ line. */
 .js-blank-hint {
   display: inline-flex;
   align-items: center;
@@ -273,13 +269,76 @@ via the 'hidden' attribute and don't participate in the gap.) */
   outline-offset: 1px;
 }
 
-.js-blank-hint-text {
-  font-size: 0.875rem;
+/* Global hint modal. A single instance lives at the end of body
+ (document.ts). The runtime toggles the hidden attribute on .js-hint-modal
+ to open/close it. Fixed full-viewport overlay dims the page and centers the
+ dialog; the overlay itself is the click-outside-to-close target (the runtime
+ closes when the click target is the overlay, not the dialog). z-index sits
+ above all activity content. The dialog caps its width for readability and
+ scrolls internally if a hint is long, so it stays on-screen on small
+ displays. This is the foundation for richer/formatted hint content later. */
+.js-hint-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+.js-hint-modal[hidden] {
+  display: none;
+}
+.js-hint-modal-dialog {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  max-width: 28rem;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 1.25rem;
+}
+.hint-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.hint-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.js-hint-modal-close {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
   color: var(--color-muted);
-  font-style: italic;
-  padding: 0.1rem 0.4rem;
-  border-radius: 3px;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.js-hint-modal-close:hover {
   background: var(--color-note-bg);
+  color: var(--color-text);
+}
+.js-hint-modal-close:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+.js-hint-modal-body {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  white-space: pre-wrap;
 }
 
 /* .js-blank-feedback visible-state styling lands in Stage 13 once the
@@ -448,7 +507,7 @@ via the 'hidden' attribute and don't participate in the gap.) */
   .js-confidence-rating,
   .js-blank-feedback,
   .js-blank-hint,
-  .js-blank-hint-text,
+  .js-hint-modal,
   .js-solution {
     display: none;
   }

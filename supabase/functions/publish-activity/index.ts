@@ -45,7 +45,7 @@
 // =============================================================================
 
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { S3Client, PutObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.621.0';
+import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 import {
   renderActivity,
   ActivityDocument,
@@ -92,17 +92,42 @@ if (!SUBMISSION_ENDPOINT) {
 // concatenation stays clean regardless of how the secret was set.
 const PUBLIC_URL_BASE = R2_PUBLIC_URL_BASE.replace(/\/+$/, '');
 
-// One S3Client per cold start. R2 doesn't use AWS regions; 'auto' is the
-// convention. The endpoint is account-scoped; bucket name goes into the
-// PutObjectCommand parameters, not the URL.
-const r2Client = new S3Client({
+// One AwsClient per cold start. We use aws4fetch (a small fetch-based SigV4
+// signer) rather than @aws-sdk/client-s3: the AWS SDK imports fine on Supabase
+// Edge (Deno) but its PutObject request hangs indefinitely at runtime, which
+// stalls the whole publish. aws4fetch signs a plain fetch() PUT and works
+// reliably. R2 doesn't use AWS regions; 'auto' is the convention.
+const r2Client = new AwsClient({
+  accessKeyId: R2_ACCESS_KEY_ID,
+  secretAccessKey: R2_SECRET_ACCESS_KEY,
+  service: 's3',
   region: 'auto',
-  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: R2_ACCESS_KEY_ID,
-    secretAccessKey: R2_SECRET_ACCESS_KEY,
-  },
 });
+
+// R2 S3 endpoint is account-scoped; the bucket and object key are path
+// segments on the URL (path-style addressing).
+const R2_ENDPOINT = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+
+// Sign + PUT one object to R2. Throws on any non-2xx so callers can map it to
+// a clean errorResponse.
+async function putToR2(
+  key: string,
+  body: Uint8Array,
+  cacheControl: string,
+): Promise<void> {
+  const res = await r2Client.fetch(`${R2_ENDPOINT}/${R2_BUCKET_NAME}/${key}`, {
+    method: 'PUT',
+    body,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': cacheControl,
+    },
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`R2 PUT ${key} failed: ${res.status} ${res.statusText} ${detail}`.trim());
+  }
+}
 
 interface PublishRequest {
   activity_id: string;
@@ -215,19 +240,11 @@ Deno.serve(async (req: Request) => {
 
   // Versioned: immutable, long cache. S3 PutObject overwrites by default;
   // there's no equivalent to Supabase Storage's `upsert:false` flag in the
-  // base S3 API. R2 supports conditional headers (If-None-Match: *) on
-  // newer endpoints, but support is recent and not universally documented,
-  // so we rely on the upstream uniqueness guarantee instead: publish_activity
-  // derives version_num as max(version_num) + 1 server-side, so a collision
-  // on this path shouldn't happen.
+  // base S3 API. We rely on the upstream uniqueness guarantee instead:
+  // publish_activity derives version_num as max(version_num) + 1 server-side,
+  // so a collision on this path shouldn't happen.
   try {
-    await r2Client.send(new PutObjectCommand({
-      Bucket: R2_BUCKET_NAME,
-      Key: versionedKey,
-      Body: bytes,
-      ContentType: 'text/html; charset=utf-8',
-      CacheControl: 'public, max-age=31536000, immutable',
-    }));
+    await putToR2(versionedKey, bytes, 'public, max-age=31536000, immutable');
   } catch (err) {
     console.error('[publish-activity] Versioned upload failed:', err);
     return errorResponse(req, 500, 'Failed to upload versioned HTML', {
@@ -235,15 +252,14 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Live: rewrites on every publish, short cache so changes propagate quickly.
+  // Live: rewrites on every publish. `no-cache` means caches (browser + the
+  // Cloudflare edge in front of R2) must revalidate with R2 before serving,
+  // so a republish is visible immediately. R2 attaches an ETag automatically,
+  // so unchanged content still returns a cheap 304 — this is freshness, not
+  // "never cache". (max-age=300 here previously made republished changes
+  // invisible for up to 5 minutes unless the viewer hard-refreshed.)
   try {
-    await r2Client.send(new PutObjectCommand({
-      Bucket: R2_BUCKET_NAME,
-      Key: liveKey,
-      Body: bytes,
-      ContentType: 'text/html; charset=utf-8',
-      CacheControl: 'public, max-age=300', // 5 min
-    }));
+    await putToR2(liveKey, bytes, 'no-cache');
   } catch (err) {
     console.error('[publish-activity] Live upload failed:', err);
     return errorResponse(req, 500, 'Failed to upload live HTML', {

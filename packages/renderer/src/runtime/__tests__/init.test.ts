@@ -201,7 +201,6 @@ describe('buildRefs — blanks', () => {
             ' data-mistake-feedback="[{&quot;match&quot;:&quot;2x&quot;,' +
             '&quot;feedback&quot;:&quot;Did you forget the constant?&quot;}]" />' +
             '<button class="js-blank-hint" type="button"></button>' +
-            '<span class="js-blank-hint-text" hidden>Try factoring.</span>' +
             '<span class="js-blank-feedback" data-for-blank="blank-1"' +
             ' aria-live="polite" hidden></span>' +
             '</span></div></div></section>',
@@ -217,7 +216,6 @@ describe('buildRefs — blanks', () => {
         ]);
         expect(blank?.feedbackEl).not.toBeNull();
         expect(blank?.hintButton).not.toBeNull();
-        expect(blank?.hintTextEl).not.toBeNull();
         expect(blank?.blockId).toBe('block-1');
         expect(blank?.sectionId).toBe('sec-1');
     });
@@ -240,7 +238,6 @@ describe('buildRefs — blanks', () => {
         const blank = refs.blanks.get('blank-1');
         expect(blank?.hint).toBeNull();
         expect(blank?.hintButton).toBeNull();
-        expect(blank?.hintTextEl).toBeNull();
         expect(blank?.mistakeFeedback).toEqual([]);
     });
 
@@ -270,6 +267,43 @@ describe('buildRefs — blanks', () => {
         expect(refs.fillInBlanks.get('block-1')?.blankIds).toEqual(['b1', 'b2']);
         expect(refs.blanks.get('b1')?.blockId).toBe('block-1');
         expect(refs.blanks.get('b2')?.sectionId).toBe('sec-1');
+    });
+});
+
+describe('buildRefs — hint modal', () => {
+    const MODAL_HTML =
+        '<div class="js-hint-modal" id="hint-modal" role="dialog" hidden>' +
+        '<div class="js-hint-modal-dialog" role="document">' +
+        '<button class="js-hint-modal-close" type="button"></button>' +
+        '<div class="js-hint-modal-body"></div>' +
+        '</div></div>';
+
+    it('builds a HintModalRef when complete markup is present', () => {
+        setupDOM(configScript() + MODAL_HTML);
+        const refs = buildRefs();
+        expect(refs.hintModal).not.toBeNull();
+        expect(refs.hintModal?.overlay.classList.contains('js-hint-modal')).toBe(
+            true,
+        );
+        expect(refs.hintModal?.dialog).not.toBeNull();
+        expect(refs.hintModal?.bodyEl).not.toBeNull();
+        expect(refs.hintModal?.closeButton).not.toBeNull();
+    });
+
+    it('returns null hintModal when no modal markup is present', () => {
+        setupDOM(configScript());
+        const refs = buildRefs();
+        expect(refs.hintModal).toBeNull();
+    });
+
+    it('returns null hintModal when markup is incomplete (all-or-nothing)', () => {
+        setupDOM(
+            configScript() +
+            '<div class="js-hint-modal"><div class="js-hint-modal-dialog">' +
+            '</div></div>',
+        );
+        const refs = buildRefs();
+        expect(refs.hintModal).toBeNull();
     });
 });
 

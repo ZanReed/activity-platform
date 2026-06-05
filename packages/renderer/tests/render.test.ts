@@ -71,6 +71,17 @@ describe('renderActivity (full document)', () => {
     expect(html).toContain('id="student-name"');
     expect(html).toContain('class="submit-button"');
   });
+
+  it('emits the single global hint-modal markup', () => {
+    const doc = createEmptyDocument({ title: 'Test' });
+    const html = renderActivity(doc, ctx);
+    expect(html).toContain('class="js-hint-modal"');
+    expect(html).toContain('id="hint-modal"');
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('class="js-hint-modal-dialog"');
+    expect(html).toContain('class="js-hint-modal-body"');
+    expect(html).toContain('class="js-hint-modal-close"');
+  });
 });
 
 describe('Activity container + config blob (Stage 12 step 5)', () => {
@@ -282,7 +293,7 @@ describe('Inline rendering', () => {
     expect(feedbackIdx).toBeGreaterThan(inputIdx);
   });
 
-  it('emits data-hint, a hint button, and a hint text span when hint is set', () => {
+  it('emits data-hint and a dialog-opening hint button when hint is set', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const blank = createBlankToken('answer');
     blank.hint = 'Try factoring first.';
@@ -294,18 +305,17 @@ describe('Inline rendering', () => {
     expect(body).toContain('data-hint="Try factoring first."');
     expect(body).toContain(
       '<button class="js-blank-hint" type="button"' +
+      ' aria-haspopup="dialog"' +
       ' aria-expanded="false"' +
-      ' aria-controls="hint-' + blank.id + '"' +
+      ' aria-controls="hint-modal"' +
       ' aria-label="Show hint">?</button>',
     );
-    expect(body).toContain(
-      '<span class="js-blank-hint-text" id="hint-' + blank.id + '" hidden>' +
-      'Try factoring first.' +
-      '</span>',
-    );
+    // The hint text rides only on data-hint now; the modal (document.ts)
+    // shows it at click time. No inline reveal span is emitted.
+    expect(body).not.toContain('js-blank-hint-text');
   });
 
-  it('escapes HTML in the hint (both attribute and text contexts)', () => {
+  it('escapes HTML in the hint data attribute', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const blank = createBlankToken('answer');
     blank.hint = 'a & b < c';
@@ -315,7 +325,6 @@ describe('Inline rendering', () => {
     const body = renderBody(doc);
     expect(body).not.toContain('a & b < c');
     expect(body).toContain('data-hint="a &amp; b &lt; c"');
-    expect(body).toContain('>a &amp; b &lt; c<');
   });
 
   it('omits all hint emission when hint is undefined or empty', () => {

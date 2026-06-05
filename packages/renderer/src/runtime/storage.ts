@@ -9,8 +9,9 @@
 //
 //   2. Activity state — per (activityId, versionNum) blob restoring the
 //      student's work after a page reload: typed values, scoring results,
-//      mistake feedback, hint reveal, solution reveal, section scores,
-//      lock state, confidence. Versioned in the key so republishing the
+//      mistake feedback, solution reveal, section scores, lock state,
+//      confidence. (Hint-modal open state is deliberately NOT persisted — a
+//      reload shouldn't reopen a modal.) Versioned in the key so republishing the
 //      activity (versionNum bump) naturally invalidates prior persistence.
 //      Schema-versioned inside the blob so a future runtime change can
 //      bail cleanly on shape mismatch.
@@ -65,7 +66,7 @@ export function saveName(name: string): void {
  * SubmissionResponses.schemaVersion — those live in the schema package;
  * this one is a runtime-internal concern.
  */
-const STORAGE_SCHEMA_VERSION = 1;
+const STORAGE_SCHEMA_VERSION = 2;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {

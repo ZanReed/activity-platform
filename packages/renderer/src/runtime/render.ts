@@ -17,7 +17,13 @@
 // page first renders (bootstrap calls render() after applyStoredState).
 // =============================================================================
 
-import type { Refs, BlankRef, FillInBlankRef, SectionRef } from './refs.js';
+import type {
+    Refs,
+    BlankRef,
+    FillInBlankRef,
+    SectionRef,
+    HintModalRef,
+} from './refs.js';
 import type {
     RuntimeState,
     BlankState,
@@ -32,7 +38,7 @@ import type {
 export function render(state: RuntimeState, refs: Refs): void {
     for (const [id, ref] of refs.blanks) {
         const blankState = state.blanks[id];
-        if (blankState) renderBlank(blankState, ref, state);
+        if (blankState) renderBlank(id, blankState, ref, state);
     }
     for (const [id, ref] of refs.fillInBlanks) {
         const blockState = state.blocks[id];
@@ -42,14 +48,16 @@ export function render(state: RuntimeState, refs: Refs): void {
         const sectionState = state.sections[id];
         if (sectionState) renderSection(sectionState, ref);
     }
+    if (refs.hintModal) renderHintModal(state, refs.hintModal, refs);
 }
 
 function renderBlank(
+    id: string,
     blankState: BlankState,
     ref: BlankRef,
     state: RuntimeState,
 ): void {
-    const { result, matchedMistake, hintRevealed } = blankState;
+    const { result, matchedMistake } = blankState;
 
     // 1. Correct / incorrect class — visual signal.
     ref.input.classList.toggle('correct', result === true);
@@ -77,15 +85,13 @@ function renderBlank(
         if (!ref.feedbackEl.hidden) ref.feedbackEl.hidden = true;
     }
 
-    // 4. Hint affordance — button aria-expanded + text span hidden.
-    if (ref.hintButton && ref.hintTextEl) {
-        const wantExpanded = hintRevealed ? 'true' : 'false';
+    // 4. Hint affordance — button aria-expanded reflects whether THIS blank's
+    // hint is the one currently open in the global modal. The modal content
+    // itself is handled by renderHintModal.
+    if (ref.hintButton) {
+        const wantExpanded = state.hintModalBlankId === id ? 'true' : 'false';
         if (ref.hintButton.getAttribute('aria-expanded') !== wantExpanded) {
             ref.hintButton.setAttribute('aria-expanded', wantExpanded);
-        }
-        const wantHidden = !hintRevealed;
-        if (ref.hintTextEl.hidden !== wantHidden) {
-            ref.hintTextEl.hidden = wantHidden;
         }
     }
 
@@ -145,5 +151,32 @@ function renderSection(
         if (ref.checkButton.disabled !== sectionState.locked) {
             ref.checkButton.disabled = sectionState.locked;
         }
+    }
+}
+
+/**
+ * Show or hide the global hint modal from state.hintModalBlankId. When open,
+ * the body text is the active blank's authored hint (BlankRef.hint). When the
+ * referenced blank has no hint (defensive — shouldn't happen, the button only
+ * exists for blanks with hints) the modal stays closed.
+ *
+ * Pure state→DOM like the rest of render: no focus management here (that's
+ * done in the open/close event handlers so focus isn't yanked on every render
+ * tick). Idempotent via the hidden-attribute guard.
+ */
+function renderHintModal(
+    state: RuntimeState,
+    modal: HintModalRef,
+    refs: Refs,
+): void {
+    const activeId = state.hintModalBlankId;
+    const hint = activeId ? refs.blanks.get(activeId)?.hint ?? null : null;
+    const wantOpen = hint !== null;
+
+    if (wantOpen) {
+        if (modal.bodyEl.textContent !== hint) modal.bodyEl.textContent = hint;
+        if (modal.overlay.hidden) modal.overlay.hidden = false;
+    } else {
+        if (!modal.overlay.hidden) modal.overlay.hidden = true;
     }
 }

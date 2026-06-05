@@ -2,8 +2,8 @@
 // runtime/blanks.ts — Blank scoring, state updates, per-blank wiring
 // -----------------------------------------------------------------------------
 // Post-Stage-13-Session-2: covers all per-blank concerns — scoring, mistake
-// feedback dispatch, edit-to-clear, and the hint toggle. No DOM mutation
-// happens here; every state change routes through onUpdate → render.
+// feedback dispatch, edit-to-clear, and the hint modal trigger. No DOM
+// mutation happens here; every state change routes through onUpdate → render.
 //
 // Layered API:
 //   trimValue                  — whitespace rule, shared with scoring + matching
@@ -19,7 +19,8 @@
 //                                renders on every keystroke during initial
 //                                typing.
 //   wireBlanks                 — attaches blur (score) + input (clear) handlers
-//   wireHints                  — attaches click handlers to hint buttons
+//   wireHints                  — `?` buttons open the global hint modal
+//   wireHintModal              — modal close handlers (×, overlay, Escape)
 //
 // Mistake matching rule (Session 2 lock-in): exact string match against
 // BlankRef.mistakeFeedback entries' `match` field, case-sensitive, trim
@@ -61,6 +62,10 @@ export function scoreBlank(ref: BlankRef, typed: string): boolean | null {
  * is "unscored" rather than "wrong in a specific way," so no targeted
  * feedback applies.
  *
+ * Matching is case-insensitive (both sides trimmed + lowercased): a student
+ * who types "Slope" still gets the feedback authored for "slope". The student
+ * shouldn't lose targeted help over capitalization.
+ *
  * First match wins. Teachers shouldn't author duplicate match strings;
  * if they do, the array order in mistakeFeedback wins (which is document
  * order from the schema).
@@ -69,10 +74,10 @@ export function matchMistakeFeedback(
   ref: BlankRef,
   typed: string,
 ): string | null {
-  const trimmed = trimValue(typed);
-  if (trimmed === '') return null;
+  const needle = trimValue(typed).toLowerCase();
+  if (needle === '') return null;
   for (const entry of ref.mistakeFeedback) {
-    if (entry.match === trimmed) return entry.feedback;
+    if (trimValue(entry.match).toLowerCase() === needle) return entry.feedback;
   }
   return null;
 }
@@ -160,8 +165,10 @@ export function wireBlanks(
 }
 
 /**
- * Wire every blank that has a hint button. Click toggles hintRevealed;
- * render handles the button's aria-expanded and the text span's hidden.
+ * Wire every blank that has a hint button. Click opens the global hint modal
+ * for that blank (state.hintModalBlankId = id); render copies the blank's hint
+ * text into the modal and reveals it. Focus is moved into the dialog (the
+ * close button) so keyboard + screen-reader users land inside the modal.
  *
  * Blanks without an authored hint have hintButton === null and are
  * skipped silently — no hint affordance is emitted by the renderer for
@@ -175,10 +182,50 @@ export function wireHints(
   for (const [id, ref] of refs.blanks) {
     if (!ref.hintButton) continue;
     ref.hintButton.addEventListener('click', () => {
-      const blankState = state.blanks[id];
-      if (!blankState) return;
-      blankState.hintRevealed = !blankState.hintRevealed;
+      state.hintModalBlankId = id;
       onUpdate();
+      refs.hintModal?.closeButton.focus();
     });
   }
+}
+
+/**
+ * Wire the global hint modal's three close affordances: the × button, a click
+ * on the overlay outside the dialog box, and the Escape key. On close, focus
+ * returns to the `?` button that opened the modal (kept for keyboard users).
+ *
+ * No-ops when the page has no modal markup (refs.hintModal === null).
+ */
+export function wireHintModal(
+  state: RuntimeState,
+  refs: Refs,
+  onUpdate: () => void,
+): void {
+  const modal = refs.hintModal;
+  if (!modal) return;
+
+  const close = () => {
+    const previousId = state.hintModalBlankId;
+    if (previousId === null) return;
+    state.hintModalBlankId = null;
+    onUpdate();
+    refs.blanks.get(previousId)?.hintButton?.focus();
+  };
+
+  modal.closeButton.addEventListener('click', close);
+
+  // A click on the overlay itself (not bubbled up from the dialog) is an
+  // "outside" click — close. Clicks inside the dialog have a different target.
+  modal.overlay.addEventListener('click', (e) => {
+    if (e.target === modal.overlay) close();
+  });
+
+  // Escape closes, but only while the modal is open so we don't swallow
+  // Escape elsewhere on the page.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && state.hintModalBlankId !== null) {
+      e.preventDefault();
+      close();
+    }
+  });
 }

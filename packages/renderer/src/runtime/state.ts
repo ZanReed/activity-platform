@@ -42,11 +42,6 @@ export interface BlankState {
      * scoring path (event handler); read by render.
      */
     matchedMistake: string | null;
-    /**
-     * Whether the student has clicked this blank's hint button. Drives the
-     * hint text's hidden attribute and the button's aria-expanded value.
-     */
-    hintRevealed: boolean;
 }
 
 export interface BlockState {
@@ -75,6 +70,14 @@ export interface RuntimeState {
     attemptNumber: number;
     /** Current value of the name input (mirrored from .identity-prompt input). */
     studentName: string;
+    /**
+     * blank.id of the hint currently shown in the global hint modal, or null
+     * when the modal is closed. Single value (not per-blank) because only one
+     * hint modal is open at a time. Deliberately NOT persisted — an open modal
+     * shouldn't survive a reload (see storage.ts, which snapshots only
+     * blanks/blocks/sections).
+     */
+    hintModalBlankId: string | null;
     /** Per-section status, keyed by section.id. */
     sections: Record<string, SectionState>;
     /** Per-blank status, keyed by blank.id. */
@@ -109,7 +112,6 @@ export function createInitialState(refs: Refs): RuntimeState {
         blanks[id] = {
             result: null,
             matchedMistake: null,
-            hintRevealed: false,
         };
     }
     const blocks: Record<string, BlockState> = {};
@@ -123,6 +125,7 @@ export function createInitialState(refs: Refs): RuntimeState {
         submitted: false,
         attemptNumber: 1,
         studentName: '',
+        hintModalBlankId: null,
         sections,
         blanks,
         blocks,

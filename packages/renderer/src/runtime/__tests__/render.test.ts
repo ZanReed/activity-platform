@@ -20,6 +20,7 @@ import type {
     BlankRef,
     FillInBlankRef,
     SectionRef,
+    HintModalRef,
 } from '../refs.js';
 import type {
     RuntimeState,
@@ -44,7 +45,6 @@ function makeBlankRef(blankId: string): BlankRef {
         input,
         feedbackEl,
         hintButton: null,
-        hintTextEl: null,
         answers: ['x'],
         strategy: 'list',
         hint: null,
@@ -63,23 +63,17 @@ function makeBlankRefWithHint(blankId: string): BlankRef {
     const hintButton = document.createElement('button');
     hintButton.className = 'js-blank-hint';
     hintButton.setAttribute('aria-expanded', 'false');
-    const hintTextEl = document.createElement('span');
-    hintTextEl.className = 'js-blank-hint-text';
-    hintTextEl.hidden = true;
-    hintTextEl.textContent = 'Try factoring.';
     const feedbackEl = document.createElement('span');
     feedbackEl.className = 'js-blank-feedback';
     feedbackEl.hidden = true;
     wrapper.appendChild(input);
     wrapper.appendChild(hintButton);
-    wrapper.appendChild(hintTextEl);
     wrapper.appendChild(feedbackEl);
     document.body.appendChild(wrapper);
     return {
         input,
         feedbackEl,
         hintButton,
-        hintTextEl,
         answers: ['x'],
         strategy: 'list',
         hint: 'Try factoring.',
@@ -87,6 +81,23 @@ function makeBlankRefWithHint(blankId: string): BlankRef {
         blockId: 'block-1',
         sectionId: 'sec-1',
     };
+}
+
+function makeHintModalRef(): HintModalRef {
+    const overlay = document.createElement('div');
+    overlay.className = 'js-hint-modal';
+    overlay.hidden = true;
+    const dialog = document.createElement('div');
+    dialog.className = 'js-hint-modal-dialog';
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'js-hint-modal-body';
+    const closeButton = document.createElement('button');
+    closeButton.className = 'js-hint-modal-close';
+    dialog.appendChild(closeButton);
+    dialog.appendChild(bodyEl);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    return { overlay, dialog, bodyEl, closeButton };
 }
 
 function makeFillInBlankRef(
@@ -171,7 +182,6 @@ function makeBlankState(
     return {
         result,
         matchedMistake: null,
-        hintRevealed: false,
         ...overrides,
     };
 }
@@ -180,8 +190,9 @@ function makeRefs(
     blanks: Map<string, BlankRef> = new Map(),
                   fillInBlanks: Map<string, FillInBlankRef> = new Map(),
                   sections: Map<string, SectionRef> = new Map(),
+                  hintModal: HintModalRef | null = null,
 ): Refs {
-    return { blanks, fillInBlanks, sections };
+    return { blanks, fillInBlanks, sections, hintModal };
 }
 
 function makeState(
@@ -193,6 +204,7 @@ function makeState(
         submitted: false,
         attemptNumber: 1,
         studentName: '',
+        hintModalBlankId: null,
         sections: sectionStates,
         blanks: blankStates,
         blocks: blockStates,
@@ -371,45 +383,69 @@ describe('render — feedback slot', () => {
     });
 });
 
-describe('render — hint affordance', () => {
-    it('reveals hint text and flips aria-expanded when hintRevealed=true', () => {
+describe('render — hint modal', () => {
+    it('opens the modal with the active blank hint when hintModalBlankId is set', () => {
         const ref = makeBlankRefWithHint('b1');
-        const refs = makeRefs(new Map([['b1', ref]]));
-        const state = makeState({
-            'b1': makeBlankState(null, { hintRevealed: true }),
-        });
+        const modal = makeHintModalRef();
+        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), modal);
+        const state = makeState({ 'b1': makeBlankState(null) });
+        state.hintModalBlankId = 'b1';
         render(state, refs);
+        expect(modal.overlay.hidden).toBe(false);
+        expect(modal.bodyEl.textContent).toBe('Try factoring.');
         expect(ref.hintButton!.getAttribute('aria-expanded')).toBe('true');
-        expect(ref.hintTextEl!.hidden).toBe(false);
     });
 
-    it('keeps hint hidden when hintRevealed=false', () => {
+    it('keeps the modal closed and aria-expanded false when no blank is active', () => {
         const ref = makeBlankRefWithHint('b1');
-        const refs = makeRefs(new Map([['b1', ref]]));
+        const modal = makeHintModalRef();
+        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), modal);
         const state = makeState({ 'b1': makeBlankState(null) });
         render(state, refs);
+        expect(modal.overlay.hidden).toBe(true);
         expect(ref.hintButton!.getAttribute('aria-expanded')).toBe('false');
-        expect(ref.hintTextEl!.hidden).toBe(true);
     });
 
-    it('toggles hint back when hintRevealed flips true → false', () => {
+    it('only flips aria-expanded on the active blank when several have hints', () => {
+        const r1 = makeBlankRefWithHint('b1');
+        const r2 = makeBlankRefWithHint('b2');
+        const modal = makeHintModalRef();
+        const refs = makeRefs(
+            new Map([['b1', r1], ['b2', r2]]),
+            new Map(),
+            new Map(),
+            modal,
+        );
+        const state = makeState({
+            'b1': makeBlankState(null),
+            'b2': makeBlankState(null),
+        });
+        state.hintModalBlankId = 'b2';
+        render(state, refs);
+        expect(r1.hintButton!.getAttribute('aria-expanded')).toBe('false');
+        expect(r2.hintButton!.getAttribute('aria-expanded')).toBe('true');
+        expect(modal.bodyEl.textContent).toBe('Try factoring.');
+    });
+
+    it('closes the modal when hintModalBlankId flips back to null', () => {
         const ref = makeBlankRefWithHint('b1');
-        const refs = makeRefs(new Map([['b1', ref]]));
-        const blankState = makeBlankState(null, { hintRevealed: true });
-        const state = makeState({ 'b1': blankState });
+        const modal = makeHintModalRef();
+        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), modal);
+        const state = makeState({ 'b1': makeBlankState(null) });
+        state.hintModalBlankId = 'b1';
         render(state, refs);
-        blankState.hintRevealed = false;
+        expect(modal.overlay.hidden).toBe(false);
+        state.hintModalBlankId = null;
         render(state, refs);
+        expect(modal.overlay.hidden).toBe(true);
         expect(ref.hintButton!.getAttribute('aria-expanded')).toBe('false');
-        expect(ref.hintTextEl!.hidden).toBe(true);
     });
 
-    it('no-ops on blanks without a hint affordance', () => {
+    it('no-ops when the page has no modal markup (refs.hintModal null)', () => {
         const ref = makeBlankRef('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
-        const state = makeState({
-            'b1': makeBlankState(null, { hintRevealed: true }),
-        });
+        const state = makeState({ 'b1': makeBlankState(null) });
+        state.hintModalBlankId = 'b1';
         expect(() => render(state, refs)).not.toThrow();
     });
 });

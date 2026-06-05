@@ -22,10 +22,8 @@ export interface BlankRef {
     input: HTMLInputElement;
     /** The sibling .js-blank-feedback span the runtime renders ✓/✗ into. */
     feedbackEl: HTMLElement;
-    /** The .js-blank-hint button — null when the blank has no hint. */
+    /** The .js-blank-hint button — null when the blank has no hint. Opens the global hint modal. */
     hintButton: HTMLButtonElement | null;
-    /** The .js-blank-hint-text span — null when the blank has no hint. */
-    hintTextEl: HTMLElement | null;
     /** Pipe-separated answers from data-blank-answers, parsed into an array. */
     answers: string[];
     /** Scoring strategy name (defaults to 'list' when attribute is absent). */
@@ -89,9 +87,27 @@ export interface SectionRef {
     scoreEl: HTMLElement | null;
 }
 
+/**
+ * The single global hint modal (one per page). Null when the page emitted no
+ * modal markup (e.g. an activity with no authored hints, or older HTML) — the
+ * runtime then treats hint buttons as no-ops rather than crashing.
+ */
+export interface HintModalRef {
+    /** The full-screen overlay (.js-hint-modal). Clicking it (outside the dialog) closes. */
+    overlay: HTMLElement;
+    /** The centered dialog box (.js-hint-modal-dialog). */
+    dialog: HTMLElement;
+    /** The .js-hint-modal-body element the runtime writes the active hint text into. */
+    bodyEl: HTMLElement;
+    /** The × close button (.js-hint-modal-close). */
+    closeButton: HTMLButtonElement;
+}
+
 /** The bundle of refs maps the init pass produces. */
 export interface Refs {
     blanks: Map<string, BlankRef>;
     fillInBlanks: Map<string, FillInBlankRef>;
     sections: Map<string, SectionRef>;
+    /** The global hint modal, or null when the page has no modal markup. */
+    hintModal: HintModalRef | null;
 }

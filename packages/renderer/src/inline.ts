@@ -125,13 +125,13 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
   //
   //   hint:
   //     Static teacher-authored nudge, available to the student via an
-  //     always-visible `?` button. Rendered as text content inside a
-  //     .js-blank-hint-text span, paired with the .js-blank-hint button
-  //     via aria-controls/id. data-hint on the input mirrors the span's
-  //     text (RUNTIME.md names it as the runtime's read source); cheap
-  //     duplication, clear separation between data contract (data-*) and
-  //     render target (the span). The button + span are emitted only when
-  //     there is a non-empty hint.
+  //     always-visible `?` button. The text rides on data-hint (the runtime's
+  //     read source per RUNTIME.md); clicking the button opens the single
+  //     global hint modal (emitted by document.ts) and the runtime copies
+  //     this blank's data-hint into it. The button is emitted only when there
+  //     is a non-empty hint. (Earlier builds revealed the hint inline in a
+  //     .js-blank-hint-text span; the modal replaced that for more room and
+  //     future rich formatting.)
   //
   //   mistakeFeedback:
   //     Array of {match, feedback} pairs. JSON-encoded into a single
@@ -146,21 +146,18 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
   // list. The schema permits both (hint is z.string().optional() with no
   // .min(1); mistakeFeedback is z.array(...).optional() with no .min(1)),
   // so a teacher saving a stub field shouldn't surface a useless control.
+  // The hint text is carried only on data-hint; the runtime reads it and
+  // shows it in the global hint modal (document.ts) when the student clicks
+  // the `?` button. No inline reveal span — the button is a dialog opener
+  // (aria-haspopup="dialog" + aria-controls pointing at the shared modal).
   const hint = node.hint;
-  const hintTextId = 'hint-' + node.id;
   const hintAttr = hint ? ' data-hint="' + attr(hint) + '"' : '';
   const hintButton = hint
   ? '<button class="js-blank-hint" type="button"' +
+  ' aria-haspopup="dialog"' +
   ' aria-expanded="false"' +
-  ' aria-controls="' + attr(hintTextId) + '"' +
+  ' aria-controls="hint-modal"' +
   ' aria-label="Show hint">?</button>'
-  : '';
-  const hintText = hint
-  ? '<span class="js-blank-hint-text"' +
-  ' id="' + attr(hintTextId) + '"' +
-  ' hidden>' +
-  escape(hint) +
-  '</span>'
   : '';
 
   const mistakeFeedback = node.mistakeFeedback;
@@ -173,16 +170,16 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
   //   1. the <input> (carrying class="blank" plus every data-* attribute —
   //      every existing .blank selector and the runtime's $('.blank')
   //      lookup keep working unchanged),
-  //   2. an optional hint button + hint-text span (only when node.hint is
-  //      set), inline-revealed via the runtime toggling `hidden` and
-  //      `aria-expanded`,
+  //   2. an optional hint button (only when node.hint is set) that opens the
+  //      single global hint modal; the hint text rides on data-hint, not an
+  //      inline span,
   //   3. a `js-blank-feedback` span the Stage 13 runtime renders ✓/✗ and
   //      targeted mistake feedback into after a checkpoint check.
   //
   // The wrapper exists because <input> is a void element — the feedback
-  // span and hint text cannot be its children. It also keeps the whole
-  // affordance group together as a single inline unit, so the input, its
-  // hint, and its feedback can't wrap onto separate lines mid-prose. The
+  // span cannot be its child. It also keeps the whole affordance group
+  // together as a single inline unit, so the input, its hint button, and
+  // its feedback can't wrap onto separate lines mid-prose. The
   // wrapper itself carries no data-* attributes; the runtime reaches each
   // child via class selectors and/or input.nextElementSibling walking.
   //
@@ -208,7 +205,6 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
     ' spellcheck="false"' +
     ' />' +
     hintButton +
-    hintText +
     '<span class="js-blank-feedback"' +
     ' data-for-blank="' + attr(node.id) + '"' +
     ' aria-live="polite"' +

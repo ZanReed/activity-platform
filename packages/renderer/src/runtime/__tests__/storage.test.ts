@@ -56,7 +56,6 @@ function makeBlankRef(blankId: string, value: string): BlankRef {
         input,
         feedbackEl,
         hintButton: null,
-        hintTextEl: null,
         answers: ['x'],
         strategy: 'list',
         hint: null,
@@ -70,7 +69,6 @@ function makeBlankState(overrides: Partial<BlankState> = {}): BlankState {
     return {
         result: null,
         matchedMistake: null,
-        hintRevealed: false,
         ...overrides,
     };
 }
@@ -100,6 +98,7 @@ function makeState(
         submitted: false,
         attemptNumber: 1,
         studentName: '',
+        hintModalBlankId: null,
         sections,
         blanks,
         blocks,
@@ -112,6 +111,7 @@ function makeRefs(blanks: Map<string, BlankRef>): Refs {
         blanks,
         fillInBlanks: new Map(),
         sections: new Map(),
+        hintModal: null,
     };
 }
 
@@ -266,7 +266,6 @@ describe('applyStoredState', () => {
                 'b1': {
                     result: true,
                     matchedMistake: 'You forgot the constant.',
-                    hintRevealed: true,
                 },
             },
             blocks: {
@@ -284,7 +283,6 @@ describe('applyStoredState', () => {
         };
         applyStoredState(stored, refs, state);
         expect(state.blanks['b1']?.result).toBe(true);
-        expect(state.blanks['b1']?.hintRevealed).toBe(true);
         expect(state.blocks['block-1']?.confidence).toBe('think_so');
         expect(state.sections['sec-1']?.score).toBe(3);
         expect(state.sections['sec-1']?.checkedAt).toBe(

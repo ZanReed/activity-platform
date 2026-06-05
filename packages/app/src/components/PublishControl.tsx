@@ -54,9 +54,25 @@ export default function PublishControl({
 
     const handlePublish = async () => {
         setState({ kind: 'publishing' });
+        // Attach the session token explicitly. Under the new publishable-key
+        // system (sb_publishable_...), supabase-js does not reliably forward
+        // the logged-in user's access token on functions.invoke, which leaves
+        // the Edge Function running as anon and the publish RPC raising
+        // "Not authorized". Passing Authorization here guarantees the user JWT
+        // reaches the function so auth.uid() resolves to the owner.
+        const {
+            data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+            setState({ kind: 'error', message: 'Not signed in' });
+            return;
+        }
         const { data, error } = await supabase.functions.invoke<PublishResponse>(
             'publish-activity',
-            { body: { activity_id: activityId } },
+            {
+                body: { activity_id: activityId },
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            },
         );
 
         if (error) {

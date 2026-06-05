@@ -28,7 +28,7 @@ import {
   saveActivityState,
   applyStoredState,
 } from './storage.js';
-import { wireBlanks, wireHints } from './blanks.js';
+import { wireBlanks, wireHints, wireHintModal } from './blanks.js';
 import { wireCheckpoints } from './checkpoints.js';
 import { wireConfidence } from './confidence.js';
 import { render } from './render.js';
@@ -75,6 +75,7 @@ function bootstrap(): void {
 
   wireBlanks(state, refs, onUpdate);
   wireHints(state, refs, onUpdate);
+  wireHintModal(state, refs, onUpdate);
   wireCheckpoints(config, state, refs, onUpdate);
   wireConfidence(state, refs, onUpdate);
 

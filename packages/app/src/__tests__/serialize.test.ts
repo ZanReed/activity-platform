@@ -693,4 +693,27 @@ describe('lists', () => {
                 id: 'blank-2',
                 answer: '5',
                 acceptableAnswers: [],
+            };
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: { id: 'fib-2' },
+                        content: [
+                            { type: 'text', text: 'Solve: x = ' },
+                            { type: 'blank', attrs: blankAttrs },
+                        ],
+                    },
+                ],
+            };
+            const result = roundTrip(doc);
+            const fib = result.content?.[0] as JSONContent;
+            expect(fib.type).toBe('fillInBlank');
+            expect(fib.content).toEqual([
+                { type: 'text', text: 'Solve: x = ' },
+                { type: 'blank', attrs: blankAttrs },
+            ]);
+        });
+    });
 });
