@@ -57,6 +57,47 @@ type LoadState =
 const UUID_RE =
 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const SUBMISSION_MODE_HELP: Record<ActivityMeta['submissionMode'], string> = {
+    single: 'One submit at the end — no per-section checkpoints.',
+    locked: 'Per-section checkpoints; answers freeze once a section is checked.',
+    free: 'Per-section checkpoints; students can revise and re-check freely.',
+};
+
+const REVISION_MODE_HELP: Record<ActivityMeta['revisionMode'], string> = {
+    free: 'Students can revise and resubmit after the final submit.',
+    locked: 'Final submit is final — no resubmissions.',
+};
+
+const ANSWER_FEEDBACK_HELP: Record<ActivityMeta['answerFeedback'], string> = {
+    immediate: 'Each blank turns green/red as soon as the student leaves it.',
+    on_check: 'Correctness stays hidden until the student checks the section or submits.',
+};
+
+const ACTIVITY_TYPE_LABELS: Record<ActivityMeta['activityType'], string> = {
+    worksheet: 'Worksheet',
+    exit_ticket: 'Exit ticket',
+    warm_up: 'Warm-up',
+    review: 'Review',
+};
+
+// Locked mode relies on per-section "Check this section" buttons to freeze
+// answers; a section that isn't a checkpoint has no such button, so students
+// in that section can never lock. Walk the Tiptap doc and report whether any
+// section lacks a checkpoint. The leading run before the first sectionBreak
+// forms an implicit section with no checkpoint affordance, so its presence
+// counts. Mirrors splitTiptapBlocksIntoSections in serialize.ts.
+function hasNonCheckpointSection(tiptap: JSONContent): boolean {
+    const nodes = tiptap.content ?? [];
+    if (nodes.length === 0) return false;
+    if (nodes[0]?.type !== 'sectionBreak') return true;
+    for (const n of nodes) {
+        if (n.type === 'sectionBreak' && n.attrs?.isCheckpoint !== true) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function Shell({ children }: { children: ReactNode }) {
     return (
         <main className="min-h-screen bg-slate-50 p-8">
@@ -77,6 +118,152 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
         <span className="text-xs text-red-600">
         Couldn't save — your latest edits aren't stored
         </span>
+    );
+}
+
+const SELECT_CLASS =
+    'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
+const SETTINGS_LABEL_CLASS =
+    'text-xs font-semibold uppercase tracking-wide text-slate-500';
+const SETTINGS_HELP_CLASS = 'mt-1 text-xs text-slate-500';
+
+// Activity-level metadata controls. submissionMode / revisionMode /
+// activityType all already round-trip through draft_content; this panel just
+// surfaces them. revisionMode is inert in single mode (the schema ignores it),
+// so its control is disabled there with explanatory text. gradingMode is
+// omitted — it's inert in Phase 1 (manual/mixed treated as auto), so a picker
+// would imply behavior that doesn't exist yet. skills UI is deferred to Phase 2.
+function ActivitySettings({
+    meta,
+    onChange,
+}: {
+    meta: ActivityMeta;
+    onChange: (next: ActivityMeta) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const singleMode = meta.submissionMode === 'single';
+
+    return (
+        <div className="mt-3 rounded-md border border-slate-200 bg-white">
+        <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+        >
+        <span>
+        <span aria-hidden="true">⚙</span> Activity settings
+        </span>
+        <span className="text-xs text-slate-400">{open ? '▲' : '▼'}</span>
+        </button>
+        {open && (
+            <div className="grid gap-4 border-t border-slate-200 px-3 py-3 sm:grid-cols-2">
+            <div>
+            <label className={SETTINGS_LABEL_CLASS} htmlFor="submission-mode">
+            Submission mode
+            </label>
+            <select
+            id="submission-mode"
+            className={SELECT_CLASS}
+            value={meta.submissionMode}
+            onChange={(e) =>
+                onChange({
+                    ...meta,
+                    submissionMode: e.target
+                    .value as ActivityMeta['submissionMode'],
+                })
+            }
+            >
+            <option value="single">Single submit</option>
+            <option value="locked">Locked checkpoints</option>
+            <option value="free">Free checkpoints</option>
+            </select>
+            <p className={SETTINGS_HELP_CLASS}>
+            {SUBMISSION_MODE_HELP[meta.submissionMode]}
+            </p>
+            </div>
+
+            <div>
+            <label className={SETTINGS_LABEL_CLASS} htmlFor="revision-mode">
+            Revision mode
+            </label>
+            <select
+            id="revision-mode"
+            className={SELECT_CLASS}
+            value={meta.revisionMode}
+            disabled={singleMode}
+            onChange={(e) =>
+                onChange({
+                    ...meta,
+                    revisionMode: e.target
+                    .value as ActivityMeta['revisionMode'],
+                })
+            }
+            >
+            <option value="free">Allow resubmit</option>
+            <option value="locked">No resubmit</option>
+            </select>
+            <p className={SETTINGS_HELP_CLASS}>
+            {singleMode
+                ? 'Not used in single-submit mode.'
+                : REVISION_MODE_HELP[meta.revisionMode]}
+            </p>
+            </div>
+
+            <div>
+            <label className={SETTINGS_LABEL_CLASS} htmlFor="activity-type">
+            Activity type
+            </label>
+            <select
+            id="activity-type"
+            className={SELECT_CLASS}
+            value={meta.activityType}
+            onChange={(e) =>
+                onChange({
+                    ...meta,
+                    activityType: e.target
+                    .value as ActivityMeta['activityType'],
+                })
+            }
+            >
+            {(
+                Object.keys(
+                    ACTIVITY_TYPE_LABELS,
+                ) as ActivityMeta['activityType'][]
+            ).map((t) => (
+                <option key={t} value={t}>
+                {ACTIVITY_TYPE_LABELS[t]}
+                </option>
+            ))}
+            </select>
+            </div>
+
+            <div>
+            <label className={SETTINGS_LABEL_CLASS} htmlFor="answer-feedback">
+            Answer feedback
+            </label>
+            <select
+            id="answer-feedback"
+            className={SELECT_CLASS}
+            value={meta.answerFeedback}
+            onChange={(e) =>
+                onChange({
+                    ...meta,
+                    answerFeedback: e.target
+                    .value as ActivityMeta['answerFeedback'],
+                })
+            }
+            >
+            <option value="on_check">Reveal on check</option>
+            <option value="immediate">Immediate self-check</option>
+            </select>
+            <p className={SETTINGS_HELP_CLASS}>
+            {ANSWER_FEEDBACK_HELP[meta.answerFeedback]}
+            </p>
+            </div>
+            </div>
+        )}
+        </div>
     );
 }
 
@@ -295,8 +482,22 @@ export default function ActivityEditor() {
             onChange={(e) => setMeta({ ...meta, title: e.target.value })}
             placeholder="Untitled activity"
             aria-label="Activity title"
-            className="mt-4 mb-6 w-full bg-transparent text-2xl font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            className="mt-4 w-full bg-transparent text-2xl font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
+
+            <ActivitySettings meta={meta} onChange={setMeta} />
+
+            {meta.submissionMode === 'locked' &&
+            hasNonCheckpointSection(tiptapJson ?? loadState.tiptap) && (
+                <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Locked mode freezes answers when a section is checked, but at
+                least one section isn't a checkpoint — students there have no
+                way to lock their work. Mark every section as a checkpoint, or
+                switch to free or single mode.
+                </div>
+            )}
+
+            <div className="mb-6" />
 
             {/* key={id}: the editor's identity is the activity; a fresh activity
             gets a fresh editor (Editor consumes initialContent only at mount). */}

@@ -733,4 +733,108 @@ describe('lists', () => {
             ]);
         });
     });
+
+    describe('fill_in_blank block-level fields (Stage 15)', () => {
+        it('round-trips solution, hasConfidenceRating, and skills', () => {
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: {
+                            id: 'fib-1',
+                            solution: 'Distribute the 2 to get 2x + 6.',
+                            hasConfidenceRating: true,
+                            skills: ['distributing', 'simplifying'],
+                        },
+                        content: [
+                            { type: 'text', text: 'Simplify: 2(x + 3) = ' },
+                            {
+                                type: 'blank',
+                                attrs: {
+                                    id: 'blank-1',
+                                    answer: '2x + 6',
+                                    acceptableAnswers: [],
+                                },
+                            },
+                        ],
+                    },
+                ],
+            };
+            const result = roundTrip(doc);
+            const fib = result.content?.[0] as JSONContent;
+            expect(fib.attrs?.solution).toBe('Distribute the 2 to get 2x + 6.');
+            expect(fib.attrs?.hasConfidenceRating).toBe(true);
+            expect(fib.attrs?.skills).toEqual(['distributing', 'simplifying']);
+        });
+
+        it('passes block fields into the ActivityDocument', () => {
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: {
+                            id: 'fib-1',
+                            solution: 'Worked answer.',
+                            hasConfidenceRating: true,
+                            skills: ['factoring'],
+                        },
+                        content: [
+                            {
+                                type: 'blank',
+                                attrs: {
+                                    id: 'b1',
+                                    answer: '5',
+                                    acceptableAnswers: [],
+                                },
+                            },
+                        ],
+                    },
+                ],
+            };
+            const activity = tiptapToActivity(doc, META);
+            const block = activity.sections[0]!.blocks[0]!;
+            expect(block.type).toBe('fill_in_blank');
+            if (block.type !== 'fill_in_blank') throw new Error('unreachable');
+            expect(block.solution).toBe('Worked answer.');
+            expect(block.hasConfidenceRating).toBe(true);
+            expect(block.skills).toEqual(['factoring']);
+        });
+
+        it('defaults block fields when the attrs are absent', () => {
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: { id: 'fib-1' },
+                        content: [
+                            {
+                                type: 'blank',
+                                attrs: {
+                                    id: 'b1',
+                                    answer: '5',
+                                    acceptableAnswers: [],
+                                },
+                            },
+                        ],
+                    },
+                ],
+            };
+            const activity = tiptapToActivity(doc, META);
+            const block = activity.sections[0]!.blocks[0]!;
+            if (block.type !== 'fill_in_blank') throw new Error('unreachable');
+            expect(block.solution).toBeUndefined();
+            expect(block.hasConfidenceRating).toBe(false);
+            expect(block.skills).toEqual([]);
+
+            // And the reverse direction emits explicit defaults for the editor.
+            const back = roundTrip(doc);
+            const fib = back.content?.[0] as JSONContent;
+            expect(fib.attrs?.solution).toBe('');
+            expect(fib.attrs?.hasConfidenceRating).toBe(false);
+            expect(fib.attrs?.skills).toEqual([]);
+        });
+    });
 });

@@ -40,6 +40,8 @@ describe('ActivityMeta — Stage 9a additions', () => {
         expect(parsed.revisionMode).toBe('free');
         expect(parsed.activityType).toBe('worksheet');
         expect(parsed.skills).toEqual([]);
+        // New activities hide correctness until a section check / submit.
+        expect(parsed.answerFeedback).toBe('on_check');
     });
 
     it('accepts explicit values for all new fields', () => {
@@ -48,12 +50,20 @@ describe('ActivityMeta — Stage 9a additions', () => {
             submissionMode: 'locked',
             revisionMode: 'locked',
             activityType: 'exit_ticket',
+            answerFeedback: 'immediate',
             skills: ['simplifying rational expressions', 'polynomial division'],
         });
         expect(parsed.submissionMode).toBe('locked');
         expect(parsed.revisionMode).toBe('locked');
         expect(parsed.activityType).toBe('exit_ticket');
+        expect(parsed.answerFeedback).toBe('immediate');
         expect(parsed.skills).toHaveLength(2);
+    });
+
+    it('rejects an invalid answerFeedback value', () => {
+        expect(() =>
+        ActivityMeta.parse({ title: 'T', answerFeedback: 'bogus' }),
+        ).toThrow();
     });
 
     it('rejects invalid enum values', () => {

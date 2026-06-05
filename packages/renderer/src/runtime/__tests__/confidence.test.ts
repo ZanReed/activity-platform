@@ -233,6 +233,7 @@ function buildFixture(spec: FixtureSpec): Fixture {
         submissionMode: spec.submissionMode,
         revisionMode: 'free',
         gradingMode: 'auto',
+        answerFeedback: 'immediate',
     };
 
     const state: RuntimeState = {

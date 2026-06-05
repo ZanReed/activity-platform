@@ -73,7 +73,7 @@ function bootstrap(): void {
     saveActivityState(config, refs, state);
   };
 
-  wireBlanks(state, refs, onUpdate);
+  wireBlanks(config.answerFeedback, state, refs, onUpdate);
   wireHints(state, refs, onUpdate);
   wireHintModal(state, refs, onUpdate);
   wireCheckpoints(config, state, refs, onUpdate);

@@ -43,6 +43,7 @@ function makeConfig(
         submissionMode: 'free',
         revisionMode: 'free',
         gradingMode: 'auto',
+        answerFeedback: 'immediate',
     };
 }
 

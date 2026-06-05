@@ -30,8 +30,9 @@ import {
     matchMistakeFeedback,
     clearBlankState,
     trimValue,
+    wireBlanks,
 } from '../blanks.js';
-import type { BlankRef } from '../refs.js';
+import type { BlankRef, Refs } from '../refs.js';
 import type { RuntimeState, BlankState } from '../state.js';
 
 /** Build a minimal BlankRef wired up to real (JSDOM) DOM nodes. */
@@ -281,5 +282,66 @@ describe('clearBlankState', () => {
         const changed = clearBlankState(state, 'b1');
         expect(changed).toBe(true);
         expect(state.blanks['b1']?.matchedMistake).toBeNull();
+    });
+});
+
+describe('wireBlanks answerFeedback gating', () => {
+    /** Wrap a single BlankRef into a Refs bundle keyed by its blank id. */
+    function buildRefs(id: string, ref: BlankRef): Refs {
+        return {
+            blanks: new Map([[id, ref]]),
+            fillInBlanks: new Map(),
+            sections: new Map(),
+            hintModal: null,
+        };
+    }
+
+    it("scores on blur in 'immediate' mode (self-check)", () => {
+        const state = buildStateWithBlank('b1');
+        const ref = buildBlankRef(['x'], 'x', 'b1');
+        let updates = 0;
+        wireBlanks('immediate', state, buildRefs('b1', ref), () => {
+            updates++;
+        });
+        ref.input.dispatchEvent(new Event('blur'));
+        expect(state.blanks['b1']?.result).toBe(true);
+        expect(updates).toBe(1);
+    });
+
+    it("does NOT score on blur in 'on_check' mode (correctness stays hidden)", () => {
+        const state = buildStateWithBlank('b1');
+        const ref = buildBlankRef(['x'], 'x', 'b1');
+        let updates = 0;
+        wireBlanks('on_check', state, buildRefs('b1', ref), () => {
+            updates++;
+        });
+        ref.input.dispatchEvent(new Event('blur'));
+        expect(state.blanks['b1']?.result).toBeNull();
+        expect(updates).toBe(0);
+    });
+
+    it("clears stale state on input (edit-to-clear) in 'on_check' mode too", () => {
+        // After a section check sets a result, editing must still clear it.
+        const state = buildStateWithBlank('b1');
+        state.blanks['b1']!.result = false;
+        const ref = buildBlankRef(['x'], 'x', 'b1');
+        let updates = 0;
+        wireBlanks('on_check', state, buildRefs('b1', ref), () => {
+            updates++;
+        });
+        ref.input.dispatchEvent(new Event('input'));
+        expect(state.blanks['b1']?.result).toBeNull();
+        expect(updates).toBe(1);
+    });
+
+    it('input on already-clean state does not fire onUpdate (perf)', () => {
+        const state = buildStateWithBlank('b1');
+        const ref = buildBlankRef(['x'], 'x', 'b1');
+        let updates = 0;
+        wireBlanks('immediate', state, buildRefs('b1', ref), () => {
+            updates++;
+        });
+        ref.input.dispatchEvent(new Event('input'));
+        expect(updates).toBe(0);
     });
 });

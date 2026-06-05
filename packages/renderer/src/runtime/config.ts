@@ -13,6 +13,7 @@
 export type SubmissionMode = 'single' | 'locked' | 'free';
 export type RevisionMode = 'free' | 'locked';
 export type GradingMode = 'auto' | 'manual' | 'mixed';
+export type AnswerFeedback = 'immediate' | 'on_check';
 
 export interface RuntimeConfig {
     /** UUID of the activity, included in submission payload. */
@@ -28,6 +29,9 @@ export interface RuntimeConfig {
     revisionMode: RevisionMode;
     /** Phase 2.6+ forward-compat: who scores the activity. 'auto' for Phase 1. */
     gradingMode: GradingMode;
+    /** When a blank's correct/incorrect signal becomes visible: 'immediate'
+     *  (self-check on blur) or 'on_check' (only after a section check / submit). */
+    answerFeedback: AnswerFeedback;
 }
 
 /**
@@ -59,5 +63,12 @@ export function parseConfig(doc: Document = document): RuntimeConfig | null {
     if (typeof obj.submissionMode !== 'string') return null;
     if (typeof obj.revisionMode !== 'string') return null;
     if (typeof obj.gradingMode !== 'string') return null;
-    return obj as unknown as RuntimeConfig;
+    // answerFeedback is NOT required: activities published before this field
+    // existed have a config blob without it. Coerce missing/invalid to
+    // 'immediate' — that was their behavior before the field, so old pages
+    // keep self-checking on blur. Newly published pages carry an explicit
+    // value (default 'on_check' from the schema).
+    const answerFeedback: AnswerFeedback =
+    obj.answerFeedback === 'on_check' ? 'on_check' : 'immediate';
+    return { ...(obj as unknown as RuntimeConfig), answerFeedback };
 }

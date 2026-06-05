@@ -149,13 +149,7 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             return tiptapOrderedListToActivity(node);
 
         case 'fillInBlank':
-            return {
-                id: crypto.randomUUID(),
-                type: 'fill_in_blank',
-                content: tiptapFillInBlankInlineToActivity(node.content ?? []),
-                hasConfidenceRating: false,
-                skills: [],
-            };
+            return tiptapFillInBlankToActivity(node);
 
         default:
             console.warn(
@@ -163,6 +157,30 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             );
             return null;
     }
+}
+
+function tiptapFillInBlankToActivity(node: JSONContent): FillInBlankBlock {
+    const block: FillInBlankBlock = {
+        id: crypto.randomUUID(),
+        type: 'fill_in_blank',
+        content: tiptapFillInBlankInlineToActivity(node.content ?? []),
+        hasConfidenceRating: Boolean(node.attrs?.hasConfidenceRating),
+        skills: Array.isArray(node.attrs?.skills)
+        ? (node.attrs.skills as unknown[]).filter(
+            (s): s is string => typeof s === 'string',
+        )
+        : [],
+    };
+
+    // solution is optional in the schema — only carry it when non-empty so the
+    // saved document doesn't accrue a phantom empty-string key and round-trip
+    // equality holds for problems without a solution.
+    const rawSolution = node.attrs?.solution;
+    if (typeof rawSolution === 'string' && rawSolution.length > 0) {
+        block.solution = rawSolution;
+    }
+
+    return block;
 }
 
 function tiptapBulletListToActivity(node: JSONContent): BulletListBlock {
@@ -453,7 +471,12 @@ function activityListItemToTiptap(item: ListItem): JSONContent {
 function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
     return {
         type: 'fillInBlank',
-        attrs: { id: block.id },
+        attrs: {
+            id: block.id,
+            solution: block.solution ?? '',
+            hasConfidenceRating: block.hasConfidenceRating,
+            skills: block.skills,
+        },
         content: activityFillInBlankInlineToTiptap(block.content),
     };
 }

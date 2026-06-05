@@ -84,7 +84,7 @@ The bootstrap in `index.ts` runs once on `DOMContentLoaded` (or immediately if t
    Every subsequent state mutation flows through here.
 
 7. **Wire handlers:**
-   - `wireBlanks(state, refs, onUpdate)` — blur (score + render) + input (clear stale + conditional render)
+   - `wireBlanks(answerFeedback, state, refs, onUpdate)` — input (clear stale + conditional render) in all modes; blur (score + render) only when `answerFeedback === 'immediate'`. In `on_check` mode correctness stays hidden until a section check / submit.
    - `wireHints(state, refs, onUpdate)` — hint button click → toggle `hintRevealed`
    - `wireCheckpoints(config, state, refs, onUpdate)` — check button click → `checkSection`
    - `wireConfidence(state, refs, onUpdate)` — radio change → set `BlockState.confidence`

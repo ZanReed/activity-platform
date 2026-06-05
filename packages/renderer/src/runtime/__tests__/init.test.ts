@@ -83,6 +83,28 @@ describe('parseConfig', () => {
         setupDOM(configScript(incomplete));
         expect(parseConfig()).toBeNull();
     });
+
+    it("preserves an explicit answerFeedback of 'on_check'", () => {
+        setupDOM(configScript({ ...SAMPLE_CONFIG, answerFeedback: 'on_check' }));
+        expect(parseConfig()!.answerFeedback).toBe('on_check');
+    });
+
+    it("preserves an explicit answerFeedback of 'immediate'", () => {
+        setupDOM(configScript({ ...SAMPLE_CONFIG, answerFeedback: 'immediate' }));
+        expect(parseConfig()!.answerFeedback).toBe('immediate');
+    });
+
+    it("coerces a MISSING answerFeedback to 'immediate' (pre-field back-compat)", () => {
+        // Pages published before the field existed had no answerFeedback and
+        // self-checked on blur. They must keep that behavior, so missing → immediate.
+        setupDOM(configScript()); // SAMPLE_CONFIG has no answerFeedback
+        expect(parseConfig()!.answerFeedback).toBe('immediate');
+    });
+
+    it("coerces an invalid answerFeedback to 'immediate'", () => {
+        setupDOM(configScript({ ...SAMPLE_CONFIG, answerFeedback: 'bogus' }));
+        expect(parseConfig()!.answerFeedback).toBe('immediate');
+    });
 });
 
 describe('buildRefs — sections', () => {

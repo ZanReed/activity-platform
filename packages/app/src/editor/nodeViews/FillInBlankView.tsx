@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
     NodeViewWrapper,
     NodeViewContent,
@@ -31,6 +31,17 @@ import {
 //
 // Selection state:
 //   Mirrors .math-block-wrapper.is-selected — blue outline + tinted bg.
+//
+// Block settings (Stage 15):
+//   A footer disclosure exposes the block-level fields — `solution` (a worked
+//   explanation revealed post-check) and `hasConfidenceRating` (whether the
+//   problem asks for a confidence rating). These are document concerns, so the
+//   controls write straight to ProseMirror via `updateAttributes`; only the
+//   open/closed disclosure is React state (the 5-commitments rule). The footer
+//   is contentEditable={false} so ProseMirror doesn't treat it as block
+//   content, and stays hidden for a plain, unselected, unconfigured problem to
+//   keep a long worksheet uncluttered. `skills` has no control yet (Phase 2);
+//   the attr still round-trips through serialize.
 // ============================================================================
 
 export default function FillInBlankView({
@@ -38,7 +49,15 @@ export default function FillInBlankView({
     editor,
     getPos,
     selected,
+    updateAttributes,
 }: NodeViewProps) {
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const solution = (node.attrs.solution as string | undefined) ?? '';
+    const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
+    const isEditable = editor.isEditable;
+    const isConfigured = solution.length > 0 || hasConfidenceRating;
+    const showFooter = selected || settingsOpen || isConfigured;
+
     const problemNumber = useMemo(() => {
         const pos = typeof getPos === 'function' ? getPos() : undefined;
         if (pos === undefined) return 1;
@@ -63,6 +82,68 @@ export default function FillInBlankView({
                 {problemNumber}.
             </div>
             <NodeViewContent className="fill-in-blank-block__body" />
+            {showFooter && (
+                <div
+                    className="fill-in-blank-block__settings"
+                    contentEditable={false}
+                >
+                    <button
+                        type="button"
+                        className="fill-in-blank-block__settings-toggle"
+                        onClick={() => setSettingsOpen((open) => !open)}
+                        aria-expanded={settingsOpen}
+                        disabled={!isEditable}
+                    >
+                        <span aria-hidden="true">⚙</span> Settings
+                        {!settingsOpen && isConfigured && (
+                            <span className="fill-in-blank-block__settings-badge">
+                                {solution.length > 0 && 'solution'}
+                                {solution.length > 0 &&
+                                    hasConfidenceRating &&
+                                    ' · '}
+                                {hasConfidenceRating && 'confidence'}
+                            </span>
+                        )}
+                    </button>
+                    {settingsOpen && (
+                        <div className="fill-in-blank-block__settings-panel">
+                            <label className="fill-in-blank-block__settings-field">
+                                <span className="fill-in-blank-block__settings-label">
+                                    Worked solution
+                                </span>
+                                <textarea
+                                    className="fill-in-blank-block__solution"
+                                    value={solution}
+                                    placeholder="Shown to students after the section is checked."
+                                    onChange={(e) =>
+                                        updateAttributes({
+                                            solution: e.target.value,
+                                        })
+                                    }
+                                    onKeyDown={(e) => e.stopPropagation()}
+                                    disabled={!isEditable}
+                                    rows={3}
+                                />
+                            </label>
+                            <label className="fill-in-blank-block__settings-checkbox">
+                                <input
+                                    type="checkbox"
+                                    checked={hasConfidenceRating}
+                                    onChange={(e) =>
+                                        updateAttributes({
+                                            hasConfidenceRating:
+                                                e.target.checked,
+                                        })
+                                    }
+                                    onKeyDown={(e) => e.stopPropagation()}
+                                    disabled={!isEditable}
+                                />
+                                <span>Ask for a confidence rating</span>
+                            </label>
+                        </div>
+                    )}
+                </div>
+            )}
         </NodeViewWrapper>
     );
 }

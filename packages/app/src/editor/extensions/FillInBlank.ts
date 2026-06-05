@@ -25,13 +25,16 @@ declare module '@tiptap/core' {
 // the editor level, so a user can't paste a heading or another fill_in_blank
 // into the body.
 //
-// Block-level attrs in Stage 13.5 scope:
+// Block-level attrs:
 //   - id: stable UUID auto-assigned at insertion. The serialize layer mints
 //     fresh UUIDs on every round trip (existing convention); the in-session
 //     id keeps NodeView identity stable while editing.
-//
-// Out of scope (Stage 15):
-//   - solution, hasConfidenceRating, skills attrs and their editing UIs
+//   - solution: worked explanation shown post-check (Stage 15). Plain string.
+//   - hasConfidenceRating: when true, the block asks for a confidence rating
+//     before checking (Stage 15).
+//   - skills: universal skill tags. Carried through round-trips so imported
+//     or future-authored tags survive; the editing UI is deferred to Phase 2
+//     (no control surfaces this attr yet).
 //
 // Drag/drop behavior:
 //   This node does NOT carry `defining: true`. An earlier iteration added it
@@ -73,6 +76,42 @@ export const FillInBlank = Node.create({
                                                        parseHTML: (element) => element.getAttribute('data-block-id') ?? '',
                                        renderHTML: (attributes) =>
                                        attributes.id ? { 'data-block-id': attributes.id } : {},
+                                               },
+                                               solution: {
+                                                   default: '',
+                                                       parseHTML: (element) => element.getAttribute('data-solution') ?? '',
+                                       renderHTML: (attributes) =>
+                                       attributes.solution
+                                       ? { 'data-solution': attributes.solution }
+                                       : {},
+                                               },
+                                               hasConfidenceRating: {
+                                                   default: false,
+                                                       parseHTML: (element) =>
+                                                       element.getAttribute('data-has-confidence-rating') === 'true',
+                                       renderHTML: (attributes) =>
+                                       attributes.hasConfidenceRating
+                                       ? { 'data-has-confidence-rating': 'true' }
+                                       : {},
+                                               },
+                                               skills: {
+                                                   default: [] as string[],
+                                                       parseHTML: (element) => {
+                                                           const raw = element.getAttribute('data-skills');
+                                                           if (!raw) return [];
+                                                           try {
+                                                               const parsed = JSON.parse(raw);
+                                                               return Array.isArray(parsed)
+                                                               ? parsed.filter((s): s is string => typeof s === 'string')
+                                                               : [];
+                                                           } catch {
+                                                               return [];
+                                                           }
+                                                       },
+                                       renderHTML: (attributes) =>
+                                       Array.isArray(attributes.skills) && attributes.skills.length > 0
+                                       ? { 'data-skills': JSON.stringify(attributes.skills) }
+                                       : {},
                                                },
                                            };
                                        },

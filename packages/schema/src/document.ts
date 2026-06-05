@@ -60,6 +60,23 @@ export type Section = z.infer<typeof Section>;
 // activityType drives presentation: an exit_ticket renders as a single-page
 // focused layout; a worksheet renders with full section navigation; etc.
 //
+// answerFeedback controls WHEN a blank's correct/incorrect signal (the
+// green/red border + aria-invalid + targeted mistake feedback) becomes
+// visible to the student:
+//   'immediate' — the blank self-checks on blur, so the student sees
+//                 correct/incorrect as soon as they leave the field. A
+//                 self-check practice experience.
+//   'on_check'  — correctness is hidden until the student checks the section
+//                 (locked/free) or submits (single). An assessment-style
+//                 experience that doesn't leak answers before the gate.
+// Orthogonal to submissionMode — any checkpoint behavior can pair with
+// either feedback timing (the same reason revisionMode is its own field).
+// Default 'on_check': the checkpoint model implies "answer, then check",
+// and leaking correctness on blur undercut that. NOTE the runtime defaults a
+// MISSING answerFeedback (activities published before this field existed) to
+// 'immediate', preserving their original behavior — the schema default and
+// the runtime back-compat fallback differ on purpose.
+//
 // skills is an array of universal skill tags describing what the activity
 // teaches. Action-oriented, framework-neutral: "simplifying rational
 // expressions", "factoring quadratics", "graphing parabolas". A teacher who
@@ -73,6 +90,7 @@ export const ActivityMeta = z.object({
                                      revisionMode: z.enum(['free', 'locked']).default('free'),
                                      gradingMode: z.enum(['auto', 'manual', 'mixed']).default('auto'),
                                      activityType: z.enum(['worksheet', 'exit_ticket', 'warm_up', 'review']).default('worksheet'),
+                                     answerFeedback: z.enum(['immediate', 'on_check']).default('on_check'),
                                      skills: z.array(z.string()).default([]),
 });
 export type ActivityMeta = z.infer<typeof ActivityMeta>;

@@ -33,6 +33,7 @@
 // been friction; STATE.md keeps it on the "refactor if friction" list.
 // =============================================================================
 
+import type { AnswerFeedback } from './config.js';
 import type { BlankRef, Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
 import { evaluateAnswer } from './strategies.js';
@@ -144,19 +145,31 @@ export function clearBlankState(state: RuntimeState, id: string): boolean {
  * After either handler runs, the onUpdate callback fires — index.ts wires
  * it to render(state, refs).
  *
- * Input handler is gated by clearBlankState's return — keystrokes that
+ * answerFeedback gates the blur handler. In 'immediate' mode, blur scores the
+ * blank so the student sees correct/incorrect right away (self-check). In
+ * 'on_check' mode, blur does NOT score — correctness stays hidden until the
+ * section is checked or the activity is submitted (both of which score through
+ * their own paths). The typed value still persists regardless (storage saves
+ * input.value independently of blank result state).
+ *
+ * The input handler runs in BOTH modes: even in 'on_check', once a section
+ * check has set results, editing a blank should clear its stale border
+ * (edit-to-clear). It's gated by clearBlankState's return — keystrokes that
  * don't change state don't trigger renders.
  */
 export function wireBlanks(
+  answerFeedback: AnswerFeedback,
   state: RuntimeState,
   refs: Refs,
   onUpdate: () => void,
 ): void {
   for (const [id, ref] of refs.blanks) {
-    ref.input.addEventListener('blur', () => {
-      scoreBlankAndUpdateState(state, id, ref);
-      onUpdate();
-    });
+    if (answerFeedback === 'immediate') {
+      ref.input.addEventListener('blur', () => {
+        scoreBlankAndUpdateState(state, id, ref);
+        onUpdate();
+      });
+    }
     ref.input.addEventListener('input', () => {
       if (clearBlankState(state, id)) {
         onUpdate();

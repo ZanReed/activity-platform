@@ -66,6 +66,7 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     submissionMode: doc.meta.submissionMode,
     revisionMode: doc.meta.revisionMode,
     gradingMode: doc.meta.gradingMode,
+    answerFeedback: doc.meta.answerFeedback,
   };
 
   // Activity header text

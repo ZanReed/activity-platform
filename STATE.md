@@ -4,16 +4,31 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 ## Current focus
 
-**Stage 14 — Submission flow polish — is COMPLETE.** All six pieces landed and are tested: network retry with backoff, attempt-number reconciliation, free-mode resubmit, autosave `beforeunload` guard, PublishControl error-detail surfacing, and useAutosave `flush()` wired into publish. **Next goal: Stage 15 — Editor UI for remaining feature fields (see Nearest next steps #1).**
+**Stage 15 — Editor UI for remaining feature fields — is COMPLETE.** Activity-level metadata pickers and FillInBlank block-level field authoring now exist in the editor; the locked-mode checkpoint validation warns (non-blocking). **Next goal: Stage 16 — Submissions dashboard with all-attempts toggle (see Nearest next steps #6).**
 
-What landed this stage:
+What landed this stage (editor + serialize only — NO renderer/runtime/bundle change; the renderer already emitted `data-solution`/`data-has-confidence-rating`/`data-skills` and the runtime already consumed them, so this stage only made the editor *produce* those fields):
 
-- **Network retry (`submission.ts`).** `sendWithRetry` POSTs with exponential backoff (1s/4s/16s) via injectable `delay`/`fetchFn` hooks. `classifyFailure(status)` → 4xx terminal (bad payload, no retry), 5xx/network retryable. `postOnce` never throws. The payload is persisted to a localStorage slot (`savePendingSubmission`, keyed by activityId only, version-agnostic) BEFORE the POST; `flushPendingSubmission` resends it on next bootstrap so a mid-flight tab close survives. Phase 1 accepts duplicate-attempt risk on resend (server increments `attempt_number` canonically; idempotency token is the proper fix later).
-- **Attempt reconciliation.** The ingest response's canonical `attempt_number` is read back into `state.attemptNumber` and surfaced ("Attempt N submitted!") only when > 1. Client value stays advisory.
-- **Free-mode resubmit.** `applySubmitSuccess` branches on mode: `submissionMode !== 'single' && revisionMode === 'free'` keeps state + persistence and relabels the button "Resubmit"; otherwise it freezes (sets `submitted`, `clearActivityState`, disables). No renderer/data-contract change needed — `config` already carried `submissionMode`/`revisionMode`.
-- **App polish.** `useAutosave` now returns `{ status, flush }`; `flush()` awaits in-flight + pending saves; `beforeunload` guard fires while dirty; trailing-save chains only on success (fixed a latent infinite-retry busy-loop on persistent save error). `PublishControl` awaits `onBeforePublish` (the flush) and surfaces `body.details.message` when present. `ActivityEditor` passes `flush` as `onBeforePublish`.
-- **Tests + verification.** New `submission.test.ts` (11 tests, injected `fetchFn`/`delay`) + pending-slot tests in `storage.test.ts`. Renderer **199 tests green**, renderer typecheck clean, app build + 47 tests green. Bundle regenerated (`pnpm run bundle:renderer`).
-- **Dormant-test-suite fix.** Discovered the renderer `vitest.config.ts` `include` was `tests/**` only — the entire `src/runtime/__tests__/` suite (145 tests) had never been running. Widened to `['tests/**/*.test.ts', 'src/**/*.test.ts']`; all now run and pass. Also removed an unused `vi` import in `app/src/__tests__/serialize.test.ts` that was breaking `tsc -b`.
+- **Activity-settings panel (`ActivityEditor.tsx`).** A collapsible "⚙ Activity settings" disclosure under the title input. Three `<select>` pickers — `submissionMode` (single/locked/free), `revisionMode` (free/locked), `activityType` (worksheet/exit_ticket/warm_up/review) — wired straight to `setMeta`. Meta already round-tripped through `draft_content` and `changeKey` already fingerprinted it, so autosave picks up changes for free. `revisionMode` is **disabled with explanatory text when `submissionMode === 'single'`** (schema ignores it there). `gradingMode` deliberately **omitted** (inert in Phase 1 — a picker would imply behavior that doesn't exist).
+- **Locked-mode checkpoint warning.** Amber banner under the settings panel, shown when `submissionMode === 'locked'` AND `hasNonCheckpointSection(tiptap)` is true (any section — including the implicit leading run before the first `sectionBreak` — that isn't a checkpoint). **Warns, does not block save** (addresses open-question #258). The walk mirrors `splitTiptapBlocksIntoSections` in serialize.ts.
+- **FillInBlank block-level fields (`FillInBlank.ts` + `FillInBlankView.tsx`).** Added `solution` / `hasConfidenceRating` / `skills` attrs (parse/render via `data-solution`/`data-has-confidence-rating`/`data-skills`). A footer disclosure in the NodeView (contentEditable={false}, hidden when the block is plain + unselected + unconfigured) exposes a `solution` textarea and an "Ask for a confidence rating" checkbox. Document concerns write via `updateAttributes`; only the open/closed state is React `useState` (5-commitments rule).
+- **Serialize round-trip (`serialize.ts`).** New `tiptapFillInBlankToActivity` carries `solution` (only when non-empty), `hasConfidenceRating`, and `skills` into the ActivityDocument — replacing the old hardcoded `hasConfidenceRating: false`/`skills: []`/dropped-solution. `activityFillInBlankToTiptap` now emits all three attrs (explicit defaults `''`/`false`/`[]`) so the editor round-trips them.
+- **`skills` UI deferred to Phase 2** (per the schema's own scheduling — every skills comment reads "Editor UI for this field is Phase 2"). The attr still round-trips through serialize and the node so any imported/future-authored tags survive; there is just no editing control. Confirmed with the author.
+- **Tests + verification.** Added 3 serialize round-trip tests for the block-level fields (round-trip, into-ActivityDocument, defaults-absent). App **50 tests green**; `pnpm --filter @activity/app build` clean (tsc -b + vite). No bundle regen (no renderer/runtime change). **Live-UI pass not yet run** — needs the author's authed env + a real activity; verification steps handed off.
+
+### Follow-on: `answerFeedback` mode (configurable answer validation)
+
+The green-correct / red-wrong blank validation used to be **always on** (every blank self-checked on blur). The author flagged this should be opt-in. Resolved as a **separate, orthogonal `ActivityMeta` field** (`answerFeedback: 'immediate' | 'on_check'`, schema default `'on_check'`) — NOT a fourth `submissionMode`, mirroring how `submissionMode`/`revisionMode` are kept as independent enums.
+
+- `'immediate'` — blur scores the blank; student sees correct/incorrect right away (the old always-on behavior).
+- `'on_check'` — correctness stays hidden until a section check or final submit (the **new default** for fresh activities).
+
+What changed (this **DID** touch renderer/runtime/bundle, unlike Stage 15 proper):
+- **Schema** (`document.ts`, `factories.ts`): added `answerFeedback` enum (default `on_check`); factory constructs it explicitly.
+- **Renderer** (`document.ts`): config blob now carries `answerFeedback`.
+- **Runtime** (`config.ts`, `blanks.ts`, `index.ts`): `RuntimeConfig.answerFeedback`; `parseConfig` treats it as **not-required** and **coerces missing/invalid → `'immediate'`** (pre-field published pages keep their original self-check-on-blur behavior — schema default and runtime fallback intentionally differ). `wireBlanks(answerFeedback, …)` only attaches the blur-scoring handler in `'immediate'` mode; the input/edit-to-clear handler runs in **both** modes (so editing after a section check still clears a stale border).
+- **Editor** (`ActivityEditor.tsx`): a 4th picker in the settings disclosure (`Reveal on check` / `Immediate self-check`); settings grid widened to `sm:grid-cols-2`.
+- **Tests:** schema default + explicit + invalid-reject; `parseConfig` preserve/missing→immediate/invalid→immediate; `wireBlanks` blur-gating in both modes + edit-to-clear in on_check. Schema 30 / renderer 207 / app 50 green; all builds clean. RUNTIME.md §7 `wireBlanks` signature updated.
+- **Bundle regenerated** (`pnpm run bundle:renderer`) — runtime source changed, so `runtime-bundle.ts` + `supabase/functions/_shared/renderer.bundle.js` are rebuilt. ⚠️ **`publish-activity` must be redeployed** for the new behavior to reach published pages.
 
 ## Status by area
 
@@ -23,8 +38,8 @@ What landed this stage:
 | Permission helper functions | ✅ In place; future collaboration extends helpers |
 | `@activity/schema` package | ✅ Tested, on GitHub |
 | `@activity/renderer` package | ✅ Tests passing; runtime modular, esbuild-bundled, inlined; baseline print CSS in `styles.ts` |
-| Renderer bundle for Edge Functions | ✅ Deployed (Stages 11/12/13/13.5 bundle live) |
-| `publish-activity` Edge Function | ✅ Deployed; uploads to Cloudflare R2, returns live + versioned R2 URLs |
+| Renderer bundle for Edge Functions | ⚠ Regenerated for `answerFeedback`; **`publish-activity` redeploy pending** to ship it |
+| `publish-activity` Edge Function | ✅ Deployed (R2 upload, live + versioned URLs); ⚠ **redeploy needed** to pick up the regenerated `answerFeedback` bundle |
 | `ingest-submission` Edge Function | ✅ Deployed; enforces `schemaVersion: 2`; returns `attempt_number` |
 | Edge Function secrets | ✅ Set |
 | Supabase Storage `activities` bucket | ⚠ Exists; will be deleted after R2 migration verified |
@@ -49,8 +64,8 @@ What landed this stage:
 | Stage 13.5 — Editor authoring UI for fill-in-blanks + section button + disappearing-block fix | ✅ |
 | Stage 13.6 — Publish flow (PublishControl + load fallback + R2 hosting) | ✅ |
 | Stage 14 — Submission flow polish (retry, resubmit, attempt reconciliation) | ✅ Complete; tested |
-| Stage 15 — Editor UI for remaining feature fields | ⏳ Not started (next goal) |
-| Stage 16 — Submissions dashboard with all-attempts toggle | ⏳ Not started |
+| Stage 15 — Editor UI for remaining feature fields | ✅ Complete; tested (live-UI pass pending) |
+| Stage 16 — Submissions dashboard with all-attempts toggle | ⏳ Not started (next goal) |
 | Print feature — teacher-configurable printables (post-Stage-16) | ⏳ Designed; `docs/design/print-and-printables.md` |
 | Markdown paste import | ⏳ Phase 1 polish |
 | End-to-end manual test | ⏳ Now unblocked (R2 live); full pass still to run |
@@ -227,6 +242,18 @@ activity-platform/
 - **Hybrid architecture: keep Supabase for everything else.** Database, auth, Edge Functions (publish-activity, ingest-submission) all stay on Supabase. R2 hosts ONLY the published HTML output. This is the minimum-viable migration; full Cloudflare migration (Workers + R2 + Pages) is a future option but not warranted now.
 - **`serve-activity` Edge Function: deleted.** Was created in this session as the proxy attempt; superseded by R2 (which serves HTML directly with the right Content-Type). Local directory removed; Supabase deployment removed via `supabase functions delete serve-activity`.
 
+### Editor UI for feature fields (Stage 15)
+
+- **Activity metadata was already persisted before Stage 15.** `ActivityEditor` held the full `ActivityMeta` in state and round-tripped it through `draft_content`; only `title` had a control. The other fields loaded and saved back unchanged. So adding pickers was pure wiring to `setMeta` — `changeKey` already fingerprinted meta, so autosave needed no change.
+- **Activity settings live in a collapsible disclosure under the title, NOT a modal/gear-drawer.** Discoverability-beats-elegance (same reasoning as the static toolbar over BubbleMenu). Always-visible label, expand for the three pickers.
+- **`revisionMode` control is disabled (not hidden) in single mode**, with "Not used in single-submit mode." helper text. Hiding it would make the submissionMode↔revisionMode coupling invisible; disabling makes it legible.
+- **`gradingMode` gets no picker in Phase 1.** It's inert (manual/mixed treated as auto until Phase 2.6 per-block grading lands). Surfacing a control would imply functionality that doesn't exist. Add it when manual-graded block types arrive.
+- **`activityType` picker is included even though renderer presentation-branching is Phase 2.** It has a real near-term consumer: Stage 16's dashboard filters on it.
+- **Locked-mode checkpoint validation WARNS, does not block save.** Blocking save mid-edit is hostile. An amber inline banner (continuous, not just at publish) fires whenever locked mode coexists with any non-checkpoint section. The implicit leading section (content before the first `sectionBreak`) counts as non-checkpoint. Resolves open-question #258.
+- **FillInBlank block-field UI is an inline NodeView footer disclosure, NOT a popover.** Mirrors SectionBreakView's inline-controls pattern and sidesteps the per-chip-popover hazards documented in Stage 13.5. The blank-token popover stays for per-blank fields; block-level fields (solution, confidence) get the footer. The footer stays hidden for a plain/unselected/unconfigured problem to keep long worksheets uncluttered (shown when `selected || settingsOpen || isConfigured`). It's `contentEditable={false}` so ProseMirror doesn't treat it as block content; the solution textarea `stopPropagation`s keydown so editor shortcuts don't fire while typing.
+- **`solution` is a plain multiline string in Phase 1.** Rich text / math-in-solution is deferred.
+- **`skills` editing UI deferred to Phase 2** (the schema scheduled it there). The attr round-trips through the node and serialize so data survives, but no control surfaces it. Don't add a skills tag-input without revisiting Phase 2 scope.
+
 ## Standing constraints
 
 - **Pure renderer.** `@activity/renderer` is JSON-in, HTML-string-out. No I/O, no environment reads at render time. The runtime is the exception that proves the rule — its text is baked in at build time as a string constant.
@@ -255,7 +282,8 @@ activity-platform/
 - **Responsive `--blank-width` sizing.** Considered for Stage 11 baseline; deferred to either Stage 15 or post-Stage-16 print feature.
 - **Phase 2 block type priority order:** worked example, faded worked example, learning objectives + success criteria, self-explanation. Decide order when Phase 2 starts based on which gap is most painful.
 - **UX validation with other teachers:** 2–3 informal reviews of Stage 13 + Stage 13.5 patterns (chip popover UX, toolbar button discoverability, mistake feedback styling, section break inline UI) before classroom adoption. Cost is low now; rises sharply once students start using activities.
-- **Non-checkpoint sections in locked mode** have no lock affordance (no check button = no path to `SectionState.locked = true`). Stage 15 editor should enforce "in locked mode, every section is a checkpoint" as a validation rule. Runtime accepts what's emitted.
+- **Non-checkpoint sections in locked mode** — RESOLVED (Stage 15) as a non-blocking warning. `ActivityEditor` shows an amber banner when locked mode coexists with any non-checkpoint section (including the implicit leading section). Chose warn-over-block deliberately; if version sprawl of bad locked-mode activities becomes real, escalate to a publish-time block later. Runtime still accepts what's emitted.
+- **`skills` editor UI deferred to Phase 2** (Stage 15 decision, confirmed with author). The field exists on `ActivityMeta`, `FillInBlankBlock`, and `ProblemBlock`; the renderer emits `data-skills` and the runtime reads it; the FillInBlank node attr + serialize round-trip carry it. The only missing piece is an *editing control* (a tag input, both activity-level and per-block). Pick up when Phase 2 per-skill analytics work starts. Don't add it piecemeal without that scope.
 - **Post-success edit edge case (Stage 14 resolved the resubmit half).** In free mode, `applySubmitSuccess` now keeps state + persistence (no `clearActivityState`), so a revised attempt resumes from prior work. Locked/single still freeze and clear; the brief write-then-remove of the blob in that path remains (wasteful but correct, low priority).
 - **`init.test.ts` coverage** for `state.blanks` and `state.blocks` initialization is still a Session 1 follow-up. Tests pass without it (defaults work) but explicit coverage is overdue.
 - **No tests for Stage 13.5 work beyond serialize round-trip.** Popover state machine tests are unwritten. Pick up alongside Stage 14.
@@ -287,15 +315,9 @@ activity-platform/
 
 4. **Stage 14 — Submission flow polish.** ✅ DONE (this session). Retry-with-backoff + persisted pending-submission slot, attempt reconciliation, free-mode resubmit, `beforeunload` guard, PublishControl detail surfacing, useAutosave `flush()`. Tested; bundle regenerated. The one remaining manual-verification gap: exercise resubmit + retry on a *real published URL* during the #2 e2e pass (unit tests cover the logic, not the live network path).
 
-5. **Stage 15 — Editor UI for remaining feature fields. ← NEXT GOAL**
-   - Section-level: title editing already inline in SectionBreakView; isCheckpoint toggle already inline. Possibly a section-properties panel for additional fields if any are added.
-   - Activity-level: `submissionMode` / `revisionMode` / `activityType` pickers.
-   - `FillInBlank` block: block-level fields (`solution`, `hasConfidenceRating`, `skills`). Per-blank fields are already authored via popover.
-   - `Problem` block: `solution`, `skills`.
-   - Validation: in locked mode, every section should be a checkpoint (warn at minimum, possibly block save).
-   ~1–2 sessions.
+5. **Stage 15 — Editor UI for remaining feature fields.** ✅ DONE (this session). Activity-level `submissionMode`/`revisionMode`/`activityType` pickers in a settings disclosure; FillInBlank block-level `solution` + `hasConfidenceRating` authored via an inline NodeView footer; serialize round-trips all three new block fields. Locked-mode checkpoint validation = non-blocking warning. **Scope notes:** `gradingMode` picker omitted (inert in Phase 1); `skills` editing UI deferred to Phase 2 (attr still round-trips); the standalone `ProblemBlock` was dropped from scope — it has no editor representation (the toolbar "Problem" button inserts a `fillInBlank`), so there was nothing to author. **Remaining gap:** live-UI verification on a real authed activity (fold into the #2 e2e pass).
 
-6. **Stage 16 — Submissions dashboard with all-attempts toggle.** All-attempts view (every row per student) vs best-score-plus-count view (one row per student). Display per-blank `confidence` and `checkpointResults` where useful. Filter by `activityType`. ~1–2 sessions.
+6. **Stage 16 — Submissions dashboard with all-attempts toggle. ← NEXT GOAL** All-attempts view (every row per student) vs best-score-plus-count view (one row per student). Display per-blank `confidence` and `checkpointResults` where useful. Filter by `activityType` (now editor-settable as of Stage 15). ~1–2 sessions.
 
 7. **Housekeeping (parallel):**
    - `init.test.ts` coverage for `state.blanks` and `state.blocks` initialization (Session 1 leftover)
@@ -403,4 +425,4 @@ Specific friction patterns where unstated assumptions have caused loops:
 
 ---
 
-**Last updated:** **Stage 14 — Submission flow polish — complete.** Network retry + persisted pending-submission slot, attempt reconciliation, free-mode resubmit, autosave `beforeunload` guard, PublishControl error-detail surfacing, useAutosave `flush()`. Added `submission.test.ts` + pending-slot tests; fixed the renderer `vitest.config.ts` `include` so the dormant `src/runtime/__tests__` suite (145 tests) actually runs, and removed an unused import breaking the app `tsc -b`. Renderer 199 tests + typecheck green; app build + 47 tests green; bundle regenerated. Active next goal moved to **Stage 15 — Editor UI for remaining feature fields** (Nearest next steps #5).
+**Last updated:** **Stage 15 — Editor UI for remaining feature fields — complete**, plus the **`answerFeedback` follow-on**. Stage 15: activity-settings disclosure with `submissionMode`/`revisionMode`/`activityType` pickers (revisionMode disabled in single mode; gradingMode omitted); locked-mode non-checkpoint warning (warn, not block); FillInBlank block-level `solution` + `hasConfidenceRating` authored via an inline NodeView footer disclosure; serialize round-trips all three new block fields (skills carried through, editing UI deferred to Phase 2). Editor + serialize only there. Follow-on `answerFeedback` (`immediate` | `on_check`, default `on_check`) makes the green/red blank validation opt-in — a separate orthogonal `ActivityMeta` field; threaded through schema → renderer config blob → runtime (`wireBlanks` gates blur scoring; `parseConfig` coerces missing→`immediate` for pre-field pages) → a 4th editor picker. This **did** change renderer/runtime, so the **bundle was regenerated and `publish-activity` needs a redeploy**. Schema 30 / renderer 207 / app 50 tests + all builds green; RUNTIME.md §7 updated. Live-UI pass still pending (author's authed env). Active next goal: **Stage 16 — Submissions dashboard** (Nearest next steps #6).
