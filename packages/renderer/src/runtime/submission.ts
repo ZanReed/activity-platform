@@ -1,21 +1,26 @@
 // =============================================================================
 // runtime/submission.ts — Response gathering + submission
 // -----------------------------------------------------------------------------
-// Post-Session-4 expansions to the payload:
-//   - blanks[].confidence — derived from state.blocks[ref.blockId].
-//     confidence at submit time. Every blank in a block gets the same
-//     confidence value (the fieldset is per-block).
-//   - responses.checkpointResults — built from per-section state.
-//     Included only when at least one section qualifies (checked=true,
-//     checkedAt set, total > 0). The schema requires total positive, so
-//     a section with zero blanks is filtered out defensively.
+// Payload (Session 4 + Stage 14):
+//   - blanks[].confidence — derived from state.blocks[ref.blockId].confidence
+//     at submit time. Every blank in a block gets the same per-block value.
+//   - responses.checkpointResults — built from per-section state. Included
+//     only when at least one section qualifies (checked, checkedAt set,
+//     total > 0). Schema requires total positive, so zero-blank sections are
+//     filtered out defensively.
 //
-// On submit success, clearActivityState removes the persisted blob —
-// next page-load shows a fresh form rather than restoring submitted work.
-//
-// Stage 14 will wire localStorage-backed retry, attempt-number
-// reconciliation against the server's canonical value, and revisionMode
-// resubmission.
+// Stage 14 additions:
+//   - Network retry: sendWithRetry POSTs with exponential backoff (1s/4s/16s)
+//     on transient failures (network error / HTTP 5xx). 4xx is terminal (the
+//     payload is bad — retrying won't help). The payload is persisted to
+//     localStorage before the POST so a tab close mid-flight survives; the
+//     bootstrap flush resends it next load.
+//   - Attempt reconciliation: the ingest response's canonical attempt_number
+//     is read back into state.attemptNumber and surfaced ("Attempt N") when > 1.
+//   - Resubmit: in free revisionMode (and non-single submissionMode) a
+//     successful submit keeps state + persistence and relabels the button
+//     "Resubmit" instead of freezing the form. locked/single modes freeze and
+//     clear persisted state as before.
 // =============================================================================
 
 import { $ } from './dom.js';
@@ -23,7 +28,13 @@ import { scoreBlankAndUpdateState, trimValue } from './blanks.js';
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
-import { clearActivityState, saveName } from './storage.js';
+import {
+  clearActivityState,
+  saveName,
+  savePendingSubmission,
+  loadPendingSubmission,
+  clearPendingSubmission,
+} from './storage.js';
 
 interface BlankResult {
   answer: string;
@@ -35,6 +46,19 @@ interface CheckpointResultPayload {
   score: number;
   total: number;
   checkedAt: string;
+}
+
+interface SubmissionResponsesPayload {
+  schemaVersion: 2;
+  blanks: Record<string, BlankResult>;
+  checkpointResults?: Record<string, CheckpointResultPayload>;
+}
+
+export interface SubmissionPayload {
+  activityId: string;
+  displayName: string;
+  responses: SubmissionResponsesPayload;
+  score: number;
 }
 
 interface GatheredResponses {
@@ -135,17 +159,161 @@ export function setScore(score: number, total: number): void {
   'Score: ' + Math.round(score * total) + ' / ' + total + ' (' + pct + '%)';
 }
 
+// ---------------------------------------------------------------------------
+// Network send + retry.
+// ---------------------------------------------------------------------------
+
+/** Backoff delays (ms) applied between retries of a transient failure. */
+const RETRY_DELAYS_MS = [1000, 4000, 16000];
+
+interface SendResult {
+  ok: boolean;
+  /** Canonical server attempt_number, present on success when returned. */
+  attemptNumber?: number;
+  /** On failure: true = don't retry (bad payload); false = transient. */
+  terminal?: boolean;
+  /** On failure: a human-readable message for the status line. */
+  message?: string;
+}
+
+interface SendHooks {
+  /** Called before each backoff wait. nextAttempt is 1-based. */
+  onRetry?: (nextAttempt: number, waitMs: number) => void;
+  /** Injectable for tests; defaults to setTimeout. */
+  delay?: (ms: number) => Promise<void>;
+  /** Injectable for tests; defaults to global fetch. */
+  fetchFn?: typeof fetch;
+}
+
+/**
+ * Classify an HTTP failure status. 4xx means the request itself is bad
+ * (validation, identity, malformed) — retrying the identical payload won't
+ * help, so it's terminal. 5xx (and anything unexpected) is treated as a
+ * transient server-side problem worth retrying.
+ */
+export function classifyFailure(status: number): 'terminal' | 'retryable' {
+  return status >= 400 && status < 500 ? 'terminal' : 'retryable';
+}
+
+/** One POST attempt. Never throws — classifies every outcome into SendResult. */
+async function postOnce(
+  endpoint: string,
+  payload: unknown,
+  fetchFn: typeof fetch,
+): Promise<SendResult> {
+  let res: Response;
+  try {
+    res = await fetchFn(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Fetch rejects on network failure (offline, DNS, CORS preflight fail).
+    return { ok: false, terminal: false, message: 'Network error' };
+  }
+
+  if (res.ok) {
+    let attemptNumber: number | undefined;
+    try {
+      const data = (await res.json()) as { attempt_number?: unknown };
+      if (typeof data.attempt_number === 'number') {
+        attemptNumber = data.attempt_number;
+      }
+    } catch {
+      // Response wasn't JSON — the submission still succeeded; we just can't
+      // reconcile the attempt number. Leave it undefined.
+    }
+    return { ok: true, attemptNumber };
+  }
+
+  let message = 'Submission failed (' + res.status + ')';
+  try {
+    const text = await res.text();
+    if (text) message = text;
+  } catch {
+    // ignore — keep the status-code message
+  }
+  return { ok: false, terminal: classifyFailure(res.status) === 'terminal', message };
+}
+
+/**
+ * POST with exponential backoff. Returns on the first success, the first
+ * terminal failure, or after the retry budget is exhausted (the final
+ * transient SendResult). Pure with respect to the DOM — the caller maps the
+ * result to status text and button state.
+ */
+export async function sendWithRetry(
+  endpoint: string,
+  payload: unknown,
+  hooks: SendHooks = {},
+): Promise<SendResult> {
+  const delay =
+  hooks.delay ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const fetchFn = hooks.fetchFn ?? fetch;
+
+  let attempt = 0;
+  for (;;) {
+    const result = await postOnce(endpoint, payload, fetchFn);
+    if (result.ok || result.terminal) return result;
+    if (attempt >= RETRY_DELAYS_MS.length) return result; // budget exhausted
+    const waitMs = RETRY_DELAYS_MS[attempt]!;
+    hooks.onRetry?.(attempt + 2, waitMs);
+    await delay(waitMs);
+    attempt += 1;
+  }
+}
+
+/**
+ * Apply a confirmed-success outcome to state + DOM. Branches on mode:
+ *   - free revisionMode (non-single): keep state + persistence, relabel the
+ *     button "Resubmit", leave the form editable so the student can revise.
+ *   - otherwise: freeze — mark submitted, clear persisted state, disable the
+ *     button. "single" submissionMode always freezes (it ignores revisionMode).
+ *
+ * scoreDisplay is null on the bootstrap-flush path (the stored payload carries
+ * a 0..1 score but not the denominator), so the "X / Y" line is shown only for
+ * an in-page submit where totalScored is known.
+ */
+function applySubmitSuccess(
+  config: RuntimeConfig,
+  state: RuntimeState,
+  button: HTMLButtonElement | null,
+  scoreDisplay: { score: number; total: number } | null,
+): void {
+  const allowResubmit =
+  config.submissionMode !== 'single' && config.revisionMode === 'free';
+  const attemptLabel =
+  state.attemptNumber > 1
+  ? 'Attempt ' + state.attemptNumber + ' submitted!'
+  : 'Submitted!';
+
+  if (scoreDisplay) setScore(scoreDisplay.score, scoreDisplay.total);
+
+  if (allowResubmit) {
+    setStatus(attemptLabel + ' You can revise and resubmit.', 'success');
+    if (button) {
+      button.disabled = false;
+      button.textContent = 'Resubmit';
+    }
+  } else {
+    setStatus(attemptLabel + ' You can close this page.', 'success');
+    state.submitted = true;
+    clearActivityState(config);
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Submitted';
+    }
+  }
+}
+
 /**
  * Validate the name, gather responses (scoring every blank into state),
- * call onUpdate() to render the final state, then POST to ingest-
- * submission. On success, persist the name to localStorage, mark
- * state.submitted, and clear the persisted activity blob so the next
- * page-load is fresh.
- *
- * onUpdate after gather both renders (DOM reflects re-scored state) and
- * persists. The persist is harmless — clearActivityState on success
- * removes the blob a moment later. Splitting render-only from
- * render+persist would add wiring complexity for marginal benefit.
+ * render the final state, persist the payload, then POST with retry. On
+ * success: reconcile the attempt number, clear the pending slot, and apply
+ * the mode-appropriate success UI. On terminal failure: drop the pending slot
+ * and surface the error. On exhausted retries: keep the pending slot (it
+ * resends on reload) and let the student retry manually.
  */
 export function submit(
   config: RuntimeConfig,
@@ -167,12 +335,7 @@ export function submit(
   const checkpointResults = gatherCheckpointResults(state);
   onUpdate();
 
-  interface Responses {
-    schemaVersion: 2;
-    blanks: Record<string, BlankResult>;
-    checkpointResults?: Record<string, CheckpointResultPayload>;
-  }
-  const responses: Responses = {
+  const responses: SubmissionResponsesPayload = {
     schemaVersion: 2,
     blanks: data.blanks,
   };
@@ -180,44 +343,95 @@ export function submit(
     responses.checkpointResults = checkpointResults;
   }
 
-  const payload = {
+  const payload: SubmissionPayload = {
     activityId: config.activityId,
     displayName: name,
     responses,
     score: data.score,
   };
 
+  // Persist before the network call so a close mid-flight survives.
+  savePendingSubmission(config, payload);
+
   const button = $<HTMLButtonElement>('.submit-button');
   if (button) button.disabled = true;
   setStatus('Submitting…');
 
-  fetch(config.submissionEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  .then((res) => {
-    if (!res.ok) {
-      return res.text().then((t) => {
-        throw new Error('Submission failed: ' + (t || res.status));
+  void sendWithRetry(config.submissionEndpoint, payload, {
+    onRetry: (_nextAttempt, waitMs) => {
+      setStatus(
+        'Network problem — retrying in ' + Math.round(waitMs / 1000) + 's…',
+        'error',
+      );
+    },
+  }).then((result) => {
+    if (result.ok) {
+      state.attemptNumber = result.attemptNumber ?? state.attemptNumber;
+      clearPendingSubmission(config);
+      applySubmitSuccess(config, state, button, {
+        score: data.score,
+        total: data.totalScored,
       });
+    } else if (result.terminal) {
+      clearPendingSubmission(config);
+      setStatus(result.message ?? 'Submission failed.', 'error');
+      if (button) button.disabled = false;
+    } else {
+      setStatus(
+        'Couldn’t submit after several tries. Your work is saved — check your ' +
+        'connection and press Submit again.',
+        'error',
+      );
+      if (button) button.disabled = false;
     }
-    return res.json();
-  })
-  .then(() => {
-    setStatus('Submitted! You can close this page.', 'success');
-    setScore(data.score, data.totalScored);
-    state.submitted = true;
-    clearActivityState(config);
-    if (button) {
-      button.disabled = true;
-      button.textContent = 'Submitted';
+  });
+}
+
+/**
+ * Resend a submission that was persisted but never confirmed (tab closed
+ * mid-flight, or in-page retries exhausted on a prior load). Called once on
+ * bootstrap. No-ops when there's nothing pending.
+ *
+ * Phase 1 accepts a duplicate-attempt risk here: if the original POST actually
+ * reached the server but its response was lost, this resend creates a second
+ * attempt row. The server increments attempt_number canonically and the
+ * teacher dashboard dedups by best/all-attempts, so a dup is tolerable. An
+ * idempotency token is the proper fix when that becomes a real problem.
+ */
+export function flushPendingSubmission(
+  config: RuntimeConfig,
+  state: RuntimeState,
+): void {
+  const payload = loadPendingSubmission(config);
+  if (!payload) return;
+
+  const button = $<HTMLButtonElement>('.submit-button');
+  if (button) button.disabled = true;
+  setStatus('Resending your previous submission…');
+
+  void sendWithRetry(config.submissionEndpoint, payload, {
+    onRetry: (_nextAttempt, waitMs) => {
+      setStatus(
+        'Network problem — retrying in ' + Math.round(waitMs / 1000) + 's…',
+        'error',
+      );
+    },
+  }).then((result) => {
+    if (result.ok) {
+      state.attemptNumber = result.attemptNumber ?? state.attemptNumber;
+      clearPendingSubmission(config);
+      applySubmitSuccess(config, state, button, null);
+    } else if (result.terminal) {
+      clearPendingSubmission(config);
+      setStatus('Your previous submission could not be sent.', 'error');
+      if (button) button.disabled = false;
+    } else {
+      setStatus(
+        'Couldn’t resend your previous submission. Check your connection and ' +
+        'press Submit again.',
+        'error',
+      );
+      if (button) button.disabled = false;
     }
-  })
-  .catch((err: unknown) => {
-    const message =
-    err instanceof Error ? err.message : 'Submission failed. Please try again.';
-    setStatus(message, 'error');
-    if (button) button.disabled = false;
   });
 }

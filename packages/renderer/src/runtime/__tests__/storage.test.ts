@@ -18,6 +18,9 @@ import {
     loadActivityState,
     clearActivityState,
     applyStoredState,
+    savePendingSubmission,
+    loadPendingSubmission,
+    clearPendingSubmission,
     type StoredActivityState,
 } from '../storage.js';
 import type { RuntimeConfig } from '../config.js';
@@ -309,5 +312,47 @@ describe('applyStoredState', () => {
         expect(state.blanks['orphan']).toBeUndefined();
         // Orphan value not written anywhere (no ref for it).
         expect(refs.blanks.get('orphan')).toBeUndefined();
+    });
+});
+
+describe('pending submission slot', () => {
+    it('round-trips an arbitrary payload', () => {
+        const config = makeConfig('act-1');
+        const payload = {
+            activityId: 'act-1',
+            displayName: 'Ada',
+            responses: { schemaVersion: 2, blanks: { b1: { answer: 'x', correct: true } } },
+            score: 1,
+        };
+        savePendingSubmission(config, payload);
+        expect(loadPendingSubmission(config)).toEqual(payload);
+    });
+
+    it('is keyed by activityId (independent across activities, version-agnostic)', () => {
+        const configA1 = makeConfig('act-A', 1);
+        const configA2 = makeConfig('act-A', 2);
+        const configB = makeConfig('act-B', 1);
+        savePendingSubmission(configA1, { which: 'A' });
+        savePendingSubmission(configB, { which: 'B' });
+        // Same activity, different version → same slot.
+        expect(loadPendingSubmission(configA2)).toEqual({ which: 'A' });
+        expect(loadPendingSubmission(configB)).toEqual({ which: 'B' });
+    });
+
+    it('clear removes only the targeted activity slot', () => {
+        const configA = makeConfig('act-A');
+        const configB = makeConfig('act-B');
+        savePendingSubmission(configA, { which: 'A' });
+        savePendingSubmission(configB, { which: 'B' });
+        clearPendingSubmission(configA);
+        expect(loadPendingSubmission(configA)).toBeNull();
+        expect(loadPendingSubmission(configB)).toEqual({ which: 'B' });
+    });
+
+    it('returns null when nothing is stored or JSON is malformed', () => {
+        const config = makeConfig('act-1');
+        expect(loadPendingSubmission(config)).toBeNull();
+        localStorage.setItem('activity_pending_submission_act-1', '{not json');
+        expect(loadPendingSubmission(config)).toBeNull();
     });
 });

@@ -4,17 +4,16 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 ## Current focus
 
-Stage 13.6 publish flow works end to end on R2. First published-activity bug fixed (newlines). **Next: the full end-to-end manual pass (see Nearest next steps #2).**
+**Stage 14 — Submission flow polish — is COMPLETE.** All six pieces landed and are tested: network retry with backoff, attempt-number reconciliation, free-mode resubmit, autosave `beforeunload` guard, PublishControl error-detail surfacing, and useAutosave `flush()` wired into publish. **Next goal: Stage 15 — Editor UI for remaining feature fields (see Nearest next steps #1).**
 
-What landed this session:
+What landed this stage:
 
-- **Newline bug fixed: `hard_break` wired end to end.** Shift+Enter soft line breaks were silently dropped on publish (two text runs concatenated, e.g. `Hello!Hope this works`). Root cause: Tiptap's `hardBreak` node had no schema type, so serialize hit its `default` case and returned null. Fix is purely additive:
-  - **Schema** — new `HardBreakNode` (`type: 'hard_break'`, no payload) added to both `InlineNode` and `FillInBlankInline` unions; exported from the barrel.
-  - **Serialize** — `hardBreak ↔ hard_break` mapped both directions in the shared inline converters (covers paragraph, heading, fill-in-blank).
-  - **Renderer** — `renderInline` emits `<br>` for `hard_break`.
-  - **Tests** — serialize round-trip + renderer `<br>` emission. Suites green (schema 30, renderer 54, app 47).
-  - **Bundle regenerated** (`pnpm run bundle:renderer`); runtime unchanged (render-time only).
-  - **`publish-activity` redeployed** so the fix is live. Plain Enter (new paragraph) was always fine; this only affected Shift+Enter.
+- **Network retry (`submission.ts`).** `sendWithRetry` POSTs with exponential backoff (1s/4s/16s) via injectable `delay`/`fetchFn` hooks. `classifyFailure(status)` → 4xx terminal (bad payload, no retry), 5xx/network retryable. `postOnce` never throws. The payload is persisted to a localStorage slot (`savePendingSubmission`, keyed by activityId only, version-agnostic) BEFORE the POST; `flushPendingSubmission` resends it on next bootstrap so a mid-flight tab close survives. Phase 1 accepts duplicate-attempt risk on resend (server increments `attempt_number` canonically; idempotency token is the proper fix later).
+- **Attempt reconciliation.** The ingest response's canonical `attempt_number` is read back into `state.attemptNumber` and surfaced ("Attempt N submitted!") only when > 1. Client value stays advisory.
+- **Free-mode resubmit.** `applySubmitSuccess` branches on mode: `submissionMode !== 'single' && revisionMode === 'free'` keeps state + persistence and relabels the button "Resubmit"; otherwise it freezes (sets `submitted`, `clearActivityState`, disables). No renderer/data-contract change needed — `config` already carried `submissionMode`/`revisionMode`.
+- **App polish.** `useAutosave` now returns `{ status, flush }`; `flush()` awaits in-flight + pending saves; `beforeunload` guard fires while dirty; trailing-save chains only on success (fixed a latent infinite-retry busy-loop on persistent save error). `PublishControl` awaits `onBeforePublish` (the flush) and surfaces `body.details.message` when present. `ActivityEditor` passes `flush` as `onBeforePublish`.
+- **Tests + verification.** New `submission.test.ts` (11 tests, injected `fetchFn`/`delay`) + pending-slot tests in `storage.test.ts`. Renderer **199 tests green**, renderer typecheck clean, app build + 47 tests green. Bundle regenerated (`pnpm run bundle:renderer`).
+- **Dormant-test-suite fix.** Discovered the renderer `vitest.config.ts` `include` was `tests/**` only — the entire `src/runtime/__tests__/` suite (145 tests) had never been running. Widened to `['tests/**/*.test.ts', 'src/**/*.test.ts']`; all now run and pass. Also removed an unused `vi` import in `app/src/__tests__/serialize.test.ts` that was breaking `tsc -b`.
 
 ## Status by area
 
@@ -49,8 +48,8 @@ What landed this session:
 | Stage 13 — Runtime feedback machinery + persistence (4 sessions) | ✅ |
 | Stage 13.5 — Editor authoring UI for fill-in-blanks + section button + disappearing-block fix | ✅ |
 | Stage 13.6 — Publish flow (PublishControl + load fallback + R2 hosting) | ✅ |
-| Stage 14 — Submission flow polish (retry, resubmit, attempt reconciliation) | ⏳ Not started |
-| Stage 15 — Editor UI for remaining feature fields | ⏳ Not started |
+| Stage 14 — Submission flow polish (retry, resubmit, attempt reconciliation) | ✅ Complete; tested |
+| Stage 15 — Editor UI for remaining feature fields | ⏳ Not started (next goal) |
 | Stage 16 — Submissions dashboard with all-attempts toggle | ⏳ Not started |
 | Print feature — teacher-configurable printables (post-Stage-16) | ⏳ Designed; `docs/design/print-and-printables.md` |
 | Markdown paste import | ⏳ Phase 1 polish |
@@ -79,11 +78,11 @@ activity-platform/
 │   │       ├── checkpoints.ts   — checkSection (pure mutator) + wireCheckpoints (click handler)
 │   │       ├── confidence.ts    — wireConfidence (radio change handler)
 │   │       ├── render.ts        — render(state, refs); renderBlank + renderBlock + renderSection. THE ONLY DOM MUTATOR after init.
-│   │       ├── storage.ts       — saveName/loadStoredName + saveActivityState/loadActivityState/clearActivityState/applyStoredState
-│   │       ├── submission.ts    — gatherResponses + gatherCheckpointResults + computeScore + submit
+│   │       ├── storage.ts       — saveName/loadStoredName + saveActivityState/loadActivityState/clearActivityState/applyStoredState + save/load/clearPendingSubmission (retry slot)
+│   │       ├── submission.ts    — gatherResponses + gatherCheckpointResults + computeScore + submit + sendWithRetry/classifyFailure + flushPendingSubmission
 │   │       ├── index.ts         — bootstrap orchestrator
 │   │       ├── generated/       — runtime-bundle.ts (committed; produced by bundler)
-│   │       └── __tests__/       — strategies, init, blanks, render, checkpoints, storage, confidence
+│   │       └── __tests__/       — strategies, init, blanks, render, checkpoints, storage, confidence, submission
 │   └── app/           — Vite + React 19 + TS + Tailwind v4 + React Router v7
 │       └── src/
 │           ├── editor/
@@ -257,17 +256,15 @@ activity-platform/
 - **Phase 2 block type priority order:** worked example, faded worked example, learning objectives + success criteria, self-explanation. Decide order when Phase 2 starts based on which gap is most painful.
 - **UX validation with other teachers:** 2–3 informal reviews of Stage 13 + Stage 13.5 patterns (chip popover UX, toolbar button discoverability, mistake feedback styling, section break inline UI) before classroom adoption. Cost is low now; rises sharply once students start using activities.
 - **Non-checkpoint sections in locked mode** have no lock affordance (no check button = no path to `SectionState.locked = true`). Stage 15 editor should enforce "in locked mode, every section is a checkpoint" as a validation rule. Runtime accepts what's emitted.
-- **Post-success edit edge case.** State is saved with `!state.submitted` gate; on submit success, `state.submitted = true` and `clearActivityState` fires. Between gather-render-persist and success-clear, the blob is briefly written then removed (wasteful but correct). Defense in depth — flag for Stage 14 when resubmit lands and `submitted` state becomes more nuanced.
+- **Post-success edit edge case (Stage 14 resolved the resubmit half).** In free mode, `applySubmitSuccess` now keeps state + persistence (no `clearActivityState`), so a revised attempt resumes from prior work. Locked/single still freeze and clear; the brief write-then-remove of the blob in that path remains (wasteful but correct, low priority).
 - **`init.test.ts` coverage** for `state.blanks` and `state.blocks` initialization is still a Session 1 follow-up. Tests pass without it (defaults work) but explicit coverage is overdue.
 - **No tests for Stage 13.5 work beyond serialize round-trip.** Popover state machine tests are unwritten. Pick up alongside Stage 14.
 - **Selection-change unmount flush leak.** When the popover unmounts because selection moved to a different chip (not via Escape/outside-click), the unmount cleanup's `flushAll` calls `onChangeRef.current()` → host's `handleChange`, but by then `selectedBlank` is null so the guard returns silently. Outside-click and Escape are handled; selection-move-to-different-chip is a small leak (edits typed in chip A would be lost if user immediately clicks chip B). Stage 14 or polish-pass candidate.
 - **Section title/checkpoint inline UI exists in SectionBreakView** but there's no editor-level metadata panel. Stage 15 may add one; for now inline UI is adequate.
-- **PublishControl error surfacing.** Currently shows the wrapper error message from the Edge Function ("Publish failed: ..."); to see underlying causes you have to check Edge Function logs in the dashboard. Stage 14 polish: also display the response body's `message` extra field when present.
-- **useAutosave `flush()`.** Currently no way to force-flush a pending debounced save. PublishControl disables while `saveStatus === 'saving'` as a workaround, but the 1s debounce window between typing and saving is still racy. Stage 14 polish: add `flush()` to useAutosave; call it before publish to guarantee the latest changes are in the DB before the publish RPC reads `draft_content`.
 - **Manual grading workflow shape (Phase 2.6):** does each grading pass amend the existing submission row, or create a new "grading" row that joins to it? Probably the join, for audit-trail reasons. Decide at Phase 2.6 start.
 - **Media submission storage and privacy posture (Phase 2.8):** student-uploaded media is a stronger privacy posture than typed text. Storage bucket separation, per-teacher quotas, retention policy. Decide at Phase 2.8 start. R2 is the obvious storage destination since we're already integrated.
 - **Annotation response coordinate space (Phase 2.9):** CSS pixels vs normalized fractions vs DOM-anchor + character-offset. Decide at Phase 2.9 start.
-- **Autosave hardening (Phase 1 polish):** debounced autosave flushes a pending change on in-app navigation, but a hard tab close within the ~1s debounce window can drop the last edit. A `beforeunload` guard would close that gap.
+- **Autosave hardening — DONE (Stage 14):** `useAutosave` now has a `beforeunload` guard that warns while dirty, closing the hard-tab-close-within-debounce-window gap.
 
 ## Nearest next steps
 
@@ -288,9 +285,9 @@ activity-platform/
 
 3. **Cleanup after end-to-end test passes.** Delete the legacy `activities` Supabase Storage bucket (no longer used). Remove related env vars / secrets that referenced it. Optional: leave the bucket name in `STORAGE_BUCKET` env var as a vestigial alias in case any rollback is needed within the same week.
 
-4. **Stage 14 — Submission flow polish.** Network failure handling (localStorage retry queue with exponential backoff: 1s, 4s, 16s), reconciliation of client `attemptNumber` against server's canonical value (returned in `ingest-submission` response), free-mode resubmit flow (button text change to "Resubmit", attempt increment, persistence handling across attempts — currently `clearActivityState` on success means a re-submitted attempt starts fresh, which is wrong for revision), beforeunload guard for the autosave window, PublishControl error-message improvement (surface response body's `message` extra), useAutosave `flush()` for publish-button to use. ~1–2 sessions.
+4. **Stage 14 — Submission flow polish.** ✅ DONE (this session). Retry-with-backoff + persisted pending-submission slot, attempt reconciliation, free-mode resubmit, `beforeunload` guard, PublishControl detail surfacing, useAutosave `flush()`. Tested; bundle regenerated. The one remaining manual-verification gap: exercise resubmit + retry on a *real published URL* during the #2 e2e pass (unit tests cover the logic, not the live network path).
 
-5. **Stage 15 — Editor UI for remaining feature fields.**
+5. **Stage 15 — Editor UI for remaining feature fields. ← NEXT GOAL**
    - Section-level: title editing already inline in SectionBreakView; isCheckpoint toggle already inline. Possibly a section-properties panel for additional fields if any are added.
    - Activity-level: `submissionMode` / `revisionMode` / `activityType` pickers.
    - `FillInBlank` block: block-level fields (`solution`, `hasConfidenceRating`, `skills`). Per-blank fields are already authored via popover.
@@ -304,7 +301,7 @@ activity-platform/
    - `init.test.ts` coverage for `state.blanks` and `state.blocks` initialization (Session 1 leftover)
    - Stage 13.5 popover state machine tests
    - UX validation with 2–3 other teachers on Stage 13 + Stage 13.5 patterns
-   - CI workflow: GitHub Actions running `pnpm test` + `pnpm lint` + `pnpm run bundle:renderer` on push
+   - CI workflow: GitHub Actions running `pnpm test` + `pnpm --filter @activity/renderer typecheck` + `pnpm --filter @activity/app build` + `pnpm run bundle:renderer` on push. (Higher priority now: Stage 14 found the renderer runtime test suite had silently never run because `vitest.config.ts` `include` excluded `src/**`, and a committed `tsc -b` break in the app went unnoticed because nothing ran `build`. CI would have caught both.)
 
 8. **Phase 1 polish (after Stage 16 closes the MVP loop):**
    - Markdown paste import
@@ -406,4 +403,4 @@ Specific friction patterns where unstated assumptions have caused loops:
 
 ---
 
-**Last updated:** First published-activity bug fixed — newlines (Shift+Enter `hardBreak`) were dropped on publish; added a `hard_break` inline node end to end (schema + serialize + renderer + tests), bundle regenerated, `publish-activity` redeployed. Next: full e2e manual pass (Nearest next steps #2).
+**Last updated:** **Stage 14 — Submission flow polish — complete.** Network retry + persisted pending-submission slot, attempt reconciliation, free-mode resubmit, autosave `beforeunload` guard, PublishControl error-detail surfacing, useAutosave `flush()`. Added `submission.test.ts` + pending-slot tests; fixed the renderer `vitest.config.ts` `include` so the dormant `src/runtime/__tests__` suite (145 tests) actually runs, and removed an unused import breaking the app `tsc -b`. Renderer 199 tests + typecheck green; app build + 47 tests green; bundle regenerated. Active next goal moved to **Stage 15 — Editor UI for remaining feature fields** (Nearest next steps #5).

@@ -22,10 +22,11 @@
 //   wireHints                  — `?` buttons open the global hint modal
 //   wireHintModal              — modal close handlers (×, overlay, Escape)
 //
-// Mistake matching rule (Session 2 lock-in): exact string match against
-// BlankRef.mistakeFeedback entries' `match` field, case-sensitive, trim
-// before compare, first match wins. Mirrors the scoring rule so the
-// student's mental model stays consistent.
+// Mistake matching rule: string match against BlankRef.mistakeFeedback
+// entries' `match` field, case-insensitive (both sides trimmed + lowercased),
+// first match wins. Deliberately looser than the case-sensitive scoring rule —
+// a student shouldn't lose targeted help over capitalization. Only ever runs on
+// a wrong answer (result === false), so it can't contradict a correct score.
 //
 // Architectural note: evaluateAnswer (strategies.ts) still reads data-*
 // off ref.input — same small leak acknowledged in Stage 12. It hasn't
@@ -53,9 +54,9 @@ export function scoreBlank(ref: BlankRef, typed: string): boolean | null {
 }
 
 /**
- * Pure: find a mistake-feedback entry whose `match` equals the trimmed
- * typed value (case-sensitive). Returns the feedback text, or null when
- * no entry matches.
+ * Pure: find a mistake-feedback entry whose `match` equals the trimmed,
+ * lowercased typed value (case-insensitive). Returns the feedback text, or
+ * null when no entry matches.
  *
  * Empty/whitespace-only typed values always return null — even if the
  * teacher authored an entry with an empty match string, an empty answer
@@ -124,7 +125,7 @@ export function scoreBlankAndUpdateState(
  * keystrokes 2..N of a fresh edit there's nothing to clear, so onUpdate
  * isn't called and render() doesn't run.
  *
- * Does NOT touch hintRevealed. Editing a blank shouldn't collapse an
+ * Does NOT touch hint-modal state. Editing a blank shouldn't close an
  * open hint — the hint is independent of the answer state.
  */
 export function clearBlankState(state: RuntimeState, id: string): boolean {

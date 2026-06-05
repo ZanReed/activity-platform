@@ -5,9 +5,9 @@
 // student-facing URL with Copy + Open-in-new-tab affordances.
 //
 // Disabled while saveStatus === 'saving' to avoid publishing a stale draft.
-// (The 1s useAutosave debounce window can still race a fast click; rely on
-// the "Saved" indicator before publishing for now. Stage 14 polish: add a
-// flush() to useAutosave and call it before publish.)
+// Additionally calls onBeforePublish (useAutosave's flush) at the start of a
+// publish, which forces any pending debounced draft-save to complete before the
+// publish RPC reads draft_content — closing the 1s debounce-window race.
 // =============================================================================
 
 import { useState } from 'react';
@@ -44,16 +44,22 @@ type PublishState =
 interface PublishControlProps {
     activityId: string;
     saveStatus: SaveStatus;
+    /** Forces a pending draft-save to flush before publish reads draft_content. */
+    onBeforePublish?: () => Promise<void>;
 }
 
 export default function PublishControl({
     activityId,
     saveStatus,
+    onBeforePublish,
 }: PublishControlProps) {
     const [state, setState] = useState<PublishState>({ kind: 'idle' });
 
     const handlePublish = async () => {
         setState({ kind: 'publishing' });
+        // Make sure the latest draft is persisted before the Edge Function
+        // snapshots draft_content. flush() is best-effort and never throws.
+        if (onBeforePublish) await onBeforePublish();
         // Attach the session token explicitly. Under the new publishable-key
         // system (sb_publishable_...), supabase-js does not reliably forward
         // the logged-in user's access token on functions.invoke, which leaves
@@ -77,20 +83,30 @@ export default function PublishControl({
 
         if (error) {
             // FunctionsHttpError exposes the raw response on .context; the
-            // Edge Function's errorResponse helper returns { error: string }
-            // in the body. Try to surface that specific message.
+            // Edge Function's errorResponse helper returns
+            // { error: string, details?: { message?: string } }. Surface the
+            // top-line `error`, and append the `details.message` detail when
+            // present (e.g. the underlying R2 PUT failure) so the teacher sees
+            // the real cause without digging through Edge Function logs.
             let message = error.message || 'Publish failed';
             const ctx = (error as { context?: Response }).context;
             if (ctx && typeof ctx.json === 'function') {
                 try {
                     const body = (await ctx.json()) as unknown;
-                    if (
-                        body &&
-                        typeof body === 'object' &&
-                        'error' in body &&
-                        typeof (body as { error: unknown }).error === 'string'
-                    ) {
-                        message = (body as { error: string }).error;
+                    if (body && typeof body === 'object') {
+                        const errField = (body as { error?: unknown }).error;
+                        if (typeof errField === 'string') message = errField;
+                        const details = (body as { details?: unknown }).details;
+                        const detailMsg =
+                            details &&
+                            typeof details === 'object' &&
+                            typeof (details as { message?: unknown }).message ===
+                                'string'
+                                ? (details as { message: string }).message
+                                : null;
+                        if (detailMsg && detailMsg !== message) {
+                            message = `${message}: ${detailMsg}`;
+                        }
                     }
                 } catch {
                     /* keep generic message */

@@ -223,7 +223,7 @@ export default function ActivityEditor() {
         if (error) throw error;
     };
 
-        const status = useAutosave(changeKey, save);
+        const { status, flush } = useAutosave(changeKey, save);
 
         if (loadState.status === 'loading') {
             return (
@@ -285,7 +285,7 @@ export default function ActivityEditor() {
             </Link>
             <div className="flex items-center gap-4">
             <SaveIndicator status={status} />
-            <PublishControl activityId={id} saveStatus={status} />
+            <PublishControl activityId={id} saveStatus={status} onBeforePublish={flush} />
             </div>
             </div>
 

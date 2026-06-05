@@ -7,7 +7,7 @@
 // strict deep-equal — no ID stripping needed.
 // =============================================================================
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
 import { ActivityDocument, ActivityMeta } from '@activity/schema';
 import { activityToTiptap, tiptapToActivity } from '../lib/serialize';

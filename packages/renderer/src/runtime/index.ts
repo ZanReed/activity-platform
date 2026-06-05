@@ -32,7 +32,7 @@ import { wireBlanks, wireHints, wireHintModal } from './blanks.js';
 import { wireCheckpoints } from './checkpoints.js';
 import { wireConfidence } from './confidence.js';
 import { render } from './render.js';
-import { submit } from './submission.js';
+import { submit, flushPendingSubmission } from './submission.js';
 
 function bootstrap(): void {
   const result = init();
@@ -85,6 +85,10 @@ function bootstrap(): void {
       submit(config, refs, state, onUpdate);
     });
   }
+
+  // Recover a submission persisted on a prior load but never confirmed (tab
+  // closed mid-flight, or in-page retries exhausted). No-ops when none pending.
+  flushPendingSubmission(config, state);
 }
 
 if (document.readyState === 'loading') {

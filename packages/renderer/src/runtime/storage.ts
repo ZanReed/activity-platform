@@ -164,6 +164,56 @@ export function clearActivityState(config: RuntimeConfig): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Pending submission (network-retry survival).
+// ---------------------------------------------------------------------------
+//
+// A single per-activity slot holding the last submission payload that hasn't
+// confirmed success yet. Written just before the network POST so a tab close
+// mid-flight (or after exhausting in-page retries) survives: the bootstrap
+// flush resends it on next load. Cleared on confirmed success or a terminal
+// (non-retryable) failure. Keyed by activityId only — a submission targets the
+// activity regardless of which published version the student loaded.
+
+const PENDING_PREFIX = 'activity_pending_submission_';
+
+function buildPendingKey(activityId: string): string {
+  return PENDING_PREFIX + activityId;
+}
+
+export function savePendingSubmission(
+  config: RuntimeConfig,
+  payload: unknown,
+): void {
+  try {
+    localStorage.setItem(
+      buildPendingKey(config.activityId),
+      JSON.stringify(payload),
+    );
+  } catch {
+    // private mode, quota exceeded, etc — silent (retry-on-reload is a
+    // best-effort safety net, not a correctness guarantee).
+  }
+}
+
+export function loadPendingSubmission(config: RuntimeConfig): unknown | null {
+  try {
+    const raw = localStorage.getItem(buildPendingKey(config.activityId));
+    if (!raw) return null;
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingSubmission(config: RuntimeConfig): void {
+  try {
+    localStorage.removeItem(buildPendingKey(config.activityId));
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Apply a loaded blob to live refs + state. Mutates input.value on each
  * matched blank and replaces state.blanks/blocks/sections entries with
