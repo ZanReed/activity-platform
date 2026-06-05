@@ -28,6 +28,7 @@
 //
 // Output:
 //   packages/renderer/src/runtime/generated/runtime-bundle.ts  (committed)
+//   packages/renderer/src/generated/katex-css.ts               (committed)
 //   packages/renderer/dist/runtime.js.map                      (gitignored)
 //   supabase/functions/_shared/renderer.bundle.js              (committed)
 //
@@ -39,7 +40,8 @@
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -151,6 +153,72 @@ const generatedModule =
 await writeFile(generatedModulePath, generatedModule, 'utf8');
 
 // -----------------------------------------------------------------------------
+// Step 2b — KaTeX CSS module
+// -----------------------------------------------------------------------------
+// The published page must hide KaTeX's MathML accessibility annotation (the
+// `.katex-mathml{clip:…}` rule) and lay out the visual render. Previously this
+// loaded from a CDN <link> pinned to a hand-typed version that drifted from the
+// installed `katex` — when the stylesheet's hide rule didn't match the markup
+// the library emits, modern Chrome rendered the raw MathML as a duplicate copy
+// next to every equation.
+//
+// Fix: inline the CSS straight from the installed `katex` package, so it can
+// NEVER drift from the version that generates the markup (same discipline as
+// the runtime above), and so it needs no extra render-blocking request on a
+// slow Chromebook. The CSS references its woff2/woff/ttf fonts by relative
+// `url(fonts/…)` paths that won't resolve from R2; we rewrite those to the
+// version-matched jsDelivr CDN. Fonts are large and well-cached web-wide, so
+// the CDN is the right home for them; if a school firewall blocks it the math
+// degrades to system-font glyphs but stays readable with no duplicate MathML.
+
+const require = createRequire(resolve(root, 'packages/renderer/package.json'));
+const katexPkgPath = require.resolve('katex/package.json');
+const katexVersion = JSON.parse(await readFile(katexPkgPath, 'utf8')).version;
+const katexCssPath = resolve(dirname(katexPkgPath), 'dist/katex.min.css');
+
+let katexCss = await readFile(katexCssPath, 'utf8');
+
+// Rewrite relative font URLs to the version-matched CDN. Catches every
+// extension variant (woff2/woff/ttf) since the regex stops at `fonts/`.
+const cdnFontBase = `https://cdn.jsdelivr.net/npm/katex@${katexVersion}/dist/fonts/`;
+katexCss = katexCss.replace(/url\(fonts\//g, `url(${cdnFontBase}`);
+
+// The string is embedded inside a <style> element by document.ts. The HTML
+// parser ends a <style> at the first `</style` — and unlike <script>, CSS has
+// no in-band escape for it. KaTeX's CSS contains no such sequence; assert that
+// invariant rather than silently shipping a broken page if it ever changes.
+if (/<\/style/i.test(katexCss)) {
+  throw new Error('KaTeX CSS contains "</style" — cannot safely inline.');
+}
+
+const katexCssModulePath = resolve(
+  root,
+  'packages/renderer/src/generated/katex-css.ts',
+);
+await mkdir(dirname(katexCssModulePath), { recursive: true });
+
+const katexCssModule =
+  '// =============================================================================\n' +
+  '// generated/katex-css.ts — GENERATED FILE, DO NOT EDIT\n' +
+  '// -----------------------------------------------------------------------------\n' +
+  '// Produced by scripts/bundle-renderer.mjs from the installed `katex` package\n' +
+  '// (katex.min.css), with font url()s rewritten to the version-matched jsDelivr\n' +
+  '// CDN. Inlined into published HTML by document.ts. Re-run\n' +
+  '// `pnpm run bundle:renderer` after bumping the katex dependency.\n' +
+  '// =============================================================================\n' +
+  '\n' +
+  '/** KaTeX ' +
+  katexVersion +
+  ' stylesheet, fonts pointed at the version-matched CDN. */\n' +
+  'export const katexCss = ' +
+  JSON.stringify(katexCss) +
+  ';\n';
+
+await writeFile(katexCssModulePath, katexCssModule, 'utf8');
+
+const katexCssBytes = Buffer.byteLength(katexCss, 'utf8');
+
+// -----------------------------------------------------------------------------
 // Step 3 — Renderer bundle (pre-existing build, unchanged)
 // -----------------------------------------------------------------------------
 // Bundles the renderer (with schema and katex inlined) into a single ESM file
@@ -209,6 +277,14 @@ console.log(
     (runtimeBytes > RUNTIME_SIZE_TARGET
       ? '  (!) over ' + RUNTIME_SIZE_TARGET / 1024 + ' KiB soft target'
       : '  (within ' + RUNTIME_SIZE_TARGET / 1024 + ' KiB target)'),
+);
+console.log('KaTeX CSS: ' + katexCssModulePath);
+console.log(
+  '          ' +
+    (katexCssBytes / 1024).toFixed(1) +
+    ' KiB (katex ' +
+    katexVersion +
+    ', fonts via CDN)',
 );
 console.log('Renderer: ' + rendererOutFile);
 console.log('          ' + (rendererBytes / 1024).toFixed(1) + ' KiB');

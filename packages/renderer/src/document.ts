@@ -1,10 +1,11 @@
 // =============================================================================
 // document.ts — Wraps rendered body in a complete HTML document
 // -----------------------------------------------------------------------------
-// Produces a self-contained HTML file: KaTeX CSS via CDN (cached well across
-// sites), block CSS inlined, runtime JS inlined, an activity-config script
-// tag with the runtime parameters (activity id, submission endpoint, +
-// activity-level behavior modes since Stage 12 step 5).
+// Produces a self-contained HTML file: KaTeX CSS inlined (from the installed
+// katex package, so it can't drift from the markup the renderer emits; fonts
+// resolve from the version-matched CDN), block CSS inlined, runtime JS inlined,
+// an activity-config script tag with the runtime parameters (activity id,
+// submission endpoint, + activity-level behavior modes since Stage 12 step 5).
 //
 // Two paths into the runtime, one rule each (RUNTIME.md split-by-purpose):
 //
@@ -37,6 +38,7 @@ import { escape, attr } from './html.js';
 import { renderBody } from './render.js';
 import { blockStyles } from './runtime/styles.js';
 import { runtimeJs } from './runtime/generated/runtime-bundle.js';
+import { katexCss } from './generated/katex-css.js';
 
 export interface RenderContext {
   /** UUID of the activity, included in submissions. */
@@ -45,16 +47,10 @@ export interface RenderContext {
   versionNum: number;
   /** Absolute URL to POST submissions to (the ingest-submission Edge Function). */
   submissionEndpoint: string;
-  /** Optional KaTeX CSS URL override. Defaults to jsDelivr CDN. */
-  katexCssUrl?: string;
 }
-
-const DEFAULT_KATEX_CSS =
-'https://cdn.jsdelivr.net/npm/[email protected]/dist/katex.min.css';
 
 export function renderActivity(doc: ActivityDocument, ctx: RenderContext): string {
   const body = renderBody(doc);
-  const katexCss = ctx.katexCssUrl ?? DEFAULT_KATEX_CSS;
 
   // Embedded JSON config that the runtime reads at startup.
   // Per-render fields (from RenderContext) plus activity-level behavior
@@ -84,7 +80,11 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     '<meta charset="utf-8" />' +
     '<meta name="viewport" content="width=device-width, initial-scale=1" />' +
     '<title>' + escape(doc.meta.title) + '</title>' +
-    '<link rel="stylesheet" href="' + attr(katexCss) + '" crossorigin="anonymous" />' +
+    // KaTeX CSS first (inlined from the installed package; fonts via CDN), then
+    // block styles so they can override KaTeX where needed. Inlining keeps the
+    // hide rule for KaTeX's MathML annotation co-versioned with the markup the
+    // renderer emits — a CDN <link> drifted and let the raw MathML show twice.
+    '<style>' + katexCss + '</style>' +
     '<style>' + blockStyles + '</style>' +
     '</head>' +
     '<body>' +
