@@ -150,6 +150,23 @@ describe('paragraphs', () => {
         };
         expect(roundTrip(doc)).toEqual(doc);
     });
+
+    it('preserves a hard break between text runs', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        { type: 'text', text: 'Blah blah blah. Hello!' },
+                        { type: 'hardBreak' },
+                        { type: 'text', text: 'Hope this works' },
+                    ],
+                },
+            ],
+        };
+        expect(roundTrip(doc)).toEqual(doc);
+    });
 });
 
 describe('headings', () => {

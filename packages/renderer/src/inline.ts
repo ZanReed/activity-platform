@@ -23,6 +23,8 @@ export function renderInline(node: InlineNode): string {
       return renderText(node);
     case 'math_inline':
       return renderInlineMath(node);
+    case 'hard_break':
+      return '<br>';
   }
 }
 

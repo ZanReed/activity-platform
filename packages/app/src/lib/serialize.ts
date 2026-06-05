@@ -236,6 +236,9 @@ function tiptapInlineNodeToActivity(node: JSONContent): InlineNode | null {
                 latex: (node.attrs?.latex as string | undefined) ?? '',
             };
 
+        case 'hardBreak':
+            return { type: 'hard_break' };
+
         default:
             console.warn(
                 `[serialize] Skipping unsupported Tiptap inline: ${node.type}`,
@@ -475,6 +478,9 @@ function activityInlineNodeToTiptap(node: InlineNode): JSONContent {
                 type: 'mathInline',
                 attrs: { latex: node.latex },
             };
+
+        case 'hard_break':
+            return { type: 'hardBreak' };
     }
 }
 

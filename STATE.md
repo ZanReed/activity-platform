@@ -4,18 +4,17 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 ## Current focus
 
-Stage 13.6 complete — publish flow now works end to end on Cloudflare R2. **Next: address bugs with the published activity function.**
+Stage 13.6 publish flow works end to end on R2. First published-activity bug fixed (newlines). **Next: the full end-to-end manual pass (see Nearest next steps #2).**
 
 What landed this session:
 
-- **R2 migration done + deployed.** `publish-activity` Edge Function rewritten to upload to Cloudflare R2 via the S3-compatible API; both the live alias (`/index.html`, `Cache-Control: no-cache` → revalidate via ETag) and the immutable versioned permalink (`/v{N}/index.html`, `max-age=31536000`) publish to R2 and render correctly. Deployed.
-- **PublishControl forwards the user JWT.** `functions.invoke` now passes `Authorization: Bearer <session.access_token>` (errors if no session) so the publishable-key path authenticates the caller correctly.
-- **Hint modal landed (replaces the old inline `hintRevealed` reveal).** A single global modal element lives at the end of `<body>` (emitted by `document.ts`); the runtime tracks one `hintModalBlankId: string | null` on `RuntimeState` and a `HintModalRef` in refs. Clicking a blank's `?` button copies that blank's `data-hint` into the shared modal. Modal open state is NOT persisted across reload.
-- **Case-insensitive mistake matching.** `matchMistakeFeedback` now trims AND lowercases both sides before comparing (was case-sensitive). A student no longer loses targeted help over capitalization.
-- **`STORAGE_SCHEMA_VERSION` bumped 1 → 2.** `BlankState` shape changed (dropped `hintRevealed`); old persisted blobs fail the version check and fall back to fresh state.
-- **Bundles regenerated + committed** (`pnpm run bundle:renderer`) for both the inlined runtime and the Edge ESM bundle. Runtime ~10.5 KiB (within 20 KiB budget).
-- **Fixed pre-existing broken `serialize.test.ts`** (it was committed truncated at HEAD/d9a1724 — not caused by this work). Completed the cut-off round-trip test; full suite green (schema 30, renderer 53, app 46).
-- **`.gitignore`:** added `packages/app/supabase/` (per-machine CLI scratch).
+- **Newline bug fixed: `hard_break` wired end to end.** Shift+Enter soft line breaks were silently dropped on publish (two text runs concatenated, e.g. `Hello!Hope this works`). Root cause: Tiptap's `hardBreak` node had no schema type, so serialize hit its `default` case and returned null. Fix is purely additive:
+  - **Schema** — new `HardBreakNode` (`type: 'hard_break'`, no payload) added to both `InlineNode` and `FillInBlankInline` unions; exported from the barrel.
+  - **Serialize** — `hardBreak ↔ hard_break` mapped both directions in the shared inline converters (covers paragraph, heading, fill-in-blank).
+  - **Renderer** — `renderInline` emits `<br>` for `hard_break`.
+  - **Tests** — serialize round-trip + renderer `<br>` emission. Suites green (schema 30, renderer 54, app 47).
+  - **Bundle regenerated** (`pnpm run bundle:renderer`); runtime unchanged (render-time only).
+  - ⚠ **`publish-activity` needs redeploy** (`supabase functions deploy publish-activity`) for the fix to reach live publishes — the function renders from the bundle. Plain Enter (new paragraph) was always fine; this only affects Shift+Enter.
 
 ## Status by area
 
@@ -407,4 +406,4 @@ Specific friction patterns where unstated assumptions have caused loops:
 
 ---
 
-**Last updated:** Stage 13.6 complete — publish flow works end to end on Cloudflare R2 (publish-activity rewritten + deployed, PublishControl forwards the user JWT). Hint reveal converted to a single global modal (`hintModalBlankId` + `HintModalRef`, replacing `hintRevealed`); mistake matching is now case-insensitive; `STORAGE_SCHEMA_VERSION` bumped to 2; bundles regenerated. Next session: address bugs with the published activity function, then the full e2e manual pass.
+**Last updated:** First published-activity bug fixed — newlines (Shift+Enter `hardBreak`) were dropped on publish; added a `hard_break` inline node end to end (schema + serialize + renderer + tests), bundle regenerated. `publish-activity` still needs a redeploy to push the fix live. Next: full e2e manual pass (Nearest next steps #2).

@@ -11,6 +11,7 @@ export {
   Mark,
   TextNode,
   InlineMathNode,
+  HardBreakNode,
   BlankToken,
   InlineNode,
   FillInBlankInline,

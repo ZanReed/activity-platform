@@ -225,6 +225,21 @@ describe('Inline rendering', () => {
     expect(body).toContain('katex');
   });
 
+  it('renders a hard break as <br> between text runs', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    doc.sections[0]!.blocks = [
+      Object.assign(createParagraphBlock(), {
+        content: [
+          { type: 'text', text: 'Hello!', marks: [] },
+          { type: 'hard_break' },
+          { type: 'text', text: 'Hope this works', marks: [] },
+        ],
+      }),
+    ];
+    const body = renderBody(doc);
+    expect(body).toContain('Hello!<br>Hope this works');
+  });
+
   it('renders blank tokens as input elements with answer keys', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const blank = createBlankToken('correct');

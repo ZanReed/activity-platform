@@ -39,6 +39,15 @@ export const InlineMathNode = z.object({
 });
 export type InlineMathNode = z.infer<typeof InlineMathNode>;
 
+// ---- Hard break -------------------------------------------------------------
+// A soft line break inside a block (Tiptap's hardBreak / Shift+Enter), as
+// opposed to a new block. Carries no data — it renders as <br>. Without this
+// node the break is dropped on serialize and adjacent text runs concatenate.
+export const HardBreakNode = z.object({
+  type: z.literal('hard_break'),
+});
+export type HardBreakNode = z.infer<typeof HardBreakNode>;
+
 // ---- Blank token (fill-in-the-blank only) -----------------------------------
 // Blanks live INSIDE the inline content stream of a fill_in_blank block —
 // students see a prompt with one or more inline blanks. Each blank has a
@@ -81,7 +90,11 @@ export type BlankToken = z.infer<typeof BlankToken>;
 // ---- Unions -----------------------------------------------------------------
 // InlineNode is the standard inline alphabet. Used by all blocks except
 // fill_in_blank.
-export const InlineNode = z.discriminatedUnion('type', [TextNode, InlineMathNode]);
+export const InlineNode = z.discriminatedUnion('type', [
+  TextNode,
+  InlineMathNode,
+  HardBreakNode,
+]);
 export type InlineNode = z.infer<typeof InlineNode>;
 
 // FillInBlankInline is the extended alphabet for fill_in_blank blocks only.
@@ -89,6 +102,7 @@ export type InlineNode = z.infer<typeof InlineNode>;
 export const FillInBlankInline = z.discriminatedUnion('type', [
   TextNode,
   InlineMathNode,
+  HardBreakNode,
   BlankToken,
 ]);
 export type FillInBlankInline = z.infer<typeof FillInBlankInline>;
