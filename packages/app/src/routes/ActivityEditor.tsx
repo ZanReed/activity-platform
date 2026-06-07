@@ -106,6 +106,58 @@ function Shell({ children }: { children: ReactNode }) {
     );
 }
 
+// Public base for published pages, mirrored from the publish Edge Function's
+// R2_PUBLIC_URL_BASE. Trailing slashes trimmed so URL building is unambiguous.
+const PUBLISHED_BASE = (import.meta.env.VITE_PUBLISHED_URL_BASE ?? '').replace(
+    /\/+$/,
+    '',
+);
+
+// The live alias URL the publish function writes (`{base}/{id}/index.html`).
+// Null when the base env is unset, so callers can hide the affordance rather
+// than render a broken link.
+function publishedUrl(activityId: string): string | null {
+    return PUBLISHED_BASE ? `${PUBLISHED_BASE}/${activityId}/index.html` : null;
+}
+
+// Persistent link to an already-published activity's live page. Unlike the
+// post-publish pill in PublishControl (which only exists in the session where
+// you clicked Publish), this renders on every load of a published activity so
+// the URL is always retrievable.
+function PublishedLink({ activityId }: { activityId: string }) {
+    const url = publishedUrl(activityId);
+    const [copied, setCopied] = useState(false);
+    if (!url) return null;
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            /* clipboard write can fail in unsupported contexts; non-fatal */
+        }
+    };
+    return (
+        <span className="flex items-center gap-2 text-sm">
+        <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+        >
+        View published page
+        </a>
+        <button
+        type="button"
+        onClick={copy}
+        className="font-medium text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
+        >
+        {copied ? 'Copied!' : 'Copy link'}
+        </button>
+        </span>
+    );
+}
+
 function SaveIndicator({ status }: { status: SaveStatus }) {
     if (status === 'idle') return null;
     if (status === 'saving') {
@@ -272,6 +324,7 @@ export default function ActivityEditor() {
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
     const [meta, setMeta] = useState<ActivityMeta | null>(null);
     const [tiptapJson, setTiptapJson] = useState<JSONContent | null>(null);
+    const [isPublished, setIsPublished] = useState(false);
 
     useEffect(() => {
         if (!id || !UUID_RE.test(id)) {
@@ -298,6 +351,7 @@ export default function ActivityEditor() {
             }
 
             const row = data as ActivityLoadRow;
+            setIsPublished(row.current_version_id !== null);
 
             // Three-way load priority: draft > published version > fresh empty.
             // The draft path is the common case (any activity with in-progress
@@ -472,6 +526,13 @@ export default function ActivityEditor() {
             </Link>
             <div className="flex items-center gap-4">
             <SaveIndicator status={status} />
+            {isPublished && <PublishedLink activityId={id} />}
+            <Link
+            to={`/activity/${id}/submissions`}
+            className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+            >
+            Submissions
+            </Link>
             <PublishControl activityId={id} saveStatus={status} onBeforePublish={flush} />
             </div>
             </div>

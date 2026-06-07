@@ -4,6 +4,7 @@ import RequireAuth from './components/RequireAuth';
 import Home from './routes/Home';
 import Activities from './routes/Activities';
 import ActivityEditor from './routes/ActivityEditor';
+import Submissions from './routes/Submissions';
 import Playground from './routes/Playground';
 
 export default function App() {
@@ -24,6 +25,14 @@ export default function App() {
         element={
             <RequireAuth>
             <ActivityEditor />
+            </RequireAuth>
+        }
+        />
+        <Route
+        path="/activity/:id/submissions"
+        element={
+            <RequireAuth>
+            <Submissions />
             </RequireAuth>
         }
         />

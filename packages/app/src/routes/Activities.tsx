@@ -204,21 +204,28 @@ export default function Activities() {
         ) : (
             <ul className="space-y-2">
             {activities.map((a) => (
-                <li key={a.id}>
+                <li
+                key={a.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow"
+                >
                 <Link
                 to={`/activity/${a.id}`}
-                className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow"
+                className="min-w-0 flex-1 truncate font-medium text-slate-900 hover:underline"
                 >
-                <span className="font-medium text-slate-900">
                 {a.title}
-                </span>
-                <span className="flex items-center gap-3">
+                </Link>
+                <span className="flex shrink-0 items-center gap-3">
                 <StatusBadge status={a.status} />
-                <span className="text-xs text-slate-500">
+                <span className="hidden text-xs text-slate-500 sm:inline">
                 Edited {formatEdited(a.updated_at)}
                 </span>
-                </span>
+                <Link
+                to={`/activity/${a.id}/submissions`}
+                className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+                >
+                Submissions
                 </Link>
+                </span>
                 </li>
             ))}
             </ul>
