@@ -56,7 +56,13 @@ export default function FillInBlankView({
     const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const isEditable = editor.isEditable;
     const isConfigured = solution.length > 0 || hasConfidenceRating;
-    const showFooter = selected || settingsOpen || isConfigured;
+    // The `selected` prop is only true for a NodeSelection of the whole block.
+    // Clicking into a problem puts the cursor *inside* its editable content (a
+    // TextSelection), so `selected` stays false and a footer gated on it never
+    // reveals — teachers couldn't find these settings. Show the toggle on every
+    // problem while editing; collapsed it's a single unobtrusive row. Outside
+    // the editor (preview/read-only) keep it hidden unless already configured.
+    const showFooter = isEditable || isConfigured;
 
     const problemNumber = useMemo(() => {
         const pos = typeof getPos === 'function' ? getPos() : undefined;
