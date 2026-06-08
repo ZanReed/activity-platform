@@ -52,14 +52,11 @@ function makeBlankRef(blankId: string, value: string): BlankRef {
     input.className = 'blank';
     input.setAttribute('data-blank-id', blankId);
     input.value = value;
-    const feedbackEl = document.createElement('span');
-    feedbackEl.className = 'js-blank-feedback';
     document.body.appendChild(input);
-    document.body.appendChild(feedbackEl);
     return {
         input,
-        feedbackEl,
         hintButton: null,
+        mistakeButton: null,
         answers: ['x'],
         strategy: 'list',
         hint: null,
@@ -102,7 +99,7 @@ function makeState(
         submitted: false,
         attemptNumber: 1,
         studentName: '',
-        hintModalBlankId: null,
+        popover: null,
         sections,
         blanks,
         blocks,
@@ -115,7 +112,7 @@ function makeRefs(blanks: Map<string, BlankRef>): Refs {
         blanks,
         fillInBlanks: new Map(),
         sections: new Map(),
-        hintModal: null,
+        popover: null,
     };
 }
 

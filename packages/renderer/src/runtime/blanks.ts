@@ -19,8 +19,10 @@
 //                                renders on every keystroke during initial
 //                                typing.
 //   wireBlanks                 — attaches blur (score) + input (clear) handlers
-//   wireHints                  — `?` buttons open the global hint modal
-//   wireHintModal              — modal close handlers (×, overlay, Escape)
+//   wireHints                  — `?` buttons open the hint popover
+//   wireMistakes               — `!` buttons open the mistake-feedback popover
+//   wirePopover                — popover close handlers (×, Escape, outside
+//                                click) + header drag-to-move
 //
 // Mistake matching rule: string match against BlankRef.mistakeFeedback
 // entries' `match` field, case-insensitive (both sides trimmed + lowercased),
@@ -179,14 +181,48 @@ export function wireBlanks(
 }
 
 /**
- * Wire every blank that has a hint button. Click opens the global hint modal
- * for that blank (state.hintModalBlankId = id); render copies the blank's hint
- * text into the modal and reveals it. Focus is moved into the dialog (the
- * close button) so keyboard + screen-reader users land inside the modal.
+ * Compute the popover's initial position beside a trigger button: just to its
+ * right, top-aligned. Coordinates are viewport-relative (the popover is
+ * position:fixed). Clamped loosely into the viewport so it opens on-screen;
+ * the student can drag it precisely afterward. Reads layout geometry, so it
+ * runs in the click handler (never inside render).
+ */
+function positionBesideTrigger(button: HTMLElement): { x: number; y: number } {
+  const rect = button.getBoundingClientRect();
+  const width = Math.min(window.innerWidth - 32, 352); // mirrors the CSS cap
+  let x = rect.right + 8;
+  let y = rect.top;
+  x = Math.max(8, Math.min(x, window.innerWidth - width - 8));
+  y = Math.max(8, Math.min(y, window.innerHeight - 80));
+  return { x, y };
+}
+
+/**
+ * Open the shared popover for a blank. Seeds its position beside the trigger,
+ * writes state.popover (replacing any currently-open popover — one at a time),
+ * renders, then moves focus to the close button so keyboard + screen-reader
+ * users land inside the panel.
+ */
+function openPopover(
+  state: RuntimeState,
+  refs: Refs,
+  kind: 'hint' | 'mistake',
+  id: string,
+  trigger: HTMLElement,
+  onUpdate: () => void,
+): void {
+  const { x, y } = positionBesideTrigger(trigger);
+  state.popover = { kind, blankId: id, x, y };
+  onUpdate();
+  refs.popover?.closeButton.focus();
+}
+
+/**
+ * Wire every blank that has a hint button. Click opens the hint popover for
+ * that blank.
  *
- * Blanks without an authored hint have hintButton === null and are
- * skipped silently — no hint affordance is emitted by the renderer for
- * those blanks.
+ * Blanks without an authored hint have hintButton === null and are skipped
+ * silently — no hint affordance is emitted by the renderer for those blanks.
  */
 export function wireHints(
   state: RuntimeState,
@@ -194,52 +230,143 @@ export function wireHints(
   onUpdate: () => void,
 ): void {
   for (const [id, ref] of refs.blanks) {
-    if (!ref.hintButton) continue;
-    ref.hintButton.addEventListener('click', () => {
-      state.hintModalBlankId = id;
-      onUpdate();
-      refs.hintModal?.closeButton.focus();
+    const button = ref.hintButton;
+    if (!button) continue;
+    button.addEventListener('click', () => {
+      openPopover(state, refs, 'hint', id, button, onUpdate);
     });
   }
 }
 
 /**
- * Wire the global hint modal's three close affordances: the × button, a click
- * on the overlay outside the dialog box, and the Escape key. On close, focus
- * returns to the `?` button that opened the modal (kept for keyboard users).
+ * Wire every blank that has a mistake button. Click opens the mistake-feedback
+ * popover for that blank (its body is BlankState.matchedMistake). The button
+ * itself is emitted `hidden`; render reveals it only when a wrong answer
+ * matched an entry, so the click handler can assume there's feedback to show.
  *
- * No-ops when the page has no modal markup (refs.hintModal === null).
+ * Blanks without authored mistake feedback have mistakeButton === null and are
+ * skipped silently.
  */
-export function wireHintModal(
+export function wireMistakes(
   state: RuntimeState,
   refs: Refs,
   onUpdate: () => void,
 ): void {
-  const modal = refs.hintModal;
-  if (!modal) return;
+  for (const [id, ref] of refs.blanks) {
+    const button = ref.mistakeButton;
+    if (!button) continue;
+    button.addEventListener('click', () => {
+      openPopover(state, refs, 'mistake', id, button, onUpdate);
+    });
+  }
+}
+
+/**
+ * Wire the shared popover's close affordances and drag-to-move:
+ *
+ *   - × button, Escape: close.
+ *   - Outside click: close — EXCEPT a click on the popover itself, on the
+ *     active trigger button, or in the popover's OWNING answer blank. Keeping
+ *     the owning input "inside" lets a student type their answer while reading
+ *     the hint (the whole point of a movable, non-dimming popover).
+ *   - Header drag: repositions the panel.
+ *
+ * On close, focus returns to the trigger that opened it (kept for keyboard
+ * users). No-ops when the page has no popover markup (refs.popover === null).
+ */
+export function wirePopover(
+  state: RuntimeState,
+  refs: Refs,
+  onUpdate: () => void,
+): void {
+  const popover = refs.popover;
+  if (!popover) return;
 
   const close = () => {
-    const previousId = state.hintModalBlankId;
-    if (previousId === null) return;
-    state.hintModalBlankId = null;
+    const p = state.popover;
+    if (p === null) return;
+    state.popover = null;
     onUpdate();
-    refs.blanks.get(previousId)?.hintButton?.focus();
+    const blank = refs.blanks.get(p.blankId);
+    const trigger = p.kind === 'hint' ? blank?.hintButton : blank?.mistakeButton;
+    trigger?.focus();
   };
 
-  modal.closeButton.addEventListener('click', close);
+  popover.closeButton.addEventListener('click', close);
 
-  // A click on the overlay itself (not bubbled up from the dialog) is an
-  // "outside" click — close. Clicks inside the dialog have a different target.
-  modal.overlay.addEventListener('click', (e) => {
-    if (e.target === modal.overlay) close();
-  });
-
-  // Escape closes, but only while the modal is open so we don't swallow
-  // Escape elsewhere on the page.
+  // Escape closes, but only while open so we don't swallow Escape elsewhere.
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && state.hintModalBlankId !== null) {
+    if (e.key === 'Escape' && state.popover !== null) {
       e.preventDefault();
       close();
     }
   });
+
+  // Outside-click close. The click that OPENED the popover also bubbles here,
+  // but its target is the trigger button (excluded below), so it doesn't
+  // immediately re-close. Switching popovers works the same way: the new
+  // trigger's own handler updates state.popover first, then this sees the new
+  // trigger as the active one and leaves it open.
+  document.addEventListener('click', (e) => {
+    const p = state.popover;
+    if (p === null) return;
+    const target = e.target as Node | null;
+    if (target === null) return;
+    if (popover.el.contains(target)) return;
+    const blank = refs.blanks.get(p.blankId);
+    if (blank && blank.input === target) return;
+    const trigger = p.kind === 'hint' ? blank?.hintButton : blank?.mistakeButton;
+    if (trigger && trigger.contains(target)) return;
+    close();
+  });
+
+  // Header drag-to-move. Pointer events + capture keep tracking even when the
+  // cursor leaves the header. During the gesture we write style.left/top
+  // directly AND sync state.popover.x/y — the one place the runtime mutates
+  // the DOM outside render(), chosen deliberately: routing every pointermove
+  // through onUpdate would re-render the whole activity (and re-persist) per
+  // pixel. Keeping state in sync means any later render() preserves the spot.
+  let drag: { pointerId: number; offsetX: number; offsetY: number } | null =
+    null;
+
+  popover.header.addEventListener('pointerdown', (e) => {
+    if (state.popover === null) return;
+    // The close button lives in the header but isn't a drag handle.
+    if ((e.target as HTMLElement).closest('.js-popover-close')) return;
+    const rect = popover.el.getBoundingClientRect();
+    drag = {
+      pointerId: e.pointerId,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+    };
+    popover.header.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  popover.header.addEventListener('pointermove', (e) => {
+    if (drag === null || e.pointerId !== drag.pointerId) return;
+    const p = state.popover;
+    if (p === null) return;
+    const width = popover.el.offsetWidth;
+    const height = popover.el.offsetHeight;
+    let x = e.clientX - drag.offsetX;
+    let y = e.clientY - drag.offsetY;
+    x = Math.max(0, Math.min(x, window.innerWidth - width));
+    y = Math.max(0, Math.min(y, window.innerHeight - height));
+    p.x = x;
+    p.y = y;
+    popover.el.style.left = x + 'px';
+    popover.el.style.top = y + 'px';
+  });
+
+  const endDrag = (e: PointerEvent) => {
+    if (drag !== null && e.pointerId === drag.pointerId) {
+      if (popover.header.hasPointerCapture(e.pointerId)) {
+        popover.header.releasePointerCapture(e.pointerId);
+      }
+      drag = null;
+    }
+  };
+  popover.header.addEventListener('pointerup', endDrag);
+  popover.header.addEventListener('pointercancel', endDrag);
 }

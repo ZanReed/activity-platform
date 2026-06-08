@@ -72,15 +72,16 @@ describe('renderActivity (full document)', () => {
     expect(html).toContain('class="submit-button"');
   });
 
-  it('emits the single global hint-modal markup', () => {
+  it('emits the single global popover markup', () => {
     const doc = createEmptyDocument({ title: 'Test' });
     const html = renderActivity(doc, ctx);
-    expect(html).toContain('class="js-hint-modal"');
-    expect(html).toContain('id="hint-modal"');
+    expect(html).toContain('class="js-popover"');
+    expect(html).toContain('id="activity-popover"');
     expect(html).toContain('role="dialog"');
-    expect(html).toContain('class="js-hint-modal-dialog"');
-    expect(html).toContain('class="js-hint-modal-body"');
-    expect(html).toContain('class="js-hint-modal-close"');
+    expect(html).toContain('class="js-popover-header"');
+    expect(html).toContain('class="js-popover-title"');
+    expect(html).toContain('class="js-popover-body"');
+    expect(html).toContain('class="js-popover-close"');
   });
 });
 
@@ -290,22 +291,35 @@ describe('Inline rendering', () => {
     expect(inputIdx).toBeGreaterThan(wrapperIdx);
   });
 
-  it('emits a hidden, aria-live feedback slot keyed to each blank id', () => {
+  it('emits no inline feedback slot for a plain blank', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const blank = createBlankToken('answer');
     const fill = createFillInBlankBlock();
     fill.content = [blank];
     doc.sections[0]!.blocks = [fill];
     const body = renderBody(doc);
+    // Inline feedback text was replaced by the popover; no slot is emitted.
+    expect(body).not.toContain('js-blank-feedback');
+    // A plain blank (no authored mistakes) also gets no mistake button.
+    expect(body).not.toContain('js-blank-mistake');
+  });
+
+  it('emits a hidden, dialog-opening mistake button when mistake feedback is authored', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('answer');
+    blank.mistakeFeedback = [{ match: '2x', feedback: 'Forgot the constant?' }];
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
     expect(body).toContain(
-      '<span class="js-blank-feedback" data-for-blank="' +
-      blank.id +
-      '" aria-live="polite" hidden>',
+      '<button class="js-blank-mistake" type="button"' +
+      ' aria-haspopup="dialog"' +
+      ' aria-expanded="false"' +
+      ' aria-controls="activity-popover"' +
+      ' aria-label="Show feedback" hidden>!</button>',
     );
-    const inputIdx = body.indexOf('data-blank-id="' + blank.id + '"');
-    const feedbackIdx = body.indexOf('data-for-blank="' + blank.id + '"');
-    expect(inputIdx).toBeGreaterThan(-1);
-    expect(feedbackIdx).toBeGreaterThan(inputIdx);
+    expect(body).toContain('data-mistake-feedback=');
   });
 
   it('emits data-hint and a dialog-opening hint button when hint is set', () => {
@@ -322,7 +336,7 @@ describe('Inline rendering', () => {
       '<button class="js-blank-hint" type="button"' +
       ' aria-haspopup="dialog"' +
       ' aria-expanded="false"' +
-      ' aria-controls="hint-modal"' +
+      ' aria-controls="activity-popover"' +
       ' aria-label="Show hint">?</button>',
     );
     // The hint text rides only on data-hint now; the modal (document.ts)

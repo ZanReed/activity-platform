@@ -20,10 +20,14 @@
 export interface BlankRef {
     /** The text input the student types into. */
     input: HTMLInputElement;
-    /** The sibling .js-blank-feedback span the runtime renders ✓/✗ into. */
-    feedbackEl: HTMLElement;
-    /** The .js-blank-hint button — null when the blank has no hint. Opens the global hint modal. */
+    /** The .js-blank-hint button — null when the blank has no hint. Opens the hint popover. */
     hintButton: HTMLButtonElement | null;
+    /**
+     * The red .js-blank-mistake `!` button — null when the blank has no
+     * authored mistake feedback. Hidden until a wrong answer matches an
+     * entry (render reveals it); clicking it opens the mistake popover.
+     */
+    mistakeButton: HTMLButtonElement | null;
     /** Pipe-separated answers from data-blank-answers, parsed into an array. */
     answers: string[];
     /** Scoring strategy name (defaults to 'list' when attribute is absent). */
@@ -88,18 +92,25 @@ export interface SectionRef {
 }
 
 /**
- * The single global hint modal (one per page). Null when the page emitted no
- * modal markup (e.g. an activity with no authored hints, or older HTML) — the
- * runtime then treats hint buttons as no-ops rather than crashing.
+ * The single floating popover (one per page) shared by hint and mistake
+ * feedback. Null when the page emitted no popover markup (older HTML) — the
+ * runtime then treats trigger buttons as no-ops rather than crashing.
+ *
+ * Unlike the old hint modal there is no full-screen overlay: the popover is a
+ * bare anchored panel that does not dim the page. Closing is handled by the
+ * runtime (× button, Escape, or a click outside the popover/trigger/owning
+ * input); dragging the header repositions it.
  */
-export interface HintModalRef {
-    /** The full-screen overlay (.js-hint-modal). Clicking it (outside the dialog) closes. */
-    overlay: HTMLElement;
-    /** The centered dialog box (.js-hint-modal-dialog). */
-    dialog: HTMLElement;
-    /** The .js-hint-modal-body element the runtime writes the active hint text into. */
+export interface PopoverRef {
+    /** The floating panel (.js-popover). */
+    el: HTMLElement;
+    /** The header bar (.js-popover-header) — doubles as the drag handle. */
+    header: HTMLElement;
+    /** The title element (.js-popover-title) — set to "Hint"/"Feedback" per kind. */
+    titleEl: HTMLElement;
+    /** The .js-popover-body element the runtime writes the active text into. */
     bodyEl: HTMLElement;
-    /** The × close button (.js-hint-modal-close). */
+    /** The × close button (.js-popover-close). */
     closeButton: HTMLButtonElement;
 }
 
@@ -108,6 +119,6 @@ export interface Refs {
     blanks: Map<string, BlankRef>;
     fillInBlanks: Map<string, FillInBlankRef>;
     sections: Map<string, SectionRef>;
-    /** The global hint modal, or null when the page has no modal markup. */
-    hintModal: HintModalRef | null;
+    /** The shared floating popover, or null when the page has no popover markup. */
+    popover: PopoverRef | null;
 }

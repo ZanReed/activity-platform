@@ -209,7 +209,7 @@ describe('buildRefs — fill-in-blank blocks', () => {
 });
 
 describe('buildRefs — blanks', () => {
-    it('builds a blank ref with wrapper, feedback, and parsed data', () => {
+    it('builds a blank ref with wrapper, affordances, and parsed data', () => {
         setupDOM(
             configScript() +
             '<section class="activity-section" data-section-id="sec-1">' +
@@ -223,8 +223,7 @@ describe('buildRefs — blanks', () => {
             ' data-mistake-feedback="[{&quot;match&quot;:&quot;2x&quot;,' +
             '&quot;feedback&quot;:&quot;Did you forget the constant?&quot;}]" />' +
             '<button class="js-blank-hint" type="button"></button>' +
-            '<span class="js-blank-feedback" data-for-blank="blank-1"' +
-            ' aria-live="polite" hidden></span>' +
+            '<button class="js-blank-mistake" type="button" hidden></button>' +
             '</span></div></div></section>',
         );
         const refs = buildRefs();
@@ -236,13 +235,13 @@ describe('buildRefs — blanks', () => {
         expect(blank?.mistakeFeedback).toEqual([
             { match: '2x', feedback: 'Did you forget the constant?' },
         ]);
-        expect(blank?.feedbackEl).not.toBeNull();
         expect(blank?.hintButton).not.toBeNull();
+        expect(blank?.mistakeButton).not.toBeNull();
         expect(blank?.blockId).toBe('block-1');
         expect(blank?.sectionId).toBe('sec-1');
     });
 
-    it('leaves hint affordances null when blank has no hint', () => {
+    it('leaves affordances null when blank has neither hint nor mistakes', () => {
         setupDOM(
             configScript() +
             '<section class="activity-section" data-section-id="sec-1">' +
@@ -252,14 +251,13 @@ describe('buildRefs — blanks', () => {
             '<span class="blank-wrapper">' +
             '<input type="text" class="blank" data-blank-id="blank-1"' +
             ' data-blank-answers="x" />' +
-            '<span class="js-blank-feedback" data-for-blank="blank-1"' +
-            ' aria-live="polite" hidden></span>' +
             '</span></div></div></section>',
         );
         const refs = buildRefs();
         const blank = refs.blanks.get('blank-1');
         expect(blank?.hint).toBeNull();
         expect(blank?.hintButton).toBeNull();
+        expect(blank?.mistakeButton).toBeNull();
         expect(blank?.mistakeFeedback).toEqual([]);
     });
 
@@ -275,11 +273,9 @@ describe('buildRefs — blanks', () => {
             '<div class="block-problem-body">' +
             '<span class="blank-wrapper">' +
             '<input class="blank" data-blank-id="b1" data-blank-answers="1" />' +
-            '<span class="js-blank-feedback" data-for-blank="b1" aria-live="polite" hidden></span>' +
             '</span>' +
             '<span class="blank-wrapper">' +
             '<input class="blank" data-blank-id="b2" data-blank-answers="2" />' +
-            '<span class="js-blank-feedback" data-for-blank="b2" aria-live="polite" hidden></span>' +
             '</span>' +
             '</div></div></section>',
         );
@@ -292,40 +288,41 @@ describe('buildRefs — blanks', () => {
     });
 });
 
-describe('buildRefs — hint modal', () => {
-    const MODAL_HTML =
-        '<div class="js-hint-modal" id="hint-modal" role="dialog" hidden>' +
-        '<div class="js-hint-modal-dialog" role="document">' +
-        '<button class="js-hint-modal-close" type="button"></button>' +
-        '<div class="js-hint-modal-body"></div>' +
-        '</div></div>';
+describe('buildRefs — popover', () => {
+    const POPOVER_HTML =
+        '<div class="js-popover" id="activity-popover" role="dialog" hidden>' +
+        '<div class="js-popover-header">' +
+        '<h2 class="js-popover-title" id="popover-title"></h2>' +
+        '<button class="js-popover-close" type="button"></button>' +
+        '</div>' +
+        '<div class="js-popover-body"></div>' +
+        '</div>';
 
-    it('builds a HintModalRef when complete markup is present', () => {
-        setupDOM(configScript() + MODAL_HTML);
+    it('builds a PopoverRef when complete markup is present', () => {
+        setupDOM(configScript() + POPOVER_HTML);
         const refs = buildRefs();
-        expect(refs.hintModal).not.toBeNull();
-        expect(refs.hintModal?.overlay.classList.contains('js-hint-modal')).toBe(
-            true,
-        );
-        expect(refs.hintModal?.dialog).not.toBeNull();
-        expect(refs.hintModal?.bodyEl).not.toBeNull();
-        expect(refs.hintModal?.closeButton).not.toBeNull();
+        expect(refs.popover).not.toBeNull();
+        expect(refs.popover?.el.classList.contains('js-popover')).toBe(true);
+        expect(refs.popover?.header).not.toBeNull();
+        expect(refs.popover?.titleEl).not.toBeNull();
+        expect(refs.popover?.bodyEl).not.toBeNull();
+        expect(refs.popover?.closeButton).not.toBeNull();
     });
 
-    it('returns null hintModal when no modal markup is present', () => {
+    it('returns null popover when no popover markup is present', () => {
         setupDOM(configScript());
         const refs = buildRefs();
-        expect(refs.hintModal).toBeNull();
+        expect(refs.popover).toBeNull();
     });
 
-    it('returns null hintModal when markup is incomplete (all-or-nothing)', () => {
+    it('returns null popover when markup is incomplete (all-or-nothing)', () => {
         setupDOM(
             configScript() +
-            '<div class="js-hint-modal"><div class="js-hint-modal-dialog">' +
+            '<div class="js-popover"><div class="js-popover-header">' +
             '</div></div>',
         );
         const refs = buildRefs();
-        expect(refs.hintModal).toBeNull();
+        expect(refs.popover).toBeNull();
     });
 });
 

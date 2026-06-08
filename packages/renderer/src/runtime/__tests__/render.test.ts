@@ -20,7 +20,7 @@ import type {
     BlankRef,
     FillInBlankRef,
     SectionRef,
-    HintModalRef,
+    PopoverRef,
 } from '../refs.js';
 import type {
     RuntimeState,
@@ -35,16 +35,12 @@ function makeBlankRef(blankId: string): BlankRef {
     const input = document.createElement('input');
     input.className = 'blank';
     input.setAttribute('data-blank-id', blankId);
-    const feedbackEl = document.createElement('span');
-    feedbackEl.className = 'js-blank-feedback';
-    feedbackEl.hidden = true;
     wrapper.appendChild(input);
-    wrapper.appendChild(feedbackEl);
     document.body.appendChild(wrapper);
     return {
         input,
-        feedbackEl,
         hintButton: null,
+        mistakeButton: null,
         answers: ['x'],
         strategy: 'list',
         hint: null,
@@ -63,17 +59,13 @@ function makeBlankRefWithHint(blankId: string): BlankRef {
     const hintButton = document.createElement('button');
     hintButton.className = 'js-blank-hint';
     hintButton.setAttribute('aria-expanded', 'false');
-    const feedbackEl = document.createElement('span');
-    feedbackEl.className = 'js-blank-feedback';
-    feedbackEl.hidden = true;
     wrapper.appendChild(input);
     wrapper.appendChild(hintButton);
-    wrapper.appendChild(feedbackEl);
     document.body.appendChild(wrapper);
     return {
         input,
-        feedbackEl,
         hintButton,
+        mistakeButton: null,
         answers: ['x'],
         strategy: 'list',
         hint: 'Try factoring.',
@@ -83,21 +75,50 @@ function makeBlankRefWithHint(blankId: string): BlankRef {
     };
 }
 
-function makeHintModalRef(): HintModalRef {
-    const overlay = document.createElement('div');
-    overlay.className = 'js-hint-modal';
-    overlay.hidden = true;
-    const dialog = document.createElement('div');
-    dialog.className = 'js-hint-modal-dialog';
-    const bodyEl = document.createElement('div');
-    bodyEl.className = 'js-hint-modal-body';
+function makeBlankRefWithMistake(blankId: string): BlankRef {
+    const wrapper = document.createElement('span');
+    wrapper.className = 'blank-wrapper';
+    const input = document.createElement('input');
+    input.className = 'blank';
+    input.setAttribute('data-blank-id', blankId);
+    const mistakeButton = document.createElement('button');
+    mistakeButton.className = 'js-blank-mistake';
+    mistakeButton.setAttribute('aria-expanded', 'false');
+    mistakeButton.hidden = true;
+    wrapper.appendChild(input);
+    wrapper.appendChild(mistakeButton);
+    document.body.appendChild(wrapper);
+    return {
+        input,
+        hintButton: null,
+        mistakeButton,
+        answers: ['x'],
+        strategy: 'list',
+        hint: null,
+        mistakeFeedback: [{ match: 'wrong', feedback: 'Targeted feedback.' }],
+        blockId: 'block-1',
+        sectionId: 'sec-1',
+    };
+}
+
+function makePopoverRef(): PopoverRef {
+    const el = document.createElement('div');
+    el.className = 'js-popover';
+    el.hidden = true;
+    const header = document.createElement('div');
+    header.className = 'js-popover-header';
+    const titleEl = document.createElement('h2');
+    titleEl.className = 'js-popover-title';
     const closeButton = document.createElement('button');
-    closeButton.className = 'js-hint-modal-close';
-    dialog.appendChild(closeButton);
-    dialog.appendChild(bodyEl);
-    overlay.appendChild(dialog);
-    document.body.appendChild(overlay);
-    return { overlay, dialog, bodyEl, closeButton };
+    closeButton.className = 'js-popover-close';
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'js-popover-body';
+    header.appendChild(titleEl);
+    header.appendChild(closeButton);
+    el.appendChild(header);
+    el.appendChild(bodyEl);
+    document.body.appendChild(el);
+    return { el, header, titleEl, bodyEl, closeButton };
 }
 
 function makeFillInBlankRef(
@@ -190,9 +211,9 @@ function makeRefs(
     blanks: Map<string, BlankRef> = new Map(),
                   fillInBlanks: Map<string, FillInBlankRef> = new Map(),
                   sections: Map<string, SectionRef> = new Map(),
-                  hintModal: HintModalRef | null = null,
+                  popover: PopoverRef | null = null,
 ): Refs {
-    return { blanks, fillInBlanks, sections, hintModal };
+    return { blanks, fillInBlanks, sections, popover };
 }
 
 function makeState(
@@ -204,7 +225,7 @@ function makeState(
         submitted: false,
         attemptNumber: 1,
         studentName: '',
-        hintModalBlankId: null,
+        popover: null,
         sections: sectionStates,
         blanks: blankStates,
         blocks: blockStates,
@@ -324,9 +345,9 @@ describe('render — aria-invalid', () => {
     });
 });
 
-describe('render — feedback slot', () => {
-    it('shows mistake-feedback text when matchedMistake is set', () => {
-        const ref = makeBlankRef('b1');
+describe('render — mistake affordance', () => {
+    it('reveals the ! button when matchedMistake is set', () => {
+        const ref = makeBlankRefWithMistake('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
         const state = makeState({
             'b1': makeBlankState(false, {
@@ -334,118 +355,135 @@ describe('render — feedback slot', () => {
             }),
         });
         render(state, refs);
-        expect(ref.feedbackEl.textContent).toBe('You forgot the constant.');
-        expect(ref.feedbackEl.hidden).toBe(false);
+        expect(ref.mistakeButton!.hidden).toBe(false);
     });
 
-    it('keeps slot hidden for incorrect without a matching mistake entry', () => {
-        const ref = makeBlankRef('b1');
+    it('keeps the ! button hidden for incorrect without a matching mistake', () => {
+        const ref = makeBlankRefWithMistake('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
         const state = makeState({ 'b1': makeBlankState(false) });
         render(state, refs);
-        expect(ref.feedbackEl.hidden).toBe(true);
+        expect(ref.mistakeButton!.hidden).toBe(true);
     });
 
-    it('keeps slot hidden for correct answers (no slot clutter)', () => {
-        const ref = makeBlankRef('b1');
+    it('keeps the ! button hidden for correct answers', () => {
+        const ref = makeBlankRefWithMistake('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
         const state = makeState({ 'b1': makeBlankState(true) });
         render(state, refs);
-        expect(ref.feedbackEl.hidden).toBe(true);
+        expect(ref.mistakeButton!.hidden).toBe(true);
     });
 
-    it('hides slot on transition from matched → no-match', () => {
-        const ref = makeBlankRef('b1');
+    it('hides the ! button on transition from matched → no-match', () => {
+        const ref = makeBlankRefWithMistake('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
         const blankState = makeBlankState(false, {
             matchedMistake: 'First message.',
         });
         const state = makeState({ 'b1': blankState });
         render(state, refs);
-        expect(ref.feedbackEl.hidden).toBe(false);
+        expect(ref.mistakeButton!.hidden).toBe(false);
         blankState.matchedMistake = null;
         render(state, refs);
-        expect(ref.feedbackEl.hidden).toBe(true);
+        expect(ref.mistakeButton!.hidden).toBe(true);
     });
 
-    it('updates slot text when matchedMistake changes', () => {
-        const ref = makeBlankRef('b1');
-        const refs = makeRefs(new Map([['b1', ref]]));
-        const blankState = makeBlankState(false, {
-            matchedMistake: 'First.',
+    it('flips aria-expanded when this blank\'s mistake popover is open', () => {
+        const ref = makeBlankRefWithMistake('b1');
+        const popover = makePopoverRef();
+        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), popover);
+        const state = makeState({
+            'b1': makeBlankState(false, { matchedMistake: 'Targeted feedback.' }),
         });
-        const state = makeState({ 'b1': blankState });
         render(state, refs);
-        expect(ref.feedbackEl.textContent).toBe('First.');
-        blankState.matchedMistake = 'Second.';
+        expect(ref.mistakeButton!.getAttribute('aria-expanded')).toBe('false');
+        state.popover = { kind: 'mistake', blankId: 'b1', x: 10, y: 20 };
         render(state, refs);
-        expect(ref.feedbackEl.textContent).toBe('Second.');
+        expect(ref.mistakeButton!.getAttribute('aria-expanded')).toBe('true');
     });
 });
 
-describe('render — hint modal', () => {
-    it('opens the modal with the active blank hint when hintModalBlankId is set', () => {
+describe('render — popover', () => {
+    it('opens with the active blank hint text and position', () => {
         const ref = makeBlankRefWithHint('b1');
-        const modal = makeHintModalRef();
-        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), modal);
+        const popover = makePopoverRef();
+        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), popover);
         const state = makeState({ 'b1': makeBlankState(null) });
-        state.hintModalBlankId = 'b1';
+        state.popover = { kind: 'hint', blankId: 'b1', x: 40, y: 60 };
         render(state, refs);
-        expect(modal.overlay.hidden).toBe(false);
-        expect(modal.bodyEl.textContent).toBe('Try factoring.');
+        expect(popover.el.hidden).toBe(false);
+        expect(popover.titleEl.textContent).toBe('Hint');
+        expect(popover.bodyEl.textContent).toBe('Try factoring.');
+        expect(popover.el.dataset.kind).toBe('hint');
+        expect(popover.el.style.left).toBe('40px');
+        expect(popover.el.style.top).toBe('60px');
         expect(ref.hintButton!.getAttribute('aria-expanded')).toBe('true');
     });
 
-    it('keeps the modal closed and aria-expanded false when no blank is active', () => {
-        const ref = makeBlankRefWithHint('b1');
-        const modal = makeHintModalRef();
-        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), modal);
-        const state = makeState({ 'b1': makeBlankState(null) });
-        render(state, refs);
-        expect(modal.overlay.hidden).toBe(true);
-        expect(ref.hintButton!.getAttribute('aria-expanded')).toBe('false');
-    });
-
-    it('only flips aria-expanded on the active blank when several have hints', () => {
-        const r1 = makeBlankRefWithHint('b1');
-        const r2 = makeBlankRefWithHint('b2');
-        const modal = makeHintModalRef();
-        const refs = makeRefs(
-            new Map([['b1', r1], ['b2', r2]]),
-            new Map(),
-            new Map(),
-            modal,
-        );
+    it('opens with the matched mistake feedback for a mistake popover', () => {
+        const ref = makeBlankRefWithMistake('b1');
+        const popover = makePopoverRef();
+        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), popover);
         const state = makeState({
-            'b1': makeBlankState(null),
-            'b2': makeBlankState(null),
+            'b1': makeBlankState(false, { matchedMistake: 'Targeted feedback.' }),
         });
-        state.hintModalBlankId = 'b2';
+        state.popover = { kind: 'mistake', blankId: 'b1', x: 5, y: 7 };
         render(state, refs);
-        expect(r1.hintButton!.getAttribute('aria-expanded')).toBe('false');
-        expect(r2.hintButton!.getAttribute('aria-expanded')).toBe('true');
-        expect(modal.bodyEl.textContent).toBe('Try factoring.');
+        expect(popover.el.hidden).toBe(false);
+        expect(popover.titleEl.textContent).toBe('Feedback');
+        expect(popover.bodyEl.textContent).toBe('Targeted feedback.');
+        expect(popover.el.dataset.kind).toBe('mistake');
     });
 
-    it('closes the modal when hintModalBlankId flips back to null', () => {
+    it('stays closed when state.popover is null', () => {
         const ref = makeBlankRefWithHint('b1');
-        const modal = makeHintModalRef();
-        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), modal);
+        const popover = makePopoverRef();
+        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), popover);
         const state = makeState({ 'b1': makeBlankState(null) });
-        state.hintModalBlankId = 'b1';
         render(state, refs);
-        expect(modal.overlay.hidden).toBe(false);
-        state.hintModalBlankId = null;
-        render(state, refs);
-        expect(modal.overlay.hidden).toBe(true);
+        expect(popover.el.hidden).toBe(true);
         expect(ref.hintButton!.getAttribute('aria-expanded')).toBe('false');
     });
 
-    it('no-ops when the page has no modal markup (refs.hintModal null)', () => {
+    it('stays closed when the referenced hint text is gone', () => {
+        const ref = makeBlankRef('b1'); // hint: null
+        const popover = makePopoverRef();
+        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), popover);
+        const state = makeState({ 'b1': makeBlankState(null) });
+        state.popover = { kind: 'hint', blankId: 'b1', x: 0, y: 0 };
+        render(state, refs);
+        expect(popover.el.hidden).toBe(true);
+    });
+
+    it('stays closed when the matched mistake cleared after edit', () => {
+        const ref = makeBlankRefWithMistake('b1');
+        const popover = makePopoverRef();
+        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), popover);
+        const state = makeState({ 'b1': makeBlankState(null) }); // matchedMistake null
+        state.popover = { kind: 'mistake', blankId: 'b1', x: 0, y: 0 };
+        render(state, refs);
+        expect(popover.el.hidden).toBe(true);
+    });
+
+    it('closes the popover when state.popover flips back to null', () => {
+        const ref = makeBlankRefWithHint('b1');
+        const popover = makePopoverRef();
+        const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), popover);
+        const state = makeState({ 'b1': makeBlankState(null) });
+        state.popover = { kind: 'hint', blankId: 'b1', x: 0, y: 0 };
+        render(state, refs);
+        expect(popover.el.hidden).toBe(false);
+        state.popover = null;
+        render(state, refs);
+        expect(popover.el.hidden).toBe(true);
+        expect(ref.hintButton!.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('no-ops when the page has no popover markup (refs.popover null)', () => {
         const ref = makeBlankRef('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
         const state = makeState({ 'b1': makeBlankState(null) });
-        state.hintModalBlankId = 'b1';
+        state.popover = { kind: 'hint', blankId: 'b1', x: 0, y: 0 };
         expect(() => render(state, refs)).not.toThrow();
     });
 });

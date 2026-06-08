@@ -68,15 +68,12 @@ function makeBlankRef(
     input.setAttribute('data-blank-id', id);
     input.setAttribute('data-blank-answers', answers.join('|'));
     input.value = value;
-    const feedbackEl = document.createElement('span');
-    feedbackEl.className = 'js-blank-feedback';
     wrapper.appendChild(input);
-    wrapper.appendChild(feedbackEl);
     document.body.appendChild(wrapper);
     return {
         input,
-        feedbackEl,
         hintButton: null,
+        mistakeButton: null,
         answers,
         strategy: 'list',
         hint: null,
@@ -240,7 +237,7 @@ function buildFixture(spec: FixtureSpec): Fixture {
         submitted: false,
         attemptNumber: 1,
         studentName: '',
-        hintModalBlankId: null,
+        popover: null,
         sections: sectionsState,
         blanks: blanksState,
         blocks: blocksState,
@@ -249,7 +246,7 @@ function buildFixture(spec: FixtureSpec): Fixture {
     return {
         config,
         state,
-        refs: { blanks, fillInBlanks, sections, hintModal: null },
+        refs: { blanks, fillInBlanks, sections, popover: null },
     };
 }
 

@@ -128,69 +128,71 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
   //   hint:
   //     Static teacher-authored nudge, available to the student via an
   //     always-visible `?` button. The text rides on data-hint (the runtime's
-  //     read source per RUNTIME.md); clicking the button opens the single
-  //     global hint modal (emitted by document.ts) and the runtime copies
-  //     this blank's data-hint into it. The button is emitted only when there
-  //     is a non-empty hint. (Earlier builds revealed the hint inline in a
-  //     .js-blank-hint-text span; the modal replaced that for more room and
-  //     future rich formatting.)
+  //     read source per RUNTIME.md); clicking the button opens the shared
+  //     popover (emitted by document.ts) and the runtime copies this blank's
+  //     data-hint into it. The button is emitted only when there is a
+  //     non-empty hint.
   //
   //   mistakeFeedback:
   //     Array of {match, feedback} pairs. JSON-encoded into a single
-  //     data-mistake-feedback attribute. The runtime parses it once at init
-  //     and dispatches the matching feedback into .js-blank-feedback at
-  //     check time (first match wins, per RUNTIME.md). Omitted when the
-  //     array is empty or undefined — the absence of the attribute is the
-  //     signal "no targeted feedback to consider".
+  //     data-mistake-feedback attribute. The runtime parses it once at init;
+  //     when a wrong answer matches an entry it reveals the `!` button (first
+  //     match wins, per RUNTIME.md), and clicking that button opens the shared
+  //     popover with the matched feedback. Omitted when the array is empty or
+  //     undefined — the absence of the attribute is the signal "no targeted
+  //     feedback to consider".
   //
   // Empty-string hints and empty-array mistakeFeedback are treated as
-  // "absent": no button to reveal an empty hint, no attribute for an empty
-  // list. The schema permits both (hint is z.string().optional() with no
-  // .min(1); mistakeFeedback is z.array(...).optional() with no .min(1)),
-  // so a teacher saving a stub field shouldn't surface a useless control.
-  // The hint text is carried only on data-hint; the runtime reads it and
-  // shows it in the global hint modal (document.ts) when the student clicks
-  // the `?` button. No inline reveal span — the button is a dialog opener
-  // (aria-haspopup="dialog" + aria-controls pointing at the shared modal).
+  // "absent": no button to reveal an empty hint, no attribute (and no `!`
+  // button) for an empty list. The schema permits both (hint is
+  // z.string().optional() with no .min(1); mistakeFeedback is
+  // z.array(...).optional() with no .min(1)), so a teacher saving a stub
+  // field shouldn't surface a useless control. Both buttons are dialog
+  // openers (aria-haspopup="dialog" + aria-controls pointing at the popover).
   const hint = node.hint;
   const hintAttr = hint ? ' data-hint="' + attr(hint) + '"' : '';
   const hintButton = hint
   ? '<button class="js-blank-hint" type="button"' +
   ' aria-haspopup="dialog"' +
   ' aria-expanded="false"' +
-  ' aria-controls="hint-modal"' +
+  ' aria-controls="activity-popover"' +
   ' aria-label="Show hint">?</button>'
   : '';
 
+  // The red `!` mistake button is emitted (but `hidden`) for any blank with
+  // authored mistake feedback. The runtime reveals it only when a wrong answer
+  // matches an entry, and clicking it opens the shared popover with that
+  // entry's text (carried on data-mistake-feedback below). Blanks without
+  // authored mistake feedback get no button.
   const mistakeFeedback = node.mistakeFeedback;
-  const mistakeFeedbackAttr =
-  mistakeFeedback && mistakeFeedback.length > 0
+  const hasMistakeFeedback = mistakeFeedback && mistakeFeedback.length > 0;
+  const mistakeFeedbackAttr = hasMistakeFeedback
   ? ' data-mistake-feedback="' + attr(JSON.stringify(mistakeFeedback)) + '"'
+  : '';
+  const mistakeButton = hasMistakeFeedback
+  ? '<button class="js-blank-mistake" type="button"' +
+  ' aria-haspopup="dialog"' +
+  ' aria-expanded="false"' +
+  ' aria-controls="activity-popover"' +
+  ' aria-label="Show feedback" hidden>!</button>'
   : '';
 
   // The blank token renders as a wrapper around its siblings:
   //   1. the <input> (carrying class="blank" plus every data-* attribute —
   //      every existing .blank selector and the runtime's $('.blank')
   //      lookup keep working unchanged),
-  //   2. an optional hint button (only when node.hint is set) that opens the
-  //      single global hint modal; the hint text rides on data-hint, not an
-  //      inline span,
-  //   3. a `js-blank-feedback` span the Stage 13 runtime renders ✓/✗ and
-  //      targeted mistake feedback into after a checkpoint check.
+  //   2. an optional `?` hint button (only when node.hint is set) that opens
+  //      the shared popover; the hint text rides on data-hint,
+  //   3. an optional red `!` mistake button (only when mistakeFeedback is
+  //      authored) — emitted `hidden`, revealed by the runtime when a wrong
+  //      answer matches an entry, and opening the shared popover with that
+  //      feedback text.
   //
-  // The wrapper exists because <input> is a void element — the feedback
-  // span cannot be its child. It also keeps the whole affordance group
-  // together as a single inline unit, so the input, its hint button, and
-  // its feedback can't wrap onto separate lines mid-prose. The
-  // wrapper itself carries no data-* attributes; the runtime reaches each
-  // child via class selectors and/or input.nextElementSibling walking.
-  //
-  // `aria-live="polite"` MUST be in the source HTML — RUNTIME.md flags
-  // that setting aria-live later on an existing element is unreliable
-  // across screen readers. `hidden` keeps the slot out of layout (and out
-  // of the accessibility tree) until the runtime populates it; once
-  // visible, content changes are announced politely without interrupting
-  // focus.
+  // The wrapper exists because <input> is a void element — the buttons can't
+  // be its children. It also keeps the whole affordance group together as a
+  // single inline unit, so the input and its buttons can't wrap onto separate
+  // lines mid-prose. The wrapper itself carries no data-* attributes; the
+  // runtime reaches each child via class selectors.
   return (
     '<span class="blank-wrapper">' +
     '<input type="text"' +
@@ -207,10 +209,7 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
     ' spellcheck="false"' +
     ' />' +
     hintButton +
-    '<span class="js-blank-feedback"' +
-    ' data-for-blank="' + attr(node.id) + '"' +
-    ' aria-live="polite"' +
-    ' hidden></span>' +
+    mistakeButton +
     '</span>'
   );
 }

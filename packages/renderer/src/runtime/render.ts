@@ -22,7 +22,7 @@ import type {
     BlankRef,
     FillInBlankRef,
     SectionRef,
-    HintModalRef,
+    PopoverRef,
 } from './refs.js';
 import type {
     RuntimeState,
@@ -48,7 +48,7 @@ export function render(state: RuntimeState, refs: Refs): void {
         const sectionState = state.sections[id];
         if (sectionState) renderSection(sectionState, ref);
     }
-    if (refs.hintModal) renderHintModal(state, refs.hintModal, refs);
+    if (refs.popover) renderPopover(state, refs.popover, refs);
 }
 
 function renderBlank(
@@ -75,21 +75,32 @@ function renderBlank(
         }
     }
 
-    // 3. Feedback slot — mistake-specific text only.
-    if (matchedMistake !== null) {
-        if (ref.feedbackEl.textContent !== matchedMistake) {
-            ref.feedbackEl.textContent = matchedMistake;
+    // 3. Mistake affordance — reveal the red '!' button only when a wrong
+    // answer matched an authored mistake entry. The feedback text itself lives
+    // in the popover (renderPopover reads state.blanks[id].matchedMistake), so
+    // here we just toggle the button's visibility and its aria-expanded.
+    if (ref.mistakeButton) {
+        const wantHidden = matchedMistake === null;
+        if (ref.mistakeButton.hidden !== wantHidden) {
+            ref.mistakeButton.hidden = wantHidden;
         }
-        if (ref.feedbackEl.hidden) ref.feedbackEl.hidden = false;
-    } else {
-        if (!ref.feedbackEl.hidden) ref.feedbackEl.hidden = true;
+        const wantExpanded =
+            state.popover?.kind === 'mistake' && state.popover.blankId === id
+                ? 'true'
+                : 'false';
+        if (ref.mistakeButton.getAttribute('aria-expanded') !== wantExpanded) {
+            ref.mistakeButton.setAttribute('aria-expanded', wantExpanded);
+        }
     }
 
     // 4. Hint affordance — button aria-expanded reflects whether THIS blank's
-    // hint is the one currently open in the global modal. The modal content
-    // itself is handled by renderHintModal.
+    // hint is the one currently open in the popover. The popover content
+    // itself is handled by renderPopover.
     if (ref.hintButton) {
-        const wantExpanded = state.hintModalBlankId === id ? 'true' : 'false';
+        const wantExpanded =
+            state.popover?.kind === 'hint' && state.popover.blankId === id
+                ? 'true'
+                : 'false';
         if (ref.hintButton.getAttribute('aria-expanded') !== wantExpanded) {
             ref.hintButton.setAttribute('aria-expanded', wantExpanded);
         }
@@ -155,28 +166,52 @@ function renderSection(
 }
 
 /**
- * Show or hide the global hint modal from state.hintModalBlankId. When open,
- * the body text is the active blank's authored hint (BlankRef.hint). When the
- * referenced blank has no hint (defensive — shouldn't happen, the button only
- * exists for blanks with hints) the modal stays closed.
+ * Show or hide the shared popover from state.popover. When open, the title and
+ * body depend on the popover kind: a 'hint' shows the active blank's authored
+ * hint (BlankRef.hint); a 'mistake' shows its matched mistake feedback
+ * (BlankState.matchedMistake). The data-kind attribute drives the red-tinted
+ * header for mistakes. Position (left/top) is read straight from state and
+ * applied — the open handler seeds it beside the trigger and drag updates it.
+ *
+ * When the referenced text is gone (no hint, or the matched mistake cleared
+ * because the student edited the blank) the popover stays closed even if
+ * state.popover is still set — the close handlers reconcile state.popover to
+ * null on the next interaction.
  *
  * Pure state→DOM like the rest of render: no focus management here (that's
  * done in the open/close event handlers so focus isn't yanked on every render
  * tick). Idempotent via the hidden-attribute guard.
  */
-function renderHintModal(
+function renderPopover(
     state: RuntimeState,
-    modal: HintModalRef,
+    popover: PopoverRef,
     refs: Refs,
 ): void {
-    const activeId = state.hintModalBlankId;
-    const hint = activeId ? refs.blanks.get(activeId)?.hint ?? null : null;
-    const wantOpen = hint !== null;
+    const p = state.popover;
+    const body = p
+        ? p.kind === 'hint'
+            ? refs.blanks.get(p.blankId)?.hint ?? null
+            : state.blanks[p.blankId]?.matchedMistake ?? null
+        : null;
+    const wantOpen = p !== null && body !== null;
 
     if (wantOpen) {
-        if (modal.bodyEl.textContent !== hint) modal.bodyEl.textContent = hint;
-        if (modal.overlay.hidden) modal.overlay.hidden = false;
+        const title = p!.kind === 'hint' ? 'Hint' : 'Feedback';
+        if (popover.titleEl.textContent !== title) {
+            popover.titleEl.textContent = title;
+        }
+        if (popover.bodyEl.textContent !== body) {
+            popover.bodyEl.textContent = body;
+        }
+        if (popover.el.dataset.kind !== p!.kind) {
+            popover.el.dataset.kind = p!.kind;
+        }
+        const left = p!.x + 'px';
+        const top = p!.y + 'px';
+        if (popover.el.style.left !== left) popover.el.style.left = left;
+        if (popover.el.style.top !== top) popover.el.style.top = top;
+        if (popover.el.hidden) popover.el.hidden = false;
     } else {
-        if (!modal.overlay.hidden) modal.overlay.hidden = true;
+        if (!popover.el.hidden) popover.el.hidden = true;
     }
 }

@@ -17,7 +17,8 @@
 //      don't immediately re-persist what we just loaded.
 //   5. Define onUpdate as render + persist. Every event handler triggers
 //      this single callback after mutating state.
-//   6. Wire blanks (blur + input), hints, checkpoints, confidence, submit.
+//   6. Wire blanks (blur + input), hints, mistakes, popover, checkpoints,
+//      confidence, submit.
 // =============================================================================
 
 import { $ } from './dom.js';
@@ -28,7 +29,7 @@ import {
   saveActivityState,
   applyStoredState,
 } from './storage.js';
-import { wireBlanks, wireHints, wireHintModal } from './blanks.js';
+import { wireBlanks, wireHints, wireMistakes, wirePopover } from './blanks.js';
 import { wireCheckpoints } from './checkpoints.js';
 import { wireConfidence } from './confidence.js';
 import { render } from './render.js';
@@ -75,7 +76,8 @@ function bootstrap(): void {
 
   wireBlanks(config.answerFeedback, state, refs, onUpdate);
   wireHints(state, refs, onUpdate);
-  wireHintModal(state, refs, onUpdate);
+  wireMistakes(state, refs, onUpdate);
+  wirePopover(state, refs, onUpdate);
   wireCheckpoints(config, state, refs, onUpdate);
   wireConfidence(state, refs, onUpdate);
 

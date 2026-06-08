@@ -44,6 +44,24 @@ export interface BlankState {
     matchedMistake: string | null;
 }
 
+/** Which kind of popover is open — drives its title + body source. */
+export type PopoverKind = 'hint' | 'mistake';
+
+export interface PopoverState {
+    /** 'hint' shows the blank's authored hint; 'mistake' shows its matched mistake feedback. */
+    kind: PopoverKind;
+    /** blank.id the popover belongs to — its trigger and owning input. */
+    blankId: string;
+    /**
+     * Viewport-fixed position in px (left/top). Seeded beside the trigger
+     * button when the popover opens, then updated as the student drags it.
+     * Always set while the popover is open (the open handler measures the
+     * trigger and writes coordinates), so it's a plain number, not nullable.
+     */
+    x: number;
+    y: number;
+}
+
 export interface BlockState {
     /**
      * Whether this fill_in_blank block's solution slot has been revealed
@@ -71,13 +89,14 @@ export interface RuntimeState {
     /** Current value of the name input (mirrored from .identity-prompt input). */
     studentName: string;
     /**
-     * blank.id of the hint currently shown in the global hint modal, or null
-     * when the modal is closed. Single value (not per-blank) because only one
-     * hint modal is open at a time. Deliberately NOT persisted — an open modal
-     * shouldn't survive a reload (see storage.ts, which snapshots only
-     * blanks/blocks/sections).
+     * The single popover currently open (hint or mistake feedback), or null
+     * when none is open. One-at-a-time is a policy, not a structural limit —
+     * the popover is anchored per-trigger and could become multi-instance
+     * later. Deliberately NOT persisted — an open popover (and its dragged
+     * position) shouldn't survive a reload (see storage.ts, which snapshots
+     * only blanks/blocks/sections).
      */
-    hintModalBlankId: string | null;
+    popover: PopoverState | null;
     /** Per-section status, keyed by section.id. */
     sections: Record<string, SectionState>;
     /** Per-blank status, keyed by blank.id. */
@@ -125,7 +144,7 @@ export function createInitialState(refs: Refs): RuntimeState {
         submitted: false,
         attemptNumber: 1,
         studentName: '',
-        hintModalBlankId: null,
+        popover: null,
         sections,
         blanks,
         blocks,

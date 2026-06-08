@@ -121,22 +121,23 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
 
   '</main>' +
 
-  // Global hint modal (one per page). Hidden until the runtime opens it on a
-  // `?` click; the runtime writes the active blank's hint into .js-hint-modal-body
-  // and reveals the overlay. Closing: click the overlay outside the dialog,
-  // the × button, or Escape (all wired in the runtime). Lives outside <main>
-  // so its fixed-position overlay isn't affected by container styling. Starts
-  // `hidden` so it's invisible (and out of the a11y tree) even if JS never runs.
-  '<div class="js-hint-modal" id="hint-modal" role="dialog" aria-modal="true"' +
-  ' aria-labelledby="hint-modal-title" hidden>' +
-  '<div class="js-hint-modal-dialog" role="document">' +
-  '<div class="hint-modal-header">' +
-  '<h2 class="hint-modal-title" id="hint-modal-title">Hint</h2>' +
-  '<button type="button" class="js-hint-modal-close"' +
-  ' aria-label="Close hint">&times;</button>' +
+  // Shared floating popover (one per page) for hints and mistake feedback.
+  // Hidden until the runtime opens it on a `?` or `!` click; the runtime sets
+  // the title + body and anchors it beside the trigger button, then the
+  // student can drag it by the header. It is NOT modal — no overlay, no page
+  // dimming — so the rest of the activity stays interactive. Closing: the ×
+  // button, Escape, or a click outside the popover/trigger/owning input (all
+  // wired in the runtime). Lives outside <main> so its fixed position isn't
+  // affected by container styling. Starts `hidden` so it's invisible (and out
+  // of the a11y tree) even if JS never runs.
+  '<div class="js-popover" id="activity-popover" role="dialog"' +
+  ' aria-labelledby="popover-title" hidden>' +
+  '<div class="js-popover-header">' +
+  '<h2 class="js-popover-title" id="popover-title"></h2>' +
+  '<button type="button" class="js-popover-close"' +
+  ' aria-label="Close">&times;</button>' +
   '</div>' +
-  '<div class="js-hint-modal-body"></div>' +
-  '</div>' +
+  '<div class="js-popover-body"></div>' +
   '</div>' +
 
   // Runtime config (read by runtime JS)

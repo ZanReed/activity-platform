@@ -25,7 +25,7 @@ import {
     type BlankRef,
     type FillInBlankRef,
     type SectionRef,
-    type HintModalRef,
+    type PopoverRef,
 } from './refs.js';
 import { createInitialState, type RuntimeState } from './state.js';
 import { $$ } from './dom.js';
@@ -93,28 +93,27 @@ export function buildRefs(doc: Document = document): Refs {
         );
     }
 
-    return { blanks, fillInBlanks, sections, hintModal: buildHintModalRef(doc) };
+    return { blanks, fillInBlanks, sections, popover: buildPopoverRef(doc) };
 }
 
 /**
- * Locate the single global hint-modal markup emitted by document.ts. Returns
- * null when any required part is missing — the runtime then treats hint
- * buttons as no-ops rather than throwing. All four nodes must be present for
- * the modal to function, so it's all-or-nothing.
+ * Locate the single shared popover markup emitted by document.ts. Returns
+ * null when any required part is missing — the runtime then treats trigger
+ * buttons as no-ops rather than throwing. All parts must be present for the
+ * popover to function, so it's all-or-nothing.
  */
-function buildHintModalRef(doc: Document): HintModalRef | null {
-    const overlay = doc.querySelector<HTMLElement>('.js-hint-modal');
-    if (!overlay) return null;
-    const dialog = overlay.querySelector<HTMLElement>('.js-hint-modal-dialog');
-    const bodyEl = overlay.querySelector<HTMLElement>('.js-hint-modal-body');
-    const closeButton = overlay.querySelector<HTMLButtonElement>(
-        '.js-hint-modal-close',
-    );
-    if (!dialog || !bodyEl || !closeButton) {
-        warn('Hint modal markup is incomplete; hint buttons will be inert.');
+function buildPopoverRef(doc: Document): PopoverRef | null {
+    const el = doc.querySelector<HTMLElement>('.js-popover');
+    if (!el) return null;
+    const header = el.querySelector<HTMLElement>('.js-popover-header');
+    const titleEl = el.querySelector<HTMLElement>('.js-popover-title');
+    const bodyEl = el.querySelector<HTMLElement>('.js-popover-body');
+    const closeButton = el.querySelector<HTMLButtonElement>('.js-popover-close');
+    if (!header || !titleEl || !bodyEl || !closeButton) {
+        warn('Popover markup is incomplete; hint/mistake buttons will be inert.');
         return null;
     }
-    return { overlay, dialog, bodyEl, closeButton };
+    return { el, header, titleEl, bodyEl, closeButton };
 }
 
 function buildBlankRef(
@@ -134,13 +133,9 @@ function buildBlankRef(
         return null;
     }
 
-    const feedbackEl = wrapper.querySelector<HTMLElement>('.js-blank-feedback');
-    if (!feedbackEl) {
-        warn('Blank ' + blankId + ' has no .js-blank-feedback sibling; skipping.');
-        return null;
-    }
-
     const hintButton = wrapper.querySelector<HTMLButtonElement>('.js-blank-hint');
+    const mistakeButton =
+        wrapper.querySelector<HTMLButtonElement>('.js-blank-mistake');
 
     const answers = (input.dataset.blankAnswers ?? '').split('|').filter(Boolean);
     const strategy = input.dataset.blankStrategy ?? 'list';
@@ -161,8 +156,8 @@ function buildBlankRef(
 
     return {
         input,
-        feedbackEl,
         hintButton,
+        mistakeButton,
         answers,
         strategy,
         hint,

@@ -199,13 +199,13 @@ body {
 .block-problem-body > :last-child { margin-bottom: 0; }
 
 /* The blank-token wrapper keeps an <input class="blank"> and its sibling
- a fford*ances (.js-blank-hint, .js-blank-feedback) on the same inline-flow
+ a fford*ances (.js-blank-hint, .js-blank-mistake) on the same inline-flow
  line, so they can't wrap apart mid-prose. The wrapper is structural only —
  the 'blank' class stays on the <input> itself, so every existing .blank
  selector continues to target the input directly. align-items: baseline lines
  the input baseline up with the surrounding prose; the gap controls spacing
- between input, hint button, and feedback. (Hidden siblings have display: none
-via the 'hidden' attribute and don't participate in the gap.) */
+ between input and its buttons. (Hidden siblings have display: none via the
+'hidden' attribute and don't participate in the gap.) */
 .blank-wrapper {
   display: inline-flex;
   align-items: baseline;
@@ -269,51 +269,93 @@ via the 'hidden' attribute and don't participate in the gap.) */
   outline-offset: 1px;
 }
 
-/* Global hint modal. A single instance lives at the end of body
- (document.ts). The runtime toggles the hidden attribute on .js-hint-modal
- to open/close it. Fixed full-viewport overlay dims the page and centers the
- dialog; the overlay itself is the click-outside-to-close target (the runtime
- closes when the click target is the overlay, not the dialog). z-index sits
- above all activity content. The dialog caps its width for readability and
- scrolls internally if a hint is long, so it stays on-screen on small
- displays. This is the foundation for richer/formatted hint content later. */
-.js-hint-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
+/* Mistake affordance. The red .js-blank-mistake '!' button mirrors the hint
+ button's geometry but is emitted 'hidden' — the runtime reveals it only when
+ a wrong answer matches an authored mistake-feedback entry, and clicking it
+ opens the shared popover with that feedback. Red signals "something's off
+ here" without being as heavy as inline error text. The explicit
+ [hidden] { display: none } overrides the inline-flex display so the button
+ truly disappears (and leaves no gap) until revealed. */
+.js-blank-mistake {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
-  background: rgba(15, 23, 42, 0.55);
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 1px solid var(--color-blank-incorrect-border);
+  border-radius: 50%;
+  background: white;
+  color: var(--color-blank-incorrect-border);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
 }
-.js-hint-modal[hidden] {
+.js-blank-mistake[hidden] {
   display: none;
 }
-.js-hint-modal-dialog {
+.js-blank-mistake:hover {
+  background: var(--color-blank-incorrect-border);
+  color: white;
+}
+.js-blank-mistake:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Shared floating popover (document.ts) for hints and mistake feedback. A
+ single bare panel anchored beside the trigger button that opened it. Unlike
+ the old modal it does NOT dim the page or trap the viewport: position:fixed
+ with explicit left/top (set by the runtime) instead of a full-screen overlay,
+ so the rest of the activity stays interactive while it's open. The runtime
+ seeds left/top beside the trigger and updates them as the student drags the
+ header. z-index sits above all activity content; the panel caps its width for
+ readability and scrolls internally if the text is long. */
+.js-popover {
+  position: fixed;
+  z-index: 1000;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: 60vh;
+  overflow-y: auto;
   background: white;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
-  max-width: 28rem;
-  width: 100%;
-  max-height: 80vh;
-  overflow-y: auto;
-  padding: 1rem 1.25rem 1.25rem;
 }
-.hint-modal-header {
+.js-popover[hidden] {
+  display: none;
+}
+/* The header doubles as the drag handle. touch-action:none lets the runtime's
+ pointer drag work on touch without the browser hijacking it for scrolling;
+ user-select:none stops text selection while dragging. */
+.js-popover-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.5rem;
+  padding: 0.4rem 0.5rem 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
-.hint-modal-title {
+.js-popover-header:active {
+  cursor: grabbing;
+}
+.js-popover-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--color-text);
 }
-.js-hint-modal-close {
+/* Mistake variant: tint the title red to match the '!' trigger. */
+.js-popover[data-kind="mistake"] .js-popover-title {
+  color: var(--color-blank-incorrect-border);
+}
+.js-popover-close {
   flex: none;
   width: 1.75rem;
   height: 1.75rem;
@@ -326,24 +368,21 @@ via the 'hidden' attribute and don't participate in the gap.) */
   line-height: 1;
   cursor: pointer;
 }
-.js-hint-modal-close:hover {
+.js-popover-close:hover {
   background: var(--color-note-bg);
   color: var(--color-text);
 }
-.js-hint-modal-close:focus-visible {
+.js-popover-close:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
-.js-hint-modal-body {
+.js-popover-body {
+  padding: 0.75rem;
   font-size: 0.95rem;
   line-height: 1.5;
   color: var(--color-text);
   white-space: pre-wrap;
 }
-
-/* .js-blank-feedback visible-state styling lands in Stage 13 once the
- r untim*e starts rendering content into it. Until then it stays hidden
- by the 'hidden' attribute on the element. */
 
 /* Confidence rating fieldset (Stage 12 step 3). One per fill-in-blank
  b lock *when hasConfidenceRating is true. Sits inside the problem body
@@ -505,9 +544,9 @@ via the 'hidden' attribute and don't participate in the gap.) */
   .js-checkpoint-btn,
   .js-section-score,
   .js-confidence-rating,
-  .js-blank-feedback,
   .js-blank-hint,
-  .js-hint-modal,
+  .js-blank-mistake,
+  .js-popover,
   .js-solution {
     display: none;
   }

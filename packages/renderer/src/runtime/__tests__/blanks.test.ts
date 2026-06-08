@@ -49,15 +49,12 @@ function buildBlankRef(
     input.setAttribute('data-blank-id', blankId);
     input.setAttribute('data-blank-answers', answers.join('|'));
     input.value = value;
-    const feedbackEl = document.createElement('span');
-    feedbackEl.className = 'js-blank-feedback';
     wrapper.appendChild(input);
-    wrapper.appendChild(feedbackEl);
     document.body.appendChild(wrapper);
     return {
         input,
-        feedbackEl,
         hintButton: null,
+        mistakeButton: null,
         answers,
         strategy: 'list',
         hint: null,
@@ -80,7 +77,7 @@ function buildStateWithBlank(id: string = 'b1'): RuntimeState {
         submitted: false,
         attemptNumber: 1,
         studentName: '',
-        hintModalBlankId: null,
+        popover: null,
         sections: {},
         blanks: { [id]: blankState },
         blocks: {},
@@ -292,7 +289,7 @@ describe('wireBlanks answerFeedback gating', () => {
             blanks: new Map([[id, ref]]),
             fillInBlanks: new Map(),
             sections: new Map(),
-            hintModal: null,
+            popover: null,
         };
     }
 
