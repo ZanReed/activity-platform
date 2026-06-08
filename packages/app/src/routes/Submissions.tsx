@@ -10,10 +10,12 @@
 //     number, each expandable to its own detail.
 //
 // The drill-down maps each response's blank.id back to the problem prompt and
-// answer key from the activity's current published version (buildActivityIndex),
-// so the teacher reads "Problem 3: simplify ____ → answer 3x, student wrote 2x ✗"
-// instead of a raw UUID. Blanks that a later edit removed are labeled as no
-// longer present. No cross-student aggregation here — that's Phase 2.
+// answer key from the exact activity version the student answered (each
+// submission pins its activity_version_id; legacy rows fall back to the current
+// version), so the teacher reads "Problem 3: simplify ____ → answer 3x, student
+// wrote 2x ✗" instead of a raw UUID — and against the right answer key even
+// after a republish. Blanks that a later edit removed are labeled as no longer
+// present. No cross-student aggregation here — that's Phase 2.
 //
 // Identity is Phase 1 link-share: students are grouped by exact display_name.
 // "Bob S" and "Bobby Smith" are two students; roster-canonical dedup is Phase 3.
@@ -45,9 +47,14 @@ const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
     certain: 'Certain',
 };
 
+// Resolve the activity index a submission should be read against: the version
+// the student actually answered, falling back to the current version for legacy
+// rows that predate per-submission version pinning (activity_version_id null).
+type IndexResolver = (versionId: string | null) => ActivityIndex;
+
 interface LoadedData {
     title: string;
-    index: ActivityIndex;
+    resolveIndex: IndexResolver;
     groups: StudentGroup[];
 }
 
@@ -157,10 +164,24 @@ function SubmissionDetail({
     }
 
     const problems = [...byProblem.values()].sort((a, b) => {
+        // The "No longer in this activity" group always sorts last, even below
+        // a real but unnumbered problem (both have sortKey Infinity, and the
+        // removed group's empty prompt would otherwise win the localeCompare).
+        const aRemoved = a.problemId === REMOVED;
+        const bRemoved = b.problemId === REMOVED;
+        if (aRemoved !== bRemoved) return aRemoved ? 1 : -1;
         if (a.sortKey !== b.sortKey) return a.sortKey - b.sortKey;
         return a.prompt.localeCompare(b.prompt);
     });
-    for (const p of problems) p.blanks.sort((a, b) => a.order - b.order);
+    for (const p of problems) {
+        p.blanks.sort((a, b) => {
+            // Break order ties (e.g. multiple orphaned blanks that all default
+            // to order 0) by blankId, so the list is deterministic rather than
+            // dependent on object-key iteration order.
+            if (a.order !== b.order) return a.order - b.order;
+            return a.row.blankId.localeCompare(b.row.blankId);
+        });
+    }
 
     const checkpoints = responses.checkpointResults
     ? Object.entries(responses.checkpointResults)
@@ -169,10 +190,14 @@ function SubmissionDetail({
         info: index.sections.get(sectionId),
         result: r,
     }))
-    .sort(
-        (a, b) =>
-        (a.info?.order ?? Infinity) - (b.info?.order ?? Infinity),
-    )
+    .sort((a, b) => {
+        const ao = a.info?.order ?? Infinity;
+        const bo = b.info?.order ?? Infinity;
+        // Guard Infinity - Infinity = NaN when two checkpoints both
+        // reference sections no longer in the activity.
+        if (ao !== bo) return ao - bo;
+        return a.sectionId.localeCompare(b.sectionId);
+    })
     : [];
 
     const blankCount = Object.keys(responses.blanks).length;
@@ -275,12 +300,15 @@ function Chevron({ open }: { open: boolean }) {
 
 function SummaryRow({
     group,
-    index,
+    resolveIndex,
 }: {
     group: StudentGroup;
-    index: ActivityIndex;
+    resolveIndex: IndexResolver;
 }) {
     const [open, setOpen] = useState(false);
+    // The summary expands the latest attempt, so index against the version that
+    // attempt was answered against.
+    const index = resolveIndex(group.latest.activity_version_id);
     return (
         <>
         <tr
@@ -317,12 +345,13 @@ function SummaryRow({
 
 function AttemptRow({
     row,
-    index,
+    resolveIndex,
 }: {
     row: SubmissionRow;
-    index: ActivityIndex;
+    resolveIndex: IndexResolver;
 }) {
     const [open, setOpen] = useState(false);
+    const index = resolveIndex(row.activity_version_id);
     return (
         <div className="rounded-md border border-slate-200 bg-white">
         <button
@@ -361,11 +390,15 @@ export default function Submissions() {
             setLoadState({ status: 'not_found' });
             return;
         }
+        // Reset synchronously so switching activities (e.g. browser back/forward
+        // between two /submissions URLs) doesn't render the previous activity's
+        // rows under the new id until the fetch resolves.
+        setLoadState({ status: 'loading' });
         let cancelled = false;
         (async () => {
-            // Activity: title + the content to index. The index should reflect
-            // what students submitted against — the current published version —
-            // falling back to the draft if the activity was never published.
+            // Activity: title + the current published content. This is the
+            // fallback index for legacy rows that predate version pinning;
+            // version-pinned rows are indexed against their own version below.
             const { data: actData, error: actErr } = await supabase
             .from('activities')
             .select('id, title, draft_content, current_version_id')
@@ -413,13 +446,13 @@ export default function Submissions() {
                 });
                 return;
             }
-            const index = buildActivityIndex(parsedDoc.data);
+            const fallbackIndex = buildActivityIndex(parsedDoc.data);
 
             // Submissions for this activity. RLS restricts rows to the owner.
             const { data: subData, error: subErr } = await supabase
             .from('submissions')
             .select(
-                'id, display_name, opaque_token, responses, score, submitted_at, attempt_number',
+                'id, display_name, opaque_token, responses, score, submitted_at, attempt_number, activity_version_id',
             )
             .eq('activity_id', id)
             .order('submitted_at', { ascending: false });
@@ -429,10 +462,72 @@ export default function Submissions() {
                 return;
             }
 
-            const rows = (subData ?? []) as SubmissionRow[];
+            // `score` is a Postgres numeric(5,4); PostgREST serializes numeric
+            // as a JSON string, so coerce to a real number here to match
+            // SubmissionRow's typed contract (otherwise comparisons/formatting
+            // operate on strings).
+            const rows: SubmissionRow[] = (
+                (subData ?? []) as Array<
+                    Omit<SubmissionRow, 'score'> & { score: string | number | null }
+                >
+            ).map((r) => ({
+                ...r,
+                score: r.score == null ? null : Number(r.score),
+            }));
+
+            // Index each submission against the version it was actually answered
+            // against. Collect the distinct versions the rows reference (other
+            // than the current one, which fallbackIndex already covers), load
+            // their content, and build one index apiece. Rows with a null or
+            // unparseable/missing version fall back to the current version.
+            const indexByVersion = new Map<string, ActivityIndex>();
+            if (act.current_version_id) {
+                indexByVersion.set(act.current_version_id, fallbackIndex);
+            }
+            const neededVersionIds = [
+                ...new Set(
+                    rows
+                    .map((r) => r.activity_version_id)
+                    .filter(
+                        (v): v is string =>
+                        v != null && !indexByVersion.has(v),
+                    ),
+                ),
+            ];
+            if (neededVersionIds.length > 0) {
+                const { data: versData, error: versErr } = await supabase
+                .from('activity_versions')
+                .select('id, content')
+                .in('id', neededVersionIds);
+                if (cancelled) return;
+                if (versErr) {
+                    setLoadState({ status: 'error', message: versErr.message });
+                    return;
+                }
+                for (const v of (versData ?? []) as Array<{
+                    id: string;
+                    content: unknown;
+                }>) {
+                    const parsed = ActivityDocument.safeParse(v.content);
+                    // A version that no longer parses (e.g. predates a schema
+                    // change) is simply skipped; the resolver falls back to the
+                    // current version for rows that referenced it.
+                    if (parsed.success) {
+                        indexByVersion.set(v.id, buildActivityIndex(parsed.data));
+                    }
+                }
+            }
+
+            const resolveIndex: IndexResolver = (versionId) =>
+            (versionId != null && indexByVersion.get(versionId)) || fallbackIndex;
+
             setLoadState({
                 status: 'ready',
-                data: { title: act.title, index, groups: groupSubmissions(rows) },
+                data: {
+                    title: act.title,
+                    resolveIndex,
+                    groups: groupSubmissions(rows),
+                },
             });
         })();
 
@@ -483,7 +578,7 @@ export default function Submissions() {
         );
     }
 
-    const { title, index, groups } = loadState.data;
+    const { title, resolveIndex, groups } = loadState.data;
     const totalSubmissions = groups.reduce((n, g) => n + g.count, 0);
 
     return (
@@ -564,7 +659,7 @@ export default function Submissions() {
                 </thead>
                 <tbody>
                 {groups.map((g) => (
-                    <SummaryRow key={g.key} group={g} index={index} />
+                    <SummaryRow key={g.key} group={g} resolveIndex={resolveIndex} />
                 ))}
                 </tbody>
                 </table>
@@ -583,7 +678,7 @@ export default function Submissions() {
                     {[...g.attempts]
                         .sort((a, b) => b.attempt_number - a.attempt_number)
                         .map((row) => (
-                            <AttemptRow key={row.id} row={row} index={index} />
+                            <AttemptRow key={row.id} row={row} resolveIndex={resolveIndex} />
                         ))}
                     </div>
                     </div>

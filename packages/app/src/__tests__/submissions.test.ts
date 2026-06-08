@@ -20,6 +20,7 @@ function row(partial: Partial<SubmissionRow>): SubmissionRow {
         score: partial.score ?? null,
         submitted_at: partial.submitted_at ?? '2026-06-01T00:00:00.000Z',
         attempt_number: partial.attempt_number ?? 1,
+        activity_version_id: partial.activity_version_id ?? null,
     };
 }
 
@@ -45,14 +46,10 @@ describe('groupSubmissions', () => {
     });
 
     it('latest = highest attempt_number, best = highest score', () => {
+        // Rows are listed later-attempt-first (as the DB returns them, ordered
+        // submitted_at DESC). This way a buggy impl that just takes the first or
+        // last bucket row — instead of comparing attempt_number/score — fails.
         const groups = groupSubmissions([
-            row({
-                id: U(1),
-                display_name: 'Alice',
-                attempt_number: 1,
-                score: 0.9,
-                submitted_at: '2026-06-01T10:00:00.000Z',
-            }),
             row({
                 id: U(2),
                 display_name: 'Alice',
@@ -60,33 +57,45 @@ describe('groupSubmissions', () => {
                 score: 0.5,
                 submitted_at: '2026-06-01T11:00:00.000Z',
             }),
+            row({
+                id: U(1),
+                display_name: 'Alice',
+                attempt_number: 1,
+                score: 0.9,
+                submitted_at: '2026-06-01T10:00:00.000Z',
+            }),
         ]);
         const alice = groups[0]!;
         expect(alice.latest.id).toBe(U(2)); // attempt 2 is latest
         expect(alice.best.id).toBe(U(1)); // attempt 1 scored higher
     });
 
-    it('treats null score as below any real score for "best"', () => {
+    it('treats null score as below a real zero score for "best"', () => {
+        // The unscored attempt is the LATER one, and the real score is exactly 0.
+        // An impl that coerces null to 0 (instead of below 0) would tie them and
+        // pick the later (unscored) attempt — so this catches `score ?? 0`.
         const groups = groupSubmissions([
-            row({ id: U(1), display_name: 'Alice', attempt_number: 1, score: null }),
-            row({ id: U(2), display_name: 'Alice', attempt_number: 2, score: 0.1 }),
+            row({ id: U(1), display_name: 'Alice', attempt_number: 2, score: null }),
+            row({ id: U(2), display_name: 'Alice', attempt_number: 1, score: 0 }),
         ]);
         expect(groups[0]!.best.id).toBe(U(2));
     });
 
     it('breaks attempt ties by submitted_at', () => {
+        // Later-submitted row listed first, so an impl that just takes the last
+        // bucket row (rather than comparing submitted_at) would fail.
         const groups = groupSubmissions([
-            row({
-                id: U(1),
-                display_name: 'Alice',
-                attempt_number: 1,
-                submitted_at: '2026-06-01T10:00:00.000Z',
-            }),
             row({
                 id: U(2),
                 display_name: 'Alice',
                 attempt_number: 1,
                 submitted_at: '2026-06-01T12:00:00.000Z',
+            }),
+            row({
+                id: U(1),
+                display_name: 'Alice',
+                attempt_number: 1,
+                submitted_at: '2026-06-01T10:00:00.000Z',
             }),
         ]);
         expect(groups[0]!.latest.id).toBe(U(2));
@@ -109,9 +118,11 @@ describe('groupSubmissions', () => {
     });
 
     it('prefers opaque_token as the grouping key when present', () => {
+        // Same token but DIFFERENT display_names: a name-first impl would split
+        // these into two groups, so this actually exercises token precedence.
         const groups = groupSubmissions([
-            row({ id: U(1), opaque_token: 'tok-1', display_name: null }),
-            row({ id: U(2), opaque_token: 'tok-1', display_name: null }),
+            row({ id: U(1), opaque_token: 'tok-1', display_name: 'Alice' }),
+            row({ id: U(2), opaque_token: 'tok-1', display_name: 'Alexandra' }),
         ]);
         expect(groups).toHaveLength(1);
         expect(groups[0]!.count).toBe(2);

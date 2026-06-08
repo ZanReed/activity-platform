@@ -33,6 +33,7 @@ export interface SubmissionRow {
     score: number | null; // 0..1, or null if the runtime couldn't score
     submitted_at: string; // ISO timestamp
     attempt_number: number;
+    activity_version_id: string | null; // version answered against; null for legacy rows
 }
 
 // ---- Grouping ---------------------------------------------------------------
@@ -202,5 +203,8 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
 // 0..1 score → "85%". Null (unscored) → "—".
 export function formatScore(score: number | null): string {
     if (score === null) return '—';
-    return `${Math.round(score * 100)}%`;
+    // Snap to the stored 4-decimal precision before scaling so binary-float
+    // noise (e.g. 0.575 * 100 === 57.4999…) doesn't drop a half-percent.
+    const percent = Math.round(score * 10000) / 100;
+    return `${Math.round(percent)}%`;
 }
