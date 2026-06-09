@@ -41,7 +41,13 @@ export function renderInlineNodes(nodes: InlineNode[]): string {
 // renderInline over the array, except blank tokens are dispatched to
 // renderBlank with their 1-based position (index + total) so each <input>
 // can carry a positional aria-label. Blanks are counted once, up front.
-export function renderFillInBlankContent(content: FillInBlankInline[]): string {
+// showAnswers fills each blank with its canonical answer (the answer-key print
+// variant, Drop C). Defaults to false so every existing caller — the published
+// page, the editor preview — keeps rendering empty inputs unchanged.
+export function renderFillInBlankContent(
+  content: FillInBlankInline[],
+  showAnswers = false,
+): string {
   const total = content.reduce(
     (count, node) => (node.type === 'blank' ? count + 1 : count),
                                0,
@@ -50,7 +56,7 @@ export function renderFillInBlankContent(content: FillInBlankInline[]): string {
   return content
   .map((node) =>
   node.type === 'blank'
-  ? renderBlank(node, ++index, total)
+  ? renderBlank(node, ++index, total, showAnswers)
   : renderInline(node),
   )
   .join('');
@@ -119,7 +125,12 @@ function deriveBlankWidth(answer: string): number {
 // is announced by screen readers as just "edit text", which gives the student
 // no way to tell which blank has focus. A positional label ("Blank 2 of 3")
 // fixes that; a lone blank gets "Fill in the blank" (no awkward "1 of 1").
-function renderBlank(node: BlankToken, index: number, total: number): string {
+function renderBlank(
+  node: BlankToken,
+  index: number,
+  total: number,
+  showAnswers: boolean,
+): string {
   // Width: explicit override if set on the BlankToken, otherwise auto-derive
   // from the canonical answer's length. Drives a CSS variable on the input
   // (--blank-width in ch units). See deriveBlankWidth above for the formula
@@ -131,6 +142,13 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
   // switch to a JSON-encoded data attribute.
   const acceptable = [node.answer, ...node.acceptableAnswers].join('|');
   const label = total > 1 ? `Blank ${index} of ${total}` : 'Fill in the blank';
+
+  // Answer-key variant (Drop C): prefill the input with the canonical answer so
+  // the printed sheet doubles as a key. Only the canonical answer is shown (not
+  // the acceptable-answer alternates) — a key wants one definitive value on the
+  // line. Omitted entirely when showAnswers is false, so the student-facing
+  // input stays empty.
+  const valueAttr = showAnswers ? ' value="' + attr(node.answer) + '"' : '';
 
   // Per-blank feedback layers (rich inline content: formatted text + math).
   // Both are optional; both are read by the runtime on init but produce
@@ -223,6 +241,7 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
     ' data-blank-answers="' + attr(acceptable) + '"' +
     ' aria-label="' + attr(label) + '"' +
     ' style="--blank-width:' + width + 'ch"' +
+    valueAttr +
     ' autocomplete="off"' +
     ' autocapitalize="off"' +
     ' autocorrect="off"' +

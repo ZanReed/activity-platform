@@ -4,6 +4,8 @@ import { attr, escape } from '../html.js';
 
 export interface FillInBlankRenderContext {
   problemNumber: number;
+  /** Answer-key print variant: prefill each blank with its answer (Drop C). */
+  showAnswers?: boolean;
 }
 
 export function renderFillInBlank(
@@ -13,7 +15,7 @@ export function renderFillInBlank(
   const num = block.number ?? ctx.problemNumber;
   // renderFillInBlankContent (not a bare renderInline map) so each blank
   // token is numbered for its positional aria-label.
-  const inner = renderFillInBlankContent(block.content);
+  const inner = renderFillInBlankContent(block.content, ctx.showAnswers ?? false);
 
   // Stage 12 step 3: per-block feedback layers (Stage 9a schema additions).
   //

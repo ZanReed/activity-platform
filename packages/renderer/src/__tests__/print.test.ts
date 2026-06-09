@@ -26,6 +26,38 @@ const PARA_ID = '33333333-3333-4333-8333-333333333333';
 const FIB_WORK_ID = '44444444-4444-4444-8444-444444444444';
 const FIB_PLAIN_ID = '55555555-5555-4555-8555-555555555555';
 const FIB_CONF_ID = '66666666-6666-4666-8666-666666666666';
+const FIB_BLANK_ID = '77777777-7777-4777-8777-777777777777';
+const BLANK_ID = '88888888-8888-4888-8888-888888888888';
+
+// A document with one fill-in-blank carrying a single blank whose canonical
+// answer is "49" and one acceptable alternate ("forty-nine"), for asserting
+// the answer-key (showAnswers) variant.
+function makeBlankDoc(): ActivityDocument {
+    return ActivityDocument.parse({
+        schemaVersion: 1,
+        meta: { title: 'Squares' },
+        sections: [
+            {
+                id: SECTION_ID,
+                blocks: [
+                    {
+                        id: FIB_BLANK_ID,
+                        type: 'fill_in_blank',
+                        content: [
+                            { type: 'text', text: '7 squared is ' },
+                            {
+                                type: 'blank',
+                                id: BLANK_ID,
+                                answer: '49',
+                                acceptableAnswers: ['forty-nine'],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+}
 
 // A document with one confidence-rating fill-in-blank (FIB_CONF_ID) and one
 // plain one (FIB_PLAIN_ID), for asserting the print-only confidence row.
@@ -190,5 +222,21 @@ describe('renderActivityForPrint — print document, no interactive chrome', () 
         expect(html).toContain('class="print-confidence"');
         expect(html).toContain('class="print-confidence-box"');
         expect(html).toContain('Unsure');
+    });
+
+    it('leaves blanks empty by default (student worksheet)', () => {
+        const html = renderActivityForPrint(makeBlankDoc());
+        expect(html).toContain('class="blank"');
+        expect(html).not.toContain('value="49"');
+    });
+
+    it('prefills blanks with the canonical answer when showAnswers is set', () => {
+        const html = renderActivityForPrint(makeBlankDoc(), {
+            showAnswers: true,
+        });
+        // The canonical answer rides as the input value; the acceptable-answer
+        // alternate is NOT shown on the line (only in data-blank-answers).
+        expect(html).toContain('value="49"');
+        expect(html).not.toContain('value="forty-nine"');
     });
 });

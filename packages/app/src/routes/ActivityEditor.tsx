@@ -757,6 +757,12 @@ export default function ActivityEditor() {
             <SaveIndicator status={status} />
             {isPublished && <PublishedLink activityId={id} />}
             <Link
+            to={`/activity/${id}/print`}
+            className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+            >
+            Print
+            </Link>
+            <Link
             to={`/activity/${id}/submissions`}
             className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
             >

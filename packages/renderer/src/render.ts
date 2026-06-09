@@ -31,19 +31,28 @@ type SubmissionMode = 'single' | 'locked' | 'free';
 interface SectionRenderContext {
   nextProblemNumber: () => number;
   submissionMode: SubmissionMode;
+  showAnswers: boolean;
 }
 
-export function renderBody(doc: ActivityDocument): string {
+// opts.showAnswers drives the answer-key print variant (Drop C): blanks render
+// prefilled with their canonical answer. Defaults to false, so the published
+// page and editor preview (both call renderBody(doc)) are unaffected.
+export function renderBody(
+  doc: ActivityDocument,
+  opts: { showAnswers?: boolean } = {},
+): string {
   // Single counter, threaded across sections. Resetting per-section would
   // produce "Problem 1" appearing twice in the same worksheet, which is
   // confusing; this matches what teachers expect from a print worksheet.
   let problemNumber = 0;
   const submissionMode = doc.meta.submissionMode;
+  const showAnswers = opts.showAnswers ?? false;
 
   return doc.sections.map((section) => {
     return renderSection(section, {
       nextProblemNumber: () => ++problemNumber,
                          submissionMode,
+                         showAnswers,
     });
   }).join('');
 }
@@ -58,7 +67,10 @@ function renderSection(section: Section, ctx: SectionRenderContext): string {
     // 1-indexed and matches the position in the auto-counted sequence.
     // Non-numbered blocks don't increment.
     const num = isNumberedBlock(block) ? ctx.nextProblemNumber() : 0;
-    return renderBlock(block, { problemNumber: num });
+    return renderBlock(block, {
+      problemNumber: num,
+      showAnswers: ctx.showAnswers,
+    });
   }).join('');
 
   // Checkpoint contract (Stage 12 step 4).

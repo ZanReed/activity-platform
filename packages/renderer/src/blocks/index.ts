@@ -20,6 +20,8 @@ import { renderBulletList, renderOrderedList } from './lists.js';
 export interface BlockRenderContext {
   /** Auto-incremented across problem and fill_in_blank blocks. */
   problemNumber: number;
+  /** Answer-key print variant: prefill each blank with its answer (Drop C). */
+  showAnswers?: boolean;
 }
 
 export function renderBlock(block: Block, ctx: BlockRenderContext): string {

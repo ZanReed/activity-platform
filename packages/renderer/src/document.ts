@@ -229,11 +229,15 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
 //
 // This is the foundation the app's print route (Drop C) renders client-side —
 // the teacher is printing, not submitting, so the student runtime has no place
-// here. It takes only the document today; Drop C will layer print-time options
-// (preference overrides, an answer-key toggle) on top as an optional argument.
-// Pure (no RenderContext): printing needs no activity id or submission URL.
-export function renderActivityForPrint(doc: ActivityDocument): string {
-  const body = renderBody(doc);
+// here. opts.showAnswers selects the answer-key variant (blanks prefilled with
+// their canonical answer); preference overrides (paper size, columns, …) are
+// applied by the caller mutating doc.meta.print before calling, so they need no
+// argument here. Pure (no RenderContext): printing needs no id or submit URL.
+export function renderActivityForPrint(
+  doc: ActivityDocument,
+  opts: { showAnswers?: boolean } = {},
+): string {
+  const body = renderBody(doc, { showAnswers: opts.showAnswers });
   const print = doc.meta.print;
 
   const headerMeta: string[] = [];
