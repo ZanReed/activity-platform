@@ -26,6 +26,13 @@ import { Link, useParams } from 'react-router';
 import { renderActivityForPrint } from '@activity/renderer';
 import { ActivityDocument, type PrintConfig } from '@activity/schema';
 import { supabase } from '../lib/supabase';
+import { buildFoldableDocument } from '../lib/foldable';
+
+// The two print layouts this route offers. 'worksheet' is the flat, full-page
+// document (renderActivityForPrint, synchronous). 'foldable' is the journal
+// foldable (Drop D): a DOM-measured, paginated, duplex-imposed landscape booklet
+// built client-side — async, because it measures real layout.
+type PrintLayout = 'worksheet' | 'foldable';
 
 const UUID_RE =
 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -106,6 +113,11 @@ export default function ActivityPrint() {
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
     const [overrides, setOverrides] = useState<PrintOverrides>({});
     const [showAnswers, setShowAnswers] = useState(false);
+    const [layout, setLayout] = useState<PrintLayout>('worksheet');
+    const [foldableHtml, setFoldableHtml] = useState('');
+    const [foldableStatus, setFoldableStatus] = useState<
+    'idle' | 'building' | 'error'
+    >('idle');
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
     useEffect(() => {
@@ -182,20 +194,46 @@ export default function ActivityPrint() {
 
     const doc = loadState.status === 'ready' ? loadState.doc : null;
 
-    // The effective print config = saved baseline with any session overrides
-    // shadowed on top. Memoized HTML so we only re-render the (non-trivial)
-    // document string when the doc, an override, or the answer toggle changes.
-    const html = useMemo(() => {
-        if (!doc) return '';
-        const merged: ActivityDocument = {
+    // The effective document = saved baseline with any session print overrides
+    // shadowed on top. Shared by both layouts (the worksheet renders it directly;
+    // the foldable builder measures + paginates it).
+    const mergedDoc = useMemo<ActivityDocument | null>(() => {
+        if (!doc) return null;
+        return {
             ...doc,
-            meta: {
-                ...doc.meta,
-                print: { ...doc.meta.print, ...overrides },
-            },
+            meta: { ...doc.meta, print: { ...doc.meta.print, ...overrides } },
         };
-        return renderActivityForPrint(merged, { showAnswers });
-    }, [doc, overrides, showAnswers]);
+    }, [doc, overrides]);
+
+    // Flat worksheet HTML — synchronous, memoized so the (non-trivial) document
+    // string only rebuilds when the merged doc or the answer toggle changes.
+    const worksheetHtml = useMemo(
+        () => (mergedDoc ? renderActivityForPrint(mergedDoc, { showAnswers }) : ''),
+                                   [mergedDoc, showAnswers],
+    );
+
+    // Journal foldable HTML — async (DOM-measured). Rebuilt whenever the merged
+    // doc or answer toggle changes while the foldable layout is active. The
+    // cancelled guard drops a stale build if inputs change mid-flight.
+    useEffect(() => {
+        if (layout !== 'foldable' || !mergedDoc) return;
+        let cancelled = false;
+        setFoldableStatus('building');
+        buildFoldableDocument(mergedDoc, { showAnswers })
+        .then((built) => {
+            if (cancelled) return;
+            setFoldableHtml(built);
+            setFoldableStatus('idle');
+        })
+        .catch(() => {
+            if (!cancelled) setFoldableStatus('error');
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [layout, mergedDoc, showAnswers]);
+
+    const previewHtml = layout === 'foldable' ? foldableHtml : worksheetHtml;
 
     const handlePrint = () => {
         const win = iframeRef.current?.contentWindow;
@@ -274,6 +312,38 @@ export default function ActivityPrint() {
         Print
         </button>
 
+        <label className="block">
+        <span className={LABEL_CLASS}>Layout</span>
+        <select
+        className={`${FIELD_CLASS} mt-1`}
+        value={layout}
+        onChange={(e) => setLayout(e.target.value as PrintLayout)}
+        >
+        <option value="worksheet">Worksheet (full page)</option>
+        <option value="foldable">Journal foldable</option>
+        </select>
+        </label>
+
+        {layout === 'foldable' && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
+            <p className="font-semibold">Print double-sided to fold.</p>
+            <p className="mt-1">
+            In the print dialog choose <strong>two-sided</strong> and{' '}
+            <strong>flip on long edge</strong>, then fold each sheet down the
+            middle. The blank tab glues into the journal.
+            </p>
+            {foldableStatus === 'building' && (
+                <p className="mt-1 text-amber-700">Laying out pages…</p>
+            )}
+            {foldableStatus === 'error' && (
+                <p className="mt-1 font-medium text-red-700">
+                Couldn't lay out the foldable. Try a different paper size or
+                margin.
+                </p>
+            )}
+            </div>
+        )}
+
         <label className="flex items-center gap-2 text-sm text-slate-700">
         <input
         type="checkbox"
@@ -318,23 +388,29 @@ export default function ActivityPrint() {
         </select>
         </label>
 
-        <label className="block">
-        <span className={LABEL_CLASS}>Columns</span>
-        <select
-        className={`${FIELD_CLASS} mt-1`}
-        value={eff.columns}
-        onChange={(e) =>
-            setOverrides((o) => ({
-                ...o,
-                columns: Number(e.target.value),
-            }))
-        }
-        >
-        <option value={1}>1 column</option>
-        <option value={2}>2 columns</option>
-        <option value={3}>3 columns</option>
-        </select>
-        </label>
+        {/* Columns is a worksheet-only setting: it drives CSS column-count on
+            the flat page. The foldable packs blocks vertically into fixed fold
+            regions, which CSS columns can't express, so the control is hidden
+            there rather than shown-but-inert. */}
+        {layout !== 'foldable' && (
+            <label className="block">
+            <span className={LABEL_CLASS}>Columns</span>
+            <select
+            className={`${FIELD_CLASS} mt-1`}
+            value={eff.columns}
+            onChange={(e) =>
+                setOverrides((o) => ({
+                    ...o,
+                    columns: Number(e.target.value),
+                }))
+            }
+            >
+            <option value={1}>1 column</option>
+            <option value={2}>2 columns</option>
+            <option value={3}>3 columns</option>
+            </select>
+            </label>
+        )}
 
         <NumberControl
         label="Margin (in)"
@@ -374,7 +450,7 @@ export default function ActivityPrint() {
         <iframe
         ref={iframeRef}
         title="Print preview"
-        srcDoc={html}
+        srcDoc={previewHtml}
         className="h-[80vh] w-full rounded-lg border border-slate-300 bg-white shadow-sm"
         />
         </div>

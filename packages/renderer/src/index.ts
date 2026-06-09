@@ -26,6 +26,13 @@ export { renderActivityForPrint } from './document.js';
 // button, no runtime JS). Used by the editor preview integration.
 export { renderBody } from './render.js';
 
+// Stylesheets the renderer inlines into its documents. Exported so a client-side
+// consumer that assembles its OWN document (the app's journal-foldable print
+// builder, Drop D) can reuse the exact block CSS + KaTeX CSS the renderer emits,
+// keeping its offscreen measurement and printed output faithful to the renderer.
+export { blockStyles } from './runtime/styles.js';
+export { katexCss } from './generated/katex-css.js';
+
 // Re-export the schema. Validating inputs against ActivityDocument is part
 // of the renderer's contract — anything that doesn't parse here is a
 // programmer error, and we want callers to validate before rendering.
