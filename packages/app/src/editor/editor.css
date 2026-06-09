@@ -434,6 +434,21 @@
     line-height: 1.4;
 }
 
+.fill-in-blank-block__settings-number {
+    width: 8rem;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid rgb(203 213 225); /* slate-300 */
+    border-radius: 0.25rem;
+    color: rgb(15 23 42); /* slate-900 */
+}
+
+.fill-in-blank-block__settings-number:focus {
+    outline: 2px solid rgb(59 130 246); /* blue-500 */
+    outline-offset: -1px;
+    border-color: transparent;
+}
+
 /* =============================================================================
  *  InlineRichTextEditor (Phase 2 — rich popover fields)
  *  -----------------------------------------------------------------------

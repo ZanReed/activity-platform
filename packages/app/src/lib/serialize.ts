@@ -189,6 +189,14 @@ function tiptapFillInBlankToActivity(node: JSONContent): FillInBlankBlock {
         block.solution = rawSolution as InlineNode[];
     }
 
+    // workSpace is optional (absent = inherit the activity print default). Only
+    // carry a non-negative number; null/absent leaves the key off so round-trip
+    // equality holds for problems with no per-problem override.
+    const rawWorkSpace = node.attrs?.workSpace;
+    if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
+        block.workSpace = rawWorkSpace;
+    }
+
     return block;
 }
 
@@ -489,6 +497,7 @@ function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
             solution: block.solution ?? null,
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
+            workSpace: block.workSpace ?? null,
         },
         content: activityFillInBlankInlineToTiptap(block.content),
     };

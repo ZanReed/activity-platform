@@ -90,6 +90,26 @@ export function renderFillInBlank(
   '</fieldset>'
   : '';
 
+  // Print-only confidence row. The interactive fieldset above is hidden in
+  // @media print (it's a radio widget — nothing to mark with a pen), so for a
+  // printed worksheet we emit a parallel hand-markable row: the same three
+  // labels, each preceded by an empty bordered box to tick. Screen-hidden by
+  // default (.print-confidence display:none), revealed only under @media print
+  // — the mirror image of the fieldset's print rule. aria-hidden because it's
+  // a visual print artifact with no interactive/AT role (the live fieldset
+  // already carries the accessible control on screen).
+  const printConfidence = hasConfidenceRating
+  ? '<div class="print-confidence" aria-hidden="true">' +
+  '<span class="print-confidence-label">How confident are you?</span>' +
+  '<span class="print-confidence-option">' +
+  '<span class="print-confidence-box"></span> Unsure</span>' +
+  '<span class="print-confidence-option">' +
+  '<span class="print-confidence-box"></span> Think so</span>' +
+  '<span class="print-confidence-option">' +
+  '<span class="print-confidence-box"></span> Certain</span>' +
+  '</div>'
+  : '';
+
   // Solution slot. Rich content pre-rendered into the slot (KaTeX runs
   // server-side); the runtime toggles the `hidden` attribute when the
   // section is checked. Initial `hidden` means the student never sees the
@@ -118,6 +138,7 @@ export function renderFillInBlank(
     '<div class="block-problem-body">' +
     inner +
     confidenceFieldset +
+    printConfidence +
     solutionSlot +
     '</div>' +
     '</div>'

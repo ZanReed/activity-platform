@@ -57,8 +57,13 @@ export default function FillInBlankView({
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
     const hasSolution = solution.length > 0;
     const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
+    const workSpace =
+        typeof node.attrs.workSpace === 'number'
+            ? (node.attrs.workSpace as number)
+            : null;
+    const hasWorkSpace = workSpace !== null;
     const isEditable = editor.isEditable;
-    const isConfigured = hasSolution || hasConfidenceRating;
+    const isConfigured = hasSolution || hasConfidenceRating || hasWorkSpace;
     // The `selected` prop is only true for a NodeSelection of the whole block.
     // Clicking into a problem puts the cursor *inside* its editable content (a
     // TextSelection), so `selected` stays false and a footer gated on it never
@@ -106,9 +111,13 @@ export default function FillInBlankView({
                         <span aria-hidden="true">⚙</span> Settings
                         {!settingsOpen && isConfigured && (
                             <span className="fill-in-blank-block__settings-badge">
-                                {hasSolution && 'solution'}
-                                {hasSolution && hasConfidenceRating && ' · '}
-                                {hasConfidenceRating && 'confidence'}
+                                {[
+                                    hasSolution && 'solution',
+                                    hasConfidenceRating && 'confidence',
+                                    hasWorkSpace && 'work space',
+                                ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
                             </span>
                         )}
                     </button>
@@ -149,6 +158,37 @@ export default function FillInBlankView({
                                 />
                                 <span>Ask for a confidence rating</span>
                             </label>
+                            <div className="fill-in-blank-block__settings-field">
+                                <span className="fill-in-blank-block__settings-label">
+                                    Print work space
+                                </span>
+                                <span className="fill-in-blank-block__settings-help">
+                                    Blank space left below this problem when
+                                    printed (in rem). Leave empty to use the
+                                    worksheet default.
+                                </span>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    step={0.5}
+                                    className="fill-in-blank-block__settings-number"
+                                    value={workSpace ?? ''}
+                                    placeholder="default"
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        if (v === '') {
+                                            updateAttributes({ workSpace: null });
+                                            return;
+                                        }
+                                        const n = Number(v);
+                                        if (Number.isFinite(n) && n >= 0) {
+                                            updateAttributes({ workSpace: n });
+                                        }
+                                    }}
+                                    onKeyDown={(e) => e.stopPropagation()}
+                                    disabled={!isEditable}
+                                />
+                            </div>
                         </div>
                     )}
                 </div>

@@ -30,6 +30,7 @@ import {
     ActivityDocument,
     createEmptyDocument,
     type ActivityMeta,
+    type PrintConfig,
 } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
@@ -319,6 +320,234 @@ function ActivitySettings({
     );
 }
 
+// The header toggles, in render order. `custom` is handled separately (it's a
+// free-text list, not a boolean), so it isn't in this table.
+const PRINT_HEADER_FIELDS: {
+    key: 'name' | 'date' | 'period' | 'class' | 'score';
+    label: string;
+}[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'date', label: 'Date' },
+    { key: 'period', label: 'Period' },
+    { key: 'class', label: 'Class' },
+    { key: 'score', label: 'Score' },
+];
+
+// A labelled number input that commits only valid, in-range values. Empty and
+// out-of-range input is ignored (the field keeps its last good value) rather
+// than coercing to 0 or NaN — teachers shouldn't be able to type the layout
+// into an invalid state. Decimal entry works via the spinner or whole/half
+// steps; the schema clamps on save regardless.
+function PrintNumberField({
+    id,
+    label,
+    help,
+    value,
+    min,
+    step,
+    onCommit,
+}: {
+    id: string;
+    label: string;
+    help?: string;
+    value: number;
+    min: number;
+    step: number;
+    onCommit: (n: number) => void;
+}) {
+    return (
+        <div>
+        <label className={SETTINGS_LABEL_CLASS} htmlFor={id}>
+        {label}
+        </label>
+        <input
+        id={id}
+        type="number"
+        min={min}
+        step={step}
+        className={SELECT_CLASS}
+        value={value}
+        onChange={(e) => {
+            const raw = e.target.value;
+            if (raw === '') return;
+            const n = Number(raw);
+            if (Number.isFinite(n) && n >= min) onCommit(n);
+        }}
+        />
+        {help && <p className={SETTINGS_HELP_CLASS}>{help}</p>}
+        </div>
+    );
+}
+
+// Print & worksheet layout controls. Like ActivitySettings, this just surfaces
+// fields that already round-trip through draft_content (meta.print is embedded
+// whole by tiptapToActivity). paperSize + margin drive the printed @page;
+// columns/fontSize/problemSpacing/workSpace become --print-* container vars;
+// the header object toggles the printed Name/Date/… line. Per-problem work
+// space lives on each FillInBlank block (FillInBlankView), not here — this
+// workSpace is the worksheet-wide default.
+function PrintSettings({
+    meta,
+    onChange,
+}: {
+    meta: ActivityMeta;
+    onChange: (next: ActivityMeta) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const print = meta.print;
+    // Local draft for the comma-separated custom-label input so a trailing
+    // comma or space survives mid-type (the stored array filters empties).
+    const [customDraft, setCustomDraft] = useState(() =>
+    print.header.custom.join(', '),
+    );
+
+    const setPrint = (patch: Partial<PrintConfig>) =>
+    onChange({ ...meta, print: { ...print, ...patch } });
+    const setHeader = (patch: Partial<PrintConfig['header']>) =>
+    setPrint({ header: { ...print.header, ...patch } });
+
+    return (
+        <div className="mt-3 rounded-md border border-slate-200 bg-white">
+        <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+        >
+        <span>
+        <span aria-hidden="true">🖨</span> Print &amp; worksheet layout
+        </span>
+        <span className="text-xs text-slate-400">{open ? '▲' : '▼'}</span>
+        </button>
+        {open && (
+            <div className="border-t border-slate-200 px-3 py-3">
+            <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+            <label className={SETTINGS_LABEL_CLASS} htmlFor="print-paper">
+            Paper size
+            </label>
+            <select
+            id="print-paper"
+            className={SELECT_CLASS}
+            value={print.paperSize}
+            onChange={(e) =>
+                setPrint({
+                    paperSize: e.target.value as PrintConfig['paperSize'],
+                })
+            }
+            >
+            <option value="letter">Letter (8.5 × 11 in)</option>
+            <option value="a4">A4 (210 × 297 mm)</option>
+            </select>
+            </div>
+
+            <div>
+            <label className={SETTINGS_LABEL_CLASS} htmlFor="print-columns">
+            Columns
+            </label>
+            <select
+            id="print-columns"
+            className={SELECT_CLASS}
+            value={print.columns}
+            onChange={(e) => setPrint({ columns: Number(e.target.value) })}
+            >
+            <option value={1}>1 column</option>
+            <option value={2}>2 columns</option>
+            <option value={3}>3 columns</option>
+            </select>
+            </div>
+
+            <PrintNumberField
+            id="print-margin"
+            label="Margin (in)"
+            value={print.margin}
+            min={0}
+            step={0.25}
+            onCommit={(n) => setPrint({ margin: n })}
+            />
+
+            <PrintNumberField
+            id="print-font-size"
+            label="Body text (pt)"
+            value={print.fontSize}
+            min={1}
+            step={1}
+            onCommit={(n) => setPrint({ fontSize: n })}
+            />
+
+            <PrintNumberField
+            id="print-problem-spacing"
+            label="Space between problems (rem)"
+            value={print.problemSpacing}
+            min={0}
+            step={0.5}
+            onCommit={(n) => setPrint({ problemSpacing: n })}
+            />
+
+            <PrintNumberField
+            id="print-work-space"
+            label="Work space per problem (rem)"
+            help="Default blank space below each problem. Override on individual problems in their settings."
+            value={print.workSpace}
+            min={0}
+            step={0.5}
+            onCommit={(n) => setPrint({ workSpace: n })}
+            />
+            </div>
+
+            <div className="mt-4">
+            <span className={SETTINGS_LABEL_CLASS}>Header fields</span>
+            <p className={SETTINGS_HELP_CLASS}>
+            Blank lines printed at the top of the worksheet for students to
+            fill in.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+            {PRINT_HEADER_FIELDS.map(({ key, label }) => (
+                <label
+                key={key}
+                className="inline-flex items-center gap-1.5 text-sm text-slate-700"
+                >
+                <input
+                type="checkbox"
+                checked={print.header[key]}
+                onChange={(e) => setHeader({ [key]: e.target.checked })}
+                />
+                <span>{label}</span>
+                </label>
+            ))}
+            </div>
+            <label
+            className={`${SETTINGS_LABEL_CLASS} mt-3 block`}
+            htmlFor="print-custom-fields"
+            >
+            Custom fields
+            </label>
+            <input
+            id="print-custom-fields"
+            type="text"
+            className={`${SELECT_CLASS} mt-1`}
+            placeholder="e.g. Homeroom, Teacher"
+            value={customDraft}
+            onChange={(e) => {
+                setCustomDraft(e.target.value);
+                setHeader({
+                    custom: e.target.value
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                });
+            }}
+            />
+            <p className={SETTINGS_HELP_CLASS}>
+            Comma-separated extra labels, each printed with a blank line.
+            </p>
+            </div>
+            </div>
+        )}
+        </div>
+    );
+}
+
 export default function ActivityEditor() {
     const { id } = useParams();
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
@@ -547,6 +776,8 @@ export default function ActivityEditor() {
             />
 
             <ActivitySettings meta={meta} onChange={setMeta} />
+
+            <PrintSettings meta={meta} onChange={setMeta} />
 
             {meta.submissionMode === 'locked' &&
             hasNonCheckpointSection(tiptapJson ?? loadState.tiptap) && (

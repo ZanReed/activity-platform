@@ -25,6 +25,30 @@ const SECTION_ID = '22222222-2222-4222-8222-222222222222';
 const PARA_ID = '33333333-3333-4333-8333-333333333333';
 const FIB_WORK_ID = '44444444-4444-4444-8444-444444444444';
 const FIB_PLAIN_ID = '55555555-5555-4555-8555-555555555555';
+const FIB_CONF_ID = '66666666-6666-4666-8666-666666666666';
+
+// A document with one confidence-rating fill-in-blank (FIB_CONF_ID) and one
+// plain one (FIB_PLAIN_ID), for asserting the print-only confidence row.
+function makeConfidenceDoc(): ActivityDocument {
+    return ActivityDocument.parse({
+        schemaVersion: 1,
+        meta: { title: 'Radicals' },
+        sections: [
+            {
+                id: SECTION_ID,
+                blocks: [
+                    {
+                        id: FIB_CONF_ID,
+                        type: 'fill_in_blank',
+                        content: [],
+                        hasConfidenceRating: true,
+                    },
+                    { id: FIB_PLAIN_ID, type: 'fill_in_blank', content: [] },
+                ],
+            },
+        ],
+    });
+}
 
 // Build + validate a document with a known body marker, one fill-in-blank
 // block carrying a per-problem work-space override and one without. printMeta
@@ -121,6 +145,22 @@ describe('renderActivity — print layer on the published page', () => {
         expect(html).toContain('identity-prompt');
         expect(html).toContain('submit-area');
     });
+
+    it('emits a hand-markable confidence row only for confidence-rating problems', () => {
+        const html = renderActivity(makeConfidenceDoc(), CTX);
+        // The print-only row (paper twin of the interactive fieldset) plus its
+        // three tick-boxes and labels.
+        expect(html).toContain('class="print-confidence"');
+        expect(html).toContain('class="print-confidence-box"');
+        expect(html).toContain('Unsure');
+        expect(html).toContain('Think so');
+        expect(html).toContain('Certain');
+        // The interactive fieldset still ships for the on-screen page.
+        expect(html).toContain('class="js-confidence-rating"');
+        // The plain block (no confidence rating) gets no print-confidence row.
+        const plainChunk = html.slice(html.indexOf(FIB_PLAIN_ID));
+        expect(plainChunk).not.toContain('print-confidence');
+    });
 });
 
 describe('renderActivityForPrint — print document, no interactive chrome', () => {
@@ -143,5 +183,12 @@ describe('renderActivityForPrint — print document, no interactive chrome', () 
         expect(html).not.toContain('class="identity-prompt"');
         expect(html).not.toContain('class="submit-area"');
         expect(html).not.toContain('id="activity-popover"');
+    });
+
+    it('includes the hand-markable confidence row', () => {
+        const html = renderActivityForPrint(makeConfidenceDoc());
+        expect(html).toContain('class="print-confidence"');
+        expect(html).toContain('class="print-confidence-box"');
+        expect(html).toContain('Unsure');
     });
 });

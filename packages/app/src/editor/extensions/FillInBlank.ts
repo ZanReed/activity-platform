@@ -128,6 +128,22 @@ export const FillInBlank = Node.create({
                                        ? { 'data-skills': JSON.stringify(attributes.skills) }
                                        : {},
                                                },
+                                               // Per-problem print work space (rem). null = inherit the
+                                               // activity-level print.workSpace default; a number overrides it
+                                               // for this problem only. See the renderer's per-block override.
+                                               workSpace: {
+                                                   default: null as number | null,
+                                                       parseHTML: (element) => {
+                                                           const raw = element.getAttribute('data-work-space');
+                                                           if (raw === null) return null;
+                                                           const n = Number(raw);
+                                                           return Number.isFinite(n) && n >= 0 ? n : null;
+                                                       },
+                                       renderHTML: (attributes) =>
+                                       typeof attributes.workSpace === 'number'
+                                       ? { 'data-work-space': String(attributes.workSpace) }
+                                       : {},
+                                               },
                                            };
                                        },
 

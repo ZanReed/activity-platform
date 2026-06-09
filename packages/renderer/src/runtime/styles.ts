@@ -516,6 +516,11 @@ body {
  revealed (with its child styles) inside @media print below. */
 .print-header { display: none; }
 
+/* Print-only hand-markable confidence row. Hidden on screen — the live control
+ is the interactive .js-confidence-rating fieldset; this is the paper equivalent
+ (checkboxes to tick by pen), revealed inside @media print below. */
+.print-confidence { display: none; }
+
 /* =============================================================================
  B aseline* print layer (Stage 11)
  -----------------------------------------------------------------------------
@@ -591,6 +596,36 @@ body {
   }
   .print-field-score .print-field-line {
     min-width: 6ch;
+  }
+
+  /* Print-only confidence row: the paper equivalent of the interactive
+   fieldset (which is hidden just below). A wrapping row of labeled empty
+   boxes the student ticks by hand. */
+  .print-confidence {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 1.25rem;
+    margin-top: 0.5rem;
+    font-size: 0.9em;
+  }
+  .print-confidence-label {
+    font-weight: 600;
+  }
+  .print-confidence-option {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    white-space: nowrap;
+  }
+  .print-confidence-box {
+    display: inline-block;
+    width: 0.85em;
+    height: 0.85em;
+    border: 1px solid black;
+    /* Nudge the box onto the text baseline (inline-block sits on it by its
+     bottom edge, which reads as floating high next to the cap height). */
+    transform: translateY(0.1em);
   }
 
   /* Hide interactive elements. The js-* selectors are documented in

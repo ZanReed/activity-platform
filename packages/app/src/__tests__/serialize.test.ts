@@ -861,6 +861,57 @@ describe('lists', () => {
             expect(fib.attrs?.solution).toBeNull();
             expect(fib.attrs?.hasConfidenceRating).toBe(false);
             expect(fib.attrs?.skills).toEqual([]);
+            expect(fib.attrs?.workSpace).toBeNull();
+        });
+    });
+
+    describe('fill_in_blank workSpace override (Drop B)', () => {
+        it('round-trips a per-problem work-space override', () => {
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: { id: 'fib-1', workSpace: 3 },
+                        content: [
+                            {
+                                type: 'blank',
+                                attrs: { id: 'b1', answer: '5', acceptableAnswers: [] },
+                            },
+                        ],
+                    },
+                ],
+            };
+            const activity = tiptapToActivity(doc, META);
+            const block = activity.sections[0]!.blocks[0]!;
+            if (block.type !== 'fill_in_blank') throw new Error('unreachable');
+            expect(block.workSpace).toBe(3);
+
+            const back = roundTrip(doc);
+            const fib = back.content?.[0] as JSONContent;
+            expect(fib.attrs?.workSpace).toBe(3);
+        });
+
+        it('leaves workSpace off the block when absent (inherits default)', () => {
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: { id: 'fib-1' },
+                        content: [
+                            {
+                                type: 'blank',
+                                attrs: { id: 'b1', answer: '5', acceptableAnswers: [] },
+                            },
+                        ],
+                    },
+                ],
+            };
+            const activity = tiptapToActivity(doc, META);
+            const block = activity.sections[0]!.blocks[0]!;
+            if (block.type !== 'fill_in_blank') throw new Error('unreachable');
+            expect(block.workSpace).toBeUndefined();
         });
     });
 });
