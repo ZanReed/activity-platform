@@ -511,6 +511,11 @@ body {
 .submit-status.success { color: var(--color-success); }
 .submit-status.error   { color: var(--color-warning); }
 
+/* Print-only header (Name/Date/… fill-in lines). Hidden on screen — the live
+ on-screen name field is .identity-prompt; this is the paper equivalent and is
+ revealed (with its child styles) inside @media print below. */
+.print-header { display: none; }
+
 /* =============================================================================
  B aseline* print layer (Stage 11)
  -----------------------------------------------------------------------------
@@ -530,9 +535,63 @@ body {
  (--print-font-size) reserved for the post-Stage-16 print work.
  ============================================================================= */
 @media print {
-  @page { margin: 0.5in; }
+  /* @page (paper size + margin) is emitted PER-DOCUMENT by the renderer
+   (printPageStyle in document.ts) — it is configurable (letter/A4 + margin)
+   and @page rules can't reliably read CSS custom properties, so it can't be a
+   static rule here. */
 
   body { padding: 0; }
+
+  /* Configured print layout. The renderer sets these --print-* vars on
+   .activity-container (printContainerVars); this is where they take effect.
+   The var() fallbacks keep a config-less context sane (e.g. the editor
+   preview, which renders the body without the container that carries the
+   vars). max-width is dropped so single- and multi-column layouts fill the
+   page box the @page margins define — the on-screen 760px cap is a
+   reading-comfort device with no place on paper, and A4 / multi-column need
+   the full width. */
+  .activity-container {
+    max-width: none;
+    font-size: var(--print-font-size, 11pt);
+    column-count: var(--print-columns, 1);
+    column-gap: 2rem;
+  }
+
+  /* Print-only header: a wrapping row of labeled fill-in lines (Name, Date,
+   …) across the top of the sheet, ruled off from the body below. */
+  .print-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid black;
+    font-size: 0.95em;
+  }
+  .print-field {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+  .print-field-label {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .print-field-line {
+    display: inline-block;
+    min-width: 8ch;
+    border-bottom: 1px solid black;
+  }
+  /* Name and free-form custom fields get a longer writing line; the score
+   field needs only a short one. */
+  .print-field-name .print-field-line,
+  .print-field-custom .print-field-line {
+    min-width: 14ch;
+  }
+  .print-field-score .print-field-line {
+    min-width: 6ch;
+  }
 
   /* Hide interactive elements. The js-* selectors are documented in
    R UNT*IME.md; some not all emitted yet, listed here so the baseline is
@@ -560,10 +619,19 @@ body {
   }
 
   /* Page-break integrity. Modern break-* names; legacy page-break-* aliases
-   omit*ted (RUNTIME.md support matrix is Chrome/Firefox/Safari/Edge). */
+   omit*ted (RUNTIME.md support matrix is Chrome/Firefox/Safari/Edge).
+   Problem spacing and per-problem work space are configured here:
+   --print-problem-spacing sets the vertical gap between problems;
+   --print-work-space pads blank working room below each problem (a
+   fill-in-blank block may override it per-problem with its own inline
+   --print-work-space). break-inside: avoid keeps a problem (and its work
+   space) whole across page and column breaks. */
   .block-problem,
   .block-fill-in-blank {
     break-inside: avoid;
+    margin-top: var(--print-problem-spacing, 1.25rem);
+    margin-bottom: var(--print-problem-spacing, 1.25rem);
+    padding-bottom: var(--print-work-space, 0);
   }
   .activity-section {
     break-before: auto; /* explicit: flow naturally, don't force a page */

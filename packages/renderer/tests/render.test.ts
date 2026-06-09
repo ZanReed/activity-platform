@@ -92,8 +92,10 @@ describe('Activity container + config blob (Stage 12 step 5)', () => {
     // from a worksheet from a review without runtime involvement.
     const doc = createEmptyDocument({ title: 'T', activityType: 'exit_ticket' });
     const html = renderActivity(doc, ctx);
+    // Not pinning the closing '>' — the container also carries a style attr
+    // with the --print-* vars now (print feature).
     expect(html).toContain(
-      '<main class="activity-container" data-activity-type="exit_ticket">',
+      '<main class="activity-container" data-activity-type="exit_ticket"',
     );
   });
 

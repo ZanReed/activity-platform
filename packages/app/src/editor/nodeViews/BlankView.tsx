@@ -28,9 +28,12 @@ import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 // Keep these in sync — both editor and renderer derive width from answer
 // length when no explicit width is set. The +1 prevents very short answers
 // from looking cramped; the Math.max floor of 4 keeps single-character
-// answers from showing as a 2ch sliver.
+// answers from showing as a 2ch sliver; the Math.min ceiling of
+// MAX_BLANK_WIDTH stops a long canonical answer from blowing out the line
+// (and, on the published page, a multi-column print column).
+const MAX_BLANK_WIDTH = 24;
 function deriveBlankWidth(answer: string): number {
-    return Math.max(answer.length + 1, 4);
+    return Math.min(Math.max(answer.length + 1, 4), MAX_BLANK_WIDTH);
 }
 
 export default function BlankView({ node, selected }: NodeViewProps) {

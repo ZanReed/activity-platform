@@ -17,6 +17,11 @@
 export { renderActivity } from './document.js';
 export type { RenderContext } from './document.js';
 
+// Print-oriented document renderer: same body, no interactive runtime/submit
+// chrome, carrying the configured print layer. Foundation for the app's print
+// route (Drop C).
+export { renderActivityForPrint } from './document.js';
+
 // Body-only renderer (no <html>/<head>/<body> wrapper, no header, no submit
 // button, no runtime JS). Used by the editor preview integration.
 export { renderBody } from './render.js';

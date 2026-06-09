@@ -82,6 +82,63 @@ export type Section = z.infer<typeof Section>;
 // expressions", "factoring quadratics", "graphing parabolas". A teacher who
 // wants to use TEKS or CCSS codes can — the field doesn't validate against
 // any framework. Phase 5 marketplace adds controlled vocabulary on top.
+//
+// print is the teacher-configurable print layer (see PrintConfig below). It
+// is always present after parse (default {}), so every consumer can read
+// doc.meta.print.* without an undefined check; documents stored before this
+// field existed get the defaults applied on read. The defaults keep the
+// Stage 11 baseline page geometry (single column, 0.5in margin, letter) and
+// add the print typography Stage 11 deliberately deferred to this feature
+// (11pt body, 1rem problem spacing) — so a freshly published page prints in a
+// sensible default style, and the teacher tunes from there.
+
+// PrintHeader: which labeled fill-in lines appear at the top of a printed
+// sheet. Name + Date are the near-universal pair, so they default on; the
+// rest default off. custom holds extra teacher-authored labels (e.g.
+// "Block", "Teacher") rendered as their own fill-in lines. The header is
+// print-only — it never shows on screen (the on-screen identity prompt is the
+// live name field); see renderPrintHeader + the @media print rules.
+export const PrintHeader = z.object({
+  name: z.boolean().default(true),
+                                    date: z.boolean().default(true),
+                                    period: z.boolean().default(false),
+                                    class: z.boolean().default(false),
+                                    score: z.boolean().default(false),
+                                    custom: z.array(z.string()).default([]),
+});
+export type PrintHeader = z.infer<typeof PrintHeader>;
+
+// PrintConfig: the teacher's print settings for an activity. Every field is
+// defaulted so PrintConfig.parse({}) yields a complete, baseline-equivalent
+// config — that is what ActivityMeta.print falls back to.
+//
+//   paperSize      — 'letter' | 'a4'. Drives the @page size keyword. Default
+//                    letter for now (NZ/A4 is a one-line flip later); emitted
+//                    as a LITERAL @page rule, never a CSS var, because @page
+//                    rules cannot reliably read custom properties.
+//   columns        — 1..3. column-count in print; 1 is a no-op (single col).
+//   workSpace      — rem of blank space below each problem for hand-working.
+//                    Activity-level default; a fill-in-blank block may override
+//                    it per-problem via FillInBlankBlock.workSpace.
+//   fontSize       — pt. Applied to .activity-container in print only.
+//   problemSpacing — rem of vertical margin around each problem in print.
+//   margin         — inches. The @page margin (literal, like paperSize).
+//   header         — see PrintHeader.
+//
+// columns/workSpace/fontSize/problemSpacing ride as --print-* CSS vars on the
+// container (normal selectors can read them); paperSize/margin are emitted as
+// a per-document literal @page rule.
+export const PrintConfig = z.object({
+  paperSize: z.enum(['letter', 'a4']).default('letter'),
+                                     columns: z.number().int().min(1).max(3).default(1),
+                                     workSpace: z.number().min(0).default(0),
+                                     fontSize: z.number().positive().default(11),
+                                     problemSpacing: z.number().min(0).default(1),
+                                     margin: z.number().min(0).default(0.5),
+                                     header: PrintHeader.default({}),
+});
+export type PrintConfig = z.infer<typeof PrintConfig>;
+
 export const ActivityMeta = z.object({
   title: z.string().min(1),
                                      course: z.string().default('Algebra II'),
@@ -92,6 +149,7 @@ export const ActivityMeta = z.object({
                                      activityType: z.enum(['worksheet', 'exit_ticket', 'warm_up', 'review']).default('worksheet'),
                                      answerFeedback: z.enum(['immediate', 'on_check']).default('on_check'),
                                      skills: z.array(z.string()).default([]),
+                                     print: PrintConfig.default({}),
 });
 export type ActivityMeta = z.infer<typeof ActivityMeta>;
 

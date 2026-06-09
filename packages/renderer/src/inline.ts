@@ -98,18 +98,20 @@ function renderInlineMath(node: InlineMathNode): string {
 
 // Width formula for the blank input. Used when no explicit width is set on
 // the BlankToken — produces an input sized to roughly match the canonical
-// answer's character count, with a +1 to leave breathing room and a floor
-// of 4 to keep single-character answers from looking like a sliver. The
-// editor's BlankView.tsx uses the IDENTICAL formula so an authored chip
-// matches the published input. Stage 15 may add an author UI for explicit
-// width overrides; until then this default produces visually consistent
-// sizing across authoring and published views.
+// answer's character count, with a +1 to leave breathing room, a floor of 4
+// to keep single-character answers from looking like a sliver, and a ceiling
+// of MAX_BLANK_WIDTH so a long canonical answer can't blow out the inline
+// flow — an unclamped width breaks line wrapping in prose and, worse, can
+// exceed a column in multi-column print. Past the ceiling the input scrolls
+// its text rather than growing. The editor's BlankView.tsx uses the IDENTICAL
+// formula so an authored chip matches the published input.
 //
 // IMPORTANT: keep this in sync with deriveBlankWidth() in
 // packages/app/src/editor/nodeViews/BlankView.tsx. The two formulas
 // MUST agree or author preview drifts from student view.
+const MAX_BLANK_WIDTH = 24;
 function deriveBlankWidth(answer: string): number {
-  return Math.max(answer.length + 1, 4);
+  return Math.min(Math.max(answer.length + 1, 4), MAX_BLANK_WIDTH);
 }
 
 // index/total are the blank's 1-based position within its fill_in_blank block.

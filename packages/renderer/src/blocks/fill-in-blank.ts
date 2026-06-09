@@ -54,6 +54,17 @@ export function renderFillInBlank(
   ? ' data-skills="' + attr(JSON.stringify(skills)) + '"'
   : '';
 
+  // Per-problem print work space (rem). Emitted only when the author set an
+  // explicit override; it shadows the activity-level --print-work-space for
+  // this block's subtree (CSS custom-property inheritance), and the @media
+  // print rule on .block-fill-in-blank reads it as padding-bottom. Absent →
+  // the block inherits the container's default. Inert on screen. The value is
+  // a schema-validated non-negative number, so direct interpolation is safe.
+  const workSpaceStyle =
+  block.workSpace !== undefined
+  ? ' style="--print-work-space:' + block.workSpace + 'rem"'
+  : '';
+
   // Confidence fieldset (one per block; rendered only when
   // hasConfidenceRating is true). Sits inside the problem body so it
   // aligns under the problem number with the rest of the body content.
@@ -101,6 +112,7 @@ export function renderFillInBlank(
     ' data-block-id="' + attr(block.id) + '"' +
     ratingAttr +
     skillsAttr +
+    workSpaceStyle +
     '>' +
     '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
     '<div class="block-problem-body">' +

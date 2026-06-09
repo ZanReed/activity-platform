@@ -24,6 +24,13 @@ import { FillInBlankInline, InlineNode } from '../inline.js';
 //   - skills: universal skill tags (see ActivityMeta.skills). Editor UI for
 //     this field is Phase 2; field exists in Phase 1 so per-skill analytics
 //     can reach back to Phase 1 problems when the editor lands.
+//   - workSpace: per-problem override (in rem) for the blank working space
+//     printed below this problem. Optional with NO default on purpose: an
+//     absent value means "inherit the activity-level print.workSpace", which
+//     is exactly the CSS-custom-property inheritance the renderer relies on
+//     (the block sets its own --print-work-space only when this is present).
+//     A default here would pin every block to a concrete value and defeat
+//     that inheritance. Print-only; ignored on screen.
 export const FillInBlankBlock = z.object({
   id: z.string().uuid(),
                                          type: z.literal('fill_in_blank'),
@@ -32,5 +39,6 @@ export const FillInBlankBlock = z.object({
                                          solution: z.array(InlineNode).optional(),
                                          hasConfidenceRating: z.boolean().default(false),
                                          skills: z.array(z.string()).default([]),
+                                         workSpace: z.number().min(0).optional(),
 });
 export type FillInBlankBlock = z.infer<typeof FillInBlankBlock>;

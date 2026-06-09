@@ -33,7 +33,7 @@
 // from environment.
 // =============================================================================
 
-import type { ActivityDocument } from '@activity/schema';
+import type { ActivityDocument, PrintConfig, PrintHeader } from '@activity/schema';
 import { escape, attr } from './html.js';
 import { renderBody } from './render.js';
 import { blockStyles } from './runtime/styles.js';
@@ -49,8 +49,61 @@ export interface RenderContext {
   submissionEndpoint: string;
 }
 
+// ---- Print helpers ----------------------------------------------------------
+// Shared by the published page (renderActivity) and the print-only document
+// (renderActivityForPrint). The split mirrors the CSS-property limitation:
+// paperSize + margin can't be CSS custom properties (the @page rule can't read
+// them reliably), so they go out as a literal per-document @page rule; the
+// rest ride as --print-* vars on the container, where ordinary @media print
+// selectors can read them. See PrintConfig in @activity/schema.
+
+// A standalone <style> carrying the per-document @page rule. size + margin are
+// the two values @page needs and the two that can't be CSS vars. Values are
+// schema-validated numbers / an enum, so no escaping is required.
+function printPageStyle(print: PrintConfig): string {
+  const size = print.paperSize === 'a4' ? 'A4' : 'letter';
+  return '<style>@page{size:' + size + ';margin:' + print.margin + 'in;}</style>';
+}
+
+// The inline style value (just the declarations) setting the --print-* vars on
+// .activity-container. Inert on screen — only @media print rules read them.
+// workSpace seeds the activity-wide default; a fill-in-blank block can override
+// it per-problem by setting its own --print-work-space (CSS var inheritance).
+function printContainerVars(print: PrintConfig): string {
+  return (
+    '--print-columns:' + print.columns + ';' +
+    '--print-work-space:' + print.workSpace + 'rem;' +
+    '--print-font-size:' + print.fontSize + 'pt;' +
+    '--print-problem-spacing:' + print.problemSpacing + 'rem;'
+  );
+}
+
+// The print-only header: a row of labeled fill-in lines. Hidden on screen (CSS
+// .print-header { display:none }), shown in @media print. Returns '' when no
+// fields are enabled so an empty header box never prints. custom labels are
+// teacher text and are escaped; the field keys are static.
+function renderPrintHeader(header: PrintHeader): string {
+  const field = (key: string, label: string): string =>
+  '<span class="print-field print-field-' + key + '">' +
+  '<span class="print-field-label">' + escape(label) + ':</span>' +
+  '<span class="print-field-line"></span>' +
+  '</span>';
+
+  const fields: string[] = [];
+  if (header.name) fields.push(field('name', 'Name'));
+  if (header.date) fields.push(field('date', 'Date'));
+  if (header.period) fields.push(field('period', 'Period'));
+  if (header.class) fields.push(field('class', 'Class'));
+  if (header.score) fields.push(field('score', 'Score'));
+  for (const label of header.custom) fields.push(field('custom', label));
+
+  if (fields.length === 0) return '';
+  return '<div class="print-header" aria-hidden="true">' + fields.join('') + '</div>';
+}
+
 export function renderActivity(doc: ActivityDocument, ctx: RenderContext): string {
   const body = renderBody(doc);
+  const print = doc.meta.print;
 
   // Embedded JSON config that the runtime reads at startup.
   // Per-render fields (from RenderContext) plus activity-level behavior
@@ -87,13 +140,21 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     // renderer emits — a CDN <link> drifted and let the raw MathML show twice.
     '<style>' + katexCss + '</style>' +
     '<style>' + blockStyles + '</style>' +
+    // Per-document @page rule (paper size + margin). Literal, not a CSS var:
+    // @page can't reliably read custom properties. See printPageStyle.
+    printPageStyle(print) +
     '</head>' +
     '<body>' +
     // data-activity-type is the CSS hook for activity-type variants. The
     // attribute value is constrained by the schema enum (worksheet |
-    // exit_ticket | warm_up | review); attr() is defensive regardless.
+    // exit_ticket | warm_up | review); attr() is defensive regardless. The
+    // inline style carries the --print-* vars consumed by @media print.
     '<main class="activity-container"' +
-    ' data-activity-type="' + attr(doc.meta.activityType) + '">' +
+    ' data-activity-type="' + attr(doc.meta.activityType) + '"' +
+    ' style="' + printContainerVars(print) + '">' +
+
+    // Print-only header (Name/Date/… fill-in lines). display:none on screen.
+    renderPrintHeader(print.header) +
 
     // Header
     '<header class="activity-header">' +
@@ -152,6 +213,57 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   // constant by scripts/bundle-renderer.mjs; see runtime/generated/.
   '<script>' + runtimeJs + '</script>' +
 
+  '</body>' +
+  '</html>'
+  );
+}
+
+// =============================================================================
+// renderActivityForPrint — a self-contained, print-oriented HTML document.
+// -----------------------------------------------------------------------------
+// Same body as renderActivity (one renderer, not two — same renderBody path),
+// but stripped of everything interactive: no runtime <script>, no activity
+// config blob, no identity prompt, no submit area, no popover. It carries the
+// same print layer (dynamic @page, --print-* container vars, print header) so
+// it prints identically to the published page's print output.
+//
+// This is the foundation the app's print route (Drop C) renders client-side —
+// the teacher is printing, not submitting, so the student runtime has no place
+// here. It takes only the document today; Drop C will layer print-time options
+// (preference overrides, an answer-key toggle) on top as an optional argument.
+// Pure (no RenderContext): printing needs no activity id or submission URL.
+export function renderActivityForPrint(doc: ActivityDocument): string {
+  const body = renderBody(doc);
+  const print = doc.meta.print;
+
+  const headerMeta: string[] = [];
+  headerMeta.push(escape(doc.meta.course));
+  if (doc.meta.unit) headerMeta.push(escape(doc.meta.unit));
+
+  return (
+    '<!DOCTYPE html>' +
+    '<html lang="en">' +
+    '<head>' +
+    '<meta charset="utf-8" />' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1" />' +
+    '<title>' + escape(doc.meta.title) + '</title>' +
+    '<style>' + katexCss + '</style>' +
+    '<style>' + blockStyles + '</style>' +
+    printPageStyle(print) +
+    '</head>' +
+    '<body>' +
+    '<main class="activity-container"' +
+    ' data-activity-type="' + attr(doc.meta.activityType) + '"' +
+    ' style="' + printContainerVars(print) + '">' +
+    renderPrintHeader(print.header) +
+    '<header class="activity-header">' +
+    '<h1>' + escape(doc.meta.title) + '</h1>' +
+  (headerMeta.length > 0
+  ? '<div class="meta">' + headerMeta.join(' &middot; ') + '</div>'
+  : '') +
+  '</header>' +
+  body +
+  '</main>' +
   '</body>' +
   '</html>'
   );

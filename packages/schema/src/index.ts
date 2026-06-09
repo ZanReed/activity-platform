@@ -39,6 +39,8 @@ export {
   ActivityMeta,
   ActivityDocument,
   ReferencePanel,
+  PrintHeader,
+  PrintConfig,
 } from './document.js';
 
 // Submissions
