@@ -76,7 +76,7 @@ function makeBlankRef(
         mistakeButton: null,
         answers,
         strategy: 'list',
-        hint: null,
+        hintContent: null,
         mistakeFeedback: [],
         blockId,
         sectionId,
@@ -105,7 +105,6 @@ function makeBlockRef(
     return {
         el,
         blankIds,
-        solution,
         solutionEl,
         hasConfidenceRating: false,
         confidenceFieldset: null,

@@ -674,10 +674,24 @@ describe('lists', () => {
                 id: 'blank-1',
                 answer: '2x + 6',
                 acceptableAnswers: ['2x+6', '6 + 2x'],
-                hint: 'Distribute the 2.',
+                hint: [{ type: 'text', text: 'Distribute the 2.', marks: [] }],
                 mistakeFeedback: [
-                    { match: '2x + 3', feedback: 'Did you forget to distribute to the 3?' },
-                    { match: 'x + 6', feedback: 'Distribute the 2 to both terms.' },
+                    {
+                        match: '2x + 3',
+                        feedback: [
+                            {
+                                type: 'text',
+                                text: 'Did you forget to distribute to the 3?',
+                                marks: [],
+                            },
+                        ],
+                    },
+                    {
+                        match: 'x + 6',
+                        feedback: [
+                            { type: 'text', text: 'Distribute the 2 to both terms.', marks: [] },
+                        ],
+                    },
                 ],
             };
             const doc: JSONContent = {
@@ -743,7 +757,13 @@ describe('lists', () => {
                         type: 'fillInBlank',
                         attrs: {
                             id: 'fib-1',
-                            solution: 'Distribute the 2 to get 2x + 6.',
+                            solution: [
+                                {
+                                    type: 'text',
+                                    text: 'Distribute the 2 to get 2x + 6.',
+                                    marks: [],
+                                },
+                            ],
                             hasConfidenceRating: true,
                             skills: ['distributing', 'simplifying'],
                         },
@@ -763,7 +783,9 @@ describe('lists', () => {
             };
             const result = roundTrip(doc);
             const fib = result.content?.[0] as JSONContent;
-            expect(fib.attrs?.solution).toBe('Distribute the 2 to get 2x + 6.');
+            expect(fib.attrs?.solution).toEqual([
+                { type: 'text', text: 'Distribute the 2 to get 2x + 6.', marks: [] },
+            ]);
             expect(fib.attrs?.hasConfidenceRating).toBe(true);
             expect(fib.attrs?.skills).toEqual(['distributing', 'simplifying']);
         });
@@ -776,7 +798,9 @@ describe('lists', () => {
                         type: 'fillInBlank',
                         attrs: {
                             id: 'fib-1',
-                            solution: 'Worked answer.',
+                            solution: [
+                                { type: 'text', text: 'Worked answer.', marks: [] },
+                            ],
                             hasConfidenceRating: true,
                             skills: ['factoring'],
                         },
@@ -797,7 +821,9 @@ describe('lists', () => {
             const block = activity.sections[0]!.blocks[0]!;
             expect(block.type).toBe('fill_in_blank');
             if (block.type !== 'fill_in_blank') throw new Error('unreachable');
-            expect(block.solution).toBe('Worked answer.');
+            expect(block.solution).toEqual([
+                { type: 'text', text: 'Worked answer.', marks: [] },
+            ]);
             expect(block.hasConfidenceRating).toBe(true);
             expect(block.skills).toEqual(['factoring']);
         });
@@ -832,7 +858,7 @@ describe('lists', () => {
             // And the reverse direction emits explicit defaults for the editor.
             const back = roundTrip(doc);
             const fib = back.content?.[0] as JSONContent;
-            expect(fib.attrs?.solution).toBe('');
+            expect(fib.attrs?.solution).toBeNull();
             expect(fib.attrs?.hasConfidenceRating).toBe(false);
             expect(fib.attrs?.skills).toEqual([]);
         });

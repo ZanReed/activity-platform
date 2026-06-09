@@ -71,7 +71,7 @@ export function checkSection(
         const blockRef = refs.fillInBlanks.get(blockId);
         const blockState = state.blocks[blockId];
         if (!blockRef || !blockState) continue;
-        if (blockRef.solution !== null) {
+        if (blockRef.solutionEl !== null) {
             blockState.solutionRevealed = true;
         }
     }

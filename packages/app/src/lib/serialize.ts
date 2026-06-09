@@ -47,6 +47,13 @@ import type {
 } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 
+// Canonical inline content (rich text + inline math) as the schema models it.
+// Used for the rich popover fields — blank hint, mistake feedback, problem
+// solution — which the editor stores as InlineNode[] and serialize passes
+// through verbatim. Re-exported from this bridge module so editor components
+// can name the type without importing @activity/schema directly.
+export type InlineNodes = InlineNode[];
+
 // Marks the schema accepts. Tiptap marks not in this set (e.g., strike) are
 // silently dropped.
 const SUPPORTED_MARKS: ReadonlySet<Mark> = new Set<Mark>([
@@ -172,12 +179,14 @@ function tiptapFillInBlankToActivity(node: JSONContent): FillInBlankBlock {
         : [],
     };
 
-    // solution is optional in the schema — only carry it when non-empty so the
-    // saved document doesn't accrue a phantom empty-string key and round-trip
-    // equality holds for problems without a solution.
+    // solution is optional in the schema — stored as canonical InlineNode[] in
+    // the Tiptap attrs (written by the nested mini-editor), so it passes
+    // straight through. Only carry it when non-empty so the saved document
+    // doesn't accrue a phantom empty key and round-trip equality holds for
+    // problems without a solution.
     const rawSolution = node.attrs?.solution;
-    if (typeof rawSolution === 'string' && rawSolution.length > 0) {
-        block.solution = rawSolution;
+    if (Array.isArray(rawSolution) && rawSolution.length > 0) {
+        block.solution = rawSolution as InlineNode[];
     }
 
     return block;
@@ -233,7 +242,7 @@ function tiptapListItemToActivity(node: JSONContent): ListItem | null {
     return item;
 }
 
-function tiptapInlineToActivity(content: JSONContent[]): InlineNode[] {
+export function tiptapInlineToActivity(content: JSONContent[]): InlineNode[] {
     return content
     .map(tiptapInlineNodeToActivity)
     .filter((n): n is InlineNode => n !== null);
@@ -313,19 +322,23 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
         acceptableAnswers,
     };
 
+    // hint and each mistakeFeedback entry's feedback are stored as canonical
+    // InlineNode[] in the Tiptap attrs (the nested mini-editor writes them in
+    // that form), so they pass straight through. Only carry them when
+    // non-empty so round-trip equality holds for blanks without them.
     const rawHint = node.attrs?.hint;
-    if (typeof rawHint === 'string' && rawHint.length > 0) {
-        result.hint = rawHint;
+    if (Array.isArray(rawHint) && rawHint.length > 0) {
+        result.hint = rawHint as InlineNode[];
     }
 
     const rawFeedback = node.attrs?.mistakeFeedback;
     if (Array.isArray(rawFeedback)) {
         const cleaned = rawFeedback.filter(
-            (p): p is { match: string; feedback: string } =>
+            (p): p is { match: string; feedback: InlineNode[] } =>
             p &&
             typeof p === 'object' &&
             typeof p.match === 'string' &&
-            typeof p.feedback === 'string' &&
+            Array.isArray(p.feedback) &&
             p.match.length > 0 &&
             p.feedback.length > 0,
         );
@@ -473,7 +486,7 @@ function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
         type: 'fillInBlank',
         attrs: {
             id: block.id,
-            solution: block.solution ?? '',
+            solution: block.solution ?? null,
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
         },
@@ -481,7 +494,7 @@ function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
     };
 }
 
-function activityInlineToTiptap(content: InlineNode[]): JSONContent[] {
+export function activityInlineToTiptap(content: InlineNode[]): JSONContent[] {
     return content.map(activityInlineNodeToTiptap);
 }
 

@@ -29,7 +29,9 @@ declare module '@tiptap/core' {
 //   - id: stable UUID auto-assigned at insertion. The serialize layer mints
 //     fresh UUIDs on every round trip (existing convention); the in-session
 //     id keeps NodeView identity stable while editing.
-//   - solution: worked explanation shown post-check (Stage 15). Plain string.
+//   - solution: worked explanation shown post-check (Stage 15). Stored as
+//     canonical InlineNode[] (rich text + inline math); opaque JSON here, with
+//     serialize/the nested mini-editor owning its shape.
 //   - hasConfidenceRating: when true, the block asks for a confidence rating
 //     before checking (Stage 15).
 //   - skills: universal skill tags. Carried through round-trips so imported
@@ -78,12 +80,25 @@ export const FillInBlank = Node.create({
                                        attributes.id ? { 'data-block-id': attributes.id } : {},
                                                },
                                                solution: {
-                                                   default: '',
-                                                       parseHTML: (element) => element.getAttribute('data-solution') ?? '',
-                                       renderHTML: (attributes) =>
-                                       attributes.solution
-                                       ? { 'data-solution': attributes.solution }
-                                       : {},
+                                                   default: null as unknown[] | null,
+                                                       parseHTML: (element) => {
+                                                           const raw = element.getAttribute('data-solution');
+                                                           if (!raw) return null;
+                                                           try {
+                                                               const parsed = JSON.parse(raw);
+                                                               return Array.isArray(parsed) && parsed.length > 0
+                                                               ? parsed
+                                                               : null;
+                                                           } catch {
+                                                               return null;
+                                                           }
+                                                       },
+                                       renderHTML: (attributes) => {
+                                           const v = attributes.solution as unknown[] | null;
+                                           return Array.isArray(v) && v.length > 0
+                                           ? { 'data-solution': JSON.stringify(v) }
+                                           : {};
+                                       },
                                                },
                                                hasConfidenceRating: {
                                                    default: false,

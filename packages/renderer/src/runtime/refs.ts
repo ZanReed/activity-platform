@@ -32,10 +32,19 @@ export interface BlankRef {
     answers: string[];
     /** Scoring strategy name (defaults to 'list' when attribute is absent). */
     strategy: string;
-    /** Teacher-authored hint text, mirroring data-hint. Null when absent. */
-    hint: string | null;
-    /** Parsed mistakeFeedback (empty array when attribute is absent or malformed). */
-    mistakeFeedback: Array<{ match: string; feedback: string }>;
+    /**
+     * The .js-blank-hint-content <template> holding the hint's pre-rendered
+     * rich content. Null when the blank has no hint. Cloned into the popover
+     * body on open (never re-rendered — KaTeX already ran server-side).
+     */
+    hintContent: HTMLTemplateElement | null;
+    /**
+     * Authored mistake-feedback entries, in document order. Each pairs the
+     * `match` string (for wrong-answer matching) with the .js-blank-mistake-
+     * content <template> holding that entry's pre-rendered rich content.
+     * Empty array when the blank has no authored mistake feedback.
+     */
+    mistakeFeedback: Array<{ match: string; content: HTMLTemplateElement }>;
     /** ID of the parent fill_in_blank block. */
     blockId: string;
     /** ID of the section the parent block belongs to. */
@@ -48,9 +57,11 @@ export interface FillInBlankRef {
     el: HTMLElement;
     /** IDs of every blank inside this block (in document order). */
     blankIds: string[];
-    /** Teacher-authored solution text — null when not authored. */
-    solution: string | null;
-    /** The .js-solution slot the runtime reveals at check time — null when no solution. */
+    /**
+     * The .js-solution slot (holding pre-rendered rich content) the runtime
+     * reveals at check time — null when no solution was authored. Its mere
+     * presence is the "has a solution" signal; there is no separate string.
+     */
     solutionEl: HTMLElement | null;
     /** Whether the block surfaces a confidence-rating fieldset. */
     hasConfidenceRating: boolean;

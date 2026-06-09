@@ -1,5 +1,5 @@
 import type { FillInBlankBlock } from '@activity/schema';
-import { renderFillInBlankContent } from '../inline.js';
+import { renderFillInBlankContent, renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
 
 export interface FillInBlankRenderContext {
@@ -18,12 +18,13 @@ export function renderFillInBlank(
   // Stage 12 step 3: per-block feedback layers (Stage 9a schema additions).
   //
   //   solution: optional teacher-authored worked explanation for the whole
-  //     problem (one solution covers all blanks). Revealed by the runtime
-  //     only after the section is checked (RUNTIME.md "Things NOT to do" —
-  //     don't reveal solutions before checking). data-solution on the
-  //     block is the runtime read contract; the .js-solution slot holds
-  //     the same text statically, hidden, ready to be revealed by
-  //     toggling the `hidden` attribute. Same pattern as hint text.
+  //     problem (one solution covers all blanks), as rich inline content
+  //     (formatted text + math). Revealed by the runtime only after the
+  //     section is checked (RUNTIME.md "Things NOT to do" — don't reveal
+  //     solutions before checking). The .js-solution slot holds the
+  //     pre-rendered content statically, hidden, ready to be revealed by
+  //     toggling the `hidden` attribute. The runtime keys off the slot's
+  //     presence (no data-solution attribute needed).
   //
   //   hasConfidenceRating: when true, ONE confidence fieldset per block
   //     (not per blank — the field lives on FillInBlankBlock and applies
@@ -41,10 +42,10 @@ export function renderFillInBlank(
   //     dashboard features land. Most Phase 1 blocks will have an empty
   //     skills array and thus no data-skills attribute.
   const solution = block.solution;
+  const hasSolution = solution && solution.length > 0;
   const hasConfidenceRating = block.hasConfidenceRating;
   const skills = block.skills;
 
-  const solutionAttr = solution ? ' data-solution="' + attr(solution) + '"' : '';
   const ratingAttr = hasConfidenceRating
   ? ' data-has-confidence-rating="true"'
   : '';
@@ -78,17 +79,18 @@ export function renderFillInBlank(
   '</fieldset>'
   : '';
 
-  // Solution slot. Static text rendered into the slot (escaped); the
-  // Stage 13 runtime toggles the `hidden` attribute when the section is
-  // checked. Initial `hidden` means the student never sees the solution
-  // at page load even if the runtime fails to initialize — fail-closed.
-  // data-for-block keys the slot to its block for runtime lookup by
-  // relation (no DOM-tree walking needed).
-  const solutionSlot = solution
+  // Solution slot. Rich content pre-rendered into the slot (KaTeX runs
+  // server-side); the runtime toggles the `hidden` attribute when the
+  // section is checked. Initial `hidden` means the student never sees the
+  // solution at page load even if the runtime fails to initialize —
+  // fail-closed. data-for-block keys the slot to its block for runtime
+  // lookup by relation (no DOM-tree walking needed). The slot's mere
+  // presence is the runtime's "has a solution" signal.
+  const solutionSlot = hasSolution
   ? '<div class="js-solution"' +
   ' data-for-block="' + attr(block.id) + '"' +
   ' hidden>' +
-  escape(solution) +
+  renderInlineNodes(solution) +
   '</div>'
   : '';
 
@@ -97,7 +99,6 @@ export function renderFillInBlank(
     ' data-block-category="question"' +
     ' data-block-type="fill_in_blank"' +
     ' data-block-id="' + attr(block.id) + '"' +
-    solutionAttr +
     ratingAttr +
     skillsAttr +
     '>' +

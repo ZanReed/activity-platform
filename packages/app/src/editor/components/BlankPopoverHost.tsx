@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import type { Editor } from '@tiptap/react';
 import { NodeSelection } from 'prosemirror-state';
 import BlankEditPopover from './BlankEditPopover';
+import type { InlineNodes } from '../../lib/serialize';
 
 // ============================================================================
 // BlankPopoverHost — root-level popover orchestrator for blank chips.
@@ -42,8 +43,8 @@ interface SelectedBlankState {
     blankId: string;
     answer: string;
     acceptableAnswers: string[];
-    hint: string | undefined;
-    mistakeFeedback: Array<{ match: string; feedback: string }> | undefined;
+    hint: InlineNodes | undefined;
+    mistakeFeedback: Array<{ match: string; feedback: InlineNodes }> | undefined;
 }
 
 interface ChangeOptions {
@@ -90,9 +91,9 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             const answer = (node.attrs.answer as string) ?? '';
             const acceptableAnswers =
                 (node.attrs.acceptableAnswers as string[]) ?? [];
-            const hint = node.attrs.hint as string | undefined;
+            const hint = node.attrs.hint as InlineNodes | undefined;
             const mistakeFeedback = node.attrs.mistakeFeedback as
-                | Array<{ match: string; feedback: string }>
+                | Array<{ match: string; feedback: InlineNodes }>
                 | undefined;
 
             setSelectedBlank((prev) => {
@@ -103,7 +104,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                     prev.answer === answer &&
                     arraysEqual(prev.acceptableAnswers, acceptableAnswers) &&
                     prev.hint === hint &&
-                    feedbackEqual(prev.mistakeFeedback, mistakeFeedback)
+                    prev.mistakeFeedback === mistakeFeedback
                 ) {
                     return prev;
                 }
@@ -147,9 +148,9 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             attrs: Partial<{
                 answer: string;
                 acceptableAnswers: string[];
-                hint: string | undefined;
+                hint: InlineNodes | undefined;
                 mistakeFeedback:
-                    | Array<{ match: string; feedback: string }>
+                    | Array<{ match: string; feedback: InlineNodes }>
                     | undefined;
             }>,
             options?: ChangeOptions,
@@ -173,6 +174,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
         <BlankEditPopover
             referenceElement={referenceElement}
             isOpen={true}
+            blankId={selectedBlank.blankId}
             initialAnswer={selectedBlank.answer}
             initialAcceptableAnswers={selectedBlank.acceptableAnswers}
             initialHint={selectedBlank.hint}
@@ -187,20 +189,6 @@ function arraysEqual<T>(a: T[], b: T[]): boolean {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
         if (a[i] !== b[i]) return false;
-    }
-    return true;
-}
-
-function feedbackEqual(
-    a: Array<{ match: string; feedback: string }> | undefined,
-    b: Array<{ match: string; feedback: string }> | undefined,
-): boolean {
-    if (a === b) return true;
-    if (!a || !b) return false;
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-        if (a[i]?.match !== b[i]?.match) return false;
-        if (a[i]?.feedback !== b[i]?.feedback) return false;
     }
     return true;
 }

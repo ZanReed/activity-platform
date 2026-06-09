@@ -28,6 +28,15 @@ export function renderInline(node: InlineNode): string {
   }
 }
 
+// Renders an InlineNode array to a single HTML string. Used for rich feedback
+// fields (hint, mistakeFeedback, solution) that carry formatted text + inline
+// math — the same alphabet as block prose. KaTeX runs here, server-side, so
+// the runtime never needs it: the output is stashed in a hidden <template> and
+// cloned into the popover on demand.
+export function renderInlineNodes(nodes: InlineNode[]): string {
+  return nodes.map(renderInline).join('');
+}
+
 // Renders the inline content of a fill_in_blank block. Equivalent to mapping
 // renderInline over the array, except blank tokens are dispatched to
 // renderBlank with their 1-based position (index + total) so each <input>
@@ -121,37 +130,38 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
   const acceptable = [node.answer, ...node.acceptableAnswers].join('|');
   const label = total > 1 ? `Blank ${index} of ${total}` : 'Fill in the blank';
 
-  // Per-blank feedback layers (Stage 9a schema additions, emitted Stage 12
-  // step 2). Both are optional; both are read by the runtime on init but
-  // produce visible content only after a checkpoint check (Stage 13 work).
+  // Per-blank feedback layers (rich inline content: formatted text + math).
+  // Both are optional; both are read by the runtime on init but produce
+  // visible content only after a checkpoint check.
   //
   //   hint:
   //     Static teacher-authored nudge, available to the student via an
-  //     always-visible `?` button. The text rides on data-hint (the runtime's
-  //     read source per RUNTIME.md); clicking the button opens the shared
-  //     popover (emitted by document.ts) and the runtime copies this blank's
-  //     data-hint into it. The button is emitted only when there is a
-  //     non-empty hint.
+  //     always-visible `?` button. Its rich content is pre-rendered here
+  //     (KaTeX runs server-side) into a hidden <template class="js-blank-
+  //     hint-content"> sitting in the wrapper. Clicking the button opens the
+  //     shared popover (emitted by document.ts) and the runtime clones this
+  //     template into it. The button + template are emitted only when a hint
+  //     is present and non-empty.
   //
   //   mistakeFeedback:
-  //     Array of {match, feedback} pairs. JSON-encoded into a single
-  //     data-mistake-feedback attribute. The runtime parses it once at init;
-  //     when a wrong answer matches an entry it reveals the `!` button (first
-  //     match wins, per RUNTIME.md), and clicking that button opens the shared
-  //     popover with the matched feedback. Omitted when the array is empty or
-  //     undefined — the absence of the attribute is the signal "no targeted
-  //     feedback to consider".
+  //     Array of {match, feedback} pairs. Each entry's `feedback` is
+  //     pre-rendered into its own <template class="js-blank-mistake-content"
+  //     data-match="..."> in document order. The runtime matches a wrong
+  //     answer against the templates' data-match (first match wins), reveals
+  //     the `!` button, and clones the matching template into the popover.
   //
-  // Empty-string hints and empty-array mistakeFeedback are treated as
-  // "absent": no button to reveal an empty hint, no attribute (and no `!`
-  // button) for an empty list. The schema permits both (hint is
-  // z.string().optional() with no .min(1); mistakeFeedback is
-  // z.array(...).optional() with no .min(1)), so a teacher saving a stub
-  // field shouldn't surface a useless control. Both buttons are dialog
-  // openers (aria-haspopup="dialog" + aria-controls pointing at the popover).
+  // Empty hints and empty-array mistakeFeedback are treated as "absent": no
+  // button and no template for an empty hint, no `!` button or templates for
+  // an empty list. Both buttons are dialog openers (aria-haspopup="dialog" +
+  // aria-controls pointing at the popover).
   const hint = node.hint;
-  const hintAttr = hint ? ' data-hint="' + attr(hint) + '"' : '';
-  const hintButton = hint
+  const hasHint = hint && hint.length > 0;
+  const hintTemplate = hasHint
+  ? '<template class="js-blank-hint-content">' +
+  renderInlineNodes(hint) +
+  '</template>'
+  : '';
+  const hintButton = hasHint
   ? '<button class="js-blank-hint" type="button"' +
   ' aria-haspopup="dialog"' +
   ' aria-expanded="false"' +
@@ -162,12 +172,20 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
   // The red `!` mistake button is emitted (but `hidden`) for any blank with
   // authored mistake feedback. The runtime reveals it only when a wrong answer
   // matches an entry, and clicking it opens the shared popover with that
-  // entry's text (carried on data-mistake-feedback below). Blanks without
-  // authored mistake feedback get no button.
+  // entry's pre-rendered content. Blanks without authored mistake feedback get
+  // no button and no templates.
   const mistakeFeedback = node.mistakeFeedback;
   const hasMistakeFeedback = mistakeFeedback && mistakeFeedback.length > 0;
-  const mistakeFeedbackAttr = hasMistakeFeedback
-  ? ' data-mistake-feedback="' + attr(JSON.stringify(mistakeFeedback)) + '"'
+  const mistakeTemplates = hasMistakeFeedback
+  ? mistakeFeedback
+  .map(
+    (entry) =>
+    '<template class="js-blank-mistake-content"' +
+    ' data-match="' + attr(entry.match) + '">' +
+    renderInlineNodes(entry.feedback) +
+    '</template>',
+  )
+  .join('')
   : '';
   const mistakeButton = hasMistakeFeedback
   ? '<button class="js-blank-mistake" type="button"' +
@@ -181,26 +199,26 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
   //   1. the <input> (carrying class="blank" plus every data-* attribute —
   //      every existing .blank selector and the runtime's $('.blank')
   //      lookup keep working unchanged),
-  //   2. an optional `?` hint button (only when node.hint is set) that opens
-  //      the shared popover; the hint text rides on data-hint,
+  //   2. an optional `?` hint button (only when a hint is set) that opens the
+  //      shared popover; the hint's rich content lives in a sibling
+  //      <template class="js-blank-hint-content">,
   //   3. an optional red `!` mistake button (only when mistakeFeedback is
   //      authored) — emitted `hidden`, revealed by the runtime when a wrong
-  //      answer matches an entry, and opening the shared popover with that
-  //      feedback text.
+  //      answer matches an entry; each entry's rich content lives in its own
+  //      sibling <template class="js-blank-mistake-content" data-match="...">.
   //
   // The wrapper exists because <input> is a void element — the buttons can't
   // be its children. It also keeps the whole affordance group together as a
   // single inline unit, so the input and its buttons can't wrap onto separate
   // lines mid-prose. The wrapper itself carries no data-* attributes; the
-  // runtime reaches each child via class selectors.
+  // runtime reaches each child via class selectors. Templates are inert
+  // (their content isn't rendered until cloned), so they add no visual weight.
   return (
     '<span class="blank-wrapper">' +
     '<input type="text"' +
     ' class="blank"' +
     ' data-blank-id="' + attr(node.id) + '"' +
     ' data-blank-answers="' + attr(acceptable) + '"' +
-    hintAttr +
-    mistakeFeedbackAttr +
     ' aria-label="' + attr(label) + '"' +
     ' style="--blank-width:' + width + 'ch"' +
     ' autocomplete="off"' +
@@ -210,6 +228,8 @@ function renderBlank(node: BlankToken, index: number, total: number): string {
     ' />' +
     hintButton +
     mistakeButton +
+    hintTemplate +
+    mistakeTemplates +
     '</span>'
   );
 }

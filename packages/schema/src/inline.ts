@@ -48,6 +48,17 @@ export const HardBreakNode = z.object({
 });
 export type HardBreakNode = z.infer<typeof HardBreakNode>;
 
+// ---- InlineNode union -------------------------------------------------------
+// InlineNode is the standard inline alphabet. Used by all blocks except
+// fill_in_blank. Defined before BlankToken because the blank's rich feedback
+// fields (hint, mistakeFeedback) reuse this union.
+export const InlineNode = z.discriminatedUnion('type', [
+  TextNode,
+  InlineMathNode,
+  HardBreakNode,
+]);
+export type InlineNode = z.infer<typeof InlineNode>;
+
 // ---- Blank token (fill-in-the-blank only) -----------------------------------
 // Blanks live INSIDE the inline content stream of a fill_in_blank block —
 // students see a prompt with one or more inline blanks. Each blank has a
@@ -59,6 +70,8 @@ export type HardBreakNode = z.infer<typeof HardBreakNode>;
 //
 // hint and mistakeFeedback are the per-blank feedback layers (block-level
 // fields — solution, hasConfidenceRating, skills — live on FillInBlankBlock).
+// Both carry rich inline content (InlineNode[]: formatted text + inline math)
+// so feedback can include the same formatting and math as problem prose.
 // The runtime reads both at init but does NOT inject anything into the DOM
 // until the student clicks "Check this section." On a wrong answer, the
 // runtime first looks for a matching mistakeFeedback entry (exact string
@@ -66,37 +79,27 @@ export type HardBreakNode = z.infer<typeof HardBreakNode>;
 // also absent, it shows the generic ✗.
 export const BlankToken = z.object({
   type: z.literal('blank'),
-                                   id: z.string().uuid(),
-                                   answer: z.string().min(1),
-                                   // Alternative correct answers. Empty array is the common case.
-                                   acceptableAnswers: z.array(z.string()).default([]),
-                                   width: z.number().int().positive().optional(),
-                                   // Optional teacher-authored nudge shown when this blank is wrong and no
-                                   // mistakeFeedback entry matches. Single string for Phase 1; tiered hints
-                                   // could come in Phase 2 if teachers ask for them.
-                                   hint: z.string().optional(),
-                                   // Optional list of anticipated wrong answers paired with specific feedback.
-                                   // If the student's wrong answer matches a `match` string (Phase 1: exact
-                                   // match; the strategy-dispatch hook in the runtime supports smarter
-                                   // matching later), the corresponding feedback is shown instead of the
-                                   // generic hint. First match wins.
-                                   mistakeFeedback: z.array(z.object({
-                                     match: z.string(),
-                                                                     feedback: z.string(),
-                                   })).optional(),
+  id: z.string().uuid(),
+  answer: z.string().min(1),
+  // Alternative correct answers. Empty array is the common case.
+  acceptableAnswers: z.array(z.string()).default([]),
+  width: z.number().int().positive().optional(),
+  // Optional teacher-authored nudge shown when this blank is wrong and no
+  // mistakeFeedback entry matches. Rich inline content (formatted text + math).
+  hint: z.array(InlineNode).optional(),
+  // Optional list of anticipated wrong answers paired with specific feedback.
+  // If the student's wrong answer matches a `match` string (Phase 1: exact
+  // match; the strategy-dispatch hook in the runtime supports smarter
+  // matching later), the corresponding feedback is shown instead of the
+  // generic hint. First match wins. `feedback` is rich inline content.
+  mistakeFeedback: z.array(z.object({
+    match: z.string(),
+    feedback: z.array(InlineNode),
+  })).optional(),
 });
 export type BlankToken = z.infer<typeof BlankToken>;
 
-// ---- Unions -----------------------------------------------------------------
-// InlineNode is the standard inline alphabet. Used by all blocks except
-// fill_in_blank.
-export const InlineNode = z.discriminatedUnion('type', [
-  TextNode,
-  InlineMathNode,
-  HardBreakNode,
-]);
-export type InlineNode = z.infer<typeof InlineNode>;
-
+// ---- FillInBlankInline union ------------------------------------------------
 // FillInBlankInline is the extended alphabet for fill_in_blank blocks only.
 // Includes BlankToken in addition to the standard inline nodes.
 export const FillInBlankInline = z.discriminatedUnion('type', [

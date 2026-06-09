@@ -43,7 +43,7 @@ function makeBlankRef(blankId: string): BlankRef {
         mistakeButton: null,
         answers: ['x'],
         strategy: 'list',
-        hint: null,
+        hintContent: null,
         mistakeFeedback: [],
         blockId: 'block-1',
         sectionId: 'sec-1',
@@ -59,8 +59,12 @@ function makeBlankRefWithHint(blankId: string): BlankRef {
     const hintButton = document.createElement('button');
     hintButton.className = 'js-blank-hint';
     hintButton.setAttribute('aria-expanded', 'false');
+    const hintContent = document.createElement('template');
+    hintContent.className = 'js-blank-hint-content';
+    hintContent.innerHTML = 'Try <strong>factoring</strong>.';
     wrapper.appendChild(input);
     wrapper.appendChild(hintButton);
+    wrapper.appendChild(hintContent);
     document.body.appendChild(wrapper);
     return {
         input,
@@ -68,7 +72,7 @@ function makeBlankRefWithHint(blankId: string): BlankRef {
         mistakeButton: null,
         answers: ['x'],
         strategy: 'list',
-        hint: 'Try factoring.',
+        hintContent,
         mistakeFeedback: [],
         blockId: 'block-1',
         sectionId: 'sec-1',
@@ -85,8 +89,13 @@ function makeBlankRefWithMistake(blankId: string): BlankRef {
     mistakeButton.className = 'js-blank-mistake';
     mistakeButton.setAttribute('aria-expanded', 'false');
     mistakeButton.hidden = true;
+    const mistakeContent = document.createElement('template');
+    mistakeContent.className = 'js-blank-mistake-content';
+    mistakeContent.setAttribute('data-match', 'wrong');
+    mistakeContent.innerHTML = 'Targeted feedback.';
     wrapper.appendChild(input);
     wrapper.appendChild(mistakeButton);
+    wrapper.appendChild(mistakeContent);
     document.body.appendChild(wrapper);
     return {
         input,
@@ -94,8 +103,8 @@ function makeBlankRefWithMistake(blankId: string): BlankRef {
         mistakeButton,
         answers: ['x'],
         strategy: 'list',
-        hint: null,
-        mistakeFeedback: [{ match: 'wrong', feedback: 'Targeted feedback.' }],
+        hintContent: null,
+        mistakeFeedback: [{ match: 'wrong', content: mistakeContent }],
         blockId: 'block-1',
         sectionId: 'sec-1',
     };
@@ -156,7 +165,6 @@ function makeFillInBlankRef(
     return {
         el,
         blankIds: [],
-        solution,
         solutionEl,
         hasConfidenceRating: withConfidence,
         confidenceFieldset,
@@ -350,9 +358,7 @@ describe('render — mistake affordance', () => {
         const ref = makeBlankRefWithMistake('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
         const state = makeState({
-            'b1': makeBlankState(false, {
-                matchedMistake: 'You forgot the constant.',
-            }),
+            'b1': makeBlankState(false, { matchedMistake: 0 }),
         });
         render(state, refs);
         expect(ref.mistakeButton!.hidden).toBe(false);
@@ -377,9 +383,7 @@ describe('render — mistake affordance', () => {
     it('hides the ! button on transition from matched → no-match', () => {
         const ref = makeBlankRefWithMistake('b1');
         const refs = makeRefs(new Map([['b1', ref]]));
-        const blankState = makeBlankState(false, {
-            matchedMistake: 'First message.',
-        });
+        const blankState = makeBlankState(false, { matchedMistake: 0 });
         const state = makeState({ 'b1': blankState });
         render(state, refs);
         expect(ref.mistakeButton!.hidden).toBe(false);
@@ -393,7 +397,7 @@ describe('render — mistake affordance', () => {
         const popover = makePopoverRef();
         const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), popover);
         const state = makeState({
-            'b1': makeBlankState(false, { matchedMistake: 'Targeted feedback.' }),
+            'b1': makeBlankState(false, { matchedMistake: 0 }),
         });
         render(state, refs);
         expect(ref.mistakeButton!.getAttribute('aria-expanded')).toBe('false');
@@ -413,7 +417,8 @@ describe('render — popover', () => {
         render(state, refs);
         expect(popover.el.hidden).toBe(false);
         expect(popover.titleEl.textContent).toBe('Hint');
-        expect(popover.bodyEl.textContent).toBe('Try factoring.');
+        // The body is the cloned template content — rich markup preserved.
+        expect(popover.bodyEl.innerHTML).toBe('Try <strong>factoring</strong>.');
         expect(popover.el.dataset.kind).toBe('hint');
         expect(popover.el.style.left).toBe('40px');
         expect(popover.el.style.top).toBe('60px');
@@ -425,13 +430,13 @@ describe('render — popover', () => {
         const popover = makePopoverRef();
         const refs = makeRefs(new Map([['b1', ref]]), new Map(), new Map(), popover);
         const state = makeState({
-            'b1': makeBlankState(false, { matchedMistake: 'Targeted feedback.' }),
+            'b1': makeBlankState(false, { matchedMistake: 0 }),
         });
         state.popover = { kind: 'mistake', blankId: 'b1', x: 5, y: 7 };
         render(state, refs);
         expect(popover.el.hidden).toBe(false);
         expect(popover.titleEl.textContent).toBe('Feedback');
-        expect(popover.bodyEl.textContent).toBe('Targeted feedback.');
+        expect(popover.bodyEl.innerHTML).toBe('Targeted feedback.');
         expect(popover.el.dataset.kind).toBe('mistake');
     });
 

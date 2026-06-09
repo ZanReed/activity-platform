@@ -35,7 +35,12 @@ import {
 import type { BlankRef, Refs } from '../refs.js';
 import type { RuntimeState, BlankState } from '../state.js';
 
-/** Build a minimal BlankRef wired up to real (JSDOM) DOM nodes. */
+/**
+ * Build a minimal BlankRef wired up to real (JSDOM) DOM nodes. mistakeFeedback
+ * is authored as {match, feedback} pairs for test ergonomics; the helper
+ * materializes each as a <template> sibling (matching the server output) and
+ * builds the ref's {match, content} array from those template elements.
+ */
 function buildBlankRef(
     answers: string[],
     value: string = '',
@@ -50,6 +55,14 @@ function buildBlankRef(
     input.setAttribute('data-blank-answers', answers.join('|'));
     input.value = value;
     wrapper.appendChild(input);
+    const mistakeRefs = mistakeFeedback.map((entry) => {
+        const tpl = document.createElement('template');
+        tpl.className = 'js-blank-mistake-content';
+        tpl.setAttribute('data-match', entry.match);
+        tpl.innerHTML = entry.feedback;
+        wrapper.appendChild(tpl);
+        return { match: entry.match, content: tpl };
+    });
     document.body.appendChild(wrapper);
     return {
         input,
@@ -57,8 +70,8 @@ function buildBlankRef(
         mistakeButton: null,
         answers,
         strategy: 'list',
-        hint: null,
-        mistakeFeedback,
+        hintContent: null,
+        mistakeFeedback: mistakeRefs,
         blockId: 'block-1',
         sectionId: 'sec-1',
     };
@@ -127,13 +140,11 @@ describe('scoreBlank', () => {
 });
 
 describe('matchMistakeFeedback', () => {
-    it('returns matched feedback for an exact match', () => {
+    it('returns the matched entry index for an exact match', () => {
         const ref = buildBlankRef(['x+3'], '', 'b1', [
             { match: '2x', feedback: 'Did you forget the constant?' },
         ]);
-        expect(matchMistakeFeedback(ref, '2x')).toBe(
-            'Did you forget the constant?',
-        );
+        expect(matchMistakeFeedback(ref, '2x')).toBe(0);
     });
 
     it('returns null when no entries match', () => {
@@ -147,26 +158,24 @@ describe('matchMistakeFeedback', () => {
         const ref = buildBlankRef(['x+3'], '', 'b1', [
             { match: '2x', feedback: 'Did you forget the constant?' },
         ]);
-        expect(matchMistakeFeedback(ref, '  2x  ')).toBe(
-            'Did you forget the constant?',
-        );
+        expect(matchMistakeFeedback(ref, '  2x  ')).toBe(0);
     });
 
     it('is case-insensitive (a student shouldnt lose targeted help over case)', () => {
         const ref = buildBlankRef(['x+3'], '', 'b1', [
             { match: 'slope', feedback: 'Mind the slope.' },
         ]);
-        expect(matchMistakeFeedback(ref, 'Slope')).toBe('Mind the slope.');
-        expect(matchMistakeFeedback(ref, 'SLOPE')).toBe('Mind the slope.');
-        expect(matchMistakeFeedback(ref, 'slope')).toBe('Mind the slope.');
+        expect(matchMistakeFeedback(ref, 'Slope')).toBe(0);
+        expect(matchMistakeFeedback(ref, 'SLOPE')).toBe(0);
+        expect(matchMistakeFeedback(ref, 'slope')).toBe(0);
     });
 
-    it('returns the first match when multiple entries could apply', () => {
+    it('returns the first matching index when multiple entries could apply', () => {
         const ref = buildBlankRef(['x+3'], '', 'b1', [
             { match: '2x', feedback: 'First.' },
             { match: '2x', feedback: 'Second.' },
         ]);
-        expect(matchMistakeFeedback(ref, '2x')).toBe('First.');
+        expect(matchMistakeFeedback(ref, '2x')).toBe(0);
     });
 
     it('returns null for empty typed value, even with an empty-match entry', () => {
@@ -187,7 +196,7 @@ describe('matchMistakeFeedback', () => {
 describe('scoreBlankAndUpdateState', () => {
     it('writes a true result for a correct answer; clears matchedMistake', () => {
         const state = buildStateWithBlank('b1');
-        state.blanks['b1']!.matchedMistake = 'stale message';
+        state.blanks['b1']!.matchedMistake = 0;
     const ref = buildBlankRef(['x'], 'x', 'b1', [
         { match: 'y', feedback: "shouldn't surface" },
     ]);
@@ -197,17 +206,16 @@ describe('scoreBlankAndUpdateState', () => {
     expect(state.blanks['b1']?.matchedMistake).toBeNull();
     });
 
-    it('writes a false result + matched mistake feedback when one matches', () => {
+    it('writes a false result + matched mistake index when one matches', () => {
         const state = buildStateWithBlank('b1');
         const ref = buildBlankRef(['x+3'], '2x', 'b1', [
+            { match: 'foo', feedback: 'Not this one.' },
             { match: '2x', feedback: 'Did you forget the constant?' },
         ]);
         const result = scoreBlankAndUpdateState(state, 'b1', ref);
         expect(result).toBe(false);
         expect(state.blanks['b1']?.result).toBe(false);
-        expect(state.blanks['b1']?.matchedMistake).toBe(
-            'Did you forget the constant?',
-        );
+        expect(state.blanks['b1']?.matchedMistake).toBe(1);
     });
 
     it('writes a false result with null matchedMistake when no entry matches', () => {
@@ -222,7 +230,7 @@ describe('scoreBlankAndUpdateState', () => {
 
     it('writes a null result and null matchedMistake when input is empty', () => {
         const state = buildStateWithBlank('b1');
-        state.blanks['b1']!.matchedMistake = 'stale';
+        state.blanks['b1']!.matchedMistake = 0;
         const ref = buildBlankRef(['x'], '', 'b1');
         const result = scoreBlankAndUpdateState(state, 'b1', ref);
         expect(result).toBeNull();
@@ -251,7 +259,7 @@ describe('clearBlankState', () => {
     it('clears result and matchedMistake when either is set', () => {
         const state = buildStateWithBlank('b1');
         state.blanks['b1']!.result = false;
-        state.blanks['b1']!.matchedMistake = 'stale';
+        state.blanks['b1']!.matchedMistake = 0;
         const changed = clearBlankState(state, 'b1');
         expect(changed).toBe(true);
         expect(state.blanks['b1']?.result).toBeNull();
@@ -275,7 +283,7 @@ describe('clearBlankState', () => {
         // matchedMistake might still linger from an earlier scoring pass if
         // some future code path forgets to clear it. Keep clear robust.
         const state = buildStateWithBlank('b1');
-        state.blanks['b1']!.matchedMistake = 'lingering';
+        state.blanks['b1']!.matchedMistake = 2;
         const changed = clearBlankState(state, 'b1');
         expect(changed).toBe(true);
         expect(state.blanks['b1']?.matchedMistake).toBeNull();

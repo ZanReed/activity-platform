@@ -4,6 +4,8 @@ import {
     NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
+import InlineRichTextEditor from '../components/InlineRichTextEditor';
+import type { InlineNodes } from '../../lib/serialize';
 
 // ============================================================================
 // FillInBlankView — NodeView for the fill_in_blank block.
@@ -52,10 +54,11 @@ export default function FillInBlankView({
     updateAttributes,
 }: NodeViewProps) {
     const [settingsOpen, setSettingsOpen] = useState(false);
-    const solution = (node.attrs.solution as string | undefined) ?? '';
+    const solution = (node.attrs.solution as InlineNodes | null) ?? [];
+    const hasSolution = solution.length > 0;
     const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const isEditable = editor.isEditable;
-    const isConfigured = solution.length > 0 || hasConfidenceRating;
+    const isConfigured = hasSolution || hasConfidenceRating;
     // The `selected` prop is only true for a NodeSelection of the whole block.
     // Clicking into a problem puts the cursor *inside* its editable content (a
     // TextSelection), so `selected` stays false and a footer gated on it never
@@ -103,34 +106,34 @@ export default function FillInBlankView({
                         <span aria-hidden="true">⚙</span> Settings
                         {!settingsOpen && isConfigured && (
                             <span className="fill-in-blank-block__settings-badge">
-                                {solution.length > 0 && 'solution'}
-                                {solution.length > 0 &&
-                                    hasConfidenceRating &&
-                                    ' · '}
+                                {hasSolution && 'solution'}
+                                {hasSolution && hasConfidenceRating && ' · '}
                                 {hasConfidenceRating && 'confidence'}
                             </span>
                         )}
                     </button>
                     {settingsOpen && (
                         <div className="fill-in-blank-block__settings-panel">
-                            <label className="fill-in-blank-block__settings-field">
+                            <div className="fill-in-blank-block__settings-field">
                                 <span className="fill-in-blank-block__settings-label">
                                     Worked solution
                                 </span>
-                                <textarea
-                                    className="fill-in-blank-block__solution"
+                                <span className="fill-in-blank-block__settings-help">
+                                    Shown to students after the section is
+                                    checked. Supports bold, italic, and inline
+                                    math.
+                                </span>
+                                <InlineRichTextEditor
                                     value={solution}
-                                    placeholder="Shown to students after the section is checked."
-                                    onChange={(e) =>
+                                    onChange={(nodes) =>
                                         updateAttributes({
-                                            solution: e.target.value,
+                                            solution:
+                                                nodes.length > 0 ? nodes : null,
                                         })
                                     }
-                                    onKeyDown={(e) => e.stopPropagation()}
-                                    disabled={!isEditable}
-                                    rows={3}
+                                    ariaLabel="Worked solution"
                                 />
-                            </label>
+                            </div>
                             <label className="fill-in-blank-block__settings-checkbox">
                                 <input
                                     type="checkbox"

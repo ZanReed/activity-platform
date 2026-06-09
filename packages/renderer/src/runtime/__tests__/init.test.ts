@@ -169,7 +169,6 @@ describe('buildRefs — fill-in-blank blocks', () => {
             ' data-block-category="question"' +
             ' data-block-type="fill_in_blank"' +
             ' data-block-id="block-1"' +
-            ' data-solution="Combine like terms."' +
             ' data-has-confidence-rating="true"' +
             ' data-skills="[&quot;skill-a&quot;]">' +
             '<div class="block-problem-body">' +
@@ -182,7 +181,6 @@ describe('buildRefs — fill-in-blank blocks', () => {
         const refs = buildRefs();
         const block = refs.fillInBlanks.get('block-1');
         expect(block).toBeDefined();
-        expect(block?.solution).toBe('Combine like terms.');
         expect(block?.solutionEl).not.toBeNull();
         expect(block?.hasConfidenceRating).toBe(true);
         expect(block?.confidenceFieldset).not.toBeNull();
@@ -200,7 +198,6 @@ describe('buildRefs — fill-in-blank blocks', () => {
         );
         const refs = buildRefs();
         const block = refs.fillInBlanks.get('block-1');
-        expect(block?.solution).toBeNull();
         expect(block?.solutionEl).toBeNull();
         expect(block?.hasConfidenceRating).toBe(false);
         expect(block?.confidenceFieldset).toBeNull();
@@ -218,12 +215,12 @@ describe('buildRefs — blanks', () => {
             '<div class="block-problem-body">' +
             '<span class="blank-wrapper">' +
             '<input type="text" class="blank" data-blank-id="blank-1"' +
-            ' data-blank-answers="x+1|x + 1"' +
-            ' data-hint="Try factoring."' +
-            ' data-mistake-feedback="[{&quot;match&quot;:&quot;2x&quot;,' +
-            '&quot;feedback&quot;:&quot;Did you forget the constant?&quot;}]" />' +
+            ' data-blank-answers="x+1|x + 1" />' +
             '<button class="js-blank-hint" type="button"></button>' +
             '<button class="js-blank-mistake" type="button" hidden></button>' +
+            '<template class="js-blank-hint-content">Try <strong>factoring</strong>.</template>' +
+            '<template class="js-blank-mistake-content" data-match="2x">' +
+            'Did you forget the constant?</template>' +
             '</span></div></div></section>',
         );
         const refs = buildRefs();
@@ -231,10 +228,14 @@ describe('buildRefs — blanks', () => {
         expect(blank).toBeDefined();
         expect(blank?.answers).toEqual(['x+1', 'x + 1']);
         expect(blank?.strategy).toBe('list');
-        expect(blank?.hint).toBe('Try factoring.');
-        expect(blank?.mistakeFeedback).toEqual([
-            { match: '2x', feedback: 'Did you forget the constant?' },
-        ]);
+        // hintContent is the <template> element; its rich markup is preserved.
+        expect(blank?.hintContent).not.toBeNull();
+        expect(blank?.hintContent?.innerHTML).toBe('Try <strong>factoring</strong>.');
+        expect(blank?.mistakeFeedback).toHaveLength(1);
+        expect(blank?.mistakeFeedback[0]?.match).toBe('2x');
+        expect(blank?.mistakeFeedback[0]?.content.innerHTML).toBe(
+            'Did you forget the constant?',
+        );
         expect(blank?.hintButton).not.toBeNull();
         expect(blank?.mistakeButton).not.toBeNull();
         expect(blank?.blockId).toBe('block-1');
@@ -255,7 +256,7 @@ describe('buildRefs — blanks', () => {
         );
         const refs = buildRefs();
         const blank = refs.blanks.get('blank-1');
-        expect(blank?.hint).toBeNull();
+        expect(blank?.hintContent).toBeNull();
         expect(blank?.hintButton).toBeNull();
         expect(blank?.mistakeButton).toBeNull();
         expect(blank?.mistakeFeedback).toEqual([]);

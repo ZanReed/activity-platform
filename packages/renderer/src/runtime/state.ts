@@ -37,11 +37,13 @@ export interface BlankState {
      */
     result: boolean | null;
     /**
-     * Matched mistake-feedback text from BlankRef.mistakeFeedback, or null
-     * when the typed value didn't match any configured mistake. Set by the
-     * scoring path (event handler); read by render.
+     * Index of the matched entry in BlankRef.mistakeFeedback, or null when the
+     * typed value didn't match any configured mistake. Set by the scoring path
+     * (event handler); read by render to reveal the `!` button and clone the
+     * matching content template into the popover. An index (not the content
+     * text) keeps persisted state lean.
      */
-    matchedMistake: string | null;
+    matchedMistake: number | null;
 }
 
 /** Which kind of popover is open — drives its title + body source. */

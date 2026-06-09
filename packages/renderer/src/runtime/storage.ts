@@ -66,7 +66,7 @@ export function saveName(name: string): void {
  * SubmissionResponses.schemaVersion — those live in the schema package;
  * this one is a runtime-internal concern.
  */
-const STORAGE_SCHEMA_VERSION = 2;
+const STORAGE_SCHEMA_VERSION = 3;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {

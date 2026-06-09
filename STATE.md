@@ -4,6 +4,13 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 ## Current focus
 
+**Phase 2 (first slice) — rich text + inline math in popover/settings fields — is COMPLETE (code + tests; live UX unverified).** The blank `hint`, blank `mistakeFeedback[].feedback`, and FillInBlank `solution` fields now accept inline rich text (bold/italic/code/underline/sub/sup) and inline KaTeX — matching how problem prose already renders. Scope is **inline-only** (no block content), the balance the author approved.
+
+- **Editor stores canonical `InlineNode[]`.** These three attrs hold the schema's inline form directly (Tiptap node attrs carry it opaquely; `Blank.ts`/`FillInBlank.ts` parse/render it via `data-hint`/`data-mistake-feedback`/`data-solution` JSON). So `serialize.ts` is a trivial pass-through — it no longer coerces strings. New reusable `InlineRichTextEditor.tsx` (nested Tiptap, StarterKit trimmed to inline marks + `Subscript`/`Superscript`/`MathInline`) owns Tiptap↔InlineNode conversion via newly-exported `activityInlineToTiptap`/`tiptapInlineToActivity` + `InlineNodes` type from serialize. `BlankEditPopover` and `FillInBlankView` render it (keyed by `blankId` so the uncontrolled editor remounts only on retarget; live-commit never resets the caret).
+- **Server pre-renders, client clones (KaTeX stays server-side).** Same pattern as prose: the renderer pre-renders rich popover/solution content into hidden `<template>` nodes; the runtime clones them client-side, so the ~280 KiB KaTeX never ships to students. Runtime bundle regenerated — **14.8 KiB** (budget 20). `runtime-bundle.ts` + `supabase/functions/_shared/renderer.bundle.js` rebuilt.
+- **Tests + builds green:** schema 30 / renderer 212 / app 63; `tsc -b`, app vite build, `pnpm -r typecheck` all clean. Pre-existing unrelated lint errors remain in `FillInBlank.ts:6` (unused `Options`/`Storage` generics — confirmed on main via `git stash`).
+- **⚠ Two follow-ups (author):** (1) **`supabase functions deploy publish-activity`** is required for the new rich content to go live on published pages — until then the bundle change is committed but not deployed. (2) **Browser UX verification of the nested mini-editors is still pending** (caret behavior, math insertion, virtual-keyboard interplay with the popover) — covered by code/tests but not yet exercised live.
+
 **Stage 16 — Submissions dashboard — is COMPLETE and live-verified.** A per-activity dashboard at `/activity/:id/submissions` with a Summary/All-attempts toggle, per-student grouping (latest headline + best secondary + attempt count), and an expandable drill-down that maps each blank response back to its problem prompt/answer key plus per-section checkpoint results. See Nearest next steps #6 for the full design + the two deviations from the original plan (latest-not-best headline; `activityType` filter dropped).
 
 The author ran the live pass this session; three issues surfaced and were fixed:
@@ -59,7 +66,8 @@ What changed (this **DID** touch renderer/runtime/bundle, unlike Stage 15 proper
 | Permission helper functions | ✅ In place; future collaboration extends helpers |
 | `@activity/schema` package | ✅ Tested, on GitHub |
 | `@activity/renderer` package | ✅ Tests passing; runtime modular, esbuild-bundled, inlined; baseline print CSS in `styles.ts` |
-| Renderer bundle for Edge Functions | ✅ Regenerated for `answerFeedback` and deployed (live via `publish-activity` redeploy) |
+| Renderer bundle for Edge Functions | ✅ Regenerated for Phase-2 rich popover fields (runtime 14.8 KiB); ⏳ **NOT yet deployed** — author runs `supabase functions deploy publish-activity` to make rich hint/feedback/solution go live |
+| Phase 2 — rich text + inline math in hint/mistake-feedback/solution | ✅ Code + tests complete; ⏳ live UX unverified + bundle not yet deployed (see Current focus) |
 | `publish-activity` Edge Function | ✅ Deployed (R2 upload, live + versioned URLs); redeployed with the `answerFeedback` bundle |
 | `ingest-submission` Edge Function | ✅ Deployed; enforces `schemaVersion: 2`; returns `attempt_number`; **`verify_jwt: false`** (anonymous student POSTs — gateway must not require an auth header; the function self-authenticates with the service role). Re-set `--no-verify-jwt` on any future redeploy. |
 | Edge Function secrets | ✅ Set |
@@ -272,7 +280,7 @@ activity-platform/
 - **`activityType` picker is included even though renderer presentation-branching is Phase 2.** It has a real near-term consumer: Stage 16's dashboard filters on it.
 - **Locked-mode checkpoint validation WARNS, does not block save.** Blocking save mid-edit is hostile. An amber inline banner (continuous, not just at publish) fires whenever locked mode coexists with any non-checkpoint section. The implicit leading section (content before the first `sectionBreak`) counts as non-checkpoint. Resolves open-question #258.
 - **FillInBlank block-field UI is an inline NodeView footer disclosure, NOT a popover.** Mirrors SectionBreakView's inline-controls pattern and sidesteps the per-chip-popover hazards documented in Stage 13.5. The blank-token popover stays for per-blank fields; block-level fields (solution, confidence) get the footer. The footer stays hidden for a plain/unselected/unconfigured problem to keep long worksheets uncluttered (shown when `selected || settingsOpen || isConfigured`). It's `contentEditable={false}` so ProseMirror doesn't treat it as block content; the solution textarea `stopPropagation`s keydown so editor shortcuts don't fire while typing.
-- **`solution` is a plain multiline string in Phase 1.** Rich text / math-in-solution is deferred.
+- **`solution` was a plain multiline string in Phase 1; Phase 2 upgraded it to inline rich text + math** (now `InlineNode[]`, authored via `InlineRichTextEditor` in the footer — see Current focus).
 - **`skills` editing UI deferred to Phase 2** (the schema scheduled it there). The attr round-trips through the node and serialize so data survives, but no control surfaces it. Don't add a skills tag-input without revisiting Phase 2 scope.
 
 ## Standing constraints

@@ -9,6 +9,8 @@ import {
 } from '@floating-ui/react';
 import { createPortal } from 'react-dom';
 import { FocusTrap } from 'focus-trap-react';
+import InlineRichTextEditor from './InlineRichTextEditor';
+import type { InlineNodes } from '../../lib/serialize';
 
 // ============================================================================
 // BlankEditPopover — popover UI for editing a blank's per-blank fields.
@@ -50,7 +52,7 @@ import { FocusTrap } from 'focus-trap-react';
 
 interface MistakeFeedbackPair {
     match: string;
-    feedback: string;
+    feedback: InlineNodes;
 }
 
 interface ChangeOptions {
@@ -60,15 +62,19 @@ interface ChangeOptions {
 interface BlankEditPopoverProps {
     referenceElement: HTMLElement | null;
     isOpen: boolean;
+    // Identifies the blank currently being edited. Used to key the nested
+    // rich-text editors so they remount (and reload content) when the popover
+    // retargets a different chip without closing.
+    blankId: string;
     initialAnswer: string;
     initialAcceptableAnswers: string[];
-    initialHint: string | undefined;
+    initialHint: InlineNodes | undefined;
     initialMistakeFeedback: MistakeFeedbackPair[] | undefined;
     onChange: (
         attrs: Partial<{
             answer: string;
             acceptableAnswers: string[];
-            hint: string | undefined;
+            hint: InlineNodes | undefined;
             mistakeFeedback: MistakeFeedbackPair[] | undefined;
         }>,
         options?: ChangeOptions,
@@ -82,6 +88,7 @@ const VIEWPORT_PADDING = 12;
 export default function BlankEditPopover({
     referenceElement,
     isOpen,
+    blankId,
     initialAnswer,
     initialAcceptableAnswers,
     initialHint,
@@ -94,7 +101,10 @@ export default function BlankEditPopover({
     const [acceptableAnswers, setAcceptableAnswers] = useState<string[]>(
         initialAcceptableAnswers,
     );
-    const [hint, setHint] = useState<string>(initialHint ?? '');
+    // hint + mistake feedback are rich (InlineNode[]) and commit live through
+    // the nested editors, so they aren't held as draft string state here —
+    // mistakeFeedback is kept only to drive the row UI (match inputs + which
+    // rows exist); each feedback body is owned by its nested editor.
     const [mistakeFeedback, setMistakeFeedback] = useState<MistakeFeedbackPair[]>(
         initialMistakeFeedback ?? [],
     );
@@ -106,15 +116,9 @@ export default function BlankEditPopover({
 
     const answerRef = useRef(initialAnswer);
     const acceptableRef = useRef<string[]>(initialAcceptableAnswers);
-    const hintRef = useRef<string>(initialHint ?? '');
-    const feedbackRef = useRef<MistakeFeedbackPair[]>(initialMistakeFeedback ?? []);
 
     const initialAnswerRef = useRef(initialAnswer);
     const initialAcceptableRef = useRef<string[]>(initialAcceptableAnswers);
-    const initialHintRef = useRef<string | undefined>(initialHint);
-    const initialFeedbackRef = useRef<MistakeFeedbackPair[] | undefined>(
-        initialMistakeFeedback,
-    );
 
     const onChangeRef = useRef(onChange);
     useEffect(() => {
@@ -130,19 +134,12 @@ export default function BlankEditPopover({
     useEffect(() => {
         acceptableRef.current = acceptableAnswers;
     }, [acceptableAnswers]);
-    useEffect(() => {
-        hintRef.current = hint;
-    }, [hint]);
-    useEffect(() => {
-        feedbackRef.current = mistakeFeedback;
-    }, [mistakeFeedback]);
 
     useEffect(() => {
         if (isOpen) {
             setAnswer(initialAnswer);
             setAnswerError(null);
             setAcceptableAnswers(initialAcceptableAnswers);
-            setHint(initialHint ?? '');
             setMistakeFeedback(initialMistakeFeedback ?? []);
             setHintExpanded(Boolean(initialHint && initialHint.length > 0));
             setFeedbackExpanded(
@@ -150,20 +147,15 @@ export default function BlankEditPopover({
             );
             answerRef.current = initialAnswer;
             acceptableRef.current = initialAcceptableAnswers;
-            hintRef.current = initialHint ?? '';
-            feedbackRef.current = initialMistakeFeedback ?? [];
             initialAnswerRef.current = initialAnswer;
             initialAcceptableRef.current = initialAcceptableAnswers;
-            initialHintRef.current = initialHint;
-            initialFeedbackRef.current = initialMistakeFeedback;
         }
-    }, [
-        isOpen,
-        initialAnswer,
-        initialAcceptableAnswers,
-        initialHint,
-        initialMistakeFeedback,
-    ]);
+        // Reset drafts only when the popover opens or retargets a different
+        // blank — NOT on every initial* identity change. hint + mistake
+        // feedback commit live, which mutates those props each keystroke;
+        // re-syncing here would clobber a half-typed feedback row.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, blankId]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -174,12 +166,13 @@ export default function BlankEditPopover({
         return () => cancelAnimationFrame(raf);
     }, [isOpen]);
 
+    // Only answer + acceptableAnswers are draft-then-flush; hint and mistake
+    // feedback commit live through the nested editors (see commitHintNodes /
+    // commitFeedback). flushAll runs on close to push any pending string edits.
     const flushAll = () => {
         const updates: Partial<{
             answer: string;
             acceptableAnswers: string[];
-            hint: string | undefined;
-            mistakeFeedback: MistakeFeedbackPair[] | undefined;
         }> = {};
 
         const trimmedAnswer = answerRef.current.trim();
@@ -201,29 +194,6 @@ export default function BlankEditPopover({
             updates.acceptableAnswers = strippedAcceptable;
         }
 
-        const trimmedHint = hintRef.current.trim();
-        const hintValue = trimmedHint.length > 0 ? trimmedHint : undefined;
-        if (hintValue !== initialHintRef.current) {
-            updates.hint = hintValue;
-        }
-
-        const strippedFeedback = feedbackRef.current
-            .map((p) => ({ match: p.match.trim(), feedback: p.feedback.trim() }))
-            .filter((p) => p.match.length > 0 && p.feedback.length > 0);
-        const feedbackValue =
-            strippedFeedback.length > 0 ? strippedFeedback : undefined;
-        const initialFb = initialFeedbackRef.current ?? [];
-        const feedbackSame =
-            strippedFeedback.length === initialFb.length &&
-            strippedFeedback.every(
-                (p, i) =>
-                    p.match === initialFb[i]?.match &&
-                    p.feedback === initialFb[i]?.feedback,
-            );
-        if (!feedbackSame) {
-            updates.mistakeFeedback = feedbackValue;
-        }
-
         if (Object.keys(updates).length > 0) {
             onChangeRef.current(updates, { preserveSelection: false });
         }
@@ -240,7 +210,6 @@ export default function BlankEditPopover({
         };
         document.addEventListener('keydown', handler);
         return () => document.removeEventListener('keydown', handler);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, onClose]);
 
     useEffect(() => {
@@ -254,12 +223,20 @@ export default function BlankEditPopover({
             if (referenceElement && referenceElement.contains(target)) {
                 return;
             }
+            // The MathLive virtual keyboard mounts on document.body (outside
+            // the popover) when a nested inline-math field is focused. Clicking
+            // its keys must not be treated as an outside-click close.
+            if (
+                target instanceof Element &&
+                target.closest('.ML__keyboard')
+            ) {
+                return;
+            }
             flushAll();
             onClose();
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, onClose, referenceElement]);
 
     const { refs, floatingStyles } = useFloating({
@@ -287,7 +264,7 @@ export default function BlankEditPopover({
         [acceptableAnswers],
     );
     const feedbackRows = useMemo<MistakeFeedbackPair[]>(
-        () => [...mistakeFeedback, { match: '', feedback: '' }],
+        () => [...mistakeFeedback, { match: '', feedback: [] }],
         [mistakeFeedback],
     );
 
@@ -361,63 +338,49 @@ export default function BlankEditPopover({
         }
     };
 
-    const commitHint = () => {
-        const trimmed = hint.trim();
-        const nextValue = trimmed.length > 0 ? trimmed : undefined;
-        if (nextValue !== initialHintRef.current) {
-            onChange({ hint: nextValue });
-            initialHintRef.current = nextValue;
-        }
+    // The hint editor owns its content; we just forward each change to the
+    // blank's attrs. Empty → undefined so the schema doesn't carry an empty
+    // array.
+    const commitHintNodes = (nodes: InlineNodes) => {
+        onChange({ hint: nodes.length > 0 ? nodes : undefined });
     };
 
-    const updateFeedbackRow = (
-        index: number,
-        field: 'match' | 'feedback',
-        value: string,
-    ) => {
-        setMistakeFeedback((prev) => {
-            if (index < prev.length) {
-                const next = [...prev];
-                const existing = next[index] ?? { match: '', feedback: '' };
-                next[index] = { ...existing, [field]: value };
-                return next;
-            }
-            const newPair: MistakeFeedbackPair =
-                field === 'match'
-                    ? { match: value, feedback: '' }
-                    : { match: '', feedback: value };
-            return [...prev, newPair];
+    // Sets the draft rows AND commits the filtered result. A row needs both a
+    // non-empty match string and non-empty feedback content to be carried;
+    // half-finished rows stay in the draft (so the UI keeps them) but are
+    // dropped from the committed attr until complete.
+    const commitFeedback = (next: MistakeFeedbackPair[]) => {
+        setMistakeFeedback(next);
+        const stripped = next
+            .map((p) => ({ match: p.match.trim(), feedback: p.feedback }))
+            .filter((p) => p.match.length > 0 && p.feedback.length > 0);
+        onChange({
+            mistakeFeedback: stripped.length > 0 ? stripped : undefined,
         });
     };
 
-    const removeFeedbackRow = (index: number) => {
-        const next = mistakeFeedback.filter((_, i) => i !== index);
-        setMistakeFeedback(next);
-        const stripped = next
-            .map((p) => ({ match: p.match.trim(), feedback: p.feedback.trim() }))
-            .filter((p) => p.match.length > 0 && p.feedback.length > 0);
-        const nextValue = stripped.length > 0 ? stripped : undefined;
-        onChange({ mistakeFeedback: nextValue });
-        initialFeedbackRef.current = nextValue;
+    const updateFeedbackMatch = (index: number, value: string) => {
+        const next = [...mistakeFeedback];
+        if (index < next.length) {
+            next[index] = { ...next[index]!, match: value };
+        } else {
+            next.push({ match: value, feedback: [] });
+        }
+        commitFeedback(next);
     };
 
-    const commitFeedback = () => {
-        const stripped = mistakeFeedback
-            .map((p) => ({ match: p.match.trim(), feedback: p.feedback.trim() }))
-            .filter((p) => p.match.length > 0 && p.feedback.length > 0);
-        const nextValue = stripped.length > 0 ? stripped : undefined;
-        const initialFb = initialFeedbackRef.current ?? [];
-        const same =
-            stripped.length === initialFb.length &&
-            stripped.every(
-                (p, i) =>
-                    p.match === initialFb[i]?.match &&
-                    p.feedback === initialFb[i]?.feedback,
-            );
-        if (!same) {
-            onChange({ mistakeFeedback: nextValue });
-            initialFeedbackRef.current = nextValue;
+    const updateFeedbackContent = (index: number, nodes: InlineNodes) => {
+        const next = [...mistakeFeedback];
+        if (index < next.length) {
+            next[index] = { ...next[index]!, feedback: nodes };
+        } else {
+            next.push({ match: '', feedback: nodes });
         }
+        commitFeedback(next);
+    };
+
+    const removeFeedbackRow = (index: number) => {
+        commitFeedback(mistakeFeedback.filter((_, i) => i !== index));
     };
 
     const handleFeedbackMatchKeyDown = (
@@ -425,7 +388,6 @@ export default function BlankEditPopover({
     ) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            commitFeedback();
             flushAll();
             onClose();
         }
@@ -554,13 +516,15 @@ export default function BlankEditPopover({
                     {hintExpanded ? (
                         <>
                             <span className="blank-edit-popover__label">Hint</span>
-                            <textarea
-                                className="blank-edit-popover__textarea"
-                                rows={2}
-                                value={hint}
-                                placeholder="Optional nudge shown when the student clicks the ? button"
-                                onChange={(e) => setHint(e.target.value)}
-                                onBlur={commitHint}
+                            <div className="blank-edit-popover__sublabel">
+                                Shown when the student clicks the ? button.
+                                Supports bold, italic, and inline math.
+                            </div>
+                            <InlineRichTextEditor
+                                key={`hint-${blankId}`}
+                                value={initialHint ?? []}
+                                onChange={commitHintNodes}
+                                ariaLabel="Hint"
                             />
                         </>
                     ) : (
@@ -605,36 +569,26 @@ export default function BlankEditPopover({
                                                             : undefined
                                                     }
                                                     onChange={(e) =>
-                                                        updateFeedbackRow(
+                                                        updateFeedbackMatch(
                                                             index,
-                                                            'match',
                                                             e.target.value,
                                                         )
                                                     }
-                                                    onBlur={commitFeedback}
                                                     onKeyDown={
                                                         handleFeedbackMatchKeyDown
                                                     }
                                                     aria-label="Wrong answer to match"
                                                 />
-                                                <textarea
-                                                    className="blank-edit-popover__textarea"
-                                                    rows={2}
+                                                <InlineRichTextEditor
+                                                    key={`fb-${blankId}-${index}`}
                                                     value={pair.feedback}
-                                                    placeholder={
-                                                        isTrailingEmpty
-                                                            ? 'Feedback to show'
-                                                            : undefined
-                                                    }
-                                                    onChange={(e) =>
-                                                        updateFeedbackRow(
+                                                    onChange={(nodes) =>
+                                                        updateFeedbackContent(
                                                             index,
-                                                            'feedback',
-                                                            e.target.value,
+                                                            nodes,
                                                         )
                                                     }
-                                                    onBlur={commitFeedback}
-                                                    aria-label="Feedback to show"
+                                                    ariaLabel="Feedback to show"
                                                 />
                                             </div>
                                             {!isTrailingEmpty && (

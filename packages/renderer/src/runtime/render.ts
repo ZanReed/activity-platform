@@ -167,20 +167,22 @@ function renderSection(
 
 /**
  * Show or hide the shared popover from state.popover. When open, the title and
- * body depend on the popover kind: a 'hint' shows the active blank's authored
- * hint (BlankRef.hint); a 'mistake' shows its matched mistake feedback
- * (BlankState.matchedMistake). The data-kind attribute drives the red-tinted
- * header for mistakes. Position (left/top) is read straight from state and
- * applied — the open handler seeds it beside the trigger and drag updates it.
+ * body depend on the popover kind: a 'hint' clones the active blank's hint
+ * content template (BlankRef.hintContent); a 'mistake' clones the matched
+ * entry's content template (BlankRef.mistakeFeedback[matchedMistake].content).
+ * Both templates were pre-rendered server-side (rich text + KaTeX), so the
+ * runtime never re-renders — it just clones the inert template into the body.
+ * The data-kind attribute drives the red-tinted header for mistakes. Position
+ * (left/top) is read straight from state and applied.
  *
- * When the referenced text is gone (no hint, or the matched mistake cleared
+ * When the referenced content is gone (no hint, or the matched mistake cleared
  * because the student edited the blank) the popover stays closed even if
  * state.popover is still set — the close handlers reconcile state.popover to
  * null on the next interaction.
  *
- * Pure state→DOM like the rest of render: no focus management here (that's
- * done in the open/close event handlers so focus isn't yanked on every render
- * tick). Idempotent via the hidden-attribute guard.
+ * Cloning is guarded by a content key (kind + blank + entry index) stashed on
+ * the body's dataset, so repeated render() ticks for the same content don't
+ * re-clone. Pure state→DOM like the rest of render: no focus management here.
  */
 function renderPopover(
     state: RuntimeState,
@@ -188,20 +190,34 @@ function renderPopover(
     refs: Refs,
 ): void {
     const p = state.popover;
-    const body = p
-        ? p.kind === 'hint'
-            ? refs.blanks.get(p.blankId)?.hint ?? null
-            : state.blanks[p.blankId]?.matchedMistake ?? null
-        : null;
-    const wantOpen = p !== null && body !== null;
+
+    let template: HTMLTemplateElement | null = null;
+    let contentKey: string | null = null;
+    if (p) {
+        const blank = refs.blanks.get(p.blankId);
+        if (p.kind === 'hint') {
+            template = blank?.hintContent ?? null;
+            contentKey = 'hint:' + p.blankId;
+        } else {
+            const index = state.blanks[p.blankId]?.matchedMistake ?? null;
+            if (index !== null) {
+                template = blank?.mistakeFeedback[index]?.content ?? null;
+                contentKey = 'mistake:' + p.blankId + ':' + index;
+            }
+        }
+    }
+    const wantOpen = p !== null && template !== null;
 
     if (wantOpen) {
         const title = p!.kind === 'hint' ? 'Hint' : 'Feedback';
         if (popover.titleEl.textContent !== title) {
             popover.titleEl.textContent = title;
         }
-        if (popover.bodyEl.textContent !== body) {
-            popover.bodyEl.textContent = body;
+        if (popover.bodyEl.dataset.contentKey !== contentKey!) {
+            popover.bodyEl.replaceChildren(
+                template!.content.cloneNode(true),
+            );
+            popover.bodyEl.dataset.contentKey = contentKey!;
         }
         if (popover.el.dataset.kind !== p!.kind) {
             popover.el.dataset.kind = p!.kind;

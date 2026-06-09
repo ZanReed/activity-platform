@@ -139,20 +139,27 @@ function buildBlankRef(
 
     const answers = (input.dataset.blankAnswers ?? '').split('|').filter(Boolean);
     const strategy = input.dataset.blankStrategy ?? 'list';
-    const hint = input.dataset.hint ?? null;
 
-    let mistakeFeedback: BlankRef['mistakeFeedback'] = [];
-    const rawMistake = input.dataset.mistakeFeedback;
-    if (rawMistake) {
-        try {
-            const parsed = JSON.parse(rawMistake);
-            if (Array.isArray(parsed)) {
-                mistakeFeedback = parsed;
-            }
-        } catch {
-            warn('Blank ' + blankId + ' has malformed data-mistake-feedback; ignoring.');
-        }
-    }
+    // Rich feedback content lives in hidden <template> siblings, pre-rendered
+    // server-side. The runtime never parses or re-renders it — it clones the
+    // template into the popover on demand.
+    const hintContent = wrapper.querySelector<HTMLTemplateElement>(
+        '.js-blank-hint-content',
+    );
+
+    // One template per mistakeFeedback entry, in document order. The match
+    // string lives on data-match; matching happens against these in order
+    // (first match wins).
+    const mistakeFeedback: BlankRef['mistakeFeedback'] = Array.prototype.slice
+        .call(
+            wrapper.querySelectorAll<HTMLTemplateElement>(
+                '.js-blank-mistake-content',
+            ),
+        )
+        .map((content: HTMLTemplateElement) => ({
+            match: content.dataset.match ?? '',
+            content,
+        }));
 
     return {
         input,
@@ -160,7 +167,7 @@ function buildBlankRef(
         mistakeButton,
         answers,
         strategy,
-        hint,
+        hintContent,
         mistakeFeedback,
         blockId,
         sectionId,
@@ -173,7 +180,6 @@ function buildFillInBlankRef(
     sectionId: string,
     blankIds: string[],
 ): FillInBlankRef {
-    const solution = el.dataset.solution ?? null;
     const solutionEl = el.querySelector<HTMLElement>('.js-solution');
     const hasConfidenceRating = el.dataset.hasConfidenceRating === 'true';
     const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
@@ -206,7 +212,6 @@ function buildFillInBlankRef(
     return {
         el,
         blankIds,
-        solution,
         solutionEl,
         hasConfidenceRating,
         confidenceFieldset,

@@ -113,10 +113,10 @@ describe('ProblemBlock — Stage 9a additions', () => {
             id: BLANK_ID,
             type: 'problem',
             content: [],
-            solution: 'First, distribute the 2 across (x + 3) to get 2x + 6.',
+            solution: [{ type: 'text', text: 'First, distribute the 2 across (x + 3) to get 2x + 6.' }],
                                           skills: ['distributive property'],
         });
-        expect(parsed.solution).toContain('distribute');
+        expect(parsed.solution?.[0]).toMatchObject({ type: 'text', text: expect.stringContaining('distribute') });
         expect(parsed.skills).toEqual(['distributive property']);
     });
 });
@@ -152,13 +152,13 @@ describe('BlankToken — Stage 9a additions', () => {
             id: BLANK_ID,
             answer: 'x+2',
             acceptableAnswers: [],
-            hint: 'Combine the like terms.',
+            hint: [{ type: 'text', text: 'Combine the like terms.' }],
             mistakeFeedback: [
-                { match: '2x', feedback: 'You multiplied — add the like terms instead.' },
-                { match: 'x', feedback: "Don't forget the constant term." },
+                { match: '2x', feedback: [{ type: 'text', text: 'You multiplied — add the like terms instead.' }] },
+                { match: 'x', feedback: [{ type: 'text', text: "Don't forget the constant term." }] },
             ],
         });
-        expect(parsed.hint).toBe('Combine the like terms.');
+        expect(parsed.hint?.[0]).toMatchObject({ type: 'text', text: 'Combine the like terms.' });
         expect(parsed.mistakeFeedback).toHaveLength(2);
         expect(parsed.mistakeFeedback?.[0]?.match).toBe('2x');
     });

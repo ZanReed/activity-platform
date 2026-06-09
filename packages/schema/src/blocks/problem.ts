@@ -21,7 +21,7 @@ export const ProblemBlock = z.object({
                                      type: z.literal('problem'),
                                      number: z.number().int().positive().optional(),
                                      content: z.array(InlineNode),
-                                     solution: z.string().optional(),
+                                     solution: z.array(InlineNode).optional(),
                                      skills: z.array(z.string()).default([]),
 });
 export type ProblemBlock = z.infer<typeof ProblemBlock>;

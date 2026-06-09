@@ -59,7 +59,7 @@ function makeBlankRef(blankId: string, value: string): BlankRef {
         mistakeButton: null,
         answers: ['x'],
         strategy: 'list',
-        hint: null,
+        hintContent: null,
         mistakeFeedback: [],
         blockId: 'block-1',
         sectionId: 'sec-1',
@@ -266,7 +266,7 @@ describe('applyStoredState', () => {
             blanks: {
                 'b1': {
                     result: true,
-                    matchedMistake: 'You forgot the constant.',
+                    matchedMistake: 0,
                 },
             },
             blocks: {

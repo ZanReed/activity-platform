@@ -304,10 +304,12 @@ describe('Inline rendering', () => {
     expect(body).not.toContain('js-blank-mistake');
   });
 
-  it('emits a hidden, dialog-opening mistake button when mistake feedback is authored', () => {
+  it('emits a hidden mistake button + a per-entry content template when mistake feedback is authored', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const blank = createBlankToken('answer');
-    blank.mistakeFeedback = [{ match: '2x', feedback: 'Forgot the constant?' }];
+    blank.mistakeFeedback = [
+      { match: '2x', feedback: [{ type: 'text', text: 'Forgot the constant?', marks: [] }] },
+    ];
     const fill = createFillInBlankBlock();
     fill.content = [blank];
     doc.sections[0]!.blocks = [fill];
@@ -319,19 +321,23 @@ describe('Inline rendering', () => {
       ' aria-controls="activity-popover"' +
       ' aria-label="Show feedback" hidden>!</button>',
     );
-    expect(body).toContain('data-mistake-feedback=');
+    // Rich content lives in a hidden template, keyed by the match string.
+    expect(body).toContain(
+      '<template class="js-blank-mistake-content" data-match="2x">Forgot the constant?</template>',
+    );
+    // No data attribute carries the feedback any more.
+    expect(body).not.toContain('data-mistake-feedback');
   });
 
-  it('emits data-hint and a dialog-opening hint button when hint is set', () => {
+  it('emits a hint button + a content template when hint is set', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const blank = createBlankToken('answer');
-    blank.hint = 'Try factoring first.';
+    blank.hint = [{ type: 'text', text: 'Try factoring first.', marks: [] }];
     const fill = createFillInBlankBlock();
     fill.content = [blank];
     doc.sections[0]!.blocks = [fill];
     const body = renderBody(doc);
 
-    expect(body).toContain('data-hint="Try factoring first."');
     expect(body).toContain(
       '<button class="js-blank-hint" type="button"' +
       ' aria-haspopup="dialog"' +
@@ -339,21 +345,41 @@ describe('Inline rendering', () => {
       ' aria-controls="activity-popover"' +
       ' aria-label="Show hint">?</button>',
     );
-    // The hint text rides only on data-hint now; the modal (document.ts)
-    // shows it at click time. No inline reveal span is emitted.
-    expect(body).not.toContain('js-blank-hint-text');
+    expect(body).toContain(
+      '<template class="js-blank-hint-content">Try factoring first.</template>',
+    );
+    // The hint no longer rides on a data attribute.
+    expect(body).not.toContain('data-hint=');
   });
 
-  it('escapes HTML in the hint data attribute', () => {
+  it('renders rich marks and inline math inside hint content', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const blank = createBlankToken('answer');
-    blank.hint = 'a & b < c';
+    blank.hint = [
+      { type: 'text', text: 'Recall ', marks: [] },
+      { type: 'text', text: 'Pythagoras', marks: ['bold'] },
+      { type: 'text', text: ': ', marks: [] },
+      { type: 'math_inline', latex: 'a^2 + b^2' },
+    ];
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('<strong>Pythagoras</strong>');
+    // KaTeX ran server-side: the rendered math carries the katex class.
+    expect(body).toContain('class="katex"');
+  });
+
+  it('escapes HTML in hint content text', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('answer');
+    blank.hint = [{ type: 'text', text: 'a & b < c', marks: [] }];
     const fill = createFillInBlankBlock();
     fill.content = [blank];
     doc.sections[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).not.toContain('a & b < c');
-    expect(body).toContain('data-hint="a &amp; b &lt; c"');
+    expect(body).toContain('a &amp; b &lt; c');
   });
 
   it('omits all hint emission when hint is undefined or empty', () => {
@@ -369,7 +395,7 @@ describe('Inline rendering', () => {
      (() => {
        const d = createEmptyDocument({ title: 'T' });
        const b = createBlankToken('a');
-       b.hint = '';
+       b.hint = [];
        const f = createFillInBlankBlock();
        f.content = [b];
        d.sections[0]!.blocks = [f];
@@ -378,32 +404,32 @@ describe('Inline rendering', () => {
     ];
     for (const doc of docs) {
       const body = renderBody(doc);
-      expect(body).not.toContain('data-hint=');
       expect(body).not.toContain('js-blank-hint');
     }
   });
 
-  it('emits mistakeFeedback as JSON in data-mistake-feedback', () => {
+  it('emits one content template per mistakeFeedback entry, in order', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const blank = createBlankToken('answer');
     blank.mistakeFeedback = [
-      { match: '2x', feedback: 'Did you forget the constant?' },
-      { match: '0', feedback: 'Check your sign.' },
+      { match: '2x', feedback: [{ type: 'text', text: 'Did you forget the constant?', marks: [] }] },
+      { match: '0', feedback: [{ type: 'text', text: 'Check your sign.', marks: [] }] },
     ];
     const fill = createFillInBlankBlock();
     fill.content = [blank];
     doc.sections[0]!.blocks = [fill];
     const body = renderBody(doc);
-    expect(body).toContain('data-mistake-feedback="');
-    expect(body).toContain('&quot;match&quot;:&quot;2x&quot;');
-    expect(body).toContain(
-      '&quot;feedback&quot;:&quot;Did you forget the constant?&quot;',
+    const first = body.indexOf(
+      '<template class="js-blank-mistake-content" data-match="2x">Did you forget the constant?</template>',
     );
-    expect(body).toContain('&quot;match&quot;:&quot;0&quot;');
-    expect(body).toContain('&quot;feedback&quot;:&quot;Check your sign.&quot;');
+    const second = body.indexOf(
+      '<template class="js-blank-mistake-content" data-match="0">Check your sign.</template>',
+    );
+    expect(first).toBeGreaterThan(-1);
+    expect(second).toBeGreaterThan(first);
   });
 
-  it('omits data-mistake-feedback when the array is empty or undefined', () => {
+  it('omits all mistake emission when the array is empty or undefined', () => {
     const docs = [
       (() => {
         const d = createEmptyDocument({ title: 'T' });
@@ -424,7 +450,8 @@ describe('Inline rendering', () => {
      })(),
     ];
     for (const doc of docs) {
-      expect(renderBody(doc)).not.toContain('data-mistake-feedback');
+      const body = renderBody(doc);
+      expect(body).not.toContain('js-blank-mistake');
     }
   });
 
@@ -438,28 +465,43 @@ describe('Inline rendering', () => {
 });
 
 describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
-  it('emits data-solution and a hidden solution slot when solution is set', () => {
+  it('pre-renders rich solution content into a hidden slot when solution is set', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const fill = createFillInBlankBlock();
-    fill.solution = 'Combine like terms, then divide.';
+    fill.solution = [{ type: 'text', text: 'Combine like terms, then divide.', marks: [] }];
     doc.sections[0]!.blocks = [fill];
     const body = renderBody(doc);
-    expect(body).toContain('data-solution="Combine like terms, then divide."');
     expect(body).toContain(
       '<div class="js-solution" data-for-block="' + fill.id + '" hidden>' +
       'Combine like terms, then divide.' +
       '</div>',
     );
+    // Presence is keyed off the slot, not a data attribute.
+    expect(body).not.toContain('data-solution');
   });
 
-  it('escapes HTML in the solution (attribute + text contexts)', () => {
+  it('renders rich marks and inline math inside the solution slot', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const fill = createFillInBlankBlock();
-    fill.solution = 'Use a & b < c';
+    fill.solution = [
+      { type: 'text', text: 'Since ', marks: [] },
+      { type: 'math_inline', latex: 'x = 2' },
+      { type: 'text', text: ', the answer is ', marks: [] },
+      { type: 'text', text: 'four', marks: ['italic'] },
+    ];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('<em>four</em>');
+    expect(body).toContain('class="katex"');
+  });
+
+  it('escapes HTML in solution content text', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const fill = createFillInBlankBlock();
+    fill.solution = [{ type: 'text', text: 'Use a & b < c', marks: [] }];
     doc.sections[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).not.toContain('Use a & b < c');
-    expect(body).toContain('data-solution="Use a &amp; b &lt; c"');
     expect(body).toContain('>Use a &amp; b &lt; c<');
   });
 
@@ -473,14 +515,13 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
      (() => {
        const d = createEmptyDocument({ title: 'T' });
        const f = createFillInBlankBlock();
-       f.solution = '';
+       f.solution = [];
        d.sections[0]!.blocks = [f];
        return d;
      })(),
     ];
     for (const doc of docs) {
       const body = renderBody(doc);
-      expect(body).not.toContain('data-solution=');
       expect(body).not.toContain('js-solution');
     }
   });

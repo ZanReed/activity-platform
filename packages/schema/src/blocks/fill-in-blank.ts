@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { FillInBlankInline } from '../inline.js';
+import { FillInBlankInline, InlineNode } from '../inline.js';
 
 // The architecturally interesting block. content is an array of inline nodes
 // that may include BlankToken — students see prose with editable blanks.
@@ -29,7 +29,7 @@ export const FillInBlankBlock = z.object({
                                          type: z.literal('fill_in_blank'),
                                          number: z.number().int().positive().optional(),
                                          content: z.array(FillInBlankInline),
-                                         solution: z.string().optional(),
+                                         solution: z.array(InlineNode).optional(),
                                          hasConfidenceRating: z.boolean().default(false),
                                          skills: z.array(z.string()).default([]),
 });

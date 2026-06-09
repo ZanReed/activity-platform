@@ -14,8 +14,11 @@ import BlankView from '../nodeViews/BlankView';
 //   - id: stable UUID. Used as the key in SubmissionResponses.blanks[<id>].
 //   - answer: required, min 1 char (per schema). Canonical correct answer.
 //   - acceptableAnswers: array of alternative correct strings.
-//   - hint: optional teacher-authored nudge.
-//   - mistakeFeedback: optional array of {match, feedback} pairs.
+//   - hint: optional teacher-authored nudge, stored as canonical InlineNode[]
+//     (rich text + inline math). Opaque JSON here; serialize/the nested
+//     mini-editor own its shape.
+//   - mistakeFeedback: optional array of {match, feedback} pairs where feedback
+//     is an InlineNode[] (same opaque-JSON treatment as hint).
 //
 // Editing path:
 //   updateBlankAttrs — `preserveSelection` (default true) re-applies
@@ -51,9 +54,9 @@ declare module '@tiptap/core' {
                 attrs: Partial<{
                     answer: string;
                     acceptableAnswers: string[];
-                    hint: string | undefined;
+                    hint: unknown[] | undefined;
                     mistakeFeedback:
-                        | Array<{ match: string; feedback: string }>
+                        | Array<{ match: string; feedback: unknown[] }>
                         | undefined;
                 }>,
                 options?: { preserveSelection?: boolean },
@@ -105,19 +108,29 @@ export const Blank = Node.create({
                 },
             },
             hint: {
-                default: undefined as string | undefined,
+                default: undefined as unknown[] | undefined,
                 parseHTML: (element) => {
                     const raw = element.getAttribute('data-hint');
-                    return raw && raw.length > 0 ? raw : undefined;
+                    if (!raw) return undefined;
+                    try {
+                        const parsed = JSON.parse(raw);
+                        return Array.isArray(parsed) && parsed.length > 0
+                            ? parsed
+                            : undefined;
+                    } catch {
+                        return undefined;
+                    }
                 },
                 renderHTML: (attributes) => {
-                    const v = attributes.hint as string | undefined;
-                    return v && v.length > 0 ? { 'data-hint': v } : {};
+                    const v = attributes.hint as unknown[] | undefined;
+                    return v && v.length > 0
+                        ? { 'data-hint': JSON.stringify(v) }
+                        : {};
                 },
             },
             mistakeFeedback: {
                 default: undefined as
-                    | Array<{ match: string; feedback: string }>
+                    | Array<{ match: string; feedback: unknown[] }>
                     | undefined,
                 parseHTML: (element) => {
                     const raw = element.getAttribute('data-mistake-feedback');
@@ -126,11 +139,11 @@ export const Blank = Node.create({
                         const parsed = JSON.parse(raw);
                         if (!Array.isArray(parsed)) return undefined;
                         const cleaned = parsed.filter(
-                            (p): p is { match: string; feedback: string } =>
+                            (p): p is { match: string; feedback: unknown[] } =>
                                 p &&
                                 typeof p === 'object' &&
                                 typeof p.match === 'string' &&
-                                typeof p.feedback === 'string',
+                                Array.isArray(p.feedback),
                         );
                         return cleaned.length > 0 ? cleaned : undefined;
                     } catch {
@@ -139,7 +152,7 @@ export const Blank = Node.create({
                 },
                 renderHTML: (attributes) => {
                     const v = attributes.mistakeFeedback as
-                        | Array<{ match: string; feedback: string }>
+                        | Array<{ match: string; feedback: unknown[] }>
                         | undefined;
                     return v && v.length > 0
                         ? { 'data-mistake-feedback': JSON.stringify(v) }

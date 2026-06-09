@@ -8,7 +8,7 @@
 // Layered API:
 //   trimValue                  — whitespace rule, shared with scoring + matching
 //   scoreBlank                 — pure: ref + typed → true/false/null
-//   matchMistakeFeedback       — pure: ref + typed → matched feedback text | null
+//   matchMistakeFeedback       — pure: ref + typed → matched entry index | null
 //   scoreBlankAndUpdateState   — composition: read input, score, write to state
 //                                (result + matchedMistake). No DOM writes.
 //   clearBlankState            — clear stale result + matchedMistake when the
@@ -57,9 +57,13 @@ export function scoreBlank(ref: BlankRef, typed: string): boolean | null {
 }
 
 /**
- * Pure: find a mistake-feedback entry whose `match` equals the trimmed,
- * lowercased typed value (case-insensitive). Returns the feedback text, or
- * null when no entry matches.
+ * Pure: find the index of the mistake-feedback entry whose `match` equals the
+ * trimmed, lowercased typed value (case-insensitive). Returns the entry index
+ * (into ref.mistakeFeedback), or null when no entry matches.
+ *
+ * Returning the index (rather than the feedback content) keeps persisted state
+ * lean and lets render() clone the matching template by position — the rich
+ * content never round-trips through state or localStorage.
  *
  * Empty/whitespace-only typed values always return null — even if the
  * teacher authored an entry with an empty match string, an empty answer
@@ -77,11 +81,13 @@ export function scoreBlank(ref: BlankRef, typed: string): boolean | null {
 export function matchMistakeFeedback(
   ref: BlankRef,
   typed: string,
-): string | null {
+): number | null {
   const needle = trimValue(typed).toLowerCase();
   if (needle === '') return null;
-  for (const entry of ref.mistakeFeedback) {
-    if (trimValue(entry.match).toLowerCase() === needle) return entry.feedback;
+  for (let i = 0; i < ref.mistakeFeedback.length; i++) {
+    if (trimValue(ref.mistakeFeedback[i]!.match).toLowerCase() === needle) {
+      return i;
+    }
   }
   return null;
 }
