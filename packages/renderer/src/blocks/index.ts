@@ -16,10 +16,17 @@ import { renderCallout } from './callout.js';
 import { renderProblem } from './problem.js';
 import { renderFillInBlank } from './fill-in-blank.js';
 import { renderBulletList, renderOrderedList } from './lists.js';
+import { renderColumns } from './columns.js';
 
 export interface BlockRenderContext {
-  /** Auto-incremented across problem and fill_in_blank blocks. */
-  problemNumber: number;
+  /**
+   * Pull the next auto-number from the document-wide problem sequence. Called
+   * once per numbered block (problem / fill_in_blank), in render order. A
+   * closure (not a static number) so a columns container can draw numbers for
+   * the problems nested in its cells from the same shared sequence — yielding
+   * column-major numbering (column 1 top-to-bottom, then column 2, …).
+   */
+  nextProblemNumber: () => number;
   /** Answer-key print variant: prefill each blank with its answer (Drop C). */
   showAnswers?: boolean;
 }
@@ -37,13 +44,18 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
     case 'callout':
       return renderCallout(block);
     case 'problem':
-      return renderProblem(block, ctx);
+      return renderProblem(block, { problemNumber: ctx.nextProblemNumber() });
     case 'fill_in_blank':
-      return renderFillInBlank(block, ctx);
+      return renderFillInBlank(block, {
+        problemNumber: ctx.nextProblemNumber(),
+        showAnswers: ctx.showAnswers,
+      });
     case 'bullet_list':
       return renderBulletList(block);
     case 'ordered_list':
       return renderOrderedList(block);
+    case 'columns':
+      return renderColumns(block, ctx);
     default: {
       // Exhaustiveness check — if a new block type is added to the schema
       // and not handled here, TypeScript emits an error on this assignment.

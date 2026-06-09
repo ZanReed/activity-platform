@@ -198,6 +198,30 @@ body {
 .block-problem-body > :first-child { margin-top: 0; }
 .block-problem-body > :last-child { margin-bottom: 0; }
 
+/* Structural columns. The grid track sizing comes from --columns-template
+ (set inline by the renderer from per-column width weights); the fallback keeps
+ a config-less context (e.g. a stray clone) sane. min-width:0 on each cell lets
+ the grid track shrink so wide content (long math, pre, images) can't blow the
+ track out. The container lays out side by side everywhere — print and the
+ foldable inherit this rule unconditionally; only @media screen narrows it. */
+.block-columns {
+  display: grid;
+  grid-template-columns: var(--columns-template, 1fr 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin: 1rem 0;
+}
+.block-columns > .column-cell { min-width: 0; }
+.block-columns > .column-cell > :first-child { margin-top: 0; }
+.block-columns > .column-cell > :last-child { margin-bottom: 0; }
+
+/* Narrow screens only: collapse to a single column so a 2-/3-column layout
+ stays readable on a phone. Scoped to @media SCREEN so it never reaches paper
+ or the foldable (both print-media), where columns must stay side by side. */
+@media screen and (max-width: 640px) {
+  .block-columns { grid-template-columns: 1fr; }
+}
+
 /* The blank-token wrapper keeps an <input class="blank"> and its sibling
  a fford*ances (.js-blank-hint, .js-blank-mistake) on the same inline-flow
  line, so they can't wrap apart mid-prose. The wrapper is structural only —

@@ -30,6 +30,9 @@ export {
   BulletListBlock,
   OrderedListBlock,
   ListItem,
+  ColumnsBlock,
+  ColumnCellBlock,
+  Column,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
@@ -66,6 +69,8 @@ export {
   createBulletListBlock,
   createOrderedListBlock,
   createListItem,
+  createColumn,
+  createColumnsBlock,
   createBlankToken,
   createSection,
   createEmptyDocument,

@@ -27,6 +27,8 @@ import type {
   BulletListBlock,
   OrderedListBlock,
   ListItem,
+  Column,
+  ColumnsBlock,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
@@ -79,6 +81,20 @@ export function createBulletListBlock(): BulletListBlock {
 
 export function createOrderedListBlock(): OrderedListBlock {
   return { id: uuid(), type: 'ordered_list', items: [createListItem()] };
+}
+
+export function createColumn(): Column {
+  return { id: uuid(), blocks: [] };
+}
+
+// count is clamped to the schema's 2..6 range so the result always validates.
+export function createColumnsBlock(count: number = 2): ColumnsBlock {
+  const n = Math.min(Math.max(Math.trunc(count), 2), 6);
+  return {
+    id: uuid(),
+    type: 'columns',
+    columns: Array.from({ length: n }, createColumn),
+  };
 }
 
 export function createBlankToken(answer: string): BlankToken {

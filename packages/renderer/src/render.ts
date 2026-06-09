@@ -19,7 +19,7 @@
 // =============================================================================
 
 import type { ActivityDocument, Section } from '@activity/schema';
-import { renderBlock, isNumberedBlock } from './blocks/index.js';
+import { renderBlock } from './blocks/index.js';
 import { attr, escape } from './html.js';
 
 // Local mirror of the schema enum — keeps the renderer free of a non-type
@@ -63,12 +63,12 @@ function renderSection(section: Section, ctx: SectionRenderContext): string {
   : '';
 
   const blocksHtml = section.blocks.map((block) => {
-    // Increment the counter BEFORE rendering so the rendered number is
-    // 1-indexed and matches the position in the auto-counted sequence.
-    // Non-numbered blocks don't increment.
-    const num = isNumberedBlock(block) ? ctx.nextProblemNumber() : 0;
+    // renderBlock pulls auto-numbers from the shared sequence itself (once per
+    // numbered block, in render order) — including problems nested inside a
+    // columns container, which draw from the same closure for column-major
+    // numbering. Non-numbered blocks simply don't pull.
     return renderBlock(block, {
-      problemNumber: num,
+      nextProblemNumber: ctx.nextProblemNumber,
       showAnswers: ctx.showAnswers,
     });
   }).join('');
