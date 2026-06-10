@@ -204,6 +204,26 @@ export default function Toolbar({ editor }: ToolbarProps) {
                       }`
                     : 'Grid'}
             </ToolbarButton>
+            {/*
+              Add / remove column — contextual, mirroring the Grid toggle.
+              editor.can() reflects the schema's 2–6 bounds (the commands
+              return false at the min/max), so the buttons disable at the
+              limits and when the selection isn't in a columns block.
+            */}
+            <ToolbarButton
+                onClick={() => editor.chain().focus().addColumn().run()}
+                disabled={!editor.can().addColumn()}
+                title="Add a column to the selected layout (max 6)"
+            >
+                + Column
+            </ToolbarButton>
+            <ToolbarButton
+                onClick={() => editor.chain().focus().removeColumn().run()}
+                disabled={!editor.can().removeColumn()}
+                title="Remove the current column (min 2)"
+            >
+                − Column
+            </ToolbarButton>
         </div>
     );
 }

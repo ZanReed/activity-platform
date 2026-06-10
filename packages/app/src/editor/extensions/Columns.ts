@@ -1,4 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { NodeSelection, type EditorState } from '@tiptap/pm/state';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 
 // =============================================================================
 // Columns / Column — structural side-by-side container for the editor.
@@ -17,9 +19,10 @@ import { Node, mergeAttributes } from '@tiptap/core';
 //              cell's start won't merge it into the neighbouring cell).
 //
 // Native rendering (renderHTML/parseHTML + CSS grid), NOT a React NodeView:
-// avoids the Stage-13.5 NodeView reconciliation hazard. Per-column width UI
-// and add/remove-column controls are deferred to a follow-on; the `width`
-// attr is carried through round-trips now so that future UI (and imported
+// avoids the Stage-13.5 NodeView reconciliation hazard. Add/remove-column
+// commands (addColumn/removeColumn) are wired to the contextual toolbar;
+// per-column width UI is still deferred to a follow-on, but the `width` attr
+// is carried through round-trips now so that future UI (and imported
 // documents) don't lose the value. The editor lays cells out equally via
 // grid-auto-columns:1fr regardless of count; the published renderer honours
 // the width weights.
@@ -33,8 +36,66 @@ declare module '@tiptap/core' {
             // Cycle the selected columns block's grid-lines state
             // (inherit → on → off → inherit).
             cycleColumnsGridLines: () => ReturnType;
+            // Add a column to the active columns block (clamped at the 6-column
+            // max). Inserts beside the column holding the cursor, or appends
+            // when the whole block is node-selected.
+            addColumn: () => ReturnType;
+            // Remove a column from the active columns block (clamped at the
+            // 2-column min). Removes the column holding the cursor, or the last
+            // column when the whole block is node-selected.
+            removeColumn: () => ReturnType;
         };
     }
+}
+
+// Resolved positions for the column add/remove commands, located from the
+// current selection. `insertEnd` is where a new column goes; `[targetStart,
+// targetEnd]` is the column to remove. Two selection shapes are handled: a
+// text cursor inside a cell (act on that cell) and a NodeSelection on the
+// whole columns block (act on the last cell). Returns null when the selection
+// isn't in a columns block at all.
+interface ColumnsTarget {
+    columnsNode: ProseMirrorNode;
+    insertEnd: number;
+    targetStart: number;
+    targetEnd: number;
+}
+
+function findColumnsTarget(state: EditorState): ColumnsTarget | null {
+    const { selection } = state;
+    if (
+        selection instanceof NodeSelection &&
+        selection.node.type.name === 'columns'
+    ) {
+        const columnsNode = selection.node;
+        // Position just before the columns node's closing token = end of its
+        // content, i.e. where an appended column lands.
+        const contentEnd = selection.from + columnsNode.nodeSize - 1;
+        const lastChild = columnsNode.lastChild;
+        return {
+            columnsNode,
+            insertEnd: contentEnd,
+            targetStart: lastChild ? contentEnd - lastChild.nodeSize : contentEnd,
+            targetEnd: contentEnd,
+        };
+    }
+    // Text cursor inside a cell: walk up to the columns node. Its column
+    // children sit exactly one depth below it (the content spec is
+    // `column{2,6}`), so the active cell is at depth d+1.
+    const { $from } = selection;
+    for (let d = $from.depth; d > 0; d--) {
+        if ($from.node(d).type.name === 'columns') {
+            const targetStart = $from.before(d + 1);
+            const targetEnd = $from.after(d + 1);
+            return {
+                columnsNode: $from.node(d),
+                insertEnd: targetEnd,
+                targetStart,
+                targetEnd,
+            };
+        }
+    }
+    return null;
 }
 
 // Grid-lines tri-state, mirroring the schema's ColumnGridLines:
@@ -139,6 +200,38 @@ export const Columns = Node.create<ColumnsOptions>({
                 const next: GridLines =
                     current === 'inherit' ? 'on' : current === 'on' ? 'off' : 'inherit';
                 return commands.updateAttributes(this.name, { gridLines: next });
+            },
+
+            // Add a column beside the active cell (or appended when the block
+            // is node-selected). Guarded at the schema's 6-column max so the
+            // `column{2,6}` content spec is never violated; returns false in
+            // that case (and when not in a columns block), which also drives
+            // the toolbar's disabled state via editor.can().
+            addColumn:
+            () =>
+            ({ state, dispatch, tr }) => {
+                const target = findColumnsTarget(state);
+                if (!target || target.columnsNode.childCount >= 6) return false;
+                if (dispatch) {
+                    const newColumn = state.schema.nodes.column?.createAndFill();
+                    if (!newColumn) return false;
+                    dispatch(tr.insert(target.insertEnd, newColumn));
+                }
+                return true;
+            },
+
+            // Remove the active column (or the last when node-selected).
+            // Guarded at the 2-column min; deleting content the cell held is
+            // the expected consequence of removing a column.
+            removeColumn:
+            () =>
+            ({ state, dispatch, tr }) => {
+                const target = findColumnsTarget(state);
+                if (!target || target.columnsNode.childCount <= 2) return false;
+                if (dispatch) {
+                    dispatch(tr.delete(target.targetStart, target.targetEnd));
+                }
+                return true;
             },
         };
     },
