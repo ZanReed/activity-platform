@@ -33,7 +33,7 @@ The complete create-publish-submit-review cycle, end to end, for one teacher (th
 
 **Architectural delta**: Everything from scratch. Postgres schema with append-only versioning, RLS, signup trigger with allowlist, atomic publish RPC, ingest submission RPC. Edge Functions for publish and submission. TypeScript packages for schema (Zod), renderer (pure JSON-to-HTML), and the React app (Vite + Tiptap). Static HTML on publish, hosted on Cloudflare R2 (Supabase Storage and Edge Functions both rewrite HTML responses to `text/plain` on free tier as anti-abuse, forcing the host off `*.supabase.co` — see Cross-cutting concerns / Hosting platform).
 
-**Bounded by**: ~6–8 core block types. Image-by-URL only (no upload). Single owner per activity. No multi-column layouts. Simple raw-table submission viewer (no per-blank aggregation yet). English only. Allowlist-only access (no self-signup).
+**Bounded by**: ~6–8 core block types. Image-by-URL only (no upload). Single owner per activity. No multi-column layouts *at the original scope* — structural authored columns (a side-by-side container block, with an optional ruled-grid mode for print) landed later as a follow-on alongside the print feature; see STATE. Simple raw-table submission viewer (no per-blank aggregation yet). English only. Allowlist-only access (no self-signup).
 
 **Done when**: One teacher can build a worksheet, share it, and see real student submissions in the dashboard. End-to-end loop works without manual intervention.
 
