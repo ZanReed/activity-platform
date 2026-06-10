@@ -70,4 +70,34 @@ describe('ColumnsBlock', () => {
     (outer.columns[0]!.blocks as unknown[]).push(inner);
     expect(ColumnsBlock.safeParse(outer).success).toBe(false);
   });
+
+  it('defaults gridLines to inherit', () => {
+    const block = createColumnsBlock();
+    expect(block.gridLines).toBe('inherit');
+    expect(ColumnsBlock.safeParse(block).success).toBe(true);
+  });
+
+  it('accepts the explicit gridLines overrides on/off', () => {
+    const on = createColumnsBlock(2);
+    on.gridLines = 'on';
+    expect(ColumnsBlock.safeParse(on).success).toBe(true);
+    const off = createColumnsBlock(2);
+    off.gridLines = 'off';
+    expect(ColumnsBlock.safeParse(off).success).toBe(true);
+  });
+
+  it('rejects an unknown gridLines value', () => {
+    const block = createColumnsBlock(2);
+    (block as { gridLines: string }).gridLines = 'maybe';
+    expect(ColumnsBlock.safeParse(block).success).toBe(false);
+  });
+
+  it('fills gridLines with inherit when omitted from input', () => {
+    const parsed = ColumnsBlock.parse({
+      id: uuid(),
+      type: 'columns',
+      columns: [createColumn(), createColumn()],
+    });
+    expect(parsed.gridLines).toBe('inherit');
+  });
 });

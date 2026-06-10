@@ -33,6 +33,7 @@ export {
   ColumnsBlock,
   ColumnCellBlock,
   Column,
+  ColumnGridLines,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 

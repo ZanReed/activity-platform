@@ -28,6 +28,17 @@ function gridTemplate(columns: Column[]): string {
     .join(' ');
 }
 
+// Resolve the tri-state gridLines against the activity-wide default. 'on'/'off'
+// are absolute; 'inherit' defers to meta.print.gridLines (threaded as
+// ctx.gridLinesDefault). The CSS keys off the data-grid-lines attribute, which
+// is emitted only when the resolved value is true — its absence is the "no
+// rules" signal, so an unruled block stays attribute-free.
+function resolveGridLines(block: ColumnsBlock, ctx: BlockRenderContext): boolean {
+  if (block.gridLines === 'on') return true;
+  if (block.gridLines === 'off') return false;
+  return ctx.gridLinesDefault ?? false;
+}
+
 export function renderColumns(block: ColumnsBlock, ctx: BlockRenderContext): string {
   const cells = block.columns
     .map((col) => {
@@ -36,11 +47,16 @@ export function renderColumns(block: ColumnsBlock, ctx: BlockRenderContext): str
     })
     .join('');
 
+  const gridLinesAttr = resolveGridLines(block, ctx)
+    ? ' data-grid-lines="true"'
+    : '';
+
   return (
     '<div class="block block-columns"' +
     ' data-block-category="layout"' +
     ' data-block-type="columns"' +
     ' data-block-id="' + attr(block.id) + '"' +
+    gridLinesAttr +
     ' style="--columns-template:' + gridTemplate(block.columns) + '">' +
     cells +
     '</div>'

@@ -47,6 +47,6 @@ export {
   ListItem,
   ColumnsBlock,
 };
-export { ColumnCellBlock, Column } from './columns.js';
+export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export type { HeadingLevel } from './heading.js';
 export type { CalloutVariant } from './callout.js';

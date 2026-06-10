@@ -113,3 +113,28 @@ describe('Sections', () => {
     expect(ActivityDocument.safeParse(doc).success).toBe(true);
   });
 });
+
+describe('PrintConfig grid lines', () => {
+  it('defaults meta.print.gridLines to false', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    expect(doc.meta.print.gridLines).toBe(false);
+  });
+
+  it('fills gridLines=false when print omits it on input', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    // Strip gridLines, then re-parse: the schema default repopulates it.
+    const { gridLines: _omitted, ...printWithout } = doc.meta.print;
+    void _omitted;
+    const parsed = ActivityDocument.parse({
+      ...doc,
+      meta: { ...doc.meta, print: printWithout },
+    });
+    expect(parsed.meta.print.gridLines).toBe(false);
+  });
+
+  it('accepts gridLines=true', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    doc.meta.print.gridLines = true;
+    expect(ActivityDocument.safeParse(doc).success).toBe(true);
+  });
+});

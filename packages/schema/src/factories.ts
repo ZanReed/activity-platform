@@ -94,6 +94,7 @@ export function createColumnsBlock(count: number = 2): ColumnsBlock {
     id: uuid(),
     type: 'columns',
     columns: Array.from({ length: n }, createColumn),
+    gridLines: 'inherit',
   };
 }
 

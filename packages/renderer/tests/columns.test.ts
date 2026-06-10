@@ -87,3 +87,44 @@ describe('renderColumns', () => {
     expect(body).toContain('value="forty-two"');
   });
 });
+
+describe('renderColumns grid lines', () => {
+  // gridLines on the block is the absolute say; 'inherit' defers to
+  // meta.print.gridLines. The renderer signals "ruled" by emitting the
+  // data-grid-lines="true" attribute, and signals "unruled" by its absence.
+  function docWithGrid(
+    blockGridLines: 'inherit' | 'on' | 'off',
+    activityDefault: boolean,
+  ): ActivityDocument {
+    const cols = createColumnsBlock(2);
+    cols.gridLines = blockGridLines;
+    const doc = createEmptyDocument({ title: 'T' });
+    doc.meta.print.gridLines = activityDefault;
+    doc.sections[0]!.blocks = [cols];
+    return doc;
+  }
+
+  it('omits data-grid-lines when block=inherit and activity default is off', () => {
+    expect(renderBody(docWithGrid('inherit', false))).not.toContain(
+      'data-grid-lines',
+    );
+  });
+
+  it('emits data-grid-lines when block=inherit and activity default is on', () => {
+    expect(renderBody(docWithGrid('inherit', true))).toContain(
+      'data-grid-lines="true"',
+    );
+  });
+
+  it("emits data-grid-lines for block='on' even when activity default is off", () => {
+    expect(renderBody(docWithGrid('on', false))).toContain(
+      'data-grid-lines="true"',
+    );
+  });
+
+  it("omits data-grid-lines for block='off' even when activity default is on", () => {
+    expect(renderBody(docWithGrid('off', true))).not.toContain(
+      'data-grid-lines',
+    );
+  });
+});

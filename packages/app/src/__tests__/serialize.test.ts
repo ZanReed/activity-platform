@@ -915,3 +915,246 @@ describe('lists', () => {
         });
     });
 });
+
+describe('columns', () => {
+    it('round-trips a two-column block preserving cell content and order', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'columns',
+                    attrs: { id: 'cols-1' },
+                    content: [
+                        {
+                            type: 'column',
+                            attrs: {},
+                            content: [
+                                { type: 'paragraph', content: [{ type: 'text', text: 'left' }] },
+                            ],
+                        },
+                        {
+                            type: 'column',
+                            attrs: {},
+                            content: [
+                                { type: 'paragraph', content: [{ type: 'text', text: 'right' }] },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+        // columns.attrs.id is re-minted by tiptapBlockToActivity (file-header
+        // convention), so assert on the content shape rather than the id.
+        const result = roundTrip(doc);
+        const cols = result.content?.[0] as JSONContent;
+        expect(cols.type).toBe('columns');
+        expect(cols.content).toEqual([
+            {
+                type: 'column',
+                attrs: {},
+                content: [
+                    { type: 'paragraph', content: [{ type: 'text', text: 'left' }] },
+                ],
+            },
+            {
+                type: 'column',
+                attrs: {},
+                content: [
+                    { type: 'paragraph', content: [{ type: 'text', text: 'right' }] },
+                ],
+            },
+        ]);
+    });
+
+    it('preserves a per-column width weight', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'columns',
+                    attrs: { id: 'cols-1' },
+                    content: [
+                        {
+                            type: 'column',
+                            attrs: { width: 2 },
+                            content: [{ type: 'paragraph', content: [] }],
+                        },
+                        {
+                            type: 'column',
+                            attrs: {},
+                            content: [{ type: 'paragraph', content: [] }],
+                        },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'columns') throw new Error('unreachable');
+        expect(block.columns[0]!.width).toBe(2);
+        expect(block.columns[1]!.width).toBeUndefined();
+
+        const back = roundTrip(doc);
+        const cols = back.content?.[0] as JSONContent;
+        const cells = cols.content as JSONContent[];
+        expect(cells[0]!.attrs).toEqual({ width: 2 });
+        expect(cells[1]!.attrs).toEqual({});
+    });
+
+    it('numbers nested fill-in-blanks column-major in the ActivityDocument', () => {
+        const fib = (id: string): JSONContent => ({
+            type: 'fillInBlank',
+            attrs: { id },
+            content: [
+                { type: 'blank', attrs: { id: id + '-b', answer: '1', acceptableAnswers: [] } },
+            ],
+        });
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'columns',
+                    attrs: { id: 'cols-1' },
+                    content: [
+                        { type: 'column', attrs: {}, content: [fib('a'), fib('b')] },
+                        { type: 'column', attrs: {}, content: [fib('c')] },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'columns') throw new Error('unreachable');
+        // Column-major cell order is structural here; the renderer assigns the
+        // visible numbers by walking cells in array order (verified in the
+        // renderer's columns.test.ts). This asserts the serialize layer keeps
+        // cells and their blocks in that order.
+        expect(block.columns[0]!.blocks.map((b) => b.type)).toEqual([
+            'fill_in_blank',
+            'fill_in_blank',
+        ]);
+        expect(block.columns[1]!.blocks.map((b) => b.type)).toEqual([
+            'fill_in_blank',
+        ]);
+    });
+
+    it('produces a schema-valid intermediate for a columns block', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'columns',
+                    attrs: { id: 'cols-1' },
+                    content: [
+                        { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
+                        { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+    });
+
+    it('seeds an empty paragraph when a column would otherwise be empty', () => {
+        // A column whose only block is unmappable (e.g. a future/unsupported
+        // type) must still emit a valid `(...)+` cell in the editor direction.
+        const activity = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta: META,
+            sections: [
+                {
+                    id: crypto.randomUUID(),
+                    isCheckpoint: false,
+                    blocks: [
+                        {
+                            id: crypto.randomUUID(),
+                            type: 'columns',
+                            columns: [
+                                { id: crypto.randomUUID(), blocks: [] },
+                                {
+                                    id: crypto.randomUUID(),
+                                    blocks: [
+                                        {
+                                            id: crypto.randomUUID(),
+                                            type: 'paragraph',
+                                            content: [{ type: 'text', text: 'x', marks: [] }],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        const tiptap = activityToTiptap(activity);
+        const cols = tiptap.content?.[0] as JSONContent;
+        const cells = cols.content as JSONContent[];
+        expect(cells[0]!.content).toEqual([{ type: 'paragraph' }]);
+    });
+
+    it('round-trips an explicit gridLines override', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'columns',
+                    attrs: { id: 'cols-1', gridLines: 'on' },
+                    content: [
+                        { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
+                        { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'columns') throw new Error('unreachable');
+        expect(block.gridLines).toBe('on');
+
+        const back = roundTrip(doc);
+        const cols = back.content?.[0] as JSONContent;
+        expect(cols.attrs?.gridLines).toBe('on');
+    });
+
+    it("defaults gridLines to 'inherit' when the attr is absent", () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'columns',
+                    attrs: { id: 'cols-1' },
+                    content: [
+                        { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
+                        { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'columns') throw new Error('unreachable');
+        expect(block.gridLines).toBe('inherit');
+    });
+
+    it("falls back to 'inherit' for an unknown gridLines attr", () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'columns',
+                    attrs: { id: 'cols-1', gridLines: 'bogus' },
+                    content: [
+                        { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
+                        { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'columns') throw new Error('unreachable');
+        expect(block.gridLines).toBe('inherit');
+    });
+});

@@ -53,6 +53,18 @@ export const Column = z.object({
 });
 export type Column = z.infer<typeof Column>;
 
+// gridLines turns the block into a ruled grid: a border around the whole block,
+// rules between the cells, and rules between the stacked blocks within a cell.
+// Especially useful in print (boxed regions to write in / cut out). Tri-state so
+// a block can defer to the activity-wide default:
+//   'inherit' — follow meta.print.gridLines (the activity default; the renderer
+//               resolves this). Default, so a freshly authored block tracks the
+//               activity setting without per-block fiddling.
+//   'on'      — always ruled, regardless of the activity default.
+//   'off'     — never ruled, regardless of the activity default.
+export const ColumnGridLines = z.enum(['inherit', 'on', 'off']);
+export type ColumnGridLines = z.infer<typeof ColumnGridLines>;
+
 // 2..6 columns. The editor surfaces a non-blocking warning above 3 (too narrow
 // to read on paper or a Chromebook), but the schema accepts up to 6 so an
 // intentional dense layout still validates.
@@ -60,5 +72,6 @@ export const ColumnsBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('columns'),
   columns: z.array(Column).min(2).max(6),
+  gridLines: ColumnGridLines.default('inherit'),
 });
 export type ColumnsBlock = z.infer<typeof ColumnsBlock>;

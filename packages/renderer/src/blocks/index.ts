@@ -29,6 +29,12 @@ export interface BlockRenderContext {
   nextProblemNumber: () => number;
   /** Answer-key print variant: prefill each blank with its answer (Drop C). */
   showAnswers?: boolean;
+  /**
+   * Activity-wide default for ruled columns grids (meta.print.gridLines). A
+   * ColumnsBlock with gridLines:'inherit' resolves to this; an explicit
+   * 'on'/'off' on the block overrides it. Defaults to false when absent.
+   */
+  gridLinesDefault?: boolean;
 }
 
 export function renderBlock(block: Block, ctx: BlockRenderContext): string {

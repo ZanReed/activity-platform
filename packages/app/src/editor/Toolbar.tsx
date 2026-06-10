@@ -168,6 +168,42 @@ export default function Toolbar({ editor }: ToolbarProps) {
             >
                 Section
             </ToolbarButton>
+            <ToolbarButton
+                onClick={() => editor.chain().focus().insertColumns(2).run()}
+                title="Insert a two-column layout"
+            >
+                Columns
+            </ToolbarButton>
+            {/*
+              Grid-lines toggle — contextual: enabled only when the selection
+              is inside a columns block. Cycles the block's tri-state
+              (inherit → on → off → inherit). The label reflects the current
+              state so the author sees whether the block defers to the activity
+              default ("Grid: auto") or overrides it ("Grid: on"/"Grid: off").
+              Active styling lights up only for an explicit "on".
+            */}
+            <ToolbarButton
+                onClick={() =>
+                    editor.chain().focus().cycleColumnsGridLines().run()
+                }
+                disabled={!editor.isActive('columns')}
+                active={
+                    editor.isActive('columns') &&
+                    editor.getAttributes('columns').gridLines === 'on'
+                }
+                title="Cycle grid lines on the selected columns block (auto → on → off)"
+            >
+                {editor.isActive('columns')
+                    ? `Grid: ${
+                          editor.getAttributes('columns').gridLines === 'on'
+                              ? 'on'
+                              : editor.getAttributes('columns').gridLines ===
+                                  'off'
+                                ? 'off'
+                                : 'auto'
+                      }`
+                    : 'Grid'}
+            </ToolbarButton>
         </div>
     );
 }

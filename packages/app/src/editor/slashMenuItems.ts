@@ -92,4 +92,20 @@ export const slashMenuItems: SlashMenuItem[] = [
         editor.chain().focus().deleteRange(range).insertFillInBlank().run();
     },
 },
+{
+    title: '2 columns',
+    description: 'Two side-by-side columns of blocks',
+    keywords: ['column', 'columns', 'two', 'layout', 'side', 'grid'],
+    command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertColumns(2).run();
+    },
+},
+{
+    title: '3 columns',
+    description: 'Three side-by-side columns of blocks',
+    keywords: ['column', 'columns', 'three', 'layout', 'side', 'grid'],
+    command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertColumns(3).run();
+    },
+},
 ];

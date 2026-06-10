@@ -542,6 +542,22 @@ function PrintSettings({
             Comma-separated extra labels, each printed with a blank line.
             </p>
             </div>
+
+            <div className="mt-4">
+            <label className="inline-flex items-center gap-1.5 text-sm text-slate-700">
+            <input
+            type="checkbox"
+            checked={print.gridLines}
+            onChange={(e) => setPrint({ gridLines: e.target.checked })}
+            />
+            <span>Grid lines on columns blocks</span>
+            </label>
+            <p className={SETTINGS_HELP_CLASS}>
+            Draw boxes and dividers around columns layouts by default — handy
+            for printed worksheets. Individual columns blocks can override this
+            with their own grid toggle in the editor toolbar.
+            </p>
+            </div>
             </div>
         )}
         </div>
@@ -803,6 +819,7 @@ export default function ActivityEditor() {
             key={id}
             initialContent={loadState.tiptap}
             onUpdate={handleEditorUpdate}
+            gridLinesDefault={meta.print.gridLines}
             />
             </Shell>
         );

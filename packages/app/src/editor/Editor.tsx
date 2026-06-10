@@ -14,14 +14,25 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
+import { Columns, Column } from './extensions/Columns';
 import BlankPopoverHost from './components/BlankPopoverHost';
 
 interface EditorProps {
     initialContent: JSONContent;
     onUpdate?: (json: JSONContent) => void;
+    // Activity-wide default a columns block's gridLines:'inherit' resolves to
+    // (meta.print.gridLines). Fixed at editor mount — Tiptap configures
+    // extensions once, so changing the activity default takes effect on reload;
+    // the published output is always authoritative. Defaults to false (the
+    // playground passes nothing).
+    gridLinesDefault?: boolean;
 }
 
-export default function Editor({ initialContent, onUpdate }: EditorProps) {
+export default function Editor({
+    initialContent,
+    onUpdate,
+    gridLinesDefault = false,
+}: EditorProps) {
     // Force re-render on every editor transaction. Tiptap React's built-in
     // re-render hook misses pure storedMarks transactions (e.g., toggling a
     // mark on an empty cursor), so toolbar active states would lag behind
@@ -47,6 +58,13 @@ export default function Editor({ initialContent, onUpdate }: EditorProps) {
             // input rule + content spec to function.
             FillInBlank,
             Blank,
+            // Structural columns container (group 'block') + its cell node.
+            // Both must be registered for the `column{2,6}` content spec and
+            // the insertColumns command to function. configure threads the
+            // activity-wide grid-lines default so an 'inherit' block previews
+            // ruled when the activity opts in.
+            Columns.configure({ gridLinesDefault }),
+            Column,
         ],
         content: initialContent,
         onCreate: ({ editor }) => {

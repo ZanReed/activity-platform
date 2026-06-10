@@ -32,6 +32,7 @@ interface SectionRenderContext {
   nextProblemNumber: () => number;
   submissionMode: SubmissionMode;
   showAnswers: boolean;
+  gridLinesDefault: boolean;
 }
 
 // opts.showAnswers drives the answer-key print variant (Drop C): blanks render
@@ -47,12 +48,17 @@ export function renderBody(
   let problemNumber = 0;
   const submissionMode = doc.meta.submissionMode;
   const showAnswers = opts.showAnswers ?? false;
+  // Optional-chained: a schema-parsed doc always carries meta.print, but the
+  // editor preview / lightweight callers may hand renderBody a doc whose print
+  // defaults haven't been materialized. gridLines defaults to false there.
+  const gridLinesDefault = doc.meta.print?.gridLines ?? false;
 
   return doc.sections.map((section) => {
     return renderSection(section, {
       nextProblemNumber: () => ++problemNumber,
                          submissionMode,
                          showAnswers,
+                         gridLinesDefault,
     });
   }).join('');
 }
@@ -70,6 +76,7 @@ function renderSection(section: Section, ctx: SectionRenderContext): string {
     return renderBlock(block, {
       nextProblemNumber: ctx.nextProblemNumber,
       showAnswers: ctx.showAnswers,
+      gridLinesDefault: ctx.gridLinesDefault,
     });
   }).join('');
 

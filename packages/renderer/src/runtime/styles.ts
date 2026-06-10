@@ -215,11 +215,55 @@ body {
 .block-columns > .column-cell > :first-child { margin-top: 0; }
 .block-columns > .column-cell > :last-child { margin-bottom: 0; }
 
+/* Ruled grid (gridLines). The renderer emits data-grid-lines="true" only when
+ the resolved tri-state is on (per-block, or the activity-wide print default).
+ It boxes the whole block, draws a vertical rule between cells, and a horizontal
+ rule between the stacked blocks inside a cell — boxed regions to write in or cut
+ out on paper. The gap collapses to 0 so a single hairline (the border layer)
+ sits between regions instead of empty space; cells get their own padding back.
+ Renders in every output (screen, print, foldable), like the columns themselves. */
+.block-columns[data-grid-lines="true"] {
+  gap: 0;
+  border: 1px solid #94a3b8;
+  /* Override the unruled default (align-items:start). Ruled cells must stretch
+   to the row's full height so the between-cell divider (a border-left) spans
+   the whole box — otherwise a short or empty cell yields a stub divider that
+   stops where its own content ends. Stretch also gives equal-height boxed
+   regions, which is the point of a ruled grid on paper. */
+  align-items: stretch;
+}
+.block-columns[data-grid-lines="true"] > .column-cell {
+  padding: 0.75rem;
+  border-left: 1px solid #94a3b8;
+}
+.block-columns[data-grid-lines="true"] > .column-cell:first-child {
+  border-left: none;
+}
+/* Horizontal rule between stacked blocks in a cell. Zero the block's own
+ top-margin and use symmetric padding so the rule sits centered in even space,
+ not doubled against a block margin. :first-child stays flush (rule is between
+ blocks, not above the first). */
+.block-columns[data-grid-lines="true"] > .column-cell > * + * {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #cbd5e1;
+}
+
 /* Narrow screens only: collapse to a single column so a 2-/3-column layout
  stays readable on a phone. Scoped to @media SCREEN so it never reaches paper
  or the foldable (both print-media), where columns must stay side by side. */
 @media screen and (max-width: 640px) {
   .block-columns { grid-template-columns: 1fr; }
+  /* Stacked: the between-cell rule flips from a left border to a top border so
+   the grid still reads as separated regions when columns sit on top of
+   each other. */
+  .block-columns[data-grid-lines="true"] > .column-cell {
+    border-left: none;
+    border-top: 1px solid #94a3b8;
+  }
+  .block-columns[data-grid-lines="true"] > .column-cell:first-child {
+    border-top: none;
+  }
 }
 
 /* The blank-token wrapper keeps an <input class="blank"> and its sibling

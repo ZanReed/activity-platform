@@ -450,6 +450,74 @@
 }
 
 /* =============================================================================
+ *  Columns / Column nodes (structural side-by-side container)
+ *  -----------------------------------------------------------------------
+ *  Native-rendered (no NodeView): a CSS grid whose cells are equal-width in
+ *  the editor regardless of count (grid-auto-flow:column + auto-columns:1fr).
+ *  The published renderer honours per-column width weights; the editor keeps
+ *  it simple until the width-setting UI lands. Dashed cell borders make the
+ *  column boundaries visible while authoring.
+ *  ========================================================================= */
+
+.editor-columns {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    margin: 1rem 0;
+}
+
+.editor-column {
+    min-width: 0; /* let cell contents shrink instead of overflowing the track */
+    padding: 0.5rem;
+    border: 1px dashed rgb(226 232 240); /* slate-200 */
+    border-radius: 0.375rem;
+}
+
+.editor-column > :first-child {
+    margin-top: 0;
+}
+
+.editor-column > :last-child {
+    margin-bottom: 0;
+}
+
+/* Grid-lines preview. data-grid is set by Columns.renderHTML when the block's
+ * tri-state resolves to ruled (explicit 'on', or 'inherit' + activity default).
+ * Mirrors the published renderer (styles.ts): collapse the gap, box the block,
+ * rule between cells (border-left, suppressed on the first) and between stacked
+ * blocks within a cell (border-top on every child after the first). Solid
+ * slate lines here replace the dashed authoring borders so the preview matches
+ * print. */
+.editor-columns[data-grid="true"] {
+    gap: 0;
+    border: 1px solid rgb(148 163 184); /* slate-400 */
+    border-radius: 0.375rem;
+    /* Override the unruled default (align-items:start) so cells stretch to the
+     row height and the between-cell divider spans the full box — an empty or
+     short cell would otherwise leave a stub divider. Mirrors styles.ts. */
+    align-items: stretch;
+}
+
+.editor-columns[data-grid="true"] > .editor-column {
+    border: none;
+    border-left: 1px solid rgb(148 163 184); /* slate-400 */
+    border-radius: 0;
+    padding: 0.75rem;
+}
+
+.editor-columns[data-grid="true"] > .editor-column:first-child {
+    border-left: none;
+}
+
+.editor-columns[data-grid="true"] > .editor-column > * + * {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgb(203 213 225); /* slate-300 */
+}
+
+/* =============================================================================
  *  InlineRichTextEditor (Phase 2 — rich popover fields)
  *  -----------------------------------------------------------------------
  *  A compact nested Tiptap editor used for blank hints, mistake feedback, and

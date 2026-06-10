@@ -44,6 +44,9 @@ import type {
     OrderedListBlock,
     ListItem,
     FillInBlankBlock,
+    ColumnsBlock,
+    Column,
+    ColumnCellBlock,
 } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 
@@ -158,12 +161,55 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
         case 'fillInBlank':
             return tiptapFillInBlankToActivity(node);
 
+        case 'columns':
+            return tiptapColumnsToActivity(node);
+
         default:
             console.warn(
                 `[serialize] Skipping unsupported Tiptap block: ${node.type}`,
             );
             return null;
     }
+}
+
+function tiptapColumnsToActivity(node: JSONContent): ColumnsBlock {
+    // Tri-state grid-lines override. The editor stores 'inherit' | 'on' | 'off'
+    // in attrs.gridLines; anything unexpected (or absent) falls back to
+    // 'inherit' so a malformed attr can't widen the schema enum.
+    const rawGridLines = node.attrs?.gridLines;
+    const gridLines =
+        rawGridLines === 'on' || rawGridLines === 'off' ? rawGridLines : 'inherit';
+
+    return {
+        id: crypto.randomUUID(),
+        type: 'columns',
+        gridLines,
+        columns: (node.content ?? [])
+        .filter((c) => c.type === 'column')
+        .map(tiptapColumnToActivity),
+    };
+}
+
+function tiptapColumnToActivity(node: JSONContent): Column {
+    const column: Column = {
+        id: crypto.randomUUID(),
+        // The editor's `column` content expression forbids nested `columns`,
+        // so tiptapBlockToActivity never yields a ColumnsBlock here. The
+        // type !== 'columns' guard makes that invariant explicit and narrows
+        // Block down to ColumnCellBlock for the schema's Column.blocks field.
+        blocks: (node.content ?? [])
+        .map(tiptapBlockToActivity)
+        .filter(
+            (b): b is ColumnCellBlock => b !== null && b.type !== 'columns',
+        ),
+    };
+
+    const rawWidth = node.attrs?.width;
+    if (typeof rawWidth === 'number' && rawWidth > 0) {
+        column.width = rawWidth;
+    }
+
+    return column;
 }
 
 function tiptapFillInBlankToActivity(node: JSONContent): FillInBlankBlock {
@@ -440,6 +486,9 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'fill_in_blank':
             return activityFillInBlankToTiptap(block);
 
+        case 'columns':
+            return activityColumnsToTiptap(block);
+
         case 'image':
         case 'callout':
         case 'problem':
@@ -453,6 +502,33 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
             return _exhaustive;
         }
     }
+}
+
+function activityColumnsToTiptap(block: ColumnsBlock): JSONContent {
+    return {
+        type: 'columns',
+        // gridLines always carries through (the schema defaults it to 'inherit',
+        // so it's never undefined) — the editor's gridLines attr mirrors the
+        // schema tri-state 1:1.
+        attrs: { id: block.id, gridLines: block.gridLines },
+        content: block.columns.map(activityColumnToTiptap),
+    };
+}
+
+function activityColumnToTiptap(column: Column): JSONContent {
+    const content = column.blocks
+    .map(activityBlockToTiptap)
+    .filter((n): n is JSONContent => n !== null);
+
+    // The editor's `column` content expression is `(...)+` — a cell must hold
+    // at least one block. If every block was unmappable (image/callout/problem
+    // currently serialize to null) or the cell is empty, seed an empty
+    // paragraph so the node is valid in the editor.
+    return {
+        type: 'column',
+        attrs: typeof column.width === 'number' ? { width: column.width } : {},
+        content: content.length > 0 ? content : [{ type: 'paragraph' }],
+    };
 }
 
 function activityBulletListToTiptap(block: BulletListBlock): JSONContent {

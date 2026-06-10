@@ -123,11 +123,16 @@ export type PrintHeader = z.infer<typeof PrintHeader>;
 //   fontSize       — pt. Applied to .activity-container in print only.
 //   problemSpacing — rem of vertical margin around each problem in print.
 //   margin         — inches. The @page margin (literal, like paperSize).
+//   gridLines      — activity-wide default for ruled columns blocks. A
+//                    ColumnsBlock with gridLines:'inherit' (the per-block
+//                    default) resolves to this; 'on'/'off' on a block override
+//                    it. Off by default — ruled grids are opt-in.
 //   header         — see PrintHeader.
 //
 // columns/workSpace/fontSize/problemSpacing ride as --print-* CSS vars on the
 // container (normal selectors can read them); paperSize/margin are emitted as
-// a per-document literal @page rule.
+// a per-document literal @page rule. gridLines is not a container var — it is
+// resolved per columns block at render time (see renderColumns).
 export const PrintConfig = z.object({
   paperSize: z.enum(['letter', 'a4']).default('letter'),
                                      columns: z.number().int().min(1).max(3).default(1),
@@ -135,6 +140,7 @@ export const PrintConfig = z.object({
                                      fontSize: z.number().positive().default(11),
                                      problemSpacing: z.number().min(0).default(1),
                                      margin: z.number().min(0).default(0.5),
+                                     gridLines: z.boolean().default(false),
                                      header: PrintHeader.default({}),
 });
 export type PrintConfig = z.infer<typeof PrintConfig>;
