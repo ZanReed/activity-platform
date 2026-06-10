@@ -1,4 +1,4 @@
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node, mergeAttributes, type Editor } from '@tiptap/core';
 import { NodeSelection, type EditorState } from '@tiptap/pm/state';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 
@@ -20,12 +20,10 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 //
 // Native rendering (renderHTML/parseHTML + CSS grid), NOT a React NodeView:
 // avoids the Stage-13.5 NodeView reconciliation hazard. Add/remove-column
-// commands (addColumn/removeColumn) are wired to the contextual toolbar;
-// per-column width UI is still deferred to a follow-on, but the `width` attr
-// is carried through round-trips now so that future UI (and imported
-// documents) don't lose the value. The editor lays cells out equally via
-// grid-auto-columns:1fr regardless of count; the published renderer honours
-// the width weights.
+// (addColumn/removeColumn) and width presets (cycleColumnWidths) are wired to
+// the contextual toolbar. The editor lays cells out equally via
+// grid-auto-columns:1fr regardless of the stored weights; the published
+// renderer honours the per-column `width` weights the presets write.
 // =============================================================================
 
 declare module '@tiptap/core' {
@@ -44,8 +42,100 @@ declare module '@tiptap/core' {
             // 2-column min). Removes the column holding the cursor, or the last
             // column when the whole block is node-selected.
             removeColumn: () => ReturnType;
+            // Cycle the active columns block through its width presets (the set
+            // depends on the column count — see widthPresetOrder). No-op (and
+            // toolbar-disabled via editor.can()) for 4–6-column blocks, which
+            // are even-only.
+            cycleColumnWidths: () => ReturnType;
         };
     }
+}
+
+// =============================================================================
+// Width presets — pure helpers (no DOM / no ProseMirror), so they're unit-
+// testable on their own. A preset names which column is emphasised; it maps to
+// an array of per-column `width` fr-weights where the wide column is 2 and the
+// rest are null (absent = 1fr in the renderer, so "even" stores nothing and a
+// wide layout stores a single explicit weight). The toolbar shows the current
+// preset and cycles to the next via the cycleColumnWidths command.
+// =============================================================================
+
+export type WidthPreset = 'even' | 'wide-left' | 'wide-center' | 'wide-right';
+
+// The cycle order for a given column count. 2-col: even / wide-left /
+// wide-right. 3-col adds wide-center. 4–6-col is even-only (a single-element
+// order ⇒ nothing to cycle ⇒ the command and toolbar button disable).
+export function widthPresetOrder(count: number): WidthPreset[] {
+    if (count === 2) return ['even', 'wide-left', 'wide-right'];
+    if (count === 3) return ['even', 'wide-left', 'wide-center', 'wide-right'];
+    return ['even'];
+}
+
+// Build the per-column width weights for a preset. Even ⇒ all null; a wide
+// preset ⇒ 2 on the emphasised column, null elsewhere. wide-center targets the
+// middle column (only offered at count 3, but defined generally).
+export function presetToWidths(
+    count: number,
+    preset: WidthPreset,
+): (number | null)[] {
+    const widths: (number | null)[] = Array.from({ length: count }, () => null);
+    if (preset === 'even') return widths;
+    const idx =
+        preset === 'wide-left'
+            ? 0
+            : preset === 'wide-right'
+              ? count - 1
+              : Math.floor((count - 1) / 2);
+    if (idx >= 0 && idx < count) widths[idx] = 2;
+    return widths;
+}
+
+// Infer the current preset from stored width weights: the emphasised column is
+// the one with the largest weight greater than 1. None ⇒ even. Imported docs
+// with arbitrary weights collapse to the nearest positional preset; cycling
+// then normalises them on the next click.
+export function detectWidthPreset(widths: (number | null)[]): WidthPreset {
+    const count = widths.length;
+    let wideIdx = -1;
+    let maxW = 1;
+    widths.forEach((w, i) => {
+        if (typeof w === 'number' && w > maxW) {
+            maxW = w;
+            wideIdx = i;
+        }
+    });
+    if (wideIdx === -1) return 'even';
+    if (wideIdx === 0) return 'wide-left';
+    if (wideIdx === count - 1) return 'wide-right';
+    return 'wide-center';
+}
+
+// The per-column width weights stored on a columns node, as a plain array
+// (number | null) — the bridge between the ProseMirror node and the pure
+// preset helpers above.
+function columnWidths(columnsNode: ProseMirrorNode): (number | null)[] {
+    const widths: (number | null)[] = [];
+    for (let i = 0; i < columnsNode.childCount; i++) {
+        const w = columnsNode.child(i).attrs.width;
+        widths.push(typeof w === 'number' ? w : null);
+    }
+    return widths;
+}
+
+// Current preset + column count for the active columns block, for the toolbar
+// label / active state. Null when the selection isn't in a columns block.
+// `cyclable` is false for 4–6-column (even-only) blocks.
+export function activeColumnsWidthInfo(
+    editor: Editor,
+): { preset: WidthPreset; count: number; cyclable: boolean } | null {
+    const target = findColumnsTarget(editor.state);
+    if (!target) return null;
+    const count = target.columnsNode.childCount;
+    return {
+        preset: detectWidthPreset(columnWidths(target.columnsNode)),
+        count,
+        cyclable: widthPresetOrder(count).length > 1,
+    };
 }
 
 // Resolved positions for the column add/remove commands, located from the
@@ -56,6 +146,8 @@ declare module '@tiptap/core' {
 // isn't in a columns block at all.
 interface ColumnsTarget {
     columnsNode: ProseMirrorNode;
+    // Position just before the columns node (its content starts at +1).
+    columnsPos: number;
     insertEnd: number;
     targetStart: number;
     targetEnd: number;
@@ -74,6 +166,7 @@ function findColumnsTarget(state: EditorState): ColumnsTarget | null {
         const lastChild = columnsNode.lastChild;
         return {
             columnsNode,
+            columnsPos: selection.from,
             insertEnd: contentEnd,
             targetStart: lastChild ? contentEnd - lastChild.nodeSize : contentEnd,
             targetEnd: contentEnd,
@@ -89,6 +182,7 @@ function findColumnsTarget(state: EditorState): ColumnsTarget | null {
             const targetEnd = $from.after(d + 1);
             return {
                 columnsNode: $from.node(d),
+                columnsPos: $from.before(d),
                 insertEnd: targetEnd,
                 targetStart,
                 targetEnd,
@@ -230,6 +324,38 @@ export const Columns = Node.create<ColumnsOptions>({
                 if (!target || target.columnsNode.childCount <= 2) return false;
                 if (dispatch) {
                     dispatch(tr.delete(target.targetStart, target.targetEnd));
+                }
+                return true;
+            },
+
+            // Advance the active columns block to the next width preset in its
+            // count-specific cycle, writing each column's `width` attr. Returns
+            // false (⇒ toolbar-disabled) when not in a columns block or when the
+            // count has only the even preset (4–6 columns).
+            cycleColumnWidths:
+            () =>
+            ({ state, dispatch, tr }) => {
+                const target = findColumnsTarget(state);
+                if (!target) return false;
+                const n = target.columnsNode.childCount;
+                const order = widthPresetOrder(n);
+                if (order.length <= 1) return false;
+                if (dispatch) {
+                    const current = detectWidthPreset(columnWidths(target.columnsNode));
+                    const nextIdx = (order.indexOf(current) + 1) % order.length;
+                    const widths = presetToWidths(n, order[nextIdx] ?? 'even');
+                    // setNodeMarkup is attr-only (no size change), so positions
+                    // stay valid as we walk the cells with a running offset.
+                    let pos = target.columnsPos + 1;
+                    for (let i = 0; i < n; i++) {
+                        const child = target.columnsNode.child(i);
+                        tr.setNodeMarkup(pos, undefined, {
+                            ...child.attrs,
+                            width: widths[i] ?? null,
+                        });
+                        pos += child.nodeSize;
+                    }
+                    dispatch(tr);
                 }
                 return true;
             },
