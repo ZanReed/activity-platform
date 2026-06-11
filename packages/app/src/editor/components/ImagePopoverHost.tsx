@@ -14,6 +14,9 @@ import ImageEditPopover from './ImageEditPopover';
 
 interface ImagePopoverHostProps {
     editor: Editor | null;
+    // Forwarded to the popover's Upload tab so it can POST to upload-image.
+    // Undefined in the playground.
+    activityId?: string;
 }
 
 interface SelectedImageState {
@@ -28,7 +31,10 @@ interface ChangeOptions {
     preserveSelection?: boolean;
 }
 
-export default function ImagePopoverHost({ editor }: ImagePopoverHostProps) {
+export default function ImagePopoverHost({
+    editor,
+    activityId,
+}: ImagePopoverHostProps) {
     const [selectedImage, setSelectedImage] =
         useState<SelectedImageState | null>(null);
     const [referenceElement, setReferenceElement] =
@@ -133,6 +139,7 @@ export default function ImagePopoverHost({ editor }: ImagePopoverHostProps) {
             initialSrc={selectedImage.src}
             initialAlt={selectedImage.alt}
             initialCaption={selectedImage.caption}
+            activityId={activityId}
             onChange={handleChange}
             onClose={handleClose}
         />

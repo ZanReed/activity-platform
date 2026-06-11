@@ -1028,6 +1028,41 @@
     text-decoration: underline;
 }
 
+/* Native file input is triggered via the styled button below. */
+.image-edit-popover__file-input {
+    display: none;
+}
+
+.image-edit-popover__upload-button {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1.5px dashed rgb(148 163 184); /* slate-400 */
+    border-radius: 0.5rem;
+    background: rgb(248 250 252); /* slate-50 */
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: rgb(51 65 85); /* slate-700 */
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.image-edit-popover__upload-button:hover:not(:disabled) {
+    background: rgb(241 245 249); /* slate-100 */
+    border-color: rgb(100 116 139); /* slate-500 */
+}
+
+.image-edit-popover__upload-button:disabled {
+    cursor: progress;
+    color: rgb(148 163 184); /* slate-400 */
+}
+
+.image-edit-popover__upload-error {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: rgb(220 38 38); /* red-600 */
+    line-height: 1.4;
+}
+
 .image-edit-popover__hint-text {
     padding-top: 0.625rem;
     border-top: 1px solid rgb(241 245 249); /* slate-100 */

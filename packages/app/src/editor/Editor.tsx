@@ -28,12 +28,17 @@ interface EditorProps {
     // the published output is always authoritative. Defaults to false (the
     // playground passes nothing).
     gridLinesDefault?: boolean;
+    // Activity being edited — forwarded to the image popover's Upload tab so it
+    // can POST to the upload-image Edge Function. Undefined in the playground,
+    // where uploads are disabled (URL paste only).
+    activityId?: string;
 }
 
 export default function Editor({
     initialContent,
     onUpdate,
     gridLinesDefault = false,
+    activityId,
 }: EditorProps) {
     // Force re-render on every editor transaction. Tiptap React's built-in
     // re-render hook misses pure storedMarks transactions (e.g., toggling a
@@ -127,7 +132,7 @@ export default function Editor({
                   node-selected image block, showing the anchored edit popover.
                   Single instance, same pattern as BlankPopoverHost.
                 */}
-                <ImagePopoverHost editor={editor} />
+                <ImagePopoverHost editor={editor} activityId={activityId} />
             </div>
         </div>
     );

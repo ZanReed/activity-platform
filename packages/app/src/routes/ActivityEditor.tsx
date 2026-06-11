@@ -820,6 +820,7 @@ export default function ActivityEditor() {
             initialContent={loadState.tiptap}
             onUpdate={handleEditorUpdate}
             gridLinesDefault={meta.print.gridLines}
+            activityId={id}
             />
             </Shell>
         );

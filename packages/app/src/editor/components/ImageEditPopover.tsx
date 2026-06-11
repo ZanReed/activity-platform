@@ -9,14 +9,17 @@ import {
 } from '@floating-ui/react';
 import { createPortal } from 'react-dom';
 import { FocusTrap } from 'focus-trap-react';
+import { uploadImage, ALLOWED_IMAGE_TYPES } from '../../lib/uploadImage';
 
 // ============================================================================
 // ImageEditPopover — anchored popover for editing an image block's fields.
 // ----------------------------------------------------------------------------
 // Mirrors BlankEditPopover's mechanics (floating-ui placement, focus-trap,
 // portal to body, save-on-blur with force-commit-before-close). Fields:
-//   - Source: a tab pair (Paste URL / Upload). Drop 1 ships the URL tab; the
-//     Upload tab is a stub pending the R2 upload edge function (Drop 2).
+//   - Source: a tab pair (Paste URL / Upload). The Upload tab POSTs the file
+//     to the upload-image Edge Function (R2) and sets the returned URL as src.
+//     Upload needs a saved activity (activityId); the playground has none, so
+//     it shows a note steering the author to Paste URL.
 //   - Alt text (accessibility).
 //   - Caption (optional figcaption).
 //
@@ -41,12 +44,20 @@ interface ImageEditPopoverProps {
     initialSrc: string;
     initialAlt: string;
     initialCaption: string;
+    // Activity the image belongs to — required to upload to R2. Undefined in
+    // the playground (no persisted activity), where the Upload tab is disabled.
+    activityId?: string;
     onChange: (
         attrs: Partial<{ src: string; alt: string; caption: string }>,
         options?: ChangeOptions,
     ) => void;
     onClose: () => void;
 }
+
+type UploadState =
+    | { kind: 'idle' }
+    | { kind: 'uploading' }
+    | { kind: 'error'; message: string };
 
 const MIN_POPOVER_HEIGHT = 160;
 const VIEWPORT_PADDING = 12;
@@ -58,6 +69,7 @@ export default function ImageEditPopover({
     initialSrc,
     initialAlt,
     initialCaption,
+    activityId,
     onChange,
     onClose,
 }: ImageEditPopoverProps) {
@@ -65,6 +77,8 @@ export default function ImageEditPopover({
     const [src, setSrc] = useState(initialSrc);
     const [alt, setAlt] = useState(initialAlt);
     const [caption, setCaption] = useState(initialCaption);
+    const [uploadState, setUploadState] = useState<UploadState>({ kind: 'idle' });
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [maxHeight, setMaxHeight] = useState<number | null>(null);
 
@@ -101,6 +115,7 @@ export default function ImageEditPopover({
             setSrc(initialSrc);
             setAlt(initialAlt);
             setCaption(initialCaption);
+            setUploadState({ kind: 'idle' });
             srcRef.current = initialSrc;
             altRef.current = initialAlt;
             captionRef.current = initialCaption;
@@ -217,6 +232,33 @@ export default function ImageEditPopover({
         }
     };
 
+    const handleFileChange = async (
+        e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+        const file = e.target.files?.[0];
+        // Reset the input so re-selecting the same file fires onChange again.
+        e.target.value = '';
+        if (!file || !activityId) return;
+
+        setUploadState({ kind: 'uploading' });
+        try {
+            const url = await uploadImage(activityId, file);
+            // Commit the new src (preserveSelection keeps the popover open so the
+            // author can add alt/caption next) and sync drafts/refs so a later
+            // flushAll doesn't re-emit a stale src.
+            setSrc(url);
+            srcRef.current = url;
+            onChange({ src: url });
+            initialSrcRef.current = url;
+            setUploadState({ kind: 'idle' });
+        } catch (err) {
+            setUploadState({
+                kind: 'error',
+                message: err instanceof Error ? err.message : 'Upload failed',
+            });
+        }
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -298,17 +340,49 @@ export default function ImageEditPopover({
                 ) : (
                     <div className="image-edit-popover__field">
                         <span className="image-edit-popover__label">Upload</span>
-                        <div className="image-edit-popover__upload-stub">
-                            File upload is coming next. For now, switch to{' '}
-                            <button
-                                type="button"
-                                className="image-edit-popover__inline-link"
-                                onClick={() => setTab('url')}
-                            >
-                                Paste URL
-                            </button>
-                            .
-                        </div>
+                        {activityId ? (
+                            <>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept={ALLOWED_IMAGE_TYPES.join(',')}
+                                    className="image-edit-popover__file-input"
+                                    onChange={handleFileChange}
+                                    disabled={uploadState.kind === 'uploading'}
+                                />
+                                <button
+                                    type="button"
+                                    className="image-edit-popover__upload-button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploadState.kind === 'uploading'}
+                                >
+                                    {uploadState.kind === 'uploading'
+                                        ? 'Uploading…'
+                                        : 'Choose an image…'}
+                                </button>
+                                {uploadState.kind === 'error' && (
+                                    <div className="image-edit-popover__upload-error">
+                                        {uploadState.message}
+                                    </div>
+                                )}
+                                <div className="image-edit-popover__hint-text">
+                                    PNG, JPEG, GIF, WebP, or AVIF · up to 10 MB.
+                                </div>
+                            </>
+                        ) : (
+                            <div className="image-edit-popover__upload-stub">
+                                Saving uploads needs a saved activity. For now,
+                                switch to{' '}
+                                <button
+                                    type="button"
+                                    className="image-edit-popover__inline-link"
+                                    onClick={() => setTab('url')}
+                                >
+                                    Paste URL
+                                </button>
+                                .
+                            </div>
+                        )}
                     </div>
                 )}
 
