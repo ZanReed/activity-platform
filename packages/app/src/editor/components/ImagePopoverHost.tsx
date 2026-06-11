@@ -46,8 +46,12 @@ export default function ImagePopoverHost({
             typeof CSS !== 'undefined' && CSS.escape
                 ? CSS.escape(imageId)
                 : imageId;
+        // Match by attribute only — the image NodeView renders either a
+        // placeholder card (.image-card, empty/broken) or a live preview
+        // (.image-preview). Both carry data-image-id, so the popover anchors
+        // correctly in every state.
         return document.querySelector<HTMLElement>(
-            `.image-card[data-image-id="${escaped}"]`,
+            `[data-image-id="${escaped}"]`,
         );
     }, []);
 
