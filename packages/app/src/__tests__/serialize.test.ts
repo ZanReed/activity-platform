@@ -1158,3 +1158,130 @@ describe('columns', () => {
         expect(block.gridLines).toBe('inherit');
     });
 });
+
+describe('image', () => {
+    it('round-trips src + alt + caption', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'image',
+                    attrs: {
+                        id: 'img-1',
+                        src: 'https://example.com/photo.png',
+                        alt: 'A photo',
+                        caption: 'Figure 1',
+                    },
+                },
+            ],
+        };
+        // id is re-minted by tiptapBlockToActivity (file-header convention), so
+        // assert on the content-bearing attrs rather than the id.
+        const back = roundTrip(doc);
+        const img = back.content?.[0] as JSONContent;
+        expect(img.type).toBe('image');
+        expect(img.attrs?.src).toBe('https://example.com/photo.png');
+        expect(img.attrs?.alt).toBe('A photo');
+        expect(img.attrs?.caption).toBe('Figure 1');
+    });
+
+    it('omits caption when empty (round-trip yields empty-string caption)', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'image',
+                    attrs: {
+                        id: 'img-1',
+                        src: 'https://example.com/photo.png',
+                        alt: '',
+                        caption: '',
+                    },
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'image') throw new Error('unreachable');
+        expect(block.caption).toBeUndefined();
+
+        // The editor direction always emits a caption attr (defaulting to '')
+        // so the node's attr shape is stable.
+        const back = roundTrip(doc);
+        const img = back.content?.[0] as JSONContent;
+        expect(img.attrs?.caption).toBe('');
+    });
+
+    it('drops an image with an empty src', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                { type: 'image', attrs: { id: 'img-1', src: '', alt: '', caption: '' } },
+                { type: 'paragraph', content: [{ type: 'text', text: 'after' }] },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const types = activity.sections[0]!.blocks.map((b) => b.type);
+        expect(types).toEqual(['paragraph']);
+    });
+
+    it('produces a schema-valid intermediate', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'image',
+                    attrs: {
+                        id: 'img-1',
+                        src: 'https://example.com/photo.png',
+                        alt: 'alt',
+                        caption: '',
+                    },
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+    });
+
+    it('round-trips an image nested inside a column', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'columns',
+                    attrs: { id: 'cols-1' },
+                    content: [
+                        {
+                            type: 'column',
+                            attrs: {},
+                            content: [
+                                {
+                                    type: 'image',
+                                    attrs: {
+                                        id: 'img-1',
+                                        src: 'https://example.com/a.png',
+                                        alt: 'a',
+                                        caption: '',
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            type: 'column',
+                            attrs: {},
+                            content: [
+                                { type: 'paragraph', content: [{ type: 'text', text: 'right' }] },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'columns') throw new Error('unreachable');
+        expect(block.columns[0]!.blocks.map((b) => b.type)).toEqual(['image']);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+    });
+});

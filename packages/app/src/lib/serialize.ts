@@ -47,6 +47,7 @@ import type {
     ColumnsBlock,
     Column,
     ColumnCellBlock,
+    ImageBlock,
 } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 
@@ -164,12 +165,43 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
         case 'columns':
             return tiptapColumnsToActivity(node);
 
+        case 'image':
+            return tiptapImageToActivity(node);
+
         default:
             console.warn(
                 `[serialize] Skipping unsupported Tiptap block: ${node.type}`,
             );
             return null;
     }
+}
+
+function tiptapImageToActivity(node: JSONContent): ImageBlock | null {
+    // src is required + must be a URL (schema's .url()). An empty src is the
+    // editor's "unfilled placeholder" state — drop it rather than emit a block
+    // that would fail Zod at publish. (A non-empty-but-malformed URL still
+    // passes through here and is caught by publish-activity's safeParse.)
+    const src = (node.attrs?.src as string | undefined)?.trim() ?? '';
+    if (src.length === 0) {
+        console.warn('[serialize] Dropping image with empty src.');
+        return null;
+    }
+
+    const block: ImageBlock = {
+        id: crypto.randomUUID(),
+        type: 'image',
+        src,
+        alt: (node.attrs?.alt as string | undefined) ?? '',
+    };
+
+    // caption is optional — only carry it when non-empty so round-trip equality
+    // holds for images without one.
+    const rawCaption = node.attrs?.caption;
+    if (typeof rawCaption === 'string' && rawCaption.trim().length > 0) {
+        block.caption = rawCaption.trim();
+    }
+
+    return block;
 }
 
 function tiptapColumnsToActivity(node: JSONContent): ColumnsBlock {
@@ -490,6 +522,16 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
             return activityColumnsToTiptap(block);
 
         case 'image':
+            return {
+                type: 'image',
+                attrs: {
+                    id: block.id,
+                    src: block.src,
+                    alt: block.alt,
+                    caption: block.caption ?? '',
+                },
+            };
+
         case 'callout':
         case 'problem':
             console.warn(
@@ -521,7 +563,7 @@ function activityColumnToTiptap(column: Column): JSONContent {
     .filter((n): n is JSONContent => n !== null);
 
     // The editor's `column` content expression is `(...)+` — a cell must hold
-    // at least one block. If every block was unmappable (image/callout/problem
+    // at least one block. If every block was unmappable (callout/problem
     // currently serialize to null) or the cell is empty, seed an empty
     // paragraph so the node is valid in the editor.
     return {

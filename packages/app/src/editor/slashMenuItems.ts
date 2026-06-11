@@ -108,4 +108,12 @@ export const slashMenuItems: SlashMenuItem[] = [
         editor.chain().focus().deleteRange(range).insertColumns(3).run();
     },
 },
+{
+    title: 'Image',
+    description: 'Insert an image. Paste a URL in the popup.',
+    keywords: ['image', 'picture', 'photo', 'figure', 'img', 'media'],
+    command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertImage().run();
+    },
+},
 ];

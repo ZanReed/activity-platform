@@ -15,7 +15,9 @@ import Superscript from '@tiptap/extension-superscript';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
 import { Columns, Column } from './extensions/Columns';
+import { Image } from './extensions/Image';
 import BlankPopoverHost from './components/BlankPopoverHost';
+import ImagePopoverHost from './components/ImagePopoverHost';
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -65,6 +67,11 @@ export default function Editor({
             // ruled when the activity opts in.
             Columns.configure({ gridLinesDefault }),
             Column,
+            // Structural image block (group 'block'). Renders as a compact
+            // placeholder card (ImageView) in the editor; the actual figure/img
+            // only appears in the published/print output. Editing is via the
+            // root-level ImagePopoverHost below.
+            Image,
         ],
         content: initialContent,
         onCreate: ({ editor }) => {
@@ -115,6 +122,12 @@ export default function Editor({
                   document.body for stacking-context independence.
                 */}
                 <BlankPopoverHost editor={editor} />
+                {/*
+                  ImagePopoverHost — sibling host watching the selection for a
+                  node-selected image block, showing the anchored edit popover.
+                  Single instance, same pattern as BlankPopoverHost.
+                */}
+                <ImagePopoverHost editor={editor} />
             </div>
         </div>
     );

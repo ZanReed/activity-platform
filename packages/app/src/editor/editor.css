@@ -839,3 +839,199 @@
     color: rgb(100 116 139); /* slate-500 */
     line-height: 1.4;
 }
+
+/* =============================================================================
+ *  Image block — compact placeholder card (in-editor look, Option B)
+ *  -----------------------------------------------------------------------
+ *  The card stands in for the image while editing; the actual figure/img only
+ *  appears in the published/print output. Clicking selects the node, which the
+ *  ImagePopoverHost watches to open the edit popover.
+ *  ========================================================================= */
+
+.image-card {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    margin: 0.75rem 0;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid rgb(226 232 240); /* slate-200 */
+    border-radius: 0.625rem;
+    background: rgb(248 250 252); /* slate-50 */
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.image-card:hover {
+    background: rgb(241 245 249); /* slate-100 */
+}
+
+.image-card.is-selected {
+    border-color: rgb(99 102 241); /* indigo-500 */
+    box-shadow: 0 0 0 2px rgb(199 210 254); /* indigo-200 */
+}
+
+.image-card.is-empty {
+    border-style: dashed;
+}
+
+.image-card__icon {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
+    background: rgb(238 242 255); /* indigo-50 */
+    color: rgb(99 102 241); /* indigo-500 */
+}
+
+.image-card__meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.image-card__title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: rgb(51 65 85); /* slate-700 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.image-card__path {
+    margin-top: 0.125rem;
+    font-size: 0.75rem;
+    color: rgb(148 163 184); /* slate-400 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.image-card__edit {
+    flex: none;
+    margin-left: auto;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid rgb(203 213 225); /* slate-300 */
+    border-radius: 0.375rem;
+    background: white;
+    font-size: 0.75rem;
+    color: rgb(100 116 139); /* slate-500 */
+}
+
+/* =============================================================================
+ *  Image edit popover (anchored — mirrors the blank edit popover look)
+ *  ========================================================================= */
+
+.image-edit-popover {
+    z-index: 50;
+    width: 320px;
+    padding: 0.875rem;
+    background: white;
+    border: 1px solid rgb(226 232 240); /* slate-200 */
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+    font-size: 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    overflow-y: auto;
+}
+
+.image-edit-popover__tabs {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.image-edit-popover__tab {
+    padding: 0.3125rem 0.625rem;
+    border: 1px solid rgb(226 232 240); /* slate-200 */
+    border-radius: 0.375rem;
+    background: white;
+    color: rgb(71 85 105); /* slate-600 */
+    font-family: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.image-edit-popover__tab:hover {
+    background: rgb(241 245 249); /* slate-100 */
+}
+
+.image-edit-popover__tab.is-active {
+    background: rgb(15 23 42); /* slate-900 */
+    border-color: rgb(15 23 42);
+    color: white;
+}
+
+.image-edit-popover__tab:focus-visible {
+    outline: 2px solid rgb(59 130 246);
+    outline-offset: 1px;
+}
+
+.image-edit-popover__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3125rem;
+}
+
+.image-edit-popover__label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: rgb(71 85 105); /* slate-600 */
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.image-edit-popover__input {
+    width: 100%;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid rgb(203 213 225); /* slate-300 */
+    border-radius: 0.25rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    outline: none;
+    background: white;
+    color: rgb(15 23 42); /* slate-900 */
+}
+
+.image-edit-popover__input:focus {
+    border-color: rgb(59 130 246); /* blue-500 */
+    box-shadow: 0 0 0 3px rgb(191 219 254); /* blue-200 */
+}
+
+.image-edit-popover__input::placeholder {
+    color: rgb(148 163 184); /* slate-400 */
+}
+
+.image-edit-popover__upload-stub {
+    padding: 0.875rem;
+    border: 1.5px dashed rgb(203 213 225); /* slate-300 */
+    border-radius: 0.5rem;
+    background: rgb(248 250 252); /* slate-50 */
+    font-size: 0.8125rem;
+    color: rgb(100 116 139); /* slate-500 */
+    line-height: 1.5;
+}
+
+.image-edit-popover__inline-link {
+    padding: 0;
+    border: none;
+    background: none;
+    color: rgb(37 99 235); /* blue-600 */
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.image-edit-popover__hint-text {
+    padding-top: 0.625rem;
+    border-top: 1px solid rgb(241 245 249); /* slate-100 */
+    font-size: 0.6875rem;
+    color: rgb(100 116 139); /* slate-500 */
+    line-height: 1.4;
+}

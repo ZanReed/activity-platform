@@ -184,6 +184,17 @@ export default function Toolbar({ editor }: ToolbarProps) {
                 Columns
             </ToolbarButton>
             {/*
+              Image — inserts an image block and selects it so the anchored
+              edit popover opens immediately for the author to paste a URL.
+              Always enabled (an image is a top-level structural block).
+            */}
+            <ToolbarButton
+                onClick={() => editor.chain().focus().insertImage().run()}
+                title="Insert an image"
+            >
+                Image
+            </ToolbarButton>
+            {/*
               Grid-lines toggle — contextual: enabled only when the selection
               is inside a columns block. Cycles the block's tri-state
               (inherit → on → off → inherit). The label reflects the current

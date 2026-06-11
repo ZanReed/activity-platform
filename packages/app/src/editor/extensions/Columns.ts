@@ -368,7 +368,7 @@ export const Column = Node.create({
     // No `group` — a column is only ever valid inside a `columns` node, never
     // at doc top level. The enumerated content expression (not `block+`)
     // forbids a `columns` node nested inside a cell.
-    content: '(paragraph | heading | mathBlock | bulletList | orderedList | fillInBlank)+',
+    content: '(paragraph | heading | mathBlock | bulletList | orderedList | fillInBlank | image)+',
     isolating: true,
     selectable: false,
 
