@@ -47,67 +47,116 @@ declare module '@tiptap/core' {
             // toolbar-disabled via editor.can()) for 4–6-column blocks, which
             // are even-only.
             cycleColumnWidths: () => ReturnType;
+            // Apply a specific width preset to the active columns block. Used by
+            // the visual width picker (direct selection, vs. cycleColumnWidths'
+            // step-through). No-op when not in a columns block, or when the
+            // preset isn't valid for the block's column count.
+            setColumnWidthPreset: (preset: WidthPreset) => ReturnType;
         };
     }
 }
 
 // =============================================================================
 // Width presets — pure helpers (no DOM / no ProseMirror), so they're unit-
-// testable on their own. A preset names which column is emphasised; it maps to
-// an array of per-column `width` fr-weights where the wide column is 2 and the
-// rest are null (absent = 1fr in the renderer, so "even" stores nothing and a
-// wide layout stores a single explicit weight). The toolbar shows the current
-// preset and cycles to the next via the cycleColumnWidths command.
+// testable on their own. A preset names which column is emphasised and how:
+//   wide-*   ⇒ that column gets weight 2 (the others stay 1 ⇒ stored null)
+//   narrow-* ⇒ that column gets weight 0.5 (the others stay 1 ⇒ stored null)
+//   even     ⇒ all null (equal split)
+// Weights are stored as the minimum needed for the ratio (the single emphasised
+// column's weight, others null ⇒ 1fr in the renderer). The renderer already
+// consumes any positive `width` as `<n>fr`, so 0.5 needs no renderer change.
+// Narrow presets are only offered at count 3 — at count 2 a "narrow X" is the
+// same ratio as "wide (other)", so it would be a redundant option.
 // =============================================================================
 
-export type WidthPreset = 'even' | 'wide-left' | 'wide-center' | 'wide-right';
+const WIDE_WEIGHT = 2;
+const NARROW_WEIGHT = 0.5;
 
-// The cycle order for a given column count. 2-col: even / wide-left /
-// wide-right. 3-col adds wide-center. 4–6-col is even-only (a single-element
-// order ⇒ nothing to cycle ⇒ the command and toolbar button disable).
+export type WidthPreset =
+    | 'even'
+    | 'wide-left'
+    | 'wide-center'
+    | 'wide-right'
+    | 'narrow-left'
+    | 'narrow-center'
+    | 'narrow-right';
+
+// The available presets for a given column count. 2-col: even / wide-left /
+// wide-right. 3-col adds wide-center plus the three narrow-* options. 4–6-col is
+// even-only (a single-element order ⇒ nothing to choose ⇒ commands/UI disable).
 export function widthPresetOrder(count: number): WidthPreset[] {
     if (count === 2) return ['even', 'wide-left', 'wide-right'];
-    if (count === 3) return ['even', 'wide-left', 'wide-center', 'wide-right'];
+    if (count === 3)
+        return [
+            'even',
+            'wide-left',
+            'wide-center',
+            'wide-right',
+            'narrow-left',
+            'narrow-center',
+            'narrow-right',
+        ];
     return ['even'];
 }
 
-// Build the per-column width weights for a preset. Even ⇒ all null; a wide
-// preset ⇒ 2 on the emphasised column, null elsewhere. wide-center targets the
-// middle column (only offered at count 3, but defined generally).
+// The positional index (0 = left, count-1 = right, middle otherwise) a left/
+// center/right preset suffix targets.
+function presetTargetIndex(
+    preset: Exclude<WidthPreset, 'even'>,
+    count: number,
+): number {
+    if (preset.endsWith('-left')) return 0;
+    if (preset.endsWith('-right')) return count - 1;
+    return Math.floor((count - 1) / 2); // center
+}
+
+// Build the per-column width weights for a preset. Even ⇒ all null; a wide/
+// narrow preset ⇒ the emphasised column's weight (2 or 0.5), null elsewhere.
 export function presetToWidths(
     count: number,
     preset: WidthPreset,
 ): (number | null)[] {
     const widths: (number | null)[] = Array.from({ length: count }, () => null);
     if (preset === 'even') return widths;
-    const idx =
-        preset === 'wide-left'
-            ? 0
-            : preset === 'wide-right'
-              ? count - 1
-              : Math.floor((count - 1) / 2);
-    if (idx >= 0 && idx < count) widths[idx] = 2;
+    const idx = presetTargetIndex(preset, count);
+    if (idx >= 0 && idx < count) {
+        widths[idx] = preset.startsWith('narrow-') ? NARROW_WEIGHT : WIDE_WEIGHT;
+    }
     return widths;
 }
 
-// Infer the current preset from stored width weights: the emphasised column is
-// the one with the largest weight greater than 1. None ⇒ even. Imported docs
-// with arbitrary weights collapse to the nearest positional preset; cycling
-// then normalises them on the next click.
+// Infer the current preset from stored width weights. Treat absent/<=0 as the
+// baseline weight 1. If any column is heavier than the baseline, that's a wide-*
+// preset at its position; otherwise if any is lighter, that's a narrow-* preset;
+// otherwise even. Wide wins over narrow if both somehow appear (no preset writes
+// both — this only matters for arbitrary imported weights, which normalise on
+// the next pick).
 export function detectWidthPreset(widths: (number | null)[]): WidthPreset {
     const count = widths.length;
+    const norm = widths.map((w) =>
+        typeof w === 'number' && w > 0 ? w : 1,
+    );
     let wideIdx = -1;
     let maxW = 1;
-    widths.forEach((w, i) => {
-        if (typeof w === 'number' && w > maxW) {
+    let narrowIdx = -1;
+    let minW = 1;
+    norm.forEach((w, i) => {
+        if (w > maxW) {
             maxW = w;
             wideIdx = i;
         }
+        if (w < minW) {
+            minW = w;
+            narrowIdx = i;
+        }
     });
-    if (wideIdx === -1) return 'even';
-    if (wideIdx === 0) return 'wide-left';
-    if (wideIdx === count - 1) return 'wide-right';
-    return 'wide-center';
+    const positional = (kind: 'wide' | 'narrow', idx: number): WidthPreset => {
+        const side = idx === 0 ? 'left' : idx === count - 1 ? 'right' : 'center';
+        return `${kind}-${side}` as WidthPreset;
+    };
+    if (wideIdx !== -1) return positional('wide', wideIdx);
+    if (narrowIdx !== -1) return positional('narrow', narrowIdx);
+    return 'even';
 }
 
 // The per-column width weights stored on a columns node, as a plain array
@@ -359,6 +408,33 @@ export const Columns = Node.create<ColumnsOptions>({
                 }
                 return true;
             },
+
+            // Apply a specific width preset to the active columns block (the
+            // visual picker's direct-selection counterpart to cycleColumnWidths).
+            // Returns false (⇒ option disabled) when not in a columns block or
+            // when the preset isn't valid for the block's column count.
+            setColumnWidthPreset:
+            (preset: WidthPreset) =>
+            ({ state, dispatch, tr }) => {
+                const target = findColumnsTarget(state);
+                if (!target) return false;
+                const n = target.columnsNode.childCount;
+                if (!widthPresetOrder(n).includes(preset)) return false;
+                if (dispatch) {
+                    const widths = presetToWidths(n, preset);
+                    let pos = target.columnsPos + 1;
+                    for (let i = 0; i < n; i++) {
+                        const child = target.columnsNode.child(i);
+                        tr.setNodeMarkup(pos, undefined, {
+                            ...child.attrs,
+                            width: widths[i] ?? null,
+                        });
+                        pos += child.nodeSize;
+                    }
+                    dispatch(tr);
+                }
+                return true;
+            },
         };
     },
 });
@@ -397,12 +473,23 @@ export const Column = Node.create({
         return [{ tag: 'div[data-column]' }];
     },
 
-    renderHTML({ HTMLAttributes }) {
+    renderHTML({ node, HTMLAttributes }) {
+        // Emit the stored weight as a flex-grow so the editor canvas previews
+        // the real layout. The container (.editor-columns) is a flexbox; each
+        // cell defaults to flex:1 1 0 (equal), and a weight overrides flex-grow
+        // only (2 ⇒ wide, 0.5 ⇒ narrow). flex-grow with basis 0 distributes
+        // space proportionally — the flexbox analogue of the renderer's fr
+        // tracks, so editor and published output match. Absent weight ⇒ no
+        // inline style ⇒ the CSS default (equal) applies.
+        const w = node.attrs.width;
+        const styleAttr =
+            typeof w === 'number' && w > 0 ? { style: `flex-grow:${w}` } : {};
         return [
             'div',
             mergeAttributes(
                 { 'data-column': '', class: 'editor-column' },
                 HTMLAttributes,
+                styleAttr,
             ),
         0,
         ];

@@ -452,23 +452,23 @@
 /* =============================================================================
  *  Columns / Column nodes (structural side-by-side container)
  *  -----------------------------------------------------------------------
- *  Native-rendered (no NodeView): a CSS grid whose cells are equal-width in
- *  the editor regardless of count (grid-auto-flow:column + auto-columns:1fr).
- *  The published renderer honours per-column width weights; the editor keeps
- *  it simple until the width-setting UI lands. Dashed cell borders make the
- *  column boundaries visible while authoring.
+ *  Native-rendered (no NodeView): a flexbox row whose cells default to an equal
+ *  split (flex:1 1 0). Each Column emits flex-grow from its stored width weight
+ *  (2 ⇒ wide, 0.5 ⇒ narrow) so the editor canvas previews the real layout — the
+ *  flexbox analogue of the published renderer's fr tracks (grow with basis 0
+ *  distributes space proportionally). Dashed cell borders make the column
+ *  boundaries visible while authoring.
  *  ========================================================================= */
 
 .editor-columns {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
+    display: flex;
     gap: 1.5rem;
     align-items: start;
     margin: 1rem 0;
 }
 
 .editor-column {
+    flex: 1 1 0; /* equal split by default; flex-grow overridden inline per weight */
     min-width: 0; /* let cell contents shrink instead of overflowing the track */
     padding: 0.5rem;
     border: 1px dashed rgb(226 232 240); /* slate-200 */

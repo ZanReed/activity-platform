@@ -1,14 +1,6 @@
 import type { Editor } from '@tiptap/react';
 import type { ReactNode } from 'react';
-import { activeColumnsWidthInfo, type WidthPreset } from './extensions/Columns';
-
-// Short toolbar labels for the column width presets.
-const WIDTH_PRESET_LABEL: Record<WidthPreset, string> = {
-    even: 'even',
-    'wide-left': 'wide L',
-    'wide-center': 'wide C',
-    'wide-right': 'wide R',
-};
+import ColumnWidthPicker from './components/ColumnWidthPicker';
 
 // editor.isActive(markName) returns false when a mark is "armed" on a collapsed
 // cursor — ProseMirror's stored-marks state, applied to the next typed character.
@@ -245,30 +237,14 @@ export default function Toolbar({ editor }: ToolbarProps) {
                 − Column
             </ToolbarButton>
             {/*
-              Width presets — contextual, mirroring the Grid toggle. Cycles the
-              active columns block through its count-specific layouts (2-col:
-              even / wide L / wide R; 3-col adds wide C). 4–6-column blocks are
-              even-only, so editor.can() reports the command unavailable and the
-              button disables (still showing "Width: even"). Active styling
-              lights up for any non-even layout.
+              Width presets — contextual, mirroring the Grid toggle. A visual
+              dropdown (ColumnWidthPicker) of layout thumbnails the author picks
+              directly. Options depend on the column count (2-col: even / wide L
+              / wide R; 3-col adds wide C and the three narrow-* options); 4–6-
+              column blocks are even-only so the trigger disables. The editor now
+              previews the real widths (flex-grow), so a pick is visible at once.
             */}
-            {(() => {
-                const info = activeColumnsWidthInfo(editor);
-                return (
-                    <ToolbarButton
-                        onClick={() =>
-                            editor.chain().focus().cycleColumnWidths().run()
-                        }
-                        disabled={!editor.can().cycleColumnWidths()}
-                        active={!!info && info.preset !== 'even'}
-                        title="Cycle column widths (even → wide left → wide right)"
-                    >
-                        {info
-                            ? `Width: ${WIDTH_PRESET_LABEL[info.preset]}`
-                            : 'Width'}
-                    </ToolbarButton>
-                );
-            })()}
+            <ColumnWidthPicker editor={editor} />
         </div>
     );
 }
