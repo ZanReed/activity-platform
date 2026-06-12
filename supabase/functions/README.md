@@ -1,13 +1,14 @@
 # Edge Functions
 
-Phase 1 Edge Functions for the activity platform. Two functions, both built and deployed.
+Phase 1 Edge Functions for the activity platform.
 
 ## Functions
 
 | Function | Purpose | Status |
 |---|---|---|
-| `publish-activity` | Take a draft, atomically snapshot a version, render to HTML, upload to Storage, return URLs. | ✅ Phase 1 |
-| `ingest-submission` | Receive student submissions from published HTML, validate, write to `submissions`. | ✅ Phase 1 |
+| `publish-activity` | Take a draft, atomically snapshot a version, render to HTML, upload to Cloudflare R2, return URLs. | ✅ Deployed |
+| `ingest-submission` | Receive student submissions from published HTML, validate, write to `submissions`. **Must be deployed with `--no-verify-jwt`** (see Build + deploy). | ✅ Deployed |
+| `upload-image` | Editor image uploads: validate MIME/size, check edit rights, PUT to R2 `uploads/{activityId}/`, return the public URL. | ⏳ Built, not yet deployed |
 
 ## Shared code
 
@@ -18,27 +19,22 @@ Phase 1 Edge Functions for the activity platform. Two functions, both built and 
 
 ## One-time setup
 
-### 1. Create the Storage bucket
+### 1. Cloudflare R2 secrets
 
-The publish function uploads to a public Storage bucket called `activities`. Create it manually before the first publish.
+Published HTML and uploaded images live on Cloudflare R2, **not** Supabase Storage (Supabase free tier rewrites HTML responses to `text/plain` — see STATE.md / ROADMAP "Hosting platform"). `publish-activity` and `upload-image` both talk to R2 via the S3 API and need these secrets:
 
-**Via the dashboard** (recommended): Storage → New bucket → name `activities` → toggle **Public bucket** ON → Save. The published HTML files need to be readable by anyone with the URL, so public is correct.
-
-**Via SQL** (alternative, if you prefer everything in migrations):
-
-```sql
--- Run as service role / project owner (Storage owns its own RLS rules
--- separate from your tables').
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values (
-  'activities',
-  'activities',
-  true,                             -- public read
-  10 * 1024 * 1024,                 -- 10MB per file (way more than we need)
-  array['text/html', 'text/css', 'application/javascript']::text[]
-)
-on conflict (id) do nothing;
+```bash
+supabase secrets set R2_ACCOUNT_ID="..."
+supabase secrets set R2_ACCESS_KEY_ID="..."
+supabase secrets set R2_SECRET_ACCESS_KEY="..."
+supabase secrets set R2_BUCKET_NAME="..."
+supabase secrets set R2_ENDPOINT="https://<account-id>.r2.cloudflarestorage.com"
+supabase secrets set R2_PUBLIC_URL_BASE="https://pub-<hash>.r2.dev"
 ```
+
+`R2_PUBLIC_URL_BASE` is also mirrored client-side as `VITE_PUBLISHED_URL_BASE` in the app's `.env.local` (Supabase secrets are write-only, so the SPA can't read it).
+
+> The legacy Supabase Storage bucket `activities` predates the R2 migration and is slated for deletion once the end-to-end pass verifies R2 (see STATE.md "Pending author actions").
 
 ### 2. Set environment secrets
 
@@ -74,8 +70,11 @@ pnpm install                  # one-time, installs esbuild and friends
 pnpm bundle:renderer          # produces supabase/functions/_shared/renderer.bundle.js
 
 supabase functions deploy publish-activity
-supabase functions deploy ingest-submission
+supabase functions deploy ingest-submission --no-verify-jwt
+supabase functions deploy upload-image
 ```
+
+**`ingest-submission` must always be deployed with `--no-verify-jwt`.** Students submit anonymously (no auth header); with JWT verification on, the platform gateway 401s every submission before the function runs. There is no `config.toml`, so the flag lives only on the Supabase platform — a plain redeploy silently re-enables verification. The function self-authenticates with the service role and validates in its body.
 
 If you change anything in `packages/renderer` or `packages/schema`, re-run `pnpm bundle:renderer` before re-deploying. CI should automate this — every push that touches those packages should trigger a re-bundle and deploy.
 
@@ -109,7 +108,7 @@ The function returns JSON errors with these status codes:
 | 404 | Activity not found |
 | 405 | Wrong HTTP method |
 | 422 | Document failed schema validation (Zod error details in response) |
-| 500 | Render error, Storage upload error, or unexpected RPC failure |
+| 500 | Render error, R2 upload error, or unexpected RPC failure |
 
 The 422 case is the interesting one — it means the editor produced a document that didn't pass `ActivityDocument.parse()`. This should never happen if the editor's serialize layer is correct; if it does, fix the editor, not the validator.
 
