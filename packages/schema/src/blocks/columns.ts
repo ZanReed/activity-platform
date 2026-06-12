@@ -49,6 +49,12 @@ export type ColumnCellBlock = z.infer<typeof ColumnCellBlock>;
 export const Column = z.object({
   id: z.string().uuid(),
   width: z.number().positive().optional(),
+  // Reserved work space: a min-height floor in rem. The cell still GROWS with
+  // content (this is a floor, not a fixed height — fixed heights would break
+  // print reflow and the foldable's height measurement). rem so the reserved
+  // space scales with the print font-size config. Absent = content-determined
+  // height, today's behavior. Design: docs/design/variable-block-sizing.md.
+  minHeight: z.number().positive().optional(),
   blocks: z.array(ColumnCellBlock),
 });
 export type Column = z.infer<typeof Column>;

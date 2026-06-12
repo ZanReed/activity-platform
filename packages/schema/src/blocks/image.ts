@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sizingFields } from '../sizing.js';
 
 // Phase 1: URL-only. No upload pipeline; teachers paste a public URL.
 // Phase 2+: a separate variant with a Supabase Storage upload, with src
@@ -13,5 +14,8 @@ export const ImageBlock = z.object({
   // decorative images. Editors should warn (not block) on empty alt.
   alt: z.string().default(''),
   caption: z.string().optional(),
+  // Variable block sizing: optional width fraction + alignment (sizing.ts).
+  // This IS the image display-size mechanism — no separate intrinsic size.
+  ...sizingFields,
 });
 export type ImageBlock = z.infer<typeof ImageBlock>;

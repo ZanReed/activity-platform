@@ -37,6 +37,9 @@ export {
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
+// Sizing (shared per-block width/align fragment)
+export { BlockAlign, BlockWidthFraction } from './sizing.js';
+
 // Document
 export {
   Section,

@@ -23,6 +23,33 @@ export const MathBlock = Node.create({
                     parseHTML: (element) => element.getAttribute('data-latex') ?? '',
                                      renderHTML: (attributes) => ({ 'data-latex': attributes.latex }),
             },
+            // Sizing attrs (schema sizing fragment): width fraction in (0, 1]
+            // (null = full width) and align ('left' | 'right'; null = center).
+            // No UI sets these yet — carried so imported docs round-trip.
+            width: {
+                default: null as number | null,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-block-width');
+                    if (raw === null) return null;
+                    const n = Number(raw);
+                    return Number.isFinite(n) && n > 0 && n <= 1 ? n : null;
+                },
+                renderHTML: (attributes) =>
+                    typeof attributes.width === 'number'
+                        ? { 'data-block-width': String(attributes.width) }
+                        : {},
+            },
+            align: {
+                default: null as 'left' | 'right' | null,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-block-align');
+                    return raw === 'left' || raw === 'right' ? raw : null;
+                },
+                renderHTML: (attributes) =>
+                    attributes.align === 'left' || attributes.align === 'right'
+                        ? { 'data-block-align': attributes.align }
+                        : {},
+            },
         };
     },
 

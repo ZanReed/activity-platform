@@ -223,6 +223,15 @@ Phase 1 block types by category:
 - `question` — `problem`, `fill_in_blank`
 - `scaffold` — `[target — Phase 2+]` `worked_example`, `faded_worked_example`, `self_explanation`, etc.
 
+### Sizing attributes (additive, presentational — runtime never reads them)
+
+Variable block sizing (Drop 1) added purely presentational markup, consumed only by the stylesheet:
+
+- `data-block-align="left" | "right"` plus `class="… block-sized"` and `style="--block-width:<pct>%"` on a sized block (image, math_block today). Absence of `data-block-align` means centered; absence of `block-sized` means full width.
+- `style="--cell-min-height:<n>rem"` on a `.column-cell` with a reserved work-space floor.
+
+These are additive contract entries: the runtime does not query or branch on them, but published HTML carries them, so they follow the same never-rename/never-remove rule.
+
 ### Fill-in-blank block
 
 ```html

@@ -16,6 +16,10 @@ import ImageView from '../nodeViews/ImageView';
 //   - src:     image URL ('' = unset placeholder; dropped by serialize).
 //   - alt:     accessibility text (schema requires it; defaults to '').
 //   - caption: optional figcaption text.
+//   - width:   sizing fraction of container width in (0, 1]; null = full width.
+//   - align:   'left' | 'right'; null = center (the default). Mirrors the
+//              schema's sizing fragment; no UI sets these yet (Drop 3 adds
+//              corner drag-handles) — carried so imported docs round-trip.
 //
 // In-editor look is the compact placeholder card (ImageView), NOT the actual
 // <figure><img>. The real image only renders in the published/print output
@@ -41,7 +45,13 @@ declare module '@tiptap/core' {
             // stays open through edits; close-time flush passes false.
             updateImageAttrs: (
                 pos: number,
-                attrs: Partial<{ src: string; alt: string; caption: string }>,
+                attrs: Partial<{
+                    src: string;
+                    alt: string;
+                    caption: string;
+                    width: number | null;
+                    align: 'left' | 'right' | null;
+                }>,
                 options?: { preserveSelection?: boolean },
             ) => ReturnType;
         };
@@ -84,6 +94,33 @@ export const Image = Node.create({
                 parseHTML: (element) =>
                     element.querySelector('figcaption')?.textContent ?? '',
                 renderHTML: () => ({}),
+            },
+            // Sizing attrs live as data attributes on the figure itself so
+            // editor copy-paste round-trips them. Same names the renderer
+            // emits (data-block-align) / consumes, minus the CSS plumbing.
+            width: {
+                default: null as number | null,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-block-width');
+                    if (raw === null) return null;
+                    const n = Number(raw);
+                    return Number.isFinite(n) && n > 0 && n <= 1 ? n : null;
+                },
+                renderHTML: (attributes) =>
+                    typeof attributes.width === 'number'
+                        ? { 'data-block-width': String(attributes.width) }
+                        : {},
+            },
+            align: {
+                default: null as 'left' | 'right' | null,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-block-align');
+                    return raw === 'left' || raw === 'right' ? raw : null;
+                },
+                renderHTML: (attributes) =>
+                    attributes.align === 'left' || attributes.align === 'right'
+                        ? { 'data-block-align': attributes.align }
+                        : {},
             },
         };
     },

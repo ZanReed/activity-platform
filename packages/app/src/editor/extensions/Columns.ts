@@ -569,6 +569,22 @@ export const Column = Node.create({
                 ? { 'data-width': String(attributes.width) }
                 : {},
             },
+            // Reserved work space floor in rem (schema Column.minHeight).
+            // No UI sets this yet (a later drop adds the bottom-edge drag);
+            // carried through round-trips and previewed via min-height below.
+            minHeight: {
+                default: null as number | null,
+                    parseHTML: (element) => {
+                        const raw = element.getAttribute('data-min-height');
+                        if (raw === null) return null;
+                        const n = Number(raw);
+                        return Number.isFinite(n) && n > 0 ? n : null;
+                    },
+                renderHTML: (attributes) =>
+                typeof attributes.minHeight === 'number'
+                ? { 'data-min-height': String(attributes.minHeight) }
+                : {},
+            },
         };
     },
 
@@ -583,10 +599,15 @@ export const Column = Node.create({
         // only (2 ⇒ wide, 0.5 ⇒ narrow). flex-grow with basis 0 distributes
         // space proportionally — the flexbox analogue of the renderer's fr
         // tracks, so editor and published output match. Absent weight ⇒ no
-        // inline style ⇒ the CSS default (equal) applies.
+        // inline style ⇒ the CSS default (equal) applies. A minHeight floor
+        // previews as a real min-height so the canvas shows the reserved
+        // work space the published page (and paper) will have.
         const w = node.attrs.width;
-        const styleAttr =
-            typeof w === 'number' && w > 0 ? { style: `flex-grow:${w}` } : {};
+        const mh = node.attrs.minHeight;
+        const styles: string[] = [];
+        if (typeof w === 'number' && w > 0) styles.push(`flex-grow:${w}`);
+        if (typeof mh === 'number' && mh > 0) styles.push(`min-height:${mh}rem`);
+        const styleAttr = styles.length > 0 ? { style: styles.join(';') } : {};
         return [
             'div',
             mergeAttributes(

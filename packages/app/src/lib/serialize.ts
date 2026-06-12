@@ -48,6 +48,7 @@ import type {
     Column,
     ColumnCellBlock,
     ImageBlock,
+    MathBlock,
 } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 
@@ -146,12 +147,15 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             };
         }
 
-        case 'mathBlock':
-            return {
+        case 'mathBlock': {
+            const block: MathBlock = {
                 id: crypto.randomUUID(),
                 type: 'math_block',
                 latex: (node.attrs?.latex as string | undefined) ?? '',
             };
+            applySizingAttrs(block, node);
+            return block;
+        }
 
         case 'bulletList':
             return tiptapBulletListToActivity(node);
@@ -201,7 +205,27 @@ function tiptapImageToActivity(node: JSONContent): ImageBlock | null {
         block.caption = rawCaption.trim();
     }
 
+    applySizingAttrs(block, node);
     return block;
+}
+
+// Sizing fragment (width fraction + align) shared by the sizable blocks
+// (image, math_block today). Omit-when-default both ways: width only in
+// (0, 1], align only 'left'/'right' (absent = center) — so round-trip
+// equality holds for unsized blocks and malformed attrs can't widen the
+// schema's bounds.
+function applySizingAttrs(
+    block: { width?: number; align?: 'left' | 'center' | 'right' },
+    node: JSONContent,
+): void {
+    const rawWidth = node.attrs?.width;
+    if (typeof rawWidth === 'number' && rawWidth > 0 && rawWidth <= 1) {
+        block.width = rawWidth;
+    }
+    const rawAlign = node.attrs?.align;
+    if (rawAlign === 'left' || rawAlign === 'right') {
+        block.align = rawAlign;
+    }
 }
 
 function tiptapColumnsToActivity(node: JSONContent): ColumnsBlock {
@@ -239,6 +263,13 @@ function tiptapColumnToActivity(node: JSONContent): Column {
     const rawWidth = node.attrs?.width;
     if (typeof rawWidth === 'number' && rawWidth > 0) {
         column.width = rawWidth;
+    }
+
+    // Reserved work-space floor (rem). Positive numbers only, same
+    // omit-when-absent discipline as width.
+    const rawMinHeight = node.attrs?.minHeight;
+    if (typeof rawMinHeight === 'number' && rawMinHeight > 0) {
+        column.minHeight = rawMinHeight;
     }
 
     return column;
@@ -506,7 +537,7 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'math_block':
             return {
                 type: 'mathBlock',
-                attrs: { latex: block.latex },
+                attrs: { latex: block.latex, ...sizingTiptapAttrs(block) },
             };
 
         case 'bullet_list':
@@ -529,6 +560,7 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
                     src: block.src,
                     alt: block.alt,
                     caption: block.caption ?? '',
+                    ...sizingTiptapAttrs(block),
                 },
             };
 
@@ -562,15 +594,34 @@ function activityColumnToTiptap(column: Column): JSONContent {
     .map(activityBlockToTiptap)
     .filter((n): n is JSONContent => n !== null);
 
+    const attrs: Record<string, unknown> = {};
+    if (typeof column.width === 'number') attrs.width = column.width;
+    if (typeof column.minHeight === 'number') attrs.minHeight = column.minHeight;
+
     // The editor's `column` content expression is `(...)+` — a cell must hold
     // at least one block. If every block was unmappable (callout/problem
     // currently serialize to null) or the cell is empty, seed an empty
     // paragraph so the node is valid in the editor.
     return {
         type: 'column',
-        attrs: typeof column.width === 'number' ? { width: column.width } : {},
+        attrs,
         content: content.length > 0 ? content : [{ type: 'paragraph' }],
     };
+}
+
+// Reverse of applySizingAttrs: schema sizing fragment → Tiptap attrs.
+// Omit-when-unset (the same pattern as column.width) so round-trip equality
+// holds for unsized blocks; Tiptap fills missing attrs with its declared
+// defaults (null) on load anyway. align 'center' maps to absent — the
+// attribute-free default on both sides.
+function sizingTiptapAttrs(block: {
+    width?: number;
+    align?: 'left' | 'center' | 'right';
+}): Record<string, unknown> {
+    const attrs: Record<string, unknown> = {};
+    if (typeof block.width === 'number') attrs.width = block.width;
+    if (block.align === 'left' || block.align === 'right') attrs.align = block.align;
+    return attrs;
 }
 
 function activityBulletListToTiptap(block: BulletListBlock): JSONContent {

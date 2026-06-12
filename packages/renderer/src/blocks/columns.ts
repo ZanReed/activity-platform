@@ -18,6 +18,7 @@ import type { ColumnsBlock, Column } from '@activity/schema';
 import type { BlockRenderContext } from './index.js';
 import { renderBlock } from './index.js';
 import { attr } from '../html.js';
+import { remLength } from './sizing.js';
 
 // grid-template-columns from the width weights: default weight 1 → equal split;
 // [width:2, width:1] → "2fr 1fr". Values are schema-validated positive numbers,
@@ -43,7 +44,16 @@ export function renderColumns(block: ColumnsBlock, ctx: BlockRenderContext): str
   const cells = block.columns
     .map((col) => {
       const inner = col.blocks.map((b) => renderBlock(b, ctx)).join('');
-      return '<div class="column-cell">' + inner + '</div>';
+      // Reserved work space: minHeight rides as --cell-min-height (consumed
+      // by the .column-cell rule) instead of an inline min-height, so a
+      // stylesheet rule could override it per media — same custom-property
+      // pattern as --columns-template. A floor, not a fixed height: the cell
+      // still grows with content, so foldable measurement stays honest.
+      const minHeightStyle =
+        col.minHeight !== undefined
+          ? ' style="--cell-min-height:' + remLength(col.minHeight) + '"'
+          : '';
+      return '<div class="column-cell"' + minHeightStyle + '>' + inner + '</div>';
     })
     .join('');
 

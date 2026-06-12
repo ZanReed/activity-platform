@@ -211,7 +211,15 @@ body {
   align-items: start;
   margin: 1rem 0;
 }
-.block-columns > .column-cell { min-width: 0; }
+.block-columns > .column-cell {
+  min-width: 0;
+  /* Reserved work space (Column.minHeight): the renderer sets
+   --cell-min-height inline only when authored, so the fallback keeps every
+   other cell content-sized. A floor, not a fixed height — the cell still
+   grows, so print pagination and foldable measurement stay honest. Applies
+   in every output: on paper this IS the write-in work space. */
+  min-height: var(--cell-min-height, auto);
+}
 .block-columns > .column-cell > :first-child { margin-top: 0; }
 .block-columns > .column-cell > :last-child { margin-bottom: 0; }
 
@@ -249,11 +257,29 @@ body {
   border-top: 1px solid #cbd5e1;
 }
 
+/* Per-block sizing (width fraction + align). The renderer adds .block-sized
+ plus an inline --block-width custom property; consuming the property HERE
+ (instead of an inline width) lets the narrow-screen rule below relax it.
+ Auto horizontal margins center by default; align attrs zero one side. Only
+ the horizontal margins are touched, so each block type keeps its own
+ vertical rhythm. The sized block stays in normal flow — no wrap-around — by
+ design (reflow safety; see docs/design/variable-block-sizing.md). */
+.block-sized {
+  width: var(--block-width, 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+.block-sized[data-block-align="left"]  { margin-left: 0; }
+.block-sized[data-block-align="right"] { margin-right: 0; }
+
 /* Narrow screens only: collapse to a single column so a 2-/3-column layout
  stays readable on a phone. Scoped to @media SCREEN so it never reaches paper
  or the foldable (both print-media), where columns must stay side by side. */
 @media screen and (max-width: 640px) {
   .block-columns { grid-template-columns: 1fr; }
+  /* Authored block widths relax to full on a phone (a 33%-wide figure in a
+   ~360px viewport is unusable) — paper and the foldable keep them. */
+  .block-sized { width: 100%; }
   /* Stacked: the between-cell rule flips from a left border to a top border so
    the grid still reads as separated regions when columns sit on top of
    each other. */

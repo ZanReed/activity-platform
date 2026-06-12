@@ -7,7 +7,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 Things only the author does (pushes, deploys, migrations), queued and waiting:
 
 1. **`supabase db push`** — apply migration [0007_submission_version.sql](supabase/migrations/0007_submission_version.sql) (`submissions.activity_version_id`). Until applied, the dashboard falls back to current-version answer keys (no regression; new rows just aren't pinned to the version the student answered).
-2. **`supabase functions deploy publish-activity`** — ships the regenerated renderer bundle: Phase-2 rich hint/feedback/solution content + structural-columns/grid-lines CSS. Until then, newly published pages carry the old bundle's CSS.
+2. **`supabase functions deploy publish-activity`** — ships the regenerated renderer bundle: Phase-2 rich hint/feedback/solution content + structural-columns/grid-lines CSS + variable-block-sizing (block width/align + cell min-height) markup and CSS. Until then, newly published pages carry the old bundle.
 3. **`supabase functions deploy upload-image`** — new function (image authoring Drop 2). Also confirm cross-origin `<img>` loads from the R2 public URL in the editor (add the SPA origin to the R2 bucket CORS allowed-origins if needed; a custom domain would make this moot).
 4. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
 5. **Human GUI passes still owed:** the live drag gestures for drag-between-cells (hover→handle→drag and grip→drag — synthetic events can't drive them headlessly), and the nested rich-text mini-editor UX (caret behavior, math insertion, virtual-keyboard interplay in popovers).
@@ -15,7 +15,12 @@ Things only the author does (pushes, deploys, migrations), queued and waiting:
 
 ## Current focus
 
-**▶ Active next goal — variable block sizing**, the strategic goal the structural-columns container was built for: differing-width/height blocks, reflow-safe sizing only, no free canvas.
+**▶ Active goal — variable block sizing** (design + Drop 1 landed 2026-06-12; see [docs/design/variable-block-sizing.md](docs/design/variable-block-sizing.md)). Reflow-safe sizing only, no free canvas. Author-approved decisions: unified per-block `width` fraction + `align` (default center, no wrap-around) on image + math_block; `Column.minHeight` rem floors; drag gestures for all three controls.
+
+- **Drop 1 ✅ (foundation, no UI):** schema fields, renderer markup + CSS (`block-sized`/`--block-width`/`data-block-align`, `--cell-min-height`; narrow screens relax widths, print keeps them), Tiptap attrs + serialize round-trip, tests, bundle regenerated.
+- **Drop 2 ⏳:** column divider drag-resize (snaps to clean ratios; preset picker stays).
+- **Drop 3 ⏳:** image corner drag-handles + width/align control for other sizable blocks.
+- **Drop 4 ⏳:** cell bottom-edge drag for minHeight + numeric readout.
 
 The columns-polish arc that preceded it is complete (add/remove-column commands, width presets + visual picker with live editor preview, image authoring with R2 upload + live preview, drag-between-cells with a dedicated columns grip, legacy print-columns control retired) — full writeups in [docs/HISTORY.md](docs/HISTORY.md).
 
@@ -35,6 +40,7 @@ Also queued:
 | Migration 0007 (submission version pinning) | ⏳ Written, **NOT applied** (author) |
 | Print feature Drops A–D (worksheet config + journal foldable) | ✅ Complete; entirely client-side, no deploy needed |
 | Structural columns + grid lines + width presets + drag-between-cells | ✅ Code + tests; ⚠ `publish-activity` redeploy pending |
+| Variable block sizing Drop 1 (schema/renderer/serialize foundation) | ✅ Code + tests; ⚠ same `publish-activity` redeploy; Drops 2–4 (editor gestures) queued |
 | Phase 2 slice — rich text + inline math in hint/feedback/solution | ✅ Code + tests; ⚠ deploy pending; live UX unverified |
 | Image authoring (block + popover + upload + live preview) | ✅ Code + tests; ⚠ `upload-image` deploy + R2 CORS pending |
 | `publish-activity` / `ingest-submission` Edge Functions | ✅ Deployed; ingest runs with `verify_jwt: false` |
@@ -43,7 +49,7 @@ Also queued:
 | Markdown paste import | ⏳ Phase 1 polish |
 | End-to-end manual test | ⏳ Still to run |
 
-Test counts at last session: schema 45 / renderer 235 / app 106; `tsc -b` + app build green.
+Test counts at last session: schema 52 / renderer 243 / app 115; `tsc -b` + app build green.
 
 ## Repo layout
 
@@ -98,4 +104,4 @@ activity-platform/
 
 ---
 
-**Last updated:** 2026-06-11 — docs restructure for context efficiency: STATE.md slimmed from ~520 dense lines to this snapshot; completed-work narratives → docs/HISTORY.md, architecture decisions → docs/DECISIONS.md, author-collaboration notes → docs/COLLABORATION.md; standing constraints + things-NOT-to-do moved to a new CLAUDE.md (auto-loaded each session) along with the division-of-labor rules (author pushes/deploys/migrates; bundle-regen discipline; `--no-verify-jwt`). Pending author actions consolidated into the checklist at the top of this file. Prior work log: see docs/HISTORY.md.
+**Last updated:** 2026-06-12 — variable block sizing: design pass (author answered scope/UI/unit questions; doc at docs/design/variable-block-sizing.md) + Drop 1 implemented: `width`/`align` sizing fragment on ImageBlock + MathBlock, `Column.minHeight` (rem floor), renderer emission + CSS (relaxed on narrow screens, kept in print), Tiptap attrs + serialize both directions, 24 new tests, bundle regenerated. RUNTIME.md notes the additive presentational attributes. Drops 2–4 are the editor drag gestures.
