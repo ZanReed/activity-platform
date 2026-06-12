@@ -117,6 +117,15 @@ export type PrintHeader = z.infer<typeof PrintHeader>;
 //                    as a LITERAL @page rule, never a CSS var, because @page
 //                    rules cannot reliably read custom properties.
 //   columns        — 1..3. column-count in print; 1 is a no-op (single col).
+//                    DORMANT: the author-facing control was retired when
+//                    structural authored columns (the ColumnsBlock content
+//                    primitive) landed — a columns block renders consistently
+//                    on screen, in worksheet print, and inside a foldable, so
+//                    this per-mode print setting became redundant. The field +
+//                    its renderer var/CSS are kept (not deleted) so values
+//                    already saved on existing activities keep printing as
+//                    authored, and so the control can be re-exposed later with
+//                    no schema/renderer change. New activities default to 1.
 //   workSpace      — rem of blank space below each problem for hand-working.
 //                    Activity-level default; a fill-in-blank block may override
 //                    it per-problem via FillInBlankBlock.workSpace.

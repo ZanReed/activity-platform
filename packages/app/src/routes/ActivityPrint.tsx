@@ -388,29 +388,13 @@ export default function ActivityPrint() {
         </select>
         </label>
 
-        {/* Columns is a worksheet-only setting: it drives CSS column-count on
-            the flat page. The foldable packs blocks vertically into fixed fold
-            regions, which CSS columns can't express, so the control is hidden
-            there rather than shown-but-inert. */}
-        {layout !== 'foldable' && (
-            <label className="block">
-            <span className={LABEL_CLASS}>Columns</span>
-            <select
-            className={`${FIELD_CLASS} mt-1`}
-            value={eff.columns}
-            onChange={(e) =>
-                setOverrides((o) => ({
-                    ...o,
-                    columns: Number(e.target.value),
-                }))
-            }
-            >
-            <option value={1}>1 column</option>
-            <option value={2}>2 columns</option>
-            <option value={3}>3 columns</option>
-            </select>
-            </label>
-        )}
+        {/* The worksheet "Columns" session override (CSS column-count) was
+            retired when structural authored columns landed — authored columns
+            render consistently everywhere, so the per-mode print setting is
+            redundant. The eff.columns value still flows to the renderer (kept
+            dormant on purpose; see PrintConfig.columns in
+            packages/schema/src/document.ts), so any already-saved column count
+            still prints; there's just no longer a control to change it here. */}
 
         <NumberControl
         label="Margin (in)"

@@ -441,21 +441,17 @@ function PrintSettings({
             </select>
             </div>
 
-            <div>
-            <label className={SETTINGS_LABEL_CLASS} htmlFor="print-columns">
-            Columns
-            </label>
-            <select
-            id="print-columns"
-            className={SELECT_CLASS}
-            value={print.columns}
-            onChange={(e) => setPrint({ columns: Number(e.target.value) })}
-            >
-            <option value={1}>1 column</option>
-            <option value={2}>2 columns</option>
-            <option value={3}>3 columns</option>
-            </select>
-            </div>
+            {/* The worksheet print "Columns" control (CSS column-count, 1–3)
+                was retired here when structural authored columns landed — a
+                content-level columns block renders consistently on screen, in
+                worksheet print, and inside a foldable, so the per-mode print
+                setting is redundant. The control is removed but the underlying
+                plumbing is intentionally kept dormant (schema
+                PrintConfig.columns, the --print-columns renderer var, and its
+                @media print column-count rule) so already-saved values keep
+                printing as authored and the feature can be re-exposed later
+                with just this dropdown — no schema/renderer/redeploy churn.
+                See packages/schema/src/document.ts (PrintConfig.columns). */}
 
             <PrintNumberField
             id="print-margin"

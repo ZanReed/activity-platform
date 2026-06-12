@@ -626,6 +626,13 @@ body {
   .activity-container {
     max-width: none;
     font-size: var(--print-font-size, 11pt);
+    /* DORMANT worksheet-columns plumbing. The author-facing "Columns" control
+       (PrintConfig.columns) was retired when structural authored columns
+       landed, but this rule + the --print-columns var are intentionally kept so
+       activities saved with columns:2/3 still print multi-column, and so the
+       control can be re-exposed with no renderer change. --print-columns is 1
+       (a no-op single column) for every new activity. See PrintConfig.columns
+       in packages/schema/src/document.ts for the full rationale. */
     column-count: var(--print-columns, 1);
     column-gap: 2rem;
   }
