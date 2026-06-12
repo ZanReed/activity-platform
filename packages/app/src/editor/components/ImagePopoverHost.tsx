@@ -134,6 +134,10 @@ export default function ImagePopoverHost({
     }, [editor, selectedImage]);
 
     if (!editor || !selectedImage) return null;
+    // Wait for the anchor card to resolve (one rAF after selection) before
+    // mounting — a popover mounted with a null reference floats at the body's
+    // top-left, and focusing it scrolled the page to the top.
+    if (!referenceElement) return null;
 
     return (
         <ImageEditPopover

@@ -515,6 +515,9 @@
     padding: 0.5rem;
     border: 1px dashed rgb(226 232 240); /* slate-200 */
     border-radius: 0.375rem;
+    /* Anchor for the absolutely-positioned resize divider pinned to the cell's
+     * left edge (.editor-column-divider — wired in columnResize.ts). */
+    position: relative;
 }
 
 .editor-column > :first-child {
@@ -523,6 +526,78 @@
 
 .editor-column > :last-child {
     margin-bottom: 0;
+}
+
+/* The divider widget renders as the cell's first DOM child, so the
+ * :first-child zero-margin above lands on IT instead of the first content
+ * block. Re-apply to the divider's next sibling (and keep grid-lines mode's
+ * between-block rule off it, below). */
+.editor-column > .editor-column-divider + * {
+    margin-top: 0;
+}
+
+/* =============================================================================
+ *  Column resize divider (variable block sizing Drop 2 — columnResize.ts)
+ *  -----------------------------------------------------------------------
+ *  A widget decoration (never serialized) pinned over the gap left of every
+ *  cell except the first. Dragging it reweights the adjacent pair; the visual
+ *  is a thin vertical strip with a centered line that appears on container
+ *  hover, brightening on its own hover and while dragging.
+ *  ========================================================================= */
+
+.editor-column-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0.875rem;
+    /* Center the strip on the boundary: half the strip back, then half the
+     * 1.5rem flex gap to sit between the cells. */
+    transform: translateX(calc(-50% - 0.75rem));
+    cursor: col-resize;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+
+/* The visible line inside the hit strip. */
+.editor-column-divider::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 3px;
+    transform: translateX(-50%);
+    border-radius: 2px;
+    background: rgb(148 163 184); /* slate-400 */
+}
+
+.editor-columns:hover .editor-column-divider,
+.is-column-resizing .editor-column-divider {
+    opacity: 0.45;
+}
+
+.editor-column-divider:hover,
+.is-column-resizing .editor-column-divider {
+    opacity: 1;
+}
+
+.editor-column-divider:hover::before,
+.is-column-resizing .editor-column-divider::before {
+    background: rgb(99 102 241); /* indigo-500 */
+}
+
+/* Grid-lines mode collapses the gap to 0 — center the strip on the cell's
+ * left border instead. */
+.editor-columns[data-grid="true"] .editor-column-divider {
+    transform: translateX(-50%);
+}
+
+/* No text selection while a divider drag is in flight. */
+.is-column-resizing,
+.is-column-resizing .editor-column {
+    user-select: none;
 }
 
 /* Grid-lines preview. data-grid is set by Columns.renderHTML when the block's
@@ -557,6 +632,15 @@
     margin-top: 0.75rem;
     padding-top: 0.75rem;
     border-top: 1px solid rgb(203 213 225); /* slate-300 */
+}
+
+/* The resize divider widget is the cell's first DOM child, so without this
+ * the between-block rule above would draw a stray top border on the first
+ * REAL block (divider + block matches `* + *`). */
+.editor-columns[data-grid="true"] > .editor-column > .editor-column-divider + * {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
 }
 
 /* =============================================================================

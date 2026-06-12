@@ -22,7 +22,13 @@ export default function Toolbar({ editor }: ToolbarProps) {
     const isInFillInBlank = editor.isActive('fillInBlank');
 
     return (
-        <div className="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 p-2">
+        // sticky: on long documents the toolbar follows the viewport instead
+        // of scrolling away with the top of the editor card. z-30 sits above
+        // editor content and the columns grip but below the anchored popovers
+        // (z-50, portaled to body). The opaque bg + bottom border keep
+        // scrolled content from showing through; rounded-t-lg replaces the
+        // corner clipping the card's removed overflow-hidden provided.
+        <div className="sticky top-0 z-30 flex flex-wrap gap-1 rounded-t-lg border-b border-slate-200 bg-slate-50 p-2">
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 active={isMarkActive(editor, 'bold')}

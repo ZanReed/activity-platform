@@ -126,14 +126,38 @@ export default function ImageEditPopover({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, imageId]);
 
+    const { refs, floatingStyles, isPositioned } = useFloating({
+        elements: { reference: referenceElement },
+        placement: 'bottom-start',
+        middleware: [
+            offset(4),
+            flip(),
+            shift({ padding: 8 }),
+            size({
+                padding: VIEWPORT_PADDING,
+                apply({ availableHeight }) {
+                    setMaxHeight(
+                        Math.max(MIN_POPOVER_HEIGHT, Math.floor(availableHeight)),
+                    );
+                },
+            }),
+        ],
+        whileElementsMounted: autoUpdate,
+        open: isOpen,
+    });
+
+    // Focus only after floating-ui has anchored the popover, and never let the
+    // focus itself scroll. Before isPositioned, the portaled popover sits at
+    // the body's top-left — focusing an input there yanked the window to the
+    // top of the page whenever an image low in the document was selected.
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !isPositioned) return;
         const raf = requestAnimationFrame(() => {
-            srcInputRef.current?.focus();
+            srcInputRef.current?.focus({ preventScroll: true });
             srcInputRef.current?.select();
         });
         return () => cancelAnimationFrame(raf);
-    }, [isOpen]);
+    }, [isOpen, isPositioned]);
 
     const flushAll = () => {
         const updates: Partial<{ src: string; alt: string; caption: string }> =
@@ -186,26 +210,6 @@ export default function ImageEditPopover({
         return () => document.removeEventListener('mousedown', handler);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, onClose, referenceElement]);
-
-    const { refs, floatingStyles } = useFloating({
-        elements: { reference: referenceElement },
-        placement: 'bottom-start',
-        middleware: [
-            offset(4),
-            flip(),
-            shift({ padding: 8 }),
-            size({
-                padding: VIEWPORT_PADDING,
-                apply({ availableHeight }) {
-                    setMaxHeight(
-                        Math.max(MIN_POPOVER_HEIGHT, Math.floor(availableHeight)),
-                    );
-                },
-            }),
-        ],
-        whileElementsMounted: autoUpdate,
-        open: isOpen,
-    });
 
     if (!isOpen) return null;
 
@@ -275,6 +279,8 @@ export default function ImageEditPopover({
     const popoverStyle: React.CSSProperties = {
         ...floatingStyles,
         ...(maxHeight !== null ? { maxHeight: `${maxHeight}px` } : {}),
+        // Invisible (but measurable) until anchored — never paint at (0,0).
+        ...(isPositioned ? {} : { visibility: 'hidden' as const }),
     };
 
     return createPortal(

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import DragHandle from '@tiptap/extension-drag-handle-react';
@@ -91,8 +91,22 @@ export default function Editor({
         },
     });
 
+    // Dev-only escape hatch: expose the live editor so scripted browser
+    // checks (and quick console experiments) can set content / inspect state.
+    // Stripped from production builds by the DEV guard.
+    useEffect(() => {
+        if (import.meta.env.DEV) {
+            (window as unknown as { __tiptapEditor?: unknown }).__tiptapEditor =
+                editor;
+        }
+    }, [editor]);
+
     return (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        // No overflow-hidden here: it would establish this card as the
+        // toolbar's containing scroll box and silently disable its
+        // position:sticky against the window scroll. Corner rounding is
+        // handled per-edge instead (toolbar rounds its own top corners).
+        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
             <Toolbar editor={editor} />
             <div className="p-6">
                 <DragHandle editor={editor} nested={columnsNestedDragOptions}>

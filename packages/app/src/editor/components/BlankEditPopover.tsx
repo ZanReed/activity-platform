@@ -157,14 +157,38 @@ export default function BlankEditPopover({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, blankId]);
 
+    const { refs, floatingStyles, isPositioned } = useFloating({
+        elements: { reference: referenceElement },
+        placement: 'bottom-start',
+        middleware: [
+            offset(4),
+            flip(),
+            shift({ padding: 8 }),
+            size({
+                padding: VIEWPORT_PADDING,
+                apply({ availableHeight }) {
+                    setMaxHeight(
+                        Math.max(MIN_POPOVER_HEIGHT, Math.floor(availableHeight)),
+                    );
+                },
+            }),
+        ],
+        whileElementsMounted: autoUpdate,
+        open: isOpen,
+    });
+
+    // Focus only after floating-ui has anchored the popover, and never let the
+    // focus itself scroll — same scroll-to-top fix as ImageEditPopover (a
+    // popover focused before positioning sits at the body's top-left, so the
+    // browser scrolled the window to the top of the page).
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !isPositioned) return;
         const raf = requestAnimationFrame(() => {
-            answerInputRef.current?.focus();
+            answerInputRef.current?.focus({ preventScroll: true });
             answerInputRef.current?.select();
         });
         return () => cancelAnimationFrame(raf);
-    }, [isOpen]);
+    }, [isOpen, isPositioned]);
 
     // Only answer + acceptableAnswers are draft-then-flush; hint and mistake
     // feedback commit live through the nested editors (see commitHintNodes /
@@ -238,26 +262,6 @@ export default function BlankEditPopover({
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, [isOpen, onClose, referenceElement]);
-
-    const { refs, floatingStyles } = useFloating({
-        elements: { reference: referenceElement },
-        placement: 'bottom-start',
-        middleware: [
-            offset(4),
-            flip(),
-            shift({ padding: 8 }),
-            size({
-                padding: VIEWPORT_PADDING,
-                apply({ availableHeight }) {
-                    setMaxHeight(
-                        Math.max(MIN_POPOVER_HEIGHT, Math.floor(availableHeight)),
-                    );
-                },
-            }),
-        ],
-        whileElementsMounted: autoUpdate,
-        open: isOpen,
-    });
 
     const acceptableRows = useMemo(
         () => [...acceptableAnswers, ''],
@@ -401,6 +405,8 @@ export default function BlankEditPopover({
     const popoverStyle: React.CSSProperties = {
         ...floatingStyles,
         ...(maxHeight !== null ? { maxHeight: `${maxHeight}px` } : {}),
+        // Invisible (but measurable) until anchored — never paint at (0,0).
+        ...(isPositioned ? {} : { visibility: 'hidden' as const }),
     };
 
     return createPortal(
