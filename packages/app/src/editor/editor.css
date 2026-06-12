@@ -465,6 +465,48 @@
     gap: 1.5rem;
     align-items: start;
     margin: 1rem 0;
+    /* Anchor for the absolutely-positioned grip (the whole-block drag handle,
+     * .editor-columns-grip — wired in Columns.ts). */
+    position: relative;
+}
+
+/* Whole-block drag handle pinned to the columns block's top-left corner. The
+ * nested drag rule (dragHandleNested.ts) hands the gap / cell-padding regions to
+ * the inner blocks so their hover handles stay reachable, which leaves the
+ * container without a geometric grab zone — this grip is it, and it works in
+ * grid-lines mode too (where the stretched cells fill the box). Editor-only: a
+ * widget decoration, never serialized. */
+.editor-columns-grip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    /* Straddle the corner so it reads as the block's own handle without
+     * covering cell content. */
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 0.25rem;
+    border: 1px solid rgb(226 232 240); /* slate-200 */
+    background: rgb(255 255 255);
+    color: rgb(100 116 139); /* slate-500 */
+    cursor: grab;
+    opacity: 0.45;
+    transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    z-index: 2;
+}
+
+.editor-columns-grip:active {
+    cursor: grabbing;
+}
+
+.editor-columns:hover .editor-columns-grip,
+.editor-columns-grip:hover {
+    opacity: 1;
+    color: rgb(51 65 85); /* slate-700 */
+    border-color: rgb(148 163 184); /* slate-400 */
 }
 
 .editor-column {

@@ -16,6 +16,7 @@ import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
 import { Columns, Column } from './extensions/Columns';
 import { Image } from './extensions/Image';
+import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
 
@@ -94,7 +95,7 @@ export default function Editor({
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
             <Toolbar editor={editor} />
             <div className="p-6">
-                <DragHandle editor={editor}>
+                <DragHandle editor={editor} nested={columnsNestedDragOptions}>
                     <button
                         type="button"
                         className="drag-handle-button"

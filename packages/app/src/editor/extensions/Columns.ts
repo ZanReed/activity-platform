@@ -1,5 +1,11 @@
 import { Node, mergeAttributes, type Editor } from '@tiptap/core';
-import { NodeSelection, type EditorState } from '@tiptap/pm/state';
+import {
+    NodeSelection,
+    Plugin,
+    PluginKey,
+    type EditorState,
+} from '@tiptap/pm/state';
+import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 
 // =============================================================================
@@ -255,6 +261,92 @@ export interface ColumnsOptions {
     gridLinesDefault: boolean;
 }
 
+// =============================================================================
+// Columns grip — an always-present drag affordance for the WHOLE columns block.
+// -----------------------------------------------------------------------------
+// The nested drag-handle (dragHandleNested.ts) deliberately yields the gap /
+// cell-padding regions to the inner blocks, so the hover handle reaches a block
+// inside a cell without flipping up to the container. That leaves the container
+// without a reliable geometric grab region (especially in grid-lines mode, whose
+// stretched cells fill the box). This grip restores it: a small handle pinned to
+// each columns block's top-left corner, rendered as a widget decoration (NOT
+// part of the document — it never serializes, and avoids the NodeView the rest
+// of this node deliberately sidesteps). Dragging it starts a native ProseMirror
+// node move, mirroring how @tiptap/extension-drag-handle stages a drag:
+// select the node, stage `view.dragging`, and let PM's own drop logic do the
+// move (which works across `isolating` cells). stopPropagation keeps PM's own
+// dragstart from re-deriving a target from the grip's coordinates — we own it.
+// =============================================================================
+
+const columnsGripPluginKey = new PluginKey('columnsGrip');
+
+function buildColumnsGrip(
+    view: EditorView,
+    getPos: () => number | undefined,
+): HTMLElement {
+    const grip = document.createElement('div');
+    grip.className = 'editor-columns-grip';
+    grip.setAttribute('contenteditable', 'false');
+    grip.setAttribute('draggable', 'true');
+    grip.setAttribute('title', 'Drag to move the whole columns block');
+    grip.setAttribute('aria-label', 'Drag to move the columns block');
+    // Six-dot grip glyph, matching the inner drag handle's icon.
+    grip.innerHTML =
+        '<svg width="12" height="20" viewBox="0 0 12 20" fill="currentColor" aria-hidden="true">' +
+        '<circle cx="3" cy="4" r="1.5"/><circle cx="9" cy="4" r="1.5"/>' +
+        '<circle cx="3" cy="10" r="1.5"/><circle cx="9" cy="10" r="1.5"/>' +
+        '<circle cx="3" cy="16" r="1.5"/><circle cx="9" cy="16" r="1.5"/></svg>';
+
+    grip.addEventListener('dragstart', (event) => {
+        if (!event.dataTransfer) return;
+        // Own the gesture: keep PM's built-in dragstart (bound on the editor
+        // DOM) from also firing and re-deriving a target from coordinates.
+        event.stopPropagation();
+        const widgetPos = getPos();
+        if (typeof widgetPos !== 'number') return;
+        // The widget sits just inside the columns node; walk up to the node and
+        // take its `before` position (robust to position shifts).
+        const $pos = view.state.doc.resolve(widgetPos);
+        let depth = $pos.depth;
+        while (depth > 0 && $pos.node(depth).type.name !== 'columns') depth -= 1;
+        if ($pos.node(depth)?.type.name !== 'columns') return;
+        const columnsPos = depth === 0 ? widgetPos : $pos.before(depth);
+        const selection = NodeSelection.create(view.state.doc, columnsPos);
+        const slice = view.state.doc.slice(selection.from, selection.to);
+        // Stage the drag the way PM expects; with `move` true and the columns
+        // node selected, PM's drop deletes the original and inserts at the drop
+        // point — a real move, valid across the cells' isolating boundaries.
+        view.dragging = { slice, move: true };
+        view.dispatch(view.state.tr.setSelection(selection));
+        const dom = view.nodeDOM(columnsPos);
+        event.dataTransfer.clearData();
+        event.dataTransfer.effectAllowed = 'move';
+        if (dom instanceof HTMLElement) {
+            event.dataTransfer.setDragImage(dom, 0, 0);
+        }
+    });
+
+    return grip;
+}
+
+function columnsGripDecorations(state: EditorState): DecorationSet {
+    const decorations: Decoration[] = [];
+    state.doc.descendants((node, pos) => {
+        if (node.type.name !== 'columns') return true;
+        // Place the widget just inside the columns node (its first child slot),
+        // so getPos() resolves inside the node. CSS pins it to the corner and
+        // takes it out of flex flow, so it never disturbs the cells.
+        decorations.push(
+            Decoration.widget(pos + 1, buildColumnsGrip, {
+                side: -1,
+                key: `columns-grip-${pos}`,
+            }),
+        );
+        return false; // columns can't nest — no need to descend
+    });
+    return DecorationSet.create(state.doc, decorations);
+}
+
 export const Columns = Node.create<ColumnsOptions>({
     name: 'columns',
     group: 'block',
@@ -262,6 +354,17 @@ export const Columns = Node.create<ColumnsOptions>({
     draggable: true,
     selectable: true,
     isolating: true,
+
+    addProseMirrorPlugins() {
+        return [
+            new Plugin({
+                key: columnsGripPluginKey,
+                props: {
+                    decorations: columnsGripDecorations,
+                },
+            }),
+        ];
+    },
 
     addOptions() {
         return { gridLinesDefault: false };
