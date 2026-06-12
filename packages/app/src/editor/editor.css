@@ -515,9 +515,6 @@
     padding: 0.5rem;
     border: 1px dashed rgb(226 232 240); /* slate-200 */
     border-radius: 0.375rem;
-    /* Anchor for the absolutely-positioned resize divider pinned to the cell's
-     * left edge (.editor-column-divider — wired in columnResize.ts). */
-    position: relative;
 }
 
 .editor-column > :first-child {
@@ -526,83 +523,6 @@
 
 .editor-column > :last-child {
     margin-bottom: 0;
-}
-
-/* The divider widget renders as the cell's first DOM child, so the
- * :first-child zero-margin above lands on IT instead of the first content
- * block. Re-apply to the divider's next sibling (and keep grid-lines mode's
- * between-block rule off it, below). */
-.editor-column > .editor-column-divider + * {
-    margin-top: 0;
-}
-
-/* =============================================================================
- *  Column resize divider (variable block sizing Drop 2 — columnResize.ts)
- *  -----------------------------------------------------------------------
- *  A widget decoration (never serialized) pinned over the gap left of every
- *  cell except the first. Dragging it reweights the adjacent pair; the visual
- *  is a thin vertical strip with a centered line that appears on container
- *  hover, brightening on its own hover and while dragging.
- *  ========================================================================= */
-
-.editor-column-divider {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 0.875rem;
-    /* Center the strip on the boundary: half the strip back, then half the
-     * 1.5rem flex gap to sit between the cells. */
-    transform: translateX(calc(-50% - 0.75rem));
-    cursor: col-resize;
-    /* Above cell content AND the floating inner-block drag handle, which the
-     * nested-drag rule deliberately parks in this same gap — inside the strip
-     * the resize gesture wins, just outside it the handle does. */
-    z-index: 2;
-    opacity: 0;
-    transition: opacity 0.12s ease;
-    /* Touch/pen drags must not be hijacked by scrolling (Chromebooks). */
-    touch-action: none;
-}
-
-/* The visible line inside the hit strip. */
-.editor-column-divider::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 50%;
-    width: 3px;
-    transform: translateX(-50%);
-    border-radius: 2px;
-    background: rgb(148 163 184); /* slate-400 */
-}
-
-.editor-columns:hover .editor-column-divider,
-.is-column-resizing .editor-column-divider {
-    opacity: 0.45;
-}
-
-.editor-column-divider:hover,
-.is-column-resizing .editor-column-divider {
-    opacity: 1;
-}
-
-.editor-column-divider:hover::before,
-.is-column-resizing .editor-column-divider::before {
-    background: rgb(99 102 241); /* indigo-500 */
-}
-
-/* Grid-lines mode collapses the gap to 0 — center the strip on the cell's
- * left border instead. */
-.editor-columns[data-grid="true"] .editor-column-divider {
-    transform: translateX(-50%);
-}
-
-/* No text selection while a divider drag is in flight. */
-.is-column-resizing,
-.is-column-resizing .editor-column {
-    user-select: none;
 }
 
 /* Grid-lines preview. data-grid is set by Columns.renderHTML when the block's
@@ -637,15 +557,6 @@
     margin-top: 0.75rem;
     padding-top: 0.75rem;
     border-top: 1px solid rgb(203 213 225); /* slate-300 */
-}
-
-/* The resize divider widget is the cell's first DOM child, so without this
- * the between-block rule above would draw a stray top border on the first
- * REAL block (divider + block matches `* + *`). */
-.editor-columns[data-grid="true"] > .editor-column > .editor-column-divider + * {
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
 }
 
 /* =============================================================================
@@ -1103,6 +1014,57 @@
     border-radius: 0.375rem;
 }
 
+/* A sized image (authored width set): the wrapper carries the width %, and
+ * the img fills it — the authored width is authoritative, mirroring the
+ * published CSS (.block-image.block-sized img { width: 100% }). The editor's
+ * 280px convenience cap comes off: the author chose this size deliberately. */
+.image-preview.is-sized .image-preview__img {
+    width: 100%;
+    max-height: none;
+}
+
+/* Side resize handles (variable block sizing Drop 3 — ImageView.tsx). Shown
+ * while the image is selected; pill-shaped grips vertically centered on each
+ * edge. The gesture lives entirely inside this NodeView. */
+.image-resize-handle {
+    position: absolute;
+    top: 50%;
+    width: 0.4375rem;
+    height: 2.25rem;
+    max-height: 60%;
+    transform: translateY(-50%);
+    border-radius: 9999px;
+    border: 1px solid rgb(255 255 255);
+    background: rgb(148 163 184); /* slate-400 */
+    cursor: ew-resize;
+    z-index: 2;
+    /* Touch/pen drags must not be hijacked by scrolling (Chromebooks). */
+    touch-action: none;
+}
+
+.image-resize-handle--left  { left: -0.125rem; }
+.image-resize-handle--right { right: -0.125rem; }
+
+.image-resize-handle:hover,
+.image-preview.is-resizing .image-resize-handle {
+    background: rgb(99 102 241); /* indigo-500 */
+}
+
+/* Live width readout while dragging. */
+.image-resize-badge {
+    position: absolute;
+    bottom: 0.625rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.375rem;
+    background: rgb(15 23 42 / 0.85); /* slate-900 */
+    color: white;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+
 .image-preview__caption {
     max-width: 100%;
     font-size: 0.8125rem;
@@ -1279,4 +1241,45 @@
     font-size: 0.6875rem;
     color: rgb(100 116 139); /* slate-500 */
     line-height: 1.4;
+}
+
+/* Borderless small print inside a field (e.g. "Set a width to align"). */
+.image-edit-popover__note {
+    margin-top: 0.375rem;
+    font-size: 0.6875rem;
+    color: rgb(100 116 139); /* slate-500 */
+    line-height: 1.4;
+}
+
+/* Width / alignment chip rows (variable block sizing Drop 3). */
+.image-edit-popover__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.image-edit-popover__chip {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid rgb(203 213 225); /* slate-300 */
+    border-radius: 0.375rem;
+    background: white;
+    font-size: 0.75rem;
+    color: rgb(51 65 85); /* slate-700 */
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.image-edit-popover__chip:hover:not(:disabled) {
+    background: rgb(241 245 249); /* slate-100 */
+}
+
+.image-edit-popover__chip.is-active {
+    border-color: rgb(99 102 241); /* indigo-500 */
+    background: rgb(238 242 255); /* indigo-50 */
+    color: rgb(67 56 202); /* indigo-700 */
+}
+
+.image-edit-popover__chip:disabled {
+    opacity: 0.45;
+    cursor: default;
 }

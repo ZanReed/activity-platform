@@ -78,6 +78,14 @@ describe('per-block sizing (width/align)', () => {
   });
 });
 
+describe('sizing CSS (published stylesheet)', () => {
+  it('carries the block-sized rules, including image fill', async () => {
+    const { blockStyles } = await import('../src/runtime/styles.js');
+    expect(blockStyles).toContain('.block-sized {');
+    expect(blockStyles).toContain('.block-image.block-sized img');
+  });
+});
+
 describe('Column.minHeight (reserved work space)', () => {
   it('a floored cell carries --cell-min-height in rem', () => {
     const cols = createColumnsBlock(2);

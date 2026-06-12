@@ -6,10 +6,11 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting:
 
-1. **Confirm cross-origin `<img>` loads** from the R2 public URL in the editor (add the SPA origin to the R2 bucket CORS allowed-origins if needed; a custom domain would make this moot).
-2. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
-3. **Human GUI passes still owed:** drag-between-cells (hover→handle→drag and grip→drag), the new **column divider drag-resize** (pointer capture + Alt fine-grained + Escape cancel — verified with synthetic events, not a real mouse), and the nested rich-text mini-editor UX (caret behavior, math insertion, virtual-keyboard interplay in popovers).
-4. **After the e2e pass verifies R2 end-to-end:** delete the legacy Supabase Storage `activities` bucket and any env vars referencing it.
+1. **`supabase functions deploy publish-activity`** — ships the regenerated bundle with the sized-image CSS (`.block-image.block-sized img { width: 100% }`, the "authored width is authoritative" rule). Until then, published sized images won't upscale past natural width.
+2. **Confirm cross-origin `<img>` loads** from the R2 public URL in the editor (add the SPA origin to the R2 bucket CORS allowed-origins if needed; a custom domain would make this moot).
+3. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
+4. **Human GUI passes still owed:** drag-between-cells (hover→handle→drag and grip→drag), the new **image resize side-handles** (verified with synthetic pointer events; confirm under a real mouse), and the nested rich-text mini-editor UX (caret behavior, math insertion, virtual-keyboard interplay in popovers).
+5. **After the e2e pass verifies R2 end-to-end:** delete the legacy Supabase Storage `activities` bucket and any env vars referencing it.
 
 Cleared 2026-06-12 (verified via Supabase API): migration 0007 applied; `publish-activity` v32 redeployed (carries the sizing bundle); `upload-image` deployed; `ingest-submission` still has `verify_jwt: false`.
 
@@ -18,9 +19,9 @@ Cleared 2026-06-12 (verified via Supabase API): migration 0007 applied; `publish
 **▶ Active goal — variable block sizing** (design + Drop 1 landed 2026-06-12; see [docs/design/variable-block-sizing.md](docs/design/variable-block-sizing.md)). Reflow-safe sizing only, no free canvas. Author-approved decisions: unified per-block `width` fraction + `align` (default center, no wrap-around) on image + math_block; `Column.minHeight` rem floors; drag gestures for all three controls.
 
 - **Drop 1 ✅ (foundation, no UI):** schema fields, renderer markup + CSS (`block-sized`/`--block-width`/`data-block-align`, `--cell-min-height`; narrow screens relax widths, print keeps them), Tiptap attrs + serialize round-trip, tests, bundle regenerated. **Deployed** (publish-activity v32).
-- **Drop 2 ✅ (column divider drag-resize):** widget-decoration dividers over each cell boundary ([columnResize.ts](packages/app/src/editor/extensions/columnResize.ts)); drag reweights only the adjacent pair (pair total preserved), snaps to 1:3/1:2/1:1/2:1/3:1 (Alt = fine-grained), live flex-grow preview during drag, ONE transaction on release (single undo step), Escape cancels. Weight ~1 stores as null so evened blocks detect as 'even'. Preset picker coexists (custom weights detect as nearest preset). Browser-verified with synthetic pointer events; real-mouse pass owed.
-- **Drop 3 ⏳:** image corner drag-handles + width/align control for other sizable blocks.
-- **Drop 4 ⏳:** cell bottom-edge drag for minHeight + numeric readout.
+- **Drop 2 ❌ CANCELLED (author decision):** column divider drag-resize was built, then removed after failing under a real mouse — the **width presets are the column-width system**. Schema/serialize unchanged (arbitrary weights still round-trip and render); implementation preserved in git history if ever revisited.
+- **Drop 3 ✅ (image resize):** width chips (25/33/50/66/75/Full) + alignment (Left/Center/Right) in the image edit popover as the reliable baseline, plus side drag-handles on the editor's live preview ([ImageView.tsx](packages/app/src/editor/nodeViews/ImageView.tsx), math in [imageSizing.ts](packages/app/src/editor/imageSizing.ts)) — snap to the same stops (Alt = fine-grained), live % badge, Escape cancels, one `updateImageAttrs` commit per drag. NodeView previews width/align exactly as published. Renderer gained `.block-image.block-sized img { width: 100% }` (authored width authoritative) — bundle regenerated, **redeploy pending**. Browser-verified end to end (chips, align, drag, popover live re-sync).
+- **Drop 4 ⏳:** cell min-height (reserved work space) — per the Drop-2 lesson, likely a numeric/preset control first, drag only if warranted.
 
 Also this session — two editor UX fixes (browser-verified): **sticky toolbar** (follows the viewport on long documents; `overflow-hidden` removed from the editor card since it silently disables sticky) and **no more scroll-to-top when selecting an image low in the document** (popovers waited on neither anchor resolution nor floating-ui positioning before focusing; both Image and Blank popovers now mount after the anchor resolves, stay invisible until positioned, and focus with `preventScroll`). Dev-only `window.__tiptapEditor` handle added for scripted browser checks.
 
@@ -42,7 +43,7 @@ Also queued:
 | Migration 0007 (submission version pinning) | ✅ Applied (verified 2026-06-12) |
 | Print feature Drops A–D (worksheet config + journal foldable) | ✅ Complete; entirely client-side, no deploy needed |
 | Structural columns + grid lines + width presets + drag-between-cells | ✅ Complete; deployed |
-| Variable block sizing Drops 1–2 (foundation + divider drag-resize) | ✅ Code + tests; Drop 1 deployed; Drops 3–4 (image handles, min-height drag) queued |
+| Variable block sizing (Drop 1 foundation, Drop 3 image resize) | ✅ Code + tests; Drop 2 (column drag) cancelled by author; ⚠ `publish-activity` redeploy pending for sized-image CSS; Drop 4 (min-height) queued |
 | Editor UX: sticky toolbar + popover scroll-jump fix | ✅ Browser-verified |
 | Phase 2 slice — rich text + inline math in hint/feedback/solution | ✅ Deployed; live UX unverified |
 | Image authoring (block + popover + upload + live preview) | ✅ Deployed; R2 CORS confirmation pending |
@@ -52,7 +53,7 @@ Also queued:
 | Markdown paste import | ⏳ Phase 1 polish |
 | End-to-end manual test | ⏳ Still to run |
 
-Test counts at last session: schema 52 / renderer 243 / app 127; `tsc -b` + app build green.
+Test counts at last session: schema 52 / renderer 244 / app 122; `tsc -b` + app build green.
 
 ## Repo layout
 
@@ -107,4 +108,4 @@ activity-platform/
 
 ---
 
-**Last updated:** 2026-06-12 (second session) — author deploys verified and cleared from the pending list (migration 0007, publish-activity v32, upload-image). Two author-reported editor UX bugs fixed and browser-verified: sticky toolbar on long documents; image/blank popover focus no longer scrolls the page to the top. Variable block sizing **Drop 2** landed: column divider drag-resize (columnResize.ts — pair-preserving reweighting, ratio snapping with Alt override, single-transaction commit, Escape cancel) with pure-math unit tests; real-mouse GUI pass owed. Earlier same day: design pass + Drop 1 (see docs/design/variable-block-sizing.md). Next: Drop 3 (image corner drag-handles + width/align control), Drop 4 (cell min-height drag).
+**Last updated:** 2026-06-12 (third session) — author **cancelled column drag-resize** after it failed under a real mouse (presets stay as the column-width system); feature fully removed (columnResize.ts, divider CSS, tests — see git history). **Drop 3 (image resize) landed in its place:** width/alignment chips in the image popover + side drag-handles on the live preview, shared snap stops, browser-verified end to end. Renderer gained the sized-image fill rule → bundle regenerated, publish-activity redeploy queued. Earlier same day: deploys verified/cleared, sticky toolbar + popover scroll-jump fixes, design pass + Drop 1. Next: Drop 4 (cell min-height — control-first per the Drop-2 lesson).

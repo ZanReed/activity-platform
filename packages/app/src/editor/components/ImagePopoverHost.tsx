@@ -25,11 +25,22 @@ interface SelectedImageState {
     src: string;
     alt: string;
     caption: string;
+    // Sizing (null = full width / centered, the schema defaults).
+    width: number | null;
+    align: 'left' | 'right' | null;
 }
 
 interface ChangeOptions {
     preserveSelection?: boolean;
 }
+
+type ImageAttrPatch = Partial<{
+    src: string;
+    alt: string;
+    caption: string;
+    width: number | null;
+    align: 'left' | 'right' | null;
+}>;
 
 export default function ImagePopoverHost({
     editor,
@@ -77,6 +88,14 @@ export default function ImagePopoverHost({
             const src = (node.attrs.src as string) ?? '';
             const alt = (node.attrs.alt as string) ?? '';
             const caption = (node.attrs.caption as string) ?? '';
+            const width =
+                typeof node.attrs.width === 'number' && node.attrs.width > 0
+                    ? (node.attrs.width as number)
+                    : null;
+            const align =
+                node.attrs.align === 'left' || node.attrs.align === 'right'
+                    ? (node.attrs.align as 'left' | 'right')
+                    : null;
 
             setSelectedImage((prev) => {
                 if (
@@ -85,11 +104,13 @@ export default function ImagePopoverHost({
                     prev.imageId === imageId &&
                     prev.src === src &&
                     prev.alt === alt &&
-                    prev.caption === caption
+                    prev.caption === caption &&
+                    prev.width === width &&
+                    prev.align === align
                 ) {
                     return prev;
                 }
-                return { pos, imageId, src, alt, caption };
+                return { pos, imageId, src, alt, caption, width, align };
             });
         };
 
@@ -115,10 +136,7 @@ export default function ImagePopoverHost({
     }, [selectedImage, resolveCardElement]);
 
     const handleChange = useCallback(
-        (
-            attrs: Partial<{ src: string; alt: string; caption: string }>,
-            options?: ChangeOptions,
-        ) => {
+        (attrs: ImageAttrPatch, options?: ChangeOptions) => {
             if (!editor || !selectedImage) return;
             editor.commands.updateImageAttrs(selectedImage.pos, attrs, options);
         },
@@ -147,6 +165,8 @@ export default function ImagePopoverHost({
             initialSrc={selectedImage.src}
             initialAlt={selectedImage.alt}
             initialCaption={selectedImage.caption}
+            width={selectedImage.width}
+            align={selectedImage.align}
             activityId={activityId}
             onChange={handleChange}
             onClose={handleClose}

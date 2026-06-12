@@ -10,6 +10,7 @@ import {
 import { createPortal } from 'react-dom';
 import { FocusTrap } from 'focus-trap-react';
 import { uploadImage, ALLOWED_IMAGE_TYPES } from '../../lib/uploadImage';
+import { WIDTH_SNAP_STOPS, widthAttrLabel } from '../imageSizing';
 
 // ============================================================================
 // ImageEditPopover — anchored popover for editing an image block's fields.
@@ -44,11 +45,22 @@ interface ImageEditPopoverProps {
     initialSrc: string;
     initialAlt: string;
     initialCaption: string;
+    // Sizing — LIVE values, not initial drafts: the chips/buttons commit
+    // immediately (no flush), and the preview's drag-handles can change these
+    // while the popover is open, so the host re-renders us with fresh values.
+    width: number | null;
+    align: 'left' | 'right' | null;
     // Activity the image belongs to — required to upload to R2. Undefined in
     // the playground (no persisted activity), where the Upload tab is disabled.
     activityId?: string;
     onChange: (
-        attrs: Partial<{ src: string; alt: string; caption: string }>,
+        attrs: Partial<{
+            src: string;
+            alt: string;
+            caption: string;
+            width: number | null;
+            align: 'left' | 'right' | null;
+        }>,
         options?: ChangeOptions,
     ) => void;
     onClose: () => void;
@@ -69,6 +81,8 @@ export default function ImageEditPopover({
     initialSrc,
     initialAlt,
     initialCaption,
+    width,
+    align,
     activityId,
     onChange,
     onClose,
@@ -420,8 +434,84 @@ export default function ImageEditPopover({
                     />
                 </label>
 
+                {/* Sizing commits live (like Upload) — buttons, not drafts, so
+                    no flush path. The same stops the preview's drag-handles
+                    snap to, so chip and drag write identical values. */}
+                <div className="image-edit-popover__field">
+                    <span className="image-edit-popover__label">Width</span>
+                    <div
+                        className="image-edit-popover__chips"
+                        role="group"
+                        aria-label="Image width"
+                    >
+                        {WIDTH_SNAP_STOPS.map((stop) => {
+                            const active =
+                                stop === 1
+                                    ? width === null
+                                    : width !== null &&
+                                      Math.abs(width - stop) < 0.005;
+                            return (
+                                <button
+                                    key={stop}
+                                    type="button"
+                                    className={`image-edit-popover__chip${
+                                        active ? ' is-active' : ''
+                                    }`}
+                                    aria-pressed={active}
+                                    onClick={() =>
+                                        onChange({
+                                            width: stop === 1 ? null : stop,
+                                        })
+                                    }
+                                >
+                                    {stop === 1 ? 'Full' : widthAttrLabel(stop)}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="image-edit-popover__field">
+                    <span className="image-edit-popover__label">Alignment</span>
+                    <div
+                        className="image-edit-popover__chips"
+                        role="group"
+                        aria-label="Image alignment"
+                    >
+                        {(
+                            [
+                                ['left', 'Left'],
+                                [null, 'Center'],
+                                ['right', 'Right'],
+                            ] as const
+                        ).map(([value, label]) => {
+                            const active = align === value;
+                            return (
+                                <button
+                                    key={label}
+                                    type="button"
+                                    className={`image-edit-popover__chip${
+                                        active ? ' is-active' : ''
+                                    }`}
+                                    aria-pressed={active}
+                                    disabled={width === null}
+                                    onClick={() => onChange({ align: value })}
+                                >
+                                    {label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {width === null && (
+                        <div className="image-edit-popover__note">
+                            Set a width to align the image.
+                        </div>
+                    )}
+                </div>
+
                 <div className="image-edit-popover__hint-text">
-                    Press Escape or click outside to close.
+                    Drag the image's side handles to resize. Press Escape or
+                    click outside to close.
                 </div>
             </div>
         </FocusTrap>,

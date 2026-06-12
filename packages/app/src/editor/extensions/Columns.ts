@@ -7,7 +7,6 @@ import {
 } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-import { columnResizePlugin } from './columnResize';
 
 // =============================================================================
 // Columns / Column — structural side-by-side container for the editor.
@@ -364,8 +363,6 @@ export const Columns = Node.create<ColumnsOptions>({
                     decorations: columnsGripDecorations,
                 },
             }),
-            // Drag-resize dividers between adjacent cells (columnResize.ts).
-            columnResizePlugin(),
         ];
     },
 

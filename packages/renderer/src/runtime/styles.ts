@@ -143,6 +143,12 @@ body {
   height: auto;
   border-radius: 4px;
 }
+/* A sized image fills its authored width — the author's dial is authoritative
+ (a small source image upscales rather than silently ignoring the setting).
+ Unsized images keep their natural size, as before. */
+.block-image.block-sized img {
+  width: 100%;
+}
 .block-image-caption {
   color: var(--color-muted);
   font-size: 0.875rem;

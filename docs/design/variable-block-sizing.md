@@ -6,7 +6,7 @@
 
 All four capabilities are in the arc, staged:
 
-1. **Custom column widths** — arbitrary per-column ratios beyond the preset menu, authored by dragging the divider between columns (live preview, snapping to clean ratios). Builds directly on the existing `Column.width` weight; no schema change.
+1. ~~**Custom column widths** — drag-resize divider~~ **CANCELLED (author decision, 2026-06-12).** Built, browser-verified, then removed: the divider competed for the same gap strip as the inner-block drag handle and didn't feel reliable under a real mouse, and the preset picker already covers the real ratios. The width presets remain the column-width system. The schema's `Column.width` weight is unchanged (presets write it; arbitrary imported weights still render), so a future re-attempt stays possible — see git history for the removed `columnResize.ts` implementation (pair-preserving reweighting, ratio snapping, single-transaction commit).
 2. **Min-height floors** — reserved work space on column cells that still grows with content. New optional `Column.minHeight` (rem). Authored by dragging the cell's bottom edge, snapping to clean rem steps, with a numeric readout.
 3. **Per-block width** — a top-level (or in-cell) block rendered narrower than its container, with alignment. New optional `width` (fraction of container width) + `align` fields on sizable blocks.
 4. **Image intrinsic sizing** — **unified with #3**: images expose the same per-block width field via corner drag-handles; no separate image-size mechanism.
@@ -82,9 +82,9 @@ minHeight: z.number().positive().optional(),   // rem; absent = content-determin
 
 ## Drop plan
 
-1. **Drop 1 — foundation (no UI):** schema fields, renderer output + CSS, print/narrow-screen behavior, Tiptap attrs, serialize round-trip, tests, bundle regen. After this, documents can carry sizing and published pages honor it.
-2. **Drop 2 — column divider drag-resize** (+ keep preset picker working).
-3. **Drop 3 — image corner handles + width/align control for other sizable blocks.**
+1. **Drop 1 — foundation (no UI):** schema fields, renderer output + CSS, print/narrow-screen behavior, Tiptap attrs, serialize round-trip, tests, bundle regen. After this, documents can carry sizing and published pages honor it. **✅ Landed + deployed.**
+2. ~~**Drop 2 — column divider drag-resize.**~~ **Cancelled** (see Scope above); presets are the column-width system.
+3. **Drop 3 — image resize:** width/align controls in the image edit popover (reliable baseline) + corner drag-handle on the editor's live image preview (snap to 25/33/50/66/75/100%, fine-grained with Alt). The NodeView previews the authored width/align so the canvas matches the published page.
 4. **Drop 4 — cell min-height bottom-edge drag + readout.**
 
 Each later drop is editor-only (no renderer/bundle change expected beyond Drop 1).
