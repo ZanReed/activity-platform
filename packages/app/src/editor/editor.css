@@ -555,9 +555,14 @@
      * 1.5rem flex gap to sit between the cells. */
     transform: translateX(calc(-50% - 0.75rem));
     cursor: col-resize;
+    /* Above cell content AND the floating inner-block drag handle, which the
+     * nested-drag rule deliberately parks in this same gap — inside the strip
+     * the resize gesture wins, just outside it the handle does. */
     z-index: 2;
     opacity: 0;
     transition: opacity 0.12s ease;
+    /* Touch/pen drags must not be hijacked by scrolling (Chromebooks). */
+    touch-action: none;
 }
 
 /* The visible line inside the hit strip. */
