@@ -17,7 +17,9 @@ Cleared 2026-06-13 (verified via Supabase API): `publish-activity` now at **v34*
 
 **✅ Variable block sizing — COMPLETE + deployed** (design + all drops 2026-06-12/13; live on publish-activity v34). Reflow-safe sizing only, no free canvas. Shipped: unified per-block `width` fraction + `align` (default center, no wrap-around) on image + math_block; image free `height` with **crop-not-stretch**; `Column.minHeight` rem work-space floors via a toolbar control. Drag gestures kept only where they proved reliable (image side/bottom handles); column drag-resize was built then cancelled in favor of width presets. Full per-drop narrative in [docs/HISTORY.md](docs/HISTORY.md); durable decisions in [docs/DECISIONS.md](docs/DECISIONS.md) → "Structural columns + variable block sizing"; design in [docs/design/variable-block-sizing.md](docs/design/variable-block-sizing.md).
 
-**▶ No active goal — next focus is open.** The variable-block-sizing arc and the preceding columns-polish arc are both complete. Pick the next from "Also queued" below.
+**✅ CI + housekeeping — landed** (2026-06-13). Added `.github/workflows/ci.yml`: one job on push + PR running typecheck → lint → test → build → **bundle-staleness guard** (`pnpm bundle:renderer` then `git diff --exit-code` on the three committed generated files — the long-standing todo to stop deploys shipping a stale bundle). Closed two coverage gaps the old scripts had: app now has a `typecheck` script (root `pnpm -r typecheck` previously skipped it) and there's a root `lint` script (`pnpm -r lint`). Pinned the toolchain with `"packageManager": "pnpm@11.1.2"`. Fixed the pre-existing 2 lint errors (`FillInBlank.ts:6` unused `Options`/`Storage` type params — inline disable, since interface declaration-merging forbids renaming them) and removed two dead `eslint-disable` directives in `ImageEditPopover.tsx`; lint is now 0 errors / 2 warnings (both intentionally left). Whole sequence verified green locally.
+
+**▶ No active goal — next focus is open.** The variable-block-sizing and columns-polish arcs are complete; CI + housekeeping just landed. Pick the next from "Also queued" below.
 
 Standing follow-up: the image resize **drag-handles** (side = width, bottom = height) still want a real-mouse pass — toolbar controls/chips are fully browser-verified.
 
@@ -26,7 +28,7 @@ Also queued:
 - **Foldable verification with a real columns block** — `measure.ts` walks `.activity-section > *`, so a top-level container is measured/packed whole by `paginate`; confirm it doesn't split mid-container and its inner width resolves against the panel width.
 - **End-to-end manual test** on a real published URL: checkpoints, hints, mistake feedback, confidence, solutions, locked vs free mode, persistence across refresh, resubmit + retry on the live network path. (Full checklist preserved in docs/HISTORY.md.)
 - **Phase 1 polish:** markdown paste import; custom domain for R2.
-- **Housekeeping:** CI (GitHub Actions: test + typecheck + build + `bundle:renderer` on push — would have caught two past silent breaks); `init.test.ts` coverage for `state.blanks`/`state.blocks`; Stage 13.5 popover state-machine tests; pre-existing lint error in `FillInBlank.ts:6` (unused `Options`/`Storage` generics — one-line fix).
+- **Housekeeping (remaining):** `init.test.ts` coverage for `state.blanks`/`state.blocks`; Stage 13.5 popover state-machine tests. (CI, the `bundle:renderer` staleness guard, and the `FillInBlank.ts:6` lint fix all landed 2026-06-13.)
 
 ## Status by area
 
@@ -44,6 +46,7 @@ Also queued:
 | `publish-activity` / `ingest-submission` Edge Functions | ✅ Deployed; ingest runs with `verify_jwt: false` |
 | Cloudflare R2 hosting (published HTML) | ✅ Live |
 | Auth (Google OAuth, allowlist) / React app / editor stack | ✅ In place |
+| CI (GitHub Actions: typecheck/lint/test/build + bundle-staleness guard) | ✅ Added 2026-06-13; verified green locally |
 | Markdown paste import | ⏳ Phase 1 polish |
 | End-to-end manual test | ⏳ Still to run |
 
@@ -102,4 +105,4 @@ activity-platform/
 
 ---
 
-**Last updated:** 2026-06-13 — **Drop 4 closes the variable-block-sizing arc.** Added a **Cell height** dropdown to the columns toolbar (CellHeightControl.tsx: Auto / 4-8-12rem presets / numeric rem input) driving a new `setColumnMinHeight` command over the schema's existing `Column.minHeight`; control-first, no drag (the cancelled-Drop-2 lesson). Browser-verified end to end. Author confirmed deploying `publish-activity` (now **v34**), so the full sizing bundle — width fill, image fixed-height crop, and cell work-space floors — is live; redeploy items cleared from pending. Arc summary: Drops 1 (foundation), 3 (image width+height+crop, with the Auto/100% width relabel), 4 (cell work space) shipped; Drop 2 (column drag-resize) built then cancelled by author in favor of width presets.
+**Last updated:** 2026-06-13 — **CI + housekeeping landed.** Added `.github/workflows/ci.yml` (typecheck → lint → test → build → bundle-staleness guard on push + PR), pinned `packageManager: pnpm@11.1.2`, gave the app a `typecheck` script + added a root `lint` script (both previously missing from the recursive runs), and cleared the pre-existing lint errors. New-test items (`init.test.ts`, popover state-machine) deferred by author. Earlier today: **Drop 4 closes the variable-block-sizing arc.** Added a **Cell height** dropdown to the columns toolbar (CellHeightControl.tsx: Auto / 4-8-12rem presets / numeric rem input) driving a new `setColumnMinHeight` command over the schema's existing `Column.minHeight`; control-first, no drag (the cancelled-Drop-2 lesson). Browser-verified end to end. Author confirmed deploying `publish-activity` (now **v34**), so the full sizing bundle — width fill, image fixed-height crop, and cell work-space floors — is live; redeploy items cleared from pending. Arc summary: Drops 1 (foundation), 3 (image width+height+crop, with the Auto/100% width relabel), 4 (cell work space) shipped; Drop 2 (column drag-resize) built then cancelled by author in favor of width presets.

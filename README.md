@@ -34,6 +34,7 @@ pnpm test
 | `pnpm test` | Run all package tests once |
 | `pnpm test:watch` | Re-run tests on file change |
 | `pnpm typecheck` | Type-check all packages without emitting |
+| `pnpm lint` | Lint all packages (currently the app) |
 | `pnpm build` | Build all packages |
 | `pnpm bundle:renderer` | Bundle the renderer for Edge Function consumption → `supabase/functions/_shared/renderer.bundle.js` |
 | `pnpm clean` | Remove all `dist/` directories |
@@ -93,4 +94,4 @@ This README intentionally does not track build status — that is what `STATE.md
 
 The `supabase/functions/` directory holds Deno Edge Functions. `publish-activity` takes a draft, atomically snapshots a version, validates, renders, and uploads the static HTML to Cloudflare R2. `ingest-submission` receives student submissions from published pages, validates them, and writes to the `submissions` table. `upload-image` handles editor image uploads to R2. See `supabase/functions/README.md` for setup and deploy instructions.
 
-The renderer is bundled for Edge Function consumption via `pnpm bundle:renderer`, which produces `supabase/functions/_shared/renderer.bundle.js`. Re-run after any change to `packages/schema` or `packages/renderer`.
+The renderer is bundled for Edge Function consumption via `pnpm bundle:renderer`, which produces `supabase/functions/_shared/renderer.bundle.js`. Re-run after any change to `packages/schema` or `packages/renderer`. CI (`.github/workflows/ci.yml`) runs `typecheck → lint → test → build` on every push/PR and re-runs `bundle:renderer`, failing if the committed bundle is stale — so a forgotten re-bundle is caught before deploy rather than shipping silently.

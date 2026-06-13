@@ -3,6 +3,10 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import FillInBlankView from '../nodeViews/FillInBlankView';
 
 declare module '@tiptap/core' {
+    // Interface declaration merging requires the type parameters to match the
+    // original NodeConfig<Options, Storage> signature exactly (same names), so
+    // they can't be renamed to `_`-prefixed or dropped even though unused here.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     interface NodeConfig<Options, Storage> {
         /**
          * ProseMirror NodeSpec flag — preserves this node when content

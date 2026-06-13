@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    name: typecheck · lint · test · build · bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm/action-setup reads the version from package.json "packageManager".
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      # Regenerate the committed renderer/runtime bundle and fail if it drifts
+      # from what's checked in — deploys must never ship a stale bundle.
+      # (CLAUDE.md: "Renderer bundle commits with the source it supports.")
+      - name: Renderer bundle is up to date
+        run: |
+          pnpm bundle:renderer
+          git diff --exit-code -- \
+            packages/renderer/src/runtime/generated/runtime-bundle.ts \
+            packages/renderer/src/generated/katex-css.ts \
+            supabase/functions/_shared/renderer.bundle.js \
+          || {
+            echo "::error::Committed renderer bundle is stale. Run 'pnpm bundle:renderer' and commit the result.";
+            exit 1;
+          }

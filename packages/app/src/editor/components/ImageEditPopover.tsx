@@ -238,7 +238,6 @@ export default function ImageEditPopover({
         };
         document.addEventListener('keydown', handler);
         return () => document.removeEventListener('keydown', handler);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, onClose]);
 
     useEffect(() => {
@@ -257,7 +256,6 @@ export default function ImageEditPopover({
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, onClose, referenceElement]);
 
     if (!isOpen) return null;
