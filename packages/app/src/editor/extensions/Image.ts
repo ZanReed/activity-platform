@@ -51,6 +51,7 @@ declare module '@tiptap/core' {
                     caption: string;
                     width: number | null;
                     align: 'left' | 'right' | null;
+                    height: number | null;
                 }>,
                 options?: { preserveSelection?: boolean },
             ) => ReturnType;
@@ -120,6 +121,22 @@ export const Image = Node.create({
                 renderHTML: (attributes) =>
                     attributes.align === 'left' || attributes.align === 'right'
                         ? { 'data-block-align': attributes.align }
+                        : {},
+            },
+            // Fixed display height in rem (schema ImageBlock.height); null =
+            // auto (aspect-ratio follows width). With width also set, the
+            // rendered box center-crops (object-fit: cover).
+            height: {
+                default: null as number | null,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-block-height');
+                    if (raw === null) return null;
+                    const n = Number(raw);
+                    return Number.isFinite(n) && n > 0 ? n : null;
+                },
+                renderHTML: (attributes) =>
+                    typeof attributes.height === 'number'
+                        ? { 'data-block-height': String(attributes.height) }
                         : {},
             },
         };

@@ -206,6 +206,14 @@ function tiptapImageToActivity(node: JSONContent): ImageBlock | null {
     }
 
     applySizingAttrs(block, node);
+
+    // Fixed display height (rem) — image-specific; positive numbers only,
+    // same omit-when-absent discipline as the shared sizing fragment.
+    const rawHeight = node.attrs?.height;
+    if (typeof rawHeight === 'number' && rawHeight > 0) {
+        block.height = rawHeight;
+    }
+
     return block;
 }
 
@@ -561,6 +569,9 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
                     alt: block.alt,
                     caption: block.caption ?? '',
                     ...sizingTiptapAttrs(block),
+                    ...(typeof block.height === 'number'
+                        ? { height: block.height }
+                        : {}),
                 },
             };
 

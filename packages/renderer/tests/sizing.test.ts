@@ -67,6 +67,23 @@ describe('per-block sizing (width/align)', () => {
     expect(body).not.toContain('block-sized');
   });
 
+  it('a fixed image height rides as --block-height (height alone: no block-sized)', () => {
+    const img = createImageBlock('https://example.com/a.png');
+    img.height = 12;
+    const body = renderBody(docWith(img));
+    expect(body).toContain('style="--block-height:12rem"');
+    expect(body).not.toContain('block-sized');
+  });
+
+  it('width + height share one style attribute', () => {
+    const img = createImageBlock('https://example.com/a.png');
+    img.width = 0.5;
+    img.height = 7.5;
+    const body = renderBody(docWith(img));
+    expect(body).toContain('style="--block-width:50%;--block-height:7.5rem"');
+    expect(body).toContain('block-sized');
+  });
+
   it('math blocks share the same mechanism', () => {
     const math = createMathBlock('x^2');
     math.width = 0.75;
@@ -83,6 +100,12 @@ describe('sizing CSS (published stylesheet)', () => {
     const { blockStyles } = await import('../src/runtime/styles.js');
     expect(blockStyles).toContain('.block-sized {');
     expect(blockStyles).toContain('.block-image.block-sized img');
+  });
+
+  it('images consume --block-height and crop (cover) instead of stretching', async () => {
+    const { blockStyles } = await import('../src/runtime/styles.js');
+    expect(blockStyles).toContain('height: var(--block-height, auto)');
+    expect(blockStyles).toContain('object-fit: cover');
   });
 });
 

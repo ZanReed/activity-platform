@@ -84,7 +84,7 @@ minHeight: z.number().positive().optional(),   // rem; absent = content-determin
 
 1. **Drop 1 — foundation (no UI):** schema fields, renderer output + CSS, print/narrow-screen behavior, Tiptap attrs, serialize round-trip, tests, bundle regen. After this, documents can carry sizing and published pages honor it. **✅ Landed + deployed.**
 2. ~~**Drop 2 — column divider drag-resize.**~~ **Cancelled** (see Scope above); presets are the column-width system.
-3. **Drop 3 — image resize:** width/align controls in the image edit popover (reliable baseline) + corner drag-handle on the editor's live image preview (snap to 25/33/50/66/75/100%, fine-grained with Alt). The NodeView previews the authored width/align so the canvas matches the published page.
+3. **Drop 3 — image resize:** width/align controls in the image edit popover (reliable baseline) + side drag-handles on the editor's live image preview (snap to 25/33/50/66/75/100%, fine-grained with Alt). The NodeView previews the authored width/align so the canvas matches the published page. **Extended same-day with free height** (author request): optional `ImageBlock.height` in rem; when width and height disagree with the natural aspect ratio the image **center-crops (`object-fit: cover`), never stretches** (author chose crop over stretch). Popover gets an Auto/value height field; the preview gets a bottom-edge handle (half-rem snapping). Height alone scales proportionally.
 4. **Drop 4 — cell min-height bottom-edge drag + readout.**
 
 Each later drop is editor-only (no renderer/bundle change expected beyond Drop 1).

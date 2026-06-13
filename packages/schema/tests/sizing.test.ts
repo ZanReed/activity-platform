@@ -47,6 +47,22 @@ describe('Per-block sizing (width/align)', () => {
   });
 });
 
+describe('ImageBlock.height (fixed display height, rem)', () => {
+  const baseImage = () => createImageBlock('https://example.com/fig.png');
+
+  it('accepts a positive rem height, alone or with width', () => {
+    expect(ImageBlock.safeParse({ ...baseImage(), height: 12 }).success).toBe(true);
+    expect(
+      ImageBlock.safeParse({ ...baseImage(), width: 0.5, height: 7.5 }).success,
+    ).toBe(true);
+  });
+
+  it('rejects zero and negative heights', () => {
+    expect(ImageBlock.safeParse({ ...baseImage(), height: 0 }).success).toBe(false);
+    expect(ImageBlock.safeParse({ ...baseImage(), height: -4 }).success).toBe(false);
+  });
+});
+
 describe('Column.minHeight', () => {
   it('a column without minHeight still validates (additive change)', () => {
     expect(ColumnsBlock.safeParse(createColumnsBlock()).success).toBe(true);

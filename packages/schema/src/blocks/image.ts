@@ -17,5 +17,12 @@ export const ImageBlock = z.object({
   // Variable block sizing: optional width fraction + alignment (sizing.ts).
   // This IS the image display-size mechanism — no separate intrinsic size.
   ...sizingFields,
+  // Optional fixed display height in rem (scales with the print font-size
+  // config, like Column.minHeight). When BOTH width and height are set and
+  // disagree with the image's natural aspect ratio, the renderer center-CROPS
+  // (object-fit: cover) rather than stretching — author decision 2026-06-12.
+  // Height alone scales the image proportionally (width follows). Reflow-safe:
+  // a fixed image height measures honestly in print/foldable pagination.
+  height: z.number().positive().optional(),
 });
 export type ImageBlock = z.infer<typeof ImageBlock>;

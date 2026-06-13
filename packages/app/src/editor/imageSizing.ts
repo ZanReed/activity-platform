@@ -37,3 +37,26 @@ export function widthFractionToAttr(fraction: number): number | null {
 export function widthAttrLabel(width: number | null): string {
     return `${Math.round((width ?? 1) * 100)}%`;
 }
+
+// -----------------------------------------------------------------------------
+// Height (rem). Stored like Column.minHeight so it scales with the print
+// font-size config. Snapping is a step grid rather than named stops — heights
+// have no natural "thirds".
+// -----------------------------------------------------------------------------
+
+export const MIN_HEIGHT_REM = 2;
+export const MAX_HEIGHT_REM = 60;
+export const HEIGHT_SNAP_STEP_REM = 0.5;
+
+/** Clamp a raw drag height into bounds, snapping to half-rem steps. */
+export function snapHeightRem(rem: number, snap: boolean): number {
+    const clamped = Math.min(Math.max(rem, MIN_HEIGHT_REM), MAX_HEIGHT_REM);
+    const step = snap ? HEIGHT_SNAP_STEP_REM : 0.1;
+    // Second rounding strips float artifacts (73 * 0.1 = 7.300000000000001).
+    return Math.round(Math.round(clamped / step) * step * 100) / 100;
+}
+
+/** Convert a pixel length to rem against the document's root font size. */
+export function pxToRem(px: number, pxPerRem: number): number {
+    return pxPerRem > 0 ? px / pxPerRem : px / 16;
+}

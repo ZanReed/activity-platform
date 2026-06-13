@@ -8,7 +8,11 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+    MAX_HEIGHT_REM,
+    MIN_HEIGHT_REM,
     MIN_WIDTH_FRACTION,
+    pxToRem,
+    snapHeightRem,
     snapWidthFraction,
     widthAttrLabel,
     widthFractionToAttr,
@@ -55,5 +59,28 @@ describe('widthAttrLabel', () => {
         expect(widthAttrLabel(0.33)).toBe('33%');
         expect(widthAttrLabel(0.5)).toBe('50%');
         expect(widthAttrLabel(null)).toBe('100%');
+    });
+});
+
+describe('snapHeightRem', () => {
+    it('snaps to half-rem steps', () => {
+        expect(snapHeightRem(7.3, true)).toBe(7.5);
+        expect(snapHeightRem(12.1, true)).toBe(12);
+    });
+
+    it('rounds finely when snapping is off (Alt held)', () => {
+        expect(snapHeightRem(7.34, false)).toBe(7.3);
+    });
+
+    it('clamps into [min, max]', () => {
+        expect(snapHeightRem(0.2, true)).toBe(MIN_HEIGHT_REM);
+        expect(snapHeightRem(500, true)).toBe(MAX_HEIGHT_REM);
+    });
+});
+
+describe('pxToRem', () => {
+    it('divides by the root font size, defaulting 16 on degenerate input', () => {
+        expect(pxToRem(160, 16)).toBe(10);
+        expect(pxToRem(160, 0)).toBe(10);
     });
 });

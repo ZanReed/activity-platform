@@ -6,7 +6,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting:
 
-1. **`supabase functions deploy publish-activity`** — ships the regenerated bundle with the sized-image CSS (`.block-image.block-sized img { width: 100% }`, the "authored width is authoritative" rule). Until then, published sized images won't upscale past natural width.
+1. **`supabase functions deploy publish-activity`** — ships the regenerated bundle with the sized-image CSS: width fill (`.block-image.block-sized img { width: 100% }`) and fixed-height crop (`height: var(--block-height, auto)` + `object-fit: cover`). Until then, published pages ignore image width-upscaling and fixed heights.
 2. **Confirm cross-origin `<img>` loads** from the R2 public URL in the editor (add the SPA origin to the R2 bucket CORS allowed-origins if needed; a custom domain would make this moot).
 3. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
 4. **Human GUI passes still owed:** drag-between-cells (hover→handle→drag and grip→drag), the new **image resize side-handles** (verified with synthetic pointer events; confirm under a real mouse), and the nested rich-text mini-editor UX (caret behavior, math insertion, virtual-keyboard interplay in popovers).
@@ -20,7 +20,7 @@ Cleared 2026-06-12 (verified via Supabase API): migration 0007 applied; `publish
 
 - **Drop 1 ✅ (foundation, no UI):** schema fields, renderer markup + CSS (`block-sized`/`--block-width`/`data-block-align`, `--cell-min-height`; narrow screens relax widths, print keeps them), Tiptap attrs + serialize round-trip, tests, bundle regenerated. **Deployed** (publish-activity v32).
 - **Drop 2 ❌ CANCELLED (author decision):** column divider drag-resize was built, then removed after failing under a real mouse — the **width presets are the column-width system**. Schema/serialize unchanged (arbitrary weights still round-trip and render); implementation preserved in git history if ever revisited.
-- **Drop 3 ✅ (image resize):** width chips (25/33/50/66/75/Full) + alignment (Left/Center/Right) in the image edit popover as the reliable baseline, plus side drag-handles on the editor's live preview ([ImageView.tsx](packages/app/src/editor/nodeViews/ImageView.tsx), math in [imageSizing.ts](packages/app/src/editor/imageSizing.ts)) — snap to the same stops (Alt = fine-grained), live % badge, Escape cancels, one `updateImageAttrs` commit per drag. NodeView previews width/align exactly as published. Renderer gained `.block-image.block-sized img { width: 100% }` (authored width authoritative) — bundle regenerated, **redeploy pending**. Browser-verified end to end (chips, align, drag, popover live re-sync).
+- **Drop 3 ✅ (image resize, width + free height):** width chips (25/33/50/66/75/Full), an Auto/value **height field (rem)**, and alignment (Left/Center/Right) in the image edit popover as the reliable baseline, plus side drag-handles (width) and a bottom-edge handle (height, half-rem snapping) on the live preview ([ImageView.tsx](packages/app/src/editor/nodeViews/ImageView.tsx), math in [imageSizing.ts](packages/app/src/editor/imageSizing.ts)) — Alt = fine-grained, live badge, Escape cancels, one commit per drag. When width × height disagree with the natural aspect ratio the image **center-crops (`object-fit: cover`), never stretches** (author decision); height alone scales proportionally. New optional `ImageBlock.height` (rem — scales with print font size; additive, no version bump). NodeView previews everything exactly as published. Bundle regenerated, **redeploy pending**. Browser-verified end to end.
 - **Drop 4 ⏳:** cell min-height (reserved work space) — per the Drop-2 lesson, likely a numeric/preset control first, drag only if warranted.
 
 Also this session — two editor UX fixes (browser-verified): **sticky toolbar** (follows the viewport on long documents; `overflow-hidden` removed from the editor card since it silently disables sticky) and **no more scroll-to-top when selecting an image low in the document** (popovers waited on neither anchor resolution nor floating-ui positioning before focusing; both Image and Blank popovers now mount after the anchor resolves, stay invisible until positioned, and focus with `preventScroll`). Dev-only `window.__tiptapEditor` handle added for scripted browser checks.
@@ -53,7 +53,7 @@ Also queued:
 | Markdown paste import | ⏳ Phase 1 polish |
 | End-to-end manual test | ⏳ Still to run |
 
-Test counts at last session: schema 52 / renderer 244 / app 122; `tsc -b` + app build green.
+Test counts at last session: schema 54 / renderer 247 / app 127; `tsc -b` + app build green.
 
 ## Repo layout
 
@@ -108,4 +108,4 @@ activity-platform/
 
 ---
 
-**Last updated:** 2026-06-12 (third session) — author **cancelled column drag-resize** after it failed under a real mouse (presets stay as the column-width system); feature fully removed (columnResize.ts, divider CSS, tests — see git history). **Drop 3 (image resize) landed in its place:** width/alignment chips in the image popover + side drag-handles on the live preview, shared snap stops, browser-verified end to end. Renderer gained the sized-image fill rule → bundle regenerated, publish-activity redeploy queued. Earlier same day: deploys verified/cleared, sticky toolbar + popover scroll-jump fixes, design pass + Drop 1. Next: Drop 4 (cell min-height — control-first per the Drop-2 lesson).
+**Last updated:** 2026-06-12 (third session) — author **cancelled column drag-resize** after it failed under a real mouse (presets stay as the column-width system); feature fully removed (columnResize.ts, divider CSS, tests — see git history). **Drop 3 (image resize) landed in its place and was extended same-day with free height:** width/alignment chips + rem height field in the image popover, side + bottom drag-handles on the live preview, **crop-not-stretch** when dimensions disagree with the natural ratio (author chose crop). New `ImageBlock.height` schema field; renderer fill/crop CSS → bundle regenerated, publish-activity redeploy queued. Earlier same day: deploys verified/cleared, sticky toolbar + popover scroll-jump fixes, design pass + Drop 1. Next: Drop 4 (cell min-height — control-first per the Drop-2 lesson).

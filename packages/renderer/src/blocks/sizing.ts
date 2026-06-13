@@ -37,16 +37,28 @@ export function sizingClass(block: SizedBlock): string {
 /**
  * Extra attributes for a sized block ('' when unsized). Append before the
  * closing '>' of the block's opening tag — includes its own leading space.
+ *
+ * extraStyleVars lets a block type contribute its own custom properties to
+ * the same style attribute (the image block's --block-height) — they emit
+ * even when width is absent, since e.g. a height-only image is still sized.
  */
-export function sizingAttrs(block: SizedBlock): string {
-  if (block.width === undefined) return '';
+export function sizingAttrs(
+  block: SizedBlock,
+  extraStyleVars: string[] = [],
+): string {
+  const vars: string[] = [];
+  if (block.width !== undefined) {
+    vars.push('--block-width:' + formatNumber(block.width * 100) + '%');
+  }
+  vars.push(...extraStyleVars);
   const alignAttr =
-    block.align === 'left' || block.align === 'right'
+    block.width !== undefined &&
+    (block.align === 'left' || block.align === 'right')
       ? ' data-block-align="' + block.align + '"'
       : '';
-  return (
-    alignAttr + ' style="--block-width:' + formatNumber(block.width * 100) + '%"'
-  );
+  const styleAttr =
+    vars.length > 0 ? ' style="' + vars.join(';') + '"' : '';
+  return alignAttr + styleAttr;
 }
 
 /** Format a rem length for a style emission (used by Column.minHeight). */

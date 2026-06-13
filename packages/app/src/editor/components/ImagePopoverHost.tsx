@@ -25,9 +25,10 @@ interface SelectedImageState {
     src: string;
     alt: string;
     caption: string;
-    // Sizing (null = full width / centered, the schema defaults).
+    // Sizing (null = full width / centered / auto height, the schema defaults).
     width: number | null;
     align: 'left' | 'right' | null;
+    height: number | null;
 }
 
 interface ChangeOptions {
@@ -40,6 +41,7 @@ type ImageAttrPatch = Partial<{
     caption: string;
     width: number | null;
     align: 'left' | 'right' | null;
+    height: number | null;
 }>;
 
 export default function ImagePopoverHost({
@@ -96,6 +98,10 @@ export default function ImagePopoverHost({
                 node.attrs.align === 'left' || node.attrs.align === 'right'
                     ? (node.attrs.align as 'left' | 'right')
                     : null;
+            const height =
+                typeof node.attrs.height === 'number' && node.attrs.height > 0
+                    ? (node.attrs.height as number)
+                    : null;
 
             setSelectedImage((prev) => {
                 if (
@@ -106,11 +112,12 @@ export default function ImagePopoverHost({
                     prev.alt === alt &&
                     prev.caption === caption &&
                     prev.width === width &&
-                    prev.align === align
+                    prev.align === align &&
+                    prev.height === height
                 ) {
                     return prev;
                 }
-                return { pos, imageId, src, alt, caption, width, align };
+                return { pos, imageId, src, alt, caption, width, align, height };
             });
         };
 
@@ -167,6 +174,7 @@ export default function ImagePopoverHost({
             initialCaption={selectedImage.caption}
             width={selectedImage.width}
             align={selectedImage.align}
+            height={selectedImage.height}
             activityId={activityId}
             onChange={handleChange}
             onClose={handleClose}

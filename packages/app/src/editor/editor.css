@@ -1045,6 +1045,22 @@
 .image-resize-handle--left  { left: -0.125rem; }
 .image-resize-handle--right { right: -0.125rem; }
 
+/* Bottom-edge handle (fixed height): horizontal pill centered on the lower
+ * edge. The img sits inside the wrapper's 0.375rem padding (and the caption
+ * may add a row below), so this hugs the wrapper's bottom — close enough to
+ * read as "drag the image's bottom edge". */
+.image-resize-handle--bottom {
+    top: auto;
+    left: 50%;
+    bottom: -0.125rem;
+    width: 2.25rem;
+    max-width: 60%;
+    height: 0.4375rem;
+    max-height: none;
+    transform: translateX(-50%);
+    cursor: ns-resize;
+}
+
 .image-resize-handle:hover,
 .image-preview.is-resizing .image-resize-handle {
     background: rgb(99 102 241); /* indigo-500 */
@@ -1282,4 +1298,16 @@
 .image-edit-popover__chip:disabled {
     opacity: 0.45;
     cursor: default;
+}
+
+/* Compact numeric input sitting inline with chips (the height field). */
+.image-edit-popover__input--narrow {
+    width: 4.5rem;
+    flex: none;
+}
+
+.image-edit-popover__unit {
+    align-self: center;
+    font-size: 0.75rem;
+    color: rgb(100 116 139); /* slate-500 */
 }

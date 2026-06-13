@@ -132,6 +132,39 @@ describe('round-trips (Tiptap side, strict deep-equal)', () => {
         expect(cols?.content?.[1]?.attrs).toEqual({});
     });
 
+    it('round-trips a fixed image height (and drops non-positive ones)', () => {
+        const make = (height: unknown) =>
+            tiptapToActivity(
+                doc({
+                    type: 'image',
+                    attrs: { src: 'https://example.com/a.png', alt: '', height },
+                }),
+                META,
+            ).sections[0]!.blocks[0]!;
+
+        expect(make(12)).toMatchObject({ type: 'image', height: 12 });
+        expect('height' in make(0)).toBe(false);
+        expect('height' in make(-3)).toBe(false);
+        expect('height' in make('12')).toBe(false);
+
+        // Reverse: the attr comes back out, and absent stays absent.
+        const out = activityToTiptap(
+            tiptapToActivity(
+                doc({
+                    type: 'image',
+                    attrs: {
+                        src: 'https://example.com/a.png',
+                        alt: '',
+                        caption: '',
+                        height: 7.5,
+                    },
+                }),
+                META,
+            ),
+        );
+        expect(out.content?.[0]?.attrs).toMatchObject({ height: 7.5 });
+    });
+
     it('round-trips image sizing through the activity document', () => {
         // Image attrs carry an id that activityToTiptap mints fresh, so assert
         // on the sizing fields rather than strict deep-equal.

@@ -140,7 +140,12 @@ body {
 }
 .block-image img {
   max-width: 100%;
-  height: auto;
+  /* --block-height (set inline when the author fixed a height) wins over the
+   default auto. object-fit makes a width+height box CROP (center) instead of
+   stretch when it disagrees with the natural aspect ratio; with height auto
+   it has no effect, so unsized images are untouched. */
+  height: var(--block-height, auto);
+  object-fit: cover;
   border-radius: 4px;
 }
 /* A sized image fills its authored width — the author's dial is authoritative
