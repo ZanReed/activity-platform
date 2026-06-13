@@ -3,6 +3,10 @@ import type { Editor } from '@tiptap/react';
 import { NodeSelection } from 'prosemirror-state';
 import BlankEditPopover from './BlankEditPopover';
 import type { InlineNodes } from '../../lib/serialize';
+import {
+    isSameBlankSelection,
+    type SelectedBlankState,
+} from './blankPopoverLogic';
 
 // ============================================================================
 // BlankPopoverHost — root-level popover orchestrator for blank chips.
@@ -36,15 +40,6 @@ import type { InlineNodes } from '../../lib/serialize';
 
 interface BlankPopoverHostProps {
     editor: Editor | null;
-}
-
-interface SelectedBlankState {
-    pos: number;
-    blankId: string;
-    answer: string;
-    acceptableAnswers: string[];
-    hint: InlineNodes | undefined;
-    mistakeFeedback: Array<{ match: string; feedback: InlineNodes }> | undefined;
 }
 
 interface ChangeOptions {
@@ -97,18 +92,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 | undefined;
 
             setSelectedBlank((prev) => {
-                if (
-                    prev &&
-                    prev.pos === pos &&
-                    prev.blankId === blankId &&
-                    prev.answer === answer &&
-                    arraysEqual(prev.acceptableAnswers, acceptableAnswers) &&
-                    prev.hint === hint &&
-                    prev.mistakeFeedback === mistakeFeedback
-                ) {
-                    return prev;
-                }
-                return {
+                const next: SelectedBlankState = {
                     pos,
                     blankId,
                     answer,
@@ -116,6 +100,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                     hint,
                     mistakeFeedback,
                 };
+                return isSameBlankSelection(prev, next) ? prev : next;
             });
         };
 
@@ -183,12 +168,4 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             onClose={handleClose}
         />
     );
-}
-
-function arraysEqual<T>(a: T[], b: T[]): boolean {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-        if (a[i] !== b[i]) return false;
-    }
-    return true;
 }

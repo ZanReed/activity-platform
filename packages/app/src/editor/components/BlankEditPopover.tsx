@@ -11,6 +11,14 @@ import { createPortal } from 'react-dom';
 import { FocusTrap } from 'focus-trap-react';
 import InlineRichTextEditor from './InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
+import {
+    computeFlush,
+    resolveAnswerBlur,
+    resolveAcceptableCommit,
+    filterFeedbackForCommit,
+    stripList,
+    type MistakeFeedbackPair,
+} from './blankPopoverLogic';
 
 // ============================================================================
 // BlankEditPopover — popover UI for editing a blank's per-blank fields.
@@ -49,11 +57,6 @@ import type { InlineNodes } from '../../lib/serialize';
 //     flushAll() before close, which FocusTrap's default escape would
 //     bypass. Disabling FocusTrap's escape lets ours run.
 // ============================================================================
-
-interface MistakeFeedbackPair {
-    match: string;
-    feedback: InlineNodes;
-}
 
 interface ChangeOptions {
     preserveSelection?: boolean;
@@ -194,31 +197,13 @@ export default function BlankEditPopover({
     // feedback commit live through the nested editors (see commitHintNodes /
     // commitFeedback). flushAll runs on close to push any pending string edits.
     const flushAll = () => {
-        const updates: Partial<{
-            answer: string;
-            acceptableAnswers: string[];
-        }> = {};
-
-        const trimmedAnswer = answerRef.current.trim();
-        if (
-            trimmedAnswer.length > 0 &&
-            trimmedAnswer !== initialAnswerRef.current
-        ) {
-            updates.answer = trimmedAnswer;
-        }
-
-        const strippedAcceptable = acceptableRef.current
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0);
-        const initialAcc = initialAcceptableRef.current;
-        const acceptableSame =
-            strippedAcceptable.length === initialAcc.length &&
-            strippedAcceptable.every((v, i) => v === initialAcc[i]);
-        if (!acceptableSame) {
-            updates.acceptableAnswers = strippedAcceptable;
-        }
-
-        if (Object.keys(updates).length > 0) {
+        const { updates, hasUpdates } = computeFlush({
+            answer: answerRef.current,
+            initialAnswer: initialAnswerRef.current,
+            acceptable: acceptableRef.current,
+            initialAcceptable: initialAcceptableRef.current,
+        });
+        if (hasUpdates) {
             onChangeRef.current(updates, { preserveSelection: false });
         }
     };
@@ -275,17 +260,17 @@ export default function BlankEditPopover({
     if (!isOpen) return null;
 
     const handleAnswerBlur = () => {
-        const trimmed = answer.trim();
-        if (trimmed.length === 0) {
+        const result = resolveAnswerBlur(answer, initialAnswerRef.current);
+        if (result.action === 'revert') {
             setAnswer(initialAnswerRef.current);
             answerRef.current = initialAnswerRef.current;
             setAnswerError('Answer cannot be empty');
             window.setTimeout(() => setAnswerError(null), 2000);
             return;
         }
-        if (trimmed !== initialAnswerRef.current) {
-            onChange({ answer: trimmed });
-            initialAnswerRef.current = trimmed;
+        if (result.action === 'commit') {
+            onChange({ answer: result.value });
+            initialAnswerRef.current = result.value;
         }
     };
 
@@ -312,20 +297,18 @@ export default function BlankEditPopover({
     const removeAcceptableRow = (index: number) => {
         const next = acceptableAnswers.filter((_, i) => i !== index);
         setAcceptableAnswers(next);
-        const stripped = next.map((s) => s.trim()).filter((s) => s.length > 0);
+        // Removal always changes the list, so commit unconditionally.
+        const stripped = stripList(next);
         onChange({ acceptableAnswers: stripped });
         initialAcceptableRef.current = stripped;
     };
 
     const commitAcceptable = () => {
-        const stripped = acceptableAnswers
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0);
-        const initialAcc = initialAcceptableRef.current;
-        const same =
-            stripped.length === initialAcc.length &&
-            stripped.every((v, i) => v === initialAcc[i]);
-        if (!same) {
+        const { changed, stripped } = resolveAcceptableCommit(
+            acceptableAnswers,
+            initialAcceptableRef.current,
+        );
+        if (changed) {
             onChange({ acceptableAnswers: stripped });
             initialAcceptableRef.current = stripped;
         }
@@ -355,12 +338,7 @@ export default function BlankEditPopover({
     // dropped from the committed attr until complete.
     const commitFeedback = (next: MistakeFeedbackPair[]) => {
         setMistakeFeedback(next);
-        const stripped = next
-            .map((p) => ({ match: p.match.trim(), feedback: p.feedback }))
-            .filter((p) => p.match.length > 0 && p.feedback.length > 0);
-        onChange({
-            mistakeFeedback: stripped.length > 0 ? stripped : undefined,
-        });
+        onChange({ mistakeFeedback: filterFeedbackForCommit(next) });
     };
 
     const updateFeedbackMatch = (index: number, value: string) => {

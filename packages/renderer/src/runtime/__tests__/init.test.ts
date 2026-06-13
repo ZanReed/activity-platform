@@ -352,6 +352,53 @@ describe('createInitialState', () => {
         expect(state.attemptNumber).toBe(1);
         expect(state.studentName).toBe('');
     });
+
+    // A section with one fill-in-blank block holding two blanks — the fixture
+    // exercises both keyed sub-stores at once.
+    const TWO_BLANK_DOM =
+        configScript() +
+        '<section class="activity-section" data-section-id="sec-1">' +
+        '<div class="block block-fill-in-blank"' +
+        ' data-block-type="fill_in_blank" data-block-id="block-1">' +
+        '<div class="block-problem-body">' +
+        '<span class="blank-wrapper">' +
+        '<input class="blank" data-blank-id="b1" data-blank-answers="1" />' +
+        '</span>' +
+        '<span class="blank-wrapper">' +
+        '<input class="blank" data-blank-id="b2" data-blank-answers="2" />' +
+        '</span>' +
+        '</div></div></section>';
+
+    it('produces a defaulted BlankState entry for every blank in refs', () => {
+        setupDOM(TWO_BLANK_DOM);
+        const state = createInitialState(buildRefs());
+        // One entry per blank, keyed by blank.id — and nothing extra.
+        expect(Object.keys(state.blanks).sort()).toEqual(['b1', 'b2']);
+        for (const id of ['b1', 'b2']) {
+            expect(state.blanks[id]?.result).toBeNull();
+            expect(state.blanks[id]?.matchedMistake).toBeNull();
+        }
+    });
+
+    it('produces a defaulted BlockState entry for every fill_in_blank block', () => {
+        setupDOM(TWO_BLANK_DOM);
+        const state = createInitialState(buildRefs());
+        // Keyed by block.id (from refs.fillInBlanks) — two blanks, one block.
+        expect(Object.keys(state.blocks)).toEqual(['block-1']);
+        expect(state.blocks['block-1']?.solutionRevealed).toBe(false);
+        expect(state.blocks['block-1']?.confidence).toBeNull();
+    });
+
+    it('leaves blanks and blocks empty when the page has none', () => {
+        // A section with no fill-in-blank blocks → both keyed sub-stores empty.
+        setupDOM(
+            configScript() +
+            '<section class="activity-section" data-section-id="sec-1"></section>',
+        );
+        const state = createInitialState(buildRefs());
+        expect(state.blanks).toEqual({});
+        expect(state.blocks).toEqual({});
+    });
 });
 
 describe('init — orchestrator', () => {
