@@ -7,6 +7,7 @@ import ActivityEditor from './routes/ActivityEditor';
 import ActivityPrint from './routes/ActivityPrint';
 import Submissions from './routes/Submissions';
 import Playground from './routes/Playground';
+import DevFoldableColumns from './routes/DevFoldableColumns';
 
 export default function App() {
     return (
@@ -47,6 +48,9 @@ export default function App() {
         />
         {import.meta.env.DEV && (
             <Route path="/playground" element={<Playground />} />
+        )}
+        {import.meta.env.DEV && (
+            <Route path="/dev/foldable-columns" element={<DevFoldableColumns />} />
         )}
         </Routes>
         </SessionProvider>

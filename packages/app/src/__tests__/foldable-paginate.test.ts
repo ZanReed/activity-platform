@@ -39,6 +39,21 @@ describe('paginate', () => {
     expect(panels).toEqual([[0], [1], [2]]);
   });
 
+  it('keeps a tall columns container whole rather than splitting it across a fold', () => {
+    // A columns container measures as one FlowItem (extractFlowBlocks keeps it
+    // intact — see foldable-measure.test.ts). Even when it is taller than a
+    // whole panel, it stays a single unit: its own over-full panel, never split
+    // mid-container. This is the foldable-with-columns guarantee.
+    const tallColumns = item(260); // > panel budget of 100
+    const items = [item(40), tallColumns, item(40)];
+    const panels = paginate(items, { panelHeightPx: 100, spacingPx: 10 });
+    expect(panels).toEqual([[0], [1], [2]]);
+    // The container's index appears in exactly one panel, alone.
+    const panelsWithColumns = panels.filter((p) => p.includes(1));
+    expect(panelsWithColumns).toHaveLength(1);
+    expect(panelsWithColumns[0]).toEqual([1]);
+  });
+
   it('puts everything in one panel when it all fits', () => {
     const items = [item(10), item(10), item(10)];
     const panels = paginate(items, { panelHeightPx: 100, spacingPx: 5 });

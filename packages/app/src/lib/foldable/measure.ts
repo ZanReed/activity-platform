@@ -44,6 +44,29 @@ function waitForImages(doc: Document): Promise<void> {
 }
 
 /**
+ * Flatten renderer `renderBody` output into the ordered list of top-level flow
+ * blocks. The renderer wraps blocks in `<section class="activity-section">`, but
+ * the foldable flows blocks across panels regardless of section, so we extract
+ * each section's element children in document order. A structural container
+ * (e.g. a `columns` block) is a single `.activity-section > *` child, so it
+ * comes back as ONE element — its cells are never flattened into separate flow
+ * items, which is what lets paginate pack and (never) split it whole.
+ *
+ * Pure parse-and-select: needs DOM parsing (innerHTML + querySelectorAll) but
+ * not layout, so it runs anywhere a Document exists (the measuring iframe in
+ * production, jsdom in tests). The caller supplies the parse document so the
+ * returned elements belong to the context that will measure them.
+ */
+export function extractFlowBlocks(
+  bodyHtml: string,
+  parseDoc: Document,
+): HTMLElement[] {
+  const parsed = parseDoc.createElement('div');
+  parsed.innerHTML = bodyHtml;
+  return Array.from(parsed.querySelectorAll<HTMLElement>('.activity-section > *'));
+}
+
+/**
  * Render `bodyHtml` (renderer renderBody output) in a hidden iframe at panel
  * width and return one FlowItem per visible top-level block, in document order,
  * carrying its outerHTML and measured px height. Cleans up the iframe before
@@ -78,12 +101,9 @@ export async function measureFlowItems(
     const root = idoc.getElementById('measure-root');
     if (!root) throw new Error('foldable measure: no measure root');
 
-    // Parse the body and extract each section's element children in order.
-    const parsed = idoc.createElement('div');
-    parsed.innerHTML = bodyHtml;
-    const sourceItems = Array.from(
-      parsed.querySelectorAll<HTMLElement>('.activity-section > *'),
-    );
+    // Extract each section's element children in document order (see
+    // extractFlowBlocks — a columns container comes back as one element).
+    const sourceItems = extractFlowBlocks(bodyHtml, idoc);
 
     // Place clones into the measuring container so they stack exactly as they
     // will in a panel (shared stylesheet → shared metrics).
