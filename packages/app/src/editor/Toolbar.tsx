@@ -1,6 +1,7 @@
 import type { Editor } from '@tiptap/react';
 import type { ReactNode } from 'react';
 import ColumnWidthPicker from './components/ColumnWidthPicker';
+import CellHeightControl from './components/CellHeightControl';
 
 // editor.isActive(markName) returns false when a mark is "armed" on a collapsed
 // cursor — ProseMirror's stored-marks state, applied to the next typed character.
@@ -251,6 +252,14 @@ export default function Toolbar({ editor }: ToolbarProps) {
               previews the real widths (flex-grow), so a pick is visible at once.
             */}
             <ColumnWidthPicker editor={editor} />
+            {/*
+              Reserved work space — a min-height floor on the active cell
+              (schema Column.minHeight, rem). Auto / quick presets / numeric
+              input; the cell still grows with content. Control-first by
+              design (no drag gesture — see the cancelled column-divider
+              lesson in docs/design/variable-block-sizing.md).
+            */}
+            <CellHeightControl editor={editor} />
         </div>
     );
 }

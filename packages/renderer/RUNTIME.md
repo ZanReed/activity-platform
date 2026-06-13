@@ -225,9 +225,10 @@ Phase 1 block types by category:
 
 ### Sizing attributes (additive, presentational — runtime never reads them)
 
-Variable block sizing (Drop 1) added purely presentational markup, consumed only by the stylesheet:
+Variable block sizing added purely presentational markup, consumed only by the stylesheet:
 
 - `data-block-align="left" | "right"` plus `class="… block-sized"` and `style="--block-width:<pct>%"` on a sized block (image, math_block today). Absence of `data-block-align` means centered; absence of `block-sized` means full width.
+- `style="--block-height:<n>rem"` on a sized **image** figure (combines with `--block-width` in one `style`). The image fills the box and `object-fit: cover` center-crops when width × height disagree with the natural aspect ratio (no stretch).
 - `style="--cell-min-height:<n>rem"` on a `.column-cell` with a reserved work-space floor.
 
 These are additive contract entries: the runtime does not query or branch on them, but published HTML carries them, so they follow the same never-rename/never-remove rule.

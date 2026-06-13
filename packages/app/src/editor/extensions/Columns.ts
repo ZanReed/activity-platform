@@ -58,6 +58,10 @@ declare module '@tiptap/core' {
             // step-through). No-op when not in a columns block, or when the
             // preset isn't valid for the block's column count.
             setColumnWidthPreset: (preset: WidthPreset) => ReturnType;
+            // Set (or clear, with null) the active cell's reserved work-space
+            // floor — schema Column.minHeight, in rem. Values clamp to the
+            // CELL_MIN_HEIGHT_* bounds. No-op outside a columns block.
+            setColumnMinHeight: (minHeight: number | null) => ReturnType;
         };
     }
 }
@@ -175,6 +179,40 @@ function columnWidths(columnsNode: ProseMirrorNode): (number | null)[] {
         widths.push(typeof w === 'number' ? w : null);
     }
     return widths;
+}
+
+// =============================================================================
+// Cell min-height (reserved work space) — bounds + pure clamp, exported for
+// the toolbar control and unit tests. rem, like the schema field: it scales
+// with the print font-size config. A floor, not a fixed height — the cell
+// still grows with content (see docs/design/variable-block-sizing.md).
+// =============================================================================
+
+export const CELL_MIN_HEIGHT_MIN_REM = 1;
+export const CELL_MIN_HEIGHT_MAX_REM = 60;
+
+export function clampCellMinHeight(rem: number): number {
+    const clamped = Math.min(
+        Math.max(rem, CELL_MIN_HEIGHT_MIN_REM),
+        CELL_MIN_HEIGHT_MAX_REM,
+    );
+    // Strip float artifacts so the stored attr serializes cleanly.
+    return Math.round(clamped * 100) / 100;
+}
+
+// The active cell's min-height for the toolbar control. Null when the
+// selection isn't in a columns block; { minHeight: null } = auto.
+export function activeColumnMinHeight(
+    editor: Editor,
+): { minHeight: number | null } | null {
+    const target = findColumnsTarget(editor.state);
+    if (!target) return null;
+    const cell = editor.state.doc.nodeAt(target.targetStart);
+    if (!cell || cell.type.name !== 'column') return null;
+    const raw = cell.attrs.minHeight;
+    return {
+        minHeight: typeof raw === 'number' && raw > 0 ? raw : null,
+    };
 }
 
 // Current preset + column count for the active columns block, for the toolbar
@@ -534,6 +572,30 @@ export const Columns = Node.create<ColumnsOptions>({
                         });
                         pos += child.nodeSize;
                     }
+                    dispatch(tr);
+                }
+                return true;
+            },
+
+            // Set or clear the active cell's reserved work-space floor. Acts
+            // on the cell holding the cursor (or the last cell when the whole
+            // block is node-selected, mirroring removeColumn's target rule).
+            setColumnMinHeight:
+            (minHeight: number | null) =>
+            ({ state, dispatch, tr }) => {
+                const target = findColumnsTarget(state);
+                if (!target) return false;
+                const cell = state.doc.nodeAt(target.targetStart);
+                if (!cell || cell.type.name !== 'column') return false;
+                if (dispatch) {
+                    const value =
+                        typeof minHeight === 'number' && minHeight > 0
+                            ? clampCellMinHeight(minHeight)
+                            : null;
+                    tr.setNodeMarkup(target.targetStart, undefined, {
+                        ...cell.attrs,
+                        minHeight: value,
+                    });
                     dispatch(tr);
                 }
                 return true;

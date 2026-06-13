@@ -1,9 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import {
+    CELL_MIN_HEIGHT_MAX_REM,
+    CELL_MIN_HEIGHT_MIN_REM,
+    clampCellMinHeight,
     widthPresetOrder,
     presetToWidths,
     detectWidthPreset,
 } from '../editor/extensions/Columns';
+
+describe('clampCellMinHeight (Drop 4 — reserved work space)', () => {
+    it('passes through in-bounds values, stripping float artifacts', () => {
+        expect(clampCellMinHeight(8)).toBe(8);
+        expect(clampCellMinHeight(7.3000000001)).toBe(7.3);
+    });
+
+    it('clamps into the [min, max] rem bounds', () => {
+        expect(clampCellMinHeight(0.2)).toBe(CELL_MIN_HEIGHT_MIN_REM);
+        expect(clampCellMinHeight(500)).toBe(CELL_MIN_HEIGHT_MAX_REM);
+    });
+});
 
 describe('widthPresetOrder', () => {
     it('offers even / wide-left / wide-right for 2 columns', () => {

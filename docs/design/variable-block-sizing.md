@@ -1,13 +1,13 @@
 # Variable block sizing — design
 
-**Status:** decisions made with the author (2026-06-12); implementation staged in drops. Drop 1 (schema + renderer + serialization foundation) is in progress. This is the strategic goal the structural-columns container was built toward: differing-width/height blocks, **reflow-safe sizing only, no free canvas**.
+**Status:** ✅ **COMPLETE** (2026-06-12/13). Drops 1 (foundation), 3 (image width + free height + crop), 4 (cell work-space floor) shipped and deployed; Drop 2 (column drag-resize) was built then cancelled by the author in favor of width presets. This was the strategic goal the structural-columns container was built toward: differing-width/height blocks, **reflow-safe sizing only, no free canvas**.
 
 ## Scope (author-approved)
 
 All four capabilities are in the arc, staged:
 
 1. ~~**Custom column widths** — drag-resize divider~~ **CANCELLED (author decision, 2026-06-12).** Built, browser-verified, then removed: the divider competed for the same gap strip as the inner-block drag handle and didn't feel reliable under a real mouse, and the preset picker already covers the real ratios. The width presets remain the column-width system. The schema's `Column.width` weight is unchanged (presets write it; arbitrary imported weights still render), so a future re-attempt stays possible — see git history for the removed `columnResize.ts` implementation (pair-preserving reweighting, ratio snapping, single-transaction commit).
-2. **Min-height floors** — reserved work space on column cells that still grows with content. New optional `Column.minHeight` (rem). Authored by dragging the cell's bottom edge, snapping to clean rem steps, with a numeric readout.
+2. **Min-height floors** ✅ — reserved work space on column cells that still grows with content (`Column.minHeight`, rem). **Shipped as a toolbar control, not a drag** (the cancelled-Drop-2 lesson — lead with reliable buttons): a "Cell height" dropdown in the columns cluster with Auto / 4-8-12rem presets / numeric rem input, acting on the cell holding the cursor.
 3. **Per-block width** — a top-level (or in-cell) block rendered narrower than its container, with alignment. New optional `width` (fraction of container width) + `align` fields on sizable blocks.
 4. **Image intrinsic sizing** — **unified with #3**: images expose the same per-block width field via corner drag-handles; no separate image-size mechanism.
 
@@ -67,24 +67,25 @@ minHeight: z.number().positive().optional(),   // rem; absent = content-determin
 
 ## Data-attribute contract
 
-`data-block-align`, `--block-width`, `--cell-min-height` are **additive** (RUNTIME.md contract allows additions). The runtime does not consume them; columns and sizing stay purely presentational. No `STORAGE_SCHEMA_VERSION` change (no persisted-state shape change).
+`data-block-align`, `--block-width`, `--block-height`, `--cell-min-height` are **additive** (RUNTIME.md contract allows additions). The runtime does not consume them; columns and sizing stay purely presentational. No `STORAGE_SCHEMA_VERSION` change (no persisted-state shape change).
 
 ## Editor
 
 - **Tiptap attrs** (Drop 1, no UI): `width`/`align` on `image` and `mathBlock` nodes; `minHeight` on `column`. Carried through `serialize.ts` both directions (omit-when-default for round-trip equality), and through each node's `parseHTML`/`renderHTML` so editor copy-paste survives.
 - **Editor preview parity:** the editor canvas applies the same width/align/min-height styling so authors see real layout (columns already do this with `flex-grow`).
-- **Gestures** (later drops):
-  - Column divider drag → writes normalized `Column.width` weights; snaps to clean ratios (1:1, 2:1, 3:1, 1:2, 1:3, 2:3 …); the preset picker stays and `detectWidthPreset` keeps recognizing preset-shaped weights.
-  - Image corner-handle drag → writes `width` snapped to 25/33/50/66/75/100% (fine-grained with a modifier key).
-  - Cell bottom-edge drag → writes `minHeight` snapped to 1rem steps, with a small numeric readout.
-  - Non-image sizable blocks get a width/align control in the toolbar or block popover.
-- All three gestures join the standing "human GUI pass" list (synthetic events can't drive live drags).
+- **Controls/gestures as shipped:**
+  - **Column width** → the existing **preset picker** (`setColumnWidthPreset`); a drag-divider was tried (Drop 2) and cancelled. `detectWidthPreset` recognizes preset-shaped weights, including arbitrary ones.
+  - **Image width** → popover chips (Auto + 25/33/50/66/75/100%) + **side drag-handles** on the live preview, same snap stops, Alt = fine-grained.
+  - **Image height** → popover Auto/value field + **bottom-edge drag-handle**, half-rem snapping.
+  - **Cell work space** → "Cell height" **toolbar dropdown** (`setColumnMinHeight`): Auto / 4-8-12rem presets / numeric rem input. No drag.
+  - MathBlock carries `width`/`align` in schema/renderer/serialize but has **no editor control yet** — additive when wanted.
+- The image drag-handles join the standing "human GUI pass" list (synthetic events can't fully exercise live drags under a real mouse).
 
 ## Drop plan
 
 1. **Drop 1 — foundation (no UI):** schema fields, renderer output + CSS, print/narrow-screen behavior, Tiptap attrs, serialize round-trip, tests, bundle regen. After this, documents can carry sizing and published pages honor it. **✅ Landed + deployed.**
 2. ~~**Drop 2 — column divider drag-resize.**~~ **Cancelled** (see Scope above); presets are the column-width system.
-3. **Drop 3 — image resize:** width/align controls in the image edit popover (reliable baseline) + side drag-handles on the editor's live image preview (snap to 25/33/50/66/75/100%, fine-grained with Alt). The NodeView previews the authored width/align so the canvas matches the published page. **Extended same-day with free height** (author request): optional `ImageBlock.height` in rem; when width and height disagree with the natural aspect ratio the image **center-crops (`object-fit: cover`), never stretches** (author chose crop over stretch). Popover gets an Auto/value height field; the preview gets a bottom-edge handle (half-rem snapping). Height alone scales proportionally.
-4. **Drop 4 — cell min-height bottom-edge drag + readout.**
+3. **Drop 3 — image resize ✅:** width/align controls in the image edit popover (reliable baseline) + side drag-handles on the editor's live image preview (snap to 25/33/50/66/75/100%, fine-grained with Alt). The NodeView previews the authored width/align so the canvas matches the published page. **Extended same-day with free height** (author request): optional `ImageBlock.height` in rem; when width and height disagree with the natural aspect ratio the image **center-crops (`object-fit: cover`), never stretches** (author chose crop over stretch). Popover gets an Auto/value height field; the preview gets a bottom-edge handle (half-rem snapping). Height alone scales proportionally. Width chips split **Auto** (natural size, never upscaled = `null`) from **100%** (explicit fill = `width:1`) after the author flagged the original "Full"-means-Auto labeling as confusing.
+4. **Drop 4 — cell reserved work space ✅:** `Column.minHeight` exposed via a **toolbar dropdown** (CellHeightControl.tsx — Auto / 4-8-12rem presets / numeric rem input), NOT a bottom-edge drag. The Drop-2 cancellation taught us to lead with reliable controls; a cell drag can be layered on later if ever missed. New `setColumnMinHeight` command + `clampCellMinHeight`/`activeColumnMinHeight` helpers; the renderer already consumed `--cell-min-height` from Drop 1, so this is editor-only.
 
-Each later drop is editor-only (no renderer/bundle change expected beyond Drop 1).
+Drops 3–4 are editor-only; the renderer/bundle changed only in Drop 1 (foundation) and the Drop-3 image fill/crop CSS.
