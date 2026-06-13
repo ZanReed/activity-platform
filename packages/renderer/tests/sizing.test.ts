@@ -35,6 +35,14 @@ describe('per-block sizing (width/align)', () => {
     expect(body).toContain('style="--block-width:50%"');
   });
 
+  it('width 1 is a real fill width (block-sized at 100%), distinct from unsized', () => {
+    const img = createImageBlock('https://example.com/a.png');
+    img.width = 1;
+    const body = renderBody(docWith(img));
+    expect(body).toContain('class="block block-image block-sized"');
+    expect(body).toContain('style="--block-width:100%"');
+  });
+
   it('trims float artifacts in the percentage (0.33 → 33%)', () => {
     const img = createImageBlock('https://example.com/a.png');
     img.width = 0.33;

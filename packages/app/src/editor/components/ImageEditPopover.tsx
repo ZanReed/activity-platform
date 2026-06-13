@@ -471,7 +471,9 @@ export default function ImageEditPopover({
 
                 {/* Sizing commits live (like Upload) — buttons, not drafts, so
                     no flush path. The same stops the preview's drag-handles
-                    snap to, so chip and drag write identical values. */}
+                    snap to, so chip and drag write identical values. Auto
+                    (null) = natural size, never upscaled; 100% is a REAL
+                    width that fills the container, upscaling if needed. */}
                 <div className="image-edit-popover__field">
                     <span className="image-edit-popover__label">Width</span>
                     <div
@@ -479,12 +481,21 @@ export default function ImageEditPopover({
                         role="group"
                         aria-label="Image width"
                     >
+                        <button
+                            type="button"
+                            className={`image-edit-popover__chip${
+                                width === null ? ' is-active' : ''
+                            }`}
+                            aria-pressed={width === null}
+                            title="Natural size (never upscaled)"
+                            onClick={() => onChange({ width: null })}
+                        >
+                            Auto
+                        </button>
                         {WIDTH_SNAP_STOPS.map((stop) => {
                             const active =
-                                stop === 1
-                                    ? width === null
-                                    : width !== null &&
-                                      Math.abs(width - stop) < 0.005;
+                                width !== null &&
+                                Math.abs(width - stop) < 0.005;
                             return (
                                 <button
                                     key={stop}
@@ -493,13 +504,9 @@ export default function ImageEditPopover({
                                         active ? ' is-active' : ''
                                     }`}
                                     aria-pressed={active}
-                                    onClick={() =>
-                                        onChange({
-                                            width: stop === 1 ? null : stop,
-                                        })
-                                    }
+                                    onClick={() => onChange({ width: stop })}
                                 >
-                                    {stop === 1 ? 'Full' : widthAttrLabel(stop)}
+                                    {widthAttrLabel(stop)}
                                 </button>
                             );
                         })}

@@ -5,7 +5,6 @@ import {
     snapHeightRem,
     snapWidthFraction,
     widthAttrLabel,
-    widthFractionToAttr,
 } from '../imageSizing';
 
 // ============================================================================
@@ -159,9 +158,12 @@ export default function ImageView({
             cleanup();
             const pos = getPos();
             if (typeof pos !== 'number') return;
+            // A drag always commits an explicit width — 1 means "fill the
+            // container" (a real value), NOT the Auto default. Auto (natural
+            // size) is reachable via the popover's Auto chip.
             editor.commands.updateImageAttrs(
                 pos,
-                { width: widthFractionToAttr(latest) },
+                { width: latest },
                 { preserveSelection: true },
             );
         };

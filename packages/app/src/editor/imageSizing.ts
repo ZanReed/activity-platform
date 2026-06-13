@@ -9,7 +9,10 @@
 // =============================================================================
 
 // The clean stops both UIs offer. Stored pre-rounded (0.33 not 1/3) so a chip
-// press and a snapped drag produce byte-identical attrs.
+// press and a snapped drag produce byte-identical attrs. NOTE: 1 is a REAL
+// stored width ("fill the container", upscaling if needed) — distinct from
+// the null default ("Auto": natural size, never upscaled). The popover offers
+// Auto separately; a drag always commits an explicit width.
 export const WIDTH_SNAP_STOPS = [0.25, 0.33, 0.5, 0.66, 0.75, 1] as const;
 
 // Below this the image is a sliver the author can't grab again.
@@ -28,12 +31,7 @@ export function snapWidthFraction(fraction: number, snap: boolean): number {
     return Math.round(clamped * 100) / 100;
 }
 
-/** The attr value for a fraction: full width (~1) stores as null. */
-export function widthFractionToAttr(fraction: number): number | null {
-    return fraction >= 0.995 ? null : fraction;
-}
-
-/** Label for badges/chips: 0.33 → "33%", null → "100%". */
+/** Label for badges/chips: 0.33 → "33%", 1 → "100%". */
 export function widthAttrLabel(width: number | null): string {
     return `${Math.round((width ?? 1) * 100)}%`;
 }

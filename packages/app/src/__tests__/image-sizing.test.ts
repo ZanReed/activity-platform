@@ -15,7 +15,6 @@ import {
     snapHeightRem,
     snapWidthFraction,
     widthAttrLabel,
-    widthFractionToAttr,
 } from '../editor/imageSizing';
 
 describe('snapWidthFraction', () => {
@@ -42,15 +41,12 @@ describe('snapWidthFraction', () => {
     });
 });
 
-describe('widthFractionToAttr', () => {
-    it('stores full width as null (the schema default spelling)', () => {
-        expect(widthFractionToAttr(1)).toBeNull();
-        expect(widthFractionToAttr(0.995)).toBeNull();
-    });
-
-    it('keeps partial widths as-is', () => {
-        expect(widthFractionToAttr(0.5)).toBe(0.5);
-        expect(widthFractionToAttr(0.33)).toBe(0.33);
+describe('width 1 is a real value (fill the container)', () => {
+    // Auto (null = natural size, never upscaled) and 100% (explicit fill)
+    // are distinct: a drag near the right edge snaps to a stored width of 1,
+    // and only the popover's Auto chip returns to natural sizing.
+    it('a drag near full width snaps to exactly 1, not null', () => {
+        expect(snapWidthFraction(0.98, true)).toBe(1);
     });
 });
 
