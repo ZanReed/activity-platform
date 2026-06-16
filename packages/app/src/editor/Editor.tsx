@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
+import {
+    useEditor,
+    EditorContent,
+    type Editor as TiptapEditor,
+    type JSONContent,
+} from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import DragHandle from '@tiptap/extension-drag-handle-react';
 import Toolbar from './Toolbar';
@@ -33,6 +38,10 @@ interface EditorProps {
     // can POST to the upload-image Edge Function. Undefined in the playground,
     // where uploads are disabled (URL paste only).
     activityId?: string;
+    // Surfaces the live editor instance to the parent (null until mounted) so
+    // activity-level header actions — e.g. markdown import — can drive editor
+    // commands. The editor itself stays the owner of the useEditor instance.
+    onEditorReady?: (editor: TiptapEditor | null) => void;
 }
 
 export default function Editor({
@@ -40,6 +49,7 @@ export default function Editor({
     onUpdate,
     gridLinesDefault = false,
     activityId,
+    onEditorReady,
 }: EditorProps) {
     // Force re-render on every editor transaction. Tiptap React's built-in
     // re-render hook misses pure storedMarks transactions (e.g., toggling a
@@ -100,6 +110,12 @@ export default function Editor({
                 editor;
         }
     }, [editor]);
+
+    // Hand the live instance (or null on unmount) to the parent's header actions.
+    useEffect(() => {
+        onEditorReady?.(editor);
+        return () => onEditorReady?.(null);
+    }, [editor, onEditorReady]);
 
     return (
         // No overflow-hidden here: it would establish this card as the

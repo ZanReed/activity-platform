@@ -25,7 +25,7 @@ import {
     type ReactNode,
 } from 'react';
 import { Link, useParams } from 'react-router';
-import type { JSONContent } from '@tiptap/react';
+import type { Editor as TiptapEditor, JSONContent } from '@tiptap/react';
 import {
     ActivityDocument,
     createEmptyDocument,
@@ -37,6 +37,7 @@ import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
 import { useAutosave, type SaveStatus } from '../lib/useAutosave';
 import Editor from '../editor/Editor';
 import PublishControl from '../components/PublishControl';
+import ImportMarkdownDialog from '../components/ImportMarkdownDialog';
 
 interface ActivityLoadRow {
     id: string;
@@ -566,6 +567,13 @@ export default function ActivityEditor() {
     const [meta, setMeta] = useState<ActivityMeta | null>(null);
     const [tiptapJson, setTiptapJson] = useState<JSONContent | null>(null);
     const [isPublished, setIsPublished] = useState(false);
+    // Live editor instance (null until mounted) + the markdown-import modal's
+    // open state. The editor owns its useEditor instance; it reports up here via
+    // onEditorReady so the header's Import action can drive insert commands.
+    const [editorInstance, setEditorInstance] = useState<TiptapEditor | null>(
+        null,
+    );
+    const [importOpen, setImportOpen] = useState(false);
 
     useEffect(() => {
         if (!id || !UUID_RE.test(id)) {
@@ -667,6 +675,33 @@ export default function ActivityEditor() {
     const handleEditorUpdate = useCallback((json: JSONContent) => {
         setTiptapJson(json);
     }, []);
+
+    // Insert markdown-imported blocks. A fresh activity (just the default empty
+    // paragraph) is replaced outright so there's no leading blank; an activity
+    // with existing content gets the blocks appended at the end. The resulting
+    // transaction flows through onUpdate → autosave like any other edit.
+    const handleImportMarkdown = useCallback(
+        (importedBlocks: JSONContent[]) => {
+            if (!editorInstance || importedBlocks.length === 0) return;
+            if (editorInstance.isEmpty) {
+                editorInstance
+                    .chain()
+                    .focus()
+                    .setContent({ type: 'doc', content: importedBlocks })
+                    .run();
+            } else {
+                editorInstance
+                    .chain()
+                    .focus('end')
+                    .insertContentAt(
+                        editorInstance.state.doc.content.size,
+                        importedBlocks,
+                    )
+                    .run();
+            }
+        },
+        [editorInstance],
+    );
 
     // Stable fingerprint of the whole document (body + meta). Null until the
     // editor has produced its first JSON — the autosave stays idle until then.
@@ -780,6 +815,15 @@ export default function ActivityEditor() {
             >
             Submissions
             </Link>
+            <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            disabled={!editorInstance}
+            title="Paste markdown and convert it to activity blocks"
+            className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+            Import markdown
+            </button>
             <PublishControl activityId={id} saveStatus={status} onBeforePublish={flush} />
             </div>
             </div>
@@ -817,7 +861,15 @@ export default function ActivityEditor() {
             onUpdate={handleEditorUpdate}
             gridLinesDefault={meta.print.gridLines}
             activityId={id}
+            onEditorReady={setEditorInstance}
             />
+
+            {importOpen && (
+                <ImportMarkdownDialog
+                onClose={() => setImportOpen(false)}
+                onImport={handleImportMarkdown}
+                />
+            )}
             </Shell>
         );
 }
