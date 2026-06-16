@@ -94,7 +94,7 @@ activity-platform/
 
 - **Custom domain for R2** (Phase 2 polish): `pub-<hash>.r2.dev` → `activities.<brand>.com` once a domain is owned; ~5 min of Cloudflare DNS after that.
 - **Empty fill_in_blank drag handle attachment** — whether `definingForContent: true` changed the handles-only-on-non-empty behavior is unverified; re-test during a drag-reorder pass. Minor.
-- **Selection-change "flush leak" — investigated 2026-06-16: NO data loss.** Reproduced in the Playground (two blanks, type in A → click B, incl. rapid/synchronous variants): A's edit always commits (the outside-click flush + blur cover it). The only real wart is switch-vs-close — clicking chip B while editing A *closes* A's popover (flushing A) instead of switching to B; you click B again to open it. Attempted a one-click-switch polish (outside-click early-return; then explicit `setNodeSelection` from the host) — both failed because the `FocusTrap` holds focus and the flush transaction disrupts the in-flight click. Reverted; this is the Drop-1 selection/FocusTrap danger zone and needs a dedicated design pass, not a quick fix. Low priority (no data loss).
+- **Blank popover: one-click switch between chips** — deferred design decision, no data loss; full reasoning in [DECISIONS.md](docs/DECISIONS.md) → "Fill-in-blank authoring (Stage 13.5)". Needs a dedicated design pass (FocusTrap/selection entanglement).
 - **Section metadata panel** — SectionBreakView's inline title/checkpoint UI is adequate for now; an editor-level panel remains optional.
 - **Responsive `--blank-width` sizing** — deferred from Stage 11.
 - **Phase 2 block-type priority order** (worked example, faded worked example, learning objectives, self-explanation) — decide when Phase 2 starts.
