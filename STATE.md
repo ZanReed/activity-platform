@@ -44,7 +44,7 @@ Also queued:
 | Variable block sizing (Drops 1/3/4: width+align, image height/crop, cell work-space) | ✅ Complete + tests; deployed (publish-activity v34); Drop 2 column-drag cancelled by author (presets remain) |
 | Editor UX: sticky toolbar + popover scroll-jump fix | ✅ Browser-verified |
 | Phase 2 slice — rich text + inline math in hint/feedback/solution | ✅ Deployed; live UX unverified |
-| Image authoring (block + popover + upload + live preview) | ✅ Deployed; R2 CORS confirmation pending |
+| Image authoring (block + popover + upload + live preview) | ✅ Deployed; R2 cross-origin `<img>` confirmed 2026-06-16 |
 | `publish-activity` / `ingest-submission` Edge Functions | ✅ Deployed; ingest runs with `verify_jwt: false` |
 | Cloudflare R2 hosting (published HTML) | ✅ Live |
 | Auth (Google OAuth, allowlist) / React app / editor stack | ✅ In place |
@@ -52,7 +52,7 @@ Also queued:
 | Markdown paste import | ⏳ Phase 1 polish |
 | End-to-end manual test | ◐ Free-mode submit path verified 2026-06-16 (snake_case payload bug found + fixed, DB row confirmed); locked-mode + dashboard still to run |
 
-Test counts at last session: schema 54 / renderer 251 / app 158; `tsc -b` + app build green.
+Test counts at last session: schema 54 / renderer 254 / app 158; `tsc -b` + app build green.
 
 ## Repo layout
 
@@ -76,9 +76,9 @@ activity-platform/
 │           ├── lib/        — serialize.ts, submissions.ts, uploadImage.ts, foldable/ (print engine)
 │           └── __tests__/
 ├── supabase/
-│   ├── migrations/    — 0001–0007 (0007 NOT yet applied)
+│   ├── migrations/    — 0001–0007 (all applied)
 │   └── functions/     — publish-activity, ingest-submission, upload-image, _shared/ (cors.ts, renderer.bundle.js — auto-generated)
-├── scripts/           — bundle-renderer.mjs; seed-test-data.sql
+├── scripts/           — bundle-renderer.mjs; seed-test-data.sql; seed-e2e-activity.sql; seed-e2e-locked.sql
 └── ...root configs
 ```
 
@@ -107,4 +107,11 @@ activity-platform/
 
 ---
 
-**Last updated:** 2026-06-16 — **Delete-activity feature + locked-mode e2e seed + flush-leak investigation.** Added per-row soft-delete in Activities.tsx (RLS-prescribed `deleted_at`, no migration). Seeded `[TEST] E2E Locked Mode` (`scripts/seed-e2e-locked.sql`) for the locked-mode pass. Investigated the "flush leak": **no data loss** — only a switch-vs-close UX wart; a one-click-switch polish hit the FocusTrap/selection danger zone and was reverted (needs a dedicated design pass). Author confirmed all real-mouse GUI passes + R2 cross-origin `<img>`. Earlier today — **E2E submit path verified; live submission bug found + fixed.** First real published-URL submit 400'd (`activity_id is required`): runtime sent camelCase, `ingest-submission` wants snake_case. Fixed the runtime payload to snake_case (canonical), extracted a pure unit-tested `buildSubmissionPayload`, regenerated the bundle; author redeployed `publish-activity` + re-published; verified the DB submission row (score/attempt/confidence/checkpoints all correct). Suite: schema 54 / renderer 254 / app 158. Still to run: locked-mode pass + Submissions dashboard view. Earlier (2026-06-13): **Deferred test coverage landed.** `init.test.ts` now pins `state.blanks`/`state.blocks` defaults; the blank-edit popover's draft/commit/close state machine was extracted to a pure, unit-tested `blankPopoverLogic.ts` (25 cases) via a behavior-preserving refactor of `BlankEditPopover`/`BlankPopoverHost`, browser-smoke-verified (edit commits on close, whitespace stripped, selection released). Suite: schema 54 / renderer 251 / app 158. Earlier today: **Foldable × columns verified.** A top-level columns container flows whole through the journal foldable (one `FlowItem`, never split) and its `fr` tracks resolve against the fixed panel width — locked in by `foldable-measure.test.ts` (via a behavior-preserving `extractFlowBlocks` lift out of `measure.ts`) + a named `paginate` case, and proven in a real browser through a dev-only `/dev/foldable-columns` bench (added `jsdom` devDep to the app for the parse-only measure test). Earlier today: **CI + housekeeping landed.** Added `.github/workflows/ci.yml` (typecheck → lint → test → build → bundle-staleness guard on push + PR), pinned `packageManager: pnpm@11.1.2`, gave the app a `typecheck` script + added a root `lint` script (both previously missing from the recursive runs), and cleared the pre-existing lint errors. New-test items (`init.test.ts`, popover state-machine) deferred by author. Earlier today: **Drop 4 closes the variable-block-sizing arc.** Added a **Cell height** dropdown to the columns toolbar (CellHeightControl.tsx: Auto / 4-8-12rem presets / numeric rem input) driving a new `setColumnMinHeight` command over the schema's existing `Column.minHeight`; control-first, no drag (the cancelled-Drop-2 lesson). Browser-verified end to end. Author confirmed deploying `publish-activity` (now **v34**), so the full sizing bundle — width fill, image fixed-height crop, and cell work-space floors — is live; redeploy items cleared from pending. Arc summary: Drops 1 (foundation), 3 (image width+height+crop, with the Auto/100% width relabel), 4 (cell work space) shipped; Drop 2 (column drag-resize) built then cancelled by author in favor of width presets.
+**Last updated:** 2026-06-16. This session (newest detail in "Recently completed" above; durable reasoning in DECISIONS):
+
+- **Delete activities** — per-row soft-delete in `Activities.tsx` (RLS-prescribed `deleted_at`, no migration).
+- **E2E free-mode submit verified + bug fixed** — live submit 400'd (`activity_id is required`): runtime sent camelCase, `ingest-submission` wants snake_case. Fixed the runtime payload (pure, unit-tested `buildSubmissionPayload`), regenerated the bundle; author redeployed `publish-activity` + re-published; DB submission row verified. Locked-mode seed (`scripts/seed-e2e-locked.sql`) ready for the remaining locked-mode + dashboard passes.
+- **Flush-leak investigated → no data loss.** Only a switch-vs-close UX wart; one-click-switch attempt hit the FocusTrap/selection danger zone, reverted. Decision filed in DECISIONS → "Fill-in-blank authoring (Stage 13.5)".
+- Author confirmed: all real-mouse GUI passes + R2 cross-origin `<img>`.
+- Suite: schema 54 / renderer 254 / app 158; CI green. 4 commits unpushed on `main`.
+- Prior session (2026-06-13): deferred test coverage, foldable×columns verification, CI + housekeeping, variable-block-sizing arc close — see "Recently completed".
