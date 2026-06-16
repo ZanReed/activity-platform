@@ -48,6 +48,12 @@ export default function Activities() {
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
 
+    // Per-row delete: confirmingId is the row showing its inline confirm;
+    // deletingId is the row whose soft-delete request is in flight.
+    const [confirmingId, setConfirmingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
     useEffect(() => {
         // `cancelled` guards against StrictMode's double-invoke and against the
         // component unmounting before the request resolves.
@@ -120,6 +126,29 @@ export default function Activities() {
             );
             setCreating(false);
         }
+    };
+
+    // Soft delete: set deleted_at, the documented "deletion" mechanism (see
+    // 0002_rls_policies.sql — there is no client DELETE policy; the update
+    // policy permits an owner to set deleted_at). The list query and RLS both
+    // filter `deleted_at is null`, so the row vanishes from view; the 30-day
+    // purge_soft_deleted cron hard-deletes it (cascading versions/submissions)
+    // later. Drop it from the list on success.
+    const handleDelete = async (id: string) => {
+        setDeletingId(id);
+        setDeleteError(null);
+        const { error } = await supabase
+            .from('activities')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', id);
+        if (error) {
+            setDeleteError(error.message);
+            setDeletingId(null);
+            return;
+        }
+        setActivities((prev) => prev.filter((a) => a.id !== id));
+        setConfirmingId(null);
+        setDeletingId(null);
     };
 
     return (
@@ -214,21 +243,59 @@ export default function Activities() {
                 >
                 {a.title}
                 </Link>
-                <span className="flex shrink-0 items-center gap-3">
-                <StatusBadge status={a.status} />
-                <span className="hidden text-xs text-slate-500 sm:inline">
-                Edited {formatEdited(a.updated_at)}
-                </span>
-                <Link
-                to={`/activity/${a.id}/submissions`}
-                className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
-                >
-                Submissions
-                </Link>
-                </span>
+                {confirmingId === a.id ? (
+                    <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-sm text-slate-600">Delete?</span>
+                    <button
+                    type="button"
+                    onClick={() => handleDelete(a.id)}
+                    disabled={deletingId === a.id}
+                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                    {deletingId === a.id ? 'Deleting…' : 'Delete'}
+                    </button>
+                    <button
+                    type="button"
+                    onClick={() => setConfirmingId(null)}
+                    disabled={deletingId === a.id}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                    Cancel
+                    </button>
+                    </span>
+                ) : (
+                    <span className="flex shrink-0 items-center gap-3">
+                    <StatusBadge status={a.status} />
+                    <span className="hidden text-xs text-slate-500 sm:inline">
+                    Edited {formatEdited(a.updated_at)}
+                    </span>
+                    <Link
+                    to={`/activity/${a.id}/submissions`}
+                    className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+                    >
+                    Submissions
+                    </Link>
+                    <button
+                    type="button"
+                    onClick={() => {
+                        setConfirmingId(a.id);
+                        setDeleteError(null);
+                    }}
+                    aria-label={`Delete ${a.title}`}
+                    className="text-sm font-medium text-slate-400 underline underline-offset-2 transition hover:text-red-600"
+                    >
+                    Delete
+                    </button>
+                    </span>
+                )}
                 </li>
             ))}
             </ul>
+        )}
+        {deleteError && (
+            <p className="mt-3 text-sm text-red-600">
+            Couldn't delete activity: {deleteError}
+            </p>
         )}
         </div>
         </div>
