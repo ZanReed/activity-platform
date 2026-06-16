@@ -6,6 +6,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting:
 
+0. **🔴 Redeploy `publish-activity` for the submission-payload fix, then re-publish.** The e2e pass found the live submit POST 400ing with `activity_id is required`: the runtime sent camelCase (`activityId`/`displayName`) but `ingest-submission` requires snake_case (`activity_id`/`display_name`). Fixed in the runtime + bundle (commit below). The fix only reaches a page once `publish-activity` redeploys (it inlines the new bundle) **and** the activity is re-published. `ingest-submission` is already correct — no redeploy of it needed. Until both happen, the published `[TEST] E2E Coverage` page keeps failing on submit.
 1. **Confirm cross-origin `<img>` loads** from the R2 public URL in the editor (add the SPA origin to the R2 bucket CORS allowed-origins if needed; a custom domain would make this moot).
 2. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
 3. **Human GUI passes still owed:** drag-between-cells (hover→handle→drag and grip→drag), the **image resize handles** (side = width, bottom = height — verified with synthetic pointer events; confirm under a real mouse), and the nested rich-text mini-editor UX (caret behavior, math insertion, virtual-keyboard interplay in popovers).

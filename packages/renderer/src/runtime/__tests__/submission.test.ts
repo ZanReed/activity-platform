@@ -12,7 +12,19 @@ import {
     classifyFailure,
     sendWithRetry,
     computeScore,
+    buildSubmissionPayload,
 } from '../submission.js';
+import type { RuntimeConfig } from '../config.js';
+
+const CONFIG: RuntimeConfig = {
+    activityId: 'e0000000-0000-4000-8000-000000000001',
+    versionNum: 1,
+    submissionEndpoint: 'https://example.com/ingest',
+    submissionMode: 'free',
+    revisionMode: 'free',
+    gradingMode: 'auto',
+    answerFeedback: 'on_check',
+};
 
 // A no-wait delay so the backoff loop completes instantly under test.
 const noDelay = () => Promise.resolve();
@@ -33,6 +45,41 @@ function makeResponse(
         text: async () => body.text ?? '',
     } as unknown as Response;
 }
+
+describe('buildSubmissionPayload — wire contract with ingest-submission', () => {
+    const gathered = {
+        blanks: { 'blank-1': { answer: '2', correct: true } },
+        score: 1,
+    };
+
+    it('uses snake_case keys the Edge Function requires (activity_id, display_name)', () => {
+        // The function reads body.activity_id / body.display_name; a camelCase
+        // drift here is what produced the live 400 "activity_id is required".
+        const payload = buildSubmissionPayload(CONFIG, 'Ada', gathered, undefined);
+        expect(payload).toMatchObject({
+            activity_id: 'e0000000-0000-4000-8000-000000000001',
+            display_name: 'Ada',
+            score: 1,
+        });
+        // Explicitly assert the camelCase keys are NOT present.
+        expect('activityId' in payload).toBe(false);
+        expect('displayName' in payload).toBe(false);
+    });
+
+    it('carries responses with schemaVersion 2 and the gathered blanks', () => {
+        const payload = buildSubmissionPayload(CONFIG, 'Ada', gathered, undefined);
+        expect(payload.responses.schemaVersion).toBe(2);
+        expect(payload.responses.blanks).toEqual(gathered.blanks);
+        // No checkpointResults key when none were gathered.
+        expect('checkpointResults' in payload.responses).toBe(false);
+    });
+
+    it('includes checkpointResults only when provided', () => {
+        const cp = { 'sec-1': { score: 1, total: 2, checkedAt: '2026-06-16T00:00:00Z' } };
+        const payload = buildSubmissionPayload(CONFIG, 'Ada', gathered, cp);
+        expect(payload.responses.checkpointResults).toEqual(cp);
+    });
+});
 
 describe('classifyFailure', () => {
     it('treats 4xx as terminal', () => {

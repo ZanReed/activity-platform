@@ -54,11 +54,43 @@ interface SubmissionResponsesPayload {
   checkpointResults?: Record<string, CheckpointResultPayload>;
 }
 
+// Wire shape POSTed to the ingest-submission Edge Function. Keys are
+// snake_case to match the function's contract (and the DB columns / RPC
+// params it forwards to) — the runtime and the function are separate
+// codebases joined only by this JSON, so the field names ARE the contract.
+// A camelCase drift here is silently accepted by JSON.stringify and only
+// surfaces as a 400 ("activity_id is required") on a live POST, which no
+// unit test exercised — see buildSubmissionPayload's regression test.
 export interface SubmissionPayload {
-  activityId: string;
-  displayName: string;
+  activity_id: string;
+  display_name: string;
   responses: SubmissionResponsesPayload;
   score: number;
+}
+
+/**
+ * Assemble the submission wire payload. Pure (no DOM, no network) so the
+ * snake_case contract with ingest-submission can be unit-tested directly.
+ */
+export function buildSubmissionPayload(
+  config: RuntimeConfig,
+  displayName: string,
+  gathered: { blanks: Record<string, BlankResult>; score: number },
+  checkpointResults: Record<string, CheckpointResultPayload> | undefined,
+): SubmissionPayload {
+  const responses: SubmissionResponsesPayload = {
+    schemaVersion: 2,
+    blanks: gathered.blanks,
+  };
+  if (checkpointResults) {
+    responses.checkpointResults = checkpointResults;
+  }
+  return {
+    activity_id: config.activityId,
+    display_name: displayName,
+    responses,
+    score: gathered.score,
+  };
 }
 
 interface GatheredResponses {
@@ -335,20 +367,7 @@ export function submit(
   const checkpointResults = gatherCheckpointResults(state);
   onUpdate();
 
-  const responses: SubmissionResponsesPayload = {
-    schemaVersion: 2,
-    blanks: data.blanks,
-  };
-  if (checkpointResults) {
-    responses.checkpointResults = checkpointResults;
-  }
-
-  const payload: SubmissionPayload = {
-    activityId: config.activityId,
-    displayName: name,
-    responses,
-    score: data.score,
-  };
+  const payload = buildSubmissionPayload(config, name, data, checkpointResults);
 
   // Persist before the network call so a close mid-flight survives.
   savePendingSubmission(config, payload);
