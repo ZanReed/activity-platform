@@ -11,7 +11,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - **docs/DECISIONS.md** — architecture decisions + reasoning, by area. Check before re-deciding anything.
 - **docs/HISTORY.md** — archived completed-work logs.
 - **docs/COLLABORATION.md** — working-with-the-author notes.
-- **docs/design/** — feature designs (print/printables, interactive graph, vocabulary definitions).
+- **docs/design/** — feature designs (print/printables, interactive graph, vocabulary definitions, PDF import, photo grading, free activity catalog).
 - **supabase/functions/README.md**, **supabase/migrations/README.md** — Edge Function and DB setup/deploy reference.
 
 ## Commands
