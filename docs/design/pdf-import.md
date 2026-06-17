@@ -2,6 +2,8 @@
 
 **Status:** design captured, not implemented (2026-06-16). A long-term authoring feature: read an existing worksheet PDF and turn it into an editable `ActivityDocument` draft. Captured ahead of implementation in the same role as `vocabulary-definitions.md` and `interactive-graph-block.md` — the open questions below are resolved at implementation kickoff, not now.
 
+> **Update (2026-06-17):** the shared `markdown → Tiptap` converter this design depends on **now exists** — built and shipped by the markdown-paste import as [`packages/app/src/lib/markdownToTiptap.ts`](../../packages/app/src/lib/markdownToTiptap.ts), with its accepted format documented in [`docs/markdown-import-format.md`](../markdown-import-format.md). PDF import reuses it untouched; the only new work here is the vision model that emits that markdown. The DSL surface was finalized during that build — notably blanks are `{{answer|alt}}` (the editor's sentinel), **not** the illustrative `[[answer]]` sketched below.
+
 Companion to STATE.md (where things are) and ROADMAP.md (where things are going). Sibling design: `photo-grading.md` (the assessment-side OCR feature). The two were scoped together; they share the "AI as a lossy transform feeding a human-review endpoint" shape but are otherwise independent.
 
 ## The core realization: this is an AI feature, not an OCR feature
@@ -49,7 +51,7 @@ Plants make food through [[__]].          <- blank, no answer on the page → im
 - `> [!note] …` → callout (variant by keyword).
 - `{checkpoint}` on a heading → checkpoint section break.
 
-**Build the `DSL → Tiptap` converter once and it serves two features:** the queued **markdown-paste import** (Phase 1 polish) compiles to the same DSL, so the converter is shared work, not duplicated.
+**Build the `DSL → Tiptap` converter once and it serves two features:** the **markdown-paste import** (shipped in Phase 1) already built this converter (`markdownToTiptap.ts`), so for PDF import it's reuse, not new work — the converter was shared by design.
 
 > Note: `callout` and `problem` are currently schema-only — no editor round-trip yet (see `serialize.ts`). The DSL can emit them, but the converter's coverage is bounded by what the Tiptap schema round-trips at implementation time. Sequence accordingly.
 
