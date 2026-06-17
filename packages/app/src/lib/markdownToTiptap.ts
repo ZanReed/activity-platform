@@ -92,10 +92,11 @@ export function getMarkdownImporter(): Promise<MarkdownImporter> {
             const { default: MarkdownIt } = await import('markdown-it');
             const md = new MarkdownIt({ html: false, linkify: false });
             return (markdown: string): ImportResult => {
-                // Pull math out of the RAW source first (see extractMath) so
-                // LaTeX backslashes/underscores survive markdown-it's CommonMark
+                // Unwrap a whole-paste ```markdown fence (LLM safety net), then
+                // pull math out of the RAW source first (see extractMath) so LaTeX
+                // backslashes/underscores survive markdown-it's CommonMark
                 // escaping, then parse the placeholdered text.
-                const { text, spans } = extractMath(markdown);
+                const { text, spans } = extractMath(stripMarkdownFence(markdown));
                 const tokens = md.parse(text, {}) as unknown as MdToken[];
                 return tokensToBlocks(tokens, spans);
             };
@@ -169,6 +170,17 @@ const MATH_CLOSE = String.fromCharCode(0xe001);
 interface MathSpan {
     latex: string;
     display: boolean;
+}
+
+// Safety net for AI-generated input. Teachers are told to ask the model to wrap
+// its whole reply in a fenced code block (so the chat shows a Copy button that
+// yields raw, unrendered Markdown). The Copy button normally strips the fence,
+// but if a paste arrives wrapped entirely in a ```markdown / ```md fence, unwrap
+// it here. Scoped to a markdown-tagged OUTER fence so a plain ``` code block in
+// the middle of content is still treated as code and flattened, not unwrapped.
+function stripMarkdownFence(src: string): string {
+    const m = /^\s*```(?:markdown|md)[^\n]*\n([\s\S]*?)\n```\s*$/i.exec(src);
+    return m ? m[1]! : src;
 }
 
 // Order matters: code spans first (so their `$` is protected), then $$display$$

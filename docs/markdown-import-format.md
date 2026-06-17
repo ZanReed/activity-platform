@@ -36,7 +36,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 - **Inline math has a guard.** A lone `$` or currency like `$5 and $10` is *not* treated as math — only a properly closed `$…$` with no space just inside the delimiters.
 - **Write real LaTeX in math.** Backslash commands (`\frac`, `\sum`, `\int`, `\,`) are preserved exactly.
 - **Image URLs must be absolute** (`https://…`). A relative or empty URL is skipped with a warning.
-- **Don't wrap the whole document in a code fence.** A model that returns everything inside ```` ``` ```` will have the entire activity imported as one plain-text block.
+- **Wrapping the model's reply in a code fence is fine — recommended, even.** Asking the model to put its whole response inside a fenced code block is how you get a **Copy** button and the *raw* (unrendered) Markdown instead of a formatted preview you can't paste. The Copy button hands you the contents *without* the ```` ``` ```` lines, so the importer never sees the fence. As a safety net, a paste that is entirely wrapped in a ```` ```markdown ```` fence is unwrapped automatically on import. (A plain ```` ``` ```` code block in the *middle* of your content is still treated as a code block and flattened — only outer fences are stripped.)
 
 ## Not supported (degrades to plain text, with a warning)
 
@@ -67,8 +67,10 @@ This is the exact text behind the dialog's **Copy AI prompt** button. Paste it i
 
 ```text
 You are writing a classroom activity that I will import by pasting Markdown.
-Follow these formatting rules exactly, and output ONLY the Markdown — do not
-wrap your whole answer in a code block and do not add any commentary.
+Put your ENTIRE reply inside a single fenced code block — begin and end it
+with a line of three backtick characters — and write nothing outside it. That
+makes this chat show a Copy button, so I get the raw Markdown instead of a
+rendered preview. Inside that block, follow these rules exactly.
 
 STRUCTURE
 - Headings use #, ##, ### (three levels only).
@@ -94,10 +96,11 @@ MATH (write real LaTeX)
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
-- Do NOT use tables, fenced code blocks, blockquotes, or links — they are not
-  supported and will be flattened to plain text.
+- Don't use tables, blockquotes, links, or any code block inside the activity
+  — only the single outer block that wraps the whole reply is allowed; anything
+  unsupported imports as plain text.
 
-When I describe the activity I want, reply with only the formatted Markdown.
+When I describe the activity I want, reply with only that single code block.
 ```
 
 > Keep this block in sync with `MARKDOWN_IMPORT_AI_PROMPT` in [`packages/app/src/lib/markdownImportPrompt.ts`](../packages/app/src/lib/markdownImportPrompt.ts) and the converter rules in `markdownToTiptap.ts`.

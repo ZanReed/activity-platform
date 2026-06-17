@@ -13,8 +13,10 @@
 
 export const MARKDOWN_IMPORT_AI_PROMPT = [
     'You are writing a classroom activity that I will import by pasting Markdown.',
-    'Follow these formatting rules exactly, and output ONLY the Markdown — do not',
-    'wrap your whole answer in a code block and do not add any commentary.',
+    'Put your ENTIRE reply inside a single fenced code block — begin and end it',
+    'with a line of three backtick characters — and write nothing outside it. That',
+    'makes this chat show a Copy button, so I get the raw Markdown instead of a',
+    'rendered preview. Inside that block, follow these rules exactly.',
     '',
     'STRUCTURE',
     '- Headings use #, ##, ### (three levels only).',
@@ -40,8 +42,9 @@ export const MARKDOWN_IMPORT_AI_PROMPT = [
     'OTHER',
     '- Bold **like this**, italic *like this*, inline code `like this`.',
     '- Images:  ![a short description](https://full-image-url)',
-    '- Do NOT use tables, fenced code blocks, blockquotes, or links — they are not',
-    '  supported and will be flattened to plain text.',
+    '- Don\'t use tables, blockquotes, links, or any code block inside the activity',
+    '  — only the single outer block that wraps the whole reply is allowed; anything',
+    '  unsupported imports as plain text.',
     '',
-    'When I describe the activity I want, reply with only the formatted Markdown.',
+    'When I describe the activity I want, reply with only that single code block.',
 ].join('\n');

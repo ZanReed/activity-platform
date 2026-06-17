@@ -396,6 +396,23 @@ describe('graceful degradation', () => {
     });
 });
 
+describe('AI code-fence wrapper (safety net)', () => {
+    it('unwraps a whole-paste ```markdown fence and imports the contents', () => {
+        const fenced = '```markdown\n# Title\n\nThe answer is {{Paris}}.\n```';
+        expect(blocks(fenced)).toEqual(blocks('# Title\n\nThe answer is {{Paris}}.'));
+    });
+
+    it('also accepts a ```md tag', () => {
+        expect(blocks('```md\n# Hi\n```')).toEqual(blocks('# Hi'));
+    });
+
+    it('does NOT unwrap a plain ``` code block (still flattened to text + warning)', () => {
+        const result = convert('```\nconst x = 1;\n```');
+        expect(result.blocks[0]!.type).toBe('paragraph');
+        expect(result.warnings.some((w) => /code/i.test(w))).toBe(true);
+    });
+});
+
 describe('schema round-trip', () => {
     it('imported blocks survive tiptapToActivity → activityToTiptap unchanged', () => {
         const md =
