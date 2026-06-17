@@ -55,7 +55,7 @@ Also queued:
 | Markdown paste import | ✅ Complete (core + math + images) + verified; app-only, no deploy |
 | End-to-end manual test | ◐ Free-mode submit path verified 2026-06-16 (snake_case payload bug found + fixed, DB row confirmed); locked-mode + dashboard still to run |
 
-Test counts at last session: schema 54 / renderer 254 / app 195 (+37 markdown import); `tsc -b` + app build green.
+Test counts at last session: schema 54 / renderer 254 / app 217 (+37 markdown import, +22 format-drift guard); `tsc -b` + app build green.
 
 ## Repo layout
 
@@ -117,5 +117,5 @@ activity-platform/
 - **E2E free-mode submit verified + bug fixed** — live submit 400'd (`activity_id is required`): runtime sent camelCase, `ingest-submission` wants snake_case. Fixed the runtime payload (pure, unit-tested `buildSubmissionPayload`), regenerated the bundle; author redeployed `publish-activity` + re-published; DB submission row verified. Locked-mode seed (`scripts/seed-e2e-locked.sql`) ready for the remaining locked-mode + dashboard passes.
 - **Flush-leak investigated → no data loss.** Only a switch-vs-close UX wart; one-click-switch attempt hit the FocusTrap/selection danger zone, reverted. Decision filed in DECISIONS → "Fill-in-blank authoring (Stage 13.5)".
 - Author confirmed: all real-mouse GUI passes + R2 cross-origin `<img>`.
-- **Agent-facing import format spec** — [docs/markdown-import-format.md](docs/markdown-import-format.md) (authoritative format reference, doubles as an LLM prompt; shared target for the future PDF import) + `lib/markdownImportPrompt.ts` (canonical prompt constant) + a **Copy AI prompt** button in the Import dialog so a teacher can have ChatGPT/Claude write importable markdown. Linked from CLAUDE.md doc map.
-- Suite: schema 54 / renderer 254 / app 195; CI green. Markdown-import work on branch `feature/markdown-import` (5 commits, unpushed).
+- **Agent-facing import format spec** — [docs/markdown-import-format.md](docs/markdown-import-format.md) (authoritative format reference, doubles as an LLM prompt; shared target for the future PDF import) + `lib/markdownImportPrompt.ts` (canonical prompt constant) + a **Copy AI prompt** button in the Import dialog so a teacher can have ChatGPT/Claude write importable markdown. Linked from CLAUDE.md doc map. **Anti-drift guard** (`markdownImportPrompt.test.ts`, 22 tests): the doc's prompt block must equal the constant byte-for-byte, every documented example must run through the live converter as promised, and the doc's unsupported list must actually degrade — proven to fail when any of the three (prompt/doc/converter) drifts.
+- Suite: schema 54 / renderer 254 / app 217; CI green. Markdown-import work on branch `feature/markdown-import` (8 commits, unpushed).
