@@ -63,7 +63,7 @@ For MC / matching / ordering: `SubmissionResponses` bumps to v3 with three new o
 
 **Decisions deferred to the start of this phase**:
 - Image hosting limits and lifecycle: per-teacher quota? Auto-delete after N days of non-use? Bucket — same R2 bucket as published HTML (with separate prefix), or a dedicated bucket? Probably dedicated, for cleaner lifecycle policies and quotas.
-- Whether the markdown import lives inline in the editor (paste anywhere, parse) or in a dedicated import dialog.
+- ~~Whether the markdown import lives inline in the editor (paste anywhere, parse) or in a dedicated import dialog.~~ **Resolved (2026-06-16): a dedicated dialog**, shipped early in Phase 1 polish. See STATE / DECISIONS → "Markdown import" and `docs/markdown-import-format.md`.
 - MC option randomization: per-student shuffle? Author-controlled lock for "last option must stay last (none of the above)"?
 - Matching UI affordance: drag-and-drop pairs, dropdowns, or both? Touch-friendly default.
 - Ordering UI affordance: drag-to-reorder list, or numbered slots? Drag is friendlier; numbered slots are more keyboard-accessible.

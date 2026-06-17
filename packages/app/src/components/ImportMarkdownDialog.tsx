@@ -104,6 +104,11 @@ export default function ImportMarkdownDialog({
                 escapeDeactivates: false,
                 returnFocusOnDeactivate: true,
                 allowOutsideClick: true,
+                // Every element in this dialog is visible, so skip the
+                // layout-based visibility check — harmless in the browser and
+                // lets the trap activate under jsdom (no layout) so the dialog
+                // is testable.
+                tabbableOptions: { displayCheck: 'none' },
             }}
         >
             <div
@@ -159,6 +164,7 @@ export default function ImportMarkdownDialog({
                     <div className="flex-1 overflow-y-auto px-5 py-4">
                         <textarea
                             autoFocus
+                            aria-label="Markdown to import"
                             value={text}
                             onChange={(e) => setText(e.target.value)}
                             placeholder={EXAMPLE}
