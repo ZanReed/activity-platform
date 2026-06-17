@@ -81,10 +81,15 @@ export default function ImportMarkdownDialog({
     return (
         <FocusTrap
             focusTrapOptions={{
-                escapeDeactivates: true,
-                onDeactivate: onClose,
+                // Close is driven by our own handlers (Escape keydown + backdrop
+                // mousedown), NEVER by focus-trap's onDeactivate. Tying close to
+                // onDeactivate breaks under React StrictMode: the dev double-mount
+                // unmounts the trap, which fires onDeactivate → closes the dialog,
+                // so it vanishes the instant it opens. escapeDeactivates is off for
+                // the same reason — Escape is handled below.
+                escapeDeactivates: false,
                 returnFocusOnDeactivate: true,
-                clickOutsideDeactivates: true,
+                allowOutsideClick: true,
             }}
         >
             <div
@@ -92,6 +97,9 @@ export default function ImportMarkdownDialog({
                 onMouseDown={(e) => {
                     // Backdrop click closes; clicks inside the panel don't bubble.
                     if (e.target === e.currentTarget) onClose();
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Escape') onClose();
                 }}
             >
                 <div
