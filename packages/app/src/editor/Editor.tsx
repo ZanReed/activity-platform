@@ -111,10 +111,15 @@ export default function Editor({
         }
     }, [editor]);
 
-    // Hand the live instance (or null on unmount) to the parent's header actions.
+    // Hand the live instance up to the parent's header actions (e.g. the
+    // markdown-import button gates on it). Only ever report a NON-NULL editor and
+    // never null it on cleanup: that guarantees once the editor exists the parent
+    // stays enabled, with no window — under StrictMode the dev double-mount, and
+    // on a keyed remount, the intermediate cleanup would otherwise null the
+    // parent's lifted ref and leave header actions stuck disabled. The parent
+    // unmounts as a whole when navigating away, so a stale ref here is harmless.
     useEffect(() => {
-        onEditorReady?.(editor);
-        return () => onEditorReady?.(null);
+        if (editor) onEditorReady?.(editor);
     }, [editor, onEditorReady]);
 
     return (
