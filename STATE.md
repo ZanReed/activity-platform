@@ -55,7 +55,7 @@ Also queued:
 | Markdown paste import | ✅ Complete (core + math + images) + verified; app-only, no deploy |
 | End-to-end manual test | ◐ Free-mode submit path verified 2026-06-16 (snake_case payload bug found + fixed, DB row confirmed); locked-mode + dashboard still to run |
 
-Test counts at last session: schema 54 / renderer 254 / app 217 (+37 markdown import, +22 format-drift guard); `tsc -b` + app build green.
+Test counts at last session: schema 54 / renderer 254 / app 224 (markdown import: +37 converter, +22 format-drift guard, +7 dialog RTL); `tsc -b` + app build green.
 
 ## Repo layout
 
@@ -118,4 +118,5 @@ activity-platform/
 - **Flush-leak investigated → no data loss.** Only a switch-vs-close UX wart; one-click-switch attempt hit the FocusTrap/selection danger zone, reverted. Decision filed in DECISIONS → "Fill-in-blank authoring (Stage 13.5)".
 - Author confirmed: all real-mouse GUI passes + R2 cross-origin `<img>`.
 - **Agent-facing import format spec** — [docs/markdown-import-format.md](docs/markdown-import-format.md) (authoritative format reference, doubles as an LLM prompt; shared target for the future PDF import) + `lib/markdownImportPrompt.ts` (canonical prompt constant) + a **Copy AI prompt** button in the Import dialog so a teacher can have ChatGPT/Claude write importable markdown. Linked from CLAUDE.md doc map. **Anti-drift guard** (`markdownImportPrompt.test.ts`, 22 tests): the doc's prompt block must equal the constant byte-for-byte, every documented example must run through the live converter as promised, and the doc's unsupported list must actually degrade — proven to fail when any of the three (prompt/doc/converter) drifts.
-- Suite: schema 54 / renderer 254 / app 217; CI green. Markdown-import work on branch `feature/markdown-import` (8 commits, unpushed).
+- **Close-out hardening** — added a React Testing Library suite for the Import dialog (`ImportMarkdownDialog.test.tsx`, 7 tests); the key case renders under StrictMode and asserts the dialog stays open, so the "vanishes on open" bug can't silently return (proven: reintroducing `onDeactivate: onClose` fails it). RTL added as a dev dep (first component-test infra in the repo). Minor hygiene: textarea `aria-label`, ROADMAP "inline vs dialog" question marked resolved. **Devil's-advocate check:** verified the empty-doc import autosaves (Tiptap v3 `setContent` defaults `emitUpdate:true`). **Remaining gap:** the auth-gated `ActivityEditor` route is unverified end-to-end (logic sound, pieces verified) — needs a manual smoke test (new empty activity → import → reload persists; existing activity → import appends; publish → math/blanks render on student page).
+- Suite: schema 54 / renderer 254 / app 224; CI green. Markdown import landed on `main` (fast-forwarded, unpushed) — full arc: core, math+images, StrictMode dialog fix, format spec + Copy AI prompt, format-drift guard, dialog regression test.
