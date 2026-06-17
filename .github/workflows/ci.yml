@@ -1,7 +1,12 @@
 name: CI
 
+# Run on PRs (any base) and on direct pushes to main. Limiting push to main
+# avoids the double-run where a feature-branch push and its open PR both fire
+# CI on the same commits; feature branches get covered by the PR run, and
+# merges/direct commits to main still get a run.
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
