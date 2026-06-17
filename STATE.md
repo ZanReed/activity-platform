@@ -52,7 +52,7 @@ Also queued:
 | Cloudflare R2 hosting (published HTML) | ✅ Live |
 | Auth (Google OAuth, allowlist) / React app / editor stack | ✅ In place |
 | CI (GitHub Actions: typecheck/lint/test/build + bundle-staleness guard) | ✅ Added 2026-06-13; verified green locally |
-| Markdown paste import | ✅ Complete + verified (dialog opens confirmed by author); app-only, no deploy. Format spec + Copy AI prompt + drift guard shipped |
+| Markdown paste import | ✅ Complete + verified end-to-end by author (multiple smoke tests); app-only, no deploy. Format spec + Copy AI prompt + drift guard shipped |
 | End-to-end manual test | ◐ Free-mode submit path verified 2026-06-16 (snake_case payload bug found + fixed, DB row confirmed); locked-mode + dashboard still to run |
 
 Test counts at last session: schema 54 / renderer 254 / app 227 (markdown import: +40 converter incl. fence-unwrap, +22 format-drift guard, +7 dialog RTL); `tsc -b` + app build green.
@@ -115,6 +115,6 @@ activity-platform/
 - **Markdown import — complete + hardened.** Full arc on `main`: core (headings/paragraphs/marks/nested lists/`{{blanks}}`→`fillInBlank`/`{checkpoint}`→section breaks), math + images (`$…$`/`$$…$$` lifted from raw source so LaTeX backslashes survive; `![](url)` lifted into image blocks), the agent-facing format spec + **Copy AI prompt** button, a drift guard binding prompt↔doc↔converter, and a StrictMode RTL regression test for the dialog. App-only/additive — no schema/renderer/runtime change, no bundle, no deploy. Verified against the live ProseMirror schema on `/playground` (math KaTeX-renders, images carry src+alt).
 - **Two bug fixes from real-use reports.** (1) Dialog vanished on open — FocusTrap `onDeactivate: onClose` fires on StrictMode's dev double-unmount; close now driven only by Escape + backdrop handlers (regression-tested). (2) A reported *disabled* Import button traced to a stale dev server; hardened the editor-instance lift (`onEditorReady`) to report only a non-null editor and never null on cleanup, so it can't stick disabled. **Author confirmed the dialog now opens.**
 - **AI prompt fences its output.** LLMs render markdown in chat (uncopyable); the prompt now tells the model to wrap its whole reply in a code fence (chat shows a Copy button → raw markdown). The importer also unwraps a whole-paste ```` ```markdown ```` fence as a safety net.
-- **Remaining gap:** the auth-gated `ActivityEditor` route's deeper flow is unverified end-to-end (logic sound; dialog open/click confirmed by author) — worth a manual smoke test: new empty activity → import → reload persists; existing activity → import **appends** (doesn't replace); publish → math/blanks render on the student page.
+- **End-to-end verified (2026-06-17):** author ran multiple manual smoke tests in the real `ActivityEditor` route — import persists across reload, appends to existing content (doesn't replace), and published pages render imported math/blanks. No gaps remaining.
 - **Earlier (2026-06-16):** delete activities (RLS soft-delete); E2E free-mode submit verified + snake_case payload bug fixed (DB row confirmed); flush-leak investigated → no data loss. Detail in "Recently completed" above.
 - Suite: schema 54 / renderer 254 / app 227; CI green. `main` carries the markdown-import arc ahead of `origin/main` (close-out commits unpushed — author pushes).
