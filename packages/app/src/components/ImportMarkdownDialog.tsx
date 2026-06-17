@@ -22,12 +22,14 @@ import {
 
 const EXAMPLE = `# Warm up
 
-Solve for x:  2x + 3 = 11,  x = {{4}}
+Solve for x:  $2x + 3 = 11$,  x = {{4}}
 
 ## Practice {checkpoint}
 
 1. The powerhouse of the cell is the {{mitochondria}}.
-2. Water is hydrogen and {{oxygen|O2}}.`;
+2. Water is hydrogen and {{oxygen|O2}}.
+
+![diagram](https://example.com/cell.png)`;
 
 const PRIMARY_BTN =
     'rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50';
@@ -110,13 +112,14 @@ export default function ImportMarkdownDialog({
                             <code className="rounded bg-slate-100 px-1">
                                 {'{{answer|alt}}'}
                             </code>{' '}
-                            for fill-in-the-blank answers and{' '}
+                            for fill-in-the-blank answers,{' '}
                             <code className="rounded bg-slate-100 px-1">
                                 {'{checkpoint}'}
                             </code>{' '}
-                            on a heading to start a checkpoint section. Imported
-                            blocks are added to your activity — nothing is
-                            published.
+                            on a heading to start a checkpoint section, and{' '}
+                            <code className="rounded bg-slate-100 px-1">$…$</code>{' '}
+                            for math. Imported blocks are added to your activity —
+                            nothing is published.
                         </p>
                     </div>
 

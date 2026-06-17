@@ -23,15 +23,18 @@
 //   - heading ending {checkpoint} → a checkpoint `sectionBreak` (title = the
 //                             heading text). Plain headings stay heading blocks.
 // `{`, `}`, `|` aren't markdown-special (tables off), so markdown-it passes
-// them straight through as text and the two grammars never collide.
+// them straight through as text and the two grammars never collide. Math `$…$`
+// is likewise plain text to markdown-it and resolved here, with a Pandoc-style
+// guard so currency ("$5 and $10") isn't mistaken for math.
 //
 // Coverage is bounded by what the editor round-trips today (see serialize.ts):
 // headings 1–3, paragraphs, bold/italic/code marks, nested bullet/ordered
-// lists, blanks, checkpoint section breaks. Math ($…$) and images (![](url))
-// are the planned fast-follow — deferred, not forgotten. Everything outside the
-// supported set (code fences, blockquotes, tables, raw HTML, links, images)
-// degrades gracefully to plain text / dropped attributes with a human-readable
-// warning; it never throws and never corrupts the doc.
+// lists, blanks, checkpoint section breaks, $inline$/$$display$$ math
+// (mathInline/mathBlock), and ![alt](url) images (lifted out of the paragraph
+// into an image block). Everything outside the supported set (code fences,
+// blockquotes, tables, raw HTML, links) degrades gracefully to plain text /
+// dropped attributes with a human-readable warning; it never throws and never
+// corrupts the doc.
 //
 // The emitted JSONContent shapes match activityToTiptap's output exactly, so
 // imported blocks round-trip through tiptapToActivity and render identically to
@@ -52,6 +55,13 @@ interface MdToken {
     markup: string;
     info: string;
     children: MdToken[] | null;
+    attrs: [string, string][] | null;
+}
+
+function attrGet(tok: MdToken, name: string): string | null {
+    if (!tok.attrs) return null;
+    for (const [k, v] of tok.attrs) if (k === name) return v;
+    return null;
 }
 
 export interface ImportResult {
@@ -82,8 +92,12 @@ export function getMarkdownImporter(): Promise<MarkdownImporter> {
             const { default: MarkdownIt } = await import('markdown-it');
             const md = new MarkdownIt({ html: false, linkify: false });
             return (markdown: string): ImportResult => {
-                const tokens = md.parse(markdown, {}) as unknown as MdToken[];
-                return tokensToBlocks(tokens);
+                // Pull math out of the RAW source first (see extractMath) so
+                // LaTeX backslashes/underscores survive markdown-it's CommonMark
+                // escaping, then parse the placeholdered text.
+                const { text, spans } = extractMath(markdown);
+                const tokens = md.parse(text, {}) as unknown as MdToken[];
+                return tokensToBlocks(tokens, spans);
             };
         })();
     }
@@ -129,20 +143,74 @@ const ROOT_TOKEN: MdToken = {
     markup: '',
     info: '',
     children: null,
+    attrs: null,
 };
 
 // =============================================================================
 // Custom syntax — the two grammars the DSL adds on top of CommonMark
 // =============================================================================
 
-// Reuses the editor input rule's sentinel grammar (Blank.ts BLANK_INPUT_REGEX),
-// un-anchored + global so it matches blanks anywhere in a run of text, not just
-// at a line end. A fresh RegExp per use keeps the stateful `lastIndex` from
-// leaking between calls.
-const BLANK_PATTERN = '\\{\\{([^{}|]+)((?:\\|[^{}|]+)*)\\}\\}';
-function blankMatcher(): RegExp {
-    return new RegExp(BLANK_PATTERN, 'g');
+// Plain blank pattern (no capture names) used only for *detecting* whether a
+// list subtree carries a blank. Mirrors the editor input rule's sentinel
+// grammar (Blank.ts BLANK_INPUT_REGEX), un-anchored.
+const BLANK_PATTERN = '\\{\\{[^{}|]+(?:\\|[^{}|]+)*\\}\\}';
+
+// ---- Math (handled BEFORE markdown-it) --------------------------------------
+// Math is the one construct that can't be resolved purely in the mapper: LaTeX
+// is full of backslashes (\,, \frac, \sum), underscores and carets that
+// CommonMark's backslash-escape and emphasis rules would corrupt in the text
+// tokens. So we lift $…$ / $$…$$ out of the RAW source up front, swap each for a
+// Private-Use placeholder that markdown-it forwards untouched, and re-expand the
+// placeholder into a math node in the mapper. A code span/fence in the same scan
+// is matched and left alone, so `$x$` inside backticks is not treated as math.
+const MATH_OPEN = String.fromCharCode(0xe000);
+const MATH_CLOSE = String.fromCharCode(0xe001);
+
+interface MathSpan {
+    latex: string;
+    display: boolean;
 }
+
+// Order matters: code spans first (so their `$` is protected), then $$display$$
+// (longest delimiter), then $inline$ with a Pandoc-style guard — opening `$`
+// followed by a non-space, closing `$` preceded by a non-space and not followed
+// by a digit — so "$5 and $10" / "it costs $20" never read as math.
+const MATH_SCAN =
+    /(`+)([\s\S]*?)\1|\$\$([\s\S]+?)\$\$|\$(?=\S)([^$\n]*?\S)\$(?!\d)/g;
+
+function extractMath(src: string): { text: string; spans: MathSpan[] } {
+    const spans: MathSpan[] = [];
+    const text = src.replace(
+        MATH_SCAN,
+        (match, codeTicks, _codeInner, display, inline) => {
+            if (codeTicks !== undefined) return match; // code span/fence — leave as-is
+            const latex = (display ?? inline ?? '').trim();
+            if (latex.length === 0) return match;
+            const i = spans.length;
+            spans.push({ latex, display: display !== undefined });
+            return `${MATH_OPEN}${i}${MATH_CLOSE}`;
+        },
+    );
+    return { text, spans };
+}
+
+// Named-group subpattern for the combined inline tokenizer (emitInline). The
+// blank grammar matches the editor's sentinel; the placeholder group captures a
+// pre-extracted math span's index.
+const BLANK_SUB =
+    '\\{\\{(?<blankCanon>[^{}|]+)(?<blankAlts>(?:\\|[^{}|]+)*)\\}\\}';
+const MATH_PLACEHOLDER_SUB = `${MATH_OPEN}(?<mathIdx>\\d+)${MATH_CLOSE}`;
+
+function inlineMatcher(allowBlanks: boolean): RegExp {
+    const pattern = allowBlanks
+        ? `(?:${BLANK_SUB})|(?:${MATH_PLACEHOLDER_SUB})`
+        : `(?:${MATH_PLACEHOLDER_SUB})`;
+    return new RegExp(pattern, 'g');
+}
+
+// A paragraph whose entire text is a single display-math placeholder becomes a
+// block-level mathBlock (rather than an inline mathInline).
+const SOLE_DISPLAY_RE = new RegExp(`^${MATH_OPEN}(\\d+)${MATH_CLOSE}$`);
 
 // A trailing {checkpoint} marker on a heading promotes it to a checkpoint
 // section break. Case-insensitive, tolerant of surrounding whitespace.
@@ -154,10 +222,13 @@ const CHECKPOINT_RE = /\s*\{checkpoint\}\s*$/i;
 
 interface Ctx {
     warnings: Set<string>;
+    // Math spans lifted from the raw source (see extractMath), indexed by the
+    // placeholder number the mapper re-expands.
+    spans: MathSpan[];
 }
 
-function tokensToBlocks(tokens: MdToken[]): ImportResult {
-    const ctx: Ctx = { warnings: new Set() };
+function tokensToBlocks(tokens: MdToken[], spans: MathSpan[]): ImportResult {
+    const ctx: Ctx = { warnings: new Set(), spans };
     const blocks = mapBlocks(nest(tokens), ctx);
     return { blocks, warnings: [...ctx.warnings] };
 }
@@ -178,7 +249,7 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
         case 'heading_open':
             return [mapHeading(node, ctx)];
         case 'paragraph_open':
-            return [mapParagraph(node, ctx)];
+            return mapParagraphBlocks(node, ctx);
         case 'bullet_list_open':
             return mapList(node, 'bulletList', ctx);
         case 'ordered_list_open':
@@ -233,10 +304,41 @@ function mapHeading(node: TokNode, ctx: Ctx): JSONContent {
     };
 }
 
-function mapParagraph(node: TokNode, ctx: Ctx): JSONContent {
+// A paragraph can yield several blocks: a whole-paragraph $$…$$ is a display
+// math block; an inline image lifts out into its own image block (block-level
+// per the schema), so the paragraph is split around it into text-paragraph(s)
+// and image block(s), in document order.
+function mapParagraphBlocks(node: TokNode, ctx: Ctx): JSONContent[] {
     const inline = findInline(node);
-    const content = inline ? mapInline(inline.children ?? [], ctx, true) : [];
-    return blockFromInline(content);
+    if (!inline) return [];
+    const children = inline.children ?? [];
+
+    // A paragraph that is solely a display-math placeholder → a mathBlock.
+    const sole = SOLE_DISPLAY_RE.exec(plainText(children).trim());
+    const soleSpan = sole ? ctx.spans[Number(sole[1])] : undefined;
+    if (soleSpan?.display) {
+        return [{ type: 'mathBlock', attrs: { latex: soleSpan.latex } }];
+    }
+
+    const out: JSONContent[] = [];
+    let buffer: MdToken[] = [];
+    const flush = () => {
+        if (buffer.length === 0) return;
+        const content = mapInline(buffer, ctx, true);
+        if (content.length > 0) out.push(blockFromInline(content));
+        buffer = [];
+    };
+    for (const tok of children) {
+        if (tok.type === 'image') {
+            flush();
+            const img = imageBlock(tok, ctx);
+            if (img) out.push(img);
+        } else {
+            buffer.push(tok);
+        }
+    }
+    flush();
+    return out;
 }
 
 // A paragraph whose inline content carries a blank can't be a `paragraph`
@@ -246,6 +348,19 @@ function blockFromInline(content: JSONContent[]): JSONContent {
     return content.some((n) => n.type === 'blank')
         ? fillInBlankNode(content)
         : { type: 'paragraph', content };
+}
+
+function imageBlock(tok: MdToken, ctx: Ctx): JSONContent | null {
+    const src = (attrGet(tok, 'src') ?? '').trim();
+    if (src.length === 0) {
+        ctx.warnings.add('An image with no URL was skipped.');
+        return null;
+    }
+    // markdown-it stores the alt text on the image token's `content`.
+    return {
+        type: 'image',
+        attrs: { id: crypto.randomUUID(), src, alt: tok.content ?? '', caption: '' },
+    };
 }
 
 function fillInBlankNode(content: JSONContent[]): JSONContent {
@@ -368,7 +483,7 @@ function mapInline(
     for (const tok of tokens) {
         switch (tok.type) {
             case 'text':
-                pushText(out, tok.content, marks, allowBlanks);
+                emitInline(out, tok.content, marks, allowBlanks, ctx);
                 break;
             case 'strong_open':
                 marks.push('bold');
@@ -391,7 +506,7 @@ function mapInline(
                 break;
             case 'softbreak':
                 // CommonMark soft break renders as a space.
-                pushText(out, ' ', marks, false);
+                emitInline(out, ' ', marks, allowBlanks, ctx);
                 break;
             case 'hardbreak':
                 out.push({ type: 'hardBreak' });
@@ -406,13 +521,17 @@ function mapInline(
                 }
                 break;
             case 'image':
+                // Paragraph images are lifted to image blocks before mapInline
+                // sees them; reaching here means a heading or list item, where an
+                // image block can't be placed.
                 ctx.warnings.add(
-                    'Images can’t be imported yet — add them with the image block.',
+                    'Images in headings or list items were skipped — put each image in its own paragraph.',
                 );
                 break;
             default:
                 // Unknown inline (e.g. html_inline with html:false) → keep text.
-                if (tok.content) pushText(out, tok.content, marks, allowBlanks);
+                if (tok.content)
+                    emitInline(out, tok.content, marks, allowBlanks, ctx);
                 break;
         }
     }
@@ -445,37 +564,54 @@ function sameMarks(a: JSONContent, b: JSONContent): boolean {
     return JSON.stringify(a.marks ?? []) === JSON.stringify(b.marks ?? []);
 }
 
-// Splits a text run on the {{…}} sentinel into text + blank nodes. When blanks
-// aren't allowed (headings), or a match has an empty canonical answer, the
-// sentinel is kept as literal text.
-function pushText(
+// Splits a text run on the inline sentinels — {{blank}} (when allowed) and the
+// pre-extracted math placeholder — into text + atom nodes, leftmost match
+// winning. A blank with an empty canonical answer is kept as literal text. Math
+// placeholders resolve in any inline context (paragraphs, headings, list items);
+// blanks only where allowed.
+function emitInline(
     out: JSONContent[],
     text: string,
     marks: string[],
     allowBlanks: boolean,
+    ctx: Ctx,
 ): void {
-    if (!allowBlanks) {
-        if (text.length > 0) out.push(textNode(text, marks));
-        return;
-    }
-    const re = blankMatcher();
+    const re = inlineMatcher(allowBlanks);
     let last = 0;
     let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null) {
         const before = text.slice(last, m.index);
         if (before.length > 0) out.push(textNode(before, marks));
-        const blank = makeBlank(m);
-        out.push(blank ?? textNode(m[0], marks));
+
+        const g = m.groups ?? {};
+        if (g.blankCanon !== undefined) {
+            const blank = makeBlank(g.blankCanon, g.blankAlts ?? '');
+            out.push(blank ?? textNode(m[0], marks));
+        } else if (g.mathIdx !== undefined) {
+            // A display span appearing mid-text can't be a block here, so it
+            // renders inline; a standalone display paragraph was already caught
+            // by mapParagraphBlocks.
+            const span = ctx.spans[Number(g.mathIdx)];
+            out.push(
+                span
+                    ? { type: 'mathInline', attrs: { latex: span.latex } }
+                    : textNode(m[0], marks),
+            );
+        } else {
+            out.push(textNode(m[0], marks));
+        }
+
         last = m.index + m[0].length;
+        if (re.lastIndex === m.index) re.lastIndex++; // defensive: no zero-width loop
     }
     const rest = text.slice(last);
     if (rest.length > 0) out.push(textNode(rest, marks));
 }
 
-function makeBlank(m: RegExpExecArray): JSONContent | null {
-    const canonical = (m[1] ?? '').trim();
+function makeBlank(canonRaw: string, altsRaw: string): JSONContent | null {
+    const canonical = canonRaw.trim();
     if (canonical.length === 0) return null;
-    const acceptableAnswers = (m[2] ?? '')
+    const acceptableAnswers = altsRaw
         .split('|')
         .map((s) => s.trim())
         .filter((s) => s.length > 0);

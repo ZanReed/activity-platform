@@ -251,6 +251,120 @@ describe('section breaks', () => {
     });
 });
 
+describe('math', () => {
+    it('maps inline $…$ to mathInline', () => {
+        const out = blocks('The identity $E = mc^2$ holds.');
+        expect(out[0]).toEqual({
+            type: 'paragraph',
+            content: [
+                { type: 'text', text: 'The identity ' },
+                { type: 'mathInline', attrs: { latex: 'E = mc^2' } },
+                { type: 'text', text: ' holds.' },
+            ],
+        });
+    });
+
+    it('maps a standalone $$…$$ paragraph to a mathBlock', () => {
+        expect(blocks('$$\\int_0^1 x\\,dx$$')).toEqual([
+            { type: 'mathBlock', attrs: { latex: '\\int_0^1 x\\,dx' } },
+        ]);
+    });
+
+    it('handles multi-line display math in one paragraph', () => {
+        const out = blocks('$$\na + b\n$$');
+        expect(out).toEqual([
+            { type: 'mathBlock', attrs: { latex: 'a + b' } },
+        ]);
+    });
+
+    it('does NOT treat currency as math', () => {
+        expect(blocks('It costs $5 and $10 total')).toEqual([
+            {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'It costs $5 and $10 total' }],
+            },
+        ]);
+    });
+
+    it('allows inline math inside a heading', () => {
+        expect(blocks('# Energy $E=mc^2$')).toEqual([
+            {
+                type: 'heading',
+                attrs: { level: 1 },
+                content: [
+                    { type: 'text', text: 'Energy ' },
+                    { type: 'mathInline', attrs: { latex: 'E=mc^2' } },
+                ],
+            },
+        ]);
+    });
+
+    it('preserves LaTeX backslashes and underscores (no CommonMark mangling)', () => {
+        // The reason math is lifted before markdown-it: \frac, \, and _ would
+        // otherwise be eaten by backslash-escape / emphasis processing.
+        const out = blocks('Area $\\frac{1}{2} b h$ and index $a_b$.');
+        expect(out[0]!.content).toEqual([
+            { type: 'text', text: 'Area ' },
+            { type: 'mathInline', attrs: { latex: '\\frac{1}{2} b h' } },
+            { type: 'text', text: ' and index ' },
+            { type: 'mathInline', attrs: { latex: 'a_b' } },
+            { type: 'text', text: '.' },
+        ]);
+    });
+
+    it('does NOT treat $…$ inside inline code as math', () => {
+        const out = blocks('Type `$x$` to write math.');
+        expect(out[0]!.content).toEqual([
+            { type: 'text', text: 'Type ' },
+            { type: 'text', text: '$x$', marks: [{ type: 'code' }] },
+            { type: 'text', text: ' to write math.' },
+        ]);
+    });
+
+    it('mixes math and a blank in one problem', () => {
+        const out = blocks('Compute $2+2$ = {{4}}');
+        expect(out[0]!.type).toBe('fillInBlank');
+        expect(out[0]!.content).toEqual([
+            { type: 'text', text: 'Compute ' },
+            { type: 'mathInline', attrs: { latex: '2+2' } },
+            { type: 'text', text: ' = ' },
+            { type: 'blank', attrs: { answer: '4', acceptableAnswers: [] } },
+        ]);
+    });
+});
+
+describe('images', () => {
+    it('lifts a standalone image into an image block', () => {
+        expect(blocks('![a cat](https://example.com/cat.png)')).toEqual([
+            {
+                type: 'image',
+                attrs: {
+                    src: 'https://example.com/cat.png',
+                    alt: 'a cat',
+                    caption: '',
+                },
+            },
+        ]);
+    });
+
+    it('splits a paragraph around an inline image, preserving order', () => {
+        const out = blocks('before ![a](https://x/a.png) after');
+        expect(out.map((b) => b.type)).toEqual([
+            'paragraph',
+            'image',
+            'paragraph',
+        ]);
+        expect(out[0]!.content).toEqual([{ type: 'text', text: 'before ' }]);
+        expect(out[2]!.content).toEqual([{ type: 'text', text: ' after' }]);
+    });
+
+    it('skips an image with no URL and warns', () => {
+        const result = convert('![alt]()');
+        expect(result.blocks).toEqual([]);
+        expect(result.warnings.some((w) => /image/i.test(w))).toBe(true);
+    });
+});
+
 describe('graceful degradation', () => {
     it('flattens a fenced code block to text with a warning', () => {
         const result = convert('```\nconst x = 1;\n```');
@@ -289,6 +403,9 @@ describe('schema round-trip', () => {
             'Solve for x: {{5}}.\n\n' +
             '## Practice {checkpoint}\n\n' +
             '- step one\n- step two\n\n' +
+            'The mass-energy relation is $E = mc^2$.\n\n' +
+            '$$\\sum_{i=1}^{n} i$$\n\n' +
+            '![diagram](https://example.com/d.png)\n\n' +
             'Capital: {{Paris|paris}}';
         // Round-trip equals a fresh import (both id-stripped) → structurally stable.
         expect(roundTrip(md)).toEqual(blocks(md));
