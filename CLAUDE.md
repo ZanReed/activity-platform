@@ -12,6 +12,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - **docs/HISTORY.md** — archived completed-work logs.
 - **docs/COLLABORATION.md** — working-with-the-author notes.
 - **docs/design/** — feature designs (print/printables, interactive graph, vocabulary definitions, PDF import, photo grading, free activity catalog).
+- **docs/markdown-import-format.md** — the format the paste-markdown importer accepts (the contract a teacher or an AI assistant writes to; shared target for the future PDF import). Mirrors `packages/app/src/lib/markdownToTiptap.ts` + the copy-paste prompt in `markdownImportPrompt.ts`.
 - **supabase/functions/README.md**, **supabase/migrations/README.md** — Edge Function and DB setup/deploy reference.
 
 ## Commands

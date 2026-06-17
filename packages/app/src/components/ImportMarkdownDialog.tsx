@@ -19,6 +19,7 @@ import {
     type ImportResult,
     type MarkdownImporter,
 } from '../lib/markdownToTiptap';
+import { MARKDOWN_IMPORT_AI_PROMPT } from '../lib/markdownImportPrompt';
 
 const EXAMPLE = `# Warm up
 
@@ -48,6 +49,19 @@ export default function ImportMarkdownDialog({
     const [text, setText] = useState('');
     const [importer, setImporter] = useState<MarkdownImporter | null>(null);
     const [loadFailed, setLoadFailed] = useState(false);
+    const [promptCopied, setPromptCopied] = useState(false);
+
+    // Copy the canonical "format for the importer" instruction so a teacher can
+    // paste it into an AI assistant and get importable Markdown back.
+    const copyAiPrompt = async () => {
+        try {
+            await navigator.clipboard.writeText(MARKDOWN_IMPORT_AI_PROMPT);
+            setPromptCopied(true);
+            setTimeout(() => setPromptCopied(false), 1500);
+        } catch {
+            /* clipboard write can fail in unsupported contexts; non-fatal */
+        }
+    };
 
     // Lazy-load the converter once when the dialog opens.
     useEffect(() => {
@@ -109,12 +123,22 @@ export default function ImportMarkdownDialog({
                     className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl"
                 >
                     <div className="border-b border-slate-200 px-5 py-3">
-                        <h2
-                            id="import-md-title"
-                            className="text-base font-semibold text-slate-900"
-                        >
-                            Import from markdown
-                        </h2>
+                        <div className="flex items-start justify-between gap-3">
+                            <h2
+                                id="import-md-title"
+                                className="text-base font-semibold text-slate-900"
+                            >
+                                Import from markdown
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={copyAiPrompt}
+                                title="Copy a prompt you can paste into ChatGPT or Claude to generate importable markdown"
+                                className="shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                            >
+                                {promptCopied ? 'Copied!' : 'Copy AI prompt'}
+                            </button>
+                        </div>
                         <p className="mt-1 text-xs text-slate-500">
                             Paste markdown below. Use{' '}
                             <code className="rounded bg-slate-100 px-1">
@@ -126,8 +150,9 @@ export default function ImportMarkdownDialog({
                             </code>{' '}
                             on a heading to start a checkpoint section, and{' '}
                             <code className="rounded bg-slate-100 px-1">$…$</code>{' '}
-                            for math. Imported blocks are added to your activity —
-                            nothing is published.
+                            for math. Or use <strong>Copy AI prompt</strong> to have an
+                            assistant write it for you. Imported blocks are added to your
+                            activity — nothing is published.
                         </p>
                     </div>
 
