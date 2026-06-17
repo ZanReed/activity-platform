@@ -128,19 +128,22 @@ export default function Activities() {
         }
     };
 
-    // Soft delete: set deleted_at, the documented "deletion" mechanism (see
-    // 0002_rls_policies.sql — there is no client DELETE policy; the update
-    // policy permits an owner to set deleted_at). The list query and RLS both
-    // filter `deleted_at is null`, so the row vanishes from view; the 30-day
-    // purge_soft_deleted cron hard-deletes it (cascading versions/submissions)
-    // later. Drop it from the list on success.
+    // Soft delete: set deleted_at, the documented "deletion" mechanism. This
+    // goes through the soft_delete_activity RPC, NOT a direct update. A
+    // client-side `update activities set deleted_at` is blocked by RLS:
+    // activities_select_own gates on `deleted_at is null`, and Postgres
+    // requires the post-update row to still pass the SELECT policy, so setting
+    // deleted_at trips "new row violates row-level security policy". The RPC is
+    // SECURITY DEFINER and owner-checked (see 0008_soft_delete_activity.sql).
+    // The list query and RLS still filter `deleted_at is null`, so the row
+    // vanishes from view; the 30-day purge_soft_deleted cron hard-deletes it
+    // (cascading versions/submissions) later. Drop it from the list on success.
     const handleDelete = async (id: string) => {
         setDeletingId(id);
         setDeleteError(null);
-        const { error } = await supabase
-            .from('activities')
-            .update({ deleted_at: new Date().toISOString() })
-            .eq('id', id);
+        const { error } = await supabase.rpc('soft_delete_activity', {
+            p_activity_id: id,
+        });
         if (error) {
             setDeleteError(error.message);
             setDeletingId(null);
