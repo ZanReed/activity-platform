@@ -18,7 +18,7 @@ Cleared 2026-06-18: **legacy Supabase Storage `activities` bucket deleted by aut
 Recently completed (newest first; durable detail in [DECISIONS](docs/DECISIONS.md)/[HISTORY](docs/HISTORY.md)):
 
 - **Order-independent blank groups** (2026-06-17) — a blank can be flagged `interchangeableWithPrevious`; the renderer compiles adjacent runs into a shared `data-blank-group` id and the runtime scores each group with consume-once bipartite matching (each correct answer satisfies one blank; document-order tiebreak; grouped blanks resolve at check/submit, not immediate-mode blur). Authoring: a popover checkbox (hidden on a block's first blank) + a ⇄ chip cue; markdown import via a leading-tilde marker (`{{~3}}`); dashboard drill-down shows "x or y (any order)". Client-authoritative scoring, so no Edge Function change. Schema 89 / renderer 268 / app 232 green. DECISIONS → "Order-independent blank groups".
-- **E2E locked-mode + dashboard** (2026-06-17) — author-confirmed working. Locked-mode publish → check freezes the checked section's inputs + check button, solution reveals, score shows; submit → row appears in the Submissions dashboard with per-blank answer-key/student detail. Prep was code-side de-risking (`seed-e2e-locked.sql` validated against the known-good free seed; freeze path traced + unit-covered). Completes the End-to-end manual test item and unblocks the legacy-bucket cleanup (Pending action #2).
+- **E2E locked-mode + dashboard** (2026-06-17) — author-confirmed working. Locked-mode publish → check freezes the checked section's inputs + check button, solution reveals, score shows; submit → row appears in the Submissions dashboard with per-blank answer-key/student detail. Prep was code-side de-risking (`seed-e2e-locked.sql` validated against the known-good free seed; freeze path traced + unit-covered). Completes the End-to-end manual test item and unblocked the legacy-bucket cleanup (since done — bucket deleted 2026-06-18).
 - **CI branch-filter narrowing** (2026-06-17) — CI's `push` trigger limited to `main` (was unfiltered, firing on every branch). Feature branches now get a single PR run instead of double-firing on push + PR; merges/direct commits to `main` still run. `pull_request` still covers all PRs.
 - **Deferred test coverage** (2026-06-13) — `init.test.ts` now covers `state.blanks`/`state.blocks` (one defaulted entry per ref, empty when none). The blank-edit popover's draft/commit/close decisions were extracted to a pure `blankPopoverLogic.ts` (behavior-preserving lift out of `BlankEditPopover`/`BlankPopoverHost`) and unit-tested (`blankPopoverLogic.test.ts`, 25 cases — `computeFlush`, `resolveAnswerBlur`, `resolveAcceptableCommit`, `filterFeedbackForCommit`, `isSameBlankSelection`). Refactor browser-smoke-verified: edit commits on outside-click close, whitespace stripped, selection released.
 - **Foldable × columns verification** (2026-06-13) — a top-level columns container flows whole through the foldable, never splits, `fr` tracks resolve against the fixed panel width. Tests + dev-only `/dev/foldable-columns` bench. DECISIONS → "Structural columns + variable block sizing".
@@ -53,7 +53,7 @@ Also queued:
 | CI (GitHub Actions: typecheck/lint/test/build + bundle-staleness guard) | ✅ Added 2026-06-13; verified green locally |
 | Markdown paste import | ✅ Complete + verified end-to-end by author (multiple smoke tests); app-only, no deploy. Format spec + Copy AI prompt + drift guard shipped |
 | End-to-end manual test | ✅ Free-mode (2026-06-16) + locked-mode/dashboard (2026-06-17) both author-verified end to end |
-| Order-independent blank groups | ✅ Code complete + tested; editor browser-verified; bundle regenerated. Awaiting `publish-activity` redeploy (Pending #3) + author check on a published page |
+| Order-independent blank groups | ✅ Code complete + tested; editor browser-verified; bundle regenerated. Awaiting `publish-activity` redeploy (Pending #2) + author check on a published page |
 
 Test counts at last session: schema 89 / renderer 268 / app 232; `tsc -b` + app build green. (Order-independent groups added: schema +3, renderer +13 (grouping scoring 9 + emission 4) + init groupId, app +6 across popover-logic/submissions/markdown drift+converter.)
 
@@ -89,7 +89,7 @@ activity-platform/
 
 - **GitHub repo:** `ZanReed/activity-platform`
 - **Supabase project ref:** `dtqutpdplefmufrrakxs`
-- **Storage bucket (legacy):** `activities` (public; delete after R2 migration verified)
+- **Storage bucket (legacy):** `activities` — deleted 2026-06-18 after R2 verified end-to-end (note: the app's `.from('activities')` calls are the DB table, not this bucket)
 - **Auth:** Google OAuth via Supabase. Site URL `http://localhost:5173` for dev. Allowlist-only signup (Phase 1).
 - **Client env:** `VITE_PUBLISHED_URL_BASE` in `.env.local` (gitignored) mirrors the write-only `R2_PUBLIC_URL_BASE` secret; unset → published-page links hide.
 

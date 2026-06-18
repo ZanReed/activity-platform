@@ -128,7 +128,7 @@ The bootstrap in `index.ts` runs once on `DOMContentLoaded` (or immediately if t
 
 - **Name** (cross-activity): localStorage key `activity_student_name`. Plain string. Carried across all activities on the domain.
 
-- **Activity state blob** (per `activityId + versionNum`): localStorage key `activity_state_${activityId}_v${versionNum}`. JSON blob with shape `{ schemaVersion, values, blanks, blocks, sections }`. Versioned key auto-invalidates on republish (v1 → v2 means the v1 blob is no longer found). Schema-versioned internally (`STORAGE_SCHEMA_VERSION = 1`) so future runtime changes can bail cleanly on shape mismatch. Save gated by `!state.submitted`. Cleared on submit success.
+- **Activity state blob** (per `activityId + versionNum`): localStorage key `activity_state_${activityId}_v${versionNum}`. JSON blob with shape `{ schemaVersion, values, blanks, blocks, sections }`. Versioned key auto-invalidates on republish (v1 → v2 means the v1 blob is no longer found). Schema-versioned internally (`STORAGE_SCHEMA_VERSION = 3`) so future runtime changes can bail cleanly on shape mismatch. Save gated by `!state.submitted`. Cleared on submit success.
 
 - **Submission payload** (network): POSTed to `ingest-submission`. `responses` is v2 shape: `{ schemaVersion: 2, blanks: Record<uuid, BlankResult>, checkpointResults?: Record<uuid, CheckpointResultPayload> }` plus `activityId`, `displayName`, `score` at top level.
 
@@ -486,7 +486,7 @@ applyStoredState(stored, refs, state): void        // mutates inputs + state in 
 
 Storage key: `activity_state_${activityId}_v${versionNum}`. Versioned key means republishing the activity (versionNum bump) auto-invalidates prior persistence.
 
-Schema versioning: `STORAGE_SCHEMA_VERSION = 1`. Load returns null on mismatch (fresh state). Bump when `BlankState` / `BlockState` / `SectionState` / blob shape changes in a way that older serialized blobs can no longer be interpreted as.
+Schema versioning: `STORAGE_SCHEMA_VERSION = 3`. Load returns null on mismatch (fresh state). Bump when `BlankState` / `BlockState` / `SectionState` / blob shape changes in a way that older serialized blobs can no longer be interpreted as.
 
 Save is gated by `!state.submitted`. Once submitted, persistence is irrelevant (`clearActivityState` fires on success) and re-writing post-submit edits would confuse the next session's restore.
 
@@ -592,7 +592,7 @@ Test suite at `packages/renderer/src/runtime/__tests__/`. Seven files:
 - **Every DOM write in `render` is change-guarded.** `classList.toggle(name, condition)` is idempotent. Attribute / `hidden` / `checked` / `textContent` get explicit current-vs-target checks.
 - **All attribute reads have a fallback.** No `dataset.X` access without `?? default`. No `JSON.parse(...)` without try/catch.
 - **No JS dependencies.** Vanilla TypeScript. Adding utility libraries would blow size budget and add attack surface.
-- **Persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION = 1`. Bump when `BlankState`, `BlockState`, `SectionState`, or blob shape changes incompatibly.
+- **Persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION = 3`. Bump when `BlankState`, `BlockState`, `SectionState`, or blob shape changes incompatibly.
 - **Heavy widgets are lazy-loaded into separate bundles.** `[target — Phase 2.7+]` interactive graphs and `[target — Phase 2.9+]` annotation widgets are dynamic imports. Pages without those block types pay nothing.
 - **Naming convention discipline:**
   - TypeScript fields: `camelCase` (`attemptNumber`, `revisionMode`)
