@@ -763,3 +763,37 @@ function activityBlankToTiptap(node: BlankToken): JSONContent {
         attrs,
     };
 }
+
+// =============================================================================
+// Reference panel ⇄ Tiptap
+// =============================================================================
+// The reference panel is a FLAT list of content blocks (no sections, no section
+// breaks) authored on its own constrained editor surface (ReferencePanelEditor).
+// These bridge that editor's Tiptap doc and the schema's ReferencePanel.blocks,
+// reusing the same per-block converters as the main document — only the
+// section-splitting layer is absent.
+//
+// The panel TITLE is not part of the Tiptap doc (it's a separate field on the
+// disclosure), so it's threaded through tiptapToReferencePanel as an argument
+// and omitted when blank — matching the schema's optional title and keeping
+// round-trip equality for untitled panels.
+
+export function referencePanelToTiptap(panel: ReferencePanel): JSONContent {
+    return {
+        type: 'doc',
+        content: panel.blocks
+        .map(activityBlockToTiptap)
+        .filter((n): n is JSONContent => n !== null),
+    };
+}
+
+export function tiptapToReferencePanel(
+    tiptap: JSONContent,
+    title?: string,
+): ReferencePanel {
+    const blocks = (tiptap.content ?? [])
+    .map(tiptapBlockToActivity)
+    .filter((b): b is Block => b !== null);
+    const trimmed = title?.trim();
+    return trimmed ? { title: trimmed, blocks } : { blocks };
+}

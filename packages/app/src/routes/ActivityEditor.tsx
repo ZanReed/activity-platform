@@ -34,9 +34,15 @@ import {
     type ReferencePanel,
 } from '@activity/schema';
 import { supabase } from '../lib/supabase';
-import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
+import {
+    activityToTiptap,
+    tiptapToActivity,
+    referencePanelToTiptap,
+    tiptapToReferencePanel,
+} from '../lib/serialize';
 import { useAutosave, type SaveStatus } from '../lib/useAutosave';
 import Editor from '../editor/Editor';
+import ReferencePanelEditor from '../editor/ReferencePanelEditor';
 import PublishControl from '../components/PublishControl';
 import ImportMarkdownDialog from '../components/ImportMarkdownDialog';
 
@@ -55,7 +61,7 @@ type LoadState =
 | { status: 'loading' }
 | { status: 'not_found' }
 | { status: 'error'; message: string }
-| { status: 'ready'; tiptap: JSONContent };
+| { status: 'ready'; tiptap: JSONContent; referenceTiptap: JSONContent };
 
 const UUID_RE =
 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -99,6 +105,24 @@ function hasNonCheckpointSection(tiptap: JSONContent): boolean {
         }
     }
     return false;
+}
+
+// Reconstitute a ReferencePanel from the panel editor's Tiptap JSON + the title
+// field, or undefined when the panel is effectively empty (no title and no real
+// content) so an empty scaffold is never persisted. Called only at save time —
+// the live fingerprint uses the Tiptap JSON directly (see changeKey), since
+// tiptapToReferencePanel mints fresh UUIDs and must not feed change detection.
+function panelFromEditor(
+    json: JSONContent | null,
+    title: string,
+): ReferencePanel | undefined {
+    const hasTitle = title.trim().length > 0;
+    const content = json?.content ?? [];
+    const hasContent = content.some(
+        (n) => n.type !== 'paragraph' || (n.content?.length ?? 0) > 0,
+    );
+    if (!hasTitle && !hasContent) return undefined;
+    return tiptapToReferencePanel(json ?? { type: 'doc', content: [] }, title);
 }
 
 function Shell({ children }: { children: ReactNode }) {
@@ -581,18 +605,84 @@ function PrintSettings({
     );
 }
 
+// Collapsible authoring surface for the reference panel. Mirrors the
+// ActivitySettings / PrintSettings disclosures, but its body holds a title
+// field + the constrained ReferencePanelEditor. The editor stays MOUNTED while
+// collapsed (hidden via CSS) so its onCreate fires once and edits survive
+// expand/collapse — a conditional mount would remount it and drop content.
+function ReferencePanelSection({
+    editorKey,
+    initialContent,
+    title,
+    onTitleChange,
+    onEditorUpdate,
+    gridLinesDefault,
+    activityId,
+}: {
+    editorKey: string;
+    initialContent: JSONContent;
+    title: string;
+    onTitleChange: (t: string) => void;
+    onEditorUpdate: (json: JSONContent) => void;
+    gridLinesDefault: boolean;
+    activityId: string;
+}) {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="mt-3 rounded-md border border-slate-200 bg-white">
+        <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+        >
+        <span>
+        <span aria-hidden="true">📎</span> Reference panel
+        </span>
+        <span className="text-xs text-slate-400">{open ? '▲' : '▼'}</span>
+        </button>
+        <div className={open ? 'border-t border-slate-200 px-3 py-3' : 'hidden'}>
+        <p className={`${SETTINGS_HELP_CLASS} mb-3`}>
+        Optional reference content students can open from a bar while working
+        (formula charts, vocabulary, conversion tables…). It shows as a
+        collapsible toolbar on the published page and a box at the top of
+        printouts. Leave empty for no panel.
+        </p>
+        <label className={SETTINGS_LABEL_CLASS} htmlFor="reference-title">
+        Panel title
+        </label>
+        <input
+        id="reference-title"
+        type="text"
+        className={`${SELECT_CLASS} mb-3 mt-1`}
+        placeholder="e.g. Formula reference"
+        value={title}
+        onChange={(e) => onTitleChange(e.target.value)}
+        />
+        <ReferencePanelEditor
+        key={editorKey}
+        initialContent={initialContent}
+        onUpdate={onEditorUpdate}
+        gridLinesDefault={gridLinesDefault}
+        activityId={activityId}
+        />
+        </div>
+        </div>
+    );
+}
+
 export default function ActivityEditor() {
     const { id } = useParams();
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
     const [meta, setMeta] = useState<ActivityMeta | null>(null);
-    // The reference panel is carried as opaque state, separate from the main
-    // editor's Tiptap doc (it gets its own authoring surface in a later drop).
-    // Loaded from the document here, folded into the save fingerprint, and
-    // handed back to tiptapToActivity on save so a load→save cycle preserves it
-    // instead of silently dropping it.
-    const [referencePanel, setReferencePanel] = useState<ReferencePanel | null>(
-        null,
-    );
+    // Reference-panel authoring state. Like the main editor, the FINGERPRINT
+    // uses the panel editor's Tiptap JSON (stable) — never the serialized
+    // ReferencePanel, since tiptapToReferencePanel mints fresh block UUIDs and
+    // would churn the change-detection key. panelTitle is the disclosure's title
+    // field (not part of the Tiptap doc). Both are folded into changeKey;
+    // panelFromEditor reconstitutes the ReferencePanel at save time.
+    const [panelTitle, setPanelTitle] = useState('');
+    const [panelJson, setPanelJson] = useState<JSONContent | null>(null);
     const [tiptapJson, setTiptapJson] = useState<JSONContent | null>(null);
     const [isPublished, setIsPublished] = useState(false);
     // Live editor instance (null until mounted) + the markdown-import modal's
@@ -689,9 +779,27 @@ export default function ActivityEditor() {
             ? tiptap
             : { type: 'doc', content: [{ type: 'paragraph' }] };
 
+            // Seed the reference-panel editor with the loaded panel's blocks
+            // (flat, no sections). Empty-paragraph fallback when there's no
+            // panel or it has no blocks — ProseMirror's doc needs at least one
+            // block child.
+            const loadedPanel = doc.referencePanel;
+            const refTiptap =
+            loadedPanel && loadedPanel.blocks.length > 0
+            ? referencePanelToTiptap(loadedPanel)
+            : { type: 'doc', content: [{ type: 'paragraph' }] };
+            const safeRefTiptap: JSONContent =
+            Array.isArray(refTiptap.content) && refTiptap.content.length > 0
+            ? refTiptap
+            : { type: 'doc', content: [{ type: 'paragraph' }] };
+
             setMeta(doc.meta);
-            setReferencePanel(doc.referencePanel ?? null);
-            setLoadState({ status: 'ready', tiptap: safeTiptap });
+            setPanelTitle(loadedPanel?.title ?? '');
+            setLoadState({
+                status: 'ready',
+                tiptap: safeTiptap,
+                referenceTiptap: safeRefTiptap,
+            });
         })();
 
         return () => {
@@ -703,6 +811,14 @@ export default function ActivityEditor() {
     // first call carries the loaded baseline (the autosave hook ignores it).
     const handleEditorUpdate = useCallback((json: JSONContent) => {
         setTiptapJson(json);
+    }, []);
+
+    // The reference-panel editor reports its Tiptap JSON here; onCreate routes
+    // here too (the baseline). changeKey gates on panelJson so the autosave
+    // baseline settles only once BOTH editors have reported — no spurious
+    // load-time save.
+    const handlePanelUpdate = useCallback((json: JSONContent) => {
+        setPanelJson(json);
     }, []);
 
     // Insert markdown-imported blocks. A fresh activity (just the default empty
@@ -736,10 +852,10 @@ export default function ActivityEditor() {
     // editor has produced its first JSON — the autosave stays idle until then.
     const changeKey = useMemo(
         () =>
-        tiptapJson && meta
-        ? JSON.stringify({ t: tiptapJson, m: meta, r: referencePanel })
+        tiptapJson && meta && panelJson
+        ? JSON.stringify({ t: tiptapJson, m: meta, rt: panelTitle, rj: panelJson })
         : null,
-        [tiptapJson, meta, referencePanel],
+        [tiptapJson, meta, panelTitle, panelJson],
     );
 
     // Serializes the current state and writes the draft. draft_content and the
@@ -756,7 +872,7 @@ export default function ActivityEditor() {
         const doc = tiptapToActivity(
             tiptapJson,
             safeMeta,
-            referencePanel ?? undefined,
+            panelFromEditor(panelJson, panelTitle),
         );
         const parsed = ActivityDocument.safeParse(doc);
         if (!parsed.success) {
@@ -875,6 +991,16 @@ export default function ActivityEditor() {
             <ActivitySettings meta={meta} onChange={setMeta} />
 
             <PrintSettings meta={meta} onChange={setMeta} />
+
+            <ReferencePanelSection
+            editorKey={id}
+            initialContent={loadState.referenceTiptap}
+            title={panelTitle}
+            onTitleChange={setPanelTitle}
+            onEditorUpdate={handlePanelUpdate}
+            gridLinesDefault={meta.print.gridLines}
+            activityId={id}
+            />
 
             {meta.submissionMode === 'locked' &&
             hasNonCheckpointSection(tiptapJson ?? loadState.tiptap) && (

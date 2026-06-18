@@ -15,11 +15,18 @@ function isMarkActive(editor: Editor, markName: string): boolean {
 
 interface ToolbarProps {
     editor: Editor | null;
+    // 'activity' (default) is the full toolbar. 'reference' is the constrained
+    // set for the reference-panel editor: same text / math / list / columns /
+    // image controls, but no Problem, Blank, or Section buttons (a panel has no
+    // questions and no sections). Additive — the main editor passes nothing and
+    // renders exactly as before.
+    variant?: 'activity' | 'reference';
 }
 
-export default function Toolbar({ editor }: ToolbarProps) {
+export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) {
     if (!editor) return null;
 
+    const isReference = variant === 'reference';
     const isInFillInBlank = editor.isActive('fillInBlank');
 
     return (
@@ -123,46 +130,50 @@ export default function Toolbar({ editor }: ToolbarProps) {
                 1. List
             </ToolbarButton>
 
-            <Divider />
+            {!isReference && (
+                <>
+                    <Divider />
 
-            {/*
-              Question group (Stage 13.5 Drop 3).
-              - Problem: inserts an empty fill_in_blank block. Always enabled.
-              - Blank: inserts an inline blank with placeholder answer "?".
-                Enabled only when cursor is inside a fill_in_blank body.
-            */}
-            <ToolbarButton
-                onClick={() =>
-                    editor.chain().focus().insertFillInBlank().run()
-                }
-                title="Insert a fill-in-the-blank problem"
-            >
-                Problem
-            </ToolbarButton>
-            <ToolbarButton
-                onClick={() => {
-                    const { from } = editor.state.selection;
-                    editor
-                        .chain()
-                        .focus()
-                        .insertBlank({ answer: '?' })
-                        .run();
-                    requestAnimationFrame(() => {
-                        const node = editor.state.doc.nodeAt(from);
-                        if (node && node.type.name === 'blank') {
-                            editor.commands.setNodeSelection(from);
+                    {/*
+                      Question group (Stage 13.5 Drop 3).
+                      - Problem: inserts an empty fill_in_blank block. Always enabled.
+                      - Blank: inserts an inline blank with placeholder answer "?".
+                        Enabled only when cursor is inside a fill_in_blank body.
+                    */}
+                    <ToolbarButton
+                        onClick={() =>
+                            editor.chain().focus().insertFillInBlank().run()
                         }
-                    });
-                }}
-                disabled={!isInFillInBlank}
-                title={
-                    isInFillInBlank
-                        ? 'Insert an answer blank at the cursor'
-                        : 'Position cursor inside a problem to insert a blank'
-                }
-            >
-                Blank
-            </ToolbarButton>
+                        title="Insert a fill-in-the-blank problem"
+                    >
+                        Problem
+                    </ToolbarButton>
+                    <ToolbarButton
+                        onClick={() => {
+                            const { from } = editor.state.selection;
+                            editor
+                                .chain()
+                                .focus()
+                                .insertBlank({ answer: '?' })
+                                .run();
+                            requestAnimationFrame(() => {
+                                const node = editor.state.doc.nodeAt(from);
+                                if (node && node.type.name === 'blank') {
+                                    editor.commands.setNodeSelection(from);
+                                }
+                            });
+                        }}
+                        disabled={!isInFillInBlank}
+                        title={
+                            isInFillInBlank
+                                ? 'Insert an answer blank at the cursor'
+                                : 'Position cursor inside a problem to insert a blank'
+                        }
+                    >
+                        Blank
+                    </ToolbarButton>
+                </>
+            )}
 
             <Divider />
 
@@ -172,16 +183,19 @@ export default function Toolbar({ editor }: ToolbarProps) {
                 renders an inline title input and Checkpoint checkbox, so
                 authors edit those by clicking into the inserted break.
                 Always enabled — section breaks are top-level structural
-                blocks that can go anywhere at doc level.
+                blocks that can go anywhere at doc level. Hidden in the
+                reference-panel toolbar (a panel has no sections).
             */}
-            <ToolbarButton
-                onClick={() =>
-                    editor.chain().focus().insertSectionBreak().run()
-                }
-                title="Insert a section break"
-            >
-                Section
-            </ToolbarButton>
+            {!isReference && (
+                <ToolbarButton
+                    onClick={() =>
+                        editor.chain().focus().insertSectionBreak().run()
+                    }
+                    title="Insert a section break"
+                >
+                    Section
+                </ToolbarButton>
+            )}
             <ToolbarButton
                 onClick={() => editor.chain().focus().insertColumns(2).run()}
                 title="Insert a two-column layout"

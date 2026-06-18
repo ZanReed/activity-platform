@@ -9,8 +9,13 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
-import { ActivityDocument, ActivityMeta, type ReferencePanel } from '@activity/schema';
-import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
+import { ActivityDocument, ActivityMeta, ReferencePanel } from '@activity/schema';
+import {
+    activityToTiptap,
+    tiptapToActivity,
+    referencePanelToTiptap,
+    tiptapToReferencePanel,
+} from '../lib/serialize';
 
 const META = ActivityMeta.parse({
     title: 'Test Activity',
@@ -77,6 +82,53 @@ describe('reference panel (opaque carry)', () => {
     it('produces a schema-valid document with a panel', () => {
         const result = tiptapToActivity(body, META, PANEL);
         expect(ActivityDocument.safeParse(result).success).toBe(true);
+    });
+});
+
+describe('reference panel ⇄ tiptap', () => {
+    // The panel editor produces a FLAT Tiptap doc (no sectionBreak); these
+    // bridge it to ReferencePanel.blocks, with the title threaded separately.
+    const tiptap: JSONContent = {
+        type: 'doc',
+        content: [
+            {
+                type: 'heading',
+                attrs: { level: 2 },
+                content: [{ type: 'text', text: 'Formulas' }],
+            },
+            { type: 'mathBlock', attrs: { latex: 'a^2+b^2=c^2' } },
+            { type: 'paragraph', content: [{ type: 'text', text: 'A note.' }] },
+        ],
+    };
+
+    it('maps a flat Tiptap doc to a panel and back (no sections)', () => {
+        const panel = tiptapToReferencePanel(tiptap, 'Reference');
+        expect(panel.title).toBe('Reference');
+        expect(panel.blocks.map((b) => b.type)).toEqual([
+            'heading',
+            'math_block',
+            'paragraph',
+        ]);
+        // Tiptap-side round-trip is exact (no UUIDs on the Tiptap side).
+        expect(referencePanelToTiptap(panel)).toEqual(tiptap);
+    });
+
+    it('omits a blank/whitespace title', () => {
+        expect(tiptapToReferencePanel(tiptap, '   ').title).toBeUndefined();
+        expect(tiptapToReferencePanel(tiptap).title).toBeUndefined();
+    });
+
+    it('produces a schema-valid ReferencePanel', () => {
+        expect(
+            ReferencePanel.safeParse(tiptapToReferencePanel(tiptap, 'T')).success,
+        ).toBe(true);
+    });
+
+    it('round-trips an empty doc to a panel with no blocks', () => {
+        const empty: JSONContent = { type: 'doc', content: [] };
+        const panel = tiptapToReferencePanel(empty);
+        expect(panel.blocks).toEqual([]);
+        expect(referencePanelToTiptap(panel)).toEqual(empty);
     });
 });
 
