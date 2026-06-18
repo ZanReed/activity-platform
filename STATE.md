@@ -7,7 +7,7 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 Things only the author does (pushes, deploys, migrations), queued and waiting:
 
 1. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
-2. **After the e2e pass verifies R2 end-to-end:** delete the legacy Supabase Storage `activities` bucket and any env vars referencing it.
+2. **Now unblocked (2026-06-17): the e2e pass verified R2 end-to-end (free + locked submit → R2 → dashboard).** Delete the legacy Supabase Storage `activities` bucket and any env vars referencing it.
 
 Cleared 2026-06-17: **migration `0008_soft_delete_activity.sql` deployed — deleting activities now works** (soft-delete RLS bug; writeup in HISTORY 2026-06-17, reasoning in DECISIONS → "Activity deletion"). Cleared 2026-06-16: **cross-origin `<img>` loads from R2 confirmed working** by the author; **the three real-mouse GUI passes confirmed working** (drag-between-cells, image resize handles, nested rich-text mini-editor). Also: `publish-activity` redeployed with the **submission-payload fix** (runtime now POSTs snake_case `activity_id`/`display_name` matching `ingest-submission`) and the `[TEST] E2E Coverage` activity re-published — live submit verified end to end (see Current focus). Cleared 2026-06-13 (verified via Supabase API): `publish-activity` was at **v34**, carrying the full variable-block-sizing bundle (width fill + image fixed-height crop + cell `--cell-min-height`). Earlier (2026-06-12): migration 0007 applied; `upload-image` deployed; `ingest-submission` still has `verify_jwt: false`.
 
@@ -17,6 +17,7 @@ Cleared 2026-06-17: **migration `0008_soft_delete_activity.sql` deployed — del
 
 Recently completed (newest first; durable detail in [DECISIONS](docs/DECISIONS.md)/[HISTORY](docs/HISTORY.md)):
 
+- **E2E locked-mode + dashboard** (2026-06-17) — author-confirmed working. Locked-mode publish → check freezes the checked section's inputs + check button, solution reveals, score shows; submit → row appears in the Submissions dashboard with per-blank answer-key/student detail. Prep was code-side de-risking (`seed-e2e-locked.sql` validated against the known-good free seed; freeze path traced + unit-covered). Completes the End-to-end manual test item and unblocks the legacy-bucket cleanup (Pending action #2).
 - **CI branch-filter narrowing** (2026-06-17) — CI's `push` trigger limited to `main` (was unfiltered, firing on every branch). Feature branches now get a single PR run instead of double-firing on push + PR; merges/direct commits to `main` still run. `pull_request` still covers all PRs.
 - **Deferred test coverage** (2026-06-13) — `init.test.ts` now covers `state.blanks`/`state.blocks` (one defaulted entry per ref, empty when none). The blank-edit popover's draft/commit/close decisions were extracted to a pure `blankPopoverLogic.ts` (behavior-preserving lift out of `BlankEditPopover`/`BlankPopoverHost`) and unit-tested (`blankPopoverLogic.test.ts`, 25 cases — `computeFlush`, `resolveAnswerBlur`, `resolveAcceptableCommit`, `filterFeedbackForCommit`, `isSameBlankSelection`). Refactor browser-smoke-verified: edit commits on outside-click close, whitespace stripped, selection released.
 - **Foldable × columns verification** (2026-06-13) — a top-level columns container flows whole through the foldable, never splits, `fr` tracks resolve against the fixed panel width. Tests + dev-only `/dev/foldable-columns` bench. DECISIONS → "Structural columns + variable block sizing".
@@ -27,7 +28,6 @@ Standing follow-up: none — the image resize drag-handles + the other real-mous
 
 Also queued:
 
-- **End-to-end manual test** — ▶ free-mode submit path DONE 2026-06-16 (found + fixed the snake_case payload bug; DB row verified). **Still to run:** the **locked-mode** pass (re-publish in locked mode → inputs freeze after check) and the in-app **Submissions dashboard** view. (Full checklist preserved in docs/HISTORY.md.)
 - **Phase 1 polish:** custom domain for R2.
 - **Free activity catalog (design captured 2026-06-16, target Phase 2):** public catalog of free first-party math activities a newcomer can run as-is — a cold-start lever pairing with self-signup ([docs/design/free-activity-catalog.md](docs/design/free-activity-catalog.md)). The Phase 5 marketplace's free/discovery slice pulled forward; "use" = run-in-place read-only (not clone-to-edit). Phase 2 slice = browse + run/assign/print; consumer submission dashboards depend on Phase 3 assignment scoping.
 - **Long-term OCR/AI features (design captured 2026-06-16, not scheduled):** PDF → activity import ([docs/design/pdf-import.md](docs/design/pdf-import.md)) and photo-upload answer checking ([docs/design/photo-grading.md](docs/design/photo-grading.md)). Both reuse existing pipelines (markdown-paste DSL converter; the submission pipeline); decisions locked: generic-master QR, teacher-grading-aid v1, transcription-only AI rule. Photo-grading flags one real refactor — make answer evaluation server-shareable.
@@ -51,7 +51,7 @@ Also queued:
 | Auth (Google OAuth, allowlist) / React app / editor stack | ✅ In place |
 | CI (GitHub Actions: typecheck/lint/test/build + bundle-staleness guard) | ✅ Added 2026-06-13; verified green locally |
 | Markdown paste import | ✅ Complete + verified end-to-end by author (multiple smoke tests); app-only, no deploy. Format spec + Copy AI prompt + drift guard shipped |
-| End-to-end manual test | ◐ Free-mode submit path verified 2026-06-16 (snake_case payload bug found + fixed, DB row confirmed); locked-mode + dashboard still to run |
+| End-to-end manual test | ✅ Free-mode (2026-06-16) + locked-mode/dashboard (2026-06-17) both author-verified end to end |
 
 Test counts at last session: schema 54 / renderer 254 / app 227 (markdown import: +40 converter incl. fence-unwrap, +22 format-drift guard, +7 dialog RTL); `tsc -b` + app build green.
 
