@@ -99,6 +99,7 @@ interface DetailProblem {
     sortKey: number; // problemNumber, or Infinity for unknown/removed
     blanks: Array<{
         canonicalAnswer: string | null; // null when no longer in the activity
+        groupAnswers: string[] | null; // set when the blank is in an any-order group
         order: number;
         row: DetailBlankRow;
     }>;
@@ -158,6 +159,7 @@ function SubmissionDetail({
         }
         problem.blanks.push({
             canonicalAnswer: info?.canonicalAnswer ?? null,
+            groupAnswers: info?.groupAnswers ?? null,
             order: info?.blankOrder ?? 0,
             row: { blankId, ...resp },
         });
@@ -232,7 +234,9 @@ function SubmissionDetail({
                     className="border-t border-slate-200"
                     >
                     <td className="py-1 pr-3 font-mono text-slate-600">
-                    {b.canonicalAnswer ?? '—'}
+                    {b.groupAnswers
+                        ? `${b.groupAnswers.join(' or ')} (any order)`
+                        : b.canonicalAnswer ?? '—'}
                     </td>
                     <td className="py-1 pr-3 font-mono text-slate-900">
                     {b.row.answer || (

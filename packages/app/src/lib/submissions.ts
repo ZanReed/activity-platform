@@ -119,6 +119,12 @@ export interface BlankInfo {
     problemPrompt: string; // reconstructed prompt with ____ where blanks sit
     canonicalAnswer: string; // primary answer + acceptable alternates
     blankOrder: number; // 0-based position among blanks in its problem
+    // When this blank is part of an order-independent group (2+ adjacent
+    // interchangeable blanks), the canonical answers of every group member, in
+    // document order — so the dashboard can show "2 or 3 (any order)" instead of
+    // this slot's answer alone (which may differ from the student's correct
+    // entry). null when the blank is ungrouped.
+    groupAnswers: string[] | null;
     sectionId: string;
     sectionTitle: string | null;
 }
@@ -175,9 +181,42 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
         for (const block of section.blocks) {
             if (block.type !== 'fill_in_blank') continue;
             const prompt = reconstructPrompt(block.content);
-            let blankOrder = 0;
+
+            // Collect the block's blanks in document order (narrowed to
+            // BlankToken via the discriminant).
+            const blockBlanks = [];
             for (const node of block.content) {
-                if (node.type !== 'blank') continue;
+                if (node.type === 'blank') blockBlanks.push(node);
+            }
+
+            // Order-independent grouping: a maximal run of adjacent blanks each
+            // flagged interchangeableWithPrevious shares the full set of member
+            // canonical answers (mirrors the renderer's run detection). Lone
+            // blanks get null.
+            const groupAnswersByIndex: (string[] | null)[] = new Array(
+                blockBlanks.length,
+            ).fill(null);
+            let i = 0;
+            while (i < blockBlanks.length) {
+                const start = i;
+                i++;
+                while (
+                    i < blockBlanks.length &&
+                    blockBlanks[i]?.interchangeableWithPrevious
+                ) {
+                    i++;
+                }
+                if (i - start >= 2) {
+                    const members = blockBlanks
+                        .slice(start, i)
+                        .map((b) => canonicalAnswer(b.answer, b.acceptableAnswers));
+                    for (let k = start; k < i; k++) {
+                        groupAnswersByIndex[k] = members;
+                    }
+                }
+            }
+
+            blockBlanks.forEach((node, blankOrder) => {
                 blanks.set(node.id, {
                     blankId: node.id,
                     problemId: block.id,
@@ -187,11 +226,12 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                         node.answer,
                         node.acceptableAnswers,
                     ),
-                    blankOrder: blankOrder++,
+                    blankOrder,
+                    groupAnswers: groupAnswersByIndex[blankOrder] ?? null,
                     sectionId: section.id,
                     sectionTitle: section.title ?? null,
                 });
-            }
+            });
         }
     });
 

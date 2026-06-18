@@ -200,6 +200,58 @@ describe('buildActivityIndex', () => {
         expect(b.canonicalAnswer).toBe('3x / 3*x');
         expect(b.sectionTitle).toBe('Warm-up');
         expect(b.problemId).toBe(U(200));
+        // These two blanks are ungrouped (no interchangeableWithPrevious).
+        expect(b.groupAnswers).toBeNull();
+    });
+
+    it('attaches the group answer set to order-independent blanks', () => {
+        const grouped: ActivityDocument = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta: {
+                title: 'Grouped',
+                course: 'Algebra II',
+                submissionMode: 'free',
+                revisionMode: 'free',
+                gradingMode: 'auto',
+                activityType: 'worksheet',
+                answerFeedback: 'on_check',
+                skills: [],
+            },
+            sections: [
+                {
+                    id: U(110),
+                    isCheckpoint: true,
+                    blocks: [
+                        {
+                            id: U(210),
+                            type: 'fill_in_blank',
+                            number: 1,
+                            hasConfidenceRating: false,
+                            skills: [],
+                            content: [
+                                { type: 'text', text: '(x + ', marks: [] },
+                                { type: 'blank', id: U(310), answer: '2', acceptableAnswers: [] },
+                                { type: 'text', text: ')(x + ', marks: [] },
+                                {
+                                    type: 'blank',
+                                    id: U(311),
+                                    answer: '3',
+                                    acceptableAnswers: [],
+                                    interchangeableWithPrevious: true,
+                                },
+                                { type: 'text', text: ')', marks: [] },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(grouped);
+        // Both members carry the full set, in document order; each still keeps
+        // its own canonicalAnswer.
+        expect(idx.blanks.get(U(310))!.groupAnswers).toEqual(['2', '3']);
+        expect(idx.blanks.get(U(311))!.groupAnswers).toEqual(['2', '3']);
+        expect(idx.blanks.get(U(310))!.canonicalAnswer).toBe('2');
     });
 
     it('indexes sections in document order', () => {
