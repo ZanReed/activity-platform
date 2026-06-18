@@ -142,6 +142,14 @@ export interface SelectedBlankState {
   acceptableAnswers: string[];
   hint: InlineNodes | undefined;
   mistakeFeedback: MistakeFeedbackPair[] | undefined;
+  /** The blank's order-independent grouping flag (a node attr). */
+  interchangeableWithPrevious: boolean;
+  /**
+   * Structural, NOT an attr: whether a previous blank exists in the same
+   * fill_in_blank block, so the popover can offer the grouping checkbox. The
+   * first blank in a block has nothing to group with. Recomputed per selection.
+   */
+  canGroupWithPrevious: boolean;
 }
 
 /**
@@ -162,6 +170,8 @@ export function isSameBlankSelection(
     prev.answer === next.answer &&
     listsEqual(prev.acceptableAnswers, next.acceptableAnswers) &&
     prev.hint === next.hint &&
-    prev.mistakeFeedback === next.mistakeFeedback
+    prev.mistakeFeedback === next.mistakeFeedback &&
+    prev.interchangeableWithPrevious === next.interchangeableWithPrevious &&
+    prev.canGroupWithPrevious === next.canGroupWithPrevious
   );
 }

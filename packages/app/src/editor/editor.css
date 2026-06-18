@@ -674,6 +674,27 @@
     border: 1px solid rgb(226 232 240); /* slate-200 */
 }
 
+/* Order-independent grouping cue: a grouped blank (interchangeable with the
+ * one before it) gets a blue-tinted pill plus a ⇄ marker in the gap to its
+ * left, so the author sees the link between the paired chips. */
+.blank-chip.is-grouped {
+    position: relative;
+}
+.blank-chip.is-grouped::before {
+    content: '⇄';
+    position: absolute;
+    left: -0.8em;
+    top: 0;
+    font-size: 0.7em;
+    line-height: 1.5;
+    color: rgb(37 99 235); /* blue-600 */
+    pointer-events: none;
+}
+.blank-chip.is-grouped .blank-chip__answer {
+    background-color: rgb(239 246 255); /* blue-50 */
+    border-color: rgb(147 197 253); /* blue-300 */
+}
+
 .blank-chip__underline {
     display: block;
     height: 2px;
@@ -731,6 +752,26 @@
      color: rgb(100 116 139); /* slate-500 */
      line-height: 1.4;
      margin-bottom: 0.25rem;
+ }
+
+ /* Grouping checkbox row: a checkbox + inline label. Overrides the uppercase
+  * field-label styling so the label reads as a normal sentence beside the box. */
+ .blank-edit-popover__checkbox {
+     display: flex;
+     align-items: center;
+     gap: 0.4375rem;
+     cursor: pointer;
+ }
+ .blank-edit-popover__checkbox input {
+     margin: 0;
+     flex: none;
+ }
+ .blank-edit-popover__checkbox .blank-edit-popover__label {
+     text-transform: none;
+     letter-spacing: normal;
+     font-size: 0.8125rem;
+     font-weight: 500;
+     color: rgb(51 65 85); /* slate-700 */
  }
 
  .blank-edit-popover__input,

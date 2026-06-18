@@ -90,6 +90,22 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             const mistakeFeedback = node.attrs.mistakeFeedback as
                 | Array<{ match: string; feedback: InlineNodes }>
                 | undefined;
+            const interchangeableWithPrevious =
+                node.attrs.interchangeableWithPrevious === true;
+
+            // Structural: can this blank group with a previous one? Only when an
+            // earlier blank exists in the same fill_in_blank block. The first
+            // blank in a block has nothing to group with, so the checkbox hides.
+            const $pos = editor.state.doc.resolve(pos);
+            const parent = $pos.parent;
+            const indexInParent = $pos.index();
+            let canGroupWithPrevious = false;
+            for (let i = 0; i < indexInParent; i++) {
+                if (parent.child(i).type.name === 'blank') {
+                    canGroupWithPrevious = true;
+                    break;
+                }
+            }
 
             setSelectedBlank((prev) => {
                 const next: SelectedBlankState = {
@@ -99,6 +115,8 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                     acceptableAnswers,
                     hint,
                     mistakeFeedback,
+                    interchangeableWithPrevious,
+                    canGroupWithPrevious,
                 };
                 return isSameBlankSelection(prev, next) ? prev : next;
             });
@@ -133,6 +151,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             attrs: Partial<{
                 answer: string;
                 acceptableAnswers: string[];
+                interchangeableWithPrevious: boolean;
                 hint: InlineNodes | undefined;
                 mistakeFeedback:
                     | Array<{ match: string; feedback: InlineNodes }>
@@ -164,6 +183,8 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             initialAcceptableAnswers={selectedBlank.acceptableAnswers}
             initialHint={selectedBlank.hint}
             initialMistakeFeedback={selectedBlank.mistakeFeedback}
+            initialInterchangeable={selectedBlank.interchangeableWithPrevious}
+            canGroupWithPrevious={selectedBlank.canGroupWithPrevious}
             onChange={handleChange}
             onClose={handleClose}
         />

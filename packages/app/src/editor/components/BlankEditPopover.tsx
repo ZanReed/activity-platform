@@ -73,10 +73,15 @@ interface BlankEditPopoverProps {
     initialAcceptableAnswers: string[];
     initialHint: InlineNodes | undefined;
     initialMistakeFeedback: MistakeFeedbackPair[] | undefined;
+    initialInterchangeable: boolean;
+    // Whether a previous blank exists in this block; gates the grouping
+    // checkbox (the first blank in a block has nothing to group with).
+    canGroupWithPrevious: boolean;
     onChange: (
         attrs: Partial<{
             answer: string;
             acceptableAnswers: string[];
+            interchangeableWithPrevious: boolean;
             hint: InlineNodes | undefined;
             mistakeFeedback: MistakeFeedbackPair[] | undefined;
         }>,
@@ -96,6 +101,8 @@ export default function BlankEditPopover({
     initialAcceptableAnswers,
     initialHint,
     initialMistakeFeedback,
+    initialInterchangeable,
+    canGroupWithPrevious,
     onChange,
     onClose,
 }: BlankEditPopoverProps) {
@@ -111,6 +118,9 @@ export default function BlankEditPopover({
     const [mistakeFeedback, setMistakeFeedback] = useState<MistakeFeedbackPair[]>(
         initialMistakeFeedback ?? [],
     );
+    // Grouping flag commits immediately on toggle (no draft/flush), like the
+    // acceptable-answer remove path.
+    const [interchangeable, setInterchangeable] = useState(initialInterchangeable);
 
     const [hintExpanded, setHintExpanded] = useState(false);
     const [feedbackExpanded, setFeedbackExpanded] = useState(false);
@@ -144,6 +154,7 @@ export default function BlankEditPopover({
             setAnswerError(null);
             setAcceptableAnswers(initialAcceptableAnswers);
             setMistakeFeedback(initialMistakeFeedback ?? []);
+            setInterchangeable(initialInterchangeable);
             setHintExpanded(Boolean(initialHint && initialHint.length > 0));
             setFeedbackExpanded(
                 Boolean(initialMistakeFeedback && initialMistakeFeedback.length > 0),
@@ -375,6 +386,12 @@ export default function BlankEditPopover({
         }
     };
 
+    const handleInterchangeableToggle = (checked: boolean) => {
+        setInterchangeable(checked);
+        // Commit immediately; preserveSelection (default) keeps the popover open.
+        onChange({ interchangeableWithPrevious: checked });
+    };
+
     const setRefs = (node: HTMLDivElement | null) => {
         refs.setFloating(node);
         popoverRef.current = node;
@@ -495,6 +512,27 @@ export default function BlankEditPopover({
                         })}
                     </div>
                 </div>
+
+                {canGroupWithPrevious && (
+                    <div className="blank-edit-popover__field">
+                        <label className="blank-edit-popover__checkbox">
+                            <input
+                                type="checkbox"
+                                checked={interchangeable}
+                                onChange={(e) =>
+                                    handleInterchangeableToggle(e.target.checked)
+                                }
+                            />
+                            <span className="blank-edit-popover__label">
+                                Interchangeable with the blank before it
+                            </span>
+                        </label>
+                        <div className="blank-edit-popover__sublabel">
+                            Their answers may be entered in either order (e.g.
+                            factoring). Each correct answer still counts once.
+                        </div>
+                    </div>
+                )}
 
                 <div className="blank-edit-popover__field">
                     {hintExpanded ? (

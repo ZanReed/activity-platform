@@ -54,6 +54,7 @@ declare module '@tiptap/core' {
                 attrs: Partial<{
                     answer: string;
                     acceptableAnswers: string[];
+                    interchangeableWithPrevious: boolean;
                     hint: unknown[] | undefined;
                     mistakeFeedback:
                         | Array<{ match: string; feedback: unknown[] }>
@@ -106,6 +107,19 @@ export const Blank = Node.create({
                         ? { 'data-acceptable-answers': JSON.stringify(arr) }
                         : {};
                 },
+            },
+            // Order-independent grouping: when true, this blank's answer is
+            // interchangeable with the blank before it (same fill_in_blank
+            // block). Authored via the popover checkbox; the renderer compiles
+            // adjacent runs of flagged blanks into a scored group.
+            interchangeableWithPrevious: {
+                default: false,
+                parseHTML: (element) =>
+                    element.getAttribute('data-interchangeable') === 'true',
+                renderHTML: (attributes) =>
+                    attributes.interchangeableWithPrevious
+                        ? { 'data-interchangeable': 'true' }
+                        : {},
             },
             hint: {
                 default: undefined as unknown[] | undefined,

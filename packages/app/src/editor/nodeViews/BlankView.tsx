@@ -39,18 +39,24 @@ function deriveBlankWidth(answer: string): number {
 export default function BlankView({ node, selected }: NodeViewProps) {
     const answer = (node.attrs.answer as string) ?? '';
     const acceptableAnswers = (node.attrs.acceptableAnswers as string[]) ?? [];
+    // Order-independent grouping: this blank is interchangeable with the one
+    // before it. A leading ⇄ marker makes the link visible between the chips.
+    const grouped = node.attrs.interchangeableWithPrevious === true;
     const width = deriveBlankWidth(answer);
 
-    // Hover tooltip: show acceptable answers when present. Native title attr
-    // is sufficient until Drop 2b lands the editing popover.
-    const tooltip =
-        acceptableAnswers.length > 0
+    // Hover tooltip: grouping note takes priority (it's the less obvious fact);
+    // otherwise show acceptable answers when present.
+    const tooltip = grouped
+        ? 'Interchangeable with the previous blank — answers count in any order'
+        : acceptableAnswers.length > 0
             ? `Also accepts: ${acceptableAnswers.join(', ')}`
             : undefined;
 
     return (
         <NodeViewWrapper
-            className={`blank-chip${selected ? ' is-selected' : ''}`}
+            className={`blank-chip${selected ? ' is-selected' : ''}${
+                grouped ? ' is-grouped' : ''
+            }`}
             data-blank-id={node.attrs.id ?? ''}
             title={tooltip}
         >

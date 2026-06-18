@@ -184,6 +184,8 @@ describe('isSameBlankSelection', () => {
     acceptableAnswers: ['a'],
     hint,
     mistakeFeedback: mistake,
+    interchangeableWithPrevious: false,
+    canGroupWithPrevious: false,
     ...over,
   });
 
@@ -213,6 +215,15 @@ describe('isSameBlankSelection', () => {
     expect(isSameBlankSelection(make(), make({ hint: nodes('hint') }))).toBe(false);
     expect(
       isSameBlankSelection(make(), make({ mistakeFeedback: [{ match: 'm', feedback: nodes('f') }] })),
+    ).toBe(false);
+  });
+
+  it('is false when the grouping flag or its availability differ', () => {
+    expect(
+      isSameBlankSelection(make(), make({ interchangeableWithPrevious: true })),
+    ).toBe(false);
+    expect(
+      isSameBlankSelection(make(), make({ canGroupWithPrevious: true })),
     ).toBe(false);
   });
 });
