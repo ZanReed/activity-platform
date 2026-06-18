@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
-import { ActivityDocument, ActivityMeta } from '@activity/schema';
+import { ActivityDocument, ActivityMeta, type ReferencePanel } from '@activity/schema';
 import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
 
 const META = ActivityMeta.parse({
@@ -26,6 +26,57 @@ describe('empty doc', () => {
     it('round-trips an empty doc', () => {
         const empty: JSONContent = { type: 'doc', content: [] };
         expect(roundTrip(empty)).toEqual(empty);
+    });
+});
+
+describe('reference panel (opaque carry)', () => {
+    // The panel is authored on its own surface and threaded into
+    // tiptapToActivity as a third argument — it is never encoded in the main
+    // editor's Tiptap doc. These tests pin the pass-through contract that closes
+    // the latent drop-bug (a stored panel discarded on the next save).
+    const PANEL: ReferencePanel = {
+        title: 'Formula reference',
+        blocks: [
+            {
+                id: '11111111-1111-4111-8111-111111111111',
+                type: 'heading',
+                level: 2,
+                content: [{ type: 'text', text: 'Key formulas', marks: [] }],
+            },
+            {
+                id: '22222222-2222-4222-8222-222222222222',
+                type: 'math_block',
+                latex: 'a^2 + b^2 = c^2',
+            },
+        ],
+    };
+    const body: JSONContent = {
+        type: 'doc',
+        content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'Body' }] },
+        ],
+    };
+
+    it('carries the reference panel through verbatim when provided', () => {
+        const result = tiptapToActivity(body, META, PANEL);
+        expect(result.referencePanel).toEqual(PANEL);
+    });
+
+    it('omits the reference panel when not provided', () => {
+        const result = tiptapToActivity(body, META);
+        expect(result.referencePanel).toBeUndefined();
+    });
+
+    it('carries a panel with no title verbatim', () => {
+        const panelNoTitle: ReferencePanel = { blocks: PANEL.blocks };
+        const result = tiptapToActivity(body, META, panelNoTitle);
+        expect(result.referencePanel).toEqual(panelNoTitle);
+        expect(result.referencePanel?.title).toBeUndefined();
+    });
+
+    it('produces a schema-valid document with a panel', () => {
+        const result = tiptapToActivity(body, META, PANEL);
+        expect(ActivityDocument.safeParse(result).success).toBe(true);
     });
 });
 

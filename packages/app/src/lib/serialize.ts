@@ -34,6 +34,7 @@
 import type {
     ActivityDocument,
     ActivityMeta,
+    ReferencePanel,
     Block,
     InlineNode,
     FillInBlankInline,
@@ -77,6 +78,7 @@ const SUPPORTED_MARKS: ReadonlySet<Mark> = new Set<Mark>([
 export function tiptapToActivity(
     tiptap: JSONContent,
     meta: ActivityMeta,
+    referencePanel?: ReferencePanel,
 ): ActivityDocument {
     if (tiptap.type !== 'doc') {
         throw new Error(
@@ -84,11 +86,20 @@ export function tiptapToActivity(
         );
     }
 
-    return {
+    const doc: ActivityDocument = {
         schemaVersion: 1,
         meta,
         sections: splitTiptapBlocksIntoSections(tiptap.content ?? []),
     };
+    // The reference panel is authored on its own surface (Drop C) and carried
+    // as separate state, NOT encoded in the main editor's Tiptap doc — so it
+    // arrives here as an argument, not parsed out of `tiptap`. Pass it through
+    // verbatim when present so a load→save cycle preserves it; omit it entirely
+    // when absent (the schema field is .optional(), and documents without a
+    // panel stay structurally identical). This is what closes the latent
+    // drop-bug where any stored panel was discarded on the next save.
+    if (referencePanel) doc.referencePanel = referencePanel;
+    return doc;
 }
 
 function splitTiptapBlocksIntoSections(nodes: JSONContent[]): Section[] {

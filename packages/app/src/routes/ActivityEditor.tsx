@@ -31,6 +31,7 @@ import {
     createEmptyDocument,
     type ActivityMeta,
     type PrintConfig,
+    type ReferencePanel,
 } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
@@ -565,6 +566,14 @@ export default function ActivityEditor() {
     const { id } = useParams();
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
     const [meta, setMeta] = useState<ActivityMeta | null>(null);
+    // The reference panel is carried as opaque state, separate from the main
+    // editor's Tiptap doc (it gets its own authoring surface in a later drop).
+    // Loaded from the document here, folded into the save fingerprint, and
+    // handed back to tiptapToActivity on save so a load→save cycle preserves it
+    // instead of silently dropping it.
+    const [referencePanel, setReferencePanel] = useState<ReferencePanel | null>(
+        null,
+    );
     const [tiptapJson, setTiptapJson] = useState<JSONContent | null>(null);
     const [isPublished, setIsPublished] = useState(false);
     // Live editor instance (null until mounted) + the markdown-import modal's
@@ -662,6 +671,7 @@ export default function ActivityEditor() {
             : { type: 'doc', content: [{ type: 'paragraph' }] };
 
             setMeta(doc.meta);
+            setReferencePanel(doc.referencePanel ?? null);
             setLoadState({ status: 'ready', tiptap: safeTiptap });
         })();
 
@@ -707,8 +717,10 @@ export default function ActivityEditor() {
     // editor has produced its first JSON — the autosave stays idle until then.
     const changeKey = useMemo(
         () =>
-        tiptapJson && meta ? JSON.stringify({ t: tiptapJson, m: meta }) : null,
-                              [tiptapJson, meta],
+        tiptapJson && meta
+        ? JSON.stringify({ t: tiptapJson, m: meta, r: referencePanel })
+        : null,
+        [tiptapJson, meta, referencePanel],
     );
 
     // Serializes the current state and writes the draft. draft_content and the
@@ -722,7 +734,11 @@ export default function ActivityEditor() {
             ...meta,
             title: meta.title.trim() || 'Untitled activity',
         };
-        const doc = tiptapToActivity(tiptapJson, safeMeta);
+        const doc = tiptapToActivity(
+            tiptapJson,
+            safeMeta,
+            referencePanel ?? undefined,
+        );
         const parsed = ActivityDocument.safeParse(doc);
         if (!parsed.success) {
             // Shouldn't happen — serialize produces valid docs and the title is
