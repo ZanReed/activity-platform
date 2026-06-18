@@ -29,6 +29,7 @@ Solve for x:  $2x + 3 = 11$,  x = {{4}}
 
 1. The powerhouse of the cell is the {{mitochondria}}.
 2. Water is hydrogen and {{oxygen|O2}}.
+3. Factor:  x² + 5x + 6 = (x + {{2}})(x + {{~3}})
 
 ![diagram](https://example.com/cell.png)`;
 
@@ -149,7 +150,11 @@ export default function ImportMarkdownDialog({
                             <code className="rounded bg-slate-100 px-1">
                                 {'{{answer|alt}}'}
                             </code>{' '}
-                            for fill-in-the-blank answers,{' '}
+                            for fill-in-the-blank answers (a leading{' '}
+                            <code className="rounded bg-slate-100 px-1">
+                                {'{{~answer}}'}
+                            </code>{' '}
+                            lets two blanks be answered in any order),{' '}
                             <code className="rounded bg-slate-100 px-1">
                                 {'{checkpoint}'}
                             </code>{' '}
