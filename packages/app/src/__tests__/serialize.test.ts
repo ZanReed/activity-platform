@@ -111,6 +111,25 @@ describe('paragraphs', () => {
         expect(roundTrip(doc)).toEqual(doc);
     });
 
+    it('preserves underline marks', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'key term',
+                            marks: [{ type: 'underline' }],
+                        },
+                    ],
+                },
+            ],
+        };
+        expect(roundTrip(doc)).toEqual(doc);
+    });
+
     it('preserves multiple marks on one text run', () => {
         const doc: JSONContent = {
             type: 'doc',

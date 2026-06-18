@@ -43,6 +43,12 @@ export default function Toolbar({ editor }: ToolbarProps) {
                 <em>I</em>
             </ToolbarButton>
             <ToolbarButton
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                active={isMarkActive(editor, 'underline')}
+            >
+                <u>U</u>
+            </ToolbarButton>
+            <ToolbarButton
                 onClick={() => editor.chain().focus().toggleCode().run()}
                 active={isMarkActive(editor, 'code')}
             >

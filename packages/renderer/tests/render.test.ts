@@ -779,6 +779,25 @@ describe('Problem numbering', () => {
     expect(body).toContain('<sub>2</sub>');
     expect(body).toContain('<sup>2</sup>');
   });
+  it('wraps underline marks in <u>', () => {
+    const doc: ActivityDocument = {
+      schemaVersion: 1,
+      meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
+      sections: [{
+        id: '11111111-1111-1111-1111-111111111111',
+        isCheckpoint: false,
+        blocks: [{
+          id: '22222222-2222-2222-2222-222222222222',
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'key term', marks: ['underline'] },
+          ],
+        }],
+      }],
+    };
+    const body = renderBody(doc);
+    expect(body).toContain('<u>key term</u>');
+  });
 });
 
 describe('lists', () => {
