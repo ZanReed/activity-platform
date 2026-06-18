@@ -3,8 +3,8 @@
 // -----------------------------------------------------------------------------
 // Public-API tests: imports from '@activity/schema' via the package's
 // barrel export. If the public surface for submission responses breaks,
-// these tests catch it. Unit-level coverage of v2 fields lives in
-// src/__tests__/stage-9a.test.ts.
+// these tests catch it. Related schema-default coverage (ActivityMeta flow
+// fields, block feedback fields) lives in stage-9a.test.ts.
 // =============================================================================
 import { describe, it, expect } from 'vitest';
 import {
@@ -67,6 +67,15 @@ describe('SubmissionResponses (v2 — current)', () => {
     const data = { schemaVersion: 1, blanks: {} };
     expect(SubmissionResponses.safeParse(data).success).toBe(false);
   });
+
+  it('rejects an invalid confidence value', () => {
+    const id = crypto.randomUUID();
+    const data = {
+      schemaVersion: 2,
+      blanks: { [id]: { answer: 'x+2', correct: true, confidence: 'maybe' } },
+    };
+    expect(SubmissionResponses.safeParse(data).success).toBe(false);
+  });
 });
 
 describe('SubmissionResponsesV1 (legacy — for migration only)', () => {
@@ -106,5 +115,9 @@ describe('migrateSubmissionResponses', () => {
 
   it('throws on a malformed input', () => {
     expect(() => migrateSubmissionResponses({ garbage: true })).toThrow();
+  });
+
+  it('throws on an unknown schemaVersion', () => {
+    expect(() => migrateSubmissionResponses({ schemaVersion: 99, blanks: {} })).toThrow();
   });
 });
