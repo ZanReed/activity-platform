@@ -49,6 +49,14 @@ export interface BlankRef {
     blockId: string;
     /** ID of the section the parent block belongs to. */
     sectionId: string;
+    /**
+     * data-blank-group id when this blank belongs to an order-independent
+     * group (2+ adjacent interchangeable blanks); null when ungrouped. Blanks
+     * sharing a groupId are scored together with consume-once matching so
+     * answers count in any order but each correct answer satisfies only one
+     * blank. Set once at init from the data attribute; never queried again.
+     */
+    groupId: string | null;
 }
 
 /** One per fill_in_blank block. */

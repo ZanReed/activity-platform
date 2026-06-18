@@ -674,6 +674,7 @@ describe('lists', () => {
                 id: 'blank-1',
                 answer: '2x + 6',
                 acceptableAnswers: ['2x+6', '6 + 2x'],
+                interchangeableWithPrevious: false,
                 hint: [{ type: 'text', text: 'Distribute the 2.', marks: [] }],
                 mistakeFeedback: [
                     {
@@ -724,6 +725,7 @@ describe('lists', () => {
                 id: 'blank-2',
                 answer: '5',
                 acceptableAnswers: [],
+                interchangeableWithPrevious: false,
             };
             const doc: JSONContent = {
                 type: 'doc',

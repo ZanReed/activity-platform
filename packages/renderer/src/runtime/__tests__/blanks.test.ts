@@ -74,6 +74,7 @@ function buildBlankRef(
         mistakeFeedback: mistakeRefs,
         blockId: 'block-1',
         sectionId: 'sec-1',
+        groupId: null,
     };
 }
 

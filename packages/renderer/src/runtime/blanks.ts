@@ -125,6 +125,133 @@ export function scoreBlankAndUpdateState(
 }
 
 /**
+ * Score a group of order-independent blanks with consume-once matching.
+ *
+ * The blanks share an answer pool, but each correct answer can satisfy only one
+ * blank: for `(x + ☐)(x + ☐)` with answers {2, 3}, both (2,3) and (3,2) score
+ * 2/2, while (2,2) scores 1/2 (one blank matches "2", the other has nothing
+ * left to match). Empty blanks stay unscored (null), mirroring solo behavior.
+ *
+ * Implementation: maximum bipartite matching (Kuhn's augmenting path) between
+ * typed values and answer slots. A value fills a slot when that slot's blank
+ * would score the value correct (evaluateAnswer against the slot's own answer
+ * list — each blank keeps its own acceptableAnswers/strategy; we match against
+ * per-slot lists, never a flattened pool, which is what preserves consume-once).
+ * Values are processed in document order, so when more equal values compete than
+ * there are slots, the LAST duplicate is the one left unmatched — a deterministic
+ * tiebreak.
+ *
+ * Writes result + matchedMistake to state per blank, in the exact shape
+ * scoreBlankAndUpdateState produces, so render() and gatherResponses treat
+ * grouped and solo blanks identically downstream. No DOM writes.
+ *
+ * `ids` and `refsList` are index-aligned (ids[i] ↔ refsList[i]).
+ */
+export function scoreGroup(
+  state: RuntimeState,
+  ids: string[],
+  refsList: BlankRef[],
+): void {
+  const n = ids.length;
+  const values = refsList.map((ref) => trimValue(ref.input.value));
+
+  // slotToValue[j] = index of the value currently occupying slot j, or -1.
+  const slotToValue: number[] = new Array(n).fill(-1);
+
+  const canFill = (vi: number, sj: number): boolean => {
+    const value = values[vi];
+    const slot = refsList[sj];
+    if (!value || !slot) return false; // empty value never matches
+    return evaluateAnswer(slot.input, value);
+  };
+
+  const augment = (vi: number, seen: boolean[]): boolean => {
+    for (let sj = 0; sj < n; sj++) {
+      if (seen[sj] || !canFill(vi, sj)) continue;
+      seen[sj] = true;
+      const occupant = slotToValue[sj];
+      if (occupant === undefined) continue;
+      if (occupant === -1 || augment(occupant, seen)) {
+        slotToValue[sj] = vi;
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (let vi = 0; vi < n; vi++) {
+    if (!values[vi]) continue; // empties stay unscored
+    augment(vi, new Array<boolean>(n).fill(false));
+  }
+
+  const matched = new Array<boolean>(n).fill(false);
+  for (let sj = 0; sj < n; sj++) {
+    const vi = slotToValue[sj];
+    if (vi !== undefined && vi >= 0) matched[vi] = true;
+  }
+
+  for (let i = 0; i < n; i++) {
+    const id = ids[i];
+    const ref = refsList[i];
+    if (id === undefined || !ref) continue;
+    const blankState = state.blanks[id];
+    if (!blankState) continue;
+    const value = values[i] ?? '';
+    const result: boolean | null = value === '' ? null : matched[i] === true;
+    blankState.result = result;
+    blankState.matchedMistake =
+      result === false ? matchMistakeFeedback(ref, value) : null;
+  }
+}
+
+/**
+ * Score a set of blanks, honoring order-independent groups. Blanks carrying a
+ * groupId are bucketed and scored together via scoreGroup (consume-once); the
+ * rest score independently via scoreBlankAndUpdateState. Used by BOTH the
+ * per-section check (checkSection) and the whole-activity submit gather
+ * (gatherResponses), so check-time and submit-time verdicts always agree.
+ *
+ * Every member of a group lives in one block within one section, so any scope
+ * that contains whole sections (a section's blanks, or every blank on the page)
+ * contains each group in full — bucketing never splits a group.
+ */
+export function scoreBlanksInScope(
+  state: RuntimeState,
+  refs: Refs,
+  blankIds: Iterable<string>,
+): void {
+  const groups = new Map<string, string[]>();
+  for (const id of blankIds) {
+    const ref = refs.blanks.get(id);
+    if (!ref) continue;
+    if (ref.groupId) {
+      const bucket = groups.get(ref.groupId);
+      if (bucket) bucket.push(id);
+      else groups.set(ref.groupId, [id]);
+    } else {
+      scoreBlankAndUpdateState(state, id, ref);
+    }
+  }
+  for (const ids of groups.values()) {
+    const refsList: BlankRef[] = [];
+    for (const id of ids) {
+      const ref = refs.blanks.get(id);
+      if (ref) refsList.push(ref);
+    }
+    // Defensive: a ref vanished between bucketing and here (shouldn't happen
+    // post-init). Score what's left independently so nothing goes unscored.
+    if (refsList.length !== ids.length) {
+      for (const id of ids) {
+        const ref = refs.blanks.get(id);
+        if (ref) scoreBlankAndUpdateState(state, id, ref);
+      }
+      continue;
+    }
+    scoreGroup(state, ids, refsList);
+  }
+}
+
+/**
  * Clear stale result + matchedMistake on a blank. Used by the input
  * event handler so an edited answer doesn't keep its green "correct"
  * border (or stale mistake text) until the student blurs again.
@@ -172,7 +299,12 @@ export function wireBlanks(
   onUpdate: () => void,
 ): void {
   for (const [id, ref] of refs.blanks) {
-    if (answerFeedback === 'immediate') {
+    // Immediate mode scores on blur — but only solo blanks. A grouped blank
+    // can't resolve in isolation (its group-mates may still be empty or
+    // mid-typing), so scoring it on blur would flash a misleading ✗ on an
+    // answer that's correct once the group is matched. Grouped blanks instead
+    // resolve when a group-aware scope runs (section check or submit).
+    if (answerFeedback === 'immediate' && ref.groupId === null) {
       ref.input.addEventListener('blur', () => {
         scoreBlankAndUpdateState(state, id, ref);
         onUpdate();

@@ -47,6 +47,7 @@ function makeBlankRef(blankId: string): BlankRef {
         mistakeFeedback: [],
         blockId: 'block-1',
         sectionId: 'sec-1',
+        groupId: null,
     };
 }
 
@@ -76,6 +77,7 @@ function makeBlankRefWithHint(blankId: string): BlankRef {
         mistakeFeedback: [],
         blockId: 'block-1',
         sectionId: 'sec-1',
+        groupId: null,
     };
 }
 
@@ -107,6 +109,7 @@ function makeBlankRefWithMistake(blankId: string): BlankRef {
         mistakeFeedback: [{ match: 'wrong', content: mistakeContent }],
         blockId: 'block-1',
         sectionId: 'sec-1',
+        groupId: null,
     };
 }
 

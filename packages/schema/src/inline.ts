@@ -96,6 +96,20 @@ export const BlankToken = z.object({
     match: z.string(),
     feedback: z.array(InlineNode),
   })).optional(),
+  // Order-independent answer grouping. When true, this blank's answer is
+  // interchangeable with the blank immediately before it (in document order,
+  // within the same block) — e.g. factoring `(x + ☐)(x + ☐)` where (2,3) and
+  // (3,2) are both correct but (2,2) is not. A "group" is a maximal run of
+  // adjacent blanks each flagged here; the renderer compiles runs into a
+  // shared `data-blank-group` id, and the runtime scores the group with
+  // consume-once matching (each correct answer can satisfy only one blank).
+  //
+  // This boolean is authoring *sugar*: the general model lives in the runtime
+  // data-attribute contract (group ids), so richer grouping (non-adjacent,
+  // cross-block) can be added later as an additive `group` field without a
+  // breaking change. The first blank in a block ignores this flag (no
+  // previous blank to group with).
+  interchangeableWithPrevious: z.boolean().default(false),
 });
 export type BlankToken = z.infer<typeof BlankToken>;
 

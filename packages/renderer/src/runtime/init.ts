@@ -140,6 +140,12 @@ function buildBlankRef(
     const answers = (input.dataset.blankAnswers ?? '').split('|').filter(Boolean);
     const strategy = input.dataset.blankStrategy ?? 'list';
 
+    // Order-independent grouping: present only on blanks the renderer placed in
+    // a group (2+ adjacent interchangeable blanks). Absent → null → scored
+    // independently. The id is the group's anchor blank id; equality is all the
+    // runtime needs to bucket members together.
+    const groupId = input.dataset.blankGroup ?? null;
+
     // Rich feedback content lives in hidden <template> siblings, pre-rendered
     // server-side. The runtime never parses or re-renders it — it clones the
     // template into the popover on demand.
@@ -171,6 +177,7 @@ function buildBlankRef(
         mistakeFeedback,
         blockId,
         sectionId,
+        groupId,
     };
 }
 

@@ -24,7 +24,7 @@
 // =============================================================================
 
 import { $ } from './dom.js';
-import { scoreBlankAndUpdateState, trimValue } from './blanks.js';
+import { scoreBlanksInScope, trimValue } from './blanks.js';
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
@@ -122,8 +122,12 @@ export function gatherResponses(
   let totalCorrect = 0;
   let totalScored = 0;
 
+  // Score all blanks first (group-aware), then read each verdict from state —
+  // so grouped blanks submit the same consume-once result the section check
+  // showed, rather than an independent rescore that would fail (3,2)≡(2,3).
+  scoreBlanksInScope(state, refs, refs.blanks.keys());
   for (const [blankId, ref] of refs.blanks) {
-    const correct = scoreBlankAndUpdateState(state, blankId, ref);
+    const correct = state.blanks[blankId]?.result ?? null;
     if (correct !== null) totalScored += 1;
     if (correct === true) totalCorrect += 1;
     const result: BlankResult = {

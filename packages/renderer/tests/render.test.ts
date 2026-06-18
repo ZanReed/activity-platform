@@ -466,6 +466,67 @@ describe('Inline rendering', () => {
   });
 });
 
+describe('Order-independent blank grouping (data-blank-group)', () => {
+  // A "group" is a run of adjacent blanks each flagged interchangeableWithPrevious.
+  // Runs of 2+ share the anchor blank's id as data-blank-group; lone blanks emit
+  // none. The runtime buckets by this id for consume-once scoring.
+  function bodyWith(blanks: ReturnType<typeof createBlankToken>[]): string {
+    const doc = createEmptyDocument({ title: 'T' });
+    const fill = createFillInBlankBlock();
+    fill.content = blanks;
+    doc.sections[0]!.blocks = [fill];
+    return renderBody(doc);
+  }
+
+  it('groups two adjacent blanks under the anchor blank id', () => {
+    const a = createBlankToken('2');
+    const b = createBlankToken('3');
+    b.interchangeableWithPrevious = true;
+    const body = bodyWith([a, b]);
+    // Both inputs carry the anchor (first blank) id as the group.
+    const groupAttrs = body.match(/data-blank-group="[^"]*"/g) ?? [];
+    expect(groupAttrs).toEqual([
+      `data-blank-group="${a.id}"`,
+      `data-blank-group="${a.id}"`,
+    ]);
+    expect(body).toContain('class="blank blank-grouped"');
+    expect(body).toContain('title="Any order accepted"');
+  });
+
+  it('emits no group attribute for ungrouped blanks', () => {
+    const a = createBlankToken('2');
+    const b = createBlankToken('3'); // no flag → not grouped
+    const body = bodyWith([a, b]);
+    expect(body).not.toContain('data-blank-group');
+    expect(body).not.toContain('blank-grouped');
+  });
+
+  it('ignores the flag on the first blank (no previous to group with)', () => {
+    const a = createBlankToken('2');
+    a.interchangeableWithPrevious = true; // meaningless on blank 1
+    const b = createBlankToken('3'); // not flagged
+    const body = bodyWith([a, b]);
+    expect(body).not.toContain('data-blank-group');
+  });
+
+  it('starts a new group when the run breaks', () => {
+    const a = createBlankToken('2');
+    const b = createBlankToken('3');
+    b.interchangeableWithPrevious = true; // group 1: {a, b} → anchor a
+    const c = createBlankToken('4'); // breaks the run
+    const d = createBlankToken('5');
+    d.interchangeableWithPrevious = true; // group 2: {c, d} → anchor c
+    const body = bodyWith([a, b, c, d]);
+    const groupAttrs = body.match(/data-blank-group="([^"]*)"/g) ?? [];
+    expect(groupAttrs).toEqual([
+      `data-blank-group="${a.id}"`,
+      `data-blank-group="${a.id}"`,
+      `data-blank-group="${c.id}"`,
+      `data-blank-group="${c.id}"`,
+    ]);
+  });
+});
+
 describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
   it('pre-renders rich solution content into a hidden slot when solution is set', () => {
     const doc = createEmptyDocument({ title: 'T' });

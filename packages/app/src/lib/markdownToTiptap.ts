@@ -629,7 +629,15 @@ function makeBlank(canonRaw: string, altsRaw: string): JSONContent | null {
         .filter((s) => s.length > 0);
     return {
         type: 'blank',
-        attrs: { id: crypto.randomUUID(), answer: canonical, acceptableAnswers },
+        // Imported blanks are ungrouped by default; the markdown grouping marker
+        // (a later drop) is what flips this. Emitted so the importer's blank
+        // shape matches the editor/serialize round-trip exactly.
+        attrs: {
+            id: crypto.randomUUID(),
+            answer: canonical,
+            acceptableAnswers,
+            interchangeableWithPrevious: false,
+        },
     };
 }
 

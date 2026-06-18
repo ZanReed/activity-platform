@@ -240,6 +240,30 @@ describe('buildRefs — blanks', () => {
         expect(blank?.mistakeButton).not.toBeNull();
         expect(blank?.blockId).toBe('block-1');
         expect(blank?.sectionId).toBe('sec-1');
+        // No data-blank-group on this input → ungrouped.
+        expect(blank?.groupId).toBeNull();
+    });
+
+    it('reads data-blank-group into BlankRef.groupId for grouped blanks', () => {
+        setupDOM(
+            configScript() +
+            '<section class="activity-section" data-section-id="sec-1">' +
+            '<div class="block block-fill-in-blank"' +
+            ' data-block-type="fill_in_blank" data-block-id="block-1">' +
+            '<div class="block-problem-body">' +
+            '<span class="blank-wrapper">' +
+            '<input type="text" class="blank blank-grouped" data-blank-id="blank-1"' +
+            ' data-blank-answers="2" data-blank-group="blank-1" />' +
+            '</span>' +
+            '<span class="blank-wrapper">' +
+            '<input type="text" class="blank blank-grouped" data-blank-id="blank-2"' +
+            ' data-blank-answers="3" data-blank-group="blank-1" />' +
+            '</span></div></div></section>',
+        );
+        const refs = buildRefs();
+        // Both members carry the same group id (the anchor blank's id).
+        expect(refs.blanks.get('blank-1')?.groupId).toBe('blank-1');
+        expect(refs.blanks.get('blank-2')?.groupId).toBe('blank-1');
     });
 
     it('leaves affordances null when blank has neither hint nor mistakes', () => {

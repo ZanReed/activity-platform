@@ -445,6 +445,10 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
         id,
         answer,
         acceptableAnswers,
+        // Order-independent grouping flag. Authored via the blank's NodeView;
+        // absent/falsy attr → false (the common, ungrouped case).
+        interchangeableWithPrevious:
+            node.attrs?.interchangeableWithPrevious === true,
     };
 
     // hint and each mistakeFeedback entry's feedback are stored as canonical
@@ -733,6 +737,9 @@ function activityBlankToTiptap(node: BlankToken): JSONContent {
         id: node.id,
         answer: node.answer,
         acceptableAnswers: node.acceptableAnswers,
+        // Always emitted (like acceptableAnswers) for round-trip exactness with
+        // the NodeView's stored attr.
+        interchangeableWithPrevious: node.interchangeableWithPrevious,
     };
     if (node.hint !== undefined) attrs.hint = node.hint;
     if (node.mistakeFeedback !== undefined) {

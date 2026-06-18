@@ -21,7 +21,7 @@
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
-import { scoreBlankAndUpdateState } from './blanks.js';
+import { scoreBlanksInScope } from './blanks.js';
 
 /**
  * Score every blank in the section, aggregate state, reveal solutions for
@@ -48,12 +48,13 @@ export function checkSection(
     const sectionState = state.sections[sectionId];
     if (!sectionRef || !sectionState) return;
 
+    // Score every blank in the section, honoring order-independent groups
+    // (consume-once matching). A group is always wholly inside one section, so
+    // this scope never splits one. Then tally correct from the written results.
+    scoreBlanksInScope(state, refs, sectionRef.blankIds);
     let correct = 0;
     for (const blankId of sectionRef.blankIds) {
-        const blankRef = refs.blanks.get(blankId);
-        if (!blankRef) continue;
-        const result = scoreBlankAndUpdateState(state, blankId, blankRef);
-        if (result === true) correct += 1;
+        if (state.blanks[blankId]?.result === true) correct += 1;
     }
 
     sectionState.checked = true;

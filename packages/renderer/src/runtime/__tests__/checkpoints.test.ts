@@ -80,6 +80,7 @@ function makeBlankRef(
         mistakeFeedback: [],
         blockId,
         sectionId,
+        groupId: null,
     };
 }
 

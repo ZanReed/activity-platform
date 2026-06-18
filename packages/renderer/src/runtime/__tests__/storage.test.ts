@@ -63,6 +63,7 @@ function makeBlankRef(blankId: string, value: string): BlankRef {
         mistakeFeedback: [],
         blockId: 'block-1',
         sectionId: 'sec-1',
+        groupId: null,
     };
 }
 

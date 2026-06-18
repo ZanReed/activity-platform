@@ -131,7 +131,11 @@ describe('blanks → fillInBlank', () => {
                     { type: 'text', text: 'The capital of France is ' },
                     {
                         type: 'blank',
-                        attrs: { answer: 'Paris', acceptableAnswers: [] },
+                        attrs: {
+                            answer: 'Paris',
+                            acceptableAnswers: [],
+                            interchangeableWithPrevious: false,
+                        },
                     },
                     { type: 'text', text: '.' },
                 ],
@@ -328,7 +332,14 @@ describe('math', () => {
             { type: 'text', text: 'Compute ' },
             { type: 'mathInline', attrs: { latex: '2+2' } },
             { type: 'text', text: ' = ' },
-            { type: 'blank', attrs: { answer: '4', acceptableAnswers: [] } },
+            {
+                type: 'blank',
+                attrs: {
+                    answer: '4',
+                    acceptableAnswers: [],
+                    interchangeableWithPrevious: false,
+                },
+            },
         ]);
     });
 });

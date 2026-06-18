@@ -106,6 +106,7 @@ export function createBlankToken(answer: string): BlankToken {
     type: 'blank',
     answer,
     acceptableAnswers: [],
+    interchangeableWithPrevious: false,
   };
 }
 

@@ -44,21 +44,45 @@ export function renderInlineNodes(nodes: InlineNode[]): string {
 // showAnswers fills each blank with its canonical answer (the answer-key print
 // variant, Drop C). Defaults to false so every existing caller — the published
 // page, the editor preview — keeps rendering empty inputs unchanged.
+// Order-independent answer grouping. A "group" is a maximal run of adjacent
+// blanks each flagged interchangeableWithPrevious (the first blank of a run
+// anchors it; its own flag is ignored — there's no previous blank to group
+// with). Runs of 2+ share a group id (the anchor blank's own id, which is
+// page-unique); lone blanks get null and render ungrouped. The runtime buckets
+// blanks by this id and scores each group with consume-once matching, so for
+// `(x + ☐)(x + ☐)` both (2,3) and (3,2) are correct but (2,2) is not. Mirrors
+// the schema comment on BlankToken.interchangeableWithPrevious.
+function computeBlankGroups(blanks: BlankToken[]): (string | null)[] {
+  const groupOf: (string | null)[] = new Array(blanks.length).fill(null);
+  let i = 0;
+  while (i < blanks.length) {
+    const start = i;
+    i++;
+    while (i < blanks.length && blanks[i]?.interchangeableWithPrevious) i++;
+    const anchor = blanks[start];
+    if (anchor && i - start >= 2) {
+      for (let k = start; k < i; k++) groupOf[k] = anchor.id;
+    }
+  }
+  return groupOf;
+}
+
 export function renderFillInBlankContent(
   content: FillInBlankInline[],
   showAnswers = false,
 ): string {
-  const total = content.reduce(
-    (count, node) => (node.type === 'blank' ? count + 1 : count),
-                               0,
+  const blanks = content.filter(
+    (node): node is BlankToken => node.type === 'blank',
   );
+  const total = blanks.length;
+  const groupOf = computeBlankGroups(blanks);
   let index = 0;
   return content
-  .map((node) =>
-  node.type === 'blank'
-  ? renderBlank(node, ++index, total, showAnswers)
-  : renderInline(node),
-  )
+  .map((node) => {
+    if (node.type !== 'blank') return renderInline(node);
+    const groupId = groupOf[index] ?? null;
+    return renderBlank(node, ++index, total, showAnswers, groupId);
+  })
   .join('');
 }
 
@@ -130,6 +154,10 @@ function renderBlank(
   index: number,
   total: number,
   showAnswers: boolean,
+  // data-blank-group id when this blank is part of an order-independent group
+  // (2+ adjacent interchangeable blanks); null for an ungrouped blank. The
+  // runtime buckets by this id and scores the group with consume-once matching.
+  groupId: string | null = null,
 ): string {
   // Width: explicit override if set on the BlankToken, otherwise auto-derive
   // from the canonical answer's length. Drives a CSS variable on the input
@@ -233,12 +261,21 @@ function renderBlank(
   // lines mid-prose. The wrapper itself carries no data-* attributes; the
   // runtime reaches each child via class selectors. Templates are inert
   // (their content isn't rendered until cloned), so they add no visual weight.
+  // Grouped blanks carry data-blank-group (consumed by the runtime for
+  // consume-once matching) plus a minimal student-facing cue — a title so a
+  // hover/AT reader learns order doesn't matter, and a class hook for styling.
+  const groupAttr = groupId
+    ? ' data-blank-group="' + attr(groupId) + '" title="Any order accepted"'
+    : '';
+  const blankClass = groupId ? 'blank blank-grouped' : 'blank';
+
   return (
     '<span class="blank-wrapper">' +
     '<input type="text"' +
-    ' class="blank"' +
+    ' class="' + blankClass + '"' +
     ' data-blank-id="' + attr(node.id) + '"' +
     ' data-blank-answers="' + attr(acceptable) + '"' +
+    groupAttr +
     ' aria-label="' + attr(label) + '"' +
     ' style="--blank-width:' + width + 'ch"' +
     valueAttr +
