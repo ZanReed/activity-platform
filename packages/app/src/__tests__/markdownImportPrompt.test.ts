@@ -113,6 +113,24 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'order-independent group {{~answer}}',
+        fragment: '{{~3}}',
+        md: '(x + {{2}})(x + {{~3}})',
+        check: (b) => {
+            const blanks = nodesOfType(b, 'blank');
+            expect(blanks).toHaveLength(2);
+            expect(blanks[0]!.attrs).toMatchObject({
+                answer: '2',
+                interchangeableWithPrevious: false,
+            });
+            // The ~ marks the second blank, and the answer is stripped of it.
+            expect(blanks[1]!.attrs).toMatchObject({
+                answer: '3',
+                interchangeableWithPrevious: true,
+            });
+        },
+    },
+    {
         name: 'checkpoint section heading',
         fragment: '## Part 2 {checkpoint}',
         md: '## Part 2 {checkpoint}',

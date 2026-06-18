@@ -151,6 +151,21 @@ describe('blanks → fillInBlank', () => {
         });
     });
 
+    it('a leading ~ groups a blank with the previous one (and is stripped)', () => {
+        const out = convert('(x + {{2}})(x + {{~3}})').blocks;
+        const blanks = (out[0]!.content ?? []).filter((n) => n.type === 'blank');
+        expect(blanks).toHaveLength(2);
+        expect(blanks[0]!.attrs).toMatchObject({
+            answer: '2',
+            interchangeableWithPrevious: false,
+        });
+        // The ~ flips the flag and does NOT remain in the answer.
+        expect(blanks[1]!.attrs).toMatchObject({
+            answer: '3',
+            interchangeableWithPrevious: true,
+        });
+    });
+
     it('assigns a unique id to every blank', () => {
         const out = convert('{{a}} and {{b}}').blocks;
         const ids = out[0]!.content!

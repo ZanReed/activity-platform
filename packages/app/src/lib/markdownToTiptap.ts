@@ -621,7 +621,17 @@ function emitInline(
 }
 
 function makeBlank(canonRaw: string, altsRaw: string): JSONContent | null {
-    const canonical = canonRaw.trim();
+    let canonical = canonRaw.trim();
+    // A leading ~ marks the blank as interchangeable with the PREVIOUS blank in
+    // the same problem — order-independent grouping (e.g. factoring, where
+    // (x+2)(x+3) and (x+3)(x+2) are both correct). Strip it from the answer.
+    // The renderer ignores the flag on the first blank of a problem (nothing to
+    // group with), so a stray ~ on the first blank is harmless.
+    let interchangeableWithPrevious = false;
+    if (canonical.startsWith('~')) {
+        interchangeableWithPrevious = true;
+        canonical = canonical.slice(1).trim();
+    }
     if (canonical.length === 0) return null;
     const acceptableAnswers = altsRaw
         .split('|')
@@ -629,14 +639,11 @@ function makeBlank(canonRaw: string, altsRaw: string): JSONContent | null {
         .filter((s) => s.length > 0);
     return {
         type: 'blank',
-        // Imported blanks are ungrouped by default; the markdown grouping marker
-        // (a later drop) is what flips this. Emitted so the importer's blank
-        // shape matches the editor/serialize round-trip exactly.
         attrs: {
             id: crypto.randomUUID(),
             answer: canonical,
             acceptableAnswers,
-            interchangeableWithPrevious: false,
+            interchangeableWithPrevious,
         },
     };
 }
