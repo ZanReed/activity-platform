@@ -8,15 +8,17 @@ Things only the author does (pushes, deploys, migrations), queued and waiting:
 
 1. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
 2. **Now unblocked (2026-06-17): the e2e pass verified R2 end-to-end (free + locked submit → R2 → dashboard).** Delete the legacy Supabase Storage `activities` bucket and any env vars referencing it.
+3. **Redeploy `publish-activity`** to ship the order-independent blank-grouping bundle (renderer emits `data-blank-group`; runtime added `scoreGroup`). The committed `renderer.bundle.js` is current. Until redeployed + activities re-published, grouped blanks won't score on published pages (no server change needed — `ingest-submission` stores the client verdict verbatim).
 
 Cleared 2026-06-17: **migration `0008_soft_delete_activity.sql` deployed — deleting activities now works** (soft-delete RLS bug; writeup in HISTORY 2026-06-17, reasoning in DECISIONS → "Activity deletion"). Cleared 2026-06-16: **cross-origin `<img>` loads from R2 confirmed working** by the author; **the three real-mouse GUI passes confirmed working** (drag-between-cells, image resize handles, nested rich-text mini-editor). Also: `publish-activity` redeployed with the **submission-payload fix** (runtime now POSTs snake_case `activity_id`/`display_name` matching `ingest-submission`) and the `[TEST] E2E Coverage` activity re-published — live submit verified end to end (see Current focus). Cleared 2026-06-13 (verified via Supabase API): `publish-activity` was at **v34**, carrying the full variable-block-sizing bundle (width fill + image fixed-height crop + cell `--cell-min-height`). Earlier (2026-06-12): migration 0007 applied; `upload-image` deployed; `ingest-submission` still has `verify_jwt: false`.
 
 ## Current focus
 
-**▶ No active goal — next focus is open.** Pick from "Also queued" below.
+**▶ Order-independent blank groups — code COMPLETE (Drops 1–5), awaiting deploy + author verification.** Factoring-style problems where `(x+2)(x+3)` ≡ `(x+3)(x+2)` are both correct but `(x+2)(x+2)` is not. Schema → renderer → runtime → editor → dashboard → markdown import all landed and green; bundle regenerated. **Next:** author redeploys `publish-activity` (Pending #3), re-publishes a test activity, and confirms grouped scoring on a real published page. Reasoning in DECISIONS → "Order-independent blank groups".
 
 Recently completed (newest first; durable detail in [DECISIONS](docs/DECISIONS.md)/[HISTORY](docs/HISTORY.md)):
 
+- **Order-independent blank groups** (2026-06-17) — a blank can be flagged `interchangeableWithPrevious`; the renderer compiles adjacent runs into a shared `data-blank-group` id and the runtime scores each group with consume-once bipartite matching (each correct answer satisfies one blank; document-order tiebreak; grouped blanks resolve at check/submit, not immediate-mode blur). Authoring: a popover checkbox (hidden on a block's first blank) + a ⇄ chip cue; markdown import via a leading-tilde marker (`{{~3}}`); dashboard drill-down shows "x or y (any order)". Client-authoritative scoring, so no Edge Function change. Schema 89 / renderer 268 / app 232 green. DECISIONS → "Order-independent blank groups".
 - **E2E locked-mode + dashboard** (2026-06-17) — author-confirmed working. Locked-mode publish → check freezes the checked section's inputs + check button, solution reveals, score shows; submit → row appears in the Submissions dashboard with per-blank answer-key/student detail. Prep was code-side de-risking (`seed-e2e-locked.sql` validated against the known-good free seed; freeze path traced + unit-covered). Completes the End-to-end manual test item and unblocks the legacy-bucket cleanup (Pending action #2).
 - **CI branch-filter narrowing** (2026-06-17) — CI's `push` trigger limited to `main` (was unfiltered, firing on every branch). Feature branches now get a single PR run instead of double-firing on push + PR; merges/direct commits to `main` still run. `pull_request` still covers all PRs.
 - **Deferred test coverage** (2026-06-13) — `init.test.ts` now covers `state.blanks`/`state.blocks` (one defaulted entry per ref, empty when none). The blank-edit popover's draft/commit/close decisions were extracted to a pure `blankPopoverLogic.ts` (behavior-preserving lift out of `BlankEditPopover`/`BlankPopoverHost`) and unit-tested (`blankPopoverLogic.test.ts`, 25 cases — `computeFlush`, `resolveAnswerBlur`, `resolveAcceptableCommit`, `filterFeedbackForCommit`, `isSameBlankSelection`). Refactor browser-smoke-verified: edit commits on outside-click close, whitespace stripped, selection released.
@@ -52,8 +54,9 @@ Also queued:
 | CI (GitHub Actions: typecheck/lint/test/build + bundle-staleness guard) | ✅ Added 2026-06-13; verified green locally |
 | Markdown paste import | ✅ Complete + verified end-to-end by author (multiple smoke tests); app-only, no deploy. Format spec + Copy AI prompt + drift guard shipped |
 | End-to-end manual test | ✅ Free-mode (2026-06-16) + locked-mode/dashboard (2026-06-17) both author-verified end to end |
+| Order-independent blank groups | ✅ Code complete + tested; editor browser-verified; bundle regenerated. Awaiting `publish-activity` redeploy (Pending #3) + author check on a published page |
 
-Test counts at last session: schema 54 / renderer 254 / app 227 (markdown import: +40 converter incl. fence-unwrap, +22 format-drift guard, +7 dialog RTL); `tsc -b` + app build green.
+Test counts at last session: schema 89 / renderer 268 / app 232; `tsc -b` + app build green. (Order-independent groups added: schema +3, renderer +13 (grouping scoring 9 + emission 4) + init groupId, app +6 across popover-logic/submissions/markdown drift+converter.)
 
 ## Repo layout
 
@@ -108,4 +111,4 @@ activity-platform/
 
 ---
 
-**Last updated:** 2026-06-17. Completed-session narratives are archived in [HISTORY.md](docs/HISTORY.md) (rolling log, newest first); durable reasoning in [DECISIONS.md](docs/DECISIONS.md). Suite at last session: schema 54 / renderer 254 / app 227; CI green.
+**Last updated:** 2026-06-17. Completed-session narratives are archived in [HISTORY.md](docs/HISTORY.md) (rolling log, newest first); durable reasoning in [DECISIONS.md](docs/DECISIONS.md). Suite at last session: schema 89 / renderer 268 / app 232; CI green.
