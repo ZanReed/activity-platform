@@ -13,7 +13,7 @@ Cleared 2026-06-18: **legacy Supabase Storage `activities` bucket deleted by aut
 
 ## Current focus
 
-**▶ Order-independent blank groups — code COMPLETE (Drops 1–5), awaiting deploy + author verification.** Factoring-style problems where `(x+2)(x+3)` ≡ `(x+3)(x+2)` are both correct but `(x+2)(x+2)` is not. Schema → renderer → runtime → editor → dashboard → markdown import all landed and green; bundle regenerated. **Next:** author redeploys `publish-activity` (Pending #3), re-publishes a test activity, and confirms grouped scoring on a real published page. Reasoning in DECISIONS → "Order-independent blank groups".
+**▶ Order-independent blank groups — code COMPLETE (Drops 1–5), awaiting deploy + author verification.** Factoring-style problems where `(x+2)(x+3)` ≡ `(x+3)(x+2)` are both correct but `(x+2)(x+2)` is not. Schema → renderer → runtime → editor → dashboard → markdown import all landed and green; bundle regenerated. Editor authoring + autosave/reload **confirmed working in dev** (an initial "doesn't persist on refresh" report was a stale Vite dev server, fixed by a server restart — not a code bug; serialize + Tiptap `fromJSON`/`toJSON` both proven to round-trip the flag). **Only remaining:** author redeploys `publish-activity` (Pending #2), re-publishes a test activity, and confirms grouped scoring on a real published page (the one path that can't be unit-verified). Reasoning in DECISIONS → "Order-independent blank groups"; data attribute documented in [RUNTIME.md](packages/renderer/RUNTIME.md) → "Blank token".
 
 Recently completed (newest first; durable detail in [DECISIONS](docs/DECISIONS.md)/[HISTORY](docs/HISTORY.md)):
 
@@ -110,4 +110,4 @@ activity-platform/
 
 ---
 
-**Last updated:** 2026-06-17. Completed-session narratives are archived in [HISTORY.md](docs/HISTORY.md) (rolling log, newest first); durable reasoning in [DECISIONS.md](docs/DECISIONS.md). Suite at last session: schema 89 / renderer 268 / app 232; CI green.
+**Last updated:** 2026-06-18. Completed-session narratives are archived in [HISTORY.md](docs/HISTORY.md) (rolling log, newest first); durable reasoning in [DECISIONS.md](docs/DECISIONS.md). Suite at last session: schema 89 / renderer 268 / app 232; CI green.

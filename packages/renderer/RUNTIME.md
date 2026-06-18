@@ -308,6 +308,7 @@ The input also carries (when authored):
 - `data-hint="..."` — read by `buildBlankRef`
 - `data-mistake-feedback='[{"match":"2x","feedback":"..."}]'` — JSON array
 - `data-blank-strategy="list"` — default; `[target — Phase 2.5]` adds `expression` and `computed`
+- `data-blank-group="<anchor-blank-uuid>"` — **order-independent grouping.** Present only on blanks that belong to a group (a run of 2+ adjacent blanks the author marked interchangeable; the value is the run's first/anchor blank id). The runtime buckets blanks by this id and scores each group with **consume-once matching** (each correct answer satisfies one blank), so for `(x + ☐)(x + ☐)` both `(2,3)` and `(3,2)` are correct but `(2,2)` is not. Grouped inputs also carry `class="blank blank-grouped"` + `title="Any order accepted"` as a student cue. Absent ⇒ the blank scores independently (the default).
 
 **Accessibility — positional label.** Each blank `<input>` carries a renderer-supplied `aria-label`. With multiple blanks in a block it's positional — `Blank 1 of 3`, `Blank 2 of 3`, … — numbered in document order. Lone blank: `Fill in the blank`. Without it, screen readers announce only "edit text," giving the student no cue which blank has focus.
 
