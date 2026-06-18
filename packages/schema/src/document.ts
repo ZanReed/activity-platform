@@ -136,6 +136,13 @@ export type PrintHeader = z.infer<typeof PrintHeader>;
 //                    ColumnsBlock with gridLines:'inherit' (the per-block
 //                    default) resolves to this; 'on'/'off' on a block override
 //                    it. Off by default — ruled grids are opt-in.
+//   printReferencePanel — whether the activity's reference panel prints as a
+//                    box at the top of the worksheet. On by default; a teacher
+//                    with a class set of charts can turn it off so it isn't
+//                    reprinted per activity. The on-SCREEN reference toolbar is
+//                    unaffected — this gates print alone. Read by the renderer
+//                    to decide whether to emit the print box; not a container
+//                    CSS var.
 //   header         — see PrintHeader.
 //
 // columns/workSpace/fontSize/problemSpacing ride as --print-* CSS vars on the
@@ -150,6 +157,7 @@ export const PrintConfig = z.object({
                                      problemSpacing: z.number().min(0).default(1),
                                      margin: z.number().min(0).default(0.5),
                                      gridLines: z.boolean().default(false),
+                                     printReferencePanel: z.boolean().default(true),
                                      header: PrintHeader.default({}),
 });
 export type PrintConfig = z.infer<typeof PrintConfig>;

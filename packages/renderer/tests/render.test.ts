@@ -15,7 +15,12 @@ import {
   createListItem,
   type ActivityDocument,
 } from '@activity/schema';
-import { renderActivity, renderBody, type RenderContext } from '../src/index.js';
+import {
+  renderActivity,
+  renderActivityForPrint,
+  renderBody,
+  type RenderContext,
+} from '../src/index.js';
 
 const ctx: RenderContext = {
   activityId: '00000000-0000-0000-0000-000000000001',
@@ -962,5 +967,88 @@ describe('block identity attributes', () => {
     const body = renderBody(doc);
     expect(body).toContain('data-section-id="' + sectionId + '"');
     expect(body).not.toContain(' data-id="' + sectionId + '"');
+  });
+});
+
+describe('reference panel', () => {
+  // A document with a scaffold reference panel (a heading + a math block).
+  // printReferencePanel defaults true; opts.print flips the print gate.
+  function docWithPanel(
+    opts: { print?: boolean; title?: string } = {},
+  ): ActivityDocument {
+    const base = createEmptyDocument({ title: 'T' });
+    return {
+      ...base,
+      meta: {
+        ...base.meta,
+        print: { ...base.meta.print, printReferencePanel: opts.print ?? true },
+      },
+      referencePanel: {
+        title: opts.title ?? 'Formula reference',
+        blocks: [
+          Object.assign(createHeadingBlock(2), {
+            content: [{ type: 'text', text: 'Key formulas', marks: [] }],
+          }),
+          Object.assign(createMathBlock(), { latex: 'a^2+b^2=c^2' }),
+        ],
+      },
+    };
+  }
+
+  it('renders the screen toolbar (scaffold) with the title and content', () => {
+    const html = renderActivity(docWithPanel(), ctx);
+    expect(html).toContain(
+      '<details class="reference-panel" data-block-category="scaffold">',
+    );
+    expect(html).toContain('Formula reference');
+    expect(html).toContain('Key formulas'); // a panel block actually rendered
+  });
+
+  it('marks the container so CSS can reserve space for the bar', () => {
+    const html = renderActivity(docWithPanel(), ctx);
+    expect(html).toContain('class="activity-container has-reference-panel"');
+  });
+
+  it('places the panel ABOVE the first section so the runtime never walks it', () => {
+    const html = renderActivity(docWithPanel(), ctx);
+    const section = html.indexOf('<section class="activity-section"');
+    expect(html.indexOf('<details class="reference-panel"')).toBeLessThan(
+      section,
+    );
+    expect(html.indexOf('<aside class="reference-print"')).toBeLessThan(section);
+  });
+
+  it('drops the print box when printReferencePanel is off, keeps the toolbar', () => {
+    const html = renderActivity(docWithPanel({ print: false }), ctx);
+    expect(html).toContain('class="reference-panel"');
+    expect(html).not.toContain('class="reference-print"');
+  });
+
+  it('renders no panel markup (and no marker) when the activity has no panel', () => {
+    const html = renderActivity(createEmptyDocument({ title: 'T' }), ctx);
+    // The block CSS is always inlined (it carries .reference-panel rules), so
+    // assert on MARKUP, not bare substrings that also live in the stylesheet.
+    expect(html).not.toContain('<details class="reference-panel"');
+    expect(html).not.toContain('<aside class="reference-print"');
+    expect(html).toContain('class="activity-container"');
+    expect(html).not.toContain('class="activity-container has-reference-panel"');
+  });
+
+  it('print document emits the box but not the screen toolbar', () => {
+    const html = renderActivityForPrint(docWithPanel());
+    expect(html).toContain('<aside class="reference-print"');
+    expect(html).not.toContain('class="reference-panel"');
+  });
+
+  it('print document omits the box when printReferencePanel is off', () => {
+    const html = renderActivityForPrint(docWithPanel({ print: false }));
+    expect(html).not.toContain('class="reference-print"');
+  });
+
+  it('escapes the panel title', () => {
+    const html = renderActivity(docWithPanel({ title: '<x> & "y"' }), ctx);
+    // escape() handles text content (& < >); quotes aren't escaped there.
+    expect(html).toContain('&lt;x&gt; &amp; "y"');
+    expect(html).not.toContain('<span class="reference-panel-label"><x>');
   });
 });

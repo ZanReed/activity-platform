@@ -38,6 +38,7 @@ const DEFAULT_PRINT = {
   problemSpacing: 1,
   margin: 0.5,
   gridLines: false,
+  printReferencePanel: true,
   header: DEFAULT_HEADER,
 };
 

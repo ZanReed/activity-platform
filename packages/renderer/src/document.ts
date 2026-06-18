@@ -35,7 +35,7 @@
 
 import type { ActivityDocument, PrintConfig, PrintHeader } from '@activity/schema';
 import { escape, attr } from './html.js';
-import { renderBody } from './render.js';
+import { renderBody, renderReferenceToolbar, renderReferenceBox } from './render.js';
 import { blockStyles } from './runtime/styles.js';
 import { runtimeJs } from './runtime/generated/runtime-bundle.js';
 import { katexCss } from './generated/katex-css.js';
@@ -105,6 +105,25 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   const body = renderBody(doc);
   const print = doc.meta.print;
 
+  // Reference panel (scaffold). Screen: a fixed bottom toolbar (collapsed by
+  // default). Print: a static box at the top — only when printReferencePanel is
+  // on. Both render the same blocks and sit OUTSIDE any .activity-section, so
+  // the runtime never walks them (no scoring/persistence/checkpoint impact).
+  // The container marker reserves bottom padding so the collapsed bar can't
+  // hide the last content.
+  const referenceHtml = doc.referencePanel
+    ? renderReferenceToolbar(doc.referencePanel, {
+        gridLinesDefault: print.gridLines,
+      }) +
+      (print.printReferencePanel
+        ? renderReferenceBox(doc.referencePanel, {
+            gridLinesDefault: print.gridLines,
+          })
+        : '')
+    : '';
+  const containerClass =
+    'activity-container' + (doc.referencePanel ? ' has-reference-panel' : '');
+
   // Embedded JSON config that the runtime reads at startup.
   // Per-render fields (from RenderContext) plus activity-level behavior
   // modes (from doc.meta). The Stage 13 runtime reads submissionMode to
@@ -149,7 +168,7 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     // attribute value is constrained by the schema enum (worksheet |
     // exit_ticket | warm_up | review); attr() is defensive regardless. The
     // inline style carries the --print-* vars consumed by @media print.
-    '<main class="activity-container"' +
+    '<main class="' + containerClass + '"' +
     ' data-activity-type="' + attr(doc.meta.activityType) + '"' +
     ' style="' + printContainerVars(print) + '">' +
 
@@ -163,6 +182,10 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   ? '<div class="meta">' + headerMeta.join(' &middot; ') + '</div>'
   : '') +
   '</header>' +
+
+  // Reference panel (scaffold) — screen toolbar + optional print box. Empty
+  // string when the activity has no panel. See referenceHtml above.
+  referenceHtml +
 
   // Identity prompt (Pattern B: name field is upfront, validated at submit)
   '<div class="identity-prompt">' +
@@ -266,6 +289,12 @@ export function renderActivityForPrint(
   ? '<div class="meta">' + headerMeta.join(' &middot; ') + '</div>'
   : '') +
   '</header>' +
+  // Reference box at the top of the worksheet, gated by printReferencePanel.
+  // No screen toolbar here — this document is print-only (no runtime, no
+  // screen presentation).
+  (doc.referencePanel && print.printReferencePanel
+    ? renderReferenceBox(doc.referencePanel, { gridLinesDefault: print.gridLines })
+    : '') +
   body +
   '</main>' +
   '</body>' +

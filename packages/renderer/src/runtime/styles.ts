@@ -616,6 +616,60 @@ body {
 .submit-status.success { color: var(--color-success); }
 .submit-status.error   { color: var(--color-warning); }
 
+/* =============================================================================
+ Reference panel (scaffold) — optional teacher-authored reference content
+ (formula charts, vocab lists, conversion tables…). Rendered OUTSIDE any
+ .activity-section so the runtime never walks it. Two presentations of the
+ same blocks:
+ - screen: .reference-panel, a fixed bottom toolbar (native <details>,
+ collapsed by default; opens UPWARD). Zero runtime JS — the disclosure is the
+ browser's, the positioning is CSS.
+ - print: .reference-print, a static box at the top (see @media print).
+ ============================================================================= */
+
+/* Screen toolbar. flex column-reverse keeps the clickable bar (the <summary>,
+ which must be the first DOM child) pinned at the bottom while the opened body
+ expands above it. */
+.reference-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100; /* above activity content; below .js-popover (1000) */
+  display: flex;
+  flex-direction: column-reverse;
+  max-height: 70vh;
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
+}
+.reference-panel-summary {
+  flex: 0 0 auto;
+  cursor: pointer;
+  list-style: none; /* hide the default disclosure triangle */
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  user-select: none;
+}
+.reference-panel-summary::-webkit-details-marker { display: none; }
+/* Chevron cue: up = 'open me' (the panel rises); flips down when open. Plain
+ glyphs survive grayscale. */
+.reference-panel-label::before { content: '\\25B2  '; font-size: 0.85em; }
+.reference-panel[open] .reference-panel-label::before { content: '\\25BC  '; }
+.reference-panel-body {
+  overflow: auto; /* scrolls internally when the content is tall */
+  padding: 0.25rem 1rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+/* Reserve space so the collapsed bar never hides the last content (the submit
+ button). Only present when the activity has a panel. */
+.activity-container.has-reference-panel { padding-bottom: 3.5rem; }
+
+/* Print box hidden on screen; @media print reveals it (and hides the screen
+ toolbar). */
+.reference-print { display: none; }
+
 /* Print-only header (Name/Date/… fill-in lines). Hidden on screen — the live
  on-screen name field is .identity-prompt; this is the paper equivalent and is
  revealed (with its child styles) inside @media print below. */
@@ -738,6 +792,23 @@ body {
     /* Nudge the box onto the text baseline (inline-block sits on it by its
      bottom edge, which reads as floating high next to the cap height). */
     transform: translateY(0.1em);
+  }
+
+  /* Reference box: the screen toolbar never prints; the static box does (when
+   the teacher left printReferencePanel on — the renderer omits it otherwise).
+   Sits at the top of the worksheet, kept whole across page/column breaks. */
+  .reference-panel { display: none; }
+  .reference-print {
+    display: block;
+    break-inside: avoid;
+    border: 1px solid black;
+    border-radius: 4px;
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+  .reference-print-title {
+    font-weight: 700;
+    margin-bottom: 0.4rem;
   }
 
   /* Hide interactive elements. The js-* selectors are documented in

@@ -18,7 +18,7 @@
 // absence is the signal (decision 4).
 // =============================================================================
 
-import type { ActivityDocument, Section } from '@activity/schema';
+import type { ActivityDocument, Section, ReferencePanel } from '@activity/schema';
 import { renderBlock } from './blocks/index.js';
 import { attr, escape } from './html.js';
 
@@ -61,6 +61,71 @@ export function renderBody(
                          gridLinesDefault,
     });
   }).join('');
+}
+
+// ---- Reference panel ---------------------------------------------------------
+// Optional scaffold content (formula charts, vocab lists, conversion tables…)
+// the student consults while working. Rendered OUTSIDE any .activity-section so
+// the runtime's init walker — which scopes every query to .activity-section
+// (RUNTIME.md) — never sees it: it contributes nothing to scoring, persistence,
+// or checkpoints. Carries data-block-category="scaffold" per the contract.
+//
+// Two presentations of the SAME blocks (rendered once, wrapped twice):
+//   renderReferenceToolbar — screen: a fixed bottom bar (native <details>,
+//     collapsed by default; opens upward). Zero runtime JS — the disclosure is
+//     the browser's, the positioning is CSS.
+//   renderReferenceBox — print: a static box at the top of the worksheet.
+// document.ts decides placement and which to emit (the print box is gated by
+// meta.print.printReferencePanel).
+
+function referencePanelBlocks(
+  panel: ReferencePanel,
+  gridLinesDefault: boolean,
+): string {
+  // Panel content is content-only (no problems), so it never pulls a number —
+  // but give it an independent counter regardless so a stray numbered block
+  // could never perturb the body's shared problem sequence.
+  let n = 0;
+  return panel.blocks
+    .map((block) =>
+      renderBlock(block, {
+        nextProblemNumber: () => ++n,
+                         gridLinesDefault,
+      }),
+    )
+    .join('');
+}
+
+export function renderReferenceToolbar(
+  panel: ReferencePanel,
+  opts: { gridLinesDefault: boolean },
+): string {
+  const label = panel.title ? escape(panel.title) : 'Reference';
+  return (
+    '<details class="reference-panel" data-block-category="scaffold">' +
+    '<summary class="reference-panel-summary">' +
+    '<span class="reference-panel-label">' + label + '</span>' +
+    '</summary>' +
+    '<div class="reference-panel-body">' +
+    referencePanelBlocks(panel, opts.gridLinesDefault) +
+    '</div>' +
+    '</details>'
+  );
+}
+
+export function renderReferenceBox(
+  panel: ReferencePanel,
+  opts: { gridLinesDefault: boolean },
+): string {
+  const title = panel.title
+  ? '<div class="reference-print-title">' + escape(panel.title) + '</div>'
+  : '';
+  return (
+    '<aside class="reference-print" data-block-category="scaffold">' +
+    title +
+    referencePanelBlocks(panel, opts.gridLinesDefault) +
+    '</aside>'
+  );
 }
 
 function renderSection(section: Section, ctx: SectionRenderContext): string {

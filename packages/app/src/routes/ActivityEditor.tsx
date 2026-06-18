@@ -556,6 +556,25 @@ function PrintSettings({
             with their own grid toggle in the editor toolbar.
             </p>
             </div>
+
+            <div className="mt-4">
+            <label className="inline-flex items-center gap-1.5 text-sm text-slate-700">
+            <input
+            type="checkbox"
+            checked={print.printReferencePanel}
+            onChange={(e) =>
+                setPrint({ printReferencePanel: e.target.checked })
+            }
+            />
+            <span>Include reference panel when printing</span>
+            </label>
+            <p className={SETTINGS_HELP_CLASS}>
+            Print the activity's reference panel as a box at the top of the
+            worksheet. Turn off if students already have a class set (e.g. a
+            shared formula chart). The on-screen reference toolbar is
+            unaffected.
+            </p>
+            </div>
             </div>
         )}
         </div>
