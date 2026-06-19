@@ -14,7 +14,7 @@ An interactive math activity platform for K–12 educators that starts as a smal
 | **2** | Polish the loop | ~~Markdown import~~ (shipped early in Phase 1), image upload, better submission analytics, self-signup, common question types beyond fill-in-blank (MC, matching, ordering) |
 | **2.5** | Parameterized problems | Template-based variants (authoring-time, then runtime) |
 | **2.6** | Manual grading + rubrics | Teacher-graded items (essays, short answer, open response) with multi-criterion rubrics |
-| **2.7** | Interactive graphing | Plot points, lines, regions with tolerance-based scoring |
+| **2.7** | Graphing track (calculator + interactive graphing) | A teacher-configurable Desmos-style calculator tool, then graph blocks with tolerance-based scoring — both on one shared graphing kit |
 | **2.8** | Media submissions | Audio, video, file uploads — student-generated multimedia responses |
 | **2.9** | Annotation responses | Highlight, label, identify-the-error questions over passages and images |
 | **3** | Classroom integration | "Assign in Classroom," roster-based identity, grade passback |
@@ -121,9 +121,15 @@ For the runtime: short_answer and essay blocks render as textareas with optional
 
 ---
 
-## Phase 2.7 — Interactive graphing
+## Phase 2.7 — Graphing track (calculator tool + interactive graphing)
 
-Graph blocks that students manipulate — plot a point, drag a line into position, shade a region — with tolerance-based scoring against teacher-authored answer keys. The Algebra II feature most likely to replace what teachers currently leave the platform to use Desmos for. Also natural fit for science (vector diagrams, force diagrams) and economics (supply / demand curves).
+**This phase is one track, not two features.** It introduces a shared **graphing kit** — layered as (1) an expression layer (MathLive input → compiled function) and (2) a board layer (JSXGraph: axes, plotting, zoom/pan, keyboard / screen-reader narration) — with two faces built on top: a **calculator tool** (ungraded scaffold; the front of the track) and **interactive graph blocks** (graded question type; the original 2.7 scope, now the later stage). Both consume the same kit; neither reimplements plotting or expression parsing. The library is JSXGraph, **self-built (Path B)** — embedding the real Desmos API stays a district-funded escape hatch, never the default, so the platform never depends on Desmos for a load-bearing math feature.
+
+The track ships smallest-shared-foundation-first: **scientific calculator** (MathLive + evaluator, no JSXGraph) → **single-function graphing** (adds the board layer) → **data table + regression** (linear / quadratic / exponential — the Texas Algebra I requirement, pulled forward) → **multi-expression list** (the Desmos-defining surface) → **graded interactions** (the blocks below) → further advanced (stats beyond regression, implicit / inequalities). Calculator design captured in `docs/design/calculator-tool.md`; graded-block design in `docs/design/interactive-graph-block.md`.
+
+**The calculator tool.** A teacher-configurable, Desmos-style calculator students summon while working — *functionally* familiar so students feel at home, *visually* its own identity so it stays clear of Desmos's trade dress (functional twin, visual stranger). It is a **scaffold** (the reference panel's sibling): ungraded, produces no submission, carries no answer key, no `STORAGE_SCHEMA_VERSION` bump. Teachers limit it **per-activity** via a tiny, additive set of shape-named flags (mode ceiling, trig / log gates, graphing on/off, regression models, locked viewport, expression cap) and **preview the restricted tool inline** — the same widget runs in the author and student views, so what the teacher sees is what the student gets. Lazy-loaded **on click**: a page with a calculator available pays ~nothing until a student opens it. This is also the feature that finally brings MathLive into published HTML (the CLAUDE.md "Phase 2.5 decision"), justified by the on-click lazy load.
+
+**The graded face — interactive graph blocks.** Graph blocks that students manipulate — plot a point, drag a line into position, shade a region — with tolerance-based scoring against teacher-authored answer keys. The Algebra II feature most likely to replace what teachers currently leave the platform to use Desmos for. Also natural fit for science (vector diagrams, force diagrams) and economics (supply / demand curves).
 
 **User-visible**: Teacher inserts a graph block, chooses an interaction type, drags handles to set the correct answer, sets tolerance bounds. Student sees a coordinate plane with draggable handles, manipulates them to answer, gets per-section checkpoint feedback like fill-in-blank already provides. Full keyboard and screen-reader support for students who need it.
 
@@ -132,12 +138,16 @@ Graph blocks that students manipulate — plot a point, drag a line into positio
 Design captured in `docs/design/interactive-graph-block.md`.
 
 **Decisions deferred to the start of this phase**:
-- Final library choice (JSXGraph leading, Mafs and GeoGebra also evaluated).
-- Equation parsing library — reuse whatever Phase 2.5 chose.
-- Whether `correctEquation` authoring uses plain string input or MathLive WYSIWYG.
-- Print behavior for interactive graphs (probably static axes + empty answer space).
+- Library choice — **leaning resolved: JSXGraph, self-built (Path B)** (Mafs and GeoGebra evaluated; embed-Desmos is a paid escape hatch only). Confirm with a one-day spike.
+- Evaluator / regression-math library — math.js vs. a lighter parser + a small least-squares routine; one-day spike at track start, shared by calculator regression and graded-line scoring.
+- `graph-kit.js` bundling — one shared bundle vs. kit + per-face bundles; build-time call once real sizes are known.
+- Calculator config scope — per-activity in v1; per-section override (no-calculator section, then calculator section) is an additive later change.
+- Calculator state persistence — deferred; if added, its own localStorage key, never the scored-state blob (no `STORAGE_SCHEMA_VERSION` bump).
+- Statistics beyond regression (mean / median / quartiles) — a later stage, not stage 3 (regression only there).
+- Whether `correctEquation` authoring (graded blocks) uses plain string input or MathLive WYSIWYG.
+- Print behavior — calculator can't print (optional one-line "Calculator: scientific functions only" note on the worksheet); interactive graphs print as static axes + empty answer space.
 
-**Done when**: A teacher can author a "plot the line y = 2x + 3" problem, a student can solve it on a Chromebook (with or without a mouse, with or without a screen reader), and the teacher dashboard shows the student's plotted slope and intercept alongside whether it was within tolerance.
+**Done when**: The graphing kit powers both faces. A teacher can enable and restrict a Desmos-style calculator on an activity (the student summons it, sees only the permitted functions, and can run a linear / quadratic / exponential regression on entered data) — *and*, at the graded end of the track, author a "plot the line y = 2x + 3" problem that a student solves on a Chromebook (with or without a mouse, with or without a screen reader), with the plotted slope and intercept and the within-tolerance verdict shown in the dashboard.
 
 ---
 
