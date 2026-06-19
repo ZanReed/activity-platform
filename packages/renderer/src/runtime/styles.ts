@@ -638,7 +638,7 @@ body {
   z-index: 100; /* above activity content; below .js-popover (1000) */
   display: flex;
   flex-direction: column-reverse;
-  max-height: 70vh;
+  max-height: 90vh; /* absolute safety cap; the body's max-height is the real limit */
   background: var(--color-bg);
   border-top: 1px solid var(--color-border);
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
@@ -658,9 +658,14 @@ body {
 .reference-panel-label::before { content: '\\25B2  '; font-size: 0.85em; }
 .reference-panel[open] .reference-panel-label::before { content: '\\25BC  '; }
 .reference-panel-body {
-  flex: 1 1 auto; /* fill the (optionally drag-resized) panel height */
-  min-height: 0; /* let the flex child shrink so overflow can scroll */
-  overflow: auto; /* scrolls internally when the content is tall */
+  /* The body owns the height cap + scroll. Capping the BODY (not the panel)
+   with max-height + overflow is the dependency-free scroll pattern: flex-shrink
+   against a max-height-only flex container does NOT constrain children, so the
+   earlier panel-capped approach overflowed the page instead of scrolling. The
+   sidecar drives drag-resize by overriding this max-height. */
+  min-height: 0;
+  max-height: 60vh;
+  overflow: auto; /* scrolls internally when the content exceeds the cap */
   padding: 0.25rem 1rem 1rem;
   border-bottom: 1px solid var(--color-border);
 }

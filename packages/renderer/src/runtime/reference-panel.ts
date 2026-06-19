@@ -32,6 +32,7 @@ function setupReferencePanel(): void {
   if (!panel) return;
   const container = document.querySelector<HTMLElement>('.activity-container');
   const handle = panel.querySelector<HTMLElement>('.reference-panel-resize');
+  const body = panel.querySelector<HTMLElement>('.reference-panel-body');
 
   // --- 1. Scroll-clearance ---------------------------------------------------
   // Reserve page-bottom space equal to the panel's current height (plus a small
@@ -51,44 +52,42 @@ function setupReferencePanel(): void {
     panel.addEventListener('toggle', sync);
   }
 
-  // Clear an explicit (dragged) height when the panel collapses, so the closed
-  // bar is just the bar — not the last dragged height. sync() here also covers
-  // the no-ResizeObserver fallback path.
+  // Clear an explicit (dragged) body cap when the panel collapses, so the next
+  // open starts at the default size. sync() here also covers the
+  // no-ResizeObserver fallback path.
   panel.addEventListener('toggle', () => {
-    if (!panel.open) {
-      panel.style.height = '';
-      panel.style.maxHeight = '';
-    }
+    if (!panel.open && body) body.style.maxHeight = '';
     sync();
   });
 
   sync();
 
   // --- 2. Drag-resize --------------------------------------------------------
-  if (handle) {
-    const FLOOR = 96; // px — the panel never resizes smaller than this
-    const ceiling = (): number => Math.round(window.innerHeight * 0.9);
+  // Resize is driven through the BODY's max-height (the element that actually
+  // scrolls), NOT the panel's height — capping the panel alone left the body at
+  // full content height (flex-shrink doesn't constrain against a max-height-only
+  // container), so content overflowed the page instead of scrolling.
+  if (handle && body) {
+    const FLOOR = 80; // px — minimum visible body height
     let dragging = false;
+    let chrome = 0; // bar + handle + borders, measured at drag start
 
     handle.addEventListener('pointerdown', (e: PointerEvent) => {
       if (!panel.open) return; // only resizable while open
       dragging = true;
-      // Let the panel exceed its default CSS max-height once the student
-      // deliberately drags it taller.
-      panel.style.maxHeight = ceiling() + 'px';
+      chrome = panel.offsetHeight - body.offsetHeight;
       handle.setPointerCapture(e.pointerId);
       e.preventDefault(); // suppress text selection during the drag
     });
 
     handle.addEventListener('pointermove', (e: PointerEvent) => {
       if (!dragging) return;
-      // The panel is bottom-anchored, so its height is the distance from the
-      // pointer up to the bottom of the viewport.
-      const h = Math.min(
-        ceiling(),
-        Math.max(FLOOR, window.innerHeight - e.clientY),
-      );
-      panel.style.height = h + 'px';
+      // The panel is bottom-anchored; the body cap that puts the panel's top
+      // edge at the pointer is (viewport bottom − pointerY) minus the fixed
+      // chrome. Clamp between a floor and ~90vh so it never fills the screen.
+      const ceiling = window.innerHeight * 0.9 - chrome;
+      const desired = window.innerHeight - e.clientY - chrome;
+      body.style.maxHeight = Math.min(ceiling, Math.max(FLOOR, desired)) + 'px';
     });
 
     const end = (e: PointerEvent): void => {
