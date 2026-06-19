@@ -658,9 +658,33 @@ body {
 .reference-panel-label::before { content: '\\25B2  '; font-size: 0.85em; }
 .reference-panel[open] .reference-panel-label::before { content: '\\25BC  '; }
 .reference-panel-body {
+  flex: 1 1 auto; /* fill the (optionally drag-resized) panel height */
+  min-height: 0; /* let the flex child shrink so overflow can scroll */
   overflow: auto; /* scrolls internally when the content is tall */
   padding: 0.25rem 1rem 1rem;
   border-bottom: 1px solid var(--color-border);
+}
+/* Drag handle along the panel's top edge (flex column-reverse renders this last
+ child visually on top). The sidecar script — inlined only when a panel exists —
+ wires pointer drag to resize the open panel; without JS it's an inert grip.
+ touch-action:none so the sidecar owns the touch drag instead of the page. */
+.reference-panel-resize {
+  flex: 0 0 auto;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  touch-action: none;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+.reference-panel-resize::before {
+  content: '';
+  width: 2.5rem;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-border);
 }
 /* Reserve space so the collapsed bar never hides the last content (the submit
  button). Only present when the activity has a panel. */

@@ -109,6 +109,11 @@ export function renderReferenceToolbar(
     '<div class="reference-panel-body">' +
     referencePanelBlocks(panel, opts.gridLinesDefault) +
     '</div>' +
+    // Drag handle along the panel's top edge (flex column-reverse puts this
+    // last DOM child visually on top). The sidecar script wires resize against
+    // it; without JS it's an inert grip. Hidden when collapsed (it's part of
+    // the disclosure content, which a closed <details> hides).
+    '<div class="reference-panel-resize" aria-hidden="true" title="Drag to resize"></div>' +
     '</details>'
   );
 }

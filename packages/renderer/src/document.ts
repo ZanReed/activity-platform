@@ -38,6 +38,7 @@ import { escape, attr } from './html.js';
 import { renderBody, renderReferenceToolbar, renderReferenceBox } from './render.js';
 import { blockStyles } from './runtime/styles.js';
 import { runtimeJs } from './runtime/generated/runtime-bundle.js';
+import { referencePanelJs } from './runtime/generated/reference-panel-bundle.js';
 import { katexCss } from './generated/katex-css.js';
 
 export interface RenderContext {
@@ -235,6 +236,13 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   // Runtime JS (vanilla, no framework) — baked in at build time as a string
   // constant by scripts/bundle-renderer.mjs; see runtime/generated/.
   '<script>' + runtimeJs + '</script>' +
+
+  // Reference-panel sidecar (drag-resize + scroll-clearance), inlined ONLY when
+  // the activity has a panel — panel-less pages ship none of it. Separate from
+  // the scoring runtime above; it touches only the panel's own DOM.
+  (doc.referencePanel
+    ? '<script>' + referencePanelJs + '</script>'
+    : '') +
 
   '</body>' +
   '</html>'

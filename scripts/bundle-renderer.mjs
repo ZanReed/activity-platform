@@ -219,6 +219,66 @@ await writeFile(katexCssModulePath, katexCssModule, 'utf8');
 const katexCssBytes = Buffer.byteLength(katexCss, 'utf8');
 
 // -----------------------------------------------------------------------------
+// Step 2c — Reference-panel sidecar build
+// -----------------------------------------------------------------------------
+// A small, self-contained IIFE for the on-screen reference panel (drag-resize +
+// scroll-clearance). Inlined by document.ts ONLY when an activity has a
+// referencePanel — kept OUT of the main runtime so the scoring runtime stays
+// pure and panel-less pages ship none of it. Same generated-string discipline
+// as the runtime above; built before the renderer bundle because document.ts
+// (bundled in step 3) imports the generated module.
+
+const refPanelEntry = resolve(
+  root,
+  'packages/renderer/src/runtime/reference-panel.ts',
+);
+const refPanelModulePath = resolve(
+  root,
+  'packages/renderer/src/runtime/generated/reference-panel-bundle.ts',
+);
+
+const refPanelResult = await build({
+  entryPoints: [refPanelEntry],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: 'chrome90',
+  minify: true,
+  write: false,
+  outdir: resolve(root, 'packages/renderer/dist'),
+  logLevel: 'info',
+});
+
+const refPanelJsText = refPanelResult.outputFiles.find(
+  (f) => !f.path.endsWith('.map'),
+)?.text;
+if (!refPanelJsText) {
+  throw new Error('Reference-panel build produced no JS output — aborting.');
+}
+
+const escapedRefPanel = JSON.stringify(refPanelJsText).replace(
+  /<\/script/gi,
+  '<\\/script',
+);
+
+const refPanelModule =
+  '// =============================================================================\n' +
+  '// runtime/generated/reference-panel-bundle.ts — GENERATED FILE, DO NOT EDIT\n' +
+  '// -----------------------------------------------------------------------------\n' +
+  '// Produced by scripts/bundle-renderer.mjs from runtime/reference-panel.ts.\n' +
+  '// Re-run `pnpm run bundle:renderer` after changing that source. Committed to\n' +
+  '// git so a clean checkout can typecheck/build the renderer without the bundler.\n' +
+  '// =============================================================================\n' +
+  '\n' +
+  '/** Minified reference-panel IIFE; inlined by document.ts when a panel exists. */\n' +
+  'export const referencePanelJs = ' +
+  escapedRefPanel +
+  ';\n';
+
+await writeFile(refPanelModulePath, refPanelModule, 'utf8');
+const refPanelBytes = Buffer.byteLength(refPanelJsText, 'utf8');
+
+// -----------------------------------------------------------------------------
 // Step 3 — Renderer bundle (pre-existing build, unchanged)
 // -----------------------------------------------------------------------------
 // Bundles the renderer (with schema and katex inlined) into a single ESM file
@@ -278,6 +338,8 @@ console.log(
       ? '  (!) over ' + RUNTIME_SIZE_TARGET / 1024 + ' KiB soft target'
       : '  (within ' + RUNTIME_SIZE_TARGET / 1024 + ' KiB target)'),
 );
+console.log('Ref panel:' + ' ' + refPanelModulePath);
+console.log('          ' + (refPanelBytes / 1024).toFixed(1) + ' KiB minified');
 console.log('KaTeX CSS: ' + katexCssModulePath);
 console.log(
   '          ' +

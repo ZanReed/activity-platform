@@ -1051,4 +1051,25 @@ describe('reference panel', () => {
     expect(html).toContain('&lt;x&gt; &amp; "y"');
     expect(html).not.toContain('<span class="reference-panel-label"><x>');
   });
+
+  it('emits the drag-resize handle in the screen toolbar', () => {
+    const html = renderActivity(docWithPanel(), ctx);
+    expect(html).toContain('<div class="reference-panel-resize"');
+  });
+
+  it('inlines the sidecar script only when a panel exists', () => {
+    // ResizeObserver is unique to the reference-panel sidecar (the scoring
+    // runtime never uses it), so it discriminates "sidecar inlined" from the
+    // always-present CSS/markup strings.
+    expect(renderActivity(docWithPanel(), ctx)).toContain('ResizeObserver');
+    expect(
+      renderActivity(createEmptyDocument({ title: 'T' }), ctx),
+    ).not.toContain('ResizeObserver');
+  });
+
+  it('print outputs carry neither the sidecar nor the resize handle', () => {
+    const printDoc = renderActivityForPrint(docWithPanel());
+    expect(printDoc).not.toContain('ResizeObserver');
+    expect(printDoc).not.toContain('<div class="reference-panel-resize"');
+  });
 });
