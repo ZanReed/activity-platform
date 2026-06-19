@@ -17,7 +17,6 @@ import 'mathlive';
 import { SectionBreak } from './extensions/SectionBreak';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
-import Underline from '@tiptap/extension-underline';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
 import { Columns, Column } from './extensions/Columns';
@@ -70,7 +69,9 @@ export default function Editor({
             SectionBreak,
             Subscript,
             Superscript,
-            Underline,
+            // Underline is bundled by StarterKit v3 — registering it again
+            // duplicates the 'underline' mark. The toolbar's U button uses
+            // StarterKit's.
             // Stage 13.5 — question-block extensions. FillInBlank is the
             // block container; Blank is the inline atom that lives inside
             // its body (and only inside its body, per the schema's
