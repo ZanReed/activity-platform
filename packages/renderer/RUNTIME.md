@@ -325,9 +325,27 @@ The `.js-blank-feedback` span carries **mistake-specific text only**:
 
 Visual correct/incorrect signal lives on the input border class (`.correct` / `.incorrect`). SR signal is `aria-invalid` on the input. The slot is reserved for actionable mistake-specific feedback; avoids clutter on a 30-blank worksheet.
 
-### Reference panel (Phase 2)
+### Reference panel (`data-block-category="scaffold"`)
 
-`[target — Phase 2] — not emitted today.` The schema field exists (`ActivityDocument.referencePanel`, added Stage 9e); renderer layout and editor authoring UX are Phase 2 work.
+Optional teacher-authored reference content (formula charts, vocab, conversion tables). Rendered OUTSIDE any `.activity-section`, so the scoring runtime's `init` walker — which scopes every query to `.activity-section` — never sees it: it contributes nothing to scoring / persistence / checkpoints. `data-block-category="scaffold"` is an analytics/CSS hook ONLY; the scoping mechanism is "outside `.activity-section`," never the category. Two presentations of the same blocks:
+
+- **Screen** — a `position:fixed` bottom-bar toolbar (emitted by `renderActivity` only):
+
+  ```html
+  <details class="reference-panel" data-block-category="scaffold">
+    <summary class="reference-panel-summary">…title…</summary>
+    <div class="reference-panel-content">        <!-- plain flex column: handle on top, body below -->
+      <div class="reference-panel-resize"></div>  <!-- drag handle, top edge -->
+      <div class="reference-panel-body">…blocks…</div>
+    </div>
+  </details>
+  ```
+
+  The panel's flex `column-reverse` floats the content above the bar; the **body** owns the height cap + scroll (`max-height:60vh; overflow:auto`) — capping the flex container instead let content overflow the page. The handle+body live in their own `.reference-panel-content` wrapper because the browser's `::details-content` wrapping makes panel-level flex ordering of the two unreliable.
+
+- **Print** — `<aside class="reference-print" data-block-category="scaffold">` at the top of the worksheet, gated by `meta.print.printReferencePanel` (default true). Emitted by both `renderActivity` (for printing the live page) and `renderActivityForPrint`.
+
+Interactivity is a **separate inlined sidecar** (`runtime/reference-panel.ts`, ~1 KiB), NOT part of the scoring runtime — `document.ts` inlines it as its own `<script>` only when an activity has a `referencePanel`. It handles drag-resize (the top-edge handle drives the body's `max-height`) + scroll-clearance (a `ResizeObserver` pads `.activity-container` by the panel's live height so the fixed panel never permanently hides content). See DECISIONS → "Reference panel".
 
 ### Reading discipline
 
@@ -532,11 +550,13 @@ On successful submit:
 
 ## Build pipeline
 
-`scripts/bundle-renderer.mjs` runs two esbuild builds in sequence:
+`scripts/bundle-renderer.mjs` runs three esbuild builds in sequence (plus a non-esbuild KaTeX-CSS inlining step):
 
 1. **Runtime build.** Entry `packages/renderer/src/runtime/index.ts` → output as IIFE (not ESM — runs immediately when inlined into a `<script>` tag, no module loader). Minified, target `chrome90` (covers school Chromebooks, Firefox 88+, Safari 14+, Edge 90+). External source map at `packages/renderer/dist/runtime.js.map` (dev-only, gitignored). The minified text is written into a generated TypeScript string module at `packages/renderer/src/runtime/generated/runtime-bundle.ts`. **Committed to git** so a clean checkout can typecheck the renderer without running the bundler.
 
-2. **Renderer build.** Entry `packages/renderer/src/index.ts` → output as ESM at `supabase/functions/_shared/renderer.bundle.js`. The renderer's `document.ts` imports the generated string module from step 1 and inlines it into a `<script>` tag in every published page.
+2. **Reference-panel sidecar build.** Entry `packages/renderer/src/runtime/reference-panel.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/reference-panel-bundle.ts` (also committed). A small (~1 KiB) self-contained script for the on-screen reference panel (drag-resize + scroll-clearance), kept OUT of the main runtime so the scoring runtime stays pure and panel-less pages ship none of it; `document.ts` inlines it only when an activity has a `referencePanel`. (This is the realized form of the "lazy-loaded sidecar bundle" pattern noted below — inlined-when-present rather than lazy-loaded, since it's tiny.)
+
+3. **Renderer build.** Entry `packages/renderer/src/index.ts` → output as ESM at `supabase/functions/_shared/renderer.bundle.js`. The renderer's `document.ts` imports the generated string modules from steps 1–2 and inlines them into `<script>` tags in published pages (the runtime always; the reference-panel sidecar only when a panel exists).
 
 Inlined model means `publish-activity` only uploads `index.html` to Storage — no separate `runtime.js` artifact.
 
