@@ -1052,9 +1052,15 @@ describe('reference panel', () => {
     expect(html).not.toContain('<span class="reference-panel-label"><x>');
   });
 
-  it('emits the drag-resize handle in the screen toolbar', () => {
+  it('emits the drag-resize handle above the body (top edge)', () => {
     const html = renderActivity(docWithPanel(), ctx);
+    expect(html).toContain('<div class="reference-panel-content">');
     expect(html).toContain('<div class="reference-panel-resize"');
+    // The handle div must precede the body div in source order so it renders at
+    // the panel's TOP edge, not just above the bar.
+    expect(html.indexOf('<div class="reference-panel-resize"')).toBeLessThan(
+      html.indexOf('<div class="reference-panel-body"'),
+    );
   });
 
   it('inlines the sidecar script only when a panel exists', () => {

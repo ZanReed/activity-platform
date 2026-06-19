@@ -669,10 +669,19 @@ body {
   padding: 0.25rem 1rem 1rem;
   border-bottom: 1px solid var(--color-border);
 }
-/* Drag handle along the panel's top edge (flex column-reverse renders this last
- child visually on top). The sidecar script — inlined only when a panel exists —
- wires pointer drag to resize the open panel; without JS it's an inert grip.
- touch-action:none so the sidecar owns the touch drag instead of the page. */
+/* Disclosed content wrapper: a plain flex column so the handle (DOM-first) sits
+ at the TOP and the scrollable body below it. The browser wraps <details>
+ content (::details-content), so arranging handle vs body at the PANEL level was
+ unreliable across versions; owning a wrapper makes the order deterministic. The
+ panel's column-reverse still floats this whole wrapper above the summary bar. */
+.reference-panel-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* Drag handle along the panel's TOP edge. The sidecar — inlined only when a
+ panel exists — wires pointer drag to resize the open panel; without JS it's an
+ inert grip. touch-action:none so the sidecar owns the touch drag. */
 .reference-panel-resize {
   flex: 0 0 auto;
   height: 14px;

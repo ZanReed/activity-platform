@@ -106,14 +106,21 @@ export function renderReferenceToolbar(
     '<summary class="reference-panel-summary">' +
     '<span class="reference-panel-label">' + label + '</span>' +
     '</summary>' +
+    // Disclosed content wrapped in a plain flex-column div so the handle
+    // (DOM-first → top edge) sits above the scrollable body — independent of
+    // how the browser wraps <details> content (::details-content), which made
+    // panel-level flex ordering of body-vs-handle unreliable across versions.
+    // The panel's column-reverse floats this whole wrapper above the summary
+    // bar; inside it, normal column order puts the handle on top.
+    '<div class="reference-panel-content">' +
+    // Drag handle along the panel's TOP edge. The sidecar wires resize against
+    // it; without JS it's an inert grip. Hidden when collapsed (it lives inside
+    // the disclosure content).
+    '<div class="reference-panel-resize" aria-hidden="true" title="Drag to resize"></div>' +
     '<div class="reference-panel-body">' +
     referencePanelBlocks(panel, opts.gridLinesDefault) +
     '</div>' +
-    // Drag handle along the panel's top edge (flex column-reverse puts this
-    // last DOM child visually on top). The sidecar script wires resize against
-    // it; without JS it's an inert grip. Hidden when collapsed (it's part of
-    // the disclosure content, which a closed <details> hides).
-    '<div class="reference-panel-resize" aria-hidden="true" title="Drag to resize"></div>' +
+    '</div>' +
     '</details>'
   );
 }
