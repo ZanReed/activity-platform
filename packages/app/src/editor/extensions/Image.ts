@@ -55,6 +55,9 @@ declare module '@tiptap/core' {
                 }>,
                 options?: { preserveSelection?: boolean },
             ) => ReturnType;
+            // Remove the image block at pos. Releasing the NodeSelection lets
+            // ImagePopoverHost close the edit popover on its own.
+            deleteImage: (pos: number) => ReturnType;
         };
     }
 }
@@ -232,6 +235,19 @@ export const Image = Node.create({
                                 /* defensive — non-fatal */
                             }
                         }
+                    }
+                    return true;
+                },
+
+            deleteImage:
+                (pos) =>
+                ({ tr, state, dispatch }) => {
+                    const node = state.doc.nodeAt(pos);
+                    if (!node || node.type.name !== 'image') {
+                        return false;
+                    }
+                    if (dispatch) {
+                        tr.delete(pos, pos + node.nodeSize);
                     }
                     return true;
                 },

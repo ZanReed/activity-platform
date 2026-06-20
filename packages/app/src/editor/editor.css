@@ -1161,6 +1161,85 @@
     opacity: 1;
 }
 
+/* One-click delete X — top-left so it clears the top-right Edit chip and the
+ * edge resize handles. Hover/selected reveals it; hovering the button itself
+ * turns it red. Sits above the image (z-index) and owns its own pointer events
+ * so the click deletes rather than selecting the node. */
+.image-delete-button {
+    position: absolute;
+    top: 0.625rem;
+    left: 0.625rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 1px solid rgb(203 213 225); /* slate-300 */
+    border-radius: 0.375rem;
+    background: rgba(255, 255, 255, 0.92);
+    color: rgb(71 85 105); /* slate-600 */
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background-color 0.15s,
+        border-color 0.15s;
+    z-index: 3;
+}
+
+.image-preview:hover .image-delete-button,
+.image-preview.is-selected .image-delete-button {
+    opacity: 1;
+}
+
+.image-delete-button:hover {
+    color: rgb(220 38 38); /* red-600 */
+    border-color: rgb(252 165 165); /* red-300 */
+    background: rgb(254 242 242); /* red-50 */
+}
+
+.image-delete-button:focus-visible {
+    opacity: 1;
+    outline: 2px solid rgb(220 38 38); /* red-600 */
+    outline-offset: 1px;
+}
+
+/* Compact card variant: a flex child after the Edit chip (the card is a row,
+ * not a positioned box). Same reveal-on-hover, same red hover. */
+.image-card__delete {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 1px solid rgb(203 213 225); /* slate-300 */
+    border-radius: 0.375rem;
+    background: white;
+    color: rgb(100 116 139); /* slate-500 */
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background-color 0.15s,
+        border-color 0.15s;
+}
+
+.image-card:hover .image-card__delete,
+.image-card.is-selected .image-card__delete {
+    opacity: 1;
+}
+
+.image-card__delete:hover {
+    color: rgb(220 38 38); /* red-600 */
+    border-color: rgb(252 165 165); /* red-300 */
+    background: rgb(254 242 242); /* red-50 */
+}
+
+.image-card__delete:focus-visible {
+    opacity: 1;
+    outline: 2px solid rgb(220 38 38); /* red-600 */
+    outline-offset: 1px;
+}
+
 /* =============================================================================
  *  Image edit popover (anchored — mirrors the blank edit popover look)
  *  ========================================================================= */
@@ -1309,6 +1388,36 @@
     font-size: 0.6875rem;
     color: rgb(100 116 139); /* slate-500 */
     line-height: 1.4;
+}
+
+/* Destructive footer action — labeled twin of the on-image X, for keyboard
+ * users and anyone who reaches for it in the popover. */
+.image-edit-popover__delete {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid rgb(254 202 202); /* red-200 */
+    border-radius: 0.375rem;
+    background: rgb(254 242 242); /* red-50 */
+    color: rgb(220 38 38); /* red-600 */
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.12s, border-color 0.12s;
+}
+
+.image-edit-popover__delete:hover {
+    background: rgb(254 226 226); /* red-100 */
+    border-color: rgb(252 165 165); /* red-300 */
+}
+
+.image-edit-popover__delete:focus-visible {
+    outline: 2px solid rgb(220 38 38); /* red-600 */
+    outline-offset: 1px;
 }
 
 /* Borderless small print inside a field (e.g. "Set a width to align"). */

@@ -100,6 +100,54 @@ export default function ImageView({
     const wrapperRef = useRef<HTMLElement | null>(null);
     const imgRef = useRef<HTMLImageElement | null>(null);
 
+    // Remove the whole image block. Stop the gesture from reaching ProseMirror
+    // so the click deletes instead of selecting the node (which would open the
+    // popover). Works in every state — card or live preview, selected or not.
+    const handleDelete = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const pos = getPos();
+        if (typeof pos !== 'number') return;
+        editor.commands.deleteImage(pos);
+    };
+
+    // The delete button lives inside the draggable NodeViewWrapper; swallow its
+    // pointer/mouse-down so PM neither selects the node nor starts a block drag.
+    const swallowPointer = (
+        event: React.PointerEvent<HTMLButtonElement> | React.MouseEvent<HTMLButtonElement>,
+    ) => {
+        event.preventDefault();
+        event.stopPropagation();
+    };
+
+    const deleteButton = (className: string) => (
+        <button
+            type="button"
+            className={className}
+            aria-label="Delete image"
+            title="Delete image"
+            draggable={false}
+            onPointerDown={swallowPointer}
+            onMouseDown={swallowPointer}
+            onClick={handleDelete}
+        >
+            <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+            >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+            </svg>
+        </button>
+    );
+
     const startResize = (side: 'left' | 'right') => (
         event: React.PointerEvent<HTMLSpanElement>,
     ) => {
@@ -301,6 +349,7 @@ export default function ImageView({
                 <span className="image-card__edit" aria-hidden="true">
                     Edit
                 </span>
+                {deleteButton('image-card__delete')}
             </NodeViewWrapper>
         );
     }
@@ -355,6 +404,7 @@ export default function ImageView({
             <span className="image-preview__edit" aria-hidden="true">
                 Edit
             </span>
+            {deleteButton('image-delete-button')}
             {selected ? (
                 <>
                     <span

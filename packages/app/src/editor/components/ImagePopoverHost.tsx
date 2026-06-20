@@ -158,6 +158,13 @@ export default function ImagePopoverHost({
         editor.commands.setTextSelection(selectedImage.pos + 1);
     }, [editor, selectedImage]);
 
+    const handleDelete = useCallback(() => {
+        if (!editor || !selectedImage) return;
+        // Removing the node clears the NodeSelection, so the selection watcher
+        // above unmounts the popover on its own — no explicit onClose needed.
+        editor.commands.deleteImage(selectedImage.pos);
+    }, [editor, selectedImage]);
+
     if (!editor || !selectedImage) return null;
     // Wait for the anchor card to resolve (one rAF after selection) before
     // mounting — a popover mounted with a null reference floats at the body's
@@ -178,6 +185,7 @@ export default function ImagePopoverHost({
             activityId={activityId}
             onChange={handleChange}
             onClose={handleClose}
+            onDelete={handleDelete}
         />
     );
 }
