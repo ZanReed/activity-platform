@@ -279,6 +279,64 @@ await writeFile(refPanelModulePath, refPanelModule, 'utf8');
 const refPanelBytes = Buffer.byteLength(refPanelJsText, 'utf8');
 
 // -----------------------------------------------------------------------------
+// Step 2d — Definitions sidecar build
+// -----------------------------------------------------------------------------
+// A small, self-contained IIFE for inline vocabulary-definition popovers.
+// Inlined by document.ts ONLY when a page contains a definition mark — kept OUT
+// of the main runtime so the scoring runtime stays pure and definition-less
+// pages ship none of it. Same generated-string discipline as above.
+
+const definitionsEntry = resolve(
+  root,
+  'packages/renderer/src/runtime/definitions.ts',
+);
+const definitionsModulePath = resolve(
+  root,
+  'packages/renderer/src/runtime/generated/definitions-bundle.ts',
+);
+
+const definitionsResult = await build({
+  entryPoints: [definitionsEntry],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: 'chrome90',
+  minify: true,
+  write: false,
+  outdir: resolve(root, 'packages/renderer/dist'),
+  logLevel: 'info',
+});
+
+const definitionsJsText = definitionsResult.outputFiles.find(
+  (f) => !f.path.endsWith('.map'),
+)?.text;
+if (!definitionsJsText) {
+  throw new Error('Definitions build produced no JS output — aborting.');
+}
+
+const escapedDefinitions = JSON.stringify(definitionsJsText).replace(
+  /<\/script/gi,
+  '<\\/script',
+);
+
+const definitionsModule =
+  '// =============================================================================\n' +
+  '// runtime/generated/definitions-bundle.ts — GENERATED FILE, DO NOT EDIT\n' +
+  '// -----------------------------------------------------------------------------\n' +
+  '// Produced by scripts/bundle-renderer.mjs from runtime/definitions.ts.\n' +
+  '// Re-run `pnpm run bundle:renderer` after changing that source. Committed to\n' +
+  '// git so a clean checkout can typecheck/build the renderer without the bundler.\n' +
+  '// =============================================================================\n' +
+  '\n' +
+  '/** Minified definitions IIFE; inlined by document.ts when a page has one. */\n' +
+  'export const definitionsJs = ' +
+  escapedDefinitions +
+  ';\n';
+
+await writeFile(definitionsModulePath, definitionsModule, 'utf8');
+const definitionsBytes = Buffer.byteLength(definitionsJsText, 'utf8');
+
+// -----------------------------------------------------------------------------
 // Step 3 — Renderer bundle (pre-existing build, unchanged)
 // -----------------------------------------------------------------------------
 // Bundles the renderer (with schema and katex inlined) into a single ESM file
@@ -340,6 +398,8 @@ console.log(
 );
 console.log('Ref panel:' + ' ' + refPanelModulePath);
 console.log('          ' + (refPanelBytes / 1024).toFixed(1) + ' KiB minified');
+console.log('Definitions: ' + definitionsModulePath);
+console.log('          ' + (definitionsBytes / 1024).toFixed(1) + ' KiB minified');
 console.log('KaTeX CSS: ' + katexCssModulePath);
 console.log(
   '          ' +

@@ -489,6 +489,47 @@ body {
   white-space: pre-wrap;
 }
 
+/* Inline vocabulary definition (the definition mark). A subtle dotted
+ underline cues that the term is defined; click / tap / Enter / Space opens a
+ small popover with the definition (the definitions sidecar, inlined only on
+ pages that have one). Deliberately NOT link-blue — a glossary cue, not a
+ hyperlink. The underline is currentColor so it stays ink-safe when printed. */
+.definition {
+  cursor: help;
+  text-decoration: underline dotted currentColor;
+  text-underline-offset: 0.15em;
+}
+.definition:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The definition popover is created and positioned by the sidecar — its own
+ element, independent of the scoring runtime's shared .js-popover. Card styling
+ mirrors that popover for visual consistency. */
+.definition-popover {
+  position: fixed;
+  z-index: 1000;
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: 50vh;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.definition-popover[hidden] {
+  display: none;
+}
+.definition-popover-body {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
 /* Confidence rating fieldset (Stage 12 step 3). One per fill-in-blank
  b lock *when hasConfidenceRating is true. Sits inside the problem body
  so it aligns under the problem number with the rest of the body
@@ -862,6 +903,7 @@ body {
   .js-blank-hint,
   .js-blank-mistake,
   .js-popover,
+  .definition-popover,
   .js-solution {
     display: none;
   }

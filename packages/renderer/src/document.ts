@@ -39,6 +39,7 @@ import { renderBody, renderReferenceToolbar, renderReferenceBox } from './render
 import { blockStyles } from './runtime/styles.js';
 import { runtimeJs } from './runtime/generated/runtime-bundle.js';
 import { referencePanelJs } from './runtime/generated/reference-panel-bundle.js';
+import { definitionsJs } from './runtime/generated/definitions-bundle.js';
 import { katexCss } from './generated/katex-css.js';
 
 export interface RenderContext {
@@ -242,6 +243,16 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   // the scoring runtime above; it touches only the panel's own DOM.
   (doc.referencePanel
     ? '<script>' + referencePanelJs + '</script>'
+    : '') +
+
+  // Definitions sidecar (inline vocabulary-definition popovers), inlined ONLY
+  // when the page actually contains a definition mark — definition-less pages
+  // ship none of it. Presence is detected from the rendered output (the body
+  // or the reference panel, since a definition can appear in either). Separate
+  // from the scoring runtime above; it manages its own popover element.
+  (body.includes('data-definition=') ||
+  referenceHtml.includes('data-definition=')
+    ? '<script>' + definitionsJs + '</script>'
     : '') +
 
   '</body>' +

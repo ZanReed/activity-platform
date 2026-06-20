@@ -56,8 +56,10 @@ packages/renderer/src/runtime/
 ├── storage.ts       — saveName / loadStoredName + saveActivityState / loadActivityState / clearActivityState / applyStoredState
 ├── submission.ts    — gatherResponses + gatherCheckpointResults + computeScore + submit
 ├── index.ts         — bootstrap orchestrator
-├── generated/       — runtime-bundle.ts (committed string module produced by bundler)
-└── __tests__/       — strategies, init, blanks, render, checkpoints, storage, confidence
+├── reference-panel.ts — sidecar: on-screen reference panel (drag-resize + scroll-clearance)
+├── definitions.ts   — sidecar: inline vocabulary-definition popovers
+├── generated/       — runtime-bundle.ts + reference-panel-bundle.ts + definitions-bundle.ts (committed string modules produced by bundler)
+└── __tests__/       — strategies, init, blanks, render, checkpoints, storage, confidence, grouping, definitions
 ```
 
 ## Bootstrap flow
@@ -347,6 +349,26 @@ Optional teacher-authored reference content (formula charts, vocab, conversion t
 
 Interactivity is a **separate inlined sidecar** (`runtime/reference-panel.ts`, ~1 KiB), NOT part of the scoring runtime — `document.ts` inlines it as its own `<script>` only when an activity has a `referencePanel`. It handles drag-resize (the top-edge handle drives the body's `max-height`) + scroll-clearance (a `ResizeObserver` pads `.activity-container` by the panel's live height so the fixed panel never permanently hides content). See DECISIONS → "Reference panel".
 
+### Definition span (`class="definition"`)
+
+Inline vocabulary definitions (the `definition` mark). Emitted by the renderer wherever a defined term appears — inside a problem AND inside the reference panel, so it is NOT section-scoped. Non-scored, non-persisted: the scoring runtime ignores it entirely (it carries no `data-block-*`, and the scoring `init` only walks `.activity-section`).
+
+```html
+<span class="definition"
+      data-definition="a number that divides another exactly"
+      data-glossary-key="factor-noun"   <!-- Phase 4+; emitted ONLY when set -->
+      tabindex="0"
+      role="button"
+      aria-haspopup="dialog"
+      aria-expanded="false">factor</span>
+```
+
+- `data-definition` — the teacher's literal definition text, attr-escaped. The popover reads it via `getAttribute` (browser-unescaped) and shows it as `textContent` (so the text can never inject markup).
+- `data-glossary-key` — reserved for the Phase 4 tenant glossary; emitted ONLY when the mark carries one (nothing sets it in Phase 2). Resolution happens at publish, never in the runtime.
+- `aria-expanded` starts `"false"`; the sidecar toggles it to `"true"` while the popover is open, and adds `aria-controls` pointing at the popover.
+
+Interactivity is a **separate inlined sidecar** (`runtime/definitions.ts`, ~1.7 KiB), NOT part of the scoring runtime — `document.ts` inlines it as its own `<script>` only when the rendered page contains a definition span. It manages its OWN popover element (independent of the shared `.js-popover`): click / tap / Enter / Space opens it; Escape, an outside click, or scrolling closes it; focus returns to the term on close (managed-dialog pattern); tap-only, no hover. Print shows the dotted-underline cue (ink-safe `currentColor`) but no popover — definitions are on-screen scaffold; an end-of-worksheet glossary appendix is a deferred follow-up. See docs/design/vocabulary-definitions.md.
+
 ### Reading discipline
 
 Two sources, two patterns. Activity-level config is parsed once from the `#activity-config` blob via `parseConfig`. Per-element data is read off `data-*` attributes during the init pass and stored on typed refs. Downstream code consumes refs and never re-queries.
@@ -550,13 +572,15 @@ On successful submit:
 
 ## Build pipeline
 
-`scripts/bundle-renderer.mjs` runs three esbuild builds in sequence (plus a non-esbuild KaTeX-CSS inlining step):
+`scripts/bundle-renderer.mjs` runs four esbuild builds in sequence (plus a non-esbuild KaTeX-CSS inlining step):
 
 1. **Runtime build.** Entry `packages/renderer/src/runtime/index.ts` → output as IIFE (not ESM — runs immediately when inlined into a `<script>` tag, no module loader). Minified, target `chrome90` (covers school Chromebooks, Firefox 88+, Safari 14+, Edge 90+). External source map at `packages/renderer/dist/runtime.js.map` (dev-only, gitignored). The minified text is written into a generated TypeScript string module at `packages/renderer/src/runtime/generated/runtime-bundle.ts`. **Committed to git** so a clean checkout can typecheck the renderer without running the bundler.
 
 2. **Reference-panel sidecar build.** Entry `packages/renderer/src/runtime/reference-panel.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/reference-panel-bundle.ts` (also committed). A small (~1 KiB) self-contained script for the on-screen reference panel (drag-resize + scroll-clearance), kept OUT of the main runtime so the scoring runtime stays pure and panel-less pages ship none of it; `document.ts` inlines it only when an activity has a `referencePanel`. (This is the realized form of the "lazy-loaded sidecar bundle" pattern noted below — inlined-when-present rather than lazy-loaded, since it's tiny.)
 
-3. **Renderer build.** Entry `packages/renderer/src/index.ts` → output as ESM at `supabase/functions/_shared/renderer.bundle.js`. The renderer's `document.ts` imports the generated string modules from steps 1–2 and inlines them into `<script>` tags in published pages (the runtime always; the reference-panel sidecar only when a panel exists).
+3. **Definitions sidecar build.** Entry `packages/renderer/src/runtime/definitions.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/definitions-bundle.ts` (committed). A small (~1.7 KiB) self-contained script for inline vocabulary-definition popovers, kept OUT of the main runtime so the scoring runtime stays pure and definition-less pages ship none of it; `document.ts` inlines it only when the rendered page contains a `.definition` span.
+
+4. **Renderer build.** Entry `packages/renderer/src/index.ts` → output as ESM at `supabase/functions/_shared/renderer.bundle.js`. The renderer's `document.ts` imports the generated string modules from steps 1–2 and inlines them into `<script>` tags in published pages (the runtime always; the reference-panel sidecar only when a panel exists).
 
 Inlined model means `publish-activity` only uploads `index.html` to Storage — no separate `runtime.js` artifact.
 
@@ -578,7 +602,7 @@ Bundle size: runtime IIFE is roughly **5–7 KiB minified** as of Stage 13 compl
 
 ## Testing strategy
 
-Test suite at `packages/renderer/src/runtime/__tests__/`. Seven files:
+Test suite at `packages/renderer/src/runtime/__tests__/`. Files (scoring runtime + sidecars):
 
 - **`strategies.test.ts`** (node env): `evaluateAnswer` dispatch (list strategy variants, unknown-strategy warns + falls back), `computeScore` arithmetic.
 - **`init.test.ts`** (JSDOM): `parseConfig` (valid / missing / malformed / missing required field), `buildRefs` for sections / fill_in_blank blocks / blanks (including cross-references), `createInitialState` defaults, `init()` orchestration.
@@ -587,6 +611,7 @@ Test suite at `packages/renderer/src/runtime/__tests__/`. Seven files:
 - **`checkpoints.test.ts`** (JSDOM): `checkSection` scoring aggregation (including the empty-blanks-count case), locked mode flips locked, solution reveal, re-check idempotence; `wireCheckpoints` click handler attachment.
 - **`storage.test.ts`** (JSDOM): save/load roundtrip, versionNum scoping, submitted-state gating, malformed JSON / schema mismatch handling, `clearActivityState`, `applyStoredState` merge behavior.
 - **`confidence.test.ts`** (JSDOM): `wireConfidence` change handler, value validation, no-fieldset skip, no-update-on-unchecked-radio defense.
+- **`definitions.test.ts`** (JSDOM): the vocabulary-definition sidecar — click / keyboard opens the popover with the term's text, toggle/Escape/outside close, term-switching, empty-term inert. (Sidecar, not part of the scoring runtime.)
 
 ### Patterns
 
