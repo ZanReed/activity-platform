@@ -21,9 +21,11 @@ import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
 import { Columns, Column } from './extensions/Columns';
 import { Image } from './extensions/Image';
+import { Definition } from './extensions/Definition';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
+import DefinitionPopoverHost from './components/DefinitionPopoverHost';
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -72,6 +74,9 @@ export default function Editor({
             // Underline is bundled by StarterKit v3 — registering it again
             // duplicates the 'underline' mark. The toolbar's U button uses
             // StarterKit's.
+            // Inline vocabulary-definition mark. Authored via the toolbar
+            // "Define" button + the root-level DefinitionPopoverHost below.
+            Definition,
             // Stage 13.5 — question-block extensions. FillInBlank is the
             // block container; Blank is the inline atom that lives inside
             // its body (and only inside its body, per the schema's
@@ -172,6 +177,13 @@ export default function Editor({
                   Single instance, same pattern as BlankPopoverHost.
                 */}
                 <ImagePopoverHost editor={editor} activityId={activityId} />
+                {/*
+                  DefinitionPopoverHost — sibling host watching the selection
+                  for the inline `definition` mark, showing the anchored edit
+                  popover. Single instance, same pattern as the hosts above
+                  (mark-based rather than node-based).
+                */}
+                <DefinitionPopoverHost editor={editor} />
             </div>
         </div>
     );

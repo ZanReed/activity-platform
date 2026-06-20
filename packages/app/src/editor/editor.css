@@ -706,6 +706,17 @@
      * and on screen. */
 }
 
+/* Inline vocabulary-definition mark (the `definition` mark). A subtle dotted
+ * underline cues the author that the run is defined — matching the published
+ * page's cue — while the text stays fully editable. Editing is via the
+ * root-level DefinitionPopoverHost, which opens when the cursor is inside. */
+.ProseMirror .definition {
+    text-decoration: underline dotted rgb(148 163 184); /* slate-400 */
+    text-underline-offset: 0.15em;
+    text-decoration-thickness: 1px;
+    cursor: text;
+}
+
 /* =============================================================================
  *  Blank edit popover (Stage 13.5 Drop 2c — complete per-blank fields)
  *  -----------------------------------------------------------------------

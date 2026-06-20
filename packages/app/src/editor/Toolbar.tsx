@@ -73,6 +73,28 @@ export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) 
             >
                 X<sup>2</sup>
             </ToolbarButton>
+            {/*
+              Define — applies the inline vocabulary-definition mark to the
+              selection and opens the edit popover (DefinitionPopoverHost). A
+              mark, so it lives with the other text marks. Enabled when there's
+              a selection to define, or when the cursor is already inside a
+              definition (active). Re-clicking while active is a no-op so it
+              never clobbers the existing definition text.
+            */}
+            <ToolbarButton
+                onClick={() => {
+                    if (editor.isActive('definition')) return;
+                    editor.chain().focus().setDefinition().run();
+                }}
+                disabled={
+                    editor.state.selection.empty &&
+                    !editor.isActive('definition')
+                }
+                active={isMarkActive(editor, 'definition')}
+                title="Define the selected term (adds a vocabulary definition)"
+            >
+                Define
+            </ToolbarButton>
 
             <Divider />
 
