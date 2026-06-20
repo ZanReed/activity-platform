@@ -60,6 +60,15 @@ Stable key, not term, for the same reason `blank.id` is stable: two senses of "f
 
 **This scoping choice does not affect Phase-2 forward-compat.** Tenant-scoping changes only *where the map lives* (a DB table vs. the activity doc), never the mark — which still just gains an optional `glossaryKey`. Shipping the inline version first stays safe. Promoting existing inline definitions later = collect distinct `(term, definition)` pairs across the account into `glossary_entry`, then add `glossaryKey` to each mark: a scriptable, additive transform whose only manual step is disambiguating same-term/different-sense entries.
 
+### Two glossary shapes — implicit reuse (preferred) vs. managed
+
+The same tenant `glossary_entry` store can power two very different teacher experiences; which one we surface is a UI/product choice, not a schema fork.
+
+- **Implicit reuse (preferred direction, decided 2026-06-19).** No glossary a teacher has to curate. As a teacher writes inline definitions, the platform passively records them per account/tenant and offers them back as suggestions the next time the same term is defined — cross-activity reuse for free, no list to manage ("the site acts like the glossary as needed"). Lighter build: a write-through `(term → recent definition)` cache plus a suggestion in the Define popover. This is the default intent.
+- **Managed glossary (heavier, optional, later).** A teacher curates an explicit list, edits "factor" once, and every `glossaryKey`-referencing instance updates at publish. Needs a management UI + glossaryKey resolution (see above).
+
+**Decision (2026-06-19): lead with implicit reuse; an official managed glossary, if built, is opt-in and never forced.** A teacher may choose to lean on a curated glossary as their default, but the no-friction implicit-reuse behavior stays the baseline for everyone who doesn't. Both models read the same tenant store, so committing to the light model now forecloses nothing. Sibling to the Auto-suggest editor aid below, under the same "help, never force" philosophy.
+
 ## Auto-suggest (Phase 4+ editor aid) — never silent, never automatic
 
 Once the tenant glossary exists, the obvious labor-saver is "auto-define every word that matches the glossary." The fully-automatic version is the wrong call here and is explicitly **not** what this section proposes — see "Why not silent auto-apply" below. The defensible version flips three knobs and keeps the teacher in the loop:
