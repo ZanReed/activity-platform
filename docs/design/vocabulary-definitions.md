@@ -23,8 +23,9 @@ export const DefinitionMark = z.object({
   attrs: z.object({
     // Phase 2: literal definition typed by the teacher inline.
     definition: z.string().optional(),
-    // Phase 4+: stable key into ActivityMeta.glossary. When present,
-    // glossaryKey takes priority over definition at render time.
+    // Phase 4+: stable key into the tenant-scoped glossary store (resolved at
+    // publish; see "Phase 4"). When present, glossaryKey takes priority over
+    // the inline definition.
     glossaryKey: z.string().optional(),
   }).refine(
     (a) => Boolean(a.definition) || Boolean(a.glossaryKey),
@@ -35,20 +36,49 @@ export const DefinitionMark = z.object({
 export type DefinitionMark = z.infer<typeof DefinitionMark>;
 \`\`\`
 
-## Phase 4 — ActivityMeta extension
+## Phase 4 — tenant-scoped glossary store
 
-\`\`\`typescript
-// In document.ts when Phase 4 lands.
-glossary: z.record(
-  z.string(),                   // stable key, e.g. "factor-noun", "factor-verb"
-  z.object({
-    term: z.string(),           // display term ("factor")
-    definition: z.string(),     // full definition text
-  })
-).default({}),
+**Decided (2026-06-19): the glossary is account/tenant-scoped, not per-activity.** A teacher defines "factor" once for their whole account (and, under Phase 4 multi-tenancy, optionally shared at the district/org level) and every marked instance across every activity resolves to it. This rules out the originally-sketched `ActivityMeta.glossary`, which would have scoped a definition to a single document; the glossary moves *out* of the activity document into a tenant-level store the publish pipeline reads. The mark is unchanged — it still carries only a stable `glossaryKey` string (see the Phase-2 schema above), now resolving against the tenant store rather than anything in the document.
+
+\`\`\`sql
+-- New tenant-scoped table when Phase 4 lands (NOT a field on the activity doc).
+create table glossary_entry (
+  owner_id   uuid not null references ...,   -- tenant/account scope
+  key        text not null,                  -- stable key, e.g. "factor-noun"
+  term       text not null,                  -- display term ("factor")
+  definition text not null,                  -- full definition text
+  primary key (owner_id, key)
+);
+-- RLS: owner-scoped via the existing ownership helpers (do NOT inline the
+-- ownership check). District/org sharing is a further Phase 4 multi-tenancy
+-- nuance — see STATE.md open questions "Multi-tenancy / governance".
 \`\`\`
 
 Stable key, not term, for the same reason `blank.id` is stable: two senses of "factor" need separate entries, and renaming a term in the editor shouldn't break every reference to it.
+
+**Resolution happens at publish, not render.** The renderer stays pure (JSON-in, HTML-out, no I/O), so it can't read the tenant store. The `publish-activity` Edge Function fetches the owner's glossary and either (a) bakes the resolved text into `data-definition` on each span — simple, but a published page goes stale until it is republished after a glossary edit — or (b) emits `data-glossary-key` and ships a per-tenant glossary JSON the runtime fetches at init (the "glossary map passed in at init time" the Runtime-behavior section anticipates) — live updates, at the cost of a fetch plus a hosting location for that JSON. Decide at Phase 4 implementation; (a) is the smaller first step and (b) can layer on later without a contract change, since both attributes are already reserved.
+
+**This scoping choice does not affect Phase-2 forward-compat.** Tenant-scoping changes only *where the map lives* (a DB table vs. the activity doc), never the mark — which still just gains an optional `glossaryKey`. Shipping the inline version first stays safe. Promoting existing inline definitions later = collect distinct `(term, definition)` pairs across the account into `glossary_entry`, then add `glossaryKey` to each mark: a scriptable, additive transform whose only manual step is disambiguating same-term/different-sense entries.
+
+## Auto-suggest (Phase 4+ editor aid) — never silent, never automatic
+
+Once the tenant glossary exists, the obvious labor-saver is "auto-define every word that matches the glossary." The fully-automatic version is the wrong call here and is explicitly **not** what this section proposes — see "Why not silent auto-apply" below. The defensible version flips three knobs and keeps the teacher in the loop:
+
+- **Suggest, don't apply.** Surface candidate matches in the *editor* (spellcheck-style squiggle/highlight on glossary terms that aren't yet marked). The teacher one-click accepts or dismisses each. Acceptance mints a normal definition mark; dismissal does nothing.
+- **First-occurrence-only** is the default surfacing rule (how textbook glossaries behave): suggest the first un-marked instance per section, not every instance.
+- **Opt-in**, off by default — a per-activity toggle (and optionally per-term), so a teacher who wants the firehose can have it but nobody gets it unasked.
+
+**Why this is architecturally cheap (and why it can wait):** auto-suggest is a *pure editor affordance*. Accepting a suggestion creates the exact same `glossaryKey` definition mark a teacher would create by hand — same schema, same [data-attribute contract](#data-attribute-contract-renderer-output), same publish path, same determinism. The suggestion engine reads the tenant glossary (already fetched for the editor) and scans text nodes for matches; nothing about the renderer, runtime, or wire format changes. So this is additive editor work for Phase 4+ — it does **not** need to be designed now, and shipping the manual "select → Define" flow first loses nothing.
+
+**Why not silent auto-apply** (the guardrail this design commits to — don't relitigate without revisiting these):
+
+1. **Word-sense ambiguity.** The stable-key split (`factor-noun` vs. `factor-verb`) exists *because* string-matching can't tell which sense a sentence means; auto-applying would attach the wrong definition confidently and silently. A human accept/reject step is the disambiguation.
+2. **Over-marking kills the signal.** Marking every instance turns the page into a sea of underlines and students tune the cue out; the value is in its scarcity. First-occurrence-only + opt-in counter this.
+3. **Teacher intent.** Scaffolding is deliberate (the hard word, the first time — not the tenth). Suggest-don't-apply preserves that judgment.
+4. **Assessment integrity.** A term must NOT be auto-defined inside a problem that is testing whether the student knows that term. A blanket matcher can't see that intent; a confirming human can.
+5. **Determinism.** Because suggestions become real document marks at author time (not magic applied at render/publish), published output stays reviewable and doesn't retroactively change when the glossary grows.
+
+**Hard "never":** never auto-define silently at render or publish; never blanket-mark every occurrence by default; never mark a term inside a problem that assesses that term.
 
 ## Data-attribute contract (renderer output)
 
