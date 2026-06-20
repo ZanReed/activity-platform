@@ -9,6 +9,8 @@
 // Inline content
 export {
   Mark,
+  DefinitionMark,
+  SIMPLE_MARK_TYPES,
   TextNode,
   InlineMathNode,
   HardBreakNode,
@@ -16,6 +18,7 @@ export {
   InlineNode,
   FillInBlankInline,
 } from './inline.js';
+export type { MarkType, SimpleMarkType } from './inline.js';
 
 // Blocks
 export {

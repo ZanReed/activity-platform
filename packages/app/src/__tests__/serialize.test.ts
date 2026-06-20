@@ -233,6 +233,64 @@ describe('paragraphs', () => {
         expect(roundTrip(doc)).toEqual(doc);
     });
 
+    it('preserves a definition mark with its inline text', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'factor',
+                            marks: [{ type: 'definition', attrs: { definition: 'a number that divides another exactly' } }],
+                        },
+                    ],
+                },
+            ],
+        };
+        expect(roundTrip(doc)).toEqual(doc);
+    });
+
+    it('preserves a definition mark glossaryKey (reserved for Phase 4)', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'factor',
+                            marks: [{ type: 'definition', attrs: { definition: 'a divisor', glossaryKey: 'factor-noun' } }],
+                        },
+                    ],
+                },
+            ],
+        };
+        expect(roundTrip(doc)).toEqual(doc);
+    });
+
+    it('drops a definition mark with empty text (Phase 2 requires a definition)', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        { type: 'text', text: 'factor', marks: [{ type: 'definition', attrs: { definition: '' } }] },
+                    ],
+                },
+            ],
+        };
+        const result = tiptapToActivity(doc, META);
+        const block = result.sections[0]!.blocks[0]!;
+        if (block.type !== 'paragraph') throw new Error('expected paragraph');
+        const text = block.content[0]!;
+        if (text.type !== 'text') throw new Error('expected text node');
+        expect(text.marks).toEqual([]);
+    });
+
     it('preserves multiple marks on one text run', () => {
         const doc: JSONContent = {
             type: 'doc',
@@ -433,7 +491,7 @@ describe('graceful degradation', () => {
         if (block.type !== 'paragraph') throw new Error('expected paragraph');
         const text = block.content[0]!;
         if (text.type !== 'text') throw new Error('expected text node');
-        expect(text.marks).toEqual(['bold']);
+        expect(text.marks).toEqual([{ type: 'bold' }]);
     });
 });
 

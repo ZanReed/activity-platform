@@ -13,12 +13,61 @@
 import { z } from 'zod';
 
 // ---- Marks ------------------------------------------------------------------
-// Marks are formatting flags on text. They're not nested elements (no
-// <em><strong>...</strong></em> structure); a single TextNode can have
-// multiple marks applied. Order doesn't matter — render output is
-// canonicalized.
-export const Mark = z.enum(['bold', 'italic', 'underline', 'code', 'subscript', 'superscript']);
+// Marks are formatting applied to a run of text — not nested elements (no
+// <em><strong>...</strong></em> structure); a single TextNode can carry
+// several. Order doesn't matter — render output is canonicalized.
+//
+// Each mark is an OBJECT with a `type` discriminant. Simple marks (bold, etc.)
+// carry only `type`; attribute-carrying marks (e.g. `definition`) hang their
+// data off the same object. Legacy documents stored marks as bare strings
+// ('bold'); the preprocess below upgrades those to the object form on read, so
+// old activities keep parsing without a schemaVersion bump. New code always
+// writes the object form.
+export const SIMPLE_MARK_TYPES = [
+  'bold',
+  'italic',
+  'underline',
+  'code',
+  'subscript',
+  'superscript',
+] as const;
+export type SimpleMarkType = (typeof SIMPLE_MARK_TYPES)[number];
+
+const BoldMark = z.object({ type: z.literal('bold') });
+const ItalicMark = z.object({ type: z.literal('italic') });
+const UnderlineMark = z.object({ type: z.literal('underline') });
+const CodeMark = z.object({ type: z.literal('code') });
+const SubscriptMark = z.object({ type: z.literal('subscript') });
+const SuperscriptMark = z.object({ type: z.literal('superscript') });
+
+// DefinitionMark — inline vocabulary definition (Phase 2). `definition` is the
+// literal text a teacher typed inline; the published-page runtime shows it in a
+// popover. `glossaryKey` is reserved for the Phase 4 tenant glossary store
+// (resolved at publish) and is unused in Phase 2. The renderer emits a
+// `<span class="definition" data-definition="…">`; see RUNTIME.md and
+// docs/design/vocabulary-definitions.md.
+export const DefinitionMark = z.object({
+  type: z.literal('definition'),
+  definition: z.string(),
+  glossaryKey: z.string().optional(),
+});
+export type DefinitionMark = z.infer<typeof DefinitionMark>;
+
+export const Mark = z.preprocess(
+  (m) => (typeof m === 'string' ? { type: m } : m),
+  z.discriminatedUnion('type', [
+    BoldMark,
+    ItalicMark,
+    UnderlineMark,
+    CodeMark,
+    SubscriptMark,
+    SuperscriptMark,
+    DefinitionMark,
+  ]),
+);
 export type Mark = z.infer<typeof Mark>;
+// The set of mark `type` discriminants, for callers that allow-list by name.
+export type MarkType = Mark['type'];
 
 // ---- Text node --------------------------------------------------------------
 export const TextNode = z.object({

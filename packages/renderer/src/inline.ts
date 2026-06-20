@@ -93,7 +93,7 @@ function renderText(node: TextNode): string {
   // word looks the same either way), but a stable order produces stable
   // HTML, which makes snapshot tests reliable.
   for (const mark of node.marks) {
-    switch (mark) {
+    switch (mark.type) {
       case 'bold':
         html = '<strong>' + html + '</strong>';
         break;
@@ -111,6 +111,22 @@ function renderText(node: TextNode): string {
         break;
       case 'superscript':
         html = '<sup>' + html + '</sup>';
+        break;
+      case 'definition':
+        // Inline vocabulary definition. Interactive on the published page —
+        // the runtime attaches a popover (click/tap/keyboard) keyed off these
+        // attributes. data-glossary-key is reserved (Phase 4) and only emitted
+        // when present. See RUNTIME.md's data-attribute contract.
+        html =
+          '<span class="definition" data-definition="' +
+          attr(mark.definition) +
+          '"' +
+          (mark.glossaryKey
+            ? ' data-glossary-key="' + attr(mark.glossaryKey) + '"'
+            : '') +
+          ' tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false">' +
+          html +
+          '</span>';
         break;
       default: {
         const _exhaustive: never = mark;

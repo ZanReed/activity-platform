@@ -40,6 +40,8 @@ import type {
     FillInBlankInline,
     BlankToken,
     Mark,
+    DefinitionMark,
+    SimpleMarkType,
     Section,
     BulletListBlock,
     OrderedListBlock,
@@ -51,6 +53,7 @@ import type {
     ImageBlock,
     MathBlock,
 } from '@activity/schema';
+import { SIMPLE_MARK_TYPES } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 
 // Canonical inline content (rich text + inline math) as the schema models it.
@@ -60,16 +63,10 @@ import type { JSONContent } from '@tiptap/react';
 // can name the type without importing @activity/schema directly.
 export type InlineNodes = InlineNode[];
 
-// Marks the schema accepts. Tiptap marks not in this set (e.g., strike) are
-// silently dropped.
-const SUPPORTED_MARKS: ReadonlySet<Mark> = new Set<Mark>([
-    'bold',
-    'italic',
-    'underline',
-    'code',
-    'subscript',
-    'superscript',
-]);
+// Simple (attribute-free) Tiptap marks the schema accepts. Tiptap marks not
+// listed here (e.g. 'strike', 'link') are silently dropped. The 'definition'
+// mark carries attributes and is handled separately in extractMarks.
+const SUPPORTED_SIMPLE_MARKS: ReadonlySet<SimpleMarkType> = new Set(SIMPLE_MARK_TYPES);
 
 // =============================================================================
 // Tiptap → ActivityDocument
@@ -490,12 +487,27 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
     return result;
 }
 
-function extractMarks(marks?: Array<{ type: string }>): Mark[] {
+function extractMarks(
+    marks?: Array<{ type: string; attrs?: Record<string, unknown> | null }>,
+): Mark[] {
     if (!marks) return [];
     const out: Mark[] = [];
     for (const m of marks) {
-        if (SUPPORTED_MARKS.has(m.type as Mark)) {
-            out.push(m.type as Mark);
+        if (m.type === 'definition') {
+            // Attribute-carrying mark. Keep it only if it actually has
+            // definition text (Phase 2 requires a literal definition);
+            // glossaryKey is reserved for Phase 4 and carried through if set.
+            const definition =
+                typeof m.attrs?.definition === 'string' ? m.attrs.definition : '';
+            if (definition.length === 0) continue;
+            const mark: DefinitionMark = { type: 'definition', definition };
+            const glossaryKey = m.attrs?.glossaryKey;
+            if (typeof glossaryKey === 'string' && glossaryKey.length > 0) {
+                mark.glossaryKey = glossaryKey;
+            }
+            out.push(mark);
+        } else if (SUPPORTED_SIMPLE_MARKS.has(m.type as SimpleMarkType)) {
+            out.push({ type: m.type } as Mark);
         }
     }
     return out;
@@ -709,7 +721,16 @@ function activityInlineNodeToTiptap(node: InlineNode): JSONContent {
             ? {
                 type: 'text',
                 text: node.text,
-                marks: node.marks.map((m) => ({ type: m })),
+                marks: node.marks.map((m) =>
+                    m.type === 'definition'
+                        ? {
+                              type: 'definition',
+                              attrs: m.glossaryKey
+                                  ? { definition: m.definition, glossaryKey: m.glossaryKey }
+                                  : { definition: m.definition },
+                          }
+                        : { type: m.type },
+                ),
             }
             : { type: 'text', text: node.text };
 

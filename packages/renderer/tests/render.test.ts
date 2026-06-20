@@ -201,7 +201,7 @@ describe('Inline rendering', () => {
     doc.sections[0]!.blocks = [
       Object.assign(createParagraphBlock(), {
         content: [
-          { type: 'text', text: 'styled', marks: ['bold', 'italic'] },
+          { type: 'text', text: 'styled', marks: [{ type: 'bold' }, { type: 'italic' }] },
         ],
       }),
     ];
@@ -364,7 +364,7 @@ describe('Inline rendering', () => {
     const blank = createBlankToken('answer');
     blank.hint = [
       { type: 'text', text: 'Recall ', marks: [] },
-      { type: 'text', text: 'Pythagoras', marks: ['bold'] },
+      { type: 'text', text: 'Pythagoras', marks: [{ type: 'bold' }] },
       { type: 'text', text: ': ', marks: [] },
       { type: 'math_inline', latex: 'a^2 + b^2' },
     ];
@@ -555,7 +555,7 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
       { type: 'text', text: 'Since ', marks: [] },
       { type: 'math_inline', latex: 'x = 2' },
       { type: 'text', text: ', the answer is ', marks: [] },
-      { type: 'text', text: 'four', marks: ['italic'] },
+      { type: 'text', text: 'four', marks: [{ type: 'italic' }] },
     ];
     doc.sections[0]!.blocks = [fill];
     const body = renderBody(doc);
@@ -772,10 +772,10 @@ describe('Problem numbering', () => {
           type: 'paragraph',
           content: [
             { type: 'text', text: 'H', marks: [] },
-            { type: 'text', text: '2', marks: ['subscript'] },
+            { type: 'text', text: '2', marks: [{ type: 'subscript' }] },
             { type: 'text', text: 'O', marks: [] },
             { type: 'text', text: ' x', marks: [] },
-            { type: 'text', text: '2', marks: ['superscript'] },
+            { type: 'text', text: '2', marks: [{ type: 'superscript' }] },
           ],
         }],
       }],
@@ -795,13 +795,55 @@ describe('Problem numbering', () => {
           id: '22222222-2222-2222-2222-222222222222',
           type: 'paragraph',
           content: [
-            { type: 'text', text: 'key term', marks: ['underline'] },
+            { type: 'text', text: 'key term', marks: [{ type: 'underline' }] },
           ],
         }],
       }],
     };
     const body = renderBody(doc);
     expect(body).toContain('<u>key term</u>');
+  });
+  it('renders a definition mark as an interactive span with escaped data-definition', () => {
+    const doc: ActivityDocument = {
+      schemaVersion: 1,
+      meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
+      sections: [{
+        id: '11111111-1111-1111-1111-111111111111',
+        isCheckpoint: false,
+        blocks: [{
+          id: '22222222-2222-2222-2222-222222222222',
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'factor', marks: [{ type: 'definition', definition: 'a number that "divides" exactly' }] },
+          ],
+        }],
+      }],
+    };
+    const body = renderBody(doc);
+    expect(body).toContain(
+      '<span class="definition" data-definition="a number that &quot;divides&quot; exactly" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false">factor</span>',
+    );
+    // No glossaryKey attribute unless the mark carries one.
+    expect(body).not.toContain('data-glossary-key');
+  });
+  it('emits data-glossary-key only when the definition mark carries one', () => {
+    const doc: ActivityDocument = {
+      schemaVersion: 1,
+      meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
+      sections: [{
+        id: '11111111-1111-1111-1111-111111111111',
+        isCheckpoint: false,
+        blocks: [{
+          id: '22222222-2222-2222-2222-222222222222',
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'factor', marks: [{ type: 'definition', definition: 'a divisor', glossaryKey: 'factor-noun' }] },
+          ],
+        }],
+      }],
+    };
+    const body = renderBody(doc);
+    expect(body).toContain('data-glossary-key="factor-noun"');
   });
 });
 
@@ -912,7 +954,7 @@ describe('lists', () => {
           Object.assign(createListItem(), {
             content: [
               { type: 'text', text: 'plain ', marks: [] },
-              { type: 'text', text: 'bold', marks: ['bold'] },
+              { type: 'text', text: 'bold', marks: [{ type: 'bold' }] },
             ],
           }),
         ],
