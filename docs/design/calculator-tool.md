@@ -188,10 +188,29 @@ Don't ship it all at once; each stage is independently useful. Stage 1 alone rep
 
 A calculator can't print. On paper the panel is simply absent. Optional nicety (print is first-class here): the worksheet may print a one-line note of what was permitted — "Calculator: scientific functions only" — so the paper version communicates the same constraint. Low priority.
 
+## Spike results & locked decisions (2026-06-21)
+
+The track started with the bundle-weight spike the "does NOT decide" list called for. Sizes measured through esbuild (the production toolchain, `chrome90` target) against the repo's real MathLive 0.109.2 + Compute Engine 0.55.6, lazy-loaded on first calculator open:
+
+| Stack | minified | gzip | brotli |
+|---|---:|---:|---:|
+| **MathLive input only** (the fixed floor) | 815 KiB | **219** | **180** |
+| MathLive + hand-rolled evaluator | 817 KiB | 220 | 181 |
+| MathLive + **math.js** (number-only subset) | 963 KiB | 262 | 215 |
+| MathLive + Compute Engine | 1866 KiB | 502 | 403 |
+
+Findings: **MathLive is a fixed ~219 KiB-gzip floor** paid whatever the evaluator (its math-field works for input with *no* engine — it looks for a global `ComputeEngine` and degrades gracefully if absent). The evaluator choice swings ~280 KiB gzip: Compute Engine *more than doubles* the payload; math.js-number adds only ~42 KiB; hand-rolled ~1 KiB. Compute Engine's only edge is "parses MathLive's native LaTeX, no glue" — but math.js and hand-rolled both consume MathLive's `ascii-math` string, so some normalization exists either way.
+
+**Locked:**
+
+1. **Evaluator → math.js (number-only modular build)**, behind a single `evaluate(expr)` seam. Best-practice/size balance: a maintained, tested parser with clean structured errors at +42 KiB gzip on the floor. Compute Engine stays a **drop-in escape hatch** behind that seam if the AsciiMath→math.js normalization proves leaky. (Number-only build only; Stage 3 regression hand-rolls least-squares as planned — the full math.js with matrices is not pulled in.)
+2. **Delivery → one shared, content-hashed kit on R2** (e.g. `…/shared/graph-kit-<hash>.js`), imported by every calculator activity, **brotli-served**, with MathLive's fonts (`mathlive-fonts.css` + woff2) hosted alongside (sounds disabled). Cached across all calculator activities; immutable per-publish version pinning via the hash in the filename; single storage copy. The delivery URL is **not** part of the frozen data-attribute contract, so this can be migrated later if needed. Pulls the "shared runtime hosting" infra (an open Phase 3+ question) forward for this one heavy asset.
+3. **Schema field → SHIPPED 2026-06-21** (`CalculatorTool`/`CalculatorRestrictions` in `packages/schema/src/document.ts`, `calculator?` on `ActivityDocument`, `createCalculatorTool()` factory, 12 tests). `mode` enum carries `'scientific' | 'graphing'` but defaults to `'scientific'` (the only Stage-1 capability); the default may flip to `'graphing'` when the board layer lands. No `schemaVersion` bump (additive optional).
+
 ## What this design does NOT decide
 
-1. **Evaluator / regression-math library.** math.js vs. a lighter parser + a small least-squares routine. Resolve with a one-day spike at track start; shared by calculator regression and graded-line scoring. (Same open question Phase 2.5/2.7 already park.)
-2. **`graph-kit.js` bundling.** One shared bundle vs. kit + per-face bundles. Build-time call once real sizes are known.
+1. ~~**Evaluator / regression-math library.**~~ **RESOLVED 2026-06-21 → math.js (number-only) behind an `evaluate()` seam; Compute Engine escape hatch. See "Spike results & locked decisions" above.** (Stage 3 regression still hand-rolls least-squares; the full math.js with matrices is not pulled in.)
+2. **`graph-kit.js` bundling.** One shared bundle vs. kit + per-face bundles — the build-time composition call, still open until real Stage-2 (JSXGraph) sizes are known. *Delivery/hosting* is resolved (shared content-hashed copy on R2; see above); this remaining sub-question is only how many output files the bundler emits.
 3. **Calculator state persistence.** Deferred. If added later, it lives in its **own** localStorage key, never the scored-state blob — so it can never trigger a `STORAGE_SCHEMA_VERSION` bump. Lean: add it when graphing lands and losing work actually stings.
 4. **Per-section config override.** v1 is per-activity. Additive later if classrooms need a no-calculator section.
 5. **Visual identity.** The own-color/own-icon design (the "visual stranger" half of the legal posture) is a design task, not specified here.

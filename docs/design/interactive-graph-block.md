@@ -273,6 +273,17 @@ Even Phase 2.7 itself benefits from a staged rollout:
 
 Don't try to ship all four at once. The discriminated-union schema is built for incremental addition.
 
+## Graded regression (planned variant)
+
+Decided 2026-06-21: a **gradable regression question** is a wanted feature — a "fit a model to data" block a teacher drops into a section and scores. It is a new interaction variant on *this* graded block; the calculator **tool** is and stays ungraded. Captured now, **not yet scheduled** ("note it + keep reusable" — staging unchanged). The plan keeps it cheap to add later:
+
+- **Reuse, don't rebuild.** The calculator track's Stage 3 builds the regression engine (closed-form least-squares — linear / quadratic / exponential) + the data-table component as standalone, framework-agnostic modules ([calculator-tool.md](calculator-tool.md) "pre-emptive cheap moves"). The graded block scores with the *same* engine — it adds only an answer key + a scoring strategy + a submission-map entry on top. Keep the regression engine out of the calculator shell so this stays true.
+- **Open sub-question — what gets scored?** This sets the answer-key shape; resolve when the variant is scheduled. Candidates:
+  1. *Model choice only* — given the scatter, student picks linear/quad/exp; graded on the model. (Thin: the fit is then deterministic.)
+  2. *Line of best fit by eye* — student drags a line over given data; scored on slope/intercept tolerance vs the true least-squares fit. (Essentially `plot_line` with an answer key computed from the data.)
+  3. *Fit + interpret* — student fits, then a downstream numeric question ("predict y at x = 10") graded against their model's prediction.
+- **Known costs** (same as any graded variant): a parallel response map → a submission `schemaVersion` / `STORAGE_SCHEMA_VERSION` bump when it lands; an answer key in published HTML (client-side security ceiling until Phase 5 server grading).
+
 ## What this design does NOT decide
 
 1. **Library lock-in.** JSXGraph is the leading candidate but final selection happens at implementation. Alternatives: Mafs (React-native graphing, smaller but newer), GeoGebra (more features but heavier and AGPL-licensed). Decide after a one-day spike on representative interactions.
