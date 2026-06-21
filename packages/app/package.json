@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@activity/graph-kit": "workspace:*",
     "@activity/renderer": "workspace:*",
     "@activity/schema": "workspace:*",
     "@floating-ui/react": "^0.27.19",
