@@ -51,6 +51,8 @@ export {
   ActivityMeta,
   ActivityDocument,
   ReferencePanel,
+  CalculatorRestrictions,
+  CalculatorTool,
   PrintHeader,
   PrintConfig,
 } from './document.js';
@@ -83,4 +85,5 @@ export {
   createBlankToken,
   createSection,
   createEmptyDocument,
+  createCalculatorTool,
 } from './factories.js';

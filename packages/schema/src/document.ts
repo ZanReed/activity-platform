@@ -199,10 +199,44 @@ export const ReferencePanel = z.object({
                                        blocks: z.array(Block),
 });
 export type ReferencePanel = z.infer<typeof ReferencePanel>;
+
+// Calculator tool: an activity-level scaffold, a sibling to the reference
+// panel — a teacher-configurable on-screen calculator a student summons while
+// working (like the calculator allowed on a digital SAT). It is NEVER scored,
+// produces no submission, and carries no answer key; the renderer treats it as
+// data-block-category="scaffold" (outside any .activity-section, so the scoring
+// runtime never sees it). It travels in the wire format, configured once per
+// activity, and is optional so existing stored documents parse unchanged — no
+// schemaVersion bump (same forward-compat story as referencePanel/print).
+//
+// Restrictions are PERMISSIVE by default: an enabled-but-unconfigured
+// calculator is a full tool; teachers opt INTO restrictions, never out of
+// capability. Later flags (lockViewport, allowedRegressionModels,
+// maxExpressions…) are added additively as graphing-track stages land — all
+// optional/defaulted, so still no schemaVersion bump.
+//
+// `mode` is the capability ceiling. The enum carries the full contract now, but
+// the default is 'scientific' because that is the only capability Stage 1
+// implements — an enabled calculator does exactly what is built. The default
+// may flip to 'graphing' once the board layer lands (Stage 2).
+export const CalculatorRestrictions = z.object({
+  mode: z.enum(['scientific', 'graphing']).default('scientific'),
+  allowTrig: z.boolean().default(true),
+  allowLogExp: z.boolean().default(true),
+});
+export type CalculatorRestrictions = z.infer<typeof CalculatorRestrictions>;
+
+export const CalculatorTool = z.object({
+  enabled: z.boolean().default(false),
+  restrictions: CalculatorRestrictions.default({}),
+});
+export type CalculatorTool = z.infer<typeof CalculatorTool>;
+
 export const ActivityDocument = z.object({
   schemaVersion: z.literal(1),
                                          meta: ActivityMeta,
                                          sections: z.array(Section),
                                          referencePanel: ReferencePanel.optional(),
+                                         calculator: CalculatorTool.optional(),
 });
 export type ActivityDocument = z.infer<typeof ActivityDocument>;

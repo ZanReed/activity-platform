@@ -15,7 +15,7 @@ import type {
   ActivityMeta,
   Section,
 } from './document.js';
-import { PrintConfig } from './document.js';
+import { PrintConfig, CalculatorTool } from './document.js';
 import type {
   ParagraphBlock,
   HeadingBlock,
@@ -136,4 +136,12 @@ export function createEmptyDocument(meta: Partial<ActivityMeta> = {}): ActivityD
     },
     sections: [createSection()],
   };
+}
+
+// A default calculator tool: enabled, full scientific capability, no
+// restrictions (the permissive default — teachers opt INTO limits). The editor
+// calls this when a teacher toggles the calculator on for an activity. Derives
+// the restriction defaults from the schema (DRY) rather than re-listing them.
+export function createCalculatorTool(): CalculatorTool {
+  return CalculatorTool.parse({ enabled: true });
 }
