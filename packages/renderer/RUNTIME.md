@@ -355,19 +355,23 @@ Inline vocabulary definitions (the `definition` mark). Emitted by the renderer w
 
 ```html
 <span class="definition"
-      data-definition="a number that divides another exactly"
-      data-glossary-key="factor-noun"   <!-- Phase 4+; emitted ONLY when set -->
+      data-definition="the longest side"  <!-- plain-text fallback (a11y / no-JS) -->
+      data-glossary-key="factor-noun"     <!-- Phase 4+; emitted ONLY when set -->
       tabindex="0"
       role="button"
       aria-haspopup="dialog"
-      aria-expanded="false">factor</span>
+      aria-expanded="false">hypotenuse</span>
+<!-- Rich content (text + math + optional image), pre-rendered with KaTeX baked
+     in, cloned into the popover. Emitted ONLY when the definition has content. -->
+<template class="js-definition-content">the longest side <span class="katex">…</span><img class="definition-image" src="…" alt="…" /></template>
 ```
 
-- `data-definition` — the teacher's literal definition text, attr-escaped. The popover reads it via `getAttribute` (browser-unescaped) and shows it as `textContent` (so the text can never inject markup).
+- `<template class="js-definition-content">` — the **display source**: the rich definition (formatted text + inline math + an optional `<img class="definition-image">`), pre-rendered server-side. The sidecar clones `template.content` into the popover body — it never re-renders. Emitted as the span's immediate next sibling.
+- `data-definition` — a plain-text **fallback** (accessibility / no-JS / older markup), attr-escaped. Used only when no template is present; shown via `textContent`, never `innerHTML`.
 - `data-glossary-key` — reserved for the Phase 4 tenant glossary; emitted ONLY when the mark carries one (nothing sets it in Phase 2). Resolution happens at publish, never in the runtime.
 - `aria-expanded` starts `"false"`; the sidecar toggles it to `"true"` while the popover is open, and adds `aria-controls` pointing at the popover.
 
-Interactivity is a **separate inlined sidecar** (`runtime/definitions.ts`, ~1.7 KiB), NOT part of the scoring runtime — `document.ts` inlines it as its own `<script>` only when the rendered page contains a definition span. It manages its OWN popover element (independent of the shared `.js-popover`): click / tap / Enter / Space opens it; Escape, an outside click, or scrolling closes it; focus returns to the term on close (managed-dialog pattern); tap-only, no hover. Print shows the dotted-underline cue (ink-safe `currentColor`) but no popover — definitions are on-screen scaffold; an end-of-worksheet glossary appendix is a deferred follow-up. See docs/design/vocabulary-definitions.md.
+Interactivity is a **separate inlined sidecar** (`runtime/definitions.ts`, ~1.9 KiB), NOT part of the scoring runtime — `document.ts` inlines it as its own `<script>` only when the rendered page contains a definition span. It manages its OWN popover element (independent of the shared `.js-popover`): click / tap / Enter / Space opens it; Escape, an outside click, or scrolling closes it; focus returns to the term on close (managed-dialog pattern); tap-only, no hover. Print shows the dotted-underline cue (ink-safe `currentColor`) but no popover — definitions are on-screen scaffold; an end-of-worksheet glossary appendix is a deferred follow-up. See docs/design/vocabulary-definitions.md.
 
 ### Reading discipline
 
