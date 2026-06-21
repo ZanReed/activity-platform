@@ -527,7 +527,15 @@ body {
   font-size: 0.95rem;
   line-height: 1.5;
   color: var(--color-text);
-  white-space: pre-wrap;
+}
+/* Optional illustrative image inside a definition popover — capped to the
+ popover width, never stretched. */
+.definition-popover-body .definition-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: 0.5rem;
+  border-radius: 4px;
 }
 
 /* Confidence rating fieldset (Stage 12 step 3). One per fill-in-blank

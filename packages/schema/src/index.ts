@@ -10,6 +10,8 @@
 export {
   Mark,
   DefinitionMark,
+  DefinitionContentInline,
+  DefinitionImage,
   SIMPLE_MARK_TYPES,
   TextNode,
   InlineMathNode,

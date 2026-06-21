@@ -803,7 +803,7 @@ describe('Problem numbering', () => {
     const body = renderBody(doc);
     expect(body).toContain('<u>key term</u>');
   });
-  it('renders a definition mark as an interactive span with escaped data-definition', () => {
+  it('renders a definition mark as a span (escaped plain-text fallback) + content template', () => {
     const doc: ActivityDocument = {
       schemaVersion: 1,
       meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
@@ -814,17 +814,42 @@ describe('Problem numbering', () => {
           id: '22222222-2222-2222-2222-222222222222',
           type: 'paragraph',
           content: [
-            { type: 'text', text: 'factor', marks: [{ type: 'definition', definition: 'a number that "divides" exactly' }] },
+            { type: 'text', text: 'factor', marks: [{ type: 'definition', content: [{ type: 'text', text: 'a number that "divides" exactly', marks: [] }] }] },
           ],
         }],
       }],
     };
     const body = renderBody(doc);
+    // data-definition is the escaped plain-text fallback...
     expect(body).toContain(
       '<span class="definition" data-definition="a number that &quot;divides&quot; exactly" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false">factor</span>',
     );
+    // ...and the rich content lives in an adjacent hidden template.
+    expect(body).toContain('<template class="js-definition-content">a number that "divides" exactly</template>');
     // No glossaryKey attribute unless the mark carries one.
     expect(body).not.toContain('data-glossary-key');
+  });
+  it('renders math and an optional image into the content template', () => {
+    const doc: ActivityDocument = {
+      schemaVersion: 1,
+      meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
+      sections: [{
+        id: '11111111-1111-1111-1111-111111111111',
+        isCheckpoint: false,
+        blocks: [{
+          id: '22222222-2222-2222-2222-222222222222',
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'hypotenuse', marks: [{ type: 'definition', content: [{ type: 'text', text: 'the longest side ', marks: [] }, { type: 'math_inline', latex: 'c' }], image: { src: 'https://example.com/triangle.png', alt: 'a right triangle' } }] },
+          ],
+        }],
+      }],
+    };
+    const body = renderBody(doc);
+    expect(body).toContain('<template class="js-definition-content">');
+    expect(body).toContain('<img class="definition-image" src="https://example.com/triangle.png" alt="a right triangle" />');
+    // Math is pre-rendered (KaTeX) inside the template.
+    expect(body).toContain('class="katex"');
   });
   it('emits data-glossary-key only when the definition mark carries one', () => {
     const doc: ActivityDocument = {
@@ -837,7 +862,7 @@ describe('Problem numbering', () => {
           id: '22222222-2222-2222-2222-222222222222',
           type: 'paragraph',
           content: [
-            { type: 'text', text: 'factor', marks: [{ type: 'definition', definition: 'a divisor', glossaryKey: 'factor-noun' }] },
+            { type: 'text', text: 'factor', marks: [{ type: 'definition', content: [{ type: 'text', text: 'a divisor', marks: [] }], glossaryKey: 'factor-noun' }] },
           ],
         }],
       }],

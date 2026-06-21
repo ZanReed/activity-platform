@@ -183,7 +183,7 @@ export default function Editor({
                   popover. Single instance, same pattern as the hosts above
                   (mark-based rather than node-based).
                 */}
-                <DefinitionPopoverHost editor={editor} />
+                <DefinitionPopoverHost editor={editor} activityId={activityId} />
             </div>
         </div>
     );

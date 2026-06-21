@@ -233,7 +233,7 @@ describe('paragraphs', () => {
         expect(roundTrip(doc)).toEqual(doc);
     });
 
-    it('preserves a definition mark with its inline text', () => {
+    it('preserves a definition mark with its rich content', () => {
         const doc: JSONContent = {
             type: 'doc',
             content: [
@@ -243,7 +243,7 @@ describe('paragraphs', () => {
                         {
                             type: 'text',
                             text: 'factor',
-                            marks: [{ type: 'definition', attrs: { definition: 'a number that divides another exactly' } }],
+                            marks: [{ type: 'definition', attrs: { content: [{ type: 'text', text: 'a number that divides another exactly' }] } }],
                         },
                     ],
                 },
@@ -252,7 +252,7 @@ describe('paragraphs', () => {
         expect(roundTrip(doc)).toEqual(doc);
     });
 
-    it('preserves a definition mark glossaryKey (reserved for Phase 4)', () => {
+    it('preserves a definition mark image + glossaryKey', () => {
         const doc: JSONContent = {
             type: 'doc',
             content: [
@@ -261,8 +261,8 @@ describe('paragraphs', () => {
                     content: [
                         {
                             type: 'text',
-                            text: 'factor',
-                            marks: [{ type: 'definition', attrs: { definition: 'a divisor', glossaryKey: 'factor-noun' } }],
+                            text: 'hypotenuse',
+                            marks: [{ type: 'definition', attrs: { content: [{ type: 'text', text: 'the longest side' }], image: { src: 'https://example.com/triangle.png', alt: 'a right triangle' }, glossaryKey: 'factor-noun' } }],
                         },
                     ],
                 },
@@ -271,14 +271,14 @@ describe('paragraphs', () => {
         expect(roundTrip(doc)).toEqual(doc);
     });
 
-    it('drops a definition mark with empty text (Phase 2 requires a definition)', () => {
+    it('drops an empty definition mark (no content and no image)', () => {
         const doc: JSONContent = {
             type: 'doc',
             content: [
                 {
                     type: 'paragraph',
                     content: [
-                        { type: 'text', text: 'factor', marks: [{ type: 'definition', attrs: { definition: '' } }] },
+                        { type: 'text', text: 'factor', marks: [{ type: 'definition', attrs: { content: [] } }] },
                     ],
                 },
             ],
@@ -289,6 +289,21 @@ describe('paragraphs', () => {
         const text = block.content[0]!;
         if (text.type !== 'text') throw new Error('expected text node');
         expect(text.marks).toEqual([]);
+    });
+
+    it('keeps a definition mark that has only an image (no text)', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        { type: 'text', text: 'parabola', marks: [{ type: 'definition', attrs: { content: [], image: { src: 'https://example.com/parabola.png', alt: 'a U-shaped curve' } } }] },
+                    ],
+                },
+            ],
+        };
+        expect(roundTrip(doc)).toEqual(doc);
     });
 
     it('preserves multiple marks on one text run', () => {

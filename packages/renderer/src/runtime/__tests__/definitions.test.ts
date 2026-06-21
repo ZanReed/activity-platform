@@ -79,6 +79,21 @@ describe('definitions sidecar', () => {
     expect(el.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('clones the adjacent rich-content template into the popover', () => {
+    document.body.innerHTML =
+      '<p><span class="definition" data-definition="a divisor" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false">factor</span>' +
+      '<template class="js-definition-content"><strong>a</strong> divisor' +
+      '<img class="definition-image" src="x.png" alt="triangle"></template></p>';
+    setupDefinitions();
+    const el = document.querySelector<HTMLElement>('.definition')!;
+    el.click();
+    const pop = popover()!;
+    expect(pop.hidden).toBe(false);
+    // Rich markup (not just text) came through, including the image.
+    expect(pop.querySelector('strong')?.textContent).toBe('a');
+    expect(pop.querySelector('img.definition-image')).not.toBeNull();
+  });
+
   it('switches the shown definition when a different term is clicked', () => {
     mount(
       '<p>' +

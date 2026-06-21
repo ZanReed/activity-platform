@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import type { Editor } from '@tiptap/react';
 import { getMarkRange } from '@tiptap/core';
 import DefinitionEditPopover from './DefinitionEditPopover';
+import type { InlineNodes } from '../../lib/serialize';
+import type { DefinitionImageAttr } from '../extensions/Definition';
 
 // ============================================================================
 // DefinitionPopoverHost — root-level edit popover for the `definition` mark.
@@ -11,26 +13,31 @@ import DefinitionEditPopover from './DefinitionEditPopover';
 // the edit popover anchored to that marked span. One popover lifecycle — never
 // per-mark mounting (the standing reconciliation constraint).
 //
-// Unlike the blank/image hosts (node selections), `definition` is a MARK, so
-// "what's targeted" is found via getMarkRange around the cursor. The range's
-// start position keys the popover, so its draft reloads only when the author
-// moves to a DIFFERENT definition — not on every keystroke-driven transaction.
-// Editing the definition text changes only the mark's attribute, never the
-// document text, so [from, to) stays put for the whole editing session.
+// `definition` is a MARK, so the target is found via getMarkRange around the
+// cursor. The range's start keys the popover. `active` is set ONLY when the
+// target range changes — not on every transaction — so committing the
+// definition's own content (which fires a transaction) never resets the
+// popover's in-progress draft. Editing content/image changes only the mark's
+// attrs, never the document text, so [from, to) is stable for the session.
 // ============================================================================
 
 interface DefinitionPopoverHostProps {
     editor: Editor | null;
+    // Forwarded to the popover's image control for uploads. Undefined in the
+    // playground, where uploads are disabled (URL paste only).
+    activityId?: string;
 }
 
 interface ActiveDefinition {
     from: number;
     to: number;
-    definition: string;
+    content: InlineNodes;
+    image: DefinitionImageAttr | null;
 }
 
 export default function DefinitionPopoverHost({
     editor,
+    activityId,
 }: DefinitionPopoverHostProps) {
     const [active, setActive] = useState<ActiveDefinition | null>(null);
     const [referenceElement, setReferenceElement] =
@@ -54,16 +61,16 @@ export default function DefinitionPopoverHost({
                 setActive((prev) => (prev === null ? prev : null));
                 return;
             }
-            const definition =
-                (editor.getAttributes('definition').definition as string) ?? '';
-            setActive((prev) =>
-                prev &&
-                prev.from === range.from &&
-                prev.to === range.to &&
-                prev.definition === definition
-                    ? prev
-                    : { from: range.from, to: range.to, definition },
-            );
+            setActive((prev) => {
+                // Same target range → keep the popover and its draft intact.
+                if (prev && prev.from === range.from && prev.to === range.to) {
+                    return prev;
+                }
+                const attrs = editor.getAttributes('definition');
+                const content = (attrs.content as InlineNodes) ?? [];
+                const image = (attrs.image as DefinitionImageAttr | null) ?? null;
+                return { from: range.from, to: range.to, content, image };
+            });
         };
 
         editor.on('selectionUpdate', update);
@@ -100,9 +107,9 @@ export default function DefinitionPopoverHost({
     }, [editor, active]);
 
     const handleChange = useCallback(
-        (definition: string) => {
+        (content: InlineNodes, image: DefinitionImageAttr | null) => {
             if (!editor) return;
-            editor.commands.updateDefinition({ definition });
+            editor.commands.updateDefinition({ content, image });
         },
         [editor],
     );
@@ -125,7 +132,9 @@ export default function DefinitionPopoverHost({
         <DefinitionEditPopover
             key={active.from}
             referenceElement={referenceElement}
-            initialDefinition={active.definition}
+            initialContent={active.content}
+            initialImage={active.image}
+            activityId={activityId}
             onChange={handleChange}
             onRemove={handleRemove}
             onClose={handleClose}

@@ -86,10 +86,30 @@ export function setupDefinitions(): void {
   };
 
   const open = (term: HTMLElement): void => {
-    const text = term.getAttribute('data-definition') ?? '';
-    if (!text) return; // nothing to show — inert
+    // Rich content lives in a hidden <template> emitted right after the span
+    // (pre-rendered text + math + optional image). Fall back to the plain-text
+    // data-definition attribute when no template is present (older published
+    // markup, or a no-rich-content path).
+    const sibling = term.nextElementSibling;
+    const tpl =
+      sibling instanceof HTMLTemplateElement &&
+      sibling.classList.contains('js-definition-content')
+        ? sibling
+        : null;
+    const fallbackText = term.getAttribute('data-definition') ?? '';
+    if (tpl) {
+      if (tpl.content.childNodes.length === 0) return; // empty — inert
+    } else if (!fallbackText) {
+      return; // nothing to show — inert
+    }
     const pop = ensurePopover();
-    if (bodyEl) bodyEl.textContent = text;
+    if (bodyEl) {
+      if (tpl) {
+        bodyEl.replaceChildren(tpl.content.cloneNode(true));
+      } else {
+        bodyEl.textContent = fallbackText;
+      }
+    }
     if (activeTerm && activeTerm !== term) {
       activeTerm.setAttribute('aria-expanded', 'false');
       activeTerm.removeAttribute('aria-controls');

@@ -40,21 +40,101 @@ const CodeMark = z.object({ type: z.literal('code') });
 const SubscriptMark = z.object({ type: z.literal('subscript') });
 const SuperscriptMark = z.object({ type: z.literal('superscript') });
 
-// DefinitionMark — inline vocabulary definition (Phase 2). `definition` is the
-// literal text a teacher typed inline; the published-page runtime shows it in a
-// popover. `glossaryKey` is reserved for the Phase 4 tenant glossary store
-// (resolved at publish) and is unused in Phase 2. The renderer emits a
-// `<span class="definition" data-definition="…">`; see RUNTIME.md and
+// The attribute-free marks as a union. Definition content (below) allows only
+// these — a definition can be formatted but cannot itself contain a nested
+// definition, which also keeps the schema non-recursive.
+const SimpleMark = z.discriminatedUnion('type', [
+  BoldMark,
+  ItalicMark,
+  UnderlineMark,
+  CodeMark,
+  SubscriptMark,
+  SuperscriptMark,
+]);
+
+// ---- Inline math ------------------------------------------------------------
+// LaTeX source for KaTeX. Stored verbatim; rendered at render time. The
+// renderer is tolerant of invalid LaTeX (renders an error indicator rather
+// than crashing) so saving a doc with broken math doesn't lock the editor.
+export const InlineMathNode = z.object({
+  type: z.literal('math_inline'),
+  latex: z.string(),
+});
+export type InlineMathNode = z.infer<typeof InlineMathNode>;
+
+// ---- Hard break -------------------------------------------------------------
+// A soft line break inside a block (Tiptap's hardBreak / Shift+Enter), as
+// opposed to a new block. Carries no data — it renders as <br>. Without this
+// node the break is dropped on serialize and adjacent text runs concatenate.
+export const HardBreakNode = z.object({
+  type: z.literal('hard_break'),
+});
+export type HardBreakNode = z.infer<typeof HardBreakNode>;
+
+// ---- Definition content -----------------------------------------------------
+// The rich content shown in a definition's popover: formatted text + inline
+// math (the same alphabet the blank hint uses), authored via the shared
+// InlineRichTextEditor. A definition's text run carries SimpleMark only — no
+// nested definitions — which also breaks the recursion that reusing InlineNode
+// here would create (DefinitionMark → content → text → marks → DefinitionMark).
+const DefinitionContentText = z.object({
+  type: z.literal('text'),
+  text: z.string(),
+  marks: z.array(SimpleMark).default([]),
+});
+export const DefinitionContentInline = z.discriminatedUnion('type', [
+  DefinitionContentText,
+  InlineMathNode,
+  HardBreakNode,
+]);
+export type DefinitionContentInline = z.infer<typeof DefinitionContentInline>;
+
+// Optional illustrative image for a definition ("a picture worth a thousand
+// words"). src is a URL (R2 upload or pasted); alt defaults to empty.
+export const DefinitionImage = z.object({
+  src: z.string(),
+  alt: z.string().default(''),
+});
+export type DefinitionImage = z.infer<typeof DefinitionImage>;
+
+// DefinitionMark — inline vocabulary definition (Phase 2). `content` is the
+// rich definition shown in the published-page popover (formatted text + math);
+// `image` is an optional illustrative picture. `glossaryKey` is reserved for
+// the Phase 4 tenant glossary store (resolved at publish) and is unused in
+// Phase 2. The renderer emits `<span class="definition" …>` plus a hidden
+// <template> carrying the rendered content; see RUNTIME.md and
 // docs/design/vocabulary-definitions.md.
 export const DefinitionMark = z.object({
   type: z.literal('definition'),
-  definition: z.string(),
+  content: z.array(DefinitionContentInline).default([]),
+  image: DefinitionImage.optional(),
   glossaryKey: z.string().optional(),
 });
 export type DefinitionMark = z.infer<typeof DefinitionMark>;
 
 export const Mark = z.preprocess(
-  (m) => (typeof m === 'string' ? { type: m } : m),
+  (m) => {
+    // Legacy: marks were bare strings ('bold').
+    if (typeof m === 'string') return { type: m };
+    // Legacy: a definition mark stored a plain `definition` string before rich
+    // content landed — upgrade it to a single-text-run `content`.
+    if (
+      m !== null &&
+      typeof m === 'object' &&
+      (m as { type?: unknown }).type === 'definition' &&
+      typeof (m as { definition?: unknown }).definition === 'string' &&
+      (m as { content?: unknown }).content === undefined
+    ) {
+      const { definition, ...rest } = m as {
+        definition: string;
+      } & Record<string, unknown>;
+      return {
+        ...rest,
+        content: definition ? [{ type: 'text', text: definition }] : [],
+      };
+    }
+    return m;
+  },
   z.discriminatedUnion('type', [
     BoldMark,
     ItalicMark,
@@ -77,25 +157,6 @@ export const TextNode = z.object({
   marks: z.array(Mark).default([]),
 });
 export type TextNode = z.infer<typeof TextNode>;
-
-// ---- Inline math ------------------------------------------------------------
-// LaTeX source for KaTeX. Stored verbatim; rendered at render time. The
-// renderer is tolerant of invalid LaTeX (renders an error indicator rather
-// than crashing) so saving a doc with broken math doesn't lock the editor.
-export const InlineMathNode = z.object({
-  type: z.literal('math_inline'),
-  latex: z.string(),
-});
-export type InlineMathNode = z.infer<typeof InlineMathNode>;
-
-// ---- Hard break -------------------------------------------------------------
-// A soft line break inside a block (Tiptap's hardBreak / Shift+Enter), as
-// opposed to a new block. Carries no data — it renders as <br>. Without this
-// node the break is dropped on serialize and adjacent text runs concatenate.
-export const HardBreakNode = z.object({
-  type: z.literal('hard_break'),
-});
-export type HardBreakNode = z.infer<typeof HardBreakNode>;
 
 // ---- InlineNode union -------------------------------------------------------
 // InlineNode is the standard inline alphabet. Used by all blocks except

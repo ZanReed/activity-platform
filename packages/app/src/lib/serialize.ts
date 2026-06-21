@@ -41,6 +41,8 @@ import type {
     BlankToken,
     Mark,
     DefinitionMark,
+    DefinitionContentInline,
+    DefinitionImage,
     SimpleMarkType,
     Section,
     BulletListBlock,
@@ -494,13 +496,32 @@ function extractMarks(
     const out: Mark[] = [];
     for (const m of marks) {
         if (m.type === 'definition') {
-            // Attribute-carrying mark. Keep it only if it actually has
-            // definition text (Phase 2 requires a literal definition);
-            // glossaryKey is reserved for Phase 4 and carried through if set.
-            const definition =
-                typeof m.attrs?.definition === 'string' ? m.attrs.definition : '';
-            if (definition.length === 0) continue;
-            const mark: DefinitionMark = { type: 'definition', definition };
+            // Attribute-carrying mark. `content` is canonical InlineNode[] (the
+            // nested mini-editor writes it that way, like blank hints), passed
+            // straight through; `image` is an optional {src, alt}. Keep the
+            // mark only if it carries content or an image. glossaryKey is
+            // reserved for Phase 4 and carried through if set.
+            const rawContent = m.attrs?.content;
+            const content: DefinitionContentInline[] = Array.isArray(rawContent)
+                ? (rawContent as DefinitionContentInline[])
+                : [];
+            const rawImage = m.attrs?.image;
+            let image: DefinitionImage | undefined;
+            if (
+                rawImage &&
+                typeof rawImage === 'object' &&
+                typeof (rawImage as { src?: unknown }).src === 'string' &&
+                (rawImage as { src: string }).src.length > 0
+            ) {
+                const alt = (rawImage as { alt?: unknown }).alt;
+                image = {
+                    src: (rawImage as { src: string }).src,
+                    alt: typeof alt === 'string' ? alt : '',
+                };
+            }
+            if (content.length === 0 && !image) continue;
+            const mark: DefinitionMark = { type: 'definition', content };
+            if (image) mark.image = image;
             const glossaryKey = m.attrs?.glossaryKey;
             if (typeof glossaryKey === 'string' && glossaryKey.length > 0) {
                 mark.glossaryKey = glossaryKey;
@@ -725,9 +746,13 @@ function activityInlineNodeToTiptap(node: InlineNode): JSONContent {
                     m.type === 'definition'
                         ? {
                               type: 'definition',
-                              attrs: m.glossaryKey
-                                  ? { definition: m.definition, glossaryKey: m.glossaryKey }
-                                  : { definition: m.definition },
+                              attrs: {
+                                  content: m.content,
+                                  ...(m.image ? { image: m.image } : {}),
+                                  ...(m.glossaryKey
+                                      ? { glossaryKey: m.glossaryKey }
+                                      : {}),
+                              },
                           }
                         : { type: m.type },
                 ),
