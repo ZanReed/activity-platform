@@ -1,6 +1,6 @@
 # Vocabulary definitions — Phase 2 design
 
-**Status:** design captured, not implemented. This document holds the shape decided in a Stage 9c-era conversation so that whoever picks up Phase 2 (probably future-me) has the rationale alongside the code shape. When Phase 2 lands, the Zod definition migrates into the schema package as a real export and this doc gets either deleted or moved to an `archive/` subdirectory.
+**Status:** SHIPPED 2026-06-19 (awaiting `publish-activity` redeploy to reach published pages). The inline feature is live in `packages/schema` (`DefinitionMark`), the renderer, the runtime sidecar (`runtime/definitions.ts`), and the editor. **The shipped shape is richer than the Stage-9c sketch below:** a definition carries `content` (rich text + inline math, via the shared `InlineRichTextEditor`) + an optional `image` ({src, alt}), not a bare `definition: string` — see the schema's `DefinitionMark` and STATE.md. The rest of this doc keeps the original rationale (why a mark, the data-attribute contract, the tenant-scoped Phase 4 glossary, auto-suggest) — still accurate. Phase 4 (glossary store + implicit reuse + auto-suggest) remains future work.
 
 See ROADMAP.md "Phase 2 — Polish the loop" for the user-visible framing and "Phase 4 — Multi-tenancy" for the glossary extension.
 
