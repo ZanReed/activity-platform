@@ -11,6 +11,9 @@ importers:
       '@types/node':
         specifier: ^20.12.0
         version: 20.19.39
+      aws4fetch:
+        specifier: ^1.0.20
+        version: 1.0.20
       esbuild:
         specifier: ^0.21.0
         version: 0.21.5
@@ -1438,6 +1441,9 @@ packages:
 
   assertion-error@1.1.0:
     resolution: {integrity: sha512-jgsaNduz+ndvGyFt3uSuWqvy4lCnIJiovtouQN5JZHOKCS2QuhEdbcQHFhVksz2N2U9hXJo8odG7ETyWlEeuDw==}
+
+  aws4fetch@1.0.20:
+    resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -3740,6 +3746,8 @@ snapshots:
   aria-query@5.3.2: {}
 
   assertion-error@1.1.0: {}
+
+  aws4fetch@1.0.20: {}
 
   balanced-match@1.0.2: {}
 

@@ -119,6 +119,23 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+// MathLive resolves its glyph fonts (and keypress sounds) relative to a
+// configured directory. On a published page the kit is lazy-loaded from R2, so
+// the default relative path won't find them; we point at the version-matched
+// jsDelivr CDN — the same source the renderer already uses for KaTeX fonts, and
+// the one font source that works identically on published pages AND in the
+// editor preview without detecting which context we're in. Bump the version
+// alongside the `mathlive` dependency. Sounds are disabled (a calculator that
+// beeps on every key is noise in a classroom, and it avoids extra fetches).
+const MATHLIVE_VERSION = '0.109.2';
+let mathliveConfigured = false;
+function configureMathLive(): void {
+  if (mathliveConfigured) return;
+  mathliveConfigured = true;
+  MathfieldElement.fontsDirectory = `https://cdn.jsdelivr.net/npm/mathlive@${MATHLIVE_VERSION}/dist/fonts`;
+  MathfieldElement.soundsDirectory = null;
+}
+
 let stylesInjected = false;
 function injectStyles(): void {
   if (stylesInjected || document.getElementById('graph-kit-styles')) {
@@ -138,6 +155,7 @@ export function mountCalculator(
   hooks: MountHooks = {},
 ): CalculatorHandle {
   injectStyles();
+  configureMathLive();
   const cfg = readConfig(rawConfig);
   let angle: 'deg' | 'rad' = 'deg';
   let open = false;

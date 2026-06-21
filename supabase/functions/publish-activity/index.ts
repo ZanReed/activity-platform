@@ -51,6 +51,7 @@ import {
   ActivityDocument,
   type ActivityDocument as ActivityDocumentType,
 } from '../_shared/renderer.bundle.js';
+import { CALCULATOR_KIT_FILE } from '../_shared/graph-kit-manifest.ts';
 import {
   handlePreflight,
   jsonResponse,
@@ -91,6 +92,13 @@ if (!SUBMISSION_ENDPOINT) {
 // Strip any accidental trailing slash on the public URL base so URL
 // concatenation stays clean regardless of how the secret was set.
 const PUBLIC_URL_BASE = R2_PUBLIC_URL_BASE.replace(/\/+$/, '');
+
+// The shared, content-hashed graphing-kit bundle (calculator widget, lazy-loaded
+// on published pages). Uploaded out-of-band by `pnpm build:graph-kit`; the
+// filename (with its content hash) comes from the committed manifest. The
+// renderer only emits the calculator when an activity opts in AND this URL is
+// present, so a page without a calculator never references it.
+const CALCULATOR_KIT_URL = `${PUBLIC_URL_BASE}/shared/${CALCULATOR_KIT_FILE}`;
 
 // One AwsClient per cold start. We use aws4fetch (a small fetch-based SigV4
 // signer) rather than @aws-sdk/client-s3: the AWS SDK imports fine on Supabase
@@ -223,6 +231,7 @@ Deno.serve(async (req: Request) => {
       activityId,
       versionNum: version.version_num,
       submissionEndpoint: SUBMISSION_ENDPOINT,
+      calculatorKitUrl: CALCULATOR_KIT_URL,
     });
   } catch (err) {
     console.error('[publish-activity] Render error:', err);

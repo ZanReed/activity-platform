@@ -78,6 +78,22 @@ supabase functions deploy upload-image
 
 If you change anything in `packages/renderer` or `packages/schema`, re-run `pnpm bundle:renderer` before re-deploying. CI should automate this — every push that touches those packages should trigger a re-bundle and deploy.
 
+### Graphing kit (calculator) asset on R2
+
+The calculator widget (`@activity/graph-kit`) is too heavy to inline, so it ships as **one shared, content-hashed ESM bundle on R2** under `shared/`, lazy-`import()`ed by published pages on the first summon click. `publish-activity` reads the hashed filename from the committed manifest `_shared/graph-kit-manifest.ts` and joins it with `R2_PUBLIC_URL_BASE` to form the `calculatorKitUrl` it passes to the renderer (the renderer only emits the calculator when an activity opts in *and* that URL is present).
+
+Build + upload (the upload runs only when R2 creds are in the env, so it's an author/deploy step):
+
+```bash
+# From the repo root, with the same R2 secrets used for the functions in env:
+R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… \
+R2_BUCKET_NAME=… R2_PUBLIC_URL_BASE=… pnpm build:graph-kit
+```
+
+This bundles the kit, content-hashes it to `graph-kit-<hash>.js`, rewrites the manifest, and PUTs the asset to `shared/<filename>` (immutable cache; Cloudflare brotli-compresses at the edge). MathLive fonts are **not** uploaded — the kit points `MathfieldElement.fontsDirectory` at the version-matched jsDelivr CDN (same pattern as KaTeX fonts).
+
+After any change to `packages/graph-kit`: re-run `pnpm build:graph-kit` (with creds, to re-upload), **commit the regenerated manifest**, and **redeploy `publish-activity`** so it serves the new hashed URL. A run without creds just rebuilds + refreshes the manifest (no upload).
+
 ## Calling the publish function
 
 From the React app, with the user's auth session available:
