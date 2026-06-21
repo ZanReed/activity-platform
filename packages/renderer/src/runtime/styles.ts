@@ -757,6 +757,36 @@ body {
  toolbar). */
 .reference-print { display: none; }
 
+/* =============================================================================
+ Calculator tool (scaffold). A fixed summon button in the bottom-right corner;
+ the lazy-loaded widget mounts its own floating panel into .calculator-mount on
+ the first click. Rendered OUTSIDE any .activity-section so the runtime never
+ walks it. Hidden in print (a calculator on paper is meaningless).
+ ============================================================================= */
+.calculator-tool {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 110; /* above the reference bar (100); below .js-popover (1000) */
+}
+.calculator-summon {
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+.calculator-summon:hover { filter: brightness(0.95); }
+.calculator-summon:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.calculator-summon[aria-busy='true'] { cursor: progress; opacity: 0.7; }
+
 /* Print-only header (Name/Date/… fill-in lines). Hidden on screen — the live
  on-screen name field is .identity-prompt; this is the paper equivalent and is
  revealed (with its child styles) inside @media print below. */
@@ -912,6 +942,7 @@ body {
   .js-blank-mistake,
   .js-popover,
   .definition-popover,
+  .calculator-tool,
   .js-solution {
     display: none;
   }

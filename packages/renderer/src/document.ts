@@ -35,11 +35,17 @@
 
 import type { ActivityDocument, PrintConfig, PrintHeader } from '@activity/schema';
 import { escape, attr } from './html.js';
-import { renderBody, renderReferenceToolbar, renderReferenceBox } from './render.js';
+import {
+  renderBody,
+  renderReferenceToolbar,
+  renderReferenceBox,
+  renderCalculatorTool,
+} from './render.js';
 import { blockStyles } from './runtime/styles.js';
 import { runtimeJs } from './runtime/generated/runtime-bundle.js';
 import { referencePanelJs } from './runtime/generated/reference-panel-bundle.js';
 import { definitionsJs } from './runtime/generated/definitions-bundle.js';
+import { calculatorSummonJs } from './runtime/generated/calculator-summon-bundle.js';
 import { katexCss } from './generated/katex-css.js';
 
 export interface RenderContext {
@@ -49,6 +55,15 @@ export interface RenderContext {
   versionNum: number;
   /** Absolute URL to POST submissions to (the ingest-submission Edge Function). */
   submissionEndpoint: string;
+  /**
+   * Absolute URL of the shared, content-hashed calculator/graph kit on R2.
+   * Optional: when absent (e.g. dev without R2 configured), the calculator is
+   * omitted even if the activity enables it — a summon button that can't load
+   * anything is worse than no button. The renderer stays pure; this per-render,
+   * environment-dependent URL is supplied by publish-activity (which holds the
+   * R2 env), exactly like submissionEndpoint.
+   */
+  calculatorKitUrl?: string;
 }
 
 // ---- Print helpers ----------------------------------------------------------
@@ -125,6 +140,18 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     : '';
   const containerClass =
     'activity-container' + (doc.referencePanel ? ' has-reference-panel' : '');
+
+  // Calculator tool (scaffold). A summonable, lazy-loaded calculator, gated on
+  // the activity opting in AND a kit URL being available (the heavy widget lives
+  // on R2; with no URL there's nothing to summon, so we emit nothing). Rendered
+  // OUTSIDE any .activity-section so the runtime never walks it; placed outside
+  // <main> with the other floating UI so container styling can't affect its
+  // fixed position. Cannot print (a calculator on paper is meaningless) — the
+  // baseline print CSS hides .calculator-tool.
+  const calculatorHtml =
+    doc.calculator?.enabled && ctx.calculatorKitUrl
+      ? renderCalculatorTool(doc.calculator, { kitUrl: ctx.calculatorKitUrl })
+      : '';
 
   // Embedded JSON config that the runtime reads at startup.
   // Per-render fields (from RenderContext) plus activity-level behavior
@@ -207,6 +234,13 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
 
   '</main>' +
 
+  // Calculator tool (scaffold) — a summon button + empty mount; the heavy
+  // widget lazy-loads on first click (see renderCalculatorTool). Empty string
+  // when the activity has no enabled calculator or no kit URL. Outside <main>
+  // with the other floating UI so container styling can't affect its fixed
+  // position.
+  calculatorHtml +
+
   // Shared floating popover (one per page) for hints and mistake feedback.
   // Hidden until the runtime opens it on a `?` or `!` click; the runtime sets
   // the title + body and anchors it beside the trigger button, then the
@@ -254,6 +288,12 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   referenceHtml.includes('data-definition=')
     ? '<script>' + definitionsJs + '</script>'
     : '') +
+
+  // Calculator-summon sidecar (the cheap summon button + lazy-loader for the
+  // calculator widget), inlined ONLY when a calculator was emitted. The heavy
+  // widget it imports lives on R2, never here. Separate from the scoring runtime
+  // above; it manages only its own DOM.
+  (calculatorHtml ? '<script>' + calculatorSummonJs + '</script>' : '') +
 
   '</body>' +
   '</html>'

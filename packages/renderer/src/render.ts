@@ -18,7 +18,12 @@
 // absence is the signal (decision 4).
 // =============================================================================
 
-import type { ActivityDocument, Section, ReferencePanel } from '@activity/schema';
+import type {
+  ActivityDocument,
+  Section,
+  ReferencePanel,
+  CalculatorTool,
+} from '@activity/schema';
 import { renderBlock } from './blocks/index.js';
 import { attr, escape } from './html.js';
 
@@ -137,6 +142,44 @@ export function renderReferenceBox(
     title +
     referencePanelBlocks(panel, opts.gridLinesDefault) +
     '</aside>'
+  );
+}
+
+// ---- Calculator tool ---------------------------------------------------------
+// Activity-level scaffold (a sibling of the reference panel) — a summonable,
+// teacher-configurable calculator. Rendered OUTSIDE any .activity-section so the
+// runtime's init walker never sees it: like the reference panel it contributes
+// nothing to scoring, persistence, or checkpoints. Carries
+// data-block-category="scaffold" per the contract.
+//
+// Emits only the CHEAP, always-shipped half: a summon button + an empty mount +
+// the restriction config + the kit URL. The heavy widget (MathLive + keypad +
+// evaluator) is lazy-imported from data-calculator-kit-src on the first summon
+// click by the calculator-summon sidecar — never inlined, never loaded on pages
+// without a calculator, cached after first open.
+//
+//   data-calculator-mode   — CSS hook (the capability ceiling).
+//   data-calculator-config — JSON of the restrictions, parsed once by the kit.
+//   data-calculator-kit-src — absolute URL of the shared kit bundle on R2.
+//
+// document.ts decides whether to emit at all (gated on doc.calculator.enabled
+// AND a kit URL being available) and inlines the sidecar to match.
+export function renderCalculatorTool(
+  calc: CalculatorTool,
+  opts: { kitUrl: string },
+): string {
+  const config = JSON.stringify(calc.restrictions);
+  return (
+    '<div class="calculator-tool" data-block-category="scaffold"' +
+    ' data-calculator-mode="' + attr(calc.restrictions.mode) + '"' +
+    ' data-calculator-config="' + attr(config) + '"' +
+    ' data-calculator-kit-src="' + attr(opts.kitUrl) + '">' +
+    '<button type="button" class="calculator-summon"' +
+    ' aria-haspopup="dialog" aria-expanded="false">' +
+    'Calculator' +
+    '</button>' +
+    '<div class="calculator-mount" hidden></div>' +
+    '</div>'
   );
 }
 

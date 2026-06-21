@@ -337,6 +337,66 @@ await writeFile(definitionsModulePath, definitionsModule, 'utf8');
 const definitionsBytes = Buffer.byteLength(definitionsJsText, 'utf8');
 
 // -----------------------------------------------------------------------------
+// Step 2e — Calculator-summon sidecar build
+// -----------------------------------------------------------------------------
+// A small, self-contained IIFE: the cheap "summon button + lazy-loader" half of
+// the calculator tool. Inlined by document.ts ONLY when an activity has an
+// enabled calculator AND a kit URL — kept OUT of the main runtime so the scoring
+// runtime stays pure and calculator-less pages ship none of it. The HEAVY
+// widget it dynamic-imports lives on R2, never in this bundle. Same
+// generated-string discipline as the sidecars above.
+
+const calcSummonEntry = resolve(
+  root,
+  'packages/renderer/src/runtime/calculator-summon.ts',
+);
+const calcSummonModulePath = resolve(
+  root,
+  'packages/renderer/src/runtime/generated/calculator-summon-bundle.ts',
+);
+
+const calcSummonResult = await build({
+  entryPoints: [calcSummonEntry],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: 'chrome90',
+  minify: true,
+  write: false,
+  outdir: resolve(root, 'packages/renderer/dist'),
+  logLevel: 'info',
+});
+
+const calcSummonJsText = calcSummonResult.outputFiles.find(
+  (f) => !f.path.endsWith('.map'),
+)?.text;
+if (!calcSummonJsText) {
+  throw new Error('Calculator-summon build produced no JS output — aborting.');
+}
+
+const escapedCalcSummon = JSON.stringify(calcSummonJsText).replace(
+  /<\/script/gi,
+  '<\\/script',
+);
+
+const calcSummonModule =
+  '// =============================================================================\n' +
+  '// runtime/generated/calculator-summon-bundle.ts — GENERATED FILE, DO NOT EDIT\n' +
+  '// -----------------------------------------------------------------------------\n' +
+  '// Produced by scripts/bundle-renderer.mjs from runtime/calculator-summon.ts.\n' +
+  '// Re-run `pnpm run bundle:renderer` after changing that source. Committed to\n' +
+  '// git so a clean checkout can typecheck/build the renderer without the bundler.\n' +
+  '// =============================================================================\n' +
+  '\n' +
+  '/** Minified calculator-summon IIFE; inlined by document.ts when a calculator exists. */\n' +
+  'export const calculatorSummonJs = ' +
+  escapedCalcSummon +
+  ';\n';
+
+await writeFile(calcSummonModulePath, calcSummonModule, 'utf8');
+const calcSummonBytes = Buffer.byteLength(calcSummonJsText, 'utf8');
+
+// -----------------------------------------------------------------------------
 // Step 3 — Renderer bundle (pre-existing build, unchanged)
 // -----------------------------------------------------------------------------
 // Bundles the renderer (with schema and katex inlined) into a single ESM file
@@ -400,6 +460,8 @@ console.log('Ref panel:' + ' ' + refPanelModulePath);
 console.log('          ' + (refPanelBytes / 1024).toFixed(1) + ' KiB minified');
 console.log('Definitions: ' + definitionsModulePath);
 console.log('          ' + (definitionsBytes / 1024).toFixed(1) + ' KiB minified');
+console.log('Calc summon: ' + calcSummonModulePath);
+console.log('          ' + (calcSummonBytes / 1024).toFixed(1) + ' KiB minified');
 console.log('KaTeX CSS: ' + katexCssModulePath);
 console.log(
   '          ' +

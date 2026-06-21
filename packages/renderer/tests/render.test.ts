@@ -13,7 +13,9 @@ import {
   createBulletListBlock,
   createOrderedListBlock,
   createListItem,
+  createCalculatorTool,
   type ActivityDocument,
+  type CalculatorRestrictions,
 } from '@activity/schema';
 import {
   renderActivity,
@@ -1144,5 +1146,91 @@ describe('reference panel', () => {
     const printDoc = renderActivityForPrint(docWithPanel());
     expect(printDoc).not.toContain('ResizeObserver');
     expect(printDoc).not.toContain('<div class="reference-panel-resize"');
+  });
+});
+
+describe('calculator tool', () => {
+  const KIT_URL = 'https://kit.example.com/graph-kit-abc123.js';
+  const ctxWithKit: RenderContext = { ...ctx, calculatorKitUrl: KIT_URL };
+
+  // A document with an enabled calculator; `over` tweaks the restriction flags.
+  function docWithCalc(
+    over: Partial<CalculatorRestrictions> = {},
+  ): ActivityDocument {
+    const base = createEmptyDocument({ title: 'T' });
+    const calc = createCalculatorTool();
+    return {
+      ...base,
+      calculator: { ...calc, restrictions: { ...calc.restrictions, ...over } },
+    };
+  }
+
+  it('emits the scaffold (summon button + empty mount + config) when enabled and a kit URL is present', () => {
+    const html = renderActivity(docWithCalc(), ctxWithKit);
+    expect(html).toContain(
+      '<div class="calculator-tool" data-block-category="scaffold"',
+    );
+    expect(html).toContain('data-calculator-mode="scientific"');
+    expect(html).toContain(
+      'data-calculator-kit-src="https://kit.example.com/graph-kit-abc123.js"',
+    );
+    expect(html).toContain(
+      '<button type="button" class="calculator-summon" aria-haspopup="dialog" aria-expanded="false">',
+    );
+    expect(html).toContain('<div class="calculator-mount" hidden></div>');
+  });
+
+  it('places the tool OUTSIDE <main> so the runtime never walks it', () => {
+    const html = renderActivity(docWithCalc(), ctxWithKit);
+    expect(html.indexOf('class="calculator-tool"')).toBeGreaterThan(
+      html.indexOf('</main>'),
+    );
+  });
+
+  it('omits the calculator entirely when disabled', () => {
+    const base = createEmptyDocument({ title: 'T' });
+    const calc = createCalculatorTool();
+    const doc = { ...base, calculator: { ...calc, enabled: false } };
+    const html = renderActivity(doc, ctxWithKit);
+    expect(html).not.toContain('class="calculator-tool"');
+    expect(html).not.toContain('Calculator failed to load'); // no sidecar
+  });
+
+  it('omits the calculator when no kit URL is available, even if enabled (graceful)', () => {
+    // ctx (no calculatorKitUrl): a summon button that can't load anything is
+    // worse than no button, so the renderer emits nothing.
+    const html = renderActivity(docWithCalc(), ctx);
+    expect(html).not.toContain('class="calculator-tool"');
+    expect(html).not.toContain('Calculator failed to load');
+  });
+
+  it('renders nothing for a document with no calculator field', () => {
+    const html = renderActivity(createEmptyDocument({ title: 'T' }), ctxWithKit);
+    expect(html).not.toContain('class="calculator-tool"');
+  });
+
+  it('inlines the summon sidecar only when a calculator is emitted', () => {
+    // 'Calculator failed to load' is a string literal unique to the
+    // calculator-summon sidecar (survives minification), so it discriminates
+    // "sidecar inlined" from the always-present CSS/markup.
+    expect(renderActivity(docWithCalc(), ctxWithKit)).toContain(
+      'Calculator failed to load',
+    );
+    expect(renderActivity(docWithCalc(), ctx)).not.toContain(
+      'Calculator failed to load',
+    );
+  });
+
+  it('carries the configured restriction flags in data-calculator-config (HTML-escaped)', () => {
+    const html = renderActivity(docWithCalc({ allowTrig: false }), ctxWithKit);
+    // JSON in an attribute value is escaped by attr() — quotes become &quot;.
+    expect(html).toContain('&quot;allowTrig&quot;:false');
+    expect(html).toContain('&quot;allowLogExp&quot;:true');
+  });
+
+  it('cannot reach the print document (no kit URL there; print CSS also hides it)', () => {
+    const printDoc = renderActivityForPrint(docWithCalc());
+    expect(printDoc).not.toContain('class="calculator-tool"');
+    expect(printDoc).not.toContain('Calculator failed to load');
   });
 });

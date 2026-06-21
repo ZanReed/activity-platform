@@ -58,7 +58,8 @@ packages/renderer/src/runtime/
 ├── index.ts         — bootstrap orchestrator
 ├── reference-panel.ts — sidecar: on-screen reference panel (drag-resize + scroll-clearance)
 ├── definitions.ts   — sidecar: inline vocabulary-definition popovers
-├── generated/       — runtime-bundle.ts + reference-panel-bundle.ts + definitions-bundle.ts (committed string modules produced by bundler)
+├── calculator-summon.ts — sidecar: summon button + lazy-import of the calculator widget (Phase 2.7)
+├── generated/       — runtime-bundle.ts + reference-panel-bundle.ts + definitions-bundle.ts + calculator-summon-bundle.ts (committed string modules produced by bundler)
 └── __tests__/       — strategies, init, blanks, render, checkpoints, storage, confidence, grouping, definitions
 ```
 
@@ -373,6 +374,26 @@ Inline vocabulary definitions (the `definition` mark). Emitted by the renderer w
 
 Interactivity is a **separate inlined sidecar** (`runtime/definitions.ts`, ~1.9 KiB), NOT part of the scoring runtime — `document.ts` inlines it as its own `<script>` only when the rendered page contains a definition span. It manages its OWN popover element (independent of the shared `.js-popover`): click / tap / Enter / Space opens it; Escape, an outside click, or scrolling closes it; focus returns to the term on close (managed-dialog pattern); tap-only, no hover. Print shows the dotted-underline cue (ink-safe `currentColor`) but no popover — definitions are on-screen scaffold; an end-of-worksheet glossary appendix is a deferred follow-up. See docs/design/vocabulary-definitions.md.
 
+### Calculator tool (`data-block-category="scaffold"`)
+
+Activity-level, teacher-configurable on-screen calculator a student summons while working (Phase 2.7 graphing track). A **scaffold**, like the reference panel: rendered OUTSIDE any `.activity-section`, so the scoring `init` walker never sees it — it never scores, submits, or persists. Emitted by `renderActivity` (never by `renderActivityForPrint`) only when `doc.calculator.enabled` AND `RenderContext.calculatorKitUrl` is set; a calculator on paper is meaningless, so the baseline print CSS hides `.calculator-tool`.
+
+```html
+<div class="calculator-tool" data-block-category="scaffold"
+     data-calculator-mode="scientific"
+     data-calculator-config="{&quot;mode&quot;:&quot;scientific&quot;,&quot;allowTrig&quot;:true,&quot;allowLogExp&quot;:true}"
+     data-calculator-kit-src="https://…/shared/graph-kit-<hash>.js">
+  <button class="calculator-summon" aria-haspopup="dialog" aria-expanded="false">Calculator</button>
+  <div class="calculator-mount" hidden></div>   <!-- the kit mounts its panel here on first summon -->
+</div>
+```
+
+- `data-calculator-mode` — CSS hook (the capability ceiling).
+- `data-calculator-config` — JSON of the restriction flags, HTML-entity-escaped; the kit parses it once, falling back to permissive defaults on a parse error.
+- `data-calculator-kit-src` — absolute URL of the shared, content-hashed kit bundle on R2 (per-render, supplied by `publish-activity`; the renderer stays pure).
+
+**Lazy-load, on click — not on presence.** The only always-shipped weight is a **separate inlined sidecar** (`runtime/calculator-summon.ts`, ~0.8 KiB), inlined by `document.ts` only when a calculator was emitted. On the first summon click it `import()`s the heavy widget (MathLive + keypad + evaluator, hundreds of KiB) from `data-calculator-kit-src`, then drives toggling and keeps `aria-expanded` in sync; a failed import disables only the calculator. Kit contract: the imported module exports `mountCalculator(mount, config, { onToggle })` returning `{ toggle(), isOpen }`. The widget itself is Phase 2.7 Stage 1+. See docs/design/calculator-tool.md.
+
 ### Reading discipline
 
 Two sources, two patterns. Activity-level config is parsed once from the `#activity-config` blob via `parseConfig`. Per-element data is read off `data-*` attributes during the init pass and stored on typed refs. Downstream code consumes refs and never re-queries.
@@ -576,7 +597,7 @@ On successful submit:
 
 ## Build pipeline
 
-`scripts/bundle-renderer.mjs` runs four esbuild builds in sequence (plus a non-esbuild KaTeX-CSS inlining step):
+`scripts/bundle-renderer.mjs` runs five esbuild builds in sequence (plus a non-esbuild KaTeX-CSS inlining step):
 
 1. **Runtime build.** Entry `packages/renderer/src/runtime/index.ts` → output as IIFE (not ESM — runs immediately when inlined into a `<script>` tag, no module loader). Minified, target `chrome90` (covers school Chromebooks, Firefox 88+, Safari 14+, Edge 90+). External source map at `packages/renderer/dist/runtime.js.map` (dev-only, gitignored). The minified text is written into a generated TypeScript string module at `packages/renderer/src/runtime/generated/runtime-bundle.ts`. **Committed to git** so a clean checkout can typecheck the renderer without running the bundler.
 
@@ -584,13 +605,15 @@ On successful submit:
 
 3. **Definitions sidecar build.** Entry `packages/renderer/src/runtime/definitions.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/definitions-bundle.ts` (committed). A small (~1.7 KiB) self-contained script for inline vocabulary-definition popovers, kept OUT of the main runtime so the scoring runtime stays pure and definition-less pages ship none of it; `document.ts` inlines it only when the rendered page contains a `.definition` span.
 
-4. **Renderer build.** Entry `packages/renderer/src/index.ts` → output as ESM at `supabase/functions/_shared/renderer.bundle.js`. The renderer's `document.ts` imports the generated string modules from steps 1–2 and inlines them into `<script>` tags in published pages (the runtime always; the reference-panel sidecar only when a panel exists).
+4. **Calculator-summon sidecar build.** Entry `packages/renderer/src/runtime/calculator-summon.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/calculator-summon-bundle.ts` (committed). A tiny (~0.8 KiB) self-contained script: the summon button + lazy-loader for the calculator widget, kept OUT of the main runtime so the scoring runtime stays pure and calculator-less pages ship none of it; `document.ts` inlines it only when a calculator was emitted. The HEAVY widget it `import()`s on click lives on R2, never in any of these bundles.
+
+5. **Renderer build.** Entry `packages/renderer/src/index.ts` → output as ESM at `supabase/functions/_shared/renderer.bundle.js`. The renderer's `document.ts` imports the generated string modules from steps 1–4 and inlines them into `<script>` tags in published pages (the runtime always; each sidecar only when its feature is present).
 
 Inlined model means `publish-activity` only uploads `index.html` to Storage — no separate `runtime.js` artifact.
 
 Bundle size: runtime IIFE is roughly **5–7 KiB minified** as of Stage 13 completion. Well under the 20 KiB target.
 
-`[target — Phase 2.7+]` Adds a second esbuild entry for `graph-widget.js` (lazy-loaded). `[target — Phase 2.9+]` adds `annotation-widget.js`. Main runtime stays small; pages without those block types pay nothing.
+`[Phase 2.7 — in progress]` The calculator-summon sidecar (step 4) is the cheap, inlined half of the graphing track; the heavy kit (MathLive + keypad + evaluator, later JSXGraph) is a **separate content-hashed bundle on R2**, dynamic-`import()`ed on first summon click — never inlined, never loaded on pages without a calculator, cached after first open, served brotli. `data-calculator-kit-src` (from `RenderContext.calculatorKitUrl`) is the URL. `[target — Phase 2.9+]` adds `annotation-widget.js`. Main runtime stays small; pages without those block types pay nothing.
 
 ## Error handling philosophy
 
