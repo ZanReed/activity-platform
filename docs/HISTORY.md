@@ -4,6 +4,22 @@ Archived completed-work narratives, moved out of STATE.md to keep it readable. N
 
 ---
 
+## 2026-06-21 — Calculator tool (Phase 2.7, Stage 1: scientific) — code-complete
+
+The first face of the shared graphing kit (built bottom-up; the graded interactive-graph block drops onto the same kit later). Design + locked decisions in [docs/design/calculator-tool.md](../docs/design/calculator-tool.md). A teacher can enable + restrict an on-screen scientific calculator per activity; students summon it while working; it's a scaffold — never scored, no submission, no answer key.
+
+**Bundle-weight spike (the locked-decision keystone).** Measured through esbuild against real MathLive 0.109.2: MathLive input is a fixed ~219 KiB-gzip floor; the evaluator swings ~280 KiB (Compute Engine +283, math.js-number +42, hand-rolled +1). **Locked:** evaluator = **math.js number-only** behind a single `evaluate()` seam (Compute Engine = drop-in escape hatch); delivery = **one shared content-hashed kit on R2**, lazy-`import()`ed on first summon; fonts via jsDelivr (matching KaTeX; the "fonts on R2" idea was dropped — jsDelivr is the one source that works identically in app + published without context detection).
+
+- **Schema slice (`77ff8e3`).** `CalculatorTool`/`CalculatorRestrictions` in `packages/schema/src/document.ts`, `calculator?` on `ActivityDocument`, `createCalculatorTool()` factory, 12 tests. `mode` enum `scientific|graphing` (defaults `scientific` — the only Stage-1 capability); permissive restriction defaults; no `schemaVersion` bump.
+- **Renderer slice (`d7cf6cf`).** `renderCalculatorTool()` emits the cheap half — `<div class="calculator-tool" data-block-category="scaffold">` (summon button + empty mount + `data-calculator-{mode,config,kit-src}`), gated on `doc.calculator.enabled` AND `RenderContext.calculatorKitUrl` (absent → omitted, graceful). A ~0.8 KiB `runtime/calculator-summon.ts` sidecar (inlined only when a calculator is emitted) lazy-imports the heavy widget on first click. RUNTIME.md contract + 5-build pipeline updated; print CSS hides it; 8 renderer tests.
+- **Widget slice (`9f82383`).** New **`@activity/graph-kit`** package (mathlive + mathjs). `evaluate.ts` — the engine-agnostic seam: normalizes MathLive AsciiMath → math.js, deg/rad-aware + restriction-gated + correctly-named ln/log10 functions; **26 unit tests against real `convertLatexToAsciiMath` output** pin the "is the glue leaky?" risk (it isn't). `calculator.ts` `mountCalculator()` — MathLive field + scientific keypad + live result + deg/rad toggle + `allowTrig`/`allowLogExp` key gating, non-modal floating panel that injects its own styles; returns `{toggle,isOpen,open,close,destroy}`. Browser-verified via a dev-only `/dev/calculator` harness. **Fixed a destroy-while-focused MathLive crash** (removing a focused field fires `onBlur` against a dead model → blur before remove; don't steal focus on remount).
+- **Build-hosting slice (`f581685`).** `scripts/build-graph-kit.mjs` (`pnpm build:graph-kit`) bundles the kit → content-hashed `graph-kit-<hash>.js` (967 KiB / 264 KiB gz, matching the spike), writes the committed manifest `_shared/graph-kit-manifest.ts`, and PUTs to R2 `shared/` only when R2 creds are in env (idempotent; no-creds runs build+manifest only). `publish-activity` reads the manifest → `calculatorKitUrl`. Brotli via Cloudflare edge.
+- **Editor slice (`cfb8f04`).** `tiptapToActivity` gains a `calculator?` opaque-carry arg (parallel to `referencePanel`). A `CalculatorSection` disclosure (🧮) in the editor settings sidebar: enable toggle + `allowTrig`/`allowLogExp` checkboxes + a **live preview** mounting the same `mountCalculator()` students get (re-mounts on flag change). `calculator` state loads from `doc.calculator`, folds into the autosave fingerprint, and saves through. 5 serialize round-trip tests.
+
+Suite at completion: schema 113 / graph-kit 26 / renderer 298 / app 250; typecheck clean. **To go live:** run `pnpm build:graph-kit` with R2 creds (upload), commit the manifest, redeploy `publish-activity` (STATE pending action). **Graded regression** captured as a future variant of the *graded* face ([interactive-graph-block.md](../docs/design/interactive-graph-block.md)); not scheduled. **Next:** Stage 2 — single-function graphing (JSXGraph board layer).
+
+---
+
 ## Snapshot as of 2026-06-11 — "Current focus" narratives
 
 (Verbatim from STATE.md when this archive was created: print feature Drops A–D, structural columns, the Phase 2 rich-text slice, Stage 16 + hardening pass, Stage 15 + answerFeedback.)
