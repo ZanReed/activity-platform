@@ -35,6 +35,7 @@ import type {
     ActivityDocument,
     ActivityMeta,
     ReferencePanel,
+    CalculatorTool,
     Block,
     InlineNode,
     FillInBlankInline,
@@ -78,6 +79,7 @@ export function tiptapToActivity(
     tiptap: JSONContent,
     meta: ActivityMeta,
     referencePanel?: ReferencePanel,
+    calculator?: CalculatorTool,
 ): ActivityDocument {
     if (tiptap.type !== 'doc') {
         throw new Error(
@@ -98,6 +100,11 @@ export function tiptapToActivity(
     // panel stay structurally identical). This is what closes the latent
     // drop-bug where any stored panel was discarded on the next save.
     if (referencePanel) doc.referencePanel = referencePanel;
+    // Calculator config (an activity-level scaffold, parallel to referencePanel)
+    // is likewise carried as separate editor state, not encoded in the Tiptap
+    // doc. Pass through verbatim when present; omit when absent so documents
+    // without a calculator stay structurally identical.
+    if (calculator) doc.calculator = calculator;
     return doc;
 }
 

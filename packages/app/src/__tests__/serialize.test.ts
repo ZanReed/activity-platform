@@ -9,7 +9,12 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
-import { ActivityDocument, ActivityMeta, ReferencePanel } from '@activity/schema';
+import {
+    ActivityDocument,
+    ActivityMeta,
+    ReferencePanel,
+    type CalculatorTool,
+} from '@activity/schema';
 import {
     activityToTiptap,
     tiptapToActivity,
@@ -81,6 +86,48 @@ describe('reference panel (opaque carry)', () => {
 
     it('produces a schema-valid document with a panel', () => {
         const result = tiptapToActivity(body, META, PANEL);
+        expect(ActivityDocument.safeParse(result).success).toBe(true);
+    });
+});
+
+describe('calculator (opaque carry)', () => {
+    // Like the reference panel, the calculator config is activity-level editor
+    // state threaded into tiptapToActivity (4th arg), never encoded in the Tiptap
+    // doc. Pins the same pass-through contract.
+    const CALC: CalculatorTool = {
+        enabled: true,
+        restrictions: { mode: 'scientific', allowTrig: false, allowLogExp: true },
+    };
+    const body: JSONContent = {
+        type: 'doc',
+        content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'Body' }] },
+        ],
+    };
+
+    it('carries the calculator through verbatim when provided', () => {
+        const result = tiptapToActivity(body, META, undefined, CALC);
+        expect(result.calculator).toEqual(CALC);
+    });
+
+    it('omits the calculator when not provided', () => {
+        expect(tiptapToActivity(body, META).calculator).toBeUndefined();
+    });
+
+    it('carries a disabled calculator verbatim (config preserved while off)', () => {
+        const off: CalculatorTool = { ...CALC, enabled: false };
+        expect(tiptapToActivity(body, META, undefined, off).calculator).toEqual(off);
+    });
+
+    it('carries the panel AND the calculator together', () => {
+        const panel: ReferencePanel = { blocks: [] };
+        const result = tiptapToActivity(body, META, panel, CALC);
+        expect(result.referencePanel).toEqual(panel);
+        expect(result.calculator).toEqual(CALC);
+    });
+
+    it('produces a schema-valid document with a calculator', () => {
+        const result = tiptapToActivity(body, META, undefined, CALC);
         expect(ActivityDocument.safeParse(result).success).toBe(true);
     });
 });

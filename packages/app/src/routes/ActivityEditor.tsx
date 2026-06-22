@@ -21,6 +21,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type ReactNode,
 } from 'react';
@@ -29,10 +30,13 @@ import type { Editor as TiptapEditor, JSONContent } from '@tiptap/react';
 import {
     ActivityDocument,
     createEmptyDocument,
+    createCalculatorTool,
     type ActivityMeta,
     type PrintConfig,
     type ReferencePanel,
+    type CalculatorTool,
 } from '@activity/schema';
+import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 import { supabase } from '../lib/supabase';
 import {
     activityToTiptap,
@@ -671,6 +675,114 @@ function ReferencePanelSection({
     );
 }
 
+// Live preview of the calculator in its restricted state — the SAME
+// mountCalculator() a published page loads, so the author sees exactly what a
+// student gets ("what the teacher sees is what the student gets"). Re-mounts
+// when a restriction flag changes (the widget reads its config at mount). The
+// close (×) button is hidden here — there's no summon button in the preview to
+// reopen it with.
+function CalculatorPreview({
+    restrictions,
+}: {
+    restrictions: CalculatorTool['restrictions'];
+}) {
+    const mountRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const el = mountRef.current;
+        if (!el) return;
+        const handle: CalculatorHandle = mountCalculator(el, restrictions, {});
+        return () => handle.destroy();
+    }, [restrictions.mode, restrictions.allowTrig, restrictions.allowLogExp]);
+    return (
+        <div className="relative mt-2 flex justify-center [&_.gk-cal-close]:hidden">
+        <div ref={mountRef} />
+        </div>
+    );
+}
+
+// Activity-level calculator authoring (a scaffold sibling to the reference
+// panel — config only, never graded). A toggle enables it; when on, the
+// restriction flags + a live preview appear. Off keeps any configured flags
+// (enabled:false) so toggling back on restores them; an activity that never
+// touched the calculator carries no `calculator` field at all.
+function CalculatorSection({
+    calculator,
+    onChange,
+}: {
+    calculator: CalculatorTool | undefined;
+    onChange: (c: CalculatorTool | undefined) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const enabled = calculator?.enabled ?? false;
+    const restrictions = calculator?.restrictions ?? createCalculatorTool().restrictions;
+
+    const toggleEnabled = (on: boolean): void => {
+        if (on) onChange({ enabled: true, restrictions });
+        else if (calculator) onChange({ ...calculator, enabled: false });
+    };
+    const patchRestrictions = (
+        patch: Partial<CalculatorTool['restrictions']>,
+    ): void => {
+        onChange({ enabled: true, restrictions: { ...restrictions, ...patch } });
+    };
+
+    return (
+        <div className="mt-3 rounded-md border border-slate-200 bg-white">
+        <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+        >
+        <span>
+        <span aria-hidden="true">🧮</span> Calculator
+        </span>
+        <span className="text-xs text-slate-400">{open ? '▲' : '▼'}</span>
+        </button>
+        <div className={open ? 'border-t border-slate-200 px-3 py-3' : 'hidden'}>
+        <p className={`${SETTINGS_HELP_CLASS} mb-3`}>
+        Let students open an on-screen scientific calculator while working
+        (like the one allowed on a digital SAT). It's a thinking aid — never
+        graded, no answer key. Restrict which functions it offers below.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input
+        type="checkbox"
+        checked={enabled}
+        onChange={(e) => toggleEnabled(e.target.checked)}
+        />
+        <span>Allow a calculator on this activity</span>
+        </label>
+        {enabled && (
+            <div className="mt-3">
+            <p className={SETTINGS_LABEL_CLASS}>Allowed functions</p>
+            <label className="mt-1 flex items-center gap-2 text-sm text-slate-700">
+            <input
+            type="checkbox"
+            checked={restrictions.allowTrig}
+            onChange={(e) => patchRestrictions({ allowTrig: e.target.checked })}
+            />
+            <span>Trigonometry (sin, cos, tan)</span>
+            </label>
+            <label className="mt-1 flex items-center gap-2 text-sm text-slate-700">
+            <input
+            type="checkbox"
+            checked={restrictions.allowLogExp}
+            onChange={(e) => patchRestrictions({ allowLogExp: e.target.checked })}
+            />
+            <span>Logarithms &amp; exponentials (ln, log)</span>
+            </label>
+            <p className={`${SETTINGS_HELP_CLASS} mt-3`}>
+            Preview — what students will see:
+            </p>
+            <CalculatorPreview restrictions={restrictions} />
+            </div>
+        )}
+        </div>
+        </div>
+    );
+}
+
 export default function ActivityEditor() {
     const { id } = useParams();
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
@@ -684,6 +796,11 @@ export default function ActivityEditor() {
     const [panelTitle, setPanelTitle] = useState('');
     const [panelJson, setPanelJson] = useState<JSONContent | null>(null);
     const [tiptapJson, setTiptapJson] = useState<JSONContent | null>(null);
+    // Activity-level calculator config (scaffold sibling to the panel). Undefined
+    // when the activity has no calculator; folded into changeKey + the save.
+    const [calculator, setCalculator] = useState<CalculatorTool | undefined>(
+        undefined,
+    );
     const [isPublished, setIsPublished] = useState(false);
     // Live editor instance (null until mounted) + the markdown-import modal's
     // open state. The editor owns its useEditor instance; it reports up here via
@@ -794,6 +911,7 @@ export default function ActivityEditor() {
             : { type: 'doc', content: [{ type: 'paragraph' }] };
 
             setMeta(doc.meta);
+            setCalculator(doc.calculator);
             setPanelTitle(loadedPanel?.title ?? '');
             setLoadState({
                 status: 'ready',
@@ -853,9 +971,15 @@ export default function ActivityEditor() {
     const changeKey = useMemo(
         () =>
         tiptapJson && meta && panelJson
-        ? JSON.stringify({ t: tiptapJson, m: meta, rt: panelTitle, rj: panelJson })
+        ? JSON.stringify({
+            t: tiptapJson,
+            m: meta,
+            rt: panelTitle,
+            rj: panelJson,
+            c: calculator ?? null,
+        })
         : null,
-        [tiptapJson, meta, panelTitle, panelJson],
+        [tiptapJson, meta, panelTitle, panelJson, calculator],
     );
 
     // Serializes the current state and writes the draft. draft_content and the
@@ -873,6 +997,7 @@ export default function ActivityEditor() {
             tiptapJson,
             safeMeta,
             panelFromEditor(panelJson, panelTitle),
+            calculator,
         );
         const parsed = ActivityDocument.safeParse(doc);
         if (!parsed.success) {
@@ -1001,6 +1126,8 @@ export default function ActivityEditor() {
             gridLinesDefault={meta.print.gridLines}
             activityId={id}
             />
+
+            <CalculatorSection calculator={calculator} onChange={setCalculator} />
 
             {meta.submissionMode === 'locked' &&
             hasNonCheckpointSection(tiptapJson ?? loadState.tiptap) && (
