@@ -11,7 +11,12 @@
 
 import { describe, it, expect } from 'vitest';
 import { convertLatexToAsciiMath } from 'mathlive/ssr';
-import { evaluate, normalizeAsciiMath, type EvalOptions } from '../src/evaluate.js';
+import {
+  evaluate,
+  normalizeAsciiMath,
+  compileFunction,
+  type EvalOptions,
+} from '../src/evaluate.js';
 
 // Evaluate from LaTeX the way the widget will: math-field -> ascii -> evaluate.
 function fromLatex(latex: string, opts?: EvalOptions) {
@@ -117,6 +122,41 @@ describe('evaluate — restriction gates', () => {
     expect(
       valueOf('2+2', { allowTrig: false, allowLogExp: false }),
     ).toBe(4);
+  });
+});
+
+describe('compileFunction (graphing: y = f(x))', () => {
+  it('compiles a polynomial in x', () => {
+    const f = compileFunction(convertLatexToAsciiMath('x^2'));
+    expect(f).not.toBeNull();
+    expect(f!(3)).toBeCloseTo(9, 10);
+    expect(f!(-2)).toBeCloseTo(4, 10);
+  });
+  it('handles implicit multiplication (2x)', () => {
+    const f = compileFunction('2x+1');
+    expect(f!(5)).toBeCloseTo(11, 10);
+  });
+  it('respects angle mode for trig functions of x', () => {
+    const f = compileFunction(convertLatexToAsciiMath('\\sin(x)'), {
+      angleMode: 'deg',
+    });
+    expect(f!(90)).toBeCloseTo(1, 10);
+    expect(f!(0)).toBeCloseTo(0, 10);
+  });
+  it('returns NaN at out-of-domain points (curve breaks)', () => {
+    const f = compileFunction(convertLatexToAsciiMath('\\sqrt{x}'));
+    expect(Number.isNaN(f!(-1))).toBe(true);
+    expect(f!(4)).toBeCloseTo(2, 10);
+  });
+  it('returns NaN when a gated function is used', () => {
+    const f = compileFunction(convertLatexToAsciiMath('\\sin(x)'), {
+      allowTrig: false,
+    });
+    expect(Number.isNaN(f!(0))).toBe(true);
+  });
+  it('returns null for empty or unparseable input', () => {
+    expect(compileFunction('')).toBeNull();
+    expect(compileFunction('2+')).toBeNull();
   });
 });
 

@@ -17,7 +17,10 @@
 // =============================================================================
 
 import { MathfieldElement } from 'mathlive';
-import { evaluate } from './evaluate.js';
+import { evaluate, compileFunction } from './evaluate.js';
+// Type-only — erased at build time, so the static JSXGraph dependency in
+// board.ts stays in its own lazily-imported chunk (the lazy-split).
+import type { BoardController } from './board.js';
 
 export interface CalculatorConfig {
   mode?: 'scientific' | 'graphing';
@@ -157,7 +160,10 @@ export function mountCalculator(
   injectStyles();
   configureMathLive();
   const cfg = readConfig(rawConfig);
-  let angle: 'deg' | 'rad' = 'deg';
+  const graphing = cfg.mode === 'graphing';
+  // Radians is the sensible default for plotting (sin(x) over [-10,10] in degrees
+  // is nearly flat); degrees is friendlier for a scientific calculator.
+  let angle: 'deg' | 'rad' = graphing ? 'rad' : 'deg';
   let open = false;
 
   const panel = el('div', 'gk-cal', {
@@ -173,7 +179,7 @@ export function mountCalculator(
     type: 'button',
     'aria-label': 'Toggle degrees or radians',
   });
-  angleBtn.textContent = 'DEG';
+  angleBtn.textContent = angle.toUpperCase();
   const closeBtn = el('button', 'gk-cal-close', {
     type: 'button',
     'aria-label': 'Close calculator',
@@ -188,19 +194,28 @@ export function mountCalculator(
   // on-screen keyboard so it doesn't fight the calculator's keypad.
   field.mathVirtualKeyboardPolicy = 'manual';
 
-  // Live result
+  // Output: scientific shows a numeric result; graphing shows a plot board.
   const result = el('div', 'gk-cal-result', { 'aria-live': 'polite' });
+  const graphEl = el('div', 'gk-cal-graph');
+  let boardController: BoardController | null = null;
 
   // Keypad
   const keypad = el('div', 'gk-cal-keypad');
 
   function recompute(): void {
     const ascii = field.getValue('ascii-math');
-    const r = evaluate(ascii, {
+    const opts = {
       angleMode: angle,
       allowTrig: cfg.allowTrig,
       allowLogExp: cfg.allowLogExp,
-    });
+    };
+    if (graphing) {
+      if (!boardController) return; // board still lazy-loading
+      // Everything plots as y = f(x); a constant expression is a horizontal line.
+      boardController.plot(compileFunction(ascii, opts));
+      return;
+    }
+    const r = evaluate(ascii, opts);
     if (r.ok) {
       result.textContent = '= ' + formatValue(r.value);
       result.dataset.state = 'ok';
@@ -230,7 +245,17 @@ export function mountCalculator(
     recompute();
   }
 
-  for (const key of KEYPAD) {
+  // Graphing mode needs an `x` variable key; swap it in for the rarely-used
+  // factorial so the 5-column grid stays even.
+  const keypadKeys: Key[] = graphing
+    ? KEYPAD.map((k) =>
+        k.label === '!'
+          ? { label: 'x', action: { insert: 'x' }, variant: 'fn' }
+          : k,
+      )
+    : KEYPAD;
+
+  for (const key of keypadKeys) {
     const btn = el('button', 'gk-cal-key', { type: 'button' });
     if (key.variant) btn.dataset.variant = key.variant;
     btn.textContent = key.label;
@@ -254,7 +279,7 @@ export function mountCalculator(
   );
   keypad.appendChild(equalsBtn);
 
-  panel.append(header, field, result, keypad);
+  panel.append(header, field, graphing ? graphEl : result, keypad);
 
   field.addEventListener('input', recompute);
   panel.addEventListener('keydown', (e) => {
@@ -272,6 +297,23 @@ export function mountCalculator(
   closeBtn.addEventListener('click', () => setOpen(false));
 
   mount.appendChild(panel);
+
+  // Graphing mode: lazy-import the board layer (JSXGraph in its own chunk) now
+  // that graphEl is in the DOM and sized. A failure leaves a clear message; the
+  // rest of the calculator (input, keypad) still works.
+  if (graphing) {
+    graphEl.textContent = 'Loading graph…';
+    import('./board.js')
+      .then(({ createBoard }) => {
+        graphEl.textContent = '';
+        boardController = createBoard(graphEl);
+        recompute();
+      })
+      .catch((err) => {
+        graphEl.textContent = 'Graph failed to load';
+        console.error('Calculator board failed to load', err);
+      });
+  }
 
   function setOpen(v: boolean): void {
     if (v === open) return;
@@ -308,6 +350,7 @@ export function mountCalculator(
       } catch {
         /* already detached — nothing to blur */
       }
+      boardController?.destroy();
       panel.remove();
     },
   };
@@ -351,6 +394,13 @@ const KIT_CSS = `
   font-variant-numeric: tabular-nums; padding: 0 0.2rem; color: #0f172a;
 }
 .gk-cal-result[data-state='err'] { color: #b91c1c; font-size: 0.85rem; }
+.gk-cal-graph {
+  width: 100%; height: 200px;
+  border: 1px solid #cbd5e1; border-radius: 6px; background: #fff;
+  touch-action: none; /* JSXGraph owns touch pan/zoom */
+  display: flex; align-items: center; justify-content: center;
+  color: #64748b; font-size: 0.85rem; overflow: hidden;
+}
 .gk-cal-keypad {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.3rem;
 }

@@ -27,6 +27,7 @@
 import {
   create,
   evaluateDependencies,
+  compileDependencies,
   addDependencies,
   subtractDependencies,
   multiplyDependencies,
@@ -88,6 +89,7 @@ function factorial(n: number): number {
 // create() rejects even though they are always defined at runtime.
 const math = create({
   evaluateDependencies,
+  compileDependencies,
   addDependencies,
   subtractDependencies,
   multiplyDependencies,
@@ -173,4 +175,40 @@ export function evaluate(ascii: string, opts: EvalOptions = {}): EvalResult {
     return { ok: false, error: 'Result is undefined' };
   }
   return { ok: true, value };
+}
+
+/**
+ * Compile an AsciiMath expression in the variable `x` into a plain
+ * `(x) => number` for plotting (graphing mode). Returns null if the expression
+ * is empty or doesn't parse. The returned function yields NaN for any x where
+ * evaluation fails or is non-finite (asymptotes, out-of-domain), which the board
+ * layer renders as a break in the curve. Angle mode + restriction gates are
+ * captured from opts and applied on every call.
+ */
+export function compileFunction(
+  ascii: string,
+  opts: EvalOptions = {},
+): ((x: number) => number) | null {
+  const expr = normalizeAsciiMath(ascii);
+  if (!expr) return null;
+  let compiled: { evaluate(scope: Record<string, unknown>): unknown };
+  try {
+    compiled = math.compile(expr);
+  } catch {
+    return null;
+  }
+  const m = opts.angleMode ?? 'rad';
+  const at = opts.allowTrig ?? true;
+  const ale = opts.allowLogExp ?? true;
+  return (xVal: number): number => {
+    mode = m;
+    allowTrig = at;
+    allowLogExp = ale;
+    try {
+      const v = compiled.evaluate({ x: xVal });
+      return typeof v === 'number' && Number.isFinite(v) ? v : NaN;
+    } catch {
+      return NaN;
+    }
+  };
 }

@@ -15,6 +15,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "jsxgraph": "^1.12.2",
     "mathjs": "^15.2.0",
     "mathlive": "^0.109.2"
   }

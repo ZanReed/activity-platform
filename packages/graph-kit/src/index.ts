@@ -15,5 +15,10 @@ export type { CalculatorConfig, CalculatorHandle } from './calculator.js';
 // The evaluation seam — exported so the future graded regression block can score
 // with the SAME engine (see docs/design/interactive-graph-block.md), and so it
 // stays unit-testable in isolation.
-export { evaluate, normalizeAsciiMath } from './evaluate.js';
+export { evaluate, normalizeAsciiMath, compileFunction } from './evaluate.js';
 export type { EvalOptions, EvalResult } from './evaluate.js';
+
+// NOTE: board.ts (JSXGraph) is deliberately NOT re-exported here — that would
+// static-import it into the entry and defeat the lazy-split. Consumers that need
+// the board (the calculator's graphing mode, the future graded block) dynamic-
+// import('./board.js') so JSXGraph stays in its own on-demand chunk.

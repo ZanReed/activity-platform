@@ -755,6 +755,26 @@ function CalculatorSection({
         </label>
         {enabled && (
             <div className="mt-3">
+            <label className={SETTINGS_LABEL_CLASS} htmlFor="calc-mode">
+            Mode
+            </label>
+            <select
+            id="calc-mode"
+            className={`${SELECT_CLASS} mb-1 mt-1`}
+            value={restrictions.mode}
+            onChange={(e) =>
+                patchRestrictions({
+                    mode: e.target.value === 'graphing' ? 'graphing' : 'scientific',
+                })
+            }
+            >
+            <option value="scientific">Scientific</option>
+            <option value="graphing">Graphing</option>
+            </select>
+            <p className={`${SETTINGS_HELP_CLASS} mb-3`}>
+            Graphing adds a plottable coordinate plane — it loads ~240 KB more
+            the first time a student opens it.
+            </p>
             <p className={SETTINGS_LABEL_CLASS}>Allowed functions</p>
             <label className="mt-1 flex items-center gap-2 text-sm text-slate-700">
             <input

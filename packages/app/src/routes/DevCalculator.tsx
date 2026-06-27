@@ -10,20 +10,21 @@ export default function DevCalculator() {
   const handleRef = useRef<CalculatorHandle | null>(null);
   const [allowTrig, setAllowTrig] = useState(true);
   const [allowLogExp, setAllowLogExp] = useState(true);
+  const [mode, setMode] = useState<'scientific' | 'graphing'>('scientific');
   const [openState, setOpenState] = useState(true);
 
-  // Re-mount whenever the restriction flags change (config is read at mount).
+  // Re-mount whenever the config changes (it's read at mount).
   useEffect(() => {
     const mountEl = mountRef.current;
     if (!mountEl) return;
     const handle = mountCalculator(
       mountEl,
-      { mode: 'scientific', allowTrig, allowLogExp },
+      { mode, allowTrig, allowLogExp },
       { onToggle: (open) => setOpenState(open) },
     );
     handleRef.current = handle;
     return () => handle.destroy();
-  }, [allowTrig, allowLogExp]);
+  }, [mode, allowTrig, allowLogExp]);
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
@@ -36,7 +37,17 @@ export default function DevCalculator() {
         <code>2+3×4</code>, <code>√16</code>, <code>5!</code>, <code>2π</code>.
       </p>
 
-      <div style={{ display: 'flex', gap: '1rem', margin: '1rem 0' }}>
+      <div style={{ display: 'flex', gap: '1rem', margin: '1rem 0', alignItems: 'center' }}>
+        <label>
+          mode{' '}
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as 'scientific' | 'graphing')}
+          >
+            <option value="scientific">scientific</option>
+            <option value="graphing">graphing</option>
+          </select>
+        </label>
         <label>
           <input
             type="checkbox"
