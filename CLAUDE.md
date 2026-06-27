@@ -83,3 +83,12 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - **Don't try to serve HTML from any `*.supabase.co` URL.** Supabase's anti-abuse policy rewrites `text/html` responses to `text/plain` with a sandbox CSP that blocks all script execution, on both Storage and Edge Functions. Documented at https://supabase.com/docs/guides/functions/limits. Only exception is Pro-plan custom domains. Hosting goes on Cloudflare R2 (or whatever non-Supabase static host); the runtime never lives on a `supabase.co` URL.
 - **Don't put the publish button in the editor toolbar.** Publish is an activity-level action; the toolbar is for editor-formatting controls. It belongs in the page header next to `SaveIndicator`.
 - **Don't use raw object-storage URLs for student-facing links.** Publish-activity returns the R2 public URL with the activity-id path. Don't bypass that and hand students a versioned path or a backend URL — both are wrong abstractions for sharing.
+
+## gstack
+
+[gstack](https://github.com/garrytan/gstack) is installed at `~/.claude/skills/gstack`.
+
+- **Use the `/browse` skill from gstack for all web browsing.** It is a fast headless browser for QA testing, dogfooding, and any web navigation.
+- **Never use `mcp__claude-in-chrome__*` tools.** Route all browser interaction through `/browse` (or the other gstack browser skills) instead.
+
+Available skills: `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/design-shotgun`, `/design-html`, `/review`, `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/browse`, `/connect-chrome`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/setup-deploy`, `/setup-gbrain`, `/retro`, `/investigate`, `/document-release`, `/document-generate`, `/codex`, `/cso`, `/autoplan`, `/plan-devex-review`, `/devex-review`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`, `/learn`.
