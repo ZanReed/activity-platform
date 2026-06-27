@@ -4,6 +4,20 @@ Archived completed-work narratives, moved out of STATE.md to keep it readable. N
 
 ---
 
+## 2026-06-23 — Calculator Stage 2 (graphing, JSXGraph lazy-split) — shipped
+
+Single-function graphing for the calculator (`5e513ac`). A spike found **JSXGraph is ~240 KB gz / 192 KB br** (939 KiB min — 2× the design doc's stale "~120 KB"), so rather than bundle it into the kit, it's **code-split into its own chunk loaded only in graphing mode** (the locked "lazy-split" decision): scientific-only calculators stay ~264 KB gz; a graphing calculator pulls the JSXGraph chunk (+240 KB gz) on demand and caches it.
+
+- **evaluate.ts** — `compileFunction(expr)` returns `(x) => number` (math.compile in `x`; deg/rad + restriction gates; NaN at out-of-domain so the curve breaks rather than emitting garbage). 6 tests.
+- **board.ts (new)** — the board layer: `createBoard()` → `{ plot, destroy }` over JSXGraph (axes/grid, drag-pan, wheel-zoom) + baseline a11y (`role`/focusable, arrow-key pan + `+`/`-` zoom, an aria-live viewport readout). It STATICALLY imports JSXGraph; everything else dynamic-imports `board.ts`, which is what makes esbuild split JSXGraph out. Deliberately NOT re-exported from index.ts (that would static-import it and defeat the split).
+- **calculator.ts** — graphing mode swaps the numeric result for the board, lazy-imports `board.ts`, plots the live expression (a constant → a horizontal line); an `x` variable key replaces `!` in graphing mode; RAD is the default angle for graphing (degrees flattens `sin(x)` over a default window).
+- **build-graph-kit.mjs** — esbuild `splitting:true` → entry `graph-kit-<hash>.js` + `graph-kit-chunk-<hash>.js` (JSXGraph) + a tiny shared chunk; the manifest records the ENTRY (matched on `index.ts`, since esbuild marks `entryPoint` on dynamic-import targets too — an early bug had it pick the JSXGraph chunk); uploads every `.js` to `shared/`. The entry references its chunks by relative URL (resolves same-origin on R2).
+- **editor** — a Mode selector (scientific/graphing) in `CalculatorSection`; the live preview reflects it. `/dev/calculator` harness gained a mode toggle.
+
+Browser-verified via `/dev/calculator`: plots x² (parabola) and sin(x), re-plots on change, arrow-key pan + `+` zoom announce the viewport via aria-live, the `x` key builds x². Suite: schema 113 / graph-kit 32 / renderer 298 / app 250; typecheck clean. **Next:** Stage 3 — data table + regression (linear/quad/exp), the Texas Algebra I requirement; the least-squares engine + table stay standalone so the future graded-regression block reuses them.
+
+---
+
 ## 2026-06-21 — Calculator tool (Phase 2.7, Stage 1: scientific) — code-complete
 
 The first face of the shared graphing kit (built bottom-up; the graded interactive-graph block drops onto the same kit later). Design + locked decisions in [docs/design/calculator-tool.md](../docs/design/calculator-tool.md). A teacher can enable + restrict an on-screen scientific calculator per activity; students summon it while working; it's a scaffold — never scored, no submission, no answer key.
