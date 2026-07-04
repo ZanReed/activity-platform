@@ -4,6 +4,22 @@ Archived completed-work narratives, moved out of STATE.md to keep it readable. N
 
 ---
 
+## 2026-07-04 — Calculator Stage 3 (data table + regression) — code-complete
+
+The Texas Algebra I requirement: data table → model dropdown → equation + r² → fit curve over the scatter, as a **Data view inside graphing mode** (green-lit over a third top-level mode — it pre-figures Stage 4's expression-list layout and the `scientific` ceiling naturally excludes it). Manual (x, y) entry only in v1 (green-lit; spreadsheet paste is a possible fast-follow). Two commits: `2bc3f68` (schema flag + engine), `9df8738` (widget + editor).
+
+- **Schema (`2bc3f68`)** — `CalculatorRestrictions.allowedRegressionModels` (`RegressionModel` enum array; default all three, **empty = regression off**). Additive/defaulted → stored docs parse unchanged, no `schemaVersion` bump; the renderer's `data-calculator-config` carries it for free (it serializes `restrictions` whole).
+- **regression.ts (new, pure)** — closed-form least squares behind `fitModel()`: linear `y=ax+b`, quadratic via a pivoted 3×3 normal-equations solve, exponential `y=a·bˣ` fitted log-linearly. **TI-84/Desmos conventions pinned in tests**: exponential r² reported on the log-transformed fit (a different r² than the handheld next to the student breaks "feel at home" instantly); quadratic labeled R². Student-safe errors — `y ≤ 0` on exponential gets a clear message, not NaN. Standalone by design: the future graded regression block scores with the SAME engine.
+- **data-table.ts (new, standalone kit piece)** — real `<table>` of number inputs, Desmos-style auto-append on last-row typing, per-row remove that never deletes the final row (clears it instead). Behavior pinned in 7 jsdom tests (app package).
+- **fit-format.ts (new, pure)** — textbook equation strings (continuation signs, U+2212, unicode superscripts) + the r²/R² line; 6-sig-digit coefficients. Unit-tested.
+- **board.ts** — `setScatter()`, `plotFit()` (dashed green — distinct from the student's own blue curve), `fitView()` (frame the data, 10% margin, degenerate-span guard).
+- **calculator.ts** — a `Data` header toggle (graphing mode only, hidden when `allowedRegressionModels` is empty) flips `data-view` on the panel: the field + keypad hide and a two-column layout appears (table + model select + "Fit view" + aria-live results | board). **CSS-only view switch, no DOM reparenting** — JSXGraph keeps its container. Config read permissively (garbled array → all models; unknowns filtered, canonical order).
+- **Editor (`9df8738`)** — `CalculatorSection` gains per-model checkboxes under a "Regression (data panel)" group (canonical order regardless of click order; visible only in graphing mode); the live preview re-mounts on model changes. `/dev/calculator` harness gained model toggles + a sample-data hint. Serialize is untouched opaque-carry (one test literal widened).
+
+Verified: full suites green (schema 117 / graph-kit 52 / renderer 298 / app 257), typecheck + lint + production build clean, Vite module-transform smoke against the running dev server. ⚠️ **Interactive browser pass pending** — a second session's dev server held the preview port this session; exercise `/dev/calculator` (enter (1,4) (2,7) (3,12) (4,21) → Exponential should read y = 2.3094 · 1.7356ˣ, r² = 0.9999) before calling the stage fully verified. **Next: Stage 4** — multi-expression list (N rows, sliders, points, color coding).
+
+---
+
 ## 2026-06-23 — Calculator Stage 2 (graphing, JSXGraph lazy-split) — shipped
 
 Single-function graphing for the calculator (`5e513ac`). A spike found **JSXGraph is ~240 KB gz / 192 KB br** (939 KiB min — 2× the design doc's stale "~120 KB"), so rather than bundle it into the kit, it's **code-split into its own chunk loaded only in graphing mode** (the locked "lazy-split" decision): scientific-only calculators stay ~264 KB gz; a graphing calculator pulls the JSXGraph chunk (+240 KB gz) on demand and caches it.
