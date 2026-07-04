@@ -23,6 +23,7 @@ const DEFAULT_RESTRICTIONS = {
   mode: 'scientific',
   allowTrig: true,
   allowLogExp: true,
+  allowedRegressionModels: ['linear', 'quadratic', 'exponential'],
 };
 
 const DEFAULT_TOOL = {
@@ -50,6 +51,37 @@ describe('CalculatorRestrictions', () => {
 
   it('rejects an unknown mode', () => {
     expect(() => CalculatorRestrictions.parse({ mode: 'rpn' })).toThrow();
+  });
+
+  // Stage 3 flag. Additive + defaulted, so documents stored before the field
+  // existed parse to the permissive default (all models) — no schemaVersion bump.
+  it('defaults allowedRegressionModels to all three models', () => {
+    expect(CalculatorRestrictions.parse({}).allowedRegressionModels).toEqual([
+      'linear',
+      'quadratic',
+      'exponential',
+    ]);
+  });
+
+  it('accepts a subset of regression models', () => {
+    const parsed = CalculatorRestrictions.parse({
+      allowedRegressionModels: ['linear'],
+    });
+    expect(parsed.allowedRegressionModels).toEqual(['linear']);
+    expect(parsed.allowTrig).toBe(true); // other defaults preserved
+  });
+
+  it('accepts an empty array (regression turned off)', () => {
+    expect(
+      CalculatorRestrictions.parse({ allowedRegressionModels: [] })
+        .allowedRegressionModels,
+    ).toEqual([]);
+  });
+
+  it('rejects an unknown regression model', () => {
+    expect(() =>
+      CalculatorRestrictions.parse({ allowedRegressionModels: ['cubic'] }),
+    ).toThrow();
   });
 });
 

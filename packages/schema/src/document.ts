@@ -219,10 +219,20 @@ export type ReferencePanel = z.infer<typeof ReferencePanel>;
 // the default is 'scientific' because that is the only capability Stage 1
 // implements — an enabled calculator does exactly what is built. The default
 // may flip to 'graphing' once the board layer lands (Stage 2).
+// Stage 3: which fit models the graphing calculator's data/regression panel
+// offers. Permissive default (all three); an EMPTY array turns regression off
+// entirely (no data panel). Only meaningful under mode 'graphing' — the
+// 'scientific' ceiling already excludes the board the fits draw on.
+export const RegressionModel = z.enum(['linear', 'quadratic', 'exponential']);
+export type RegressionModel = z.infer<typeof RegressionModel>;
+
 export const CalculatorRestrictions = z.object({
   mode: z.enum(['scientific', 'graphing']).default('scientific'),
   allowTrig: z.boolean().default(true),
   allowLogExp: z.boolean().default(true),
+  allowedRegressionModels: z
+    .array(RegressionModel)
+    .default(['linear', 'quadratic', 'exponential']),
 });
 export type CalculatorRestrictions = z.infer<typeof CalculatorRestrictions>;
 

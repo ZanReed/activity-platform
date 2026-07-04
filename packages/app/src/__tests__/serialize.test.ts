@@ -96,7 +96,12 @@ describe('calculator (opaque carry)', () => {
     // doc. Pins the same pass-through contract.
     const CALC: CalculatorTool = {
         enabled: true,
-        restrictions: { mode: 'scientific', allowTrig: false, allowLogExp: true },
+        restrictions: {
+            mode: 'scientific',
+            allowTrig: false,
+            allowLogExp: true,
+            allowedRegressionModels: ['linear', 'quadratic', 'exponential'],
+        },
     };
     const body: JSONContent = {
         type: 'doc',

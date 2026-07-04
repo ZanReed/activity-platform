@@ -18,6 +18,21 @@ export type { CalculatorConfig, CalculatorHandle } from './calculator.js';
 export { evaluate, normalizeAsciiMath, compileFunction } from './evaluate.js';
 export type { EvalOptions, EvalResult } from './evaluate.js';
 
+// The least-squares engine (Stage 3) — pure math, standalone, so the future
+// graded regression block scores with the SAME fits the calculator shows.
+export {
+  fitModel,
+  fitLinear,
+  fitQuadratic,
+  fitExponential,
+} from './regression.js';
+export type {
+  RegressionModel,
+  DataPoint,
+  Fit,
+  FitOutcome,
+} from './regression.js';
+
 // NOTE: board.ts (JSXGraph) is deliberately NOT re-exported here — that would
 // static-import it into the entry and defeat the lazy-split. Consumers that need
 // the board (the calculator's graphing mode, the future graded block) dynamic-

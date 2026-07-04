@@ -51,6 +51,7 @@ export {
   ActivityMeta,
   ActivityDocument,
   ReferencePanel,
+  RegressionModel,
   CalculatorRestrictions,
   CalculatorTool,
   PrintHeader,
