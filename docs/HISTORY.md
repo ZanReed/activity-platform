@@ -4,6 +4,20 @@ Archived completed-work narratives, moved out of STATE.md to keep it readable. N
 
 ---
 
+## 2026-07-05 — Calculator Stage 4 (multi-expression list) — code-complete
+
+The Desmos-defining surface (`f643087`): graphing mode swaps the single field for an **expression list** — N MathLive rows with color dots, each classified as a curve (`y =` stripped; bare expressions in x; constants = horizontal lines), a point (`(a, b)`, slider-aware coordinates), a **slider** (`a = 3`, single letter except x/y/e, constant RHS), or a student-safe error. Two-column layout (author green-lit): list + keypad left, board right; the Stage 3 data view swaps the left column via CSS.
+
+- **Schema** — `maxExpressions` (optional int 1–50; ABSENT = unlimited, so stored docs never carry it unless a teacher caps). Editor gained an "Expression limit" input (blank = unlimited).
+- **evaluate.ts** — `compileFunction` gained a `vars` scope param (reused scratch object — the slider-drag hot path allocates nothing per sample); new `classifyExpression()` with paren-group/top-level-comma parsing so `(x+1)*(x-2)` stays a function and `(1,2,3)` isn't a point. 15 new tests.
+- **board.ts** — `PlotItem` + `setPlots()` (curves + points as live closures) + `refresh()`: slider drags mutate ONE stable scope object the closures capture, then re-sample in place — no reclassification, no object churn.
+- **expression-list.ts (new, tool shell — layer 3a, calculator-only)** — lazy per-row reclassification (only changed text recompiles), Desmos-style trailing-row growth capped by `maxExpressions` (works from keypad input too — MathLive's programmatic insert doesn't reliably fire `input`, so the calculator calls `rebuild()` after keypad actions), per-row error notes, slider rows with auto-widening bounds and drag values that survive other rows' edits.
+- **calculator.ts** — keypad types into the focused row; `=` inserts itself in graphing (for `y =` and `a = 3`) instead of evaluating; scientific mode untouched. Destroy blurs every row field (the MathLive teardown rule).
+
+Suite: schema 120 / graph-kit 67 / renderer 298 / app 257; typecheck/lint/build green; renderer bundle + kit manifest regenerated (entry `graph-kit-EQ5MV42W.js`, 268.5 KiB gz — Stage 4 cost ~2 KiB). ⚠️ Interactive browser pass still pending (same dev-server port conflict as Stage 3) — exercise `/dev/calculator`: `a=2` then `y=ax^2` should plot and re-plot live on slider drag; keypad `x` key; cap behavior with maxExpressions=3. Known v1 gap: the keypad has no `,` key, so touch-only students can't type a point (physical keyboard works) — candidate fix in a Stage 4 polish pass. **Next: Stage 5** — graded interactions (the question shell, `interactive-graph-block.md`).
+
+---
+
 ## 2026-07-04 — Calculator Stage 3 (data table + regression) — code-complete
 
 The Texas Algebra I requirement: data table → model dropdown → equation + r² → fit curve over the scatter, as a **Data view inside graphing mode** (green-lit over a third top-level mode — it pre-figures Stage 4's expression-list layout and the `scientific` ceiling naturally excludes it). Manual (x, y) entry only in v1 (green-lit; spreadsheet paste is a possible fast-follow). Two commits: `2bc3f68` (schema flag + engine), `9df8738` (widget + editor).
