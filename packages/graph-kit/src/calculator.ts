@@ -18,6 +18,9 @@
 
 import { MathfieldElement } from 'mathlive';
 import { evaluate, compileFunction } from './evaluate.js';
+import { fitModel, type RegressionModel } from './regression.js';
+import { equationText, r2Text } from './fit-format.js';
+import { createDataTable, type DataTableHandle } from './data-table.js';
 // Type-only — erased at build time, so the static JSXGraph dependency in
 // board.ts stays in its own lazily-imported chunk (the lazy-split).
 import type { BoardController } from './board.js';
@@ -26,6 +29,8 @@ export interface CalculatorConfig {
   mode?: 'scientific' | 'graphing';
   allowTrig?: boolean;
   allowLogExp?: boolean;
+  /** Stage 3: fit models the data panel offers; empty = no data panel. */
+  allowedRegressionModels?: RegressionModel[];
 }
 
 export interface CalculatorHandle {
@@ -42,12 +47,25 @@ interface MountHooks {
   onToggle?: (open: boolean) => void;
 }
 
+const ALL_REGRESSION_MODELS: RegressionModel[] = [
+  'linear',
+  'quadratic',
+  'exponential',
+];
+
 function readConfig(raw: unknown): Required<CalculatorConfig> {
   const c = (typeof raw === 'object' && raw !== null ? raw : {}) as CalculatorConfig;
+  const rawModels = c.allowedRegressionModels;
   return {
     mode: c.mode === 'graphing' ? 'graphing' : 'scientific',
     allowTrig: c.allowTrig !== false, // permissive default
     allowLogExp: c.allowLogExp !== false,
+    // Filter against the known set (canonical order, unknowns dropped); a
+    // missing/garbled value falls back to all models — permissive, like the
+    // boolean gates.
+    allowedRegressionModels: Array.isArray(rawModels)
+      ? ALL_REGRESSION_MODELS.filter((m) => rawModels.includes(m))
+      : ALL_REGRESSION_MODELS,
   };
 }
 
@@ -171,10 +189,21 @@ export function mountCalculator(
     'aria-label': 'Calculator',
   });
 
-  // Header: title + deg/rad toggle + close
+  // Data/regression panel (Stage 3): graphing mode only, and only when at
+  // least one fit model is allowed (empty allowedRegressionModels = off).
+  const regressionModels = graphing ? cfg.allowedRegressionModels : [];
+  const hasDataPanel = regressionModels.length > 0;
+
+  // Header: title + data-view toggle + deg/rad toggle + close
   const header = el('div', 'gk-cal-header');
   const title = el('span', 'gk-cal-title');
   title.textContent = 'Calculator';
+  const dataBtn = el('button', 'gk-cal-data-btn', {
+    type: 'button',
+    'aria-pressed': 'false',
+    'aria-label': 'Toggle the data and regression panel',
+  });
+  dataBtn.textContent = 'Data';
   const angleBtn = el('button', 'gk-cal-angle', {
     type: 'button',
     'aria-label': 'Toggle degrees or radians',
@@ -185,7 +214,8 @@ export function mountCalculator(
     'aria-label': 'Close calculator',
   });
   closeBtn.textContent = '×';
-  header.append(title, angleBtn, closeBtn);
+  if (hasDataPanel) header.append(title, dataBtn, angleBtn, closeBtn);
+  else header.append(title, angleBtn, closeBtn);
 
   // Input/display
   const field = new MathfieldElement();
@@ -198,6 +228,77 @@ export function mountCalculator(
   const result = el('div', 'gk-cal-result', { 'aria-live': 'polite' });
   const graphEl = el('div', 'gk-cal-graph');
   let boardController: BoardController | null = null;
+
+  // ---- Data/regression section (built only when the panel is available) ----
+  const dataSection = el('div', 'gk-cal-data');
+  dataSection.hidden = true;
+  let dataTable: DataTableHandle | null = null;
+  let currentModel: RegressionModel = regressionModels[0] ?? 'linear';
+  const fitResults = el('div', 'gk-cal-fit', { 'aria-live': 'polite' });
+
+  function updateData(): void {
+    if (!dataTable) return;
+    const points = dataTable.getPoints();
+    boardController?.setScatter(points);
+    const outcome = fitModel(currentModel, points);
+    fitResults.textContent = '';
+    if (outcome.ok) {
+      boardController?.plotFit(outcome.predict);
+      const eq = el('div', 'gk-fit-eq');
+      eq.textContent = equationText(outcome.fit);
+      const r2 = el('div', 'gk-fit-r2');
+      r2.textContent = r2Text(outcome.fit);
+      fitResults.append(eq, r2);
+      fitResults.dataset.state = 'ok';
+    } else {
+      boardController?.plotFit(null);
+      fitResults.textContent = outcome.error;
+      // Too few points is the resting state while typing, not a mistake —
+      // style it as a hint; real data problems (all-same x, y ≤ 0) go red.
+      const enough = points.length >= (currentModel === 'quadratic' ? 3 : 2);
+      fitResults.dataset.state = enough ? 'err' : 'hint';
+    }
+  }
+
+  if (hasDataPanel) {
+    const tableScroll = el('div', 'gk-data-scroll');
+    dataTable = createDataTable(tableScroll, updateData);
+
+    const controls = el('div', 'gk-fit-controls');
+    const modelSelect = el('select', 'gk-fit-model', {
+      'aria-label': 'Regression model',
+    });
+    for (const m of regressionModels) {
+      const option = el('option', '');
+      option.value = m;
+      option.textContent = m.charAt(0).toUpperCase() + m.slice(1);
+      modelSelect.appendChild(option);
+    }
+    modelSelect.addEventListener('change', () => {
+      currentModel = regressionModels.find((m) => m === modelSelect.value) ?? currentModel;
+      updateData();
+    });
+    const fitViewBtn = el('button', 'gk-fit-view-btn', {
+      type: 'button',
+      'aria-label': 'Fit the view to the data points',
+    });
+    fitViewBtn.textContent = 'Fit view';
+    fitViewBtn.addEventListener('click', () => {
+      if (dataTable) boardController?.fitView(dataTable.getPoints());
+    });
+    controls.append(modelSelect, fitViewBtn);
+    dataSection.append(tableScroll, controls, fitResults);
+  }
+
+  let dataViewOn = false;
+  function setDataView(v: boolean): void {
+    dataViewOn = v;
+    dataBtn.setAttribute('aria-pressed', String(v));
+    panel.dataset.view = v ? 'data' : 'expr';
+    dataSection.hidden = !v;
+    if (v) updateData();
+  }
+  dataBtn.addEventListener('click', () => setDataView(!dataViewOn));
 
   // Keypad
   const keypad = el('div', 'gk-cal-keypad');
@@ -279,7 +380,19 @@ export function mountCalculator(
   );
   keypad.appendChild(equalsBtn);
 
-  panel.append(header, field, graphing ? graphEl : result, keypad);
+  // Graphing wraps everything below the header in a body container so the data
+  // view can go two-column (data left, board right) with CSS only — no DOM
+  // reparenting, which JSXGraph dislikes. In expression view the body stacks
+  // (field, graph, keypad) exactly like Stage 2; in data view the field +
+  // keypad hide and the data section shows beside the graph.
+  if (graphing) {
+    const body = el('div', 'gk-cal-body');
+    body.append(field, dataSection, graphEl, keypad);
+    panel.append(header, body);
+    panel.dataset.view = 'expr';
+  } else {
+    panel.append(header, field, result, keypad);
+  }
 
   field.addEventListener('input', recompute);
   panel.addEventListener('keydown', (e) => {
@@ -308,6 +421,7 @@ export function mountCalculator(
         graphEl.textContent = '';
         boardController = createBoard(graphEl);
         recompute();
+        if (dataViewOn) updateData(); // scatter/fit typed in before board load
       })
       .catch((err) => {
         graphEl.textContent = 'Graph failed to load';
@@ -404,6 +518,65 @@ const KIT_CSS = `
 .gk-cal-keypad {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.3rem;
 }
+/* ---- Data/regression view (Stage 3) ---- */
+.gk-cal-body { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.gk-cal[data-view='data'] { width: 30rem; }
+.gk-cal[data-view='data'] .gk-cal-body { flex-direction: row; align-items: stretch; }
+.gk-cal[data-view='data'] .gk-cal-field,
+.gk-cal[data-view='data'] .gk-cal-keypad { display: none; }
+.gk-cal[data-view='data'] .gk-cal-graph { height: auto; min-height: 260px; flex: 1 1 auto; }
+.gk-cal-data-btn {
+  font: inherit; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  cursor: pointer; padding: 0.15rem 0.5rem; border-radius: 999px;
+  border: 1px solid #cbd5e1; background: #f8fafc; color: #475569;
+}
+.gk-cal-data-btn[aria-pressed='true'] {
+  border-color: #16a34a; background: #f0fdf4; color: #15803d;
+}
+.gk-cal-data { display: flex; flex-direction: column; gap: 0.4rem; flex: 0 0 12.5rem; }
+.gk-cal-data[hidden] { display: none; }
+.gk-data-scroll {
+  overflow-y: auto; max-height: 200px; flex: 1 1 auto;
+  border: 1px solid #e2e8f0; border-radius: 6px;
+}
+.gk-data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.gk-data-table th {
+  text-align: center; font-weight: 600; padding: 0.15rem;
+  background: #f8fafc; position: sticky; top: 0;
+}
+.gk-data-table td { padding: 0.1rem; }
+.gk-data-input {
+  width: 100%; font: inherit; font-size: 0.85rem; padding: 0.2rem 0.3rem;
+  border: 1px solid #e2e8f0; border-radius: 4px;
+  appearance: textfield; -moz-appearance: textfield;
+}
+.gk-data-input::-webkit-outer-spin-button,
+.gk-data-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.gk-data-remove {
+  border: none; background: none; color: #94a3b8; cursor: pointer;
+  font-size: 1rem; line-height: 1; padding: 0 0.25rem;
+}
+.gk-data-remove:hover { color: #b91c1c; }
+.gk-fit-controls { display: flex; gap: 0.4rem; align-items: center; }
+.gk-fit-model {
+  flex: 1; min-width: 0; font: inherit; font-size: 0.85rem; padding: 0.25rem;
+  border: 1px solid #cbd5e1; border-radius: 6px; background: #fff;
+}
+.gk-fit-view-btn {
+  font: inherit; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+  padding: 0.25rem 0.5rem; border-radius: 6px;
+  border: 1px solid #cbd5e1; background: #f8fafc; color: #475569;
+  white-space: nowrap;
+}
+.gk-fit-view-btn:hover { background: #e2e8f0; }
+.gk-cal-fit {
+  min-height: 2.2rem; font-size: 0.9rem; padding: 0 0.1rem;
+  font-variant-numeric: tabular-nums;
+}
+.gk-cal-fit[data-state='hint'] { color: #64748b; font-size: 0.8rem; }
+.gk-cal-fit[data-state='err'] { color: #b91c1c; font-size: 0.8rem; }
+.gk-fit-eq { font-weight: 600; color: #15803d; } /* matches the fit curve */
+.gk-fit-r2 { color: #334155; }
 .gk-cal-key {
   font: inherit; font-size: 0.95rem; cursor: pointer; padding: 0.55rem 0;
   border: 1px solid #e2e8f0; border-radius: 6px; background: #f1f5f9;

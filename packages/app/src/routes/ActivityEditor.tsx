@@ -35,6 +35,7 @@ import {
     type PrintConfig,
     type ReferencePanel,
     type CalculatorTool,
+    type RegressionModel,
 } from '@activity/schema';
 import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 import { supabase } from '../lib/supabase';
@@ -675,6 +676,14 @@ function ReferencePanelSection({
     );
 }
 
+// Canonical order — checking a box re-derives the array by filtering this list,
+// so the stored order never depends on the order the teacher clicked.
+const REGRESSION_MODEL_OPTIONS: { model: RegressionModel; label: string }[] = [
+    { model: 'linear', label: 'Linear (y = ax + b)' },
+    { model: 'quadratic', label: 'Quadratic (y = ax² + bx + c)' },
+    { model: 'exponential', label: 'Exponential (y = a·bˣ)' },
+];
+
 // Live preview of the calculator in its restricted state — the SAME
 // mountCalculator() a published page loads, so the author sees exactly what a
 // student gets ("what the teacher sees is what the student gets"). Re-mounts
@@ -687,12 +696,15 @@ function CalculatorPreview({
     restrictions: CalculatorTool['restrictions'];
 }) {
     const mountRef = useRef<HTMLDivElement>(null);
+    // join() so the array's identity churn doesn't re-mount on every render
+    const modelsKey = restrictions.allowedRegressionModels.join(',');
     useEffect(() => {
         const el = mountRef.current;
         if (!el) return;
         const handle: CalculatorHandle = mountCalculator(el, restrictions, {});
         return () => handle.destroy();
-    }, [restrictions.mode, restrictions.allowTrig, restrictions.allowLogExp]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [restrictions.mode, restrictions.allowTrig, restrictions.allowLogExp, modelsKey]);
     return (
         <div className="relative mt-2 flex justify-center [&_.gk-cal-close]:hidden">
         <div ref={mountRef} />
@@ -792,6 +804,40 @@ function CalculatorSection({
             />
             <span>Logarithms &amp; exponentials (ln, log)</span>
             </label>
+            {restrictions.mode === 'graphing' && (
+                <div className="mt-3">
+                <p className={SETTINGS_LABEL_CLASS}>Regression (data panel)</p>
+                <p className={`${SETTINGS_HELP_CLASS} mb-1`}>
+                Students type (x, y) data and fit a model — equation and r² shown
+                like a TI-84. Uncheck all three for a no-regression lesson.
+                </p>
+                {REGRESSION_MODEL_OPTIONS.map(({ model, label }) => (
+                    <label
+                    key={model}
+                    className="mt-1 flex items-center gap-2 text-sm text-slate-700"
+                    >
+                    <input
+                    type="checkbox"
+                    checked={restrictions.allowedRegressionModels.includes(model)}
+                    onChange={(e) =>
+                        patchRestrictions({
+                            allowedRegressionModels: e.target.checked
+                            ? REGRESSION_MODEL_OPTIONS.map((o) => o.model).filter(
+                                (m) =>
+                                m === model ||
+                                restrictions.allowedRegressionModels.includes(m),
+                            )
+                            : restrictions.allowedRegressionModels.filter(
+                                (m) => m !== model,
+                            ),
+                        })
+                    }
+                    />
+                    <span>{label}</span>
+                    </label>
+                ))}
+                </div>
+            )}
             <p className={`${SETTINGS_HELP_CLASS} mt-3`}>
             Preview — what students will see:
             </p>

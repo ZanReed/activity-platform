@@ -18,6 +18,12 @@ import { JSXGraph } from 'jsxgraph';
 export interface BoardController {
   /** Plot (or replace) the single function curve; pass null to clear it. */
   plot(fn: ((x: number) => number) | null): void;
+  /** Scatter (or replace) the data points; pass [] to clear them. (Stage 3) */
+  setScatter(points: { x: number; y: number }[]): void;
+  /** Plot (or replace) the regression fit curve; pass null to clear it. (Stage 3) */
+  plotFit(fn: ((x: number) => number) | null): void;
+  /** Move the viewport to frame the given points (10% margin). (Stage 3) */
+  fitView(points: { x: number; y: number }[]): void;
   /** Tear down the board and free JSXGraph's resources. */
   destroy(): void;
 }
@@ -34,6 +40,8 @@ interface JxgBoard {
 let boardSeq = 0;
 
 const CURVE_COLOR = '#2563eb';
+const SCATTER_COLOR = '#0f172a';
+const FIT_COLOR = '#16a34a';
 
 export function createBoard(container: HTMLElement): BoardController {
   // JSXGraph identifies the board by the container's id.
@@ -113,9 +121,61 @@ export function createBoard(container: HTMLElement): BoardController {
     announceView();
   }
 
+  // ---- Stage 3: scatter + fit curve (the data/regression panel) --------------
+
+  let scatterDots: unknown[] = [];
+  let fitCurve: unknown = null;
+
+  function setScatter(points: { x: number; y: number }[]): void {
+    for (const dot of scatterDots) board.removeObject(dot);
+    scatterDots = points.map((p) =>
+      board.create('point', [p.x, p.y], {
+        fixed: true,
+        withLabel: false,
+        size: 2,
+        strokeColor: SCATTER_COLOR,
+        fillColor: SCATTER_COLOR,
+        highlight: false,
+      }),
+    );
+    board.update();
+  }
+
+  function plotFit(fn: ((x: number) => number) | null): void {
+    if (fitCurve) {
+      board.removeObject(fitCurve);
+      fitCurve = null;
+    }
+    if (fn) {
+      fitCurve = board.create('functiongraph', [fn], {
+        strokeColor: FIT_COLOR,
+        strokeWidth: 2,
+        dash: 2, // distinguishes the fit from a student's own y = f(x) curve
+        highlight: false,
+      });
+    }
+    board.update();
+  }
+
+  function fitView(points: { x: number; y: number }[]): void {
+    if (points.length === 0) return;
+    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    for (const p of points) {
+      xMin = Math.min(xMin, p.x); xMax = Math.max(xMax, p.x);
+      yMin = Math.min(yMin, p.y); yMax = Math.max(yMax, p.y);
+    }
+    // 10% margin; guard degenerate spans (a single point, a horizontal run) so
+    // the window never collapses to zero area.
+    const xPad = Math.max((xMax - xMin) * 0.1, 1);
+    const yPad = Math.max((yMax - yMin) * 0.1, 1);
+    board.setBoundingBox([xMin - xPad, yMax + yPad, xMax + xPad, yMin - yPad], false);
+    board.update();
+    announceView();
+  }
+
   function destroy(): void {
     JSXGraph.freeBoard(board as unknown as Parameters<typeof JSXGraph.freeBoard>[0]);
   }
 
-  return { plot, destroy };
+  return { plot, setScatter, plotFit, fitView, destroy };
 }

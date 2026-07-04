@@ -32,6 +32,9 @@ export type {
   Fit,
   FitOutcome,
 } from './regression.js';
+export { equationText, r2Text, formatCoefficient } from './fit-format.js';
+export { createDataTable } from './data-table.js';
+export type { DataTableHandle } from './data-table.js';
 
 // NOTE: board.ts (JSXGraph) is deliberately NOT re-exported here — that would
 // static-import it into the entry and defeat the lazy-split. Consumers that need

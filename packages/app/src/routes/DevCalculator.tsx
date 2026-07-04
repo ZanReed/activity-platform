@@ -5,12 +5,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 
+const ALL_MODELS = ['linear', 'quadratic', 'exponential'] as const;
+type Model = (typeof ALL_MODELS)[number];
+
 export default function DevCalculator() {
   const mountRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<CalculatorHandle | null>(null);
   const [allowTrig, setAllowTrig] = useState(true);
   const [allowLogExp, setAllowLogExp] = useState(true);
   const [mode, setMode] = useState<'scientific' | 'graphing'>('scientific');
+  const [models, setModels] = useState<Model[]>([...ALL_MODELS]);
   const [openState, setOpenState] = useState(true);
 
   // Re-mount whenever the config changes (it's read at mount).
@@ -19,12 +23,16 @@ export default function DevCalculator() {
     if (!mountEl) return;
     const handle = mountCalculator(
       mountEl,
-      { mode, allowTrig, allowLogExp },
+      { mode, allowTrig, allowLogExp, allowedRegressionModels: models },
       { onToggle: (open) => setOpenState(open) },
     );
     handleRef.current = handle;
     return () => handle.destroy();
-  }, [mode, allowTrig, allowLogExp]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, allowTrig, allowLogExp, models.join(',')]);
+
+  const toggleModel = (m: Model, on: boolean): void =>
+    setModels(ALL_MODELS.filter((x) => (x === m ? on : models.includes(x))));
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
@@ -35,9 +43,11 @@ export default function DevCalculator() {
         The same <code>mountCalculator()</code> a published page lazy-loads and
         the editor preview imports. Try: <code>sin(30)</code> in DEG,{' '}
         <code>2+3×4</code>, <code>√16</code>, <code>5!</code>, <code>2π</code>.
+        In graphing mode, the Data button opens the table + regression panel
+        (try (1,4) (2,7) (3,12) (4,21) with Exponential).
       </p>
 
-      <div style={{ display: 'flex', gap: '1rem', margin: '1rem 0', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '1rem', margin: '1rem 0', alignItems: 'center', flexWrap: 'wrap' }}>
         <label>
           mode{' '}
           <select
@@ -64,6 +74,16 @@ export default function DevCalculator() {
           />{' '}
           allowLogExp
         </label>
+        {ALL_MODELS.map((m) => (
+          <label key={m}>
+            <input
+              type="checkbox"
+              checked={models.includes(m)}
+              onChange={(e) => toggleModel(m, e.target.checked)}
+            />{' '}
+            {m}
+          </label>
+        ))}
         <button type="button" onClick={() => handleRef.current?.toggle()}>
           toggle ({openState ? 'open' : 'closed'})
         </button>
