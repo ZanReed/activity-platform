@@ -17,13 +17,14 @@
 // =============================================================================
 
 import { MathfieldElement } from 'mathlive';
-import { evaluate, compileFunction } from './evaluate.js';
+import { evaluate } from './evaluate.js';
 import { fitModel, type RegressionModel } from './regression.js';
 import { equationText, r2Text } from './fit-format.js';
 import { createDataTable, type DataTableHandle } from './data-table.js';
+import { createExpressionList } from './expression-list.js';
 // Type-only — erased at build time, so the static JSXGraph dependency in
 // board.ts stays in its own lazily-imported chunk (the lazy-split).
-import type { BoardController } from './board.js';
+import type { BoardController, PlotItem } from './board.js';
 
 export interface CalculatorConfig {
   mode?: 'scientific' | 'graphing';
@@ -31,6 +32,8 @@ export interface CalculatorConfig {
   allowLogExp?: boolean;
   /** Stage 3: fit models the data panel offers; empty = no data panel. */
   allowedRegressionModels?: RegressionModel[];
+  /** Stage 4: cap on graphing expression rows; absent = unlimited. */
+  maxExpressions?: number;
 }
 
 export interface CalculatorHandle {
@@ -53,9 +56,21 @@ const ALL_REGRESSION_MODELS: RegressionModel[] = [
   'exponential',
 ];
 
-function readConfig(raw: unknown): Required<CalculatorConfig> {
+// Like CalculatorConfig but with every gate resolved to a concrete value.
+// (Not Required<CalculatorConfig>: maxExpressions stays possibly-undefined —
+// undefined IS its resolved "unlimited" value.)
+interface ResolvedConfig {
+  mode: 'scientific' | 'graphing';
+  allowTrig: boolean;
+  allowLogExp: boolean;
+  allowedRegressionModels: RegressionModel[];
+  maxExpressions: number | undefined;
+}
+
+function readConfig(raw: unknown): ResolvedConfig {
   const c = (typeof raw === 'object' && raw !== null ? raw : {}) as CalculatorConfig;
   const rawModels = c.allowedRegressionModels;
+  const rawMax = c.maxExpressions;
   return {
     mode: c.mode === 'graphing' ? 'graphing' : 'scientific',
     allowTrig: c.allowTrig !== false, // permissive default
@@ -66,6 +81,11 @@ function readConfig(raw: unknown): Required<CalculatorConfig> {
     allowedRegressionModels: Array.isArray(rawModels)
       ? ALL_REGRESSION_MODELS.filter((m) => rawModels.includes(m))
       : ALL_REGRESSION_MODELS,
+    // Garbled cap → unlimited (permissive).
+    maxExpressions:
+      typeof rawMax === 'number' && Number.isInteger(rawMax) && rawMax >= 1
+        ? rawMax
+        : undefined,
   };
 }
 
@@ -229,6 +249,33 @@ export function mountCalculator(
   const graphEl = el('div', 'gk-cal-graph');
   let boardController: BoardController | null = null;
 
+  // ---- Expression list (Stage 4, graphing only) -----------------------------
+  // The single field is scientific-mode input; graphing replaces it with the
+  // multi-row list. Plots emitted before the board's lazy chunk arrives are
+  // parked in pendingPlots and applied on load.
+  let pendingPlots: PlotItem[] | null = null;
+  // Which MathLive field the keypad types into: the single field (scientific)
+  // or whichever list row last took focus (graphing).
+  let activeField: MathfieldElement | null = graphing ? null : field;
+  const exprList = graphing
+    ? createExpressionList({
+        opts: () => ({
+          angleMode: angle,
+          allowTrig: cfg.allowTrig,
+          allowLogExp: cfg.allowLogExp,
+        }),
+        maxRows: cfg.maxExpressions,
+        onPlotsChange: (items) => {
+          if (boardController) boardController.setPlots(items);
+          else pendingPlots = items;
+        },
+        onScopeDrag: () => boardController?.refresh(),
+        onFieldFocus: (f) => {
+          activeField = f;
+        },
+      })
+    : null;
+
   // ---- Data/regression section (built only when the panel is available) ----
   const dataSection = el('div', 'gk-cal-data');
   dataSection.hidden = true;
@@ -303,20 +350,15 @@ export function mountCalculator(
   // Keypad
   const keypad = el('div', 'gk-cal-keypad');
 
+  // Scientific-mode evaluation (graphing plots through the expression list).
   function recompute(): void {
+    if (graphing) return;
     const ascii = field.getValue('ascii-math');
-    const opts = {
+    const r = evaluate(ascii, {
       angleMode: angle,
       allowTrig: cfg.allowTrig,
       allowLogExp: cfg.allowLogExp,
-    };
-    if (graphing) {
-      if (!boardController) return; // board still lazy-loading
-      // Everything plots as y = f(x); a constant expression is a horizontal line.
-      boardController.plot(compileFunction(ascii, opts));
-      return;
-    }
-    const r = evaluate(ascii, opts);
+    });
     if (r.ok) {
       result.textContent = '= ' + formatValue(r.value);
       result.dataset.state = 'ok';
@@ -330,24 +372,33 @@ export function mountCalculator(
   }
 
   function runKey(key: Key): void {
+    // Graphing with no row focused yet: type into the first row.
+    const target =
+      activeField ??
+      (exprList
+        ? exprList.root.querySelector<MathfieldElement>('math-field')
+        : null);
+    if (!target) return;
     const a = key.action;
-    if ('insert' in a) field.insert(a.insert);
-    else if ('cmd' in a) field.executeCommand(a.cmd);
-    else if ('clear' in a) field.value = '';
+    if ('insert' in a) target.insert(a.insert);
+    else if ('cmd' in a) target.executeCommand(a.cmd);
+    else if ('clear' in a) target.value = '';
     else if ('equals' in a) {
-      const r = evaluate(field.getValue('ascii-math'), {
+      const r = evaluate(target.getValue('ascii-math'), {
         angleMode: angle,
         allowTrig: cfg.allowTrig,
         allowLogExp: cfg.allowLogExp,
       });
-      if (r.ok) field.value = formatValue(r.value); // chain from the result
+      if (r.ok) target.value = formatValue(r.value); // chain from the result
     }
-    field.focus();
-    recompute();
+    target.focus();
+    if (graphing) exprList?.rebuild();
+    else recompute();
   }
 
-  // Graphing mode needs an `x` variable key; swap it in for the rarely-used
-  // factorial so the 5-column grid stays even.
+  // Graphing swaps two keys: `x` (the plot variable) replaces the rarely-used
+  // factorial, `=` on the keypad INSERTS = (for `y =` and slider rows like
+  // `a = 3`) instead of evaluating — a graphing calculator has no “equals”.
   const keypadKeys: Key[] = graphing
     ? KEYPAD.map((k) =>
         k.label === '!'
@@ -371,30 +422,36 @@ export function mountCalculator(
     }
     keypad.appendChild(btn);
   }
-  // Equals spans the bottom row.
+  // Equals spans the bottom row (insert-`=` in graphing, evaluate otherwise).
   const equalsBtn = el('button', 'gk-cal-key gk-cal-equals', { type: 'button' });
   equalsBtn.dataset.variant = 'equals';
   equalsBtn.textContent = '=';
   equalsBtn.addEventListener('click', () =>
-    runKey({ label: '=', action: { equals: true } }),
+    runKey(
+      graphing
+        ? { label: '=', action: { insert: '=' } }
+        : { label: '=', action: { equals: true } },
+    ),
   );
   keypad.appendChild(equalsBtn);
 
-  // Graphing wraps everything below the header in a body container so the data
-  // view can go two-column (data left, board right) with CSS only — no DOM
-  // reparenting, which JSXGraph dislikes. In expression view the body stacks
-  // (field, graph, keypad) exactly like Stage 2; in data view the field +
-  // keypad hide and the data section shows beside the graph.
-  if (graphing) {
+  // Graphing is two-column (Stage 4): the left column holds the expression
+  // list + keypad (or, in data view, the data section — CSS toggles which),
+  // the board fills the right. One DOM, CSS-only view switches — no
+  // reparenting, which JSXGraph dislikes. Scientific keeps the Stage 1 card.
+  panel.dataset.mode = cfg.mode;
+  if (graphing && exprList) {
     const body = el('div', 'gk-cal-body');
-    body.append(field, dataSection, graphEl, keypad);
+    const left = el('div', 'gk-cal-left');
+    left.append(exprList.root, dataSection, keypad);
+    body.append(left, graphEl);
     panel.append(header, body);
     panel.dataset.view = 'expr';
   } else {
     panel.append(header, field, result, keypad);
   }
 
-  field.addEventListener('input', recompute);
+  if (!graphing) field.addEventListener('input', recompute);
   panel.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       e.stopPropagation();
@@ -404,8 +461,12 @@ export function mountCalculator(
   angleBtn.addEventListener('click', () => {
     angle = angle === 'deg' ? 'rad' : 'deg';
     angleBtn.textContent = angle.toUpperCase();
-    field.focus();
-    recompute();
+    if (graphing) {
+      exprList?.reclassifyAll(); // compiled rows captured the old angle mode
+    } else {
+      field.focus();
+      recompute();
+    }
   });
   closeBtn.addEventListener('click', () => setOpen(false));
 
@@ -420,7 +481,10 @@ export function mountCalculator(
       .then(({ createBoard }) => {
         graphEl.textContent = '';
         boardController = createBoard(graphEl);
-        recompute();
+        if (pendingPlots) {
+          boardController.setPlots(pendingPlots); // rows typed before load
+          pendingPlots = null;
+        }
         if (dataViewOn) updateData(); // scatter/fit typed in before board load
       })
       .catch((err) => {
@@ -433,7 +497,16 @@ export function mountCalculator(
     if (v === open) return;
     open = v;
     mount.hidden = !v;
-    if (v) field.focus();
+    if (v) {
+      if (graphing) {
+        (
+          activeField ??
+          exprList?.root.querySelector<MathfieldElement>('math-field')
+        )?.focus();
+      } else {
+        field.focus();
+      }
+    }
     hooks.onToggle?.(v);
   }
 
@@ -455,7 +528,7 @@ export function mountCalculator(
     close: () => setOpen(false),
     toggle: () => setOpen(!open),
     destroy: () => {
-      // Blur the math-field BEFORE removing it. Removing a focused MathLive
+      // Blur math-fields BEFORE removing them. Removing a focused MathLive
       // field makes its onBlur fire against a half-torn-down model
       // ("Cannot read properties of undefined (reading 'options')"). Blurring
       // while still connected runs that teardown cleanly.
@@ -464,6 +537,7 @@ export function mountCalculator(
       } catch {
         /* already detached — nothing to blur */
       }
+      exprList?.destroy(); // blurs its row fields the same way
       boardController?.destroy();
       panel.remove();
     },
@@ -518,13 +592,38 @@ const KIT_CSS = `
 .gk-cal-keypad {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.3rem;
 }
-/* ---- Data/regression view (Stage 3) ---- */
-.gk-cal-body { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
-.gk-cal[data-view='data'] { width: 30rem; }
-.gk-cal[data-view='data'] .gk-cal-body { flex-direction: row; align-items: stretch; }
-.gk-cal[data-view='data'] .gk-cal-field,
+/* ---- Graphing layout (Stage 4): expression list | board, two columns ---- */
+.gk-cal[data-mode='graphing'] { width: 30rem; }
+.gk-cal-body { display: flex; flex-direction: row; align-items: stretch; gap: 0.5rem; min-width: 0; }
+.gk-cal-left { display: flex; flex-direction: column; gap: 0.5rem; flex: 0 0 14rem; min-width: 0; }
+.gk-cal[data-mode='graphing'] .gk-cal-graph { height: auto; min-height: 280px; flex: 1 1 auto; }
+/* Data view (Stage 3): the left column swaps list+keypad for the data section */
+.gk-cal[data-view='data'] .gk-exprlist,
 .gk-cal[data-view='data'] .gk-cal-keypad { display: none; }
-.gk-cal[data-view='data'] .gk-cal-graph { height: auto; min-height: 260px; flex: 1 1 auto; }
+/* ---- Expression list (Stage 4) ---- */
+.gk-exprlist { display: flex; flex-direction: column; gap: 0.3rem; max-height: 240px; overflow-y: auto; }
+.gk-exprlist-rows { display: flex; flex-direction: column; gap: 0.3rem; }
+.gk-exprrow-line { display: flex; align-items: center; gap: 0.35rem; }
+.gk-exprrow-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: none; }
+.gk-exprfield {
+  flex: 1 1 auto; min-width: 0; min-height: 1.9rem; padding: 0.15rem 0.3rem;
+  border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; background: #f8fafc;
+}
+.gk-exprrow-remove {
+  border: none; background: none; color: #94a3b8; cursor: pointer;
+  font-size: 1rem; line-height: 1; padding: 0 0.25rem; flex: none;
+}
+.gk-exprrow-remove:hover { color: #b91c1c; }
+.gk-exprrow-note { color: #b91c1c; font-size: 0.75rem; padding-left: 0.95rem; }
+.gk-exprrow-note:empty { display: none; }
+.gk-exprrow-slider { display: flex; gap: 0.4rem; align-items: center; padding-left: 0.95rem; }
+.gk-exprrow-slider[hidden] { display: none; }
+.gk-slider-label {
+  font-size: 0.8rem; color: #334155; min-width: 3.5rem;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.gk-slider-range { flex: 1; min-width: 0; }
+.gk-exprlist-cap { font-size: 0.72rem; color: #64748b; }
 .gk-cal-data-btn {
   font: inherit; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
   cursor: pointer; padding: 0.15rem 0.5rem; border-radius: 999px;
@@ -533,7 +632,7 @@ const KIT_CSS = `
 .gk-cal-data-btn[aria-pressed='true'] {
   border-color: #16a34a; background: #f0fdf4; color: #15803d;
 }
-.gk-cal-data { display: flex; flex-direction: column; gap: 0.4rem; flex: 0 0 12.5rem; }
+.gk-cal-data { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
 .gk-cal-data[hidden] { display: none; }
 .gk-data-scroll {
   overflow-y: auto; max-height: 200px; flex: 1 1 auto;

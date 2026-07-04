@@ -233,6 +233,10 @@ export const CalculatorRestrictions = z.object({
   allowedRegressionModels: z
     .array(RegressionModel)
     .default(['linear', 'quadratic', 'exponential']),
+  // Stage 4: cap on the graphing expression list. ABSENT = unlimited (the
+  // permissive default — optional, not defaulted, so it stays out of stored
+  // docs unless a teacher sets it). Graphing mode only.
+  maxExpressions: z.number().int().min(1).max(50).optional(),
 });
 export type CalculatorRestrictions = z.infer<typeof CalculatorRestrictions>;
 

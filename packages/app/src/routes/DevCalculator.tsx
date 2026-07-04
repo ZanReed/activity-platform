@@ -15,6 +15,7 @@ export default function DevCalculator() {
   const [allowLogExp, setAllowLogExp] = useState(true);
   const [mode, setMode] = useState<'scientific' | 'graphing'>('scientific');
   const [models, setModels] = useState<Model[]>([...ALL_MODELS]);
+  const [maxExpr, setMaxExpr] = useState<number | undefined>(undefined);
   const [openState, setOpenState] = useState(true);
 
   // Re-mount whenever the config changes (it's read at mount).
@@ -23,13 +24,19 @@ export default function DevCalculator() {
     if (!mountEl) return;
     const handle = mountCalculator(
       mountEl,
-      { mode, allowTrig, allowLogExp, allowedRegressionModels: models },
+      {
+        mode,
+        allowTrig,
+        allowLogExp,
+        allowedRegressionModels: models,
+        maxExpressions: maxExpr,
+      },
       { onToggle: (open) => setOpenState(open) },
     );
     handleRef.current = handle;
     return () => handle.destroy();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, allowTrig, allowLogExp, models.join(',')]);
+  }, [mode, allowTrig, allowLogExp, models.join(','), maxExpr]);
 
   const toggleModel = (m: Model, on: boolean): void =>
     setModels(ALL_MODELS.filter((x) => (x === m ? on : models.includes(x))));
@@ -84,6 +91,20 @@ export default function DevCalculator() {
             {m}
           </label>
         ))}
+        <label>
+          maxExpressions{' '}
+          <input
+            type="number"
+            min={1}
+            style={{ width: '4rem' }}
+            value={maxExpr ?? ''}
+            placeholder="∞"
+            onChange={(e) => {
+              const n = Number.parseInt(e.target.value, 10);
+              setMaxExpr(Number.isInteger(n) && n >= 1 ? n : undefined);
+            }}
+          />
+        </label>
         <button type="button" onClick={() => handleRef.current?.toggle()}>
           toggle ({openState ? 'open' : 'closed'})
         </button>

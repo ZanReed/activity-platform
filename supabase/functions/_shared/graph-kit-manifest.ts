@@ -9,4 +9,4 @@
 // packages/graph-kit, commit this file, re-upload, and redeploy publish-activity.
 // =============================================================================
 
-export const CALCULATOR_KIT_FILE = "graph-kit-JAOMFO5I.js";
+export const CALCULATOR_KIT_FILE = "graph-kit-EQ5MV42W.js";

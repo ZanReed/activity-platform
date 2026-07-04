@@ -15,9 +15,20 @@
 
 import { JSXGraph } from 'jsxgraph';
 
+// Stage 4: what one expression-list row contributes to the board. Coordinates
+// and functions are CLOSURES over the caller's live slider scope — JSXGraph
+// re-evaluates them on every update, so a slider drag only needs refresh().
+export type PlotItem =
+  | { kind: 'curve'; color: string; fn: (x: number) => number }
+  | { kind: 'point'; color: string; px: () => number; py: () => number };
+
 export interface BoardController {
   /** Plot (or replace) the single function curve; pass null to clear it. */
   plot(fn: ((x: number) => number) | null): void;
+  /** Replace the expression-list plots (curves + points). (Stage 4) */
+  setPlots(items: PlotItem[]): void;
+  /** Re-sample all plots in place — the slider-drag fast path. (Stage 4) */
+  refresh(): void;
   /** Scatter (or replace) the data points; pass [] to clear them. (Stage 3) */
   setScatter(points: { x: number; y: number }[]): void;
   /** Plot (or replace) the regression fit curve; pass null to clear it. (Stage 3) */
@@ -121,6 +132,35 @@ export function createBoard(container: HTMLElement): BoardController {
     announceView();
   }
 
+  // ---- Stage 4: the expression-list plots ------------------------------------
+
+  let listObjects: unknown[] = [];
+
+  function setPlots(items: PlotItem[]): void {
+    for (const obj of listObjects) board.removeObject(obj);
+    listObjects = items.map((item) =>
+      item.kind === 'curve'
+        ? board.create('functiongraph', [item.fn], {
+            strokeColor: item.color,
+            strokeWidth: 2,
+            highlight: false,
+          })
+        : board.create('point', [item.px, item.py], {
+            fixed: true,
+            withLabel: false,
+            size: 3,
+            strokeColor: item.color,
+            fillColor: item.color,
+            highlight: false,
+          }),
+    );
+    board.update();
+  }
+
+  function refresh(): void {
+    board.update();
+  }
+
   // ---- Stage 3: scatter + fit curve (the data/regression panel) --------------
 
   let scatterDots: unknown[] = [];
@@ -177,5 +217,5 @@ export function createBoard(container: HTMLElement): BoardController {
     JSXGraph.freeBoard(board as unknown as Parameters<typeof JSXGraph.freeBoard>[0]);
   }
 
-  return { plot, setScatter, plotFit, fitView, destroy };
+  return { plot, setPlots, refresh, setScatter, plotFit, fitView, destroy };
 }

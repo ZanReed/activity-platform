@@ -704,7 +704,13 @@ function CalculatorPreview({
         const handle: CalculatorHandle = mountCalculator(el, restrictions, {});
         return () => handle.destroy();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [restrictions.mode, restrictions.allowTrig, restrictions.allowLogExp, modelsKey]);
+    }, [
+        restrictions.mode,
+        restrictions.allowTrig,
+        restrictions.allowLogExp,
+        modelsKey,
+        restrictions.maxExpressions,
+    ]);
     return (
         <div className="relative mt-2 flex justify-center [&_.gk-cal-close]:hidden">
         <div ref={mountRef} />
@@ -806,6 +812,28 @@ function CalculatorSection({
             </label>
             {restrictions.mode === 'graphing' && (
                 <div className="mt-3">
+                <label className={SETTINGS_LABEL_CLASS} htmlFor="calc-max-expr">
+                Expression limit
+                </label>
+                <input
+                id="calc-max-expr"
+                type="number"
+                min={1}
+                max={50}
+                placeholder="Unlimited"
+                className={`${SELECT_CLASS} mb-1 mt-1`}
+                value={restrictions.maxExpressions ?? ''}
+                onChange={(e) => {
+                    const n = Number.parseInt(e.target.value, 10);
+                    patchRestrictions({
+                        maxExpressions:
+                        Number.isInteger(n) && n >= 1 ? Math.min(n, 50) : undefined,
+                    });
+                }}
+                />
+                <p className={`${SETTINGS_HELP_CLASS} mb-3`}>
+                Cap how many rows the expression list allows. Blank = unlimited.
+                </p>
                 <p className={SETTINGS_LABEL_CLASS}>Regression (data panel)</p>
                 <p className={`${SETTINGS_HELP_CLASS} mb-1`}>
                 Students type (x, y) data and fit a model — equation and r² shown

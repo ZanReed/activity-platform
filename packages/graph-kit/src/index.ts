@@ -15,8 +15,13 @@ export type { CalculatorConfig, CalculatorHandle } from './calculator.js';
 // The evaluation seam — exported so the future graded regression block can score
 // with the SAME engine (see docs/design/interactive-graph-block.md), and so it
 // stays unit-testable in isolation.
-export { evaluate, normalizeAsciiMath, compileFunction } from './evaluate.js';
-export type { EvalOptions, EvalResult } from './evaluate.js';
+export {
+  evaluate,
+  normalizeAsciiMath,
+  compileFunction,
+  classifyExpression,
+} from './evaluate.js';
+export type { EvalOptions, EvalResult, ExpressionRow } from './evaluate.js';
 
 // The least-squares engine (Stage 3) — pure math, standalone, so the future
 // graded regression block scores with the SAME fits the calculator shows.

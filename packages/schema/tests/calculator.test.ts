@@ -83,6 +83,25 @@ describe('CalculatorRestrictions', () => {
       CalculatorRestrictions.parse({ allowedRegressionModels: ['cubic'] }),
     ).toThrow();
   });
+
+  // Stage 4 flag. Optional (not defaulted): absent = unlimited, so stored
+  // docs never carry it unless a teacher set a cap.
+  it('leaves maxExpressions absent by default (unlimited)', () => {
+    expect(CalculatorRestrictions.parse({}).maxExpressions).toBeUndefined();
+  });
+
+  it('accepts an explicit expression cap', () => {
+    expect(
+      CalculatorRestrictions.parse({ maxExpressions: 3 }).maxExpressions,
+    ).toBe(3);
+  });
+
+  it('rejects a non-positive or fractional cap', () => {
+    expect(() => CalculatorRestrictions.parse({ maxExpressions: 0 })).toThrow();
+    expect(() =>
+      CalculatorRestrictions.parse({ maxExpressions: 2.5 }),
+    ).toThrow();
+  });
 });
 
 describe('CalculatorTool', () => {

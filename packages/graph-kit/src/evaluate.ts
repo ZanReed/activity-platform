@@ -188,7 +188,7 @@ export function evaluate(ascii: string, opts: EvalOptions = {}): EvalResult {
 export function compileFunction(
   ascii: string,
   opts: EvalOptions = {},
-): ((x: number) => number) | null {
+): ((x: number, vars?: Record<string, number>) => number) | null {
   const expr = normalizeAsciiMath(ascii);
   if (!expr) return null;
   let compiled: { evaluate(scope: Record<string, unknown>): unknown };
@@ -200,15 +200,128 @@ export function compileFunction(
   const m = opts.angleMode ?? 'rad';
   const at = opts.allowTrig ?? true;
   const ale = opts.allowLogExp ?? true;
-  return (xVal: number): number => {
+  // One scratch scope per compiled function, reused across calls: JSXGraph
+  // samples curves hundreds of times per update, and slider drags update
+  // continuously — per-sample object allocation is the hot path to avoid.
+  // (Stale keys from removed sliders linger harmlessly: unused scope entries.)
+  const scratch: Record<string, number> = { x: 0 };
+  return (xVal: number, vars?: Record<string, number>): number => {
     mode = m;
     allowTrig = at;
     allowLogExp = ale;
+    if (vars) Object.assign(scratch, vars);
+    scratch.x = xVal;
     try {
-      const v = compiled.evaluate({ x: xVal });
+      const v = compiled.evaluate(scratch);
       return typeof v === 'number' && Number.isFinite(v) ? v : NaN;
     } catch {
       return NaN;
     }
   };
+}
+
+// ---- Stage 4: expression-row classification ----------------------------------
+// The multi-expression list accepts more than y = f(x): a `(a, b)` row plots a
+// point; a `a = 3` row defines a slider variable other rows can reference.
+// classifyExpression() decides which shape a row is, on the NORMALIZED string,
+// so the list UI stays dumb. Point coordinates compile like functions (minus
+// the x), so `(a, 2a)` tracks its slider.
+
+export type ExpressionRow =
+  | { kind: 'empty' }
+  | { kind: 'slider'; name: string; value: number }
+  | {
+      kind: 'point';
+      px: (vars?: Record<string, number>) => number;
+      py: (vars?: Record<string, number>) => number;
+    }
+  | { kind: 'function'; fn: (x: number, vars?: Record<string, number>) => number }
+  | { kind: 'error'; message: string };
+
+// Split `inner` at its single top-level comma (depth-0 with respect to
+// parentheses). Returns null when there isn't exactly one.
+function splitTopLevelComma(inner: string): [string, string] | null {
+  let depth = 0;
+  let at = -1;
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    else if (ch === ',' && depth === 0) {
+      if (at !== -1) return null; // two top-level commas — not a point
+      at = i;
+    }
+  }
+  if (at === -1) return null;
+  return [inner.slice(0, at), inner.slice(at + 1)];
+}
+
+// True when the whole string is one balanced (...) group — i.e. the depth
+// first returns to 0 at the final character.
+function isSingleParenGroup(s: string): boolean {
+  if (!s.startsWith('(') || !s.endsWith(')')) return false;
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') {
+      depth--;
+      if (depth === 0) return i === s.length - 1;
+    }
+  }
+  return false;
+}
+
+export function classifyExpression(
+  ascii: string,
+  opts: EvalOptions = {},
+): ExpressionRow {
+  let expr = normalizeAsciiMath(ascii);
+  if (!expr) return { kind: 'empty' };
+
+  // `y = …` is just function notation — strip and fall through.
+  const yDef = /^y\s*=\s*(.*)$/.exec(expr);
+  if (yDef) {
+    expr = (yDef[1] ?? '').trim();
+    if (!expr) return { kind: 'empty' };
+  } else {
+    // Slider: single lowercase letter (not x — the plot variable; not y —
+    // that's function notation; not e — the constant) equals a CONSTANT
+    // expression (2pi fine; other slider names not, v1).
+    const slider = /^([a-df-wz])\s*=\s*(.+)$/.exec(expr);
+    if (slider) {
+      const name = slider[1] ?? '';
+      const r = evaluate(slider[2] ?? '', opts);
+      if (!r.ok) {
+        return {
+          kind: 'error',
+          message: r.error || `${name} needs a number (like ${name} = 2)`,
+        };
+      }
+      return { kind: 'slider', name, value: r.value };
+    }
+
+    // Point: exactly `(expr, expr)` as one group with one top-level comma.
+    if (isSingleParenGroup(expr)) {
+      const parts = splitTopLevelComma(expr.slice(1, -1));
+      if (parts) {
+        const px = compileFunction(parts[0], opts);
+        const py = compileFunction(parts[1], opts);
+        if (!px || !py) {
+          return { kind: 'error', message: "That point can't be read" };
+        }
+        // Reuse the (x, vars) shape with a dummy x = 0; a coordinate that
+        // mentions x evaluates x as 0 rather than erroring (harmless, rare).
+        return {
+          kind: 'point',
+          px: (vars) => px(0, vars),
+          py: (vars) => py(0, vars),
+        };
+      }
+    }
+  }
+
+  const fn = compileFunction(expr, opts);
+  if (!fn) return { kind: 'error', message: "That expression can't be plotted" };
+  return { kind: 'function', fn };
 }
