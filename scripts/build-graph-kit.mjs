@@ -123,10 +123,21 @@ for (const o of jsOutputs) {
 console.log('manifest: ' + manifestPath);
 
 if (!haveCreds) {
+  const { existsSync } = await import('node:fs');
+  const hasEnvFile = existsSync(new URL('../.env.r2', import.meta.url));
   console.log('');
   console.log('R2 upload SKIPPED (no R2 creds in env). Built + manifest written.');
-  console.log('To publish, re-run with R2_ACCOUNT_ID / R2_ACCESS_KEY_ID /');
-  console.log('R2_SECRET_ACCESS_KEY / R2_BUCKET_NAME (+ R2_PUBLIC_URL_BASE) set.');
+  if (hasEnvFile) {
+    // The file exists but a value is missing/blank — likely a still-placeholder
+    // field or a typo'd var name.
+    console.log('A .env.r2 was found but at least one of R2_ACCOUNT_ID /');
+    console.log('R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET_NAME is');
+    console.log('empty or still a placeholder — fill it in and re-run.');
+  } else {
+    console.log('Tip: `cp .env.r2.example .env.r2`, fill in the two secret');
+    console.log('values, and future `pnpm build:graph-kit` runs upload with no');
+    console.log('creds to paste (the script auto-loads .env.r2).');
+  }
 } else {
   // Guard against placeholder creds (e.g. a copy-pasted `R2_ACCOUNT_ID=…`):
   // fail with a plain message before aws4fetch throws an opaque Invalid URL.

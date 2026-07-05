@@ -82,13 +82,26 @@ If you change anything in `packages/renderer` or `packages/schema`, re-run `pnpm
 
 The calculator widget (`@activity/graph-kit`) is too heavy to inline, so it ships as **one shared, content-hashed ESM bundle on R2** under `shared/`, lazy-`import()`ed by published pages on the first summon click. `publish-activity` reads the hashed filename from the committed manifest `_shared/graph-kit-manifest.ts` and joins it with `R2_PUBLIC_URL_BASE` to form the `calculatorKitUrl` it passes to the renderer (the renderer only emits the calculator when an activity opts in *and* that URL is present).
 
-Build + upload (the upload runs only when R2 creds are in the env, so it's an author/deploy step):
+Build + upload (the upload runs only when R2 creds are in the env, so it's an author/deploy step).
+
+**Recommended one-time setup — a local creds file (no more pasting):**
+
+```bash
+cp .env.r2.example .env.r2   # then fill in the two secret values
+pnpm build:graph-kit         # auto-loads .env.r2 on every run from now on
+```
+
+`.env.r2` is gitignored; the build script loads it via `node --env-file-if-exists`. The account id, bucket, and public URL are pre-filled in the example (they're not secrets); you only paste the Access Key ID + Secret Access Key once.
+
+**One-off / CI alternative — creds inline:**
 
 ```bash
 # From the repo root, with the same R2 secrets used for the functions in env:
 R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… \
 R2_BUCKET_NAME=… R2_PUBLIC_URL_BASE=… pnpm build:graph-kit
 ```
+
+Inline vars take precedence over `.env.r2`, so this still works to override for a one-off.
 
 This bundles the kit, content-hashes it to `graph-kit-<hash>.js`, rewrites the manifest, and PUTs the asset to `shared/<filename>` (immutable cache; Cloudflare brotli-compresses at the edge). MathLive fonts are **not** uploaded — the kit points `MathfieldElement.fontsDirectory` at the version-matched jsDelivr CDN (same pattern as KaTeX fonts).
 

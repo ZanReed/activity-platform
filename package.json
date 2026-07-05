@@ -7,7 +7,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "bundle:renderer": "node scripts/bundle-renderer.mjs",
-    "build:graph-kit": "node scripts/build-graph-kit.mjs",
+    "build:graph-kit": "node --env-file-if-exists=.env.r2 scripts/build-graph-kit.mjs",
     "test": "pnpm -r test",
     "test:watch": "pnpm -r test:watch",
     "typecheck": "pnpm -r typecheck",

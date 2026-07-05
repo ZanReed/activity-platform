@@ -31,6 +31,9 @@ supabase/functions/_shared/renderer.bundle.js.map
 .env.local
 .env.*.local
 *.env
+# R2 deploy creds auto-loaded by `pnpm build:graph-kit` (see .env.r2.example).
+# The .example twin is committed; the real file never is.
+.env.r2
 
 # ---- Supabase CLI working files --------------------------------------------
 # The Supabase CLI creates these when you run `supabase start` locally.
