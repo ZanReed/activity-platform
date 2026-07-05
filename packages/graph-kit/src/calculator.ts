@@ -584,24 +584,44 @@ const KIT_CSS = `
 .gk-cal-result[data-state='err'] { color: #b91c1c; font-size: 0.85rem; }
 .gk-cal-graph {
   width: 100%; height: 200px;
+  position: relative; /* anchors the on-graph nav buttons */
   border: 1px solid #cbd5e1; border-radius: 6px; background: #fff;
   touch-action: none; /* JSXGraph owns touch pan/zoom */
   display: flex; align-items: center; justify-content: center;
   color: #64748b; font-size: 0.85rem; overflow: hidden;
 }
+.gk-board-nav {
+  position: absolute; right: 0.4rem; bottom: 0.4rem; z-index: 2;
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+.gk-board-nav button {
+  width: 1.7rem; height: 1.7rem; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid #cbd5e1; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92); color: #334155;
+  font: inherit; font-size: 1rem; line-height: 1; cursor: pointer;
+}
+.gk-board-nav button:hover { background: #e2e8f0; }
 .gk-cal-keypad {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.3rem;
 }
 /* ---- Graphing layout (Stage 4): expression list | board, two columns ---- */
-.gk-cal[data-mode='graphing'] { width: 30rem; }
-.gk-cal-body { display: flex; flex-direction: row; align-items: stretch; gap: 0.5rem; min-width: 0; }
-.gk-cal-left { display: flex; flex-direction: column; gap: 0.5rem; flex: 0 0 14rem; min-width: 0; }
-.gk-cal[data-mode='graphing'] .gk-cal-graph { height: auto; min-height: 280px; flex: 1 1 auto; }
+.gk-cal[data-mode='graphing'] {
+  width: 30rem; height: 26rem;
+  /* Native drag-resize (bottom-right handle) — an enhancement, never a
+     prerequisite: the default size is fully usable. JSXGraph's own
+     ResizeObserver re-fits the board as the graph cell grows. */
+  resize: both; overflow: hidden;
+  min-width: 24rem; min-height: 20rem; max-width: 95vw; max-height: 92vh;
+}
+.gk-cal-body { display: flex; flex-direction: row; align-items: stretch; gap: 0.5rem; min-width: 0; flex: 1 1 auto; min-height: 0; }
+.gk-cal-left { display: flex; flex-direction: column; gap: 0.5rem; flex: 0 0 14rem; min-width: 0; min-height: 0; }
+.gk-cal[data-mode='graphing'] .gk-cal-graph { height: auto; min-height: 0; flex: 1 1 auto; }
 /* Data view (Stage 3): the left column swaps list+keypad for the data section */
 .gk-cal[data-view='data'] .gk-exprlist,
 .gk-cal[data-view='data'] .gk-cal-keypad { display: none; }
 /* ---- Expression list (Stage 4) ---- */
-.gk-exprlist { display: flex; flex-direction: column; gap: 0.3rem; max-height: 240px; overflow-y: auto; }
+.gk-exprlist { display: flex; flex-direction: column; gap: 0.3rem; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .gk-exprlist-rows { display: flex; flex-direction: column; gap: 0.3rem; }
 .gk-exprrow-line { display: flex; align-items: center; gap: 0.35rem; }
 .gk-exprrow-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: none; }
@@ -632,10 +652,10 @@ const KIT_CSS = `
 .gk-cal-data-btn[aria-pressed='true'] {
   border-color: #16a34a; background: #f0fdf4; color: #15803d;
 }
-.gk-cal-data { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+.gk-cal-data { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; min-height: 0; flex: 1 1 auto; }
 .gk-cal-data[hidden] { display: none; }
 .gk-data-scroll {
-  overflow-y: auto; max-height: 200px; flex: 1 1 auto;
+  overflow-y: auto; flex: 1 1 auto; min-height: 0;
   border: 1px solid #e2e8f0; border-radius: 6px;
 }
 .gk-data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }

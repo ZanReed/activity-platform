@@ -46,6 +46,7 @@ interface JxgBoard {
   update(): void;
   setBoundingBox(bb: [number, number, number, number], keepAspect?: boolean): void;
   getBoundingBox(): [number, number, number, number];
+  on(event: string, handler: () => void): void;
 }
 
 let boardSeq = 0;
@@ -53,6 +54,8 @@ let boardSeq = 0;
 const CURVE_COLOR = '#2563eb';
 const SCATTER_COLOR = '#0f172a';
 const FIT_COLOR = '#16a34a';
+
+const DEFAULT_BB: [number, number, number, number] = [-10, 10, 10, -10];
 
 export function createBoard(container: HTMLElement): BoardController {
   // JSXGraph identifies the board by the container's id.
@@ -67,13 +70,16 @@ export function createBoard(container: HTMLElement): BoardController {
   );
 
   const board = JSXGraph.initBoard(container.id, {
-    boundingbox: [-10, 10, 10, -10], // [xMin, yMax, xMax, yMin]
+    boundingbox: DEFAULT_BB, // [xMin, yMax, xMax, yMin]
     axis: true,
     grid: true,
     keepAspectRatio: false,
     showCopyright: false,
     showNavigation: false, // no nav buttons (avoids needing JSXGraph's CSS)
-    pan: { enabled: true, needTwoFingers: false },
+    // needShift: false is load-bearing — JSXGraph's DEFAULT mouse pan requires
+    // shift+drag, which reads as "panning is broken" (author feedback,
+    // 2026-07-05). Plain click-drag pans, Desmos-style.
+    pan: { enabled: true, needShift: false, needTwoFingers: false },
     zoom: { wheel: true, needShift: false, min: 0.001, max: 1000 },
   }) as unknown as JxgBoard;
 
@@ -93,6 +99,56 @@ export function createBoard(container: HTMLElement): BoardController {
   };
   announceView();
 
+  // Mouse/touch pan and wheel zoom change the view WITHOUT going through our
+  // helpers, so announce on the board's own boundingbox event too (debounced —
+  // a drag fires it continuously).
+  let announceTimer: ReturnType<typeof setTimeout> | undefined;
+  board.on('boundingbox', () => {
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(announceView, 250);
+  });
+
+  // Zoom scales the half-spans around the CENTER of the current view (not the
+  // origin — origin-relative zoom "runs away" once the user has panned).
+  function zoomBy(factor: number): void {
+    const [xMin, yMax, xMax, yMin] = board.getBoundingBox();
+    const cx = (xMin + xMax) / 2;
+    const cy = (yMin + yMax) / 2;
+    const hx = ((xMax - xMin) / 2) * factor;
+    const hy = ((yMax - yMin) / 2) * factor;
+    board.setBoundingBox([cx - hx, cy + hy, cx + hx, cy - hy], false);
+    board.update();
+    announceView();
+  }
+
+  function resetView(): void {
+    board.setBoundingBox(DEFAULT_BB, false);
+    board.update();
+    announceView();
+  }
+
+  // On-graph nav buttons (Desmos-style): + / − / reset, stacked bottom-right.
+  // Real <button>s — clickable, focusable, labelled — layered over the SVG.
+  const nav = document.createElement('div');
+  nav.className = 'gk-board-nav';
+  const navButtons: [string, string, () => void][] = [
+    ['+', 'Zoom in', () => zoomBy(0.8)],
+    ['−', 'Zoom out', () => zoomBy(1.25)],
+    ['⌂', 'Reset the view', resetView],
+  ];
+  for (const [labelText, aria, act] of navButtons) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = labelText;
+    btn.setAttribute('aria-label', aria);
+    btn.addEventListener('click', act);
+    // JSXGraph listens for pointer events on the container to start a pan;
+    // don't let a button press double as a drag start.
+    btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+    nav.appendChild(btn);
+  }
+  container.appendChild(nav);
+
   // Keyboard pan/zoom (arrows shift the view by 20% of its span; +/- zoom).
   container.addEventListener('keydown', (e: KeyboardEvent) => {
     const [xMin, yMax, xMax, yMin] = board.getBoundingBox();
@@ -104,8 +160,8 @@ export function createBoard(container: HTMLElement): BoardController {
       case 'ArrowRight': bb = [xMin + dx, yMax, xMax + dx, yMin]; break;
       case 'ArrowUp': bb = [xMin, yMax + dy, xMax, yMin + dy]; break;
       case 'ArrowDown': bb = [xMin, yMax - dy, xMax, yMin - dy]; break;
-      case '+': case '=': bb = [xMin * 0.8, yMax * 0.8, xMax * 0.8, yMin * 0.8]; break;
-      case '-': case '_': bb = [xMin * 1.25, yMax * 1.25, xMax * 1.25, yMin * 1.25]; break;
+      case '+': case '=': zoomBy(0.8); e.preventDefault(); return;
+      case '-': case '_': zoomBy(1.25); e.preventDefault(); return;
       default: return;
     }
     e.preventDefault();
