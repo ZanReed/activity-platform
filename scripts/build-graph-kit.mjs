@@ -128,6 +128,18 @@ if (!haveCreds) {
   console.log('To publish, re-run with R2_ACCOUNT_ID / R2_ACCESS_KEY_ID /');
   console.log('R2_SECRET_ACCESS_KEY / R2_BUCKET_NAME (+ R2_PUBLIC_URL_BASE) set.');
 } else {
+  // Guard against placeholder creds (e.g. a copy-pasted `R2_ACCOUNT_ID=…`):
+  // fail with a plain message before aws4fetch throws an opaque Invalid URL.
+  if (!/^[0-9a-f]{32}$/i.test(env('R2_ACCOUNT_ID'))) {
+    console.error('');
+    console.error(
+      `R2_ACCOUNT_ID doesn't look like a Cloudflare account id (32 hex chars); ` +
+        `got ${JSON.stringify(env('R2_ACCOUNT_ID'))}. Copy the real values from ` +
+        'the Cloudflare dashboard (R2 -> Manage API Tokens; account id is on ' +
+        'the R2 overview page). Nothing was uploaded.',
+    );
+    process.exit(1);
+  }
   const { AwsClient } = await import('aws4fetch');
   const client = new AwsClient({
     accessKeyId: env('R2_ACCESS_KEY_ID'),
