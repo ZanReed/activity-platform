@@ -806,8 +806,10 @@ const KIT_CSS = `
 .gk-exprrow-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: none; }
 .gk-exprfield {
   flex: 1 1 auto; min-width: 0; min-height: 2.5rem; padding: 0.35rem 0.4rem;
-  display: flex; align-items: center; /* vertically center tall math (fractions, xⁿ) */
   border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1.05rem; background: #f8fafc;
+  /* NOTE: do NOT set display:flex here — it collapses MathLive's editable area
+     to the content width, so clicks land only near the caret. MathLive centers
+     content vertically itself given a min-height. */
 }
 /* Hide MathLive's ☰ menu toggle (matrix/text/colour/variants — out of scope)
    and its built-in in-field keyboard toggle (we supply our own ⌨ button at the

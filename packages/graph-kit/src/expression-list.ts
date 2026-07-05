@@ -263,6 +263,15 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
 
     row.field.addEventListener('focus', () => deps.onFieldFocus(row.field));
     row.field.addEventListener('input', rebuild);
+    // Clicking anywhere in the row (the colour dot, the gaps) focuses the field
+    // too — not just landing on the field itself. Buttons and the field's own
+    // clicks are left alone. `click` (not pointerdown) so it doesn't race the
+    // field's focus handling.
+    line.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('button') || t.closest('math-field')) return;
+      row.field.focus();
+    });
     removeBtn.addEventListener('click', () => {
       if (rows.length > 1) {
         const i = rows.indexOf(row);
