@@ -82,11 +82,14 @@ export function createBoard(container: HTMLElement): BoardController {
     // Sticky axes (Desmos-style): when an axis would scroll off-screen while
     // panning, it pins to the nearest visible edge and keeps its number labels,
     // so the scale is never lost (author feedback, 2026-07-06). anchor
-    // 'right left' lets each axis stick to whichever edge it nears; anchorDist
-    // holds it a little inboard so the labels aren't clipped by the frame.
+    // 'left right' lets each axis stick to whichever edge it nears. anchorDist
+    // insets the pinned axis ~55px from the frame so its number labels (a y-axis
+    // draws them to its LEFT) stay on-board instead of clipping to the ones
+    // digit. (JSXGraph's `ticksAutoPos` is NOT the fix — it pushes labels into
+    // the narrow gap toward the near edge, i.e. the wrong way for edge-pinning.)
     defaultAxes: {
-      x: { position: 'sticky', anchor: 'right left', anchorDist: '25px' },
-      y: { position: 'sticky', anchor: 'right left', anchorDist: '25px' },
+      x: { position: 'sticky', anchor: 'left right', anchorDist: '55px' },
+      y: { position: 'sticky', anchor: 'left right', anchorDist: '55px' },
     },
     grid: true,
     keepAspectRatio: false,
