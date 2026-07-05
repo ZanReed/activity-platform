@@ -4,6 +4,14 @@ Archived completed-work narratives, moved out of STATE.md to keep it readable. N
 
 ---
 
+## 2026-07-05 (later) — Board navigation UX + full Stages 3–4 browser pass
+
+Author live-tested and reported graph navigation "awful" → root cause: **JSXGraph's default mouse pan requires shift+drag** (we set `needTwoFingers: false` for touch but never `needShift: false` for mouse). The pass (`3e12143`): plain click-drag pan; on-graph **+ / − / reset** buttons (real labelled `<button>`s over the SVG, pointer-down stopped so a press can't start a pan); zoom centered on the current view (origin-relative zoom "runs away" after panning — keyboard +/- fixed too); **drag-resizable panel** (native CSS `resize: both`, 24×20rem–95vw/92vh; the flex chain + JSXGraph's ResizeObserver refit the board both axes); aria-live viewport readout now fires (debounced) on the board's `boundingbox` event, so mouse pan and wheel zoom are announced. Wheel zoom itself was already functional (JSXGraph listens for the legacy `mousewheel` event real input fires). `vite.config` gained a `PORT` env override so an agent preview server can run beside a manual one.
+
+Same session, the **Stages 3–4 interactive pass completed** (agent-driven at `/dev/calculator`): regression on (1,4) (2,7) (3,12) (4,21) → `y = 2.3094 · 1.73563ˣ`, `r² = 0.9999` (the TI-84 values), Fit-view framing; `a=2` + `y=ax^2` re-plots live on slider drag; auto-append + palette colors confirmed. Also this session: graph-kit uploaded to R2 + `publish-activity` redeployed (entry `EQ5MV42W` verified HTTP 200) — then the UX pass minted entry `KXEOKBPT`, so a re-upload + redeploy is queued (STATE action #3). Three build-script guards landed en route (`089c1d9` placeholder creds, `ed39bc9` smart quotes, `6cff3fb` Token-value-vs-secret) after each mistake happened live.
+
+---
+
 ## 2026-07-05 — Calculator Stage 4 (multi-expression list) — code-complete
 
 The Desmos-defining surface (`f643087`): graphing mode swaps the single field for an **expression list** — N MathLive rows with color dots, each classified as a curve (`y =` stripped; bare expressions in x; constants = horizontal lines), a point (`(a, b)`, slider-aware coordinates), a **slider** (`a = 3`, single letter except x/y/e, constant RHS), or a student-safe error. Two-column layout (author green-lit): list + keypad left, board right; the Stage 3 data view swaps the left column via CSS.
