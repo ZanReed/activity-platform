@@ -48,6 +48,12 @@ export interface CalculatorHandle {
 interface MountHooks {
   /** Called whenever the open/closed state changes (incl. self-close via Esc/×). */
   onToggle?: (open: boolean) => void;
+  /**
+   * Float the panel as a draggable window fixed to the viewport (the published
+   * page / dev harness). Default false keeps it in-flow so the editor preview
+   * renders it inline inside the settings panel, not pinned to a screen corner.
+   */
+  floating?: boolean;
 }
 
 const ALL_REGRESSION_MODELS: RegressionModel[] = [
@@ -199,6 +205,7 @@ export function mountCalculator(
   configureMathLive();
   const cfg = readConfig(rawConfig);
   const graphing = cfg.mode === 'graphing';
+  const floating = hooks.floating ?? false;
   // Radians is the sensible default for plotting (sin(x) over [-10,10] in degrees
   // is nearly flat); degrees is friendlier for a scientific calculator.
   let angle: 'deg' | 'rad' = graphing ? 'rad' : 'deg';
@@ -208,6 +215,9 @@ export function mountCalculator(
     role: 'dialog',
     'aria-label': 'Calculator',
   });
+  // Floating = a draggable window pinned to the viewport (published page); the
+  // default keeps it in-flow for the inline editor preview.
+  if (floating) panel.classList.add('gk-cal-floating');
 
   // Data/regression panel (Stage 3): graphing mode only, and only when at
   // least one fit model is allowed (empty allowedRegressionModels = off).
@@ -470,6 +480,54 @@ export function mountCalculator(
   });
   closeBtn.addEventListener('click', () => setOpen(false));
 
+  // Drag-to-move (floating only): grab the header bar to slide the panel off
+  // the work, Desmos-style. Starts from the CSS default corner; on first drag
+  // we pin left/top and clamp so the header can never be lost off-screen. Drags
+  // that begin on a header control (Data/angle/×) are ignored so those still
+  // click normally.
+  if (floating) {
+    let dragDX = 0;
+    let dragDY = 0;
+    let dragging = false;
+    header.addEventListener('pointerdown', (e) => {
+      if ((e.target as HTMLElement).closest('button')) return;
+      dragging = true;
+      const r = panel.getBoundingClientRect();
+      panel.style.left = r.left + 'px';
+      panel.style.top = r.top + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      dragDX = e.clientX - r.left;
+      dragDY = e.clientY - r.top;
+      header.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    header.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const w = panel.offsetWidth;
+      const left = Math.min(
+        Math.max(e.clientX - dragDX, 8 - w + 64), // keep ≥64px on screen
+        window.innerWidth - 64,
+      );
+      const top = Math.min(
+        Math.max(e.clientY - dragDY, 8),
+        window.innerHeight - 40,
+      );
+      panel.style.left = left + 'px';
+      panel.style.top = top + 'px';
+    });
+    const endDrag = (e: PointerEvent): void => {
+      dragging = false;
+      try {
+        header.releasePointerCapture(e.pointerId);
+      } catch {
+        /* pointer already released */
+      }
+    };
+    header.addEventListener('pointerup', endDrag);
+    header.addEventListener('pointercancel', endDrag);
+  }
+
   mount.appendChild(panel);
 
   // Graphing mode: lazy-import the board layer (JSXGraph in its own chunk) now
@@ -560,7 +618,18 @@ const KIT_CSS = `
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
+/* Floating window (published page): pinned to a viewport corner by default,
+   draggable by its header. The in-flow default (editor preview) is unchanged. */
+.gk-cal-floating {
+  position: fixed; right: 1rem; bottom: 1rem;
+  z-index: 120; /* above the reference bar; the summon button hides while open */
+  max-height: 92vh;
+}
 .gk-cal-header { display: flex; align-items: center; gap: 0.5rem; }
+.gk-cal-floating .gk-cal-header {
+  cursor: move; user-select: none; touch-action: none; /* header owns the drag */
+}
+.gk-cal-floating .gk-cal-header button { cursor: pointer; } /* controls still click */
 .gk-cal-title { font-weight: 600; font-size: 0.9rem; flex: 1; }
 .gk-cal-angle {
   font: inherit; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
@@ -626,8 +695,9 @@ const KIT_CSS = `
 .gk-exprrow-line { display: flex; align-items: center; gap: 0.35rem; }
 .gk-exprrow-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: none; }
 .gk-exprfield {
-  flex: 1 1 auto; min-width: 0; min-height: 1.9rem; padding: 0.15rem 0.3rem;
-  border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; background: #f8fafc;
+  flex: 1 1 auto; min-width: 0; min-height: 2.5rem; padding: 0.35rem 0.4rem;
+  display: flex; align-items: center; /* vertically center tall math (fractions, xⁿ) */
+  border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1.05rem; background: #f8fafc;
 }
 .gk-exprrow-remove {
   border: none; background: none; color: #94a3b8; cursor: pointer;

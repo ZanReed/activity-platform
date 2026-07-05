@@ -31,7 +31,7 @@ export default function DevCalculator() {
         allowedRegressionModels: models,
         maxExpressions: maxExpr,
       },
-      { onToggle: (open) => setOpenState(open) },
+      { onToggle: (open) => setOpenState(open), floating: true },
     );
     handleRef.current = handle;
     return () => handle.destroy();

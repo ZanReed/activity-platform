@@ -46,7 +46,7 @@ interface CalculatorKitModule {
   mountCalculator(
     mount: HTMLElement,
     config: unknown,
-    hooks: { onToggle(open: boolean): void },
+    hooks: { onToggle(open: boolean): void; floating: boolean },
   ): CalculatorHandle;
 }
 
@@ -69,8 +69,12 @@ function setupCalculator(tool: HTMLElement): void {
   let handle: CalculatorHandle | null = null;
   let loading = false;
 
+  // The panel is a floating window, so hide the summon button while it's open
+  // (it would otherwise sit under the panel in the same corner). The panel's
+  // own × closes it, which fires onToggle(false) and brings the button back.
   const setExpanded = (open: boolean): void => {
     button.setAttribute('aria-expanded', String(open));
+    button.hidden = open;
   };
 
   button.addEventListener('click', async () => {
@@ -83,7 +87,10 @@ function setupCalculator(tool: HTMLElement): void {
     button.setAttribute('aria-busy', 'true');
     try {
       const mod = (await import(src)) as CalculatorKitModule;
-      handle = mod.mountCalculator(mount, config, { onToggle: setExpanded });
+      handle = mod.mountCalculator(mount, config, {
+        onToggle: setExpanded,
+        floating: true,
+      });
       setExpanded(handle.isOpen);
     } catch (err) {
       // The kit failed to load (offline, blocked CDN, bad URL). The rest of
