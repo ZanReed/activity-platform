@@ -159,6 +159,30 @@ if (!haveCreds) {
     );
     process.exit(1);
   }
+  // R2's S3 credentials have fixed shapes: the access key id is 32 hex chars,
+  // the secret access key is 64 hex chars. The Cloudflare R2 token page ALSO
+  // shows a "Token value" (a bearer token, often prefixed like `cfut_…`) for
+  // the native API — pasting THAT into the secret field is the classic mistake
+  // and yields an opaque SignatureDoesNotMatch. Catch it by shape.
+  if (!/^[0-9a-f]{32}$/i.test(env('R2_ACCESS_KEY_ID'))) {
+    console.error('');
+    console.error(
+      `R2_ACCESS_KEY_ID isn't a 32-char hex string (got ` +
+        `${env('R2_ACCESS_KEY_ID').length} chars). Copy "Access Key ID" from ` +
+        'the Cloudflare R2 token page. Nothing was uploaded.',
+    );
+    process.exit(1);
+  }
+  if (!/^[0-9a-f]{64}$/i.test(env('R2_SECRET_ACCESS_KEY'))) {
+    console.error('');
+    console.error(
+      `R2_SECRET_ACCESS_KEY isn't a 64-char hex string (got ` +
+        `${env('R2_SECRET_ACCESS_KEY').length} chars). On the Cloudflare R2 ` +
+        'token page use "Secret Access Key" (64 hex chars, under the S3 client ' +
+        'credentials) — NOT the "Token value" bearer token. Nothing was uploaded.',
+    );
+    process.exit(1);
+  }
   const { AwsClient } = await import('aws4fetch');
   const client = new AwsClient({
     accessKeyId: env('R2_ACCESS_KEY_ID'),
