@@ -79,6 +79,15 @@ export function createBoard(container: HTMLElement): BoardController {
   const board = JSXGraph.initBoard(container.id, {
     boundingbox: DEFAULT_BB, // [xMin, yMax, xMax, yMin]
     axis: true,
+    // Sticky axes (Desmos-style): when an axis would scroll off-screen while
+    // panning, it pins to the nearest visible edge and keeps its number labels,
+    // so the scale is never lost (author feedback, 2026-07-06). anchor
+    // 'right left' lets each axis stick to whichever edge it nears; anchorDist
+    // holds it a little inboard so the labels aren't clipped by the frame.
+    defaultAxes: {
+      x: { position: 'sticky', anchor: 'right left', anchorDist: '25px' },
+      y: { position: 'sticky', anchor: 'right left', anchorDist: '25px' },
+    },
     grid: true,
     keepAspectRatio: false,
     showCopyright: false,
@@ -88,7 +97,7 @@ export function createBoard(container: HTMLElement): BoardController {
     // 2026-07-05). Plain click-drag pans, Desmos-style.
     pan: { enabled: true, needShift: false, needTwoFingers: false },
     zoom: { wheel: true, needShift: false, min: 0.001, max: 1000 },
-  }) as unknown as JxgBoard;
+  } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
 
   // aria-live readout of the visible window, updated as the view changes.
   const live = document.createElement('div');
