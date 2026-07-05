@@ -821,14 +821,52 @@ const KIT_CSS = `
   font-size: 1rem; line-height: 1; padding: 0 0.25rem; flex: none;
 }
 .gk-exprrow-remove:hover { color: #b91c1c; }
+/* A real button, not a bare glyph — bordered box + pressed state so students
+   read it as "the keyboard toggle". */
 .gk-exprrow-kb {
-  border: none; background: none; color: #64748b; cursor: pointer;
-  font-size: 1rem; line-height: 1; padding: 0 0.2rem; flex: none;
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 1.9rem; height: 1.9rem; padding: 0;
+  border: 1px solid #cbd5e1; border-radius: 6px;
+  background: #f1f5f9; color: #475569; cursor: pointer;
+  font-size: 1.1rem; line-height: 1;
 }
-.gk-exprrow-kb:hover { color: #2563eb; }
+.gk-exprrow-kb:hover { background: #e0e7ff; border-color: #93c5fd; color: #2563eb; }
+.gk-exprrow-kb[aria-pressed='true'] {
+  background: #dbeafe; border-color: #2563eb; color: #1d4ed8;
+}
 /* MathLive renders its virtual keyboard into the panel (container = panel).
    Keep it inside the popup's rounded frame and above the board. */
 .gk-cal-floating .ML__keyboard { position: absolute; z-index: 130; }
+
+/* Responsive keyboard: the graphing panel is a size-query container, so the
+   in-panel virtual keyboard (and the expression field) scale DOWN as the panel
+   is resized narrower — otherwise the keys cram. MathLive reads these custom
+   properties off the keyboard element. Default (≥ ~27rem) uses MathLive's own
+   full-size defaults. */
+.gk-cal-floating[data-mode='graphing'] {
+  container-type: inline-size;
+  container-name: gkcal;
+}
+@container gkcal (max-width: 27rem) {
+  .ML__keyboard {
+    --keycap-height: 2.1rem;
+    --keycap-font-size: 0.85rem;
+    --keycap-glyph-size: 0.85rem;
+    --keycap-gap: 2px;
+    --keyboard-toolbar-font-size: 0.75rem;
+  }
+  .gk-exprfield { font-size: 0.95rem; min-height: 2.2rem; }
+}
+@container gkcal (max-width: 23rem) {
+  .ML__keyboard {
+    --keycap-height: 1.75rem;
+    --keycap-font-size: 0.72rem;
+    --keycap-glyph-size: 0.72rem;
+    --keycap-gap: 1px;
+    --keyboard-toolbar-font-size: 0.68rem;
+  }
+  .gk-exprfield { font-size: 0.88rem; min-height: 2rem; }
+}
 .gk-exprrow-note { font-size: 0.78rem; padding-left: 0.95rem; }
 .gk-exprrow-note:empty { display: none; }
 .gk-exprrow-note[data-kind='error'] { color: #b91c1c; }

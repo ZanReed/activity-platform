@@ -237,7 +237,9 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
     const kbBtn = document.createElement('button');
     kbBtn.type = 'button';
     kbBtn.className = 'gk-exprrow-kb';
-    kbBtn.setAttribute('aria-label', 'Show or hide the keyboard');
+    kbBtn.setAttribute('aria-label', 'Show or hide the on-screen keyboard');
+    kbBtn.title = 'On-screen keyboard';
+    kbBtn.setAttribute('aria-pressed', 'false');
     kbBtn.textContent = '⌨';
     kbBtn.addEventListener('pointerdown', (e) => e.preventDefault()); // keep field focus
     kbBtn.addEventListener('click', () => {
@@ -246,6 +248,11 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
       if (!vk) return;
       if (vk.visible) vk.hide();
       else vk.show();
+      // Reflect the new state on every row's button (the keyboard is shared).
+      const open = !!virtualKeyboard()?.visible;
+      rowsHost
+        .querySelectorAll('.gk-exprrow-kb')
+        .forEach((b) => b.setAttribute('aria-pressed', String(open)));
     });
 
     const removeBtn = document.createElement('button');

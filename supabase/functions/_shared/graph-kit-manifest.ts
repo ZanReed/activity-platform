@@ -9,4 +9,4 @@
 // packages/graph-kit, commit this file, re-upload, and redeploy publish-activity.
 // =============================================================================
 
-export const CALCULATOR_KIT_FILE = "graph-kit-WTVDPVUV.js";
+export const CALCULATOR_KIT_FILE = "graph-kit-XCRND4D3.js";
