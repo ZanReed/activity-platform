@@ -140,6 +140,25 @@ if (!haveCreds) {
     );
     process.exit(1);
   }
+  // Guard against smart-quote / whitespace corruption from copy-paste: a curly
+  // “ or ” in a value means autocorrect replaced a straight quote and the shell
+  // kept it as a literal character. R2 keys, secrets, and bucket names are all
+  // printable ASCII with no spaces, so any non-printable-ASCII byte is a paste
+  // artifact — which otherwise surfaces as an opaque 403 SignatureDoesNotMatch.
+  const corrupted = ['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME'].filter(
+    (k) => /[^\x21-\x7e]/.test(env(k)),
+  );
+  if (corrupted.length) {
+    console.error('');
+    console.error(
+      `These R2 values contain smart quotes or whitespace, likely from ` +
+        `autocorrect turning your "straight quotes" into curly ones: ` +
+        `${corrupted.join(', ')}. Retype the command with straight quotes — ` +
+        `or drop the quotes entirely, since none of these values contain ` +
+        `spaces. Nothing was uploaded.`,
+    );
+    process.exit(1);
+  }
   const { AwsClient } = await import('aws4fetch');
   const client = new AwsClient({
     accessKeyId: env('R2_ACCESS_KEY_ID'),
