@@ -23,8 +23,8 @@ describe('classifyExpression — functions', () => {
     expect(r.fn(2)).toBe(5);
   });
 
-  it('treats a constant as a horizontal line (still a function)', () => {
-    const r = classifyExpression('3');
+  it('treats y = 3 as a horizontal line (a bare 3 is a calculation instead)', () => {
+    const r = classifyExpression('y=3');
     if (r.kind !== 'function') throw new Error(`got ${r.kind}`);
     expect(r.fn(-5)).toBe(3);
   });
@@ -32,6 +32,27 @@ describe('classifyExpression — functions', () => {
   it('classifies empty (and bare y=) as empty', () => {
     expect(classifyExpression('').kind).toBe('empty');
     expect(classifyExpression('y=').kind).toBe('empty');
+  });
+});
+
+describe('classifyExpression — calculations (no variable)', () => {
+  it('classifies a bare arithmetic expression as a calculation', () => {
+    expect(classifyExpression('2+3')).toEqual({ kind: 'calculation', value: 5 });
+  });
+
+  it('evaluates a constant function call as a calculation', () => {
+    const r = classifyExpression('sin(30)', { angleMode: 'deg' });
+    if (r.kind !== 'calculation') throw new Error(`got ${r.kind}`);
+    expect(r.value).toBeCloseTo(0.5, 10);
+  });
+
+  it('does NOT treat an x-expression as a calculation (it plots)', () => {
+    expect(classifyExpression('x^2').kind).toBe('function');
+    expect(classifyExpression('2x+1').kind).toBe('function');
+  });
+
+  it('keeps y = 5 a function (horizontal line), not a calculation', () => {
+    expect(classifyExpression('y=5').kind).toBe('function');
   });
 });
 

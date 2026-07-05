@@ -196,6 +196,30 @@ function injectStyles(): void {
   stylesInjected = true;
 }
 
+// Remembered floating-panel geometry for the current page session — position,
+// size, and the list/graph split. Module-level so it survives a React re-mount
+// (config change) but NOT a reload; deliberately not localStorage (calculator
+// state persistence is deferred by design, and would live in its own key).
+interface PanelGeom {
+  left?: number;
+  top?: number;
+  width?: string;
+  height?: string;
+  splitBasis?: string;
+}
+const remembered: PanelGeom = {};
+
+// Minimal view of MathLive's global virtual-keyboard singleton (graphing mode
+// configures it to render inside the panel with a single, matrix-free layout).
+interface VirtualKeyboardConfig {
+  layouts: unknown;
+  container: HTMLElement | null;
+}
+function virtualKeyboard(): VirtualKeyboardConfig | undefined {
+  return (window as unknown as { mathVirtualKeyboard?: VirtualKeyboardConfig })
+    .mathVirtualKeyboard;
+}
+
 export function mountCalculator(
   mount: HTMLElement,
   rawConfig?: unknown,
@@ -253,6 +277,8 @@ export function mountCalculator(
   // Our keypad + the physical keyboard are the input; suppress MathLive's own
   // on-screen keyboard so it doesn't fight the calculator's keypad.
   field.mathVirtualKeyboardPolicy = 'manual';
+  // (MathLive's ☰ menu toggle is hidden via CSS ::part(menu-toggle) — setting
+  // .menuItems here throws "not mounted" on a freshly-created field.)
 
   // Output: scientific shows a numeric result; graphing shows a plot board.
   const result = el('div', 'gk-cal-result', { 'aria-live': 'polite' });
@@ -453,8 +479,45 @@ export function mountCalculator(
   if (graphing && exprList) {
     const body = el('div', 'gk-cal-body');
     const left = el('div', 'gk-cal-left');
-    left.append(exprList.root, dataSection, keypad);
-    body.append(left, graphEl);
+    // Graphing drops the custom button pad — input is the MathLive field plus
+    // its virtual keyboard (toggled per row), configured just below.
+    left.append(exprList.root, dataSection);
+    // Draggable splitter: rebalance the list column vs the board. Sets the
+    // list's flex-basis in px; remembered for the session.
+    const splitter = el('div', 'gk-cal-splitter', {
+      role: 'separator',
+      'aria-orientation': 'vertical',
+      'aria-label': 'Resize the expression list',
+    });
+    let splitting = false;
+    splitter.addEventListener('pointerdown', (e) => {
+      splitting = true;
+      splitter.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    splitter.addEventListener('pointermove', (e) => {
+      if (!splitting) return;
+      const bodyRect = body.getBoundingClientRect();
+      // Clamp so neither side collapses (≥7rem list, ≥8rem board).
+      const basis = Math.min(
+        Math.max(e.clientX - bodyRect.left, 112),
+        bodyRect.width - 128,
+      );
+      left.style.flexBasis = basis + 'px';
+      remembered.splitBasis = basis + 'px';
+    });
+    const endSplit = (e: PointerEvent): void => {
+      splitting = false;
+      try {
+        splitter.releasePointerCapture(e.pointerId);
+      } catch {
+        /* already released */
+      }
+    };
+    splitter.addEventListener('pointerup', endSplit);
+    splitter.addEventListener('pointercancel', endSplit);
+    if (remembered.splitBasis) left.style.flexBasis = remembered.splitBasis;
+    body.append(left, splitter, graphEl);
     panel.append(header, body);
     panel.dataset.view = 'expr';
   } else {
@@ -515,6 +578,8 @@ export function mountCalculator(
       );
       panel.style.left = left + 'px';
       panel.style.top = top + 'px';
+      remembered.left = left;
+      remembered.top = top;
     });
     const endDrag = (e: PointerEvent): void => {
       dragging = false;
@@ -526,9 +591,36 @@ export function mountCalculator(
     };
     header.addEventListener('pointerup', endDrag);
     header.addEventListener('pointercancel', endDrag);
+
+    // Restore this session's remembered size + position (a prior drag/resize).
+    if (remembered.width) panel.style.width = remembered.width;
+    if (remembered.height) panel.style.height = remembered.height;
+    if (remembered.left != null && remembered.top != null) {
+      panel.style.left = remembered.left + 'px';
+      panel.style.top = remembered.top + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+    }
   }
 
   mount.appendChild(panel);
+
+  // Graphing input relies on MathLive's virtual keyboard (the custom pad is
+  // gone). Render it INSIDE the panel (not docked at the screen bottom) and use
+  // a single built-in layout so there's no matrix/greek/text layout switcher.
+  // The VK is a global singleton, so this configures whichever calculator was
+  // last opened — fine for the one-calculator-per-page reality.
+  if (graphing) {
+    const vk = virtualKeyboard();
+    if (vk) {
+      try {
+        vk.layouts = ['numeric'];
+        vk.container = panel;
+      } catch {
+        /* unexpected MathLive VK shape — fall back to its defaults */
+      }
+    }
+  }
 
   // Graphing mode: lazy-import the board layer (JSXGraph in its own chunk) now
   // that graphEl is in the DOM and sized. A failure leaves a clear message; the
@@ -586,6 +678,12 @@ export function mountCalculator(
     close: () => setOpen(false),
     toggle: () => setOpen(!open),
     destroy: () => {
+      // Remember the session's size (the native resize handle writes inline
+      // width/height) so a re-open keeps it.
+      if (floating) {
+        if (panel.style.width) remembered.width = panel.style.width;
+        if (panel.style.height) remembered.height = panel.style.height;
+      }
       // Blur math-fields BEFORE removing them. Removing a focused MathLive
       // field makes its onBlur fire against a half-torn-down model
       // ("Cannot read properties of undefined (reading 'options')"). Blurring
@@ -671,6 +769,13 @@ const KIT_CSS = `
   font: inherit; font-size: 1rem; line-height: 1; cursor: pointer;
 }
 .gk-board-nav button:hover { background: #e2e8f0; }
+.gk-board-readout {
+  position: absolute; left: 0.4rem; top: 0.4rem; z-index: 2;
+  padding: 0.15rem 0.4rem; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92); border: 1px solid #cbd5e1;
+  font-size: 0.8rem; color: #0f172a; font-variant-numeric: tabular-nums;
+  pointer-events: none; /* never intercept a pan/trace */
+}
 .gk-cal-keypad {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.3rem;
 }
@@ -685,6 +790,11 @@ const KIT_CSS = `
 }
 .gk-cal-body { display: flex; flex-direction: row; align-items: stretch; gap: 0.5rem; min-width: 0; flex: 1 1 auto; min-height: 0; }
 .gk-cal-left { display: flex; flex-direction: column; gap: 0.5rem; flex: 0 0 14rem; min-width: 0; min-height: 0; }
+.gk-cal-splitter {
+  flex: 0 0 6px; align-self: stretch; cursor: col-resize;
+  border-radius: 3px; background: #e2e8f0; touch-action: none;
+}
+.gk-cal-splitter:hover { background: #cbd5e1; }
 .gk-cal[data-mode='graphing'] .gk-cal-graph { height: auto; min-height: 0; flex: 1 1 auto; }
 /* Data view (Stage 3): the left column swaps list+keypad for the data section */
 .gk-cal[data-view='data'] .gk-exprlist,
@@ -699,13 +809,33 @@ const KIT_CSS = `
   display: flex; align-items: center; /* vertically center tall math (fractions, xⁿ) */
   border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1.05rem; background: #f8fafc;
 }
+/* Hide MathLive's ☰ menu toggle (matrix/text/colour/variants — out of scope)
+   and its built-in in-field keyboard toggle (we supply our own ⌨ button at the
+   field's right edge). !important beats MathLive's internal part styling. */
+.gk-exprfield::part(menu-toggle),
+.gk-cal-field::part(menu-toggle),
+.gk-exprfield::part(virtual-keyboard-toggle),
+.gk-cal-field::part(virtual-keyboard-toggle) { display: none !important; }
 .gk-exprrow-remove {
   border: none; background: none; color: #94a3b8; cursor: pointer;
   font-size: 1rem; line-height: 1; padding: 0 0.25rem; flex: none;
 }
 .gk-exprrow-remove:hover { color: #b91c1c; }
-.gk-exprrow-note { color: #b91c1c; font-size: 0.75rem; padding-left: 0.95rem; }
+.gk-exprrow-kb {
+  border: none; background: none; color: #64748b; cursor: pointer;
+  font-size: 1rem; line-height: 1; padding: 0 0.2rem; flex: none;
+}
+.gk-exprrow-kb:hover { color: #2563eb; }
+/* MathLive renders its virtual keyboard into the panel (container = panel).
+   Keep it inside the popup's rounded frame and above the board. */
+.gk-cal-floating .ML__keyboard { position: absolute; z-index: 130; }
+.gk-exprrow-note { font-size: 0.78rem; padding-left: 0.95rem; }
 .gk-exprrow-note:empty { display: none; }
+.gk-exprrow-note[data-kind='error'] { color: #b91c1c; }
+.gk-exprrow-note[data-kind='calc'] {
+  color: #0f172a; font-size: 0.95rem; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 .gk-exprrow-slider { display: flex; gap: 0.4rem; align-items: center; padding-left: 0.95rem; }
 .gk-exprrow-slider[hidden] { display: none; }
 .gk-slider-label {

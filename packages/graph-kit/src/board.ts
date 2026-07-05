@@ -46,7 +46,14 @@ interface JxgBoard {
   update(): void;
   setBoundingBox(bb: [number, number, number, number], keepAspect?: boolean): void;
   getBoundingBox(): [number, number, number, number];
+  getUsrCoordsOfMouse(evt: Event): [number, number];
   on(event: string, handler: () => void): void;
+}
+
+// A JSXGraph point handle — just the moveTo we call during a trace.
+interface JxgPoint {
+  moveTo(coords: [number, number]): void;
+  setAttribute(attrs: Record<string, unknown>): void;
 }
 
 let boardSeq = 0;
@@ -191,9 +198,11 @@ export function createBoard(container: HTMLElement): BoardController {
   // ---- Stage 4: the expression-list plots ------------------------------------
 
   let listObjects: unknown[] = [];
+  let plotItems: PlotItem[] = []; // kept for trace + fit (need the fns/coords)
 
   function setPlots(items: PlotItem[]): void {
     for (const obj of listObjects) board.removeObject(obj);
+    plotItems = items;
     listObjects = items.map((item) =>
       item.kind === 'curve'
         ? board.create('functiongraph', [item.fn], {
@@ -217,13 +226,104 @@ export function createBoard(container: HTMLElement): BoardController {
     board.update();
   }
 
+  // ---- Hover trace: read (x, y) off the nearest curve ------------------------
+  // Moving the pointer over the board snaps a marker to the nearest plotted
+  // curve at the cursor's x and shows the coordinate — the Desmos "read the
+  // graph" affordance. Only when hovering (no button held, so it never fights a
+  // drag-pan) and only near a curve (within ~24px).
+  const readout = document.createElement('div');
+  readout.className = 'gk-board-readout';
+  readout.hidden = true;
+  container.appendChild(readout);
+  let tracePoint: JxgPoint | null = null;
+
+  function hideTrace(): void {
+    readout.hidden = true;
+    tracePoint?.setAttribute({ visible: false });
+  }
+
+  container.addEventListener('pointermove', (e: PointerEvent) => {
+    const curves = plotItems.filter((it) => it.kind === 'curve');
+    if (e.buttons !== 0 || curves.length === 0) {
+      hideTrace();
+      return;
+    }
+    const [ux, uy] = board.getUsrCoordsOfMouse(e);
+    const [, yMax, , yMin] = board.getBoundingBox();
+    const pxPerY = container.offsetHeight / (yMax - yMin);
+    let best: { x: number; y: number; color: string } | null = null;
+    let bestPx = Infinity;
+    for (const c of curves) {
+      if (c.kind !== 'curve') continue;
+      const cy = c.fn(ux);
+      if (!Number.isFinite(cy)) continue;
+      const dPx = Math.abs(cy - uy) * pxPerY;
+      if (dPx < bestPx) {
+        bestPx = dPx;
+        best = { x: ux, y: cy, color: c.color };
+      }
+    }
+    if (!best || bestPx > 24) {
+      hideTrace();
+      return;
+    }
+    if (!tracePoint) {
+      tracePoint = board.create('point', [best.x, best.y], {
+        withLabel: false, fixed: true, size: 4, strokeColor: '#0f172a',
+        fillColor: best.color, highlight: false,
+      }) as unknown as JxgPoint;
+    }
+    tracePoint.setAttribute({ visible: true, fillColor: best.color });
+    tracePoint.moveTo([best.x, best.y]);
+    // A hair of rounding keeps the readout stable while tracing.
+    readout.textContent = `(${best.x.toFixed(2)}, ${best.y.toFixed(2)})`;
+    readout.hidden = false;
+    board.update();
+  });
+  container.addEventListener('pointerleave', hideTrace);
+
+  // ---- Zoom to fit: frame every plotted curve + point -----------------------
+  function fitToPlots(): void {
+    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    const add = (x: number, y: number): void => {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      xMin = Math.min(xMin, x); xMax = Math.max(xMax, x);
+      yMin = Math.min(yMin, y); yMax = Math.max(yMax, y);
+    };
+    for (const p of scatterPoints) add(p.x, p.y);
+    for (const it of plotItems) {
+      if (it.kind === 'point') add(it.px(), it.py());
+    }
+    // Curves are unbounded in x, so sample them across the CURRENT x window to
+    // find a sensible y-range rather than inventing an x-range.
+    const [cxMin, , cxMax] = board.getBoundingBox();
+    const hasPoints = Number.isFinite(xMin);
+    const sampleMin = hasPoints ? xMin : cxMin;
+    const sampleMax = hasPoints ? xMax : cxMax;
+    for (const it of plotItems) {
+      if (it.kind !== 'curve') continue;
+      for (let i = 0; i <= 60; i++) {
+        const x = sampleMin + ((sampleMax - sampleMin) * i) / 60;
+        add(x, it.fn(x));
+      }
+    }
+    if (!Number.isFinite(xMin)) { resetView(); return; }
+    const xPad = Math.max((xMax - xMin) * 0.1, 1);
+    const yPad = Math.max((yMax - yMin) * 0.1, 1);
+    board.setBoundingBox([xMin - xPad, yMax + yPad, xMax + xPad, yMin - yPad], false);
+    board.update();
+    announceView();
+  }
+
   // ---- Stage 3: scatter + fit curve (the data/regression panel) --------------
 
   let scatterDots: unknown[] = [];
+  let scatterPoints: { x: number; y: number }[] = []; // raw coords for fit
   let fitCurve: unknown = null;
 
   function setScatter(points: { x: number; y: number }[]): void {
     for (const dot of scatterDots) board.removeObject(dot);
+    scatterPoints = points;
     scatterDots = points.map((p) =>
       board.create('point', [p.x, p.y], {
         fixed: true,
@@ -268,6 +368,16 @@ export function createBoard(container: HTMLElement): BoardController {
     board.update();
     announceView();
   }
+
+  // "Zoom to fit" nav button (added after fitToPlots is defined). Sits below the
+  // reset-home button in the same stack.
+  const fitBtn = document.createElement('button');
+  fitBtn.type = 'button';
+  fitBtn.textContent = '⤢';
+  fitBtn.setAttribute('aria-label', 'Zoom to fit all plots');
+  fitBtn.addEventListener('click', fitToPlots);
+  fitBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+  nav.appendChild(fitBtn);
 
   function destroy(): void {
     JSXGraph.freeBoard(board as unknown as Parameters<typeof JSXGraph.freeBoard>[0]);

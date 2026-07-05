@@ -46,6 +46,26 @@ export interface ExpressionListHandle {
 
 const PALETTE = ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#d97706', '#0891b2'];
 
+// MathLive's virtual keyboard is a global singleton. Minimal view of what we
+// touch (show/hide/visible); container + layouts are configured once in
+// calculator.ts. Cast rather than depend on the full MathLive VK typings.
+interface VirtualKeyboard {
+  visible: boolean;
+  show(): void;
+  hide(): void;
+}
+function virtualKeyboard(): VirtualKeyboard | undefined {
+  return (window as unknown as { mathVirtualKeyboard?: VirtualKeyboard })
+    .mathVirtualKeyboard;
+}
+
+// Round away float noise (0.1 + 0.2) then drop trailing zeros — 12 sig figs
+// comfortably covers a calculator result. (Mirrors calculator.ts formatValue.)
+function formatNumber(n: number): string {
+  if (Number.isInteger(n) && Math.abs(n) < 1e15) return String(n);
+  return String(Number.parseFloat(n.toPrecision(12)));
+}
+
 interface Row {
   wrap: HTMLDivElement;
   field: MathfieldElement;
@@ -119,7 +139,18 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
     const items: PlotItem[] = [];
     for (const row of rows) {
       const c = row.classified;
-      row.note.textContent = c.kind === 'error' ? c.message : '';
+      // The note doubles as the error line and the "= value" calculation
+      // readout (a no-variable row), styled apart via data-kind.
+      if (c.kind === 'error') {
+        row.note.textContent = c.message;
+        row.note.dataset.kind = 'error';
+      } else if (c.kind === 'calculation') {
+        row.note.textContent = '= ' + formatNumber(c.value);
+        row.note.dataset.kind = 'calc';
+      } else {
+        row.note.textContent = '';
+        delete row.note.dataset.kind;
+      }
       row.sliderBox.hidden = c.kind !== 'slider';
       if (c.kind === 'slider') renderSlider(row, c.name);
       else row.sliderBox.textContent = '';
@@ -197,6 +228,26 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
     dot.style.background = row.color;
     row.field.className = 'gk-exprfield';
     row.field.mathVirtualKeyboardPolicy = 'manual';
+    // (MathLive's ☰ menu toggle — matrix/text/colour/variants — is hidden via
+    // CSS ::part(menu-toggle); setting .menuItems throws on an unmounted field.)
+
+    // Keyboard toggle pinned to the field's right edge: opens/closes the
+    // MathLive virtual keyboard (which renders inside the panel — see
+    // calculator.ts). Focuses this row first so the keyboard types here.
+    const kbBtn = document.createElement('button');
+    kbBtn.type = 'button';
+    kbBtn.className = 'gk-exprrow-kb';
+    kbBtn.setAttribute('aria-label', 'Show or hide the keyboard');
+    kbBtn.textContent = '⌨';
+    kbBtn.addEventListener('pointerdown', (e) => e.preventDefault()); // keep field focus
+    kbBtn.addEventListener('click', () => {
+      row.field.focus();
+      const vk = virtualKeyboard();
+      if (!vk) return;
+      if (vk.visible) vk.hide();
+      else vk.show();
+    });
+
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'gk-exprrow-remove';
@@ -222,7 +273,7 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
       rebuild();
     });
 
-    line.append(dot, row.field, removeBtn);
+    line.append(dot, row.field, kbBtn, removeBtn);
     row.wrap.append(line, row.sliderBox, row.note);
     rows.push(row);
     rowsHost.appendChild(row.wrap);

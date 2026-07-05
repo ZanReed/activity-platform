@@ -236,6 +236,10 @@ export type ExpressionRow =
       py: (vars?: Record<string, number>) => number;
     }
   | { kind: 'function'; fn: (x: number, vars?: Record<string, number>) => number }
+  // A no-variable expression (2+3, sin(30)) — shown as "= value", not plotted.
+  // Desmos-style: `y = 5` is still a function (a horizontal line); a bare
+  // constant is a calculation.
+  | { kind: 'calculation'; value: number }
   | { kind: 'error'; message: string };
 
 // Split `inner` at its single top-level comma (depth-0 with respect to
@@ -319,6 +323,12 @@ export function classifyExpression(
         };
       }
     }
+
+    // Calculation: a no-variable expression (2+3, sin(30)) evaluates to a plain
+    // number here — evaluate() has no x/slider scope, so anything with a
+    // variable throws and falls through to a function/plot instead.
+    const calc = evaluate(expr, opts);
+    if (calc.ok) return { kind: 'calculation', value: calc.value };
   }
 
   const fn = compileFunction(expr, opts);
