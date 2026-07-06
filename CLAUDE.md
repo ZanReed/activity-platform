@@ -11,7 +11,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - **docs/DECISIONS.md** — architecture decisions + reasoning, by area. Check before re-deciding anything.
 - **docs/HISTORY.md** — archived completed-work logs.
 - **docs/COLLABORATION.md** — working-with-the-author notes.
-- **docs/design/** — feature designs (print/printables, interactive graph, vocabulary definitions, PDF import, photo grading, free activity catalog).
+- **docs/design/** — feature designs (print/printables, calculator tool, interactive graph, variable block sizing, vocabulary definitions, PDF import, photo grading, free activity catalog).
 - **docs/markdown-import-format.md** — the format the paste-markdown importer accepts (the contract a teacher or an AI assistant writes to; shared target for the future PDF import). Mirrors `packages/app/src/lib/markdownToTiptap.ts` + the copy-paste prompt in `markdownImportPrompt.ts`.
 - **supabase/functions/README.md**, **supabase/migrations/README.md** — Edge Function and DB setup/deploy reference.
 
@@ -55,7 +55,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - Don't put auth or DB code in the renderer. Package boundary is the discipline.
 - Don't write RLS policies that inline ownership checks — call the helpers.
 - Don't conflate ProseMirror selection state (`selected`) with React UI state (`editing`) in NodeViews. Mixing them causes the "input deselects after one keystroke" class of bug.
-- Don't add MathLive to published HTML in Phase 1. That's a Phase 2.5 decision.
+- Don't add MathLive to published HTML *eagerly*. The deferred "Phase 2.5 decision" was resolved in Phase 2.7: MathLive reaches published pages only inside the lazy-loaded graph-kit bundle (fetched on calculator open). It never joins the inlined runtime or the base page weight.
 - Don't regress flowing-water UX as features land — performance budget, optimistic autosave, visible state indicators, predictable shortcuts. Flag friction risks proactively.
 - Don't mix `@tiptap/*` package versions. Update the family together.
 - Don't make breaking changes to the runtime data-attribute contract. Add new attributes; never rename or remove existing ones.

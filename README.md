@@ -1,10 +1,11 @@
 # activity-platform
 
-The monorepo for the Phase 1 activity platform. Three packages:
+The monorepo for the activity platform. Four packages:
 
 - **`@activity/schema`** — TypeScript types and Zod validators for the document tree and submission responses. The bottom of the dependency graph; depends on nothing but Zod. No DOM, no React, no I/O.
 - **`@activity/renderer`** — Pure function that converts a validated `ActivityDocument` into a complete HTML page. Depends on `@activity/schema` and KaTeX. No DOM, no React, no I/O. Same code runs in Node tests, Deno Edge Functions, or anywhere else.
-- **`@activity/app`** — The React + Vite + Tiptap editor and dashboard. Depends on `@activity/schema`; talks to Supabase. The only package that touches the DOM, React, or the network.
+- **`@activity/graph-kit`** — The shared graphing kit (Phase 2.7): expression evaluation (math.js), MathLive input, JSXGraph board, regression. Consumed two ways from one implementation: published pages lazy-`import()` the content-hashed bundle from R2; the editor preview imports it directly. DOM TypeScript, but no React and no Supabase.
+- **`@activity/app`** — The React + Vite + Tiptap editor and dashboard. Depends on `@activity/schema` and `@activity/graph-kit` (editor preview); talks to Supabase.
 
 For where the build *is* and what's in flight, see `STATE.md`; for where it's going, see `ROADMAP.md`. This README is durable orientation only — it deliberately does not track build status, so it can't drift out of date the way a status list does.
 
@@ -21,10 +22,11 @@ pnpm install
 pnpm test
 ```
 
-`pnpm test` runs the suites for all three packages. Exact test counts drift as the suite grows, so they aren't pinned here — what matters is that every package's suite passes. Test locations follow a fixed convention:
+`pnpm test` runs the suites for all four packages. Exact test counts drift as the suite grows, so they aren't pinned here — what matters is that every package's suite passes. Test locations follow a fixed convention:
 
 - `@activity/schema` — `tests/` (public-API tests) and `src/__tests__/` (unit tests)
 - `@activity/renderer` — `tests/`
+- `@activity/graph-kit` — `tests/`
 - `@activity/app` — `src/__tests__/`
 
 ## Common commands
@@ -37,6 +39,7 @@ pnpm test
 | `pnpm lint` | Lint all packages (currently the app) |
 | `pnpm build` | Build all packages |
 | `pnpm bundle:renderer` | Bundle the renderer for Edge Function consumption → `supabase/functions/_shared/renderer.bundle.js` |
+| `pnpm build:graph-kit` | Bundle the graphing kit, upload it to R2 (`shared/`), and regenerate `supabase/functions/_shared/graph-kit-manifest.ts` (creds auto-load from gitignored `.env.r2`) |
 | `pnpm clean` | Remove all `dist/` directories |
 
 Single-package commands work too:
@@ -94,4 +97,4 @@ This README intentionally does not track build status — that is what `STATE.md
 
 The `supabase/functions/` directory holds Deno Edge Functions. `publish-activity` takes a draft, atomically snapshots a version, validates, renders, and uploads the static HTML to Cloudflare R2. `ingest-submission` receives student submissions from published pages, validates them, and writes to the `submissions` table. `upload-image` handles editor image uploads to R2. See `supabase/functions/README.md` for setup and deploy instructions.
 
-The renderer is bundled for Edge Function consumption via `pnpm bundle:renderer`, which produces `supabase/functions/_shared/renderer.bundle.js`. Re-run after any change to `packages/schema` or `packages/renderer`. CI (`.github/workflows/ci.yml`) runs `typecheck → lint → test → build` on every push/PR and re-runs `bundle:renderer`, failing if the committed bundle is stale — so a forgotten re-bundle is caught before deploy rather than shipping silently.
+The renderer is bundled for Edge Function consumption via `pnpm bundle:renderer`, which produces `supabase/functions/_shared/renderer.bundle.js`. Re-run after any change to `packages/schema` or `packages/renderer`. CI (`.github/workflows/ci.yml`) runs `typecheck → lint → test → build` on every PR and on pushes to `main` (feature-branch pushes are covered by their PR run) and re-runs `bundle:renderer`, failing if the committed bundle is stale — so a forgotten re-bundle is caught before deploy rather than shipping silently.

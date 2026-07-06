@@ -233,6 +233,22 @@ What changed (this **DID** touch renderer/runtime/bundle, unlike Stage 15 proper
 
 ---
 
+## Archived deploy clearances
+
+Deploy/upload/migration clearances collapsed out of STATE.md's "Pending author actions" once done. Newest first.
+
+- **2026-07-06 — kit `graph-kit-ZMCQEGJA.js` uploaded to R2 + `publish-activity` redeployed (author-confirmed).** The calculator graphing-UX overhaul (floating panel, in-panel MathLive keyboard, splitter, hover-trace, sticky axes) and the inline vocabulary-definitions renderer changes are live in the publish pipeline. Only per-activity re-publish remains for either to reach an existing page.
+- **2026-07-05 — kit `graph-kit-EQ5MV42W.js` uploaded to R2 + `publish-activity` redeployed.** `pnpm build:graph-kit` uploaded all three code-split files to `shared/`, verified reachable (HTTP 200): entry `EQ5MV42W` (~982 KiB), JSXGraph chunk `X3OE7ZAZ` (~898 KiB), shared chunk `PBY3QZDK` (544 B). `publish-activity` computes `calculatorKitUrl = R2_PUBLIC_URL_BASE + '/shared/' + CALCULATOR_KIT_FILE`, now resolving live; the same redeploy shipped the vocabulary-definitions renderer changes (both baked into the committed `renderer.bundle.js`). Superseded same-week by the `ZMCQEGJA` re-hash above.
+- **2026-06-18 — `publish-activity` redeployed + activity re-published — reference panel live.** The on-screen bottom-bar toolbar (with the ~1 KiB `runtime/reference-panel.ts` sidecar: top-edge drag-resize + `ResizeObserver` scroll-clearance) and the print box reach published pages, gated by `meta.print.printReferencePanel`. Deployed after the two live-test fixes (body scroll on the body's `max-height`; resize handle at the panel top edge); author confirmed working.
+- **2026-06-18 — `publish-activity` redeployed — order-independent blank groups verified live** (any-order accepted; consume-once rejects duplicate answers; `{{~}}` markdown import round-tripped through publish).
+- **2026-06-18 — legacy Supabase Storage `activities` bucket deleted by author** (R2 verified end-to-end; the app's `.from('activities')` calls are the DB table, not the bucket; nothing referenced it; no env vars needed removing).
+- **2026-06-17 — migration `0008_soft_delete_activity.sql` deployed — deleting activities works** (see the RLS writeup below and DECISIONS → "Activity deletion").
+- **2026-06-16 — cross-origin `<img>` loads from R2 confirmed working; the three real-mouse GUI passes confirmed** (drag-between-cells, image resize handles, nested rich-text mini-editor). Also `publish-activity` redeployed with the submission-payload fix (runtime POSTs snake_case `activity_id`/`display_name`) and `[TEST] E2E Coverage` re-published — live submit verified end to end.
+- **2026-06-13 — `publish-activity` at v34** (verified via Supabase API), carrying the full variable-block-sizing bundle (width fill + image fixed-height crop + cell `--cell-min-height`).
+- **2026-06-12 — migration 0007 applied; `upload-image` deployed; `ingest-submission` running with `verify_jwt: false`.**
+
+---
+
 ## Rolling "Last updated" log
 
 ---
