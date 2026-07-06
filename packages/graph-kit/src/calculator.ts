@@ -211,13 +211,63 @@ const remembered: PanelGeom = {};
 
 // Minimal view of MathLive's global virtual-keyboard singleton (graphing mode
 // configures it to render inside the panel with a single, matrix-free layout).
+// `normalizedLayouts` is the expanded (layers → rows → keycaps) form of the
+// current `layouts`; we read it to graft a comma key onto the built-in numeric
+// layout (see numericLayoutWithComma).
+interface VkKeycap {
+  latex?: string;
+  label?: string;
+  key?: string;
+  class?: string;
+  command?: unknown;
+}
+interface VkLayer {
+  rows?: (VkKeycap | string)[][];
+}
+interface VkLayout {
+  layers?: VkLayer[];
+}
 interface VirtualKeyboardConfig {
   layouts: unknown;
+  normalizedLayouts?: readonly VkLayout[];
   container: HTMLElement | null;
 }
 function virtualKeyboard(): VirtualKeyboardConfig | undefined {
   return (window as unknown as { mathVirtualKeyboard?: VirtualKeyboardConfig })
     .mathVirtualKeyboard;
+}
+
+// MathLive's built-in 'numeric' layout has no comma key, so a touch-only
+// student can't type a point like (a, b) — the one input that graphing needs
+// and typing can't easily supply on a tablet. Start from the normalized numeric
+// layout and splice a comma keycap in right after the decimal-separator key,
+// leaving the rest of the (author-verified) layout untouched. If MathLive's
+// internals ever change shape, fall back to the plain 'numeric' layout —
+// comma-less but functional — rather than break the keyboard.
+function numericLayoutWithComma(vk: VirtualKeyboardConfig): unknown {
+  try {
+    vk.layouts = ['numeric'];
+    const base = vk.normalizedLayouts?.[0];
+    if (!base?.layers) return 'numeric';
+    const layout = structuredClone(base) as VkLayout;
+    const comma: VkKeycap = { latex: ',', label: ',', class: 'big-op hide-shift' };
+    const isDecimal = (k: VkKeycap | string): boolean =>
+      typeof k !== 'string' &&
+      typeof k.command === 'string' &&
+      k.command.includes('insertDecimalSeparator');
+    for (const layer of layout.layers ?? []) {
+      for (const row of layer.rows ?? []) {
+        const at = row.findIndex(isDecimal);
+        if (at >= 0) {
+          row.splice(at + 1, 0, comma);
+          return [layout];
+        }
+      }
+    }
+    return 'numeric'; // decimal key not found — leave the layout untouched
+  } catch {
+    return 'numeric';
+  }
 }
 
 export function mountCalculator(
@@ -614,7 +664,7 @@ export function mountCalculator(
     const vk = virtualKeyboard();
     if (vk) {
       try {
-        vk.layouts = ['numeric'];
+        vk.layouts = numericLayoutWithComma(vk);
         vk.container = panel;
       } catch {
         /* unexpected MathLive VK shape — fall back to its defaults */
