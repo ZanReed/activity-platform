@@ -11,7 +11,7 @@
 // leaves the Edge runtime.
 //
 // Validation happens in three layers, defense in depth:
-//   1. Edge Function (this file): shape check, schemaVersion=2 check, Zod parse,
+//   1. Edge Function (this file): shape check, schemaVersion=3 check, Zod parse,
 //      score range
 //   2. SQL function ingest_submission: activity is published, identity present,
 //      attempt_number derivation (NEVER from client input)
@@ -135,18 +135,18 @@ Deno.serve(async (req: Request) => {
     return errorResponse(req, 400, 'Must provide display_name or opaque_token');
   }
 
-  // ---- Reject non-v2 responses ------------------------------------------
-  // v2-only enforcement: the runtime emits v2; v1 only exists as
-  // already-stored data and is handled by migrateSubmissionResponses on read.
-  // Reject v1 cleanly rather than silently accepting it through a discriminated
-  // union — this is the canonical place to enforce wire-format version, and a
-  // schemaVersion mismatch is a clear "your client is out of date" signal we
-  // want surfaced.
+  // ---- Reject non-v3 responses ------------------------------------------
+  // v3-only enforcement: the runtime emits v3 (Stage 5 added graphResponses);
+  // v1/v2 only exist as already-stored data and are handled by
+  // migrateSubmissionResponses on read. Reject older wire versions cleanly
+  // rather than silently accepting them through a discriminated union — this is
+  // the canonical place to enforce wire-format version, and a schemaVersion
+  // mismatch is a clear "your client is out of date" signal we want surfaced.
   const rawResponses = body.responses as { schemaVersion?: unknown } | null;
   if (
     typeof rawResponses !== 'object' ||
     rawResponses === null ||
-    rawResponses.schemaVersion !== 2
+    rawResponses.schemaVersion !== 3
   ) {
     const got =
     typeof rawResponses === 'object' && rawResponses !== null
@@ -155,11 +155,11 @@ Deno.serve(async (req: Request) => {
 return errorResponse(
   req,
   400,
-  `responses must use schemaVersion 2 (received: ${got})`,
+  `responses must use schemaVersion 3 (received: ${got})`,
 );
   }
 
-  // ---- Validate responses with Zod (v2 only) ----------------------------
+  // ---- Validate responses with Zod (current version only) ---------------
   const parsed = SubmissionResponses.safeParse(body.responses);
   if (!parsed.success) {
     return errorResponse(req, 422, 'responses failed schema validation', {

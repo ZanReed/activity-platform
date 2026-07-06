@@ -27,6 +27,7 @@ import type {
   RuntimeState,
   BlankState,
   BlockState,
+  GraphBlockState,
   SectionState,
 } from './state.js';
 
@@ -66,7 +67,9 @@ export function saveName(name: string): void {
  * SubmissionResponses.schemaVersion — those live in the schema package;
  * this one is a runtime-internal concern.
  */
-const STORAGE_SCHEMA_VERSION = 3;
+// 3 → 4 (Stage 5): the blob gained a `graphs` map (interactive-graph block
+// state — the plotted point, scoring, solution reveal, confidence).
+const STORAGE_SCHEMA_VERSION = 4;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {
@@ -77,6 +80,8 @@ export interface StoredActivityState {
   blanks: Record<string, BlankState>;
   /** Per-block state snapshot. */
   blocks: Record<string, BlockState>;
+  /** Per-interactive-graph-block state snapshot. */
+  graphs: Record<string, GraphBlockState>;
   /** Per-section state snapshot. */
   sections: Record<string, SectionState>;
 }
@@ -111,6 +116,7 @@ export function saveActivityState(
       values,
       blanks: state.blanks,
       blocks: state.blocks,
+      graphs: state.graphs,
       sections: state.sections,
     };
     localStorage.setItem(
@@ -235,6 +241,12 @@ export function applyStoredState(
   }
   for (const [id, blockState] of Object.entries(stored.blocks)) {
     if (state.blocks[id]) state.blocks[id] = blockState;
+  }
+  // stored.graphs is absent in blobs written before this field existed; the
+  // schemaVersion bump already discards those, but guard anyway (?? {}) so a
+  // hand-edited or partial blob can't throw here.
+  for (const [id, graphState] of Object.entries(stored.graphs ?? {})) {
+    if (state.graphs[id]) state.graphs[id] = graphState;
   }
   for (const [id, sectionState] of Object.entries(stored.sections)) {
     if (state.sections[id]) state.sections[id] = sectionState;

@@ -46,7 +46,13 @@ function buildBlankRef(
 function makeRefs(refs: BlankRef[]): Refs {
   const blanks = new Map<string, BlankRef>();
   for (const ref of refs) blanks.set(ref.input.dataset.blankId ?? '', ref);
-  return { blanks, fillInBlanks: new Map(), sections: new Map(), popover: null };
+  return {
+    blanks,
+    fillInBlanks: new Map(),
+    graphs: new Map(),
+    sections: new Map(),
+    popover: null,
+  };
 }
 
 function makeState(blankIds: string[]): RuntimeState {
@@ -60,6 +66,7 @@ function makeState(blankIds: string[]): RuntimeState {
     sections: {},
     blanks,
     blocks: {},
+    graphs: {},
   };
 }
 

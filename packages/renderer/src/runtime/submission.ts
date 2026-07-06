@@ -42,6 +42,15 @@ interface BlankResult {
   confidence?: 'unsure' | 'think_so' | 'certain';
 }
 
+// Mirrors schema GraphResponse (PointResponse) — the wire contract with
+// ingest-submission. Slice 1 emits plot_point only.
+interface GraphResult {
+  type: 'plot_point';
+  studentPoints: [number, number][];
+  correct: boolean;
+  confidence?: 'unsure' | 'think_so' | 'certain';
+}
+
 interface CheckpointResultPayload {
   score: number;
   total: number;
@@ -49,9 +58,10 @@ interface CheckpointResultPayload {
 }
 
 interface SubmissionResponsesPayload {
-  schemaVersion: 2;
+  schemaVersion: 3;
   blanks: Record<string, BlankResult>;
   checkpointResults?: Record<string, CheckpointResultPayload>;
+  graphResponses?: Record<string, GraphResult>;
 }
 
 // Wire shape POSTed to the ingest-submission Edge Function. Keys are
@@ -75,15 +85,22 @@ export interface SubmissionPayload {
 export function buildSubmissionPayload(
   config: RuntimeConfig,
   displayName: string,
-  gathered: { blanks: Record<string, BlankResult>; score: number },
+  gathered: {
+    blanks: Record<string, BlankResult>;
+    graphResponses?: Record<string, GraphResult>;
+    score: number;
+  },
   checkpointResults: Record<string, CheckpointResultPayload> | undefined,
 ): SubmissionPayload {
   const responses: SubmissionResponsesPayload = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     blanks: gathered.blanks,
   };
   if (checkpointResults) {
     responses.checkpointResults = checkpointResults;
+  }
+  if (gathered.graphResponses) {
+    responses.graphResponses = gathered.graphResponses;
   }
   return {
     activity_id: config.activityId,
@@ -95,6 +112,7 @@ export function buildSubmissionPayload(
 
 interface GatheredResponses {
   blanks: Record<string, BlankResult>;
+  graphResponses?: Record<string, GraphResult>;
   score: number;
   totalScored: number;
 }
@@ -141,8 +159,34 @@ export function gatherResponses(
     blanks[blankId] = result;
   }
 
+  // Interactive-graph blocks score alongside blanks (each is one scorable unit,
+  // client-side-scored by the kit as the student moved the point). An unanswered
+  // graph is an omission — counted in neither total nor correct, and absent from
+  // the graphResponses map (nothing to record).
+  const graphResponses: Record<string, GraphResult> = {};
+  let graphCount = 0;
+  for (const graphId of refs.graphs.keys()) {
+    const gs = state.graphs[graphId];
+    if (!gs) continue;
+    if (gs.result !== null) {
+      totalScored += 1;
+      if (gs.result === true) totalCorrect += 1;
+    }
+    if (gs.answered && gs.point) {
+      const result: GraphResult = {
+        type: 'plot_point',
+        studentPoints: [gs.point],
+        correct: gs.result === true,
+      };
+      if (gs.confidence) result.confidence = gs.confidence;
+      graphResponses[graphId] = result;
+      graphCount += 1;
+    }
+  }
+
   return {
     blanks,
+    ...(graphCount > 0 && { graphResponses }),
     score: computeScore(totalCorrect, totalScored),
     totalScored,
   };

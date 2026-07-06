@@ -21,6 +21,7 @@ import type {
     Refs,
     BlankRef,
     FillInBlankRef,
+    GraphRef,
     SectionRef,
     PopoverRef,
 } from './refs.js';
@@ -28,6 +29,7 @@ import type {
     RuntimeState,
     BlankState,
     BlockState,
+    GraphBlockState,
     SectionState,
 } from './state.js';
 
@@ -43,6 +45,10 @@ export function render(state: RuntimeState, refs: Refs): void {
     for (const [id, ref] of refs.fillInBlanks) {
         const blockState = state.blocks[id];
         if (blockState) renderBlock(blockState, ref);
+    }
+    for (const [id, ref] of refs.graphs) {
+        const graphState = state.graphs[id];
+        if (graphState) renderGraph(graphState, ref, state);
     }
     for (const [id, ref] of refs.sections) {
         const sectionState = state.sections[id];
@@ -138,6 +144,63 @@ function renderBlock(blockState: BlockState, ref: FillInBlankRef): void {
         if (radio.checked !== wantChecked) {
             radio.checked = wantChecked;
         }
+    }
+}
+
+// Reflect one interactive-graph block's state into the DOM regions the runtime
+// owns: the aria-live feedback line, the solution slot, the confidence radios,
+// and the widget lock. The canvas board itself is the kit's (mounted by the
+// graphs sidecar); render only drives the surrounding block chrome.
+function renderGraph(
+    graphState: GraphBlockState,
+    ref: GraphRef,
+    state: RuntimeState,
+): void {
+    // Solution slot — hidden until revealed at check time (fail-closed).
+    if (ref.solutionEl) {
+        const wantHidden = !graphState.solutionRevealed;
+        if (ref.solutionEl.hidden !== wantHidden) {
+            ref.solutionEl.hidden = wantHidden;
+        }
+    }
+
+    // Confidence radios reflect the stored selection (restore-on-load + keep
+    // state↔DOM consistent). No-op when the block has no fieldset.
+    for (const radio of ref.confidenceRadios) {
+        const wantChecked = radio.value === graphState.confidence;
+        if (radio.checked !== wantChecked) {
+            radio.checked = wantChecked;
+        }
+    }
+
+    // Feedback line: after the section is checked, reveal correctness (respecting
+    // "don't reveal before checking"); before that, narrate the plotted position
+    // for screen-reader users on every move. aria-live announces on text change.
+    if (ref.feedbackEl) {
+        const checked = state.sections[ref.sectionId]?.checked === true;
+        let text = '';
+        let dataState: string | null = null;
+        if (checked && graphState.result !== null) {
+            text = graphState.result ? 'Correct!' : 'Not quite — try again.';
+            dataState = graphState.result ? 'correct' : 'incorrect';
+        } else if (graphState.answered && graphState.point) {
+            text = 'Point plotted at (' + graphState.point[0] + ', ' + graphState.point[1] + ').';
+        }
+        const wantHidden = text === '';
+        if (ref.feedbackEl.hidden !== wantHidden) ref.feedbackEl.hidden = wantHidden;
+        if (ref.feedbackEl.textContent !== text) ref.feedbackEl.textContent = text;
+        const current = ref.feedbackEl.getAttribute('data-state');
+        if (dataState !== current) {
+            if (dataState === null) ref.feedbackEl.removeAttribute('data-state');
+            else ref.feedbackEl.setAttribute('data-state', dataState);
+        }
+    }
+
+    // Lock the widget in locked mode once the section is checked. The handle is
+    // acquired asynchronously by the sidecar, so this no-ops until the board has
+    // mounted; the sidecar also applies the restored lock on mount.
+    if (ref.handle) {
+        ref.handle.setLocked(state.sections[ref.sectionId]?.locked === true);
     }
 }
 

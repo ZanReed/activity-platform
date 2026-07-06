@@ -217,13 +217,13 @@ When the section is a checkpoint (in locked/free mode), it includes:
 
 Every top-level block carries `data-block-category`, `data-block-type`, and `data-block-id`. `<section>` is a container, not a block (carries `data-block-category` + `data-section-id` only). `<li>` carries neither (list items are inside list blocks).
 
-- `data-block-type` is the Zod schema discriminant **verbatim** — snake_case (`paragraph`, `heading`, `math_block`, `image`, `callout`, `problem`, `fill_in_blank`, `bullet_list`, `ordered_list`). Init's selector `[data-block-type="fill_in_blank"]` matches this literal exactly.
+- `data-block-type` is the Zod schema discriminant **verbatim** — snake_case (`paragraph`, `heading`, `math_block`, `image`, `callout`, `problem`, `fill_in_blank`, `bullet_list`, `ordered_list`, `interactive_graph`). Init's selector `[data-block-type="fill_in_blank"]` matches this literal exactly.
 - `data-block-id` is the block's stable document `id` (uuid).
 - `data-block-category` is `content | question | scaffold`. Coarse discriminator; analytics and dashboard features can branch on this without enumerating every block-type string.
 
 Phase 1 block types by category:
 - `content` — `paragraph`, `heading`, `image`, `callout`, `math_block`, `bullet_list`, `ordered_list`
-- `question` — `problem`, `fill_in_blank`
+- `question` — `problem`, `fill_in_blank`, `interactive_graph`
 - `scaffold` — `[target — Phase 2+]` `worked_example`, `faded_worked_example`, `self_explanation`, etc.
 
 ### Sizing attributes (additive, presentational — runtime never reads them)
@@ -393,6 +393,37 @@ Activity-level, teacher-configurable on-screen calculator a student summons whil
 - `data-calculator-kit-src` — absolute URL of the shared, content-hashed kit bundle on R2 (per-render, supplied by `publish-activity`; the renderer stays pure).
 
 **Lazy-load, on click — not on presence.** The only always-shipped weight is a **separate inlined sidecar** (`runtime/calculator-summon.ts`, ~0.8 KiB), inlined by `document.ts` only when a calculator was emitted. On the first summon click it `import()`s the heavy widget (MathLive + keypad + evaluator, hundreds of KiB) from `data-calculator-kit-src`, then drives toggling and keeps `aria-expanded` in sync; a failed import disables only the calculator. Kit contract: the imported module exports `mountCalculator(mount, config, { onToggle })` returning `{ toggle(), isOpen }`. The widget itself is Phase 2.7 Stage 1+. See docs/design/calculator-tool.md.
+
+### Interactive graph block (`data-block-category="question"`)
+
+The graded plot-a-point block (Phase 2.7 Stage 5). Unlike the calculator scaffold this is a **graded question**: it lives inside a `.activity-section`, the `init` walker picks it up, and its answer scores into the section checkpoint + the submit payload. The heavy widget (JSXGraph) rides the SAME lazy graph kit the calculator uses.
+
+```html
+<div class="block block-interactive-graph" data-block-category="question"
+     data-block-type="interactive_graph"
+     data-block-id="<uuid>" data-graph-block-id="<uuid>"
+     data-graph-interaction-type="plot_point"
+     data-graph-config="{&quot;xMin&quot;:-10,…,&quot;snapToGrid&quot;:true}"
+     data-graph-answer-key="{&quot;correctPoints&quot;:[[3,4]],&quot;tolerance&quot;:0.1}"
+     data-graph-kit-src="https://…/shared/graph-kit-<hash>.js">
+  <div class="block-problem-number">1.</div>
+  <div class="block-problem-body">
+    <div class="graph-prompt">…inline prompt…</div>
+    <div class="graph-canvas" data-graph-canvas="<uuid>" role="application" tabindex="0">
+      <p class="graph-nojs">…needs-JS fallback (hand-plot box in print)…</p>
+    </div>
+    <div class="js-graph-feedback" data-for-graph="<uuid>" aria-live="polite" hidden></div>
+    <!-- optional: .js-confidence-rating fieldset, .js-solution slot (as fill_in_blank) -->
+  </div>
+</div>
+```
+
+- `data-graph-interaction-type` — the interaction discriminant (`plot_point`; `plot_line` / `shade_region` are future variants).
+- `data-graph-config` — JSON `AxisConfig` (coordinate window + grid + snap), HTML-entity-escaped, parsed once in init (bad JSON → `undefined` → kit defaults).
+- `data-graph-answer-key` — JSON of the interaction's answer key (`correctPoints` + `tolerance`), same client-side-scoring ceiling as `data-blank-answers` (Phase 5 server grading removes it).
+- `data-graph-kit-src` — absolute R2 kit URL (per-render, from `publish-activity`); **omitted** on the print path and when no kit URL is available → the sidecar leaves the static placeholder and the block submits as unanswered.
+
+**Hydration + scoring.** `init` builds a `GraphRef` (canvas, feedback slot, solution slot, parsed config/answer-key, kit src) and lists the block on its section's `graphBlockIds`. The `wireGraphs` sidecar `import()`s the kit and calls `mountGraphQuestion(canvas, {interactionType, axisConfig, answerKey}, {onChange})`, which returns `{ getResponse(), restore(points), setLocked(locked), destroy() }` (mounts JSXGraph into `.graph-canvas`, arrow-keys move the point, drag snaps to grid). Each move writes `state.graphs[id]` (point, answered, result) and fires `onUpdate`, so the graph participates in checkpoint scoring (one scorable unit — an unanswered graph is an omission, like an empty blank), the submit payload (`SubmissionResponses.graphResponses`, schemaVersion **3**), and reload restore (`STORAGE_SCHEMA_VERSION` **4**) exactly like a blank. `render` owns the block chrome (feedback narration/result, solution reveal, confidence radios, widget lock via `GraphRef.handle`); the canvas board is the kit's. `GraphRef.handle` is the one **mutable** ref field (the widget is acquired asynchronously after init).
 
 ### Reading discipline
 

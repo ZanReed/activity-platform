@@ -66,18 +66,38 @@ describe('buildSubmissionPayload — wire contract with ingest-submission', () =
         expect('displayName' in payload).toBe(false);
     });
 
-    it('carries responses with schemaVersion 2 and the gathered blanks', () => {
+    it('carries responses with schemaVersion 3 and the gathered blanks', () => {
         const payload = buildSubmissionPayload(CONFIG, 'Ada', gathered, undefined);
-        expect(payload.responses.schemaVersion).toBe(2);
+        expect(payload.responses.schemaVersion).toBe(3);
         expect(payload.responses.blanks).toEqual(gathered.blanks);
-        // No checkpointResults key when none were gathered.
+        // No checkpointResults / graphResponses keys when none were gathered.
         expect('checkpointResults' in payload.responses).toBe(false);
+        expect('graphResponses' in payload.responses).toBe(false);
     });
 
     it('includes checkpointResults only when provided', () => {
         const cp = { 'sec-1': { score: 1, total: 2, checkedAt: '2026-06-16T00:00:00Z' } };
         const payload = buildSubmissionPayload(CONFIG, 'Ada', gathered, cp);
         expect(payload.responses.checkpointResults).toEqual(cp);
+    });
+
+    it('includes graphResponses only when the gathered data carries them', () => {
+        const withGraph = {
+            blanks: {},
+            graphResponses: {
+                'graph-1': {
+                    type: 'plot_point' as const,
+                    studentPoints: [[3, 4] as [number, number]],
+                    correct: true,
+                },
+            },
+            score: 1,
+        };
+        const payload = buildSubmissionPayload(CONFIG, 'Ada', withGraph, undefined);
+        expect(payload.responses.graphResponses).toEqual(withGraph.graphResponses);
+        // Absent when the gathered data has none.
+        const plain = buildSubmissionPayload(CONFIG, 'Ada', gathered, undefined);
+        expect('graphResponses' in plain.responses).toBe(false);
     });
 });
 

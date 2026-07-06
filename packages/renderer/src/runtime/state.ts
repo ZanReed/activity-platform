@@ -79,6 +79,27 @@ export interface BlockState {
     confidence: 'unsure' | 'think_so' | 'certain' | null;
 }
 
+export interface GraphBlockState {
+    /**
+     * The student's plotted point in graph units, or null before they've
+     * touched the widget. Persisted so a reload restores the plotted answer
+     * (the sidecar calls the kit's restore() with it).
+     */
+    point: [number, number] | null;
+    /** True once the student has moved the point (drag or keyboard) at least once. */
+    answered: boolean;
+    /**
+     * Scoring result: true correct, false incorrect, null unscored. Null until
+     * the student answers — an untouched graph is an omission (counts in the
+     * section total, not the correct count), exactly like an empty blank.
+     */
+    result: boolean | null;
+    /** Whether this block's solution slot has been revealed (post-check). */
+    solutionRevealed: boolean;
+    /** Student's per-block confidence selection (null until picked). */
+    confidence: 'unsure' | 'think_so' | 'certain' | null;
+}
+
 export interface RuntimeState {
     /** True once the final submit has completed successfully. */
     submitted: boolean;
@@ -105,6 +126,8 @@ export interface RuntimeState {
     blanks: Record<string, BlankState>;
     /** Per-fill-in-blank-block status, keyed by block.id. */
     blocks: Record<string, BlockState>;
+    /** Per-interactive-graph-block status, keyed by block.id. */
+    graphs: Record<string, GraphBlockState>;
 }
 
 /**
@@ -142,6 +165,16 @@ export function createInitialState(refs: Refs): RuntimeState {
             confidence: null,
         };
     }
+    const graphs: Record<string, GraphBlockState> = {};
+    for (const [id] of refs.graphs) {
+        graphs[id] = {
+            point: null,
+            answered: false,
+            result: null,
+            solutionRevealed: false,
+            confidence: null,
+        };
+    }
     return {
         submitted: false,
         attemptNumber: 1,
@@ -150,5 +183,6 @@ export function createInitialState(refs: Refs): RuntimeState {
         sections,
         blanks,
         blocks,
+        graphs,
     };
 }

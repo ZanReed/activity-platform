@@ -147,6 +147,7 @@ function makeSectionRef(
         isCheckpoint,
         blankIds,
         blockIds,
+        graphBlockIds: [],
         checkButton,
         scoreEl,
     };
@@ -241,12 +242,13 @@ function buildFixture(spec: FixtureSpec): Fixture {
         sections: sectionsState,
         blanks: blanksState,
         blocks: blocksState,
+        graphs: {},
     };
 
     return {
         config,
         state,
-        refs: { blanks, fillInBlanks, sections, popover: null },
+        refs: { blanks, fillInBlanks, graphs: new Map(), sections, popover: null },
     };
 }
 

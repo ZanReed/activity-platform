@@ -32,6 +32,7 @@ import {
 import { wireBlanks, wireHints, wireMistakes, wirePopover } from './blanks.js';
 import { wireCheckpoints } from './checkpoints.js';
 import { wireConfidence } from './confidence.js';
+import { wireGraphs } from './graphs.js';
 import { render } from './render.js';
 import { submit, flushPendingSubmission } from './submission.js';
 
@@ -80,6 +81,10 @@ function bootstrap(): void {
   wirePopover(state, refs, onUpdate);
   wireCheckpoints(config, state, refs, onUpdate);
   wireConfidence(state, refs, onUpdate);
+  // Mount each graph block's widget (lazy-loads the kit) and bridge its moves
+  // into state. Async per block; the initial render already ran, so a graph
+  // hydrates a beat after the rest of the page.
+  wireGraphs(state, refs, onUpdate);
 
   const button = $<HTMLButtonElement>('.submit-button');
   if (button) {

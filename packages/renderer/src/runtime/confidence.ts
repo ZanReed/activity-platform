@@ -54,4 +54,22 @@ export function wireConfidence(
             });
         }
     }
+
+    // Interactive-graph blocks carry the same per-block confidence fieldset;
+    // wire it into state.graphs[id].confidence identically.
+    for (const [blockId, ref] of refs.graphs) {
+        if (!ref.hasConfidenceRating || ref.confidenceRadios.length === 0) {
+            continue;
+        }
+        for (const radio of ref.confidenceRadios) {
+            radio.addEventListener('change', () => {
+                if (!radio.checked) return;
+                if (!isConfidence(radio.value)) return;
+                const graphState = state.graphs[blockId];
+                if (!graphState) return;
+                graphState.confidence = radio.value;
+                onUpdate();
+            });
+        }
+    }
 }

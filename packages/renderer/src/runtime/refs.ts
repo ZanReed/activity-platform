@@ -88,6 +88,58 @@ export interface FillInBlankRef {
     sectionId: string;
 }
 
+// The handle the lazy-loaded graph kit returns from mountGraphQuestion. A
+// parallel structural type (the runtime never imports @activity/graph-kit — it
+// dynamic-imports the built bundle by URL at runtime); the shape is the contract
+// with graph-question.ts. studentPoints is the wire shape the kit reports.
+export interface GraphResponseData {
+    studentPoints: [number, number][];
+    correct: boolean;
+    answered: boolean;
+}
+export interface GraphWidgetHandle {
+    getResponse(): GraphResponseData;
+    restore(points: [number, number][]): void;
+    setLocked(locked: boolean): void;
+    destroy(): void;
+}
+
+/** One per interactive_graph block. */
+export interface GraphRef {
+    /** The block <div>. */
+    el: HTMLElement;
+    /** The .graph-canvas the kit mounts the board into. */
+    canvas: HTMLElement;
+    /** The .js-graph-feedback aria-live region (narration + result). */
+    feedbackEl: HTMLElement | null;
+    /** The .js-solution slot, revealed at check time; null when none authored. */
+    solutionEl: HTMLElement | null;
+    /** Absolute URL of the graph kit on R2; null when unavailable (no hydrate). */
+    kitSrc: string | null;
+    /** The block's interaction discriminant (e.g. 'plot_point'). */
+    interactionType: string;
+    /** Parsed data-graph-config (AxisConfig) — passed straight to the kit. */
+    config: unknown;
+    /** Parsed data-graph-answer-key — passed to the kit for client-side scoring. */
+    answerKey: unknown;
+    /** Whether the block surfaces a confidence-rating fieldset. */
+    hasConfidenceRating: boolean;
+    /** Radios inside the confidence fieldset (empty when none). */
+    confidenceRadios: HTMLInputElement[];
+    /** Skill tags from data-skills (empty when absent). */
+    skills: string[];
+    /** ID of the section this block belongs to. */
+    sectionId: string;
+    /**
+     * The kit widget handle, acquired ASYNCHRONOUSLY after init when the sidecar
+     * mounts the board. Null until then (and forever if no kitSrc / the kit
+     * fails to load). This is the one mutable field on a ref: the handle is a
+     * runtime-acquired resource, not a DOM node discoverable at init. render()
+     * reads it to lock the widget; the sidecar (graphs.ts) writes it once.
+     */
+    handle: GraphWidgetHandle | null;
+}
+
 /** One per <section class="activity-section">. */
 export interface SectionRef {
     /** The section element. */
@@ -104,6 +156,8 @@ export interface SectionRef {
     blankIds: string[];
     /** IDs of every fill_in_blank block in this section. */
     blockIds: string[];
+    /** IDs of every interactive_graph block in this section (each scores as 1). */
+    graphBlockIds: string[];
     /** The .js-checkpoint-btn — present only on checkpoint sections in locked/free mode. */
     checkButton: HTMLButtonElement | null;
     /** The .js-section-score slot — present only on checkpoint sections in locked/free mode. */
@@ -137,6 +191,7 @@ export interface PopoverRef {
 export interface Refs {
     blanks: Map<string, BlankRef>;
     fillInBlanks: Map<string, FillInBlankRef>;
+    graphs: Map<string, GraphRef>;
     sections: Map<string, SectionRef>;
     /** The shared floating popover, or null when the page has no popover markup. */
     popover: PopoverRef | null;

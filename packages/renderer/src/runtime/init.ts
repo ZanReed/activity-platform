@@ -24,6 +24,7 @@ import {
     type Refs,
     type BlankRef,
     type FillInBlankRef,
+    type GraphRef,
     type SectionRef,
     type PopoverRef,
 } from './refs.js';
@@ -49,6 +50,7 @@ export function buildRefs(doc: Document = document): Refs {
     const sections = new Map<string, SectionRef>();
     const fillInBlanks = new Map<string, FillInBlankRef>();
     const blanks = new Map<string, BlankRef>();
+    const graphs = new Map<string, GraphRef>();
 
     for (const sectionEl of $$<HTMLElement>('.activity-section', doc)) {
         const sectionId = sectionEl.dataset.sectionId;
@@ -59,6 +61,7 @@ export function buildRefs(doc: Document = document): Refs {
 
         const sectionBlockIds: string[] = [];
         const sectionBlankIds: string[] = [];
+        const sectionGraphBlockIds: string[] = [];
 
         for (const blockEl of $$<HTMLElement>(
             '[data-block-type="fill_in_blank"]',
@@ -87,13 +90,101 @@ export function buildRefs(doc: Document = document): Refs {
             );
         }
 
+        for (const graphEl of $$<HTMLElement>(
+            '[data-block-type="interactive_graph"]',
+            sectionEl,
+        )) {
+            const ref = buildGraphRef(graphEl, sectionId);
+            if (!ref) continue;
+            graphs.set(graphEl.dataset.graphBlockId as string, ref);
+            sectionGraphBlockIds.push(graphEl.dataset.graphBlockId as string);
+        }
+
         sections.set(
             sectionId,
-            buildSectionRef(sectionEl, sectionBlockIds, sectionBlankIds),
+            buildSectionRef(
+                sectionEl,
+                sectionBlockIds,
+                sectionBlankIds,
+                sectionGraphBlockIds,
+            ),
         );
     }
 
-    return { blanks, fillInBlanks, sections, popover: buildPopoverRef(doc) };
+    return {
+        blanks,
+        fillInBlanks,
+        graphs,
+        sections,
+        popover: buildPopoverRef(doc),
+    };
+}
+
+/**
+ * Build a GraphRef for one interactive_graph block. Returns null (skipping the
+ * block) only when its id is missing. Malformed data-graph-config / -answer-key
+ * are tolerated: parsed to undefined here and defaulted by the kit, so a bad
+ * attribute degrades to a permissive graph rather than dropping the question.
+ */
+function buildGraphRef(el: HTMLElement, sectionId: string): GraphRef | null {
+    const blockId = el.dataset.graphBlockId;
+    if (!blockId) {
+        warn('Interactive-graph block is missing data-graph-block-id; skipping.');
+        return null;
+    }
+    const canvas = el.querySelector<HTMLElement>('.graph-canvas');
+    if (!canvas) {
+        warn('Graph block ' + blockId + ' has no .graph-canvas; skipping.');
+        return null;
+    }
+
+    const parseAttr = (raw: string | undefined, label: string): unknown => {
+        if (!raw) return undefined;
+        try {
+            return JSON.parse(raw);
+        } catch {
+            warn('Graph block ' + blockId + ' has malformed ' + label + '; ignoring.');
+            return undefined;
+        }
+    };
+
+    const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
+        '.js-confidence-rating',
+    );
+    const confidenceRadios: HTMLInputElement[] = confidenceFieldset
+        ? Array.prototype.slice.call(
+              confidenceFieldset.querySelectorAll<HTMLInputElement>(
+                  'input[type="radio"]',
+              ),
+          )
+        : [];
+
+    let skills: string[] = [];
+    const rawSkills = el.dataset.skills;
+    if (rawSkills) {
+        try {
+            const parsed = JSON.parse(rawSkills);
+            if (Array.isArray(parsed)) skills = parsed;
+        } catch {
+            warn('Graph block ' + blockId + ' has malformed data-skills; ignoring.');
+        }
+    }
+
+    return {
+        el,
+        canvas,
+        feedbackEl: el.querySelector<HTMLElement>('.js-graph-feedback'),
+        solutionEl: el.querySelector<HTMLElement>('.js-solution'),
+        kitSrc: el.dataset.graphKitSrc ?? null,
+        interactionType: el.dataset.graphInteractionType ?? 'plot_point',
+        config: parseAttr(el.dataset.graphConfig, 'data-graph-config'),
+        answerKey: parseAttr(el.dataset.graphAnswerKey, 'data-graph-answer-key'),
+        hasConfidenceRating: el.dataset.hasConfidenceRating === 'true',
+        confidenceRadios,
+        skills,
+        sectionId,
+        handle: null,
+    };
 }
 
 /**
@@ -232,6 +323,7 @@ function buildSectionRef(
     el: HTMLElement,
     blockIds: string[],
     blankIds: string[],
+    graphBlockIds: string[],
 ): SectionRef {
     const isCheckpoint = el.dataset.isCheckpoint === 'true';
     const checkButton = el.querySelector<HTMLButtonElement>('.js-checkpoint-btn');
@@ -242,6 +334,7 @@ function buildSectionRef(
         isCheckpoint,
         blankIds,
         blockIds,
+        graphBlockIds,
         checkButton,
         scoreEl,
     };
