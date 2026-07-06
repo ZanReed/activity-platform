@@ -50,10 +50,14 @@ interface JxgBoard {
   on(event: string, handler: () => void): void;
 }
 
-// A JSXGraph point handle — just the moveTo we call during a trace.
+// A JSXGraph point handle. `moveTo` repositions (used by the trace and the
+// answer point); X/Y read the current user coords; `on` subscribes to drag.
 interface JxgPoint {
   moveTo(coords: [number, number]): void;
   setAttribute(attrs: Record<string, unknown>): void;
+  X(): number;
+  Y(): number;
+  on(event: string, handler: () => void): void;
 }
 
 let boardSeq = 0;
@@ -396,4 +400,172 @@ export function createBoard(container: HTMLElement): BoardController {
   }
 
   return { plot, setPlots, refresh, setScatter, plotFit, fitView, destroy };
+}
+
+// =============================================================================
+// createPointAnswerBoard — the graded interactive-graph block's answer surface
+// -----------------------------------------------------------------------------
+// A sibling of createBoard for the plot-a-point question (Stage 5). Deliberately
+// NOT the calculator board: the working window is FIXED to the authored axis
+// config (a student answering "plot (3, 4)" shouldn't be able to pan the plane
+// away), there is no zoom/trace/nav chrome, and the arrow keys move the ANSWER
+// POINT, not the view. It shares this module's single JSXGraph import so the
+// graded block reuses the same lazy chunk the calculator's graphing mode loads.
+//
+// Accessibility (a first-class slice-1 commitment, not a follow-up):
+//   - the point is a large (touch-friendly) draggable handle;
+//   - Tab focuses the canvas (the renderer set role=application + tabindex);
+//   - arrows nudge the point by one grid step, Shift+arrow by a fine 0.1 step,
+//     clamped to the plane;
+//   - every move (drag OR keyboard) calls onMove so the caller can narrate the
+//     new position into the block's aria-live region.
+// =============================================================================
+
+const ANSWER_COLOR = '#7c3aed';
+
+export interface PointAnswerConfig {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  xGridStep: number;
+  yGridStep: number;
+  showGrid: boolean;
+  snapToGrid: boolean;
+  /** Where the handle starts. Defaults to the origin (clamped into the plane). */
+  start?: [number, number];
+}
+
+export interface PointAnswerHooks {
+  /** Called on every move (drag or keyboard) with the point's user coords. */
+  onMove?: (x: number, y: number) => void;
+}
+
+export interface PointAnswerController {
+  /** The handle's current user coordinates. */
+  getPoint(): [number, number];
+  /** True once the student has dragged or keyed the handle at least once. */
+  hasMoved(): boolean;
+  /** Reposition the handle programmatically (state restore on reload). */
+  setPoint(x: number, y: number): void;
+  /** Lock (post-check) or unlock dragging + keyboard. */
+  setInteractive(on: boolean): void;
+  destroy(): void;
+}
+
+export function createPointAnswerBoard(
+  container: HTMLElement,
+  config: PointAnswerConfig,
+  hooks: PointAnswerHooks = {},
+): PointAnswerController {
+  if (!container.id) container.id = `gk-answer-${(boardSeq += 1)}`;
+
+  // JSXGraph.initBoard rewrites the container's ARIA (role -> "region",
+  // aria-label -> ""), clobbering the renderer's role=application + instructional
+  // label. Capture the caller's label now and re-apply everything AFTER init so
+  // the focusable application semantics survive (see below).
+  const callerLabel = container.getAttribute('aria-label');
+
+  // Fixed window from the authored axis config. JSXGraph's boundingbox order is
+  // [xMin, yMax, xMax, yMin]. Pan/zoom/keyboard-nav are OFF — the plane is the
+  // problem, and our own keydown handler owns the arrows.
+  const board = JSXGraph.initBoard(container.id, {
+    boundingbox: [config.xMin, config.yMax, config.xMax, config.yMin],
+    axis: true,
+    grid: config.showGrid,
+    keepAspectRatio: false,
+    showCopyright: false,
+    showNavigation: false,
+    pan: { enabled: false, needShift: false, needTwoFingers: false },
+    zoom: { wheel: false, needShift: true, min: 1, max: 1 },
+    keyboard: { enabled: false },
+  } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
+
+  // Re-apply the focusable application semantics JSXGraph just overwrote. The
+  // arrow keys reach our keydown handler because the container is tabbable; the
+  // aria-label is the renderer's rich instruction (or a sensible default when
+  // mounted into a bare element, e.g. the dev harness).
+  container.setAttribute('role', 'application');
+  container.setAttribute('tabindex', '0');
+  container.setAttribute(
+    'aria-label',
+    callerLabel ??
+      'Interactive coordinate plane. Use arrow keys to move the point; hold Shift for fine steps.',
+  );
+
+  const clampX = (x: number): number => Math.min(Math.max(x, config.xMin), config.xMax);
+  const clampY = (y: number): number => Math.min(Math.max(y, config.yMin), config.yMax);
+
+  const [sx, sy] = config.start ?? [0, 0];
+  const start: [number, number] = [clampX(sx), clampY(sy)];
+
+  // The draggable answer handle. snapToGrid pins drags to grid intersections
+  // when the author enabled it; size 6 clears the 44px touch-target bar with the
+  // hit area JSXGraph adds around a point. showInfobox off — narration is ours.
+  const point = board.create('point', start, {
+    name: '',
+    withLabel: false,
+    size: 6,
+    strokeColor: ANSWER_COLOR,
+    fillColor: ANSWER_COLOR,
+    highlightStrokeColor: ANSWER_COLOR,
+    highlightFillColor: ANSWER_COLOR,
+    showInfobox: false,
+    snapToGrid: config.snapToGrid,
+    snapSizeX: config.xGridStep,
+    snapSizeY: config.yGridStep,
+  }) as unknown as JxgPoint;
+
+  let moved = false;
+  let interactive = true;
+
+  const notify = (fromUser: boolean): void => {
+    if (fromUser) moved = true;
+    hooks.onMove?.(point.X(), point.Y());
+  };
+
+  // Drag (mouse/touch): JSXGraph snaps then fires 'drag'.
+  point.on('drag', () => notify(true));
+
+  // Keyboard: arrows nudge by one grid step (Shift → fine 0.1 step), clamped.
+  container.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (!interactive) return;
+    const fine = e.shiftKey;
+    const stepX = fine ? 0.1 : config.xGridStep;
+    const stepY = fine ? 0.1 : config.yGridStep;
+    let nx = point.X();
+    let ny = point.Y();
+    switch (e.key) {
+      case 'ArrowLeft': nx -= stepX; break;
+      case 'ArrowRight': nx += stepX; break;
+      case 'ArrowUp': ny += stepY; break;
+      case 'ArrowDown': ny -= stepY; break;
+      default: return;
+    }
+    e.preventDefault();
+    point.moveTo([clampX(nx), clampY(ny)]);
+    board.update();
+    notify(true);
+  });
+
+  // Note: onMove is NOT fired at construction — only on real user moves and on
+  // an explicit setPoint (state restore). The caller reads the initial position
+  // via getPoint() after mounting if it needs it.
+
+  return {
+    getPoint: () => [point.X(), point.Y()],
+    hasMoved: () => moved,
+    setPoint(x: number, y: number): void {
+      point.moveTo([clampX(x), clampY(y)]);
+      board.update();
+      notify(false);
+    },
+    setInteractive(on: boolean): void {
+      interactive = on;
+      point.setAttribute({ fixed: !on });
+    },
+    destroy(): void {
+      JSXGraph.freeBoard(board as unknown as Parameters<typeof JSXGraph.freeBoard>[0]);
+    },
+  };
 }

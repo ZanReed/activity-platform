@@ -9,6 +9,7 @@ import Submissions from './routes/Submissions';
 import Playground from './routes/Playground';
 import DevFoldableColumns from './routes/DevFoldableColumns';
 import DevCalculator from './routes/DevCalculator';
+import DevGraphQuestion from './routes/DevGraphQuestion';
 
 export default function App() {
     return (
@@ -55,6 +56,9 @@ export default function App() {
         )}
         {import.meta.env.DEV && (
             <Route path="/dev/calculator" element={<DevCalculator />} />
+        )}
+        {import.meta.env.DEV && (
+            <Route path="/dev/graph-question" element={<DevGraphQuestion />} />
         )}
         </Routes>
         </SessionProvider>
