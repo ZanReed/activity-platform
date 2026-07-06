@@ -39,6 +39,10 @@ export {
   ColumnCellBlock,
   Column,
   ColumnGridLines,
+  InteractiveGraphBlock,
+  AxisConfig,
+  PointInteraction,
+  GraphInteraction,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
@@ -63,8 +67,11 @@ export {
   BlankResponse,
   CheckpointResult,
   ConfidenceLevel,
+  PointResponse,
+  GraphResponse,
   SubmissionResponses,
   SubmissionResponsesV1,
+  SubmissionResponsesV2,
   migrateSubmissionResponses,
 } from './submission.js';
 
@@ -83,6 +90,7 @@ export {
   createListItem,
   createColumn,
   createColumnsBlock,
+  createInteractiveGraphBlock,
   createBlankToken,
   createSection,
   createEmptyDocument,

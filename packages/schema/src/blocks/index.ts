@@ -18,6 +18,7 @@ import { ProblemBlock } from './problem.js';
 import { FillInBlankBlock } from './fill-in-blank.js';
 import { BulletListBlock, OrderedListBlock, ListItem } from './list.js';
 import { ColumnsBlock } from './columns.js';
+import { InteractiveGraphBlock } from './interactive-graph.js';
 
 export const Block = z.discriminatedUnion('type', [
   ParagraphBlock,
@@ -30,6 +31,7 @@ export const Block = z.discriminatedUnion('type', [
   BulletListBlock,
   OrderedListBlock,
   ColumnsBlock,
+  InteractiveGraphBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -46,7 +48,13 @@ export {
   OrderedListBlock,
   ListItem,
   ColumnsBlock,
+  InteractiveGraphBlock,
 };
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
+export {
+  AxisConfig,
+  PointInteraction,
+  GraphInteraction,
+} from './interactive-graph.js';
 export type { HeadingLevel } from './heading.js';
 export type { CalloutVariant } from './callout.js';

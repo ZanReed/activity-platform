@@ -119,7 +119,10 @@ function renderPrintHeader(header: PrintHeader): string {
 }
 
 export function renderActivity(doc: ActivityDocument, ctx: RenderContext): string {
-  const body = renderBody(doc);
+  // The graph kit URL (shared with the calculator) reaches interactive_graph
+  // blocks as data-graph-kit-src. Absent → those blocks render their static
+  // no-JS placeholder, same graceful-degradation as a calculator with no kit.
+  const body = renderBody(doc, { graphKitUrl: ctx.calculatorKitUrl });
   const print = doc.meta.print;
 
   // Reference panel (scaffold). Screen: a fixed bottom toolbar (collapsed by

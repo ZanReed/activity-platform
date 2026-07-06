@@ -632,6 +632,11 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
 
         case 'callout':
         case 'problem':
+        // interactive_graph's editor NodeView is Stage 5 slice 2; until then the
+        // block round-trips through the schema/renderer/runtime spine but has no
+        // Tiptap mapping, so it's omitted from the editor view (same as callout/
+        // problem). Authored via the dev seed route in the meantime.
+        case 'interactive_graph':
             console.warn(
                 `[serialize] No Tiptap mapping for ${block.type} yet; block omitted from editor view.`,
             );

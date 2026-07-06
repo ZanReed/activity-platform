@@ -186,6 +186,46 @@ body {
   margin: 1.25rem 0;
   align-items: start;
 }
+/* Interactive graph block — same two-column problem grid as fill-in-blank
+ (number gutter + body). The canvas is a square, focusable coordinate plane the
+ lazy-loaded graph kit mounts JSXGraph into; touch-action:none hands drag
+ gestures to the kit rather than scrolling the page. */
+.block-interactive-graph {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+  align-items: start;
+}
+.graph-prompt { margin-bottom: 0.5rem; }
+.graph-prompt > :first-child { margin-top: 0; }
+.graph-prompt > :last-child { margin-bottom: 0; }
+.graph-canvas {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  aspect-ratio: 1 / 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  touch-action: none;
+}
+.graph-canvas:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.graph-nojs {
+  padding: 1rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+.js-graph-feedback {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+.js-graph-feedback[data-state="correct"] { color: #15803d; }
+.js-graph-feedback[data-state="incorrect"] { color: #b91c1c; }
+
 .block-bullet-list,
 .block-ordered-list {
   padding-left: 1.5rem;
@@ -943,8 +983,20 @@ body {
   .js-popover,
   .definition-popover,
   .calculator-tool,
+  .js-graph-feedback,
+  .graph-nojs,
   .js-solution {
     display: none;
+  }
+
+  /* Interactive graph on paper: no JSXGraph runs, so the canvas prints as a
+   plain bordered box the student hand-plots into. Drop the fixed aspect-ratio
+   for a taller, pen-friendly plotting area, and hide the "needs JavaScript"
+   placeholder (above). Answer checking is on-screen only. */
+  .graph-canvas {
+    aspect-ratio: auto;
+    height: 3.5in;
+    max-width: none;
   }
 
   /* Don't establish an inline-flex formatting context in print — let the
@@ -964,7 +1016,8 @@ body {
    --print-work-space). break-inside: avoid keeps a problem (and its work
    space) whole across page and column breaks. */
   .block-problem,
-  .block-fill-in-blank {
+  .block-fill-in-blank,
+  .block-interactive-graph {
     break-inside: avoid;
     margin-top: var(--print-problem-spacing, 1.25rem);
     margin-bottom: var(--print-problem-spacing, 1.25rem);

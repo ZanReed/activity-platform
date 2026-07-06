@@ -29,9 +29,11 @@ import type {
   ListItem,
   Column,
   ColumnsBlock,
+  InteractiveGraphBlock,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
+import { AxisConfig } from './blocks/index.js';
 import type { BlankToken } from './inline.js';
 
 const uuid = (): string => crypto.randomUUID();
@@ -95,6 +97,21 @@ export function createColumnsBlock(count: number = 2): ColumnsBlock {
     type: 'columns',
     columns: Array.from({ length: n }, createColumn),
     gridLines: 'inherit',
+  };
+}
+
+// A default plot-a-point graph: a symmetric -10..10 plane with unit grid and
+// snap on, one correct point at the origin for the author to drag into place.
+// AxisConfig.parse fills the grid/show/snap defaults so the result validates.
+export function createInteractiveGraphBlock(): InteractiveGraphBlock {
+  return {
+    id: uuid(),
+    type: 'interactive_graph',
+    prompt: [],
+    axisConfig: AxisConfig.parse({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
+    interaction: { type: 'plot_point', correctPoints: [[0, 0]], tolerance: 0.1 },
+    hasConfidenceRating: false,
+    skills: [],
   };
 }
 

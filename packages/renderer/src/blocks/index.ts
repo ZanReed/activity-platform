@@ -17,6 +17,7 @@ import { renderProblem } from './problem.js';
 import { renderFillInBlank } from './fill-in-blank.js';
 import { renderBulletList, renderOrderedList } from './lists.js';
 import { renderColumns } from './columns.js';
+import { renderInteractiveGraph } from './interactive-graph.js';
 
 export interface BlockRenderContext {
   /**
@@ -35,6 +36,13 @@ export interface BlockRenderContext {
    * 'on'/'off' on the block overrides it. Defaults to false when absent.
    */
   gridLinesDefault?: boolean;
+  /**
+   * Absolute URL of the shared graph kit on R2, forwarded to interactive_graph
+   * blocks as data-graph-kit-src. Absent in dev-without-R2 and the print path;
+   * the graph block then renders its static no-JS placeholder. Threaded from
+   * RenderContext.calculatorKitUrl (one kit serves calculator + graph).
+   */
+  graphKitUrl?: string;
 }
 
 export function renderBlock(block: Block, ctx: BlockRenderContext): string {
@@ -62,6 +70,11 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
       return renderOrderedList(block);
     case 'columns':
       return renderColumns(block, ctx);
+    case 'interactive_graph':
+      return renderInteractiveGraph(block, {
+        problemNumber: ctx.nextProblemNumber(),
+        graphKitUrl: ctx.graphKitUrl,
+      });
     default: {
       // Exhaustiveness check — if a new block type is added to the schema
       // and not handled here, TypeScript emits an error on this assignment.
@@ -74,8 +87,13 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
 
 /**
  * True if this block participates in the auto-numbered problem sequence.
- * Both problem and fill_in_blank do; everything else doesn't.
+ * The graded question blocks do (problem, fill_in_blank, interactive_graph);
+ * everything else doesn't.
  */
 export function isNumberedBlock(block: Block): boolean {
-  return block.type === 'problem' || block.type === 'fill_in_blank';
+  return (
+    block.type === 'problem' ||
+    block.type === 'fill_in_blank' ||
+    block.type === 'interactive_graph'
+  );
 }

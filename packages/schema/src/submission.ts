@@ -20,6 +20,10 @@
 //                       checkpointResults. v1 submissions migrate-on-read
 //                       to v2 by setting schemaVersion: 2 (other fields
 //                       are unchanged or optional-and-absent in v1).
+//   v2 → v3 (Stage 5, Phase 2.7): adds the optional graphResponses map for
+//                       interactive-graph blocks. v2 submissions migrate-on-
+//                       read to v3 by setting schemaVersion: 3 (graphResponses
+//                       simply absent — valid for an optional field).
 //
 // Extension pattern — adding new response shapes (Phase 2+):
 //   When a new question category needs a different response shape — MC
@@ -67,6 +71,27 @@ export const BlankResponse = z.object({
 });
 export type BlankResponse = z.infer<typeof BlankResponse>;
 
+// One interactive-graph block's response (Phase 2.7). Mirrors the block's
+// interaction discriminated union — each variant carries the student's
+// structured geometric input plus the same correctness/confidence fields
+// blanks have. Like BlankResponse, `correct` is computed CLIENT-SIDE in the
+// published page's lazy-loaded kit (the answer key is baked into the HTML) —
+// convenience for the teacher viewer, not authoritative grading. Kept a
+// discriminated union so plot_line / shade_region add a variant here with no
+// change to consumers that branch on `type`. Slice 1 (2.7a) ships plot_point.
+export const PointResponse = z.object({
+  type: z.literal('plot_point'),
+  // Every point the student plotted, in graph units. Order follows the block's
+  // correctPoints for multi-point questions; a single point is the common case.
+  studentPoints: z.array(z.tuple([z.number(), z.number()])),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type PointResponse = z.infer<typeof PointResponse>;
+
+export const GraphResponse = z.discriminatedUnion('type', [PointResponse]);
+export type GraphResponse = z.infer<typeof GraphResponse>;
+
 // Per-section checkpoint result, captured when a student clicks "Check this
 // section" in locked/free submission modes. Keyed by section.id in the
 // parent SubmissionResponses.checkpointResults map. Not present in
@@ -90,43 +115,74 @@ export const SubmissionResponsesV1 = z.object({
 });
 export type SubmissionResponsesV1 = z.infer<typeof SubmissionResponsesV1>;
 
-// ---- v2 (current) shape -----------------------------------------------------
+// ---- v2 (legacy) shape ------------------------------------------------------
+// Pre-Stage-5 submissions. Kept so we can read old rows and migrate them
+// forward on read. Never written by new code.
+export const SubmissionResponsesV2 = z.object({
+  schemaVersion: z.literal(2),
+                                              blanks: z.record(z.string().uuid(), BlankResponse),
+                                              checkpointResults: z.record(z.string().uuid(), CheckpointResult).optional(),
+});
+export type SubmissionResponsesV2 = z.infer<typeof SubmissionResponsesV2>;
+
+// ---- v3 (current) shape -----------------------------------------------------
 // New submissions write this shape. Application code that reads submissions
 // from the database calls migrateSubmissionResponses() once after reading
-// to handle both v1 and v2 uniformly.
+// to handle v1/v2/v3 uniformly.
 export const SubmissionResponses = z.object({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
                                             // Keyed by blank.id (uuid).
                                             blanks: z.record(z.string().uuid(), BlankResponse),
                                             // Keyed by section.id. Only present in locked/free submission modes for
                                             // sections that were actually checkpoint-checked. Absent in single mode
                                             // and absent for non-checkpoint sections.
                                             checkpointResults: z.record(z.string().uuid(), CheckpointResult).optional(),
+                                            // Keyed by interactive_graph block.id (uuid). Absent when the activity
+                                            // has no graph blocks or none were answered. Sibling to `blanks`, never
+                                            // merged into it — geometric answers are shaped differently and the
+                                            // dashboard renders them differently (see the extension pattern above).
+                                            graphResponses: z.record(z.string().uuid(), GraphResponse).optional(),
 });
 export type SubmissionResponses = z.infer<typeof SubmissionResponses>;
 
 // ---- Migration --------------------------------------------------------------
-// Reads a stored submission of either shape and returns the v2 shape.
+// Reads a stored submission of any shape and returns the current (v3) shape.
 // Application code that consumes submissions calls this once after reading
-// from the database; the v1 input shape is never propagated past this
-// layer. The Edge Function writes only v2.
+// from the database; older input shapes are never propagated past this layer.
+// The Edge Function writes only the current shape.
 //
-// v1 → v2 migration:
-//   - schemaVersion: 1 → 2
-//   - blanks: unchanged shape (v2 BlankResponse adds optional `confidence`,
-//     which is absent in v1; absence is valid for an optional field)
-//   - checkpointResults: absent (v1 had no checkpoint concept)
+// v2 → v3 migration:
+//   - schemaVersion: 2 → 3
+//   - blanks / checkpointResults: unchanged
+//   - graphResponses: absent (v2 had no graph blocks)
+// v1 → v3 migration:
+//   - schemaVersion: 1 → 3
+//   - blanks: unchanged shape (BlankResponse adds optional `confidence`,
+//     absent in v1; absence is valid for an optional field)
+//   - checkpointResults / graphResponses: absent
 export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
-  // Try v2 first (the common case for new data).
-  const v2 = SubmissionResponses.safeParse(raw);
-  if (v2.success) return v2.data;
+  // Try the current shape first (the common case for new data).
+  const v3 = SubmissionResponses.safeParse(raw);
+  if (v3.success) return v3.data;
 
-  // Fall back to v1 and migrate forward. This will throw if the input
-  // matches neither shape, which is the correct behavior — corrupted or
-  // unknown-version submissions should fail loudly, not silently pass.
+  // v2: promote by bumping the version; blanks + checkpointResults carry over.
+  const v2 = SubmissionResponsesV2.safeParse(raw);
+  if (v2.success) {
+    return {
+      schemaVersion: 3,
+      blanks: v2.data.blanks,
+      ...(v2.data.checkpointResults && {
+        checkpointResults: v2.data.checkpointResults,
+      }),
+    };
+  }
+
+  // Fall back to v1 and migrate forward. This will throw if the input matches
+  // no known shape, which is the correct behavior — corrupted or unknown-
+  // version submissions should fail loudly, not silently pass.
   const v1 = SubmissionResponsesV1.parse(raw);
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     blanks: v1.blanks,
   };
 }

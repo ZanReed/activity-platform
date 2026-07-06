@@ -38,6 +38,7 @@ interface SectionRenderContext {
   submissionMode: SubmissionMode;
   showAnswers: boolean;
   gridLinesDefault: boolean;
+  graphKitUrl?: string;
 }
 
 // opts.showAnswers drives the answer-key print variant (Drop C): blanks render
@@ -45,7 +46,7 @@ interface SectionRenderContext {
 // page and editor preview (both call renderBody(doc)) are unaffected.
 export function renderBody(
   doc: ActivityDocument,
-  opts: { showAnswers?: boolean } = {},
+  opts: { showAnswers?: boolean; graphKitUrl?: string } = {},
 ): string {
   // Single counter, threaded across sections. Resetting per-section would
   // produce "Problem 1" appearing twice in the same worksheet, which is
@@ -64,6 +65,7 @@ export function renderBody(
                          submissionMode,
                          showAnswers,
                          gridLinesDefault,
+                         graphKitUrl: opts.graphKitUrl,
     });
   }).join('');
 }
@@ -197,6 +199,7 @@ function renderSection(section: Section, ctx: SectionRenderContext): string {
       nextProblemNumber: ctx.nextProblemNumber,
       showAnswers: ctx.showAnswers,
       gridLinesDefault: ctx.gridLinesDefault,
+      graphKitUrl: ctx.graphKitUrl,
     });
   }).join('');
 
