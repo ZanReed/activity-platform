@@ -67,8 +67,15 @@ export {
   scoreFunction,
   fitFunction,
   handlesForFamily,
+  scoreRegion,
+  polygonOverlap,
 } from './graph-score.js';
-export type { PointAnswerKey, FunctionModel, Fitted } from './graph-score.js';
+export type {
+  PointAnswerKey,
+  FunctionModel,
+  Fitted,
+  RegionAnswerKey,
+} from './graph-score.js';
 
 // NOTE: board.ts (JSXGraph) is deliberately NOT re-exported here — that would
 // static-import it into the entry and defeat the lazy-split. Consumers that need

@@ -78,12 +78,30 @@ export const FunctionInteraction = z.object({
 });
 export type FunctionInteraction = z.infer<typeof FunctionInteraction>;
 
-// The interaction union. plot_point + plot_function today; shade_region etc. are
-// future members. Kept discriminated on `type` so the wire format always carries
-// it and consumers branch uniformly.
+// ---- shade_region: shade a polygon --------------------------------------------
+// The student drags the vertices of a polygon (one handle per vertex) to cover a
+// target region, which is shaded as they move. Scored by AREA OVERLAP with the
+// correct polygon (intersection-over-union ≥ minOverlap), so the exact vertex
+// positions don't matter — only that the shaded region matches. A polygon, not a
+// curve, so it's its own interaction (not a plot_function family).
+export const RegionInteraction = z.object({
+  type: z.literal('shade_region'),
+  // Vertices of the correct polygon, in order (min 3 for a triangle).
+  correctVertices: z.array(z.tuple([z.number(), z.number()])).min(3),
+  // Minimum intersection-over-union (0..1) with the student's polygon to count
+  // as correct. 0.9 is strict (near-exact on a snapped grid); lower it for
+  // hand-dragged / approximate regions.
+  minOverlap: z.number().min(0).max(1).default(0.9),
+});
+export type RegionInteraction = z.infer<typeof RegionInteraction>;
+
+// The interaction union. plot_point + plot_function + shade_region today; more
+// are future members. Kept discriminated on `type` so the wire format always
+// carries it and consumers branch uniformly.
 export const GraphInteraction = z.discriminatedUnion('type', [
   PointInteraction,
   FunctionInteraction,
+  RegionInteraction,
 ]);
 export type GraphInteraction = z.infer<typeof GraphInteraction>;
 

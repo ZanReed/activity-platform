@@ -216,6 +216,11 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                         block.interaction.model.slope,
                         block.interaction.model.intercept,
                     );
+                } else if (block.interaction.type === 'shade_region') {
+                    const verts = block.interaction.correctVertices;
+                    answerSummary = `region (${verts.length} vertices): ${verts
+                        .map((p) => `(${p[0]}, ${p[1]})`)
+                        .join(', ')}`;
                 }
                 graphs.set(block.id, {
                     blockId: block.id,

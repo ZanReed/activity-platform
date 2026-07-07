@@ -92,6 +92,30 @@ describe('interactive graph block', () => {
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
     });
 
+    it('round-trips a shade_region interaction', () => {
+        const regionNode: JSONContent = {
+            type: 'interactiveGraph',
+            attrs: {
+                id: 'r',
+                axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
+                interaction: {
+                    type: 'shade_region',
+                    correctVertices: [[0, 0], [4, 0], [2, 4]],
+                    minOverlap: 0.9,
+                },
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Shade the triangle.' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [regionNode] });
+        const g = out.content!.find((n) => n.type === 'interactiveGraph')!;
+        expect(g.attrs!.interaction).toEqual(regionNode.attrs!.interaction);
+        const activity = tiptapToActivity({ type: 'doc', content: [regionNode] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
     it('serializes to a schema-valid interactive_graph block', () => {
         const activity = tiptapToActivity(doc, META);
         const parsed = ActivityDocument.safeParse(activity);

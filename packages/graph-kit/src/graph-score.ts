@@ -140,3 +140,76 @@ export function scoreFunction(
   }
   return false;
 }
+
+// ---- shade_region: score a polygon by area overlap --------------------------
+// The student drags a polygon's vertices to cover a target region; correctness
+// is intersection-over-union (IoU) with the correct polygon ≥ minOverlap — so
+// the exact vertices don't matter, only that the shaded AREA matches (and over-
+// shading is penalised too). IoU is estimated by grid-sampling both polygons
+// over their combined bounding box: point-in-polygon is a ~10-line ray cast, so
+// no polygon-clipping dependency — pure, tiny, and testable.
+
+export interface RegionAnswerKey {
+  correctVertices: [number, number][];
+  minOverlap: number;
+}
+
+// Even-odd ray casting: is (px, py) inside the polygon `verts` (in order)?
+function pointInPolygon(
+  px: number,
+  py: number,
+  verts: [number, number][],
+): boolean {
+  let inside = false;
+  for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+    const [xi, yi] = verts[i]!;
+    const [xj, yj] = verts[j]!;
+    const crosses = yi > py !== yj > py;
+    if (crosses && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+// Grid samples per axis for the IoU estimate — 100×100 = 10k samples gives ~1%
+// accuracy, plenty against a 0.9-ish threshold and cheap enough to run on drag.
+const OVERLAP_SAMPLES = 100;
+
+// Intersection-over-union of two polygons, in [0, 1]. 0 when either is
+// degenerate (< 3 vertices) or their combined box has zero area.
+export function polygonOverlap(
+  a: [number, number][],
+  b: [number, number][],
+): number {
+  if (a.length < 3 || b.length < 3) return 0;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of [...a, ...b]) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  if (maxX <= minX || maxY <= minY) return 0;
+  let both = 0;
+  let either = 0;
+  for (let i = 0; i < OVERLAP_SAMPLES; i++) {
+    const px = minX + ((maxX - minX) * (i + 0.5)) / OVERLAP_SAMPLES;
+    for (let j = 0; j < OVERLAP_SAMPLES; j++) {
+      const py = minY + ((maxY - minY) * (j + 0.5)) / OVERLAP_SAMPLES;
+      const inA = pointInPolygon(px, py, a);
+      const inB = pointInPolygon(px, py, b);
+      if (inA && inB) both += 1;
+      if (inA || inB) either += 1;
+    }
+  }
+  return either > 0 ? both / either : 0;
+}
+
+export function scoreRegion(
+  key: RegionAnswerKey,
+  studentPoints: [number, number][],
+): boolean {
+  if (studentPoints.length < 3 || key.correctVertices.length < 3) return false;
+  return polygonOverlap(studentPoints, key.correctVertices) >= key.minOverlap;
+}

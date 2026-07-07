@@ -17,12 +17,31 @@
 import {
   scorePoints,
   scoreFunction,
+  scoreRegion,
   fitFunction,
   handlesForFamily,
   type PointAnswerKey,
   type FunctionModel,
+  type RegionAnswerKey,
 } from './graph-score.js';
 import type { PointAnswerConfig, PointAnswerController } from './board.js';
+
+const isPointPair = (p: unknown): p is [number, number] =>
+  Array.isArray(p) && p.length === 2 && typeof p[0] === 'number' && typeof p[1] === 'number';
+
+// Read the shade_region answer key from data-graph-answer-key (`{ correctVertices,
+// minOverlap }`), defaulting a malformed one to a benign empty region.
+function readRegionKey(raw: unknown): RegionAnswerKey {
+  const k = (raw ?? {}) as { correctVertices?: unknown; minOverlap?: unknown };
+  const verts = Array.isArray(k.correctVertices)
+    ? k.correctVertices.filter(isPointPair)
+    : [];
+  const minOverlap =
+    typeof k.minOverlap === 'number' && k.minOverlap >= 0 && k.minOverlap <= 1
+      ? k.minOverlap
+      : 0.9;
+  return { correctVertices: verts, minOverlap };
+}
 
 // Read the plot_function model out of the data-graph-answer-key payload (which
 // for plot_function is `{ model: {...} }`), defaulting a malformed/absent one to
@@ -43,11 +62,13 @@ function readModel(raw: unknown): FunctionModel {
   };
 }
 
-// The board recipe (handle count, curve to draw, scorer) for one interaction.
+// The board recipe (handle count, curve/polygon to draw, scorer) for one
+// interaction type.
 interface Recipe {
   count: number;
   scorer: (points: [number, number][]) => boolean;
   deriveCurve?: PointAnswerConfig['deriveCurve'];
+  polygon?: boolean;
 }
 
 function recipeFor(interactionType: string, answerKey: unknown): Recipe {
@@ -61,6 +82,14 @@ function recipeFor(interactionType: string, answerKey: unknown): Recipe {
         const f = fitFunction(family, pts);
         return f ? f.predict : null;
       },
+    };
+  }
+  if (interactionType === 'shade_region') {
+    const key = readRegionKey(answerKey);
+    return {
+      count: Math.max(3, key.correctVertices.length),
+      scorer: (pts) => scoreRegion(key, pts),
+      polygon: true,
     };
   }
   const key = readAnswerKey(answerKey);
@@ -177,7 +206,7 @@ export async function mountGraphQuestion(
 
   const board: PointAnswerController = createPointAnswerBoard(
     mount,
-    { ...axis, count: recipe.count, deriveCurve: recipe.deriveCurve },
+    { ...axis, count: recipe.count, deriveCurve: recipe.deriveCurve, polygon: recipe.polygon },
     { onMove: handleMove },
   );
 
@@ -248,8 +277,14 @@ export async function mountGraphAuthor(
       )
     : [];
   const family = typeof cfg.family === 'string' ? cfg.family : undefined;
-  // plot_function fixes the handle count by family; plot_point uses one per point.
-  const count = family ? handlesForFamily(family) : Math.max(1, points.length);
+  const polygon = cfg.interactionType === 'shade_region';
+  // plot_function fixes the handle count by family; shade_region uses one vertex
+  // per handle (≥3); plot_point uses one per point.
+  const count = family
+    ? handlesForFamily(family)
+    : polygon
+      ? Math.max(3, points.length)
+      : Math.max(1, points.length);
   const deriveCurve: PointAnswerConfig['deriveCurve'] | undefined = family
     ? (pts) => {
         const f = fitFunction(family, pts);
@@ -267,6 +302,7 @@ export async function mountGraphAuthor(
       count,
       starts: points.length === count ? points : undefined,
       deriveCurve,
+      polygon,
     },
     { onMove: (_active, pts) => hooks.onChange?.(pts) },
   );

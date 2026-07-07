@@ -46,7 +46,15 @@ export interface FunctionInteractionAttr {
     type: 'plot_function';
     model: LinearFunctionModel; // future: | QuadraticModel | …
 }
-export type GraphInteraction = PointInteractionAttr | FunctionInteractionAttr;
+export interface RegionInteractionAttr {
+    type: 'shade_region';
+    correctVertices: [number, number][];
+    minOverlap: number;
+}
+export type GraphInteraction =
+    | PointInteractionAttr
+    | FunctionInteractionAttr
+    | RegionInteractionAttr;
 
 // A fresh plot_function interaction (linear, y = x) — used when the author
 // switches the picker to "Plot a line".
@@ -66,6 +74,15 @@ export function defaultFunctionInteraction(): FunctionInteractionAttr {
 // A fresh plot_point interaction (one point at the origin).
 export function defaultPointInteraction(): PointInteractionAttr {
     return { type: 'plot_point', correctPoints: [[0, 0]], tolerance: 0.1 };
+}
+
+// A fresh shade_region interaction — a small triangle the author drags into shape.
+export function defaultRegionInteraction(): RegionInteractionAttr {
+    return {
+        type: 'shade_region',
+        correctVertices: [[0, 0], [4, 0], [2, 4]],
+        minOverlap: 0.9,
+    };
 }
 
 const defaults = createInteractiveGraphBlock();

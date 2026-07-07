@@ -5,6 +5,8 @@ import {
   scoreFunction,
   fitFunction,
   handlesForFamily,
+  scoreRegion,
+  polygonOverlap,
   type PointAnswerKey,
   type FunctionModel,
 } from '../src/graph-score.js';
@@ -128,5 +130,45 @@ describe('scoreFunction (linear)', () => {
 
   it('rejects a vertical line', () => {
     expect(scoreFunction(linearModel(), [[2, 0], [2, 5]])).toBe(false);
+  });
+});
+
+describe('polygonOverlap + scoreRegion (IoU)', () => {
+  const tri = (): [number, number][] => [[0, 0], [4, 0], [2, 4]];
+
+  it('identical polygons overlap ~1', () => {
+    expect(polygonOverlap(tri(), tri())).toBeGreaterThan(0.98);
+  });
+
+  it('disjoint polygons overlap ~0', () => {
+    const far: [number, number][] = [[10, 10], [14, 10], [12, 14]];
+    expect(polygonOverlap(tri(), far)).toBe(0);
+  });
+
+  it('partial overlap is between 0 and 1', () => {
+    const shifted: [number, number][] = [[2, 0], [6, 0], [4, 4]];
+    const iou = polygonOverlap(tri(), shifted);
+    expect(iou).toBeGreaterThan(0.05);
+    expect(iou).toBeLessThan(0.95);
+  });
+
+  it('degenerate (< 3 vertices) overlaps 0', () => {
+    expect(polygonOverlap([[0, 0], [1, 1]], tri())).toBe(0);
+  });
+
+  it('scoreRegion accepts a near-exact match and rejects a shifted one', () => {
+    const key = { correctVertices: tri(), minOverlap: 0.9 };
+    expect(scoreRegion(key, tri())).toBe(true);
+    expect(scoreRegion(key, [[2, 0], [6, 0], [4, 4]])).toBe(false); // shifted right
+  });
+
+  it('scoreRegion honors a looser minOverlap', () => {
+    // A slightly larger triangle around the same centroid — high but not perfect IoU.
+    const key = { correctVertices: tri(), minOverlap: 0.5 };
+    expect(scoreRegion(key, [[-0.3, -0.3], [4.3, -0.3], [2, 4.3]])).toBe(true);
+  });
+
+  it('scoreRegion needs at least three student vertices', () => {
+    expect(scoreRegion({ correctVertices: tri(), minOverlap: 0.9 }, [[0, 0], [4, 0]])).toBe(false);
   });
 });

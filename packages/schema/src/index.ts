@@ -44,6 +44,7 @@ export {
   PointInteraction,
   FunctionInteraction,
   FunctionModel,
+  RegionInteraction,
   GraphInteraction,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
@@ -71,6 +72,7 @@ export {
   ConfidenceLevel,
   PointResponse,
   FunctionResponse,
+  RegionResponse,
   GraphResponse,
   SubmissionResponses,
   SubmissionResponsesV1,

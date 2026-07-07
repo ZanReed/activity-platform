@@ -15,10 +15,13 @@ import type { InlineNodes } from '../../lib/serialize';
 import {
     defaultFunctionInteraction,
     defaultPointInteraction,
+    defaultRegionInteraction,
     type GraphAxisConfig,
     type GraphInteraction,
     type LinearFunctionModel,
 } from '../extensions/InteractiveGraph';
+
+type InteractionType = GraphInteraction['type'];
 
 // ============================================================================
 // InteractiveGraphView — NodeView for the interactive_graph block (Stage 5).
@@ -65,11 +68,15 @@ function GraphAuthorBoard({
     const count =
         interaction.type === 'plot_function'
             ? handlesForFamily(family!)
-            : interaction.correctPoints.length;
+            : interaction.type === 'shade_region'
+              ? interaction.correctVertices.length
+              : interaction.correctPoints.length;
     const startPoints =
         interaction.type === 'plot_function'
             ? functionStartPoints(interaction.model, axisConfig)
-            : interaction.correctPoints;
+            : interaction.type === 'shade_region'
+              ? interaction.correctVertices
+              : interaction.correctPoints;
     const startRef = useRef(startPoints);
     startRef.current = startPoints;
 
@@ -182,6 +189,8 @@ export default function InteractiveGraphView({
     const onPointsChange = (points: [number, number][]): void => {
         if (interaction.type === 'plot_point') {
             updateAttributes({ interaction: { ...interaction, correctPoints: points } });
+        } else if (interaction.type === 'shade_region') {
+            updateAttributes({ interaction: { ...interaction, correctVertices: points } });
         } else {
             const fit = fitFunction(interaction.model.family, points);
             if (fit && fit.family === 'linear') {
@@ -195,11 +204,28 @@ export default function InteractiveGraphView({
         }
     };
 
-    const switchType = (type: 'plot_point' | 'plot_function'): void => {
+    const switchType = (type: InteractionType): void => {
         if (type === interaction.type) return;
-        updateAttributes({
-            interaction: type === 'plot_function' ? defaultFunctionInteraction() : defaultPointInteraction(),
-        });
+        const next =
+            type === 'plot_function'
+                ? defaultFunctionInteraction()
+                : type === 'shade_region'
+                  ? defaultRegionInteraction()
+                  : defaultPointInteraction();
+        updateAttributes({ interaction: next });
+    };
+
+    // shade_region: add/remove polygon vertices (3..6).
+    const setVertexCount = (next: number): void => {
+        if (interaction.type !== 'shade_region') return;
+        const n = Math.max(3, Math.min(next, 6));
+        const cur = interaction.correctVertices;
+        if (n === cur.length) return;
+        const verts =
+            n < cur.length
+                ? cur.slice(0, n)
+                : [...cur, ...Array.from({ length: n - cur.length }, (_, i) => [cur.length + i, 0] as [number, number])];
+        updateAttributes({ interaction: { ...interaction, correctVertices: verts } });
     };
 
     const setPointCount = (next: number): void => {
@@ -222,7 +248,9 @@ export default function InteractiveGraphView({
     const answerText =
         interaction.type === 'plot_point'
             ? interaction.correctPoints.map((p) => `(${p[0]}, ${p[1]})`).join(', ')
-            : formatLine(interaction.model);
+            : interaction.type === 'shade_region'
+              ? interaction.correctVertices.map((p) => `(${p[0]}, ${p[1]})`).join(', ')
+              : formatLine(interaction.model);
 
     return (
         <NodeViewWrapper
@@ -239,11 +267,12 @@ export default function InteractiveGraphView({
                         <select
                             value={interaction.type}
                             disabled={!isEditable}
-                            onChange={(e) => switchType(e.target.value as 'plot_point' | 'plot_function')}
+                            onChange={(e) => switchType(e.target.value as InteractionType)}
                             onKeyDown={(e) => e.stopPropagation()}
                         >
                             <option value="plot_point">Plot a point</option>
                             <option value="plot_function">Plot a line</option>
+                            <option value="shade_region">Shade a region</option>
                         </select>
                     </label>
                 </div>
@@ -257,7 +286,9 @@ export default function InteractiveGraphView({
                 <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
                     {interaction.type === 'plot_point'
                         ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} to set the correct answer. `
-                        : 'Drag the two handles to set the line. '}
+                        : interaction.type === 'shade_region'
+                          ? 'Drag the vertices to shape the correct region. '
+                          : 'Drag the two handles to set the line. '}
                     Answer: <code>{answerText}</code>
                 </p>
 
@@ -272,6 +303,21 @@ export default function InteractiveGraphView({
                             disabled={!isEditable}
                             style={{ width: '3rem' }}
                             onChange={(e) => setPointCount(Math.trunc(num(e.target.value, 1)))}
+                            onKeyDown={(e) => e.stopPropagation()}
+                        />
+                    </label>
+                )}
+                {interaction.type === 'shade_region' && (
+                    <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
+                        Polygon vertices:{' '}
+                        <input
+                            type="number"
+                            min={3}
+                            max={6}
+                            value={interaction.correctVertices.length}
+                            disabled={!isEditable}
+                            style={{ width: '3rem' }}
+                            onChange={(e) => setVertexCount(Math.trunc(num(e.target.value, 3)))}
                             onKeyDown={(e) => e.stopPropagation()}
                         />
                     </label>
@@ -349,15 +395,16 @@ export default function InteractiveGraphView({
                                 </label>
                             </div>
 
-                            {/* Tolerance — differs by interaction. Both slider + numeric. */}
-                            {interaction.type === 'plot_point' ? (
+                            {/* Tolerance / strictness — differs by interaction. Slider + numeric. */}
+                            {interaction.type === 'plot_point' && (
                                 <ToleranceRow
                                     label="Tolerance"
                                     value={interaction.tolerance}
                                     disabled={!isEditable}
                                     onChange={(v) => updateAttributes({ interaction: { ...interaction, tolerance: v } })}
                                 />
-                            ) : (
+                            )}
+                            {interaction.type === 'plot_function' && (
                                 <>
                                     <ToleranceRow
                                         label="Slope tolerance"
@@ -372,6 +419,19 @@ export default function InteractiveGraphView({
                                         onChange={(v) => setModel({ interceptTolerance: v })}
                                     />
                                 </>
+                            )}
+                            {interaction.type === 'shade_region' && (
+                                <ToleranceRow
+                                    label="Min. overlap (IoU)"
+                                    value={interaction.minOverlap}
+                                    max={1}
+                                    disabled={!isEditable}
+                                    onChange={(v) =>
+                                        updateAttributes({
+                                            interaction: { ...interaction, minOverlap: Math.min(1, Math.max(0, v)) },
+                                        })
+                                    }
+                                />
                             )}
 
                             <div>
@@ -407,11 +467,13 @@ function ToleranceRow({
     value,
     disabled,
     onChange,
+    max = 2,
 }: {
     label: string;
     value: number;
     disabled: boolean;
     onChange: (v: number) => void;
+    max?: number;
 }) {
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -419,7 +481,7 @@ function ToleranceRow({
             <input
                 type="range"
                 min={0}
-                max={2}
+                max={max}
                 step={0.05}
                 value={value}
                 disabled={disabled}

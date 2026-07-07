@@ -56,6 +56,7 @@ export {
   PointInteraction,
   FunctionInteraction,
   FunctionModel,
+  RegionInteraction,
   GraphInteraction,
 } from './interactive-graph.js';
 export type { HeadingLevel } from './heading.js';

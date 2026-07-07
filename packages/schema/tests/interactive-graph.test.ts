@@ -135,6 +135,48 @@ describe('plot_function interaction (linear)', () => {
   });
 });
 
+describe('shade_region interaction', () => {
+  const regionGraph = () => ({
+    id: crypto.randomUUID(),
+    type: 'interactive_graph' as const,
+    prompt: [],
+    axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+    interaction: {
+      type: 'shade_region' as const,
+      correctVertices: [[0, 0], [4, 0], [2, 3]],
+    },
+  });
+
+  it('parses a triangle region with the minOverlap default', () => {
+    const parsed = InteractiveGraphBlock.parse(regionGraph());
+    expect(parsed.interaction.type).toBe('shade_region');
+    if (parsed.interaction.type === 'shade_region') {
+      expect(parsed.interaction.correctVertices).toHaveLength(3);
+      expect(parsed.interaction.minOverlap).toBe(0.9);
+    }
+  });
+
+  it('requires at least three vertices', () => {
+    const bad = {
+      ...regionGraph(),
+      interaction: { type: 'shade_region', correctVertices: [[0, 0], [4, 0]] },
+    };
+    expect(InteractiveGraphBlock.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects a minOverlap outside 0..1', () => {
+    const bad = {
+      ...regionGraph(),
+      interaction: { type: 'shade_region', correctVertices: [[0, 0], [4, 0], [2, 3]], minOverlap: 1.5 },
+    };
+    expect(InteractiveGraphBlock.safeParse(bad).success).toBe(false);
+  });
+
+  it('is a member of the Block union', () => {
+    expect(Block.safeParse(InteractiveGraphBlock.parse(regionGraph())).success).toBe(true);
+  });
+});
+
 describe('createInteractiveGraphBlock factory', () => {
   it('produces schema-valid output', () => {
     expect(InteractiveGraphBlock.safeParse(createInteractiveGraphBlock()).success).toBe(true);

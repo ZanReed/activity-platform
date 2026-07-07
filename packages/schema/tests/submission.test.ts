@@ -84,6 +84,22 @@ describe('SubmissionResponses (v3 — current)', () => {
     expect(SubmissionResponses.safeParse(data).success).toBe(true);
   });
 
+  it('parses a shade_region graphResponse', () => {
+    const graphId = crypto.randomUUID();
+    const data = {
+      schemaVersion: 3,
+      blanks: {},
+      graphResponses: {
+        [graphId]: {
+          type: 'shade_region',
+          studentPoints: [[0, 0], [4, 0], [2, 3]],
+          correct: true,
+        },
+      },
+    };
+    expect(SubmissionResponses.safeParse(data).success).toBe(true);
+  });
+
   it('rejects a graphResponse with a non-tuple point', () => {
     const graphId = crypto.randomUUID();
     const data = {

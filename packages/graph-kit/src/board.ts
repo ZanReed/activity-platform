@@ -448,6 +448,11 @@ export interface PointAnswerConfig {
    * they drag. Absent for plain plot_point.
    */
   deriveCurve?: (points: [number, number][]) => ((x: number) => number) | null;
+  /**
+   * shade_region: draw a filled polygon through the handles (in order). It
+   * follows the handles as they drag. Absent for plot_point / plot_function.
+   */
+  polygon?: boolean;
 }
 
 export interface PointAnswerHooks {
@@ -553,6 +558,26 @@ export function createPointAnswerBoard(
 
   const currentPoints = (): [number, number][] =>
     points.map((p) => [p.X(), p.Y()]);
+
+  // shade_region: a filled polygon whose vertices ARE the draggable handles, so
+  // it follows them as they drag (JSXGraph re-renders the polygon when its
+  // vertex points move). Non-interactive itself — only the handles move; the
+  // borders/inner region don't grab the pointer away from the vertices.
+  if (config.polygon && points.length >= 3) {
+    board.create('polygon', points as unknown[], {
+      fillColor: ANSWER_COLOR,
+      fillOpacity: 0.2,
+      highlightFillOpacity: 0.2,
+      hasInnerPoints: false,
+      fixed: true,
+      borders: {
+        strokeColor: ANSWER_COLOR,
+        strokeWidth: 2,
+        highlight: false,
+        fixed: true,
+      },
+    });
+  }
 
   // plot_function: a single curve drawn THROUGH the handles. The functiongraph
   // holds a closure that re-derives the curve from the live handle positions on

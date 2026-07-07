@@ -101,9 +101,19 @@ export const FunctionResponse = z.object({
 });
 export type FunctionResponse = z.infer<typeof FunctionResponse>;
 
+// shade_region (2.7c): studentPoints are the polygon's vertices in order.
+export const RegionResponse = z.object({
+  type: z.literal('shade_region'),
+  studentPoints: z.array(z.tuple([z.number(), z.number()])),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type RegionResponse = z.infer<typeof RegionResponse>;
+
 export const GraphResponse = z.discriminatedUnion('type', [
   PointResponse,
   FunctionResponse,
+  RegionResponse,
 ]);
 export type GraphResponse = z.infer<typeof GraphResponse>;
 
