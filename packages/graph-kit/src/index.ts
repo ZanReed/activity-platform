@@ -54,7 +54,9 @@ export type {
 
 // The pure plot_point scorer — exported so the runtime/tests (and, later,
 // server-side grading) score with the SAME tolerance logic the widget uses.
-export { isPointCorrect } from './graph-score.js';
+// scorePoints is the general (consume-once, N-point) scorer; isPointCorrect is
+// the single-handle convenience.
+export { scorePoints, isPointCorrect } from './graph-score.js';
 export type { PointAnswerKey } from './graph-score.js';
 
 // NOTE: board.ts (JSXGraph) is deliberately NOT re-exported here — that would

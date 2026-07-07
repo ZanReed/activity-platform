@@ -93,7 +93,7 @@ describe('init walk', () => {
     mount();
     const state = createInitialState(buildRefs(document));
     expect(state.graphs[GRAPH_ID]).toEqual({
-      point: null, answered: false, result: null, solutionRevealed: false, confidence: null,
+      points: [], answered: false, result: null, solutionRevealed: false, confidence: null,
     });
   });
 });
@@ -104,7 +104,7 @@ describe('checkpoint scoring', () => {
     const refs = buildRefs(document);
     const state = createInitialState(refs);
     state.graphs[GRAPH_ID] = {
-      point: [3, 4], answered: true, result: true, solutionRevealed: false, confidence: null,
+      points: [[3, 4]], answered: true, result: true, solutionRevealed: false, confidence: null,
     };
     checkSection(config, state, refs, SECTION_ID);
     expect(state.sections[SECTION_ID]!.score).toBe(1);
@@ -137,7 +137,7 @@ describe('submit payload', () => {
     const refs = buildRefs(document);
     const state = createInitialState(refs);
     state.graphs[GRAPH_ID] = {
-      point: [3, 4], answered: true, result: true, solutionRevealed: false, confidence: 'certain',
+      points: [[3, 4]], answered: true, result: true, solutionRevealed: false, confidence: 'certain',
     };
     const gathered = gatherResponses(state, refs);
     expect(gathered.score).toBe(1);
@@ -170,7 +170,7 @@ describe('storage round-trip', () => {
     const refs = buildRefs(document);
     const state = createInitialState(refs);
     state.graphs[GRAPH_ID] = {
-      point: [3, 4], answered: true, result: true, solutionRevealed: true, confidence: null,
+      points: [[3, 4]], answered: true, result: true, solutionRevealed: true, confidence: null,
     };
     saveActivityState(config, refs, state);
 
@@ -179,7 +179,7 @@ describe('storage round-trip', () => {
     expect(stored).not.toBeNull();
     applyStoredState(stored!, refs, fresh);
     expect(fresh.graphs[GRAPH_ID]).toEqual({
-      point: [3, 4], answered: true, result: true, solutionRevealed: true, confidence: null,
+      points: [[3, 4]], answered: true, result: true, solutionRevealed: true, confidence: null,
     });
   });
 });

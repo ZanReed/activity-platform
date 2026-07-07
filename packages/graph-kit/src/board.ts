@@ -413,15 +413,20 @@ export function createBoard(container: HTMLElement): BoardController {
 // graded block reuses the same lazy chunk the calculator's graphing mode loads.
 //
 // Accessibility (a first-class slice-1 commitment, not a follow-up):
-//   - the point is a large (touch-friendly) draggable handle;
+//   - each handle is a large (touch-friendly) draggable point;
 //   - Tab focuses the canvas (the renderer set role=application + tabindex);
-//   - arrows nudge the point by one grid step, Shift+arrow by a fine 0.1 step,
-//     clamped to the plane;
-//   - every move (drag OR keyboard) calls onMove so the caller can narrate the
-//     new position into the block's aria-live region.
+//   - arrows nudge the ACTIVE handle by one grid step, Shift+arrow by a fine 0.1
+//     step, clamped to the plane;
+//   - with multiple handles, Tab / Shift+Tab cycle the active handle and only
+//     let focus LEAVE the widget at the ends (no focus trap); the active handle
+//     is visually enlarged;
+//   - every move (drag OR keyboard) and every focus change calls onMove so the
+//     caller can narrate into the block's aria-live region.
 // =============================================================================
 
 const ANSWER_COLOR = '#7c3aed';
+const HANDLE_SIZE = 6;
+const HANDLE_SIZE_ACTIVE = 9;
 
 export interface PointAnswerConfig {
   xMin: number;
@@ -432,23 +437,25 @@ export interface PointAnswerConfig {
   yGridStep: number;
   showGrid: boolean;
   snapToGrid: boolean;
-  /** Where the handle starts. Defaults to the origin (clamped into the plane). */
-  start?: [number, number];
+  /** How many answer handles to show (defaults to 1; typically = correctPoints.length). */
+  count?: number;
+  /** Per-handle start positions; defaults to points spread across the x-axis. */
+  starts?: [number, number][];
 }
 
 export interface PointAnswerHooks {
-  /** Called on every move (drag or keyboard) with the point's user coords. */
-  onMove?: (x: number, y: number) => void;
+  /** Called on every move or focus change with the active handle index + all points. */
+  onMove?: (activeIndex: number, points: [number, number][]) => void;
 }
 
 export interface PointAnswerController {
-  /** The handle's current user coordinates. */
-  getPoint(): [number, number];
-  /** True once the student has dragged or keyed the handle at least once. */
+  /** Every handle's current user coordinates, in handle order. */
+  getPoints(): [number, number][];
+  /** True once the student has dragged or keyed a handle at least once. */
   hasMoved(): boolean;
-  /** Reposition the handle programmatically (state restore on reload). */
-  setPoint(x: number, y: number): void;
-  /** Lock (post-check) or unlock dragging + keyboard. */
+  /** Reposition handles programmatically (state restore on reload). */
+  setPoints(points: [number, number][]): void;
+  /** Lock (post-check) or unlock dragging + keyboard on every handle. */
   setInteractive(on: boolean): void;
   destroy(): void;
 }
@@ -496,45 +503,101 @@ export function createPointAnswerBoard(
   const clampX = (x: number): number => Math.min(Math.max(x, config.xMin), config.xMax);
   const clampY = (y: number): number => Math.min(Math.max(y, config.yMin), config.yMax);
 
-  const [sx, sy] = config.start ?? [0, 0];
-  const start: [number, number] = [clampX(sx), clampY(sy)];
+  const count = Math.max(1, Math.floor(config.count ?? 1));
 
-  // The draggable answer handle. snapToGrid pins drags to grid intersections
-  // when the author enabled it; size 6 clears the 44px touch-target bar with the
-  // hit area JSXGraph adds around a point. showInfobox off — narration is ours.
-  const point = board.create('point', start, {
-    name: '',
-    withLabel: false,
-    size: 6,
-    strokeColor: ANSWER_COLOR,
-    fillColor: ANSWER_COLOR,
-    highlightStrokeColor: ANSWER_COLOR,
-    highlightFillColor: ANSWER_COLOR,
-    showInfobox: false,
-    snapToGrid: config.snapToGrid,
-    snapSizeX: config.xGridStep,
-    snapSizeY: config.yGridStep,
-  }) as unknown as JxgPoint;
+  // Default starts: spread handles evenly across the x-axis at y = 0 so multiple
+  // handles don't stack on the origin. One handle lands at the plane's x-centre
+  // (the origin for a symmetric plane) — the slice-1 single-point default.
+  const defaultStarts = (): [number, number][] => {
+    const out: [number, number][] = [];
+    for (let i = 0; i < count; i++) {
+      const x = config.xMin + ((i + 1) * (config.xMax - config.xMin)) / (count + 1);
+      out.push([clampX(x), clampY(0)]);
+    }
+    return out;
+  };
+  const starts =
+    config.starts && config.starts.length === count
+      ? config.starts.map(([x, y]) => [clampX(x), clampY(y)] as [number, number])
+      : defaultStarts();
 
+  // One draggable handle per start. snapToGrid pins drags to grid intersections
+  // when the author enabled it; showInfobox off — narration is ours.
+  const points: JxgPoint[] = starts.map(
+    (s) =>
+      board.create('point', s, {
+        name: '',
+        withLabel: false,
+        size: HANDLE_SIZE,
+        strokeColor: ANSWER_COLOR,
+        fillColor: ANSWER_COLOR,
+        highlightStrokeColor: ANSWER_COLOR,
+        highlightFillColor: ANSWER_COLOR,
+        showInfobox: false,
+        snapToGrid: config.snapToGrid,
+        snapSizeX: config.xGridStep,
+        snapSizeY: config.yGridStep,
+      }) as unknown as JxgPoint,
+  );
+
+  let activeIndex = 0;
   let moved = false;
   let interactive = true;
 
+  const currentPoints = (): [number, number][] =>
+    points.map((p) => [p.X(), p.Y()]);
+
+  // Enlarge the active handle so keyboard users can see which one the arrows
+  // move. No-op visual noise for the single-handle case (index always 0).
+  const styleActive = (): void => {
+    if (count < 2) return;
+    points.forEach((p, i) =>
+      p.setAttribute({ size: i === activeIndex ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE }),
+    );
+    board.update();
+  };
+  styleActive();
+
   const notify = (fromUser: boolean): void => {
     if (fromUser) moved = true;
-    hooks.onMove?.(point.X(), point.Y());
+    hooks.onMove?.(activeIndex, currentPoints());
   };
 
-  // Drag (mouse/touch): JSXGraph snaps then fires 'drag'.
-  point.on('drag', () => notify(true));
+  // Drag (mouse/touch): the dragged handle becomes active, then JSXGraph fires
+  // 'drag' after snapping.
+  points.forEach((p, i) =>
+    p.on('drag', () => {
+      if (activeIndex !== i) {
+        activeIndex = i;
+        styleActive();
+      }
+      notify(true);
+    }),
+  );
 
-  // Keyboard: arrows nudge by one grid step (Shift → fine 0.1 step), clamped.
   container.addEventListener('keydown', (e: KeyboardEvent) => {
     if (!interactive) return;
+
+    // Tab / Shift+Tab cycle the active handle, but only INSIDE the range — at the
+    // ends we don't preventDefault, so focus leaves the widget normally (no trap).
+    if (e.key === 'Tab' && count > 1) {
+      const next = activeIndex + (e.shiftKey ? -1 : 1);
+      if (next >= 0 && next < count) {
+        e.preventDefault();
+        activeIndex = next;
+        styleActive();
+        hooks.onMove?.(activeIndex, currentPoints()); // narrate the new focus (not a move)
+      }
+      return;
+    }
+
+    const active = points[activeIndex];
+    if (!active) return;
     const fine = e.shiftKey;
     const stepX = fine ? 0.1 : config.xGridStep;
     const stepY = fine ? 0.1 : config.yGridStep;
-    let nx = point.X();
-    let ny = point.Y();
+    let nx = active.X();
+    let ny = active.Y();
     switch (e.key) {
       case 'ArrowLeft': nx -= stepX; break;
       case 'ArrowRight': nx += stepX; break;
@@ -543,26 +606,29 @@ export function createPointAnswerBoard(
       default: return;
     }
     e.preventDefault();
-    point.moveTo([clampX(nx), clampY(ny)]);
+    active.moveTo([clampX(nx), clampY(ny)]);
     board.update();
     notify(true);
   });
 
-  // Note: onMove is NOT fired at construction — only on real user moves and on
-  // an explicit setPoint (state restore). The caller reads the initial position
-  // via getPoint() after mounting if it needs it.
+  // Note: onMove is NOT fired at construction — only on real user moves, focus
+  // changes, and an explicit setPoints (state restore). The caller reads the
+  // initial positions via getPoints() after mounting if it needs them.
 
   return {
-    getPoint: () => [point.X(), point.Y()],
+    getPoints: currentPoints,
     hasMoved: () => moved,
-    setPoint(x: number, y: number): void {
-      point.moveTo([clampX(x), clampY(y)]);
+    setPoints(next: [number, number][]): void {
+      next.forEach((coords, i) => {
+        const p = points[i];
+        if (p) p.moveTo([clampX(coords[0]), clampY(coords[1])]);
+      });
       board.update();
       notify(false);
     },
     setInteractive(on: boolean): void {
       interactive = on;
-      point.setAttribute({ fixed: !on });
+      for (const p of points) p.setAttribute({ fixed: !on });
     },
     destroy(): void {
       JSXGraph.freeBoard(board as unknown as Parameters<typeof JSXGraph.freeBoard>[0]);

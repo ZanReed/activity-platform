@@ -14,7 +14,7 @@
 // widget actually mounts.
 // =============================================================================
 
-import { isPointCorrect, type PointAnswerKey } from './graph-score.js';
+import { scorePoints, type PointAnswerKey } from './graph-score.js';
 import type { PointAnswerConfig, PointAnswerController } from './board.js';
 
 // The parsed block config the runtime hands us (from the data-* attributes).
@@ -100,6 +100,10 @@ export async function mountGraphQuestion(
   // before JSXGraph mounts so the two don't overlap.
   mount.textContent = '';
 
+  // One handle per authored correct point (a "plot both roots" question shows
+  // two). At least one, even if the answer key came through empty.
+  const count = Math.max(1, answerKey.correctPoints.length);
+
   // Lazy-load the board layer (JSXGraph in its own chunk).
   const { createPointAnswerBoard } = await import('./board.js');
 
@@ -108,10 +112,10 @@ export async function mountGraphQuestion(
   // Function declarations (hoisted) so they can close over `board`, which is
   // assigned just below and only ever read after the board exists.
   function build(): GraphResponseData {
-    const p = board.getPoint();
+    const pts = board.getPoints();
     return {
-      studentPoints: [p],
-      correct: isPointCorrect(answerKey, p),
+      studentPoints: pts,
+      correct: scorePoints(answerKey, pts),
       answered,
     };
   }
@@ -120,17 +124,18 @@ export async function mountGraphQuestion(
     hooks.onChange?.(build());
   }
 
-  const board: PointAnswerController = createPointAnswerBoard(mount, axis, {
-    onMove: handleMove,
-  });
+  const board: PointAnswerController = createPointAnswerBoard(
+    mount,
+    { ...axis, count },
+    { onMove: handleMove },
+  );
 
   return {
     getResponse: build,
     restore(points: [number, number][]): void {
-      const p = points[0];
-      if (!p) return;
+      if (points.length === 0) return;
       answered = true;
-      board.setPoint(p[0], p[1]);
+      board.setPoints(points);
     },
     setLocked(locked: boolean): void {
       board.setInteractive(!locked);

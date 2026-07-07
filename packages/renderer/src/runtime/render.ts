@@ -183,8 +183,12 @@ function renderGraph(
         if (checked && graphState.result !== null) {
             text = graphState.result ? 'Correct!' : 'Not quite — try again.';
             dataState = graphState.result ? 'correct' : 'incorrect';
-        } else if (graphState.answered && graphState.point) {
-            text = 'Point plotted at (' + graphState.point[0] + ', ' + graphState.point[1] + ').';
+        } else if (graphState.answered && graphState.points.length > 0) {
+            const plotted = graphState.points
+                .map((p) => '(' + p[0] + ', ' + p[1] + ')')
+                .join(', ');
+            const label = graphState.points.length > 1 ? 'Points plotted at ' : 'Point plotted at ';
+            text = label + plotted + '.';
         }
         const wantHidden = text === '';
         if (ref.feedbackEl.hidden !== wantHidden) ref.feedbackEl.hidden = wantHidden;

@@ -15,6 +15,9 @@ export default function DevGraphQuestion() {
   const [narration, setNarration] = useState('');
   const [checked, setChecked] = useState<GraphResponseData | null>(null);
   const [locked, setLocked] = useState(false);
+  const [two, setTwo] = useState(false);
+
+  const correctPoints: [number, number][] = two ? [[3, 4], [-3, -2]] : [[3, 4]];
 
   useEffect(() => {
     const host = mountRef.current;
@@ -35,12 +38,14 @@ export default function DevGraphQuestion() {
           xMin: -10, xMax: 10, yMin: -10, yMax: 10,
           xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true,
         },
-        answerKey: { correctPoints: [[3, 4]], tolerance: 0.1 },
+        answerKey: { correctPoints, tolerance: 0.1 },
       },
       {
         onChange: (r) => {
           setResp(r);
-          setNarration(`Point at x = ${r.studentPoints[0]?.[0]}, y = ${r.studentPoints[0]?.[1]}`);
+          setNarration(
+            r.studentPoints.map((p, i) => `#${i + 1} (${p[0]}, ${p[1]})`).join('  '),
+          );
         },
       },
     ).then((h) => {
@@ -54,7 +59,8 @@ export default function DevGraphQuestion() {
       handle?.destroy();
       el.remove();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [two]);
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
@@ -62,9 +68,14 @@ export default function DevGraphQuestion() {
         Interactive graph question — dev harness
       </h1>
       <p style={{ color: '#475569', marginTop: '0.25rem' }}>
-        Target: plot <code>(3, 4)</code>, tolerance 0.1. Drag the point, or focus
-        the canvas and use arrow keys (Shift = fine step).
+        Target: plot <code>{JSON.stringify(correctPoints)}</code>, tolerance 0.1.
+        Drag a handle, or focus the canvas and use arrow keys (Shift = fine step;
+        Tab cycles handles when there are two).
       </p>
+      <label style={{ display: 'block', margin: '0.5rem 0', color: '#475569' }}>
+        <input type="checkbox" checked={two} onChange={(e) => setTwo(e.target.checked)} />{' '}
+        two points (plot both — consume-once scoring)
+      </label>
 
       <div
         ref={mountRef}
@@ -105,8 +116,8 @@ export default function DevGraphQuestion() {
         >
           {locked ? 'Unlock' : 'Lock'}
         </button>
-        <button type="button" onClick={() => handleRef.current?.restore([[3, 4]])}>
-          Restore (3,4)
+        <button type="button" onClick={() => handleRef.current?.restore(correctPoints)}>
+          Restore to answer
         </button>
       </div>
 

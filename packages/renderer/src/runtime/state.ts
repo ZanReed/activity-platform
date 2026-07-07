@@ -81,12 +81,13 @@ export interface BlockState {
 
 export interface GraphBlockState {
     /**
-     * The student's plotted point in graph units, or null before they've
-     * touched the widget. Persisted so a reload restores the plotted answer
-     * (the sidecar calls the kit's restore() with it).
+     * The student's plotted point(s) in graph units — one per answer handle
+     * (usually one; a "plot both roots" question has more). Empty before they've
+     * touched the widget. Persisted so a reload restores the plotted answer (the
+     * sidecar calls the kit's restore() with it).
      */
-    point: [number, number] | null;
-    /** True once the student has moved the point (drag or keyboard) at least once. */
+    points: [number, number][];
+    /** True once the student has moved a handle (drag or keyboard) at least once. */
     answered: boolean;
     /**
      * Scoring result: true correct, false incorrect, null unscored. Null until
@@ -168,7 +169,7 @@ export function createInitialState(refs: Refs): RuntimeState {
     const graphs: Record<string, GraphBlockState> = {};
     for (const [id] of refs.graphs) {
         graphs[id] = {
-            point: null,
+            points: [],
             answered: false,
             result: null,
             solutionRevealed: false,

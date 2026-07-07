@@ -172,10 +172,10 @@ export function gatherResponses(
       totalScored += 1;
       if (gs.result === true) totalCorrect += 1;
     }
-    if (gs.answered && gs.point) {
+    if (gs.answered && gs.points.length > 0) {
       const result: GraphResult = {
         type: 'plot_point',
-        studentPoints: [gs.point],
+        studentPoints: gs.points,
         correct: gs.result === true,
       };
       if (gs.confidence) result.confidence = gs.confidence;

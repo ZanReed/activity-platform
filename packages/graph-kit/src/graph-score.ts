@@ -14,18 +14,53 @@ export interface PointAnswerKey {
   tolerance: number;
 }
 
-// The single-handle plot_point question: the student's one point is correct
-// when it lands within `tolerance` of ANY authored correct point (each axis
-// independently — a snap-to-grid axis-aligned box, which matches how students
-// read a grid). Multiple correctPoints means "any of these is acceptable"
-// (e.g. plot either root); a must-plot-all, N-handle variant is future work.
+// Is a student point within tolerance of a target (each axis independently — a
+// snap-to-grid axis-aligned box, which matches how students read a grid)?
+function withinTolerance(
+  student: [number, number],
+  target: [number, number],
+  tolerance: number,
+): boolean {
+  return (
+    Math.abs(student[0] - target[0]) <= tolerance &&
+    Math.abs(student[1] - target[1]) <= tolerance
+  );
+}
+
+// The plot_point question: the student plots one handle per authored correct
+// point and must land EVERY correct point (order-independent). Scored with
+// consume-once matching (the same shape as order-independent blank groups):
+// each correct point is matched to a DISTINCT student point within tolerance,
+// so "plot both roots" can't be satisfied by stacking one handle on one root.
+// The common single-point case (one correct point, one handle) reduces to a
+// plain within-tolerance check.
+export function scorePoints(
+  key: PointAnswerKey,
+  studentPoints: [number, number][],
+): boolean {
+  if (key.correctPoints.length === 0) return false;
+  if (studentPoints.length < key.correctPoints.length) return false;
+  const used = new Set<number>();
+  for (const target of key.correctPoints) {
+    let matched = -1;
+    for (let i = 0; i < studentPoints.length; i++) {
+      if (used.has(i)) continue;
+      if (withinTolerance(studentPoints[i]!, target, key.tolerance)) {
+        matched = i;
+        break;
+      }
+    }
+    if (matched === -1) return false;
+    used.add(matched);
+  }
+  return true;
+}
+
+// Convenience for the single-handle case (kept for callers/tests that score one
+// point). Equivalent to scorePoints with a one-point student array.
 export function isPointCorrect(
   key: PointAnswerKey,
   point: [number, number],
 ): boolean {
-  const [px, py] = point;
-  return key.correctPoints.some(
-    ([cx, cy]) =>
-      Math.abs(px - cx) <= key.tolerance && Math.abs(py - cy) <= key.tolerance,
-  );
+  return scorePoints(key, [point]);
 }

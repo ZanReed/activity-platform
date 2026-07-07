@@ -61,10 +61,10 @@ export function wireGraphs(
           onChange: (resp) => {
             const gs = state.graphs[blockId];
             if (!gs) return;
-            gs.point = resp.studentPoints[0] ?? null;
+            gs.points = resp.studentPoints;
             gs.answered = resp.answered;
             // Unanswered → unscored (an omission), like an empty blank; once the
-            // student has moved the point, its correctness is live.
+            // student has moved a handle, its correctness is live.
             gs.result = resp.answered ? resp.correct : null;
             onUpdate();
           },
@@ -72,11 +72,11 @@ export function wireGraphs(
       )
       .then((handle) => {
         ref.handle = handle;
-        // Restore a point persisted on a prior load. Its onChange re-populates
+        // Restore point(s) persisted on a prior load. Its onChange re-populates
         // state.graphs[blockId] (answered + result), so a checked-and-reloaded
         // graph comes back scored.
-        const stored = state.graphs[blockId]?.point;
-        if (stored) handle.restore([stored]);
+        const stored = state.graphs[blockId]?.points;
+        if (stored && stored.length > 0) handle.restore(stored);
         // Reflect any restored lock (locked mode after a prior check).
         if (state.sections[ref.sectionId]?.locked) handle.setLocked(true);
       })
