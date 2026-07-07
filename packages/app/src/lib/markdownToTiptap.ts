@@ -41,6 +41,7 @@
 // authored ones.
 // =============================================================================
 
+import { parseGraphFormula, parsePointList } from '@activity/graph-kit';
 import type { JSONContent } from '@tiptap/react';
 
 // Minimal structural view of a markdown-it token — only the fields the mapper
@@ -267,7 +268,19 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
         case 'ordered_list_open':
             return mapList(node, 'orderedList', ctx);
 
-        case 'fence':
+        case 'fence': {
+            // ```graph fenced blocks are the graph DSL (Drop 7); other fences
+            // stay unsupported.
+            if ((node.token.info ?? '').trim() === 'graph') {
+                const graph = parseGraphFence(node.token.content, ctx);
+                if (graph) return [graph];
+                return [rawTextParagraph(node.token.content)];
+            }
+            ctx.warnings.add(
+                'Code blocks aren’t supported yet — imported as plain text.',
+            );
+            return [rawTextParagraph(node.token.content)];
+        }
         case 'code_block':
             ctx.warnings.add(
                 'Code blocks aren’t supported yet — imported as plain text.',
@@ -721,4 +734,171 @@ function rawTextParagraph(text: string): JSONContent {
 function removeLast(arr: string[], value: string): void {
     const i = arr.lastIndexOf(value);
     if (i >= 0) arr.splice(i, 1);
+}
+
+// =============================================================================
+// ```graph fence (Drop 7) — the markdown graph DSL
+// -----------------------------------------------------------------------------
+// One line per statement; everything after the keyword rides the SAME freeform
+// parser the editor answer field uses (parseGraphFormula), so any equation
+// format works here too. Example:
+//
+//   ```graph
+//   axes: -10..10, -10..10
+//   prompt: Graph the inequality.
+//   answer: y > 2x + 1
+//   show: point (2, 3) closed
+//   options: partial-credit, allow-no-solution
+//   ```
+//
+// answer forms: an equation (plot_function), an inequality (graph_inequality),
+// a point list (plot_point), `region (x,y), …` (shade_region), or `none`
+// (no-solution trick question, with allow-no-solution implied).
+// show forms: `point (x, y) [open|closed] ["label"]`, `line/curve <equation>
+// [dashed]`, `expression <formula> [dashed]`, `segment (a,b) (c,d)`,
+// `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
+// No answer lines → a display (static) graph.
+// =============================================================================
+
+function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
+    const axis = { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true };
+    let interaction: Record<string, unknown> | null = null;
+    const drawables: Record<string, unknown>[] = [];
+    let prompt = '';
+    let partialCredit = false;
+    let allowNoSolution = false;
+    let noSolutionCorrect = false;
+    const fail = (msg: string): null => {
+        ctx.warnings.add('Graph block: ' + msg + ' — imported as plain text.');
+        return null;
+    };
+    const pointList = (text: string): [number, number][] | null => parsePointList(text);
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        const m = /^(axes|prompt|answer|show|options):\s*(.*)$/i.exec(line);
+        if (!m) return fail(`unrecognized line "${line}"`);
+        const value = (m[2] ?? '').trim();
+        switch ((m[1] ?? '').toLowerCase()) {
+            case 'axes': {
+                const a = /^(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)$/.exec(value);
+                if (!a) return fail('axes must look like "-10..10, -10..10"');
+                axis.xMin = Number(a[1]); axis.xMax = Number(a[2]);
+                axis.yMin = Number(a[3]); axis.yMax = Number(a[4]);
+                break;
+            }
+            case 'prompt':
+                prompt = value;
+                break;
+            case 'options':
+                for (const opt of value.split(',').map((o) => o.trim().toLowerCase())) {
+                    if (opt === 'partial-credit') partialCredit = true;
+                    else if (opt === 'allow-no-solution') allowNoSolution = true;
+                    else if (opt === 'no-solution-correct') { allowNoSolution = true; noSolutionCorrect = true; }
+                    else if (opt) return fail(`unknown option "${opt}"`);
+                }
+                break;
+            case 'answer': {
+                if (interaction) return fail('multiple answer lines (systems are a future addition)');
+                if (/^none$/i.test(value)) {
+                    allowNoSolution = true;
+                    noSolutionCorrect = true;
+                    interaction = { type: 'plot_point', correctPoints: [[0, 0]], tolerance: 0.1 };
+                    break;
+                }
+                const regionMatch = /^region\s+(.+)$/i.exec(value);
+                if (regionMatch) {
+                    const verts = pointList(regionMatch[1] ?? '');
+                    if (!verts || verts.length < 3) return fail('a region needs at least 3 vertices');
+                    interaction = { type: 'shade_region', regions: [{ correctVertices: verts, minOverlap: 0.9 }] };
+                    break;
+                }
+                const parsed = parseGraphFormula(value);
+                if (parsed.kind === 'points') {
+                    interaction = { type: 'plot_point', correctPoints: parsed.points, tolerance: 0.1 };
+                } else if (parsed.kind === 'inequality') {
+                    interaction = {
+                        type: 'graph_inequality',
+                        inequalities: [{ boundary: parsed.boundary, strict: parsed.strict, shadeSide: parsed.side }],
+                    };
+                } else if (parsed.kind === 'function') {
+                    interaction = {
+                        type: 'plot_function',
+                        models: [parsed.model],
+                        ...(parsed.domain ? { domains: [parsed.domain] } : {}),
+                    };
+                } else {
+                    return fail(parsed.message);
+                }
+                break;
+            }
+            case 'show': {
+                const style = /\bdashed\b/i.test(value) ? 'dashed' : undefined;
+                const label = /"([^"]*)"/.exec(value)?.[1];
+                const endpoint = /\bopen\b/i.test(value) ? 'open' : /\bclosed\b/i.test(value) ? 'closed' : undefined;
+                const body = value.replace(/\bdashed\b|\bopen\b|\bclosed\b|"[^"]*"/gi, '').trim();
+                const kindMatch = /^(point|line|curve|expression|segment|ray|region)\s+(.+)$/i.exec(body);
+                if (!kindMatch) return fail(`unrecognized show line "${value}"`);
+                const kind = (kindMatch[1] ?? '').toLowerCase();
+                const rest = (kindMatch[2] ?? '').trim();
+                if (kind === 'point') {
+                    const pts = pointList(rest);
+                    if (!pts || pts.length !== 1) return fail('show point needs one (x, y)');
+                    drawables.push({ kind: 'point', at: pts[0], ...(label ? { label } : {}), ...(endpoint ? { style: endpoint } : {}) });
+                } else if (kind === 'segment' || kind === 'ray') {
+                    const pts = pointList(rest);
+                    if (!pts || pts.length !== 2) return fail(`show ${kind} needs two points`);
+                    if (kind === 'segment') drawables.push({ kind, from: pts[0], to: pts[1] });
+                    else drawables.push({ kind, from: pts[0], through: pts[1], ...(endpoint ? { fromStyle: endpoint } : {}) });
+                } else if (kind === 'region') {
+                    const verts = pointList(rest);
+                    if (!verts || verts.length < 3) return fail('show region needs at least 3 vertices');
+                    drawables.push({ kind: 'polygon', vertices: verts, filled: true });
+                } else if (kind === 'expression') {
+                    drawables.push({ kind: 'expression', expression: rest, ...(style ? { style } : {}) });
+                } else {
+                    // line / curve: freeform equation or inequality (pictured).
+                    const parsed = parseGraphFormula(rest);
+                    if (parsed.kind === 'function') {
+                        drawables.push({ kind: 'curve', model: parsed.model, ...(style ? { style } : {}), ...(parsed.domain ? { domain: parsed.domain } : {}) });
+                    } else if (parsed.kind === 'inequality') {
+                        drawables.push({
+                            kind: 'curve', model: parsed.boundary,
+                            style: parsed.strict ? 'dashed' : (style ?? 'solid'),
+                            shade: parsed.side,
+                        });
+                    } else {
+                        // Anything else plots as a sampled expression.
+                        drawables.push({ kind: 'expression', expression: rest, ...(style ? { style } : {}) });
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    if (!interaction && drawables.length === 0) return fail('empty graph block');
+    const finalInteraction = interaction ?? { type: 'display', drawables };
+    if (interaction && drawables.length > 0) {
+        // A graded answer + show lines: the shows aren't renderable inside a
+        // graded block yet (stimulus-with-drawables is a future addition), so
+        // surface that rather than silently dropping them.
+        ctx.warnings.add('Graph block: show lines alongside an answer aren’t drawn yet (coming with graded stimuli).');
+    }
+    return {
+        type: 'interactiveGraph',
+        attrs: {
+            id: '',
+            axisConfig: axis,
+            interaction: finalInteraction,
+            solution: null,
+            partialCredit,
+            allowNoSolution,
+            noSolutionCorrect,
+            hasConfidenceRating: false,
+            skills: [],
+        },
+        content: prompt ? [{ type: 'text', text: prompt }] : [],
+    };
 }

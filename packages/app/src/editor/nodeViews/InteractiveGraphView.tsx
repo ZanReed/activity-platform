@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
     NodeViewWrapper,
     NodeViewContent,
@@ -6,19 +6,31 @@ import {
 } from '@tiptap/react';
 import {
     mountGraphAuthor,
+    mountGraphDisplay,
     fitFunction,
     handlesForFamily,
+    parseGraphFormula,
+    parsePointList,
+    formatModel,
+    formatPoints,
     type GraphAuthorHandle,
+    type GraphDisplayHandle,
 } from '@activity/graph-kit';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import {
+    defaultDisplayInteraction,
     defaultFunctionInteraction,
+    defaultInequalityInteraction,
     defaultPointInteraction,
     defaultRegionInteraction,
+    type DrawableAttr,
+    type FunctionModelAttr,
     type GraphAxisConfig,
     type GraphInteraction,
+    type InequalityAnswerAttr,
     type LinearFunctionModel,
+    type RegionAnswerAttr,
 } from '../extensions/InteractiveGraph';
 
 type InteractionType = GraphInteraction['type'];
@@ -33,22 +45,84 @@ type InteractionType = GraphInteraction['type'];
 // picker + the fit engine additively.
 // ============================================================================
 
-// Two points on the given line, used to seed the author handles ON the current
-// answer when the board mounts.
+// y(x) for any family — the seed-handle placer's view of the model. Vertical
+// has no y = f(x) and is special-cased by the caller.
+function modelPredict(model: FunctionModelAttr): ((x: number) => number) | null {
+    switch (model.family) {
+        case 'linear':
+            return (x) => model.slope * x + model.intercept;
+        case 'quadratic':
+            return (x) => model.a * x * x + model.b * x + model.c;
+        case 'exponential':
+            return (x) => model.a * Math.pow(model.b, x);
+        case 'logarithmic':
+            return (x) => model.a + model.b * Math.log(x);
+        case 'vertical':
+            return null;
+    }
+}
+
+// N points ON the given curve (N = the family's handle count), used to seed the
+// author handles on the current answer when the board mounts. Log curves seed at
+// positive x regardless of the window; vertical seeds two points on x = k.
 function functionStartPoints(
-    model: LinearFunctionModel,
+    model: FunctionModelAttr,
     axis: GraphAxisConfig,
 ): [number, number][] {
     const span = axis.xMax - axis.xMin || 1;
-    const x1 = axis.xMin + span * 0.3;
-    const x2 = axis.xMin + span * 0.7;
-    return [
-        [x1, model.slope * x1 + model.intercept],
-        [x2, model.slope * x2 + model.intercept],
-    ];
+    const ySpan = axis.yMax - axis.yMin || 1;
+    if (model.family === 'vertical') {
+        return [
+            [model.x, axis.yMin + ySpan * 0.3],
+            [model.x, axis.yMin + ySpan * 0.7],
+        ];
+    }
+    const predict = modelPredict(model)!;
+    const count = handlesForFamily(model.family);
+    const fractions = count === 3 ? [0.25, 0.5, 0.75] : [0.3, 0.7];
+    let xs = fractions.map((f) => axis.xMin + span * f);
+    if (model.family === 'logarithmic') {
+        // ln needs x > 0 — seed inside the positive part of the window.
+        const posMin = Math.max(axis.xMin, 0.25);
+        const posSpan = axis.xMax - posMin || 1;
+        xs = fractions.map((f) => posMin + posSpan * f);
+    }
+    return xs.map((x) => [round2(x), round2(predict(x))] as [number, number]);
 }
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+// plot_function / shade_region carry ARRAYS of answer objects (systems); the
+// current authoring UI edits a SINGLE curve/region — models[0] / regions[0].
+// The function UI is linear-only (Drop 2); other families arrive via freeform
+// equation entry (Drop 3) with their own UI, so coerce a non-linear/absent
+// models[0] to a default linear line here.
+const DEFAULT_LINEAR: LinearFunctionModel = {
+    family: 'linear', slope: 1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1,
+};
+function firstModel(models: FunctionModelAttr[]): FunctionModelAttr {
+    return models[0] ?? DEFAULT_LINEAR;
+}
+function firstLinearModel(models: FunctionModelAttr[]): LinearFunctionModel {
+    const m = models[0];
+    return m && m.family === 'linear' ? m : DEFAULT_LINEAR;
+}
+function firstRegion(regions: RegionAnswerAttr[]): RegionAnswerAttr {
+    return regions[0] ?? { correctVertices: [], minOverlap: 0.9 };
+}
+function firstInequality(list: InequalityAnswerAttr[]): InequalityAnswerAttr {
+    return list[0] ?? { boundary: DEFAULT_LINEAR, strict: true, shadeSide: 'above' };
+}
+
+// The canonical inequality string: formatModel's equation with `=` swapped for
+// the operator the side + strictness imply. Reparseable by parseGraphFormula.
+function formatInequality(a: InequalityAnswerAttr): string {
+    const eq = formatModel(a.boundary);
+    const vertical = a.boundary.family === 'vertical';
+    const greater = vertical ? a.shadeSide === 'right' : a.shadeSide === 'above';
+    const op = greater ? (a.strict ? '>' : '>=') : (a.strict ? '<' : '<=');
+    return eq.replace('=', op);
+}
 
 function GraphAuthorBoard({
     axisConfig,
@@ -64,19 +138,31 @@ function GraphAuthorBoard({
     cbRef.current = onPointsChange;
 
     const family =
-        interaction.type === 'plot_function' ? interaction.model.family : undefined;
-    const count =
         interaction.type === 'plot_function'
+            ? interaction.models[0]?.family
+            : interaction.type === 'graph_inequality'
+              ? firstInequality(interaction.inequalities).boundary.family
+              : undefined;
+    // GraphAuthorBoard is only rendered for the graded interactions; the
+    // `display` case is handled by DisplayPreviewBoard and never reaches here.
+    const count =
+        interaction.type === 'plot_function' || interaction.type === 'graph_inequality'
             ? handlesForFamily(family!)
             : interaction.type === 'shade_region'
-              ? interaction.correctVertices.length
-              : interaction.correctPoints.length;
+              ? firstRegion(interaction.regions).correctVertices.length
+              : interaction.type === 'plot_point'
+                ? interaction.correctPoints.length
+                : 1;
     const startPoints =
         interaction.type === 'plot_function'
-            ? functionStartPoints(interaction.model, axisConfig)
-            : interaction.type === 'shade_region'
-              ? interaction.correctVertices
-              : interaction.correctPoints;
+            ? functionStartPoints(firstModel(interaction.models), axisConfig)
+            : interaction.type === 'graph_inequality'
+              ? functionStartPoints(firstInequality(interaction.inequalities).boundary, axisConfig)
+              : interaction.type === 'shade_region'
+              ? firstRegion(interaction.regions).correctVertices
+              : interaction.type === 'plot_point'
+                ? interaction.correctPoints
+                : [];
     const startRef = useRef(startPoints);
     startRef.current = startPoints;
 
@@ -145,11 +231,110 @@ const num = (v: string, fallback: number): number => {
 };
 
 // Format a linear model as "y = mx + b" for the answer readout.
-function formatLine(model: LinearFunctionModel): string {
-    const m = round2(model.slope);
-    const b = round2(model.intercept);
-    const bPart = b === 0 ? '' : b > 0 ? ` + ${b}` : ` − ${Math.abs(b)}`;
-    return `y = ${m}x${bPart}`;
+// Patch a model's fitted parameters from the kit's Fitted result, preserving
+// the model's tolerances. Same-family only; returns null when the fit failed.
+function fittedToModel(
+    model: FunctionModelAttr,
+    points: [number, number][],
+): FunctionModelAttr | null {
+    if (model.family === 'vertical') {
+        // Vertical: the handles' mean x is the line (the board constrains them).
+        if (points.length === 0) return null;
+        const x = round2(points.reduce((s, [px]) => s + px, 0) / points.length);
+        return { ...model, x };
+    }
+    const fit = fitFunction(model.family, points);
+    if (!fit || fit.family !== model.family) return null;
+    switch (fit.family) {
+        case 'linear':
+            return model.family === 'linear'
+                ? { ...model, slope: round2(fit.slope), intercept: round2(fit.intercept) }
+                : null;
+        case 'quadratic':
+            return model.family === 'quadratic'
+                ? { ...model, a: round2(fit.a), b: round2(fit.b), c: round2(fit.c) }
+                : null;
+        case 'exponential':
+            return model.family === 'exponential'
+                ? { ...model, a: round2(fit.a), b: round2(fit.b) }
+                : null;
+        case 'logarithmic':
+            return model.family === 'logarithmic'
+                ? { ...model, a: round2(fit.a), b: round2(fit.b) }
+                : null;
+        default:
+            return null;
+    }
+}
+
+// The freeform answer command line. Shows the canonical answer while idle
+// (dragging handles live-updates it); focus + type anything → Enter/blur parses
+// and applies. Draft state is local so a half-typed equation never fights the
+// canonical text; Escape abandons the draft.
+function FormulaField({
+    value,
+    disabled,
+    placeholder,
+    onApply,
+}: {
+    value: string;
+    disabled: boolean;
+    placeholder: string;
+    onApply: (raw: string) => string | null;
+}) {
+    const [draft, setDraft] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const commit = (): void => {
+        if (draft === null) return;
+        if (draft.trim() === '' || draft === value) {
+            setDraft(null);
+            setError(null);
+            return;
+        }
+        const err = onApply(draft);
+        setError(err);
+        if (!err) setDraft(null);
+    };
+    return (
+        <div style={{ marginTop: '0.35rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#475569' }}>
+                Answer:
+                <input
+                    type="text"
+                    value={draft ?? value}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    spellCheck={false}
+                    style={{
+                        flex: 1,
+                        fontFamily: 'ui-monospace, monospace',
+                        fontSize: '0.82rem',
+                        padding: '0.15rem 0.4rem',
+                        border: error ? '1px solid #dc2626' : '1px solid #cbd5e1',
+                        borderRadius: 4,
+                    }}
+                    onChange={(e) => {
+                        setDraft(e.target.value);
+                        setError(null);
+                    }}
+                    onBlur={commit}
+                    onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            commit();
+                        } else if (e.key === 'Escape') {
+                            setDraft(null);
+                            setError(null);
+                        }
+                    }}
+                />
+            </label>
+            {error && (
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: '#b91c1c' }}>{error}</p>
+            )}
+        </div>
+    );
 }
 
 export default function InteractiveGraphView({
@@ -166,14 +351,22 @@ export default function InteractiveGraphView({
     const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const isEditable = editor.isEditable;
 
+    const isDisplay = interaction.type === 'display';
+
+    // Numbering matches the renderer: graded questions only. A display-mode
+    // interactive_graph is ungraded content and doesn't consume a number, so it
+    // is skipped both when counting prior blocks and when displaying its own.
     const problemNumber = useMemo(() => {
         const pos = typeof getPos === 'function' ? getPos() : undefined;
         if (pos === undefined) return 1;
         let count = 1;
         editor.state.doc.descendants((d, dPos) => {
             if (dPos >= pos) return false;
-            if (d.type.name === 'fillInBlank' || d.type.name === 'interactiveGraph') {
+            if (d.type.name === 'fillInBlank') {
                 count++;
+            } else if (d.type.name === 'interactiveGraph') {
+                const it = (d.attrs.interaction as GraphInteraction | undefined)?.type;
+                if (it !== 'display') count++;
             }
             return true;
         });
@@ -190,14 +383,27 @@ export default function InteractiveGraphView({
         if (interaction.type === 'plot_point') {
             updateAttributes({ interaction: { ...interaction, correctPoints: points } });
         } else if (interaction.type === 'shade_region') {
-            updateAttributes({ interaction: { ...interaction, correctVertices: points } });
-        } else {
-            const fit = fitFunction(interaction.model.family, points);
-            if (fit && fit.family === 'linear') {
+            updateAttributes({
+                interaction: {
+                    type: 'shade_region',
+                    regions: [{ ...firstRegion(interaction.regions), correctVertices: points }],
+                },
+            });
+        } else if (interaction.type === 'plot_function') {
+            const next = fittedToModel(firstModel(interaction.models), points);
+            if (next) {
+                updateAttributes({
+                    interaction: { type: 'plot_function', models: [next] },
+                });
+            }
+        } else if (interaction.type === 'graph_inequality') {
+            const cur = firstInequality(interaction.inequalities);
+            const next = fittedToModel(cur.boundary, points);
+            if (next) {
                 updateAttributes({
                     interaction: {
-                        type: 'plot_function',
-                        model: { ...interaction.model, slope: round2(fit.slope), intercept: round2(fit.intercept) },
+                        type: 'graph_inequality',
+                        inequalities: [{ ...cur, boundary: next }],
                     },
                 });
             }
@@ -209,9 +415,13 @@ export default function InteractiveGraphView({
         const next =
             type === 'plot_function'
                 ? defaultFunctionInteraction()
-                : type === 'shade_region'
+                : type === 'graph_inequality'
+                  ? defaultInequalityInteraction()
+                  : type === 'shade_region'
                   ? defaultRegionInteraction()
-                  : defaultPointInteraction();
+                  : type === 'display'
+                    ? defaultDisplayInteraction()
+                    : defaultPointInteraction();
         updateAttributes({ interaction: next });
     };
 
@@ -219,13 +429,14 @@ export default function InteractiveGraphView({
     const setVertexCount = (next: number): void => {
         if (interaction.type !== 'shade_region') return;
         const n = Math.max(3, Math.min(next, 6));
-        const cur = interaction.correctVertices;
+        const region = firstRegion(interaction.regions);
+        const cur = region.correctVertices;
         if (n === cur.length) return;
         const verts =
             n < cur.length
                 ? cur.slice(0, n)
                 : [...cur, ...Array.from({ length: n - cur.length }, (_, i) => [cur.length + i, 0] as [number, number])];
-        updateAttributes({ interaction: { ...interaction, correctVertices: verts } });
+        updateAttributes({ interaction: { type: 'shade_region', regions: [{ ...region, correctVertices: verts }] } });
     };
 
     const setPointCount = (next: number): void => {
@@ -240,17 +451,106 @@ export default function InteractiveGraphView({
         updateAttributes({ interaction: { ...interaction, correctPoints: points } });
     };
 
-    const setModel = (patch: Partial<LinearFunctionModel>): void => {
-        if (interaction.type !== 'plot_function') return;
-        updateAttributes({ interaction: { type: 'plot_function', model: { ...interaction.model, ...patch } } });
-    };
+    // Narrow-column advisory: a graph inside a 3+-column layout renders very
+    // cramped (the board floors at a minimum width and scrolls). Non-blocking —
+    // mirrors the schema's "warn above 3" intent. Resolved from the live doc so
+    // it tracks add/remove-column immediately.
+    const columnsCount = ((): number => {
+        try {
+            const pos = getPos();
+            if (typeof pos !== 'number') return 0;
+            const $pos = editor.state.doc.resolve(pos);
+            for (let d = $pos.depth; d > 0; d--) {
+                if ($pos.node(d).type.name === 'columns') return $pos.node(d).childCount;
+            }
+        } catch {
+            // resolving during a transaction race → no warning this render
+        }
+        return 0;
+    })();
 
     const answerText =
         interaction.type === 'plot_point'
-            ? interaction.correctPoints.map((p) => `(${p[0]}, ${p[1]})`).join(', ')
+            ? formatPoints(interaction.correctPoints)
             : interaction.type === 'shade_region'
-              ? interaction.correctVertices.map((p) => `(${p[0]}, ${p[1]})`).join(', ')
-              : formatLine(interaction.model);
+              ? formatPoints(firstRegion(interaction.regions).correctVertices)
+              : interaction.type === 'plot_function'
+                ? formatModel(firstModel(interaction.models))
+                : interaction.type === 'graph_inequality'
+                  ? formatInequality(firstInequality(interaction.inequalities))
+                  : '';
+
+    // The freeform answer field (Drop 3): type an equation/coordinates in ANY
+    // format → parse → the answer + handles update. Applied on Enter or blur.
+    const applyFormula = (raw: string): string | null => {
+        if (interaction.type === 'plot_point') {
+            const points = parsePointList(raw);
+            if (!points) return 'Type coordinates, like (2, 3) or (1, 2), (3, 4)';
+            updateAttributes({ interaction: { ...interaction, correctPoints: points } });
+            return null;
+        }
+        if (interaction.type === 'shade_region') {
+            const points = parsePointList(raw);
+            if (!points || points.length < 3) return 'Type at least 3 vertices, like (0, 0), (4, 0), (2, 4)';
+            updateAttributes({
+                interaction: { type: 'shade_region', regions: [{ ...firstRegion(interaction.regions), correctVertices: points }] },
+            });
+            return null;
+        }
+        if (interaction.type === 'graph_inequality') {
+            const parsed = parseGraphFormula(raw);
+            if (parsed.kind === 'error') return parsed.message;
+            if (parsed.kind !== 'inequality') {
+                return 'Type an inequality, like y > 2x + 1 (use <, <=, > or >=)';
+            }
+            updateAttributes({
+                interaction: {
+                    type: 'graph_inequality',
+                    inequalities: [
+                        {
+                            boundary: parsed.boundary as FunctionModelAttr,
+                            strict: parsed.strict,
+                            shadeSide: parsed.side,
+                        },
+                    ],
+                },
+            });
+            return null;
+        }
+        if (interaction.type === 'plot_function') {
+            const parsed = parseGraphFormula(raw);
+            if (parsed.kind === 'error') return parsed.message;
+            if (parsed.kind === 'points') return 'That looks like coordinates — switch the question type to "Plot a point"';
+            if (parsed.kind === 'inequality') {
+                // Graded inequalities are their own interaction (Drop 4); steer there.
+                return 'That is an inequality — switch the question type to "Graph an inequality"';
+            }
+            const prev = firstModel(interaction.models);
+            // Same family → keep the teacher's tuned tolerances; new family → defaults.
+            let model = parsed.model as FunctionModelAttr;
+            if (model.family === prev.family) {
+                const tolerances = Object.fromEntries(
+                    Object.entries(prev).filter(([k]) => k.endsWith('Tolerance')),
+                );
+                model = { ...model, ...tolerances } as FunctionModelAttr;
+            }
+            updateAttributes({
+                interaction: {
+                    type: 'plot_function',
+                    models: [model],
+                    ...(parsed.domain ? { domains: [parsed.domain] } : {}),
+                },
+            });
+            return null;
+        }
+        return null;
+    };
+
+    // Replace this display graph's drawables (used by the drawable-list editor).
+    const setDrawables = (drawables: DrawableAttr[]): void => {
+        if (interaction.type !== 'display') return;
+        updateAttributes({ interaction: { type: 'display', drawables } });
+    };
 
     return (
         <NodeViewWrapper
@@ -260,7 +560,7 @@ export default function InteractiveGraphView({
             <div contentEditable={false} style={{ userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
                     <strong style={{ fontSize: '0.85rem', color: '#334155' }}>
-                        {problemNumber}. Interactive graph
+                        {isDisplay ? 'Static graph' : `${problemNumber}. Interactive graph`}
                     </strong>
                     <label style={{ fontSize: '0.8rem', color: '#475569' }}>
                         {' '}Type:{' '}
@@ -272,25 +572,64 @@ export default function InteractiveGraphView({
                         >
                             <option value="plot_point">Plot a point</option>
                             <option value="plot_function">Plot a line</option>
+                            <option value="graph_inequality">Graph an inequality</option>
                             <option value="shade_region">Shade a region</option>
+                            <option value="display">Display (static graph)</option>
                         </select>
                     </label>
                 </div>
 
-                <GraphAuthorBoard
-                    axisConfig={axisConfig}
-                    interaction={interaction}
-                    onPointsChange={onPointsChange}
-                />
+                {interaction.type === 'display' ? (
+                    <>
+                        <DisplayPreviewBoard
+                            axisConfig={axisConfig}
+                            drawables={interaction.drawables}
+                        />
+                        <DisplayDrawableEditor
+                            drawables={interaction.drawables}
+                            disabled={!isEditable}
+                            onChange={setDrawables}
+                        />
+                    </>
+                ) : (
+                    <>
+                        {columnsCount >= 3 && (
+                            <p role="status" style={{ margin: '0 0 0.35rem', fontSize: '0.75rem', color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '0.25rem 0.5rem' }}>
+                                This graph sits in a {columnsCount}-column layout — it may be cramped
+                                on paper or a Chromebook. Two columns (or full width) reads better.
+                            </p>
+                        )}
+                        <GraphAuthorBoard
+                            axisConfig={axisConfig}
+                            interaction={interaction}
+                            onPointsChange={onPointsChange}
+                        />
 
-                <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
-                    {interaction.type === 'plot_point'
-                        ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} to set the correct answer. `
-                        : interaction.type === 'shade_region'
-                          ? 'Drag the vertices to shape the correct region. '
-                          : 'Drag the two handles to set the line. '}
-                    Answer: <code>{answerText}</code>
-                </p>
+                        <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                            {interaction.type === 'plot_point'
+                                ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} — or type the answer below. `
+                                : interaction.type === 'shade_region'
+                                  ? 'Drag the vertices to shape the correct region — or type them below. '
+                                  : interaction.type === 'graph_inequality'
+                                    ? 'Type the inequality below — the sign sets dotted/solid and the shaded side. Drag the handles to move the boundary. '
+                                    : 'Drag the handles — or type the equation below in any format. '}
+                        </p>
+                        <FormulaField
+                            value={answerText}
+                            disabled={!isEditable}
+                            placeholder={
+                                interaction.type === 'plot_point'
+                                    ? '(2, 3)'
+                                    : interaction.type === 'shade_region'
+                                      ? '(0, 0), (4, 0), (2, 4)'
+                                      : interaction.type === 'graph_inequality'
+                                        ? 'y > 2x + 1   ·   y <= x^2   ·   x >= 3'
+                                        : 'y = 2x + 3   ·   2x + 3y = 6   ·   x^2 - 4   ·   x = 4'
+                            }
+                            onApply={applyFormula}
+                        />
+                    </>
+                )}
 
                 {interaction.type === 'plot_point' && (
                     <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
@@ -314,7 +653,7 @@ export default function InteractiveGraphView({
                             type="number"
                             min={3}
                             max={6}
-                            value={interaction.correctVertices.length}
+                            value={firstRegion(interaction.regions).correctVertices.length}
                             disabled={!isEditable}
                             style={{ width: '3rem' }}
                             onChange={(e) => setVertexCount(Math.trunc(num(e.target.value, 3)))}
@@ -329,7 +668,7 @@ export default function InteractiveGraphView({
                     contentEditable={false}
                     style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#94a3b8' }}
                 >
-                    Question prompt
+                    {isDisplay ? 'Caption (optional)' : 'Question prompt'}
                 </span>
                 <NodeViewContent className="interactive-graph-block__prompt" />
             </div>
@@ -404,55 +743,110 @@ export default function InteractiveGraphView({
                                     onChange={(v) => updateAttributes({ interaction: { ...interaction, tolerance: v } })}
                                 />
                             )}
-                            {interaction.type === 'plot_function' && (
-                                <>
-                                    <ToleranceRow
-                                        label="Slope tolerance"
-                                        value={interaction.model.slopeTolerance}
-                                        disabled={!isEditable}
-                                        onChange={(v) => setModel({ slopeTolerance: v })}
-                                    />
-                                    <ToleranceRow
-                                        label="Intercept tolerance"
-                                        value={interaction.model.interceptTolerance}
-                                        disabled={!isEditable}
-                                        onChange={(v) => setModel({ interceptTolerance: v })}
-                                    />
-                                </>
-                            )}
+                            {interaction.type === 'plot_function' &&
+                                // One row per tolerance the current family carries
+                                // (slope/intercept for linear, a/b/c for quadratic, …).
+                                Object.entries(firstModel(interaction.models))
+                                    .filter(([k, v]) => k.endsWith('Tolerance') && typeof v === 'number')
+                                    .map(([k, v]) => (
+                                        <ToleranceRow
+                                            key={k}
+                                            label={
+                                                k.slice(0, -'Tolerance'.length).charAt(0).toUpperCase() +
+                                                k.slice(1, -'Tolerance'.length) +
+                                                ' tolerance'
+                                            }
+                                            value={v as number}
+                                            disabled={!isEditable}
+                                            onChange={(val) =>
+                                                updateAttributes({
+                                                    interaction: {
+                                                        type: 'plot_function',
+                                                        models: [{ ...firstModel(interaction.models), [k]: val } as FunctionModelAttr],
+                                                    },
+                                                })
+                                            }
+                                        />
+                                    ))}
                             {interaction.type === 'shade_region' && (
                                 <ToleranceRow
                                     label="Min. overlap (IoU)"
-                                    value={interaction.minOverlap}
+                                    value={firstRegion(interaction.regions).minOverlap}
                                     max={1}
                                     disabled={!isEditable}
                                     onChange={(v) =>
                                         updateAttributes({
-                                            interaction: { ...interaction, minOverlap: Math.min(1, Math.max(0, v)) },
+                                            interaction: {
+                                                type: 'shade_region',
+                                                regions: [
+                                                    { ...firstRegion(interaction.regions), minOverlap: Math.min(1, Math.max(0, v)) },
+                                                ],
+                                            },
                                         })
                                     }
                                 />
                             )}
 
-                            <div>
-                                <span style={{ display: 'block', marginBottom: '0.2rem' }}>Worked solution</span>
-                                <InlineRichTextEditor
-                                    value={solution}
-                                    onChange={(nodes) => updateAttributes({ solution: nodes.length > 0 ? nodes : null })}
-                                    ariaLabel="Worked solution"
-                                />
-                            </div>
+                            {/* A static display graph is ungraded — no worked
+                                solution and no confidence rating. */}
+                            {!isDisplay && (
+                                <>
+                                    <div>
+                                        <span style={{ display: 'block', marginBottom: '0.2rem' }}>Worked solution</span>
+                                        <InlineRichTextEditor
+                                            value={solution}
+                                            onChange={(nodes) => updateAttributes({ solution: nodes.length > 0 ? nodes : null })}
+                                            ariaLabel="Worked solution"
+                                        />
+                                    </div>
 
-                            <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={hasConfidenceRating}
-                                    disabled={!isEditable}
-                                    onChange={(e) => updateAttributes({ hasConfidenceRating: e.target.checked })}
-                                    onKeyDown={(e) => e.stopPropagation()}
-                                />
-                                Ask for a confidence rating
-                            </label>
+                                    <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={hasConfidenceRating}
+                                            disabled={!isEditable}
+                                            onChange={(e) => updateAttributes({ hasConfidenceRating: e.target.checked })}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                        />
+                                        Ask for a confidence rating
+                                    </label>
+
+                                    <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(node.attrs.partialCredit)}
+                                            disabled={!isEditable}
+                                            onChange={(e) => updateAttributes({ partialCredit: e.target.checked })}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                        />
+                                        Partial credit (score each part separately)
+                                    </label>
+
+                                    <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(node.attrs.allowNoSolution)}
+                                            disabled={!isEditable}
+                                            onChange={(e) => updateAttributes({ allowNoSolution: e.target.checked })}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                        />
+                                        Offer a “cannot be graphed / no solution” choice
+                                    </label>
+
+                                    {Boolean(node.attrs.allowNoSolution) && (
+                                        <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', marginLeft: '1.2rem' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={Boolean(node.attrs.noSolutionCorrect)}
+                                                disabled={!isEditable}
+                                                onChange={(e) => updateAttributes({ noSolutionCorrect: e.target.checked })}
+                                                onKeyDown={(e) => e.stopPropagation()}
+                                            />
+                                            “No solution” IS the correct answer (trick question)
+                                        </label>
+                                    )}
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
@@ -500,6 +894,316 @@ function ToleranceRow({
                 }}
                 onKeyDown={(e) => e.stopPropagation()}
             />
+        </div>
+    );
+}
+
+// ---- Display (static graph) authoring --------------------------------------
+
+// A read-only preview of the authored figure — the SAME kit board (mountGraph-
+// Display) students see, so "what the teacher sets is what the student gets."
+// Remounts whenever the axis or the drawables change (a static board is cheap to
+// rebuild; there is no drag state to preserve).
+function DisplayPreviewBoard({
+    axisConfig,
+    drawables,
+}: {
+    axisConfig: GraphAxisConfig;
+    drawables: DrawableAttr[];
+}) {
+    const hostRef = useRef<HTMLDivElement>(null);
+    const key = useMemo(
+        () => JSON.stringify([axisConfig, drawables]),
+        [axisConfig, drawables],
+    );
+
+    useEffect(() => {
+        const host = hostRef.current;
+        if (!host) return;
+        const el = document.createElement('div');
+        el.style.cssText = 'position:absolute;inset:0;';
+        host.appendChild(el);
+        let handle: GraphDisplayHandle | null = null;
+        let disposed = false;
+        void mountGraphDisplay(el, { axisConfig, drawables }).then((h) => {
+            if (disposed) { h.destroy(); return; }
+            handle = h;
+        });
+        return () => {
+            disposed = true;
+            handle?.destroy();
+            el.remove();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [key]);
+
+    return (
+        <div
+            ref={hostRef}
+            aria-label="Static graph preview"
+            style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: '22rem',
+                aspectRatio: '1 / 1',
+                border: '1px solid #cbd5e1',
+                borderRadius: 6,
+                background: '#fff',
+            }}
+        />
+    );
+}
+
+// A stable (module-scope) numeric cell — kept out of the editor's render body so
+// its element identity survives re-renders and the input doesn't lose focus
+// mid-edit.
+function NumCell({
+    value,
+    disabled,
+    onChange,
+}: {
+    value: number;
+    disabled: boolean;
+    onChange: (n: number) => void;
+}) {
+    return (
+        <input
+            type="number"
+            value={value}
+            disabled={disabled}
+            step={0.5}
+            style={{ width: '3.2rem' }}
+            onChange={(e) => onChange(num(e.target.value, value))}
+            onKeyDown={(e) => e.stopPropagation()}
+        />
+    );
+}
+
+const rowStyle: CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    flexWrap: 'wrap',
+    fontSize: '0.78rem',
+    color: '#475569',
+    padding: '0.25rem 0',
+    borderTop: '1px solid #eef2f6',
+};
+
+// The drawable list editor: add/edit/remove the point/curve/segment/polygon
+// drawables of a display graph. Numeric coordinates (dragging on the board is a
+// future enhancement); the preview above reflects every change live.
+function DisplayDrawableEditor({
+    drawables,
+    disabled,
+    onChange,
+}: {
+    drawables: DrawableAttr[];
+    disabled: boolean;
+    onChange: (drawables: DrawableAttr[]) => void;
+}) {
+    const replace = (i: number, d: DrawableAttr): void =>
+        onChange(drawables.map((x, j) => (j === i ? d : x)));
+    const remove = (i: number): void =>
+        onChange(drawables.filter((_, j) => j !== i));
+    const add = (kind: DrawableAttr['kind']): void => {
+        const fresh: DrawableAttr =
+            kind === 'point'
+                ? { kind: 'point', at: [0, 0] }
+                : kind === 'curve'
+                  ? {
+                        kind: 'curve',
+                        model: {
+                            family: 'linear',
+                            slope: 1,
+                            intercept: 0,
+                            slopeTolerance: 0.1,
+                            interceptTolerance: 0.1,
+                        },
+                    }
+                  : kind === 'expression'
+                    ? { kind: 'expression', expression: 'sin(x)' }
+                    : kind === 'segment'
+                      ? { kind: 'segment', from: [0, 0], to: [2, 2] }
+                      : kind === 'ray'
+                        ? { kind: 'ray', from: [0, 0], through: [2, 1] }
+                        : { kind: 'polygon', vertices: [[0, 0], [3, 0], [1, 3]], filled: true };
+        onChange([...drawables, fresh]);
+    };
+
+    return (
+        <div style={{ marginTop: '0.4rem' }}>
+            {drawables.length === 0 && (
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
+                    No shapes yet — add one below.
+                </p>
+            )}
+            {drawables.map((d, i) => (
+                <div key={i} style={rowStyle}>
+                    {d.kind === 'point' && (
+                        <>
+                            <strong style={{ minWidth: '4.5rem' }}>Point</strong>
+                            <NumCell value={d.at[0]} disabled={disabled}
+                                onChange={(x) => replace(i, { ...d, at: [x, d.at[1]] })} />
+                            <NumCell value={d.at[1]} disabled={disabled}
+                                onChange={(y) => replace(i, { ...d, at: [d.at[0], y] })} />
+                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
+                                <input type="checkbox" checked={d.style === 'open'} disabled={disabled}
+                                    onChange={(e) => replace(i, { ...d, style: e.target.checked ? 'open' : undefined })} />
+                                open
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="label"
+                                value={d.label ?? ''}
+                                disabled={disabled}
+                                style={{ width: '5rem' }}
+                                onChange={(e) =>
+                                    replace(i, {
+                                        ...d,
+                                        label: e.target.value || undefined,
+                                    })
+                                }
+                                onKeyDown={(e) => e.stopPropagation()}
+                            />
+                        </>
+                    )}
+                    {d.kind === 'curve' && (
+                        <>
+                            <strong style={{ minWidth: '4.5rem' }}>Line y=</strong>
+                            {/* The display curve editor is linear-only (Drop 2); other
+                                families come from freeform entry (Drop 3). Coerce so a
+                                non-linear model still edits as a line here. */}
+                            <NumCell value={firstLinearModel([d.model]).slope} disabled={disabled}
+                                onChange={(slope) => replace(i, { ...d, model: { ...firstLinearModel([d.model]), slope } })} />
+                            <span>x +</span>
+                            <NumCell value={firstLinearModel([d.model]).intercept} disabled={disabled}
+                                onChange={(intercept) => replace(i, { ...d, model: { ...firstLinearModel([d.model]), intercept } })} />
+                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
+                                <input type="checkbox" checked={d.style === 'dashed'} disabled={disabled}
+                                    onChange={(e) => replace(i, { ...d, style: e.target.checked ? 'dashed' : undefined })} />
+                                dashed
+                            </label>
+                        </>
+                    )}
+                    {d.kind === 'expression' && (
+                        <>
+                            <strong style={{ minWidth: '4.5rem' }}>Formula</strong>
+                            <input
+                                type="text"
+                                value={d.expression}
+                                disabled={disabled}
+                                spellCheck={false}
+                                style={{ flex: 1, fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem' }}
+                                onChange={(e) => replace(i, { ...d, expression: e.target.value })}
+                                onKeyDown={(e) => e.stopPropagation()}
+                            />
+                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
+                                <input type="checkbox" checked={d.style === 'dashed'} disabled={disabled}
+                                    onChange={(e) => replace(i, { ...d, style: e.target.checked ? 'dashed' : undefined })} />
+                                dashed
+                            </label>
+                        </>
+                    )}
+                    {d.kind === 'ray' && (
+                        <>
+                            <strong style={{ minWidth: '4.5rem' }}>Ray</strong>
+                            <NumCell value={d.from[0]} disabled={disabled}
+                                onChange={(x) => replace(i, { ...d, from: [x, d.from[1]] })} />
+                            <NumCell value={d.from[1]} disabled={disabled}
+                                onChange={(y) => replace(i, { ...d, from: [d.from[0], y] })} />
+                            <span>→ through</span>
+                            <NumCell value={d.through[0]} disabled={disabled}
+                                onChange={(x) => replace(i, { ...d, through: [x, d.through[1]] })} />
+                            <NumCell value={d.through[1]} disabled={disabled}
+                                onChange={(y) => replace(i, { ...d, through: [d.through[0], y] })} />
+                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
+                                <input type="checkbox" checked={d.fromStyle === 'open'} disabled={disabled}
+                                    onChange={(e) => replace(i, { ...d, fromStyle: e.target.checked ? 'open' : undefined })} />
+                                open start
+                            </label>
+                        </>
+                    )}
+                    {d.kind === 'segment' && (
+                        <>
+                            <strong style={{ minWidth: '4.5rem' }}>Segment</strong>
+                            <NumCell value={d.from[0]} disabled={disabled}
+                                onChange={(x) => replace(i, { ...d, from: [x, d.from[1]] })} />
+                            <NumCell value={d.from[1]} disabled={disabled}
+                                onChange={(y) => replace(i, { ...d, from: [d.from[0], y] })} />
+                            <span>→</span>
+                            <NumCell value={d.to[0]} disabled={disabled}
+                                onChange={(x) => replace(i, { ...d, to: [x, d.to[1]] })} />
+                            <NumCell value={d.to[1]} disabled={disabled}
+                                onChange={(y) => replace(i, { ...d, to: [d.to[0], y] })} />
+                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
+                                <input type="checkbox" checked={d.endpoints?.[0] === 'open'} disabled={disabled}
+                                    onChange={(e) => replace(i, { ...d, endpoints: [e.target.checked ? 'open' : 'closed', d.endpoints?.[1] ?? 'closed'] })} />
+                                open start
+                            </label>
+                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
+                                <input type="checkbox" checked={d.endpoints?.[1] === 'open'} disabled={disabled}
+                                    onChange={(e) => replace(i, { ...d, endpoints: [d.endpoints?.[0] ?? 'closed', e.target.checked ? 'open' : 'closed'] })} />
+                                open end
+                            </label>
+                        </>
+                    )}
+                    {d.kind === 'polygon' && (
+                        <>
+                            <strong style={{ minWidth: '4.5rem' }}>Polygon</strong>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                {d.vertices.map((v, vi) => (
+                                    <span key={vi} style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                        <NumCell value={v[0]} disabled={disabled}
+                                            onChange={(x) =>
+                                                replace(i, {
+                                                    ...d,
+                                                    vertices: d.vertices.map((w, wj) => (wj === vi ? [x, w[1]] : w)),
+                                                })
+                                            } />
+                                        <NumCell value={v[1]} disabled={disabled}
+                                            onChange={(y) =>
+                                                replace(i, {
+                                                    ...d,
+                                                    vertices: d.vertices.map((w, wj) => (wj === vi ? [w[0], y] : w)),
+                                                })
+                                            } />
+                                        {d.vertices.length > 3 && (
+                                            <button type="button" disabled={disabled}
+                                                onClick={() =>
+                                                    replace(i, { ...d, vertices: d.vertices.filter((_, wj) => wj !== vi) })
+                                                }
+                                                style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                                                aria-label="Remove vertex">×</button>
+                                        )}
+                                    </span>
+                                ))}
+                                <span style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    <button type="button" disabled={disabled}
+                                        onClick={() => replace(i, { ...d, vertices: [...d.vertices, [0, 0]] })}
+                                        style={{ fontSize: '0.72rem', cursor: 'pointer' }}>+ vertex</button>
+                                    <label style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                        <input type="checkbox" checked={d.filled} disabled={disabled}
+                                            onChange={(e) => replace(i, { ...d, filled: e.target.checked })} />
+                                        filled
+                                    </label>
+                                </span>
+                            </div>
+                        </>
+                    )}
+                    <button type="button" disabled={disabled} onClick={() => remove(i)}
+                        style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.78rem' }}
+                        aria-label="Remove shape">Remove</button>
+                </div>
+            ))}
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                {(['point', 'curve', 'expression', 'segment', 'ray', 'polygon'] as const).map((k) => (
+                    <button key={k} type="button" disabled={disabled} onClick={() => add(k)}
+                        style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', border: '1px solid #cbd5e1', borderRadius: 4, background: '#f8fafc', cursor: 'pointer', color: '#334155' }}>
+                        + {k === 'curve' ? 'line' : k === 'expression' ? 'formula' : k}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 }

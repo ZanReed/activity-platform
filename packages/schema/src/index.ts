@@ -45,6 +45,8 @@ export {
   FunctionInteraction,
   FunctionModel,
   RegionInteraction,
+  Drawable,
+  DisplayInteraction,
   GraphInteraction,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
@@ -73,10 +75,13 @@ export {
   PointResponse,
   FunctionResponse,
   RegionResponse,
+  InequalityResponse,
   GraphResponse,
+  GraphResponseV4,
   SubmissionResponses,
   SubmissionResponsesV1,
   SubmissionResponsesV2,
+  SubmissionResponsesV3,
   migrateSubmissionResponses,
 } from './submission.js';
 

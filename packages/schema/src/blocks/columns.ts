@@ -29,6 +29,7 @@ import { ImageBlock } from './image.js';
 import { CalloutBlock } from './callout.js';
 import { ProblemBlock } from './problem.js';
 import { FillInBlankBlock } from './fill-in-blank.js';
+import { InteractiveGraphBlock } from './interactive-graph.js';
 import { BulletListBlock, OrderedListBlock } from './list.js';
 
 // Cell content = the full Block union MINUS ColumnsBlock. When a new leaf block
@@ -41,6 +42,7 @@ export const ColumnCellBlock = z.discriminatedUnion('type', [
   CalloutBlock,
   ProblemBlock,
   FillInBlankBlock,
+  InteractiveGraphBlock,
   BulletListBlock,
   OrderedListBlock,
 ]);

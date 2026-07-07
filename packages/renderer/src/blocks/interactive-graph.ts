@@ -35,6 +35,13 @@ export function renderInteractiveGraph(
   block: InteractiveGraphBlock,
   ctx: InteractiveGraphRenderContext,
 ): string {
+  // Display mode: a static, ungraded figure — no number, no answer key, no
+  // confidence/solution surface. Split out entirely (its own markup contract)
+  // because it shares none of the graded block's scoring shell.
+  if (block.interaction.type === 'display') {
+    return renderDisplayGraph(block, ctx);
+  }
+
   const num = block.number ?? ctx.problemNumber;
   const promptHtml = renderInlineNodes(block.prompt);
 
@@ -135,6 +142,10 @@ export function renderInteractiveGraph(
     ' data-graph-interaction-type="' + attr(interactionType) + '"' +
     ' data-graph-config="' + attr(configJson) + '"' +
     ' data-graph-answer-key="' + attr(answerKeyJson) + '"' +
+    // Drop 4 flags — additive data attrs the runtime threads into the widget.
+    (block.partialCredit ? ' data-graph-partial-credit="true"' : '') +
+    (block.allowNoSolution ? ' data-graph-allow-no-solution="true"' : '') +
+    (block.noSolutionCorrect ? ' data-graph-no-solution-correct="true"' : '') +
     kitSrcAttr +
     ratingAttr +
     skillsAttr +
@@ -147,6 +158,69 @@ export function renderInteractiveGraph(
     confidenceFieldset +
     printConfidence +
     solutionSlot +
+    '</div>' +
+    '</div>'
+  );
+}
+
+// The static-display variant (interaction.type === 'display'). Same lazy-kit
+// hydration path as the graded block — a .graph-canvas the sidecar mounts a
+// READ-ONLY board into (mountGraphDisplay) — but categorized as content, not a
+// question: no problem number, no answer key, no confidence/solution. The
+// drawables ride as data-graph-drawables (the analogue of data-graph-answer-key).
+// The prompt, when present, is an optional caption; an empty prompt is the
+// standalone-exemplar case. See RUNTIME.md (additive attributes).
+function renderDisplayGraph(
+  block: InteractiveGraphBlock,
+  ctx: InteractiveGraphRenderContext,
+): string {
+  if (block.interaction.type !== 'display') return ''; // narrowing (unreachable)
+  const configJson = JSON.stringify(block.axisConfig);
+  const drawablesJson = JSON.stringify(block.interaction.drawables);
+
+  const kitSrcAttr = ctx.graphKitUrl
+    ? ' data-graph-kit-src="' + attr(ctx.graphKitUrl) + '"'
+    : '';
+  const skills = block.skills;
+  const skillsAttr =
+    skills.length > 0
+      ? ' data-skills="' + attr(JSON.stringify(skills)) + '"'
+      : '';
+
+  // Optional caption (the prompt). Omitted entirely for a standalone exemplar so
+  // no empty caption box prints.
+  const captionHtml =
+    block.prompt.length > 0
+      ? '<div class="graph-prompt graph-caption">' +
+        renderInlineNodes(block.prompt) +
+        '</div>'
+      : '';
+
+  // A static figure: role="img", not role="application"; not focusable. The
+  // sidecar draws into it; the no-JS/print fallback stays if the kit can't load.
+  const canvas =
+    '<div class="graph-canvas"' +
+    ' data-graph-canvas="' + attr(block.id) + '"' +
+    ' role="img"' +
+    ' aria-label="Graph">' +
+    '<p class="graph-nojs">This graph needs JavaScript to display.</p>' +
+    '</div>';
+
+  return (
+    '<div class="block block-interactive-graph block-graph-display"' +
+    ' data-block-category="content"' +
+    ' data-block-type="interactive_graph"' +
+    ' data-block-id="' + attr(block.id) + '"' +
+    ' data-graph-block-id="' + attr(block.id) + '"' +
+    ' data-graph-interaction-type="display"' +
+    ' data-graph-config="' + attr(configJson) + '"' +
+    ' data-graph-drawables="' + attr(drawablesJson) + '"' +
+    kitSrcAttr +
+    skillsAttr +
+    '>' +
+    '<div class="block-problem-body">' +
+    captionHtml +
+    canvas +
     '</div>' +
     '</div>'
   );

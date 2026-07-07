@@ -8,6 +8,7 @@ import {
   createColumnsBlock,
   createParagraphBlock,
   createProblemBlock,
+  createInteractiveGraphBlock,
   createFillInBlankBlock,
   createBlankToken,
   type ActivityDocument,
@@ -47,6 +48,22 @@ describe('renderColumns', () => {
     const body = renderBody(docWith(cols));
     expect(body).toContain('hello in a column');
     expect(body).toContain('class="block block-paragraph"');
+  });
+
+  it('renders an interactive_graph inside a column and numbers it in sequence (Drop 1)', () => {
+    // col 1: a problem (#1) then a graph (#2); col 2: a problem (#3).
+    const cols = createColumnsBlock(2);
+    cols.columns[0]!.blocks = [createProblemBlock(), createInteractiveGraphBlock()];
+    cols.columns[1]!.blocks = [createProblemBlock()];
+    const body = renderBody(docWith(cols));
+    // The graph block renders through the normal block path inside the cell.
+    expect(body).toContain('data-block-type="interactive_graph"');
+    expect(body).toContain('class="graph-canvas"');
+    // It participates in the shared column-major problem sequence.
+    const numbers = [...body.matchAll(/block-problem-number">(\d+)\./g)].map(
+      (m) => m[1],
+    );
+    expect(numbers).toEqual(['1', '2', '3']);
   });
 
   it('numbers nested problems column-major, sharing the document sequence', () => {

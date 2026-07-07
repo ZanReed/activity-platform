@@ -7,7 +7,13 @@
 // plot_point scorer; plot_line / shade_region add their own scorers here.
 // =============================================================================
 
-import { fitLinear, type DataPoint } from './regression.js';
+import {
+  fitLinear,
+  fitQuadratic,
+  fitExponential,
+  fitLogarithmic,
+  type DataPoint,
+} from './regression.js';
 
 export interface PointAnswerKey {
   /** Acceptable target point(s), in graph units. */
@@ -67,6 +73,31 @@ export function isPointCorrect(
   return scorePoints(key, [point]);
 }
 
+// Partial credit for plot_point: how many of the correct points the student
+// landed (consume-once), out of the total. `earned === total` is the all-or-
+// nothing boolean; the fraction is `earned / total`. The runtime consumes this
+// when partialCredit is on (wired at the Drop 4 bump); scorePoints stays the
+// boolean gate for the all-or-nothing default.
+export function scorePointsPartial(
+  key: PointAnswerKey,
+  studentPoints: [number, number][],
+): { earned: number; total: number } {
+  const total = key.correctPoints.length;
+  const used = new Set<number>();
+  let earned = 0;
+  for (const target of key.correctPoints) {
+    for (let i = 0; i < studentPoints.length; i++) {
+      if (used.has(i)) continue;
+      if (withinTolerance(studentPoints[i]!, target, key.tolerance)) {
+        used.add(i);
+        earned += 1;
+        break;
+      }
+    }
+  }
+  return { earned, total };
+}
+
 // ---- plot_function: fit a curve to the points, score its parameters ---------
 // The student places N points; the curve of the chosen FAMILY through them is
 // fit with the SAME regression engine the calculator uses, and its parameters
@@ -75,6 +106,9 @@ export function isPointCorrect(
 // are each a new model member + a new fit branch here (the fit fns already
 // exist), so growing from 2 points (a line) to 3 (a parabola) is additive.
 
+// Parameter names + forms MIRROR the schema's FunctionModel (the kit never
+// imports @activity/schema — parallel types are the discipline) and the
+// regression fitters, so a fitted curve compares to the key with no translation.
 export interface LinearModel {
   family: 'linear';
   slope: number;
@@ -82,63 +116,270 @@ export interface LinearModel {
   slopeTolerance: number;
   interceptTolerance: number;
 }
-export type FunctionModel = LinearModel; // | QuadraticModel | ExponentialModel | …
+export interface QuadraticModel {
+  family: 'quadratic';
+  a: number;
+  b: number;
+  c: number;
+  aTolerance: number;
+  bTolerance: number;
+  cTolerance: number;
+}
+export interface ExponentialModel {
+  family: 'exponential';
+  a: number;
+  b: number;
+  aTolerance: number;
+  bTolerance: number;
+}
+export interface LogarithmicModel {
+  family: 'logarithmic';
+  a: number;
+  b: number;
+  aTolerance: number;
+  bTolerance: number;
+}
+export interface VerticalModel {
+  family: 'vertical';
+  x: number;
+  xTolerance: number;
+}
+export type FunctionModel =
+  | LinearModel
+  | QuadraticModel
+  | ExponentialModel
+  | LogarithmicModel
+  | VerticalModel;
 
-// How many draggable handles a family needs — its parameter count. Used by the
-// widget to show the right number of handles and by the author board.
+// How many draggable handles a family needs — its parameter count (a curve is
+// pinned down by that many points). vertical is 2 (two points naming the line).
 export function handlesForFamily(family: string): number {
   switch (family) {
+    case 'quadratic':
+      return 3;
     case 'linear':
+    case 'exponential':
+    case 'logarithmic':
+    case 'vertical':
       return 2;
-    // case 'quadratic': return 3;
-    // case 'exponential': case 'logarithmic': return 2;
     default:
       return 2;
   }
 }
 
-export interface FittedLinear {
-  family: 'linear';
-  slope: number;
-  intercept: number;
-  predict: (x: number) => number;
+export type Fitted =
+  | { family: 'linear'; slope: number; intercept: number; predict: (x: number) => number }
+  | { family: 'quadratic'; a: number; b: number; c: number; predict: (x: number) => number }
+  | { family: 'exponential'; a: number; b: number; predict: (x: number) => number }
+  | { family: 'logarithmic'; a: number; b: number; predict: (x: number) => number }
+  // vertical has no y = f(x); it carries the fitted x-value instead of predict.
+  | { family: 'vertical'; x: number };
+
+// Spread of x-values in a point set — used to decide whether points name a
+// vertical line (all x roughly equal).
+function xSpread(points: [number, number][]): number {
+  if (points.length === 0) return 0;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const [x] of points) {
+    if (x < min) min = x;
+    if (x > max) max = x;
+  }
+  return max - min;
 }
-export type Fitted = FittedLinear;
 
 // Fit the family's curve to the points, returning its parameters + a predict()
-// for drawing — or null when the points can't define the curve (e.g. a vertical
-// line for 'linear', or too few distinct points). Reuses regression.ts.
+// for drawing — or null when the points can't define the curve (too few distinct
+// x, y ≤ 0 for exponential, x ≤ 0 for logarithmic, non-vertical points for
+// vertical). Reuses regression.ts for the y = f(x) families.
 export function fitFunction(
   family: string,
   points: [number, number][],
 ): Fitted | null {
   const data: DataPoint[] = points.map(([x, y]) => ({ x, y }));
-  if (family === 'linear') {
-    const out = fitLinear(data);
-    if (!out.ok || out.fit.model !== 'linear') return null;
-    return {
-      family: 'linear',
-      slope: out.fit.a,
-      intercept: out.fit.b,
-      predict: out.predict,
-    };
+  switch (family) {
+    case 'linear': {
+      const out = fitLinear(data);
+      if (!out.ok || out.fit.model !== 'linear') return null;
+      return { family: 'linear', slope: out.fit.a, intercept: out.fit.b, predict: out.predict };
+    }
+    case 'quadratic': {
+      const out = fitQuadratic(data);
+      if (!out.ok || out.fit.model !== 'quadratic') return null;
+      return { family: 'quadratic', a: out.fit.a, b: out.fit.b, c: out.fit.c, predict: out.predict };
+    }
+    case 'exponential': {
+      const out = fitExponential(data);
+      if (!out.ok || out.fit.model !== 'exponential') return null;
+      return { family: 'exponential', a: out.fit.a, b: out.fit.b, predict: out.predict };
+    }
+    case 'logarithmic': {
+      const out = fitLogarithmic(data);
+      if (!out.ok || out.fit.model !== 'logarithmic') return null;
+      return { family: 'logarithmic', a: out.fit.a, b: out.fit.b, predict: out.predict };
+    }
+    case 'vertical': {
+      // A vertical line x = k. The points must actually be (near-)vertical, else
+      // they don't name one; k is their mean x.
+      if (points.length < 2) return null;
+      const meanTol = 1e-6 + xSpread(points);
+      if (meanTol > 0.5) return null; // points aren't vertical enough
+      const meanX = points.reduce((s, [x]) => s + x, 0) / points.length;
+      return { family: 'vertical', x: meanX };
+    }
+    default:
+      return null;
   }
-  return null;
 }
 
+// Score ONE curve: fit the student's points to the model's family, then compare
+// the fitted parameters to the key with per-parameter tolerances.
 export function scoreFunction(
   model: FunctionModel,
   studentPoints: [number, number][],
 ): boolean {
   const fitted = fitFunction(model.family, studentPoints);
   if (!fitted) return false;
-  if (model.family === 'linear' && fitted.family === 'linear') {
-    return (
-      Math.abs(fitted.slope - model.slope) <= model.slopeTolerance &&
-      Math.abs(fitted.intercept - model.intercept) <= model.interceptTolerance
-    );
+  switch (model.family) {
+    case 'linear':
+      return (
+        fitted.family === 'linear' &&
+        Math.abs(fitted.slope - model.slope) <= model.slopeTolerance &&
+        Math.abs(fitted.intercept - model.intercept) <= model.interceptTolerance
+      );
+    case 'quadratic':
+      return (
+        fitted.family === 'quadratic' &&
+        Math.abs(fitted.a - model.a) <= model.aTolerance &&
+        Math.abs(fitted.b - model.b) <= model.bTolerance &&
+        Math.abs(fitted.c - model.c) <= model.cTolerance
+      );
+    case 'exponential':
+      return (
+        fitted.family === 'exponential' &&
+        Math.abs(fitted.a - model.a) <= model.aTolerance &&
+        Math.abs(fitted.b - model.b) <= model.bTolerance
+      );
+    case 'logarithmic':
+      return (
+        fitted.family === 'logarithmic' &&
+        Math.abs(fitted.a - model.a) <= model.aTolerance &&
+        Math.abs(fitted.b - model.b) <= model.bTolerance
+      );
+    case 'vertical':
+      return fitted.family === 'vertical' && Math.abs(fitted.x - model.x) <= model.xTolerance;
   }
-  return false;
+}
+
+// Partial credit for a system of curves: how many of the key's models the
+// student's per-curve point sets satisfy, out of the total. `studentCurves[i]`
+// is the point set for the i-th curve; a single-curve question passes one set.
+export function scoreFunctionsPartial(
+  models: FunctionModel[],
+  studentCurves: [number, number][][],
+): { earned: number; total: number } {
+  let earned = 0;
+  for (let i = 0; i < models.length; i++) {
+    const pts = studentCurves[i];
+    if (pts && scoreFunction(models[i]!, pts)) earned += 1;
+  }
+  return { earned, total: models.length };
+}
+
+// ---- graph_inequality: boundary + side + style (Drop 4) -----------------------
+// Three independently-graded parts: the boundary curve (same fit-and-compare as
+// plot_function), the shaded side, and the dotted/solid style (strict vs
+// inclusive). Partial credit = earned parts / 3.
+
+export type InequalitySide = 'above' | 'below' | 'left' | 'right';
+
+export interface InequalityAnswerKey {
+  boundary: FunctionModel;
+  strict: boolean;
+  shadeSide: InequalitySide;
+}
+
+export interface InequalityStudentAnswer {
+  points: [number, number][];
+  strict: boolean;
+  side: InequalitySide;
+}
+
+export function scoreInequalityParts(
+  key: InequalityAnswerKey,
+  ans: InequalityStudentAnswer,
+): { boundary: boolean; side: boolean; style: boolean } {
+  return {
+    boundary: scoreFunction(key.boundary, ans.points),
+    side: ans.side === key.shadeSide,
+    style: ans.strict === key.strict,
+  };
+}
+
+export function scoreInequality(
+  key: InequalityAnswerKey,
+  ans: InequalityStudentAnswer,
+): boolean {
+  const p = scoreInequalityParts(key, ans);
+  return p.boundary && p.side && p.style;
+}
+
+export function scoreInequalityPartial(
+  key: InequalityAnswerKey,
+  ans: InequalityStudentAnswer,
+): { earned: number; total: number } {
+  const p = scoreInequalityParts(key, ans);
+  return { earned: Number(p.boundary) + Number(p.side) + Number(p.style), total: 3 };
+}
+
+// ---- domain endpoints (Drop 6 follow-up): rays and segments of a curve --------
+// "Graph y = 2x + 3 for x >= 0": the curve is scored by fitFunction/scoreFunction
+// as usual; the domain is scored on the student's endpoint x-positions (dragged
+// along the curve) + their open/closed choices. Endpoint x tolerance matches the
+// snap-to-grid default used elsewhere.
+
+export interface DomainAnswerKey {
+  min?: number;
+  minStyle?: 'open' | 'closed';
+  max?: number;
+  maxStyle?: 'open' | 'closed';
+}
+export interface DomainStudentAnswer {
+  minX?: number;
+  minStyle?: 'open' | 'closed';
+  maxX?: number;
+  maxStyle?: 'open' | 'closed';
+}
+
+const DOMAIN_X_TOLERANCE = 0.25;
+
+// Per-endpoint parts: position + style for each authored bound. An unauthored
+// bound contributes nothing (the widget shows no handle for it).
+export function scoreDomainParts(
+  key: DomainAnswerKey,
+  ans: DomainStudentAnswer,
+): { earned: number; total: number } {
+  let earned = 0;
+  let total = 0;
+  const side = (
+    bound: number | undefined,
+    style: 'open' | 'closed' | undefined,
+    x: number | undefined,
+    ansStyle: 'open' | 'closed' | undefined,
+  ): void => {
+    if (typeof bound !== 'number') return;
+    total += 2;
+    if (typeof x === 'number' && Math.abs(x - bound) <= DOMAIN_X_TOLERANCE) earned += 1;
+    if ((ansStyle ?? 'closed') === (style ?? 'closed')) earned += 1;
+  };
+  side(key.min, key.minStyle, ans.minX, ans.minStyle);
+  side(key.max, key.maxStyle, ans.maxX, ans.maxStyle);
+  return { earned, total };
+}
+
+export function scoreDomain(key: DomainAnswerKey, ans: DomainStudentAnswer): boolean {
+  const p = scoreDomainParts(key, ans);
+  return p.earned === p.total;
 }
 
 // ---- shade_region: score a polygon by area overlap --------------------------
@@ -212,4 +453,19 @@ export function scoreRegion(
 ): boolean {
   if (studentPoints.length < 3 || key.correctVertices.length < 3) return false;
   return polygonOverlap(studentPoints, key.correctVertices) >= key.minOverlap;
+}
+
+// Partial credit for a system of regions: how many target polygons the student's
+// per-region polygons cover (IoU ≥ minOverlap), out of the total. `studentPolys
+// [i]` is the polygon for the i-th region; a single-region question passes one.
+export function scoreRegionsPartial(
+  regions: RegionAnswerKey[],
+  studentPolys: [number, number][][],
+): { earned: number; total: number } {
+  let earned = 0;
+  for (let i = 0; i < regions.length; i++) {
+    const poly = studentPolys[i];
+    if (poly && scoreRegion(regions[i]!, poly)) earned += 1;
+  }
+  return { earned, total: regions.length };
 }

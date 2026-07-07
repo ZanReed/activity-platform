@@ -89,3 +89,7 @@ The vision model returns a per-cell read confidence. Surface low-confidence read
 5. **Student self-check mode** — the fast-follow; its instant-feedback UX and the "false wrong" tolerance question are deferred until recognition is trusted.
 6. **Personalized/quiz category** — out of scope by decision; this doc only keeps the door open (the three seams above).
 7. **Multi-page submission assembly** — the `p` page index enables it; the assembly/UX is deferred.
+
+## Graphs (added 2026-07-08)
+
+Printed interactive-graph questions are answered by hand on the printed grid. Under the transcription-only rule, the AI transcribes the drawn geometry ("a line through ~(0,1) and ~(2,5); dashed; shaded above") into the same structured student-answer shapes the online widget produces (points / strict / side), and the EXISTING kit scorers (@activity/graph-kit graph-score.ts — pure, DOM-free, deliberately server-shareable) grade the transcription with the teacher confirming. No new scoring engine is needed.

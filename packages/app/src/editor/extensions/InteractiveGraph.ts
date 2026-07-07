@@ -42,32 +42,140 @@ export interface LinearFunctionModel {
     slopeTolerance: number;
     interceptTolerance: number;
 }
+export interface QuadraticFunctionModel {
+    family: 'quadratic';
+    a: number; b: number; c: number;
+    aTolerance: number; bTolerance: number; cTolerance: number;
+}
+export interface ExponentialFunctionModel {
+    family: 'exponential';
+    a: number; b: number;
+    aTolerance: number; bTolerance: number;
+}
+export interface LogarithmicFunctionModel {
+    family: 'logarithmic';
+    a: number; b: number;
+    aTolerance: number; bTolerance: number;
+}
+export interface VerticalFunctionModel {
+    family: 'vertical';
+    x: number; xTolerance: number;
+}
+// The editor's parallel FunctionModel union (mirrors the schema). The current
+// authoring UI edits linear; freeform equation entry (Drop 3) produces the rest.
+export type FunctionModelAttr =
+    | LinearFunctionModel
+    | QuadraticFunctionModel
+    | ExponentialFunctionModel
+    | LogarithmicFunctionModel
+    | VerticalFunctionModel;
+export interface RegionAnswerAttr {
+    correctVertices: [number, number][];
+    minOverlap: number;
+}
+// plot_function / shade_region carry ARRAYS of answer objects (ship as one) so
+// systems of equations/regions are additive — see the schema.
 export interface FunctionInteractionAttr {
     type: 'plot_function';
-    model: LinearFunctionModel; // future: | QuadraticModel | …
+    models: FunctionModelAttr[];
 }
 export interface RegionInteractionAttr {
     type: 'shade_region';
-    correctVertices: [number, number][];
-    minOverlap: number;
+    regions: RegionAnswerAttr[];
+}
+export interface InequalityAnswerAttr {
+    boundary: FunctionModelAttr;
+    strict: boolean;
+    shadeSide: 'above' | 'below' | 'left' | 'right';
+}
+export interface InequalityInteractionAttr {
+    type: 'graph_inequality';
+    inequalities: InequalityAnswerAttr[];
+}
+// Static-display drawables (interaction.type === 'display'). Parallel to the
+// schema's Drawable union; the NodeView reads them by `kind`. `curve` reuses the
+// same FunctionModelAttr plot_function uses (a display curve is one curve).
+export type DrawableAttr =
+    | { kind: 'point'; at: [number, number]; label?: string; style?: 'open' | 'closed' }
+    | {
+          kind: 'curve';
+          model: FunctionModelAttr;
+          style?: 'solid' | 'dashed';
+          shade?: 'above' | 'below' | 'left' | 'right';
+          domain?: { min?: number; minStyle?: 'open' | 'closed'; max?: number; maxStyle?: 'open' | 'closed' };
+      }
+    | { kind: 'expression'; expression: string; style?: 'solid' | 'dashed' }
+    | { kind: 'segment'; from: [number, number]; to: [number, number]; endpoints?: ['open' | 'closed', 'open' | 'closed'] }
+    | { kind: 'ray'; from: [number, number]; through: [number, number]; fromStyle?: 'open' | 'closed' }
+    | { kind: 'polygon'; vertices: [number, number][]; filled: boolean };
+export interface DisplayInteractionAttr {
+    type: 'display';
+    drawables: DrawableAttr[];
 }
 export type GraphInteraction =
     | PointInteractionAttr
     | FunctionInteractionAttr
-    | RegionInteractionAttr;
+    | RegionInteractionAttr
+    | InequalityInteractionAttr
+    | DisplayInteractionAttr;
 
-// A fresh plot_function interaction (linear, y = x) — used when the author
-// switches the picker to "Plot a line".
+// A fresh graph_inequality (y > x, strict, shade above) — used when the author
+// switches the picker to "Graph an inequality". Array-of-one; systems later.
+export function defaultInequalityInteraction(): InequalityInteractionAttr {
+    return {
+        type: 'graph_inequality',
+        inequalities: [
+            {
+                boundary: {
+                    family: 'linear',
+                    slope: 1,
+                    intercept: 0,
+                    slopeTolerance: 0.1,
+                    interceptTolerance: 0.1,
+                },
+                strict: true,
+                shadeSide: 'above',
+            },
+        ],
+    };
+}
+
+// A fresh display interaction — one point + one line so the author sees the
+// figure immediately and can add/remove/edit drawables.
+export function defaultDisplayInteraction(): DisplayInteractionAttr {
+    return {
+        type: 'display',
+        drawables: [
+            { kind: 'point', at: [2, 3] },
+            {
+                kind: 'curve',
+                model: {
+                    family: 'linear',
+                    slope: 1,
+                    intercept: 0,
+                    slopeTolerance: 0.1,
+                    interceptTolerance: 0.1,
+                },
+            },
+        ],
+    };
+}
+
+// A fresh plot_function interaction (a single linear curve, y = x) — used when
+// the author switches the picker to "Plot a line". Array-of-one; systems add
+// more curves later.
 export function defaultFunctionInteraction(): FunctionInteractionAttr {
     return {
         type: 'plot_function',
-        model: {
-            family: 'linear',
-            slope: 1,
-            intercept: 0,
-            slopeTolerance: 0.1,
-            interceptTolerance: 0.1,
-        },
+        models: [
+            {
+                family: 'linear',
+                slope: 1,
+                intercept: 0,
+                slopeTolerance: 0.1,
+                interceptTolerance: 0.1,
+            },
+        ],
     };
 }
 
@@ -76,12 +184,12 @@ export function defaultPointInteraction(): PointInteractionAttr {
     return { type: 'plot_point', correctPoints: [[0, 0]], tolerance: 0.1 };
 }
 
-// A fresh shade_region interaction — a small triangle the author drags into shape.
+// A fresh shade_region interaction — a single small triangle the author drags
+// into shape. Array-of-one; systems of regions add more later.
 export function defaultRegionInteraction(): RegionInteractionAttr {
     return {
         type: 'shade_region',
-        correctVertices: [[0, 0], [4, 0], [2, 4]],
-        minOverlap: 0.9,
+        regions: [{ correctVertices: [[0, 0], [4, 0], [2, 4]], minOverlap: 0.9 }],
     };
 }
 
@@ -102,6 +210,8 @@ declare module '@tiptap/core' {
     interface Commands<ReturnType> {
         interactiveGraph: {
             insertInteractiveGraph: () => ReturnType;
+            /** Insert a static (display-mode) graph — an ungraded figure/exemplar. */
+            insertStaticGraph: () => ReturnType;
         };
     }
 }
@@ -156,6 +266,24 @@ export const InteractiveGraph = Node.create({
                     attrs.solution
                         ? { 'data-graph-solution': JSON.stringify(attrs.solution) }
                         : {},
+            },
+            partialCredit: {
+                default: false,
+                parseHTML: (el) => el.getAttribute('data-graph-partial-credit') === 'true',
+                renderHTML: (attrs) =>
+                    attrs.partialCredit ? { 'data-graph-partial-credit': 'true' } : {},
+            },
+            allowNoSolution: {
+                default: false,
+                parseHTML: (el) => el.getAttribute('data-graph-allow-no-solution') === 'true',
+                renderHTML: (attrs) =>
+                    attrs.allowNoSolution ? { 'data-graph-allow-no-solution': 'true' } : {},
+            },
+            noSolutionCorrect: {
+                default: false,
+                parseHTML: (el) => el.getAttribute('data-graph-no-solution-correct') === 'true',
+                renderHTML: (attrs) =>
+                    attrs.noSolutionCorrect ? { 'data-graph-no-solution-correct': 'true' } : {},
             },
             hasConfidenceRating: {
                 default: false,
@@ -213,6 +341,24 @@ export const InteractiveGraph = Node.create({
                                 id: fresh.id,
                                 axisConfig: fresh.axisConfig,
                                 interaction: fresh.interaction,
+                                solution: null,
+                                hasConfidenceRating: false,
+                                skills: [],
+                            },
+                        })
+                        .run();
+                },
+            insertStaticGraph:
+                () =>
+                ({ chain }) => {
+                    const fresh = createInteractiveGraphBlock();
+                    return chain()
+                        .insertContent({
+                            type: this.name,
+                            attrs: {
+                                id: fresh.id,
+                                axisConfig: fresh.axisConfig,
+                                interaction: defaultDisplayInteraction(),
                                 solution: null,
                                 hasConfidenceRating: false,
                                 skills: [],

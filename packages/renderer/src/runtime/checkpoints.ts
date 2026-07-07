@@ -22,6 +22,7 @@ import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
 import { scoreBlanksInScope } from './blanks.js';
+import { graphExt } from './graph-integration.js';
 
 /**
  * Score every blank in the section, aggregate state, reveal solutions for
@@ -57,18 +58,15 @@ export function checkSection(
         if (state.blanks[blankId]?.result === true) correct += 1;
     }
 
-    // Interactive-graph blocks score too — each is one scorable unit. The kit
-    // computed correctness live (state.graphs[id].result) as the student moved
-    // the point; an unanswered graph is null → an omission, counted in total
-    // but not in correct, exactly like an empty blank.
-    for (const graphId of sectionRef.graphBlockIds) {
-        if (state.graphs[graphId]?.result === true) correct += 1;
-    }
+    // Interactive-graph blocks score too — each is one scorable unit (the graph
+    // feature computed correctness live as the student moved the point). In the
+    // base runtime build this contributes nothing (no graph blocks exist).
+    const graphScore = graphExt.scoreSectionGraphs(sectionRef, state);
+    correct += graphScore.correct;
 
     sectionState.checked = true;
     sectionState.score = correct;
-    sectionState.total =
-        sectionRef.blankIds.length + sectionRef.graphBlockIds.length;
+    sectionState.total = sectionRef.blankIds.length + graphScore.total;
     sectionState.checkedAt = new Date().toISOString();
     if (config.submissionMode === 'locked') {
         sectionState.locked = true;
@@ -85,14 +83,7 @@ export function checkSection(
             blockState.solutionRevealed = true;
         }
     }
-    for (const graphId of sectionRef.graphBlockIds) {
-        const graphRef = refs.graphs.get(graphId);
-        const graphState = state.graphs[graphId];
-        if (!graphRef || !graphState) continue;
-        if (graphRef.solutionEl !== null) {
-            graphState.solutionRevealed = true;
-        }
-    }
+    graphExt.revealGraphSolutions(sectionRef, refs, state);
 }
 
 /**

@@ -52,77 +52,118 @@ const RUNTIME_SIZE_TARGET = 20 * 1024; // soft target — warn past this
 const RUNTIME_SIZE_CEILING = 40 * 1024; // hard ceiling — fail past this
 
 // -----------------------------------------------------------------------------
-// Step 1 — Runtime build
+// Step 1 — Runtime build (two variants from one source)
 // -----------------------------------------------------------------------------
-// Entry: runtime/index.ts. Output: a minified IIFE string, plus an external
-// source map written to dist/. `write: false` keeps the JS in memory (we need
-// it as a string for the generated module); esbuild still returns the map in
-// `outputFiles`, which we write to disk ourselves.
+// Entry: runtime/index.ts, built TWICE:
+//
+//   • base   — the interactive-graph feature is stubbed out. The source imports
+//              the real runtime/graph-integration.ts, but this build redirects
+//              that specifier to graph-integration.noop.ts (an onResolve alias),
+//              so nothing graph-related is bundled. Inlined on the majority of
+//              pages, which have no graph block.
+//   • graphs — the real graph-integration.ts is kept, so the full graph feature
+//              (DOM walk, chrome render, scoring, submit gather, kit mounting)
+//              is bundled. Inlined by document.ts ONLY when the rendered body
+//              contains a `data-block-type="interactive_graph"` block.
+//
+// The split keeps every non-graph page from carrying graph code, and means a
+// future graph feature grows the graphs variant only — never the base runtime
+// every page pays for. Output for each: a minified IIFE string (baked into a
+// generated TS module) + an external source map (dev artifact).
 
 const runtimeEntry = resolve(root, 'packages/renderer/src/runtime/index.ts');
 const generatedModulePath = resolve(
   root,
   'packages/renderer/src/runtime/generated/runtime-bundle.ts',
 );
-const sourceMapPath = resolve(root, 'packages/renderer/dist/runtime.js.map');
+const generatedGraphsModulePath = resolve(
+  root,
+  'packages/renderer/src/runtime/generated/runtime-graphs-bundle.ts',
+);
 
 await mkdir(dirname(generatedModulePath), { recursive: true });
-await mkdir(dirname(sourceMapPath), { recursive: true });
+await mkdir(resolve(root, 'packages/renderer/dist'), { recursive: true });
 
-const runtimeResult = await build({
-  entryPoints: [runtimeEntry],
-  bundle: true,
-  // IIFE, not ESM: the output is inlined into a plain <script> tag by
-  // document.ts. An ESM bundle could not be inlined that way. (The renderer
-  // bundle below is ESM — different consumer, Deno Edge Functions.)
-  format: 'iife',
-  platform: 'browser',
-  // chrome90 covers school-issued Chromebooks per ChromeOS support window,
-  // and Firefox 88+ / Safari 14+ / Edge 90+ (RUNTIME.md browser support).
-  target: 'chrome90',
-  minify: true,
-  // External source map. esbuild returns it in outputFiles (write:false); we
-  // write only the map to disk. Dev/debug artifact — gitignored, not shipped.
-  sourcemap: 'external',
-  write: false,
-  outdir: resolve(root, 'packages/renderer/dist'),
-  metafile: true,
-  logLevel: 'info',
-});
+// esbuild plugin: redirect `./graph-integration.js` to the no-op stub. Applied
+// to the BASE build only. The `.noop.js` import inside the stub is type-only
+// (erased before resolution), so it never re-enters this filter.
+const graphNoopPath = resolve(
+  root,
+  'packages/renderer/src/runtime/graph-integration.noop.ts',
+);
+const graphNoopPlugin = {
+  name: 'graph-integration-noop',
+  setup(pluginBuild) {
+    pluginBuild.onResolve({ filter: /graph-integration\.js$/ }, () => ({
+      path: graphNoopPath,
+    }));
+  },
+};
 
-// outputFiles holds both the JS and the .map. Separate them by extension.
-let runtimeJsText = '';
-let runtimeMapText = '';
-for (const file of runtimeResult.outputFiles) {
-  if (file.path.endsWith('.map')) runtimeMapText = file.text;
-  else runtimeJsText = file.text;
+/**
+ * Build one runtime variant. `plugins` is the base build's noop alias (empty for
+ * the graphs build). Returns the minified IIFE text; writes the source map.
+ */
+async function buildRuntime(variant, plugins) {
+  const result = await build({
+    entryPoints: [runtimeEntry],
+    bundle: true,
+    // IIFE, not ESM: the output is inlined into a plain <script> tag by
+    // document.ts. An ESM bundle could not be inlined that way. (The renderer
+    // bundle below is ESM — different consumer, Deno Edge Functions.)
+    format: 'iife',
+    platform: 'browser',
+    // chrome90 covers school-issued Chromebooks per ChromeOS support window,
+    // and Firefox 88+ / Safari 14+ / Edge 90+ (RUNTIME.md browser support).
+    target: 'chrome90',
+    minify: true,
+    // External source map. esbuild returns it in outputFiles (write:false); we
+    // write only the map to disk. Dev/debug artifact — gitignored, not shipped.
+    sourcemap: 'external',
+    write: false,
+    outdir: resolve(root, 'packages/renderer/dist'),
+    plugins,
+    logLevel: 'info',
+  });
+  let jsText = '';
+  let mapText = '';
+  for (const file of result.outputFiles) {
+    if (file.path.endsWith('.map')) mapText = file.text;
+    else jsText = file.text;
+  }
+  if (!jsText) {
+    throw new Error(`Runtime build (${variant}) produced no JS output — aborting.`);
+  }
+  if (mapText) {
+    await writeFile(
+      resolve(root, `packages/renderer/dist/runtime-${variant}.js.map`),
+      mapText,
+      'utf8',
+    );
+  }
+  const bytes = Buffer.byteLength(jsText, 'utf8');
+  if (bytes > RUNTIME_SIZE_CEILING) {
+    throw new Error(
+      `Runtime bundle (${variant}) is ${(bytes / 1024).toFixed(1)} KiB — over ` +
+        `the ${RUNTIME_SIZE_CEILING / 1024} KiB hard ceiling. Aborting.`,
+    );
+  }
+  return { jsText, bytes };
 }
 
-if (!runtimeJsText) {
-  throw new Error('Runtime build produced no JS output — aborting.');
-}
-
-// Write the source map to disk (dev artifact). The JS stays in memory.
-if (runtimeMapText) {
-  await writeFile(sourceMapPath, runtimeMapText, 'utf8');
-}
-
-// Size budget check against the standing constraint.
-const runtimeBytes = Buffer.byteLength(runtimeJsText, 'utf8');
-if (runtimeBytes > RUNTIME_SIZE_CEILING) {
-  throw new Error(
-    `Runtime bundle is ${(runtimeBytes / 1024).toFixed(1)} KiB — over the ` +
-      `${RUNTIME_SIZE_CEILING / 1024} KiB hard ceiling. Aborting.`,
-  );
-}
+const { jsText: runtimeJsText, bytes: runtimeBytes } = await buildRuntime('base', [
+  graphNoopPlugin,
+]);
+const { jsText: runtimeGraphsJsText, bytes: runtimeGraphsBytes } =
+  await buildRuntime('graphs', []);
 
 // -----------------------------------------------------------------------------
-// Step 2 — Write the generated string module
+// Step 2 — Write the generated string modules
 // -----------------------------------------------------------------------------
-// document.ts imports `runtimeJs` from this file and inlines it into the
-// published HTML. The renderer must stay pure (no I/O — it runs in Edge
-// Functions), so the runtime text is baked in at build time as a TS string
-// literal rather than read from disk at render time.
+// document.ts imports `runtimeJs` (base) + `runtimeGraphsJs` (graphs) from these
+// files and inlines whichever the page needs. The renderer must stay pure (no
+// I/O — it runs in Edge Functions), so the runtime text is baked in at build
+// time as a TS string literal rather than read from disk at render time.
 //
 // JSON.stringify produces a correctly-escaped double-quoted string literal
 // (backslashes, quotes, newlines all handled). The </script replace is
@@ -130,27 +171,39 @@ if (runtimeBytes > RUNTIME_SIZE_CEILING) {
 // never contains that sequence, but document.ts applies the same guard to its
 // config blob, so the runtime string matches that discipline.
 
-const escapedRuntime = JSON.stringify(runtimeJsText).replace(
-  /<\/script/gi,
-  '<\\/script',
+function runtimeModuleSource(basename, exportName, jsText) {
+  const escaped = JSON.stringify(jsText).replace(/<\/script/gi, '<\\/script');
+  return (
+    '// =============================================================================\n' +
+    `// runtime/generated/${basename} — GENERATED FILE, DO NOT EDIT\n` +
+    '// -----------------------------------------------------------------------------\n' +
+    '// Produced by scripts/bundle-renderer.mjs from packages/renderer/src/runtime/.\n' +
+    '// Re-run `pnpm run bundle:renderer` after any change to the runtime source.\n' +
+    '// Committed to git so a clean checkout can typecheck/build the renderer\n' +
+    '// without first running the bundler (consistent with renderer.bundle.js).\n' +
+    '// =============================================================================\n' +
+    '\n' +
+    '/** Minified runtime IIFE, inlined into published HTML by document.ts. */\n' +
+    `export const ${exportName} = ` +
+    escaped +
+    ';\n'
+  );
+}
+
+await writeFile(
+  generatedModulePath,
+  runtimeModuleSource('runtime-bundle.ts', 'runtimeJs', runtimeJsText),
+  'utf8',
 );
-
-const generatedModule =
-  '// =============================================================================\n' +
-  '// runtime/generated/runtime-bundle.ts — GENERATED FILE, DO NOT EDIT\n' +
-  '// -----------------------------------------------------------------------------\n' +
-  '// Produced by scripts/bundle-renderer.mjs from packages/renderer/src/runtime/.\n' +
-  '// Re-run `pnpm run bundle:renderer` after any change to the runtime source.\n' +
-  '// Committed to git so a clean checkout can typecheck/build the renderer\n' +
-  '// without first running the bundler (consistent with renderer.bundle.js).\n' +
-  '// =============================================================================\n' +
-  '\n' +
-  '/** Minified runtime IIFE, inlined into published HTML by document.ts. */\n' +
-  'export const runtimeJs = ' +
-  escapedRuntime +
-  ';\n';
-
-await writeFile(generatedModulePath, generatedModule, 'utf8');
+await writeFile(
+  generatedGraphsModulePath,
+  runtimeModuleSource(
+    'runtime-graphs-bundle.ts',
+    'runtimeGraphsJs',
+    runtimeGraphsJsText,
+  ),
+  'utf8',
+);
 
 // -----------------------------------------------------------------------------
 // Step 2b — KaTeX CSS module
@@ -447,12 +500,21 @@ const rendererBytes = Object.values(rendererResult.metafile.outputs).reduce(
 );
 
 console.log('');
-console.log('Runtime:  ' + generatedModulePath);
+console.log('Runtime (base):  ' + generatedModulePath);
 console.log(
   '          ' +
     (runtimeBytes / 1024).toFixed(1) +
     ' KiB minified' +
     (runtimeBytes > RUNTIME_SIZE_TARGET
+      ? '  (!) over ' + RUNTIME_SIZE_TARGET / 1024 + ' KiB soft target'
+      : '  (within ' + RUNTIME_SIZE_TARGET / 1024 + ' KiB target)'),
+);
+console.log('Runtime (graphs): ' + generatedGraphsModulePath);
+console.log(
+  '          ' +
+    (runtimeGraphsBytes / 1024).toFixed(1) +
+    ' KiB minified' +
+    (runtimeGraphsBytes > RUNTIME_SIZE_TARGET
       ? '  (!) over ' + RUNTIME_SIZE_TARGET / 1024 + ' KiB soft target'
       : '  (within ' + RUNTIME_SIZE_TARGET / 1024 + ' KiB target)'),
 );

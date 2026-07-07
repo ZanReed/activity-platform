@@ -203,24 +203,59 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
 
         for (const block of section.blocks) {
             if (block.type === 'interactive_graph') {
+                // Display (static) graphs are ungraded — they collect no answer,
+                // so they never appear in a submission and aren't indexed here.
+                if (block.interaction.type === 'display') continue;
                 let answerSummary = '—';
                 if (block.interaction.type === 'plot_point') {
                     answerSummary = block.interaction.correctPoints
                         .map((p) => `(${p[0]}, ${p[1]})`)
                         .join(', ');
-                } else if (
-                    block.interaction.type === 'plot_function' &&
-                    block.interaction.model.family === 'linear'
-                ) {
-                    answerSummary = formatLinear(
-                        block.interaction.model.slope,
-                        block.interaction.model.intercept,
-                    );
+                } else if (block.interaction.type === 'plot_function') {
+                    // One entry per curve (a system shows all). Linear renders as an
+                    // equation; other families show their form.
+                    answerSummary = block.interaction.models
+                        .map((m) => {
+                            switch (m.family) {
+                                case 'linear':
+                                    return formatLinear(m.slope, m.intercept);
+                                case 'quadratic':
+                                    return `y = ${m.a}x² + ${m.b}x + ${m.c}`;
+                                case 'exponential':
+                                    return `y = ${m.a}·${m.b}ˣ`;
+                                case 'logarithmic':
+                                    return `y = ${m.a} + ${m.b}·ln(x)`;
+                                case 'vertical':
+                                    return `x = ${m.x}`;
+                            }
+                        })
+                        .join('; ');
+                } else if (block.interaction.type === 'graph_inequality') {
+                    answerSummary = block.interaction.inequalities
+                        .map((q) => {
+                            const eq =
+                                q.boundary.family === 'linear'
+                                    ? formatLinear(q.boundary.slope, q.boundary.intercept)
+                                    : q.boundary.family === 'vertical'
+                                      ? `x = ${q.boundary.x}`
+                                      : `(${q.boundary.family})`;
+                            const greater =
+                                q.boundary.family === 'vertical'
+                                    ? q.shadeSide === 'right'
+                                    : q.shadeSide === 'above';
+                            const op = greater ? (q.strict ? '>' : '≥') : (q.strict ? '<' : '≤');
+                            return eq.replace('=', op);
+                        })
+                        .join('; ');
                 } else if (block.interaction.type === 'shade_region') {
-                    const verts = block.interaction.correctVertices;
-                    answerSummary = `region (${verts.length} vertices): ${verts
-                        .map((p) => `(${p[0]}, ${p[1]})`)
-                        .join(', ')}`;
+                    answerSummary = block.interaction.regions
+                        .map(
+                            (r) =>
+                                `region (${r.correctVertices.length} vertices): ${r.correctVertices
+                                    .map((p) => `(${p[0]}, ${p[1]})`)
+                                    .join(', ')}`,
+                        )
+                        .join('; ');
                 }
                 graphs.set(block.id, {
                     blockId: block.id,

@@ -299,6 +299,7 @@ describe('wireBlanks answerFeedback gating', () => {
             blanks: new Map([[id, ref]]),
             fillInBlanks: new Map(),
             graphs: new Map(),
+            graphDisplays: new Map(),
             sections: new Map(),
             popover: null,
         };

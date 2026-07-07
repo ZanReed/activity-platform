@@ -114,6 +114,7 @@ function makeRefs(blanks: Map<string, BlankRef>): Refs {
         blanks,
         fillInBlanks: new Map(),
         graphs: new Map(),
+        graphDisplays: new Map(),
         sections: new Map(),
         popover: null,
     };

@@ -33,6 +33,8 @@ export function equationText(fit: Fit): string {
       return `y = ${formatCoefficient(fit.a)}x²${signed(fit.b, 'x')}${signed(fit.c)}`;
     case 'exponential':
       return `y = ${formatCoefficient(fit.a)} · ${formatCoefficient(fit.b)}ˣ`;
+    case 'logarithmic':
+      return `y = ${formatCoefficient(fit.a)}${signed(fit.b, ' ln(x)')}`;
   }
 }
 

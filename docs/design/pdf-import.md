@@ -83,3 +83,7 @@ An edge function calling the vision API (keeps the API key server-side), returni
 4. **Math fidelity** — how reliably handwritten/typeset math becomes `math_block` / `mathInline`. Likely the weakest transcription axis; measure before promising it.
 5. **Multi-page / multi-column handling** — reading order on complex layouts. Defer until real PDFs are tested.
 6. **Review affordance** — how the editor flags "imported, needs answer key" blanks for the teacher. A small UI concern, decided with the editor as it stands at implementation time.
+
+## Graphs (added 2026-07-08)
+
+The ```graph markdown DSL (docs/markdown-import-format.md) is the shared target: a PDF's graph questions transcribe to `axes:`/`prompt:`/`answer:` lines, and the freeform equation parser accepts whatever form the source PDF uses. Printed graph questions render as an empty labeled grid, so a scanned worksheet's grid region maps to one graph block.

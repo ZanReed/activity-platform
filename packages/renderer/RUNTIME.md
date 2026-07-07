@@ -56,10 +56,12 @@ packages/renderer/src/runtime/
 ├── storage.ts       — saveName / loadStoredName + saveActivityState / loadActivityState / clearActivityState / applyStoredState
 ├── submission.ts    — gatherResponses + gatherCheckpointResults + computeScore + submit
 ├── index.ts         — bootstrap orchestrator
+├── graph-integration.ts — the interactive-graph feature behind one seam (graphExt); compiled only into the graphs runtime variant
+├── graph-integration.noop.ts — no-op graphExt swapped in for the base runtime build (pages with no graph)
 ├── reference-panel.ts — sidecar: on-screen reference panel (drag-resize + scroll-clearance)
 ├── definitions.ts   — sidecar: inline vocabulary-definition popovers
 ├── calculator-summon.ts — sidecar: summon button + lazy-import of the calculator widget (Phase 2.7)
-├── generated/       — runtime-bundle.ts + reference-panel-bundle.ts + definitions-bundle.ts + calculator-summon-bundle.ts (committed string modules produced by bundler)
+├── generated/       — runtime-bundle.ts (base) + runtime-graphs-bundle.ts (graphs) + reference-panel-bundle.ts + definitions-bundle.ts + calculator-summon-bundle.ts (committed string modules produced by bundler)
 └── __tests__/       — strategies, init, blanks, render, checkpoints, storage, confidence, grouping, definitions
 ```
 
@@ -423,7 +425,7 @@ The graded plot-a-point block (Phase 2.7 Stage 5). Unlike the calculator scaffol
 - `data-graph-answer-key` — JSON of the interaction's answer key (`correctPoints` + `tolerance`), same client-side-scoring ceiling as `data-blank-answers` (Phase 5 server grading removes it).
 - `data-graph-kit-src` — absolute R2 kit URL (per-render, from `publish-activity`); **omitted** on the print path and when no kit URL is available → the sidecar leaves the static placeholder and the block submits as unanswered.
 
-**Hydration + scoring.** `init` builds a `GraphRef` (canvas, feedback slot, solution slot, parsed config/answer-key, kit src) and lists the block on its section's `graphBlockIds`. The `wireGraphs` sidecar `import()`s the kit and calls `mountGraphQuestion(canvas, {interactionType, axisConfig, answerKey}, {onChange})`, which returns `{ getResponse(), restore(points), setLocked(locked), destroy() }` (mounts JSXGraph into `.graph-canvas`, arrow-keys move the point, drag snaps to grid). Each move writes `state.graphs[id]` (point, answered, result) and fires `onUpdate`, so the graph participates in checkpoint scoring (one scorable unit — an unanswered graph is an omission, like an empty blank), the submit payload (`SubmissionResponses.graphResponses`, schemaVersion **3**), and reload restore (`STORAGE_SCHEMA_VERSION` **4**) exactly like a blank. `render` owns the block chrome (feedback narration/result, solution reveal, confidence radios, widget lock via `GraphRef.handle`); the canvas board is the kit's. `GraphRef.handle` is the one **mutable** ref field (the widget is acquired asynchronously after init).
+**Hydration + scoring.** All graph runtime logic lives behind one seam — `runtime/graph-integration.ts` (the `graphExt` object) — which the base runtime's shared files (init, state, render, checkpoints, submission, index) call through and which is compiled ONLY into the graphs runtime variant (see Build pipeline). `init` (via `graphExt.walkGraphBlocks`) builds a `GraphRef` (canvas, feedback slot, solution slot, parsed config/answer-key, kit src) and lists the block on its section's `graphBlockIds`. `graphExt.wireGraphs` `import()`s the kit and calls `mountGraphQuestion(canvas, {interactionType, axisConfig, answerKey}, {onChange})`, which returns `{ getResponse(), restore(points), setLocked(locked), destroy() }` (mounts JSXGraph into `.graph-canvas`, arrow-keys move the point, drag snaps to grid). Each move writes `state.graphs[id]` (point, answered, result) and fires `onUpdate`, so the graph participates in checkpoint scoring (one scorable unit — an unanswered graph is an omission, like an empty blank), the submit payload (`SubmissionResponses.graphResponses`, schemaVersion **3**), and reload restore (`STORAGE_SCHEMA_VERSION` **4**) exactly like a blank. `render` owns the block chrome (feedback narration/result, solution reveal, confidence radios, widget lock via `GraphRef.handle`); the canvas board is the kit's. `GraphRef.handle` is the one **mutable** ref field (the widget is acquired asynchronously after init).
 
 ### Reading discipline
 
@@ -628,9 +630,13 @@ On successful submit:
 
 ## Build pipeline
 
-`scripts/bundle-renderer.mjs` runs five esbuild builds in sequence (plus a non-esbuild KaTeX-CSS inlining step):
+`scripts/bundle-renderer.mjs` runs six esbuild builds in sequence (plus a non-esbuild KaTeX-CSS inlining step):
 
-1. **Runtime build.** Entry `packages/renderer/src/runtime/index.ts` → output as IIFE (not ESM — runs immediately when inlined into a `<script>` tag, no module loader). Minified, target `chrome90` (covers school Chromebooks, Firefox 88+, Safari 14+, Edge 90+). External source map at `packages/renderer/dist/runtime.js.map` (dev-only, gitignored). The minified text is written into a generated TypeScript string module at `packages/renderer/src/runtime/generated/runtime-bundle.ts`. **Committed to git** so a clean checkout can typecheck the renderer without running the bundler.
+1. **Runtime build (two variants).** Entry `packages/renderer/src/runtime/index.ts` → output as IIFE (not ESM — runs immediately when inlined into a `<script>` tag, no module loader). Minified, target `chrome90` (covers school Chromebooks, Firefox 88+, Safari 14+, Edge 90+). Built TWICE from the one source:
+   - **base** — the interactive-graph feature is stubbed. The source imports the real `runtime/graph-integration.ts`, but this build redirects that specifier to `graph-integration.noop.ts` via an esbuild `onResolve` alias, so no graph code is bundled. Written to `runtime/generated/runtime-bundle.ts` (`runtimeJs`). Inlined on the majority of pages, which have no graph block.
+   - **graphs** — the real `graph-integration.ts` is kept, bundling the full graph feature (DOM walk, chrome render, scoring, submit gather, kit mounting). Written to `runtime/generated/runtime-graphs-bundle.ts` (`runtimeGraphsJs`). `document.ts` inlines it ONLY when the rendered body contains a `data-block-type="interactive_graph"` block (graded or display).
+
+   The split keeps every non-graph page off the graph code, and means a future graph feature grows the graphs variant only — never the base runtime every page pays for. Source maps at `dist/runtime-base.js.map` + `dist/runtime-graphs.js.map` (dev-only, gitignored). Both generated string modules are **committed to git** so a clean checkout can typecheck the renderer without running the bundler. The base build is the one bound by the 20 KiB soft target (the common case); the graphs variant is a superset held only to the 40 KiB hard ceiling.
 
 2. **Reference-panel sidecar build.** Entry `packages/renderer/src/runtime/reference-panel.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/reference-panel-bundle.ts` (also committed). A small (~1 KiB) self-contained script for the on-screen reference panel (drag-resize + scroll-clearance), kept OUT of the main runtime so the scoring runtime stays pure and panel-less pages ship none of it; `document.ts` inlines it only when an activity has a `referencePanel`. (This is the realized form of the "lazy-loaded sidecar bundle" pattern noted below — inlined-when-present rather than lazy-loaded, since it's tiny.)
 
@@ -638,11 +644,11 @@ On successful submit:
 
 4. **Calculator-summon sidecar build.** Entry `packages/renderer/src/runtime/calculator-summon.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/calculator-summon-bundle.ts` (committed). A tiny (~0.8 KiB) self-contained script: the summon button + lazy-loader for the calculator widget, kept OUT of the main runtime so the scoring runtime stays pure and calculator-less pages ship none of it; `document.ts` inlines it only when a calculator was emitted. The HEAVY widget it `import()`s on click lives on R2, never in any of these bundles.
 
-5. **Renderer build.** Entry `packages/renderer/src/index.ts` → output as ESM at `supabase/functions/_shared/renderer.bundle.js`. The renderer's `document.ts` imports the generated string modules from steps 1–4 and inlines them into `<script>` tags in published pages (the runtime always; each sidecar only when its feature is present).
+5. **Renderer build.** Entry `packages/renderer/src/index.ts` → output as ESM at `supabase/functions/_shared/renderer.bundle.js`. The renderer's `document.ts` imports the generated string modules from steps 1–4 and inlines them into `<script>` tags in published pages (exactly one runtime variant — base or graphs; each sidecar only when its feature is present).
 
 Inlined model means `publish-activity` only uploads `index.html` to Storage — no separate `runtime.js` artifact.
 
-Bundle size: runtime IIFE is roughly **5–7 KiB minified** as of Stage 13 completion. Well under the 20 KiB target.
+Bundle size (Phase 2.7): base runtime IIFE is **~17 KiB minified**, comfortably under the 20 KiB soft target; the graphs variant is **~21 KiB** (only inlined on graph pages, held to the 40 KiB hard ceiling). Re-check with `pnpm bundle:renderer`, which prints both.
 
 `[Phase 2.7 — in progress]` The calculator-summon sidecar (step 4) is the cheap, inlined half of the graphing track; the heavy kit (MathLive + keypad + evaluator, later JSXGraph) is a **separate content-hashed bundle on R2**, dynamic-`import()`ed on first summon click — never inlined, never loaded on pages without a calculator, cached after first open, served brotli. `data-calculator-kit-src` (from `RenderContext.calculatorKitUrl`) is the URL. `[target — Phase 2.9+]` adds `annotation-widget.js`. Main runtime stays small; pages without those block types pay nothing.
 

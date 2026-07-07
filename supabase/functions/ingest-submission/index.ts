@@ -32,6 +32,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   SubmissionResponses,
+  SubmissionResponsesV3,
+  migrateSubmissionResponses,
   type SubmissionResponses as SubmissionResponsesType,
 } from '../_shared/renderer.bundle.js';
 import {
@@ -135,18 +137,20 @@ Deno.serve(async (req: Request) => {
     return errorResponse(req, 400, 'Must provide display_name or opaque_token');
   }
 
-  // ---- Reject non-v3 responses ------------------------------------------
-  // v3-only enforcement: the runtime emits v3 (Stage 5 added graphResponses);
-  // v1/v2 only exist as already-stored data and are handled by
-  // migrateSubmissionResponses on read. Reject older wire versions cleanly
-  // rather than silently accepting them through a discriminated union — this is
-  // the canonical place to enforce wire-format version, and a schemaVersion
+  // ---- Reject non-v3/v4 responses -----------------------------------------
+  // The current runtime emits v4 (Drop 4: graph_inequality + noSolution +
+  // partial credit); pages published before the v4 runtime still POST v3, which
+  // remains accepted and is migrated forward here (v3 responses are a strict
+  // subset of v4). v1/v2 only exist as already-stored data and are handled by
+  // migrateSubmissionResponses on read. Reject anything else cleanly rather
+  // than silently accepting it through a discriminated union — this is the
+  // canonical place to enforce wire-format version, and a schemaVersion
   // mismatch is a clear "your client is out of date" signal we want surfaced.
   const rawResponses = body.responses as { schemaVersion?: unknown } | null;
   if (
     typeof rawResponses !== 'object' ||
     rawResponses === null ||
-    rawResponses.schemaVersion !== 3
+    (rawResponses.schemaVersion !== 3 && rawResponses.schemaVersion !== 4)
   ) {
     const got =
     typeof rawResponses === 'object' && rawResponses !== null
@@ -155,18 +159,25 @@ Deno.serve(async (req: Request) => {
 return errorResponse(
   req,
   400,
-  `responses must use schemaVersion 3 (received: ${got})`,
+  `responses must use schemaVersion 3 or 4 (received: ${got})`,
 );
   }
 
-  // ---- Validate responses with Zod (current version only) ---------------
-  const parsed = SubmissionResponses.safeParse(body.responses);
+  // ---- Validate responses with Zod ----------------------------------------
+  // v4 parses directly; v3 parses via its legacy schema and migrates forward,
+  // so the stored row is always current-shape.
+  const parsed =
+    rawResponses.schemaVersion === 4
+      ? SubmissionResponses.safeParse(body.responses)
+      : SubmissionResponsesV3.safeParse(body.responses);
   if (!parsed.success) {
     return errorResponse(req, 422, 'responses failed schema validation', {
       issues: parsed.error.issues,
     });
   }
-  const responses: SubmissionResponsesType = parsed.data;
+  const responses: SubmissionResponsesType = migrateSubmissionResponses(
+    parsed.data,
+  );
 
   // ---- Score (optional, must be in [0, 1]) ------------------------------
   let score: number | null = null;

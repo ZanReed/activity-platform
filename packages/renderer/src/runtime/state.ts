@@ -11,6 +11,7 @@
 // =============================================================================
 
 import type { Refs } from './refs.js';
+import { graphExt } from './graph-integration.js';
 
 export interface SectionState {
     /** True once the student has clicked the check button for this section. */
@@ -99,6 +100,22 @@ export interface GraphBlockState {
     solutionRevealed: boolean;
     /** Student's per-block confidence selection (null until picked). */
     confidence: 'unsure' | 'think_so' | 'certain' | null;
+    /** graph_inequality: dotted (strict) vs solid boundary choice. */
+    strict?: boolean;
+    /** graph_inequality: which side the student shaded. */
+    side?: 'above' | 'below' | 'left' | 'right';
+    /** The student chose "cannot be graphed / no solution". */
+    noSolution?: boolean;
+    /** Partial credit: parts earned / parts total (partialCredit blocks only). */
+    earned?: number;
+    total?: number;
+    /** Domain-restricted plot_function: endpoint positions + open/closed. */
+    domain?: {
+        minX?: number;
+        minStyle?: 'open' | 'closed';
+        maxX?: number;
+        maxStyle?: 'open' | 'closed';
+    };
 }
 
 export interface RuntimeState {
@@ -166,16 +183,7 @@ export function createInitialState(refs: Refs): RuntimeState {
             confidence: null,
         };
     }
-    const graphs: Record<string, GraphBlockState> = {};
-    for (const [id] of refs.graphs) {
-        graphs[id] = {
-            points: [],
-            answered: false,
-            result: null,
-            solutionRevealed: false,
-            confidence: null,
-        };
-    }
+    const graphs = graphExt.initGraphState(refs);
     return {
         submitted: false,
         attemptNumber: 1,

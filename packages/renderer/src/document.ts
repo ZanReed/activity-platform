@@ -43,6 +43,7 @@ import {
 } from './render.js';
 import { blockStyles } from './runtime/styles.js';
 import { runtimeJs } from './runtime/generated/runtime-bundle.js';
+import { runtimeGraphsJs } from './runtime/generated/runtime-graphs-bundle.js';
 import { referencePanelJs } from './runtime/generated/reference-panel-bundle.js';
 import { definitionsJs } from './runtime/generated/definitions-bundle.js';
 import { calculatorSummonJs } from './runtime/generated/calculator-summon-bundle.js';
@@ -272,8 +273,17 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   '</script>' +
 
   // Runtime JS (vanilla, no framework) — baked in at build time as a string
-  // constant by scripts/bundle-renderer.mjs; see runtime/generated/.
-  '<script>' + runtimeJs + '</script>' +
+  // constant by scripts/bundle-renderer.mjs; see runtime/generated/. Two
+  // variants: the graphs build (full interactive-graph feature) is inlined ONLY
+  // when the page has a graph block; every other page ships the leaner base
+  // build. Detection mirrors the definitions sidecar below (scan the rendered
+  // output for the block's marker attribute — graded and display graphs both
+  // emit data-block-type="interactive_graph").
+  '<script>' +
+  (body.includes('data-block-type="interactive_graph"')
+    ? runtimeGraphsJs
+    : runtimeJs) +
+  '</script>' +
 
   // Reference-panel sidecar (drag-resize + scroll-clearance), inlined ONLY when
   // the activity has a panel — panel-less pages ship none of it. Separate from

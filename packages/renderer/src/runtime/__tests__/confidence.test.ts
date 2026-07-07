@@ -248,7 +248,7 @@ function buildFixture(spec: FixtureSpec): Fixture {
     return {
         config,
         state,
-        refs: { blanks, fillInBlanks, graphs: new Map(), sections, popover: null },
+        refs: { blanks, fillInBlanks, graphs: new Map(), graphDisplays: new Map(), sections, popover: null },
     };
 }
 

@@ -124,4 +124,12 @@ export const slashMenuItems: SlashMenuItem[] = [
         editor.chain().focus().deleteRange(range).insertInteractiveGraph().run();
     },
 },
+{
+    title: 'Static graph',
+    description: 'A display-only graph — a figure or exemplar. No answer collected.',
+    keywords: ['graph', 'static', 'display', 'figure', 'diagram', 'stimulus', 'exemplar', 'chart', 'plot'],
+    command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertStaticGraph().run();
+    },
+},
 ];

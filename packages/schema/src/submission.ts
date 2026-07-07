@@ -110,12 +110,53 @@ export const RegionResponse = z.object({
 });
 export type RegionResponse = z.infer<typeof RegionResponse>;
 
+// graph_inequality (Drop 4): the boundary handles + the two graded choices.
+// side left/right appears with vertical boundaries; above/below otherwise.
+export const InequalityResponse = z.object({
+  type: z.literal('graph_inequality'),
+  studentPoints: z.array(z.tuple([z.number(), z.number()])),
+  strict: z.boolean(),
+  side: z.enum(['above', 'below', 'left', 'right']),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type InequalityResponse = z.infer<typeof InequalityResponse>;
+
 export const GraphResponse = z.discriminatedUnion('type', [
   PointResponse,
   FunctionResponse,
   RegionResponse,
+  InequalityResponse,
 ]);
 export type GraphResponse = z.infer<typeof GraphResponse>;
+
+// v4 graph responses widen every variant with the Drop 4 optionals: `noSolution`
+// (the student chose "cannot be graphed"; studentPoints may be empty) and
+// `earned`/`total` (per-part partial credit, present only when the block's
+// partialCredit flag is on). Applied as an extension of each variant so v3 rows
+// (no such fields) remain valid v4 rows.
+const V4Extras = {
+  noSolution: z.boolean().optional(),
+  earned: z.number().nonnegative().optional(),
+  total: z.number().positive().optional(),
+  // Domain-restricted plot_function (rays/segments): the student's endpoint
+  // positions + open/closed choices. Optional and additive within v4.
+  domain: z
+    .object({
+      minX: z.number().optional(),
+      minStyle: z.enum(['open', 'closed']).optional(),
+      maxX: z.number().optional(),
+      maxStyle: z.enum(['open', 'closed']).optional(),
+    })
+    .optional(),
+};
+export const GraphResponseV4 = z.discriminatedUnion('type', [
+  PointResponse.extend(V4Extras),
+  FunctionResponse.extend(V4Extras),
+  RegionResponse.extend(V4Extras),
+  InequalityResponse.extend(V4Extras),
+]);
+export type GraphResponseV4 = z.infer<typeof GraphResponseV4>;
 
 // Per-section checkpoint result, captured when a student clicks "Check this
 // section" in locked/free submission modes. Keyed by section.id in the
@@ -123,7 +164,7 @@ export type GraphResponse = z.infer<typeof GraphResponse>;
 // single-mode submissions or for sections without isCheckpoint = true.
 export const CheckpointResult = z.object({
   checkedAt: z.string().datetime(),                  // ISO timestamp from runtime
-                                         score: z.number().int().nonnegative(),
+                                         score: z.number().nonnegative(), // fractional under partialCredit (v4)
                                          total: z.number().int().positive(),
 });
 export type CheckpointResult = z.infer<typeof CheckpointResult>;
@@ -150,23 +191,36 @@ export const SubmissionResponsesV2 = z.object({
 });
 export type SubmissionResponsesV2 = z.infer<typeof SubmissionResponsesV2>;
 
-// ---- v3 (current) shape -----------------------------------------------------
-// New submissions write this shape. Application code that reads submissions
-// from the database calls migrateSubmissionResponses() once after reading
-// to handle v1/v2/v3 uniformly.
-export const SubmissionResponses = z.object({
+// ---- v3 (legacy) shape --------------------------------------------------------
+// Pre-Drop-4 submissions (and pages published before the v4 runtime that are
+// still live). Kept so ingest keeps ACCEPTING v3 posts and stored rows migrate
+// forward on read. Never written by new code.
+export const SubmissionResponsesV3 = z.object({
   schemaVersion: z.literal(3),
-                                            // Keyed by blank.id (uuid).
-                                            blanks: z.record(z.string().uuid(), BlankResponse),
-                                            // Keyed by section.id. Only present in locked/free submission modes for
-                                            // sections that were actually checkpoint-checked. Absent in single mode
-                                            // and absent for non-checkpoint sections.
-                                            checkpointResults: z.record(z.string().uuid(), CheckpointResult).optional(),
-                                            // Keyed by interactive_graph block.id (uuid). Absent when the activity
-                                            // has no graph blocks or none were answered. Sibling to `blanks`, never
-                                            // merged into it — geometric answers are shaped differently and the
-                                            // dashboard renders them differently (see the extension pattern above).
-                                            graphResponses: z.record(z.string().uuid(), GraphResponse).optional(),
+  blanks: z.record(z.string().uuid(), BlankResponse),
+  checkpointResults: z.record(z.string().uuid(), CheckpointResult).optional(),
+  graphResponses: z.record(z.string().uuid(), GraphResponse).optional(),
+});
+export type SubmissionResponsesV3 = z.infer<typeof SubmissionResponsesV3>;
+
+// ---- v4 (current) shape -------------------------------------------------------
+// New submissions write this shape. v3 → v4 (Drop 4): graphResponses gains the
+// graph_inequality variant + optional noSolution / earned / total on every
+// variant. Application code that reads submissions calls
+// migrateSubmissionResponses() once after reading to handle v1–v4 uniformly.
+export const SubmissionResponses = z.object({
+  schemaVersion: z.literal(4),
+  // Keyed by blank.id (uuid).
+  blanks: z.record(z.string().uuid(), BlankResponse),
+  // Keyed by section.id. Only present in locked/free submission modes for
+  // sections that were actually checkpoint-checked. Absent in single mode
+  // and absent for non-checkpoint sections.
+  checkpointResults: z.record(z.string().uuid(), CheckpointResult).optional(),
+  // Keyed by interactive_graph block.id (uuid). Absent when the activity
+  // has no graph blocks or none were answered. Sibling to `blanks`, never
+  // merged into it — geometric answers are shaped differently and the
+  // dashboard renders them differently (see the extension pattern above).
+  graphResponses: z.record(z.string().uuid(), GraphResponseV4).optional(),
 });
 export type SubmissionResponses = z.infer<typeof SubmissionResponses>;
 
@@ -187,14 +241,28 @@ export type SubmissionResponses = z.infer<typeof SubmissionResponses>;
 //   - checkpointResults / graphResponses: absent
 export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   // Try the current shape first (the common case for new data).
-  const v3 = SubmissionResponses.safeParse(raw);
-  if (v3.success) return v3.data;
+  const v4 = SubmissionResponses.safeParse(raw);
+  if (v4.success) return v4.data;
 
-  // v2: promote by bumping the version; blanks + checkpointResults carry over.
+  // v3: promote by bumping the version — every v3 graph response is a valid v4
+  // response (the v4 fields are optional and the union only widened).
+  const v3 = SubmissionResponsesV3.safeParse(raw);
+  if (v3.success) {
+    return {
+      schemaVersion: 4,
+      blanks: v3.data.blanks,
+      ...(v3.data.checkpointResults && {
+        checkpointResults: v3.data.checkpointResults,
+      }),
+      ...(v3.data.graphResponses && { graphResponses: v3.data.graphResponses }),
+    };
+  }
+
+  // v2: promote; blanks + checkpointResults carry over.
   const v2 = SubmissionResponsesV2.safeParse(raw);
   if (v2.success) {
     return {
-      schemaVersion: 3,
+      schemaVersion: 4,
       blanks: v2.data.blanks,
       ...(v2.data.checkpointResults && {
         checkpointResults: v2.data.checkpointResults,
@@ -207,7 +275,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   // version submissions should fail loudly, not silently pass.
   const v1 = SubmissionResponsesV1.parse(raw);
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     blanks: v1.blanks,
   };
 }

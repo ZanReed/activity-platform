@@ -25,6 +25,7 @@
 
 import { $ } from './dom.js';
 import { scoreBlanksInScope, trimValue } from './blanks.js';
+import { graphExt } from './graph-integration.js';
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
@@ -45,11 +46,28 @@ interface BlankResult {
 // Mirrors schema GraphResponse — the wire contract with ingest-submission.
 // `type` is the block's interaction discriminant (plot_point, plot_function, …);
 // the schema Zod-validates it on ingest, so the runtime carries it as a string.
-interface GraphResult {
+// Exported for graph-integration.ts, which builds the map; the payload shape
+// (SubmissionResponsesPayload) is assembled here.
+export interface GraphResult {
   type: string;
   studentPoints: [number, number][];
   correct: boolean;
   confidence?: 'unsure' | 'think_so' | 'certain';
+  /** graph_inequality (v4): the student's boundary-style + shaded-side choices. */
+  strict?: boolean;
+  side?: 'above' | 'below' | 'left' | 'right';
+  /** v4: the student chose "cannot be graphed / no solution". */
+  noSolution?: boolean;
+  /** v4: per-part partial credit (partialCredit blocks only). */
+  earned?: number;
+  total?: number;
+  /** v4: domain-restricted plot_function endpoint answer. */
+  domain?: {
+    minX?: number;
+    minStyle?: 'open' | 'closed';
+    maxX?: number;
+    maxStyle?: 'open' | 'closed';
+  };
 }
 
 interface CheckpointResultPayload {
@@ -59,7 +77,7 @@ interface CheckpointResultPayload {
 }
 
 interface SubmissionResponsesPayload {
-  schemaVersion: 3;
+  schemaVersion: 4;
   blanks: Record<string, BlankResult>;
   checkpointResults?: Record<string, CheckpointResultPayload>;
   graphResponses?: Record<string, GraphResult>;
@@ -94,7 +112,7 @@ export function buildSubmissionPayload(
   checkpointResults: Record<string, CheckpointResultPayload> | undefined,
 ): SubmissionPayload {
   const responses: SubmissionResponsesPayload = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     blanks: gathered.blanks,
   };
   if (checkpointResults) {
@@ -161,33 +179,17 @@ export function gatherResponses(
   }
 
   // Interactive-graph blocks score alongside blanks (each is one scorable unit,
-  // client-side-scored by the kit as the student moved the point). An unanswered
-  // graph is an omission — counted in neither total nor correct, and absent from
-  // the graphResponses map (nothing to record).
-  const graphResponses: Record<string, GraphResult> = {};
-  let graphCount = 0;
-  for (const [graphId, ref] of refs.graphs) {
-    const gs = state.graphs[graphId];
-    if (!gs) continue;
-    if (gs.result !== null) {
-      totalScored += 1;
-      if (gs.result === true) totalCorrect += 1;
-    }
-    if (gs.answered && gs.points.length > 0) {
-      const result: GraphResult = {
-        type: ref.interactionType,
-        studentPoints: gs.points,
-        correct: gs.result === true,
-      };
-      if (gs.confidence) result.confidence = gs.confidence;
-      graphResponses[graphId] = result;
-      graphCount += 1;
-    }
-  }
+  // client-side-scored by the graph feature as the student moved the point). An
+  // unanswered graph is an omission — counted in neither total nor correct, and
+  // absent from the graphResponses map. In the base runtime build this yields
+  // nothing (no graph blocks exist).
+  const graphs = graphExt.gatherGraphResponses(state, refs);
+  totalScored += graphs.scored;
+  totalCorrect += graphs.correct;
 
   return {
     blanks,
-    ...(graphCount > 0 && { graphResponses }),
+    ...(graphs.graphResponses && { graphResponses: graphs.graphResponses }),
     score: computeScore(totalCorrect, totalScored),
     totalScored,
   };

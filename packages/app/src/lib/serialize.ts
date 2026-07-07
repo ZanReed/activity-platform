@@ -350,6 +350,9 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
         // dropped them. The schema Zod-validates on the save boundary.
         axisConfig: (attrs.axisConfig as InteractiveGraphBlock['axisConfig']) ?? fresh.axisConfig,
         interaction: (attrs.interaction as InteractiveGraphBlock['interaction']) ?? fresh.interaction,
+        partialCredit: Boolean(attrs.partialCredit),
+        allowNoSolution: Boolean(attrs.allowNoSolution),
+        noSolutionCorrect: Boolean(attrs.noSolutionCorrect),
         hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
@@ -778,6 +781,9 @@ function activityInteractiveGraphToTiptap(block: InteractiveGraphBlock): JSONCon
             id: block.id,
             axisConfig: block.axisConfig,
             interaction: block.interaction,
+            partialCredit: block.partialCredit,
+            allowNoSolution: block.allowNoSolution,
+            noSolutionCorrect: block.noSolutionCorrect,
             solution: block.solution ?? null,
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,

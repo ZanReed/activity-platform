@@ -214,6 +214,17 @@ body {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+/* Graph in a column cell (Drop 1). A cell has min-width:0 so its grid track can
+ shrink below content — without a floor, a graph in a 3+-column layout crushes
+ to unusable. Keep a minimum rendered board and let the graph block scroll
+ horizontally inside the cell instead (the block is content-height, so the
+ forced overflow-y never clips vertically; a too-narrow cell scrolls rather than
+ squashing the board). Screen only — print/foldable have no scroll, so on paper
+ the board keeps its pure responsive shrink and never overflows the page. */
+@media screen {
+  .column-cell .block-interactive-graph { overflow-x: auto; }
+  .column-cell .graph-canvas { min-width: 11rem; }
+}
 .graph-nojs {
   padding: 1rem;
   color: #64748b;

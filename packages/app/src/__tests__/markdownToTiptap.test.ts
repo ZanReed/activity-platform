@@ -454,3 +454,58 @@ describe('schema round-trip', () => {
         expect(roundTrip(md)).toEqual(blocks(md));
     });
 });
+
+describe('```graph fence (Drop 7)', () => {
+    it('imports a graded line with axes + prompt + options', () => {
+        const md = '```graph\naxes: -5..5, -5..5\nprompt: Graph the line.\nanswer: 2x + 3y = 6\noptions: partial-credit\n```';
+        const { blocks, warnings } = convert(md);
+        expect(warnings).toEqual([]);
+        const g = blocks.find((b) => b.type === 'interactiveGraph')!;
+        expect(g.attrs!.axisConfig.xMin).toBe(-5);
+        expect(g.attrs!.partialCredit).toBe(true);
+        const models = g.attrs!.interaction.models;
+        expect(models[0].family).toBe('linear');
+        expect(models[0].slope).toBeCloseTo(-2 / 3, 4);
+        expect(g.content).toEqual([{ type: 'text', text: 'Graph the line.' }]);
+    });
+
+    it('imports an inequality answer', () => {
+        const md = '```graph\nanswer: y > 2x + 1\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        const q = g.attrs!.interaction;
+        expect(q.type).toBe('graph_inequality');
+        expect(q.inequalities[0].strict).toBe(true);
+        expect(q.inequalities[0].shadeSide).toBe('above');
+    });
+
+    it('imports a display graph from show lines (incl. pictured inequality + ray)', () => {
+        const md = '```graph\nshow: line y <= x^2\nshow: point (2, 3) open "A"\nshow: ray (0,0) (2,1) closed\nshow: expression sin(x) dashed\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        const q = g.attrs!.interaction;
+        expect(q.type).toBe('display');
+        const kinds = q.drawables.map((d: { kind: string }) => d.kind);
+        expect(kinds).toEqual(['curve', 'point', 'ray', 'expression']);
+        expect(q.drawables[0].shade).toBe('below');
+        expect(q.drawables[1].style).toBe('open');
+    });
+
+    it('imports answer: none as a no-solution trick question', () => {
+        const md = '```graph\nanswer: none\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        expect(g.attrs!.allowNoSolution).toBe(true);
+        expect(g.attrs!.noSolutionCorrect).toBe(true);
+    });
+
+    it('imports a domain clause onto the interaction', () => {
+        const md = '```graph\nanswer: y = 2x + 3 for x >= 0\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        expect(g.attrs!.interaction.domains[0]).toEqual({ min: 0, minClosed: true });
+    });
+
+    it('falls back to plain text with a warning on a bad line', () => {
+        const md = '```graph\nanswer: y = squiggle(x)\n```';
+        const { blocks, warnings } = convert(md);
+        expect(blocks.some((b) => b.type === 'interactiveGraph')).toBe(false);
+        expect(warnings.some((w) => /Graph block/.test(w))).toBe(true);
+    });
+});

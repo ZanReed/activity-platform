@@ -110,6 +110,9 @@ export function createInteractiveGraphBlock(): InteractiveGraphBlock {
     prompt: [],
     axisConfig: AxisConfig.parse({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
     interaction: { type: 'plot_point', correctPoints: [[0, 0]], tolerance: 0.1 },
+    partialCredit: false,
+    allowNoSolution: false,
+    noSolutionCorrect: false,
     hasConfidenceRating: false,
     skills: [],
   };

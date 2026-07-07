@@ -44,7 +44,11 @@ export type { DataTableHandle } from './data-table.js';
 // The graded interactive-graph widget (Stage 5). mountGraphQuestion is the entry
 // the published page's runtime sidecar calls; it dynamic-imports the board so
 // JSXGraph stays in its own chunk (a scientific-only page never loads it).
-export { mountGraphQuestion, mountGraphAuthor } from './graph-question.js';
+export {
+  mountGraphQuestion,
+  mountGraphAuthor,
+  mountGraphDisplay,
+} from './graph-question.js';
 export type {
   GraphQuestionConfig,
   GraphQuestionHandle,
@@ -53,7 +57,10 @@ export type {
   GraphAuthorConfig,
   GraphAuthorHandle,
   GraphAuthorHooks,
+  GraphDisplayConfig,
+  GraphDisplayHandle,
 } from './graph-question.js';
+export type { DisplayDrawable } from './board.js';
 
 // The pure scorers — exported so the runtime/tests (and, later, server-side
 // grading) score with the SAME logic the widget uses. scorePoints is the
@@ -63,11 +70,14 @@ export type {
 // uses too.
 export {
   scorePoints,
+  scorePointsPartial,
   isPointCorrect,
   scoreFunction,
+  scoreFunctionsPartial,
   fitFunction,
   handlesForFamily,
   scoreRegion,
+  scoreRegionsPartial,
   polygonOverlap,
 } from './graph-score.js';
 export type {
@@ -76,6 +86,18 @@ export type {
   Fitted,
   RegionAnswerKey,
 } from './graph-score.js';
+
+// The freeform teacher command line (Drop 3): parse ANY equation/inequality/
+// point-list format into a graph answer; format models back to canonical,
+// reparseable strings. Shared by the editor's answer field, inequality
+// authoring, and the markdown ```graph importer.
+export {
+  parseGraphFormula,
+  parsePointList,
+  formatModel,
+  formatPoints,
+} from './formula.js';
+export type { ParsedFormula, ParsedDomain, ShadeSide } from './formula.js';
 
 // NOTE: board.ts (JSXGraph) is deliberately NOT re-exported here — that would
 // static-import it into the entry and defeat the lazy-split. Consumers that need

@@ -98,14 +98,55 @@ MATH (write real LaTeX)
 
   $$\int_0^1 x\,dx = \frac{1}{2}$$
 
+GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
+- ```graph … ``` with one statement per line:
+    axes: -10..10, -10..10        (optional; this is the default window)
+    prompt: Graph the inequality.
+    answer: y > 2x + 1
+    options: partial-credit, allow-no-solution
+- The answer line takes ANY equation format (y = 2x + 3, 2x + 3y = 6,
+  y - 5 = 2(x - 1), x^2 - 4, x = 4, optionally "… for x >= 0"), an
+  inequality (the <, <=, >, >= sign sets the dotted/solid boundary and the
+  shaded side), a point list like (2, 3), (4, 5), a region like
+  region (0,0), (4,0), (2,4), or the word none for a "cannot be graphed"
+  trick question. Supported answer curves: linear, quadratic, exponential,
+  logarithmic, and vertical lines.
+- For an ungraded figure, use show: lines instead of an answer:
+    show: point (2, 3) closed "A"
+    show: line y = x dashed
+    show: expression sin(x)      (plots any formula)
+    show: ray (0,0) (2,1) open
+
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
-  — only the single outer block that wraps the whole reply is allowed; anything
-  unsupported imports as plain text.
+  other than ```graph — only the single outer block that wraps the whole
+  reply and ```graph fences are allowed; anything unsupported imports as
+  plain text.
 
 When I describe the activity I want, reply with only that single code block.
 ```
 
 > Keep this block in sync with `MARKDOWN_IMPORT_AI_PROMPT` in [`packages/app/src/lib/markdownImportPrompt.ts`](../packages/app/src/lib/markdownImportPrompt.ts) and the converter rules in `markdownToTiptap.ts`.
+
+## Graph blocks (```graph fence)
+
+A fenced code block with the `graph` language tag becomes an interactive-graph block. One statement per line; equations accept ANY format (the same freeform parser as the editor's Answer field).
+
+```
+```graph
+axes: -10..10, -10..10
+prompt: Graph the inequality.
+answer: y > 2x + 1
+options: partial-credit, allow-no-solution
+```⠀
+```
+
+- `axes: xMin..xMax, yMin..yMax` (optional; defaults -10..10 each way).
+- `prompt:` the question text (optional).
+- `answer:` ONE of — an equation (`y = 2x + 3`, `2x + 3y = 6`, `x^2 - 4`, `x = 4`, with an optional domain `… for x >= 0`); an inequality (`y > 2x + 1`, `x <= 3` — the sign sets dotted/solid + shaded side); a point list (`(2, 3), (4, 5)`); `region (0,0), (4,0), (2,4)`; or `none` (a "cannot be graphed" trick question).
+- `show:` display drawables (no answer lines → a static display graph): `point (x, y) [open|closed] ["label"]`, `line <equation or inequality> [dashed]`, `expression <any formula> [dashed]`, `segment (a,b) (c,d)`, `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
+- `options:` `partial-credit`, `allow-no-solution`, `no-solution-correct`.
+
+A malformed graph block imports as plain text with a warning, never silently guessing.

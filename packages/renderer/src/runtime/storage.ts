@@ -69,7 +69,9 @@ export function saveName(name: string): void {
  */
 // 3 → 4 (Stage 5): the blob gained a `graphs` map (interactive-graph block
 // state — the plotted point, scoring, solution reveal, confidence).
-const STORAGE_SCHEMA_VERSION = 4;
+// 4 → 5 (Drop 4): GraphBlockState widened with the inequality choices (strict/
+// side), noSolution, and partial-credit earned/total.
+const STORAGE_SCHEMA_VERSION = 5;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {

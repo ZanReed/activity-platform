@@ -1,11 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
   scorePoints,
+  scorePointsPartial,
   isPointCorrect,
   scoreFunction,
+  scoreFunctionsPartial,
   fitFunction,
   handlesForFamily,
   scoreRegion,
+  scoreRegionsPartial,
+  scoreInequality,
+  scoreInequalityPartial,
+  scoreDomain,
+  scoreDomainParts,
   polygonOverlap,
   type PointAnswerKey,
   type FunctionModel,
@@ -83,6 +90,109 @@ const linearModel = (over: Partial<FunctionModel> = {}): FunctionModel => ({
 describe('handlesForFamily', () => {
   it('linear needs two handles', () => {
     expect(handlesForFamily('linear')).toBe(2);
+  });
+  it('quadratic needs three, exp/log/vertical need two (Drop 2)', () => {
+    expect(handlesForFamily('quadratic')).toBe(3);
+    expect(handlesForFamily('exponential')).toBe(2);
+    expect(handlesForFamily('logarithmic')).toBe(2);
+    expect(handlesForFamily('vertical')).toBe(2);
+  });
+});
+
+describe('fitFunction + scoreFunction — new families (Drop 2)', () => {
+  it('quadratic: recovers a, b, c and scores', () => {
+    // y = x² − 2x + 1 through (0,1), (1,0), (3,4).
+    const f = fitFunction('quadratic', [[0, 1], [1, 0], [3, 4]]);
+    expect(f && f.family === 'quadratic').toBe(true);
+    if (f && f.family === 'quadratic') {
+      expect(f.a).toBeCloseTo(1, 4);
+      expect(f.b).toBeCloseTo(-2, 4);
+      expect(f.c).toBeCloseTo(1, 4);
+    }
+    const m: FunctionModel = {
+      family: 'quadratic', a: 1, b: -2, c: 1,
+      aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1,
+    };
+    expect(scoreFunction(m, [[0, 1], [1, 0], [3, 4]])).toBe(true);
+    expect(scoreFunction(m, [[0, 2], [1, 1], [3, 5]])).toBe(false); // shifted up 1
+  });
+
+  it('exponential: recovers a, b and scores (y = 2·3ˣ)', () => {
+    const pts: [number, number][] = [[0, 2], [1, 6], [2, 18]];
+    const f = fitFunction('exponential', pts);
+    expect(f && f.family === 'exponential').toBe(true);
+    if (f && f.family === 'exponential') {
+      expect(f.a).toBeCloseTo(2, 4);
+      expect(f.b).toBeCloseTo(3, 4);
+    }
+    const m: FunctionModel = { family: 'exponential', a: 2, b: 3, aTolerance: 0.1, bTolerance: 0.1 };
+    expect(scoreFunction(m, pts)).toBe(true);
+  });
+
+  it('logarithmic: recovers a, b and scores (y = 1 + 2·ln x)', () => {
+    const pts: [number, number][] = [
+      [1, 1],
+      [Math.E, 3],
+      [Math.E * Math.E, 5],
+    ];
+    const f = fitFunction('logarithmic', pts);
+    expect(f && f.family === 'logarithmic').toBe(true);
+    if (f && f.family === 'logarithmic') {
+      expect(f.a).toBeCloseTo(1, 4);
+      expect(f.b).toBeCloseTo(2, 4);
+    }
+    const m: FunctionModel = { family: 'logarithmic', a: 1, b: 2, aTolerance: 0.1, bTolerance: 0.1 };
+    expect(scoreFunction(m, pts)).toBe(true);
+  });
+
+  it('vertical: scores x = k when points are vertical, rejects otherwise', () => {
+    const m: FunctionModel = { family: 'vertical', x: 3, xTolerance: 0.1 };
+    expect(scoreFunction(m, [[3, -2], [3, 5]])).toBe(true);
+    expect(scoreFunction(m, [[3.05, 0], [2.98, 4]])).toBe(true); // within tolerance
+    expect(scoreFunction(m, [[3, 0], [4, 2]])).toBe(false); // not vertical
+    expect(scoreFunction(m, [[1, 0], [1, 4]])).toBe(false); // wrong x
+  });
+
+  it('exponential fit rejects non-positive y', () => {
+    expect(fitFunction('exponential', [[0, -1], [1, 2]])).toBeNull();
+  });
+  it('logarithmic fit rejects non-positive x', () => {
+    expect(fitFunction('logarithmic', [[-1, 0], [1, 2]])).toBeNull();
+  });
+});
+
+describe('partial-credit scorers (Drop 2)', () => {
+  it('scorePointsPartial counts matched points (consume-once)', () => {
+    const k = key([[1, 1], [3, 3]]);
+    expect(scorePointsPartial(k, [[1, 1], [3, 3]])).toEqual({ earned: 2, total: 2 });
+    expect(scorePointsPartial(k, [[1, 1], [9, 9]])).toEqual({ earned: 1, total: 2 });
+    expect(scorePointsPartial(k, [[1, 1], [1, 1]])).toEqual({ earned: 1, total: 2 }); // no double-count
+  });
+
+  it('scoreFunctionsPartial counts correct curves in a system', () => {
+    const models: FunctionModel[] = [
+      { family: 'linear', slope: 1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1 },
+      { family: 'linear', slope: -1, intercept: 4, slopeTolerance: 0.1, interceptTolerance: 0.1 },
+    ];
+    const r = scoreFunctionsPartial(models, [
+      [[0, 0], [1, 1]], // y = x ✓
+      [[0, 4], [1, 3]], // y = -x + 4 ✓
+    ]);
+    expect(r).toEqual({ earned: 2, total: 2 });
+    const r2 = scoreFunctionsPartial(models, [
+      [[0, 0], [1, 1]], // ✓
+      [[0, 0], [1, 1]], // wrong for the second ✗
+    ]);
+    expect(r2).toEqual({ earned: 1, total: 2 });
+  });
+
+  it('scoreRegionsPartial counts covered regions', () => {
+    const tri: [number, number][] = [[0, 0], [4, 0], [2, 4]];
+    const r = scoreRegionsPartial([{ correctVertices: tri, minOverlap: 0.9 }], [tri]);
+    expect(r).toEqual({ earned: 1, total: 1 });
+    const off: [number, number][] = [[10, 10], [14, 10], [12, 14]];
+    const r2 = scoreRegionsPartial([{ correctVertices: tri, minOverlap: 0.9 }], [off]);
+    expect(r2).toEqual({ earned: 0, total: 1 });
   });
 });
 
@@ -170,5 +280,56 @@ describe('polygonOverlap + scoreRegion (IoU)', () => {
 
   it('scoreRegion needs at least three student vertices', () => {
     expect(scoreRegion({ correctVertices: tri(), minOverlap: 0.9 }, [[0, 0], [4, 0]])).toBe(false);
+  });
+});
+
+describe('graph_inequality scorer (Drop 4)', () => {
+  const key = {
+    boundary: { family: 'linear', slope: 2, intercept: 1, slopeTolerance: 0.1, interceptTolerance: 0.1 } as FunctionModel,
+    strict: true,
+    shadeSide: 'above' as const,
+  };
+  const onBoundary: [number, number][] = [[0, 1], [1, 3]]; // y = 2x + 1
+
+  it('all three parts right → correct', () => {
+    expect(scoreInequality(key, { points: onBoundary, strict: true, side: 'above' })).toBe(true);
+  });
+  it('wrong side / wrong style / wrong boundary each fail', () => {
+    expect(scoreInequality(key, { points: onBoundary, strict: true, side: 'below' })).toBe(false);
+    expect(scoreInequality(key, { points: onBoundary, strict: false, side: 'above' })).toBe(false);
+    expect(scoreInequality(key, { points: [[0, 0], [1, 1]], strict: true, side: 'above' })).toBe(false);
+  });
+  it('partial credit counts parts', () => {
+    expect(scoreInequalityPartial(key, { points: onBoundary, strict: false, side: 'above' }))
+      .toEqual({ earned: 2, total: 3 });
+  });
+  it('vertical boundary scores left/right', () => {
+    const vkey = {
+      boundary: { family: 'vertical', x: 3, xTolerance: 0.1 } as FunctionModel,
+      strict: false,
+      shadeSide: 'right' as const,
+    };
+    expect(scoreInequality(vkey, { points: [[3, -2], [3, 4]], strict: false, side: 'right' })).toBe(true);
+    expect(scoreInequality(vkey, { points: [[3, -2], [3, 4]], strict: false, side: 'left' })).toBe(false);
+  });
+});
+
+describe('domain endpoints scorer (Drop 6 follow-up)', () => {
+  it('scores position + style per authored bound', () => {
+    const key = { min: 0, minStyle: 'closed' as const };
+    expect(scoreDomain(key, { minX: 0, minStyle: 'closed' })).toBe(true);
+    expect(scoreDomain(key, { minX: 0.2, minStyle: 'closed' })).toBe(true); // within 0.25
+    expect(scoreDomain(key, { minX: 1, minStyle: 'closed' })).toBe(false);
+    expect(scoreDomainParts(key, { minX: 0, minStyle: 'open' })).toEqual({ earned: 1, total: 2 });
+  });
+  it('two-sided segment counts four parts; missing endpoint earns nothing', () => {
+    const key = { min: -2, minStyle: 'open' as const, max: 3, maxStyle: 'closed' as const };
+    expect(scoreDomainParts(key, { minX: -2, minStyle: 'open', maxX: 3, maxStyle: 'closed' }))
+      .toEqual({ earned: 4, total: 4 });
+    // min position missed AND min style defaults to closed ≠ open → only max's 2.
+    expect(scoreDomainParts(key, { maxX: 3, maxStyle: 'closed' }).earned).toBe(2);
+  });
+  it('no authored domain → vacuously correct', () => {
+    expect(scoreDomain({}, {})).toBe(true);
   });
 });

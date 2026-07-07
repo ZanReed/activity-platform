@@ -50,6 +50,7 @@ function makeRefs(refs: BlankRef[]): Refs {
     blanks,
     fillInBlanks: new Map(),
     graphs: new Map(),
+    graphDisplays: new Map(),
     sections: new Map(),
     popover: null,
   };

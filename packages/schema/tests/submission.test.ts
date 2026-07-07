@@ -14,11 +14,11 @@ import {
   migrateSubmissionResponses,
 } from '../src/index.js';
 
-describe('SubmissionResponses (v3 — current)', () => {
+describe('SubmissionResponses (v4 — current)', () => {
   it('parses valid responses keyed by uuid', () => {
     const id = crypto.randomUUID();
     const data = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       blanks: {
         [id]: { answer: 'x+2', correct: true },
       },
@@ -28,7 +28,7 @@ describe('SubmissionResponses (v3 — current)', () => {
   });
 
   it('parses empty responses (student submitted nothing)', () => {
-    const data = { schemaVersion: 3, blanks: {} };
+    const data = { schemaVersion: 4, blanks: {} };
     expect(SubmissionResponses.safeParse(data).success).toBe(true);
   });
 
@@ -36,7 +36,7 @@ describe('SubmissionResponses (v3 — current)', () => {
     const blankId = crypto.randomUUID();
     const sectionId = crypto.randomUUID();
     const data = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       blanks: {
         [blankId]: { answer: 'x+2', correct: true, confidence: 'certain' },
       },
@@ -54,7 +54,7 @@ describe('SubmissionResponses (v3 — current)', () => {
   it('parses a plot_point graphResponse', () => {
     const graphId = crypto.randomUUID();
     const data = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       blanks: {},
       graphResponses: {
         [graphId]: {
@@ -71,7 +71,7 @@ describe('SubmissionResponses (v3 — current)', () => {
   it('parses a plot_function graphResponse', () => {
     const graphId = crypto.randomUUID();
     const data = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       blanks: {},
       graphResponses: {
         [graphId]: {
@@ -87,7 +87,7 @@ describe('SubmissionResponses (v3 — current)', () => {
   it('parses a shade_region graphResponse', () => {
     const graphId = crypto.randomUUID();
     const data = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       blanks: {},
       graphResponses: {
         [graphId]: {
@@ -103,7 +103,7 @@ describe('SubmissionResponses (v3 — current)', () => {
   it('rejects a graphResponse with a non-tuple point', () => {
     const graphId = crypto.randomUUID();
     const data = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       blanks: {},
       graphResponses: {
         [graphId]: { type: 'plot_point', studentPoints: [[3]], correct: false },
@@ -115,7 +115,7 @@ describe('SubmissionResponses (v3 — current)', () => {
   it('rejects an unknown graph interaction type', () => {
     const graphId = crypto.randomUUID();
     const data = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       blanks: {},
       graphResponses: {
         [graphId]: { type: 'plot_line', studentPoints: [[0, 0]], correct: true },
@@ -126,7 +126,7 @@ describe('SubmissionResponses (v3 — current)', () => {
 
   it('rejects non-uuid blank keys', () => {
     const data = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       blanks: { 'not-a-uuid': { answer: 'x', correct: false } },
     };
     expect(SubmissionResponses.safeParse(data).success).toBe(false);
@@ -150,7 +150,7 @@ describe('SubmissionResponses (v3 — current)', () => {
   it('rejects an invalid confidence value', () => {
     const id = crypto.randomUUID();
     const data = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       blanks: { [id]: { answer: 'x+2', correct: true, confidence: 'maybe' } },
     };
     expect(SubmissionResponses.safeParse(data).success).toBe(false);
@@ -178,11 +178,11 @@ describe('legacy shapes (for migration only)', () => {
 });
 
 describe('migrateSubmissionResponses', () => {
-  it('reads a v3 submission unchanged (incl. graphResponses)', () => {
+  it('reads a v4 submission unchanged (incl. graphResponses)', () => {
     const blankId = crypto.randomUUID();
     const graphId = crypto.randomUUID();
     const v3 = {
-      schemaVersion: 3 as const,
+      schemaVersion: 4 as const,
       blanks: { [blankId]: { answer: 'x+2', correct: true } },
       graphResponses: {
         [graphId]: {
@@ -193,12 +193,12 @@ describe('migrateSubmissionResponses', () => {
       },
     };
     const result = migrateSubmissionResponses(v3);
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.blanks).toEqual(v3.blanks);
     expect(result.graphResponses).toEqual(v3.graphResponses);
   });
 
-  it('migrates a v2 submission to v3, preserving checkpointResults', () => {
+  it('migrates a v2 submission to v4, preserving checkpointResults', () => {
     const blankId = crypto.randomUUID();
     const sectionId = crypto.randomUUID();
     const v2 = {
@@ -209,20 +209,20 @@ describe('migrateSubmissionResponses', () => {
       },
     };
     const result = migrateSubmissionResponses(v2);
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.blanks).toEqual(v2.blanks);
     expect(result.checkpointResults).toEqual(v2.checkpointResults);
     expect(result.graphResponses).toBeUndefined();
   });
 
-  it('migrates a v1 submission to v3', () => {
+  it('migrates a v1 submission to v4', () => {
     const id = crypto.randomUUID();
     const v1 = {
       schemaVersion: 1,
       blanks: { [id]: { answer: 'x+2', correct: true } },
     };
     const result = migrateSubmissionResponses(v1);
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.blanks).toEqual(v1.blanks);
     expect(result.checkpointResults).toBeUndefined();
     expect(result.graphResponses).toBeUndefined();
@@ -234,5 +234,73 @@ describe('migrateSubmissionResponses', () => {
 
   it('throws on an unknown schemaVersion', () => {
     expect(() => migrateSubmissionResponses({ schemaVersion: 99, blanks: {} })).toThrow();
+  });
+});
+
+describe('v4 additions (Drop 4)', () => {
+  it('parses a graph_inequality response with v4 extras', () => {
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 4,
+      blanks: {},
+      graphResponses: {
+        '11111111-1111-4111-8111-111111111111': {
+          type: 'graph_inequality',
+          studentPoints: [[0, 1], [1, 3]],
+          strict: true,
+          side: 'above',
+          correct: true,
+          earned: 3,
+          total: 3,
+        },
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('parses a no-solution plot_point response (empty points)', () => {
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 4,
+      blanks: {},
+      graphResponses: {
+        '11111111-1111-4111-8111-111111111111': {
+          type: 'plot_point',
+          studentPoints: [],
+          correct: true,
+          noSolution: true,
+        },
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('migrates a v3 submission (graphResponses intact) to v4', () => {
+    const out = migrateSubmissionResponses({
+      schemaVersion: 3,
+      blanks: {},
+      graphResponses: {
+        '11111111-1111-4111-8111-111111111111': {
+          type: 'plot_point',
+          studentPoints: [[1, 2]],
+          correct: true,
+        },
+      },
+    });
+    expect(out.schemaVersion).toBe(4);
+    expect(Object.keys(out.graphResponses ?? {})).toHaveLength(1);
+  });
+
+  it('accepts a fractional checkpoint score (partial credit)', () => {
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 4,
+      blanks: {},
+      checkpointResults: {
+        '22222222-2222-4222-8222-222222222222': {
+          checkedAt: new Date().toISOString(),
+          score: 2.67,
+          total: 3,
+        },
+      },
+    });
+    expect(parsed.success).toBe(true);
   });
 });

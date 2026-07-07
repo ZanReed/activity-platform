@@ -71,8 +71,11 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
     case 'columns':
       return renderColumns(block, ctx);
     case 'interactive_graph':
+      // Display (static) graphs are ungraded content — they don't pull from the
+      // problem sequence. Only graded interactions consume a number.
       return renderInteractiveGraph(block, {
-        problemNumber: ctx.nextProblemNumber(),
+        problemNumber:
+          block.interaction.type === 'display' ? 0 : ctx.nextProblemNumber(),
         graphKitUrl: ctx.graphKitUrl,
       });
     default: {
@@ -87,13 +90,14 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
 
 /**
  * True if this block participates in the auto-numbered problem sequence.
- * The graded question blocks do (problem, fill_in_blank, interactive_graph);
- * everything else doesn't.
+ * The graded question blocks do (problem, fill_in_blank, graded
+ * interactive_graph); everything else doesn't — including a display-mode
+ * interactive_graph, which is ungraded static content.
  */
 export function isNumberedBlock(block: Block): boolean {
   return (
     block.type === 'problem' ||
     block.type === 'fill_in_blank' ||
-    block.type === 'interactive_graph'
+    (block.type === 'interactive_graph' && block.interaction.type !== 'display')
   );
 }

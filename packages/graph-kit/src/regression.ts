@@ -22,7 +22,11 @@
 // clear message instead of NaN.
 // =============================================================================
 
-export type RegressionModel = 'linear' | 'quadratic' | 'exponential';
+export type RegressionModel =
+  | 'linear'
+  | 'quadratic'
+  | 'exponential'
+  | 'logarithmic';
 
 export interface DataPoint {
   x: number;
@@ -32,7 +36,8 @@ export interface DataPoint {
 export type Fit =
   | { model: 'linear'; a: number; b: number; r2: number }
   | { model: 'quadratic'; a: number; b: number; c: number; r2: number }
-  | { model: 'exponential'; a: number; b: number; r2: number };
+  | { model: 'exponential'; a: number; b: number; r2: number }
+  | { model: 'logarithmic'; a: number; b: number; r2: number };
 
 export type FitOutcome =
   | { ok: true; fit: Fit; predict: (x: number) => number }
@@ -190,6 +195,27 @@ export function fitExponential(points: DataPoint[]): FitOutcome {
   };
 }
 
+export function fitLogarithmic(points: DataPoint[]): FitOutcome {
+  if (points.length < 2) return fail('Add at least 2 points');
+  if (points.some((p) => p.x <= 0))
+    return fail('Logarithmic fit needs every x-value above 0');
+  if (distinctXCount(points) < 2)
+    return fail('Points need at least 2 different x-values');
+  // y = a + b·ln(x) is linear in u = ln(x): fit y = intercept + slope·u, then
+  // a = intercept, b = slope. r² comes from this linear fit (same convention as
+  // the other transformed fit, exponential).
+  const logPts = points.map((p) => ({ x: Math.log(p.x), y: p.y }));
+  const ls = linearLeastSquares(logPts);
+  if (!ls) return fail('Points need at least 2 different x-values');
+  const a = ls.intercept;
+  const b = ls.slope;
+  return {
+    ok: true,
+    fit: { model: 'logarithmic', a, b, r2: ls.r2 },
+    predict: (x) => a + b * Math.log(x),
+  };
+}
+
 /** Dispatch by model — the one entry point the data panel (and the future
  * graded block) calls. */
 export function fitModel(model: RegressionModel, points: DataPoint[]): FitOutcome {
@@ -200,5 +226,7 @@ export function fitModel(model: RegressionModel, points: DataPoint[]): FitOutcom
       return fitQuadratic(points);
     case 'exponential':
       return fitExponential(points);
+    case 'logarithmic':
+      return fitLogarithmic(points);
   }
 }

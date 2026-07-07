@@ -47,6 +47,7 @@ jobs:
           pnpm bundle:renderer
           git diff --exit-code -- \
             packages/renderer/src/runtime/generated/runtime-bundle.ts \
+            packages/renderer/src/runtime/generated/runtime-graphs-bundle.ts \
             packages/renderer/src/generated/katex-css.ts \
             supabase/functions/_shared/renderer.bundle.js \
           || {

@@ -332,7 +332,7 @@ describe('buildActivityIndex', () => {
                             axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
                             interaction: {
                                 type: 'plot_function',
-                                model: { family: 'linear', slope: 2, intercept: 3 },
+                                models: [{ family: 'linear', slope: 2, intercept: 3 }],
                             },
                         },
                     ],
@@ -342,6 +342,36 @@ describe('buildActivityIndex', () => {
         const g = buildActivityIndex(funcDoc).graphs.get(U(510))!;
         expect(g.interactionType).toBe('plot_function');
         expect(g.answerSummary).toBe('y = 2x + 3');
+    });
+
+    it('does not index a display (static) graph — it is ungraded', () => {
+        const displayDoc: ActivityDocument = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta: {
+                title: 'Figures', course: 'Algebra I', submissionMode: 'free',
+                revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet',
+                answerFeedback: 'on_check', skills: [],
+            },
+            sections: [
+                {
+                    id: U(420), isCheckpoint: false,
+                    blocks: [
+                        {
+                            id: U(520), type: 'interactive_graph',
+                            prompt: [{ type: 'text', text: 'Using the graph below.', marks: [] }],
+                            axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+                            interaction: {
+                                type: 'display',
+                                drawables: [{ kind: 'point', at: [1, 2] }],
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(displayDoc);
+        expect(idx.graphs.size).toBe(0);
+        expect(idx.graphs.has(U(520))).toBe(false);
     });
 });
 

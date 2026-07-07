@@ -76,7 +76,7 @@ describe('interactive graph block', () => {
                 axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
                 interaction: {
                     type: 'plot_function',
-                    model: { family: 'linear', slope: 2, intercept: 3, slopeTolerance: 0.1, interceptTolerance: 0.1 },
+                    models: [{ family: 'linear', slope: 2, intercept: 3, slopeTolerance: 0.1, interceptTolerance: 0.1 }],
                 },
                 solution: null,
                 hasConfidenceRating: false,
@@ -100,8 +100,7 @@ describe('interactive graph block', () => {
                 axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
                 interaction: {
                     type: 'shade_region',
-                    correctVertices: [[0, 0], [4, 0], [2, 4]],
-                    minOverlap: 0.9,
+                    regions: [{ correctVertices: [[0, 0], [4, 0], [2, 4]], minOverlap: 0.9 }],
                 },
                 solution: null,
                 hasConfidenceRating: false,
@@ -131,6 +130,55 @@ describe('interactive graph block', () => {
                 tolerance: 0.25,
             });
             expect(block.axisConfig.snapToGrid).toBe(false);
+        }
+    });
+
+    it('round-trips a display (static) interaction with mixed drawables', () => {
+        const displayNode: JSONContent = {
+            type: 'interactiveGraph',
+            attrs: {
+                id: 'd',
+                axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
+                interaction: {
+                    type: 'display',
+                    drawables: [
+                        { kind: 'point', at: [2, 3], label: 'A' },
+                        { kind: 'curve', model: { family: 'linear', slope: 1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1 } },
+                        { kind: 'segment', from: [0, 0], to: [4, 4] },
+                        { kind: 'polygon', vertices: [[0, 0], [4, 0], [2, 3]], filled: true },
+                    ],
+                },
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Use the graph below.' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [displayNode] });
+        const g = out.content!.find((n) => n.type === 'interactiveGraph')!;
+        expect(g.attrs!.interaction).toEqual(displayNode.attrs!.interaction);
+        const activity = tiptapToActivity({ type: 'doc', content: [displayNode] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('round-trips a display graph with an empty prompt (standalone exemplar)', () => {
+        const exemplar: JSONContent = {
+            type: 'interactiveGraph',
+            attrs: {
+                id: 'e',
+                axisConfig: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
+                interaction: { type: 'display', drawables: [] },
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [exemplar] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+        const block = activity.sections[0]!.blocks.find((b) => b.type === 'interactive_graph');
+        if (block && block.type === 'interactive_graph') {
+            expect(block.interaction.type).toBe('display');
+            expect(block.prompt).toEqual([]);
         }
     });
 });
@@ -1309,6 +1357,63 @@ describe('columns', () => {
                 ],
             },
         ]);
+    });
+
+    it('round-trips an interactive_graph inside a column (Drop 1)', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'columns',
+                    attrs: { id: 'cols-1' },
+                    content: [
+                        {
+                            type: 'column',
+                            attrs: {},
+                            content: [
+                                {
+                                    type: 'interactiveGraph',
+                                    attrs: {
+                                        id: 'g',
+                                        axisConfig: {
+                                            xMin: -6, xMax: 6, yMin: -6, yMax: 6,
+                                            xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true,
+                                        },
+                                        interaction: { type: 'plot_point', correctPoints: [[1, 2]], tolerance: 0.1 },
+                                        solution: null,
+                                        hasConfidenceRating: false,
+                                        skills: [],
+                                    },
+                                    content: [{ type: 'text', text: 'Plot (1, 2).' }],
+                                },
+                            ],
+                        },
+                        {
+                            type: 'column',
+                            attrs: {},
+                            content: [
+                                { type: 'paragraph', content: [{ type: 'text', text: 'Notes' }] },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+        // The graph survives the round-trip inside the cell...
+        const back = roundTrip(doc);
+        const cols = back.content?.[0] as JSONContent;
+        const firstCell = cols.content?.[0] as JSONContent;
+        expect(firstCell.content?.[0]?.type).toBe('interactiveGraph');
+        expect(firstCell.content?.[0]?.attrs?.interaction).toEqual({
+            type: 'plot_point', correctPoints: [[1, 2]], tolerance: 0.1,
+        });
+        // ...and the assembled activity is schema-valid (the ColumnCellBlock
+        // union now admits interactive_graph).
+        const activity = tiptapToActivity(doc, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'columns') throw new Error('unreachable');
+        expect(block.columns[0]!.blocks[0]!.type).toBe('interactive_graph');
     });
 
     it('preserves a per-column width weight', () => {

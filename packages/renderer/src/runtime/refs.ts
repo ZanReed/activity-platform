@@ -96,10 +96,34 @@ export interface GraphResponseData {
     studentPoints: [number, number][];
     correct: boolean;
     answered: boolean;
+    /** graph_inequality: dotted (strict) vs solid boundary. */
+    strict?: boolean;
+    /** graph_inequality: which side the student shaded. */
+    side?: 'above' | 'below' | 'left' | 'right';
+    /** The student chose "cannot be graphed / no solution". */
+    noSolution?: boolean;
+    /** Partial credit (partialCredit blocks): parts earned / parts total. */
+    earned?: number;
+    total?: number;
+    /** Domain-restricted plot_function: endpoint positions + open/closed. */
+    domain?: {
+        minX?: number;
+        minStyle?: 'open' | 'closed';
+        maxX?: number;
+        maxStyle?: 'open' | 'closed';
+    };
 }
 export interface GraphWidgetHandle {
     getResponse(): GraphResponseData;
-    restore(points: [number, number][]): void;
+    restore(
+        points: [number, number][],
+        extras?: {
+            strict?: boolean;
+            side?: GraphResponseData['side'];
+            noSolution?: boolean;
+            domain?: GraphResponseData['domain'];
+        },
+    ): void;
     setLocked(locked: boolean): void;
     destroy(): void;
 }
@@ -128,6 +152,12 @@ export interface GraphRef {
     confidenceRadios: HTMLInputElement[];
     /** Skill tags from data-skills (empty when absent). */
     skills: string[];
+    /** Per-part fractional scoring (data-graph-partial-credit). */
+    partialCredit: boolean;
+    /** Student gets a "cannot be graphed" choice (data-graph-allow-no-solution). */
+    allowNoSolution: boolean;
+    /** Trick question: no-solution IS the answer (data-graph-no-solution-correct). */
+    noSolutionCorrect: boolean;
     /** ID of the section this block belongs to. */
     sectionId: string;
     /**
@@ -138,6 +168,23 @@ export interface GraphRef {
      * reads it to lock the widget; the sidecar (graphs.ts) writes it once.
      */
     handle: GraphWidgetHandle | null;
+}
+
+/**
+ * One per DISPLAY (static, ungraded) interactive_graph block. Deliberately much
+ * thinner than GraphRef: a display graph collects no answer, so there is no
+ * answer key, no confidence, no scoring state, and it is NOT in any section's
+ * graphBlockIds. The sidecar just mounts a read-only figure into `canvas`.
+ */
+export interface GraphDisplayRef {
+    /** The .graph-canvas the kit draws the static figure into. */
+    canvas: HTMLElement;
+    /** Absolute URL of the graph kit on R2; null when unavailable (no hydrate). */
+    kitSrc: string | null;
+    /** Parsed data-graph-config (AxisConfig) — passed straight to the kit. */
+    config: unknown;
+    /** Parsed data-graph-drawables (the figure to draw) — passed to the kit. */
+    drawables: unknown;
 }
 
 /** One per <section class="activity-section">. */
@@ -192,6 +239,8 @@ export interface Refs {
     blanks: Map<string, BlankRef>;
     fillInBlanks: Map<string, FillInBlankRef>;
     graphs: Map<string, GraphRef>;
+    /** Static (display-mode) graph blocks — mounted read-only, never scored. */
+    graphDisplays: Map<string, GraphDisplayRef>;
     sections: Map<string, SectionRef>;
     /** The shared floating popover, or null when the page has no popover markup. */
     popover: PopoverRef | null;
