@@ -21,6 +21,7 @@ import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
 import { Columns, Column } from './extensions/Columns';
 import { Image } from './extensions/Image';
+import { InteractiveGraph } from './extensions/InteractiveGraph';
 import { Definition } from './extensions/Definition';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
@@ -96,6 +97,10 @@ export default function Editor({
             // only appears in the published/print output. Editing is via the
             // root-level ImagePopoverHost below.
             Image,
+            // Graded interactive-graph block (Stage 5). Block node with an
+            // editable prompt (NodeViewContent) + a live author board reusing
+            // the graph kit; only plot_point is functional so far.
+            InteractiveGraph,
         ],
         content: initialContent,
         onCreate: ({ editor }) => {

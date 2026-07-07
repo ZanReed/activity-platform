@@ -44,12 +44,15 @@ export type { DataTableHandle } from './data-table.js';
 // The graded interactive-graph widget (Stage 5). mountGraphQuestion is the entry
 // the published page's runtime sidecar calls; it dynamic-imports the board so
 // JSXGraph stays in its own chunk (a scientific-only page never loads it).
-export { mountGraphQuestion } from './graph-question.js';
+export { mountGraphQuestion, mountGraphAuthor } from './graph-question.js';
 export type {
   GraphQuestionConfig,
   GraphQuestionHandle,
   GraphQuestionHooks,
   GraphResponseData,
+  GraphAuthorConfig,
+  GraphAuthorHandle,
+  GraphAuthorHooks,
 } from './graph-question.js';
 
 // The pure plot_point scorer — exported so the runtime/tests (and, later,

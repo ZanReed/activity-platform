@@ -55,8 +55,9 @@ import type {
     ColumnCellBlock,
     ImageBlock,
     MathBlock,
+    InteractiveGraphBlock,
 } from '@activity/schema';
-import { SIMPLE_MARK_TYPES } from '@activity/schema';
+import { SIMPLE_MARK_TYPES, createInteractiveGraphBlock } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 
 // Canonical inline content (rich text + inline math) as the schema models it.
@@ -180,6 +181,8 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
         case 'orderedList':
             return tiptapOrderedListToActivity(node);
 
+        case 'interactiveGraph':
+            return tiptapInteractiveGraphToActivity(node);
         case 'fillInBlank':
             return tiptapFillInBlankToActivity(node);
 
@@ -331,6 +334,33 @@ function tiptapFillInBlankToActivity(node: JSONContent): FillInBlankBlock {
         block.workSpace = rawWorkSpace;
     }
 
+    return block;
+}
+
+function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBlock {
+    const attrs = node.attrs ?? {};
+    const fresh = createInteractiveGraphBlock();
+    const block: InteractiveGraphBlock = {
+        id: crypto.randomUUID(),
+        type: 'interactive_graph',
+        // The prompt is the node's editable inline content (text + inline math).
+        prompt: tiptapInlineToActivity(node.content ?? []),
+        // axisConfig / interaction always come populated from the node's attr
+        // defaults; fall back to the factory shape if a hand-crafted payload
+        // dropped them. The schema Zod-validates on the save boundary.
+        axisConfig: (attrs.axisConfig as InteractiveGraphBlock['axisConfig']) ?? fresh.axisConfig,
+        interaction: (attrs.interaction as InteractiveGraphBlock['interaction']) ?? fresh.interaction,
+        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
+        skills: Array.isArray(attrs.skills)
+            ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
+            : [],
+    };
+    // Optional solution — carry only when non-empty so round-trip equality holds
+    // for graphs without one (same pattern as fill-in-blank).
+    const rawSolution = attrs.solution;
+    if (Array.isArray(rawSolution) && rawSolution.length > 0) {
+        block.solution = rawSolution as InlineNode[];
+    }
     return block;
 }
 
@@ -630,13 +660,11 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
                 },
             };
 
+        case 'interactive_graph':
+            return activityInteractiveGraphToTiptap(block);
+
         case 'callout':
         case 'problem':
-        // interactive_graph's editor NodeView is Stage 5 slice 2; until then the
-        // block round-trips through the schema/renderer/runtime spine but has no
-        // Tiptap mapping, so it's omitted from the editor view (same as callout/
-        // problem). Authored via the dev seed route in the meantime.
-        case 'interactive_graph':
             console.warn(
                 `[serialize] No Tiptap mapping for ${block.type} yet; block omitted from editor view.`,
             );
@@ -740,6 +768,21 @@ function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
             workSpace: block.workSpace ?? null,
         },
         content: activityFillInBlankInlineToTiptap(block.content),
+    };
+}
+
+function activityInteractiveGraphToTiptap(block: InteractiveGraphBlock): JSONContent {
+    return {
+        type: 'interactiveGraph',
+        attrs: {
+            id: block.id,
+            axisConfig: block.axisConfig,
+            interaction: block.interaction,
+            solution: block.solution ?? null,
+            hasConfidenceRating: block.hasConfidenceRating,
+            skills: block.skills,
+        },
+        content: activityInlineToTiptap(block.prompt),
     };
 }
 

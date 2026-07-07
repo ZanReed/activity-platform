@@ -77,12 +77,12 @@ export default function DevGraphQuestion() {
         two points (plot both — consume-once scoring)
       </label>
 
+      {/* Host is a sized container only; the inner board element (created in
+          the effect) owns role=application + tabindex + the keyboard handler.
+          Setting them here too would shadow the real focusable surface. */}
       <div
         ref={mountRef}
         data-graph-canvas="dev"
-        role="application"
-        tabIndex={0}
-        aria-label="Interactive coordinate plane. Tab to the point, then use arrow keys to move it."
         style={{
           position: 'relative',
           width: '100%',

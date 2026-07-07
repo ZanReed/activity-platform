@@ -145,3 +145,59 @@ export async function mountGraphQuestion(
     },
   };
 }
+
+// ---- Authoring -------------------------------------------------------------
+// The editor NodeView mounts THIS (not mountGraphQuestion) so a teacher defines
+// the answer by dragging: the handle positions ARE correctPoints. Same board,
+// same snap-to-grid, no scoring — the author is setting the key, not answering
+// against it. Reuses the lazy JSXGraph chunk. (Stage 5 slice 2.)
+
+export interface GraphAuthorConfig {
+  interactionType: string;
+  axisConfig: unknown;
+  /** The current answer being authored; one handle per point (≥1). */
+  correctPoints: [number, number][];
+}
+
+export interface GraphAuthorHooks {
+  /** Fired as the author drags/keys a handle — the new correctPoints. */
+  onChange?: (correctPoints: [number, number][]) => void;
+}
+
+export interface GraphAuthorHandle {
+  getPoints(): [number, number][];
+  destroy(): void;
+}
+
+export async function mountGraphAuthor(
+  mount: HTMLElement,
+  rawConfig: unknown,
+  hooks: GraphAuthorHooks = {},
+): Promise<GraphAuthorHandle> {
+  const cfg = (rawConfig ?? {}) as Partial<GraphAuthorConfig>;
+  const axis = readAxis(cfg.axisConfig);
+  const points = Array.isArray(cfg.correctPoints)
+    ? cfg.correctPoints.filter(
+        (p): p is [number, number] =>
+          Array.isArray(p) &&
+          p.length === 2 &&
+          typeof p[0] === 'number' &&
+          typeof p[1] === 'number',
+      )
+    : [];
+  const count = Math.max(1, points.length);
+
+  mount.textContent = '';
+  const { createPointAnswerBoard } = await import('./board.js');
+
+  const board = createPointAnswerBoard(
+    mount,
+    { ...axis, count, starts: points.length === count ? points : undefined },
+    { onMove: (_active, pts) => hooks.onChange?.(pts) },
+  );
+
+  return {
+    getPoints: board.getPoints,
+    destroy: board.destroy,
+  };
+}

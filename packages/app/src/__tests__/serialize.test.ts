@@ -39,6 +39,54 @@ describe('empty doc', () => {
     });
 });
 
+describe('interactive graph block', () => {
+    const graphNode: JSONContent = {
+        type: 'interactiveGraph',
+        attrs: {
+            id: 'ignored-regenerated',
+            axisConfig: {
+                xMin: -6, xMax: 6, yMin: -6, yMax: 6,
+                xGridStep: 2, yGridStep: 2, showGrid: true, snapToGrid: false,
+            },
+            interaction: { type: 'plot_point', correctPoints: [[3, 4]], tolerance: 0.25 },
+            solution: [{ type: 'text', text: 'It is up and to the right.', marks: [] }],
+            hasConfidenceRating: true,
+            skills: ['plotting points'],
+        },
+        content: [{ type: 'text', text: 'Plot the point (3, 4).' }],
+    };
+    const doc: JSONContent = { type: 'doc', content: [graphNode] };
+
+    it('round-trips axis config, interaction, prompt, solution, and flags', () => {
+        const out = roundTrip(doc);
+        const g = out.content!.find((n) => n.type === 'interactiveGraph')!;
+        expect(g.attrs!.axisConfig).toEqual(graphNode.attrs!.axisConfig);
+        expect(g.attrs!.interaction).toEqual(graphNode.attrs!.interaction);
+        expect(g.attrs!.hasConfidenceRating).toBe(true);
+        expect(g.attrs!.skills).toEqual(['plotting points']);
+        expect(g.attrs!.solution).toEqual(graphNode.attrs!.solution);
+        expect(g.content).toEqual([{ type: 'text', text: 'Plot the point (3, 4).' }]);
+    });
+
+    it('serializes to a schema-valid interactive_graph block', () => {
+        const activity = tiptapToActivity(doc, META);
+        const parsed = ActivityDocument.safeParse(activity);
+        expect(parsed.success).toBe(true);
+        const block = activity.sections[0]!.blocks.find(
+            (b) => b.type === 'interactive_graph',
+        );
+        expect(block).toBeDefined();
+        if (block && block.type === 'interactive_graph') {
+            expect(block.interaction).toEqual({
+                type: 'plot_point',
+                correctPoints: [[3, 4]],
+                tolerance: 0.25,
+            });
+            expect(block.axisConfig.snapToGrid).toBe(false);
+        }
+    });
+});
+
 describe('reference panel (opaque carry)', () => {
     // The panel is authored on its own surface and threaded into
     // tiptapToActivity as a third argument — it is never encoded in the main

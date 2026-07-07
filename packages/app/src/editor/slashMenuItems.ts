@@ -116,4 +116,12 @@ export const slashMenuItems: SlashMenuItem[] = [
         editor.chain().focus().deleteRange(range).insertImage().run();
     },
 },
+{
+    title: 'Interactive graph',
+    description: 'Students plot a point on a coordinate plane. Drag to set the answer.',
+    keywords: ['graph', 'plot', 'point', 'coordinate', 'plane', 'graphing', 'chart'],
+    command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertInteractiveGraph().run();
+    },
+},
 ];
