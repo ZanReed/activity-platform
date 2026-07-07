@@ -317,7 +317,7 @@ function SubmissionDetail({
                     )}
                     </td>
                     <td className="py-1 pr-3 font-mono text-slate-600">
-                    {g.info ? formatPoints(g.info.correctPoints) : '—'}
+                    {g.info ? g.info.answerSummary : '—'}
                     </td>
                     <td className="py-1 pr-3 font-mono text-slate-900">
                     {formatPoints(g.resp.studentPoints)}

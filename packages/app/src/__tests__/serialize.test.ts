@@ -68,6 +68,30 @@ describe('interactive graph block', () => {
         expect(g.content).toEqual([{ type: 'text', text: 'Plot the point (3, 4).' }]);
     });
 
+    it('round-trips a plot_function (linear) interaction', () => {
+        const funcNode: JSONContent = {
+            type: 'interactiveGraph',
+            attrs: {
+                id: 'x',
+                axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
+                interaction: {
+                    type: 'plot_function',
+                    model: { family: 'linear', slope: 2, intercept: 3, slopeTolerance: 0.1, interceptTolerance: 0.1 },
+                },
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Graph y = 2x + 3.' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [funcNode] });
+        const g = out.content!.find((n) => n.type === 'interactiveGraph')!;
+        expect(g.attrs!.interaction).toEqual(funcNode.attrs!.interaction);
+        // schema-valid
+        const activity = tiptapToActivity({ type: 'doc', content: [funcNode] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
     it('serializes to a schema-valid interactive_graph block', () => {
         const activity = tiptapToActivity(doc, META);
         const parsed = ActivityDocument.safeParse(activity);

@@ -55,12 +55,20 @@ export type {
   GraphAuthorHooks,
 } from './graph-question.js';
 
-// The pure plot_point scorer — exported so the runtime/tests (and, later,
-// server-side grading) score with the SAME tolerance logic the widget uses.
-// scorePoints is the general (consume-once, N-point) scorer; isPointCorrect is
-// the single-handle convenience.
-export { scorePoints, isPointCorrect } from './graph-score.js';
-export type { PointAnswerKey } from './graph-score.js';
+// The pure scorers — exported so the runtime/tests (and, later, server-side
+// grading) score with the SAME logic the widget uses. scorePoints is the
+// plot_point (consume-once, N-point) scorer; scoreFunction fits a curve of a
+// family to the student's points and compares its parameters; fitFunction +
+// handlesForFamily are the shared points↔curve helpers the editor authoring
+// uses too.
+export {
+  scorePoints,
+  isPointCorrect,
+  scoreFunction,
+  fitFunction,
+  handlesForFamily,
+} from './graph-score.js';
+export type { PointAnswerKey, FunctionModel, Fitted } from './graph-score.js';
 
 // NOTE: board.ts (JSXGraph) is deliberately NOT re-exported here — that would
 // static-import it into the entry and defeat the lazy-split. Consumers that need

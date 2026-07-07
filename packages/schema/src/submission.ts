@@ -89,7 +89,22 @@ export const PointResponse = z.object({
 });
 export type PointResponse = z.infer<typeof PointResponse>;
 
-export const GraphResponse = z.discriminatedUnion('type', [PointResponse]);
+// plot_function (Phase 2.7 2.7b): the student placed N points defining a curve.
+// We store the raw points (uniform with plot_point); the fitted parameters are
+// re-derivable from them with the same engine that scored it, so the dashboard
+// can show "student's line" without a second stored shape.
+export const FunctionResponse = z.object({
+  type: z.literal('plot_function'),
+  studentPoints: z.array(z.tuple([z.number(), z.number()])),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type FunctionResponse = z.infer<typeof FunctionResponse>;
+
+export const GraphResponse = z.discriminatedUnion('type', [
+  PointResponse,
+  FunctionResponse,
+]);
 export type GraphResponse = z.infer<typeof GraphResponse>;
 
 // Per-section checkpoint result, captured when a student clicks "Check this

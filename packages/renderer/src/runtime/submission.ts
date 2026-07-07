@@ -42,10 +42,11 @@ interface BlankResult {
   confidence?: 'unsure' | 'think_so' | 'certain';
 }
 
-// Mirrors schema GraphResponse (PointResponse) — the wire contract with
-// ingest-submission. Slice 1 emits plot_point only.
+// Mirrors schema GraphResponse — the wire contract with ingest-submission.
+// `type` is the block's interaction discriminant (plot_point, plot_function, …);
+// the schema Zod-validates it on ingest, so the runtime carries it as a string.
 interface GraphResult {
-  type: 'plot_point';
+  type: string;
   studentPoints: [number, number][];
   correct: boolean;
   confidence?: 'unsure' | 'think_so' | 'certain';
@@ -165,7 +166,7 @@ export function gatherResponses(
   // the graphResponses map (nothing to record).
   const graphResponses: Record<string, GraphResult> = {};
   let graphCount = 0;
-  for (const graphId of refs.graphs.keys()) {
+  for (const [graphId, ref] of refs.graphs) {
     const gs = state.graphs[graphId];
     if (!gs) continue;
     if (gs.result !== null) {
@@ -174,7 +175,7 @@ export function gatherResponses(
     }
     if (gs.answered && gs.points.length > 0) {
       const result: GraphResult = {
-        type: 'plot_point',
+        type: ref.interactionType,
         studentPoints: gs.points,
         correct: gs.result === true,
       };

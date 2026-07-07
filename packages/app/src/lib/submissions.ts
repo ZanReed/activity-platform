@@ -140,14 +140,20 @@ export interface GraphInfo {
     blockId: string;
     problemNumber: number | null;
     problemPrompt: string; // reconstructed from the block's prompt inline nodes
-    interactionType: string; // 'plot_point' (future: 'plot_line', …)
-    // The authored correct point(s) — shown as the answer key next to what the
-    // student plotted. Present for plot_point; empty for interaction types this
-    // build doesn't model yet.
-    correctPoints: [number, number][];
-    tolerance: number;
+    interactionType: string; // 'plot_point' | 'plot_function'
+    // Human-readable answer key next to what the student plotted — a point list
+    // "(3, 4)" for plot_point, "y = 2x + 3" for a linear plot_function.
+    answerSummary: string;
     sectionId: string;
     sectionTitle: string | null;
+}
+
+// "y = 2x + 3" / "y = -x" from slope + intercept.
+function formatLinear(slope: number, intercept: number): string {
+    const m = Math.round(slope * 100) / 100;
+    const b = Math.round(intercept * 100) / 100;
+    const bPart = b === 0 ? '' : b > 0 ? ` + ${b}` : ` − ${Math.abs(b)}`;
+    return `y = ${m}x${bPart}`;
 }
 
 export interface ActivityIndex {
@@ -197,19 +203,26 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
 
         for (const block of section.blocks) {
             if (block.type === 'interactive_graph') {
+                let answerSummary = '—';
+                if (block.interaction.type === 'plot_point') {
+                    answerSummary = block.interaction.correctPoints
+                        .map((p) => `(${p[0]}, ${p[1]})`)
+                        .join(', ');
+                } else if (
+                    block.interaction.type === 'plot_function' &&
+                    block.interaction.model.family === 'linear'
+                ) {
+                    answerSummary = formatLinear(
+                        block.interaction.model.slope,
+                        block.interaction.model.intercept,
+                    );
+                }
                 graphs.set(block.id, {
                     blockId: block.id,
                     problemNumber: block.number ?? null,
                     problemPrompt: reconstructPrompt(block.prompt),
                     interactionType: block.interaction.type,
-                    correctPoints:
-                        block.interaction.type === 'plot_point'
-                            ? block.interaction.correctPoints
-                            : [],
-                    tolerance:
-                        block.interaction.type === 'plot_point'
-                            ? block.interaction.tolerance
-                            : 0,
+                    answerSummary,
                     sectionId: section.id,
                     sectionTitle: section.title ?? null,
                 });

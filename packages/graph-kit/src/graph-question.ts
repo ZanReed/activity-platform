@@ -14,8 +14,61 @@
 // widget actually mounts.
 // =============================================================================
 
-import { scorePoints, type PointAnswerKey } from './graph-score.js';
+import {
+  scorePoints,
+  scoreFunction,
+  fitFunction,
+  handlesForFamily,
+  type PointAnswerKey,
+  type FunctionModel,
+} from './graph-score.js';
 import type { PointAnswerConfig, PointAnswerController } from './board.js';
+
+// Read the plot_function model out of the data-graph-answer-key payload (which
+// for plot_function is `{ model: {...} }`), defaulting a malformed/absent one to
+// a benign linear model rather than throwing. Only `linear` is modelled today.
+function readModel(raw: unknown): FunctionModel {
+  const m = ((raw ?? {}) as { model?: Partial<FunctionModel> }).model ?? {};
+  const numOr = (v: unknown, d: number): number =>
+    typeof v === 'number' && Number.isFinite(v) ? v : d;
+  return {
+    family: 'linear',
+    slope: numOr(m.slope, 1),
+    intercept: numOr(m.intercept, 0),
+    slopeTolerance: numOr((m as { slopeTolerance?: unknown }).slopeTolerance, 0.1),
+    interceptTolerance: numOr(
+      (m as { interceptTolerance?: unknown }).interceptTolerance,
+      0.1,
+    ),
+  };
+}
+
+// The board recipe (handle count, curve to draw, scorer) for one interaction.
+interface Recipe {
+  count: number;
+  scorer: (points: [number, number][]) => boolean;
+  deriveCurve?: PointAnswerConfig['deriveCurve'];
+}
+
+function recipeFor(interactionType: string, answerKey: unknown): Recipe {
+  if (interactionType === 'plot_function') {
+    const model = readModel(answerKey);
+    const family = model.family;
+    return {
+      count: handlesForFamily(family),
+      scorer: (pts) => scoreFunction(model, pts),
+      deriveCurve: (pts) => {
+        const f = fitFunction(family, pts);
+        return f ? f.predict : null;
+      },
+    };
+  }
+  const key = readAnswerKey(answerKey);
+  return {
+    count: Math.max(1, key.correctPoints.length),
+    scorer: (pts) => scorePoints(key, pts),
+  };
+}
 
 // The parsed block config the runtime hands us (from the data-* attributes).
 export interface GraphQuestionConfig {
@@ -94,15 +147,13 @@ export async function mountGraphQuestion(
 ): Promise<GraphQuestionHandle> {
   const cfg = (rawConfig ?? {}) as Partial<GraphQuestionConfig>;
   const axis = readAxis(cfg.axisConfig);
-  const answerKey = readAnswerKey(cfg.answerKey);
+  const interactionType =
+    typeof cfg.interactionType === 'string' ? cfg.interactionType : 'plot_point';
+  const recipe = recipeFor(interactionType, cfg.answerKey);
 
   // The renderer seeds a static no-JS placeholder inside the canvas; clear it
   // before JSXGraph mounts so the two don't overlap.
   mount.textContent = '';
-
-  // One handle per authored correct point (a "plot both roots" question shows
-  // two). At least one, even if the answer key came through empty.
-  const count = Math.max(1, answerKey.correctPoints.length);
 
   // Lazy-load the board layer (JSXGraph in its own chunk).
   const { createPointAnswerBoard } = await import('./board.js');
@@ -115,7 +166,7 @@ export async function mountGraphQuestion(
     const pts = board.getPoints();
     return {
       studentPoints: pts,
-      correct: scorePoints(answerKey, pts),
+      correct: recipe.scorer(pts),
       answered,
     };
   }
@@ -126,7 +177,7 @@ export async function mountGraphQuestion(
 
   const board: PointAnswerController = createPointAnswerBoard(
     mount,
-    { ...axis, count },
+    { ...axis, count: recipe.count, deriveCurve: recipe.deriveCurve },
     { onMove: handleMove },
   );
 
@@ -155,8 +206,19 @@ export async function mountGraphQuestion(
 export interface GraphAuthorConfig {
   interactionType: string;
   axisConfig: unknown;
-  /** The current answer being authored; one handle per point (≥1). */
+  /**
+   * The starting handle positions. For plot_point these ARE the correct points.
+   * For plot_function the NodeView passes points ON the current curve (computed
+   * from the model) so the handles start on the authored line; the NodeView then
+   * re-derives the model from the dragged points on each onChange.
+   */
   correctPoints: [number, number][];
+  /**
+   * For plot_function: the curve family, so the author board draws the fitted
+   * curve through the handles (and shows the right number of them). Absent for
+   * plot_point.
+   */
+  family?: string;
 }
 
 export interface GraphAuthorHooks {
@@ -185,14 +247,27 @@ export async function mountGraphAuthor(
           typeof p[1] === 'number',
       )
     : [];
-  const count = Math.max(1, points.length);
+  const family = typeof cfg.family === 'string' ? cfg.family : undefined;
+  // plot_function fixes the handle count by family; plot_point uses one per point.
+  const count = family ? handlesForFamily(family) : Math.max(1, points.length);
+  const deriveCurve: PointAnswerConfig['deriveCurve'] | undefined = family
+    ? (pts) => {
+        const f = fitFunction(family, pts);
+        return f ? f.predict : null;
+      }
+    : undefined;
 
   mount.textContent = '';
   const { createPointAnswerBoard } = await import('./board.js');
 
   const board = createPointAnswerBoard(
     mount,
-    { ...axis, count, starts: points.length === count ? points : undefined },
+    {
+      ...axis,
+      count,
+      starts: points.length === count ? points : undefined,
+      deriveCurve,
+    },
     { onMove: (_active, pts) => hooks.onChange?.(pts) },
   );
 

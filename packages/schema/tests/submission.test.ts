@@ -68,6 +68,22 @@ describe('SubmissionResponses (v3 — current)', () => {
     expect(SubmissionResponses.safeParse(data).success).toBe(true);
   });
 
+  it('parses a plot_function graphResponse', () => {
+    const graphId = crypto.randomUUID();
+    const data = {
+      schemaVersion: 3,
+      blanks: {},
+      graphResponses: {
+        [graphId]: {
+          type: 'plot_function',
+          studentPoints: [[0, 3], [1, 5]],
+          correct: true,
+        },
+      },
+    };
+    expect(SubmissionResponses.safeParse(data).success).toBe(true);
+  });
+
   it('rejects a graphResponse with a non-tuple point', () => {
     const graphId = crypto.randomUUID();
     const data = {

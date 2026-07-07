@@ -7,6 +7,8 @@
 // plot_point scorer; plot_line / shade_region add their own scorers here.
 // =============================================================================
 
+import { fitLinear, type DataPoint } from './regression.js';
+
 export interface PointAnswerKey {
   /** Acceptable target point(s), in graph units. */
   correctPoints: [number, number][];
@@ -63,4 +65,78 @@ export function isPointCorrect(
   point: [number, number],
 ): boolean {
   return scorePoints(key, [point]);
+}
+
+// ---- plot_function: fit a curve to the points, score its parameters ---------
+// The student places N points; the curve of the chosen FAMILY through them is
+// fit with the SAME regression engine the calculator uses, and its parameters
+// (not the exact point positions) are compared to the answer key with per-
+// parameter tolerances. linear ships now; quadratic / exponential / logarithmic
+// are each a new model member + a new fit branch here (the fit fns already
+// exist), so growing from 2 points (a line) to 3 (a parabola) is additive.
+
+export interface LinearModel {
+  family: 'linear';
+  slope: number;
+  intercept: number;
+  slopeTolerance: number;
+  interceptTolerance: number;
+}
+export type FunctionModel = LinearModel; // | QuadraticModel | ExponentialModel | …
+
+// How many draggable handles a family needs — its parameter count. Used by the
+// widget to show the right number of handles and by the author board.
+export function handlesForFamily(family: string): number {
+  switch (family) {
+    case 'linear':
+      return 2;
+    // case 'quadratic': return 3;
+    // case 'exponential': case 'logarithmic': return 2;
+    default:
+      return 2;
+  }
+}
+
+export interface FittedLinear {
+  family: 'linear';
+  slope: number;
+  intercept: number;
+  predict: (x: number) => number;
+}
+export type Fitted = FittedLinear;
+
+// Fit the family's curve to the points, returning its parameters + a predict()
+// for drawing — or null when the points can't define the curve (e.g. a vertical
+// line for 'linear', or too few distinct points). Reuses regression.ts.
+export function fitFunction(
+  family: string,
+  points: [number, number][],
+): Fitted | null {
+  const data: DataPoint[] = points.map(([x, y]) => ({ x, y }));
+  if (family === 'linear') {
+    const out = fitLinear(data);
+    if (!out.ok || out.fit.model !== 'linear') return null;
+    return {
+      family: 'linear',
+      slope: out.fit.a,
+      intercept: out.fit.b,
+      predict: out.predict,
+    };
+  }
+  return null;
+}
+
+export function scoreFunction(
+  model: FunctionModel,
+  studentPoints: [number, number][],
+): boolean {
+  const fitted = fitFunction(model.family, studentPoints);
+  if (!fitted) return false;
+  if (model.family === 'linear' && fitted.family === 'linear') {
+    return (
+      Math.abs(fitted.slope - model.slope) <= model.slopeTolerance &&
+      Math.abs(fitted.intercept - model.intercept) <= model.interceptTolerance
+    );
+  }
+  return false;
 }

@@ -42,6 +42,8 @@ export {
   InteractiveGraphBlock,
   AxisConfig,
   PointInteraction,
+  FunctionInteraction,
+  FunctionModel,
   GraphInteraction,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
@@ -68,6 +70,7 @@ export {
   CheckpointResult,
   ConfidenceLevel,
   PointResponse,
+  FunctionResponse,
   GraphResponse,
   SubmissionResponses,
   SubmissionResponsesV1,

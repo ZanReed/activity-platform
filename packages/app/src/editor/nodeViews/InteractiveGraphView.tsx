@@ -4,34 +4,49 @@ import {
     NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
-import { mountGraphAuthor, type GraphAuthorHandle } from '@activity/graph-kit';
+import {
+    mountGraphAuthor,
+    fitFunction,
+    handlesForFamily,
+    type GraphAuthorHandle,
+} from '@activity/graph-kit';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
-import type {
-    GraphAxisConfig,
-    GraphInteraction,
+import {
+    defaultFunctionInteraction,
+    defaultPointInteraction,
+    type GraphAxisConfig,
+    type GraphInteraction,
+    type LinearFunctionModel,
 } from '../extensions/InteractiveGraph';
 
 // ============================================================================
-// InteractiveGraphView — NodeView for the interactive_graph block (Stage 5
-// slice 2). "What the teacher sees is what the student gets": the author board
-// is the SAME kit board students use (mountGraphAuthor), so dragging a handle
-// literally sets the correct answer.
-//
-// Layout:
-//   <NodeViewWrapper>
-//     [chrome, contentEditable=false] number · interaction picker · board ·
-//        "drag to set the answer" hint · points-count · advanced settings
-//     <NodeViewContent /> — the editable prompt (text + inline math)
-//
-// The board is React-identity-stable but JSXGraph-owned (the 5-commitments
-// rule): it remounts only when the axis or the number of handles changes, NOT
-// on every drag — drags flow OUT via onChange to updateAttributes and never
-// feed back in (which would fight the drag).
+// InteractiveGraphView — NodeView for the interactive_graph block (Stage 5).
+// "What the teacher sees is what the student gets": the author board is the SAME
+// kit board students use. plot_point: drag handle(s) → correctPoints.
+// plot_function (2.7b): drag two handles → the line through them; we re-derive
+// slope/intercept from the handles with the SAME fit engine that scores it.
+// Built B-shaped so quadratic/exponential/logarithmic families slot into the
+// picker + the fit engine additively.
 // ============================================================================
 
-// The author board, isolated so its async mount + JSXGraph lifecycle is
-// self-contained. Remounts on axis / handle-count change only.
+// Two points on the given line, used to seed the author handles ON the current
+// answer when the board mounts.
+function functionStartPoints(
+    model: LinearFunctionModel,
+    axis: GraphAxisConfig,
+): [number, number][] {
+    const span = axis.xMax - axis.xMin || 1;
+    const x1 = axis.xMin + span * 0.3;
+    const x2 = axis.xMin + span * 0.7;
+    return [
+        [x1, model.slope * x1 + model.intercept],
+        [x2, model.slope * x2 + model.intercept],
+    ];
+}
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
 function GraphAuthorBoard({
     axisConfig,
     interaction,
@@ -42,29 +57,37 @@ function GraphAuthorBoard({
     onPointsChange: (points: [number, number][]) => void;
 }) {
     const hostRef = useRef<HTMLDivElement>(null);
-    // Identity key: only the axis + handle COUNT remount the board. The point
-    // VALUES change on every drag and must NOT remount (that would cancel the
-    // drag). A ref holds the freshest onChange so the effect needn't depend on it.
     const cbRef = useRef(onPointsChange);
     cbRef.current = onPointsChange;
-    const pointsRef = useRef(interaction.correctPoints);
-    pointsRef.current = interaction.correctPoints;
 
+    const family =
+        interaction.type === 'plot_function' ? interaction.model.family : undefined;
+    const count =
+        interaction.type === 'plot_function'
+            ? handlesForFamily(family!)
+            : interaction.correctPoints.length;
+    const startPoints =
+        interaction.type === 'plot_function'
+            ? functionStartPoints(interaction.model, axisConfig)
+            : interaction.correctPoints;
+    const startRef = useRef(startPoints);
+    startRef.current = startPoints;
+
+    // Remount only on axis + interaction type + family + handle count — never on
+    // the answer PARAM values (drags update those and must not cancel the drag).
     const key = useMemo(
-        () => JSON.stringify(axisConfig) + '|' + interaction.correctPoints.length,
+        () => JSON.stringify([axisConfig, interaction.type, family, count]),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [
             axisConfig.xMin, axisConfig.xMax, axisConfig.yMin, axisConfig.yMax,
             axisConfig.xGridStep, axisConfig.yGridStep, axisConfig.showGrid,
-            axisConfig.snapToGrid, interaction.correctPoints.length,
+            axisConfig.snapToGrid, interaction.type, family, count,
         ],
     );
 
     useEffect(() => {
         const host = hostRef.current;
         if (!host) return;
-        // Fresh inner node per run so React StrictMode's double-invoke can't race
-        // two async boards onto the same element.
         const el = document.createElement('div');
         el.style.cssText = 'position:absolute;inset:0;';
         host.appendChild(el);
@@ -75,7 +98,8 @@ function GraphAuthorBoard({
             {
                 interactionType: interaction.type,
                 axisConfig,
-                correctPoints: pointsRef.current,
+                correctPoints: startRef.current,
+                family,
             },
             { onChange: (pts) => cbRef.current(pts) },
         ).then((h) => {
@@ -90,15 +114,10 @@ function GraphAuthorBoard({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [key]);
 
-    // The host is just a sized positioning container. The inner board element
-    // (created in the effect) is the focusable role=application surface with the
-    // keyboard handler — createPointAnswerBoard owns those, so we must NOT set
-    // role/tabindex here (a second focusable app region would shadow the real
-    // one and swallow arrow keys).
     return (
         <div
             ref={hostRef}
-            aria-label="Set the correct answer: drag the point(s), or use arrow keys."
+            aria-label="Set the correct answer: drag the handle(s), or use arrow keys."
             style={{
                 position: 'relative',
                 width: '100%',
@@ -118,6 +137,14 @@ const num = (v: string, fallback: number): number => {
     return Number.isFinite(n) ? n : fallback;
 };
 
+// Format a linear model as "y = mx + b" for the answer readout.
+function formatLine(model: LinearFunctionModel): string {
+    const m = round2(model.slope);
+    const b = round2(model.intercept);
+    const bPart = b === 0 ? '' : b > 0 ? ` + ${b}` : ` − ${Math.abs(b)}`;
+    return `y = ${m}x${bPart}`;
+}
+
 export default function InteractiveGraphView({
     node,
     editor,
@@ -132,8 +159,6 @@ export default function InteractiveGraphView({
     const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const isEditable = editor.isEditable;
 
-    // Number: count preceding numbered question blocks (fill-in-blank + graph),
-    // matching the renderer's shared problem sequence.
     const problemNumber = useMemo(() => {
         const pos = typeof getPos === 'function' ? getPos() : undefined;
         if (pos === undefined) return 1;
@@ -150,37 +175,61 @@ export default function InteractiveGraphView({
 
     const setAxis = (patch: Partial<GraphAxisConfig>): void =>
         updateAttributes({ axisConfig: { ...axisConfig, ...patch } });
-    const setInteraction = (patch: Partial<GraphInteraction>): void =>
-        updateAttributes({ interaction: { ...interaction, ...patch } });
 
-    // The author board reports handle positions; they ARE correctPoints.
-    const onPointsChange = (points: [number, number][]): void =>
-        setInteraction({ correctPoints: points });
+    // Author drags handles → the answer. plot_point: the handles ARE the correct
+    // points. plot_function: fit the family curve through the handles and store
+    // its parameters (any handles on the same line give the same answer).
+    const onPointsChange = (points: [number, number][]): void => {
+        if (interaction.type === 'plot_point') {
+            updateAttributes({ interaction: { ...interaction, correctPoints: points } });
+        } else {
+            const fit = fitFunction(interaction.model.family, points);
+            if (fit && fit.family === 'linear') {
+                updateAttributes({
+                    interaction: {
+                        type: 'plot_function',
+                        model: { ...interaction.model, slope: round2(fit.slope), intercept: round2(fit.intercept) },
+                    },
+                });
+            }
+        }
+    };
 
-    // Add / remove answer handles (how many points the student must plot).
+    const switchType = (type: 'plot_point' | 'plot_function'): void => {
+        if (type === interaction.type) return;
+        updateAttributes({
+            interaction: type === 'plot_function' ? defaultFunctionInteraction() : defaultPointInteraction(),
+        });
+    };
+
     const setPointCount = (next: number): void => {
+        if (interaction.type !== 'plot_point') return;
         const n = Math.max(1, Math.min(next, 6));
         const cur = interaction.correctPoints;
         if (n === cur.length) return;
-        let points: [number, number][];
-        if (n < cur.length) {
-            points = cur.slice(0, n);
-        } else {
-            points = [...cur];
-            while (points.length < n) points.push([points.length, 0]);
-        }
-        setInteraction({ correctPoints: points });
+        const points =
+            n < cur.length
+                ? cur.slice(0, n)
+                : [...cur, ...Array.from({ length: n - cur.length }, (_, i) => [cur.length + i, 0] as [number, number])];
+        updateAttributes({ interaction: { ...interaction, correctPoints: points } });
     };
+
+    const setModel = (patch: Partial<LinearFunctionModel>): void => {
+        if (interaction.type !== 'plot_function') return;
+        updateAttributes({ interaction: { type: 'plot_function', model: { ...interaction.model, ...patch } } });
+    };
+
+    const answerText =
+        interaction.type === 'plot_point'
+            ? interaction.correctPoints.map((p) => `(${p[0]}, ${p[1]})`).join(', ')
+            : formatLine(interaction.model);
 
     return (
         <NodeViewWrapper
             className={`interactive-graph-block${selected ? ' is-selected' : ''}`}
             data-block-id={node.attrs.id ?? ''}
         >
-            <div
-                contentEditable={false}
-                style={{ userSelect: 'none' }}
-            >
+            <div contentEditable={false} style={{ userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
                     <strong style={{ fontSize: '0.85rem', color: '#334155' }}>
                         {problemNumber}. Interactive graph
@@ -190,10 +239,11 @@ export default function InteractiveGraphView({
                         <select
                             value={interaction.type}
                             disabled={!isEditable}
-                            onChange={() => { /* only plot_point for now */ }}
+                            onChange={(e) => switchType(e.target.value as 'plot_point' | 'plot_function')}
                             onKeyDown={(e) => e.stopPropagation()}
                         >
                             <option value="plot_point">Plot a point</option>
+                            <option value="plot_function">Plot a line</option>
                         </select>
                     </label>
                 </div>
@@ -205,28 +255,27 @@ export default function InteractiveGraphView({
                 />
 
                 <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
-                    Drag the {interaction.correctPoints.length > 1 ? 'points' : 'point'} to set the
-                    correct answer. Answer:{' '}
-                    <code>
-                        {interaction.correctPoints
-                            .map((p) => `(${p[0]}, ${p[1]})`)
-                            .join(', ')}
-                    </code>
+                    {interaction.type === 'plot_point'
+                        ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} to set the correct answer. `
+                        : 'Drag the two handles to set the line. '}
+                    Answer: <code>{answerText}</code>
                 </p>
 
-                <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
-                    Points students plot:{' '}
-                    <input
-                        type="number"
-                        min={1}
-                        max={6}
-                        value={interaction.correctPoints.length}
-                        disabled={!isEditable}
-                        style={{ width: '3rem' }}
-                        onChange={(e) => setPointCount(Math.trunc(num(e.target.value, 1)))}
-                        onKeyDown={(e) => e.stopPropagation()}
-                    />
-                </label>
+                {interaction.type === 'plot_point' && (
+                    <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
+                        Points students plot:{' '}
+                        <input
+                            type="number"
+                            min={1}
+                            max={6}
+                            value={interaction.correctPoints.length}
+                            disabled={!isEditable}
+                            style={{ width: '3rem' }}
+                            onChange={(e) => setPointCount(Math.trunc(num(e.target.value, 1)))}
+                            onKeyDown={(e) => e.stopPropagation()}
+                        />
+                    </label>
+                )}
             </div>
 
             <div style={{ marginTop: '0.5rem' }}>
@@ -300,41 +349,36 @@ export default function InteractiveGraphView({
                                 </label>
                             </div>
 
-                            {/* Tolerance — slider + numeric (both, per author pref). */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span>Tolerance</span>
-                                <input
-                                    type="range"
-                                    min={0}
-                                    max={2}
-                                    step={0.05}
+                            {/* Tolerance — differs by interaction. Both slider + numeric. */}
+                            {interaction.type === 'plot_point' ? (
+                                <ToleranceRow
+                                    label="Tolerance"
                                     value={interaction.tolerance}
                                     disabled={!isEditable}
-                                    onChange={(e) => setInteraction({ tolerance: num(e.target.value, interaction.tolerance) })}
+                                    onChange={(v) => updateAttributes({ interaction: { ...interaction, tolerance: v } })}
                                 />
-                                <input
-                                    type="number"
-                                    min={0}
-                                    step={0.05}
-                                    value={interaction.tolerance}
-                                    disabled={!isEditable}
-                                    style={{ width: '4rem' }}
-                                    onChange={(e) => {
-                                        const v = num(e.target.value, interaction.tolerance);
-                                        if (v >= 0) setInteraction({ tolerance: v });
-                                    }}
-                                    onKeyDown={(e) => e.stopPropagation()}
-                                />
-                                <span style={{ color: '#94a3b8' }}>graph units</span>
-                            </div>
+                            ) : (
+                                <>
+                                    <ToleranceRow
+                                        label="Slope tolerance"
+                                        value={interaction.model.slopeTolerance}
+                                        disabled={!isEditable}
+                                        onChange={(v) => setModel({ slopeTolerance: v })}
+                                    />
+                                    <ToleranceRow
+                                        label="Intercept tolerance"
+                                        value={interaction.model.interceptTolerance}
+                                        disabled={!isEditable}
+                                        onChange={(v) => setModel({ interceptTolerance: v })}
+                                    />
+                                </>
+                            )}
 
                             <div>
                                 <span style={{ display: 'block', marginBottom: '0.2rem' }}>Worked solution</span>
                                 <InlineRichTextEditor
                                     value={solution}
-                                    onChange={(nodes) =>
-                                        updateAttributes({ solution: nodes.length > 0 ? nodes : null })
-                                    }
+                                    onChange={(nodes) => updateAttributes({ solution: nodes.length > 0 ? nodes : null })}
                                     ariaLabel="Worked solution"
                                 />
                             </div>
@@ -354,5 +398,46 @@ export default function InteractiveGraphView({
                 </div>
             )}
         </NodeViewWrapper>
+    );
+}
+
+// A tolerance control: slider + numeric input side by side (author preference).
+function ToleranceRow({
+    label,
+    value,
+    disabled,
+    onChange,
+}: {
+    label: string;
+    value: number;
+    disabled: boolean;
+    onChange: (v: number) => void;
+}) {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ minWidth: '9rem' }}>{label}</span>
+            <input
+                type="range"
+                min={0}
+                max={2}
+                step={0.05}
+                value={value}
+                disabled={disabled}
+                onChange={(e) => onChange(num(e.target.value, value))}
+            />
+            <input
+                type="number"
+                min={0}
+                step={0.05}
+                value={value}
+                disabled={disabled}
+                style={{ width: '4rem' }}
+                onChange={(e) => {
+                    const v = num(e.target.value, value);
+                    if (v >= 0) onChange(v);
+                }}
+                onKeyDown={(e) => e.stopPropagation()}
+            />
+        </div>
     );
 }

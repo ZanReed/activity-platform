@@ -86,6 +86,55 @@ describe('InteractiveGraphBlock', () => {
   });
 });
 
+describe('plot_function interaction (linear)', () => {
+  const funcGraph = () => ({
+    id: crypto.randomUUID(),
+    type: 'interactive_graph' as const,
+    prompt: [],
+    axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+    interaction: {
+      type: 'plot_function' as const,
+      model: { family: 'linear' as const, slope: 2, intercept: 3 },
+    },
+  });
+
+  it('parses a linear plot_function with tolerance defaults', () => {
+    const parsed = InteractiveGraphBlock.parse(funcGraph());
+    expect(parsed.interaction.type).toBe('plot_function');
+    if (parsed.interaction.type === 'plot_function' && parsed.interaction.model.family === 'linear') {
+      expect(parsed.interaction.model.slope).toBe(2);
+      expect(parsed.interaction.model.intercept).toBe(3);
+      expect(parsed.interaction.model.slopeTolerance).toBe(0.1);
+      expect(parsed.interaction.model.interceptTolerance).toBe(0.1);
+    }
+  });
+
+  it('accepts custom tolerances', () => {
+    const parsed = InteractiveGraphBlock.parse({
+      ...funcGraph(),
+      interaction: {
+        type: 'plot_function',
+        model: { family: 'linear', slope: 2, intercept: 3, slopeTolerance: 0.25, interceptTolerance: 0.5 },
+      },
+    });
+    if (parsed.interaction.type === 'plot_function' && parsed.interaction.model.family === 'linear') {
+      expect(parsed.interaction.model.slopeTolerance).toBe(0.25);
+    }
+  });
+
+  it('rejects an unknown family', () => {
+    const bad = {
+      ...funcGraph(),
+      interaction: { type: 'plot_function', model: { family: 'cubic', slope: 1, intercept: 0 } },
+    };
+    expect(InteractiveGraphBlock.safeParse(bad).success).toBe(false);
+  });
+
+  it('is a member of the Block union', () => {
+    expect(Block.safeParse(InteractiveGraphBlock.parse(funcGraph())).success).toBe(true);
+  });
+});
+
 describe('createInteractiveGraphBlock factory', () => {
   it('produces schema-valid output', () => {
     expect(InteractiveGraphBlock.safeParse(createInteractiveGraphBlock()).success).toBe(true);

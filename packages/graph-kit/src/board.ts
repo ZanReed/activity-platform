@@ -441,6 +441,13 @@ export interface PointAnswerConfig {
   count?: number;
   /** Per-handle start positions; defaults to points spread across the x-axis. */
   starts?: [number, number][];
+  /**
+   * plot_function: given the current handle positions, return the curve fn to
+   * draw through them (or null when they don't define one — e.g. a vertical
+   * line). When set, the board plots a live curve that follows the handles as
+   * they drag. Absent for plain plot_point.
+   */
+  deriveCurve?: (points: [number, number][]) => ((x: number) => number) | null;
 }
 
 export interface PointAnswerHooks {
@@ -546,6 +553,24 @@ export function createPointAnswerBoard(
 
   const currentPoints = (): [number, number][] =>
     points.map((p) => [p.X(), p.Y()]);
+
+  // plot_function: a single curve drawn THROUGH the handles. The functiongraph
+  // holds a closure that re-derives the curve from the live handle positions on
+  // every board.update(), so dragging a handle re-plots the curve for free (no
+  // manual redraw). NaN where the points don't currently define a curve.
+  if (config.deriveCurve) {
+    const derive = config.deriveCurve;
+    board.create(
+      'functiongraph',
+      [
+        (x: number): number => {
+          const fn = derive(currentPoints());
+          return fn ? fn(x) : NaN;
+        },
+      ],
+      { strokeColor: ANSWER_COLOR, strokeWidth: 2, highlight: false, fixed: true },
+    );
+  }
 
   // Enlarge the active handle so keyboard users can see which one the arrows
   // move. No-op visual noise for the single-handle case (index always 0).

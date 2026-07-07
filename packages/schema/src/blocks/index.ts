@@ -54,6 +54,8 @@ export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,
   PointInteraction,
+  FunctionInteraction,
+  FunctionModel,
   GraphInteraction,
 } from './interactive-graph.js';
 export type { HeadingLevel } from './heading.js';

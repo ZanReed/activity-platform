@@ -47,11 +47,44 @@ export const PointInteraction = z.object({
 });
 export type PointInteraction = z.infer<typeof PointInteraction>;
 
-// A one-member discriminated union today; adding plot_line / shade_region is a
-// new member here + a new scorer in the kit. Kept as a union (not a bare
-// object) so the discriminant `type` is present in the wire format from the
-// start and consumers branch on it uniformly.
-export const GraphInteraction = z.discriminatedUnion('type', [PointInteraction]);
+// ---- plot_function: plot a curve of a given family ---------------------------
+// The student places N points and the widget fits + draws a curve THROUGH them
+// (N = the family's parameter count: linear 2, quadratic 3, exponential 2,
+// logarithmic 2). Scored on the fitted curve's PARAMETERS (not the exact point
+// positions), so any points on the correct curve are accepted. The parameters
+// come from the SAME regression fit engine the calculator uses (fitLinear, …).
+//
+// `model` is a discriminated union on `family`: linear ships now; quadratic /
+// exponential / logarithmic are each a new member here + a new fit branch in the
+// kit's scorer (the fit functions already exist) — so "map 3 points → a parabola
+// down the road" is additive, not a rewrite.
+const LinearModel = z.object({
+  family: z.literal('linear'),
+  slope: z.number(),
+  intercept: z.number(),
+  slopeTolerance: z.number().nonnegative().default(0.1),
+  interceptTolerance: z.number().nonnegative().default(0.1),
+});
+export type LinearModel = z.infer<typeof LinearModel>;
+
+// One member today; quadratic { a, b, c, … } / exponential / logarithmic slot in
+// here. Discriminated on `family` so consumers branch uniformly.
+export const FunctionModel = z.discriminatedUnion('family', [LinearModel]);
+export type FunctionModel = z.infer<typeof FunctionModel>;
+
+export const FunctionInteraction = z.object({
+  type: z.literal('plot_function'),
+  model: FunctionModel,
+});
+export type FunctionInteraction = z.infer<typeof FunctionInteraction>;
+
+// The interaction union. plot_point + plot_function today; shade_region etc. are
+// future members. Kept discriminated on `type` so the wire format always carries
+// it and consumers branch uniformly.
+export const GraphInteraction = z.discriminatedUnion('type', [
+  PointInteraction,
+  FunctionInteraction,
+]);
 export type GraphInteraction = z.infer<typeof GraphInteraction>;
 
 // ---- The block --------------------------------------------------------------

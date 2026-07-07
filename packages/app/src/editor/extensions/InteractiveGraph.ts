@@ -30,10 +30,42 @@ export interface GraphAxisConfig {
     showGrid: boolean;
     snapToGrid: boolean;
 }
-export interface GraphInteraction {
+export interface PointInteractionAttr {
     type: 'plot_point';
     correctPoints: [number, number][];
     tolerance: number;
+}
+export interface LinearFunctionModel {
+    family: 'linear';
+    slope: number;
+    intercept: number;
+    slopeTolerance: number;
+    interceptTolerance: number;
+}
+export interface FunctionInteractionAttr {
+    type: 'plot_function';
+    model: LinearFunctionModel; // future: | QuadraticModel | …
+}
+export type GraphInteraction = PointInteractionAttr | FunctionInteractionAttr;
+
+// A fresh plot_function interaction (linear, y = x) — used when the author
+// switches the picker to "Plot a line".
+export function defaultFunctionInteraction(): FunctionInteractionAttr {
+    return {
+        type: 'plot_function',
+        model: {
+            family: 'linear',
+            slope: 1,
+            intercept: 0,
+            slopeTolerance: 0.1,
+            interceptTolerance: 0.1,
+        },
+    };
+}
+
+// A fresh plot_point interaction (one point at the origin).
+export function defaultPointInteraction(): PointInteractionAttr {
+    return { type: 'plot_point', correctPoints: [[0, 0]], tolerance: 0.1 };
 }
 
 const defaults = createInteractiveGraphBlock();

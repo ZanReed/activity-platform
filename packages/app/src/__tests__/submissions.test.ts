@@ -308,11 +308,40 @@ describe('buildActivityIndex', () => {
         expect(g.problemNumber).toBe(2);
         expect(g.problemPrompt).toBe('Plot the point.');
         expect(g.interactionType).toBe('plot_point');
-        expect(g.correctPoints).toEqual([[3, 4]]);
-        expect(g.tolerance).toBe(0.1);
+        expect(g.answerSummary).toBe('(3, 4)');
         expect(g.sectionTitle).toBe('Plot');
         // The graph block is not mistaken for a blank.
         expect(idx.blanks.size).toBe(0);
+    });
+
+    it('summarizes a plot_function (linear) answer as an equation', () => {
+        const funcDoc: ActivityDocument = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta: {
+                title: 'Lines', course: 'Algebra I', submissionMode: 'free',
+                revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet',
+                answerFeedback: 'on_check', skills: [],
+            },
+            sections: [
+                {
+                    id: U(410), isCheckpoint: false,
+                    blocks: [
+                        {
+                            id: U(510), type: 'interactive_graph', number: 1,
+                            prompt: [{ type: 'text', text: 'Graph y = 2x + 3.', marks: [] }],
+                            axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+                            interaction: {
+                                type: 'plot_function',
+                                model: { family: 'linear', slope: 2, intercept: 3 },
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+        const g = buildActivityIndex(funcDoc).graphs.get(U(510))!;
+        expect(g.interactionType).toBe('plot_function');
+        expect(g.answerSummary).toBe('y = 2x + 3');
     });
 });
 
