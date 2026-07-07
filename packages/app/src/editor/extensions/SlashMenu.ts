@@ -17,12 +17,15 @@ export const SlashMenu = Extension.create({
                 char: '/',
                 startOfLine: true,
 
-                items: ({ query }) => {
+                items: ({ query, editor }) => {
                     const q = query.toLowerCase();
                     return slashMenuItems.filter(
                         (item) =>
-                        item.title.toLowerCase().includes(q) ||
-                        (item.keywords?.some((kw) => kw.includes(q)) ?? false),
+                        // Contextual items (e.g. Answer blank, only valid
+                        // inside a problem) are hidden where they can't apply.
+                        (item.isEnabled?.(editor) ?? true) &&
+                        (item.title.toLowerCase().includes(q) ||
+                        (item.keywords?.some((kw) => kw.includes(q)) ?? false)),
                     );
                 },
 

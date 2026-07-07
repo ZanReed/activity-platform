@@ -2,6 +2,7 @@ import type { Editor } from '@tiptap/react';
 import type { ReactNode } from 'react';
 import ColumnWidthPicker from './components/ColumnWidthPicker';
 import CellHeightControl from './components/CellHeightControl';
+import InsertMenu from './components/InsertMenu';
 
 // editor.isActive(markName) returns false when a mark is "armed" on a collapsed
 // cursor — ProseMirror's stored-marks state, applied to the next typed character.
@@ -16,18 +17,24 @@ function isMarkActive(editor: Editor, markName: string): boolean {
 interface ToolbarProps {
     editor: Editor | null;
     // 'activity' (default) is the full toolbar. 'reference' is the constrained
-    // set for the reference-panel editor: same text / math / list / columns /
-    // image controls, but no Problem, Blank, or Section buttons (a panel has no
-    // questions and no sections). Additive — the main editor passes nothing and
-    // renders exactly as before.
+    // set for the reference-panel editor: same selection formatting and column
+    // controls, but the "+ Insert" dropdown only offers the reference-safe
+    // items (no Section, questions, or graphs — a panel has neither questions
+    // nor sections). Additive — the main editor passes nothing.
     variant?: 'activity' | 'reference';
 }
 
+// Three tiers (editor toolbar reorganization, 2026-07-08):
+// 1. Flat buttons — ONLY selection formatting (marks + the inline-math atom).
+// 2. "+ Insert" — ALL block insertion, in one dropdown driven by
+//    slashMenuItems.ts so it and the slash menu share one item list.
+// 3. Contextual cluster — column controls render only while the selection is
+//    inside a columns block (the pattern the graph NodeView's inline controls
+//    set: controls live where/when they apply).
 export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) {
     if (!editor) return null;
 
-    const isReference = variant === 'reference';
-    const isInFillInBlank = editor.isActive('fillInBlank');
+    const inColumns = editor.isActive('columns');
 
     return (
         // sticky: on long documents the toolbar follows the viewport instead
@@ -98,210 +105,89 @@ export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) 
 
             <Divider />
 
+            {/* Inline math is selection-level (an inline atom at the cursor),
+                so it stays a flat button; every BLOCK insert lives in the
+                "+ Insert" dropdown. */}
             <ToolbarButton
                 onClick={() => editor.chain().focus().insertMathInline('x^2').run()}
+                title="Insert inline math at the cursor"
             >
                 ƒx
             </ToolbarButton>
 
-            <ToolbarButton
-                onClick={() =>
-                    editor
-                        .chain()
-                        .focus()
-                        .insertMathBlock('\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}')
-                        .run()
-                }
-            >
-                Σ
-            </ToolbarButton>
-
             <Divider />
 
-            <ToolbarButton
-                onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                active={editor.isActive('heading', { level: 1 })}
-            >
-                H1
-            </ToolbarButton>
-            <ToolbarButton
-                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                active={editor.isActive('heading', { level: 2 })}
-            >
-                H2
-            </ToolbarButton>
-            <ToolbarButton
-                onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                active={editor.isActive('heading', { level: 3 })}
-            >
-                H3
-            </ToolbarButton>
+            <InsertMenu editor={editor} variant={variant} />
 
-            <Divider />
-
-            <ToolbarButton
-                onClick={() => editor.chain().focus().toggleBulletList().run()}
-                active={editor.isActive('bulletList')}
-            >
-                • List
-            </ToolbarButton>
-            <ToolbarButton
-                onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                active={editor.isActive('orderedList')}
-            >
-                1. List
-            </ToolbarButton>
-
-            {!isReference && (
+            {/*
+              Contextual column cluster — rendered ONLY while the selection is
+              inside a columns block, instead of sitting permanently disabled.
+              Within the cluster, + / − Column still use editor.can() for
+              enablement at the schema's 2–6 bounds.
+            */}
+            {inColumns && (
                 <>
                     <Divider />
 
                     {/*
-                      Question group (Stage 13.5 Drop 3).
-                      - Problem: inserts an empty fill_in_blank block. Always enabled.
-                      - Blank: inserts an inline blank with placeholder answer "?".
-                        Enabled only when cursor is inside a fill_in_blank body.
+                      Grid-lines toggle — cycles the block's tri-state
+                      (inherit → on → off → inherit). The label reflects the
+                      current state so the author sees whether the block defers
+                      to the activity default ("Grid: auto") or overrides it
+                      ("Grid: on"/"Grid: off"). Active styling lights up only
+                      for an explicit "on".
                     */}
                     <ToolbarButton
                         onClick={() =>
-                            editor.chain().focus().insertFillInBlank().run()
+                            editor.chain().focus().cycleColumnsGridLines().run()
                         }
-                        title="Insert a fill-in-the-blank problem"
+                        active={
+                            editor.getAttributes('columns').gridLines === 'on'
+                        }
+                        title="Cycle grid lines on the selected columns block (auto → on → off)"
                     >
-                        Problem
+                        {`Grid: ${
+                            editor.getAttributes('columns').gridLines === 'on'
+                                ? 'on'
+                                : editor.getAttributes('columns').gridLines ===
+                                    'off'
+                                  ? 'off'
+                                  : 'auto'
+                        }`}
                     </ToolbarButton>
                     <ToolbarButton
-                        onClick={() => {
-                            const { from } = editor.state.selection;
-                            editor
-                                .chain()
-                                .focus()
-                                .insertBlank({ answer: '?' })
-                                .run();
-                            requestAnimationFrame(() => {
-                                const node = editor.state.doc.nodeAt(from);
-                                if (node && node.type.name === 'blank') {
-                                    editor.commands.setNodeSelection(from);
-                                }
-                            });
-                        }}
-                        disabled={!isInFillInBlank}
-                        title={
-                            isInFillInBlank
-                                ? 'Insert an answer blank at the cursor'
-                                : 'Position cursor inside a problem to insert a blank'
-                        }
+                        onClick={() => editor.chain().focus().addColumn().run()}
+                        disabled={!editor.can().addColumn()}
+                        title="Add a column to the selected layout (max 6)"
                     >
-                        Blank
+                        + Column
                     </ToolbarButton>
+                    <ToolbarButton
+                        onClick={() => editor.chain().focus().removeColumn().run()}
+                        disabled={!editor.can().removeColumn()}
+                        title="Remove the current column (min 2)"
+                    >
+                        − Column
+                    </ToolbarButton>
+                    {/*
+                      Width presets — a visual dropdown (ColumnWidthPicker) of
+                      layout thumbnails. Options depend on the column count
+                      (2-col: even / wide L / wide R; 3-col adds wide C and the
+                      three narrow-* options); 4–6-column blocks are even-only
+                      so the trigger disables.
+                    */}
+                    <ColumnWidthPicker editor={editor} />
+                    {/*
+                      Reserved work space — a min-height floor on the active
+                      cell (schema Column.minHeight, rem). Auto / quick presets
+                      / numeric input; the cell still grows with content.
+                      Control-first by design (no drag gesture — see the
+                      cancelled column-divider lesson in
+                      docs/design/variable-block-sizing.md).
+                    */}
+                    <CellHeightControl editor={editor} />
                 </>
             )}
-
-            <Divider />
-
-            {/*
-              Structure group (Stage 13.5 polish).
-              - Section: inserts a section break. The SectionBreakView
-                renders an inline title input and Checkpoint checkbox, so
-                authors edit those by clicking into the inserted break.
-                Always enabled — section breaks are top-level structural
-                blocks that can go anywhere at doc level. Hidden in the
-                reference-panel toolbar (a panel has no sections).
-            */}
-            {!isReference && (
-                <ToolbarButton
-                    onClick={() =>
-                        editor.chain().focus().insertSectionBreak().run()
-                    }
-                    title="Insert a section break"
-                >
-                    Section
-                </ToolbarButton>
-            )}
-            <ToolbarButton
-                onClick={() => editor.chain().focus().insertColumns(2).run()}
-                title="Insert a two-column layout"
-            >
-                Columns
-            </ToolbarButton>
-            {/*
-              Image — inserts an image block and selects it so the anchored
-              edit popover opens immediately for the author to paste a URL.
-              Always enabled (an image is a top-level structural block).
-            */}
-            <ToolbarButton
-                onClick={() => editor.chain().focus().insertImage().run()}
-                title="Insert an image"
-            >
-                Image
-            </ToolbarButton>
-            {/*
-              Grid-lines toggle — contextual: enabled only when the selection
-              is inside a columns block. Cycles the block's tri-state
-              (inherit → on → off → inherit). The label reflects the current
-              state so the author sees whether the block defers to the activity
-              default ("Grid: auto") or overrides it ("Grid: on"/"Grid: off").
-              Active styling lights up only for an explicit "on".
-            */}
-            <ToolbarButton
-                onClick={() =>
-                    editor.chain().focus().cycleColumnsGridLines().run()
-                }
-                disabled={!editor.isActive('columns')}
-                active={
-                    editor.isActive('columns') &&
-                    editor.getAttributes('columns').gridLines === 'on'
-                }
-                title="Cycle grid lines on the selected columns block (auto → on → off)"
-            >
-                {editor.isActive('columns')
-                    ? `Grid: ${
-                          editor.getAttributes('columns').gridLines === 'on'
-                              ? 'on'
-                              : editor.getAttributes('columns').gridLines ===
-                                  'off'
-                                ? 'off'
-                                : 'auto'
-                      }`
-                    : 'Grid'}
-            </ToolbarButton>
-            {/*
-              Add / remove column — contextual, mirroring the Grid toggle.
-              editor.can() reflects the schema's 2–6 bounds (the commands
-              return false at the min/max), so the buttons disable at the
-              limits and when the selection isn't in a columns block.
-            */}
-            <ToolbarButton
-                onClick={() => editor.chain().focus().addColumn().run()}
-                disabled={!editor.can().addColumn()}
-                title="Add a column to the selected layout (max 6)"
-            >
-                + Column
-            </ToolbarButton>
-            <ToolbarButton
-                onClick={() => editor.chain().focus().removeColumn().run()}
-                disabled={!editor.can().removeColumn()}
-                title="Remove the current column (min 2)"
-            >
-                − Column
-            </ToolbarButton>
-            {/*
-              Width presets — contextual, mirroring the Grid toggle. A visual
-              dropdown (ColumnWidthPicker) of layout thumbnails the author picks
-              directly. Options depend on the column count (2-col: even / wide L
-              / wide R; 3-col adds wide C and the three narrow-* options); 4–6-
-              column blocks are even-only so the trigger disables. The editor now
-              previews the real widths (flex-grow), so a pick is visible at once.
-            */}
-            <ColumnWidthPicker editor={editor} />
-            {/*
-              Reserved work space — a min-height floor on the active cell
-              (schema Column.minHeight, rem). Auto / quick presets / numeric
-              input; the cell still grows with content. Control-first by
-              design (no drag gesture — see the cancelled column-divider
-              lesson in docs/design/variable-block-sizing.md).
-            */}
-            <CellHeightControl editor={editor} />
         </div>
     );
 }
