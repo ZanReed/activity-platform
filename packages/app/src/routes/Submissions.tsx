@@ -75,6 +75,12 @@ function formatWhen(iso: string): string {
     });
 }
 
+// "(3, 4), (-3, -2)" — student/answer point lists for the graph detail view.
+function formatPoints(points: [number, number][]): string {
+    if (points.length === 0) return '—';
+    return points.map((p) => `(${p[0]}, ${p[1]})`).join(', ');
+}
+
 function Shell({ children }: { children: ReactNode }) {
     return (
         <main className="min-h-screen bg-slate-50 p-8">
@@ -204,10 +210,26 @@ function SubmissionDetail({
 
     const blankCount = Object.keys(responses.blanks).length;
 
+    // Interactive-graph responses (Stage 5), ordered by problem number then id.
+    const graphRows = responses.graphResponses
+        ? Object.entries(responses.graphResponses)
+              .map(([blockId, resp]) => ({
+                  blockId,
+                  info: index.graphs.get(blockId),
+                  resp,
+              }))
+              .sort((a, b) => {
+                  const an = a.info?.problemNumber ?? Infinity;
+                  const bn = b.info?.problemNumber ?? Infinity;
+                  if (an !== bn) return an - bn;
+                  return a.blockId.localeCompare(b.blockId);
+              })
+        : [];
+
     return (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
-        {blankCount === 0 ? (
-            <p className="text-sm text-slate-500">No blank responses recorded.</p>
+        {blankCount === 0 && graphRows.length === 0 ? (
+            <p className="text-sm text-slate-500">No responses recorded.</p>
         ) : (
             <div className="space-y-4">
             {problems.map((p) => (
@@ -265,6 +287,59 @@ function SubmissionDetail({
                 </table>
                 </div>
             ))}
+
+            {graphRows.length > 0 && (
+                <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Graph questions
+                </p>
+                <table className="mt-2 w-full text-sm">
+                <thead>
+                <tr className="text-left text-xs text-slate-400">
+                <th className="py-1 pr-3 font-medium">Problem</th>
+                <th className="py-1 pr-3 font-medium">Answer key</th>
+                <th className="py-1 pr-3 font-medium">Student plotted</th>
+                <th className="py-1 pr-3 font-medium">Result</th>
+                <th className="py-1 font-medium">Confidence</th>
+                </tr>
+                </thead>
+                <tbody>
+                {graphRows.map((g) => (
+                    <tr key={g.blockId} className="border-t border-slate-200">
+                    <td className="py-1 pr-3 text-slate-700">
+                    {g.info?.problemNumber != null
+                        ? `Problem ${g.info.problemNumber}`
+                        : 'Graph'}
+                    {g.info?.problemPrompt && (
+                        <span className="block text-xs text-slate-400">
+                        {g.info.problemPrompt}
+                        </span>
+                    )}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-600">
+                    {g.info ? formatPoints(g.info.correctPoints) : '—'}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-900">
+                    {formatPoints(g.resp.studentPoints)}
+                    </td>
+                    <td className="py-1 pr-3">
+                    {g.resp.correct ? (
+                        <span className="font-medium text-green-700">✓ correct</span>
+                    ) : (
+                        <span className="font-medium text-red-600">✗ incorrect</span>
+                    )}
+                    </td>
+                    <td className="py-1 text-slate-600">
+                    {g.resp.confidence
+                        ? CONFIDENCE_LABELS[g.resp.confidence]
+                        : '—'}
+                    </td>
+                    </tr>
+                ))}
+                </tbody>
+                </table>
+                </div>
+            )}
 
             {checkpoints.length > 0 && (
                 <div>

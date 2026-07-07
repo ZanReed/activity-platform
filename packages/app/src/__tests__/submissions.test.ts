@@ -266,6 +266,54 @@ describe('buildActivityIndex', () => {
         // Only the two blanks from the fill_in_blank block are present.
         expect([...idx.blanks.keys()].sort()).toEqual([U(300), U(301)].sort());
     });
+
+    it('indexes an interactive_graph block with prompt + answer key', () => {
+        const graphDoc: ActivityDocument = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta: {
+                title: 'Graphing',
+                course: 'Algebra I',
+                submissionMode: 'free',
+                revisionMode: 'free',
+                gradingMode: 'auto',
+                activityType: 'worksheet',
+                answerFeedback: 'on_check',
+                skills: [],
+            },
+            sections: [
+                {
+                    id: U(400),
+                    title: 'Plot',
+                    isCheckpoint: true,
+                    blocks: [
+                        {
+                            id: U(500),
+                            type: 'interactive_graph',
+                            number: 2,
+                            prompt: [{ type: 'text', text: 'Plot the point.', marks: [] }],
+                            axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+                            interaction: {
+                                type: 'plot_point',
+                                correctPoints: [[3, 4]],
+                                tolerance: 0.1,
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(graphDoc);
+        expect(idx.graphs.size).toBe(1);
+        const g = idx.graphs.get(U(500))!;
+        expect(g.problemNumber).toBe(2);
+        expect(g.problemPrompt).toBe('Plot the point.');
+        expect(g.interactionType).toBe('plot_point');
+        expect(g.correctPoints).toEqual([[3, 4]]);
+        expect(g.tolerance).toBe(0.1);
+        expect(g.sectionTitle).toBe('Plot');
+        // The graph block is not mistaken for a blank.
+        expect(idx.blanks.size).toBe(0);
+    });
 });
 
 describe('formatScore', () => {

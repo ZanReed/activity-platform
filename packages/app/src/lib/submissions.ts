@@ -135,8 +135,24 @@ export interface SectionInfo {
     order: number; // 1-based position in the document
 }
 
+// One interactive_graph block, for reading its submission back (Stage 5).
+export interface GraphInfo {
+    blockId: string;
+    problemNumber: number | null;
+    problemPrompt: string; // reconstructed from the block's prompt inline nodes
+    interactionType: string; // 'plot_point' (future: 'plot_line', …)
+    // The authored correct point(s) — shown as the answer key next to what the
+    // student plotted. Present for plot_point; empty for interaction types this
+    // build doesn't model yet.
+    correctPoints: [number, number][];
+    tolerance: number;
+    sectionId: string;
+    sectionTitle: string | null;
+}
+
 export interface ActivityIndex {
     blanks: Map<string, BlankInfo>;
+    graphs: Map<string, GraphInfo>;
     sections: Map<string, SectionInfo>;
 }
 
@@ -169,6 +185,7 @@ function canonicalAnswer(answer: string, acceptable: string[]): string {
 // blocks carry blanks in Phase 1, so other block types are skipped.
 export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
     const blanks = new Map<string, BlankInfo>();
+    const graphs = new Map<string, GraphInfo>();
     const sections = new Map<string, SectionInfo>();
 
     doc.sections.forEach((section, idx) => {
@@ -179,6 +196,25 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
         });
 
         for (const block of section.blocks) {
+            if (block.type === 'interactive_graph') {
+                graphs.set(block.id, {
+                    blockId: block.id,
+                    problemNumber: block.number ?? null,
+                    problemPrompt: reconstructPrompt(block.prompt),
+                    interactionType: block.interaction.type,
+                    correctPoints:
+                        block.interaction.type === 'plot_point'
+                            ? block.interaction.correctPoints
+                            : [],
+                    tolerance:
+                        block.interaction.type === 'plot_point'
+                            ? block.interaction.tolerance
+                            : 0,
+                    sectionId: section.id,
+                    sectionTitle: section.title ?? null,
+                });
+                continue;
+            }
             if (block.type !== 'fill_in_blank') continue;
             const prompt = reconstructPrompt(block.content);
 
@@ -235,7 +271,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
         }
     });
 
-    return { blanks, sections };
+    return { blanks, graphs, sections };
 }
 
 // ---- Score formatting -------------------------------------------------------
