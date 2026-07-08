@@ -16,6 +16,7 @@ import {
     formatPoints,
     formatRay,
     formatSegment,
+    rayKeyShape,
     type GraphAuthorHandle,
     type GraphDisplayHandle,
 } from '@activity/graph-kit';
@@ -142,14 +143,23 @@ function GraphAuthorBoard({
     axisConfig,
     interaction,
     onPointsChange,
+    onLinearChange,
 }: {
     axisConfig: GraphAxisConfig;
     interaction: GraphInteraction;
     onPointsChange: (points: [number, number][]) => void;
+    onLinearChange?: (out: {
+        points: [number, number][];
+        shape: 'ray_positive' | 'ray_negative' | 'segment' | null;
+        rayEndpointStyle: 'open' | 'closed';
+        segStyles: ['open' | 'closed', 'open' | 'closed'];
+    }) => void;
 }) {
     const hostRef = useRef<HTMLDivElement>(null);
     const cbRef = useRef(onPointsChange);
     cbRef.current = onPointsChange;
+    const linearCbRef = useRef(onLinearChange);
+    linearCbRef.current = onLinearChange;
 
     const family =
         interaction.type === 'plot_function'
@@ -188,13 +198,17 @@ function GraphAuthorBoard({
 
     // Remount only on axis + interaction type + family + handle count — never on
     // the answer PARAM values (drags update those and must not cancel the drag).
+    // plot_ray ↔ plot_segment normalize to one token: the shape pills swap the
+    // stored TYPE, and remounting mid-toggle would rebuild the board under the
+    // teacher's pointer.
+    const typeKey = interaction.type === 'plot_segment' ? 'plot_ray' : interaction.type;
     const key = useMemo(
-        () => JSON.stringify([axisConfig, interaction.type, family, count]),
+        () => JSON.stringify([axisConfig, typeKey, family, count]),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [
             axisConfig.xMin, axisConfig.xMax, axisConfig.yMin, axisConfig.yMax,
             axisConfig.xGridStep, axisConfig.yGridStep, axisConfig.showGrid,
-            axisConfig.snapToGrid, interaction.type, family, count,
+            axisConfig.snapToGrid, typeKey, family, count,
         ],
     );
 
@@ -206,6 +220,19 @@ function GraphAuthorBoard({
         host.appendChild(el);
         let handle: GraphAuthorHandle | null = null;
         let disposed = false;
+        // Ray/segment: pre-set the shared shape controls from the stored key.
+        const linear =
+            interaction.type === 'plot_ray'
+                ? {
+                      shape: rayKeyShape(firstRay(interaction.rays)),
+                      rayEndpointStyle: firstRay(interaction.rays).fromStyle,
+                  }
+                : interaction.type === 'plot_segment'
+                  ? {
+                        shape: 'segment' as const,
+                        segStyles: firstSegment(interaction.segments).endpoints,
+                    }
+                  : undefined;
         void mountGraphAuthor(
             el,
             {
@@ -213,8 +240,12 @@ function GraphAuthorBoard({
                 axisConfig,
                 correctPoints: startRef.current,
                 family,
+                linear,
             },
-            { onChange: (pts) => cbRef.current(pts) },
+            {
+                onChange: (pts) => cbRef.current(pts),
+                onLinearChange: (out) => linearCbRef.current?.(out),
+            },
         ).then((h) => {
             if (disposed) { h.destroy(); return; }
             handle = h;
@@ -427,27 +458,50 @@ export default function InteractiveGraphView({
                     },
                 });
             }
-        } else if (interaction.type === 'plot_ray') {
-            const [from, through] = points;
-            if (from && through) {
-                updateAttributes({
-                    interaction: {
-                        type: 'plot_ray',
-                        rays: [{ ...firstRay(interaction.rays), from, through }],
-                    },
-                });
-            }
-        } else if (interaction.type === 'plot_segment') {
-            const [from, to] = points;
-            if (from && to) {
-                updateAttributes({
-                    interaction: {
-                        type: 'plot_segment',
-                        segments: [{ ...firstSegment(interaction.segments), from, to }],
-                    },
-                });
-            }
         }
+        // plot_ray / plot_segment moves arrive through onLinearChange (which
+        // carries the shape + styles alongside the points) — nothing to do here.
+    };
+
+    // Ray/segment authoring: the shared shape-toggle controls report the full
+    // drawn figure; convert it to the matching interaction. Choosing "Segment"
+    // on a ray answer (or vice versa) swaps the stored TYPE — the schema keeps
+    // its two distinct interactions while the authoring UX is one surface.
+    const onLinearChange = (out: {
+        points: [number, number][];
+        shape: 'ray_positive' | 'ray_negative' | 'segment' | null;
+        rayEndpointStyle: 'open' | 'closed';
+        segStyles: ['open' | 'closed', 'open' | 'closed'];
+    }): void => {
+        if (interaction.type !== 'plot_ray' && interaction.type !== 'plot_segment') return;
+        if (out.shape === null || out.points.length < 2) return;
+        const tolerance =
+            interaction.type === 'plot_ray'
+                ? firstRay(interaction.rays).tolerance
+                : firstSegment(interaction.segments).tolerance;
+        const [a, b] = out.points as [[number, number], [number, number]];
+        const aLesser = a[0] !== b[0] ? a[0] < b[0] : a[1] <= b[1];
+        const lesser = aLesser ? a : b;
+        const greater = aLesser ? b : a;
+        if (out.shape === 'segment') {
+            updateAttributes({
+                interaction: {
+                    type: 'plot_segment',
+                    segments: [{ from: lesser, to: greater, endpoints: out.segStyles, tolerance }],
+                },
+            });
+            return;
+        }
+        // Ray: the key's from = the endpoint (opposite the arrow), through =
+        // the other handle — the direction falls out of the shape choice.
+        const [from, through] =
+            out.shape === 'ray_positive' ? [lesser, greater] : [greater, lesser];
+        updateAttributes({
+            interaction: {
+                type: 'plot_ray',
+                rays: [{ from, through, fromStyle: out.rayEndpointStyle, tolerance }],
+            },
+        });
     };
 
     const switchType = (type: InteractionType): void => {
@@ -518,22 +572,19 @@ export default function InteractiveGraphView({
             ? '(4, 3)'
             : interaction.type === 'graph_inequality'
               ? 'y < 2x + 1  (or a boundary like y = 2x + 1)'
-              : interaction.type === 'plot_ray'
-                ? 'ray (1, 2) through (3, 4) open'
-                : interaction.type === 'plot_segment'
-                  ? 'segment (1, 2) to (3, 4)'
-                  : 'y = x + 2';
+              : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
+                ? 'ray (1, 2) through (3, 4)  or  segment (1, 2) to (3, 4)'
+                : 'y = x + 2';
     const mistakeMatchError = (raw: string): string | null => {
         if (raw.trim() === '') return 'Type the wrong answer to watch for.';
         if (interaction.type === 'plot_point') {
             return parsePointList(raw) ? null : 'Type coordinates, like (4, 3)';
         }
         if (interaction.type === 'plot_ray' || interaction.type === 'plot_segment') {
+            // Either figure is a valid anticipated mistake on either question
+            // (the classic ray mistake IS the segment version of it).
             const parsed = parseRaySegment(raw);
-            if (parsed.kind === 'error') return parsed.message;
-            if (interaction.type === 'plot_ray' && parsed.kind !== 'ray') return 'Type a ray, like ray (1, 2) through (3, 4)';
-            if (interaction.type === 'plot_segment' && parsed.kind !== 'segment') return 'Type a segment, like segment (1, 2) to (3, 4)';
-            return null;
+            return parsed.kind === 'error' ? parsed.message : null;
         }
         const parsed = parseGraphFormula(raw);
         if (parsed.kind === 'error') return parsed.message;
@@ -621,25 +672,29 @@ export default function InteractiveGraphView({
             return null;
         }
         if (interaction.type === 'plot_ray' || interaction.type === 'plot_segment') {
+            // One authoring surface for both figures: typing either kind just
+            // swaps the stored interaction type (like the shape pills do).
             const parsed = parseRaySegment(raw);
             if (parsed.kind === 'error') return parsed.message;
-            if (interaction.type === 'plot_ray') {
-                if (parsed.kind !== 'ray') return 'That is a segment — switch the question type to "Draw a segment"';
+            const tolerance =
+                interaction.type === 'plot_ray'
+                    ? firstRay(interaction.rays).tolerance
+                    : firstSegment(interaction.segments).tolerance;
+            if (parsed.kind === 'ray') {
                 updateAttributes({
                     interaction: {
                         type: 'plot_ray',
-                        rays: [{ ...firstRay(interaction.rays), from: parsed.from, through: parsed.through, fromStyle: parsed.fromStyle }],
+                        rays: [{ from: parsed.from, through: parsed.through, fromStyle: parsed.fromStyle, tolerance }],
                     },
                 });
-                return null;
+            } else {
+                updateAttributes({
+                    interaction: {
+                        type: 'plot_segment',
+                        segments: [{ from: parsed.from, to: parsed.to, endpoints: parsed.endpoints, tolerance }],
+                    },
+                });
             }
-            if (parsed.kind !== 'segment') return 'That is a ray — switch the question type to "Draw a ray"';
-            updateAttributes({
-                interaction: {
-                    type: 'plot_segment',
-                    segments: [{ ...firstSegment(interaction.segments), from: parsed.from, to: parsed.to, endpoints: parsed.endpoints }],
-                },
-            });
             return null;
         }
         if (interaction.type === 'plot_function') {
@@ -695,7 +750,11 @@ export default function InteractiveGraphView({
                     <label style={{ fontSize: '0.8rem', color: '#475569' }}>
                         {' '}Type:{' '}
                         <select
-                            value={interaction.type}
+                            // plot_ray and plot_segment share ONE picker entry — the
+                            // teacher chooses the actual figure with the same shape
+                            // pills students get, which silently swaps the stored
+                            // interaction type.
+                            value={interaction.type === 'plot_segment' ? 'plot_ray' : interaction.type}
                             disabled={!isEditable}
                             onChange={(e) => switchType(e.target.value as InteractionType)}
                             onKeyDown={(e) => e.stopPropagation()}
@@ -703,8 +762,7 @@ export default function InteractiveGraphView({
                             <option value="plot_point">Plot a point</option>
                             <option value="plot_function">Plot a line</option>
                             <option value="graph_inequality">Graph an inequality</option>
-                            <option value="plot_ray">Draw a ray</option>
-                            <option value="plot_segment">Draw a segment</option>
+                            <option value="plot_ray">Draw a ray or segment</option>
                             <option value="shade_region">Shade a region</option>
                             <option value="display">Display (static graph)</option>
                         </select>
@@ -735,6 +793,7 @@ export default function InteractiveGraphView({
                             axisConfig={axisConfig}
                             interaction={interaction}
                             onPointsChange={onPointsChange}
+                            onLinearChange={onLinearChange}
                         />
 
                         <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
@@ -744,11 +803,9 @@ export default function InteractiveGraphView({
                                   ? 'Drag the vertices to shape the correct region — or type them below. '
                                   : interaction.type === 'graph_inequality'
                                     ? 'Type the inequality below — the sign sets dotted/solid and the shaded side. Drag the handles to move the boundary. '
-                                    : interaction.type === 'plot_ray'
-                                      ? 'Drag the start point and a point the ray passes through — or type it below. '
-                                      : interaction.type === 'plot_segment'
-                                        ? 'Drag the two endpoints — or type the segment below. '
-                                        : 'Drag the handles — or type the equation below in any format. '}
+                                    : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
+                                      ? 'Drag the two handles, then use the buttons on the graph to choose ray or segment and open/closed endpoints — exactly what students will do. Or type it below. '
+                                      : 'Drag the handles — or type the equation below in any format. '}
                         </p>
                         <FormulaField
                             value={answerText}
@@ -760,11 +817,9 @@ export default function InteractiveGraphView({
                                       ? '(0, 0), (4, 0), (2, 4)'
                                       : interaction.type === 'graph_inequality'
                                         ? 'y > 2x + 1   ·   y <= x^2   ·   x >= 3'
-                                        : interaction.type === 'plot_ray'
-                                          ? 'ray (1, 2) through (3, 4) open'
-                                          : interaction.type === 'plot_segment'
-                                            ? 'segment (1, 2) to (3, 4) open closed'
-                                            : 'y = 2x + 3   ·   2x + 3y = 6   ·   x^2 - 4   ·   x = 4'
+                                        : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
+                                          ? 'ray (1, 2) through (3, 4) open   ·   segment (1, 2) to (3, 4)'
+                                          : 'y = 2x + 3   ·   2x + 3y = 6   ·   x^2 - 4   ·   x = 4'
                             }
                             onApply={applyFormula}
                         />
@@ -785,48 +840,6 @@ export default function InteractiveGraphView({
                             onKeyDown={(e) => e.stopPropagation()}
                         />
                     </label>
-                )}
-                {interaction.type === 'plot_ray' && (
-                    <label style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
-                        <input
-                            type="checkbox"
-                            checked={firstRay(interaction.rays).fromStyle === 'open'}
-                            disabled={!isEditable}
-                            onChange={(e) =>
-                                updateAttributes({
-                                    interaction: {
-                                        type: 'plot_ray',
-                                        rays: [{ ...firstRay(interaction.rays), fromStyle: e.target.checked ? 'open' : 'closed' }],
-                                    },
-                                })
-                            }
-                            onKeyDown={(e) => e.stopPropagation()}
-                        />
-                        Open start point (hollow — excluded)
-                    </label>
-                )}
-                {interaction.type === 'plot_segment' && (
-                    <span style={{ display: 'inline-flex', gap: '1rem', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
-                        {([0, 1] as const).map((which) => (
-                            <label key={which} style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={firstSegment(interaction.segments).endpoints[which] === 'open'}
-                                    disabled={!isEditable}
-                                    onChange={(e) => {
-                                        const seg = firstSegment(interaction.segments);
-                                        const endpoints: ['open' | 'closed', 'open' | 'closed'] = [...seg.endpoints];
-                                        endpoints[which] = e.target.checked ? 'open' : 'closed';
-                                        updateAttributes({
-                                            interaction: { type: 'plot_segment', segments: [{ ...seg, endpoints }] },
-                                        });
-                                    }}
-                                    onKeyDown={(e) => e.stopPropagation()}
-                                />
-                                {which === 0 ? 'Open start endpoint' : 'Open end endpoint'}
-                            </label>
-                        ))}
-                    </span>
                 )}
                 {interaction.type === 'shade_region' && (
                     <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
