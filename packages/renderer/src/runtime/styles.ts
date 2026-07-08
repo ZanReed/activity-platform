@@ -197,6 +197,12 @@ body {
   margin: 1.25rem 0;
   align-items: start;
 }
+/* The display (static-figure) variant emits no problem number, so the numbered
+ grid would auto-place its single body child into the 2.5rem gutter track and
+ crush the canvas to 40px. No gutter → no grid. */
+.block-graph-display {
+  display: block;
+}
 .graph-prompt { margin-bottom: 0.5rem; }
 .graph-prompt > :first-child { margin-top: 0; }
 .graph-prompt > :last-child { margin-bottom: 0; }
