@@ -78,9 +78,11 @@ export function renderBody(
 // or checkpoints. Carries data-block-category="scaffold" per the contract.
 //
 // Two presentations of the SAME blocks (rendered once, wrapped twice):
-//   renderReferenceToolbar — screen: a fixed bottom bar (native <details>,
-//     collapsed by default; opens upward). Zero runtime JS — the disclosure is
-//     the browser's, the positioning is CSS.
+//   renderReferenceTool — screen: a summon button + a hidden floating panel
+//     (calculator-style: draggable by its header, natively resizable). The
+//     reference-panel sidecar wires open/close/drag; without JS the panel
+//     stays hidden (published pages require JS for everything interactive —
+//     the print box below is the JS-free surface).
 //   renderReferenceBox — print: a static box at the top of the worksheet.
 // document.ts decides placement and which to emit (the print box is gated by
 // meta.print.printReferencePanel).
@@ -103,32 +105,48 @@ function referencePanelBlocks(
     .join('');
 }
 
-export function renderReferenceToolbar(
+export function renderReferenceTool(
   panel: ReferencePanel,
   opts: { gridLinesDefault: boolean },
 ): string {
   const label = panel.title ? escape(panel.title) : 'Reference';
+  const ariaTitle = panel.title ? attr(panel.title) : 'Reference';
   return (
-    '<details class="reference-panel" data-block-category="scaffold">' +
-    '<summary class="reference-panel-summary">' +
-    '<span class="reference-panel-label">' + label + '</span>' +
-    '</summary>' +
-    // Disclosed content wrapped in a plain flex-column div so the handle
-    // (DOM-first → top edge) sits above the scrollable body — independent of
-    // how the browser wraps <details> content (::details-content), which made
-    // panel-level flex ordering of body-vs-handle unreliable across versions.
-    // The panel's column-reverse floats this whole wrapper above the summary
-    // bar; inside it, normal column order puts the handle on top.
-    '<div class="reference-panel-content">' +
-    // Drag handle along the panel's TOP edge. The sidecar wires resize against
-    // it; without JS it's an inert grip. Hidden when collapsed (it lives inside
-    // the disclosure content).
-    '<div class="reference-panel-resize" aria-hidden="true" title="Drag to resize"></div>' +
-    '<div class="reference-panel-body">' +
+    // Wrapper mirrors .calculator-tool: a summon button that lives in the
+    // shared bottom-right .tool-corner cluster (document.ts) plus the panel
+    // itself. The panel markup ships in the page (content is server-rendered
+    // scaffold HTML — no kit, nothing to lazy-load); the sidecar only toggles
+    // and drags it.
+    '<div class="reference-tool" data-block-category="scaffold">' +
+    '<button type="button" class="reference-summon"' +
+    ' aria-haspopup="dialog" aria-expanded="false">' +
+    label +
+    '</button>' +
+    // Floating panel: fixed-position window (CSS anchors it bottom-left so an
+    // open calculator at bottom-right never collides). role=dialog, NON-modal
+    // — the activity stays interactive beside it, same posture as the hint
+    // popover and the calculator. tabindex="-1" so the sidecar can move focus
+    // into it on open (Escape-to-close then works from anywhere inside).
+    // Starts hidden: invisible and out of the a11y tree until summoned, and
+    // permanently so if JS never runs.
+    '<aside class="reference-float" role="dialog"' +
+    ' aria-label="' + ariaTitle + '" tabindex="-1" hidden>' +
+    // Header doubles as the drag handle (calculator pattern); the × is the
+    // explicit close affordance.
+    '<div class="reference-float-header">' +
+    '<span class="reference-float-title">' + label + '</span>' +
+    '<button type="button" class="reference-float-close"' +
+    ' aria-label="Close reference panel">&times;</button>' +
+    '</div>' +
+    // The body owns the scroll; the panel's native resize handle (CSS
+    // resize:both) sets the panel's inline width/height, which persist across
+    // close/open — session geometry memory for free, since this element is
+    // never destroyed.
+    '<div class="reference-float-body">' +
     referencePanelBlocks(panel, opts.gridLinesDefault) +
     '</div>' +
-    '</div>' +
-    '</details>'
+    '</aside>' +
+    '</div>'
   );
 }
 

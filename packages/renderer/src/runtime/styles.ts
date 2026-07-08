@@ -743,106 +743,99 @@ body {
  (formula charts, vocab lists, conversion tables…). Rendered OUTSIDE any
  .activity-section so the runtime never walks it. Two presentations of the
  same blocks:
- - screen: .reference-panel, a fixed bottom toolbar (native <details>,
- collapsed by default; opens UPWARD). Zero runtime JS — the disclosure is the
- browser's, the positioning is CSS.
+ - screen: .reference-tool, a summon button in the .tool-corner cluster + a
+ hidden floating panel (calculator-style window: header drag via the sidecar,
+ native CSS resize). The sidecar toggles it; without JS it stays hidden.
  - print: .reference-print, a static box at the top (see @media print).
  ============================================================================= */
 
-/* Screen toolbar. flex column-reverse keeps the clickable bar (the <summary>,
- which must be the first DOM child) pinned at the bottom while the opened body
- expands above it. */
-.reference-panel {
+/* Floating panel: a fixed window anchored bottom-LEFT by default so an open
+ calculator (bottom-right) never collides. The sidecar pins left/top on first
+ drag. Inline width/height written by the native resize handle persist across
+ close/open — the element is never destroyed, so session geometry is free. */
+/* display:flex on the class would silently defeat the hidden attribute (the
+ UA's [hidden]{display:none} loses to any authored display) — restate it. */
+.reference-float[hidden] { display: none; }
+.reference-float {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 100; /* above activity content; below .js-popover (1000) */
-  display: flex;
-  flex-direction: column-reverse;
-  max-height: 90vh; /* absolute safety cap; the body's max-height is the real limit */
-  background: var(--color-bg);
-  border-top: 1px solid var(--color-border);
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
-}
-.reference-panel-summary {
-  flex: 0 0 auto;
-  cursor: pointer;
-  list-style: none; /* hide the default disclosure triangle */
-  padding: 0.6rem 1rem;
-  font-weight: 600;
-  color: var(--color-accent);
-  user-select: none;
-}
-.reference-panel-summary::-webkit-details-marker { display: none; }
-/* Chevron cue: up = 'open me' (the panel rises); flips down when open. Plain
- glyphs survive grayscale. */
-.reference-panel-label::before { content: '\\25B2  '; font-size: 0.85em; }
-.reference-panel[open] .reference-panel-label::before { content: '\\25BC  '; }
-.reference-panel-body {
-  /* The body owns the height cap + scroll. Capping the BODY (not the panel)
-   with max-height + overflow is the dependency-free scroll pattern: flex-shrink
-   against a max-height-only flex container does NOT constrain children, so the
-   earlier panel-capped approach overflowed the page instead of scrolling. The
-   sidecar drives drag-resize by overriding this max-height. */
-  min-height: 0;
-  max-height: 60vh;
-  overflow: auto; /* scrolls internally when the content exceeds the cap */
-  padding: 0.25rem 1rem 1rem;
-  border-bottom: 1px solid var(--color-border);
-}
-/* Disclosed content wrapper: a plain flex column so the handle (DOM-first) sits
- at the TOP and the scrollable body below it. The browser wraps <details>
- content (::details-content), so arranging handle vs body at the PANEL level was
- unreliable across versions; owning a wrapper makes the order deterministic. The
- panel's column-reverse still floats this whole wrapper above the summary bar. */
-.reference-panel-content {
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 115; /* above activity content; below the calculator panel (120) and .js-popover (1000) */
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  width: 24rem;
+  min-width: 14rem;
+  min-height: 8rem;
+  max-width: calc(100vw - 2rem); /* phone: clamp to the viewport, never overflow */
+  max-height: min(70vh, 40rem);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  /* Native drag-resize (bottom-right handle) — an enhancement, never a
+   requirement. Needs overflow != visible; the BODY below owns the scroll. */
+  resize: both;
+  overflow: hidden;
 }
-/* Drag handle along the panel's TOP edge. The sidecar — inlined only when a
- panel exists — wires pointer drag to resize the open panel; without JS it's an
- inert grip. touch-action:none so the sidecar owns the touch drag. */
-.reference-panel-resize {
-  flex: 0 0 auto;
-  height: 14px;
+/* Header doubles as the drag handle (the sidecar owns the pointer drag);
+ touch-action:none so touch drags aren't swallowed by scrolling. */
+.reference-float-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  cursor: ns-resize;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  padding: 0.5rem 0.9rem;
+  cursor: move;
+  user-select: none;
   touch-action: none;
-  background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
 }
-.reference-panel-resize::before {
-  content: '';
-  width: 2.5rem;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--color-border);
+.reference-float-header button { cursor: pointer; } /* controls still click */
+.reference-float-title {
+  flex: 1;
+  font-weight: 600;
+  color: var(--color-accent);
 }
-/* Reserve space so the collapsed bar never hides the last content (the submit
- button). Only present when the activity has a panel. */
-.activity-container.has-reference-panel { padding-bottom: 3.5rem; }
+.reference-float-close {
+  font-size: 1.25rem;
+  line-height: 1;
+  border: none;
+  background: none;
+  color: var(--color-muted, #64748b);
+  padding: 0 0.2rem;
+}
+.reference-float-close:hover { color: inherit; }
+/* The body owns the height cap + scroll (the panel keeps overflow:hidden for
+ the native resize handle). */
+.reference-float-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.25rem 1rem 1rem;
+}
 
 /* Print box hidden on screen; @media print reveals it (and hides the screen
- toolbar). */
+ tool cluster). */
 .reference-print { display: none; }
 
 /* =============================================================================
- Calculator tool (scaffold). A fixed summon button in the bottom-right corner;
- the lazy-loaded widget mounts its own floating panel into .calculator-mount on
- the first click. Rendered OUTSIDE any .activity-section so the runtime never
- walks it. Hidden in print (a calculator on paper is meaningless).
+ Tool corner (scaffolds). ONE fixed bottom-right cluster holding the summon
+ buttons for the reference panel and the calculator, so both tools coexist
+ without overlapping. Each tool's floating panel is position:fixed itself, so
+ the cluster only lays out the buttons. Rendered OUTSIDE any .activity-section
+ so the runtime never walks it. Hidden in print.
  ============================================================================= */
-.calculator-tool {
+.tool-corner {
   position: fixed;
   right: 1rem;
   bottom: 1rem;
-  z-index: 110; /* above the reference bar (100); below .js-popover (1000) */
+  z-index: 110; /* above activity content; below the floating panels; below .js-popover (1000) */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
-.calculator-summon {
+.calculator-summon,
+.reference-summon {
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -853,8 +846,10 @@ body {
   color: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
-.calculator-summon:hover { filter: brightness(0.95); }
-.calculator-summon:focus-visible {
+.calculator-summon:hover,
+.reference-summon:hover { filter: brightness(0.95); }
+.calculator-summon:focus-visible,
+.reference-summon:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -984,10 +979,10 @@ body {
     transform: translateY(0.1em);
   }
 
-  /* Reference box: the screen toolbar never prints; the static box does (when
+  /* Reference box: the screen tool (summon button + floating panel) never
+   prints — the .tool-corner hide below covers it; the static box does (when
    the teacher left printReferencePanel on — the renderer omits it otherwise).
    Sits at the top of the worksheet, kept whole across page/column breaks. */
-  .reference-panel { display: none; }
   .reference-print {
     display: block;
     break-inside: avoid;
@@ -1015,7 +1010,7 @@ body {
   .js-blank-mistake,
   .js-popover,
   .definition-popover,
-  .calculator-tool,
+  .tool-corner,
   .js-graph-feedback,
   .graph-nojs,
   .js-solution {

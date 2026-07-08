@@ -37,7 +37,7 @@ import type { ActivityDocument, PrintConfig, PrintHeader } from '@activity/schem
 import { escape, attr } from './html.js';
 import {
   renderBody,
-  renderReferenceToolbar,
+  renderReferenceTool,
   renderReferenceBox,
   renderCalculatorTool,
 } from './render.js';
@@ -135,32 +135,30 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   const body = renderBody(doc, { graphKitUrl: ctx.calculatorKitUrl });
   const print = doc.meta.print;
 
-  // Reference panel (scaffold). Screen: a fixed bottom toolbar (collapsed by
-  // default). Print: a static box at the top — only when printReferencePanel is
-  // on. Both render the same blocks and sit OUTSIDE any .activity-section, so
-  // the runtime never walks them (no scoring/persistence/checkpoint impact).
-  // The container marker reserves bottom padding so the collapsed bar can't
-  // hide the last content.
-  const referenceHtml = doc.referencePanel
-    ? renderReferenceToolbar(doc.referencePanel, {
+  // Reference panel (scaffold). Screen: a summon button + floating panel in
+  // the bottom-right tool cluster (calculator-style; see renderReferenceTool).
+  // Print: a static box at the top — only when printReferencePanel is on. Both
+  // render the same blocks and sit OUTSIDE any .activity-section, so the
+  // runtime never walks them (no scoring/persistence/checkpoint impact).
+  const referenceToolHtml = doc.referencePanel
+    ? renderReferenceTool(doc.referencePanel, {
         gridLinesDefault: print.gridLines,
-      }) +
-      (print.printReferencePanel
-        ? renderReferenceBox(doc.referencePanel, {
-            gridLinesDefault: print.gridLines,
-          })
-        : '')
+      })
     : '';
-  const containerClass =
-    'activity-container' + (doc.referencePanel ? ' has-reference-panel' : '');
+  const referencePrintHtml =
+    doc.referencePanel && print.printReferencePanel
+      ? renderReferenceBox(doc.referencePanel, {
+          gridLinesDefault: print.gridLines,
+        })
+      : '';
 
   // Calculator tool (scaffold). A summonable, lazy-loaded calculator, gated on
   // the activity opting in AND a kit URL being available (the heavy widget lives
   // on R2; with no URL there's nothing to summon, so we emit nothing). Rendered
   // OUTSIDE any .activity-section so the runtime never walks it; placed outside
-  // <main> with the other floating UI so container styling can't affect its
-  // fixed position. Cannot print (a calculator on paper is meaningless) — the
-  // baseline print CSS hides .calculator-tool.
+  // <main> in the .tool-corner cluster with the reference tool so container
+  // styling can't affect its fixed position. Cannot print (a calculator on
+  // paper is meaningless) — the baseline print CSS hides the whole cluster.
   const calculatorHtml =
     doc.calculator?.enabled && ctx.calculatorKitUrl
       ? renderCalculatorTool(doc.calculator, { kitUrl: ctx.calculatorKitUrl })
@@ -214,7 +212,7 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     // attribute value is constrained by the schema enum (worksheet |
     // exit_ticket | warm_up | review); attr() is defensive regardless. The
     // inline style carries the --print-* vars consumed by @media print.
-    '<main class="' + containerClass + '"' +
+    '<main class="activity-container"' +
     ' data-activity-type="' + attr(doc.meta.activityType) + '"' +
     ' style="' + printContainerVars(print) + '">' +
 
@@ -229,9 +227,10 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   : '') +
   '</header>' +
 
-  // Reference panel (scaffold) — screen toolbar + optional print box. Empty
-  // string when the activity has no panel. See referenceHtml above.
-  referenceHtml +
+  // Reference panel print box (scaffold) — the static top-of-worksheet copy,
+  // gated by printReferencePanel; hidden on screen. The SCREEN presentation is
+  // the floating tool in the .tool-corner cluster after </main> below.
+  referencePrintHtml +
 
   // Identity prompt (Pattern B: name field is upfront, validated at submit)
   '<div class="identity-prompt">' +
@@ -251,12 +250,15 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
 
   '</main>' +
 
-  // Calculator tool (scaffold) — a summon button + empty mount; the heavy
-  // widget lazy-loads on first click (see renderCalculatorTool). Empty string
-  // when the activity has no enabled calculator or no kit URL. Outside <main>
+  // Tool corner (scaffolds) — one fixed bottom-right cluster holding the
+  // summon buttons for the reference panel and the calculator, so the two
+  // coexist without overlapping. Each tool's floating panel is fixed-position
+  // itself, so nesting inside the cluster doesn't constrain it. Outside <main>
   // with the other floating UI so container styling can't affect its fixed
-  // position.
-  calculatorHtml +
+  // position; omitted entirely when the page has neither tool.
+  (referenceToolHtml || calculatorHtml
+    ? '<div class="tool-corner">' + referenceToolHtml + calculatorHtml + '</div>'
+    : '') +
 
   // Shared floating popover (one per page) for hints and mistake feedback.
   // Hidden until the runtime opens it on a `?` or `!` click; the runtime sets
@@ -298,9 +300,10 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     : runtimeJs) +
   '</script>' +
 
-  // Reference-panel sidecar (drag-resize + scroll-clearance), inlined ONLY when
-  // the activity has a panel — panel-less pages ship none of it. Separate from
-  // the scoring runtime above; it touches only the panel's own DOM.
+  // Reference-panel sidecar (summon/close toggling + header drag for the
+  // floating panel), inlined ONLY when the activity has a panel — panel-less
+  // pages ship none of it. Separate from the scoring runtime above; it touches
+  // only the tool's own DOM.
   (doc.referencePanel
     ? '<script>' + referencePanelJs + '</script>'
     : '') +
@@ -311,7 +314,7 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   // or the reference panel, since a definition can appear in either). Separate
   // from the scoring runtime above; it manages its own popover element.
   (body.includes('data-definition=') ||
-  referenceHtml.includes('data-definition=')
+  referenceToolHtml.includes('data-definition=')
     ? '<script>' + definitionsJs + '</script>'
     : '') +
 

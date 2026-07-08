@@ -23,6 +23,7 @@ import {
   renderBody,
   type RenderContext,
 } from '../src/index.js';
+import { referencePanelJs } from '../src/runtime/generated/reference-panel-bundle.js';
 
 const ctx: RenderContext = {
   activityId: '00000000-0000-0000-0000-000000000001',
@@ -1064,49 +1065,82 @@ describe('reference panel', () => {
     };
   }
 
-  it('renders the screen toolbar (scaffold) with the title and content', () => {
+  it('renders the screen tool (scaffold): summon button + hidden floating panel', () => {
     const html = renderActivity(docWithPanel(), ctx);
     expect(html).toContain(
-      '<details class="reference-panel" data-block-category="scaffold">',
+      '<div class="reference-tool" data-block-category="scaffold">',
     );
-    expect(html).toContain('Formula reference');
+    expect(html).toContain(
+      '<button type="button" class="reference-summon" aria-haspopup="dialog" aria-expanded="false">Formula reference</button>',
+    );
+    // The panel ships hidden (invisible until summoned; permanently so
+    // without JS) and focusable so the sidecar can move focus in on open.
+    expect(html).toContain(
+      '<aside class="reference-float" role="dialog" aria-label="Formula reference" tabindex="-1" hidden>',
+    );
+    expect(html).toContain(
+      '<span class="reference-float-title">Formula reference</span>',
+    );
     expect(html).toContain('Key formulas'); // a panel block actually rendered
   });
 
-  it('marks the container so CSS can reserve space for the bar', () => {
-    const html = renderActivity(docWithPanel(), ctx);
-    expect(html).toContain('class="activity-container has-reference-panel"');
+  it('falls back to a "Reference" label when the panel has no title', () => {
+    const html = renderActivity(docWithPanel({ title: '' }), ctx);
+    expect(html).toContain('class="reference-summon"');
+    expect(html).toContain('>Reference</button>');
+    expect(html).toContain('aria-label="Reference"');
   });
 
-  it('places the panel ABOVE the first section so the runtime never walks it', () => {
+  it('places the screen tool in the .tool-corner cluster OUTSIDE <main>', () => {
     const html = renderActivity(docWithPanel(), ctx);
-    const section = html.indexOf('<section class="activity-section"');
-    expect(html.indexOf('<details class="reference-panel"')).toBeLessThan(
-      section,
+    const mainEnd = html.indexOf('</main>');
+    expect(html.indexOf('<div class="tool-corner">')).toBeGreaterThan(mainEnd);
+    expect(html.indexOf('<div class="reference-tool"')).toBeGreaterThan(mainEnd);
+    // The print box still sits at the top of the worksheet, above the first
+    // section (and inside <main>).
+    expect(html.indexOf('<aside class="reference-print"')).toBeLessThan(
+      html.indexOf('<section class="activity-section"'),
     );
-    expect(html.indexOf('<aside class="reference-print"')).toBeLessThan(section);
   });
 
-  it('drops the print box when printReferencePanel is off, keeps the toolbar', () => {
+  it('shares the cluster with the calculator when both tools are present', () => {
+    const base = docWithPanel();
+    const calc = createCalculatorTool();
+    const doc = { ...base, calculator: calc };
+    const html = renderActivity(doc, {
+      ...ctx,
+      calculatorKitUrl: 'https://kit.example.com/graph-kit-abc123.js',
+    });
+    // One cluster; reference button before calculator button inside it.
+    expect(html.match(/<div class="tool-corner">/g)).toHaveLength(1);
+    const cluster = html.indexOf('<div class="tool-corner">');
+    const refAt = html.indexOf('<div class="reference-tool"');
+    const calcAt = html.indexOf('<div class="calculator-tool"');
+    expect(refAt).toBeGreaterThan(cluster);
+    expect(calcAt).toBeGreaterThan(refAt);
+  });
+
+  it('drops the print box when printReferencePanel is off, keeps the screen tool', () => {
     const html = renderActivity(docWithPanel({ print: false }), ctx);
-    expect(html).toContain('class="reference-panel"');
+    expect(html).toContain('class="reference-tool"');
     expect(html).not.toContain('class="reference-print"');
   });
 
-  it('renders no panel markup (and no marker) when the activity has no panel', () => {
+  it('renders no panel markup (and no cluster) when the activity has no panel', () => {
     const html = renderActivity(createEmptyDocument({ title: 'T' }), ctx);
-    // The block CSS is always inlined (it carries .reference-panel rules), so
+    // The block CSS is always inlined (it carries .reference-* rules), so
     // assert on MARKUP, not bare substrings that also live in the stylesheet.
-    expect(html).not.toContain('<details class="reference-panel"');
+    expect(html).not.toContain('<div class="reference-tool"');
     expect(html).not.toContain('<aside class="reference-print"');
+    expect(html).not.toContain('<div class="tool-corner">');
     expect(html).toContain('class="activity-container"');
-    expect(html).not.toContain('class="activity-container has-reference-panel"');
   });
 
-  it('print document emits the box but not the screen toolbar', () => {
+  it('print document emits the box but not the screen tool', () => {
     const html = renderActivityForPrint(docWithPanel());
     expect(html).toContain('<aside class="reference-print"');
-    expect(html).not.toContain('class="reference-panel"');
+    expect(html).not.toContain('class="reference-tool"');
+    expect(html).not.toContain('class="reference-float"');
   });
 
   it('print document omits the box when printReferencePanel is off', () => {
@@ -1114,38 +1148,27 @@ describe('reference panel', () => {
     expect(html).not.toContain('class="reference-print"');
   });
 
-  it('escapes the panel title', () => {
+  it('escapes the panel title in both the label and the aria-label', () => {
     const html = renderActivity(docWithPanel({ title: '<x> & "y"' }), ctx);
-    // escape() handles text content (& < >); quotes aren't escaped there.
+    // escape() handles text content (& < >); attr() also escapes quotes.
     expect(html).toContain('&lt;x&gt; &amp; "y"');
-    expect(html).not.toContain('<span class="reference-panel-label"><x>');
-  });
-
-  it('emits the drag-resize handle above the body (top edge)', () => {
-    const html = renderActivity(docWithPanel(), ctx);
-    expect(html).toContain('<div class="reference-panel-content">');
-    expect(html).toContain('<div class="reference-panel-resize"');
-    // The handle div must precede the body div in source order so it renders at
-    // the panel's TOP edge, not just above the bar.
-    expect(html.indexOf('<div class="reference-panel-resize"')).toBeLessThan(
-      html.indexOf('<div class="reference-panel-body"'),
-    );
+    expect(html).toContain('aria-label="&lt;x&gt; &amp; &quot;y&quot;"');
+    expect(html).not.toContain('<span class="reference-float-title"><x>');
   });
 
   it('inlines the sidecar script only when a panel exists', () => {
-    // ResizeObserver is unique to the reference-panel sidecar (the scoring
-    // runtime never uses it), so it discriminates "sidecar inlined" from the
-    // always-present CSS/markup strings.
-    expect(renderActivity(docWithPanel(), ctx)).toContain('ResizeObserver');
+    // Compare against the committed generated bundle itself — exact, and the
+    // CI staleness guard keeps it in sync with the sidecar source.
+    expect(renderActivity(docWithPanel(), ctx)).toContain(referencePanelJs);
     expect(
       renderActivity(createEmptyDocument({ title: 'T' }), ctx),
-    ).not.toContain('ResizeObserver');
+    ).not.toContain(referencePanelJs);
   });
 
-  it('print outputs carry neither the sidecar nor the resize handle', () => {
+  it('print outputs carry neither the sidecar nor the floating panel', () => {
     const printDoc = renderActivityForPrint(docWithPanel());
-    expect(printDoc).not.toContain('ResizeObserver');
-    expect(printDoc).not.toContain('<div class="reference-panel-resize"');
+    expect(printDoc).not.toContain(referencePanelJs);
+    expect(printDoc).not.toContain('class="reference-float"');
   });
 });
 

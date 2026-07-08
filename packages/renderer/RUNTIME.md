@@ -58,7 +58,7 @@ packages/renderer/src/runtime/
 ├── index.ts         — bootstrap orchestrator
 ├── graph-integration.ts — the interactive-graph feature behind one seam (graphExt); compiled only into the graphs runtime variant
 ├── graph-integration.noop.ts — no-op graphExt swapped in for the base runtime build (pages with no graph)
-├── reference-panel.ts — sidecar: on-screen reference panel (drag-resize + scroll-clearance)
+├── reference-panel.ts — sidecar: floating reference panel (summon/close + header drag)
 ├── definitions.ts   — sidecar: inline vocabulary-definition popovers
 ├── calculator-summon.ts — sidecar: summon button + lazy-import of the calculator widget (Phase 2.7)
 ├── generated/       — runtime-bundle.ts (base) + runtime-graphs-bundle.ts (graphs) + reference-panel-bundle.ts + definitions-bundle.ts + calculator-summon-bundle.ts (committed string modules produced by bundler)
@@ -334,23 +334,30 @@ Visual correct/incorrect signal lives on the input border class (`.correct` / `.
 
 Optional teacher-authored reference content (formula charts, vocab, conversion tables). Rendered OUTSIDE any `.activity-section`, so the scoring runtime's `init` walker — which scopes every query to `.activity-section` — never sees it: it contributes nothing to scoring / persistence / checkpoints. `data-block-category="scaffold"` is an analytics/CSS hook ONLY; the scoping mechanism is "outside `.activity-section`," never the category. Two presentations of the same blocks:
 
-- **Screen** — a `position:fixed` bottom-bar toolbar (emitted by `renderActivity` only):
+- **Screen** — a summon button + hidden floating panel in the `.tool-corner` cluster (emitted by `renderActivity` only; calculator-style window):
 
   ```html
-  <details class="reference-panel" data-block-category="scaffold">
-    <summary class="reference-panel-summary">…title…</summary>
-    <div class="reference-panel-content">        <!-- plain flex column: handle on top, body below -->
-      <div class="reference-panel-resize"></div>  <!-- drag handle, top edge -->
-      <div class="reference-panel-body">…blocks…</div>
-    </div>
-  </details>
+  <div class="reference-tool" data-block-category="scaffold">
+    <button class="reference-summon" aria-haspopup="dialog" aria-expanded="false">…title…</button>
+    <aside class="reference-float" role="dialog" aria-label="…title…" tabindex="-1" hidden>
+      <div class="reference-float-header">      <!-- drag handle; sidecar-wired -->
+        <span class="reference-float-title">…title…</span>
+        <button class="reference-float-close">×</button>
+      </div>
+      <div class="reference-float-body">…blocks…</div>
+    </aside>
+  </div>
   ```
 
-  The panel's flex `column-reverse` floats the content above the bar; the **body** owns the height cap + scroll (`max-height:60vh; overflow:auto`) — capping the flex container instead let content overflow the page. The handle+body live in their own `.reference-panel-content` wrapper because the browser's `::details-content` wrapping makes panel-level flex ordering of the two unreliable.
+  The panel is a fixed window anchored bottom-LEFT by default (an open calculator sits bottom-right, so the two never collide); the **body** owns the scroll while the panel keeps `overflow:hidden` for its native `resize:both` handle. The panel content is server-rendered scaffold HTML shipped in the page — nothing kit-side, nothing lazy-loaded. `role=dialog` is NON-modal (same posture as the hint popover and calculator); `hidden` until summoned, and permanently so without JS (the print box is the JS-free surface).
 
 - **Print** — `<aside class="reference-print" data-block-category="scaffold">` at the top of the worksheet, gated by `meta.print.printReferencePanel` (default true). Emitted by both `renderActivity` (for printing the live page) and `renderActivityForPrint`.
 
-Interactivity is a **separate inlined sidecar** (`runtime/reference-panel.ts`, ~1 KiB), NOT part of the scoring runtime — `document.ts` inlines it as its own `<script>` only when an activity has a `referencePanel`. It handles drag-resize (the top-edge handle drives the body's `max-height`) + scroll-clearance (a `ResizeObserver` pads `.activity-container` by the panel's live height so the fixed panel never permanently hides content). See DECISIONS → "Reference panel".
+Interactivity is a **separate inlined sidecar** (`runtime/reference-panel.ts`, ~1.3 KiB), NOT part of the scoring runtime — `document.ts` inlines it as its own `<script>` only when an activity has a `referencePanel`. It handles summon/close toggling (button hides while open; focus moves panel→button; Escape closes unless `defaultPrevented`) + header drag-to-move (calculator-kit clamps). Geometry memory is free: drag/resize write inline styles and the element is never destroyed, so size + position survive close/open for the page session. See DECISIONS → "Reference panel".
+
+### Tool corner (`class="tool-corner"`)
+
+ONE fixed bottom-right cluster (emitted by `renderActivity` when the page has a reference panel and/or a calculator) laying out the tools' summon buttons side by side. Each tool's floating panel is `position:fixed` itself, so the cluster only positions the buttons. Hidden entirely in print.
 
 ### Definition span (`class="definition"`)
 
@@ -638,7 +645,7 @@ On successful submit:
 
    The split keeps every non-graph page off the graph code, and means a future graph feature grows the graphs variant only — never the base runtime every page pays for. Source maps at `dist/runtime-base.js.map` + `dist/runtime-graphs.js.map` (dev-only, gitignored). Both generated string modules are **committed to git** so a clean checkout can typecheck the renderer without running the bundler. The base build is the one bound by the 20 KiB soft target (the common case); the graphs variant is a superset held only to the 40 KiB hard ceiling.
 
-2. **Reference-panel sidecar build.** Entry `packages/renderer/src/runtime/reference-panel.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/reference-panel-bundle.ts` (also committed). A small (~1 KiB) self-contained script for the on-screen reference panel (drag-resize + scroll-clearance), kept OUT of the main runtime so the scoring runtime stays pure and panel-less pages ship none of it; `document.ts` inlines it only when an activity has a `referencePanel`. (This is the realized form of the "lazy-loaded sidecar bundle" pattern noted below — inlined-when-present rather than lazy-loaded, since it's tiny.)
+2. **Reference-panel sidecar build.** Entry `packages/renderer/src/runtime/reference-panel.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/reference-panel-bundle.ts` (also committed). A small (~1.3 KiB) self-contained script for the floating reference panel (summon/close toggling + header drag-to-move), kept OUT of the main runtime so the scoring runtime stays pure and panel-less pages ship none of it; `document.ts` inlines it only when an activity has a `referencePanel`. (This is the realized form of the "lazy-loaded sidecar bundle" pattern noted below — inlined-when-present rather than lazy-loaded, since it's tiny.)
 
 3. **Definitions sidecar build.** Entry `packages/renderer/src/runtime/definitions.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/definitions-bundle.ts` (committed). A small (~1.7 KiB) self-contained script for inline vocabulary-definition popovers, kept OUT of the main runtime so the scoring runtime stays pure and definition-less pages ship none of it; `document.ts` inlines it only when the rendered page contains a `.definition` span.
 
