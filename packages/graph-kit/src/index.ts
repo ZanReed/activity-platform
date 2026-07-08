@@ -79,13 +79,31 @@ export {
   scoreRegion,
   scoreRegionsPartial,
   polygonOverlap,
+  scoreRay,
+  scoreRayParts,
+  scoreRayPartial,
+  scoreSegment,
+  scoreSegmentParts,
 } from './graph-score.js';
 export type {
   PointAnswerKey,
   FunctionModel,
   Fitted,
   RegionAnswerKey,
+  RayAnswerKey,
+  SegmentAnswerKey,
 } from './graph-score.js';
+
+// Mistake feedback (Drop B): authored anticipated-mistake matching + built-in
+// classifiers. Pure like the scorers; the widget consumes these internally and
+// tests/tooling reach them here.
+export {
+  compileMistakeMatchers,
+  matchAuthoredMistake,
+  classifyPointMistake,
+  classifyFunctionMistake,
+  classifyInequalityMistake,
+} from './mistakes.js';
 
 // The freeform teacher command line (Drop 3): parse ANY equation/inequality/
 // point-list format into a graph answer; format models back to canonical,
@@ -96,8 +114,11 @@ export {
   parsePointList,
   formatModel,
   formatPoints,
+  parseRaySegment,
+  formatRay,
+  formatSegment,
 } from './formula.js';
-export type { ParsedFormula, ParsedDomain, ShadeSide } from './formula.js';
+export type { ParsedFormula, ParsedDomain, ShadeSide, ParsedRaySegment } from './formula.js';
 
 // NOTE: board.ts (JSXGraph) is deliberately NOT re-exported here — that would
 // static-import it into the entry and defeat the lazy-split. Consumers that need

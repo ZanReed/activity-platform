@@ -284,6 +284,50 @@ export const DisplayInteraction = z.object({
 });
 export type DisplayInteraction = z.infer<typeof DisplayInteraction>;
 
+// ---- plot_ray / plot_segment: draw a ray or segment directly ------------------
+// First-class replacements for the domain-glider approach (which asked students
+// to define an infinite line, then mark endpoints on it with separate controls —
+// the drawn line never even clipped). Here the student drags TWO handles — the
+// endpoint(s) — and the widget draws an ACTUAL ray/segment through them
+// (JSXGraph straightFirst/straightLast), with open/closed endpoint pills.
+// Arrays-of-one like models/regions/inequalities, so systems stay additive.
+// (plot_function's domains[] remains scored for already-published pages, but
+// authoring steers here now.)
+export const RayAnswer = z.object({
+  // The ray's endpoint (scored on position + open/closed style).
+  from: z.tuple([z.number(), z.number()]),
+  // Any second point ON the ray — names the direction; the student's through
+  // handle may sit anywhere along the correct ray.
+  through: z.tuple([z.number(), z.number()]),
+  fromStyle: EndpointStyle.default('closed'),
+  // Endpoint position tolerance in graph units (matches the domain-glider
+  // default). Direction is scored by unit-vector alignment kit-side.
+  tolerance: z.number().nonnegative().default(0.25),
+});
+export type RayAnswer = z.infer<typeof RayAnswer>;
+
+export const RayInteraction = z.object({
+  type: z.literal('plot_ray'),
+  rays: z.array(RayAnswer).min(1),
+});
+export type RayInteraction = z.infer<typeof RayInteraction>;
+
+export const SegmentAnswer = z.object({
+  from: z.tuple([z.number(), z.number()]),
+  to: z.tuple([z.number(), z.number()]),
+  // [from-endpoint style, to-endpoint style]. Scored order-independently —
+  // the student may draw the segment in either direction.
+  endpoints: z.tuple([EndpointStyle, EndpointStyle]).default(['closed', 'closed']),
+  tolerance: z.number().nonnegative().default(0.25),
+});
+export type SegmentAnswer = z.infer<typeof SegmentAnswer>;
+
+export const SegmentInteraction = z.object({
+  type: z.literal('plot_segment'),
+  segments: z.array(SegmentAnswer).min(1),
+});
+export type SegmentInteraction = z.infer<typeof SegmentInteraction>;
+
 // The interaction union. plot_point + plot_function + shade_region are graded;
 // display is the ungraded static graph. More are future members. Kept
 // discriminated on `type` so the wire format always carries it and consumers
@@ -293,6 +337,8 @@ export const GraphInteraction = z.discriminatedUnion('type', [
   FunctionInteraction,
   RegionInteraction,
   InequalityInteraction,
+  RayInteraction,
+  SegmentInteraction,
   DisplayInteraction,
 ]);
 export type GraphInteraction = z.infer<typeof GraphInteraction>;

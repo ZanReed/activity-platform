@@ -116,6 +116,10 @@ export interface GraphBlockState {
         maxX?: number;
         maxStyle?: 'open' | 'closed';
     };
+    /** plot_ray (Drop C): the student's start-endpoint style choice. */
+    fromStyle?: 'open' | 'closed';
+    /** plot_segment (Drop C): per-endpoint style choices, in handle order. */
+    endpoints?: ['open' | 'closed', 'open' | 'closed'];
     /**
      * Mistake feedback for a WRONG answer (Drop B): the matched authored
      * entry's template index, or a built-in classifier's message text. At most

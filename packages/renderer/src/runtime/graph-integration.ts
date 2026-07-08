@@ -477,6 +477,12 @@ function gatherGraphResponses(
         result.strict = gs.strict === true;
         result.side = gs.side ?? 'above';
       }
+      if (ref.interactionType === 'plot_ray') {
+        result.fromStyle = gs.fromStyle ?? 'closed';
+      }
+      if (ref.interactionType === 'plot_segment') {
+        result.endpoints = gs.endpoints ?? ['closed', 'closed'];
+      }
       if (gs.noSolution) result.noSolution = true;
       if (gs.domain) result.domain = gs.domain;
       if (typeof gs.earned === 'number' && typeof gs.total === 'number') {
@@ -556,6 +562,8 @@ function wireGraphs(
             gs.earned = resp.earned;
             gs.total = resp.total;
             gs.domain = resp.domain;
+            gs.fromStyle = resp.fromStyle;
+            gs.endpoints = resp.endpoints;
             gs.mistakeIndex = resp.mistakeIndex;
             gs.mistakeText = resp.mistakeText;
             onUpdate();
@@ -574,6 +582,8 @@ function wireGraphs(
             side: gs.side,
             noSolution: gs.noSolution,
             domain: gs.domain,
+            fromStyle: gs.fromStyle,
+            endpoints: gs.endpoints,
           });
         }
         // Reflect any restored lock (locked mode after a prior check).

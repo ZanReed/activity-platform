@@ -41,7 +41,7 @@
 // authored ones.
 // =============================================================================
 
-import { parseGraphFormula, parsePointList } from '@activity/graph-kit';
+import { parseGraphFormula, parsePointList, parseRaySegment } from '@activity/graph-kit';
 import type { JSONContent } from '@tiptap/react';
 
 // Minimal structural view of a markdown-it token — only the fields the mapper
@@ -847,6 +847,21 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                     interaction = { type: 'plot_point', correctPoints: [[0, 0]], tolerance: 0.1 };
                     break;
                 }
+                if (/^(ray|segment)\b/i.test(value)) {
+                    const parsed = parseRaySegment(value);
+                    if (parsed.kind === 'error') return fail(parsed.message);
+                    interaction =
+                        parsed.kind === 'ray'
+                            ? {
+                                  type: 'plot_ray',
+                                  rays: [{ from: parsed.from, through: parsed.through, fromStyle: parsed.fromStyle, tolerance: 0.25 }],
+                              }
+                            : {
+                                  type: 'plot_segment',
+                                  segments: [{ from: parsed.from, to: parsed.to, endpoints: parsed.endpoints, tolerance: 0.25 }],
+                              };
+                    break;
+                }
                 const regionMatch = /^region\s+(.+)$/i.exec(value);
                 if (regionMatch) {
                     const verts = pointList(regionMatch[1] ?? '');
@@ -863,11 +878,12 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                         inequalities: [{ boundary: parsed.boundary, strict: parsed.strict, shadeSide: parsed.side }],
                     };
                 } else if (parsed.kind === 'function') {
-                    interaction = {
-                        type: 'plot_function',
-                        models: [parsed.model],
-                        ...(parsed.domain ? { domains: [parsed.domain] } : {}),
-                    };
+                    if (parsed.domain) {
+                        // Domain clauses authored the deprecated glider UX.
+                        // Rays/segments are first-class now — steer there.
+                        return fail('for a ray or segment, write "answer: ray (1, 2) through (3, 4)" or "answer: segment (1, 2) to (3, 4)"');
+                    }
+                    interaction = { type: 'plot_function', models: [parsed.model] };
                 } else {
                     return fail(parsed.message);
                 }

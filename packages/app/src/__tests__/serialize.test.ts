@@ -140,6 +140,30 @@ describe('interactive graph block', () => {
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
     });
 
+    it('round-trips plot_ray and plot_segment interactions (Drop C)', () => {
+        const mk = (interaction: unknown): JSONContent => ({
+            type: 'interactiveGraph',
+            attrs: {
+                id: 'rs',
+                axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
+                interaction,
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Draw it.' }],
+        });
+        const ray = { type: 'plot_ray', rays: [{ from: [1, 2], through: [3, 4], fromStyle: 'open', tolerance: 0.25 }] };
+        const seg = { type: 'plot_segment', segments: [{ from: [-2, 0], to: [3, 2], endpoints: ['closed', 'open'], tolerance: 0.25 }] };
+        for (const interaction of [ray, seg]) {
+            const out = roundTrip({ type: 'doc', content: [mk(interaction)] });
+            const g = out.content!.find((n) => n.type === 'interactiveGraph')!;
+            expect(g.attrs!.interaction).toEqual(interaction);
+            const activity = tiptapToActivity({ type: 'doc', content: [mk(interaction)] }, META);
+            expect(ActivityDocument.safeParse(activity).success).toBe(true);
+        }
+    });
+
     it('serializes to a schema-valid interactive_graph block', () => {
         const activity = tiptapToActivity(doc, META);
         const parsed = ActivityDocument.safeParse(activity);

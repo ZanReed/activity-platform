@@ -411,3 +411,72 @@ export function formatModel(model: FunctionModel): string {
 export function formatPoints(points: [number, number][]): string {
   return points.map(([x, y]) => `(${fmt(x)}, ${fmt(y)})`).join(', ');
 }
+
+// ---- Rays and segments (Drop C) ----------------------------------------------
+// `ray (1, 2) through (3, 4) [open|closed]` — from-point, direction point, and
+// an optional start-endpoint style (default closed). `through` is optional
+// filler. `segment (1, 2) to (3, 4) [open|closed [open|closed]]` — two
+// endpoints + optional per-endpoint styles; `to` is optional filler. Round-trips
+// with formatRay / formatSegment (the editor's answer-field display).
+
+export type ParsedRaySegment =
+  | { kind: 'ray'; from: [number, number]; through: [number, number]; fromStyle: 'open' | 'closed' }
+  | { kind: 'segment'; from: [number, number]; to: [number, number]; endpoints: ['open' | 'closed', 'open' | 'closed'] }
+  | { kind: 'error'; message: string };
+
+export function parseRaySegment(raw: string): ParsedRaySegment {
+  const text = preprocess(raw);
+  const m = /^(ray|segment)\b(.*)$/i.exec(text);
+  if (!m) {
+    return { kind: 'error', message: 'Start with "ray" or "segment", like ray (1, 2) through (3, 4)' };
+  }
+  const isRay = (m[1] ?? '').toLowerCase() === 'ray';
+  const rest = (m[2] ?? '');
+  // Styles are the bare words open/closed, in order of appearance.
+  const styles = (rest.match(/\b(open|closed)\b/gi) ?? []).map(
+    (w) => w.toLowerCase() as 'open' | 'closed',
+  );
+  // parsePointList rejects leftover text, so strip the filler/style words
+  // before handing it the point pairs.
+  const points = parsePointList(rest.replace(/\b(through|to|open|closed)\b/gi, ' '));
+  if (!points || points.length !== 2) {
+    return {
+      kind: 'error',
+      message: isRay
+        ? 'A ray needs two points, like ray (1, 2) through (3, 4)'
+        : 'A segment needs two endpoints, like segment (1, 2) to (3, 4)',
+    };
+  }
+  const [a, b] = points as [[number, number], [number, number]];
+  if (a[0] === b[0] && a[1] === b[1]) {
+    return { kind: 'error', message: 'The two points must be different' };
+  }
+  if (isRay) {
+    return { kind: 'ray', from: a, through: b, fromStyle: styles[0] ?? 'closed' };
+  }
+  return {
+    kind: 'segment',
+    from: a,
+    to: b,
+    endpoints: [styles[0] ?? 'closed', styles[1] ?? 'closed'],
+  };
+}
+
+export function formatRay(ray: {
+  from: [number, number];
+  through: [number, number];
+  fromStyle?: 'open' | 'closed';
+}): string {
+  const style = ray.fromStyle === 'open' ? ' open' : '';
+  return `ray (${fmt(ray.from[0])}, ${fmt(ray.from[1])}) through (${fmt(ray.through[0])}, ${fmt(ray.through[1])})${style}`;
+}
+
+export function formatSegment(seg: {
+  from: [number, number];
+  to: [number, number];
+  endpoints?: ['open' | 'closed', 'open' | 'closed'];
+}): string {
+  const [s0, s1] = seg.endpoints ?? ['closed', 'closed'];
+  const styles = s0 === 'open' || s1 === 'open' ? ` ${s0} ${s1}` : '';
+  return `segment (${fmt(seg.from[0])}, ${fmt(seg.from[1])}) to (${fmt(seg.to[0])}, ${fmt(seg.to[1])})${styles}`;
+}

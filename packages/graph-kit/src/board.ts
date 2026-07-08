@@ -473,6 +473,14 @@ export interface PointAnswerConfig {
    * follows the handles as they drag. Absent for plot_point / plot_function.
    */
   polygon?: boolean;
+  /**
+   * plot_ray / plot_segment (Drop C): draw an ACTUAL ray (from handle 0 through
+   * handle 1, not extending behind handle 0) or a segment (between the two
+   * handles). The handles ARE the endpoints; setEndpointStyles renders each as
+   * hollow (open) or filled (closed). Mutually exclusive with deriveCurve.
+   */
+  rayThroughHandles?: boolean;
+  segmentBetweenHandles?: boolean;
 }
 
 export interface PointAnswerHooks {
@@ -503,6 +511,9 @@ export interface PointAnswerController {
   setShadeSide?(side: 'above' | 'below' | 'left' | 'right' | null): void;
   /** shadeBoundary boards: dotted (strict) vs solid (inclusive) boundary. */
   setBoundaryDashed?(dashed: boolean): void;
+  /** ray/segment boards: render handle i hollow (open) or filled (closed).
+   *  null leaves that handle's default look (e.g. a ray's through handle). */
+  setEndpointStyles?(styles: ('open' | 'closed' | null)[]): void;
   destroy(): void;
 }
 
@@ -646,6 +657,24 @@ export function createPointAnswerBoard(
       highlight: false,
       fixed: true,
     }) as unknown as { setAttribute(attrs: Record<string, unknown>): void };
+  }
+
+  // plot_ray / plot_segment (Drop C): a real ray or segment bound to the two
+  // handles, so it follows drags for free. straightFirst=false pins the line at
+  // the first handle (nothing drawn behind it); straightLast picks ray vs
+  // segment. The handles themselves are the endpoints — setEndpointStyles below
+  // restyles them hollow/filled for open/closed.
+  if ((config.rayThroughHandles || config.segmentBetweenHandles) && points.length >= 2) {
+    board.create('line', [points[0], points[1]], {
+      strokeColor: ANSWER_COLOR,
+      strokeWidth: 2,
+      highlight: false,
+      fixed: true,
+      straightFirst: false,
+      straightLast: config.rayThroughHandles === true,
+      // A ray reads better with an arrowhead on its open end.
+      lastArrow: config.rayThroughHandles === true,
+    });
   }
 
   // Domain endpoint gliders (Drop 6): points constrained to the derived curve.
@@ -867,6 +896,19 @@ export function createPointAnswerBoard(
       const attrs = { dash: dashed ? 2 : 0 };
       curveObj?.setAttribute(attrs);
       lineObj?.setAttribute(attrs);
+      board.update();
+    },
+    setEndpointStyles(styles: ('open' | 'closed' | null)[]): void {
+      styles.forEach((style, i) => {
+        const point = points[i];
+        if (!point || style === null) return;
+        (point as unknown as { setAttribute(a: Record<string, unknown>): void }).setAttribute(
+          // Open = hollow: white fill, colored rim. Closed = solid fill.
+          style === 'open'
+            ? { fillColor: '#ffffff', highlightFillColor: '#ffffff' }
+            : { fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR },
+        );
+      });
       board.update();
     },
     destroy(): void {

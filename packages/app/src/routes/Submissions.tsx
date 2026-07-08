@@ -321,6 +321,9 @@ function SubmissionDetail({
                     </td>
                     <td className="py-1 pr-3 font-mono text-slate-900">
                     {formatPoints(g.resp.studentPoints)}
+                    {g.resp.type === 'plot_ray' && ` (${g.resp.fromStyle} start)`}
+                    {g.resp.type === 'plot_segment' &&
+                        ` (${g.resp.endpoints[0]} start, ${g.resp.endpoints[1]} end)`}
                     </td>
                     <td className="py-1 pr-3">
                     {g.resp.correct ? (

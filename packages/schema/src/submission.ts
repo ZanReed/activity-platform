@@ -122,6 +122,29 @@ export const InequalityResponse = z.object({
 });
 export type InequalityResponse = z.infer<typeof InequalityResponse>;
 
+// plot_ray / plot_segment (Drop C — first-class rays/segments). studentPoints
+// carries [from, through] for a ray and [end, end] for a segment; the endpoint
+// style choices ride alongside. v4-only members: pages that emit them are
+// published AFTER the Drop C ingest deploy, and adding union members ACCEPTS
+// MORE — no stored row is invalidated and no version bump is needed.
+export const RayResponse = z.object({
+  type: z.literal('plot_ray'),
+  studentPoints: z.array(z.tuple([z.number(), z.number()])),
+  fromStyle: z.enum(['open', 'closed']),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type RayResponse = z.infer<typeof RayResponse>;
+
+export const SegmentResponse = z.object({
+  type: z.literal('plot_segment'),
+  studentPoints: z.array(z.tuple([z.number(), z.number()])),
+  endpoints: z.tuple([z.enum(['open', 'closed']), z.enum(['open', 'closed'])]),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type SegmentResponse = z.infer<typeof SegmentResponse>;
+
 export const GraphResponse = z.discriminatedUnion('type', [
   PointResponse,
   FunctionResponse,
@@ -155,6 +178,8 @@ export const GraphResponseV4 = z.discriminatedUnion('type', [
   FunctionResponse.extend(V4Extras),
   RegionResponse.extend(V4Extras),
   InequalityResponse.extend(V4Extras),
+  RayResponse.extend(V4Extras),
+  SegmentResponse.extend(V4Extras),
 ]);
 export type GraphResponseV4 = z.infer<typeof GraphResponseV4>;
 

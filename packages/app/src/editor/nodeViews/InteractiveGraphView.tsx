@@ -11,8 +11,11 @@ import {
     handlesForFamily,
     parseGraphFormula,
     parsePointList,
+    parseRaySegment,
     formatModel,
     formatPoints,
+    formatRay,
+    formatSegment,
     type GraphAuthorHandle,
     type GraphDisplayHandle,
 } from '@activity/graph-kit';
@@ -23,12 +26,16 @@ import {
     defaultFunctionInteraction,
     defaultInequalityInteraction,
     defaultPointInteraction,
+    defaultRayInteraction,
     defaultRegionInteraction,
+    defaultSegmentInteraction,
     type DrawableAttr,
     type FunctionModelAttr,
     type GraphAxisConfig,
     type GraphInteraction,
     type GraphMistakeEntry,
+    type RayAnswerAttr,
+    type SegmentAnswerAttr,
     type InequalityAnswerAttr,
     type LinearFunctionModel,
     type RegionAnswerAttr,
@@ -114,6 +121,12 @@ function firstRegion(regions: RegionAnswerAttr[]): RegionAnswerAttr {
 function firstInequality(list: InequalityAnswerAttr[]): InequalityAnswerAttr {
     return list[0] ?? { boundary: DEFAULT_LINEAR, strict: true, shadeSide: 'above' };
 }
+function firstRay(rays: RayAnswerAttr[]): RayAnswerAttr {
+    return rays[0] ?? { from: [0, 0], through: [3, 3], fromStyle: 'closed', tolerance: 0.25 };
+}
+function firstSegment(list: SegmentAnswerAttr[]): SegmentAnswerAttr {
+    return list[0] ?? { from: [-2, 0], to: [3, 2], endpoints: ['closed', 'closed'], tolerance: 0.25 };
+}
 
 // The canonical inequality string: formatModel's equation with `=` swapped for
 // the operator the side + strictness imply. Reparseable by parseGraphFormula.
@@ -153,7 +166,9 @@ function GraphAuthorBoard({
               ? firstRegion(interaction.regions).correctVertices.length
               : interaction.type === 'plot_point'
                 ? interaction.correctPoints.length
-                : 1;
+                : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
+                  ? 2
+                  : 1;
     const startPoints =
         interaction.type === 'plot_function'
             ? functionStartPoints(firstModel(interaction.models), axisConfig)
@@ -163,7 +178,11 @@ function GraphAuthorBoard({
               ? firstRegion(interaction.regions).correctVertices
               : interaction.type === 'plot_point'
                 ? interaction.correctPoints
-                : [];
+                : interaction.type === 'plot_ray'
+                  ? [firstRay(interaction.rays).from, firstRay(interaction.rays).through]
+                  : interaction.type === 'plot_segment'
+                    ? [firstSegment(interaction.segments).from, firstSegment(interaction.segments).to]
+                    : [];
     const startRef = useRef(startPoints);
     startRef.current = startPoints;
 
@@ -408,6 +427,26 @@ export default function InteractiveGraphView({
                     },
                 });
             }
+        } else if (interaction.type === 'plot_ray') {
+            const [from, through] = points;
+            if (from && through) {
+                updateAttributes({
+                    interaction: {
+                        type: 'plot_ray',
+                        rays: [{ ...firstRay(interaction.rays), from, through }],
+                    },
+                });
+            }
+        } else if (interaction.type === 'plot_segment') {
+            const [from, to] = points;
+            if (from && to) {
+                updateAttributes({
+                    interaction: {
+                        type: 'plot_segment',
+                        segments: [{ ...firstSegment(interaction.segments), from, to }],
+                    },
+                });
+            }
         }
     };
 
@@ -420,9 +459,13 @@ export default function InteractiveGraphView({
                   ? defaultInequalityInteraction()
                   : type === 'shade_region'
                   ? defaultRegionInteraction()
-                  : type === 'display'
-                    ? defaultDisplayInteraction()
-                    : defaultPointInteraction();
+                  : type === 'plot_ray'
+                    ? defaultRayInteraction()
+                    : type === 'plot_segment'
+                      ? defaultSegmentInteraction()
+                      : type === 'display'
+                        ? defaultDisplayInteraction()
+                        : defaultPointInteraction();
         updateAttributes({ interaction: next });
     };
 
@@ -475,11 +518,22 @@ export default function InteractiveGraphView({
             ? '(4, 3)'
             : interaction.type === 'graph_inequality'
               ? 'y < 2x + 1  (or a boundary like y = 2x + 1)'
-              : 'y = x + 2';
+              : interaction.type === 'plot_ray'
+                ? 'ray (1, 2) through (3, 4) open'
+                : interaction.type === 'plot_segment'
+                  ? 'segment (1, 2) to (3, 4)'
+                  : 'y = x + 2';
     const mistakeMatchError = (raw: string): string | null => {
         if (raw.trim() === '') return 'Type the wrong answer to watch for.';
         if (interaction.type === 'plot_point') {
             return parsePointList(raw) ? null : 'Type coordinates, like (4, 3)';
+        }
+        if (interaction.type === 'plot_ray' || interaction.type === 'plot_segment') {
+            const parsed = parseRaySegment(raw);
+            if (parsed.kind === 'error') return parsed.message;
+            if (interaction.type === 'plot_ray' && parsed.kind !== 'ray') return 'Type a ray, like ray (1, 2) through (3, 4)';
+            if (interaction.type === 'plot_segment' && parsed.kind !== 'segment') return 'Type a segment, like segment (1, 2) to (3, 4)';
+            return null;
         }
         const parsed = parseGraphFormula(raw);
         if (parsed.kind === 'error') return parsed.message;
@@ -523,7 +577,11 @@ export default function InteractiveGraphView({
                 ? formatModel(firstModel(interaction.models))
                 : interaction.type === 'graph_inequality'
                   ? formatInequality(firstInequality(interaction.inequalities))
-                  : '';
+                  : interaction.type === 'plot_ray'
+                    ? formatRay(firstRay(interaction.rays))
+                    : interaction.type === 'plot_segment'
+                      ? formatSegment(firstSegment(interaction.segments))
+                      : '';
 
     // The freeform answer field (Drop 3): type an equation/coordinates in ANY
     // format → parse → the answer + handles update. Applied on Enter or blur.
@@ -562,6 +620,28 @@ export default function InteractiveGraphView({
             });
             return null;
         }
+        if (interaction.type === 'plot_ray' || interaction.type === 'plot_segment') {
+            const parsed = parseRaySegment(raw);
+            if (parsed.kind === 'error') return parsed.message;
+            if (interaction.type === 'plot_ray') {
+                if (parsed.kind !== 'ray') return 'That is a segment — switch the question type to "Draw a segment"';
+                updateAttributes({
+                    interaction: {
+                        type: 'plot_ray',
+                        rays: [{ ...firstRay(interaction.rays), from: parsed.from, through: parsed.through, fromStyle: parsed.fromStyle }],
+                    },
+                });
+                return null;
+            }
+            if (parsed.kind !== 'segment') return 'That is a ray — switch the question type to "Draw a ray"';
+            updateAttributes({
+                interaction: {
+                    type: 'plot_segment',
+                    segments: [{ ...firstSegment(interaction.segments), from: parsed.from, to: parsed.to, endpoints: parsed.endpoints }],
+                },
+            });
+            return null;
+        }
         if (interaction.type === 'plot_function') {
             const parsed = parseGraphFormula(raw);
             if (parsed.kind === 'error') return parsed.message;
@@ -569,6 +649,11 @@ export default function InteractiveGraphView({
             if (parsed.kind === 'inequality') {
                 // Graded inequalities are their own interaction (Drop 4); steer there.
                 return 'That is an inequality — switch the question type to "Graph an inequality"';
+            }
+            if (parsed.kind === 'function' && parsed.domain) {
+                // Domain clauses used to author the glider UX (deprecated).
+                // Rays/segments are first-class now — steer there.
+                return 'For a ray or segment, switch the question type to "Draw a ray" or "Draw a segment"';
             }
             const prev = firstModel(interaction.models);
             // Same family → keep the teacher's tuned tolerances; new family → defaults.
@@ -618,6 +703,8 @@ export default function InteractiveGraphView({
                             <option value="plot_point">Plot a point</option>
                             <option value="plot_function">Plot a line</option>
                             <option value="graph_inequality">Graph an inequality</option>
+                            <option value="plot_ray">Draw a ray</option>
+                            <option value="plot_segment">Draw a segment</option>
                             <option value="shade_region">Shade a region</option>
                             <option value="display">Display (static graph)</option>
                         </select>
@@ -657,7 +744,11 @@ export default function InteractiveGraphView({
                                   ? 'Drag the vertices to shape the correct region — or type them below. '
                                   : interaction.type === 'graph_inequality'
                                     ? 'Type the inequality below — the sign sets dotted/solid and the shaded side. Drag the handles to move the boundary. '
-                                    : 'Drag the handles — or type the equation below in any format. '}
+                                    : interaction.type === 'plot_ray'
+                                      ? 'Drag the start point and a point the ray passes through — or type it below. '
+                                      : interaction.type === 'plot_segment'
+                                        ? 'Drag the two endpoints — or type the segment below. '
+                                        : 'Drag the handles — or type the equation below in any format. '}
                         </p>
                         <FormulaField
                             value={answerText}
@@ -669,7 +760,11 @@ export default function InteractiveGraphView({
                                       ? '(0, 0), (4, 0), (2, 4)'
                                       : interaction.type === 'graph_inequality'
                                         ? 'y > 2x + 1   ·   y <= x^2   ·   x >= 3'
-                                        : 'y = 2x + 3   ·   2x + 3y = 6   ·   x^2 - 4   ·   x = 4'
+                                        : interaction.type === 'plot_ray'
+                                          ? 'ray (1, 2) through (3, 4) open'
+                                          : interaction.type === 'plot_segment'
+                                            ? 'segment (1, 2) to (3, 4) open closed'
+                                            : 'y = 2x + 3   ·   2x + 3y = 6   ·   x^2 - 4   ·   x = 4'
                             }
                             onApply={applyFormula}
                         />
@@ -690,6 +785,48 @@ export default function InteractiveGraphView({
                             onKeyDown={(e) => e.stopPropagation()}
                         />
                     </label>
+                )}
+                {interaction.type === 'plot_ray' && (
+                    <label style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
+                        <input
+                            type="checkbox"
+                            checked={firstRay(interaction.rays).fromStyle === 'open'}
+                            disabled={!isEditable}
+                            onChange={(e) =>
+                                updateAttributes({
+                                    interaction: {
+                                        type: 'plot_ray',
+                                        rays: [{ ...firstRay(interaction.rays), fromStyle: e.target.checked ? 'open' : 'closed' }],
+                                    },
+                                })
+                            }
+                            onKeyDown={(e) => e.stopPropagation()}
+                        />
+                        Open start point (hollow — excluded)
+                    </label>
+                )}
+                {interaction.type === 'plot_segment' && (
+                    <span style={{ display: 'inline-flex', gap: '1rem', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
+                        {([0, 1] as const).map((which) => (
+                            <label key={which} style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={firstSegment(interaction.segments).endpoints[which] === 'open'}
+                                    disabled={!isEditable}
+                                    onChange={(e) => {
+                                        const seg = firstSegment(interaction.segments);
+                                        const endpoints: ['open' | 'closed', 'open' | 'closed'] = [...seg.endpoints];
+                                        endpoints[which] = e.target.checked ? 'open' : 'closed';
+                                        updateAttributes({
+                                            interaction: { type: 'plot_segment', segments: [{ ...seg, endpoints }] },
+                                        });
+                                    }}
+                                    onKeyDown={(e) => e.stopPropagation()}
+                                />
+                                {which === 0 ? 'Open start endpoint' : 'Open end endpoint'}
+                            </label>
+                        ))}
+                    </span>
                 )}
                 {interaction.type === 'shade_region' && (
                     <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
@@ -813,6 +950,25 @@ export default function InteractiveGraphView({
                                             }
                                         />
                                     ))}
+                            {(interaction.type === 'plot_ray' || interaction.type === 'plot_segment') && (
+                                <ToleranceRow
+                                    label="Endpoint tolerance"
+                                    value={
+                                        interaction.type === 'plot_ray'
+                                            ? firstRay(interaction.rays).tolerance
+                                            : firstSegment(interaction.segments).tolerance
+                                    }
+                                    disabled={!isEditable}
+                                    onChange={(v) =>
+                                        updateAttributes({
+                                            interaction:
+                                                interaction.type === 'plot_ray'
+                                                    ? { type: 'plot_ray', rays: [{ ...firstRay(interaction.rays), tolerance: v }] }
+                                                    : { type: 'plot_segment', segments: [{ ...firstSegment(interaction.segments), tolerance: v }] },
+                                        })
+                                    }
+                                />
+                            )}
                             {interaction.type === 'shade_region' && (
                                 <ToleranceRow
                                     label="Min. overlap (IoU)"

@@ -247,6 +247,24 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                             return eq.replace('=', op);
                         })
                         .join('; ');
+                } else if (block.interaction.type === 'plot_ray') {
+                    answerSummary = block.interaction.rays
+                        .map(
+                            (r) =>
+                                `ray (${r.from[0]}, ${r.from[1]}) through (${r.through[0]}, ${r.through[1]})` +
+                                (r.fromStyle === 'open' ? ' (open start)' : ''),
+                        )
+                        .join('; ');
+                } else if (block.interaction.type === 'plot_segment') {
+                    answerSummary = block.interaction.segments
+                        .map((g) => {
+                            const styles =
+                                g.endpoints[0] === 'open' || g.endpoints[1] === 'open'
+                                    ? ` (${g.endpoints[0]} start, ${g.endpoints[1]} end)`
+                                    : '';
+                            return `segment (${g.from[0]}, ${g.from[1]}) to (${g.to[0]}, ${g.to[1]})${styles}`;
+                        })
+                        .join('; ');
                 } else if (block.interaction.type === 'shade_region') {
                     answerSummary = block.interaction.regions
                         .map(

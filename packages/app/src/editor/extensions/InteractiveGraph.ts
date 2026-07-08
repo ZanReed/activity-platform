@@ -92,6 +92,26 @@ export interface InequalityInteractionAttr {
     type: 'graph_inequality';
     inequalities: InequalityAnswerAttr[];
 }
+export interface RayAnswerAttr {
+    from: [number, number];
+    through: [number, number];
+    fromStyle: 'open' | 'closed';
+    tolerance: number;
+}
+export interface RayInteractionAttr {
+    type: 'plot_ray';
+    rays: RayAnswerAttr[];
+}
+export interface SegmentAnswerAttr {
+    from: [number, number];
+    to: [number, number];
+    endpoints: ['open' | 'closed', 'open' | 'closed'];
+    tolerance: number;
+}
+export interface SegmentInteractionAttr {
+    type: 'plot_segment';
+    segments: SegmentAnswerAttr[];
+}
 // Static-display drawables (interaction.type === 'display'). Parallel to the
 // schema's Drawable union; the NodeView reads them by `kind`. `curve` reuses the
 // same FunctionModelAttr plot_function uses (a display curve is one curve).
@@ -117,6 +137,8 @@ export type GraphInteraction =
     | FunctionInteractionAttr
     | RegionInteractionAttr
     | InequalityInteractionAttr
+    | RayInteractionAttr
+    | SegmentInteractionAttr
     | DisplayInteractionAttr;
 
 // One authored anticipated mistake: a freeform wrong answer (same syntax as the
@@ -144,6 +166,20 @@ export function defaultInequalityInteraction(): InequalityInteractionAttr {
                 shadeSide: 'above',
             },
         ],
+    };
+}
+
+export function defaultRayInteraction(): RayInteractionAttr {
+    return {
+        type: 'plot_ray',
+        rays: [{ from: [0, 0], through: [3, 3], fromStyle: 'closed', tolerance: 0.25 }],
+    };
+}
+
+export function defaultSegmentInteraction(): SegmentInteractionAttr {
+    return {
+        type: 'plot_segment',
+        segments: [{ from: [-2, 0], to: [3, 2], endpoints: ['closed', 'closed'], tolerance: 0.25 }],
     };
 }
 

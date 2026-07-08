@@ -382,6 +382,106 @@ export function scoreDomain(key: DomainAnswerKey, ans: DomainStudentAnswer): boo
   return p.earned === p.total;
 }
 
+// ---- plot_ray / plot_segment (Drop C) -----------------------------------------
+// First-class rays and segments: the student drags TWO handles (the endpoint +
+// a direction point for a ray; both endpoints for a segment) and toggles each
+// authored endpoint open/closed. Parts scoring mirrors the inequality's
+// independent-parts shape so partial credit falls out the same way.
+
+export interface RayAnswerKey {
+  from: [number, number];
+  through: [number, number];
+  fromStyle: 'open' | 'closed';
+  tolerance: number;
+}
+export interface RayStudentAnswer {
+  from: [number, number];
+  through: [number, number];
+  fromStyle: 'open' | 'closed';
+}
+
+// Direction match: unit-vector alignment. With snap-to-grid handles, candidate
+// directions are discrete, so a fixed dot-product floor (~8°) cleanly separates
+// "same ray" from the nearest wrong grid direction while forgiving fine
+// (Shift-step) placement wobble.
+const DIRECTION_DOT_MIN = 0.99;
+
+function unit(from: [number, number], to: [number, number]): [number, number] | null {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-9) return null; // degenerate: the two handles coincide
+  return [dx / len, dy / len];
+}
+
+export function scoreRayParts(
+  key: RayAnswerKey,
+  ans: RayStudentAnswer,
+): { from: boolean; direction: boolean; style: boolean } {
+  const fromOk =
+    Math.abs(ans.from[0] - key.from[0]) <= key.tolerance &&
+    Math.abs(ans.from[1] - key.from[1]) <= key.tolerance;
+  const u = unit(ans.from, ans.through);
+  const v = unit(key.from, key.through);
+  const direction =
+    u !== null && v !== null && u[0] * v[0] + u[1] * v[1] >= DIRECTION_DOT_MIN;
+  return { from: fromOk, direction, style: ans.fromStyle === key.fromStyle };
+}
+
+export function scoreRay(key: RayAnswerKey, ans: RayStudentAnswer): boolean {
+  const p = scoreRayParts(key, ans);
+  return p.from && p.direction && p.style;
+}
+
+export function scoreRayPartial(
+  key: RayAnswerKey,
+  ans: RayStudentAnswer,
+): { earned: number; total: number } {
+  const p = scoreRayParts(key, ans);
+  return { earned: Number(p.from) + Number(p.direction) + Number(p.style), total: 3 };
+}
+
+export interface SegmentAnswerKey {
+  from: [number, number];
+  to: [number, number];
+  endpoints: ['open' | 'closed', 'open' | 'closed'];
+  tolerance: number;
+}
+export interface SegmentStudentAnswer {
+  from: [number, number];
+  to: [number, number];
+  endpoints: ['open' | 'closed', 'open' | 'closed'];
+}
+
+// A segment has no direction — the student may draw it end-to-end either way.
+// Score BOTH endpoint assignments (straight and swapped, styles traveling with
+// their endpoints) and keep the better one. 4 parts: 2 positions + 2 styles.
+export function scoreSegmentParts(
+  key: SegmentAnswerKey,
+  ans: SegmentStudentAnswer,
+): { earned: number; total: number } {
+  const near = (a: [number, number], b: [number, number]): boolean =>
+    Math.abs(a[0] - b[0]) <= key.tolerance && Math.abs(a[1] - b[1]) <= key.tolerance;
+  const assignment = (
+    first: [number, number],
+    firstStyle: 'open' | 'closed',
+    second: [number, number],
+    secondStyle: 'open' | 'closed',
+  ): number =>
+    Number(near(first, key.from)) +
+    Number(firstStyle === key.endpoints[0]) +
+    Number(near(second, key.to)) +
+    Number(secondStyle === key.endpoints[1]);
+  const straight = assignment(ans.from, ans.endpoints[0], ans.to, ans.endpoints[1]);
+  const swapped = assignment(ans.to, ans.endpoints[1], ans.from, ans.endpoints[0]);
+  return { earned: Math.max(straight, swapped), total: 4 };
+}
+
+export function scoreSegment(key: SegmentAnswerKey, ans: SegmentStudentAnswer): boolean {
+  const p = scoreSegmentParts(key, ans);
+  return p.earned === p.total;
+}
+
 // ---- shade_region: score a polygon by area overlap --------------------------
 // The student drags a polygon's vertices to cover a target region; correctness
 // is intersection-over-union (IoU) with the correct polygon ≥ minOverlap — so

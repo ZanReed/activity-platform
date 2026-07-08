@@ -29,11 +29,17 @@ import {
   scorePoints,
   scoreFunction,
   fitFunction,
+  scoreRayParts,
+  scoreSegmentParts,
   type PointAnswerKey,
   type FunctionModel,
   type InequalitySide,
+  type RayAnswerKey,
+  type SegmentAnswerKey,
+  type RayStudentAnswer,
+  type SegmentStudentAnswer,
 } from './graph-score.js';
-import { parseGraphFormula, parsePointList } from './formula.js';
+import { parseGraphFormula, parsePointList, parseRaySegment } from './formula.js';
 
 // The student's current answer, as the widget knows it. One shape for every
 // interaction type — irrelevant fields are simply absent.
@@ -41,6 +47,10 @@ export interface StudentGraphAnswer {
   points: [number, number][];
   strict?: boolean;
   side?: InequalitySide | null;
+  /** plot_ray: the start endpoint's open/closed choice. */
+  fromStyle?: 'open' | 'closed';
+  /** plot_segment: per-endpoint open/closed choices. */
+  endpoints?: ['open' | 'closed', 'open' | 'closed'];
 }
 
 // ---- 1. Authored anticipated mistakes ---------------------------------------
@@ -53,7 +63,8 @@ export interface CompiledMistake {
 
 export interface MistakeCompileContext {
   interactionType: string;
-  /** plot_point: the answer key's tolerance, reused for match comparison. */
+  /** plot_point: the answer key's tolerance, reused for match comparison.
+   *  plot_ray / plot_segment reuse it as the endpoint tolerance. */
   pointTolerance?: number;
   /** plot_function / graph_inequality: the key's model — same-family matches
    *  inherit its tuned tolerances so "match" and "score" agree on closeness. */
@@ -101,6 +112,48 @@ export function compileMistakeMatchers(
       if (parsed.kind !== 'function') return never;
       const model = withKeyTolerances(parsed.model, ctx.keyModel);
       return { index, test: (ans) => scoreFunction(model, ans.points) };
+    }
+    if (ctx.interactionType === 'plot_ray') {
+      const parsed = parseRaySegment(raw);
+      if (parsed.kind !== 'ray') return never;
+      const key: RayAnswerKey = {
+        from: parsed.from,
+        through: parsed.through,
+        fromStyle: parsed.fromStyle,
+        tolerance: ctx.pointTolerance ?? 0.25,
+      };
+      return {
+        index,
+        test: (ans) => {
+          const parts = scoreRayParts(key, {
+            from: ans.points[0] ?? [0, 0],
+            through: ans.points[1] ?? [0, 0],
+            fromStyle: ans.fromStyle ?? 'closed',
+          });
+          return parts.from && parts.direction && parts.style;
+        },
+      };
+    }
+    if (ctx.interactionType === 'plot_segment') {
+      const parsed = parseRaySegment(raw);
+      if (parsed.kind !== 'segment') return never;
+      const key: SegmentAnswerKey = {
+        from: parsed.from,
+        to: parsed.to,
+        endpoints: parsed.endpoints,
+        tolerance: ctx.pointTolerance ?? 0.25,
+      };
+      return {
+        index,
+        test: (ans) => {
+          const parts = scoreSegmentParts(key, {
+            from: ans.points[0] ?? [0, 0],
+            to: ans.points[1] ?? [0, 0],
+            endpoints: ans.endpoints ?? ['closed', 'closed'],
+          });
+          return parts.earned === parts.total;
+        },
+      };
     }
     if (ctx.interactionType === 'graph_inequality') {
       if (parsed.kind === 'inequality') {
@@ -216,6 +269,58 @@ export function classifyInequalityMistake(
   }
   if (!parts.boundary && parts.side && parts.style) {
     return 'Your shading choices look right — check your boundary line.';
+  }
+  return null;
+}
+
+/**
+ * plot_ray: which part (start point / direction / endpoint style) to revisit.
+ * Same nudge-not-lesson posture: never teaches the open/closed convention.
+ */
+export function classifyRayMistake(
+  key: RayAnswerKey,
+  ans: RayStudentAnswer,
+): string | null {
+  const parts = scoreRayParts(key, ans);
+  if (parts.from && parts.direction && !parts.style) {
+    return 'Your ray looks right — take another look at the style of its start point.';
+  }
+  if (parts.from && !parts.direction && parts.style) {
+    // Reversed 180°? A distinct, common mistake worth naming.
+    const flipped = scoreRayParts(key, {
+      from: ans.from,
+      through: [2 * ans.from[0] - ans.through[0], 2 * ans.from[1] - ans.through[1]],
+      fromStyle: ans.fromStyle,
+    });
+    if (flipped.direction) return 'Your start point is right — but the ray points the opposite way.';
+    return 'Your start point is right — check which direction the ray should go.';
+  }
+  if (!parts.from && parts.direction && parts.style) {
+    return 'Your direction looks right — check where the ray should start.';
+  }
+  return null;
+}
+
+/** plot_segment: endpoints vs styles nudges (order-independent, like scoring). */
+export function classifySegmentMistake(
+  key: SegmentAnswerKey,
+  ans: SegmentStudentAnswer,
+): string | null {
+  const parts = scoreSegmentParts(key, ans);
+  if (parts.earned === parts.total) return null;
+  const positionsOnly = scoreSegmentParts(
+    { ...key, endpoints: ans.endpoints },
+    ans,
+  );
+  if (positionsOnly.earned === positionsOnly.total) {
+    return 'Your segment is in the right place — take another look at the endpoint styles.';
+  }
+  const stylesOnly = scoreSegmentParts(
+    { ...key, from: ans.from, to: ans.to },
+    ans,
+  );
+  if (stylesOnly.earned === stylesOnly.total) {
+    return 'Your endpoint styles look right — check where the segment starts and ends.';
   }
   return null;
 }

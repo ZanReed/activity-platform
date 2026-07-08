@@ -528,10 +528,27 @@ describe('```graph fence (Drop 7)', () => {
         expect(g.attrs!.noSolutionCorrect).toBe(true);
     });
 
-    it('imports a domain clause onto the interaction', () => {
+    it('steers a domain clause to the ray/segment syntax (gliders deprecated)', () => {
         const md = '```graph\nanswer: y = 2x + 3 for x >= 0\n```';
+        const { blocks, warnings } = convert(md);
+        expect(blocks.some((b) => b.type === 'interactiveGraph')).toBe(false);
+        expect(warnings.some((w) => /answer: ray \(1, 2\) through \(3, 4\)/.test(w))).toBe(true);
+    });
+
+    it('imports ray and segment answers with endpoint styles', () => {
+        const md = '```graph\nanswer: ray (1, 2) through (3, 4) open\n```';
         const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
-        expect(g.attrs!.interaction.domains[0]).toEqual({ min: 0, minClosed: true });
+        expect(g.attrs!.interaction).toEqual({
+            type: 'plot_ray',
+            rays: [{ from: [1, 2], through: [3, 4], fromStyle: 'open', tolerance: 0.25 }],
+        });
+
+        const md2 = '```graph\nanswer: segment (1, 2) to (3, 4) open closed\n```';
+        const g2 = convert(md2).blocks.find((b) => b.type === 'interactiveGraph')!;
+        expect(g2.attrs!.interaction).toEqual({
+            type: 'plot_segment',
+            segments: [{ from: [1, 2], to: [3, 4], endpoints: ['open', 'closed'], tolerance: 0.25 }],
+        });
     });
 
     it('falls back to plain text with a warning on a bad line', () => {

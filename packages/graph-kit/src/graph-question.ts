@@ -21,6 +21,8 @@ import {
   scoreRegion,
   scoreInequalityParts,
   scoreDomainParts,
+  scoreRayParts,
+  scoreSegmentParts,
   fitFunction,
   handlesForFamily,
   type PointAnswerKey,
@@ -28,6 +30,8 @@ import {
   type RegionAnswerKey,
   type InequalityAnswerKey,
   type DomainAnswerKey,
+  type RayAnswerKey,
+  type SegmentAnswerKey,
 } from './graph-score.js';
 import {
   compileMistakeMatchers,
@@ -35,6 +39,8 @@ import {
   classifyPointMistake,
   classifyFunctionMistake,
   classifyInequalityMistake,
+  classifyRayMistake,
+  classifySegmentMistake,
   type StudentGraphAnswer,
 } from './mistakes.js';
 import type {
@@ -215,6 +221,10 @@ export interface GraphResponseData {
     maxX?: number;
     maxStyle?: 'open' | 'closed';
   };
+  /** plot_ray (Drop C): the student's start-endpoint open/closed choice. */
+  fromStyle?: 'open' | 'closed';
+  /** plot_segment (Drop C): per-endpoint open/closed, in handle order. */
+  endpoints?: ['open' | 'closed', 'open' | 'closed'];
   /** Drop B: matched authored anticipated mistake (index into the block's
    *  feedback templates). Only set when the answer is wrong. */
   mistakeIndex?: number;
@@ -229,6 +239,8 @@ export interface GraphRestoreExtras {
   side?: 'above' | 'below' | 'left' | 'right';
   noSolution?: boolean;
   domain?: GraphResponseData['domain'];
+  fromStyle?: 'open' | 'closed';
+  endpoints?: ['open' | 'closed', 'open' | 'closed'];
 }
 
 export interface GraphQuestionHooks {
@@ -302,6 +314,34 @@ function readInequalityKey(raw: unknown): InequalityAnswerKey {
   };
 }
 
+// Read the plot_ray answer key (`{ rays: [{ from, through, fromStyle,
+// tolerance }, …] }`; the single-ray widget uses the FIRST).
+function readRayKey(raw: unknown): RayAnswerKey {
+  const arr = ((raw ?? {}) as { rays?: unknown }).rays;
+  const first = ((Array.isArray(arr) ? arr[0] : undefined) ?? {}) as Record<string, unknown>;
+  return {
+    from: isPointPair(first.from) ? first.from : [0, 0],
+    through: isPointPair(first.through) ? first.through : [1, 1],
+    fromStyle: first.fromStyle === 'open' ? 'open' : 'closed',
+    tolerance: numOr(first.tolerance, 0.25),
+  };
+}
+
+// Read the plot_segment answer key (`{ segments: [{ from, to, endpoints,
+// tolerance }, …] }`; the single-segment widget uses the FIRST).
+function readSegmentKey(raw: unknown): SegmentAnswerKey {
+  const arr = ((raw ?? {}) as { segments?: unknown }).segments;
+  const first = ((Array.isArray(arr) ? arr[0] : undefined) ?? {}) as Record<string, unknown>;
+  const eps = Array.isArray(first.endpoints) ? first.endpoints : [];
+  const style = (v: unknown): 'open' | 'closed' => (v === 'open' ? 'open' : 'closed');
+  return {
+    from: isPointPair(first.from) ? first.from : [0, 0],
+    to: isPointPair(first.to) ? first.to : [2, 2],
+    endpoints: [style(eps[0]), style(eps[1])],
+    tolerance: numOr(first.tolerance, 0.25),
+  };
+}
+
 // A small pill button for the widget's control bar.
 function pill(label: string, onClick: () => void): HTMLButtonElement {
   const b = document.createElement('button');
@@ -329,13 +369,21 @@ export async function mountGraphQuestion(
   const interactionType =
     typeof cfg.interactionType === 'string' ? cfg.interactionType : 'plot_point';
   const isInequality = interactionType === 'graph_inequality';
+  const isRay = interactionType === 'plot_ray';
+  const isSegment = interactionType === 'plot_segment';
   const ineqKey = isInequality ? readInequalityKey(cfg.answerKey) : null;
+  const rayKey = isRay ? readRayKey(cfg.answerKey) : null;
+  const segmentKey = isSegment ? readSegmentKey(cfg.answerKey) : null;
   const domainKey =
     interactionType === 'plot_function' ? readDomainKey(cfg.answerKey) : null;
-  const recipe = isInequality
+  const recipe: Recipe = isInequality
     ? // Boundary rides the plot_function machinery for its family.
       recipeFor('plot_function', { models: [ineqKey!.boundary] })
-    : recipeFor(interactionType, cfg.answerKey);
+    : isRay || isSegment
+      ? // Two endpoint handles; scoring is parts-based in build() (styles ride
+        // alongside points), so the recipe scorer is a stub.
+        { count: 2, scorer: () => false }
+      : recipeFor(interactionType, cfg.answerKey);
 
   // The renderer seeds a static no-JS placeholder inside the canvas; clear it
   // before JSXGraph mounts so the two don't overlap.
@@ -354,6 +402,10 @@ export async function mountGraphQuestion(
   // gliders; styles start closed (solid dot) and the student flips them.
   let minStyle: 'open' | 'closed' = 'closed';
   let maxStyle: 'open' | 'closed' = 'closed';
+  // Ray/segment endpoint styles (Drop C). Start closed; the student flips them
+  // via the control-bar pills, and the handles render hollow/filled to match.
+  let rayFromStyle: 'open' | 'closed' = 'closed';
+  let segEndpoints: ['open' | 'closed', 'open' | 'closed'] = ['closed', 'closed'];
 
   // Drop B: authored anticipated-mistake matchers, parsed once at mount with
   // the kit's own freeform parser + the block's scoring tolerances.
@@ -395,6 +447,20 @@ export async function mountGraphQuestion(
         side: side ?? 'above',
       });
       text = classifyInequalityMistake(parts, side !== null);
+    } else if (isRay && rayKey) {
+      const pts = resp.studentPoints;
+      text = classifyRayMistake(rayKey, {
+        from: pts[0] ?? [0, 0],
+        through: pts[1] ?? [0, 0],
+        fromStyle: rayFromStyle,
+      });
+    } else if (isSegment && segmentKey) {
+      const pts = resp.studentPoints;
+      text = classifySegmentMistake(segmentKey, {
+        from: pts[0] ?? [0, 0],
+        to: pts[1] ?? [0, 0],
+        endpoints: segEndpoints,
+      });
     }
     if (text) resp.mistakeText = text;
     return resp;
@@ -426,6 +492,36 @@ export async function mountGraphQuestion(
       if (cfg.partialCredit) {
         resp.earned = 0;
         resp.total = 1;
+      }
+      return resp;
+    }
+    if (isRay && rayKey) {
+      const ans = {
+        from: pts[0] ?? ([0, 0] as [number, number]),
+        through: pts[1] ?? ([0, 0] as [number, number]),
+        fromStyle: rayFromStyle,
+      };
+      resp.fromStyle = rayFromStyle;
+      const parts = scoreRayParts(rayKey, ans);
+      resp.correct = parts.from && parts.direction && parts.style;
+      if (cfg.partialCredit) {
+        resp.earned = Number(parts.from) + Number(parts.direction) + Number(parts.style);
+        resp.total = 3;
+      }
+      return resp;
+    }
+    if (isSegment && segmentKey) {
+      const ans = {
+        from: pts[0] ?? ([0, 0] as [number, number]),
+        to: pts[1] ?? ([0, 0] as [number, number]),
+        endpoints: segEndpoints,
+      };
+      resp.endpoints = segEndpoints;
+      const parts = scoreSegmentParts(segmentKey, ans);
+      resp.correct = parts.earned === parts.total;
+      if (cfg.partialCredit) {
+        resp.earned = parts.earned;
+        resp.total = parts.total;
       }
       return resp;
     }
@@ -491,6 +587,8 @@ export async function mountGraphQuestion(
       count: recipe.count,
       deriveCurve: recipe.deriveCurve,
       lineThroughHandles: recipe.lineThroughHandles,
+      rayThroughHandles: isRay,
+      segmentBetweenHandles: isSegment,
       domainEndpoints: domainKey
         ? {
             min: typeof domainKey.min === 'number',
@@ -502,6 +600,14 @@ export async function mountGraphQuestion(
     },
     { onMove: handleMove, onSideClick: pickSide },
   );
+
+  // Reflect the current open/closed choices onto the handles (hollow/filled).
+  // A ray's through handle is not an endpoint — null leaves it solid.
+  function syncEndpointVisuals(): void {
+    if (isRay) board.setEndpointStyles?.([rayFromStyle, null]);
+    else if (isSegment) board.setEndpointStyles?.([segEndpoints[0], segEndpoints[1]]);
+  }
+  syncEndpointVisuals();
 
   // ---- Control bar (inequality style/side + the no-solution choice) ----------
   // The kit owns the .graph-canvas subtree; the bar overlays its bottom edge.
@@ -528,7 +634,10 @@ export async function mountGraphQuestion(
 
   let minStyleBtn: HTMLButtonElement | null = null;
   let maxStyleBtn: HTMLButtonElement | null = null;
-  if (isInequality || cfg.allowNoSolution || domainKey) {
+  let rayStyleBtn: HTMLButtonElement | null = null;
+  let segStartBtn: HTMLButtonElement | null = null;
+  let segEndBtn: HTMLButtonElement | null = null;
+  if (isInequality || cfg.allowNoSolution || domainKey || isRay || isSegment) {
     const bar = document.createElement('div');
     bar.style.cssText =
       'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
@@ -577,6 +686,39 @@ export async function mountGraphQuestion(
         bar.append(maxStyleBtn);
       }
     }
+    if (isRay) {
+      // One endpoint choice: the ray's start. Same label pattern as the domain
+      // pills; the handle itself also renders hollow/filled to match.
+      rayStyleBtn = pill('Start: ● closed', () => {
+        rayFromStyle = rayFromStyle === 'closed' ? 'open' : 'closed';
+        rayStyleBtn!.textContent = rayFromStyle === 'closed' ? 'Start: ● closed' : 'Start: ○ open';
+        answered = true;
+        syncEndpointVisuals();
+        hooks.onChange?.(build());
+      });
+      bar.append(rayStyleBtn);
+    }
+    if (isSegment) {
+      const segLabel = (which: 0 | 1): string => {
+        const name = which === 0 ? 'Start' : 'End';
+        return segEndpoints[which] === 'closed' ? name + ': ● closed' : name + ': ○ open';
+      };
+      segStartBtn = pill(segLabel(0), () => {
+        segEndpoints = [segEndpoints[0] === 'closed' ? 'open' : 'closed', segEndpoints[1]];
+        segStartBtn!.textContent = segLabel(0);
+        answered = true;
+        syncEndpointVisuals();
+        hooks.onChange?.(build());
+      });
+      segEndBtn = pill(segLabel(1), () => {
+        segEndpoints = [segEndpoints[0], segEndpoints[1] === 'closed' ? 'open' : 'closed'];
+        segEndBtn!.textContent = segLabel(1);
+        answered = true;
+        syncEndpointVisuals();
+        hooks.onChange?.(build());
+      });
+      bar.append(segStartBtn, segEndBtn);
+    }
     if (cfg.allowNoSolution) {
       noSolBtn = pill('Cannot be graphed', () => {
         noSolution = !noSolution;
@@ -596,7 +738,10 @@ export async function mountGraphQuestion(
     restore(points: [number, number][], extras?: GraphRestoreExtras): void {
       if (points.length === 0 && !extras?.noSolution) return;
       answered = true;
-      if (points.length > 0) board.setPoints(points);
+      // Apply the extras BEFORE setPoints: setPoints fires onChange, which
+      // re-scores and persists — scoring with stale style/side/strict choices
+      // would overwrite the restored result with a wrong one (found live: a
+      // reloaded open-endpoint ray re-scored as closed).
       if (extras) {
         if (typeof extras.strict === 'boolean') {
           strict = extras.strict;
@@ -609,6 +754,17 @@ export async function mountGraphQuestion(
         if (extras.noSolution) {
           noSolution = true;
           board.setInteractive(false);
+        }
+        if (extras.fromStyle && isRay) {
+          rayFromStyle = extras.fromStyle;
+          if (rayStyleBtn) rayStyleBtn.textContent = rayFromStyle === 'closed' ? 'Start: ● closed' : 'Start: ○ open';
+          syncEndpointVisuals();
+        }
+        if (extras.endpoints && isSegment) {
+          segEndpoints = extras.endpoints;
+          if (segStartBtn) segStartBtn.textContent = segEndpoints[0] === 'closed' ? 'Start: ● closed' : 'Start: ○ open';
+          if (segEndBtn) segEndBtn.textContent = segEndpoints[1] === 'closed' ? 'End: ● closed' : 'End: ○ open';
+          syncEndpointVisuals();
         }
         if (extras.domain) {
           board.setDomainXs?.({ minX: extras.domain.minX, maxX: extras.domain.maxX });
@@ -623,10 +779,12 @@ export async function mountGraphQuestion(
         }
         syncBar();
       }
+      if (points.length > 0) board.setPoints(points);
+      else hooks.onChange?.(build()); // no-points restore (noSolution) still reports
     },
     setLocked(locked: boolean): void {
       board.setInteractive(!locked && !noSolution);
-      const buttons = [solidBtn, dottedBtn, sideABtn, sideBBtn, noSolBtn, minStyleBtn, maxStyleBtn];
+      const buttons = [solidBtn, dottedBtn, sideABtn, sideBBtn, noSolBtn, minStyleBtn, maxStyleBtn, rayStyleBtn, segStartBtn, segEndBtn];
       for (const b of buttons) if (b) b.disabled = locked;
     },
     destroy(): void {
@@ -687,13 +845,17 @@ export async function mountGraphAuthor(
     : [];
   const family = typeof cfg.family === 'string' ? cfg.family : undefined;
   const polygon = cfg.interactionType === 'shade_region';
+  const authorRay = cfg.interactionType === 'plot_ray';
+  const authorSegment = cfg.interactionType === 'plot_segment';
   // plot_function fixes the handle count by family; shade_region uses one vertex
-  // per handle (≥3); plot_point uses one per point.
+  // per handle (≥3); ray/segment always two; plot_point uses one per point.
   const count = family
     ? handlesForFamily(family)
     : polygon
       ? Math.max(3, points.length)
-      : Math.max(1, points.length);
+      : authorRay || authorSegment
+        ? 2
+        : Math.max(1, points.length);
   const deriveCurve: PointAnswerConfig['deriveCurve'] | undefined = family
     ? (pts) => {
         const f = fitFunction(family, pts);
@@ -714,6 +876,8 @@ export async function mountGraphAuthor(
       deriveCurve,
       lineThroughHandles,
       polygon,
+      rayThroughHandles: authorRay,
+      segmentBetweenHandles: authorSegment,
     },
     { onMove: (_active, pts) => hooks.onChange?.(pts) },
   );

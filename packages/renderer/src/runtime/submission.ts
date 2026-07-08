@@ -68,6 +68,10 @@ export interface GraphResult {
     maxX?: number;
     maxStyle?: 'open' | 'closed';
   };
+  /** plot_ray (Drop C): the student's start-endpoint style. */
+  fromStyle?: 'open' | 'closed';
+  /** plot_segment (Drop C): per-endpoint styles, in handle order. */
+  endpoints?: ['open' | 'closed', 'open' | 'closed'];
 }
 
 interface CheckpointResultPayload {
