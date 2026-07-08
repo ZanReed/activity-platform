@@ -8,6 +8,18 @@ importers:
 
   .:
     devDependencies:
+      '@fontsource/andika':
+        specifier: ^5.2.10
+        version: 5.2.10
+      '@fontsource/atkinson-hyperlegible':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/comic-neue':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/lexend':
+        specifier: ^5.2.11
+        version: 5.2.11
       '@types/node':
         specifier: ^20.12.0
         version: 20.19.39
@@ -44,6 +56,18 @@ importers:
       '@floating-ui/react':
         specifier: ^0.27.19
         version: 0.27.19(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@fontsource/andika':
+        specifier: ^5.2.10
+        version: 5.2.10
+      '@fontsource/atkinson-hyperlegible':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/comic-neue':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/lexend':
+        specifier: ^5.2.11
+        version: 5.2.11
       '@supabase/supabase-js':
         specifier: ^2.105.3
         version: 2.105.3
@@ -721,6 +745,18 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
+
+  '@fontsource/andika@5.2.10':
+    resolution: {integrity: sha512-uLKWc3QjD/Pj6XixVxMmhdzhcGx/kTRK6wnzO/xkoA+a2uRhVU0RFOm9pbt3BjXKJwVeMUH/3qJh3cWj7mbv4g==}
+
+  '@fontsource/atkinson-hyperlegible@5.2.8':
+    resolution: {integrity: sha512-HciLcJ5DIK/OVOdo71EbEN4NnvDFlp6/SpAxtcbWf2aAdcsOuPqITxj5KNEXb48qSPSdnnZdGGnSJChPKi3/bA==}
+
+  '@fontsource/comic-neue@5.2.7':
+    resolution: {integrity: sha512-tNi0Nxbz0QMwHvZWJSP5G0SXq8CeX5b+K3l3q/afPmJ/WlQ+i3/NfOYWBzsojCZko1lNplfmjbsOGMuBs4WmcA==}
+
+  '@fontsource/lexend@5.2.11':
+    resolution: {integrity: sha512-bShbQr2g2sWl7GJNyIxdllZST1faVbebXN6H7AEEDCRms/g4orDLxWnmTVodOtiErdZVUJURq4jpafZ34nIkTw==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -3038,6 +3074,14 @@ snapshots:
       tabbable: 6.4.0
 
   '@floating-ui/utils@0.2.11': {}
+
+  '@fontsource/andika@5.2.10': {}
+
+  '@fontsource/atkinson-hyperlegible@5.2.8': {}
+
+  '@fontsource/comic-neue@5.2.7': {}
+
+  '@fontsource/lexend@5.2.11': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

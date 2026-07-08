@@ -12,9 +12,9 @@
 // =============================================================================
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { createEmptyDocument } from '@activity/schema';
+import { createEmptyDocument, type ActivityMeta } from '@activity/schema';
 import {
     ConfigButtons,
     ConfigDrawer,
@@ -26,14 +26,17 @@ afterEach(cleanup);
 
 const meta = createEmptyDocument({ title: 'Test' }).meta;
 
-function renderDrawer(active: 'settings' | 'print' | 'reference' | 'calculator' | null) {
+function renderDrawer(
+    active: 'settings' | 'print' | 'reference' | 'calculator' | null,
+    onMetaChange: (next: ActivityMeta) => void = () => {},
+) {
     return render(
         <MemoryRouter>
             <ConfigDrawer
                 active={active}
                 onClose={() => {}}
                 meta={meta}
-                onMetaChange={() => {}}
+                onMetaChange={onMetaChange}
                 panelEditorKey="test"
                 panelInitialContent={{
                     type: 'doc',
@@ -78,6 +81,62 @@ describe('ConfigDrawer', () => {
         expect(
             container.querySelector('[role="dialog"]')?.getAttribute('aria-label'),
         ).toBe('Calculator');
+    });
+});
+
+describe('Settings — typography (meta.typography)', () => {
+    it('renders the font menu and base-size input with the defaults', () => {
+        const { container } = renderDrawer('settings');
+        const font = container.querySelector<HTMLSelectElement>('#activity-font');
+        const size = container.querySelector<HTMLInputElement>(
+            '#activity-font-size',
+        );
+        expect(font?.value).toBe('default');
+        expect(size?.value).toBe('16');
+        // All five menu fonts offered.
+        expect(font?.options.length).toBe(5);
+    });
+
+    it('commits a selected font as meta.typography (additive field)', () => {
+        let next: ActivityMeta | null = null;
+        const { container } = renderDrawer('settings', (m) => (next = m));
+        const font = container.querySelector<HTMLSelectElement>('#activity-font')!;
+        fireEvent.change(font, { target: { value: 'lexend' } });
+        expect(next!.typography).toEqual({ font: 'lexend', fontSize: 16 });
+    });
+
+    it('drops the field entirely when both controls are back at the defaults', () => {
+        let next: ActivityMeta | null = null;
+        render(
+            <MemoryRouter>
+                <ConfigDrawer
+                    active="settings"
+                    onClose={() => {}}
+                    meta={{
+                        ...meta,
+                        typography: { font: 'default', fontSize: 18 },
+                    }}
+                    onMetaChange={(m) => (next = m)}
+                    panelEditorKey="test-t"
+                    panelInitialContent={{
+                        type: 'doc',
+                        content: [{ type: 'paragraph' }],
+                    }}
+                    panelTitle=""
+                    onPanelTitleChange={() => {}}
+                    onPanelEditorUpdate={() => {}}
+                    calculator={undefined}
+                    onCalculatorChange={() => {}}
+                />
+            </MemoryRouter>,
+        );
+        const size = document.querySelector<HTMLInputElement>(
+            '#activity-font-size',
+        )!;
+        expect(size.value).toBe('18');
+        fireEvent.change(size, { target: { value: '16' } });
+        // Back to defaults → untouched documents stay structurally identical.
+        expect(next!.typography).toBeUndefined();
     });
 });
 

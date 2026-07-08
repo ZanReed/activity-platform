@@ -42,6 +42,7 @@ import {
   renderCalculatorTool,
 } from './render.js';
 import { blockStyles } from './runtime/styles.js';
+import { typographyStyleTag } from './typography.js';
 import { runtimeJs } from './runtime/generated/runtime-bundle.js';
 import { runtimeGraphsJs } from './runtime/generated/runtime-graphs-bundle.js';
 import { referencePanelJs } from './runtime/generated/reference-panel-bundle.js';
@@ -65,6 +66,14 @@ export interface RenderContext {
    * R2 env), exactly like submissionEndpoint.
    */
   calculatorKitUrl?: string;
+  /**
+   * Absolute URL prefix of the self-hosted activity fonts on R2 (the public
+   * base joined with FONTS_R2_PREFIX; see typography.ts). Optional: when
+   * absent, a document with meta.typography still gets its CSS vars (base
+   * size + family with fallback) but no @font-face rules — dev without R2
+   * degrades to the fallback stack instead of pointing at nothing.
+   */
+  fontsBaseUrl?: string;
 }
 
 // ---- Print helpers ----------------------------------------------------------
@@ -195,6 +204,10 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     // Per-document @page rule (paper size + margin). Literal, not a CSS var:
     // @page can't reliably read custom properties. See printPageStyle.
     printPageStyle(print) +
+    // Activity-wide typography (meta.typography): @font-face for the selected
+    // self-hosted family + the :root vars the block CSS reads. Empty string
+    // when the document carries no typography config. See typography.ts.
+    typographyStyleTag(doc.meta.typography, ctx.fontsBaseUrl) +
     '</head>' +
     '<body>' +
     // data-activity-type is the CSS hook for activity-type variants. The
@@ -330,7 +343,10 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
 // argument here. Pure (no RenderContext): printing needs no id or submit URL.
 export function renderActivityForPrint(
   doc: ActivityDocument,
-  opts: { showAnswers?: boolean } = {},
+  // fontsBaseUrl mirrors RenderContext.fontsBaseUrl (the app's print route
+  // supplies its VITE_PUBLISHED_URL_BASE-derived value) so the printed sheet
+  // uses the same self-hosted family as the published page — WYSIWYG on paper.
+  opts: { showAnswers?: boolean; fontsBaseUrl?: string } = {},
 ): string {
   const body = renderBody(doc, { showAnswers: opts.showAnswers });
   const print = doc.meta.print;
@@ -349,6 +365,7 @@ export function renderActivityForPrint(
     '<style>' + katexCss + '</style>' +
     '<style>' + blockStyles + '</style>' +
     printPageStyle(print) +
+    typographyStyleTag(doc.meta.typography, opts.fontsBaseUrl) +
     '</head>' +
     '<body>' +
     '<main class="activity-container"' +

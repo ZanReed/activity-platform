@@ -8,6 +8,7 @@
     "build": "pnpm -r build",
     "bundle:renderer": "node scripts/bundle-renderer.mjs",
     "build:graph-kit": "node --env-file-if-exists=.env.r2 scripts/build-graph-kit.mjs",
+    "build:fonts": "node --env-file-if-exists=.env.r2 scripts/build-fonts.mjs",
     "test": "pnpm -r test",
     "test:watch": "pnpm -r test:watch",
     "typecheck": "pnpm -r typecheck",
@@ -17,13 +18,16 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@fontsource/andika": "^5.2.10",
+    "@fontsource/atkinson-hyperlegible": "^5.2.8",
+    "@fontsource/comic-neue": "^5.2.7",
+    "@fontsource/lexend": "^5.2.11",
     "@types/node": "^20.12.0",
     "aws4fetch": "^1.0.20",
     "esbuild": "^0.21.0",
-    "typescript": "^5.4.5",
-    "vitest": "^1.6.0",
     "prettier": "^3.4.0",
-    "prettier-plugin-tailwindcss": "^0.6.10"
+    "prettier-plugin-tailwindcss": "^0.6.10",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
   }
-
 }

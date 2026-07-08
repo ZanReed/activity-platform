@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
 import {
     useEditor,
     EditorContent,
     type Editor as TiptapEditor,
     type JSONContent,
 } from '@tiptap/react';
+import type { Typography } from '@activity/schema';
+import { fontFamilyValue } from '@activity/renderer';
+import { ensureActivityFontLoaded } from '../lib/fonts';
 import StarterKit from '@tiptap/starter-kit';
 import DragHandle from '@tiptap/extension-drag-handle-react';
 import Toolbar from './Toolbar';
@@ -45,6 +49,12 @@ interface EditorProps {
     // activity-level header actions — e.g. markdown import — can drive editor
     // commands. The editor itself stays the owner of the useEditor instance.
     onEditorReady?: (editor: TiptapEditor | null) => void;
+    // Activity-wide typography (meta.typography) — applied LIVE to the canvas
+    // via the same --activity-font-* vars the published page uses (editor.css
+    // reads them on .ProseMirror), with the family itself loaded through the
+    // app-side fontsource path (lib/fonts.ts) so authoring is WYSIWYG without
+    // an R2 round trip. Undefined = the default look (playground, old docs).
+    typography?: Typography;
 }
 
 export default function Editor({
@@ -53,6 +63,7 @@ export default function Editor({
     gridLinesDefault = false,
     activityId,
     onEditorReady,
+    typography,
 }: EditorProps) {
     // Force re-render on every editor transaction. Tiptap React's built-in
     // re-render hook misses pure storedMarks transactions (e.g., toggling a
@@ -124,6 +135,26 @@ export default function Editor({
         }
     }, [editor]);
 
+    // Load the selected activity font into the app when it changes (no-op for
+    // 'default'/undefined; idempotent per family). The vars below apply
+    // immediately either way — font-display swap semantics via the fallback
+    // stack until the file lands.
+    useEffect(() => {
+        if (typography) void ensureActivityFontLoaded(typography.font);
+    }, [typography?.font]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // The canvas half of the WYSIWYG contract: the same CSS vars the published
+    // page sets on :root, scoped to this editor card. editor.css consumes them
+    // on .ProseMirror (family + base size; headings there are em-relative like
+    // the published blocks, so they scale identically).
+    const typographyVars: CSSProperties | undefined = typography
+        ? ({
+              '--activity-font-family':
+                  fontFamilyValue(typography.font) ?? undefined,
+              '--activity-font-size': `${typography.fontSize}px`,
+          } as CSSProperties)
+        : undefined;
+
     // Hand the live instance up to the parent's header actions (e.g. the
     // markdown-import button gates on it). Only ever report a NON-NULL editor and
     // never null it on cleanup: that guarantees once the editor exists the parent
@@ -140,7 +171,10 @@ export default function Editor({
         // toolbar's containing scroll box and silently disable its
         // position:sticky against the window scroll. Corner rounding is
         // handled per-edge instead (toolbar rounds its own top corners).
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div
+            className="rounded-lg border border-slate-200 bg-white shadow-sm"
+            style={typographyVars}
+        >
             <Toolbar editor={editor} />
             <div className="p-6">
                 <DragHandle editor={editor} nested={columnsNestedDragOptions}>

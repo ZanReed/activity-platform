@@ -162,6 +162,45 @@ export const PrintConfig = z.object({
 });
 export type PrintConfig = z.infer<typeof PrintConfig>;
 
+// Typography: the activity-wide font + base body size (author-approved
+// 2026-07-08). ONE font and ONE base size for the whole activity — published
+// page, editor canvas, and print view all read the same config so authoring is
+// WYSIWYG. Optional and additive: documents stored before this field existed
+// parse unchanged (no schemaVersion bump), and the editor omits the field
+// entirely while it holds the defaults so untouched documents stay
+// structurally identical.
+//
+//   font     — an id into the renderer's FONT_REGISTRY (the CSS specifics —
+//              family name, fallback stack, WOFF2 files — live renderer-side;
+//              the schema only constrains the menu). 'default' = the current
+//              system stack, no font download. The other four are SIL OFL
+//              faces self-hosted as WOFF2 on R2 (no Google CDN dependency on
+//              published pages).
+//   fontSize — base BODY size in px, applied on screen via
+//              --activity-font-size. Print body sizing stays owned by
+//              meta.print.fontSize (pt) — the @media print rule overrides the
+//              screen size, so the two never fight. Headings are em-relative
+//              and scale off whichever base is in effect.
+//
+// Per-span font/size marks are PARKED but designed for: this activity-wide
+// layer only sets CSS vars + @font-face, so a future `textStyle` mark can
+// slot in additively (span-level inline styles win the cascade; the
+// renderer's fontFaceCss already takes a LIST of families to embed).
+export const ActivityFont = z.enum([
+  'default',
+  'lexend',
+  'atkinson-hyperlegible',
+  'andika',
+  'comic-neue',
+]);
+export type ActivityFont = z.infer<typeof ActivityFont>;
+
+export const Typography = z.object({
+  font: ActivityFont.default('default'),
+                                     fontSize: z.number().min(12).max(24).default(16),
+});
+export type Typography = z.infer<typeof Typography>;
+
 export const ActivityMeta = z.object({
   title: z.string().min(1),
                                      course: z.string().default('Algebra II'),
@@ -173,6 +212,7 @@ export const ActivityMeta = z.object({
                                      answerFeedback: z.enum(['immediate', 'on_check']).default('on_check'),
                                      skills: z.array(z.string()).default([]),
                                      print: PrintConfig.default({}),
+                                     typography: Typography.optional(),
 });
 export type ActivityMeta = z.infer<typeof ActivityMeta>;
 

@@ -33,6 +33,22 @@ export { renderBody } from './render.js';
 export { blockStyles } from './runtime/styles.js';
 export { katexCss } from './generated/katex-css.js';
 
+// Activity-wide typography (meta.typography): the font registry behind the
+// schema's ActivityFont ids plus the CSS helpers. Exported so the app can
+// build the config-drawer menu (FONT_MENU/FONT_REGISTRY), style the editor
+// canvas with the same family value (fontFamilyValue — WYSIWYG), and so
+// publish-activity and scripts/build-fonts.mjs agree on the R2 layout
+// (FONTS_R2_PREFIX).
+export {
+  FONT_REGISTRY,
+  FONT_MENU,
+  FONTS_R2_PREFIX,
+  fontFamilyValue,
+  fontFaceCss,
+  typographyStyleTag,
+} from './typography.js';
+export type { FontSpec } from './typography.js';
+
 // Re-export the schema. Validating inputs against ActivityDocument is part
 // of the renderer's contract — anything that doesn't parse here is a
 // programmer error, and we want callers to validate before rendering.

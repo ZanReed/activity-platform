@@ -574,6 +574,7 @@ export default function ActivityEditor() {
             gridLinesDefault={meta.print.gridLines}
             activityId={id}
             onEditorReady={setEditorInstance}
+            typography={meta.typography}
             />
 
             {/*

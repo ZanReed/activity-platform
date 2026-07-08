@@ -76,6 +76,11 @@ export async function measureFlowItems(
   bodyHtml: string,
   geom: SheetGeometry,
   print: PrintConfig,
+  // Activity-wide typography <style> tag ('' when the activity has none).
+  // MUST match what renderFoldableDocument embeds: the family changes text
+  // metrics, and fonts.ready below waits for it — measuring in the fallback
+  // font but printing in the real one would mis-paginate panels.
+  typographyTag = '',
 ): Promise<FlowItem[]> {
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
@@ -94,6 +99,7 @@ export async function measureFlowItems(
         '<style>' + katexCss + '</style>' +
         '<style>' + blockStyles + '</style>' +
         '<style>' + foldableStyles(geom, print) + '</style>' +
+        typographyTag +
         '</head><body><div class="foldable-panel-content" id="measure-root"></div></body></html>',
     );
     idoc.close();

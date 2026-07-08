@@ -22,7 +22,7 @@
 // charge between blocks to match the CSS adjacent-sibling margin.
 // =============================================================================
 
-import { renderBody } from '@activity/renderer';
+import { renderBody, typographyStyleTag } from '@activity/renderer';
 import type { ActivityDocument } from '@activity/schema';
 import { sheetGeometry } from './geometry';
 import { measureFlowItems } from './measure';
@@ -36,6 +36,13 @@ const ROOT_FONT_PX = 16;
 export interface BuildFoldableOptions {
   /** Answer-key variant: prefill blanks with their canonical answer. */
   showAnswers?: boolean;
+  /**
+   * Absolute base URL of the self-hosted activity fonts (meta.typography) on
+   * R2 — same value the print route passes renderActivityForPrint. Absent =
+   * no @font-face; the foldable measures AND prints in the fallback stack,
+   * which keeps pagination consistent either way.
+   */
+  fontsBaseUrl?: string;
 }
 
 export async function buildFoldableDocument(
@@ -45,8 +52,15 @@ export async function buildFoldableDocument(
   const print = doc.meta.print;
   const geom = sheetGeometry(print);
 
+  // One typography tag for the measure iframe AND the final document — the
+  // family changes text metrics, so the two must never diverge.
+  const typographyTag = typographyStyleTag(
+    doc.meta.typography,
+    opts.fontsBaseUrl,
+  );
+
   const bodyHtml = renderBody(doc, { showAnswers: opts.showAnswers });
-  const items = await measureFlowItems(bodyHtml, geom, print);
+  const items = await measureFlowItems(bodyHtml, geom, print, typographyTag);
 
   const spacingPx = print.problemSpacing * ROOT_FONT_PX;
   const panels = paginate(items, {
@@ -67,6 +81,7 @@ export async function buildFoldableDocument(
     print,
     contentPanels,
     foldables,
+    typographyTag,
   });
 }
 

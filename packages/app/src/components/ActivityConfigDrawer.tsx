@@ -24,13 +24,17 @@ import { Link } from 'react-router';
 import type { JSONContent } from '@tiptap/react';
 import {
     createCalculatorTool,
+    type ActivityFont,
     type ActivityMeta,
     type PrintConfig,
+    type Typography,
     type CalculatorTool,
     type RegressionModel,
 } from '@activity/schema';
+import { FONT_MENU, FONT_REGISTRY, fontFamilyValue } from '@activity/renderer';
 import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 import ReferencePanelEditor from '../editor/ReferencePanelEditor';
+import { ensureActivityFontLoaded } from '../lib/fonts';
 
 export type ConfigKey = 'settings' | 'print' | 'reference' | 'calculator';
 
@@ -450,6 +454,110 @@ function ActivitySettingsBody({
                     {ANSWER_FEEDBACK_HELP[meta.answerFeedback]}
                 </p>
             </div>
+
+            <TypographySettings meta={meta} onChange={onChange} />
+        </div>
+    );
+}
+
+// Activity-wide typography (meta.typography): ONE font + base body size for
+// the whole activity — published page, editor canvas, and print all follow.
+// The field is additive/optional: while both controls hold the defaults the
+// meta carries NO typography field at all, so untouched documents stay
+// structurally identical to pre-typography ones. Base size is the on-SCREEN
+// body size in px; the printed body size stays meta.print.fontSize (pt) in
+// the Print & worksheet layout section — two layers, called out in the help
+// text so teachers aren't surprised.
+const TYPOGRAPHY_DEFAULTS: Typography = { font: 'default', fontSize: 16 };
+
+function TypographySettings({
+    meta,
+    onChange,
+}: {
+    meta: ActivityMeta;
+    onChange: (next: ActivityMeta) => void;
+}) {
+    const typography = meta.typography ?? TYPOGRAPHY_DEFAULTS;
+
+    // Load the selected family into the app so the in-menu preview line below
+    // (and the editor canvas behind the drawer) renders it immediately.
+    useEffect(() => {
+        void ensureActivityFontLoaded(typography.font);
+    }, [typography.font]);
+
+    const commit = (patch: Partial<Typography>) => {
+        const next = { ...typography, ...patch };
+        const isDefault =
+            next.font === TYPOGRAPHY_DEFAULTS.font &&
+            next.fontSize === TYPOGRAPHY_DEFAULTS.fontSize;
+        onChange({ ...meta, typography: isDefault ? undefined : next });
+    };
+
+    return (
+        <div className="border-t border-slate-200 pt-4">
+            <div>
+                <label className={SETTINGS_LABEL_CLASS} htmlFor="activity-font">
+                    Font
+                </label>
+                <select
+                    id="activity-font"
+                    className={SELECT_CLASS}
+                    value={typography.font}
+                    onChange={(e) =>
+                        commit({ font: e.target.value as ActivityFont })
+                    }
+                >
+                    {FONT_MENU.map((font) => (
+                        <option key={font} value={font}>
+                            {FONT_REGISTRY[font].label}
+                        </option>
+                    ))}
+                </select>
+                <p className={SETTINGS_HELP_CLASS}>
+                    One font for the whole activity — on screen, in the editor,
+                    and on paper.
+                </p>
+            </div>
+
+            <div className="mt-4">
+                <label
+                    className={SETTINGS_LABEL_CLASS}
+                    htmlFor="activity-font-size"
+                >
+                    Base text size (px)
+                </label>
+                <input
+                    id="activity-font-size"
+                    type="number"
+                    min={12}
+                    max={24}
+                    step={1}
+                    className={SELECT_CLASS}
+                    value={typography.fontSize}
+                    onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === '') return;
+                        const n = Number(raw);
+                        if (Number.isFinite(n) && n >= 12 && n <= 24)
+                            commit({ fontSize: n });
+                    }}
+                />
+                <p className={SETTINGS_HELP_CLASS}>
+                    On-screen body size; headings scale with it. Printed body
+                    size is set separately under Print &amp; worksheet layout.
+                </p>
+            </div>
+
+            <p
+                data-typography-preview
+                className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700"
+                style={{
+                    fontFamily: fontFamilyValue(typography.font) ?? undefined,
+                    fontSize: `${typography.fontSize}px`,
+                }}
+            >
+                The quick brown fox jumps over 12 lazy dogs.
+            </p>
         </div>
     );
 }

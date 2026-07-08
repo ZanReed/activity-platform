@@ -1,26 +1,35 @@
 /* Editor content styling.
  *  The .ProseMirror class is auto-applied by Tiptap to its
  *  contenteditable area — that's why we target it. */
+
+/* Activity-wide typography (meta.typography), the editor half. Editor.tsx
+ * sets --activity-font-family / --activity-font-size on the editor card
+ * (same vars the published page sets on :root; see renderer typography.ts);
+ * the canvas reads them here so authoring is WYSIWYG. Both fall back to the
+ * pre-typography look. Headings are em-relative (matching the published
+ * blocks) so they scale off the base size the same way the page does. */
 .ProseMirror {
     outline: none;
+    font-family: var(--activity-font-family, inherit);
+    font-size: var(--activity-font-size, 1rem);
 }
 
 .ProseMirror h1 {
-    font-size: 1.875rem;
+    font-size: 1.875em;
     font-weight: 700;
     margin-top: 1rem;
     margin-bottom: 0.5rem;
 }
 
 .ProseMirror h2 {
-    font-size: 1.5rem;
+    font-size: 1.5em;
     font-weight: 600;
     margin-top: 0.875rem;
     margin-bottom: 0.5rem;
 }
 
 .ProseMirror h3 {
-    font-size: 1.25rem;
+    font-size: 1.25em;
     font-weight: 600;
     margin-top: 0.75rem;
     margin-bottom: 0.5rem;

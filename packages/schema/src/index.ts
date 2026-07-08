@@ -65,6 +65,8 @@ export {
   CalculatorTool,
   PrintHeader,
   PrintConfig,
+  ActivityFont,
+  Typography,
 } from './document.js';
 
 // Submissions

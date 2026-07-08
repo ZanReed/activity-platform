@@ -29,6 +29,14 @@ export interface RenderFoldableInput {
   /** Per content-panel HTML (joined block outerHTML), indexed by panelIndex. */
   contentPanels: string[];
   foldables: Foldable[];
+  /**
+   * Activity-wide typography <style> tag ('' when the activity has none).
+   * Must be the SAME tag the measure iframe used — see measureFlowItems. Only
+   * the font FAMILY takes effect here (blockStyles reads it on body); the
+   * screen base size rides .activity-container, which foldable panels don't
+   * have — panel text sizing stays owned by the print layer, as on any paper.
+   */
+  typographyTag: string;
 }
 
 // Sheet-geometry CSS: landscape @page, one full-page sheet per face, two panels
@@ -137,7 +145,7 @@ function renderFace(
 }
 
 export function renderFoldableDocument(input: RenderFoldableInput): string {
-  const { title, geom, print, contentPanels, foldables } = input;
+  const { title, geom, print, contentPanels, foldables, typographyTag } = input;
 
   // Each foldable → outside face, then inside face (duplex print order).
   const sheets = foldables
@@ -159,6 +167,7 @@ export function renderFoldableDocument(input: RenderFoldableInput): string {
     '<style>' + blockStyles + '</style>' +
     '<style>' + foldableStyles(geom, print) + '</style>' +
     '<style>' + printLayoutStyles(geom) + '</style>' +
+    typographyTag +
     '</head>' +
     '<body>' +
     sheets +

@@ -52,8 +52,19 @@ export const blockStyles = `
 
 * { box-sizing: border-box; }
 
+/* Activity-wide typography seam (meta.typography). The renderer emits a
+   per-document <style> setting --activity-font-family / --activity-font-size
+   on :root (typography.ts); documents without typography set neither, and the
+   fallbacks below keep today's look. Family sits on body (not the container)
+   so floating UI outside <main> — the hint popover, the calculator — matches
+   the activity. The base SIZE sits on the container: content text inherits
+   and the em-relative headings scale off it, while the @media print rule
+   further down re-takes the container font-size via --print-font-size, so
+   meta.print.fontSize keeps sole ownership of print body sizing. A future
+   per-span textStyle mark layers over this with span-level inline styles —
+   the cascade already resolves in its favor, nothing here changes. */
 body {
-  font-family: var(--font-body);
+  font-family: var(--activity-font-family, var(--font-body));
   color: var(--color-text);
   background: var(--color-bg);
   line-height: 1.6;
@@ -64,6 +75,7 @@ body {
 .activity-container {
   max-width: var(--max-width);
   margin: 0 auto;
+  font-size: var(--activity-font-size, 1rem);
 }
 
 .activity-header {
@@ -72,9 +84,13 @@ body {
   margin-bottom: 2rem;
 }
 
+/* Headings and section titles are em-relative (not rem) so they scale off the
+   active base size — --activity-font-size on screen, --print-font-size on
+   paper. Their margins stay in rem on purpose: vertical rhythm is a layout
+   concern, not a type-scale one. */
 .activity-header h1 {
   margin: 0 0 0.5rem 0;
-  font-size: 1.75rem;
+  font-size: 1.75em;
 }
 
 .activity-header .meta {
@@ -112,7 +128,7 @@ body {
 }
 
 .section-title {
-  font-size: 1.25rem;
+  font-size: 1.25em;
   margin: 1.5rem 0 1rem;
   color: var(--color-muted);
   text-transform: uppercase;
@@ -124,9 +140,9 @@ body {
 
 .block-paragraph { margin: 0.75rem 0; }
 
-.block-heading-1 { font-size: 1.5rem;  margin: 1.5rem 0 0.75rem; }
-.block-heading-2 { font-size: 1.25rem; margin: 1.25rem 0 0.5rem; }
-.block-heading-3 { font-size: 1.1rem;  margin: 1rem 0 0.5rem; font-weight: 600; }
+.block-heading-1 { font-size: 1.5em;  margin: 1.5rem 0 0.75rem; }
+.block-heading-2 { font-size: 1.25em; margin: 1.25rem 0 0.5rem; }
+.block-heading-3 { font-size: 1.1em;  margin: 1rem 0 0.5rem; font-weight: 600; }
 
 .block-math {
   margin: 1.25rem 0;

@@ -49,6 +49,7 @@ import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 import {
   renderActivity,
   ActivityDocument,
+  FONTS_R2_PREFIX,
   type ActivityDocument as ActivityDocumentType,
 } from '../_shared/renderer.bundle.js';
 import { CALCULATOR_KIT_FILE } from '../_shared/graph-kit-manifest.ts';
@@ -99,6 +100,13 @@ const PUBLIC_URL_BASE = R2_PUBLIC_URL_BASE.replace(/\/+$/, '');
 // renderer only emits the calculator when an activity opts in AND this URL is
 // present, so a page without a calculator never references it.
 const CALCULATOR_KIT_URL = `${PUBLIC_URL_BASE}/shared/${CALCULATOR_KIT_FILE}`;
+
+// The self-hosted activity fonts (meta.typography). Uploaded out-of-band by
+// `pnpm build:fonts`; the renderer emits @font-face rules under this base only
+// for documents that opt into a non-default font, so pages without typography
+// never reference it. FONTS_R2_PREFIX comes from the renderer bundle so the
+// URL layout can't drift from the file names the renderer emits.
+const FONTS_BASE_URL = `${PUBLIC_URL_BASE}/${FONTS_R2_PREFIX}`;
 
 // One AwsClient per cold start. We use aws4fetch (a small fetch-based SigV4
 // signer) rather than @aws-sdk/client-s3: the AWS SDK imports fine on Supabase
@@ -232,6 +240,7 @@ Deno.serve(async (req: Request) => {
       versionNum: version.version_num,
       submissionEndpoint: SUBMISSION_ENDPOINT,
       calculatorKitUrl: CALCULATOR_KIT_URL,
+      fontsBaseUrl: FONTS_BASE_URL,
     });
   } catch (err) {
     console.error('[publish-activity] Render error:', err);

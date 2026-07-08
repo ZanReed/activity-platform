@@ -23,10 +23,23 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
-import { renderActivityForPrint } from '@activity/renderer';
+import { renderActivityForPrint, FONTS_R2_PREFIX } from '@activity/renderer';
 import { ActivityDocument, type PrintConfig } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { buildFoldableDocument } from '../lib/foldable';
+
+// Where the printed document's @font-face rules point (meta.typography fonts,
+// self-hosted on R2). Same base the published page uses — the preview iframe
+// is its own document, so app-side fontsource CSS can't reach it. Empty when
+// VITE_PUBLISHED_URL_BASE is unset (dev without R2): the print preview then
+// falls back to the default stack, exactly like a published page would.
+const PUBLISHED_BASE = (import.meta.env.VITE_PUBLISHED_URL_BASE ?? '').replace(
+    /\/+$/,
+    '',
+);
+const FONTS_BASE_URL = PUBLISHED_BASE
+    ? `${PUBLISHED_BASE}/${FONTS_R2_PREFIX}`
+    : undefined;
 
 // The two print layouts this route offers. 'worksheet' is the flat, full-page
 // document (renderActivityForPrint, synchronous). 'foldable' is the journal
@@ -208,8 +221,14 @@ export default function ActivityPrint() {
     // Flat worksheet HTML — synchronous, memoized so the (non-trivial) document
     // string only rebuilds when the merged doc or the answer toggle changes.
     const worksheetHtml = useMemo(
-        () => (mergedDoc ? renderActivityForPrint(mergedDoc, { showAnswers }) : ''),
-                                   [mergedDoc, showAnswers],
+        () =>
+            mergedDoc
+                ? renderActivityForPrint(mergedDoc, {
+                      showAnswers,
+                      fontsBaseUrl: FONTS_BASE_URL,
+                  })
+                : '',
+        [mergedDoc, showAnswers],
     );
 
     // Journal foldable HTML — async (DOM-measured). Rebuilt whenever the merged
@@ -219,7 +238,7 @@ export default function ActivityPrint() {
         if (layout !== 'foldable' || !mergedDoc) return;
         let cancelled = false;
         setFoldableStatus('building');
-        buildFoldableDocument(mergedDoc, { showAnswers })
+        buildFoldableDocument(mergedDoc, { showAnswers, fontsBaseUrl: FONTS_BASE_URL })
         .then((built) => {
             if (cancelled) return;
             setFoldableHtml(built);
