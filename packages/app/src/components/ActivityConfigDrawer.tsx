@@ -871,23 +871,40 @@ const REGRESSION_MODEL_OPTIONS: { model: RegressionModel; label: string }[] = [
 
 // Live preview of the calculator in its restricted state — the SAME
 // mountCalculator() a published page loads, so the author sees exactly what a
-// student gets ("what the teacher sees is what the student gets"). Re-mounts
-// when a restriction flag changes (the widget reads its config at mount). The
-// close (×) button is hidden here — there's no summon button in the preview to
-// reopen it with.
+// student gets ("what the teacher sees is what the student gets"). Mounted
+// FLOATING (the published-page mode): the graphing widget is 30rem wide and
+// can't fit inside the 26rem drawer, so instead of shrinking it the preview IS
+// the student's draggable/resizable panel, summoned over the editor. Re-mounts
+// when a restriction flag changes (the widget reads its config at mount); the
+// kit's module-level remembered geometry keeps its size/position across
+// remounts. The × close and Esc work here (the kit stops Esc's propagation,
+// so the drawer stays open) and the toggle button below re-summons. Hiding the
+// drawer or switching sections hides the panel with it (the mount lives in
+// this section's display:none-able body — deliberate: no orphaned preview).
 function CalculatorPreview({
     restrictions,
 }: {
     restrictions: CalculatorTool['restrictions'];
 }) {
     const mountRef = useRef<HTMLDivElement>(null);
+    const handleRef = useRef<CalculatorHandle | null>(null);
+    // Mirrors the widget's open state (it self-closes via ×/Esc) so the
+    // toggle button reads correctly.
+    const [open, setOpen] = useState(true);
     // join() so the array's identity churn doesn't re-mount on every render
     const modelsKey = restrictions.allowedRegressionModels.join(',');
     useEffect(() => {
         const el = mountRef.current;
         if (!el) return;
-        const handle: CalculatorHandle = mountCalculator(el, restrictions, {});
-        return () => handle.destroy();
+        const handle: CalculatorHandle = mountCalculator(el, restrictions, {
+            floating: true,
+            onToggle: setOpen,
+        });
+        handleRef.current = handle;
+        return () => {
+            handleRef.current = null;
+            handle.destroy();
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         restrictions.mode,
@@ -897,7 +914,20 @@ function CalculatorPreview({
         restrictions.maxExpressions,
     ]);
     return (
-        <div className="relative mt-2 flex justify-center [&_.gk-cal-close]:hidden">
+        <div className="mt-3">
+            <button
+                type="button"
+                onClick={() => handleRef.current?.toggle()}
+                aria-pressed={open}
+                data-calculator-preview-toggle
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+            >
+                {open ? 'Hide preview' : 'Preview — what students will see'}
+            </button>
+            <p className={SETTINGS_HELP_CLASS}>
+                The preview opens as the same floating panel students get —
+                drag its title bar to move it, resize from the corner.
+            </p>
             <div ref={mountRef} />
         </div>
     );
@@ -1070,9 +1100,6 @@ function CalculatorBody({
                             ))}
                         </div>
                     )}
-                    <p className={`${SETTINGS_HELP_CLASS} mt-3`}>
-                        Preview — what students will see:
-                    </p>
                     <CalculatorPreview restrictions={restrictions} />
                 </div>
             )}
