@@ -477,11 +477,12 @@ function gatherGraphResponses(
         result.strict = gs.strict === true;
         result.side = gs.side ?? 'above';
       }
-      if (ref.interactionType === 'plot_ray') {
-        result.fromStyle = gs.fromStyle ?? 'closed';
-      }
-      if (ref.interactionType === 'plot_segment') {
-        result.endpoints = gs.endpoints ?? ['closed', 'closed'];
+      if (ref.interactionType === 'plot_ray' || ref.interactionType === 'plot_segment') {
+        // The chosen shape is part of the answer; styles ride per shape family
+        // (a ray records its endpoint style, a segment both).
+        if (gs.shape) result.shape = gs.shape;
+        if (ref.interactionType === 'plot_ray') result.fromStyle = gs.fromStyle ?? 'closed';
+        else result.endpoints = gs.endpoints ?? ['closed', 'closed'];
       }
       if (gs.noSolution) result.noSolution = true;
       if (gs.domain) result.domain = gs.domain;
@@ -562,6 +563,7 @@ function wireGraphs(
             gs.earned = resp.earned;
             gs.total = resp.total;
             gs.domain = resp.domain;
+            gs.shape = resp.shape;
             gs.fromStyle = resp.fromStyle;
             gs.endpoints = resp.endpoints;
             gs.mistakeIndex = resp.mistakeIndex;
@@ -582,6 +584,7 @@ function wireGraphs(
             side: gs.side,
             noSolution: gs.noSolution,
             domain: gs.domain,
+            shape: gs.shape,
             fromStyle: gs.fromStyle,
             endpoints: gs.endpoints,
           });

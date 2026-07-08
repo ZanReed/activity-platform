@@ -382,11 +382,15 @@ export function scoreDomain(key: DomainAnswerKey, ans: DomainStudentAnswer): boo
   return p.earned === p.total;
 }
 
-// ---- plot_ray / plot_segment (Drop C) -----------------------------------------
-// First-class rays and segments: the student drags TWO handles (the endpoint +
-// a direction point for a ray; both endpoints for a segment) and toggles each
-// authored endpoint open/closed. Parts scoring mirrors the inequality's
-// independent-parts shape so partial credit falls out the same way.
+// ---- plot_ray / plot_segment (student shape toggles) --------------------------
+// The student plots TWO handles, then CHOOSES the figure's shape (ray toward
+// the positive direction / ray toward negative / segment) and each visible
+// endpoint's open/closed style. The shape choice is part of the answer — the
+// widget must never pre-draw it — so scoring treats it as its own part, like
+// the inequality's shade side. "Positive" = increasing x; a vertical pair
+// falls back to increasing y (positive reads as UP).
+
+export type LinearShape = 'ray_positive' | 'ray_negative' | 'segment';
 
 export interface RayAnswerKey {
   from: [number, number];
@@ -394,15 +398,33 @@ export interface RayAnswerKey {
   fromStyle: 'open' | 'closed';
   tolerance: number;
 }
-export interface RayStudentAnswer {
+
+export interface SegmentAnswerKey {
   from: [number, number];
-  through: [number, number];
-  fromStyle: 'open' | 'closed';
+  to: [number, number];
+  endpoints: ['open' | 'closed', 'open' | 'closed'];
+  tolerance: number;
+}
+
+/** The student's drawn figure, as the widget reports it. */
+export interface LinearPieceStudentAnswer {
+  /** The two plotted handles, in CANONICAL order (lesser first — by x, then y). */
+  points: [number, number][];
+  /** The chosen shape; null = not chosen yet (an unanswered part, never a
+   *  lucky default). */
+  shape: LinearShape | null;
+  /**
+   * Endpoint style choices for the endpoints the chosen shape actually shows:
+   * [endpointStyle] for a ray (its single endpoint), [lesserStyle,
+   * greaterStyle] for a segment, [] when no shape is chosen (no style
+   * controls are visible yet).
+   */
+  endpointStyles: ('open' | 'closed')[];
 }
 
 // Direction match: unit-vector alignment. With snap-to-grid handles, candidate
 // directions are discrete, so a fixed dot-product floor (~8°) cleanly separates
-// "same ray" from the nearest wrong grid direction while forgiving fine
+// "same line" from the nearest wrong grid direction while forgiving fine
 // (Shift-step) placement wobble.
 const DIRECTION_DOT_MIN = 0.99;
 
@@ -414,70 +436,130 @@ function unit(from: [number, number], to: [number, number]): [number, number] | 
   return [dx / len, dy / len];
 }
 
-export function scoreRayParts(
-  key: RayAnswerKey,
-  ans: RayStudentAnswer,
-): { from: boolean; direction: boolean; style: boolean } {
-  const fromOk =
-    Math.abs(ans.from[0] - key.from[0]) <= key.tolerance &&
-    Math.abs(ans.from[1] - key.from[1]) <= key.tolerance;
-  const u = unit(ans.from, ans.through);
-  const v = unit(key.from, key.through);
-  const direction =
-    u !== null && v !== null && u[0] * v[0] + u[1] * v[1] >= DIRECTION_DOT_MIN;
-  return { from: fromOk, direction, style: ans.fromStyle === key.fromStyle };
+/** Which shape a ray answer key expects, from its from→through direction. */
+export function rayKeyShape(key: RayAnswerKey): LinearShape {
+  const dx = key.through[0] - key.from[0];
+  if (Math.abs(dx) > 1e-9) return dx > 0 ? 'ray_positive' : 'ray_negative';
+  return key.through[1] - key.from[1] > 0 ? 'ray_positive' : 'ray_negative';
 }
 
-export function scoreRay(key: RayAnswerKey, ans: RayStudentAnswer): boolean {
+/** Canonical order for two points: lesser first (by x, tie-break y). */
+export function canonicalPair(
+  a: [number, number],
+  b: [number, number],
+): [[number, number], [number, number]] {
+  const aLesser = a[0] !== b[0] ? a[0] < b[0] : a[1] <= b[1];
+  return aLesser ? [a, b] : [b, a];
+}
+
+const near = (
+  a: [number, number],
+  b: [number, number],
+  tolerance: number,
+): boolean =>
+  Math.abs(a[0] - b[0]) <= tolerance && Math.abs(a[1] - b[1]) <= tolerance;
+
+// The style the student gave the drawn end nearest the key's `at` point, or
+// null when the chosen shape shows no style there.
+function styleAt(
+  ans: LinearPieceStudentAnswer,
+  at: [number, number],
+  tolerance: number,
+): 'open' | 'closed' | null {
+  const [lesser, greater] = [ans.points[0], ans.points[1]];
+  if (!lesser || !greater) return null;
+  if (ans.shape === 'segment') {
+    if (near(lesser, at, tolerance)) return ans.endpointStyles[0] ?? null;
+    if (near(greater, at, tolerance)) return ans.endpointStyles[1] ?? null;
+    return null;
+  }
+  if (ans.shape === 'ray_positive' || ans.shape === 'ray_negative') {
+    // A ray's single visible endpoint is the handle OPPOSITE the arrow.
+    const endpoint = ans.shape === 'ray_positive' ? lesser : greater;
+    return near(endpoint, at, tolerance) ? (ans.endpointStyles[0] ?? null) : null;
+  }
+  return null; // no shape chosen → no styles visible
+}
+
+/**
+ * plot_ray parts (3): the SHAPE choice, the PLACEMENT (one handle on the key's
+ * endpoint + the two handles collinear with the key's line — placement is
+ * judged shape-agnostically so each part stays independent), and the endpoint
+ * STYLE (of the drawn end sitting on the key's endpoint).
+ */
+export function scoreRayParts(
+  key: RayAnswerKey,
+  ans: LinearPieceStudentAnswer,
+): { shape: boolean; placement: boolean; style: boolean } {
+  const [p0, p1] = [ans.points[0], ans.points[1]];
+  const shape = ans.shape === rayKeyShape(key);
+  let placement = false;
+  if (p0 && p1) {
+    const endpointHit = near(p0, key.from, key.tolerance) || near(p1, key.from, key.tolerance);
+    const u = unit(p0, p1);
+    const v = unit(key.from, key.through);
+    const collinear =
+      u !== null && v !== null && Math.abs(u[0] * v[0] + u[1] * v[1]) >= DIRECTION_DOT_MIN;
+    placement = endpointHit && collinear;
+  }
+  const style = styleAt(ans, key.from, key.tolerance) === key.fromStyle;
+  return { shape, placement, style };
+}
+
+export function scoreRay(key: RayAnswerKey, ans: LinearPieceStudentAnswer): boolean {
   const p = scoreRayParts(key, ans);
-  return p.from && p.direction && p.style;
+  return p.shape && p.placement && p.style;
 }
 
 export function scoreRayPartial(
   key: RayAnswerKey,
-  ans: RayStudentAnswer,
+  ans: LinearPieceStudentAnswer,
 ): { earned: number; total: number } {
   const p = scoreRayParts(key, ans);
-  return { earned: Number(p.from) + Number(p.direction) + Number(p.style), total: 3 };
+  return { earned: Number(p.shape) + Number(p.placement) + Number(p.style), total: 3 };
 }
 
-export interface SegmentAnswerKey {
-  from: [number, number];
-  to: [number, number];
-  endpoints: ['open' | 'closed', 'open' | 'closed'];
-  tolerance: number;
-}
-export interface SegmentStudentAnswer {
-  from: [number, number];
-  to: [number, number];
-  endpoints: ['open' | 'closed', 'open' | 'closed'];
-}
-
-// A segment has no direction — the student may draw it end-to-end either way.
-// Score BOTH endpoint assignments (straight and swapped, styles traveling with
-// their endpoints) and keep the better one. 4 parts: 2 positions + 2 styles.
+/**
+ * plot_segment parts (5): the SHAPE choice, two endpoint POSITIONS
+ * (order-independent — score both assignments, keep the better), and two
+ * endpoint STYLES (traveling with their matched endpoints; only earnable when
+ * the chosen shape is actually a segment — a ray shows only one style
+ * control, so its style state doesn't correspond to a segment's).
+ */
 export function scoreSegmentParts(
   key: SegmentAnswerKey,
-  ans: SegmentStudentAnswer,
-): { earned: number; total: number } {
-  const near = (a: [number, number], b: [number, number]): boolean =>
-    Math.abs(a[0] - b[0]) <= key.tolerance && Math.abs(a[1] - b[1]) <= key.tolerance;
-  const assignment = (
-    first: [number, number],
-    firstStyle: 'open' | 'closed',
-    second: [number, number],
-    secondStyle: 'open' | 'closed',
-  ): number =>
-    Number(near(first, key.from)) +
-    Number(firstStyle === key.endpoints[0]) +
-    Number(near(second, key.to)) +
-    Number(secondStyle === key.endpoints[1]);
-  const straight = assignment(ans.from, ans.endpoints[0], ans.to, ans.endpoints[1]);
-  const swapped = assignment(ans.to, ans.endpoints[1], ans.from, ans.endpoints[0]);
-  return { earned: Math.max(straight, swapped), total: 4 };
+  ans: LinearPieceStudentAnswer,
+): { shape: boolean; positions: number; styles: number; earned: number; total: number } {
+  const shape = ans.shape === 'segment';
+  const [p0, p1] = [ans.points[0], ans.points[1]];
+  let positions = 0;
+  let styles = 0;
+  if (p0 && p1) {
+    const s0 = ans.endpointStyles[0] ?? null;
+    const s1 = ans.endpointStyles[1] ?? null;
+    const assignment = (
+      first: [number, number],
+      firstStyle: 'open' | 'closed' | null,
+      second: [number, number],
+      secondStyle: 'open' | 'closed' | null,
+    ): { pos: number; sty: number } => ({
+      pos: Number(near(first, key.from, key.tolerance)) + Number(near(second, key.to, key.tolerance)),
+      sty:
+        Number(shape && firstStyle === key.endpoints[0]) +
+        Number(shape && secondStyle === key.endpoints[1]),
+    });
+    const straight = assignment(p0, s0, p1, s1);
+    const swapped = assignment(p1, s1, p0, s0);
+    const best =
+      straight.pos + straight.sty >= swapped.pos + swapped.sty ? straight : swapped;
+    positions = best.pos;
+    styles = best.sty;
+  }
+  const earned = Number(shape) + positions + styles;
+  return { shape, positions, styles, earned, total: 5 };
 }
 
-export function scoreSegment(key: SegmentAnswerKey, ans: SegmentStudentAnswer): boolean {
+export function scoreSegment(key: SegmentAnswerKey, ans: LinearPieceStudentAnswer): boolean {
   const p = scoreSegmentParts(key, ans);
   return p.earned === p.total;
 }

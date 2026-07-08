@@ -68,9 +68,11 @@ export interface GraphResult {
     maxX?: number;
     maxStyle?: 'open' | 'closed';
   };
-  /** plot_ray (Drop C): the student's start-endpoint style. */
+  /** plot_ray / plot_segment: the student's chosen shape. */
+  shape?: 'ray_positive' | 'ray_negative' | 'segment';
+  /** plot_ray: the drawn endpoint's style. */
   fromStyle?: 'open' | 'closed';
-  /** plot_segment (Drop C): per-endpoint styles, in handle order. */
+  /** plot_segment: per-endpoint styles, canonical order. */
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
 }
 

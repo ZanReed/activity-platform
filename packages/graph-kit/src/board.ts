@@ -474,13 +474,24 @@ export interface PointAnswerConfig {
    */
   polygon?: boolean;
   /**
-   * plot_ray / plot_segment (Drop C): draw an ACTUAL ray (from handle 0 through
-   * handle 1, not extending behind handle 0) or a segment (between the two
-   * handles). The handles ARE the endpoints; setEndpointStyles renders each as
-   * hollow (open) or filled (closed). Mutually exclusive with deriveCurve.
+   * AUTHOR boards for plot_ray / plot_segment: draw a fixed ray (from handle 0
+   * through handle 1, arrowhead on the open end) or segment. The handles ARE
+   * the endpoints; setEndpointStyles renders each hollow (open) / filled
+   * (closed). Mutually exclusive with deriveCurve.
    */
   rayThroughHandles?: boolean;
   segmentBetweenHandles?: boolean;
+  /**
+   * STUDENT boards for plot_ray / plot_segment: the SHAPE is the student's
+   * choice (ray toward positive / ray toward negative / segment), toggled at
+   * runtime via setShape. Before a choice the line renders neutral (faint, no
+   * arrows); each choice updates the drawn figure immediately — arrowhead on
+   * the chosen direction, the direction-side handle de-emphasized — so the
+   * board always shows exactly what the student's answer means. (That visual
+   * ↔ answer-state mirror is deliberate: a future agent/photo read-in can
+   * trust the figure.) Mutually exclusive with the author flags above.
+   */
+  linearShape?: boolean;
 }
 
 export interface PointAnswerHooks {
@@ -512,8 +523,11 @@ export interface PointAnswerController {
   /** shadeBoundary boards: dotted (strict) vs solid (inclusive) boundary. */
   setBoundaryDashed?(dashed: boolean): void;
   /** ray/segment boards: render handle i hollow (open) or filled (closed).
-   *  null leaves that handle's default look (e.g. a ray's through handle). */
+   *  null restores that handle's default solid look (e.g. a ray's direction
+   *  handle, which is not an endpoint). */
   setEndpointStyles?(styles: ('open' | 'closed' | null)[]): void;
+  /** linearShape boards: apply the student's shape choice (null = neutral). */
+  setShape?(shape: 'ray_positive' | 'ray_negative' | 'segment' | null): void;
   destroy(): void;
 }
 
@@ -675,6 +689,79 @@ export function createPointAnswerBoard(
       // A ray reads better with an arrowhead on its open end.
       lastArrow: config.rayThroughHandles === true,
     });
+  }
+
+  // linearShape (student ray/segment): one line whose figure follows the
+  // student's SHAPE choice and the live handle order. Which physical handle
+  // sits on the positive side can flip mid-drag, so the straight/arrow
+  // attributes are recomputed on every move, keeping the arrowhead pinned to
+  // the chosen DIRECTION (not to a handle).
+  let currentShape: 'ray_positive' | 'ray_negative' | 'segment' | null = null;
+  let shapeLine: {
+    setAttribute(attrs: Record<string, unknown>): void;
+  } | null = null;
+
+  // Canonical handle order: is handle 0 on the positive side? Positive =
+  // greater x; a (near-)vertical pair falls back to greater y, so "positive"
+  // reads as UP for vertical lines.
+  const handle0IsPositive = (): boolean => {
+    const [a, b] = [points[0]!, points[1]!];
+    const dx = a.X() - b.X();
+    if (Math.abs(dx) > 1e-9) return dx > 0;
+    return a.Y() - b.Y() > 0;
+  };
+
+  const updateShapeAttrs = (): void => {
+    if (!shapeLine) return;
+    if (currentShape === null) {
+      // Neutral: a faint plain segment — visibly "not an answer yet".
+      shapeLine.setAttribute({
+        straightFirst: false,
+        straightLast: false,
+        firstArrow: false,
+        lastArrow: false,
+        strokeOpacity: 0.35,
+        dash: 2,
+      });
+      return;
+    }
+    if (currentShape === 'segment') {
+      shapeLine.setAttribute({
+        straightFirst: false,
+        straightLast: false,
+        firstArrow: false,
+        lastArrow: false,
+        strokeOpacity: 1,
+        dash: 0,
+      });
+      return;
+    }
+    // Ray: extend + arrow on the chosen direction's side.
+    const positiveIsFirst = handle0IsPositive();
+    const extendFirst =
+      currentShape === 'ray_positive' ? positiveIsFirst : !positiveIsFirst;
+    shapeLine.setAttribute({
+      straightFirst: extendFirst,
+      straightLast: !extendFirst,
+      firstArrow: extendFirst,
+      lastArrow: !extendFirst,
+      strokeOpacity: 1,
+      dash: 0,
+    });
+  };
+
+  if (config.linearShape && points.length >= 2) {
+    shapeLine = board.create('line', [points[0], points[1]], {
+      strokeColor: ANSWER_COLOR,
+      strokeWidth: 2,
+      highlight: false,
+      fixed: true,
+      straightFirst: false,
+      straightLast: false,
+    }) as unknown as { setAttribute(attrs: Record<string, unknown>): void };
+    updateShapeAttrs();
+    // Handle order can flip mid-drag; keep the arrow on the chosen direction.
+    points.forEach((p) => p.on('drag', updateShapeAttrs));
   }
 
   // Domain endpoint gliders (Drop 6): points constrained to the derived curve.
@@ -901,14 +988,22 @@ export function createPointAnswerBoard(
     setEndpointStyles(styles: ('open' | 'closed' | null)[]): void {
       styles.forEach((style, i) => {
         const point = points[i];
-        if (!point || style === null) return;
+        if (!point) return;
         (point as unknown as { setAttribute(a: Record<string, unknown>): void }).setAttribute(
           // Open = hollow: white fill, colored rim. Closed = solid fill.
-          style === 'open'
-            ? { fillColor: '#ffffff', highlightFillColor: '#ffffff' }
-            : { fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR },
+          // null = not an endpoint right now (a ray's direction handle):
+          // restore the default solid look. (Size is owned by styleActive —
+          // the keyboard active-handle cue — so styles only touch fill.)
+          style === null || style === 'closed'
+            ? { fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR }
+            : { fillColor: '#ffffff', highlightFillColor: '#ffffff' },
         );
       });
+      board.update();
+    },
+    setShape(shape: 'ray_positive' | 'ray_negative' | 'segment' | null): void {
+      currentShape = shape;
+      updateShapeAttrs();
       board.update();
     },
     destroy(): void {

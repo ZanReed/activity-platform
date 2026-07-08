@@ -84,6 +84,8 @@ export {
   scoreRayPartial,
   scoreSegment,
   scoreSegmentParts,
+  rayKeyShape,
+  canonicalPair,
 } from './graph-score.js';
 export type {
   PointAnswerKey,
@@ -92,6 +94,8 @@ export type {
   RegionAnswerKey,
   RayAnswerKey,
   SegmentAnswerKey,
+  LinearShape,
+  LinearPieceStudentAnswer,
 } from './graph-score.js';
 
 // Mistake feedback (Drop B): authored anticipated-mistake matching + built-in

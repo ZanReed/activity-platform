@@ -321,7 +321,16 @@ function SubmissionDetail({
                     </td>
                     <td className="py-1 pr-3 font-mono text-slate-900">
                     {formatPoints(g.resp.studentPoints)}
-                    {g.resp.type === 'plot_ray' && ` (${g.resp.fromStyle} start)`}
+                    {(g.resp.type === 'plot_ray' || g.resp.type === 'plot_segment') &&
+                        g.resp.shape &&
+                        ` — drew ${
+                            g.resp.shape === 'segment'
+                                ? 'a segment'
+                                : g.resp.shape === 'ray_positive'
+                                  ? 'a ray (positive direction)'
+                                  : 'a ray (negative direction)'
+                        }`}
+                    {g.resp.type === 'plot_ray' && ` (${g.resp.fromStyle} endpoint)`}
                     {g.resp.type === 'plot_segment' &&
                         ` (${g.resp.endpoints[0]} start, ${g.resp.endpoints[1]} end)`}
                     </td>

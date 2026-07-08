@@ -130,6 +130,10 @@ export type InequalityResponse = z.infer<typeof InequalityResponse>;
 export const RayResponse = z.object({
   type: z.literal('plot_ray'),
   studentPoints: z.array(z.tuple([z.number(), z.number()])),
+  // The student's chosen SHAPE (ray direction / segment) — a graded part of
+  // the answer since the shape-toggle widget; absent = never chosen (or a
+  // pre-toggle submission). Optional + additive within v4.
+  shape: z.enum(['ray_positive', 'ray_negative', 'segment']).optional(),
   fromStyle: z.enum(['open', 'closed']),
   correct: z.boolean(),
   confidence: ConfidenceLevel.optional(),
@@ -139,6 +143,7 @@ export type RayResponse = z.infer<typeof RayResponse>;
 export const SegmentResponse = z.object({
   type: z.literal('plot_segment'),
   studentPoints: z.array(z.tuple([z.number(), z.number()])),
+  shape: z.enum(['ray_positive', 'ray_negative', 'segment']).optional(),
   endpoints: z.tuple([z.enum(['open', 'closed']), z.enum(['open', 'closed'])]),
   correct: z.boolean(),
   confidence: ConfidenceLevel.optional(),

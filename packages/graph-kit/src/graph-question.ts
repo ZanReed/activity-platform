@@ -23,6 +23,7 @@ import {
   scoreDomainParts,
   scoreRayParts,
   scoreSegmentParts,
+  canonicalPair,
   fitFunction,
   handlesForFamily,
   type PointAnswerKey,
@@ -32,6 +33,8 @@ import {
   type DomainAnswerKey,
   type RayAnswerKey,
   type SegmentAnswerKey,
+  type LinearShape,
+  type LinearPieceStudentAnswer,
 } from './graph-score.js';
 import {
   compileMistakeMatchers,
@@ -221,9 +224,12 @@ export interface GraphResponseData {
     maxX?: number;
     maxStyle?: 'open' | 'closed';
   };
-  /** plot_ray (Drop C): the student's start-endpoint open/closed choice. */
+  /** plot_ray / plot_segment: the student's chosen shape (ray direction or
+   *  segment). Absent while unchosen — an unanswered part. */
+  shape?: LinearShape;
+  /** plot_ray: the drawn endpoint's open/closed choice. */
   fromStyle?: 'open' | 'closed';
-  /** plot_segment (Drop C): per-endpoint open/closed, in handle order. */
+  /** plot_segment: per-endpoint open/closed, canonical order (lesser first). */
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
   /** Drop B: matched authored anticipated mistake (index into the block's
    *  feedback templates). Only set when the answer is wrong. */
@@ -239,6 +245,7 @@ export interface GraphRestoreExtras {
   side?: 'above' | 'below' | 'left' | 'right';
   noSolution?: boolean;
   domain?: GraphResponseData['domain'];
+  shape?: LinearShape;
   fromStyle?: 'open' | 'closed';
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
 }
@@ -402,10 +409,13 @@ export async function mountGraphQuestion(
   // gliders; styles start closed (solid dot) and the student flips them.
   let minStyle: 'open' | 'closed' = 'closed';
   let maxStyle: 'open' | 'closed' = 'closed';
-  // Ray/segment endpoint styles (Drop C). Start closed; the student flips them
-  // via the control-bar pills, and the handles render hollow/filled to match.
-  let rayFromStyle: 'open' | 'closed' = 'closed';
-  let segEndpoints: ['open' | 'closed', 'open' | 'closed'] = ['closed', 'closed'];
+  // Ray/segment student choices. The SHAPE is part of the answer (never
+  // pre-drawn): null until the student picks ray-positive / ray-negative /
+  // segment. Styles are kept per shape family so switching shapes back
+  // doesn't lose a choice; the drawn figure mirrors all of it live.
+  let linShape: LinearShape | null = null;
+  let rayEndpointStyle: 'open' | 'closed' = 'closed';
+  let segStyles: ['open' | 'closed', 'open' | 'closed'] = ['closed', 'closed'];
 
   // Drop B: authored anticipated-mistake matchers, parsed once at mount with
   // the kit's own freeform parser + the block's scoring tolerances.
@@ -428,7 +438,13 @@ export async function mountGraphQuestion(
   // /no-solution responses carry nothing — feedback only ever nudges a miss.
   function annotateMistake(resp: GraphResponseData): GraphResponseData {
     if (!resp.answered || resp.correct || resp.noSolution) return resp;
-    const ans: StudentGraphAnswer = { points: resp.studentPoints, strict, side };
+    const ans: StudentGraphAnswer = {
+      points: resp.studentPoints,
+      strict,
+      side,
+      shape: linShape,
+      endpointStyles: linearAnswer(resp.studentPoints).endpointStyles,
+    };
     const idx = matchAuthoredMistake(mistakeMatchers, ans);
     if (idx !== null) {
       resp.mistakeIndex = idx;
@@ -448,19 +464,9 @@ export async function mountGraphQuestion(
       });
       text = classifyInequalityMistake(parts, side !== null);
     } else if (isRay && rayKey) {
-      const pts = resp.studentPoints;
-      text = classifyRayMistake(rayKey, {
-        from: pts[0] ?? [0, 0],
-        through: pts[1] ?? [0, 0],
-        fromStyle: rayFromStyle,
-      });
+      text = classifyRayMistake(rayKey, linearAnswer(resp.studentPoints));
     } else if (isSegment && segmentKey) {
-      const pts = resp.studentPoints;
-      text = classifySegmentMistake(segmentKey, {
-        from: pts[0] ?? [0, 0],
-        to: pts[1] ?? [0, 0],
-        endpoints: segEndpoints,
-      });
+      text = classifySegmentMistake(segmentKey, linearAnswer(resp.studentPoints));
     }
     if (text) resp.mistakeText = text;
     return resp;
@@ -495,33 +501,31 @@ export async function mountGraphQuestion(
       }
       return resp;
     }
-    if (isRay && rayKey) {
-      const ans = {
-        from: pts[0] ?? ([0, 0] as [number, number]),
-        through: pts[1] ?? ([0, 0] as [number, number]),
-        fromStyle: rayFromStyle,
-      };
-      resp.fromStyle = rayFromStyle;
-      const parts = scoreRayParts(rayKey, ans);
-      resp.correct = parts.from && parts.direction && parts.style;
-      if (cfg.partialCredit) {
-        resp.earned = Number(parts.from) + Number(parts.direction) + Number(parts.style);
-        resp.total = 3;
+    if ((isRay && rayKey) || (isSegment && segmentKey)) {
+      const ans = linearAnswer(pts);
+      // Canonicalize the reported points + carry the shape/style choices so
+      // the dashboard shows exactly the figure the student drew.
+      resp.studentPoints = noSolution ? [] : ans.points;
+      if (linShape) resp.shape = linShape;
+      if (linShape === 'segment') {
+        resp.endpoints = [segStyles[0], segStyles[1]];
+      } else if (linShape !== null) {
+        resp.fromStyle = rayEndpointStyle;
       }
-      return resp;
-    }
-    if (isSegment && segmentKey) {
-      const ans = {
-        from: pts[0] ?? ([0, 0] as [number, number]),
-        to: pts[1] ?? ([0, 0] as [number, number]),
-        endpoints: segEndpoints,
-      };
-      resp.endpoints = segEndpoints;
-      const parts = scoreSegmentParts(segmentKey, ans);
-      resp.correct = parts.earned === parts.total;
-      if (cfg.partialCredit) {
-        resp.earned = parts.earned;
-        resp.total = parts.total;
+      if (isRay && rayKey) {
+        const parts = scoreRayParts(rayKey, ans);
+        resp.correct = parts.shape && parts.placement && parts.style;
+        if (cfg.partialCredit) {
+          resp.earned = Number(parts.shape) + Number(parts.placement) + Number(parts.style);
+          resp.total = 3;
+        }
+      } else if (segmentKey) {
+        const parts = scoreSegmentParts(segmentKey, ans);
+        resp.correct = parts.earned === parts.total;
+        if (cfg.partialCredit) {
+          resp.earned = parts.earned;
+          resp.total = parts.total;
+        }
       }
       return resp;
     }
@@ -570,6 +574,10 @@ export async function mountGraphQuestion(
   }
   function handleMove(): void {
     if (board.hasMoved()) answered = true;
+    if (isRay || isSegment) {
+      syncEndpointVisuals(); // canonical order can flip mid-drag
+      syncBar(); // pill glyphs re-orient when the line turns vertical
+    }
     hooks.onChange?.(build());
   }
   function pickSide(s: 'above' | 'below' | 'left' | 'right'): void {
@@ -587,8 +595,10 @@ export async function mountGraphQuestion(
       count: recipe.count,
       deriveCurve: recipe.deriveCurve,
       lineThroughHandles: recipe.lineThroughHandles,
-      rayThroughHandles: isRay,
-      segmentBetweenHandles: isSegment,
+      // Student ray/segment boards use the DYNAMIC shape mode — the figure is
+      // the student's choice, never pre-drawn (the author board uses the fixed
+      // rayThroughHandles/segmentBetweenHandles flags instead).
+      linearShape: isRay || isSegment,
       domainEndpoints: domainKey
         ? {
             min: typeof domainKey.min === 'number',
@@ -601,11 +611,48 @@ export async function mountGraphQuestion(
     { onMove: handleMove, onSideClick: pickSide },
   );
 
-  // Reflect the current open/closed choices onto the handles (hollow/filled).
-  // A ray's through handle is not an endpoint — null leaves it solid.
+  // The student's drawn figure in the scorer's canonical shape (points lesser
+  // first; styles per the chosen shape's visible endpoints).
+  function linearAnswer(pts: [number, number][]): LinearPieceStudentAnswer {
+    const a = pts[0] ?? ([0, 0] as [number, number]);
+    const b = pts[1] ?? ([0, 0] as [number, number]);
+    const [lesser, greater] = canonicalPair(a, b);
+    return {
+      points: [lesser, greater],
+      shape: linShape,
+      endpointStyles:
+        linShape === 'segment'
+          ? [segStyles[0], segStyles[1]]
+          : linShape !== null
+            ? [rayEndpointStyle]
+            : [],
+    };
+  }
+
+  // Reflect the shape + open/closed choices onto the drawn figure: the board
+  // draws the neutral/segment/arrowed line (setShape), and each handle fills
+  // hollow (open) / solid (closed) — a ray styles only its ENDPOINT handle
+  // (the one opposite the arrow); the direction handle stays a plain solid
+  // grip. Re-run on every move: dragging can flip which handle is which.
   function syncEndpointVisuals(): void {
-    if (isRay) board.setEndpointStyles?.([rayFromStyle, null]);
-    else if (isSegment) board.setEndpointStyles?.([segEndpoints[0], segEndpoints[1]]);
+    if (!isRay && !isSegment) return;
+    board.setShape?.(linShape);
+    const pts = board.getPoints();
+    const a = pts[0] ?? ([0, 0] as [number, number]);
+    const b = pts[1] ?? ([0, 0] as [number, number]);
+    const [lesser] = canonicalPair(a, b);
+    const lesserIdx = lesser === a ? 0 : 1;
+    const greaterIdx = 1 - lesserIdx;
+    const styles: ('open' | 'closed' | null)[] = [null, null];
+    if (linShape === 'segment') {
+      styles[lesserIdx] = segStyles[0];
+      styles[greaterIdx] = segStyles[1];
+    } else if (linShape === 'ray_positive') {
+      styles[lesserIdx] = rayEndpointStyle; // arrow points positive → endpoint is the lesser handle
+    } else if (linShape === 'ray_negative') {
+      styles[greaterIdx] = rayEndpointStyle;
+    }
+    board.setEndpointStyles?.(styles);
   }
   syncEndpointVisuals();
 
@@ -621,6 +668,7 @@ export async function mountGraphQuestion(
   let noSolBtn: HTMLButtonElement | null = null;
 
   function syncBar(): void {
+    syncLinearBar();
     if (solidBtn && dottedBtn) {
       setPillActive(solidBtn, !strict);
       setPillActive(dottedBtn, strict);
@@ -634,9 +682,55 @@ export async function mountGraphQuestion(
 
   let minStyleBtn: HTMLButtonElement | null = null;
   let maxStyleBtn: HTMLButtonElement | null = null;
+  let rayPosBtn: HTMLButtonElement | null = null;
+  let rayNegBtn: HTMLButtonElement | null = null;
+  let segmentBtn: HTMLButtonElement | null = null;
   let rayStyleBtn: HTMLButtonElement | null = null;
   let segStartBtn: HTMLButtonElement | null = null;
   let segEndBtn: HTMLButtonElement | null = null;
+
+  // Is the drawn line closer to vertical than horizontal? Drives the pill
+  // glyphs/labels so they always match what the student sees (→/← for a
+  // mostly-horizontal line, ↑/↓ for a mostly-vertical one).
+  function lineIsVertical(): boolean {
+    const pts = board.getPoints();
+    const a = pts[0];
+    const b = pts[1];
+    if (!a || !b) return false;
+    return Math.abs(a[1] - b[1]) > Math.abs(a[0] - b[0]);
+  }
+
+  // Refresh the ray/segment pill labels + active states + which style pills
+  // are visible for the chosen shape. Runs on every choice AND every move.
+  function syncLinearBar(): void {
+    if (!rayPosBtn || !rayNegBtn || !segmentBtn) return;
+    const vertical = lineIsVertical();
+    rayPosBtn.textContent = vertical ? 'Ray ↑' : 'Ray →';
+    rayNegBtn.textContent = vertical ? 'Ray ↓' : 'Ray ←';
+    setPillActive(rayPosBtn, linShape === 'ray_positive');
+    setPillActive(rayNegBtn, linShape === 'ray_negative');
+    setPillActive(segmentBtn, linShape === 'segment');
+    // Style pills: a ray shows ONE (its endpoint); a segment shows two,
+    // labeled by which end they style on screen; none until a shape exists.
+    if (rayStyleBtn) {
+      rayStyleBtn.hidden = !(linShape === 'ray_positive' || linShape === 'ray_negative');
+      rayStyleBtn.textContent =
+        rayEndpointStyle === 'closed' ? 'Endpoint: ● closed' : 'Endpoint: ○ open';
+    }
+    const segLabelFor = (which: 0 | 1): string => {
+      const name = which === 0 ? (vertical ? 'Bottom' : 'Left') : vertical ? 'Top' : 'Right';
+      return segStyles[which] === 'closed' ? name + ': ● closed' : name + ': ○ open';
+    };
+    if (segStartBtn) {
+      segStartBtn.hidden = linShape !== 'segment';
+      segStartBtn.textContent = segLabelFor(0);
+    }
+    if (segEndBtn) {
+      segEndBtn.hidden = linShape !== 'segment';
+      segEndBtn.textContent = segLabelFor(1);
+    }
+  }
+
   if (isInequality || cfg.allowNoSolution || domainKey || isRay || isSegment) {
     const bar = document.createElement('div');
     bar.style.cssText =
@@ -686,38 +780,48 @@ export async function mountGraphQuestion(
         bar.append(maxStyleBtn);
       }
     }
-    if (isRay) {
-      // One endpoint choice: the ray's start. Same label pattern as the domain
-      // pills; the handle itself also renders hollow/filled to match.
-      rayStyleBtn = pill('Start: ● closed', () => {
-        rayFromStyle = rayFromStyle === 'closed' ? 'open' : 'closed';
-        rayStyleBtn!.textContent = rayFromStyle === 'closed' ? 'Start: ● closed' : 'Start: ○ open';
+    if (isRay || isSegment) {
+      // The SHAPE is the student's call — identical three-way choice on BOTH
+      // ray and segment questions (different controls per question type would
+      // leak the answer). Choosing updates the drawn figure immediately
+      // (arrowhead / plain segment) — the picture always shows what the
+      // current answer means.
+      const pickShape = (shape: LinearShape): void => {
+        linShape = shape;
         answered = true;
         syncEndpointVisuals();
+        syncBar();
         hooks.onChange?.(build());
-      });
-      bar.append(rayStyleBtn);
-    }
-    if (isSegment) {
-      const segLabel = (which: 0 | 1): string => {
-        const name = which === 0 ? 'Start' : 'End';
-        return segEndpoints[which] === 'closed' ? name + ': ● closed' : name + ': ○ open';
       };
-      segStartBtn = pill(segLabel(0), () => {
-        segEndpoints = [segEndpoints[0] === 'closed' ? 'open' : 'closed', segEndpoints[1]];
-        segStartBtn!.textContent = segLabel(0);
+      rayPosBtn = pill('Ray →', () => pickShape('ray_positive'));
+      rayNegBtn = pill('Ray ←', () => pickShape('ray_negative'));
+      segmentBtn = pill('Segment', () => pickShape('segment'));
+      bar.append(rayPosBtn, rayNegBtn, segmentBtn);
+
+      // Style pills (hidden until a shape is chosen; syncLinearBar drives
+      // visibility + labels). Toggling refills the endpoint dot immediately.
+      rayStyleBtn = pill('Endpoint: ● closed', () => {
+        rayEndpointStyle = rayEndpointStyle === 'closed' ? 'open' : 'closed';
         answered = true;
         syncEndpointVisuals();
+        syncBar();
         hooks.onChange?.(build());
       });
-      segEndBtn = pill(segLabel(1), () => {
-        segEndpoints = [segEndpoints[0], segEndpoints[1] === 'closed' ? 'open' : 'closed'];
-        segEndBtn!.textContent = segLabel(1);
+      segStartBtn = pill('Left: ● closed', () => {
+        segStyles = [segStyles[0] === 'closed' ? 'open' : 'closed', segStyles[1]];
         answered = true;
         syncEndpointVisuals();
+        syncBar();
         hooks.onChange?.(build());
       });
-      bar.append(segStartBtn, segEndBtn);
+      segEndBtn = pill('Right: ● closed', () => {
+        segStyles = [segStyles[0], segStyles[1] === 'closed' ? 'open' : 'closed'];
+        answered = true;
+        syncEndpointVisuals();
+        syncBar();
+        hooks.onChange?.(build());
+      });
+      bar.append(rayStyleBtn, segStartBtn, segEndBtn);
     }
     if (cfg.allowNoSolution) {
       noSolBtn = pill('Cannot be graphed', () => {
@@ -755,17 +859,10 @@ export async function mountGraphQuestion(
           noSolution = true;
           board.setInteractive(false);
         }
-        if (extras.fromStyle && isRay) {
-          rayFromStyle = extras.fromStyle;
-          if (rayStyleBtn) rayStyleBtn.textContent = rayFromStyle === 'closed' ? 'Start: ● closed' : 'Start: ○ open';
-          syncEndpointVisuals();
-        }
-        if (extras.endpoints && isSegment) {
-          segEndpoints = extras.endpoints;
-          if (segStartBtn) segStartBtn.textContent = segEndpoints[0] === 'closed' ? 'Start: ● closed' : 'Start: ○ open';
-          if (segEndBtn) segEndBtn.textContent = segEndpoints[1] === 'closed' ? 'End: ● closed' : 'End: ○ open';
-          syncEndpointVisuals();
-        }
+        if ((isRay || isSegment) && extras.shape) linShape = extras.shape;
+        if ((isRay || isSegment) && extras.fromStyle) rayEndpointStyle = extras.fromStyle;
+        if ((isRay || isSegment) && extras.endpoints) segStyles = extras.endpoints;
+        if (isRay || isSegment) syncEndpointVisuals();
         if (extras.domain) {
           board.setDomainXs?.({ minX: extras.domain.minX, maxX: extras.domain.maxX });
           if (extras.domain.minStyle) {
@@ -784,7 +881,7 @@ export async function mountGraphQuestion(
     },
     setLocked(locked: boolean): void {
       board.setInteractive(!locked && !noSolution);
-      const buttons = [solidBtn, dottedBtn, sideABtn, sideBBtn, noSolBtn, minStyleBtn, maxStyleBtn, rayStyleBtn, segStartBtn, segEndBtn];
+      const buttons = [solidBtn, dottedBtn, sideABtn, sideBBtn, noSolBtn, minStyleBtn, maxStyleBtn, rayPosBtn, rayNegBtn, segmentBtn, rayStyleBtn, segStartBtn, segEndBtn];
       for (const b of buttons) if (b) b.disabled = locked;
     },
     destroy(): void {

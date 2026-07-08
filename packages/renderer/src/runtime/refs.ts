@@ -112,9 +112,12 @@ export interface GraphResponseData {
         maxX?: number;
         maxStyle?: 'open' | 'closed';
     };
-    /** plot_ray (Drop C): the student's start-endpoint style choice. */
+    /** plot_ray / plot_segment: the student's chosen shape (a graded part;
+     *  absent while unchosen). */
+    shape?: 'ray_positive' | 'ray_negative' | 'segment';
+    /** plot_ray: the drawn endpoint's style choice. */
     fromStyle?: 'open' | 'closed';
-    /** plot_segment (Drop C): per-endpoint style choices, in handle order. */
+    /** plot_segment: per-endpoint style choices, canonical order. */
     endpoints?: ['open' | 'closed', 'open' | 'closed'];
     /** Matched authored anticipated mistake — index into the block's
      *  js-graph-mistake-content templates. Wrong answers only. */
@@ -132,6 +135,7 @@ export interface GraphWidgetHandle {
             side?: GraphResponseData['side'];
             noSolution?: boolean;
             domain?: GraphResponseData['domain'];
+            shape?: GraphResponseData['shape'];
             fromStyle?: GraphResponseData['fromStyle'];
             endpoints?: GraphResponseData['endpoints'];
         },

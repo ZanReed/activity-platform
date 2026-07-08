@@ -116,9 +116,11 @@ export interface GraphBlockState {
         maxX?: number;
         maxStyle?: 'open' | 'closed';
     };
-    /** plot_ray (Drop C): the student's start-endpoint style choice. */
+    /** plot_ray / plot_segment: the student's chosen shape. */
+    shape?: 'ray_positive' | 'ray_negative' | 'segment';
+    /** plot_ray: the drawn endpoint's style choice. */
     fromStyle?: 'open' | 'closed';
-    /** plot_segment (Drop C): per-endpoint style choices, in handle order. */
+    /** plot_segment: per-endpoint style choices, canonical order. */
     endpoints?: ['open' | 'closed', 'open' | 'closed'];
     /**
      * Mistake feedback for a WRONG answer (Drop B): the matched authored

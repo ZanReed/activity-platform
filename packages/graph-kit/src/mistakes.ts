@@ -29,15 +29,18 @@ import {
   scorePoints,
   scoreFunction,
   fitFunction,
+  scoreRay,
   scoreRayParts,
+  scoreSegment,
   scoreSegmentParts,
+  canonicalPair,
   type PointAnswerKey,
   type FunctionModel,
   type InequalitySide,
   type RayAnswerKey,
   type SegmentAnswerKey,
-  type RayStudentAnswer,
-  type SegmentStudentAnswer,
+  type LinearShape,
+  type LinearPieceStudentAnswer,
 } from './graph-score.js';
 import { parseGraphFormula, parsePointList, parseRaySegment } from './formula.js';
 
@@ -47,10 +50,23 @@ export interface StudentGraphAnswer {
   points: [number, number][];
   strict?: boolean;
   side?: InequalitySide | null;
-  /** plot_ray: the start endpoint's open/closed choice. */
-  fromStyle?: 'open' | 'closed';
-  /** plot_segment: per-endpoint open/closed choices. */
-  endpoints?: ['open' | 'closed', 'open' | 'closed'];
+  /** plot_ray / plot_segment: the student's chosen shape (null = unchosen). */
+  shape?: LinearShape | null;
+  /** plot_ray / plot_segment: visible endpoint style choices (see
+   *  LinearPieceStudentAnswer.endpointStyles). */
+  endpointStyles?: ('open' | 'closed')[];
+}
+
+// Coerce a StudentGraphAnswer into the linear-piece scorer's shape.
+function toLinearAnswer(ans: StudentGraphAnswer): LinearPieceStudentAnswer {
+  const a = ans.points[0] ?? ([0, 0] as [number, number]);
+  const b = ans.points[1] ?? ([0, 0] as [number, number]);
+  const [lesser, greater] = canonicalPair(a, b);
+  return {
+    points: [lesser, greater],
+    shape: ans.shape ?? null,
+    endpointStyles: ans.endpointStyles ?? [],
+  };
 }
 
 // ---- 1. Authored anticipated mistakes ---------------------------------------
@@ -113,47 +129,29 @@ export function compileMistakeMatchers(
       const model = withKeyTolerances(parsed.model, ctx.keyModel);
       return { index, test: (ans) => scoreFunction(model, ans.points) };
     }
-    if (ctx.interactionType === 'plot_ray') {
+    if (ctx.interactionType === 'plot_ray' || ctx.interactionType === 'plot_segment') {
+      // A match string may describe EITHER figure — the anticipated mistake on
+      // a ray question is often the segment (or opposite ray) version of it.
       const parsed = parseRaySegment(raw);
-      if (parsed.kind !== 'ray') return never;
-      const key: RayAnswerKey = {
-        from: parsed.from,
-        through: parsed.through,
-        fromStyle: parsed.fromStyle,
-        tolerance: ctx.pointTolerance ?? 0.25,
-      };
-      return {
-        index,
-        test: (ans) => {
-          const parts = scoreRayParts(key, {
-            from: ans.points[0] ?? [0, 0],
-            through: ans.points[1] ?? [0, 0],
-            fromStyle: ans.fromStyle ?? 'closed',
-          });
-          return parts.from && parts.direction && parts.style;
-        },
-      };
-    }
-    if (ctx.interactionType === 'plot_segment') {
-      const parsed = parseRaySegment(raw);
-      if (parsed.kind !== 'segment') return never;
-      const key: SegmentAnswerKey = {
-        from: parsed.from,
-        to: parsed.to,
-        endpoints: parsed.endpoints,
-        tolerance: ctx.pointTolerance ?? 0.25,
-      };
-      return {
-        index,
-        test: (ans) => {
-          const parts = scoreSegmentParts(key, {
-            from: ans.points[0] ?? [0, 0],
-            to: ans.points[1] ?? [0, 0],
-            endpoints: ans.endpoints ?? ['closed', 'closed'],
-          });
-          return parts.earned === parts.total;
-        },
-      };
+      if (parsed.kind === 'ray') {
+        const key: RayAnswerKey = {
+          from: parsed.from,
+          through: parsed.through,
+          fromStyle: parsed.fromStyle,
+          tolerance: ctx.pointTolerance ?? 0.25,
+        };
+        return { index, test: (ans) => scoreRay(key, toLinearAnswer(ans)) };
+      }
+      if (parsed.kind === 'segment') {
+        const key: SegmentAnswerKey = {
+          from: parsed.from,
+          to: parsed.to,
+          endpoints: parsed.endpoints,
+          tolerance: ctx.pointTolerance ?? 0.25,
+        };
+        return { index, test: (ans) => scoreSegment(key, toLinearAnswer(ans)) };
+      }
+      return never;
     }
     if (ctx.interactionType === 'graph_inequality') {
       if (parsed.kind === 'inequality') {
@@ -274,52 +272,53 @@ export function classifyInequalityMistake(
 }
 
 /**
- * plot_ray: which part (start point / direction / endpoint style) to revisit.
+ * plot_ray: which part (shape choice / placement / endpoint style) to revisit.
  * Same nudge-not-lesson posture: never teaches the open/closed convention.
  */
 export function classifyRayMistake(
   key: RayAnswerKey,
-  ans: RayStudentAnswer,
+  ans: LinearPieceStudentAnswer,
 ): string | null {
   const parts = scoreRayParts(key, ans);
-  if (parts.from && parts.direction && !parts.style) {
-    return 'Your ray looks right — take another look at the style of its start point.';
+  // Shape misses dominate: with the wrong shape chosen, the student's styled
+  // endpoint may sit at the other end entirely, so the style part carries no
+  // signal — nudge the shape whenever the LINE itself is right.
+  if (parts.placement && !parts.shape) {
+    if (ans.shape === null) {
+      return 'Your line looks right — now choose its shape with the buttons.';
+    }
+    if (ans.shape !== 'segment') {
+      // The opposite ray direction — the classic one, worth naming.
+      return 'Your line is right — check which way the arrow should point.';
+    }
+    return 'Your line is in the right place — take another look at the shape you chose.';
   }
-  if (parts.from && !parts.direction && parts.style) {
-    // Reversed 180°? A distinct, common mistake worth naming.
-    const flipped = scoreRayParts(key, {
-      from: ans.from,
-      through: [2 * ans.from[0] - ans.through[0], 2 * ans.from[1] - ans.through[1]],
-      fromStyle: ans.fromStyle,
-    });
-    if (flipped.direction) return 'Your start point is right — but the ray points the opposite way.';
-    return 'Your start point is right — check which direction the ray should go.';
+  if (parts.shape && !parts.placement) {
+    return 'Your shape looks right — check where your line sits and where it starts.';
   }
-  if (!parts.from && parts.direction && parts.style) {
-    return 'Your direction looks right — check where the ray should start.';
+  if (parts.shape && parts.placement && !parts.style) {
+    return 'So close — take another look at the style of the endpoint.';
   }
   return null;
 }
 
-/** plot_segment: endpoints vs styles nudges (order-independent, like scoring). */
+/** plot_segment: shape vs endpoints vs styles nudges. */
 export function classifySegmentMistake(
   key: SegmentAnswerKey,
-  ans: SegmentStudentAnswer,
+  ans: LinearPieceStudentAnswer,
 ): string | null {
   const parts = scoreSegmentParts(key, ans);
   if (parts.earned === parts.total) return null;
-  const positionsOnly = scoreSegmentParts(
-    { ...key, endpoints: ans.endpoints },
-    ans,
-  );
-  if (positionsOnly.earned === positionsOnly.total) {
+  if (!parts.shape && parts.positions === 2) {
+    if (ans.shape === null) {
+      return 'Your endpoints look right — now choose the shape with the buttons.';
+    }
+    return 'Your endpoints are in the right place — take another look at the shape you chose.';
+  }
+  if (parts.shape && parts.positions === 2 && parts.styles < 2) {
     return 'Your segment is in the right place — take another look at the endpoint styles.';
   }
-  const stylesOnly = scoreSegmentParts(
-    { ...key, from: ans.from, to: ans.to },
-    ans,
-  );
-  if (stylesOnly.earned === stylesOnly.total) {
+  if (parts.shape && parts.styles === 2 && parts.positions < 2) {
     return 'Your endpoint styles look right — check where the segment starts and ends.';
   }
   return null;

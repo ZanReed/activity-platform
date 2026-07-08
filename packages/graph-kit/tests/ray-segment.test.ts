@@ -1,5 +1,10 @@
 // =============================================================================
-// ray-segment.test.ts — plot_ray / plot_segment scoring, parsing, classifiers
+// ray-segment.test.ts — student shape-toggle model: scoring, parsing, classifiers
+// -----------------------------------------------------------------------------
+// The student plots TWO handles, then CHOOSES the shape (ray →/← or segment)
+// and the visible endpoint styles. The shape is a graded part — never
+// pre-drawn — so scorers take the LinearPieceStudentAnswer (canonical points +
+// shape + styles).
 // =============================================================================
 import { describe, it, expect } from 'vitest';
 import {
@@ -8,59 +13,84 @@ import {
   scoreRayPartial,
   scoreSegment,
   scoreSegmentParts,
+  rayKeyShape,
+  canonicalPair,
   type RayAnswerKey,
   type SegmentAnswerKey,
+  type LinearPieceStudentAnswer,
 } from '../src/graph-score.js';
 import { parseRaySegment, formatRay, formatSegment } from '../src/formula.js';
 import { classifyRayMistake, classifySegmentMistake } from '../src/mistakes.js';
 
+// Key: ray from (1,2) through (3,4) — extends toward +x, endpoint open.
 const rayKey: RayAnswerKey = {
   from: [1, 2],
   through: [3, 4],
-  fromStyle: 'closed',
+  fromStyle: 'open',
   tolerance: 0.25,
 };
 
-describe('scoreRay', () => {
-  it('accepts the exact ray and any through-point along it', () => {
-    expect(scoreRay(rayKey, { from: [1, 2], through: [3, 4], fromStyle: 'closed' })).toBe(true);
-    // Farther along the same direction (slope 1).
-    expect(scoreRay(rayKey, { from: [1, 2], through: [7, 8], fromStyle: 'closed' })).toBe(true);
+const ans = (
+  points: [number, number][],
+  shape: LinearPieceStudentAnswer['shape'],
+  endpointStyles: ('open' | 'closed')[] = [],
+): LinearPieceStudentAnswer => ({ points, shape, endpointStyles });
+
+describe('rayKeyShape / canonicalPair', () => {
+  it('derives the expected shape from the key direction (incl. vertical = up)', () => {
+    expect(rayKeyShape(rayKey)).toBe('ray_positive');
+    expect(rayKeyShape({ ...rayKey, through: [-1, 0] })).toBe('ray_negative');
+    expect(rayKeyShape({ ...rayKey, from: [2, 1], through: [2, 5] })).toBe('ray_positive'); // up
+    expect(rayKeyShape({ ...rayKey, from: [2, 5], through: [2, 1] })).toBe('ray_negative'); // down
   });
 
-  it('rejects the opposite direction, wrong start, and wrong style — as parts', () => {
-    expect(
-      scoreRayParts(rayKey, { from: [1, 2], through: [-1, 0], fromStyle: 'closed' }),
-    ).toEqual({ from: true, direction: false, style: true });
-    expect(
-      scoreRayParts(rayKey, { from: [0, 0], through: [2, 2], fromStyle: 'closed' }),
-    ).toEqual({ from: false, direction: true, style: true });
-    expect(
-      scoreRayParts(rayKey, { from: [1, 2], through: [3, 4], fromStyle: 'open' }),
-    ).toEqual({ from: true, direction: true, style: false });
-  });
-
-  it('rejects a nearby but distinct grid direction', () => {
-    // Slope 1 vs slope 2 from the same start.
-    expect(
-      scoreRayParts(rayKey, { from: [1, 2], through: [3, 6], fromStyle: 'closed' }).direction,
-    ).toBe(false);
-  });
-
-  it('degenerate (coincident handles) is never a correct direction', () => {
-    expect(
-      scoreRayParts(rayKey, { from: [1, 2], through: [1, 2], fromStyle: 'closed' }).direction,
-    ).toBe(false);
-  });
-
-  it('partial credit: 3 parts', () => {
-    expect(
-      scoreRayPartial(rayKey, { from: [1, 2], through: [-1, 0], fromStyle: 'open' }),
-    ).toEqual({ earned: 1, total: 3 });
+  it('orders pairs lesser-first by x then y', () => {
+    expect(canonicalPair([3, 0], [-1, 2])).toEqual([[-1, 2], [3, 0]]);
+    expect(canonicalPair([2, 5], [2, 1])).toEqual([[2, 1], [2, 5]]);
   });
 });
 
-describe('scoreSegment', () => {
+describe('scoreRay (shape model)', () => {
+  it('full marks: right line, right shape, right endpoint style', () => {
+    // Canonical points [(1,2), (5,6)] — both on the key line; shape ray_positive
+    // makes the LESSER handle (1,2) the endpoint, styled open.
+    expect(scoreRay(rayKey, ans([[1, 2], [5, 6]], 'ray_positive', ['open']))).toBe(true);
+  });
+
+  it('parts are independent: wrong shape / wrong placement / wrong style', () => {
+    const right: [number, number][] = [[1, 2], [5, 6]];
+    expect(scoreRayParts(rayKey, ans(right, 'ray_negative', ['open'])))
+      .toEqual({ shape: false, placement: true, style: false });
+    // ray_negative styles the GREATER handle — the key's endpoint (1,2) shows
+    // no style, so the style part is lost too. Segment with both styles open
+    // keeps style while losing shape:
+    expect(scoreRayParts(rayKey, ans(right, 'segment', ['open', 'closed'])))
+      .toEqual({ shape: false, placement: true, style: true });
+    expect(scoreRayParts(rayKey, ans([[0, 0], [4, 4]], 'ray_positive', ['open'])))
+      .toEqual({ shape: true, placement: false, style: false });
+    expect(scoreRayParts(rayKey, ans(right, 'ray_positive', ['closed'])))
+      .toEqual({ shape: true, placement: true, style: false });
+  });
+
+  it('no shape chosen = unanswered shape/style parts, placement still earnable', () => {
+    const parts = scoreRayParts(rayKey, ans([[1, 2], [5, 6]], null));
+    expect(parts).toEqual({ shape: false, placement: true, style: false });
+    expect(scoreRayPartial(rayKey, ans([[1, 2], [5, 6]], null))).toEqual({ earned: 1, total: 3 });
+  });
+
+  it('placement accepts the second handle on EITHER side (direction is the shape part)', () => {
+    // Handles at (1,2) and (-1,0): same line, second handle on the negative
+    // side — placement ok; the chosen shape supplies the direction.
+    expect(scoreRayParts(rayKey, ans([[-1, 0], [1, 2]], 'ray_positive', ['open'])).placement).toBe(true);
+  });
+
+  it('rejects a nearby but distinct grid direction and degenerate handles', () => {
+    expect(scoreRayParts(rayKey, ans([[1, 2], [3, 6]], 'ray_positive', ['open'])).placement).toBe(false);
+    expect(scoreRayParts(rayKey, ans([[1, 2], [1, 2]], 'ray_positive', ['open'])).placement).toBe(false);
+  });
+});
+
+describe('scoreSegment (shape model)', () => {
   const key: SegmentAnswerKey = {
     from: [-2, 0],
     to: [3, 2],
@@ -68,26 +98,29 @@ describe('scoreSegment', () => {
     tolerance: 0.25,
   };
 
-  it('accepts the segment drawn in either direction (styles travel with endpoints)', () => {
-    expect(
-      scoreSegment(key, { from: [-2, 0], to: [3, 2], endpoints: ['open', 'closed'] }),
-    ).toBe(true);
-    // Reversed: from/to swapped AND the styles swapped with them.
-    expect(
-      scoreSegment(key, { from: [3, 2], to: [-2, 0], endpoints: ['closed', 'open'] }),
-    ).toBe(true);
+  it('full marks with canonical points + styles aligned', () => {
+    expect(scoreSegment(key, ans([[-2, 0], [3, 2]], 'segment', ['open', 'closed']))).toBe(true);
   });
 
-  it('reversed positions with unswapped styles lose the style parts', () => {
-    expect(
-      scoreSegmentParts(key, { from: [3, 2], to: [-2, 0], endpoints: ['open', 'closed'] }),
-    ).toEqual({ earned: 2, total: 4 });
+  it('shape is its own part; a ray choice loses shape AND styles (not shown)', () => {
+    const p = scoreSegmentParts(key, ans([[-2, 0], [3, 2]], 'ray_positive', ['open']));
+    expect(p.shape).toBe(false);
+    expect(p.positions).toBe(2);
+    expect(p.styles).toBe(0);
+    expect(p).toMatchObject({ earned: 2, total: 5 });
+  });
+
+  it('unchosen shape earns positions only', () => {
+    expect(scoreSegmentParts(key, ans([[-2, 0], [3, 2]], null))).toMatchObject({
+      earned: 2,
+      total: 5,
+    });
   });
 
   it('one endpoint off costs one position part', () => {
     expect(
-      scoreSegmentParts(key, { from: [-2, 0], to: [4, 2], endpoints: ['open', 'closed'] }),
-    ).toEqual({ earned: 3, total: 4 });
+      scoreSegmentParts(key, ans([[-2, 0], [4, 2]], 'segment', ['open', 'closed'])).earned,
+    ).toBe(4);
   });
 });
 
@@ -104,9 +137,6 @@ describe('parseRaySegment / formatters', () => {
   it('parses segments with per-endpoint styles', () => {
     expect(parseRaySegment('segment (1, 2) to (3, 4) open closed')).toEqual({
       kind: 'segment', from: [1, 2], to: [3, 4], endpoints: ['open', 'closed'],
-    });
-    expect(parseRaySegment('segment (-2, 0) (3, 2)')).toEqual({
-      kind: 'segment', from: [-2, 0], to: [3, 2], endpoints: ['closed', 'closed'],
     });
   });
 
@@ -128,28 +158,38 @@ describe('parseRaySegment / formatters', () => {
   });
 });
 
-describe('ray/segment mistake classifiers', () => {
-  it('names the reversed-direction mistake', () => {
-    expect(
-      classifyRayMistake(rayKey, { from: [1, 2], through: [-1, 0], fromStyle: 'closed' }),
-    ).toMatch(/opposite way/);
+describe('ray/segment mistake classifiers (shape model)', () => {
+  const right: [number, number][] = [[1, 2], [5, 6]];
+
+  it('unchosen shape with a right line → choose-the-shape nudge', () => {
+    expect(classifyRayMistake(rayKey, ans(right, null))).toMatch(/choose its shape/);
   });
 
-  it('nudges the endpoint style without teaching the convention', () => {
-    const msg = classifyRayMistake(rayKey, { from: [1, 2], through: [3, 4], fromStyle: 'open' })!;
-    expect(msg).toMatch(/style/);
+  it('opposite ray direction → arrow nudge', () => {
+    expect(classifyRayMistake(rayKey, ans(right, 'ray_negative', ['open'])))
+      .toMatch(/which way the arrow/);
+  });
+
+  it('segment chosen on a ray question (styles right) → shape nudge', () => {
+    expect(classifyRayMistake(rayKey, ans(right, 'segment', ['open', 'open'])))
+      .toMatch(/shape you chose/);
+  });
+
+  it('style-only miss → endpoint style nudge, never teaching the convention', () => {
+    const msg = classifyRayMistake(rayKey, ans(right, 'ray_positive', ['closed']))!;
+    expect(msg).toMatch(/style of the endpoint/);
     expect(msg).not.toMatch(/includ|exclud|hollow|filled/);
   });
 
-  it('segment: right place wrong styles → style nudge; right styles wrong place → position nudge', () => {
+  it('segment: shape+styles right, endpoints off → position nudge; positions right, styles off → style nudge', () => {
     const key: SegmentAnswerKey = {
       from: [-2, 0], to: [3, 2], endpoints: ['open', 'closed'], tolerance: 0.25,
     };
-    expect(
-      classifySegmentMistake(key, { from: [-2, 0], to: [3, 2], endpoints: ['closed', 'closed'] }),
-    ).toMatch(/endpoint styles/);
-    expect(
-      classifySegmentMistake(key, { from: [-2, 1], to: [4, 2], endpoints: ['open', 'closed'] }),
-    ).toMatch(/where the segment starts/);
+    expect(classifySegmentMistake(key, ans([[-2, 1], [4, 2]], 'segment', ['open', 'closed'])))
+      .toMatch(/where the segment starts/);
+    expect(classifySegmentMistake(key, ans([[-2, 0], [3, 2]], 'segment', ['closed', 'closed'])))
+      .toMatch(/endpoint styles/);
+    expect(classifySegmentMistake(key, ans([[-2, 0], [3, 2]], null)))
+      .toMatch(/choose the shape/);
   });
 });
