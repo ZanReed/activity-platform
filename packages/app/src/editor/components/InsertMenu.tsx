@@ -35,9 +35,11 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
 
     // The reference-panel editor registers a constrained extension set, so it
     // only offers the reference-safe items. Inline inserts that already have a
-    // flat toolbar button (ƒx) are excluded everywhere.
+    // flat toolbar button (ƒx) are excluded everywhere, and the Text group is
+    // the TextStylePicker's — block-style transforms, not insertions.
     const items = slashMenuItems.filter(
         (item) =>
+            item.group !== 'Text' &&
             item.insertMenu !== false &&
             (variant === 'activity' || item.referenceSafe),
     );

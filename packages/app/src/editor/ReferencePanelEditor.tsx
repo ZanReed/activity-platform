@@ -16,6 +16,7 @@ import { Columns, Column } from './extensions/Columns';
 import { Image } from './extensions/Image';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
+import { InteractiveGraph } from './extensions/InteractiveGraph';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
@@ -73,6 +74,13 @@ export default function ReferencePanelEditor({
             // it).
             FillInBlank,
             Blank,
+            // InteractiveGraph, like FillInBlank above, is registered ONLY
+            // because the column cell's content expression names it (as of the
+            // Stage 5 graphs-in-columns drop, which broke this editor's schema
+            // compilation until registered here). The reference toolbar's
+            // Insert dropdown never offers it, so a teacher can't author one
+            // in a panel.
+            InteractiveGraph,
             Image,
         ],
         content: initialContent,

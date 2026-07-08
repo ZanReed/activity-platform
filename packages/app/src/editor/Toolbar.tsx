@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import ColumnWidthPicker from './components/ColumnWidthPicker';
 import CellHeightControl from './components/CellHeightControl';
 import InsertMenu from './components/InsertMenu';
+import TextStylePicker from './components/TextStylePicker';
 
 // editor.isActive(markName) returns false when a mark is "armed" on a collapsed
 // cursor — ProseMirror's stored-marks state, applied to the next typed character.
@@ -25,7 +26,9 @@ interface ToolbarProps {
 }
 
 // Three tiers (editor toolbar reorganization, 2026-07-08):
-// 1. Flat buttons — ONLY selection formatting (marks + the inline-math atom).
+// 1. Flat controls — ONLY selection formatting: the block-style picker
+//    (headings/paragraph/lists are transforms of the current block, not
+//    insertions), the marks, and the inline-math atom.
 // 2. "+ Insert" — ALL block insertion, in one dropdown driven by
 //    slashMenuItems.ts so it and the slash menu share one item list.
 // 3. Contextual cluster — column controls render only while the selection is
@@ -44,6 +47,10 @@ export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) 
         // scrolled content from showing through; rounded-t-lg replaces the
         // corner clipping the card's removed overflow-hidden provided.
         <div className="sticky top-0 z-30 flex flex-wrap gap-1 rounded-t-lg border-b border-slate-200 bg-slate-50 p-2">
+            <TextStylePicker editor={editor} />
+
+            <Divider />
+
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 active={isMarkActive(editor, 'bold')}

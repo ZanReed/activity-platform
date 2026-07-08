@@ -57,6 +57,21 @@ describe('slashMenuItems', () => {
         }
     });
 
+    it('gives every Text-group item an isActive (the style picker needs it)', () => {
+        // The toolbar's TextStylePicker renders the Text group and shows the
+        // current block style on its trigger; an item without isActive could
+        // never be detected as current.
+        for (const item of slashMenuItems.filter((i) => i.group === 'Text')) {
+            expect(item.isActive, item.title).toBeTypeOf('function');
+        }
+    });
+
+    it('keeps the Text group reference-safe (both toolbar variants show the style picker)', () => {
+        for (const item of slashMenuItems.filter((i) => i.group === 'Text')) {
+            expect(item.referenceSafe, item.title).toBe(true);
+        }
+    });
+
     it('keeps inline math slash-only (the flat toolbar owns the ƒx button)', () => {
         const inlineMath = slashMenuItems.find((i) => i.title === 'Inline math');
         expect(inlineMath?.insertMenu).toBe(false);

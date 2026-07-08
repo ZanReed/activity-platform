@@ -16,8 +16,14 @@ export interface SlashMenuItem {
     description: string;
     keywords?: string[];
     // Section heading in the "+ Insert" dropdown. The slash menu stays a flat
-    // filtered list, but shares the same grouping vocabulary.
+    // filtered list, but shares the same grouping vocabulary. 'Text' items are
+    // block-style TRANSFORMS (setNode/toggle on the current block), not
+    // insertions — the toolbar renders them in the TextStylePicker instead of
+    // the Insert dropdown, which skips this group.
     group: 'Text' | 'Math' | 'Structure' | 'Questions';
+    // Current-state detection for the style picker's trigger label ('Text'
+    // items only): does the selection sit in this block style right now?
+    isActive?: (editor: Editor) => boolean;
     // Available in the constrained reference-panel editor (which registers no
     // SectionBreak / graph extensions and hides question authoring).
     referenceSafe?: boolean;
@@ -43,6 +49,7 @@ export const slashMenuItems: SlashMenuItem[] = [
         description: 'Large section heading',
         group: 'Text',
         referenceSafe: true,
+        isActive: (editor) => editor.isActive('heading', { level: 1 }),
         command: ({ editor, range }) => {
             begin(editor, range).setNode('heading', { level: 1 }).run();
         },
@@ -52,6 +59,7 @@ export const slashMenuItems: SlashMenuItem[] = [
         description: 'Medium section heading',
         group: 'Text',
         referenceSafe: true,
+        isActive: (editor) => editor.isActive('heading', { level: 2 }),
         command: ({ editor, range }) => {
             begin(editor, range).setNode('heading', { level: 2 }).run();
         },
@@ -61,6 +69,7 @@ export const slashMenuItems: SlashMenuItem[] = [
         description: 'Small section heading',
         group: 'Text',
         referenceSafe: true,
+        isActive: (editor) => editor.isActive('heading', { level: 3 }),
         command: ({ editor, range }) => {
             begin(editor, range).setNode('heading', { level: 3 }).run();
         },
@@ -70,6 +79,12 @@ export const slashMenuItems: SlashMenuItem[] = [
         description: 'Plain text',
         group: 'Text',
         referenceSafe: true,
+        // Only when not in a list: a list item's body is also a paragraph, so
+        // without the exclusion both entries would claim the active state.
+        isActive: (editor) =>
+            editor.isActive('paragraph') &&
+            !editor.isActive('bulletList') &&
+            !editor.isActive('orderedList'),
         command: ({ editor, range }) => {
             begin(editor, range).setNode('paragraph').run();
         },
@@ -79,6 +94,7 @@ export const slashMenuItems: SlashMenuItem[] = [
         description: 'Unordered list',
         group: 'Text',
         referenceSafe: true,
+        isActive: (editor) => editor.isActive('bulletList'),
         command: ({ editor, range }) => {
             begin(editor, range).toggleBulletList().run();
         },
@@ -88,6 +104,7 @@ export const slashMenuItems: SlashMenuItem[] = [
         description: 'Ordered list',
         group: 'Text',
         referenceSafe: true,
+        isActive: (editor) => editor.isActive('orderedList'),
         command: ({ editor, range }) => {
             begin(editor, range).toggleOrderedList().run();
         },

@@ -21,7 +21,6 @@ import {
     useCallback,
     useEffect,
     useMemo,
-    useRef,
     useState,
     type ReactNode,
 } from 'react';
@@ -30,14 +29,10 @@ import type { Editor as TiptapEditor, JSONContent } from '@tiptap/react';
 import {
     ActivityDocument,
     createEmptyDocument,
-    createCalculatorTool,
     type ActivityMeta,
-    type PrintConfig,
     type ReferencePanel,
     type CalculatorTool,
-    type RegressionModel,
 } from '@activity/schema';
-import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 import { supabase } from '../lib/supabase';
 import {
     activityToTiptap,
@@ -47,9 +42,14 @@ import {
 } from '../lib/serialize';
 import { useAutosave, type SaveStatus } from '../lib/useAutosave';
 import Editor from '../editor/Editor';
-import ReferencePanelEditor from '../editor/ReferencePanelEditor';
 import PublishControl from '../components/PublishControl';
 import ImportMarkdownDialog from '../components/ImportMarkdownDialog';
+import {
+    ConfigButtons,
+    ConfigDrawer,
+    HeaderButton,
+    type ConfigKey,
+} from '../components/ActivityConfigDrawer';
 
 interface ActivityLoadRow {
     id: string;
@@ -70,29 +70,6 @@ type LoadState =
 
 const UUID_RE =
 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const SUBMISSION_MODE_HELP: Record<ActivityMeta['submissionMode'], string> = {
-    single: 'One submit at the end — no per-section checkpoints.',
-    locked: 'Per-section checkpoints; answers freeze once a section is checked.',
-    free: 'Per-section checkpoints; students can revise and re-check freely.',
-};
-
-const REVISION_MODE_HELP: Record<ActivityMeta['revisionMode'], string> = {
-    free: 'Students can revise and resubmit after the final submit.',
-    locked: 'Final submit is final — no resubmissions.',
-};
-
-const ANSWER_FEEDBACK_HELP: Record<ActivityMeta['answerFeedback'], string> = {
-    immediate: 'Each blank turns green/red as soon as the student leaves it.',
-    on_check: 'Correctness stays hidden until the student checks the section or submits.',
-};
-
-const ACTIVITY_TYPE_LABELS: Record<ActivityMeta['activityType'], string> = {
-    worksheet: 'Worksheet',
-    exit_ticket: 'Exit ticket',
-    warm_up: 'Warm-up',
-    review: 'Review',
-};
 
 // Locked mode relies on per-section "Check this section" buttons to freeze
 // answers; a section that isn't a checkpoint has no such button, so students
@@ -205,678 +182,6 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
     );
 }
 
-const SELECT_CLASS =
-    'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
-const SETTINGS_LABEL_CLASS =
-    'text-xs font-semibold uppercase tracking-wide text-slate-500';
-const SETTINGS_HELP_CLASS = 'mt-1 text-xs text-slate-500';
-
-// Activity-level metadata controls. submissionMode / revisionMode /
-// activityType all already round-trip through draft_content; this panel just
-// surfaces them. revisionMode is inert in single mode (the schema ignores it),
-// so its control is disabled there with explanatory text. gradingMode is
-// omitted — it's inert in Phase 1 (manual/mixed treated as auto), so a picker
-// would imply behavior that doesn't exist yet. skills UI is deferred to Phase 2.
-function ActivitySettings({
-    meta,
-    onChange,
-}: {
-    meta: ActivityMeta;
-    onChange: (next: ActivityMeta) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    const singleMode = meta.submissionMode === 'single';
-
-    return (
-        <div className="mt-3 rounded-md border border-slate-200 bg-white">
-        <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
-        >
-        <span>
-        <span aria-hidden="true">⚙</span> Activity settings
-        </span>
-        <span className="text-xs text-slate-400">{open ? '▲' : '▼'}</span>
-        </button>
-        {open && (
-            <div className="grid gap-4 border-t border-slate-200 px-3 py-3 sm:grid-cols-2">
-            <div>
-            <label className={SETTINGS_LABEL_CLASS} htmlFor="submission-mode">
-            Submission mode
-            </label>
-            <select
-            id="submission-mode"
-            className={SELECT_CLASS}
-            value={meta.submissionMode}
-            onChange={(e) =>
-                onChange({
-                    ...meta,
-                    submissionMode: e.target
-                    .value as ActivityMeta['submissionMode'],
-                })
-            }
-            >
-            <option value="single">Single submit</option>
-            <option value="locked">Locked checkpoints</option>
-            <option value="free">Free checkpoints</option>
-            </select>
-            <p className={SETTINGS_HELP_CLASS}>
-            {SUBMISSION_MODE_HELP[meta.submissionMode]}
-            </p>
-            </div>
-
-            <div>
-            <label className={SETTINGS_LABEL_CLASS} htmlFor="revision-mode">
-            Revision mode
-            </label>
-            <select
-            id="revision-mode"
-            className={SELECT_CLASS}
-            value={meta.revisionMode}
-            disabled={singleMode}
-            onChange={(e) =>
-                onChange({
-                    ...meta,
-                    revisionMode: e.target
-                    .value as ActivityMeta['revisionMode'],
-                })
-            }
-            >
-            <option value="free">Allow resubmit</option>
-            <option value="locked">No resubmit</option>
-            </select>
-            <p className={SETTINGS_HELP_CLASS}>
-            {singleMode
-                ? 'Not used in single-submit mode.'
-                : REVISION_MODE_HELP[meta.revisionMode]}
-            </p>
-            </div>
-
-            <div>
-            <label className={SETTINGS_LABEL_CLASS} htmlFor="activity-type">
-            Activity type
-            </label>
-            <select
-            id="activity-type"
-            className={SELECT_CLASS}
-            value={meta.activityType}
-            onChange={(e) =>
-                onChange({
-                    ...meta,
-                    activityType: e.target
-                    .value as ActivityMeta['activityType'],
-                })
-            }
-            >
-            {(
-                Object.keys(
-                    ACTIVITY_TYPE_LABELS,
-                ) as ActivityMeta['activityType'][]
-            ).map((t) => (
-                <option key={t} value={t}>
-                {ACTIVITY_TYPE_LABELS[t]}
-                </option>
-            ))}
-            </select>
-            </div>
-
-            <div>
-            <label className={SETTINGS_LABEL_CLASS} htmlFor="answer-feedback">
-            Answer feedback
-            </label>
-            <select
-            id="answer-feedback"
-            className={SELECT_CLASS}
-            value={meta.answerFeedback}
-            onChange={(e) =>
-                onChange({
-                    ...meta,
-                    answerFeedback: e.target
-                    .value as ActivityMeta['answerFeedback'],
-                })
-            }
-            >
-            <option value="on_check">Reveal on check</option>
-            <option value="immediate">Immediate self-check</option>
-            </select>
-            <p className={SETTINGS_HELP_CLASS}>
-            {ANSWER_FEEDBACK_HELP[meta.answerFeedback]}
-            </p>
-            </div>
-            </div>
-        )}
-        </div>
-    );
-}
-
-// The header toggles, in render order. `custom` is handled separately (it's a
-// free-text list, not a boolean), so it isn't in this table.
-const PRINT_HEADER_FIELDS: {
-    key: 'name' | 'date' | 'period' | 'class' | 'score';
-    label: string;
-}[] = [
-    { key: 'name', label: 'Name' },
-    { key: 'date', label: 'Date' },
-    { key: 'period', label: 'Period' },
-    { key: 'class', label: 'Class' },
-    { key: 'score', label: 'Score' },
-];
-
-// A labelled number input that commits only valid, in-range values. Empty and
-// out-of-range input is ignored (the field keeps its last good value) rather
-// than coercing to 0 or NaN — teachers shouldn't be able to type the layout
-// into an invalid state. Decimal entry works via the spinner or whole/half
-// steps; the schema clamps on save regardless.
-function PrintNumberField({
-    id,
-    label,
-    help,
-    value,
-    min,
-    step,
-    onCommit,
-}: {
-    id: string;
-    label: string;
-    help?: string;
-    value: number;
-    min: number;
-    step: number;
-    onCommit: (n: number) => void;
-}) {
-    return (
-        <div>
-        <label className={SETTINGS_LABEL_CLASS} htmlFor={id}>
-        {label}
-        </label>
-        <input
-        id={id}
-        type="number"
-        min={min}
-        step={step}
-        className={SELECT_CLASS}
-        value={value}
-        onChange={(e) => {
-            const raw = e.target.value;
-            if (raw === '') return;
-            const n = Number(raw);
-            if (Number.isFinite(n) && n >= min) onCommit(n);
-        }}
-        />
-        {help && <p className={SETTINGS_HELP_CLASS}>{help}</p>}
-        </div>
-    );
-}
-
-// Print & worksheet layout controls. Like ActivitySettings, this just surfaces
-// fields that already round-trip through draft_content (meta.print is embedded
-// whole by tiptapToActivity). paperSize + margin drive the printed @page;
-// columns/fontSize/problemSpacing/workSpace become --print-* container vars;
-// the header object toggles the printed Name/Date/… line. Per-problem work
-// space lives on each FillInBlank block (FillInBlankView), not here — this
-// workSpace is the worksheet-wide default.
-function PrintSettings({
-    meta,
-    onChange,
-}: {
-    meta: ActivityMeta;
-    onChange: (next: ActivityMeta) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    const print = meta.print;
-    // Local draft for the comma-separated custom-label input so a trailing
-    // comma or space survives mid-type (the stored array filters empties).
-    const [customDraft, setCustomDraft] = useState(() =>
-    print.header.custom.join(', '),
-    );
-
-    const setPrint = (patch: Partial<PrintConfig>) =>
-    onChange({ ...meta, print: { ...print, ...patch } });
-    const setHeader = (patch: Partial<PrintConfig['header']>) =>
-    setPrint({ header: { ...print.header, ...patch } });
-
-    return (
-        <div className="mt-3 rounded-md border border-slate-200 bg-white">
-        <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
-        >
-        <span>
-        <span aria-hidden="true">🖨</span> Print &amp; worksheet layout
-        </span>
-        <span className="text-xs text-slate-400">{open ? '▲' : '▼'}</span>
-        </button>
-        {open && (
-            <div className="border-t border-slate-200 px-3 py-3">
-            <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-            <label className={SETTINGS_LABEL_CLASS} htmlFor="print-paper">
-            Paper size
-            </label>
-            <select
-            id="print-paper"
-            className={SELECT_CLASS}
-            value={print.paperSize}
-            onChange={(e) =>
-                setPrint({
-                    paperSize: e.target.value as PrintConfig['paperSize'],
-                })
-            }
-            >
-            <option value="letter">Letter (8.5 × 11 in)</option>
-            <option value="a4">A4 (210 × 297 mm)</option>
-            </select>
-            </div>
-
-            {/* The worksheet print "Columns" control (CSS column-count, 1–3)
-                was retired here when structural authored columns landed — a
-                content-level columns block renders consistently on screen, in
-                worksheet print, and inside a foldable, so the per-mode print
-                setting is redundant. The control is removed but the underlying
-                plumbing is intentionally kept dormant (schema
-                PrintConfig.columns, the --print-columns renderer var, and its
-                @media print column-count rule) so already-saved values keep
-                printing as authored and the feature can be re-exposed later
-                with just this dropdown — no schema/renderer/redeploy churn.
-                See packages/schema/src/document.ts (PrintConfig.columns). */}
-
-            <PrintNumberField
-            id="print-margin"
-            label="Margin (in)"
-            value={print.margin}
-            min={0}
-            step={0.25}
-            onCommit={(n) => setPrint({ margin: n })}
-            />
-
-            <PrintNumberField
-            id="print-font-size"
-            label="Body text (pt)"
-            value={print.fontSize}
-            min={1}
-            step={1}
-            onCommit={(n) => setPrint({ fontSize: n })}
-            />
-
-            <PrintNumberField
-            id="print-problem-spacing"
-            label="Space between problems (rem)"
-            value={print.problemSpacing}
-            min={0}
-            step={0.5}
-            onCommit={(n) => setPrint({ problemSpacing: n })}
-            />
-
-            <PrintNumberField
-            id="print-work-space"
-            label="Work space per problem (rem)"
-            help="Default blank space below each problem. Override on individual problems in their settings."
-            value={print.workSpace}
-            min={0}
-            step={0.5}
-            onCommit={(n) => setPrint({ workSpace: n })}
-            />
-            </div>
-
-            <div className="mt-4">
-            <span className={SETTINGS_LABEL_CLASS}>Header fields</span>
-            <p className={SETTINGS_HELP_CLASS}>
-            Blank lines printed at the top of the worksheet for students to
-            fill in.
-            </p>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-            {PRINT_HEADER_FIELDS.map(({ key, label }) => (
-                <label
-                key={key}
-                className="inline-flex items-center gap-1.5 text-sm text-slate-700"
-                >
-                <input
-                type="checkbox"
-                checked={print.header[key]}
-                onChange={(e) => setHeader({ [key]: e.target.checked })}
-                />
-                <span>{label}</span>
-                </label>
-            ))}
-            </div>
-            <label
-            className={`${SETTINGS_LABEL_CLASS} mt-3 block`}
-            htmlFor="print-custom-fields"
-            >
-            Custom fields
-            </label>
-            <input
-            id="print-custom-fields"
-            type="text"
-            className={`${SELECT_CLASS} mt-1`}
-            placeholder="e.g. Homeroom, Teacher"
-            value={customDraft}
-            onChange={(e) => {
-                setCustomDraft(e.target.value);
-                setHeader({
-                    custom: e.target.value
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                });
-            }}
-            />
-            <p className={SETTINGS_HELP_CLASS}>
-            Comma-separated extra labels, each printed with a blank line.
-            </p>
-            </div>
-
-            <div className="mt-4">
-            <label className="inline-flex items-center gap-1.5 text-sm text-slate-700">
-            <input
-            type="checkbox"
-            checked={print.gridLines}
-            onChange={(e) => setPrint({ gridLines: e.target.checked })}
-            />
-            <span>Grid lines on columns blocks</span>
-            </label>
-            <p className={SETTINGS_HELP_CLASS}>
-            Draw boxes and dividers around columns layouts by default — handy
-            for printed worksheets. Individual columns blocks can override this
-            with their own grid toggle in the editor toolbar.
-            </p>
-            </div>
-
-            <div className="mt-4">
-            <label className="inline-flex items-center gap-1.5 text-sm text-slate-700">
-            <input
-            type="checkbox"
-            checked={print.printReferencePanel}
-            onChange={(e) =>
-                setPrint({ printReferencePanel: e.target.checked })
-            }
-            />
-            <span>Include reference panel when printing</span>
-            </label>
-            <p className={SETTINGS_HELP_CLASS}>
-            Print the activity's reference panel as a box at the top of the
-            worksheet. Turn off if students already have a class set (e.g. a
-            shared formula chart). The on-screen reference toolbar is
-            unaffected.
-            </p>
-            </div>
-            </div>
-        )}
-        </div>
-    );
-}
-
-// Collapsible authoring surface for the reference panel. Mirrors the
-// ActivitySettings / PrintSettings disclosures, but its body holds a title
-// field + the constrained ReferencePanelEditor. The editor stays MOUNTED while
-// collapsed (hidden via CSS) so its onCreate fires once and edits survive
-// expand/collapse — a conditional mount would remount it and drop content.
-function ReferencePanelSection({
-    editorKey,
-    initialContent,
-    title,
-    onTitleChange,
-    onEditorUpdate,
-    gridLinesDefault,
-    activityId,
-}: {
-    editorKey: string;
-    initialContent: JSONContent;
-    title: string;
-    onTitleChange: (t: string) => void;
-    onEditorUpdate: (json: JSONContent) => void;
-    gridLinesDefault: boolean;
-    activityId: string;
-}) {
-    const [open, setOpen] = useState(false);
-    return (
-        <div className="mt-3 rounded-md border border-slate-200 bg-white">
-        <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
-        >
-        <span>
-        <span aria-hidden="true">📎</span> Reference panel
-        </span>
-        <span className="text-xs text-slate-400">{open ? '▲' : '▼'}</span>
-        </button>
-        <div className={open ? 'border-t border-slate-200 px-3 py-3' : 'hidden'}>
-        <p className={`${SETTINGS_HELP_CLASS} mb-3`}>
-        Optional reference content students can open from a bar while working
-        (formula charts, vocabulary, conversion tables…). It shows as a
-        collapsible toolbar on the published page and a box at the top of
-        printouts. Leave empty for no panel.
-        </p>
-        <label className={SETTINGS_LABEL_CLASS} htmlFor="reference-title">
-        Panel title
-        </label>
-        <input
-        id="reference-title"
-        type="text"
-        className={`${SELECT_CLASS} mb-3 mt-1`}
-        placeholder="e.g. Formula reference"
-        value={title}
-        onChange={(e) => onTitleChange(e.target.value)}
-        />
-        <ReferencePanelEditor
-        key={editorKey}
-        initialContent={initialContent}
-        onUpdate={onEditorUpdate}
-        gridLinesDefault={gridLinesDefault}
-        activityId={activityId}
-        />
-        </div>
-        </div>
-    );
-}
-
-// Canonical order — checking a box re-derives the array by filtering this list,
-// so the stored order never depends on the order the teacher clicked.
-const REGRESSION_MODEL_OPTIONS: { model: RegressionModel; label: string }[] = [
-    { model: 'linear', label: 'Linear (y = ax + b)' },
-    { model: 'quadratic', label: 'Quadratic (y = ax² + bx + c)' },
-    { model: 'exponential', label: 'Exponential (y = a·bˣ)' },
-];
-
-// Live preview of the calculator in its restricted state — the SAME
-// mountCalculator() a published page loads, so the author sees exactly what a
-// student gets ("what the teacher sees is what the student gets"). Re-mounts
-// when a restriction flag changes (the widget reads its config at mount). The
-// close (×) button is hidden here — there's no summon button in the preview to
-// reopen it with.
-function CalculatorPreview({
-    restrictions,
-}: {
-    restrictions: CalculatorTool['restrictions'];
-}) {
-    const mountRef = useRef<HTMLDivElement>(null);
-    // join() so the array's identity churn doesn't re-mount on every render
-    const modelsKey = restrictions.allowedRegressionModels.join(',');
-    useEffect(() => {
-        const el = mountRef.current;
-        if (!el) return;
-        const handle: CalculatorHandle = mountCalculator(el, restrictions, {});
-        return () => handle.destroy();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-        restrictions.mode,
-        restrictions.allowTrig,
-        restrictions.allowLogExp,
-        modelsKey,
-        restrictions.maxExpressions,
-    ]);
-    return (
-        <div className="relative mt-2 flex justify-center [&_.gk-cal-close]:hidden">
-        <div ref={mountRef} />
-        </div>
-    );
-}
-
-// Activity-level calculator authoring (a scaffold sibling to the reference
-// panel — config only, never graded). A toggle enables it; when on, the
-// restriction flags + a live preview appear. Off keeps any configured flags
-// (enabled:false) so toggling back on restores them; an activity that never
-// touched the calculator carries no `calculator` field at all.
-function CalculatorSection({
-    calculator,
-    onChange,
-}: {
-    calculator: CalculatorTool | undefined;
-    onChange: (c: CalculatorTool | undefined) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    const enabled = calculator?.enabled ?? false;
-    const restrictions = calculator?.restrictions ?? createCalculatorTool().restrictions;
-
-    const toggleEnabled = (on: boolean): void => {
-        if (on) onChange({ enabled: true, restrictions });
-        else if (calculator) onChange({ ...calculator, enabled: false });
-    };
-    const patchRestrictions = (
-        patch: Partial<CalculatorTool['restrictions']>,
-    ): void => {
-        onChange({ enabled: true, restrictions: { ...restrictions, ...patch } });
-    };
-
-    return (
-        <div className="mt-3 rounded-md border border-slate-200 bg-white">
-        <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
-        >
-        <span>
-        <span aria-hidden="true">🧮</span> Calculator
-        </span>
-        <span className="text-xs text-slate-400">{open ? '▲' : '▼'}</span>
-        </button>
-        <div className={open ? 'border-t border-slate-200 px-3 py-3' : 'hidden'}>
-        <p className={`${SETTINGS_HELP_CLASS} mb-3`}>
-        Let students open an on-screen scientific calculator while working
-        (like the one allowed on a digital SAT). It's a thinking aid — never
-        graded, no answer key. Restrict which functions it offers below.
-        </p>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-        <input
-        type="checkbox"
-        checked={enabled}
-        onChange={(e) => toggleEnabled(e.target.checked)}
-        />
-        <span>Allow a calculator on this activity</span>
-        </label>
-        {enabled && (
-            <div className="mt-3">
-            <label className={SETTINGS_LABEL_CLASS} htmlFor="calc-mode">
-            Mode
-            </label>
-            <select
-            id="calc-mode"
-            className={`${SELECT_CLASS} mb-1 mt-1`}
-            value={restrictions.mode}
-            onChange={(e) =>
-                patchRestrictions({
-                    mode: e.target.value === 'graphing' ? 'graphing' : 'scientific',
-                })
-            }
-            >
-            <option value="scientific">Scientific</option>
-            <option value="graphing">Graphing</option>
-            </select>
-            <p className={`${SETTINGS_HELP_CLASS} mb-3`}>
-            Graphing adds a plottable coordinate plane — it loads ~240 KB more
-            the first time a student opens it.
-            </p>
-            <p className={SETTINGS_LABEL_CLASS}>Allowed functions</p>
-            <label className="mt-1 flex items-center gap-2 text-sm text-slate-700">
-            <input
-            type="checkbox"
-            checked={restrictions.allowTrig}
-            onChange={(e) => patchRestrictions({ allowTrig: e.target.checked })}
-            />
-            <span>Trigonometry (sin, cos, tan)</span>
-            </label>
-            <label className="mt-1 flex items-center gap-2 text-sm text-slate-700">
-            <input
-            type="checkbox"
-            checked={restrictions.allowLogExp}
-            onChange={(e) => patchRestrictions({ allowLogExp: e.target.checked })}
-            />
-            <span>Logarithms &amp; exponentials (ln, log)</span>
-            </label>
-            {restrictions.mode === 'graphing' && (
-                <div className="mt-3">
-                <label className={SETTINGS_LABEL_CLASS} htmlFor="calc-max-expr">
-                Expression limit
-                </label>
-                <input
-                id="calc-max-expr"
-                type="number"
-                min={1}
-                max={50}
-                placeholder="Unlimited"
-                className={`${SELECT_CLASS} mb-1 mt-1`}
-                value={restrictions.maxExpressions ?? ''}
-                onChange={(e) => {
-                    const n = Number.parseInt(e.target.value, 10);
-                    patchRestrictions({
-                        maxExpressions:
-                        Number.isInteger(n) && n >= 1 ? Math.min(n, 50) : undefined,
-                    });
-                }}
-                />
-                <p className={`${SETTINGS_HELP_CLASS} mb-3`}>
-                Cap how many rows the expression list allows. Blank = unlimited.
-                </p>
-                <p className={SETTINGS_LABEL_CLASS}>Regression (data panel)</p>
-                <p className={`${SETTINGS_HELP_CLASS} mb-1`}>
-                Students type (x, y) data and fit a model — equation and r² shown
-                like a TI-84. Uncheck all three for a no-regression lesson.
-                </p>
-                {REGRESSION_MODEL_OPTIONS.map(({ model, label }) => (
-                    <label
-                    key={model}
-                    className="mt-1 flex items-center gap-2 text-sm text-slate-700"
-                    >
-                    <input
-                    type="checkbox"
-                    checked={restrictions.allowedRegressionModels.includes(model)}
-                    onChange={(e) =>
-                        patchRestrictions({
-                            allowedRegressionModels: e.target.checked
-                            ? REGRESSION_MODEL_OPTIONS.map((o) => o.model).filter(
-                                (m) =>
-                                m === model ||
-                                restrictions.allowedRegressionModels.includes(m),
-                            )
-                            : restrictions.allowedRegressionModels.filter(
-                                (m) => m !== model,
-                            ),
-                        })
-                    }
-                    />
-                    <span>{label}</span>
-                    </label>
-                ))}
-                </div>
-            )}
-            <p className={`${SETTINGS_HELP_CLASS} mt-3`}>
-            Preview — what students will see:
-            </p>
-            <CalculatorPreview restrictions={restrictions} />
-            </div>
-        )}
-        </div>
-        </div>
-    );
-}
-
 export default function ActivityEditor() {
     const { id } = useParams();
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
@@ -903,6 +208,9 @@ export default function ActivityEditor() {
         null,
     );
     const [importOpen, setImportOpen] = useState(false);
+    // Which config drawer section is open (null = drawer closed). One drawer,
+    // one section at a time — see ActivityConfigDrawer.
+    const [configOpen, setConfigOpen] = useState<ConfigKey | null>(null);
 
     useEffect(() => {
         if (!id || !UUID_RE.test(id)) {
@@ -1161,42 +469,81 @@ export default function ActivityEditor() {
         if (!meta) return null;
         if (!id) return null;
 
+        // Locked mode with an unlockable section — drives the inline banner
+        // (primary cue, never hidden in the drawer) and the Settings button's
+        // amber dot (secondary cue).
+        const lockedWarning =
+            meta.submissionMode === 'locked' &&
+            hasNonCheckpointSection(tiptapJson ?? loadState.tiptap);
+
+        // Mirrors panelFromEditor's emptiness test: a title or any non-empty
+        // block counts as content (drives the Reference button's dot).
+        const referenceHasContent =
+            panelTitle.trim().length > 0 ||
+            (panelJson?.content ?? []).some(
+                (n) => n.type !== 'paragraph' || (n.content?.length ?? 0) > 0,
+            );
+
         return (
             <Shell>
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-4">
             <Link
             to="/activities"
-            className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+            className="pt-2 text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
             >
             ← All activities
             </Link>
-            <div className="flex items-center gap-4">
+            {/*
+              One header, two clusters in a single visual language (icon+label
+              chips): activity configuration (opens the right-side drawer) and
+              navigation/actions. Publish keeps its own primary styling —
+              it's the page's main action, not a chip.
+            */}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="mr-1">
             <SaveIndicator status={status} />
-            {isPublished && <PublishedLink activityId={id} />}
-            <Link
+            </span>
+            <ConfigButtons
+            active={configOpen}
+            onToggle={(key) =>
+                setConfigOpen((cur) => (cur === key ? null : key))
+            }
+            calculatorEnabled={calculator?.enabled ?? false}
+            referenceHasContent={referenceHasContent}
+            settingsWarning={lockedWarning}
+            />
+            <span
+            aria-hidden="true"
+            className="mx-1 w-px self-stretch bg-slate-200"
+            />
+            <HeaderButton
+            icon="📄"
+            label="Print view"
             to={`/activity/${id}/print`}
-            className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
-            >
-            Print
-            </Link>
-            <Link
+            title="Open the printable worksheet view"
+            />
+            <HeaderButton
+            icon="📊"
+            label="Submissions"
             to={`/activity/${id}/submissions`}
-            className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
-            >
-            Submissions
-            </Link>
-            <button
-            type="button"
+            title="Open the submissions dashboard"
+            />
+            <HeaderButton
+            icon="📥"
+            label="Import"
             onClick={() => setImportOpen(true)}
             disabled={!editorInstance}
             title="Paste markdown and convert it to activity blocks"
-            className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-            Import markdown
-            </button>
+            />
             <PublishControl activityId={id} saveStatus={status} onBeforePublish={flush} />
             </div>
             </div>
+
+            {isPublished && (
+                <div className="mt-2 flex justify-end">
+                <PublishedLink activityId={id} />
+                </div>
+            )}
 
             <input
             type="text"
@@ -1207,24 +554,7 @@ export default function ActivityEditor() {
             className="mt-4 w-full bg-transparent text-2xl font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
 
-            <ActivitySettings meta={meta} onChange={setMeta} />
-
-            <PrintSettings meta={meta} onChange={setMeta} />
-
-            <ReferencePanelSection
-            editorKey={id}
-            initialContent={loadState.referenceTiptap}
-            title={panelTitle}
-            onTitleChange={setPanelTitle}
-            onEditorUpdate={handlePanelUpdate}
-            gridLinesDefault={meta.print.gridLines}
-            activityId={id}
-            />
-
-            <CalculatorSection calculator={calculator} onChange={setCalculator} />
-
-            {meta.submissionMode === 'locked' &&
-            hasNonCheckpointSection(tiptapJson ?? loadState.tiptap) && (
+            {lockedWarning && (
                 <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 Locked mode freezes answers when a section is checked, but at
                 least one section isn't a checkpoint — students there have no
@@ -1244,6 +574,26 @@ export default function ActivityEditor() {
             gridLinesDefault={meta.print.gridLines}
             activityId={id}
             onEditorReady={setEditorInstance}
+            />
+
+            {/*
+              Always rendered (its section bodies stay mounted while hidden) —
+              the reference-panel editor inside must report its baseline JSON
+              at load so changeKey/autosave can settle; see ActivityConfigDrawer.
+            */}
+            <ConfigDrawer
+            active={configOpen}
+            onClose={() => setConfigOpen(null)}
+            meta={meta}
+            onMetaChange={setMeta}
+            panelEditorKey={id}
+            panelInitialContent={loadState.referenceTiptap}
+            panelTitle={panelTitle}
+            onPanelTitleChange={setPanelTitle}
+            onPanelEditorUpdate={handlePanelUpdate}
+            calculator={calculator}
+            onCalculatorChange={setCalculator}
+            activityId={id}
             />
 
             {importOpen && (
