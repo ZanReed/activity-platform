@@ -166,6 +166,19 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'graph prompt inline math',
+        fragment: 'prompt: Graph $y = 2x + 3$',
+        md: '```graph\nprompt: Graph $y = 2x + 3$.\nanswer: y = 2x + 3\n```',
+        check: (b) => {
+            const g = b.find((n) => n.type === 'interactiveGraph')!;
+            expect(g.content).toEqual([
+                { type: 'text', text: 'Graph ' },
+                { type: 'mathInline', attrs: { latex: 'y = 2x + 3' } },
+                { type: 'text', text: '.' },
+            ]);
+        },
+    },
+    {
         name: 'image ![alt](url)',
         fragment: '![a short description](https://full-image-url)',
         md: '![a short description](https://full-image-url)',

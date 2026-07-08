@@ -55,6 +55,7 @@ export const MARKDOWN_IMPORT_AI_PROMPT = [
     '  region (0,0), (4,0), (2,4), or the word none for a "cannot be graphed"',
     '  trick question. Supported answer curves: linear, quadratic, exponential,',
     '  logarithmic, and vertical lines.',
+    '- The prompt line may include inline math: prompt: Graph $y = 2x + 3$.',
     '- For an ungraded figure, use show: lines instead of an answer:',
     '    show: point (2, 3) closed "A"',
     '    show: line y = x dashed',

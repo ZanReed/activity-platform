@@ -508,4 +508,36 @@ describe('```graph fence (Drop 7)', () => {
         expect(blocks.some((b) => b.type === 'interactiveGraph')).toBe(false);
         expect(warnings.some((w) => /Graph block/.test(w))).toBe(true);
     });
+
+    it('parses $…$ inline math in the prompt line', () => {
+        const md =
+            '```graph\nprompt: Graph $y = 2 \\cdot 3^x$ on the grid.\nanswer: y = 2*3^x\n```';
+        const { blocks, warnings } = convert(md);
+        expect(warnings).toEqual([]);
+        const g = blocks.find((b) => b.type === 'interactiveGraph')!;
+        expect(g.content).toEqual([
+            { type: 'text', text: 'Graph ' },
+            { type: 'mathInline', attrs: { latex: 'y = 2 \\cdot 3^x' } },
+            { type: 'text', text: ' on the grid.' },
+        ]);
+        // Imported prompt math must survive the schema bridge like any
+        // editor-authored prompt (text/mathInline nodes carry no volatile ids).
+        expect(
+            roundTrip(md).find((b) => b.type === 'interactiveGraph')!.content,
+        ).toEqual(g.content);
+    });
+
+    it('keeps currency dollars in a prompt literal (Pandoc guard applies)', () => {
+        const md = '```graph\nprompt: Tickets cost $5 and $10 each.\nanswer: y = 5x\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        expect(g.content).toEqual([
+            { type: 'text', text: 'Tickets cost $5 and $10 each.' },
+        ]);
+    });
+
+    it('keeps {{…}} literal in a prompt (no blanks inside graph prompts)', () => {
+        const md = '```graph\nprompt: A {{trap}} answer.\nanswer: y = x\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        expect(g.content).toEqual([{ type: 'text', text: 'A {{trap}} answer.' }]);
+    });
 });

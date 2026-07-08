@@ -758,7 +758,28 @@ function removeLast(arr: string[], value: string): void {
 // [dashed]`, `expression <formula> [dashed]`, `segment (a,b) (c,d)`,
 // `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
 // No answer lines → a display (static) graph.
+// The prompt: line accepts $inline$ math (the editor's prompt field is
+// `(text | mathInline)*`); blanks are NOT allowed there.
 // =============================================================================
+
+// The document-level math pass never reaches a fence body (extractMath's
+// code-span alternative matches the whole ```graph fence and leaves it as-is),
+// so the prompt line still carries RAW $…$ here. Extract it locally, append
+// the spans to the document table (remapping the fresh 0-based indices to
+// global ones), and reuse the shared inline emitter.
+function graphPromptContent(raw: string, ctx: Ctx): JSONContent[] {
+    if (!raw) return [];
+    const base = ctx.spans.length;
+    const { text, spans } = extractMath(raw);
+    ctx.spans.push(...spans);
+    const remapped = text.replace(
+        new RegExp(`${MATH_OPEN}(\\d+)${MATH_CLOSE}`, 'g'),
+        (_, i: string) => `${MATH_OPEN}${base + Number(i)}${MATH_CLOSE}`,
+    );
+    const out: JSONContent[] = [];
+    emitInline(out, remapped, [], false, ctx);
+    return out;
+}
 
 function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     const axis = { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true };
@@ -899,6 +920,6 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
             hasConfidenceRating: false,
             skills: [],
         },
-        content: prompt ? [{ type: 'text', text: prompt }] : [],
+        content: graphPromptContent(prompt, ctx),
     };
 }
