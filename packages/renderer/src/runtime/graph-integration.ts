@@ -290,13 +290,18 @@ function renderGraph(
   // Feedback line: after the section is checked, reveal correctness (respecting
   // "don't reveal before checking"); before that, narrate the plotted position
   // for screen-reader users on every move. aria-live announces on text change.
+  // data-mode distinguishes the two: 'narrate' is VISUALLY HIDDEN by the block
+  // CSS (SR-only — a visible coordinate readout would hand a sighted student
+  // the answer to any plot-the-point question), 'result' is visible.
   if (ref.feedbackEl) {
     const checked = state.sections[ref.sectionId]?.checked === true;
     let text = '';
     let dataState: string | null = null;
+    let dataMode: string | null = null;
     if (checked && graphState.result !== null) {
       text = graphState.result ? 'Correct!' : 'Not quite — try again.';
       dataState = graphState.result ? 'correct' : 'incorrect';
+      dataMode = 'result';
     } else if (graphState.answered && graphState.points.length > 0) {
       const plotted = graphState.points
         .map((p) => '(' + p[0] + ', ' + p[1] + ')')
@@ -304,6 +309,7 @@ function renderGraph(
       const label =
         graphState.points.length > 1 ? 'Points plotted at ' : 'Point plotted at ';
       text = label + plotted + '.';
+      dataMode = 'narrate';
     }
     const wantHidden = text === '';
     if (ref.feedbackEl.hidden !== wantHidden) ref.feedbackEl.hidden = wantHidden;
@@ -312,6 +318,11 @@ function renderGraph(
     if (dataState !== current) {
       if (dataState === null) ref.feedbackEl.removeAttribute('data-state');
       else ref.feedbackEl.setAttribute('data-state', dataState);
+    }
+    const currentMode = ref.feedbackEl.getAttribute('data-mode');
+    if (dataMode !== currentMode) {
+      if (dataMode === null) ref.feedbackEl.removeAttribute('data-mode');
+      else ref.feedbackEl.setAttribute('data-mode', dataMode);
     }
   }
 

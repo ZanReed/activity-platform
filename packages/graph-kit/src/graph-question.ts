@@ -467,14 +467,17 @@ export async function mountGraphQuestion(
       'flex-wrap:wrap;padding:0.3rem;background:rgba(255,255,255,0.88);' +
       'border-top:1px solid #e2e8f0;z-index:5;';
     if (isInequality) {
-      solidBtn = pill('Solid line (≤ ≥)', () => {
+      // Plain labels only — no (≤ ≥) legend. Knowing which sign means a solid
+      // vs dotted boundary is part of what an inequality question assesses;
+      // the control must not teach it.
+      solidBtn = pill('Solid line', () => {
         strict = false;
         answered = true;
         board.setBoundaryDashed?.(false);
         syncBar();
         hooks.onChange?.(build());
       });
-      dottedBtn = pill('Dotted line (< >)', () => {
+      dottedBtn = pill('Dotted line', () => {
         strict = true;
         answered = true;
         board.setBoundaryDashed?.(true);

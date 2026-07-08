@@ -258,6 +258,23 @@ body {
 }
 .js-graph-feedback[data-state="correct"] { color: #15803d; }
 .js-graph-feedback[data-state="incorrect"] { color: #b91c1c; }
+/* Position narration (data-mode="narrate") is for SCREEN READERS ONLY — a
+ visible live coordinate readout would hand a sighted student the answer to
+ any "plot the point" question (reading the grid is the skill). Standard
+ visually-hidden treatment: rendered, in the a11y tree, announced via
+ aria-live, but invisible. Post-check results (data-mode="result") stay
+ visible. */
+.js-graph-feedback[data-mode="narrate"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
 
 .block-bullet-list,
 .block-ordered-list {

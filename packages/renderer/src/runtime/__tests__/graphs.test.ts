@@ -18,6 +18,7 @@ import { createInitialState } from '../state.js';
 import { checkSection } from '../checkpoints.js';
 import { gatherResponses, buildSubmissionPayload } from '../submission.js';
 import { saveActivityState, loadActivityState, applyStoredState } from '../storage.js';
+import { graphExt } from '../graph-integration.js';
 import type { RuntimeConfig } from '../config.js';
 
 const GRAPH_ID = '11111111-1111-4111-8111-111111111111';
@@ -128,6 +129,39 @@ describe('checkpoint scoring', () => {
     expect(refs.graphs.get(GRAPH_ID)!.solutionEl).not.toBeNull();
     checkSection(config, state, refs, SECTION_ID);
     expect(state.graphs[GRAPH_ID]!.solutionRevealed).toBe(true);
+  });
+});
+
+describe('feedback line modes', () => {
+  it('position narration is SR-only (data-mode="narrate") before check', () => {
+    mount();
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    state.graphs[GRAPH_ID] = {
+      points: [[3, 4]], answered: true, result: false, solutionRevealed: false, confidence: null,
+    };
+    graphExt.renderGraphs(state, refs);
+    const el = document.querySelector('.js-graph-feedback')!;
+    expect(el.textContent).toBe('Point plotted at (3, 4).');
+    // 'narrate' is the CSS hook that visually hides the readout — a visible
+    // live coordinate readout gives away plot-the-point answers.
+    expect(el.getAttribute('data-mode')).toBe('narrate');
+    expect((el as HTMLElement).hidden).toBe(false);
+  });
+
+  it('post-check correctness is visible (data-mode="result")', () => {
+    mount();
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    state.graphs[GRAPH_ID] = {
+      points: [[3, 4]], answered: true, result: true, solutionRevealed: false, confidence: null,
+    };
+    checkSection(config, state, refs, SECTION_ID);
+    graphExt.renderGraphs(state, refs);
+    const el = document.querySelector('.js-graph-feedback')!;
+    expect(el.textContent).toBe('Correct!');
+    expect(el.getAttribute('data-mode')).toBe('result');
+    expect(el.getAttribute('data-state')).toBe('correct');
   });
 });
 

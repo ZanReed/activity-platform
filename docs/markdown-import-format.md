@@ -114,7 +114,7 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
 - The prompt line may include inline math: prompt: Graph $y = 2x + 3$.
 - For an ungraded figure, use show: lines instead of an answer:
     show: point (2, 3) closed "A"
-    show: line y = x dashed
+    show: line y = x dashed      (dotted works too)
     show: expression sin(x)      (plots any formula)
     show: ray (0,0) (2,1) open
 
@@ -147,7 +147,7 @@ options: partial-credit, allow-no-solution
 - `axes: xMin..xMax, yMin..yMax` (optional; defaults -10..10 each way).
 - `prompt:` the question text (optional). Accepts `$inline$` math with the same currency guard as body text; `{{…}}` blanks stay literal here.
 - `answer:` ONE of — an equation (`y = 2x + 3`, `2x + 3y = 6`, `x^2 - 4`, `x = 4`, with an optional domain `… for x >= 0`); an inequality (`y > 2x + 1`, `x <= 3` — the sign sets dotted/solid + shaded side); a point list (`(2, 3), (4, 5)`); `region (0,0), (4,0), (2,4)`; or `none` (a "cannot be graphed" trick question).
-- `show:` display drawables (no answer lines → a static display graph): `point (x, y) [open|closed] ["label"]`, `line <equation or inequality> [dashed]`, `expression <any formula> [dashed]`, `segment (a,b) (c,d)`, `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
+- `show:` display drawables (no answer lines → a static display graph): `point (x, y) [open|closed] ["label"]`, `line <equation or inequality> [dashed|dotted]`, `expression <any formula> [dashed|dotted]`, `segment (a,b) (c,d)`, `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
 - `options:` `partial-credit`, `allow-no-solution`, `no-solution-correct`.
 
 A malformed graph block imports as plain text with a warning, never silently guessing.

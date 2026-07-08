@@ -855,10 +855,15 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                 break;
             }
             case 'show': {
-                const style = /\bdashed\b/i.test(value) ? 'dashed' : undefined;
+                // 'dotted' is an accepted synonym for 'dashed' — it's the word
+                // the student widget uses ("Dotted line"), so teachers reach for
+                // it. Both must ALSO be stripped from the body below: an
+                // unstripped style token poisons the formula parse and silently
+                // downgrades the drawable (losing style + shade).
+                const style = /\b(dashed|dotted)\b/i.test(value) ? 'dashed' : undefined;
                 const label = /"([^"]*)"/.exec(value)?.[1];
                 const endpoint = /\bopen\b/i.test(value) ? 'open' : /\bclosed\b/i.test(value) ? 'closed' : undefined;
-                const body = value.replace(/\bdashed\b|\bopen\b|\bclosed\b|"[^"]*"/gi, '').trim();
+                const body = value.replace(/\bdashed\b|\bdotted\b|\bopen\b|\bclosed\b|"[^"]*"/gi, '').trim();
                 const kindMatch = /^(point|line|curve|expression|segment|ray|region)\s+(.+)$/i.exec(body);
                 if (!kindMatch) return fail(`unrecognized show line "${value}"`);
                 const kind = (kindMatch[1] ?? '').toLowerCase();

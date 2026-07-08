@@ -489,6 +489,21 @@ describe('```graph fence (Drop 7)', () => {
         expect(q.drawables[1].style).toBe('open');
     });
 
+    it('accepts "dotted" as a synonym for "dashed" without eating the line options', () => {
+        // Regression: 'dotted' wasn't a recognized style token, so it stayed in
+        // the formula body, failed the inequality parse, and the drawable fell
+        // back to a bare expression — silently losing BOTH style and shade.
+        const md = '```graph\nshow: line y > 2x + 1 dotted\nshow: line y = x dotted\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        const q = g.attrs!.interaction;
+        expect(q.type).toBe('display');
+        expect(q.drawables[0].kind).toBe('curve');
+        expect(q.drawables[0].style).toBe('dashed');
+        expect(q.drawables[0].shade).toBe('above'); // shade side retained
+        expect(q.drawables[1].kind).toBe('curve');
+        expect(q.drawables[1].style).toBe('dashed');
+    });
+
     it('imports answer: none as a no-solution trick question', () => {
         const md = '```graph\nanswer: none\n```';
         const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
