@@ -76,3 +76,4 @@ coverage/
 # Machine-specific Claude Code settings (permissions, launch config). Not
 # shared; keep it out of the repo so it stops showing as untracked.
 .claude/
+.gstack/
