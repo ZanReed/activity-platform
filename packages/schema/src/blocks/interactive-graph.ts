@@ -323,6 +323,23 @@ export const InteractiveGraphBlock = z.object({
   // correct answer and the drawn answer key is a decoy. A student who selects
   // no-solution is correct; one who draws anything is not.
   noSolutionCorrect: z.boolean().default(false),
+  // Built-in mistake classifiers (swapped coordinates, swapped slope/intercept,
+  // right-boundary-wrong-side, …) show a targeted nudge instead of the generic
+  // "Not quite" after a check. Default ON; a teacher can switch them off. The
+  // classifier catalogue + messages live kit-side (graph-score.ts) — this flag
+  // only gates them.
+  builtinFeedback: z.boolean().default(true),
+  // Authored anticipated mistakes — the graph twin of BlankToken.mistakeFeedback.
+  // `match` is a freeform graph answer in the SAME syntax the authoring formula
+  // field accepts ("(4, 3)", "y = x + 2", "y < 2x + 1"); the kit parses it with
+  // the same parser and compares against the student's answer with the same
+  // tolerances as scoring. First match wins, and an authored match beats a
+  // built-in classifier. `feedback` is rich inline content, shown (post-check
+  // only) in the block's feedback line.
+  mistakeFeedback: z.array(z.object({
+    match: z.string(),
+    feedback: z.array(InlineNode),
+  })).default([]),
   solution: z.array(InlineNode).optional(),
   hasConfidenceRating: z.boolean().default(false),
   skills: z.array(z.string()).default([]),

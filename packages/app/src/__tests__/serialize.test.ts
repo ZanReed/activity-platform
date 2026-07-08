@@ -115,6 +115,31 @@ describe('interactive graph block', () => {
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
     });
 
+    it('round-trips mistake feedback + the builtin toggle (Drop B)', () => {
+        const node: JSONContent = {
+            type: 'interactiveGraph',
+            attrs: {
+                id: 'm',
+                axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
+                interaction: { type: 'plot_point', correctPoints: [[3, 4]], tolerance: 0.25 },
+                builtinFeedback: false,
+                mistakeFeedback: [
+                    { match: '(4, 3)', feedback: [{ type: 'text', text: 'x comes first.', marks: [] }] },
+                ],
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Plot the point (3, 4).' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [node] });
+        const g = out.content!.find((n) => n.type === 'interactiveGraph')!;
+        expect(g.attrs!.builtinFeedback).toBe(false);
+        expect(g.attrs!.mistakeFeedback).toEqual(node.attrs!.mistakeFeedback);
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
     it('serializes to a schema-valid interactive_graph block', () => {
         const activity = tiptapToActivity(doc, META);
         const parsed = ActivityDocument.safeParse(activity);

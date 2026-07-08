@@ -29,6 +29,14 @@ import {
   type InequalityAnswerKey,
   type DomainAnswerKey,
 } from './graph-score.js';
+import {
+  compileMistakeMatchers,
+  matchAuthoredMistake,
+  classifyPointMistake,
+  classifyFunctionMistake,
+  classifyInequalityMistake,
+  type StudentGraphAnswer,
+} from './mistakes.js';
 import type {
   PointAnswerConfig,
   PointAnswerController,
@@ -180,6 +188,11 @@ export interface GraphQuestionConfig {
   allowNoSolution?: boolean;
   /** Trick question: no-solution IS the correct answer (Drop 4). */
   noSolutionCorrect?: boolean;
+  /** Authored anticipated-mistake match strings (freeform answer syntax),
+   *  index-aligned with the block's feedback templates (Drop B). */
+  mistakes?: string[];
+  /** Built-in mistake classifiers on/off (Drop B). Default ON. */
+  builtinFeedback?: boolean;
 }
 
 // What the widget reports on every change and at gather time. `answered` lets
@@ -202,6 +215,12 @@ export interface GraphResponseData {
     maxX?: number;
     maxStyle?: 'open' | 'closed';
   };
+  /** Drop B: matched authored anticipated mistake (index into the block's
+   *  feedback templates). Only set when the answer is wrong. */
+  mistakeIndex?: number;
+  /** Drop B: built-in classifier message for a recognized wrong answer.
+   *  Only set when the answer is wrong and no authored entry matched. */
+  mistakeText?: string;
 }
 
 /** Extra widget state restored alongside the points on reload. */
@@ -336,7 +355,56 @@ export async function mountGraphQuestion(
   let minStyle: 'open' | 'closed' = 'closed';
   let maxStyle: 'open' | 'closed' = 'closed';
 
+  // Drop B: authored anticipated-mistake matchers, parsed once at mount with
+  // the kit's own freeform parser + the block's scoring tolerances.
+  const mistakeMatchers = compileMistakeMatchers(cfg.mistakes ?? [], {
+    interactionType,
+    pointTolerance:
+      interactionType === 'plot_point'
+        ? readAnswerKey(cfg.answerKey).tolerance
+        : undefined,
+    keyModel:
+      interactionType === 'plot_function'
+        ? readModel(cfg.answerKey)
+        : isInequality
+          ? ineqKey!.boundary
+          : undefined,
+  });
+
+  // Annotate a WRONG answer with mistake feedback: first authored match wins;
+  // built-in classifiers (unless disabled) are the fallback. Correct/unanswered
+  // /no-solution responses carry nothing — feedback only ever nudges a miss.
+  function annotateMistake(resp: GraphResponseData): GraphResponseData {
+    if (!resp.answered || resp.correct || resp.noSolution) return resp;
+    const ans: StudentGraphAnswer = { points: resp.studentPoints, strict, side };
+    const idx = matchAuthoredMistake(mistakeMatchers, ans);
+    if (idx !== null) {
+      resp.mistakeIndex = idx;
+      return resp;
+    }
+    if (cfg.builtinFeedback === false) return resp;
+    let text: string | null = null;
+    if (interactionType === 'plot_point') {
+      text = classifyPointMistake(readAnswerKey(cfg.answerKey), resp.studentPoints);
+    } else if (interactionType === 'plot_function') {
+      text = classifyFunctionMistake(readModel(cfg.answerKey), resp.studentPoints);
+    } else if (isInequality && ineqKey) {
+      const parts = scoreInequalityParts(ineqKey, {
+        points: resp.studentPoints,
+        strict,
+        side: side ?? 'above',
+      });
+      text = classifyInequalityMistake(parts, side !== null);
+    }
+    if (text) resp.mistakeText = text;
+    return resp;
+  }
+
   function build(): GraphResponseData {
+    return annotateMistake(buildBase());
+  }
+
+  function buildBase(): GraphResponseData {
     const pts = board.getPoints();
     const resp: GraphResponseData = {
       studentPoints: noSolution ? [] : pts,

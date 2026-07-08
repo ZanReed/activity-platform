@@ -37,12 +37,18 @@ const config: RuntimeConfig = {
 const esc = (s: string): string => s.replace(/"/g, '&quot;');
 
 /** Renderer-shaped markup for a plot_point graph block inside a checkpoint section. */
-function mount(opts: { withSolution?: boolean; withKit?: boolean } = {}): void {
+function mount(opts: { withSolution?: boolean; withKit?: boolean; withMistakes?: boolean } = {}): void {
   const config = esc(JSON.stringify({ xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true }));
   const answerKey = esc(JSON.stringify({ correctPoints: [[3, 4]], tolerance: 0.1 }));
   const kitAttr = opts.withKit === false ? '' : ' data-graph-kit-src="https://cdn.example.com/graph-kit-ABC.js"';
   const solution = opts.withSolution
     ? '<div class="js-solution" data-for-block="' + GRAPH_ID + '" hidden>The origin.</div>'
+    : '';
+  const mistakeAttr = opts.withMistakes
+    ? ' data-graph-mistakes="' + esc(JSON.stringify(['(4, 3)'])) + '"'
+    : '';
+  const mistakeTemplates = opts.withMistakes
+    ? '<template class="js-graph-mistake-content"><strong>Coordinates are (x, y)</strong> — x first.</template>'
     : '';
   document.body.innerHTML =
     '<section class="activity-section" data-block-category="content"' +
@@ -53,12 +59,13 @@ function mount(opts: { withSolution?: boolean; withKit?: boolean } = {}): void {
     ' data-graph-interaction-type="plot_point"' +
     ' data-graph-config="' + config + '"' +
     ' data-graph-answer-key="' + answerKey + '"' +
-    kitAttr + '>' +
+    kitAttr + mistakeAttr + '>' +
     '<div class="block-problem-number">1.</div>' +
     '<div class="block-problem-body">' +
     '<div class="graph-prompt">Plot the point.</div>' +
     '<div class="graph-canvas" data-graph-canvas="' + GRAPH_ID + '" role="application" tabindex="0"></div>' +
     '<div class="js-graph-feedback" data-for-graph="' + GRAPH_ID + '" aria-live="polite" hidden></div>' +
+    mistakeTemplates +
     solution +
     '</div></div>' +
     '<button class="js-checkpoint-btn" data-for-section="' + SECTION_ID + '" type="button">Check</button>' +
@@ -162,6 +169,69 @@ describe('feedback line modes', () => {
     expect(el.textContent).toBe('Correct!');
     expect(el.getAttribute('data-mode')).toBe('result');
     expect(el.getAttribute('data-state')).toBe('correct');
+  });
+});
+
+describe('mistake feedback display (Drop B)', () => {
+  it('shows a built-in classifier message on a wrong checked answer', () => {
+    mount();
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    state.graphs[GRAPH_ID] = {
+      points: [[4, 3]], answered: true, result: false, solutionRevealed: false, confidence: null,
+      mistakeText: 'Check the order of your coordinates.',
+    };
+    checkSection(config, state, refs, SECTION_ID);
+    graphExt.renderGraphs(state, refs);
+    const el = document.querySelector('.js-graph-feedback')!;
+    expect(el.textContent).toBe('Check the order of your coordinates.');
+    expect(el.getAttribute('data-state')).toBe('incorrect');
+    expect(el.getAttribute('data-mode')).toBe('result');
+  });
+
+  it('clones the matched authored template (rich content) into the feedback line', () => {
+    mount({ withMistakes: true });
+    const refs = buildRefs(document);
+    expect(refs.graphs.get(GRAPH_ID)!.mistakes).toEqual(['(4, 3)']);
+    expect(refs.graphs.get(GRAPH_ID)!.mistakeTemplates).toHaveLength(1);
+    const state = createInitialState(refs);
+    state.graphs[GRAPH_ID] = {
+      points: [[4, 3]], answered: true, result: false, solutionRevealed: false, confidence: null,
+      mistakeIndex: 0,
+    };
+    checkSection(config, state, refs, SECTION_ID);
+    graphExt.renderGraphs(state, refs);
+    const el = document.querySelector('.js-graph-feedback')!;
+    expect(el.querySelector('strong')?.textContent).toBe('Coordinates are (x, y)');
+    expect(el.getAttribute('data-feedback-key')).toBe('authored-0');
+    // Re-render must not re-clone (key unchanged).
+    const node = el.querySelector('strong');
+    graphExt.renderGraphs(state, refs);
+    expect(el.querySelector('strong')).toBe(node);
+  });
+
+  it('falls back to the generic line when nothing matched, and Correct! never carries feedback', () => {
+    mount();
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    state.graphs[GRAPH_ID] = {
+      points: [[0, 0]], answered: true, result: false, solutionRevealed: false, confidence: null,
+    };
+    checkSection(config, state, refs, SECTION_ID);
+    graphExt.renderGraphs(state, refs);
+    const el = document.querySelector('.js-graph-feedback')!;
+    expect(el.textContent).toBe('Not quite — try again.');
+    // Flip to correct: mistake state clears with the generic path.
+    state.graphs[GRAPH_ID]!.result = true;
+    graphExt.renderGraphs(state, refs);
+    expect(el.textContent).toBe('Correct!');
+  });
+
+  it('builtinFeedback attr parses (absent = true, "false" = false)', () => {
+    mount();
+    expect(buildRefs(document).graphs.get(GRAPH_ID)!.builtinFeedback).toBe(true);
+    document.querySelector('[data-graph-block-id]')!.setAttribute('data-graph-builtin-feedback', 'false');
+    expect(buildRefs(document).graphs.get(GRAPH_ID)!.builtinFeedback).toBe(false);
   });
 });
 

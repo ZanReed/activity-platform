@@ -353,6 +353,13 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
         partialCredit: Boolean(attrs.partialCredit),
         allowNoSolution: Boolean(attrs.allowNoSolution),
         noSolutionCorrect: Boolean(attrs.noSolutionCorrect),
+        // Built-in mistake classifiers default ON (absent attr = true).
+        builtinFeedback: attrs.builtinFeedback !== false,
+        mistakeFeedback: Array.isArray(attrs.mistakeFeedback)
+            ? (attrs.mistakeFeedback as InteractiveGraphBlock['mistakeFeedback']).filter(
+                  (m) => m && typeof m.match === 'string' && Array.isArray(m.feedback),
+              )
+            : [],
         hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
@@ -784,6 +791,8 @@ function activityInteractiveGraphToTiptap(block: InteractiveGraphBlock): JSONCon
             partialCredit: block.partialCredit,
             allowNoSolution: block.allowNoSolution,
             noSolutionCorrect: block.noSolutionCorrect,
+            builtinFeedback: block.builtinFeedback,
+            mistakeFeedback: block.mistakeFeedback,
             solution: block.solution ?? null,
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,

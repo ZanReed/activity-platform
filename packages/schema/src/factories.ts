@@ -113,6 +113,8 @@ export function createInteractiveGraphBlock(): InteractiveGraphBlock {
     partialCredit: false,
     allowNoSolution: false,
     noSolutionCorrect: false,
+    builtinFeedback: true,
+    mistakeFeedback: [],
     hasConfidenceRating: false,
     skills: [],
   };

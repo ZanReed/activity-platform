@@ -192,6 +192,25 @@ function buildGraphRef(el: HTMLElement, sectionId: string): GraphRef | null {
     }
   }
 
+  // Drop B: authored anticipated-mistake match strings + their pre-rendered
+  // feedback templates (index-aligned). Malformed attribute → no authored
+  // feedback, never a broken block.
+  let mistakes: string[] = [];
+  const rawMistakes = el.dataset.graphMistakes;
+  if (rawMistakes) {
+    try {
+      const parsed = JSON.parse(rawMistakes);
+      if (Array.isArray(parsed)) {
+        mistakes = parsed.filter((m): m is string => typeof m === 'string');
+      }
+    } catch {
+      warn('Graph block ' + blockId + ' has malformed data-graph-mistakes; ignoring.');
+    }
+  }
+  const mistakeTemplates: HTMLTemplateElement[] = Array.prototype.slice.call(
+    el.querySelectorAll<HTMLTemplateElement>('template.js-graph-mistake-content'),
+  );
+
   return {
     el,
     canvas,
@@ -211,6 +230,10 @@ function buildGraphRef(el: HTMLElement, sectionId: string): GraphRef | null {
     partialCredit: el.dataset.graphPartialCredit === 'true',
     allowNoSolution: el.dataset.graphAllowNoSolution === 'true',
     noSolutionCorrect: el.dataset.graphNoSolutionCorrect === 'true',
+    mistakes,
+    // Omit-when-default: the renderer emits the attribute only when OFF.
+    builtinFeedback: el.dataset.graphBuiltinFeedback !== 'false',
+    mistakeTemplates,
     sectionId,
     handle: null,
   };
@@ -298,10 +321,27 @@ function renderGraph(
     let text = '';
     let dataState: string | null = null;
     let dataMode: string | null = null;
+    // Rich authored mistake feedback: the matched entry's pre-rendered
+    // template (Drop B). richKey identifies the clone so re-renders don't
+    // re-clone unchanged content.
+    let richTpl: HTMLTemplateElement | null = null;
+    let richKey: string | null = null;
     if (checked && graphState.result !== null) {
-      text = graphState.result ? 'Correct!' : 'Not quite — try again.';
       dataState = graphState.result ? 'correct' : 'incorrect';
       dataMode = 'result';
+      if (graphState.result) {
+        text = 'Correct!';
+      } else {
+        const idx = graphState.mistakeIndex;
+        const tpl = idx !== undefined ? ref.mistakeTemplates[idx] : undefined;
+        if (tpl) {
+          richTpl = tpl;
+          richKey = 'authored-' + idx;
+        } else {
+          // Built-in classifier nudge, else the generic miss line.
+          text = graphState.mistakeText ?? 'Not quite — try again.';
+        }
+      }
     } else if (graphState.answered && graphState.points.length > 0) {
       const plotted = graphState.points
         .map((p) => '(' + p[0] + ', ' + p[1] + ')')
@@ -311,9 +351,22 @@ function renderGraph(
       text = label + plotted + '.';
       dataMode = 'narrate';
     }
-    const wantHidden = text === '';
+    const wantHidden = text === '' && richKey === null;
     if (ref.feedbackEl.hidden !== wantHidden) ref.feedbackEl.hidden = wantHidden;
-    if (ref.feedbackEl.textContent !== text) ref.feedbackEl.textContent = text;
+    if (richTpl && richKey !== null) {
+      if (ref.feedbackEl.getAttribute('data-feedback-key') !== richKey) {
+        ref.feedbackEl.setAttribute('data-feedback-key', richKey);
+        ref.feedbackEl.replaceChildren(richTpl.content.cloneNode(true));
+      }
+    } else {
+      // Leaving rich mode must force a text write even if the strings happen
+      // to coincide — the element still holds cloned nodes.
+      const hadRich = ref.feedbackEl.getAttribute('data-feedback-key') !== null;
+      if (hadRich) ref.feedbackEl.removeAttribute('data-feedback-key');
+      if (hadRich || ref.feedbackEl.textContent !== text) {
+        ref.feedbackEl.textContent = text;
+      }
+    }
     const current = ref.feedbackEl.getAttribute('data-state');
     if (dataState !== current) {
       if (dataState === null) ref.feedbackEl.removeAttribute('data-state');
@@ -478,6 +531,8 @@ function wireGraphs(
       partialCredit: ref.partialCredit,
       allowNoSolution: ref.allowNoSolution,
       noSolutionCorrect: ref.noSolutionCorrect,
+      mistakes: ref.mistakes,
+      builtinFeedback: ref.builtinFeedback,
     };
 
     // Dynamic import by URL. The `/* @vite-ignore */` keeps the app bundler from
@@ -501,6 +556,8 @@ function wireGraphs(
             gs.earned = resp.earned;
             gs.total = resp.total;
             gs.domain = resp.domain;
+            gs.mistakeIndex = resp.mistakeIndex;
+            gs.mistakeText = resp.mistakeText;
             onUpdate();
           },
         }),

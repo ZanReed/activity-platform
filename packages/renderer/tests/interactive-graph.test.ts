@@ -77,6 +77,35 @@ describe('renderInteractiveGraph (via renderBody)', () => {
     expect(html).toContain('It is the origin.');
   });
 
+  it('emits mistake feedback: match attr + index-aligned templates (Drop B)', () => {
+    const graph = createInteractiveGraphBlock();
+    graph.mistakeFeedback = [
+      { match: '(4, 3)', feedback: [{ type: 'text', text: 'Coordinates are (x, y).', marks: [] }] },
+      { match: '(-3, 4)', feedback: [{ type: 'text', text: 'Check your signs.', marks: [] }] },
+    ];
+    const html = renderBody(docWith(graph), { graphKitUrl: ctx.calculatorKitUrl });
+    expect(html).toMatch(/data-graph-mistakes="[^"]*&quot;\(4, 3\)&quot;/);
+    const templates = html.match(/<template class="js-graph-mistake-content">/g);
+    expect(templates).toHaveLength(2);
+    expect(html).toContain('Coordinates are (x, y).');
+    expect(html).toContain('Check your signs.');
+  });
+
+  it('omits mistake markup entirely when none are authored', () => {
+    const html = renderBody(docWith(createInteractiveGraphBlock()), { graphKitUrl: ctx.calculatorKitUrl });
+    expect(html).not.toContain('data-graph-mistakes');
+    expect(html).not.toContain('js-graph-mistake-content');
+    // builtinFeedback default true -> attribute omitted (omit-when-default).
+    expect(html).not.toContain('data-graph-builtin-feedback');
+  });
+
+  it('emits data-graph-builtin-feedback="false" only when disabled', () => {
+    const graph = createInteractiveGraphBlock();
+    graph.builtinFeedback = false;
+    const html = renderBody(docWith(graph), { graphKitUrl: ctx.calculatorKitUrl });
+    expect(html).toContain('data-graph-builtin-feedback="false"');
+  });
+
   it('is auto-numbered in the shared problem sequence', () => {
     const graph = createInteractiveGraphBlock();
     const html = renderBody(docWith(graph));

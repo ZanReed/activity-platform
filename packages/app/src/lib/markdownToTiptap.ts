@@ -789,6 +789,8 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     let partialCredit = false;
     let allowNoSolution = false;
     let noSolutionCorrect = false;
+    let builtinFeedback = true;
+    const mistakes: { match: string; feedback: { type: 'text'; text: string; marks: [] }[] }[] = [];
     const fail = (msg: string): null => {
         ctx.warnings.add('Graph block: ' + msg + ' — imported as plain text.');
         return null;
@@ -798,7 +800,7 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     for (const rawLine of src.split('\n')) {
         const line = rawLine.trim();
         if (!line) continue;
-        const m = /^(axes|prompt|answer|show|options):\s*(.*)$/i.exec(line);
+        const m = /^(axes|prompt|answer|show|options|mistake):\s*(.*)$/i.exec(line);
         if (!m) return fail(`unrecognized line "${line}"`);
         const value = (m[2] ?? '').trim();
         switch ((m[1] ?? '').toLowerCase()) {
@@ -812,11 +814,28 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
             case 'prompt':
                 prompt = value;
                 break;
+            case 'mistake': {
+                // "mistake: <wrong answer> :: <feedback>" — an authored
+                // anticipated mistake. The wrong answer uses the same freeform
+                // syntax as answer:; feedback is plain text (rich feedback is
+                // an editor affordance).
+                const sep = value.indexOf('::');
+                if (sep === -1) return fail('mistake lines look like "mistake: (3, 4) :: feedback text"');
+                const match = value.slice(0, sep).trim();
+                const feedbackText = value.slice(sep + 2).trim();
+                if (!match || !feedbackText) return fail('mistake lines need both a wrong answer and feedback text');
+                mistakes.push({
+                    match,
+                    feedback: [{ type: 'text', text: feedbackText, marks: [] }],
+                });
+                break;
+            }
             case 'options':
                 for (const opt of value.split(',').map((o) => o.trim().toLowerCase())) {
                     if (opt === 'partial-credit') partialCredit = true;
                     else if (opt === 'allow-no-solution') allowNoSolution = true;
                     else if (opt === 'no-solution-correct') { allowNoSolution = true; noSolutionCorrect = true; }
+                    else if (opt === 'no-builtin-feedback') builtinFeedback = false;
                     else if (opt) return fail(`unknown option "${opt}"`);
                 }
                 break;
@@ -922,6 +941,8 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
             partialCredit,
             allowNoSolution,
             noSolutionCorrect,
+            builtinFeedback,
+            mistakeFeedback: mistakes,
             hasConfidenceRating: false,
             skills: [],
         },

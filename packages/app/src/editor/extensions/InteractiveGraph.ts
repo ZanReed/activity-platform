@@ -119,6 +119,13 @@ export type GraphInteraction =
     | InequalityInteractionAttr
     | DisplayInteractionAttr;
 
+// One authored anticipated mistake: a freeform wrong answer (same syntax as the
+// formula field) + rich feedback. Mirrors the schema's mistakeFeedback entries.
+export interface GraphMistakeEntry {
+    match: string;
+    feedback: InlineNodes;
+}
+
 // A fresh graph_inequality (y > x, strict, shade above) — used when the author
 // switches the picker to "Graph an inequality". Array-of-one; systems later.
 export function defaultInequalityInteraction(): InequalityInteractionAttr {
@@ -284,6 +291,26 @@ export const InteractiveGraph = Node.create({
                 parseHTML: (el) => el.getAttribute('data-graph-no-solution-correct') === 'true',
                 renderHTML: (attrs) =>
                     attrs.noSolutionCorrect ? { 'data-graph-no-solution-correct': 'true' } : {},
+            },
+            builtinFeedback: {
+                default: true,
+                parseHTML: (el) => el.getAttribute('data-graph-builtin-feedback') !== 'false',
+                renderHTML: (attrs) =>
+                    attrs.builtinFeedback === false
+                        ? { 'data-graph-builtin-feedback': 'false' }
+                        : {},
+            },
+            mistakeFeedback: {
+                default: [] as GraphMistakeEntry[],
+                parseHTML: (el) =>
+                    parseJson<GraphMistakeEntry[]>(
+                        el.getAttribute('data-graph-mistake-feedback'),
+                        [],
+                    ),
+                renderHTML: (attrs) =>
+                    Array.isArray(attrs.mistakeFeedback) && attrs.mistakeFeedback.length > 0
+                        ? { 'data-graph-mistake-feedback': JSON.stringify(attrs.mistakeFeedback) }
+                        : {},
             },
             hasConfidenceRating: {
                 default: false,

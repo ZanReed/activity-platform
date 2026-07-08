@@ -116,6 +116,15 @@ export interface GraphBlockState {
         maxX?: number;
         maxStyle?: 'open' | 'closed';
     };
+    /**
+     * Mistake feedback for a WRONG answer (Drop B): the matched authored
+     * entry's template index, or a built-in classifier's message text. At most
+     * one is set; both absent on correct/unanswered graphs. Additive optional
+     * fields — an older stored blob simply lacks them, which reads as "no
+     * targeted feedback", so no STORAGE_SCHEMA_VERSION bump.
+     */
+    mistakeIndex?: number;
+    mistakeText?: string;
 }
 
 export interface RuntimeState {

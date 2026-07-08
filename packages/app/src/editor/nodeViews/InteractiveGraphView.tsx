@@ -28,6 +28,7 @@ import {
     type FunctionModelAttr,
     type GraphAxisConfig,
     type GraphInteraction,
+    type GraphMistakeEntry,
     type InequalityAnswerAttr,
     type LinearFunctionModel,
     type RegionAnswerAttr,
@@ -451,6 +452,50 @@ export default function InteractiveGraphView({
         updateAttributes({ interaction: { ...interaction, correctPoints: points } });
     };
 
+    // Mistake feedback (Drop B): authored anticipated mistakes + helpers. The
+    // match string uses the same freeform syntax as the answer field; a bad one
+    // gets an inline warning but is still stored (it compiles to never-matching
+    // in the kit, so it can't break a page).
+    const mistakeEntries = (node.attrs.mistakeFeedback ?? []) as GraphMistakeEntry[];
+    const setMistakeEntry = (i: number, entry: GraphMistakeEntry): void => {
+        updateAttributes({
+            mistakeFeedback: mistakeEntries.map((m, j) => (j === i ? entry : m)),
+        });
+    };
+    const removeMistakeEntry = (i: number): void => {
+        updateAttributes({ mistakeFeedback: mistakeEntries.filter((_, j) => j !== i) });
+    };
+    const addMistakeEntry = (): void => {
+        updateAttributes({
+            mistakeFeedback: [...mistakeEntries, { match: '', feedback: [] }],
+        });
+    };
+    const mistakeMatchPlaceholder =
+        interaction.type === 'plot_point'
+            ? '(4, 3)'
+            : interaction.type === 'graph_inequality'
+              ? 'y < 2x + 1  (or a boundary like y = 2x + 1)'
+              : 'y = x + 2';
+    const mistakeMatchError = (raw: string): string | null => {
+        if (raw.trim() === '') return 'Type the wrong answer to watch for.';
+        if (interaction.type === 'plot_point') {
+            return parsePointList(raw) ? null : 'Type coordinates, like (4, 3)';
+        }
+        const parsed = parseGraphFormula(raw);
+        if (parsed.kind === 'error') return parsed.message;
+        if (interaction.type === 'plot_function' && parsed.kind !== 'function') {
+            return 'Type an equation, like y = x + 2';
+        }
+        if (
+            interaction.type === 'graph_inequality' &&
+            parsed.kind !== 'inequality' &&
+            parsed.kind !== 'function'
+        ) {
+            return 'Type an inequality (y < 2x + 1) or a boundary equation (y = 2x + 1)';
+        }
+        return null;
+    };
+
     // Narrow-column advisory: a graph inside a 3+-column layout renders very
     // cramped (the board floors at a minimum width and scrolls). Non-blocking —
     // mirrors the schema's "warn above 3" intent. Resolved from the live doc so
@@ -845,6 +890,67 @@ export default function InteractiveGraphView({
                                             “No solution” IS the correct answer (trick question)
                                         </label>
                                     )}
+
+                                    {/* Mistake feedback (Drop B): built-in classifier toggle +
+                                        authored anticipated mistakes. The match uses the SAME
+                                        freeform syntax as the answer field; feedback is rich
+                                        (the blank-hint editor). */}
+                                    <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '0.4rem' }}>
+                                        <span style={{ display: 'block', marginBottom: '0.2rem', fontWeight: 600 }}>Mistake feedback</span>
+                                        <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={node.attrs.builtinFeedback !== false}
+                                                disabled={!isEditable}
+                                                onChange={(e) => updateAttributes({ builtinFeedback: e.target.checked })}
+                                                onKeyDown={(e) => e.stopPropagation()}
+                                            />
+                                            Built-in nudges for common mistakes (swapped coordinates, wrong side, …)
+                                        </label>
+                                        {mistakeEntries.map((entry, i) => (
+                                            <div key={i} style={{ marginTop: '0.4rem', padding: '0.4rem', border: '1px solid #e2e8f0', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                                    <span style={{ whiteSpace: 'nowrap' }}>If the answer is</span>
+                                                    <input
+                                                        type="text"
+                                                        value={entry.match}
+                                                        disabled={!isEditable}
+                                                        placeholder={mistakeMatchPlaceholder}
+                                                        spellCheck={false}
+                                                        style={{ flex: 1, fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem' }}
+                                                        onChange={(e) => setMistakeEntry(i, { ...entry, match: e.target.value })}
+                                                        onKeyDown={(e) => e.stopPropagation()}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        disabled={!isEditable}
+                                                        onClick={() => removeMistakeEntry(i)}
+                                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.78rem' }}
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                                {mistakeMatchError(entry.match) && (
+                                                    <p role="status" style={{ margin: 0, fontSize: '0.72rem', color: '#b45309' }}>
+                                                        {mistakeMatchError(entry.match)}
+                                                    </p>
+                                                )}
+                                                <InlineRichTextEditor
+                                                    value={entry.feedback}
+                                                    onChange={(nodes) => setMistakeEntry(i, { ...entry, feedback: nodes })}
+                                                    ariaLabel={`Feedback for anticipated mistake ${i + 1}`}
+                                                />
+                                            </div>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            disabled={!isEditable}
+                                            onClick={addMistakeEntry}
+                                            style={{ marginTop: '0.35rem', fontSize: '0.75rem', padding: '0.15rem 0.5rem', border: '1px solid #cbd5e1', borderRadius: 4, background: '#f8fafc', cursor: 'pointer', color: '#334155' }}
+                                        >
+                                            + Anticipated mistake
+                                        </button>
+                                    </div>
                                 </>
                             )}
                         </div>

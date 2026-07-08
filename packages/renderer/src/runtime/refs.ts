@@ -112,6 +112,12 @@ export interface GraphResponseData {
         maxX?: number;
         maxStyle?: 'open' | 'closed';
     };
+    /** Matched authored anticipated mistake — index into the block's
+     *  js-graph-mistake-content templates. Wrong answers only. */
+    mistakeIndex?: number;
+    /** Built-in classifier message for a recognized wrong answer (no authored
+     *  match). Wrong answers only. */
+    mistakeText?: string;
 }
 export interface GraphWidgetHandle {
     getResponse(): GraphResponseData;
@@ -158,6 +164,15 @@ export interface GraphRef {
     allowNoSolution: boolean;
     /** Trick question: no-solution IS the answer (data-graph-no-solution-correct). */
     noSolutionCorrect: boolean;
+    /** Authored anticipated-mistake match strings (data-graph-mistakes),
+     *  index-aligned with mistakeTemplates. Empty when none authored. */
+    mistakes: string[];
+    /** Built-in mistake classifiers enabled (data-graph-builtin-feedback;
+     *  absent = true — omit-when-default). */
+    builtinFeedback: boolean;
+    /** Pre-rendered rich feedback templates (js-graph-mistake-content), in
+     *  authored order; render() clones the matched one into the feedback line. */
+    mistakeTemplates: HTMLTemplateElement[];
     /** ID of the section this block belongs to. */
     sectionId: string;
     /**

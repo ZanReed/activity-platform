@@ -133,6 +133,35 @@ export function renderInteractiveGraph(
     ' data-for-graph="' + attr(block.id) + '"' +
     ' aria-live="polite" hidden></div>';
 
+  // Authored anticipated mistakes (Drop B) — the graph twin of a blank's
+  // mistakeFeedback. The match strings ride data-graph-mistakes (the kit parses
+  // them with its own freeform parser); each entry's RICH feedback is
+  // pre-rendered into an inert <template class="js-graph-mistake-content">
+  // (index-aligned), which the runtime clones into the feedback line when that
+  // entry matches after a check. Omitted entirely when none are authored.
+  const mistakeFeedback = block.mistakeFeedback;
+  const mistakesAttr =
+    mistakeFeedback.length > 0
+      ? ' data-graph-mistakes="' +
+        attr(JSON.stringify(mistakeFeedback.map((m) => m.match))) +
+        '"'
+      : '';
+  const mistakeTemplates =
+    mistakeFeedback.length > 0
+      ? mistakeFeedback
+          .map(
+            (entry) =>
+              '<template class="js-graph-mistake-content">' +
+              renderInlineNodes(entry.feedback) +
+              '</template>',
+          )
+          .join('')
+      : '';
+  // Built-in mistake classifiers default ON; emit the attribute only when the
+  // teacher turned them off (omit-when-default, like the other flags).
+  const builtinAttr =
+    block.builtinFeedback === false ? ' data-graph-builtin-feedback="false"' : '';
+
   return (
     '<div class="block block-interactive-graph"' +
     ' data-block-category="question"' +
@@ -146,6 +175,8 @@ export function renderInteractiveGraph(
     (block.partialCredit ? ' data-graph-partial-credit="true"' : '') +
     (block.allowNoSolution ? ' data-graph-allow-no-solution="true"' : '') +
     (block.noSolutionCorrect ? ' data-graph-no-solution-correct="true"' : '') +
+    mistakesAttr +
+    builtinAttr +
     kitSrcAttr +
     ratingAttr +
     skillsAttr +
@@ -155,6 +186,7 @@ export function renderInteractiveGraph(
     '<div class="graph-prompt">' + promptHtml + '</div>' +
     canvas +
     feedback +
+    mistakeTemplates +
     confidenceFieldset +
     printConfidence +
     solutionSlot +

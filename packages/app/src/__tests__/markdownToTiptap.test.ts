@@ -504,6 +504,23 @@ describe('```graph fence (Drop 7)', () => {
         expect(q.drawables[1].style).toBe('dashed');
     });
 
+    it('imports mistake: lines + the no-builtin-feedback option', () => {
+        const md = '```graph\nanswer: y = 2x + 1\nmistake: y = x + 2 :: The number multiplying x is the slope.\nmistake: y = -2x + 1 :: Check the sign of the slope.\noptions: no-builtin-feedback\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        expect(g.attrs!.builtinFeedback).toBe(false);
+        expect(g.attrs!.mistakeFeedback).toEqual([
+            { match: 'y = x + 2', feedback: [{ type: 'text', text: 'The number multiplying x is the slope.', marks: [] }] },
+            { match: 'y = -2x + 1', feedback: [{ type: 'text', text: 'Check the sign of the slope.', marks: [] }] },
+        ]);
+    });
+
+    it('falls back with a warning on a malformed mistake line', () => {
+        const md = '```graph\nanswer: y = 2x + 1\nmistake: y = x + 2 no separator\n```';
+        const { blocks, warnings } = convert(md);
+        expect(blocks.some((b) => b.type === 'interactiveGraph')).toBe(false);
+        expect(warnings.some((w) => /mistake lines look like/.test(w))).toBe(true);
+    });
+
     it('imports answer: none as a no-solution trick question', () => {
         const md = '```graph\nanswer: none\n```';
         const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
