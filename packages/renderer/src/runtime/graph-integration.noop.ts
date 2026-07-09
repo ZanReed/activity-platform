@@ -26,5 +26,4 @@ export const graphExt: GraphExt = {
   revealGraphSolutions: () => {},
   gatherGraphResponses: () => ({ correct: 0, scored: 0 }),
   wireGraphs: () => {},
-  wireGraphDisplays: () => {},
 };

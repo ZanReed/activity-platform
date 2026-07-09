@@ -120,128 +120,44 @@ export interface McRef {
     sectionId: string;
 }
 
-// The handle the lazy-loaded graph kit returns from mountGraphQuestion. A
-// parallel structural type (the runtime never imports @activity/graph-kit — it
-// dynamic-imports the built bundle by URL at runtime); the shape is the contract
-// with graph-question.ts. studentPoints is the wire shape the kit reports.
-export interface GraphResponseData {
-    studentPoints: [number, number][];
-    correct: boolean;
-    answered: boolean;
-    /** graph_inequality: dotted (strict) vs solid boundary. */
-    strict?: boolean;
-    /** graph_inequality: which side the student shaded. */
-    side?: 'above' | 'below' | 'left' | 'right';
-    /** The student chose "cannot be graphed / no solution". */
-    noSolution?: boolean;
-    /** Partial credit (partialCredit blocks): parts earned / parts total. */
-    earned?: number;
-    total?: number;
-    /** Domain-restricted plot_function: endpoint positions + open/closed. */
-    domain?: {
-        minX?: number;
-        minStyle?: 'open' | 'closed';
-        maxX?: number;
-        maxStyle?: 'open' | 'closed';
-    };
-    /** plot_ray / plot_segment: the student's chosen shape (a graded part;
-     *  absent while unchosen). */
-    shape?: 'ray_positive' | 'ray_negative' | 'segment';
-    /** plot_ray: the drawn endpoint's style choice. */
-    fromStyle?: 'open' | 'closed';
-    /** plot_segment: per-endpoint style choices, canonical order. */
-    endpoints?: ['open' | 'closed', 'open' | 'closed'];
-    /** Matched authored anticipated mistake — index into the block's
-     *  js-graph-mistake-content templates. Wrong answers only. */
-    mistakeIndex?: number;
-    /** Built-in classifier message for a recognized wrong answer (no authored
-     *  match). Wrong answers only. */
-    mistakeText?: string;
-}
-export interface GraphWidgetHandle {
-    getResponse(): GraphResponseData;
-    restore(
-        points: [number, number][],
-        extras?: {
-            strict?: boolean;
-            side?: GraphResponseData['side'];
-            noSolution?: boolean;
-            domain?: GraphResponseData['domain'];
-            shape?: GraphResponseData['shape'];
-            fromStyle?: GraphResponseData['fromStyle'];
-            endpoints?: GraphResponseData['endpoints'];
-        },
-    ): void;
-    setLocked(locked: boolean): void;
-    destroy(): void;
-}
-
-/** One per interactive_graph block. */
+/**
+ * One per graded interactive_graph block. SLIM since the 2026-07-10 bundle-
+ * budget move: only what the INLINE runtime consumes — scoring totals, the
+ * submit gather (interactionType), confidence wiring (confidence.ts), and the
+ * kit hand-off (el/canvas/kitSrc). The heavy fields (parsed config, answer
+ * key, mistake templates, chrome elements, the widget handle) live in the
+ * lazy kit's own chrome refs (@activity/graph-kit runtime.ts), which parses
+ * them from `el` when it attaches.
+ */
 export interface GraphRef {
-    /** The block <div>. */
+    /** The block <div> — the kit parses its data-* attributes on attach. */
     el: HTMLElement;
     /** The .graph-canvas the kit mounts the board into. */
     canvas: HTMLElement;
-    /** The .js-graph-feedback aria-live region (narration + result). */
-    feedbackEl: HTMLElement | null;
-    /** The .js-solution slot, revealed at check time; null when none authored. */
-    solutionEl: HTMLElement | null;
     /** Absolute URL of the graph kit on R2; null when unavailable (no hydrate). */
     kitSrc: string | null;
     /** The block's interaction discriminant (e.g. 'plot_point'). */
     interactionType: string;
-    /** Parsed data-graph-config (AxisConfig) — passed straight to the kit. */
-    config: unknown;
-    /** Parsed data-graph-answer-key — passed to the kit for client-side scoring. */
-    answerKey: unknown;
     /** Whether the block surfaces a confidence-rating fieldset. */
     hasConfidenceRating: boolean;
     /** Radios inside the confidence fieldset (empty when none). */
     confidenceRadios: HTMLInputElement[];
-    /** Skill tags from data-skills (empty when absent). */
-    skills: string[];
-    /** Per-part fractional scoring (data-graph-partial-credit). */
-    partialCredit: boolean;
-    /** Student gets a "cannot be graphed" choice (data-graph-allow-no-solution). */
-    allowNoSolution: boolean;
-    /** Trick question: no-solution IS the answer (data-graph-no-solution-correct). */
-    noSolutionCorrect: boolean;
-    /** Authored anticipated-mistake match strings (data-graph-mistakes),
-     *  index-aligned with mistakeTemplates. Empty when none authored. */
-    mistakes: string[];
-    /** Built-in mistake classifiers enabled (data-graph-builtin-feedback;
-     *  absent = true — omit-when-default). */
-    builtinFeedback: boolean;
-    /** Pre-rendered rich feedback templates (js-graph-mistake-content), in
-     *  authored order; render() clones the matched one into the feedback line. */
-    mistakeTemplates: HTMLTemplateElement[];
     /** ID of the section this block belongs to. */
     sectionId: string;
-    /**
-     * The kit widget handle, acquired ASYNCHRONOUSLY after init when the sidecar
-     * mounts the board. Null until then (and forever if no kitSrc / the kit
-     * fails to load). This is the one mutable field on a ref: the handle is a
-     * runtime-acquired resource, not a DOM node discoverable at init. render()
-     * reads it to lock the widget; the sidecar (graphs.ts) writes it once.
-     */
-    handle: GraphWidgetHandle | null;
 }
 
 /**
- * One per DISPLAY (static, ungraded) interactive_graph block. Deliberately much
- * thinner than GraphRef: a display graph collects no answer, so there is no
- * answer key, no confidence, no scoring state, and it is NOT in any section's
- * graphBlockIds. The sidecar just mounts a read-only figure into `canvas`.
+ * One per DISPLAY (static, ungraded) interactive_graph block. Never scored,
+ * never in graphBlockIds; the kit parses config/drawables from `el` and mounts
+ * a read-only figure into `canvas`.
  */
 export interface GraphDisplayRef {
+    /** The block <div> — the kit parses config/drawables from it on attach. */
+    el: HTMLElement;
     /** The .graph-canvas the kit draws the static figure into. */
     canvas: HTMLElement;
     /** Absolute URL of the graph kit on R2; null when unavailable (no hydrate). */
     kitSrc: string | null;
-    /** Parsed data-graph-config (AxisConfig) — passed straight to the kit. */
-    config: unknown;
-    /** Parsed data-graph-drawables (the figure to draw) — passed to the kit. */
-    drawables: unknown;
 }
 
 /** One per <section class="activity-section">. */

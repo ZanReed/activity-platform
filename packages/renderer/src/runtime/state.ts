@@ -12,6 +12,7 @@
 
 import type { Refs } from './refs.js';
 import { graphExt } from './graph-integration.js';
+import type { GraphBlockState } from '@activity/graph-kit/runtime-contract';
 
 export interface SectionState {
     /** True once the student has clicked the check button for this section. */
@@ -101,58 +102,13 @@ export interface McBlockState {
     confidence: 'unsure' | 'think_so' | 'certain' | null;
 }
 
-export interface GraphBlockState {
-    /**
-     * The student's plotted point(s) in graph units — one per answer handle
-     * (usually one; a "plot both roots" question has more). Empty before they've
-     * touched the widget. Persisted so a reload restores the plotted answer (the
-     * sidecar calls the kit's restore() with it).
-     */
-    points: [number, number][];
-    /** True once the student has moved a handle (drag or keyboard) at least once. */
-    answered: boolean;
-    /**
-     * Scoring result: true correct, false incorrect, null unscored. Null until
-     * the student answers — an untouched graph is an omission (counts in the
-     * section total, not the correct count), exactly like an empty blank.
-     */
-    result: boolean | null;
-    /** Whether this block's solution slot has been revealed (post-check). */
-    solutionRevealed: boolean;
-    /** Student's per-block confidence selection (null until picked). */
-    confidence: 'unsure' | 'think_so' | 'certain' | null;
-    /** graph_inequality: dotted (strict) vs solid boundary choice. */
-    strict?: boolean;
-    /** graph_inequality: which side the student shaded. */
-    side?: 'above' | 'below' | 'left' | 'right';
-    /** The student chose "cannot be graphed / no solution". */
-    noSolution?: boolean;
-    /** Partial credit: parts earned / parts total (partialCredit blocks only). */
-    earned?: number;
-    total?: number;
-    /** Domain-restricted plot_function: endpoint positions + open/closed. */
-    domain?: {
-        minX?: number;
-        minStyle?: 'open' | 'closed';
-        maxX?: number;
-        maxStyle?: 'open' | 'closed';
-    };
-    /** plot_ray / plot_segment: the student's chosen shape. */
-    shape?: 'ray_positive' | 'ray_negative' | 'segment';
-    /** plot_ray: the drawn endpoint's style choice. */
-    fromStyle?: 'open' | 'closed';
-    /** plot_segment: per-endpoint style choices, canonical order. */
-    endpoints?: ['open' | 'closed', 'open' | 'closed'];
-    /**
-     * Mistake feedback for a WRONG answer (Drop B): the matched authored
-     * entry's template index, or a built-in classifier's message text. At most
-     * one is set; both absent on correct/unanswered graphs. Additive optional
-     * fields — an older stored blob simply lacks them, which reads as "no
-     * targeted feedback", so no STORAGE_SCHEMA_VERSION bump.
-     */
-    mistakeIndex?: number;
-    mistakeText?: string;
-}
+// GraphBlockState moved to the SHARED bridge↔kit contract (the kit-side
+// plumbing writes its fields, this runtime persists + scores them): single
+// definition, imported type-only here (erased at build — zero bytes, no
+// runtime dependency), so the two sides can't drift. It remains part of the
+// persisted blob — widening it incompatibly still means bumping
+// STORAGE_SCHEMA_VERSION (storage.ts).
+export type { GraphBlockState };
 
 export interface RuntimeState {
     /** True once the final submit has completed successfully. */

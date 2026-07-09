@@ -20,6 +20,7 @@
     "katex": "^0.16.10"
   },
   "devDependencies": {
+    "@activity/graph-kit": "workspace:*",
     "@types/katex": "^0.16.7",
     "jsdom": "^29.1.1"
   }

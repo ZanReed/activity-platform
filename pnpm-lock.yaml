@@ -207,6 +207,10 @@ importers:
       mathlive:
         specifier: ^0.109.2
         version: 0.109.2
+    devDependencies:
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
 
   packages/renderer:
     dependencies:
@@ -217,6 +221,9 @@ importers:
         specifier: ^0.16.10
         version: 0.16.45
     devDependencies:
+      '@activity/graph-kit':
+        specifier: workspace:*
+        version: link:../graph-kit
       '@types/katex':
         specifier: ^0.16.7
         version: 0.16.8

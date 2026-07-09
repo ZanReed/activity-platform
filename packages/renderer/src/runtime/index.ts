@@ -83,14 +83,13 @@ function bootstrap(): void {
   wirePopover(state, refs, onUpdate);
   wireCheckpoints(config, state, refs, onUpdate);
   wireConfidence(state, refs, onUpdate);
-  // Mount each graph block's widget (lazy-loads the kit) and bridge its moves
-  // into state. Async per block; the initial render already ran, so a graph
-  // hydrates a beat after the rest of the page. No-ops in the base runtime build
-  // (a page with no graph blocks); document.ts inlines the graphs variant only
-  // when the page has one.
+  // Hand the page's graph blocks (graded widgets + static display figures) to
+  // the lazy kit: one fetch, one attach; the kit bridges widget moves into
+  // state and takes over graph-chrome rendering. Async — the initial render
+  // already ran, so graphs (board AND chrome) hydrate a beat after the rest of
+  // the page. No-ops in the base runtime build (a page with no graph blocks);
+  // document.ts inlines the graphs variant only when the page has one.
   graphExt.wireGraphs(state, refs, onUpdate);
-  // Mount each static display graph (read-only figure). No state to bridge.
-  graphExt.wireGraphDisplays(refs);
 
   const button = $<HTMLButtonElement>('.submit-button');
   if (button) {

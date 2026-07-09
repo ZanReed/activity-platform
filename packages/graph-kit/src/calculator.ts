@@ -45,7 +45,7 @@ export interface CalculatorHandle {
   destroy(): void;
 }
 
-interface MountHooks {
+export interface MountHooks {
   /** Called whenever the open/closed state changes (incl. self-close via Esc/×). */
   onToggle?: (open: boolean) => void;
   /**

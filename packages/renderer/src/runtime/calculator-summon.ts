@@ -21,7 +21,8 @@
 //       mount: HTMLElement,                 // .calculator-mount (starts hidden)
 //       config: unknown,                    // parsed data-calculator-config
 //       hooks: { onToggle(open: boolean): void },
-//     ): CalculatorHandle
+//     ): Promise<CalculatorHandle>          // async: the calculator (MathLive)
+//                                           // is its own chunk behind the entry
 //
 //   interface CalculatorHandle {
 //     toggle(): void;          // flip open/closed (drives the summon button)
@@ -43,11 +44,13 @@ interface CalculatorHandle {
 }
 
 interface CalculatorKitModule {
+  // Async since the kit's MathLive split (2026-07-10): the entry wrapper
+  // dynamic-imports the calculator chunk, so the handle arrives via promise.
   mountCalculator(
     mount: HTMLElement,
     config: unknown,
     hooks: { onToggle(open: boolean): void; floating: boolean },
-  ): CalculatorHandle;
+  ): Promise<CalculatorHandle>;
 }
 
 function setupCalculator(tool: HTMLElement): void {
@@ -87,7 +90,7 @@ function setupCalculator(tool: HTMLElement): void {
     button.setAttribute('aria-busy', 'true');
     try {
       const mod = (await import(src)) as CalculatorKitModule;
-      handle = mod.mountCalculator(mount, config, {
+      handle = await mod.mountCalculator(mount, config, {
         onToggle: setExpanded,
         floating: true,
       });

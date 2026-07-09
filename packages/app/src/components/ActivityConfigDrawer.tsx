@@ -893,17 +893,30 @@ function CalculatorPreview({
     const [open, setOpen] = useState(true);
     // join() so the array's identity churn doesn't re-mount on every render
     const modelsKey = restrictions.allowedRegressionModels.join(',');
+    // mountCalculator is async (the calculator chunk loads behind the kit
+    // entry), so guard the resolved handle against an effect that already
+    // cleaned up (a restriction flag changed mid-load) — destroy it instead
+    // of installing it.
     useEffect(() => {
         const el = mountRef.current;
         if (!el) return;
-        const handle: CalculatorHandle = mountCalculator(el, restrictions, {
+        let cancelled = false;
+        let handle: CalculatorHandle | null = null;
+        void mountCalculator(el, restrictions, {
             floating: true,
             onToggle: setOpen,
+        }).then((h) => {
+            if (cancelled) {
+                h.destroy();
+                return;
+            }
+            handle = h;
+            handleRef.current = h;
         });
-        handleRef.current = handle;
         return () => {
+            cancelled = true;
             handleRef.current = null;
-            handle.destroy();
+            handle?.destroy();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [

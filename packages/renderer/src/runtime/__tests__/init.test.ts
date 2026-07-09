@@ -224,12 +224,13 @@ describe('buildRefs — display (static) graphs', () => {
             '</div></div></section>',
         );
         const refs = buildRefs();
-        // In the display map, with parsed config/drawables + kit src.
+        // In the display map, with the element + kit src (config/drawables are
+        // parsed KIT-side from the element since the bundle-budget move).
         const disp = refs.graphDisplays.get('disp-1');
         expect(disp).toBeDefined();
         expect(disp?.kitSrc).toContain('graph-kit-ABC.js');
-        expect(disp?.config).toEqual({ xMin: -5, xMax: 5, yMin: -5, yMax: 5 });
-        expect(disp?.drawables).toEqual([{ kind: 'point', at: [1, 2] }]);
+        expect(disp?.el.dataset.graphDrawables).toContain('point');
+        expect(disp?.canvas.dataset.graphCanvas).toBe('disp-1');
         // NOT in the graded graphs map, and NOT in the section's scored ids.
         expect(refs.graphs.has('disp-1')).toBe(false);
         expect(refs.sections.get('sec-1')?.graphBlockIds).toEqual([]);

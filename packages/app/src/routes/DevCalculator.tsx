@@ -18,11 +18,16 @@ export default function DevCalculator() {
   const [maxExpr, setMaxExpr] = useState<number | undefined>(undefined);
   const [openState, setOpenState] = useState(true);
 
-  // Re-mount whenever the config changes (it's read at mount).
+  // Re-mount whenever the config changes (it's read at mount). mountCalculator
+  // is async (the calculator chunk loads behind the kit entry), so guard the
+  // resolved handle against an effect that already cleaned up (config changed
+  // mid-load) — destroy it instead of installing it.
   useEffect(() => {
     const mountEl = mountRef.current;
     if (!mountEl) return;
-    const handle = mountCalculator(
+    let cancelled = false;
+    let handle: CalculatorHandle | null = null;
+    void mountCalculator(
       mountEl,
       {
         mode,
@@ -32,9 +37,19 @@ export default function DevCalculator() {
         maxExpressions: maxExpr,
       },
       { onToggle: (open) => setOpenState(open), floating: true },
-    );
-    handleRef.current = handle;
-    return () => handle.destroy();
+    ).then((h) => {
+      if (cancelled) {
+        h.destroy();
+        return;
+      }
+      handle = h;
+      handleRef.current = h;
+    });
+    return () => {
+      cancelled = true;
+      handleRef.current = null;
+      handle?.destroy();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, allowTrig, allowLogExp, models.join(','), maxExpr]);
 

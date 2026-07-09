@@ -9,8 +9,23 @@
 //   - the editor preview imports it directly so authors see what students get.
 // =============================================================================
 
-export { mountCalculator } from './calculator.js';
-export type { CalculatorConfig, CalculatorHandle } from './calculator.js';
+// LAZY: the calculator half (MathLive + the panel chrome) is dynamic-imported
+// behind this async wrapper, so it splits into its own chunk — a graph-only
+// page loads the entry (scorers + widget mounts + the runtime plumbing below)
+// without ever fetching MathLive. Cost: the first calculator open pays one
+// extra round trip (entry, then the calculator chunk) — accepted 2026-07-10,
+// same call as the JSXGraph split. Consumers await the handle; both call
+// sites (the summon sidecar, the editor preview) were updated with it.
+export async function mountCalculator(
+  mount: HTMLElement,
+  rawConfig?: unknown,
+  hooks: MountHooks = {},
+): Promise<CalculatorHandle> {
+  const mod = await import('./calculator.js');
+  return mod.mountCalculator(mount, rawConfig, hooks);
+}
+export type { CalculatorConfig, CalculatorHandle, MountHooks } from './calculator.js';
+import type { CalculatorHandle, MountHooks } from './calculator.js';
 
 // The evaluation seam — exported so the future graded regression block can score
 // with the SAME engine (see docs/design/interactive-graph-block.md), and so it
@@ -126,7 +141,28 @@ export {
 } from './formula.js';
 export type { ParsedFormula, ParsedDomain, ShadeSide, ParsedRaySegment } from './formula.js';
 
+// The published-page graph plumbing (2026-07-10 bundle-budget move): the page's
+// inline runtime bridge dynamic-imports this entry and calls attachGraphRuntime
+// once, handing over the graph blocks + live state. The contract types are the
+// compile-enforced seam BOTH sides import (the bridge type-only) — see
+// runtime-contract.ts.
+export { attachGraphRuntime, buildGraphChrome, renderGraphChrome } from './runtime.js';
+export type { GraphChromeRef } from './runtime.js';
+export type {
+  GraphBlockState,
+  GraphConfidence,
+  GraphDomainAnswer,
+  GraphRuntimeBlockRef,
+  GraphRuntimeContext,
+  GraphRuntimeDisplayRef,
+  GraphRuntimeExt,
+  GraphRuntimeStateView,
+  GraphSectionStateView,
+} from './runtime-contract.js';
+
 // NOTE: board.ts (JSXGraph) is deliberately NOT re-exported here — that would
 // static-import it into the entry and defeat the lazy-split. Consumers that need
 // the board (the calculator's graphing mode, the future graded block) dynamic-
-// import('./board.js') so JSXGraph stays in its own on-demand chunk.
+// import('./board.js') so JSXGraph stays in its own on-demand chunk. The same
+// applies to calculator.ts (MathLive) — reachable only through the async
+// mountCalculator wrapper above, never a static re-export.

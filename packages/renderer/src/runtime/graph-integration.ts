@@ -1,45 +1,50 @@
 // =============================================================================
-// runtime/graph-integration.ts — the interactive-graph feature, in one seam
+// runtime/graph-integration.ts — the interactive-graph BRIDGE (thin inline half)
 // -----------------------------------------------------------------------------
-// Every line of graph-specific runtime logic lives behind this one module. The
-// base runtime's shared files (init, state, render, checkpoints, submission,
-// index) touch graphs ONLY through the `graphExt` object exported here — they
-// never contain a graph branch themselves.
+// Every graph branch in the base runtime still goes through the `graphExt`
+// seam exported here — init, state, render, checkpoints, submission never
+// contain graph logic themselves. But since the 2026-07-10 bundle-budget move,
+// this module is only the THIN half: the DOM-heavy plumbing (attribute
+// parsing, block-chrome rendering, widget mounting, display figures) lives in
+// the lazy graph kit (@activity/graph-kit src/runtime.ts, attachGraphRuntime),
+// which graph pages fetch from R2 at bootstrap anyway. A new graph runtime
+// feature therefore adds bytes to the CACHED kit — not to this bridge, and
+// never to the inlined runtime every page pays for.
 //
-// Why a seam: the base runtime IIFE is inlined into EVERY published page,
-// including the majority that have no graph. To keep those pages from carrying
-// graph code, scripts/bundle-renderer.mjs builds two runtime variants from the
-// same source — a "base" build that swaps this module for graph-integration.
-// noop.ts (an onResolve alias, so nothing here is bundled) and a "graphs" build
-// that keeps it. document.ts inlines the graphs variant only when the rendered
-// body contains a `data-block-type="interactive_graph"` block. So a new graph
-// feature (a new interaction, a new scorer) adds bytes HERE — never to the base
-// runtime every page pays for.
+// What stays inline, and why — exactly the pieces that must survive the kit
+// FAILING to load (offline, blocked CDN):
+//   - the cheap init walk (ids, canvas, kit URL, section, interaction type),
+//     so section totals count graph blocks;
+//   - state seeding + (via state.ts types) the storage round-trip, so a
+//     restored answer isn't lost;
+//   - the scoring fold + submit gather (pure state → JSON), so restored
+//     answers still score and submit.
+// Without the kit the student loses only the visuals: the board and its
+// chrome. The block still counts as an omission if unanswered, and a restored
+// answer still scores.
 //
-// Because the source always imports the REAL module, dev, `tsc`, and the vitest
-// suite all see the full graph behavior; only the base esbuild bundle gets the
-// no-op. The two must stay shape-identical — `graph-integration.noop.ts` imports
-// the `GraphExt` type from here so a drift is a type error, not a silent gap.
+// The bridge↔kit contract is typed by @activity/graph-kit/runtime-contract,
+// which BOTH sides import — this side with `import type` (erased at build:
+// zero bytes, no runtime dependency; the kit arrives via dynamic import of the
+// page's pinned, content-hashed kit URL, so bridge and kit always ship as a
+// matched pair). Drift is a compile error, the same lockstep discipline the
+// graph-integration.noop.ts stub uses for the seam itself.
 //
-// This module owns its own DOM subtree (the .graph-canvas the kit mounts into)
-// the same way the calculator / definitions sidecars do — the sanctioned
-// exception to "init.ts is the only walker / render() is the only mutator". The
-// board itself is the lazy-loaded @activity/graph-kit's to draw; render() here
-// drives only the surrounding block chrome (feedback line, solution, confidence,
-// lock).
+// Two build variants still apply (scripts/bundle-renderer.mjs): the base build
+// swaps this module for graph-integration.noop.ts, so non-graph pages ship
+// zero graph bytes — including zero bridge bytes.
 // =============================================================================
 
 import { $$ } from './dom.js';
-import type {
-  Refs,
-  GraphRef,
-  GraphDisplayRef,
-  GraphResponseData,
-  GraphWidgetHandle,
-  SectionRef,
-} from './refs.js';
+import type { Refs, GraphRef, GraphDisplayRef, SectionRef } from './refs.js';
 import type { RuntimeState, GraphBlockState } from './state.js';
 import type { GraphResult } from './submission.js';
+import type {
+  GraphRuntimeBlockRef,
+  GraphRuntimeContext,
+  GraphRuntimeDisplayRef,
+  GraphRuntimeExt,
+} from '@activity/graph-kit/runtime-contract';
 
 // ---- The seam contract ------------------------------------------------------
 // One method per integration point in the base runtime. `graph-integration.
@@ -58,7 +63,11 @@ export interface GraphExt {
   ): string[];
   /** state.ts: build the initial per-graph-block state map from refs. */
   initGraphState(refs: Refs): Record<string, GraphBlockState>;
-  /** render.ts: reflect every graph block's state into its chrome. */
+  /**
+   * render.ts: reflect graph-block state into chrome. Delegates to the kit's
+   * attached plumbing; a no-op until the kit lands (the chrome then paints in
+   * the same beat the board does).
+   */
   renderGraphs(state: RuntimeState, refs: Refs): void;
   /**
    * checkpoints.ts: the section's graph contribution to the score — how many
@@ -87,10 +96,11 @@ export interface GraphExt {
     correct: number;
     scored: number;
   };
-  /** index.ts: mount graded graph widgets (lazy kit) + bridge moves into state. */
+  /**
+   * index.ts: fetch the lazy kit once and hand it the page's graph blocks —
+   * graded widgets AND static display figures (one attach covers both).
+   */
   wireGraphs(state: RuntimeState, refs: Refs, onUpdate: () => void): void;
-  /** index.ts: mount static display graphs (read-only figures). */
-  wireGraphDisplays(refs: Refs): void;
 }
 
 function warn(message: string): void {
@@ -99,77 +109,20 @@ function warn(message: string): void {
   }
 }
 
-// ---- init: DOM → refs -------------------------------------------------------
-
-// Shared JSON-attribute parser for graph blocks: undefined on absence, undefined
-// + a warning on malformed JSON (the kit then defaults it). One helper for both
-// the graded and display graph builders.
-function parseGraphAttr(
-  raw: string | undefined,
-  blockId: string,
-  label: string,
-): unknown {
-  if (!raw) return undefined;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    warn('Graph block ' + blockId + ' has malformed ' + label + '; ignoring.');
-    return undefined;
-  }
-}
+// ---- init: DOM → slim refs ---------------------------------------------------
 
 /**
- * Build a GraphDisplayRef for one display-mode interactive_graph block. Returns
- * null (skipping it) when the id or the .graph-canvas is missing. Malformed
- * config/drawables parse to undefined and are defaulted by the kit — a bad
- * attribute degrades to a blank/partial figure rather than dropping the block.
+ * Build the slim GraphRef for one graded interactive_graph block — only the
+ * fields the INLINE runtime consumes (scoring totals, submit gather, the
+ * confidence wiring in confidence.ts, and the kit hand-off). Everything else
+ * (config, answer key, mistakes, chrome elements) the kit parses from `el`
+ * itself. The caller (walkGraphBlocks) already verified id + canvas.
  */
-function buildGraphDisplayRef(
+function buildGraphRef(
   el: HTMLElement,
-): { id: string; ref: GraphDisplayRef } | null {
-  const blockId = el.dataset.graphBlockId;
-  if (!blockId) {
-    warn('Display-graph block is missing data-graph-block-id; skipping.');
-    return null;
-  }
-  const canvas = el.querySelector<HTMLElement>('.graph-canvas');
-  if (!canvas) {
-    warn('Display-graph block ' + blockId + ' has no .graph-canvas; skipping.');
-    return null;
-  }
-  return {
-    id: blockId,
-    ref: {
-      canvas,
-      kitSrc: el.dataset.graphKitSrc ?? null,
-      config: parseGraphAttr(el.dataset.graphConfig, blockId, 'data-graph-config'),
-      drawables: parseGraphAttr(
-        el.dataset.graphDrawables,
-        blockId,
-        'data-graph-drawables',
-      ),
-    },
-  };
-}
-
-/**
- * Build a GraphRef for one interactive_graph block. Returns null (skipping the
- * block) only when its id is missing. Malformed data-graph-config / -answer-key
- * are tolerated: parsed to undefined here and defaulted by the kit, so a bad
- * attribute degrades to a permissive graph rather than dropping the question.
- */
-function buildGraphRef(el: HTMLElement, sectionId: string): GraphRef | null {
-  const blockId = el.dataset.graphBlockId;
-  if (!blockId) {
-    warn('Interactive-graph block is missing data-graph-block-id; skipping.');
-    return null;
-  }
-  const canvas = el.querySelector<HTMLElement>('.graph-canvas');
-  if (!canvas) {
-    warn('Graph block ' + blockId + ' has no .graph-canvas; skipping.');
-    return null;
-  }
-
+  canvas: HTMLElement,
+  sectionId: string,
+): GraphRef {
   const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
     '.js-confidence-rating',
   );
@@ -181,61 +134,14 @@ function buildGraphRef(el: HTMLElement, sectionId: string): GraphRef | null {
       )
     : [];
 
-  let skills: string[] = [];
-  const rawSkills = el.dataset.skills;
-  if (rawSkills) {
-    try {
-      const parsed = JSON.parse(rawSkills);
-      if (Array.isArray(parsed)) skills = parsed;
-    } catch {
-      warn('Graph block ' + blockId + ' has malformed data-skills; ignoring.');
-    }
-  }
-
-  // Drop B: authored anticipated-mistake match strings + their pre-rendered
-  // feedback templates (index-aligned). Malformed attribute → no authored
-  // feedback, never a broken block.
-  let mistakes: string[] = [];
-  const rawMistakes = el.dataset.graphMistakes;
-  if (rawMistakes) {
-    try {
-      const parsed = JSON.parse(rawMistakes);
-      if (Array.isArray(parsed)) {
-        mistakes = parsed.filter((m): m is string => typeof m === 'string');
-      }
-    } catch {
-      warn('Graph block ' + blockId + ' has malformed data-graph-mistakes; ignoring.');
-    }
-  }
-  const mistakeTemplates: HTMLTemplateElement[] = Array.prototype.slice.call(
-    el.querySelectorAll<HTMLTemplateElement>('template.js-graph-mistake-content'),
-  );
-
   return {
     el,
     canvas,
-    feedbackEl: el.querySelector<HTMLElement>('.js-graph-feedback'),
-    solutionEl: el.querySelector<HTMLElement>('.js-solution'),
     kitSrc: el.dataset.graphKitSrc ?? null,
     interactionType: el.dataset.graphInteractionType ?? 'plot_point',
-    config: parseGraphAttr(el.dataset.graphConfig, blockId, 'data-graph-config'),
-    answerKey: parseGraphAttr(
-      el.dataset.graphAnswerKey,
-      blockId,
-      'data-graph-answer-key',
-    ),
     hasConfidenceRating: el.dataset.hasConfidenceRating === 'true',
     confidenceRadios,
-    skills,
-    partialCredit: el.dataset.graphPartialCredit === 'true',
-    allowNoSolution: el.dataset.graphAllowNoSolution === 'true',
-    noSolutionCorrect: el.dataset.graphNoSolutionCorrect === 'true',
-    mistakes,
-    // Omit-when-default: the renderer emits the attribute only when OFF.
-    builtinFeedback: el.dataset.graphBuiltinFeedback !== 'false',
-    mistakeTemplates,
     sectionId,
-    handle: null,
   };
 }
 
@@ -250,18 +156,29 @@ function walkGraphBlocks(
     '[data-block-type="interactive_graph"]',
     sectionEl,
   )) {
-    // Display (static) graphs are ungraded: mount a read-only figure, but keep
-    // them OUT of the scored graphs map and out of graphBlockIds so they never
-    // count toward a section's score or the submit payload.
-    if (graphEl.dataset.graphInteractionType === 'display') {
-      const dref = buildGraphDisplayRef(graphEl);
-      if (dref) graphDisplays.set(dref.id, dref.ref);
+    const blockId = graphEl.dataset.graphBlockId;
+    if (!blockId) {
+      warn('Interactive-graph block is missing data-graph-block-id; skipping.');
       continue;
     }
-    const ref = buildGraphRef(graphEl, sectionId);
-    if (!ref) continue;
-    graphs.set(graphEl.dataset.graphBlockId as string, ref);
-    sectionGraphBlockIds.push(graphEl.dataset.graphBlockId as string);
+    const canvas = graphEl.querySelector<HTMLElement>('.graph-canvas');
+    if (!canvas) {
+      warn('Graph block ' + blockId + ' has no .graph-canvas; skipping.');
+      continue;
+    }
+    // Display (static) graphs are ungraded: the kit mounts a read-only figure,
+    // but they stay OUT of the scored graphs map and out of graphBlockIds so
+    // they never count toward a section's score or the submit payload.
+    if (graphEl.dataset.graphInteractionType === 'display') {
+      graphDisplays.set(blockId, {
+        el: graphEl,
+        canvas,
+        kitSrc: graphEl.dataset.graphKitSrc ?? null,
+      });
+      continue;
+    }
+    graphs.set(blockId, buildGraphRef(graphEl, canvas, sectionId));
+    sectionGraphBlockIds.push(blockId);
   }
   return sectionGraphBlockIds;
 }
@@ -282,124 +199,23 @@ function initGraphState(refs: Refs): Record<string, GraphBlockState> {
   return graphs;
 }
 
-// ---- render: state → chrome -------------------------------------------------
+// ---- render: delegate to the attached kit plumbing ---------------------------
 
-// Reflect one interactive-graph block's state into the DOM regions the runtime
-// owns: the aria-live feedback line, the solution slot, the confidence radios,
-// and the widget lock. The canvas board itself is the kit's (mounted by
-// wireGraphs); render only drives the surrounding block chrome.
-function renderGraph(
-  graphState: GraphBlockState,
-  ref: GraphRef,
-  state: RuntimeState,
-): void {
-  // Solution slot — hidden until revealed at check time (fail-closed).
-  if (ref.solutionEl) {
-    const wantHidden = !graphState.solutionRevealed;
-    if (ref.solutionEl.hidden !== wantHidden) {
-      ref.solutionEl.hidden = wantHidden;
-    }
-  }
+// The kit's render delegate, installed when attachGraphRuntime resolves. Null
+// until then (and forever if the kit fails to load) — renderGraphs no-ops and
+// the static no-JS placeholders stay in place.
+let installed: GraphRuntimeExt | null = null;
 
-  // Confidence radios reflect the stored selection (restore-on-load + keep
-  // state↔DOM consistent). No-op when the block has no fieldset.
-  for (const radio of ref.confidenceRadios) {
-    const wantChecked = radio.value === graphState.confidence;
-    if (radio.checked !== wantChecked) {
-      radio.checked = wantChecked;
-    }
-  }
-
-  // Feedback line: after the section is checked, reveal correctness (respecting
-  // "don't reveal before checking"); before that, narrate the plotted position
-  // for screen-reader users on every move. aria-live announces on text change.
-  // data-mode distinguishes the two: 'narrate' is VISUALLY HIDDEN by the block
-  // CSS (SR-only — a visible coordinate readout would hand a sighted student
-  // the answer to any plot-the-point question), 'result' is visible.
-  if (ref.feedbackEl) {
-    const checked = state.sections[ref.sectionId]?.checked === true;
-    let text = '';
-    let dataState: string | null = null;
-    let dataMode: string | null = null;
-    // Rich authored mistake feedback: the matched entry's pre-rendered
-    // template (Drop B). richKey identifies the clone so re-renders don't
-    // re-clone unchanged content.
-    let richTpl: HTMLTemplateElement | null = null;
-    let richKey: string | null = null;
-    if (checked && graphState.result !== null) {
-      dataState = graphState.result ? 'correct' : 'incorrect';
-      dataMode = 'result';
-      if (graphState.result) {
-        text = 'Correct!';
-      } else {
-        const idx = graphState.mistakeIndex;
-        const tpl = idx !== undefined ? ref.mistakeTemplates[idx] : undefined;
-        if (tpl) {
-          richTpl = tpl;
-          richKey = 'authored-' + idx;
-        } else {
-          // Built-in classifier nudge, else the generic miss line.
-          text = graphState.mistakeText ?? 'Not quite — try again.';
-        }
-      }
-    } else if (graphState.answered && graphState.points.length > 0) {
-      const plotted = graphState.points
-        .map((p) => '(' + p[0] + ', ' + p[1] + ')')
-        .join(', ');
-      const label =
-        graphState.points.length > 1 ? 'Points plotted at ' : 'Point plotted at ';
-      text = label + plotted + '.';
-      dataMode = 'narrate';
-    }
-    const wantHidden = text === '' && richKey === null;
-    if (ref.feedbackEl.hidden !== wantHidden) ref.feedbackEl.hidden = wantHidden;
-    if (richTpl && richKey !== null) {
-      if (ref.feedbackEl.getAttribute('data-feedback-key') !== richKey) {
-        ref.feedbackEl.setAttribute('data-feedback-key', richKey);
-        ref.feedbackEl.replaceChildren(richTpl.content.cloneNode(true));
-      }
-    } else {
-      // Leaving rich mode must force a text write even if the strings happen
-      // to coincide — the element still holds cloned nodes.
-      const hadRich = ref.feedbackEl.getAttribute('data-feedback-key') !== null;
-      if (hadRich) ref.feedbackEl.removeAttribute('data-feedback-key');
-      if (hadRich || ref.feedbackEl.textContent !== text) {
-        ref.feedbackEl.textContent = text;
-      }
-    }
-    const current = ref.feedbackEl.getAttribute('data-state');
-    if (dataState !== current) {
-      if (dataState === null) ref.feedbackEl.removeAttribute('data-state');
-      else ref.feedbackEl.setAttribute('data-state', dataState);
-    }
-    const currentMode = ref.feedbackEl.getAttribute('data-mode');
-    if (dataMode !== currentMode) {
-      if (dataMode === null) ref.feedbackEl.removeAttribute('data-mode');
-      else ref.feedbackEl.setAttribute('data-mode', dataMode);
-    }
-  }
-
-  // Lock the widget in locked mode once the section is checked. The handle is
-  // acquired asynchronously by wireGraphs, so this no-ops until the board has
-  // mounted; wireGraphs also applies the restored lock on mount.
-  if (ref.handle) {
-    ref.handle.setLocked(state.sections[ref.sectionId]?.locked === true);
-  }
-}
-
-function renderGraphs(state: RuntimeState, refs: Refs): void {
-  for (const [id, ref] of refs.graphs) {
-    const graphState = state.graphs[id];
-    if (graphState) renderGraph(graphState, ref, state);
-  }
+function renderGraphs(): void {
+  if (installed) installed.render();
 }
 
 // ---- checkpoints: scoring + solution reveal ---------------------------------
 
 // Each graph is one scorable unit. The kit computed correctness live
-// (state.graphs[id].result) as the student moved the point; an unanswered graph
-// is null → an omission, counted in total but not in correct, like an empty
-// blank.
+// (state.graphs[id].result) as the student answered; an unanswered graph is
+// null → an omission, counted in total but not in correct, like an empty
+// blank. Pure state math — works with or without the kit.
 function scoreSectionGraphs(
   sectionRef: SectionRef,
   state: RuntimeState,
@@ -419,27 +235,27 @@ function scoreSectionGraphs(
   return { correct, total: sectionRef.graphBlockIds.length };
 }
 
+// Flip the state gate; the kit's chrome render unhides the slot (and guards on
+// the element actually existing, so a block with no authored solution is a
+// harmless no-op).
 function revealGraphSolutions(
   sectionRef: SectionRef,
   refs: Refs,
   state: RuntimeState,
 ): void {
   for (const graphId of sectionRef.graphBlockIds) {
-    const graphRef = refs.graphs.get(graphId);
     const graphState = state.graphs[graphId];
-    if (!graphRef || !graphState) continue;
-    if (graphRef.solutionEl !== null) {
-      graphState.solutionRevealed = true;
-    }
+    if (graphState) graphState.solutionRevealed = true;
   }
 }
 
 // ---- submission: gather responses -------------------------------------------
 
 // Interactive-graph blocks score alongside blanks (each is one scorable unit,
-// client-side-scored by the kit as the student moved the point). An unanswered
-// graph is an omission — counted in neither scored nor correct, and absent from
-// the graphResponses map (nothing to record).
+// client-side-scored by the kit as the student answered). An unanswered graph
+// is an omission — counted in neither scored nor correct, and absent from the
+// graphResponses map (nothing to record). Pure state → JSON: a restored answer
+// gathers and submits even when the kit never loaded this visit.
 function gatherGraphResponses(
   state: RuntimeState,
   refs: Refs,
@@ -497,125 +313,67 @@ function gatherGraphResponses(
   return { ...(graphCount > 0 && { graphResponses }), correct, scored };
 }
 
-// ---- sidecar: mount the kit widgets -----------------------------------------
+// ---- wire: fetch the kit, hand over the graph blocks -------------------------
 
-// Structural view of the kit entry the sidecar dynamic-imports. The runtime and
-// the kit are separate bundles joined only by this shape (mirrors how the wire
-// payload is the contract with the Edge Function).
-interface GraphKitModule {
-  mountGraphQuestion(
-    mount: HTMLElement,
-    config: unknown,
-    hooks: { onChange?: (resp: GraphResponseData) => void },
-  ): Promise<GraphWidgetHandle>;
-  mountGraphDisplay(
-    mount: HTMLElement,
-    config: unknown,
-  ): Promise<{ destroy(): void }>;
+// Structural view of the kit entry's runtime export. Typed by the SHARED
+// contract module, so this can't drift from what attachGraphRuntime actually
+// accepts — a mismatch is a compile error on either side.
+interface GraphKitRuntimeModule {
+  attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt;
 }
 
 /**
- * Mount every graph block's widget and wire its moves into state. Called once
- * during bootstrap wiring (after the initial render). Each mount is async (the
- * kit is fetched on demand); state/refs are mutated as handles resolve.
+ * Fetch the lazy kit once and hand it every graph block on the page — graded
+ * widgets and static display figures alike. Called once during bootstrap
+ * wiring (after the initial render); the kit builds its own full refs from
+ * the elements, mounts the boards, bridges widget moves into `state`, and
+ * returns the render delegate `renderGraphs` drives from then on.
  *
- * Defensive throughout: no kit URL, a failed import, or a missing canvas leaves
- * the static "needs JavaScript" placeholder in place and the rest of the page
- * working — the graph just can't be answered (it still submits as unanswered).
+ * Defensive throughout: no kit URL or a failed import leaves the static
+ * "needs JavaScript" placeholders in place and the rest of the page working —
+ * the graphs just can't be answered (they still submit as unanswered, and a
+ * RESTORED answer still scores + submits via the inline fold/gather above).
  */
 function wireGraphs(
   state: RuntimeState,
   refs: Refs,
   onUpdate: () => void,
 ): void {
+  installed = null;
+
+  // The kit URL is page-wide (document.ts threads one calculatorKitUrl into
+  // every block), so take the first one present; blocks that somehow lack it
+  // are left out, matching the old per-block "no kit → leave the placeholder".
+  let kitSrc: string | null = null;
+  const blocks = new Map<string, GraphRuntimeBlockRef>();
   for (const [blockId, ref] of refs.graphs) {
-    if (!ref.kitSrc) continue; // no kit available → leave the placeholder
-
-    const config = {
+    if (!ref.kitSrc) continue;
+    kitSrc = kitSrc ?? ref.kitSrc;
+    blocks.set(blockId, {
+      el: ref.el,
+      canvas: ref.canvas,
+      sectionId: ref.sectionId,
       interactionType: ref.interactionType,
-      axisConfig: ref.config,
-      answerKey: ref.answerKey,
-      partialCredit: ref.partialCredit,
-      allowNoSolution: ref.allowNoSolution,
-      noSolutionCorrect: ref.noSolutionCorrect,
-      mistakes: ref.mistakes,
-      builtinFeedback: ref.builtinFeedback,
-    };
-
-    // Dynamic import by URL. The `/* @vite-ignore */` keeps the app bundler from
-    // trying to resolve the runtime-only R2 URL at build time; in the published
-    // page this is just a native dynamic import.
-    import(/* @vite-ignore */ ref.kitSrc)
-      .then((mod: GraphKitModule) =>
-        mod.mountGraphQuestion(ref.canvas, config, {
-          onChange: (resp) => {
-            const gs = state.graphs[blockId];
-            if (!gs) return;
-            gs.points = resp.studentPoints;
-            gs.answered = resp.answered;
-            // Unanswered → unscored (an omission), like an empty blank; once the
-            // student has moved a handle, its correctness is live.
-            gs.result = resp.answered ? resp.correct : null;
-            // Drop 4 extras, present only when the widget reports them.
-            gs.strict = resp.strict;
-            gs.side = resp.side;
-            gs.noSolution = resp.noSolution;
-            gs.earned = resp.earned;
-            gs.total = resp.total;
-            gs.domain = resp.domain;
-            gs.shape = resp.shape;
-            gs.fromStyle = resp.fromStyle;
-            gs.endpoints = resp.endpoints;
-            gs.mistakeIndex = resp.mistakeIndex;
-            gs.mistakeText = resp.mistakeText;
-            onUpdate();
-          },
-        }),
-      )
-      .then((handle) => {
-        ref.handle = handle;
-        // Restore the answer persisted on a prior load. Its onChange re-populates
-        // state.graphs[blockId] (answered + result), so a checked-and-reloaded
-        // graph comes back scored.
-        const gs = state.graphs[blockId];
-        if (gs && (gs.points.length > 0 || gs.noSolution)) {
-          handle.restore(gs.points, {
-            strict: gs.strict,
-            side: gs.side,
-            noSolution: gs.noSolution,
-            domain: gs.domain,
-            shape: gs.shape,
-            fromStyle: gs.fromStyle,
-            endpoints: gs.endpoints,
-          });
-        }
-        // Reflect any restored lock (locked mode after a prior check).
-        if (state.sections[ref.sectionId]?.locked) handle.setLocked(true);
-      })
-      .catch((err) => {
-        console.error('[activity-runtime] graph kit failed to load', err);
-      });
+    });
   }
-}
-
-/**
- * Mount every DISPLAY (static, ungraded) graph block's read-only figure. Like
- * wireGraphs but far simpler: no state, no hooks, no scoring — just draw the
- * authored drawables. A failed import or missing kit leaves the static no-JS
- * placeholder in place. Called once during bootstrap wiring.
- */
-function wireGraphDisplays(refs: Refs): void {
-  for (const ref of refs.graphDisplays.values()) {
-    if (!ref.kitSrc) continue; // no kit available → leave the placeholder
-
-    const config = { axisConfig: ref.config, drawables: ref.drawables };
-
-    import(/* @vite-ignore */ ref.kitSrc)
-      .then((mod: GraphKitModule) => mod.mountGraphDisplay(ref.canvas, config))
-      .catch((err) => {
-        console.error('[activity-runtime] display graph kit failed to load', err);
-      });
+  const displays: GraphRuntimeDisplayRef[] = [];
+  for (const dref of refs.graphDisplays.values()) {
+    if (!dref.kitSrc) continue;
+    kitSrc = kitSrc ?? dref.kitSrc;
+    displays.push({ el: dref.el, canvas: dref.canvas });
   }
+  if (!kitSrc) return;
+
+  // Dynamic import by URL. The `/* @vite-ignore */` keeps the app bundler from
+  // trying to resolve the runtime-only R2 URL at build time; in the published
+  // page this is just a native dynamic import.
+  import(/* @vite-ignore */ kitSrc)
+    .then((mod: GraphKitRuntimeModule) => {
+      installed = mod.attachGraphRuntime({ state, blocks, displays, onUpdate });
+    })
+    .catch((err) => {
+      console.error('[activity-runtime] graph kit failed to load', err);
+    });
 }
 
 /** The real graph feature, wired into the base runtime's seam. */
@@ -627,5 +385,4 @@ export const graphExt: GraphExt = {
   revealGraphSolutions,
   gatherGraphResponses,
   wireGraphs,
-  wireGraphDisplays,
 };

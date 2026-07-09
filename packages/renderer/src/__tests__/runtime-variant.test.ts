@@ -3,12 +3,13 @@
 // -----------------------------------------------------------------------------
 // The published page inlines ONE of two runtime builds (see
 // scripts/bundle-renderer.mjs + document.ts): the lean "base" build on pages
-// with no graph, and the fuller "graphs" build only when the page has an
-// interactive_graph block. `mountGraphQuestion` is a marker that exists only in
-// the graphs bundle (the kit-mounting sidecar), so its presence/absence tells
-// the two apart. Picking the wrong one is a real regression — a graph page with
-// the base runtime can't mount its widget; a plain page with the graphs runtime
-// ships graph code it never uses — so it's worth a guard.
+// with no graph, and the "graphs" build (base + the thin kit bridge) only when
+// the page has an interactive_graph block. `attachGraphRuntime` is a marker
+// that exists only in the graphs bundle (the bridge's call into the lazy kit's
+// plumbing entry), so its presence/absence tells the two apart. Picking the
+// wrong one is a real regression — a graph page with the base runtime never
+// hands its blocks to the kit; a plain page with the graphs runtime ships
+// bridge code it never uses — so it's worth a guard.
 // =============================================================================
 
 import { describe, it, expect } from 'vitest';
@@ -69,12 +70,12 @@ function makeGraphDoc(): ActivityDocument {
 describe('runtime variant selection', () => {
   it('a graph-free page inlines the base runtime (no graph code)', () => {
     const html = renderActivity(makePlainDoc(), CTX);
-    expect(html).not.toContain('mountGraphQuestion');
+    expect(html).not.toContain('attachGraphRuntime');
   });
 
   it('a page with an interactive_graph inlines the graphs runtime', () => {
     const html = renderActivity(makeGraphDoc(), CTX);
     expect(html).toContain('data-block-type="interactive_graph"');
-    expect(html).toContain('mountGraphQuestion');
+    expect(html).toContain('attachGraphRuntime');
   });
 });
