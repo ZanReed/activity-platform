@@ -220,6 +220,17 @@ export const BlankToken = z.object({
   // breaking change. The first blank in a block ignores this flag (no
   // previous blank to group with).
   interchangeableWithPrevious: z.boolean().default(false),
+  // Answer interpretation mode. Absent (= 'text') keeps the Phase 1 behavior:
+  // exact string match against answer + acceptableAnswers. 'numeric' tells the
+  // runtime to parse BOTH the typed value and each key entry numerically
+  // (decimals, fractions like 3/2, mixed numbers like "1 1/2", comma
+  // separators, a leading $) and compare within `tolerance` — so 0.5, 1/2,
+  // and .50 all satisfy an answer of "1/2". Optional rather than defaulted so
+  // documents stored before this field existed re-serialize byte-identically.
+  answerType: z.enum(['text', 'numeric']).optional(),
+  // Absolute comparison tolerance for numeric blanks (|typed - key| <= tolerance).
+  // Only meaningful when answerType is 'numeric'; absent = exact equality.
+  tolerance: z.number().min(0).optional(),
 });
 export type BlankToken = z.infer<typeof BlankToken>;
 

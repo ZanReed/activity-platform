@@ -633,6 +633,11 @@ function emitInline(
     if (rest.length > 0) out.push(textNode(rest, marks));
 }
 
+// Trailing tolerance clause on a numeric blank's answer: "3.14 +- 0.01" or
+// "3.14 ± 0.01". The answer part is non-greedy so the LAST +-/± wins only
+// when followed by a bare number at the end.
+const TOLERANCE_RE = /^(.*?)\s*(?:±|\+-)\s*(\d*\.?\d+)$/;
+
 function makeBlank(canonRaw: string, altsRaw: string): JSONContent | null {
     let canonical = canonRaw.trim();
     // A leading ~ marks the blank as interchangeable with the PREVIOUS blank in
@@ -644,6 +649,21 @@ function makeBlank(canonRaw: string, altsRaw: string): JSONContent | null {
     if (canonical.startsWith('~')) {
         interchangeableWithPrevious = true;
         canonical = canonical.slice(1).trim();
+    }
+    // A leading = marks a NUMERIC blank — scored by numeric equivalence
+    // (0.5 = 1/2 = .50) instead of exact string match. An optional trailing
+    // "± tol" / "+- tol" sets the comparison tolerance: {{=3.14 +- 0.01}}.
+    // Order with ~: the tilde comes first ({{~=3}}).
+    let answerType: 'text' | 'numeric' = 'text';
+    let tolerance: number | undefined;
+    if (canonical.startsWith('=')) {
+        answerType = 'numeric';
+        canonical = canonical.slice(1).trim();
+        const tolMatch = TOLERANCE_RE.exec(canonical);
+        if (tolMatch && tolMatch[1] && tolMatch[1].trim().length > 0) {
+            canonical = tolMatch[1].trim();
+            tolerance = Number(tolMatch[2]);
+        }
     }
     if (canonical.length === 0) return null;
     const acceptableAnswers = altsRaw
@@ -657,6 +677,8 @@ function makeBlank(canonRaw: string, altsRaw: string): JSONContent | null {
             answer: canonical,
             acceptableAnswers,
             interchangeableWithPrevious,
+            answerType,
+            ...(tolerance !== undefined ? { tolerance } : {}),
         },
     };
 }

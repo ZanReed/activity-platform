@@ -508,6 +508,22 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
             node.attrs?.interchangeableWithPrevious === true,
     };
 
+    // Numeric answer mode: carried only when set so text blanks (the common
+    // case, and every pre-existing document) serialize without phantom keys.
+    // Tolerance rides only with numeric — a stray tolerance on a text blank
+    // is meaningless and is dropped here.
+    if (node.attrs?.answerType === 'numeric') {
+        result.answerType = 'numeric';
+        const rawTolerance = node.attrs?.tolerance;
+        if (
+            typeof rawTolerance === 'number' &&
+            isFinite(rawTolerance) &&
+            rawTolerance >= 0
+        ) {
+            result.tolerance = rawTolerance;
+        }
+    }
+
     // hint and each mistakeFeedback entry's feedback are stored as canonical
     // InlineNode[] in the Tiptap attrs (the nested mini-editor writes them in
     // that form), so they pass straight through. Only carry them when
@@ -867,7 +883,11 @@ function activityBlankToTiptap(node: BlankToken): JSONContent {
         // Always emitted (like acceptableAnswers) for round-trip exactness with
         // the NodeView's stored attr.
         interchangeableWithPrevious: node.interchangeableWithPrevious,
+        // Always emitted — the Tiptap attr defaults to 'text', so absent schema
+        // field → 'text' keeps editor JSON stable across round trips.
+        answerType: node.answerType ?? 'text',
     };
+    if (node.tolerance !== undefined) attrs.tolerance = node.tolerance;
     if (node.hint !== undefined) attrs.hint = node.hint;
     if (node.mistakeFeedback !== undefined) {
         attrs.mistakeFeedback = node.mistakeFeedback;

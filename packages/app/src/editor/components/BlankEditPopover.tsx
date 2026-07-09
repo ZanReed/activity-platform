@@ -15,6 +15,7 @@ import {
     computeFlush,
     resolveAnswerBlur,
     resolveAcceptableCommit,
+    resolveToleranceCommit,
     filterFeedbackForCommit,
     stripList,
     type MistakeFeedbackPair,
@@ -74,6 +75,8 @@ interface BlankEditPopoverProps {
     initialHint: InlineNodes | undefined;
     initialMistakeFeedback: MistakeFeedbackPair[] | undefined;
     initialInterchangeable: boolean;
+    initialAnswerType: 'text' | 'numeric';
+    initialTolerance: number | undefined;
     // Whether a previous blank exists in this block; gates the grouping
     // checkbox (the first blank in a block has nothing to group with).
     canGroupWithPrevious: boolean;
@@ -82,6 +85,8 @@ interface BlankEditPopoverProps {
             answer: string;
             acceptableAnswers: string[];
             interchangeableWithPrevious: boolean;
+            answerType: 'text' | 'numeric';
+            tolerance: number | undefined;
             hint: InlineNodes | undefined;
             mistakeFeedback: MistakeFeedbackPair[] | undefined;
         }>,
@@ -102,6 +107,8 @@ export default function BlankEditPopover({
     initialHint,
     initialMistakeFeedback,
     initialInterchangeable,
+    initialAnswerType,
+    initialTolerance,
     canGroupWithPrevious,
     onChange,
     onClose,
@@ -121,6 +128,12 @@ export default function BlankEditPopover({
     // Grouping flag commits immediately on toggle (no draft/flush), like the
     // acceptable-answer remove path.
     const [interchangeable, setInterchangeable] = useState(initialInterchangeable);
+    // Numeric mode commits immediately on toggle (like grouping); tolerance is
+    // draft-then-flush (like answer) since it's typed.
+    const [isNumeric, setIsNumeric] = useState(initialAnswerType === 'numeric');
+    const [toleranceDraft, setToleranceDraft] = useState(
+        initialTolerance !== undefined ? String(initialTolerance) : '',
+    );
 
     const [hintExpanded, setHintExpanded] = useState(false);
     const [feedbackExpanded, setFeedbackExpanded] = useState(false);
@@ -129,9 +142,14 @@ export default function BlankEditPopover({
 
     const answerRef = useRef(initialAnswer);
     const acceptableRef = useRef<string[]>(initialAcceptableAnswers);
+    const toleranceRef = useRef(
+        initialTolerance !== undefined ? String(initialTolerance) : '',
+    );
+    const isNumericRef = useRef(initialAnswerType === 'numeric');
 
     const initialAnswerRef = useRef(initialAnswer);
     const initialAcceptableRef = useRef<string[]>(initialAcceptableAnswers);
+    const initialToleranceRef = useRef<number | undefined>(initialTolerance);
 
     const onChangeRef = useRef(onChange);
     useEffect(() => {
@@ -147,6 +165,12 @@ export default function BlankEditPopover({
     useEffect(() => {
         acceptableRef.current = acceptableAnswers;
     }, [acceptableAnswers]);
+    useEffect(() => {
+        toleranceRef.current = toleranceDraft;
+    }, [toleranceDraft]);
+    useEffect(() => {
+        isNumericRef.current = isNumeric;
+    }, [isNumeric]);
 
     useEffect(() => {
         if (isOpen) {
@@ -155,14 +179,22 @@ export default function BlankEditPopover({
             setAcceptableAnswers(initialAcceptableAnswers);
             setMistakeFeedback(initialMistakeFeedback ?? []);
             setInterchangeable(initialInterchangeable);
+            setIsNumeric(initialAnswerType === 'numeric');
+            setToleranceDraft(
+                initialTolerance !== undefined ? String(initialTolerance) : '',
+            );
             setHintExpanded(Boolean(initialHint && initialHint.length > 0));
             setFeedbackExpanded(
                 Boolean(initialMistakeFeedback && initialMistakeFeedback.length > 0),
             );
             answerRef.current = initialAnswer;
             acceptableRef.current = initialAcceptableAnswers;
+            toleranceRef.current =
+                initialTolerance !== undefined ? String(initialTolerance) : '';
+            isNumericRef.current = initialAnswerType === 'numeric';
             initialAnswerRef.current = initialAnswer;
             initialAcceptableRef.current = initialAcceptableAnswers;
+            initialToleranceRef.current = initialTolerance;
         }
         // Reset drafts only when the popover opens or retargets a different
         // blank — NOT on every initial* identity change. hint + mistake
@@ -214,8 +246,23 @@ export default function BlankEditPopover({
             acceptable: acceptableRef.current,
             initialAcceptable: initialAcceptableRef.current,
         });
-        if (hasUpdates) {
-            onChangeRef.current(updates, { preserveSelection: false });
+        // Tolerance rides the same close-time flush (it's a typed draft like
+        // the answer field), but only while numeric mode is on — toggling
+        // numeric off already cleared the attr.
+        const tolerance = isNumericRef.current
+            ? resolveToleranceCommit(
+                  toleranceRef.current,
+                  initialToleranceRef.current,
+              )
+            : { changed: false, value: undefined };
+        if (hasUpdates || tolerance.changed) {
+            onChangeRef.current(
+                {
+                    ...updates,
+                    ...(tolerance.changed ? { tolerance: tolerance.value } : {}),
+                },
+                { preserveSelection: false },
+            );
         }
     };
 
@@ -392,6 +439,48 @@ export default function BlankEditPopover({
         onChange({ interchangeableWithPrevious: checked });
     };
 
+    const handleNumericToggle = (checked: boolean) => {
+        setIsNumeric(checked);
+        if (checked) {
+            onChange({ answerType: 'numeric' });
+        } else {
+            // Turning numeric off also clears the tolerance — it's meaningless
+            // on a text blank and would silently reappear if numeric came back.
+            setToleranceDraft('');
+            onChange({ answerType: 'text', tolerance: undefined });
+            initialToleranceRef.current = undefined;
+        }
+    };
+
+    const commitTolerance = () => {
+        const result = resolveToleranceCommit(
+            toleranceDraft,
+            initialToleranceRef.current,
+        );
+        if (result.changed) {
+            onChange({ tolerance: result.value });
+            initialToleranceRef.current = result.value;
+        }
+        // Normalize the draft to what's actually committed (reverts an
+        // unparseable or negative entry, mirroring the answer-revert rule).
+        setToleranceDraft(
+            initialToleranceRef.current !== undefined
+                ? String(initialToleranceRef.current)
+                : '',
+        );
+    };
+
+    const handleToleranceKeyDown = (
+        e: React.KeyboardEvent<HTMLInputElement>,
+    ) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            commitTolerance();
+            flushAll();
+            onClose();
+        }
+    };
+
     const setRefs = (node: HTMLDivElement | null) => {
         refs.setFloating(node);
         popoverRef.current = node;
@@ -511,6 +600,45 @@ export default function BlankEditPopover({
                             );
                         })}
                     </div>
+                </div>
+
+                <div className="blank-edit-popover__field">
+                    <label className="blank-edit-popover__checkbox">
+                        <input
+                            type="checkbox"
+                            checked={isNumeric}
+                            onChange={(e) =>
+                                handleNumericToggle(e.target.checked)
+                            }
+                        />
+                        <span className="blank-edit-popover__label">
+                            Numeric answer
+                        </span>
+                    </label>
+                    <div className="blank-edit-popover__sublabel">
+                        Equivalent forms count as correct — 0.5, 1/2, and .50
+                        all match. Fractions and mixed numbers work.
+                    </div>
+                    {isNumeric && (
+                        <label className="blank-edit-popover__field">
+                            <span className="blank-edit-popover__label">
+                                Tolerance (±)
+                            </span>
+                            <input
+                                type="text"
+                                inputMode="decimal"
+                                className="blank-edit-popover__input"
+                                value={toleranceDraft}
+                                placeholder="0 (exact)"
+                                onChange={(e) =>
+                                    setToleranceDraft(e.target.value)
+                                }
+                                onBlur={commitTolerance}
+                                onKeyDown={handleToleranceKeyDown}
+                                aria-label="Numeric tolerance"
+                            />
+                        </label>
+                    )}
                 </div>
 
                 {canGroupWithPrevious && (

@@ -261,6 +261,35 @@ describe('Inline rendering', () => {
     const body = renderBody(doc);
     expect(body).toContain('data-blank-id="' + blank.id + '"');
     expect(body).toContain('data-blank-answers="correct|CORRECT|Correct"');
+    // A text blank carries NO strategy attributes (list is the runtime default).
+    expect(body).not.toContain('data-blank-strategy');
+    expect(body).not.toContain('inputmode');
+  });
+
+  it('numeric blanks carry strategy + tolerance attributes and a decimal inputmode', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('3.14');
+    blank.answerType = 'numeric';
+    blank.tolerance = 0.01;
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('data-blank-strategy="numeric"');
+    expect(body).toContain('data-blank-tolerance="0.01"');
+    expect(body).toContain('inputmode="decimal"');
+  });
+
+  it('numeric blanks without a tolerance omit the tolerance attribute', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('12');
+    blank.answerType = 'numeric';
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('data-blank-strategy="numeric"');
+    expect(body).not.toContain('data-blank-tolerance');
   });
   it('gives each blank a positional aria-label', () => {
     const doc = createEmptyDocument({ title: 'T' });

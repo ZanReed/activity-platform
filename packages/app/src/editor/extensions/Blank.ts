@@ -55,6 +55,8 @@ declare module '@tiptap/core' {
                     answer: string;
                     acceptableAnswers: string[];
                     interchangeableWithPrevious: boolean;
+                    answerType: 'text' | 'numeric';
+                    tolerance: number | undefined;
                     hint: unknown[] | undefined;
                     mistakeFeedback:
                         | Array<{ match: string; feedback: unknown[] }>
@@ -119,6 +121,33 @@ export const Blank = Node.create({
                 renderHTML: (attributes) =>
                     attributes.interchangeableWithPrevious
                         ? { 'data-interchangeable': 'true' }
+                        : {},
+            },
+            // Numeric answer mode. 'text' (the default) is exact string
+            // matching; 'numeric' makes the runtime parse + compare within
+            // `tolerance`. serialize.ts maps 'text' → omitted schema field.
+            answerType: {
+                default: 'text' as 'text' | 'numeric',
+                parseHTML: (element) =>
+                    element.getAttribute('data-answer-type') === 'numeric'
+                        ? 'numeric'
+                        : 'text',
+                renderHTML: (attributes) =>
+                    attributes.answerType === 'numeric'
+                        ? { 'data-answer-type': 'numeric' }
+                        : {},
+            },
+            tolerance: {
+                default: undefined as number | undefined,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-tolerance');
+                    if (!raw) return undefined;
+                    const n = Number(raw);
+                    return isFinite(n) && n >= 0 ? n : undefined;
+                },
+                renderHTML: (attributes) =>
+                    attributes.tolerance !== undefined
+                        ? { 'data-tolerance': String(attributes.tolerance) }
                         : {},
             },
             hint: {

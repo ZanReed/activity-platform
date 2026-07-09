@@ -319,12 +319,26 @@ function renderBlank(
     : '';
   const blankClass = groupId ? 'blank blank-grouped' : 'blank';
 
+  // Numeric blanks dispatch to the runtime's numeric strategy (parse + compare
+  // within tolerance) instead of the default exact-string list strategy, and
+  // get inputmode="decimal" so touch keyboards open with digits. Tolerance is
+  // emitted only when authored; the strategy defaults to exact equality.
+  const numericAttrs =
+    node.answerType === 'numeric'
+      ? ' data-blank-strategy="numeric"' +
+        (node.tolerance !== undefined
+          ? ' data-blank-tolerance="' + node.tolerance + '"'
+          : '') +
+        ' inputmode="decimal"'
+      : '';
+
   return (
     '<span class="blank-wrapper">' +
     '<input type="text"' +
     ' class="' + blankClass + '"' +
     ' data-blank-id="' + attr(node.id) + '"' +
     ' data-blank-answers="' + attr(acceptable) + '"' +
+    numericAttrs +
     groupAttr +
     ' aria-label="' + attr(label) + '"' +
     ' style="--blank-width:' + width + 'ch"' +

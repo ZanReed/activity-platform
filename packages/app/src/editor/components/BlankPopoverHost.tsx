@@ -92,6 +92,12 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 | undefined;
             const interchangeableWithPrevious =
                 node.attrs.interchangeableWithPrevious === true;
+            const answerType =
+                node.attrs.answerType === 'numeric' ? 'numeric' : 'text';
+            const tolerance =
+                typeof node.attrs.tolerance === 'number'
+                    ? (node.attrs.tolerance as number)
+                    : undefined;
 
             // Structural: can this blank group with a previous one? Only when an
             // earlier blank exists in the same fill_in_blank block. The first
@@ -116,6 +122,8 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                     hint,
                     mistakeFeedback,
                     interchangeableWithPrevious,
+                    answerType,
+                    tolerance,
                     canGroupWithPrevious,
                 };
                 return isSameBlankSelection(prev, next) ? prev : next;
@@ -152,6 +160,8 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 answer: string;
                 acceptableAnswers: string[];
                 interchangeableWithPrevious: boolean;
+                answerType: 'text' | 'numeric';
+                tolerance: number | undefined;
                 hint: InlineNodes | undefined;
                 mistakeFeedback:
                     | Array<{ match: string; feedback: InlineNodes }>
@@ -184,6 +194,8 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             initialHint={selectedBlank.hint}
             initialMistakeFeedback={selectedBlank.mistakeFeedback}
             initialInterchangeable={selectedBlank.interchangeableWithPrevious}
+            initialAnswerType={selectedBlank.answerType}
+            initialTolerance={selectedBlank.tolerance}
             canGroupWithPrevious={selectedBlank.canGroupWithPrevious}
             onChange={handleChange}
             onClose={handleClose}

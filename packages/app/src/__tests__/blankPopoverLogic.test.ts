@@ -13,6 +13,7 @@ import {
   computeFlush,
   resolveAnswerBlur,
   resolveAcceptableCommit,
+  resolveToleranceCommit,
   filterFeedbackForCommit,
   isSameBlankSelection,
   stripList,
@@ -185,6 +186,8 @@ describe('isSameBlankSelection', () => {
     hint,
     mistakeFeedback: mistake,
     interchangeableWithPrevious: false,
+    answerType: 'text',
+    tolerance: undefined,
     canGroupWithPrevious: false,
     ...over,
   });
@@ -225,5 +228,51 @@ describe('isSameBlankSelection', () => {
     expect(
       isSameBlankSelection(make(), make({ canGroupWithPrevious: true })),
     ).toBe(false);
+  });
+
+  it('is false when numeric mode or tolerance differ', () => {
+    expect(isSameBlankSelection(make(), make({ answerType: 'numeric' }))).toBe(
+      false,
+    );
+    expect(isSameBlankSelection(make(), make({ tolerance: 0.1 }))).toBe(false);
+  });
+});
+
+describe('resolveToleranceCommit', () => {
+  it('empty draft clears the tolerance (only if one was set)', () => {
+    expect(resolveToleranceCommit('', 0.5)).toEqual({
+      changed: true,
+      value: undefined,
+    });
+    expect(resolveToleranceCommit('  ', undefined)).toEqual({
+      changed: false,
+      value: undefined,
+    });
+  });
+
+  it('a valid number commits when it differs', () => {
+    expect(resolveToleranceCommit('0.01', undefined)).toEqual({
+      changed: true,
+      value: 0.01,
+    });
+    expect(resolveToleranceCommit('0.5', 0.5)).toEqual({
+      changed: false,
+      value: 0.5,
+    });
+    expect(resolveToleranceCommit('0', undefined)).toEqual({
+      changed: true,
+      value: 0,
+    });
+  });
+
+  it('unparseable or negative drafts are unchanged (UI reverts)', () => {
+    expect(resolveToleranceCommit('abc', 0.5)).toEqual({
+      changed: false,
+      value: 0.5,
+    });
+    expect(resolveToleranceCommit('-1', undefined)).toEqual({
+      changed: false,
+      value: undefined,
+    });
   });
 });

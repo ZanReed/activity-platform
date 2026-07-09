@@ -16,7 +16,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-import { evaluateAnswer } from '../strategies.js';
+import { evaluateAnswer, parseNumericValue } from '../strategies.js';
 import { computeScore } from '../submission.js';
 
 /** Build a minimal Element-like fake with the given data-* attributes. */
@@ -65,6 +65,112 @@ describe('evaluateAnswer — list strategy', () => {
         // No answers attribute means an empty answer list; nothing matches.
         const blank = fakeBlank({});
         expect(evaluateAnswer(blank, 'anything')).toBe(false);
+    });
+});
+
+describe('parseNumericValue', () => {
+    it('parses plain decimals with optional sign and bare leading dot', () => {
+        expect(parseNumericValue('3')).toBe(3);
+        expect(parseNumericValue('-2.5')).toBe(-2.5);
+        expect(parseNumericValue('.75')).toBe(0.75);
+        expect(parseNumericValue('+4')).toBe(4);
+    });
+
+    it('parses scientific notation', () => {
+        expect(parseNumericValue('1e3')).toBe(1000);
+        expect(parseNumericValue('2.5E-2')).toBe(0.025);
+    });
+
+    it('parses fractions', () => {
+        expect(parseNumericValue('3/4')).toBe(0.75);
+        expect(parseNumericValue('-3/4')).toBe(-0.75);
+        expect(parseNumericValue('1.5/3')).toBe(0.5);
+    });
+
+    it('parses mixed numbers', () => {
+        expect(parseNumericValue('1 1/2')).toBe(1.5);
+        expect(parseNumericValue('-2 3/4')).toBe(-2.75);
+    });
+
+    it('strips comma separators and a leading dollar sign', () => {
+        expect(parseNumericValue('1,234.5')).toBe(1234.5);
+        expect(parseNumericValue('$3.50')).toBe(3.5);
+        expect(parseNumericValue('$ 1,000')).toBe(1000);
+    });
+
+    it('returns null for non-numbers, empty strings, and zero denominators', () => {
+        expect(parseNumericValue('x + 1')).toBeNull();
+        expect(parseNumericValue('')).toBeNull();
+        expect(parseNumericValue('   ')).toBeNull();
+        expect(parseNumericValue('1/0')).toBeNull();
+        expect(parseNumericValue('no solution')).toBeNull();
+        expect(parseNumericValue('3..5')).toBeNull();
+    });
+});
+
+describe('evaluateAnswer — numeric strategy', () => {
+    function numericBlank(answers: string, tolerance?: string): Element {
+        const attrs: Record<string, string> = {
+            'data-blank-strategy': 'numeric',
+            'data-blank-answers': answers,
+        };
+        if (tolerance !== undefined) attrs['data-blank-tolerance'] = tolerance;
+        return fakeBlank(attrs);
+    }
+
+    it('accepts every equivalent numeric form of the key', () => {
+        const blank = numericBlank('1/2');
+        expect(evaluateAnswer(blank, '0.5')).toBe(true);
+        expect(evaluateAnswer(blank, '.5')).toBe(true);
+        expect(evaluateAnswer(blank, '1/2')).toBe(true);
+        expect(evaluateAnswer(blank, '2/4')).toBe(true);
+        expect(evaluateAnswer(blank, '0.51')).toBe(false);
+    });
+
+    it('accepts within tolerance, rejects outside it', () => {
+        const blank = numericBlank('3.14', '0.01');
+        expect(evaluateAnswer(blank, '3.14159')).toBe(true);
+        expect(evaluateAnswer(blank, '3.13')).toBe(true);
+        expect(evaluateAnswer(blank, '3.12')).toBe(false);
+    });
+
+    it('exact tolerance boundary counts (with float-noise epsilon)', () => {
+        const blank = numericBlank('0.3');
+        // 0.1 + 0.2 !== 0.3 in floats; the epsilon must absorb it.
+        expect(evaluateAnswer(blank, '0.30000000000000004')).toBe(true);
+    });
+
+    it('handles mixed numbers and formatted input', () => {
+        const blank = numericBlank('1.5');
+        expect(evaluateAnswer(blank, '1 1/2')).toBe(true);
+        expect(evaluateAnswer(blank, '3/2')).toBe(true);
+        const money = numericBlank('1234.5');
+        expect(evaluateAnswer(money, '$1,234.50')).toBe(true);
+    });
+
+    it('falls back to exact string match for a non-numeric key entry', () => {
+        // A key like "no solution" alongside a numeric answer still scores.
+        const blank = numericBlank('4|no solution');
+        expect(evaluateAnswer(blank, 'no solution')).toBe(true);
+        expect(evaluateAnswer(blank, '4.0')).toBe(true);
+        expect(evaluateAnswer(blank, 'anything else')).toBe(false);
+    });
+
+    it('rejects non-numeric input against a numeric key', () => {
+        const blank = numericBlank('4');
+        expect(evaluateAnswer(blank, 'four')).toBe(false);
+    });
+
+    it('ignores a malformed tolerance attribute (treats as exact)', () => {
+        const blank = numericBlank('4', 'abc');
+        expect(evaluateAnswer(blank, '4')).toBe(true);
+        expect(evaluateAnswer(blank, '4.1')).toBe(false);
+    });
+
+    it('negative numbers compare correctly', () => {
+        const blank = numericBlank('-3/4');
+        expect(evaluateAnswer(blank, '-0.75')).toBe(true);
+        expect(evaluateAnswer(blank, '0.75')).toBe(false);
     });
 });
 

@@ -135,6 +135,7 @@ describe('blanks → fillInBlank', () => {
                             answer: 'Paris',
                             acceptableAnswers: [],
                             interchangeableWithPrevious: false,
+                            answerType: 'text',
                         },
                     },
                     { type: 'text', text: '.' },
@@ -353,9 +354,65 @@ describe('math', () => {
                     answer: '4',
                     acceptableAnswers: [],
                     interchangeableWithPrevious: false,
+                    answerType: 'text',
                 },
             },
         ]);
+    });
+});
+
+describe('numeric blanks ({{=…}})', () => {
+    it('a leading = makes the blank numeric (and is stripped)', () => {
+        const out = convert('the area is {{=12}}.').blocks;
+        const blank = out[0]!.content!.find((n) => n.type === 'blank')!;
+        expect(blank.attrs).toMatchObject({
+            answer: '12',
+            answerType: 'numeric',
+        });
+        expect(blank.attrs).not.toHaveProperty('tolerance');
+    });
+
+    it('a trailing +- (or ±) sets the tolerance', () => {
+        const out = convert('pi is {{=3.14 +- 0.01}} and e is {{=2.72 ± 0.01}}').blocks;
+        const blanks = out[0]!.content!.filter((n) => n.type === 'blank');
+        expect(blanks[0]!.attrs).toMatchObject({
+            answer: '3.14',
+            answerType: 'numeric',
+            tolerance: 0.01,
+        });
+        expect(blanks[1]!.attrs).toMatchObject({
+            answer: '2.72',
+            answerType: 'numeric',
+            tolerance: 0.01,
+        });
+    });
+
+    it('combines with ~ (tilde first: {{~=3}})', () => {
+        const out = convert('roots: {{=2}} and {{~=3}}').blocks;
+        const blanks = out[0]!.content!.filter((n) => n.type === 'blank');
+        expect(blanks[1]!.attrs).toMatchObject({
+            answer: '3',
+            answerType: 'numeric',
+            interchangeableWithPrevious: true,
+        });
+    });
+
+    it('a bare {{=}} is ignored like an empty blank', () => {
+        const out = convert('nothing {{=}}').blocks;
+        const blanks = (out[0]!.content ?? []).filter((n) => n.type === 'blank');
+        expect(blanks).toHaveLength(0);
+    });
+
+    it('a lone +- clause without an answer stays the whole answer', () => {
+        // "{{=+- 5}}" has no answer before the +-, so nothing is split off;
+        // the literal remains the canonical answer rather than importing a
+        // blank with an empty answer.
+        const out = convert('odd {{=+- 5}}').blocks;
+        const blank = out[0]!.content!.find((n) => n.type === 'blank')!;
+        expect(blank.attrs).toMatchObject({
+            answer: '+- 5',
+            answerType: 'numeric',
+        });
     });
 });
 

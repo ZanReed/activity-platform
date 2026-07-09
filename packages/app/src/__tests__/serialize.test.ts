@@ -1115,6 +1115,7 @@ describe('lists', () => {
                 answer: '2x + 6',
                 acceptableAnswers: ['2x+6', '6 + 2x'],
                 interchangeableWithPrevious: false,
+                answerType: 'text',
                 hint: [{ type: 'text', text: 'Distribute the 2.', marks: [] }],
                 mistakeFeedback: [
                     {
@@ -1166,6 +1167,7 @@ describe('lists', () => {
                 answer: '5',
                 acceptableAnswers: [],
                 interchangeableWithPrevious: false,
+                answerType: 'text',
             };
             const doc: JSONContent = {
                 type: 'doc',
@@ -1187,6 +1189,66 @@ describe('lists', () => {
                 { type: 'text', text: 'Solve: x = ' },
                 { type: 'blank', attrs: blankAttrs },
             ]);
+        });
+
+        it('round-trips a numeric blank with tolerance', () => {
+            const blankAttrs = {
+                id: 'blank-3',
+                answer: '3.14',
+                acceptableAnswers: [],
+                interchangeableWithPrevious: false,
+                answerType: 'numeric',
+                tolerance: 0.01,
+            };
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: { id: 'fib-3' },
+                        content: [
+                            { type: 'text', text: 'Pi is about ' },
+                            { type: 'blank', attrs: blankAttrs },
+                        ],
+                    },
+                ],
+            };
+            const result = roundTrip(doc);
+            const fib = result.content?.[0] as JSONContent;
+            expect(fib.content).toEqual([
+                { type: 'text', text: 'Pi is about ' },
+                { type: 'blank', attrs: blankAttrs },
+            ]);
+        });
+
+        it('drops a stray tolerance on a text blank (meaningless without numeric)', () => {
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: { id: 'fib-4' },
+                        content: [
+                            {
+                                type: 'blank',
+                                attrs: {
+                                    id: 'blank-4',
+                                    answer: 'five',
+                                    acceptableAnswers: [],
+                                    interchangeableWithPrevious: false,
+                                    answerType: 'text',
+                                    tolerance: 0.5,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            };
+            const result = roundTrip(doc);
+            const fib = result.content?.[0] as JSONContent;
+            const blank = fib.content?.[0] as JSONContent;
+            expect(blank.attrs).not.toHaveProperty('tolerance');
+            expect(blank.attrs).toMatchObject({ answerType: 'text' });
         });
     });
 

@@ -42,21 +42,29 @@ export default function BlankView({ node, selected }: NodeViewProps) {
     // Order-independent grouping: this blank is interchangeable with the one
     // before it. A leading ⇄ marker makes the link visible between the chips.
     const grouped = node.attrs.interchangeableWithPrevious === true;
+    // Numeric answer mode: scored by numeric equivalence (0.5 = 1/2), shown
+    // with a # marker so the mode is visible without opening the popover.
+    const numeric = node.attrs.answerType === 'numeric';
+    const tolerance = node.attrs.tolerance as number | undefined;
     const width = deriveBlankWidth(answer);
 
     // Hover tooltip: grouping note takes priority (it's the less obvious fact);
-    // otherwise show acceptable answers when present.
+    // then the numeric-mode note; otherwise acceptable answers when present.
     const tooltip = grouped
         ? 'Interchangeable with the previous blank — answers count in any order'
-        : acceptableAnswers.length > 0
-            ? `Also accepts: ${acceptableAnswers.join(', ')}`
-            : undefined;
+        : numeric
+            ? `Numeric answer — equivalent forms count${
+                  tolerance !== undefined ? `, tolerance ±${tolerance}` : ''
+              }`
+            : acceptableAnswers.length > 0
+                ? `Also accepts: ${acceptableAnswers.join(', ')}`
+                : undefined;
 
     return (
         <NodeViewWrapper
             className={`blank-chip${selected ? ' is-selected' : ''}${
                 grouped ? ' is-grouped' : ''
-            }`}
+            }${numeric ? ' is-numeric' : ''}`}
             data-blank-id={node.attrs.id ?? ''}
             title={tooltip}
         >

@@ -131,6 +131,46 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'numeric blank {{=answer}}',
+        fragment: '{{=12}}',
+        md: 'the area is {{=12}}.',
+        check: (b) => {
+            const blank = nodesOfType(b, 'blank')[0]!;
+            expect(blank.attrs).toMatchObject({
+                answer: '12',
+                answerType: 'numeric',
+            });
+            expect(blank.attrs).not.toHaveProperty('tolerance');
+        },
+    },
+    {
+        name: 'numeric blank with tolerance {{=answer +- tol}}',
+        fragment: '{{=3.14 +- 0.01}}',
+        md: 'pi is about {{=3.14 +- 0.01}}.',
+        check: (b) => {
+            const blank = nodesOfType(b, 'blank')[0]!;
+            expect(blank.attrs).toMatchObject({
+                answer: '3.14',
+                answerType: 'numeric',
+                tolerance: 0.01,
+            });
+        },
+    },
+    {
+        name: 'grouped numeric blank {{~=answer}}',
+        fragment: '{{~=3}}',
+        md: 'roots: {{=2}} and {{~=3}}',
+        check: (b) => {
+            const blanks = nodesOfType(b, 'blank');
+            expect(blanks).toHaveLength(2);
+            expect(blanks[1]!.attrs).toMatchObject({
+                answer: '3',
+                answerType: 'numeric',
+                interchangeableWithPrevious: true,
+            });
+        },
+    },
+    {
         name: 'checkpoint section heading',
         fragment: '## Part 2 {checkpoint}',
         md: '## Part 2 {checkpoint}',

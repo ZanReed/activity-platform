@@ -135,6 +135,34 @@ export function filterFeedbackForCommit(
   return stripped.length > 0 ? stripped : undefined;
 }
 
+export interface ToleranceCommit {
+  /** True when the parsed draft differs from the committed tolerance. */
+  changed: boolean;
+  /** The value to commit: a number ≥ 0, or undefined for "exact". */
+  value: number | undefined;
+}
+
+/**
+ * The tolerance-field commit decision. Empty draft ⇒ undefined (exact
+ * equality); a valid number ≥ 0 ⇒ that value; anything unparseable or
+ * negative ⇒ unchanged (the UI reverts the draft on blur, mirroring the
+ * empty-answer revert rule).
+ */
+export function resolveToleranceCommit(
+  draft: string,
+  initialTolerance: number | undefined,
+): ToleranceCommit {
+  const trimmed = draft.trim();
+  if (trimmed.length === 0) {
+    return { changed: initialTolerance !== undefined, value: undefined };
+  }
+  const n = Number(trimmed);
+  if (!isFinite(n) || n < 0) {
+    return { changed: false, value: initialTolerance };
+  }
+  return { changed: n !== initialTolerance, value: n };
+}
+
 export interface SelectedBlankState {
   pos: number;
   blankId: string;
@@ -144,6 +172,10 @@ export interface SelectedBlankState {
   mistakeFeedback: MistakeFeedbackPair[] | undefined;
   /** The blank's order-independent grouping flag (a node attr). */
   interchangeableWithPrevious: boolean;
+  /** Answer interpretation mode (a node attr; 'text' is the default). */
+  answerType: 'text' | 'numeric';
+  /** Numeric comparison tolerance (a node attr; undefined = exact). */
+  tolerance: number | undefined;
   /**
    * Structural, NOT an attr: whether a previous blank exists in the same
    * fill_in_blank block, so the popover can offer the grouping checkbox. The
@@ -172,6 +204,8 @@ export function isSameBlankSelection(
     prev.hint === next.hint &&
     prev.mistakeFeedback === next.mistakeFeedback &&
     prev.interchangeableWithPrevious === next.interchangeableWithPrevious &&
+    prev.answerType === next.answerType &&
+    prev.tolerance === next.tolerance &&
     prev.canGroupWithPrevious === next.canGroupWithPrevious
   );
 }

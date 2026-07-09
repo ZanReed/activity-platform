@@ -34,3 +34,45 @@ describe('BlankToken — order-independent grouping', () => {
     expect(() => BlankToken.parse(token)).not.toThrow();
   });
 });
+
+describe('BlankToken — numeric answer mode', () => {
+  it('answerType and tolerance are absent by default (old docs re-serialize unchanged)', () => {
+    const parsed = BlankToken.parse({
+      type: 'blank',
+      id: BLANK_ID,
+      answer: '12',
+      acceptableAnswers: [],
+    });
+    expect(parsed.answerType).toBeUndefined();
+    expect(parsed.tolerance).toBeUndefined();
+    expect('answerType' in parsed).toBe(false);
+  });
+
+  it('accepts answerType numeric with a tolerance', () => {
+    const parsed = BlankToken.parse({
+      type: 'blank',
+      id: BLANK_ID,
+      answer: '3.14',
+      acceptableAnswers: [],
+      answerType: 'numeric',
+      tolerance: 0.01,
+    });
+    expect(parsed.answerType).toBe('numeric');
+    expect(parsed.tolerance).toBe(0.01);
+  });
+
+  it('rejects a negative tolerance and unknown answer types', () => {
+    const base = {
+      type: 'blank',
+      id: BLANK_ID,
+      answer: '3',
+      acceptableAnswers: [],
+    };
+    expect(() =>
+      BlankToken.parse({ ...base, answerType: 'numeric', tolerance: -1 }),
+    ).toThrow();
+    expect(() =>
+      BlankToken.parse({ ...base, answerType: 'expression' }),
+    ).toThrow();
+  });
+});

@@ -704,6 +704,23 @@
     border-color: rgb(147 197 253); /* blue-300 */
 }
 
+/* Numeric-mode cue: a small # marker in the gap to the chip's right,
+ * mirroring the ⇄ grouped marker (which sits on the left, so the two can
+ * coexist on a grouped numeric blank). */
+.blank-chip.is-numeric {
+    position: relative;
+}
+.blank-chip.is-numeric::after {
+    content: '#';
+    position: absolute;
+    right: -0.7em;
+    top: 0;
+    font-size: 0.7em;
+    line-height: 1.5;
+    color: rgb(5 150 105); /* emerald-600 */
+    pointer-events: none;
+}
+
 .blank-chip__underline {
     display: block;
     height: 2px;

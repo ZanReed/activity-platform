@@ -20,6 +20,8 @@ The importer is deterministic, additive, and never destructive: anything it does
 | `{{answer}}` | a fill-in-the-blank with that answer |
 | `{{answer\|alt1\|alt2}}` | a blank whose alternates after `\|` are also accepted |
 | `{{~answer}}` | a blank interchangeable with the one before it — answers count in any order |
+| `{{=answer}}` | a **numeric** blank — equivalent forms (`0.5`, `1/2`, `.50`) all count |
+| `{{=answer +- tol}}` | a numeric blank accepting answers within ± `tol` |
 | a paragraph containing `{{…}}` | a **fill-in-the-blank problem block** |
 | a list whose items contain `{{…}}` | **one problem block per item** |
 | `## Topic {checkpoint}` | a **checkpoint section break** titled "Topic" |
@@ -33,6 +35,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 - **Blanks only work in paragraphs and list items.** A `{{…}}` inside a heading stays literal text (headings can't hold blanks).
 - **A blank needs at least one character.** `{{}}` is treated as literal text, not a blank. Put a real answer in the braces.
 - **Order-independent blanks (`~`).** A leading tilde on a blank — `{{~3}}` — marks it interchangeable with the blank just before it in the same problem. For factoring, `(x + {{2}})(x + {{~3}})` accepts 2 and 3 in either order but rejects 2 and 2, because each correct answer can satisfy only one blank. The `~` belongs on the second (and later) blanks of a group; on a problem's first blank it has no effect.
+- **Numeric blanks (`=`).** A leading equals sign — `{{=12}}` — makes the blank numeric: the student's entry is parsed as a number and every equivalent form counts (`0.5`, `1/2`, `.50`, `1 1/2`, `1,234`, `$3.50`). An optional trailing `+- tol` (or `± tol`) accepts anything within that absolute tolerance: `{{=3.14 +- 0.01}}`. Combine with the tilde as `{{~=3}}` (tilde first). Prefer numeric blanks for any purely numeric answer — with a plain `{{0.5}}` a student typing `1/2` is marked wrong.
 - **A list of problems flattens.** If each item of a numbered or bulleted list contains a blank, the list becomes one problem block per item (the editor re-numbers them). A list with no blanks stays an ordinary list.
 - **Display math must stand alone.** `$$…$$` becomes a block-level equation only when it is its own paragraph (blank line above and below). Inline `$…$` can appear anywhere in a line.
 - **Inline math has a guard.** A lone `$` or currency like `$5 and $10` is *not* treated as math — only a properly closed `$…$` with no space just inside the delimiters.
@@ -88,6 +91,11 @@ FILL-IN-THE-BLANK
   second one with a leading tilde:  (x + {{2}})(x + {{~3}}). Each answer still
   counts once, so 2 and 3 in either order is right but 2 and 2 is not.
 - Always put a real answer inside the braces (an empty {{}} is ignored).
+- For a NUMERIC answer, put = right after the braces:  the area is {{=12}}.
+  Numeric blanks accept every equivalent form — 0.5, 1/2, .50, and 1,234
+  all count — so prefer them for any purely numeric answer. Add a tolerance
+  with +- at the end:  pi is about {{=3.14 +- 0.01}}. Combine with the
+  tilde as {{~=3}}.
 - Blanks work only in normal paragraphs and list items — never inside a heading.
 - A numbered or bulleted list whose items each contain a blank becomes one
   problem per item — a clean way to write a problem set.
