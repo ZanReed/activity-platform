@@ -86,6 +86,8 @@ export {
   scoreSegmentParts,
   rayKeyShape,
   canonicalPair,
+  rayArrowGlyphs,
+  endpointLabels,
 } from './graph-score.js';
 export type {
   PointAnswerKey,

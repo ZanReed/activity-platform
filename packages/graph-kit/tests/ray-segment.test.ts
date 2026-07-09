@@ -15,6 +15,8 @@ import {
   scoreSegmentParts,
   rayKeyShape,
   canonicalPair,
+  rayArrowGlyphs,
+  endpointLabels,
   type RayAnswerKey,
   type SegmentAnswerKey,
   type LinearPieceStudentAnswer,
@@ -121,6 +123,39 @@ describe('scoreSegment (shape model)', () => {
     expect(
       scoreSegmentParts(key, ans([[-2, 0], [4, 2]], 'segment', ['open', 'closed'])).earned,
     ).toBe(4);
+  });
+});
+
+describe('rayArrowGlyphs / endpointLabels (true directions)', () => {
+  it('horizontal-ish positive slope → →/← arrows', () => {
+    expect(rayArrowGlyphs([0, 0], [4, 1])).toEqual({ positive: '→', negative: '←' });
+  });
+
+  it('45° slope → diagonal arrows', () => {
+    expect(rayArrowGlyphs([0, 0], [3, 3])).toEqual({ positive: '↗', negative: '↙' });
+  });
+
+  it('REGRESSION: steep negative slope — the glyph says ↓ when the arrow draws down', () => {
+    // Line through (-1, 4) and (0, 0): canonical lesser is (-1, 4); the
+    // positive ray heads toward (0, 0) — down and slightly right.
+    expect(rayArrowGlyphs([-1, 4], [0, 0])).toEqual({ positive: '↓', negative: '↑' });
+    // A gentler negative diagonal snaps to ↘/↖.
+    expect(rayArrowGlyphs([0, 3], [3, 0])).toEqual({ positive: '↘', negative: '↖' });
+  });
+
+  it('true vertical → ↑/↓ (positive = up)', () => {
+    expect(rayArrowGlyphs([2, -1], [2, 5])).toEqual({ positive: '↑', negative: '↓' });
+  });
+
+  it('coincident handles fall back to →/←', () => {
+    expect(rayArrowGlyphs([1, 1], [1, 1])).toEqual({ positive: '→', negative: '←' });
+  });
+
+  it('segment labels name the endpoints by their REAL position', () => {
+    expect(endpointLabels([0, 0], [4, 1])).toEqual(['Left', 'Right']);
+    expect(endpointLabels([2, -1], [2, 5])).toEqual(['Bottom', 'Top']);
+    // Steep negative slope: the canonical (x-lesser) endpoint is the HIGH one.
+    expect(endpointLabels([-1, 4], [0, 0])).toEqual(['Top', 'Bottom']);
   });
 });
 

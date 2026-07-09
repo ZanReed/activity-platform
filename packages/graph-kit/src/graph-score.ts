@@ -443,6 +443,48 @@ export function rayKeyShape(key: RayAnswerKey): LinearShape {
   return key.through[1] - key.from[1] > 0 ? 'ray_positive' : 'ray_negative';
 }
 
+/**
+ * TRUE-direction pill glyphs for the two ray options of a drawn line. The
+ * "positive" ray extends from the canonical lesser handle through the greater
+ * one (the same x-first rule scoring uses); its glyph is that direction's
+ * actual angle snapped to 8 arrows — so the pill always shows exactly which
+ * way the arrowhead will draw. A steep negative-slope line therefore reads
+ * "Ray ↘ / Ray ↖", never a lying "Ray ↑". Coincident handles fall back to →/←.
+ */
+export function rayArrowGlyphs(
+  a: [number, number],
+  b: [number, number],
+): { positive: string; negative: string } {
+  const [lesser, greater] = canonicalPair(a, b);
+  const dx = greater[0] - lesser[0];
+  const dy = greater[1] - lesser[1];
+  if (Math.hypot(dx, dy) < 1e-9) return { positive: '→', negative: '←' };
+  // Screen-math orientation: +y is UP. Snap the angle to 8 sectors.
+  const arrows = ['→', '↗', '↑', '↖', '←', '↙', '↓', '↘'];
+  const sector = Math.round((Math.atan2(dy, dx) * 4) / Math.PI) & 7;
+  const positive = arrows[((sector % 8) + 8) % 8]!;
+  const negative = arrows[(((sector + 4) % 8) + 8) % 8]!;
+  return { positive, negative };
+}
+
+/**
+ * Truthful position labels for a segment's two CANONICAL endpoints (lesser
+ * first). For a mostly-horizontal line the lesser endpoint is genuinely the
+ * left one; for a steep line the canonical order is still x-first, so the
+ * lesser endpoint may be the visually HIGHER one — label by real height, not
+ * by index.
+ */
+export function endpointLabels(
+  a: [number, number],
+  b: [number, number],
+): [string, string] {
+  const [lesser, greater] = canonicalPair(a, b);
+  if (Math.abs(greater[0] - lesser[0]) >= Math.abs(greater[1] - lesser[1])) {
+    return ['Left', 'Right'];
+  }
+  return lesser[1] <= greater[1] ? ['Bottom', 'Top'] : ['Top', 'Bottom'];
+}
+
 /** Canonical order for two points: lesser first (by x, tie-break y). */
 export function canonicalPair(
   a: [number, number],

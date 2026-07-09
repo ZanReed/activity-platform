@@ -24,6 +24,8 @@ import {
   scoreRayParts,
   scoreSegmentParts,
   canonicalPair,
+  rayArrowGlyphs,
+  endpointLabels,
   fitFunction,
   handlesForFamily,
   type PointAnswerKey,
@@ -188,8 +190,10 @@ function recipeFor(interactionType: string, answerKey: unknown): Recipe {
 
 // ---- Shared linear-shape controls (student widget + author board) -----------
 // The ray/segment interaction is "two handles + a SHAPE choice + endpoint
-// styles". The pills, their dynamic labels (→/← vs ↑/↓ for vertical lines),
-// and the board sync (arrowhead + hollow/filled dots) live HERE, once — the
+// styles". The pills, their TRUE-direction labels (8-way arrows computed from
+// the drawn line, so a pill never claims ↑ while drawing ↓ on a steep
+// negative slope), and the board sync (arrowhead + hollow/filled dots) live
+// HERE, once — the
 // student widget and the teacher's authoring board mount the SAME controls,
 // so authoring is literally the student experience and the two can't drift.
 
@@ -222,14 +226,6 @@ function createLinearShapeControls(
     shape: null,
     rayEndpointStyle: 'closed',
     segStyles: ['closed', 'closed'],
-  };
-
-  const lineIsVertical = (): boolean => {
-    const pts = board.getPoints();
-    const a = pts[0];
-    const b = pts[1];
-    if (!a || !b) return false;
-    return Math.abs(a[1] - b[1]) > Math.abs(a[0] - b[0]);
   };
 
   const pickShape = (shape: LinearShape): void => {
@@ -280,18 +276,22 @@ function createLinearShapeControls(
     }
     board.setEndpointStyles?.(styles);
 
-    // Pills: labels re-orient for vertical lines; style pills are contextual.
-    const vertical = lineIsVertical();
-    rayPosBtn.textContent = vertical ? 'Ray ↑' : 'Ray →';
-    rayNegBtn.textContent = vertical ? 'Ray ↓' : 'Ray ←';
+    // Pills: TRUE-direction glyphs — each ray pill shows the actual 8-way
+    // direction its arrowhead would draw for the line as currently plotted
+    // (a steep negative-slope line reads "Ray ↘ / Ray ↖", never a lying
+    // "Ray ↑"); segment style labels name each endpoint's real position.
+    const glyphs = rayArrowGlyphs(a, b);
+    rayPosBtn.textContent = 'Ray ' + glyphs.positive;
+    rayNegBtn.textContent = 'Ray ' + glyphs.negative;
     setPillActive(rayPosBtn, state.shape === 'ray_positive');
     setPillActive(rayNegBtn, state.shape === 'ray_negative');
     setPillActive(segmentBtn, state.shape === 'segment');
     rayStyleBtn.hidden = !(state.shape === 'ray_positive' || state.shape === 'ray_negative');
     rayStyleBtn.textContent =
       state.rayEndpointStyle === 'closed' ? 'Endpoint: ● closed' : 'Endpoint: ○ open';
+    const names = endpointLabels(a, b);
     const segLabelFor = (which: 0 | 1): string => {
-      const name = which === 0 ? (vertical ? 'Bottom' : 'Left') : vertical ? 'Top' : 'Right';
+      const name = names[which];
       return state.segStyles[which] === 'closed' ? name + ': ● closed' : name + ': ○ open';
     };
     segStartBtn.hidden = state.shape !== 'segment';

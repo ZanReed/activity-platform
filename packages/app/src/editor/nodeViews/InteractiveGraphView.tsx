@@ -144,6 +144,7 @@ function GraphAuthorBoard({
     interaction,
     onPointsChange,
     onLinearChange,
+    formulaEpoch,
 }: {
     axisConfig: GraphAxisConfig;
     interaction: GraphInteraction;
@@ -154,6 +155,10 @@ function GraphAuthorBoard({
         rayEndpointStyle: 'open' | 'closed';
         segStyles: ['open' | 'closed', 'open' | 'closed'];
     }) => void;
+    /** Bumped when the freeform answer field applies: remounts the board so
+     *  the handles (and shape pills) jump to the typed answer. Drags never
+     *  bump it — remounting mid-drag would yank the board from the pointer. */
+    formulaEpoch?: number;
 }) {
     const hostRef = useRef<HTMLDivElement>(null);
     const cbRef = useRef(onPointsChange);
@@ -203,12 +208,12 @@ function GraphAuthorBoard({
     // teacher's pointer.
     const typeKey = interaction.type === 'plot_segment' ? 'plot_ray' : interaction.type;
     const key = useMemo(
-        () => JSON.stringify([axisConfig, typeKey, family, count]),
+        () => JSON.stringify([axisConfig, typeKey, family, count, formulaEpoch ?? 0]),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [
             axisConfig.xMin, axisConfig.xMax, axisConfig.yMin, axisConfig.yMax,
             axisConfig.xGridStep, axisConfig.yGridStep, axisConfig.showGrid,
-            axisConfig.snapToGrid, typeKey, family, count,
+            axisConfig.snapToGrid, typeKey, family, count, formulaEpoch,
         ],
     );
 
@@ -553,6 +558,10 @@ export default function InteractiveGraphView({
     // match string uses the same freeform syntax as the answer field; a bad one
     // gets an inline warning but is still stored (it compiles to never-matching
     // in the kit, so it can't break a page).
+    // Formula-apply epoch: bumping remounts the author board so handles +
+    // shape pills jump to the typed answer (drags never bump it).
+    const [formulaEpoch, setFormulaEpoch] = useState(0);
+
     const mistakeEntries = (node.attrs.mistakeFeedback ?? []) as GraphMistakeEntry[];
     const setMistakeEntry = (i: number, entry: GraphMistakeEntry): void => {
         updateAttributes({
@@ -637,6 +646,12 @@ export default function InteractiveGraphView({
     // The freeform answer field (Drop 3): type an equation/coordinates in ANY
     // format → parse → the answer + handles update. Applied on Enter or blur.
     const applyFormula = (raw: string): string | null => {
+        const err = applyFormulaInner(raw);
+        if (err === null) setFormulaEpoch((e) => e + 1);
+        return err;
+    };
+
+    const applyFormulaInner = (raw: string): string | null => {
         if (interaction.type === 'plot_point') {
             const points = parsePointList(raw);
             if (!points) return 'Type coordinates, like (2, 3) or (1, 2), (3, 4)';
@@ -794,6 +809,7 @@ export default function InteractiveGraphView({
                             interaction={interaction}
                             onPointsChange={onPointsChange}
                             onLinearChange={onLinearChange}
+                            formulaEpoch={formulaEpoch}
                         />
 
                         <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>

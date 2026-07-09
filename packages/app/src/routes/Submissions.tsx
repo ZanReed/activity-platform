@@ -28,6 +28,7 @@ import {
     migrateSubmissionResponses,
     type ConfidenceLevel,
 } from '@activity/schema';
+import { rayArrowGlyphs } from '@activity/graph-kit';
 import { supabase } from '../lib/supabase';
 import {
     buildActivityIndex,
@@ -40,6 +41,19 @@ import {
 
 const UUID_RE =
 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// True 8-way direction glyph for a drawn ray (same rule as the widget's
+// pills): the shape picks which end of the canonical pair the arrow leaves.
+function rayGlyphFor(
+    points: [number, number][],
+    shape: 'ray_positive' | 'ray_negative',
+): string {
+    const a = points[0];
+    const b = points[1];
+    if (!a || !b) return '';
+    const g = rayArrowGlyphs(a, b);
+    return shape === 'ray_positive' ? g.positive : g.negative;
+}
 
 const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
     unsure: 'Unsure',
@@ -326,9 +340,7 @@ function SubmissionDetail({
                         ` — drew ${
                             g.resp.shape === 'segment'
                                 ? 'a segment'
-                                : g.resp.shape === 'ray_positive'
-                                  ? 'a ray (positive direction)'
-                                  : 'a ray (negative direction)'
+                                : `a ray ${rayGlyphFor(g.resp.studentPoints, g.resp.shape)}`
                         }`}
                     {g.resp.type === 'plot_ray' && ` (${g.resp.fromStyle} endpoint)`}
                     {g.resp.type === 'plot_segment' &&
