@@ -60,6 +60,7 @@ export const MARKDOWN_IMPORT_AI_PROMPT = [
     '- Optional targeted feedback for an anticipated wrong answer (repeatable):',
     '    mistake: y = x + 2 :: Remember - the number multiplying x is the slope.',
     '    mistake: (4, 3) :: Coordinates are (x, y) - x comes first.',
+    '    mistake: segment (1, 2) to (3, 4) :: Think about whether the graph should stop or keep going.',
     '- For an ungraded figure, use show: lines instead of an answer:',
     '    show: point (2, 3) closed "A"',
     '    show: line y = x dashed      (dotted works too)',

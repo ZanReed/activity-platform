@@ -116,6 +116,7 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
 - Optional targeted feedback for an anticipated wrong answer (repeatable):
     mistake: y = x + 2 :: Remember - the number multiplying x is the slope.
     mistake: (4, 3) :: Coordinates are (x, y) - x comes first.
+    mistake: segment (1, 2) to (3, 4) :: Think about whether the graph should stop or keep going.
 - For an ungraded figure, use show: lines instead of an answer:
     show: point (2, 3) closed "A"
     show: line y = x dashed      (dotted works too)
@@ -150,7 +151,7 @@ options: partial-credit, allow-no-solution
 
 - `axes: xMin..xMax, yMin..yMax` (optional; defaults -10..10 each way).
 - `prompt:` the question text (optional). Accepts `$inline$` math with the same currency guard as body text; `{{…}}` blanks stay literal here.
-- `mistake:` (repeatable) an anticipated wrong answer + targeted feedback, separated by `::` — e.g. `mistake: y = x + 2 :: Remember - the number multiplying x is the slope.` The wrong answer uses the same syntax as `answer:`.
+- `mistake:` (repeatable) an anticipated wrong answer + targeted feedback, separated by `::` — e.g. `mistake: y = x + 2 :: Remember - the number multiplying x is the slope.` The wrong answer uses the same syntax as `answer:`; on a ray/segment question either figure matches (the classic ray mistake is its segment version).
 - `answer:` ONE of — an equation (`y = 2x + 3`, `2x + 3y = 6`, `x^2 - 4`, `x = 4`); an inequality (`y > 2x + 1`, `x <= 3` — the sign sets dotted/solid + shaded side); a point list (`(2, 3), (4, 5)`); a ray or segment (`ray (1, 2) through (3, 4) open`, `segment (1, 2) to (3, 4) open closed` — `open`/`closed` set endpoint styles, default closed); `region (0,0), (4,0), (2,4)`; or `none` (a "cannot be graphed" trick question). Domain clauses (`… for x >= 0`) are no longer accepted — write a ray or segment instead.
 - `show:` display drawables (no answer lines → a static display graph): `point (x, y) [open|closed] ["label"]`, `line <equation or inequality> [dashed|dotted]`, `expression <any formula> [dashed|dotted]`, `segment (a,b) (c,d)`, `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
 - `options:` `partial-credit`, `allow-no-solution`, `no-solution-correct`.
