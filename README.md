@@ -57,7 +57,17 @@ Three rules. Violating any of them rots the architecture.
 
 **The renderer never touches the DOM, never reads the environment, never does I/O.** No `window`, no `document`, no `process.env`, no `fs`, no `fetch`. If it needs a value (activity id, submission endpoint), it takes it as a parameter. This is what keeps every deployment option open: build-time static rendering, on-demand SSR, edge-function rendering, headless tests.
 
-**Adding a new block type is mechanical, but it touches every package, in this order.** Schema side: a new file under `packages/schema/src/blocks/`, registered in `blocks/index.ts`'s discriminated union, then a factory in `packages/schema/src/factories.ts`. Renderer side: a new file under `packages/renderer/src/blocks/`, registered in `blocks/index.ts`'s dispatch switch (the `never` exhaustiveness check won't compile until you add it), plus matching styles in `packages/renderer/src/runtime/styles.ts`. Editor side: one entry in `packages/app/src/editor/slashMenuItems.ts` — it drives BOTH the slash menu and the toolbar's "+ Insert" dropdown, so there is no separate toolbar step — and a Tiptap extension (plus a NodeView for blocks that render interactively, like math) under `packages/app/src/editor/`. The pattern in `problem.ts` / `fill-in-blank.ts` (schema and renderer) and `MathInline` (editor) is the canonical reference; CLAUDE.md keeps the standing constraints.
+**Adding a new block type is mechanical, but it touches every package — and more places than the obvious ones.** The multiple-choice block shipped missing two of these (couldn't be placed in columns, wasn't indexed there — fixed in `3ffb6d4`), so the checklist below is deliberately exhaustive, and the starred items are enforced by structural guard tests that fail until you do them.
+
+*Schema:* a new file under `packages/schema/src/blocks/`, registered in `blocks/index.ts`'s discriminated union; a factory in `packages/schema/src/factories.ts`; ★ added to `ColumnCellBlock` in `blocks/columns.ts` (guard: `schema/tests/columns.test.ts`).
+
+*Renderer:* a new file under `packages/renderer/src/blocks/`, registered in `blocks/index.ts`'s dispatch switch (the `never` exhaustiveness check won't compile until you add it), plus matching styles in `packages/renderer/src/runtime/styles.ts`. If the block is interactive, RUNTIME.md's data-attribute contract gains a section (additive only) and the runtime grows its wiring.
+
+*Editor:* a Tiptap extension (plus a NodeView for blocks that render interactively) under `packages/app/src/editor/`; one entry in `slashMenuItems.ts` — it drives BOTH the slash menu and the toolbar's "+ Insert" dropdown, so there is no separate toolbar step; ★ the node name added to the `Column` node's content expression in `extensions/Columns.ts` (guard: `app/src/__tests__/blockTypeGuards.test.ts`, which also requires a `representativeBlock` case for the new type); registered in `ReferencePanelEditor.tsx` if the serializer can emit it in panel content (guard: `ActivityConfigDrawer.test.tsx`); both directions in `lib/serialize.ts`.
+
+*App plumbing:* ★ `buildActivityIndex` in `lib/submissions.ts` if the block is a question (same guard file — index parity inside columns is asserted for every block type), plus the Submissions dashboard rendering for its response category. Optionally: the markdown importer (`lib/markdownToTiptap.ts`) + `docs/markdown-import-format.md` + the Copy-AI prompt (their own drift-guard test keeps the three in lockstep).
+
+The pattern in `problem.ts` / `fill-in-blank.ts` (schema and renderer) and `MathInline` (editor) is the canonical reference; CLAUDE.md keeps the standing constraints (wire-format rules, bundle re-generation, deploy ordering).
 
 ## Quick example
 
