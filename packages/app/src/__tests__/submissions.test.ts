@@ -314,6 +314,57 @@ describe('buildActivityIndex', () => {
         expect(idx.blanks.size).toBe(0);
     });
 
+    it('indexes a multiple_choice block with lettered choices + answer summary', () => {
+        const mcDoc: ActivityDocument = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta: {
+                title: 'MC', course: 'Algebra I', submissionMode: 'free',
+                revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet',
+                answerFeedback: 'on_check', skills: [],
+            },
+            sections: [
+                {
+                    id: U(420), title: 'Choose', isCheckpoint: true,
+                    blocks: [
+                        {
+                            id: U(520), type: 'multiple_choice', number: 3,
+                            prompt: [{ type: 'text', text: 'What is 2 + 2?', marks: [] }],
+                            multiSelect: false,
+                            choices: [
+                                {
+                                    id: U(600),
+                                    content: [{ type: 'text', text: '3', marks: [] }],
+                                    correct: false,
+                                },
+                                {
+                                    id: U(601),
+                                    content: [
+                                        { type: 'math_inline', latex: '\\sqrt{16}' },
+                                    ],
+                                    correct: true,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(mcDoc);
+        expect(idx.mcs.size).toBe(1);
+        const m = idx.mcs.get(U(520))!;
+        expect(m.problemNumber).toBe(3);
+        expect(m.problemPrompt).toBe('What is 2 + 2?');
+        expect(m.multiSelect).toBe(false);
+        expect(m.choices.map((c) => c.letter)).toEqual(['A', 'B']);
+        // Math choice text falls back to LaTeX source, like prompts do.
+        expect(m.choices[1]!.text).toBe('\\sqrt{16}');
+        expect(m.answerSummary).toBe('B. \\sqrt{16}');
+        expect(m.sectionTitle).toBe('Choose');
+        // Not mistaken for a blank or a graph.
+        expect(idx.blanks.size).toBe(0);
+        expect(idx.graphs.size).toBe(0);
+    });
+
     it('summarizes a plot_function (linear) answer as an equation', () => {
         const funcDoc: ActivityDocument = ActivityDocument.parse({
             schemaVersion: 1,

@@ -156,9 +156,34 @@ function formatLinear(slope: number, intercept: number): string {
     return `y = ${m}x${bPart}`;
 }
 
+// One choice of a multiple_choice block, for reading its submission back.
+export interface McChoiceInfo {
+    id: string;
+    /** "A" / "B" / … by document position. */
+    letter: string;
+    /** Plain-text rendering of the choice content (LaTeX shown as source). */
+    text: string;
+    correct: boolean;
+}
+
+// One multiple_choice block, for reading its submission back.
+export interface McInfo {
+    blockId: string;
+    problemNumber: number | null;
+    problemPrompt: string;
+    multiSelect: boolean;
+    /** Choices in document order (selected ids resolve through this). */
+    choices: McChoiceInfo[];
+    /** Human-readable answer key, e.g. "B. 4" or "A. 2, C. 5". */
+    answerSummary: string;
+    sectionId: string;
+    sectionTitle: string | null;
+}
+
 export interface ActivityIndex {
     blanks: Map<string, BlankInfo>;
     graphs: Map<string, GraphInfo>;
+    mcs: Map<string, McInfo>;
     sections: Map<string, SectionInfo>;
 }
 
@@ -192,6 +217,7 @@ function canonicalAnswer(answer: string, acceptable: string[]): string {
 export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
     const blanks = new Map<string, BlankInfo>();
     const graphs = new Map<string, GraphInfo>();
+    const mcs = new Map<string, McInfo>();
     const sections = new Map<string, SectionInfo>();
 
     doc.sections.forEach((section, idx) => {
@@ -286,6 +312,32 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 });
                 continue;
             }
+            if (block.type === 'multiple_choice') {
+                const choices: McChoiceInfo[] = block.choices.map(
+                    (choice, index) => ({
+                        id: choice.id,
+                        letter: String.fromCharCode(65 + (index % 26)),
+                        text: reconstructPrompt(choice.content),
+                        correct: choice.correct,
+                    }),
+                );
+                const answerSummary =
+                    choices
+                        .filter((c) => c.correct)
+                        .map((c) => `${c.letter}. ${c.text}`)
+                        .join(', ') || '—';
+                mcs.set(block.id, {
+                    blockId: block.id,
+                    problemNumber: block.number ?? null,
+                    problemPrompt: reconstructPrompt(block.prompt),
+                    multiSelect: block.multiSelect,
+                    choices,
+                    answerSummary,
+                    sectionId: section.id,
+                    sectionTitle: section.title ?? null,
+                });
+                continue;
+            }
             if (block.type !== 'fill_in_blank') continue;
             const prompt = reconstructPrompt(block.content);
 
@@ -342,7 +394,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
         }
     });
 
-    return { blanks, graphs, sections };
+    return { blanks, graphs, mcs, sections };
 }
 
 // ---- Score formatting -------------------------------------------------------

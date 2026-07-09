@@ -224,6 +224,24 @@ function SubmissionDetail({
 
     const blankCount = Object.keys(responses.blanks).length;
 
+    // Multiple-choice responses, ordered by problem number then id. Selected
+    // choice ids resolve to letters + text through the activity index; a
+    // choice id no longer in the document renders as "?".
+    const mcRows = responses.choices
+        ? Object.entries(responses.choices)
+              .map(([blockId, resp]) => ({
+                  blockId,
+                  info: index.mcs.get(blockId),
+                  resp,
+              }))
+              .sort((a, b) => {
+                  const an = a.info?.problemNumber ?? Infinity;
+                  const bn = b.info?.problemNumber ?? Infinity;
+                  if (an !== bn) return an - bn;
+                  return a.blockId.localeCompare(b.blockId);
+              })
+        : [];
+
     // Interactive-graph responses (Stage 5), ordered by problem number then id.
     const graphRows = responses.graphResponses
         ? Object.entries(responses.graphResponses)
@@ -242,7 +260,7 @@ function SubmissionDetail({
 
     return (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
-        {blankCount === 0 && graphRows.length === 0 ? (
+        {blankCount === 0 && graphRows.length === 0 && mcRows.length === 0 ? (
             <p className="text-sm text-slate-500">No responses recorded.</p>
         ) : (
             <div className="space-y-4">
@@ -301,6 +319,68 @@ function SubmissionDetail({
                 </table>
                 </div>
             ))}
+
+            {mcRows.length > 0 && (
+                <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Multiple choice
+                </p>
+                <table className="mt-2 w-full text-sm">
+                <thead>
+                <tr className="text-left text-xs text-slate-400">
+                <th className="py-1 pr-3 font-medium">Problem</th>
+                <th className="py-1 pr-3 font-medium">Answer key</th>
+                <th className="py-1 pr-3 font-medium">Student picked</th>
+                <th className="py-1 pr-3 font-medium">Result</th>
+                <th className="py-1 font-medium">Confidence</th>
+                </tr>
+                </thead>
+                <tbody>
+                {mcRows.map((m) => (
+                    <tr key={m.blockId} className="border-t border-slate-200">
+                    <td className="py-1 pr-3 text-slate-700">
+                    {m.info?.problemNumber != null
+                        ? `Problem ${m.info.problemNumber}`
+                        : 'Question'}
+                    {m.info?.problemPrompt && (
+                        <span className="block text-xs text-slate-400">
+                        {m.info.problemPrompt}
+                        </span>
+                    )}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-600">
+                    {m.info ? m.info.answerSummary : '—'}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-900">
+                    {m.resp.selected
+                        .map((choiceId) => {
+                            const choice = m.info?.choices.find(
+                                (c) => c.id === choiceId,
+                            );
+                            return choice
+                                ? `${choice.letter}. ${choice.text}`
+                                : '?';
+                        })
+                        .join(', ')}
+                    </td>
+                    <td className="py-1 pr-3">
+                    {m.resp.correct ? (
+                        <span className="font-medium text-green-700">✓ correct</span>
+                    ) : (
+                        <span className="font-medium text-red-600">✗ incorrect</span>
+                    )}
+                    </td>
+                    <td className="py-1 text-slate-600">
+                    {m.resp.confidence
+                        ? CONFIDENCE_LABELS[m.resp.confidence]
+                        : '—'}
+                    </td>
+                    </tr>
+                ))}
+                </tbody>
+                </table>
+                </div>
+            )}
 
             {graphRows.length > 0 && (
                 <div>
