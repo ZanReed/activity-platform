@@ -1221,6 +1221,87 @@ describe('lists', () => {
             ]);
         });
 
+        it('round-trips a multiple_choice block (choices, multiSelect, feedback, solution)', () => {
+            const choiceA = '550e8400-e29b-41d4-a716-446655440101';
+            const choiceB = '550e8400-e29b-41d4-a716-446655440102';
+            const attrs = {
+                id: 'mc-1',
+                choices: [
+                    {
+                        id: choiceA,
+                        content: [{ type: 'text', text: '4', marks: [] }],
+                        correct: true,
+                        feedback: [
+                            { type: 'text', text: 'Right — 2 + 2 = 4.', marks: [] },
+                        ],
+                    },
+                    {
+                        id: choiceB,
+                        content: [{ type: 'math_inline', latex: '\\sqrt{25}' }],
+                        correct: false,
+                    },
+                ],
+                multiSelect: false,
+                solution: [{ type: 'text', text: 'Add them.', marks: [] }],
+                hasConfidenceRating: true,
+                skills: [],
+                workSpace: null,
+            };
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'multipleChoice',
+                        attrs,
+                        content: [{ type: 'text', text: 'What is 2 + 2?' }],
+                    },
+                ],
+            };
+            const result = roundTrip(doc);
+            const mc = result.content?.[0] as JSONContent;
+            expect(mc.type).toBe('multipleChoice');
+            // Block id is re-minted (file-header convention); choice ids are
+            // preserved — they key the submission's choices map.
+            expect(mc.attrs).toMatchObject({
+                choices: attrs.choices,
+                multiSelect: false,
+                solution: attrs.solution,
+                hasConfidenceRating: true,
+            });
+            expect(mc.content).toEqual([
+                { type: 'text', text: 'What is 2 + 2?' },
+            ]);
+        });
+
+        it('pads a multiple_choice below two choices instead of dropping it', () => {
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'multipleChoice',
+                        attrs: {
+                            id: 'mc-2',
+                            choices: [
+                                {
+                                    id: '550e8400-e29b-41d4-a716-446655440103',
+                                    content: [],
+                                    correct: true,
+                                },
+                            ],
+                            multiSelect: false,
+                        },
+                        content: [],
+                    },
+                ],
+            };
+            const activity = tiptapToActivity(doc, META);
+            const block = activity.sections[0]!.blocks[0]!;
+            expect(block.type).toBe('multiple_choice');
+            if (block.type === 'multiple_choice') {
+                expect(block.choices).toHaveLength(2);
+            }
+        });
+
         it('drops a stray tolerance on a text blank (meaningless without numeric)', () => {
             const doc: JSONContent = {
                 type: 'doc',

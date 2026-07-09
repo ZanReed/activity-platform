@@ -26,6 +26,7 @@ import { Blank } from './extensions/Blank';
 import { Columns, Column } from './extensions/Columns';
 import { Image } from './extensions/Image';
 import { InteractiveGraph } from './extensions/InteractiveGraph';
+import { MultipleChoice } from './extensions/MultipleChoice';
 import { Definition } from './extensions/Definition';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
@@ -112,6 +113,9 @@ export default function Editor({
             // editable prompt (NodeViewContent) + a live author board reusing
             // the graph kit; only plot_point is functional so far.
             InteractiveGraph,
+            // Multiple-choice question block: editable prompt + structured
+            // choice list (single or multi-select), authored in-place.
+            MultipleChoice,
         ],
         content: initialContent,
         onCreate: ({ editor }) => {

@@ -217,6 +217,15 @@ export const slashMenuItems: SlashMenuItem[] = [
             begin(editor, range).insertInteractiveGraph().run();
         },
     },
+    {
+        title: 'Multiple choice',
+        description: 'A question with answer choices — single answer or select-all-that-apply.',
+        keywords: ['multiple', 'choice', 'mc', 'select', 'options', 'quiz', 'radio', 'checkbox'],
+        group: 'Questions',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertMultipleChoice().run();
+        },
+    },
 ];
 
 // Group headings in dropdown display order.

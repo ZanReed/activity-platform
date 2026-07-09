@@ -56,8 +56,14 @@ import type {
     ImageBlock,
     MathBlock,
     InteractiveGraphBlock,
+    MultipleChoiceBlock,
+    MultipleChoiceOption,
 } from '@activity/schema';
-import { SIMPLE_MARK_TYPES, createInteractiveGraphBlock } from '@activity/schema';
+import {
+    SIMPLE_MARK_TYPES,
+    createInteractiveGraphBlock,
+    createMultipleChoiceOption,
+} from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 
 // Canonical inline content (rich text + inline math) as the schema models it.
@@ -183,6 +189,8 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
 
         case 'interactiveGraph':
             return tiptapInteractiveGraphToActivity(node);
+        case 'multipleChoice':
+            return tiptapMultipleChoiceToActivity(node);
         case 'fillInBlank':
             return tiptapFillInBlankToActivity(node);
 
@@ -330,6 +338,69 @@ function tiptapFillInBlankToActivity(node: JSONContent): FillInBlankBlock {
     // carry a non-negative number; null/absent leaves the key off so round-trip
     // equality holds for problems with no per-problem override.
     const rawWorkSpace = node.attrs?.workSpace;
+    if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
+        block.workSpace = rawWorkSpace;
+    }
+
+    return block;
+}
+
+function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock {
+    const attrs = node.attrs ?? {};
+
+    // Choices come through as the canonical schema shape (the NodeView writes
+    // them that way). Sanitize each entry structurally; drop malformed ones.
+    // The NodeView disables removal below two choices, but pad defensively so
+    // a hand-crafted or damaged payload still yields a schema-valid block
+    // instead of dropping the teacher's work at save time.
+    const rawChoices = Array.isArray(attrs.choices) ? attrs.choices : [];
+    const choices: MultipleChoiceOption[] = [];
+    for (const raw of rawChoices as unknown[]) {
+        if (!raw || typeof raw !== 'object') continue;
+        const c = raw as {
+            id?: unknown;
+            content?: unknown;
+            correct?: unknown;
+            feedback?: unknown;
+        };
+        const option: MultipleChoiceOption = {
+            id:
+                typeof c.id === 'string' && c.id.length > 0
+                    ? c.id
+                    : crypto.randomUUID(),
+            content: Array.isArray(c.content) ? (c.content as InlineNode[]) : [],
+            correct: c.correct === true,
+        };
+        if (Array.isArray(c.feedback) && c.feedback.length > 0) {
+            option.feedback = c.feedback as InlineNode[];
+        }
+        choices.push(option);
+    }
+    while (choices.length < 2) {
+        choices.push(createMultipleChoiceOption());
+    }
+
+    const block: MultipleChoiceBlock = {
+        id: crypto.randomUUID(),
+        type: 'multiple_choice',
+        prompt: tiptapInlineToActivity(node.content ?? []),
+        choices,
+        multiSelect: attrs.multiSelect === true,
+        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
+        skills: Array.isArray(attrs.skills)
+            ? (attrs.skills as unknown[]).filter(
+                  (s): s is string => typeof s === 'string',
+              )
+            : [],
+    };
+
+    // Optional fields — carried only when meaningful, same omit-when-absent
+    // discipline as fill-in-blank.
+    const rawSolution = attrs.solution;
+    if (Array.isArray(rawSolution) && rawSolution.length > 0) {
+        block.solution = rawSolution as InlineNode[];
+    }
+    const rawWorkSpace = attrs.workSpace;
     if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
         block.workSpace = rawWorkSpace;
     }
@@ -689,9 +760,11 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'interactive_graph':
             return activityInteractiveGraphToTiptap(block);
 
+        case 'multiple_choice':
+            return activityMultipleChoiceToTiptap(block);
+
         case 'callout':
         case 'problem':
-        case 'multiple_choice':
             console.warn(
                 `[serialize] No Tiptap mapping for ${block.type} yet; block omitted from editor view.`,
             );
@@ -795,6 +868,24 @@ function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
             workSpace: block.workSpace ?? null,
         },
         content: activityFillInBlankInlineToTiptap(block.content),
+    };
+}
+
+function activityMultipleChoiceToTiptap(block: MultipleChoiceBlock): JSONContent {
+    return {
+        type: 'multipleChoice',
+        attrs: {
+            id: block.id,
+            // Canonical schema shape passes straight through (the NodeView
+            // edits it in place).
+            choices: block.choices,
+            multiSelect: block.multiSelect,
+            solution: block.solution ?? null,
+            hasConfidenceRating: block.hasConfidenceRating,
+            skills: block.skills,
+            workSpace: block.workSpace ?? null,
+        },
+        content: activityInlineToTiptap(block.prompt),
     };
 }
 

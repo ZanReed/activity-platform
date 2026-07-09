@@ -355,6 +355,128 @@
 
 /* Block settings footer (Stage 15). Spans both grid columns so it sits
  * beneath the number + body, not in the body column. */
+/* Multiple-choice block — same resting/selected chrome as fill-in-blank.
+ * Reuses fill-in-blank-block__settings for its footer. */
+.mc-block {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding: 0.5rem 0.75rem;
+    align-items: start;
+    border-radius: 0.375rem;
+    background-color: rgb(248 250 252); /* slate-50 */
+    transition: background-color 0.15s;
+}
+.mc-block:hover {
+    background-color: rgb(241 245 249); /* slate-100 */
+}
+.mc-block.is-selected {
+    background-color: rgb(239 246 255); /* blue-50 */
+    outline: 2px solid rgb(59 130 246); /* blue-500 */
+}
+.mc-block__number {
+    font-weight: 600;
+    color: rgb(100 116 139); /* slate-500 */
+    padding-top: 0.1rem;
+    user-select: none;
+}
+.mc-block__prompt p {
+    margin: 0.25rem 0;
+}
+.mc-block__controls {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.mc-block__multi-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: rgb(71 85 105); /* slate-600 */
+    cursor: pointer;
+}
+.mc-block__warning {
+    font-size: 0.8rem;
+    color: rgb(180 83 9); /* amber-700 */
+    background: rgb(255 251 235); /* amber-50 */
+    border: 1px solid rgb(253 230 138); /* amber-200 */
+    border-radius: 0.375rem;
+    padding: 0.35rem 0.6rem;
+}
+.mc-block__choices {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.mc-block__choice-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.mc-block__correct-toggle {
+    cursor: pointer;
+    accent-color: rgb(5 150 105); /* emerald-600 — "this one is right" */
+}
+.mc-block__letter {
+    font-weight: 600;
+    color: rgb(100 116 139); /* slate-500 */
+    min-width: 1.2rem;
+    user-select: none;
+}
+.mc-block__choice-content {
+    flex: 1;
+    min-width: 0;
+}
+.mc-block__row-btn {
+    border: none;
+    background: transparent;
+    color: rgb(148 163 184); /* slate-400 */
+    font-size: 0.85rem;
+    line-height: 1;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
+.mc-block__row-btn:hover:not(:disabled) {
+    background: rgb(226 232 240); /* slate-200 */
+    color: rgb(51 65 85); /* slate-700 */
+}
+.mc-block__row-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+.mc-block__feedback {
+    margin-left: 3.1rem;
+    padding: 0.4rem 0.6rem;
+    border-left: 3px solid rgb(245 158 11); /* amber-500 */
+    background: rgb(255 251 235); /* amber-50 */
+    border-radius: 0 0.375rem 0.375rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.mc-block__feedback-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgb(146 64 14); /* amber-800 */
+}
+.mc-block__add-choice {
+    align-self: flex-start;
+    border: 1px dashed rgb(203 213 225); /* slate-300 */
+    background: transparent;
+    color: rgb(71 85 105); /* slate-600 */
+    font-size: 0.8rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+}
+.mc-block__add-choice:hover:not(:disabled) {
+    background: rgb(241 245 249); /* slate-100 */
+}
+
 .fill-in-blank-block__settings {
     grid-column: 1 / -1;
     margin-top: 0.25rem;

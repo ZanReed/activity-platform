@@ -22,6 +22,7 @@ import {
 } from '@activity/graph-kit';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
+import { problemNumberAt } from '../problemNumbering';
 import {
     defaultDisplayInteraction,
     defaultFunctionInteraction,
@@ -412,22 +413,15 @@ export default function InteractiveGraphView({
     // Numbering matches the renderer: graded questions only. A display-mode
     // interactive_graph is ungraded content and doesn't consume a number, so it
     // is skipped both when counting prior blocks and when displaying its own.
-    const problemNumber = useMemo(() => {
-        const pos = typeof getPos === 'function' ? getPos() : undefined;
-        if (pos === undefined) return 1;
-        let count = 1;
-        editor.state.doc.descendants((d, dPos) => {
-            if (dPos >= pos) return false;
-            if (d.type.name === 'fillInBlank') {
-                count++;
-            } else if (d.type.name === 'interactiveGraph') {
-                const it = (d.attrs.interaction as GraphInteraction | undefined)?.type;
-                if (it !== 'display') count++;
-            }
-            return true;
-        });
-        return count;
-    }, [editor.state, getPos]);
+    const problemNumber = useMemo(
+        () =>
+            problemNumberAt(
+                editor,
+                typeof getPos === 'function' ? getPos() : undefined,
+            ),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [editor.state, getPos],
+    );
 
     const setAxis = (patch: Partial<GraphAxisConfig>): void =>
         updateAttributes({ axisConfig: { ...axisConfig, ...patch } });

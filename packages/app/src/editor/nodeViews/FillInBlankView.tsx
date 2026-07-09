@@ -6,6 +6,7 @@ import {
 } from '@tiptap/react';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
+import { problemNumberAt } from '../problemNumbering';
 
 // ============================================================================
 // FillInBlankView — NodeView for the fill_in_blank block.
@@ -72,20 +73,15 @@ export default function FillInBlankView({
     // the editor (preview/read-only) keep it hidden unless already configured.
     const showFooter = isEditable || isConfigured;
 
-    const problemNumber = useMemo(() => {
-        const pos = typeof getPos === 'function' ? getPos() : undefined;
-        if (pos === undefined) return 1;
-
-        let count = 1;
-        editor.state.doc.descendants((descendant, descendantPos) => {
-            if (descendantPos >= pos) return false;
-            if (descendant.type.name === 'fillInBlank') {
-                count++;
-            }
-            return true;
-        });
-        return count;
-    }, [editor.state, getPos]);
+    const problemNumber = useMemo(
+        () =>
+            problemNumberAt(
+                editor,
+                typeof getPos === 'function' ? getPos() : undefined,
+            ),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [editor.state, getPos],
+    );
 
     return (
         <NodeViewWrapper
