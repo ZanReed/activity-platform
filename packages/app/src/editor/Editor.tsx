@@ -9,25 +9,11 @@ import {
 import type { Typography } from '@activity/schema';
 import { fontFamilyValue } from '@activity/renderer';
 import { ensureActivityFontLoaded } from '../lib/fonts';
-import StarterKit from '@tiptap/starter-kit';
 import DragHandle from '@tiptap/extension-drag-handle-react';
 import Toolbar from './Toolbar';
-import { MathInline } from './extensions/MathInline';
-import { MathBlock } from './extensions/MathBlock';
 import './editor.css';
-import { SlashMenu } from './extensions/SlashMenu';
-import { BlockReorderShortcuts } from './extensions/BlockReorderShortcuts';
 import 'mathlive';
-import { SectionBreak } from './extensions/SectionBreak';
-import Subscript from '@tiptap/extension-subscript';
-import Superscript from '@tiptap/extension-superscript';
-import { FillInBlank } from './extensions/FillInBlank';
-import { Blank } from './extensions/Blank';
-import { Columns, Column } from './extensions/Columns';
-import { Image } from './extensions/Image';
-import { InteractiveGraph } from './extensions/InteractiveGraph';
-import { MultipleChoice } from './extensions/MultipleChoice';
-import { Definition } from './extensions/Definition';
+import { buildEditorExtensions } from './editorExtensions';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
@@ -72,51 +58,9 @@ export default function Editor({
     // editor state without this nudge.
     const [, forceTick] = useState(0);
     const editor = useEditor({
-        extensions: [
-            StarterKit.configure({
-                blockquote: false,
-                codeBlock: false,
-            }),
-            MathInline,
-            MathBlock,
-            SlashMenu,
-            BlockReorderShortcuts,
-            SectionBreak,
-            Subscript,
-            Superscript,
-            // Underline is bundled by StarterKit v3 — registering it again
-            // duplicates the 'underline' mark. The toolbar's U button uses
-            // StarterKit's.
-            // Inline vocabulary-definition mark. Authored via the toolbar
-            // "Define" button + the root-level DefinitionPopoverHost below.
-            Definition,
-            // Stage 13.5 — question-block extensions. FillInBlank is the
-            // block container; Blank is the inline atom that lives inside
-            // its body (and only inside its body, per the schema's
-            // FillInBlankInline union). Both must be registered for the
-            // input rule + content spec to function.
-            FillInBlank,
-            Blank,
-            // Structural columns container (group 'block') + its cell node.
-            // Both must be registered for the `column{2,6}` content spec and
-            // the insertColumns command to function. configure threads the
-            // activity-wide grid-lines default so an 'inherit' block previews
-            // ruled when the activity opts in.
-            Columns.configure({ gridLinesDefault }),
-            Column,
-            // Structural image block (group 'block'). Renders as a compact
-            // placeholder card (ImageView) in the editor; the actual figure/img
-            // only appears in the published/print output. Editing is via the
-            // root-level ImagePopoverHost below.
-            Image,
-            // Graded interactive-graph block (Stage 5). Block node with an
-            // editable prompt (NodeViewContent) + a live author board reusing
-            // the graph kit; only plot_point is functional so far.
-            InteractiveGraph,
-            // Multiple-choice question block: editable prompt + structured
-            // choice list (single or multi-select), authored in-place.
-            MultipleChoice,
-        ],
+        // The extension list lives in editorExtensions.ts so tests can build
+        // the real ProseMirror schema (blockTypeGuards.test.ts).
+        extensions: buildEditorExtensions({ gridLinesDefault }),
         content: initialContent,
         onCreate: ({ editor }) => {
             onUpdate?.(editor.getJSON());

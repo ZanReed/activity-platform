@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
   Block,
   ColumnsBlock,
+  ColumnCellBlock,
   createColumnsBlock,
   createColumn,
   createParagraphBlock,
@@ -99,5 +100,40 @@ describe('ColumnsBlock', () => {
       columns: [createColumn(), createColumn()],
     });
     expect(parsed.gridLines).toBe('inherit');
+  });
+});
+
+// ---- Add-a-block-type guard -------------------------------------------------
+// ColumnCellBlock is "the full Block union MINUS ColumnsBlock" (columns don't
+// nest, a deliberate Phase 1 decision — see columns.ts). This test enforces
+// that relationship structurally: adding a leaf block type to blocks/index.ts
+// without also adding it to ColumnCellBlock fails here, instead of surfacing
+// months later as "the new block silently can't be placed in columns" (the
+// multiple_choice bug, fixed in 3ffb6d4). See README's add-a-block-type
+// checklist.
+describe('ColumnCellBlock / Block union parity (guard)', () => {
+  const literals = (union: { options: readonly unknown[] }): string[] =>
+    union.options.map(
+      (opt) =>
+        (opt as { shape: { type: { value: string } } }).shape.type.value,
+    );
+
+  it('cell union = full Block union minus columns, exactly', () => {
+    const blockTypes = new Set(literals(Block));
+    const cellTypes = new Set(literals(ColumnCellBlock));
+
+    // The ONLY block type excluded from column cells is `columns` itself.
+    const missingFromCells = [...blockTypes].filter(
+      (t) => !cellTypes.has(t) && t !== 'columns',
+    );
+    expect(
+      missingFromCells,
+      `New block type(s) missing from ColumnCellBlock (columns.ts) — add them there (and see README's add-a-block-type checklist): ${missingFromCells.join(', ')}`,
+    ).toEqual([]);
+
+    // And nothing cell-only: a type in ColumnCellBlock must exist in Block.
+    const cellOnly = [...cellTypes].filter((t) => !blockTypes.has(t));
+    expect(cellOnly).toEqual([]);
+    expect(cellTypes.has('columns')).toBe(false);
   });
 });
