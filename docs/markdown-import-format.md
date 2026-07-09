@@ -25,6 +25,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a paragraph containing `{{…}}` | a **fill-in-the-blank problem block** |
 | a list whose items contain `{{…}}` | **one problem block per item** |
 | `## Topic {checkpoint}` | a **checkpoint section break** titled "Topic" |
+| a ` ```mc ` fenced block | a **multiple-choice question** (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
@@ -131,12 +132,25 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     show: expression sin(x)      (plots any formula)
     show: ray (0,0) (2,1) open
 
+MULTIPLE CHOICE (a fenced block with the `mc` tag becomes a multiple-choice question)
+- ```mc … ``` with one statement per line:
+    prompt: What is $2 + 2$?
+    ( ) 3 :: Check your addition.
+    (x) 4
+    ( ) 22
+- Mark the correct choice with (x); a plain ( ) is a wrong choice. Use
+  square brackets [x] / [ ] instead for a "select all that apply" question
+  (marking more than one (x) also makes it multi-select automatically).
+- Optional feedback after :: on any choice is shown to a student who picks it.
+- Optional lines:  solution: <worked explanation>   and   options: confidence
+- Choice text and the prompt may include $inline$ math.
+
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
-  other than ```graph — only the single outer block that wraps the whole
-  reply and ```graph fences are allowed; anything unsupported imports as
+  other than ```graph and ```mc — only the single outer block that wraps the
+  whole reply and those fences are allowed; anything unsupported imports as
   plain text.
 
 When I describe the activity I want, reply with only that single code block.
@@ -165,3 +179,25 @@ options: partial-credit, allow-no-solution
 - `options:` `partial-credit`, `allow-no-solution`, `no-solution-correct`.
 
 A malformed graph block imports as plain text with a warning, never silently guessing.
+
+## Multiple-choice blocks (```mc fence)
+
+A fenced code block with the `mc` language tag becomes a multiple-choice question. One statement per line:
+
+```
+```mc
+prompt: What is $2 + 2$?
+( ) 3 :: Check your addition.
+(x) 4
+( ) 22
+solution: Add the ones column.
+options: confidence
+```⠀
+```
+
+- **Choice lines**: `( )` is a wrong choice, `(x)` a correct one. Square brackets — `[ ]` / `[x]` — author a **select-all-that-apply** (multi-select) question; any square bracket, or more than one `(x)`, switches the block to multi-select (a single-answer question with two right answers would be unanswerable on radios).
+- **Per-choice feedback**: append `:: feedback text` to a choice line; a student who picks that choice sees it after checking. Distractors are usually authored *because* they're anticipated mistakes — this is where the explanation goes.
+- `prompt:` the question text. Both it and choice text accept `$inline$` math.
+- `solution:` optional worked explanation revealed post-check.
+- `options: confidence` asks students for a confidence rating.
+- At least two choices and at least one `(x)` are required — a fence without a marked correct answer imports as plain text with a warning.

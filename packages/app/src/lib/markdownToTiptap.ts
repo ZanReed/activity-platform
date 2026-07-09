@@ -269,11 +269,16 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
             return mapList(node, 'orderedList', ctx);
 
         case 'fence': {
-            // ```graph fenced blocks are the graph DSL (Drop 7); other fences
-            // stay unsupported.
+            // ```graph fenced blocks are the graph DSL (Drop 7); ```mc blocks
+            // are the multiple-choice DSL; other fences stay unsupported.
             if ((node.token.info ?? '').trim() === 'graph') {
                 const graph = parseGraphFence(node.token.content, ctx);
                 if (graph) return [graph];
+                return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'mc') {
+                const mc = parseMcFence(node.token.content, ctx);
+                if (mc) return [mc];
                 return [rawTextParagraph(node.token.content)];
             }
             ctx.warnings.add(
@@ -801,6 +806,110 @@ function graphPromptContent(raw: string, ctx: Ctx): JSONContent[] {
     const out: JSONContent[] = [];
     emitInline(out, remapped, [], false, ctx);
     return out;
+}
+
+// ```mc fence — the multiple-choice DSL. One statement per line:
+//   prompt: What is $2 + 2$?          (question text; $inline$ math ok)
+//   ( ) 3 :: Check your addition.     (a choice; optional "::" feedback)
+//   (x) 4                             (x marks a correct choice)
+//   solution: Add the ones.           (optional worked solution)
+//   options: confidence               (optional flags)
+// Parens ( ) author a single-answer question; square brackets [ ] author
+// "select all that apply". Mixing is tolerated: ANY square bracket — or more
+// than one correct choice — makes the block multi-select (a single-select
+// question with two right answers is unanswerable on radios).
+function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
+    const fail = (msg: string): null => {
+        ctx.warnings.add(
+            'Multiple-choice block: ' + msg + ' — imported as plain text.',
+        );
+        return null;
+    };
+
+    let prompt = '';
+    let solution: JSONContent[] | null = null;
+    let hasConfidenceRating = false;
+    let sawSquare = false;
+    const choices: {
+        id: string;
+        content: JSONContent[];
+        correct: boolean;
+        feedback?: JSONContent[];
+    }[] = [];
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const choiceMatch = /^([([])\s*([xX]?)\s*[)\]]\s*(.*)$/.exec(line);
+        if (choiceMatch) {
+            sawSquare = sawSquare || choiceMatch[1] === '[';
+            const correct = (choiceMatch[2] ?? '') !== '';
+            let body = (choiceMatch[3] ?? '').trim();
+            let feedback: JSONContent[] | undefined;
+            const sep = body.indexOf('::');
+            if (sep !== -1) {
+                const feedbackText = body.slice(sep + 2).trim();
+                body = body.slice(0, sep).trim();
+                if (feedbackText) {
+                    feedback = graphPromptContent(feedbackText, ctx);
+                }
+            }
+            if (!body) return fail('a choice line needs answer text');
+            choices.push({
+                id: crypto.randomUUID(),
+                content: graphPromptContent(body, ctx),
+                correct,
+                ...(feedback ? { feedback } : {}),
+            });
+            continue;
+        }
+
+        const m = /^(prompt|solution|options):\s*(.*)$/i.exec(line);
+        if (!m) {
+            return fail(
+                `unrecognized line "${line}" (choices look like "( ) text" or "(x) text")`,
+            );
+        }
+        const value = (m[2] ?? '').trim();
+        switch ((m[1] ?? '').toLowerCase()) {
+            case 'prompt':
+                prompt = value;
+                break;
+            case 'solution':
+                if (value) solution = graphPromptContent(value, ctx);
+                break;
+            case 'options':
+                for (const opt of value
+                    .split(',')
+                    .map((o) => o.trim().toLowerCase())) {
+                    if (opt === 'confidence') hasConfidenceRating = true;
+                    else if (opt) return fail(`unknown option "${opt}"`);
+                }
+                break;
+        }
+    }
+
+    if (choices.length < 2) return fail('needs at least two choice lines');
+    const correctCount = choices.filter((c) => c.correct).length;
+    if (correctCount === 0) {
+        return fail('mark the correct choice with (x)');
+    }
+    const multiSelect = sawSquare || correctCount > 1;
+
+    return {
+        type: 'multipleChoice',
+        attrs: {
+            id: '',
+            choices,
+            multiSelect,
+            solution,
+            hasConfidenceRating,
+            skills: [],
+            workSpace: null,
+        },
+        content: graphPromptContent(prompt, ctx),
+    };
 }
 
 function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {

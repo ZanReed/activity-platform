@@ -219,6 +219,31 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'multiple-choice fence with (x) correct marker and :: feedback',
+        fragment: '( ) 3 :: Check your addition.',
+        md: '```mc\nprompt: What is $2 + 2$?\n( ) 3 :: Check your addition.\n(x) 4\n( ) 22\n```',
+        check: (b) => {
+            const mc = b.find((n) => n.type === 'multipleChoice')!;
+            expect(mc).toBeDefined();
+            expect(mc.attrs).toMatchObject({ multiSelect: false });
+            const choices = mc.attrs!.choices as Array<{
+                correct: boolean;
+                feedback?: unknown[];
+            }>;
+            expect(choices.map((c) => c.correct)).toEqual([false, true, false]);
+            expect(choices[0]!.feedback).toBeDefined();
+        },
+    },
+    {
+        name: 'multi-select via square brackets [x]',
+        fragment: 'square brackets [x] / [ ]',
+        md: '```mc\nprompt: Which are prime?\n[x] 2\n[x] 3\n[ ] 4\n```',
+        check: (b) => {
+            const mc = b.find((n) => n.type === 'multipleChoice')!;
+            expect(mc.attrs).toMatchObject({ multiSelect: true });
+        },
+    },
+    {
         name: 'image ![alt](url)',
         fragment: '![a short description](https://full-image-url)',
         md: '![a short description](https://full-image-url)',

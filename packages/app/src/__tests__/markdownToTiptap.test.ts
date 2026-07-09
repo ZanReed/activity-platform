@@ -361,6 +361,83 @@ describe('math', () => {
     });
 });
 
+describe('multiple-choice fence (```mc)', () => {
+    const FENCE =
+        '```mc\nprompt: What is $2 + 2$?\n( ) 3 :: Check your addition.\n(x) 4\n( ) 22\n```';
+
+    it('imports a single-select block with prompt math, feedback, and one correct choice', () => {
+        const { blocks, warnings } = convert(FENCE);
+        expect(warnings).toHaveLength(0);
+        expect(blocks).toHaveLength(1);
+        const mc = blocks[0]!;
+        expect(mc.type).toBe('multipleChoice');
+        expect(mc.attrs).toMatchObject({ multiSelect: false });
+        const choices = mc.attrs!.choices as Array<{
+            content: JSONContent[];
+            correct: boolean;
+            feedback?: JSONContent[];
+        }>;
+        expect(choices).toHaveLength(3);
+        expect(choices.map((c) => c.correct)).toEqual([false, true, false]);
+        expect(choices[0]!.feedback).toEqual([
+            { type: 'text', text: 'Check your addition.' },
+        ]);
+        expect(choices[1]!.feedback).toBeUndefined();
+        // Prompt carries real inline math.
+        expect(mc.content).toEqual([
+            { type: 'text', text: 'What is ' },
+            { type: 'mathInline', attrs: { latex: '2 + 2' } },
+            { type: 'text', text: '?' },
+        ]);
+    });
+
+    it('square brackets author multi-select', () => {
+        const { blocks } = convert(
+            '```mc\nprompt: Which are prime?\n[x] 2\n[x] 3\n[ ] 4\n```',
+        );
+        const mc = blocks[0]!;
+        expect(mc.attrs).toMatchObject({ multiSelect: true });
+        const choices = mc.attrs!.choices as Array<{ correct: boolean }>;
+        expect(choices.map((c) => c.correct)).toEqual([true, true, false]);
+    });
+
+    it('more than one (x) in parens also flips to multi-select', () => {
+        const { blocks } = convert('```mc\n(x) a\n(x) b\n( ) c\n```');
+        expect(blocks[0]!.attrs).toMatchObject({ multiSelect: true });
+    });
+
+    it('solution and options: confidence carry through', () => {
+        const { blocks } = convert(
+            '```mc\nprompt: Pick.\n(x) yes\n( ) no\nsolution: Because $x = 1$.\noptions: confidence\n```',
+        );
+        const mc = blocks[0]!;
+        expect(mc.attrs).toMatchObject({ hasConfidenceRating: true });
+        expect(mc.attrs!.solution).toEqual([
+            { type: 'text', text: 'Because ' },
+            { type: 'mathInline', attrs: { latex: 'x = 1' } },
+            { type: 'text', text: '.' },
+        ]);
+    });
+
+    it('no correct choice degrades to plain text with a warning', () => {
+        const { blocks, warnings } = convert('```mc\n( ) a\n( ) b\n```');
+        expect(blocks[0]!.type).not.toBe('multipleChoice');
+        expect(warnings.some((w) => w.includes('(x)'))).toBe(true);
+    });
+
+    it('fewer than two choices degrades with a warning', () => {
+        const { blocks, warnings } = convert('```mc\nprompt: Hm.\n(x) only\n```');
+        expect(blocks[0]!.type).not.toBe('multipleChoice');
+        expect(warnings.some((w) => w.includes('two choice'))).toBe(true);
+    });
+
+    it('an unrecognized line degrades with a warning', () => {
+        const { blocks, warnings } = convert('```mc\n(x) a\n( ) b\nbogus line\n```');
+        expect(blocks[0]!.type).not.toBe('multipleChoice');
+        expect(warnings.length).toBeGreaterThan(0);
+    });
+});
+
 describe('numeric blanks ({{=…}})', () => {
     it('a leading = makes the blank numeric (and is stripped)', () => {
         const out = convert('the area is {{=12}}.').blocks;
