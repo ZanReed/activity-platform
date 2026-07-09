@@ -25,6 +25,7 @@
 
 import { $ } from './dom.js';
 import { scoreBlanksInScope, trimValue } from './blanks.js';
+import { scoreMcBlocks } from './mcs.js';
 import { graphExt } from './graph-integration.js';
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
@@ -76,6 +77,13 @@ export interface GraphResult {
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
 }
 
+// Mirrors schema ChoiceResponse — one multiple_choice block's answer.
+export interface McResult {
+  selected: string[];
+  correct: boolean;
+  confidence?: 'unsure' | 'think_so' | 'certain';
+}
+
 interface CheckpointResultPayload {
   score: number;
   total: number;
@@ -83,10 +91,11 @@ interface CheckpointResultPayload {
 }
 
 interface SubmissionResponsesPayload {
-  schemaVersion: 4;
+  schemaVersion: 5;
   blanks: Record<string, BlankResult>;
   checkpointResults?: Record<string, CheckpointResultPayload>;
   graphResponses?: Record<string, GraphResult>;
+  choices?: Record<string, McResult>;
 }
 
 // Wire shape POSTed to the ingest-submission Edge Function. Keys are
@@ -113,12 +122,13 @@ export function buildSubmissionPayload(
   gathered: {
     blanks: Record<string, BlankResult>;
     graphResponses?: Record<string, GraphResult>;
+    choices?: Record<string, McResult>;
     score: number;
   },
   checkpointResults: Record<string, CheckpointResultPayload> | undefined,
 ): SubmissionPayload {
   const responses: SubmissionResponsesPayload = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     blanks: gathered.blanks,
   };
   if (checkpointResults) {
@@ -126,6 +136,9 @@ export function buildSubmissionPayload(
   }
   if (gathered.graphResponses) {
     responses.graphResponses = gathered.graphResponses;
+  }
+  if (gathered.choices) {
+    responses.choices = gathered.choices;
   }
   return {
     activity_id: config.activityId,
@@ -138,6 +151,7 @@ export function buildSubmissionPayload(
 interface GatheredResponses {
   blanks: Record<string, BlankResult>;
   graphResponses?: Record<string, GraphResult>;
+  choices?: Record<string, McResult>;
   score: number;
   totalScored: number;
 }
@@ -184,6 +198,24 @@ export function gatherResponses(
     blanks[blankId] = result;
   }
 
+  // Multiple-choice blocks — one scorable unit each. Unanswered blocks are
+  // omissions: counted in neither total nor correct, absent from the map
+  // (ChoiceResponse.selected is schema-required non-empty).
+  scoreMcBlocks(state, refs, refs.mcs.keys());
+  let choices: Record<string, McResult> | undefined;
+  for (const [blockId] of refs.mcs) {
+    const mcState = state.mcs[blockId];
+    if (!mcState || mcState.selected.length === 0) continue;
+    totalScored += 1;
+    if (mcState.result === true) totalCorrect += 1;
+    const result: McResult = {
+      selected: mcState.selected,
+      correct: mcState.result === true,
+    };
+    if (mcState.confidence) result.confidence = mcState.confidence;
+    (choices ??= {})[blockId] = result;
+  }
+
   // Interactive-graph blocks score alongside blanks (each is one scorable unit,
   // client-side-scored by the graph feature as the student moved the point). An
   // unanswered graph is an omission — counted in neither total nor correct, and
@@ -196,6 +228,7 @@ export function gatherResponses(
   return {
     blanks,
     ...(graphs.graphResponses && { graphResponses: graphs.graphResponses }),
+    ...(choices && { choices }),
     score: computeScore(totalCorrect, totalScored),
     totalScored,
   };

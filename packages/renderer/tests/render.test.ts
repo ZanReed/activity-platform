@@ -9,6 +9,7 @@ import {
   createProblemBlock,
   createFillInBlankBlock,
   createBlankToken,
+  createMultipleChoiceBlock,
   createSection,
   createBulletListBlock,
   createOrderedListBlock,
@@ -736,6 +737,104 @@ describe('Section checkpoint emission (Stage 12 step 4)', () => {
     const btnIdx = body.indexOf('js-checkpoint-btn');
     expect(blockIdx).toBeGreaterThan(-1);
     expect(btnIdx).toBeGreaterThan(blockIdx);
+  });
+});
+
+describe('Multiple-choice block', () => {
+  function mcDoc() {
+    const doc = createEmptyDocument({ title: 'T' });
+    const mc = createMultipleChoiceBlock();
+    mc.prompt = [{ type: 'text', text: 'What is 2 + 2?', marks: [] }];
+    mc.choices[0]!.content = [{ type: 'text', text: '4', marks: [] }];
+    mc.choices[1]!.content = [{ type: 'text', text: '5', marks: [] }];
+    mc.choices[2]!.content = [{ type: 'text', text: '22', marks: [] }];
+    doc.sections[0]!.blocks = [mc];
+    return { doc, mc };
+  }
+
+  it('renders the block shell with the answer key and problem number', () => {
+    const { doc, mc } = mcDoc();
+    const body = renderBody(doc);
+    expect(body).toContain('data-block-type="multiple_choice"');
+    expect(body).toContain('data-block-category="question"');
+    expect(body).toContain('data-block-id="' + mc.id + '"');
+    // Answer key: JSON array of the correct choice ids (attr-escaped quotes).
+    expect(body).toContain(
+      'data-mc-answer="' + '[&quot;' + mc.choices[0]!.id + '&quot;]"',
+    );
+    expect(body).toContain('<div class="block-problem-number">1.</div>');
+    expect(body).toContain('What is 2 + 2?');
+  });
+
+  it('single-select renders radios in a block-namespaced group, no multi attr', () => {
+    const { doc, mc } = mcDoc();
+    const body = renderBody(doc);
+    expect(body).toContain('type="radio"');
+    expect(body).toContain('name="mc-' + mc.id + '"');
+    expect(body).not.toContain('data-mc-multi');
+    expect(body).not.toContain('Select all that apply');
+  });
+
+  it('multi-select renders checkboxes, the attr, and the instruction line', () => {
+    const { doc } = mcDoc();
+    (doc.sections[0]!.blocks[0] as { multiSelect: boolean }).multiSelect = true;
+    const body = renderBody(doc);
+    expect(body).toContain('type="checkbox"');
+    expect(body).toContain('data-mc-multi="true"');
+    expect(body).toContain('Select all that apply.');
+  });
+
+  it('emits choice letters and per-choice ids', () => {
+    const { doc, mc } = mcDoc();
+    const body = renderBody(doc);
+    expect(body).toContain('>A.</span>');
+    expect(body).toContain('>B.</span>');
+    expect(body).toContain('>C.</span>');
+    for (const choice of mc.choices) {
+      expect(body).toContain('data-choice-id="' + choice.id + '"');
+    }
+  });
+
+  it('pre-renders per-choice feedback into a hidden js-mc-feedback div', () => {
+    const { doc, mc } = mcDoc();
+    mc.choices[1]!.feedback = [
+      { type: 'text', text: 'Check your addition.', marks: [] },
+    ];
+    const body = renderBody(doc);
+    expect(body).toContain('js-mc-feedback');
+    expect(body).toContain('Check your addition.');
+    // Only the one authored feedback div.
+    expect(body.match(/js-mc-feedback/g)).toHaveLength(1);
+  });
+
+  it('emits solution slot and confidence fieldset like fill-in-blank', () => {
+    const { doc, mc } = mcDoc();
+    mc.solution = [{ type: 'text', text: 'Two plus two is four.', marks: [] }];
+    mc.hasConfidenceRating = true;
+    const body = renderBody(doc);
+    expect(body).toContain('js-solution');
+    expect(body).toContain('Two plus two is four.');
+    expect(body).toContain('js-confidence-rating');
+    expect(body).toContain('name="conf-' + mc.id + '"');
+    expect(body).toContain('data-has-confidence-rating="true"');
+  });
+
+  it('showAnswers pre-checks the correct choices and marks the key class', () => {
+    const { doc } = mcDoc();
+    const printed = renderActivityForPrint(doc, { showAnswers: true });
+    expect(printed).toContain('mc-key-correct');
+    expect(printed).toContain(' checked');
+  });
+
+  it('participates in the shared problem number sequence', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const fib = createFillInBlankBlock();
+    fib.content = [createBlankToken('x')];
+    const mc = createMultipleChoiceBlock();
+    doc.sections[0]!.blocks = [fib, mc];
+    const body = renderBody(doc);
+    expect(body).toContain('<div class="block-problem-number">1.</div>');
+    expect(body).toContain('<div class="block-problem-number">2.</div>');
   });
 });
 

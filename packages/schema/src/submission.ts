@@ -24,6 +24,10 @@
 //                       interactive-graph blocks. v2 submissions migrate-on-
 //                       read to v3 by setting schemaVersion: 3 (graphResponses
 //                       simply absent — valid for an optional field).
+//   v4 → v5 (multiple choice): adds the optional `choices` map for
+//                       multiple_choice blocks (ChoiceResponse: selected
+//                       choice ids + correct + confidence). v4 rows migrate
+//                       on read by setting schemaVersion: 5.
 //
 // Extension pattern — adding new response shapes (Phase 2+):
 //   When a new question category needs a different response shape — MC
@@ -36,7 +40,7 @@
 //   map. Type purity at the consumer boundary is the goal.
 //
 //   Planned future maps (each lands with the block type that needs it):
-//     choices         — Phase 2 multiple choice (single + multi-select)
+//     choices         — SHIPPED at v5 (multiple choice, single + multi-select)
 //     orderings       — Phase 2 ordering / sequencing
 //     matches         — Phase 2 matching pairs
 //     freeResponses   — Phase 2.6 short_answer / essay
@@ -233,13 +237,42 @@ export const SubmissionResponsesV3 = z.object({
 });
 export type SubmissionResponsesV3 = z.infer<typeof SubmissionResponsesV3>;
 
-// ---- v4 (current) shape -------------------------------------------------------
-// New submissions write this shape. v3 → v4 (Drop 4): graphResponses gains the
-// graph_inequality variant + optional noSolution / earned / total on every
-// variant. Application code that reads submissions calls
-// migrateSubmissionResponses() once after reading to handle v1–v4 uniformly.
-export const SubmissionResponses = z.object({
+// ---- v4 (legacy) shape --------------------------------------------------------
+// Pre-multiple-choice submissions (and pages published before the v5 runtime
+// that are still live). Kept so ingest keeps ACCEPTING v4 posts and stored rows
+// migrate forward on read. Never written by new code.
+export const SubmissionResponsesV4 = z.object({
   schemaVersion: z.literal(4),
+  blanks: z.record(z.string().uuid(), BlankResponse),
+  checkpointResults: z.record(z.string().uuid(), CheckpointResult).optional(),
+  graphResponses: z.record(z.string().uuid(), GraphResponseV4).optional(),
+});
+export type SubmissionResponsesV4 = z.infer<typeof SubmissionResponsesV4>;
+
+// One multiple_choice block's response: which choice ids the student selected
+// (one for single-select, any number for multi-select) plus the same
+// correctness/confidence fields blanks have. Like BlankResponse, `correct` is
+// computed CLIENT-SIDE in the published page's runtime (the answer key is
+// baked into the HTML) — convenience for the teacher viewer, not authoritative
+// grading. All-or-nothing: correct means the selected SET equals the correct
+// set (per-choice partial credit is a future additive field, mirroring the
+// graph block's earned/total precedent).
+export const ChoiceResponse = z.object({
+  // Selected choice ids (MultipleChoiceOption.id), in document order.
+  // Non-empty: an unanswered block is simply absent from the map (an
+  // omission), like an unanswered graph.
+  selected: z.array(z.string().uuid()).min(1),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type ChoiceResponse = z.infer<typeof ChoiceResponse>;
+
+// ---- v5 (current) shape -------------------------------------------------------
+// New submissions write this shape. v4 → v5 (multiple choice): adds the
+// optional `choices` map. Application code that reads submissions calls
+// migrateSubmissionResponses() once after reading to handle v1–v5 uniformly.
+export const SubmissionResponses = z.object({
+  schemaVersion: z.literal(5),
   // Keyed by blank.id (uuid).
   blanks: z.record(z.string().uuid(), BlankResponse),
   // Keyed by section.id. Only present in locked/free submission modes for
@@ -251,35 +284,45 @@ export const SubmissionResponses = z.object({
   // merged into it — geometric answers are shaped differently and the
   // dashboard renders them differently (see the extension pattern above).
   graphResponses: z.record(z.string().uuid(), GraphResponseV4).optional(),
+  // Keyed by multiple_choice block.id (uuid). Absent when the activity has
+  // no MC blocks or none were answered (same omission rule as graphs).
+  choices: z.record(z.string().uuid(), ChoiceResponse).optional(),
 });
 export type SubmissionResponses = z.infer<typeof SubmissionResponses>;
 
 // ---- Migration --------------------------------------------------------------
-// Reads a stored submission of any shape and returns the current (v3) shape.
+// Reads a stored submission of any shape and returns the current (v5) shape.
 // Application code that consumes submissions calls this once after reading
 // from the database; older input shapes are never propagated past this layer.
 // The Edge Function writes only the current shape.
 //
-// v2 → v3 migration:
-//   - schemaVersion: 2 → 3
-//   - blanks / checkpointResults: unchanged
-//   - graphResponses: absent (v2 had no graph blocks)
-// v1 → v3 migration:
-//   - schemaVersion: 1 → 3
-//   - blanks: unchanged shape (BlankResponse adds optional `confidence`,
-//     absent in v1; absence is valid for an optional field)
-//   - checkpointResults / graphResponses: absent
+// Every promotion is "bump the version, carry the maps forward" — each new
+// version only ADDED an optional map (or widened a union), so older data is
+// always a valid instance of the newer shape with the new fields absent.
 export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   // Try the current shape first (the common case for new data).
-  const v4 = SubmissionResponses.safeParse(raw);
-  if (v4.success) return v4.data;
+  const v5 = SubmissionResponses.safeParse(raw);
+  if (v5.success) return v5.data;
 
-  // v3: promote by bumping the version — every v3 graph response is a valid v4
-  // response (the v4 fields are optional and the union only widened).
+  // v4: promote by bumping the version — the choices map is simply absent.
+  const v4 = SubmissionResponsesV4.safeParse(raw);
+  if (v4.success) {
+    return {
+      schemaVersion: 5,
+      blanks: v4.data.blanks,
+      ...(v4.data.checkpointResults && {
+        checkpointResults: v4.data.checkpointResults,
+      }),
+      ...(v4.data.graphResponses && { graphResponses: v4.data.graphResponses }),
+    };
+  }
+
+  // v3: promote — every v3 graph response is a valid v4/v5 response (the v4
+  // fields are optional and the union only widened).
   const v3 = SubmissionResponsesV3.safeParse(raw);
   if (v3.success) {
     return {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: v3.data.blanks,
       ...(v3.data.checkpointResults && {
         checkpointResults: v3.data.checkpointResults,
@@ -292,7 +335,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   const v2 = SubmissionResponsesV2.safeParse(raw);
   if (v2.success) {
     return {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: v2.data.blanks,
       ...(v2.data.checkpointResults && {
         checkpointResults: v2.data.checkpointResults,
@@ -305,7 +348,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   // version submissions should fail loudly, not silently pass.
   const v1 = SubmissionResponsesV1.parse(raw);
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     blanks: v1.blanks,
   };
 }

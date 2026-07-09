@@ -95,7 +95,8 @@ function buildStateWithBlank(id: string = 'b1'): RuntimeState {
         sections: {},
         blanks: { [id]: blankState },
         blocks: {},
-        graphs: {},
+        mcs: {},
+    graphs: {},
     };
 }
 
@@ -298,7 +299,8 @@ describe('wireBlanks answerFeedback gating', () => {
         return {
             blanks: new Map([[id, ref]]),
             fillInBlanks: new Map(),
-            graphs: new Map(),
+            mcs: new Map(),
+    graphs: new Map(),
             graphDisplays: new Map(),
             sections: new Map(),
             popover: null,

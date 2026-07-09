@@ -22,6 +22,7 @@ import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
 import { scoreBlanksInScope } from './blanks.js';
+import { scoreMcBlocks } from './mcs.js';
 import { graphExt } from './graph-integration.js';
 
 /**
@@ -58,6 +59,13 @@ export function checkSection(
         if (state.blanks[blankId]?.result === true) correct += 1;
     }
 
+    // Multiple-choice blocks — each is one scorable unit, all-or-nothing.
+    // An unselected block scores null (omission): in the total, not correct.
+    scoreMcBlocks(state, refs, sectionRef.mcBlockIds);
+    for (const mcId of sectionRef.mcBlockIds) {
+        if (state.mcs[mcId]?.result === true) correct += 1;
+    }
+
     // Interactive-graph blocks score too — each is one scorable unit (the graph
     // feature computed correctness live as the student moved the point). In the
     // base runtime build this contributes nothing (no graph blocks exist).
@@ -66,7 +74,10 @@ export function checkSection(
 
     sectionState.checked = true;
     sectionState.score = correct;
-    sectionState.total = sectionRef.blankIds.length + graphScore.total;
+    sectionState.total =
+        sectionRef.blankIds.length +
+        sectionRef.mcBlockIds.length +
+        graphScore.total;
     sectionState.checkedAt = new Date().toISOString();
     if (config.submissionMode === 'locked') {
         sectionState.locked = true;
@@ -81,6 +92,14 @@ export function checkSection(
         if (!blockRef || !blockState) continue;
         if (blockRef.solutionEl !== null) {
             blockState.solutionRevealed = true;
+        }
+    }
+    for (const mcId of sectionRef.mcBlockIds) {
+        const mcRef = refs.mcs.get(mcId);
+        const mcState = state.mcs[mcId];
+        if (!mcRef || !mcState) continue;
+        if (mcRef.solutionEl !== null) {
+            mcState.solutionRevealed = true;
         }
     }
     graphExt.revealGraphSolutions(sectionRef, refs, state);

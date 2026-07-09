@@ -27,6 +27,7 @@ import type {
   RuntimeState,
   BlankState,
   BlockState,
+  McBlockState,
   GraphBlockState,
   SectionState,
 } from './state.js';
@@ -71,7 +72,9 @@ export function saveName(name: string): void {
 // state — the plotted point, scoring, solution reveal, confidence).
 // 4 → 5 (Drop 4): GraphBlockState widened with the inequality choices (strict/
 // side), noSolution, and partial-credit earned/total.
-const STORAGE_SCHEMA_VERSION = 5;
+// 5 → 6 (multiple choice): the blob gained an `mcs` map (selection, result,
+// solution reveal, confidence per multiple_choice block).
+const STORAGE_SCHEMA_VERSION = 6;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {
@@ -82,6 +85,8 @@ export interface StoredActivityState {
   blanks: Record<string, BlankState>;
   /** Per-block state snapshot. */
   blocks: Record<string, BlockState>;
+  /** Per-multiple-choice-block state snapshot. */
+  mcs: Record<string, McBlockState>;
   /** Per-interactive-graph-block state snapshot. */
   graphs: Record<string, GraphBlockState>;
   /** Per-section state snapshot. */
@@ -118,6 +123,7 @@ export function saveActivityState(
       values,
       blanks: state.blanks,
       blocks: state.blocks,
+      mcs: state.mcs,
       graphs: state.graphs,
       sections: state.sections,
     };
@@ -244,9 +250,14 @@ export function applyStoredState(
   for (const [id, blockState] of Object.entries(stored.blocks)) {
     if (state.blocks[id]) state.blocks[id] = blockState;
   }
-  // stored.graphs is absent in blobs written before this field existed; the
-  // schemaVersion bump already discards those, but guard anyway (?? {}) so a
-  // hand-edited or partial blob can't throw here.
+  // stored.mcs / stored.graphs are absent in blobs written before those
+  // fields existed; the schemaVersion bump already discards those, but guard
+  // anyway (?? {}) so a hand-edited or partial blob can't throw here. MC
+  // selection needs no input.value writes — render() syncs each input's
+  // checked flag from the restored state.
+  for (const [id, mcState] of Object.entries(stored.mcs ?? {})) {
+    if (state.mcs[id]) state.mcs[id] = mcState;
+  }
   for (const [id, graphState] of Object.entries(stored.graphs ?? {})) {
     if (state.graphs[id]) state.graphs[id] = graphState;
   }

@@ -19,6 +19,7 @@ import { FillInBlankBlock } from './fill-in-blank.js';
 import { BulletListBlock, OrderedListBlock, ListItem } from './list.js';
 import { ColumnsBlock } from './columns.js';
 import { InteractiveGraphBlock } from './interactive-graph.js';
+import { MultipleChoiceBlock } from './multiple-choice.js';
 
 export const Block = z.discriminatedUnion('type', [
   ParagraphBlock,
@@ -32,6 +33,7 @@ export const Block = z.discriminatedUnion('type', [
   OrderedListBlock,
   ColumnsBlock,
   InteractiveGraphBlock,
+  MultipleChoiceBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -50,6 +52,7 @@ export {
   ColumnsBlock,
   InteractiveGraphBlock,
 };
+export { MultipleChoiceBlock, MultipleChoiceOption } from './multiple-choice.js';
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,

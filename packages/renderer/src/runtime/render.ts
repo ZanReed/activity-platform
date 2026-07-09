@@ -21,6 +21,7 @@ import type {
     Refs,
     BlankRef,
     FillInBlankRef,
+    McRef,
     SectionRef,
     PopoverRef,
 } from './refs.js';
@@ -28,6 +29,7 @@ import type {
     RuntimeState,
     BlankState,
     BlockState,
+    McBlockState,
     SectionState,
 } from './state.js';
 import { graphExt } from './graph-integration.js';
@@ -44,6 +46,10 @@ export function render(state: RuntimeState, refs: Refs): void {
     for (const [id, ref] of refs.fillInBlanks) {
         const blockState = state.blocks[id];
         if (blockState) renderBlock(blockState, ref);
+    }
+    for (const [id, ref] of refs.mcs) {
+        const mcState = state.mcs[id];
+        if (mcState) renderMcBlock(mcState, ref, state);
     }
     graphExt.renderGraphs(state, refs);
     for (const [id, ref] of refs.sections) {
@@ -137,6 +143,84 @@ function renderBlock(blockState: BlockState, ref: FillInBlankRef): void {
     // is empty (no fieldset), the loop iterates zero times.
     for (const radio of ref.confidenceRadios) {
         const wantChecked = radio.value === blockState.confidence;
+        if (radio.checked !== wantChecked) {
+            radio.checked = wantChecked;
+        }
+    }
+}
+
+/**
+ * Multiple-choice block rendering. State is the single source of truth for
+ * selection: each input's checked flag is synced FROM state.mcs[id].selected
+ * (which also makes restore-on-load free — applyStoredState only writes
+ * state, and the bootstrap render re-checks the inputs).
+ *
+ * Verdict visuals appear only once the owning section has been checked:
+ * selected choices get .correct/.incorrect on their label (correct set
+ * membership per choice), their authored feedback divs unhide, and selected
+ * inputs carry aria-invalid mirroring the blank pattern. Unselected correct
+ * choices are deliberately NOT highlighted — a wrong answer shouldn't leak
+ * the right one (the authored solution slot is the sanctioned reveal).
+ */
+function renderMcBlock(
+    mcState: McBlockState,
+    ref: McRef,
+    state: RuntimeState,
+): void {
+    const sectionState = state.sections[ref.sectionId];
+    const sectionChecked = sectionState?.checked === true;
+    const wantDisabled = sectionState?.locked === true;
+
+    for (let i = 0; i < ref.inputs.length; i++) {
+        const input = ref.inputs[i];
+        const label = ref.labels[i];
+        const choiceId = ref.choiceIds[i];
+        if (!input || !label || choiceId === undefined) continue;
+
+        const isSelected = mcState.selected.indexOf(choiceId) !== -1;
+        if (input.checked !== isSelected) input.checked = isSelected;
+        if (input.disabled !== wantDisabled) input.disabled = wantDisabled;
+
+        const isCorrectChoice = ref.correctIds.indexOf(choiceId) !== -1;
+        const showVerdict = sectionChecked && isSelected;
+        label.classList.toggle('correct', showVerdict && isCorrectChoice);
+        label.classList.toggle('incorrect', showVerdict && !isCorrectChoice);
+
+        const targetAriaInvalid: 'true' | 'false' | null = showVerdict
+            ? isCorrectChoice
+                ? 'false'
+                : 'true'
+            : null;
+        if (input.getAttribute('aria-invalid') !== targetAriaInvalid) {
+            if (targetAriaInvalid === null) {
+                input.removeAttribute('aria-invalid');
+            } else {
+                input.setAttribute('aria-invalid', targetAriaInvalid);
+            }
+        }
+
+        // Authored per-choice feedback: revealed post-check for selected
+        // choices only (the distractor's explanation is for whoever picked it).
+        const feedbackEl = ref.feedbackEls[choiceId];
+        if (feedbackEl) {
+            const wantHidden = !(sectionChecked && isSelected);
+            if (feedbackEl.hidden !== wantHidden) {
+                feedbackEl.hidden = wantHidden;
+            }
+        }
+    }
+
+    // Solution slot — hidden until solutionRevealed flips true.
+    if (ref.solutionEl) {
+        const wantHidden = !mcState.solutionRevealed;
+        if (ref.solutionEl.hidden !== wantHidden) {
+            ref.solutionEl.hidden = wantHidden;
+        }
+    }
+
+    // Confidence radio reflection — same contract as renderBlock's.
+    for (const radio of ref.confidenceRadios) {
+        const wantChecked = radio.value === mcState.confidence;
         if (radio.checked !== wantChecked) {
             radio.checked = wantChecked;
         }

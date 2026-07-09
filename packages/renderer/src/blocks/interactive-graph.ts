@@ -1,6 +1,7 @@
 import type { InteractiveGraphBlock } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
+import { renderGraphSvg, answerKeyDrawables } from '../graph-svg.js';
 
 export interface InteractiveGraphRenderContext {
   problemNumber: number;
@@ -12,6 +13,12 @@ export interface InteractiveGraphRenderContext {
    * from RenderContext.calculatorKitUrl.
    */
   graphKitUrl?: string;
+  /**
+   * Answer-key print variant (renderActivityForPrint showAnswers): draw the
+   * graded interaction's answer key onto the static fallback SVG — the graph
+   * twin of blanks prefilling with their canonical answer.
+   */
+  showAnswers?: boolean;
 }
 
 // The graded interactive-graph block (Phase 2.7, Stage 5). Emits ONLY the cheap,
@@ -115,14 +122,23 @@ export function renderInteractiveGraph(
 
   // The canvas is role="application" with an instructional aria-label — the kit
   // narrates handle position into the js-graph-feedback live region as the
-  // student moves. It starts empty (the kit mounts JSXGraph into it) and carries
-  // a static "requires JavaScript" fallback for the no-JS / no-kit / print case.
+  // student moves. Its pre-hydration content is the static fallback the no-JS /
+  // no-kit / print cases keep: a server-rendered SVG of the coordinate plane
+  // (blank grid to hand-plot on; the answer key drawn onto it in the showAnswers
+  // print variant) plus a screen-only "needs JavaScript" cue (print hides it).
+  // The kit clears the canvas on mount, so hydration replaces all of this.
+  const fallbackSvg = renderGraphSvg(
+    block.axisConfig,
+    ctx.showAnswers ? answerKeyDrawables(block) : [],
+    block.id,
+  );
   const canvas =
     '<div class="graph-canvas"' +
     ' data-graph-canvas="' + attr(block.id) + '"' +
     ' role="application"' +
     ' aria-label="Interactive coordinate plane. Tab to the point, then use arrow keys to move it; hold Shift for fine steps."' +
     ' tabindex="0">' +
+    fallbackSvg +
     '<p class="graph-nojs">This question needs JavaScript to plot your answer.</p>' +
     '</div>';
 
@@ -229,13 +245,18 @@ function renderDisplayGraph(
       : '';
 
   // A static figure: role="img", not role="application"; not focusable. The
-  // sidecar draws into it; the no-JS/print fallback stays if the kit can't load.
+  // pre-hydration content is a server-rendered SVG of the plane WITH the
+  // drawables — for a display graph the drawables ARE the content, so the
+  // no-JS/print fallback is the figure itself (no "needs JavaScript" cue; the
+  // one gap is `expression` drawables, which need the kit's parser and are
+  // absent from the static figure). The kit's read-only board replaces it on
+  // mount.
   const canvas =
     '<div class="graph-canvas"' +
     ' data-graph-canvas="' + attr(block.id) + '"' +
     ' role="img"' +
     ' aria-label="Graph">' +
-    '<p class="graph-nojs">This graph needs JavaScript to display.</p>' +
+    renderGraphSvg(block.axisConfig, block.interaction.drawables, block.id) +
     '</div>';
 
   return (

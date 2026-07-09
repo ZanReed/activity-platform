@@ -18,6 +18,7 @@ import { renderFillInBlank } from './fill-in-blank.js';
 import { renderBulletList, renderOrderedList } from './lists.js';
 import { renderColumns } from './columns.js';
 import { renderInteractiveGraph } from './interactive-graph.js';
+import { renderMultipleChoice } from './multiple-choice.js';
 
 export interface BlockRenderContext {
   /**
@@ -77,6 +78,12 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
         problemNumber:
           block.interaction.type === 'display' ? 0 : ctx.nextProblemNumber(),
         graphKitUrl: ctx.graphKitUrl,
+        showAnswers: ctx.showAnswers,
+      });
+    case 'multiple_choice':
+      return renderMultipleChoice(block, {
+        problemNumber: ctx.nextProblemNumber(),
+        showAnswers: ctx.showAnswers,
       });
     default: {
       // Exhaustiveness check — if a new block type is added to the schema
@@ -98,6 +105,7 @@ export function isNumberedBlock(block: Block): boolean {
   return (
     block.type === 'problem' ||
     block.type === 'fill_in_blank' ||
+    block.type === 'multiple_choice' ||
     (block.type === 'interactive_graph' && block.interaction.type !== 'display')
   );
 }

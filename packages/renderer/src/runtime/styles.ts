@@ -213,6 +213,62 @@ body {
   margin: 1.25rem 0;
   align-items: start;
 }
+/* Multiple-choice block — same two-column problem grid as fill-in-blank. */
+.block-multiple-choice {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+  align-items: start;
+}
+.mc-prompt { margin-bottom: 0.5rem; }
+.mc-prompt > :first-child { margin-top: 0; }
+.mc-prompt > :last-child { margin-bottom: 0; }
+.mc-multi-hint {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 0.35rem;
+}
+.mc-choices {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+.mc-choice {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mc-choice:hover { background: #f1f5f9; }
+.mc-choice input {
+  cursor: pointer;
+  /* Baseline-align the control with the first text line. */
+  transform: translateY(0.1em);
+}
+.mc-choice-letter {
+  font-weight: 600;
+  color: #64748b;
+  min-width: 1.1rem;
+}
+/* Post-check result classes (toggled by the runtime on the label). */
+.mc-choice.correct { background: var(--color-success-bg, #ecfdf5); }
+.mc-choice.incorrect { background: #fef2f2; }
+.mc-choice.correct .mc-choice-letter { color: var(--color-success, #059669); }
+.mc-choice.incorrect .mc-choice-letter { color: #dc2626; }
+/* Per-choice feedback, revealed post-check for selected choices. Indented to
+ sit under its choice's content. */
+.mc-choice-feedback {
+  margin: 0.1rem 0 0.45rem 2.6rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.9rem;
+  border-left: 3px solid #f59e0b;
+  background: #fffbeb;
+  border-radius: 0 6px 6px 0;
+}
+
 /* The display (static-figure) variant emits no problem number, so the numbered
  grid would auto-place its single body child into the 2.5rem gutter track and
  crush the canvas to 40px. No gutter → no grid. */
@@ -247,10 +303,30 @@ body {
   .column-cell .block-interactive-graph { overflow-x: auto; }
   .column-cell .graph-canvas { min-width: 11rem; }
 }
+/* The static fallback SVG (graph-svg.ts) — the pre-hydration canvas content
+ (blank plane on graded blocks, the full figure on display blocks). Fills the
+ square canvas; the kit clears it when the interactive board mounts. */
+.graph-canvas > .graph-paper {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* Screen-only cue for the no-JS / kit-failed case, overlaid at the bottom of
+ the fallback grid (the canvas is position:relative). Hidden in print — paper
+ gets the bare grid. */
 .graph-nojs {
-  padding: 1rem;
+  position: absolute;
+  left: 50%;
+  bottom: 0.4rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.15rem 0.6rem;
+  max-width: 92%;
+  text-align: center;
   color: #64748b;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 4px;
 }
 .js-graph-feedback {
   margin-top: 0.5rem;
@@ -1034,14 +1110,14 @@ body {
     display: none;
   }
 
-  /* Interactive graph on paper: no JSXGraph runs, so the canvas prints as a
-   plain bordered box the student hand-plots into. Drop the fixed aspect-ratio
-   for a taller, pen-friendly plotting area, and hide the "needs JavaScript"
-   placeholder (above). Answer checking is on-screen only. */
+  /* Interactive graph on paper: no JSXGraph runs, so what prints is the
+   static fallback SVG (graph-svg.ts) — a real coordinate grid the student
+   hand-plots onto (with the answer key drawn in the showAnswers variant).
+   Keep the screen rule's square aspect (the grid defines the plotting area)
+   and cap it at a hand-plottable paper size; the "needs JavaScript" cue is
+   hidden above. Answer checking is on-screen only. */
   .graph-canvas {
-    aspect-ratio: auto;
-    height: 3.5in;
-    max-width: none;
+    max-width: 3.5in;
   }
 
   /* Don't establish an inline-flex formatting context in print — let the
@@ -1062,11 +1138,31 @@ body {
    space) whole across page and column breaks. */
   .block-problem,
   .block-fill-in-blank,
-  .block-interactive-graph {
+  .block-interactive-graph,
+  .block-multiple-choice {
     break-inside: avoid;
     margin-top: var(--print-problem-spacing, 1.25rem);
     margin-bottom: var(--print-problem-spacing, 1.25rem);
     padding-bottom: var(--print-work-space, 0);
+  }
+
+  /* Multiple choice on paper: hide the native radio/checkbox controls — the
+   choice letters are the circle-me markers. The answer-key variant marks
+   correct choices with a drawn ring around the letter. Post-check state
+   classes and revealed feedback are neutralized (a printed worksheet is the
+   blank version). */
+  .mc-choice input { display: none; }
+  .mc-choice,
+  .mc-choice.correct,
+  .mc-choice.incorrect {
+    background: transparent;
+  }
+  .mc-choice-feedback { display: none; }
+  .mc-choice-letter { color: black; }
+  .mc-key-correct .mc-choice-letter {
+    outline: 1.5px solid black;
+    outline-offset: 2px;
+    border-radius: 50%;
   }
   .activity-section {
     break-before: auto; /* explicit: flow naturally, don't force a page */

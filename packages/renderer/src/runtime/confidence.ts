@@ -55,6 +55,24 @@ export function wireConfidence(
         }
     }
 
+    // Multiple-choice blocks carry the same per-block confidence fieldset;
+    // wire it into state.mcs[id].confidence identically.
+    for (const [blockId, ref] of refs.mcs) {
+        if (!ref.hasConfidenceRating || ref.confidenceRadios.length === 0) {
+            continue;
+        }
+        for (const radio of ref.confidenceRadios) {
+            radio.addEventListener('change', () => {
+                if (!radio.checked) return;
+                if (!isConfidence(radio.value)) return;
+                const mcState = state.mcs[blockId];
+                if (!mcState) return;
+                mcState.confidence = radio.value;
+                onUpdate();
+            });
+        }
+    }
+
     // Interactive-graph blocks carry the same per-block confidence fieldset;
     // wire it into state.graphs[id].confidence identically.
     for (const [blockId, ref] of refs.graphs) {

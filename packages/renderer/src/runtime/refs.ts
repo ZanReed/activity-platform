@@ -88,6 +88,38 @@ export interface FillInBlankRef {
     sectionId: string;
 }
 
+/** One per multiple_choice block. */
+export interface McRef {
+    /** The block <div>. */
+    el: HTMLElement;
+    /** Choice inputs (radio or checkbox), in document order. */
+    inputs: HTMLInputElement[];
+    /** data-choice-id per input — parallel to `inputs`. */
+    choiceIds: string[];
+    /** The .mc-choice <label> wrapping each input — parallel to `inputs`. */
+    labels: HTMLElement[];
+    /** Correct choice ids parsed from data-mc-answer (the baked answer key). */
+    correctIds: string[];
+    /** "Select all that apply" (checkboxes) vs single-select (radios). */
+    multiSelect: boolean;
+    /**
+     * Per-choice feedback divs (.js-mc-feedback), keyed by choice id. Only
+     * choices with authored feedback have an entry. Pre-rendered server-side;
+     * render() just toggles `hidden` post-check for selected choices.
+     */
+    feedbackEls: Record<string, HTMLElement>;
+    /** The .js-solution slot, revealed at check time; null when none authored. */
+    solutionEl: HTMLElement | null;
+    /** Whether the block surfaces a confidence-rating fieldset. */
+    hasConfidenceRating: boolean;
+    /** Radios inside the confidence fieldset (empty when none). */
+    confidenceRadios: HTMLInputElement[];
+    /** Skill tags from data-skills (empty when absent). */
+    skills: string[];
+    /** ID of the section this block belongs to. */
+    sectionId: string;
+}
+
 // The handle the lazy-loaded graph kit returns from mountGraphQuestion. A
 // parallel structural type (the runtime never imports @activity/graph-kit — it
 // dynamic-imports the built bundle by URL at runtime); the shape is the contract
@@ -230,6 +262,8 @@ export interface SectionRef {
     blockIds: string[];
     /** IDs of every interactive_graph block in this section (each scores as 1). */
     graphBlockIds: string[];
+    /** IDs of every multiple_choice block in this section (each scores as 1). */
+    mcBlockIds: string[];
     /** The .js-checkpoint-btn — present only on checkpoint sections in locked/free mode. */
     checkButton: HTMLButtonElement | null;
     /** The .js-section-score slot — present only on checkpoint sections in locked/free mode. */
@@ -263,6 +297,7 @@ export interface PopoverRef {
 export interface Refs {
     blanks: Map<string, BlankRef>;
     fillInBlanks: Map<string, FillInBlankRef>;
+    mcs: Map<string, McRef>;
     graphs: Map<string, GraphRef>;
     /** Static (display-mode) graph blocks — mounted read-only, never scored. */
     graphDisplays: Map<string, GraphDisplayRef>;

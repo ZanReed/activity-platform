@@ -30,6 +30,7 @@ import {
   applyStoredState,
 } from './storage.js';
 import { wireBlanks, wireHints, wireMistakes, wirePopover } from './blanks.js';
+import { wireMcChoices } from './mcs.js';
 import { wireCheckpoints } from './checkpoints.js';
 import { wireConfidence } from './confidence.js';
 import { graphExt } from './graph-integration.js';
@@ -76,6 +77,7 @@ function bootstrap(): void {
   };
 
   wireBlanks(config.answerFeedback, state, refs, onUpdate);
+  wireMcChoices(state, refs, onUpdate);
   wireHints(state, refs, onUpdate);
   wireMistakes(state, refs, onUpdate);
   wirePopover(state, refs, onUpdate);

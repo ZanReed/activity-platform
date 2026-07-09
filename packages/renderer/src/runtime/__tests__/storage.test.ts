@@ -104,7 +104,8 @@ function makeState(
         sections,
         blanks,
         blocks,
-        graphs: {},
+        mcs: {},
+    graphs: {},
         ...overrides,
     };
 }
@@ -113,7 +114,8 @@ function makeRefs(blanks: Map<string, BlankRef>): Refs {
     return {
         blanks,
         fillInBlanks: new Map(),
-        graphs: new Map(),
+        mcs: new Map(),
+    graphs: new Map(),
         graphDisplays: new Map(),
         sections: new Map(),
         popover: null,
@@ -250,7 +252,8 @@ describe('applyStoredState', () => {
             values: { 'b1': 'x+1', 'b2': 'y-2' },
             blanks: {},
             blocks: {},
-            graphs: {},
+            mcs: {},
+    graphs: {},
             sections: {},
         };
         applyStoredState(stored, refs, state);
@@ -277,7 +280,8 @@ describe('applyStoredState', () => {
             blocks: {
                 'block-1': { solutionRevealed: true, confidence: 'think_so' },
             },
-            graphs: {},
+            mcs: {},
+    graphs: {},
             sections: {
                 'sec-1': {
                     checked: true,
@@ -308,7 +312,8 @@ describe('applyStoredState', () => {
        'orphan': makeBlankState({ result: false }),
             },
             blocks: {},
-            graphs: {},
+            mcs: {},
+    graphs: {},
             sections: {},
         };
         applyStoredState(stored, refs, state);

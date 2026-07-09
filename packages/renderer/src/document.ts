@@ -367,6 +367,11 @@ export function renderActivityForPrint(
     '<title>' + escape(doc.meta.title) + '</title>' +
     '<style>' + katexCss + '</style>' +
     '<style>' + blockStyles + '</style>' +
+    // This document carries no runtime, so the graph blocks' screen-only
+    // "needs JavaScript" cue is meaningless here in ANY medium — including the
+    // print route's on-screen preview iframe (blockStyles hides it only under
+    // @media print). The static fallback grid is the whole story.
+    '<style>.graph-nojs{display:none}</style>' +
     printPageStyle(print) +
     typographyStyleTag(doc.meta.typography, opts.fontsBaseUrl) +
     '</head>' +

@@ -80,6 +80,27 @@ export interface BlockState {
     confidence: 'unsure' | 'think_so' | 'certain' | null;
 }
 
+export interface McBlockState {
+    /**
+     * Selected choice ids, in the block's document order. Empty = unanswered
+     * (an omission at check/submit time, like an empty blank). Single-select
+     * holds at most one id; multi-select any number.
+     */
+    selected: string[];
+    /**
+     * Scoring result: true correct (selected set equals the correct set —
+     * all-or-nothing), false incorrect, null unscored (unanswered, or never
+     * checked). Written at check/submit time, not on selection — MC shows no
+     * pre-check verdict (immediate feedback on a closed-form question is a
+     * brute-force invitation).
+     */
+    result: boolean | null;
+    /** Whether this block's solution slot has been revealed (post-check). */
+    solutionRevealed: boolean;
+    /** Student's per-block confidence selection (null until picked). */
+    confidence: 'unsure' | 'think_so' | 'certain' | null;
+}
+
 export interface GraphBlockState {
     /**
      * The student's plotted point(s) in graph units — one per answer handle
@@ -159,6 +180,8 @@ export interface RuntimeState {
     blanks: Record<string, BlankState>;
     /** Per-fill-in-blank-block status, keyed by block.id. */
     blocks: Record<string, BlockState>;
+    /** Per-multiple-choice-block status, keyed by block.id. */
+    mcs: Record<string, McBlockState>;
     /** Per-interactive-graph-block status, keyed by block.id. */
     graphs: Record<string, GraphBlockState>;
 }
@@ -198,6 +221,15 @@ export function createInitialState(refs: Refs): RuntimeState {
             confidence: null,
         };
     }
+    const mcs: Record<string, McBlockState> = {};
+    for (const [id] of refs.mcs) {
+        mcs[id] = {
+            selected: [],
+            result: null,
+            solutionRevealed: false,
+            confidence: null,
+        };
+    }
     const graphs = graphExt.initGraphState(refs);
     return {
         submitted: false,
@@ -207,6 +239,7 @@ export function createInitialState(refs: Refs): RuntimeState {
         sections,
         blanks,
         blocks,
+        mcs,
         graphs,
     };
 }

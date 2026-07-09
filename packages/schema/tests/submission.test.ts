@@ -14,11 +14,11 @@ import {
   migrateSubmissionResponses,
 } from '../src/index.js';
 
-describe('SubmissionResponses (v4 — current)', () => {
+describe('SubmissionResponses (v5 — current)', () => {
   it('parses valid responses keyed by uuid', () => {
     const id = crypto.randomUUID();
     const data = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: {
         [id]: { answer: 'x+2', correct: true },
       },
@@ -28,7 +28,7 @@ describe('SubmissionResponses (v4 — current)', () => {
   });
 
   it('parses empty responses (student submitted nothing)', () => {
-    const data = { schemaVersion: 4, blanks: {} };
+    const data = { schemaVersion: 5, blanks: {} };
     expect(SubmissionResponses.safeParse(data).success).toBe(true);
   });
 
@@ -36,7 +36,7 @@ describe('SubmissionResponses (v4 — current)', () => {
     const blankId = crypto.randomUUID();
     const sectionId = crypto.randomUUID();
     const data = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: {
         [blankId]: { answer: 'x+2', correct: true, confidence: 'certain' },
       },
@@ -54,7 +54,7 @@ describe('SubmissionResponses (v4 — current)', () => {
   it('parses a plot_point graphResponse', () => {
     const graphId = crypto.randomUUID();
     const data = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: {},
       graphResponses: {
         [graphId]: {
@@ -71,7 +71,7 @@ describe('SubmissionResponses (v4 — current)', () => {
   it('parses a plot_function graphResponse', () => {
     const graphId = crypto.randomUUID();
     const data = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: {},
       graphResponses: {
         [graphId]: {
@@ -87,7 +87,7 @@ describe('SubmissionResponses (v4 — current)', () => {
   it('parses a shade_region graphResponse', () => {
     const graphId = crypto.randomUUID();
     const data = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: {},
       graphResponses: {
         [graphId]: {
@@ -103,7 +103,7 @@ describe('SubmissionResponses (v4 — current)', () => {
   it('rejects a graphResponse with a non-tuple point', () => {
     const graphId = crypto.randomUUID();
     const data = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: {},
       graphResponses: {
         [graphId]: { type: 'plot_point', studentPoints: [[3]], correct: false },
@@ -115,7 +115,7 @@ describe('SubmissionResponses (v4 — current)', () => {
   it('rejects an unknown graph interaction type', () => {
     const graphId = crypto.randomUUID();
     const data = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: {},
       graphResponses: {
         [graphId]: { type: 'plot_line', studentPoints: [[0, 0]], correct: true },
@@ -126,7 +126,7 @@ describe('SubmissionResponses (v4 — current)', () => {
 
   it('rejects non-uuid blank keys', () => {
     const data = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: { 'not-a-uuid': { answer: 'x', correct: false } },
     };
     expect(SubmissionResponses.safeParse(data).success).toBe(false);
@@ -150,7 +150,7 @@ describe('SubmissionResponses (v4 — current)', () => {
   it('rejects an invalid confidence value', () => {
     const id = crypto.randomUUID();
     const data = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: { [id]: { answer: 'x+2', correct: true, confidence: 'maybe' } },
     };
     expect(SubmissionResponses.safeParse(data).success).toBe(false);
@@ -178,10 +178,10 @@ describe('legacy shapes (for migration only)', () => {
 });
 
 describe('migrateSubmissionResponses', () => {
-  it('reads a v4 submission unchanged (incl. graphResponses)', () => {
+  it('migrates a v4 submission (incl. graphResponses) to v5', () => {
     const blankId = crypto.randomUUID();
     const graphId = crypto.randomUUID();
-    const v3 = {
+    const v4 = {
       schemaVersion: 4 as const,
       blanks: { [blankId]: { answer: 'x+2', correct: true } },
       graphResponses: {
@@ -192,13 +192,14 @@ describe('migrateSubmissionResponses', () => {
         },
       },
     };
-    const result = migrateSubmissionResponses(v3);
-    expect(result.schemaVersion).toBe(4);
-    expect(result.blanks).toEqual(v3.blanks);
-    expect(result.graphResponses).toEqual(v3.graphResponses);
+    const result = migrateSubmissionResponses(v4);
+    expect(result.schemaVersion).toBe(5);
+    expect(result.blanks).toEqual(v4.blanks);
+    expect(result.graphResponses).toEqual(v4.graphResponses);
+    expect(result.choices).toBeUndefined();
   });
 
-  it('migrates a v2 submission to v4, preserving checkpointResults', () => {
+  it('migrates a v2 submission to v5, preserving checkpointResults', () => {
     const blankId = crypto.randomUUID();
     const sectionId = crypto.randomUUID();
     const v2 = {
@@ -209,20 +210,20 @@ describe('migrateSubmissionResponses', () => {
       },
     };
     const result = migrateSubmissionResponses(v2);
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.blanks).toEqual(v2.blanks);
     expect(result.checkpointResults).toEqual(v2.checkpointResults);
     expect(result.graphResponses).toBeUndefined();
   });
 
-  it('migrates a v1 submission to v4', () => {
+  it('migrates a v1 submission to v5', () => {
     const id = crypto.randomUUID();
     const v1 = {
       schemaVersion: 1,
       blanks: { [id]: { answer: 'x+2', correct: true } },
     };
     const result = migrateSubmissionResponses(v1);
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.blanks).toEqual(v1.blanks);
     expect(result.checkpointResults).toBeUndefined();
     expect(result.graphResponses).toBeUndefined();
@@ -240,7 +241,7 @@ describe('migrateSubmissionResponses', () => {
 describe('v4 additions (Drop 4)', () => {
   it('parses a graph_inequality response with v4 extras', () => {
     const parsed = SubmissionResponses.safeParse({
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: {},
       graphResponses: {
         '11111111-1111-4111-8111-111111111111': {
@@ -259,7 +260,7 @@ describe('v4 additions (Drop 4)', () => {
 
   it('parses a no-solution plot_point response (empty points)', () => {
     const parsed = SubmissionResponses.safeParse({
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: {},
       graphResponses: {
         '11111111-1111-4111-8111-111111111111': {
@@ -273,7 +274,7 @@ describe('v4 additions (Drop 4)', () => {
     expect(parsed.success).toBe(true);
   });
 
-  it('migrates a v3 submission (graphResponses intact) to v4', () => {
+  it('migrates a v3 submission (graphResponses intact) to v5', () => {
     const out = migrateSubmissionResponses({
       schemaVersion: 3,
       blanks: {},
@@ -285,13 +286,13 @@ describe('v4 additions (Drop 4)', () => {
         },
       },
     });
-    expect(out.schemaVersion).toBe(4);
+    expect(out.schemaVersion).toBe(5);
     expect(Object.keys(out.graphResponses ?? {})).toHaveLength(1);
   });
 
   it('accepts a fractional checkpoint score (partial credit)', () => {
     const parsed = SubmissionResponses.safeParse({
-      schemaVersion: 4,
+      schemaVersion: 5,
       blanks: {},
       checkpointResults: {
         '22222222-2222-4222-8222-222222222222': {
@@ -302,5 +303,64 @@ describe('v4 additions (Drop 4)', () => {
       },
     });
     expect(parsed.success).toBe(true);
+  });
+});
+
+describe('v5 additions (multiple choice)', () => {
+  const mcId = '33333333-3333-4333-8333-333333333333';
+  const choiceA = '44444444-4444-4444-8444-444444444444';
+  const choiceB = '55555555-5555-4555-8555-555555555555';
+
+  it('parses a single-select choices response', () => {
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 5,
+      blanks: {},
+      choices: {
+        [mcId]: { selected: [choiceA], correct: true, confidence: 'certain' },
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('parses a multi-select choices response (several ids)', () => {
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 5,
+      blanks: {},
+      choices: {
+        [mcId]: { selected: [choiceA, choiceB], correct: false },
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects an empty selected array (unanswered blocks are omitted, not empty)', () => {
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 5,
+      blanks: {},
+      choices: { [mcId]: { selected: [], correct: false } },
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects non-uuid selected ids', () => {
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 5,
+      blanks: {},
+      choices: { [mcId]: { selected: ['choice-1'], correct: true } },
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects schemaVersion 4 carrying a choices map (v4 had no such field... but zod strips)', () => {
+    // v4 legacy schema silently strips unknown keys (Zod default), so a v4
+    // post with a choices map migrates forward WITHOUT the choices data —
+    // pin that this is the behavior (the v5 runtime always posts v5).
+    const result = migrateSubmissionResponses({
+      schemaVersion: 4,
+      blanks: {},
+      choices: { [mcId]: { selected: [choiceA], correct: true } },
+    });
+    expect(result.schemaVersion).toBe(5);
+    expect(result.choices).toBeUndefined();
   });
 });

@@ -30,6 +30,8 @@ import type {
   Column,
   ColumnsBlock,
   InteractiveGraphBlock,
+  MultipleChoiceBlock,
+  MultipleChoiceOption,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
@@ -73,6 +75,31 @@ export function createFillInBlankBlock(): FillInBlankBlock {
     skills: [],
   };
 }
+export function createMultipleChoiceOption(
+  correct: boolean = false,
+): MultipleChoiceOption {
+  return { id: uuid(), content: [], correct };
+}
+
+export function createMultipleChoiceBlock(): MultipleChoiceBlock {
+  // Three empty choices with the first marked correct — a valid starting
+  // shape (schema requires 2+ choices) the teacher edits in place. The
+  // editor warns if they later leave no choice marked correct.
+  return {
+    id: uuid(),
+    type: 'multiple_choice',
+    prompt: [],
+    choices: [
+      createMultipleChoiceOption(true),
+      createMultipleChoiceOption(),
+      createMultipleChoiceOption(),
+    ],
+    multiSelect: false,
+    hasConfidenceRating: false,
+    skills: [],
+  };
+}
+
 export function createListItem(): ListItem {
   return { id: uuid(), content: [] };
 }

@@ -24,6 +24,7 @@ import {
     type Refs,
     type BlankRef,
     type FillInBlankRef,
+    type McRef,
     type GraphRef,
     type GraphDisplayRef,
     type SectionRef,
@@ -52,6 +53,7 @@ export function buildRefs(doc: Document = document): Refs {
     const sections = new Map<string, SectionRef>();
     const fillInBlanks = new Map<string, FillInBlankRef>();
     const blanks = new Map<string, BlankRef>();
+    const mcs = new Map<string, McRef>();
     const graphs = new Map<string, GraphRef>();
     const graphDisplays = new Map<string, GraphDisplayRef>();
 
@@ -64,6 +66,7 @@ export function buildRefs(doc: Document = document): Refs {
 
         const sectionBlockIds: string[] = [];
         const sectionBlankIds: string[] = [];
+        const sectionMcBlockIds: string[] = [];
         const sectionGraphBlockIds: string[] = [];
 
         for (const blockEl of $$<HTMLElement>(
@@ -93,6 +96,22 @@ export function buildRefs(doc: Document = document): Refs {
             );
         }
 
+        // Multiple-choice blocks — one scorable unit each, like graphs.
+        for (const blockEl of $$<HTMLElement>(
+            '[data-block-type="multiple_choice"]',
+            sectionEl,
+        )) {
+            const blockId = blockEl.dataset.blockId;
+            if (!blockId) {
+                warn('Multiple-choice block is missing data-block-id; skipping.');
+                continue;
+            }
+            const ref = buildMcRef(blockEl, blockId, sectionId);
+            if (!ref) continue;
+            mcs.set(blockId, ref);
+            sectionMcBlockIds.push(blockId);
+        }
+
         // Graph blocks (graded + display) are the graph feature's to walk: in
         // the base runtime build this is a no-op and no graph code ships.
         sectionGraphBlockIds.push(
@@ -105,6 +124,7 @@ export function buildRefs(doc: Document = document): Refs {
                 sectionEl,
                 sectionBlockIds,
                 sectionBlankIds,
+                sectionMcBlockIds,
                 sectionGraphBlockIds,
             ),
         );
@@ -113,6 +133,7 @@ export function buildRefs(doc: Document = document): Refs {
     return {
         blanks,
         fillInBlanks,
+        mcs,
         graphs,
         graphDisplays,
         sections,
@@ -252,10 +273,100 @@ function buildFillInBlankRef(
     };
 }
 
+/**
+ * Build the ref for one multiple_choice block. Returns null when the baked
+ * answer key (data-mc-answer) is missing or malformed — a block the runtime
+ * can't score is skipped whole (its inputs stay inert), the rest of the page
+ * still works.
+ */
+function buildMcRef(
+    el: HTMLElement,
+    blockId: string,
+    sectionId: string,
+): McRef | null {
+    let correctIds: string[] | null = null;
+    try {
+        const parsed = JSON.parse(el.dataset.mcAnswer ?? '');
+        if (
+            Array.isArray(parsed) &&
+            parsed.every((v) => typeof v === 'string')
+        ) {
+            correctIds = parsed;
+        }
+    } catch {
+        /* fall through to the warn below */
+    }
+    if (correctIds === null) {
+        warn('Block ' + blockId + ' has malformed data-mc-answer; skipping.');
+        return null;
+    }
+
+    const inputs: HTMLInputElement[] = [];
+    const choiceIds: string[] = [];
+    const labels: HTMLElement[] = [];
+    for (const input of $$<HTMLInputElement>(
+        '.mc-choice input[data-choice-id]',
+        el,
+    )) {
+        const choiceId = input.dataset.choiceId;
+        const label = input.parentElement;
+        if (!choiceId || !label) continue;
+        inputs.push(input);
+        choiceIds.push(choiceId);
+        labels.push(label);
+    }
+
+    const feedbackEls: Record<string, HTMLElement> = {};
+    for (const div of $$<HTMLElement>('.js-mc-feedback', el)) {
+        const choiceId = div.dataset.choiceId;
+        if (choiceId) feedbackEls[choiceId] = div;
+    }
+
+    const solutionEl = el.querySelector<HTMLElement>('.js-solution');
+    const hasConfidenceRating = el.dataset.hasConfidenceRating === 'true';
+    const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
+        '.js-confidence-rating',
+    );
+    const confidenceRadios: HTMLInputElement[] = confidenceFieldset
+        ? Array.prototype.slice.call(
+              confidenceFieldset.querySelectorAll<HTMLInputElement>(
+                  'input[type="radio"]',
+              ),
+          )
+        : [];
+
+    let skills: string[] = [];
+    const rawSkills = el.dataset.skills;
+    if (rawSkills) {
+        try {
+            const parsed = JSON.parse(rawSkills);
+            if (Array.isArray(parsed)) skills = parsed;
+        } catch {
+            warn('Block ' + blockId + ' has malformed data-skills; ignoring.');
+        }
+    }
+
+    return {
+        el,
+        inputs,
+        choiceIds,
+        labels,
+        correctIds,
+        multiSelect: el.dataset.mcMulti === 'true',
+        feedbackEls,
+        solutionEl,
+        hasConfidenceRating,
+        confidenceRadios,
+        skills,
+        sectionId,
+    };
+}
+
 function buildSectionRef(
     el: HTMLElement,
     blockIds: string[],
     blankIds: string[],
+    mcBlockIds: string[],
     graphBlockIds: string[],
 ): SectionRef {
     const isCheckpoint = el.dataset.isCheckpoint === 'true';
@@ -267,6 +378,7 @@ function buildSectionRef(
         isCheckpoint,
         blankIds,
         blockIds,
+        mcBlockIds,
         graphBlockIds,
         checkButton,
         scoreEl,

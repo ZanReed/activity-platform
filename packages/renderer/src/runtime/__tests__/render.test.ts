@@ -202,6 +202,7 @@ function makeSectionRefHelper(
         isCheckpoint: withCheckButton,
         blankIds: [],
         blockIds: [],
+        mcBlockIds: [],
         graphBlockIds: [],
         checkButton,
         scoreEl,
@@ -225,7 +226,7 @@ function makeRefs(
                   sections: Map<string, SectionRef> = new Map(),
                   popover: PopoverRef | null = null,
 ): Refs {
-    return { blanks, fillInBlanks, graphs: new Map(), graphDisplays: new Map(), sections, popover };
+    return { blanks, fillInBlanks, mcs: new Map(), graphs: new Map(), graphDisplays: new Map(), sections, popover };
 }
 
 function makeState(
@@ -241,7 +242,8 @@ function makeState(
         sections: sectionStates,
         blanks: blankStates,
         blocks: blockStates,
-        graphs: {},
+        mcs: {},
+    graphs: {},
     };
 }
 

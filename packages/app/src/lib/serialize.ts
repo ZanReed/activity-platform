@@ -691,6 +691,7 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
 
         case 'callout':
         case 'problem':
+        case 'multiple_choice':
             console.warn(
                 `[serialize] No Tiptap mapping for ${block.type} yet; block omitted from editor view.`,
             );
