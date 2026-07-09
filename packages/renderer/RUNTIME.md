@@ -24,7 +24,7 @@ The runtime is the JavaScript that runs in students' browsers on every published
 - Confidence rating capture (per-block fieldset; one selection per problem)
 - State persistence across page reloads (typed values + scoring state + hint reveals + solution reveals + locked state + section scores + confidence; per `activityId + versionNum` localStorage blob)
 - Student name persistence across activities (separate localStorage key)
-- Final submission to `ingest-submission` with `responses.schemaVersion: 2` payload including per-blank confidence and optional `checkpointResults` map
+- Final submission to `ingest-submission` with `responses.schemaVersion: 5` payload including per-blank confidence and the optional `checkpointResults` / `graphResponses` / `choices` maps
 - Persistence cleared on submit success
 - Graceful degradation throughout — malformed config → no-op runtime; private-mode localStorage → silent skip; missing per-element attributes → warn-and-skip
 
@@ -133,9 +133,9 @@ The bootstrap in `index.ts` runs once on `DOMContentLoaded` (or immediately if t
 
 - **Name** (cross-activity): localStorage key `activity_student_name`. Plain string. Carried across all activities on the domain.
 
-- **Activity state blob** (per `activityId + versionNum`): localStorage key `activity_state_${activityId}_v${versionNum}`. JSON blob with shape `{ schemaVersion, values, blanks, blocks, sections }`. Versioned key auto-invalidates on republish (v1 → v2 means the v1 blob is no longer found). Schema-versioned internally (`STORAGE_SCHEMA_VERSION = 3`) so future runtime changes can bail cleanly on shape mismatch. Save gated by `!state.submitted`. Cleared on submit success.
+- **Activity state blob** (per `activityId + versionNum`): localStorage key `activity_state_${activityId}_v${versionNum}`. JSON blob with shape `{ schemaVersion, values, blanks, blocks, mcs, graphs, sections }`. Versioned key auto-invalidates on republish (v1 → v2 means the v1 blob is no longer found). Schema-versioned internally (`STORAGE_SCHEMA_VERSION = 6`) so future runtime changes can bail cleanly on shape mismatch. Save gated by `!state.submitted`. Cleared on submit success.
 
-- **Submission payload** (network): POSTed to `ingest-submission`. `responses` is v2 shape: `{ schemaVersion: 2, blanks: Record<uuid, BlankResult>, checkpointResults?: Record<uuid, CheckpointResultPayload> }` plus `activityId`, `displayName`, `score` at top level.
+- **Submission payload** (network): POSTed to `ingest-submission`. `responses` is v5 shape: `{ schemaVersion: 5, blanks: Record<uuid, BlankResult>, checkpointResults?, graphResponses?, choices? }` plus `activity_id`, `display_name`, `score` at top level.
 
 ### Specific behavior rules
 
@@ -312,7 +312,8 @@ Every blank renders as an `<input class="blank">` inside a `<span class="blank-w
 The input also carries (when authored):
 - `data-hint="..."` — read by `buildBlankRef`
 - `data-mistake-feedback='[{"match":"2x","feedback":"..."}]'` — JSON array
-- `data-blank-strategy="list"` — default; `[target — Phase 2.5]` adds `expression` and `computed`
+- `data-blank-strategy="list"` — default (exact string match). `"numeric"` (numeric blanks) parses BOTH the typed value and each key entry as a number — decimals, fractions (`3/4`), mixed numbers (`1 1/2`), scientific notation, comma separators, a leading `$` — and compares within `data-blank-tolerance` (absolute; absent = exact, with a 1e-9 float-noise epsilon). A key entry that doesn't parse numerically (e.g. `no solution`) falls back to exact string match for that entry. Numeric inputs also carry `inputmode="decimal"` for touch keyboards. `[target — Phase 2.5]` adds `expression` and `computed`.
+- `data-blank-tolerance="0.01"` — numeric strategy only; omitted when the author didn't set one.
 - `data-blank-group="<anchor-blank-uuid>"` — **order-independent grouping.** Present only on blanks that belong to a group (a run of 2+ adjacent blanks the author marked interchangeable; the value is the run's first/anchor blank id). The runtime buckets blanks by this id and scores each group with **consume-once matching** (each correct answer satisfies one blank), so for `(x + ☐)(x + ☐)` both `(2,3)` and `(3,2)` are correct but `(2,2)` is not. Grouped inputs also carry `class="blank blank-grouped"` + `title="Any order accepted"` as a student cue. Absent ⇒ the blank scores independently (the default).
 
 **Accessibility — positional label.** Each blank `<input>` carries a renderer-supplied `aria-label`. With multiple blanks in a block it's positional — `Blank 1 of 3`, `Blank 2 of 3`, … — numbered in document order. Lone blank: `Fill in the blank`. Without it, screen readers announce only "edit text," giving the student no cue which blank has focus.
@@ -437,6 +438,44 @@ The graded plot-a-point block (Phase 2.7 Stage 5). Unlike the calculator scaffol
 - `.js-graph-feedback` carries `data-mode` — `"narrate"` (pre-check position narration, VISUALLY HIDDEN by the block CSS: SR-only, never a coordinate readout a sighted student can crib) or `"result"` (post-check correctness/mistake feedback, visible).
 
 **Hydration + scoring.** All graph runtime logic lives behind one seam — `runtime/graph-integration.ts` (the `graphExt` object) — which the base runtime's shared files (init, state, render, checkpoints, submission, index) call through and which is compiled ONLY into the graphs runtime variant (see Build pipeline). `init` (via `graphExt.walkGraphBlocks`) builds a `GraphRef` (canvas, feedback slot, solution slot, parsed config/answer-key, kit src) and lists the block on its section's `graphBlockIds`. `graphExt.wireGraphs` `import()`s the kit and calls `mountGraphQuestion(canvas, {interactionType, axisConfig, answerKey}, {onChange})`, which returns `{ getResponse(), restore(points), setLocked(locked), destroy() }` (mounts JSXGraph into `.graph-canvas`, arrow-keys move the point, drag snaps to grid). Each move writes `state.graphs[id]` (point, answered, result) and fires `onUpdate`, so the graph participates in checkpoint scoring (one scorable unit — an unanswered graph is an omission, like an empty blank), the submit payload (`SubmissionResponses.graphResponses`, schemaVersion **3**), and reload restore (`STORAGE_SCHEMA_VERSION` **4**) exactly like a blank. `render` owns the block chrome (feedback narration/result, solution reveal, confidence radios, widget lock via `GraphRef.handle`); the canvas board is the kit's. `GraphRef.handle` is the one **mutable** ref field (the widget is acquired asynchronously after init).
+
+### Multiple-choice block (`data-block-category="question"`)
+
+A graded question: prompt + 2+ choices, single-select (radios) or multi-select checkboxes, scored **all-or-nothing** by selected-set equality against the baked answer key. Lives inside `.activity-section`; the `init` walker picks it up; scores into the section checkpoint + the submit payload (`SubmissionResponses.choices`, schemaVersion **5**) as one scorable unit — an unanswered block is an omission, like an empty blank.
+
+```html
+<div class="block block-multiple-choice" data-block-category="question"
+     data-block-type="multiple_choice"
+     data-block-id="<uuid>"
+     data-mc-answer="[&quot;<choice-uuid>&quot;]"
+     data-mc-multi="true">   <!-- omit-when-default: absent = single-select -->
+  <div class="block-problem-number">1.</div>
+  <div class="block-problem-body">
+    <div class="mc-prompt">…inline prompt…</div>
+    <div class="mc-multi-hint">Select all that apply.</div>  <!-- multi only -->
+    <fieldset class="mc-choices" aria-label="Answer choices">
+      <label class="mc-choice">
+        <input type="radio" name="mc-<block-uuid>" value="<choice-uuid>"
+               data-choice-id="<choice-uuid>" />
+        <span class="mc-choice-letter" aria-hidden="true">A.</span>
+        <span class="mc-choice-content">…rendered inline…</span>
+      </label>
+      <!-- per-choice feedback, only when authored — sibling AFTER its label: -->
+      <div class="js-mc-feedback mc-choice-feedback" data-choice-id="<choice-uuid>" hidden>…</div>
+    </fieldset>
+    <!-- optional: .js-confidence-rating fieldset, .print-confidence row,
+         .js-solution slot (all identical to fill_in_blank) -->
+  </div>
+</div>
+```
+
+- `data-mc-answer` — JSON array of the CORRECT choice ids (the baked answer key; same client-side-scoring ceiling as `data-blank-answers`). Malformed → init skips the whole block (inputs stay inert), rest of the page works.
+- `data-mc-multi="true"` — multi-select ("select all that apply", checkboxes); absent = single-select radios. `name` is namespaced by block id so two blocks never share a radio group.
+- `data-choice-id` on each input — the choice's stable uuid; keys the submission's `selected` array and the feedback div lookup.
+- `.js-mc-feedback` — pre-rendered per-choice feedback (the MC mistakeFeedback analogue), revealed by render post-check for SELECTED choices only.
+- **Selection state lives in state, not the DOM**: `render` syncs each input's `checked` from `state.mcs[id].selected` (restore-on-load is state-only — `applyStoredState` never touches these inputs). Change handlers rebuild `selected` from the inputs in document order.
+- Verdicts appear only post-check: selected labels get `.correct`/`.incorrect` + selected inputs get `aria-invalid`; unselected correct choices are never highlighted (no answer leak — the solution slot is the sanctioned reveal). There is deliberately NO immediate-feedback mode for MC (closed-form brute-forcing).
+- Print: native inputs hidden; the letters are the circle-me markers. Answer-key print variant pre-checks correct inputs + rings their letters (`.mc-key-correct`).
 
 ### Reading discipline
 
@@ -595,7 +634,7 @@ applyStoredState(stored, refs, state): void        // mutates inputs + state in 
 
 Storage key: `activity_state_${activityId}_v${versionNum}`. Versioned key means republishing the activity (versionNum bump) auto-invalidates prior persistence.
 
-Schema versioning: `STORAGE_SCHEMA_VERSION = 3`. Load returns null on mismatch (fresh state). Bump when `BlankState` / `BlockState` / `SectionState` / blob shape changes in a way that older serialized blobs can no longer be interpreted as.
+Schema versioning: `STORAGE_SCHEMA_VERSION = 6`. Load returns null on mismatch (fresh state). Bump when `BlankState` / `BlockState` / `McBlockState` / `GraphBlockState` / `SectionState` / blob shape changes in a way that older serialized blobs can no longer be interpreted as.
 
 Save is gated by `!state.submitted`. Once submitted, persistence is irrelevant (`clearActivityState` fires on success) and re-writing post-submit edits would confuse the next session's restore.
 
@@ -712,7 +751,7 @@ Test suite at `packages/renderer/src/runtime/__tests__/`. Files (scoring runtime
 - **Every DOM write in `render` is change-guarded.** `classList.toggle(name, condition)` is idempotent. Attribute / `hidden` / `checked` / `textContent` get explicit current-vs-target checks.
 - **All attribute reads have a fallback.** No `dataset.X` access without `?? default`. No `JSON.parse(...)` without try/catch.
 - **No JS dependencies.** Vanilla TypeScript. Adding utility libraries would blow size budget and add attack surface.
-- **Persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION = 3`. Bump when `BlankState`, `BlockState`, `SectionState`, or blob shape changes incompatibly.
+- **Persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION = 6`. Bump when `BlankState`, `BlockState`, `McBlockState`, `GraphBlockState`, `SectionState`, or blob shape changes incompatibly.
 - **Heavy widgets are lazy-loaded into separate bundles.** `[target — Phase 2.7+]` interactive graphs and `[target — Phase 2.9+]` annotation widgets are dynamic imports. Pages without those block types pay nothing.
 - **Naming convention discipline:**
   - TypeScript fields: `camelCase` (`attemptNumber`, `revisionMode`)
