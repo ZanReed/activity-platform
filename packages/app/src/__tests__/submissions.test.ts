@@ -365,6 +365,93 @@ describe('buildActivityIndex', () => {
         expect(idx.graphs.size).toBe(0);
     });
 
+    it('recurses into columns — nested blank, graph, and MC blocks all index', () => {
+        const columnsDoc: ActivityDocument = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta: {
+                title: 'Two-up', course: 'Algebra I', submissionMode: 'free',
+                revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet',
+                answerFeedback: 'on_check', skills: [],
+            },
+            sections: [
+                {
+                    id: U(430), title: 'Side by side', isCheckpoint: true,
+                    blocks: [
+                        {
+                            id: U(530),
+                            type: 'columns',
+                            columns: [
+                                {
+                                    id: U(531),
+                                    blocks: [
+                                        {
+                                            id: U(540), type: 'fill_in_blank',
+                                            hasConfidenceRating: false, skills: [],
+                                            content: [
+                                                { type: 'text', text: 'x = ', marks: [] },
+                                                {
+                                                    type: 'blank', id: U(610),
+                                                    answer: '4', acceptableAnswers: [],
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            id: U(541), type: 'multiple_choice',
+                                            prompt: [{ type: 'text', text: 'Pick.', marks: [] }],
+                                            multiSelect: false,
+                                            choices: [
+                                                {
+                                                    id: U(611),
+                                                    content: [{ type: 'text', text: 'yes', marks: [] }],
+                                                    correct: true,
+                                                },
+                                                {
+                                                    id: U(612),
+                                                    content: [{ type: 'text', text: 'no', marks: [] }],
+                                                    correct: false,
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    id: U(532),
+                                    blocks: [
+                                        {
+                                            id: U(542), type: 'interactive_graph',
+                                            prompt: [{ type: 'text', text: 'Plot it.', marks: [] }],
+                                            axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+                                            interaction: {
+                                                type: 'plot_point',
+                                                correctPoints: [[1, 2]],
+                                                tolerance: 0.1,
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(columnsDoc);
+        // The blank inside column 1 indexes with its section metadata intact.
+        const b = idx.blanks.get(U(610))!;
+        expect(b).toBeDefined();
+        expect(b.problemId).toBe(U(540));
+        expect(b.sectionTitle).toBe('Side by side');
+        // The MC block inside column 1.
+        const m = idx.mcs.get(U(541))!;
+        expect(m).toBeDefined();
+        expect(m.answerSummary).toBe('A. yes');
+        expect(m.sectionId).toBe(U(430));
+        // The graph inside column 2.
+        const g = idx.graphs.get(U(542))!;
+        expect(g).toBeDefined();
+        expect(g.answerSummary).toBe('(1, 2)');
+    });
+
     it('summarizes a plot_function (linear) answer as an equation', () => {
         const funcDoc: ActivityDocument = ActivityDocument.parse({
             schemaVersion: 1,

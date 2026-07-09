@@ -30,6 +30,7 @@ import { CalloutBlock } from './callout.js';
 import { ProblemBlock } from './problem.js';
 import { FillInBlankBlock } from './fill-in-blank.js';
 import { InteractiveGraphBlock } from './interactive-graph.js';
+import { MultipleChoiceBlock } from './multiple-choice.js';
 import { BulletListBlock, OrderedListBlock } from './list.js';
 
 // Cell content = the full Block union MINUS ColumnsBlock. When a new leaf block
@@ -43,6 +44,7 @@ export const ColumnCellBlock = z.discriminatedUnion('type', [
   ProblemBlock,
   FillInBlankBlock,
   InteractiveGraphBlock,
+  MultipleChoiceBlock,
   BulletListBlock,
   OrderedListBlock,
 ]);

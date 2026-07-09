@@ -21,7 +21,11 @@
 // null until Phase 3; when it exists it takes precedence as the grouping key.
 // =============================================================================
 
-import type { ActivityDocument } from '@activity/schema';
+import type {
+    ActivityDocument,
+    Block,
+    ColumnCellBlock,
+} from '@activity/schema';
 
 // ---- Raw row shape (mirrors the columns the dashboard selects) --------------
 
@@ -227,11 +231,24 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
             order: idx + 1,
         });
 
-        for (const block of section.blocks) {
+        // One question block → index entry. A closure (not a loop body) so a
+        // columns container can recurse into its cells — a question nested in
+        // a column indexes exactly like a top-level one. `continue` in the old
+        // loop body became `return`.
+        const indexBlock = (block: Block | ColumnCellBlock): void => {
+            if (block.type === 'columns') {
+                // Structural, not a question: descend into each cell. Columns
+                // can't nest (schema forbids columns-in-columns), so this
+                // recursion is one level deep in practice.
+                for (const column of block.columns) {
+                    for (const cellBlock of column.blocks) indexBlock(cellBlock);
+                }
+                return;
+            }
             if (block.type === 'interactive_graph') {
                 // Display (static) graphs are ungraded — they collect no answer,
                 // so they never appear in a submission and aren't indexed here.
-                if (block.interaction.type === 'display') continue;
+                if (block.interaction.type === 'display') return;
                 let answerSummary = '—';
                 if (block.interaction.type === 'plot_point') {
                     answerSummary = block.interaction.correctPoints
@@ -310,7 +327,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                     sectionId: section.id,
                     sectionTitle: section.title ?? null,
                 });
-                continue;
+                return;
             }
             if (block.type === 'multiple_choice') {
                 const choices: McChoiceInfo[] = block.choices.map(
@@ -336,9 +353,9 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                     sectionId: section.id,
                     sectionTitle: section.title ?? null,
                 });
-                continue;
+                return;
             }
-            if (block.type !== 'fill_in_blank') continue;
+            if (block.type !== 'fill_in_blank') return;
             const prompt = reconstructPrompt(block.content);
 
             // Collect the block's blanks in document order (narrowed to
@@ -391,7 +408,9 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                     sectionTitle: section.title ?? null,
                 });
             });
-        }
+        };
+
+        for (const block of section.blocks) indexBlock(block);
     });
 
     return { blanks, graphs, mcs, sections };

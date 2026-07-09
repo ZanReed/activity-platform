@@ -610,7 +610,7 @@ export const Column = Node.create({
     // at doc top level. The enumerated content expression (not `block+`)
     // forbids a `columns` node nested inside a cell.
     content:
-        '(paragraph | heading | mathBlock | bulletList | orderedList | fillInBlank | image | interactiveGraph)+',
+        '(paragraph | heading | mathBlock | bulletList | orderedList | fillInBlank | image | interactiveGraph | multipleChoice)+',
     isolating: true,
     selectable: false,
 

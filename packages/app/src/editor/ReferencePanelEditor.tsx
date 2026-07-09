@@ -17,6 +17,7 @@ import { Image } from './extensions/Image';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
 import { InteractiveGraph } from './extensions/InteractiveGraph';
+import { MultipleChoice } from './extensions/MultipleChoice';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
@@ -81,6 +82,10 @@ export default function ReferencePanelEditor({
             // Insert dropdown never offers it, so a teacher can't author one
             // in a panel.
             InteractiveGraph,
+            // MultipleChoice: same registered-only-for-the-schema story as
+            // InteractiveGraph (the column content expression names it as of
+            // the MC-in-columns fix; pinned by ActivityConfigDrawer.test.tsx).
+            MultipleChoice,
             Image,
         ],
         content: initialContent,
