@@ -1,6 +1,6 @@
 # Calculator tool — graphing-track design
 
-**Status:** design captured, not implemented. Holds the shape decided in a 2026-06-19 conversation so whoever builds Phase 2.7 (probably future-me) has the rationale alongside the code. Companion to [`interactive-graph-block.md`](interactive-graph-block.md) — the two are **one track, two faces** (see below). When the track lands, the Zod definitions here migrate into the schema package as real exports and this doc moves to an `archive/` subdirectory.
+**Status:** ✅ **SHIPPED and live** — Stages 1–4 (scientific → single-function graphing → data table + regression → multi-expression list) plus a large author-driven graphing UX overhaul (floating draggable panel, in-panel MathLive keyboard, splitter, hover-trace, sticky axes; see HISTORY 2026-07-06). The kit is `packages/graph-kit` (`@activity/graph-kit`), content-hashed on R2, lazy-loaded on summon exactly as designed; the graded face ([`interactive-graph-block.md`](interactive-graph-block.md)) shipped on the same kit — "one track, two faces" held. Restriction flags live on the schema's calculator config. Later stages (stats beyond regression, per-section overrides, calculator state persistence) remain unscheduled future work. The rest of this doc is the original 2026-06-19 rationale — still the reference for the track's decisions; where detail conflicts with code, code wins.
 
 See ROADMAP.md "Phase 2.7 — Graphing track" for the user-visible framing.
 

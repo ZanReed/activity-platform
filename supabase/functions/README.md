@@ -76,6 +76,8 @@ supabase functions deploy upload-image
 
 **`ingest-submission` must always be deployed with `--no-verify-jwt`.** Students submit anonymously (no auth header); with JWT verification on, the platform gateway 401s every submission before the function runs. There is no `config.toml`, so the flag lives only on the Supabase platform — a plain redeploy silently re-enables verification. The function self-authenticates with the service role and validates in its body.
 
+**On any submission wire-format (`schemaVersion`) bump, redeploy `ingest-submission` BEFORE republishing any activity.** A page publishing the new wire POSTs a version the live ingest rejects (400) until ingest is redeployed. Ingest keeps accepting older wire versions (it migrates them on write), so redeploying it first never breaks already-published pages.
+
 If you change anything in `packages/renderer` or `packages/schema`, re-run `pnpm bundle:renderer` before re-deploying. CI should automate this — every push that touches those packages should trigger a re-bundle and deploy.
 
 ### Graphing kit (calculator) asset on R2
@@ -105,7 +107,7 @@ Inline vars take precedence over `.env.r2`, so this still works to override for 
 
 This bundles the kit, content-hashes it to `graph-kit-<hash>.js`, rewrites the manifest, and PUTs the asset to `shared/<filename>` (immutable cache; Cloudflare brotli-compresses at the edge). MathLive fonts are **not** uploaded — the kit points `MathfieldElement.fontsDirectory` at the version-matched jsDelivr CDN (same pattern as KaTeX fonts).
 
-After any change to `packages/graph-kit`: re-run `pnpm build:graph-kit` (with creds, to re-upload), **commit the regenerated manifest**, and **redeploy `publish-activity`** so it serves the new hashed URL. A run without creds just rebuilds + refreshes the manifest (no upload).
+After any change to `packages/graph-kit`: re-run `pnpm build:graph-kit` (with creds, to re-upload), **commit the regenerated manifest**, and **redeploy `publish-activity`** so it serves the new hashed URL. **The order matters: upload FIRST, then deploy the function** — the reverse points the live function at a not-yet-uploaded hash and 404s the summon button on every page published in the gap. Confirm the `Uploaded:` lines before deploying. Older hashes stay on R2, so already-published pages keep working until re-published. A run without creds just rebuilds + refreshes the manifest (no upload).
 
 ## Calling the publish function
 
