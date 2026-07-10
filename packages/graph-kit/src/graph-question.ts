@@ -1111,7 +1111,10 @@ export interface GraphDisplayHandle {
 // createDisplayBoard defends each field again on draw).
 function readDrawables(raw: unknown): DisplayDrawable[] {
   if (!Array.isArray(raw)) return [];
-  const kinds = ['point', 'curve', 'segment', 'polygon'];
+  // Every Drawable kind the board renders. This list once lagged the Drop 5
+  // additions (expression/ray silently vanished from published figures) —
+  // keep it in lockstep with board.ts's DisplayDrawable switch.
+  const kinds = ['point', 'curve', 'expression', 'segment', 'ray', 'polygon'];
   return raw.filter(
     (d): d is DisplayDrawable =>
       typeof d === 'object' &&

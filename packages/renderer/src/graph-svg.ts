@@ -184,6 +184,105 @@ function samplePath(p: Plane, model: FunctionModel, domain?: CurveDomain | null)
   return d;
 }
 
+// ---- continuation arrows ------------------------------------------------------
+// Textbook convention: an arrowhead where a figure exits the window says "this
+// keeps going"; a dot says "it stops". Print twin of the kit's
+// display-arrows.ts (parallel implementation — the renderer stays kit-free by
+// design). All math in viewBox px; tips inset so the marker head survives the
+// clipPath.
+
+const ARROW_INSET_PX = 5;
+const ARROW_SHAFT_PX = 10;
+
+const insideBox = (x: number, y: number): boolean =>
+  Number.isFinite(x) && Number.isFinite(y) && x >= 0 && x <= SIZE && y >= 0 && y <= SIZE;
+
+// inside→outside crossing with the viewBox (both points finite).
+function clipToBox(
+  ix: number,
+  iy: number,
+  ox: number,
+  oy: number,
+): [number, number] {
+  const dx = ox - ix;
+  const dy = oy - iy;
+  let t = 1;
+  if (dx > 0) t = Math.min(t, (SIZE - ix) / dx);
+  if (dx < 0) t = Math.min(t, -ix / dx);
+  if (dy > 0) t = Math.min(t, (SIZE - iy) / dy);
+  if (dy < 0) t = Math.min(t, -iy / dy);
+  t = Math.max(0, Math.min(1, t));
+  return [ix + t * dx, iy + t * dy];
+}
+
+// A short marker-carrying line whose head sits (inset) at `tip`, oriented
+// along `dir`.
+function arrowAt(
+  tip: [number, number],
+  dir: [number, number],
+  markerId: string,
+): string {
+  const mag = Math.hypot(dir[0], dir[1]);
+  if (!Number.isFinite(mag) || mag === 0) return '';
+  const ux = dir[0] / mag;
+  const uy = dir[1] / mag;
+  const tx = tip[0] - ux * ARROW_INSET_PX;
+  const ty = tip[1] - uy * ARROW_INSET_PX;
+  return (
+    `<line x1="${round1(tx - ux * ARROW_SHAFT_PX)}" y1="${round1(ty - uy * ARROW_SHAFT_PX)}"` +
+    ` x2="${round1(tx)}" y2="${round1(ty)}"` +
+    ` stroke="${INK}" stroke-width="2" marker-end="url(#${attr(markerId)})"/>`
+  );
+}
+
+// Continuation arrows for a sampled curve: one per UNBOUNDED end (an authored
+// domain bound gets its dot instead), at the outermost sample still inside the
+// viewBox, headed out through the box edge.
+function curveArrows(
+  p: Plane,
+  model: FunctionModel,
+  domain: CurveDomain | undefined,
+  markerId: string,
+): string {
+  const { axis } = p;
+  const x0 = Math.max(axis.xMin, domain?.min ?? -Infinity);
+  const x1 = Math.min(axis.xMax, domain?.max ?? Infinity);
+  if (!(x1 > x0)) return '';
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= CURVE_SAMPLES; i++) {
+    const x = x0 + ((x1 - x0) * i) / CURVE_SAMPLES;
+    const y = evalModel(model, x);
+    pts.push([p.px(x), y === null ? NaN : p.py(y)]);
+  }
+  let out = '';
+  const endArrow = (indices: number[], neighborStep: number): void => {
+    for (const i of indices) {
+      const pt = pts[i]!;
+      if (!insideBox(pt[0], pt[1])) continue;
+      const beyond = pts[i + neighborStep];
+      const tip =
+        beyond && Number.isFinite(beyond[0]) && Number.isFinite(beyond[1])
+          ? clipToBox(pt[0], pt[1], beyond[0], beyond[1])
+          : pt;
+      // Outward direction: from the inward neighbor toward the tip.
+      const inner = pts[i - neighborStep] ?? pt;
+      out += arrowAt(tip, [tip[0] - inner[0], tip[1] - inner[1]], markerId);
+      return;
+    }
+  };
+  if (domain?.max === undefined) {
+    const order = [];
+    for (let i = CURVE_SAMPLES; i >= 0; i--) order.push(i);
+    endArrow(order, 1);
+  }
+  if (domain?.min === undefined) {
+    const order = [];
+    for (let i = 0; i <= CURVE_SAMPLES; i++) order.push(i);
+    endArrow(order, -1);
+  }
+  return out;
+}
+
 function endpointDot(p: Plane, at: [number, number], style: EndpointStyle): string {
   const open = style === 'open';
   return (
@@ -202,17 +301,26 @@ function renderPoint(p: Plane, d: Extract<Drawable, { kind: 'point' }>): string 
   return out;
 }
 
-function renderCurve(p: Plane, d: Extract<Drawable, { kind: 'curve' }>): string {
+function renderCurve(
+  p: Plane,
+  d: Extract<Drawable, { kind: 'curve' }>,
+  markerId: string,
+): string {
   const { axis } = p;
   const dash = d.style === 'dashed' ? ' stroke-dasharray="8 6"' : '';
   let out = '';
 
   if (d.model.family === 'vertical') {
-    const vx = round1(p.px(d.model.x));
+    const vxRaw = p.px(d.model.x);
+    const vx = round1(vxRaw);
     // A vertical line's domain restricts y.
     const yTop = round1(p.py(Math.min(axis.yMax, d.domain?.max ?? Infinity)));
     const yBot = round1(p.py(Math.max(axis.yMin, d.domain?.min ?? -Infinity)));
     out += `<line x1="${vx}" y1="${yTop}" x2="${vx}" y2="${yBot}" stroke="${INK}" stroke-width="2"${dash}/>`;
+    if (d.arrows !== false && vxRaw >= 0 && vxRaw <= SIZE) {
+      if (d.domain?.max === undefined) out += arrowAt([vxRaw, 0], [0, -1], markerId);
+      if (d.domain?.min === undefined) out += arrowAt([vxRaw, SIZE], [0, 1], markerId);
+    }
     if (d.shade === 'left' || d.shade === 'right') {
       const xEdge = d.shade === 'left' ? 0 : SIZE;
       out += `<rect x="${Math.min(vx, xEdge)}" y="0" width="${Math.abs(xEdge - vx)}" height="${SIZE}" fill="${INK}" fill-opacity="0.12"/>`;
@@ -228,6 +336,9 @@ function renderCurve(p: Plane, d: Extract<Drawable, { kind: 'curve' }>): string 
       out += `<path d="${path}L${round1(p.px(x1))} ${edge}L${round1(p.px(x0))} ${edge}Z" fill="${INK}" fill-opacity="0.12" stroke="none"/>`;
     }
     out += `<path d="${path}" fill="none" stroke="${INK}" stroke-width="2"${dash}/>`;
+    if (d.arrows !== false) {
+      out += curveArrows(p, d.model, d.domain, markerId);
+    }
   }
 
   // Endpoint dots at explicit domain ends (a restricted curve is a ray/segment).
@@ -262,9 +373,11 @@ function renderRay(
   d: Extract<Drawable, { kind: 'ray' }>,
   markerId: string,
 ): string {
-  // Extend from→through far past the window (the clip trims it); the arrowhead
-  // marker rides the far end. A degenerate ray (from === through) draws only
-  // its endpoint dot.
+  // Extend from→through far past the window (the clip trims it). A degenerate
+  // ray (from === through) draws only its endpoint dot. The arrowhead is a
+  // separate short line at the window-EXIT point — a marker on the extended
+  // line's far end would sit outside the clipPath and never render (the
+  // original implementation had exactly that bug).
   const fx = p.px(d.from[0]);
   const fy = p.py(d.from[1]);
   const dx = p.px(d.through[0]) - fx;
@@ -276,7 +389,13 @@ function renderRay(
     out +=
       `<line x1="${round1(fx)}" y1="${round1(fy)}"` +
       ` x2="${round1(fx + dx * t)}" y2="${round1(fy + dy * t)}"` +
-      ` stroke="${INK}" stroke-width="2" marker-end="url(#${markerId})"/>`;
+      ` stroke="${INK}" stroke-width="2"/>`;
+    if (d.arrows !== false) {
+      const tip = insideBox(fx, fy)
+        ? clipToBox(fx, fy, fx + dx * t, fy + dy * t)
+        : null;
+      if (tip) out += arrowAt(tip, [dx, dy], markerId);
+    }
   }
   return out + endpointDot(p, d.from, d.fromStyle ?? 'closed');
 }
@@ -294,7 +413,7 @@ function renderDrawable(p: Plane, d: Drawable, markerId: string): string {
     case 'point':
       return renderPoint(p, d);
     case 'curve':
-      return renderCurve(p, d);
+      return renderCurve(p, d, markerId);
     case 'expression':
       return ''; // needs the kit's formula parser — see the header comment
     case 'segment':

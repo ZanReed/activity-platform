@@ -1369,6 +1369,11 @@ function DisplayDrawableEditor({
                                     onChange={(e) => replace(i, { ...d, style: e.target.checked ? 'dashed' : undefined })} />
                                 dashed
                             </label>
+                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
+                                <input type="checkbox" checked={d.arrows !== false} disabled={disabled}
+                                    onChange={(e) => replace(i, { ...d, arrows: e.target.checked ? undefined : false })} />
+                                arrows
+                            </label>
                         </>
                     )}
                     {d.kind === 'expression' && (
@@ -1388,6 +1393,11 @@ function DisplayDrawableEditor({
                                     onChange={(e) => replace(i, { ...d, style: e.target.checked ? 'dashed' : undefined })} />
                                 dashed
                             </label>
+                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
+                                <input type="checkbox" checked={d.arrows !== false} disabled={disabled}
+                                    onChange={(e) => replace(i, { ...d, arrows: e.target.checked ? undefined : false })} />
+                                arrows
+                            </label>
                         </>
                     )}
                     {d.kind === 'ray' && (
@@ -1406,6 +1416,11 @@ function DisplayDrawableEditor({
                                 <input type="checkbox" checked={d.fromStyle === 'open'} disabled={disabled}
                                     onChange={(e) => replace(i, { ...d, fromStyle: e.target.checked ? 'open' : undefined })} />
                                 open start
+                            </label>
+                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
+                                <input type="checkbox" checked={d.arrows !== false} disabled={disabled}
+                                    onChange={(e) => replace(i, { ...d, arrows: e.target.checked ? undefined : false })} />
+                                arrow
                             </label>
                         </>
                     )}

@@ -77,6 +77,16 @@ export type {
 } from './graph-question.js';
 export type { DisplayDrawable } from './board.js';
 
+// Continuation-arrow geometry (pure) — exported for tests; board.ts is the
+// real consumer.
+export {
+  curveEndArrows,
+  rayArrowSpec,
+  verticalArrowSpecs,
+  arrowLength,
+} from './display-arrows.js';
+export type { ArrowSpec, ArrowWindow } from './display-arrows.js';
+
 // The pure scorers — exported so the runtime/tests (and, later, server-side
 // grading) score with the SAME logic the widget uses. scorePoints is the
 // plot_point (consume-once, N-point) scorer; scoreFunction fits a curve of a

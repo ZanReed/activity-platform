@@ -8,7 +8,12 @@
 // the interactive surface JSXGraph draws (which jsdom can't).
 // Route: /dev/graph-question (DEV builds only — see App.tsx).
 import { useEffect, useRef, useState } from 'react';
-import { mountGraphQuestion, type GraphQuestionHandle, type GraphResponseData } from '@activity/graph-kit';
+import {
+  mountGraphQuestion,
+  mountGraphDisplay,
+  type GraphQuestionHandle,
+  type GraphResponseData,
+} from '@activity/graph-kit';
 
 interface Scenario {
   label: string;
@@ -17,6 +22,8 @@ interface Scenario {
   /** Handle positions that satisfy the key — the "Restore to answer" seed. */
   restorePoints: [number, number][];
   hint: string;
+  /** Static display figure: mounts mountGraphDisplay with these instead. */
+  displayDrawables?: unknown[];
 }
 
 const SCENARIOS: Record<string, Scenario> = {
@@ -70,6 +77,29 @@ const SCENARIOS: Record<string, Scenario> = {
     restorePoints: [[1, 0], [7.39, 2]],
     hint: 'Handles seed at POSITIVE x (x ≤ 0 cannot define a logarithm).',
   },
+  display: {
+    label: 'Static display — arrows, dots, domains',
+    interactionType: 'display',
+    answerKey: null,
+    restorePoints: [],
+    hint: 'Continuation arrows at window exits; dots at domain bounds; one curve with arrows off.',
+    displayDrawables: [
+      // Unbounded line: exits top/bottom → arrows at both exits.
+      { kind: 'curve', model: { family: 'linear', slope: 2, intercept: 3 } },
+      // y = x² − 4 for x ≥ 0: closed dot at (0, −4), arrow on the rising end.
+      {
+        kind: 'curve',
+        model: { family: 'quadratic', a: 1, b: 0, c: -4 },
+        domain: { min: 0, minStyle: 'closed' },
+      },
+      // Segment −5→−8: dots both ends, never arrows.
+      { kind: 'segment', from: [-8, 2], to: [-4, 6], endpoints: ['open', 'closed'] },
+      // Ray: open dot at start, arrowhead at the window exit.
+      { kind: 'ray', from: [-6, -3], through: [-8, -6], fromStyle: 'open' },
+      // Dashed line with arrows OFF — the authored toggle.
+      { kind: 'curve', model: { family: 'linear', slope: -0.4, intercept: 8 }, style: 'dashed', arrows: false },
+    ],
+  },
   'quad-inequality': {
     label: 'Graph an inequality — y > x² − 4',
     interactionType: 'graph_inequality',
@@ -108,6 +138,26 @@ export default function DevGraphQuestion() {
     let handle: GraphQuestionHandle | null = null;
     let disposed = false;
     setChecked(null);
+    if (scenario.displayDrawables) {
+      let displayHandle: { destroy(): void } | null = null;
+      void mountGraphDisplay(el, {
+        axisConfig: {
+          xMin: -10, xMax: 10, yMin: -10, yMax: 10,
+          xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true,
+        },
+        drawables: scenario.displayDrawables,
+      }).then((h) => {
+        if (disposed) { h.destroy(); return; }
+        displayHandle = h;
+      });
+      setResp(null);
+      setNarration('');
+      return () => {
+        disposed = true;
+        displayHandle?.destroy();
+        el.remove();
+      };
+    }
     void mountGraphQuestion(
       el,
       {

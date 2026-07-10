@@ -15,6 +15,12 @@
 
 import { JSXGraph } from 'jsxgraph';
 import { compileFunction } from './evaluate.js';
+import {
+  curveEndArrows,
+  rayArrowSpec,
+  verticalArrowSpecs,
+  type ArrowSpec,
+} from './display-arrows.js';
 
 // Stage 4: what one expression-list row contributes to the board. Coordinates
 // and functions are CLOSURES over the caller's live slider scope — JSXGraph
@@ -1052,6 +1058,9 @@ export interface DisplayDrawable {
   expression?: string;
   endpoints?: [string, string];
   fromStyle?: string;
+  // Continuation arrowheads on unbounded ends (curve/expression/ray + vertical).
+  // undefined = true; false is the authored opt-out.
+  arrows?: boolean;
 }
 
 export interface DisplayConfig {
@@ -1146,6 +1155,19 @@ export function createDisplayBoard(
     container.setAttribute('aria-label', 'Graph');
   }
 
+  // Continuation arrowhead: a short overlay segment whose lastArrow marker
+  // sits at the window-exit point (display-arrows.ts computes where that is —
+  // most curves leave through the top/bottom, not the sides).
+  const drawArrow = (s: ArrowSpec): void => {
+    board.create('segment', [s.tail, s.tip], {
+      strokeColor: DISPLAY_CURVE_COLOR,
+      strokeWidth: 2,
+      fixed: true,
+      highlight: false,
+      lastArrow: { type: 2, size: 5 },
+    });
+  };
+
   for (const d of config.drawables) {
     switch (d.kind) {
       case 'point': {
@@ -1170,6 +1192,9 @@ export function createDisplayBoard(
           const k = typeof model.x === 'number' ? model.x : NaN;
           if (!Number.isFinite(k)) break;
           board.create('segment', [[k, config.yMin], [k, config.yMax]], attrs);
+          if (d.arrows !== false) {
+            for (const s of verticalArrowSpecs(k, config)) drawArrow(s);
+          }
           if (d.shade === 'left' || d.shade === 'right') {
             const edge = d.shade === 'right' ? config.xMax : config.xMin;
             board.create('polygon', [[k, config.yMin], [k, config.yMax], [edge, config.yMax], [edge, config.yMin]] as unknown[], {
@@ -1190,6 +1215,15 @@ export function createDisplayBoard(
         }
         if (typeof d.domain?.max === 'number') {
           board.create('point', [d.domain.max, fn(d.domain.max)], dotAttrs(d.domain.maxStyle));
+        }
+        // Continuation arrows only on UNBOUNDED ends — an authored bound got
+        // its dot above; dot + arrow on the same end would contradict.
+        if (d.arrows !== false) {
+          const ends = {
+            first: typeof d.domain?.min !== 'number',
+            last: typeof d.domain?.max !== 'number',
+          };
+          for (const s of curveEndArrows(fn, lo, hi, config, ends)) drawArrow(s);
         }
         if (d.shade === 'above' || d.shade === 'below') {
           const edge = d.shade === 'above' ? config.yMax : config.yMin;
@@ -1214,13 +1248,22 @@ export function createDisplayBoard(
         if (typeof d.expression !== 'string' || !d.expression) break;
         const fn = compileFunction(d.expression);
         if (!fn) break;
-        board.create('functiongraph', [(x: number) => fn(x)], {
+        const sample = (x: number): number => fn(x);
+        board.create('functiongraph', [sample], {
           strokeColor: DISPLAY_CURVE_COLOR,
           strokeWidth: 2,
           highlight: false,
           fixed: true,
           dash: d.style === 'dashed' ? 2 : 0,
         });
+        if (d.arrows !== false) {
+          for (const s of curveEndArrows(sample, config.xMin, config.xMax, config, {
+            first: true,
+            last: true,
+          })) {
+            drawArrow(s);
+          }
+        }
         break;
       }
       case 'ray': {
@@ -1234,6 +1277,10 @@ export function createDisplayBoard(
           fixed: true,
         });
         board.create('point', d.from, dotAttrs(d.fromStyle));
+        if (d.arrows !== false) {
+          const s = rayArrowSpec(d.from, d.through, config);
+          if (s) drawArrow(s);
+        }
         break;
       }
       case 'segment': {

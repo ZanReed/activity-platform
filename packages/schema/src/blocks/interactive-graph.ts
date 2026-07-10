@@ -238,6 +238,12 @@ const CurveDrawable = z.object({
   style: z.enum(['solid', 'dashed']).optional(),
   shade: z.enum(['above', 'below', 'left', 'right']).optional(),
   domain: CurveDomain.optional(),
+  // Continuation arrowheads on UNBOUNDED ends (textbook convention: arrow =
+  // "keeps going", dot = "stops here"). Drawn where the curve exits the visible
+  // window; an authored domain bound suppresses that end's arrow (it gets the
+  // open/closed dot instead). undefined = true — arrows are the convention,
+  // this flag is the opt-out (author call 2026-07-10).
+  arrows: z.boolean().optional(),
 });
 
 // Drop 5: plot ANY parseable formula (sin(x), rationals, …) by sampling — the
@@ -246,6 +252,8 @@ const ExpressionDrawable = z.object({
   kind: z.literal('expression'),
   expression: z.string().min(1),
   style: z.enum(['solid', 'dashed']).optional(),
+  // Continuation arrowheads at both window exits (see CurveDrawable.arrows).
+  arrows: z.boolean().optional(),
 });
 const SegmentDrawable = z.object({
   kind: z.literal('segment'),
@@ -262,6 +270,8 @@ const RayDrawable = z.object({
   from: z.tuple([z.number(), z.number()]),
   through: z.tuple([z.number(), z.number()]),
   fromStyle: EndpointStyle.optional(),
+  // Continuation arrowhead on the unbounded end (see CurveDrawable.arrows).
+  arrows: z.boolean().optional(),
 });
 const PolygonDrawable = z.object({
   kind: z.literal('polygon'),

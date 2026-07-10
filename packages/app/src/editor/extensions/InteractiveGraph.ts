@@ -123,10 +123,12 @@ export type DrawableAttr =
           style?: 'solid' | 'dashed';
           shade?: 'above' | 'below' | 'left' | 'right';
           domain?: { min?: number; minStyle?: 'open' | 'closed'; max?: number; maxStyle?: 'open' | 'closed' };
+          // Continuation arrowheads on unbounded ends; undefined = on.
+          arrows?: boolean;
       }
-    | { kind: 'expression'; expression: string; style?: 'solid' | 'dashed' }
+    | { kind: 'expression'; expression: string; style?: 'solid' | 'dashed'; arrows?: boolean }
     | { kind: 'segment'; from: [number, number]; to: [number, number]; endpoints?: ['open' | 'closed', 'open' | 'closed'] }
-    | { kind: 'ray'; from: [number, number]; through: [number, number]; fromStyle?: 'open' | 'closed' }
+    | { kind: 'ray'; from: [number, number]; through: [number, number]; fromStyle?: 'open' | 'closed'; arrows?: boolean }
     | { kind: 'polygon'; vertices: [number, number][]; filled: boolean };
 export interface DisplayInteractionAttr {
     type: 'display';

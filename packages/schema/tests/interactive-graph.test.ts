@@ -282,6 +282,23 @@ describe('display interaction (static graph)', () => {
     }
   });
 
+  it('arrows toggle: optional on curve/expression/ray, absent by default', () => {
+    const parsed = InteractiveGraphBlock.parse(
+      displayGraph([
+        { kind: 'curve', model: { family: 'linear', slope: 1, intercept: 0 }, arrows: false },
+        { kind: 'expression', expression: 'sin(x)', arrows: false },
+        { kind: 'ray', from: [0, 0], through: [1, 1] },
+      ]),
+    );
+    if (parsed.interaction.type === 'display') {
+      const [curve, expr, ray] = parsed.interaction.drawables;
+      if (curve?.kind === 'curve') expect(curve.arrows).toBe(false);
+      if (expr?.kind === 'expression') expect(expr.arrows).toBe(false);
+      // Omitted = undefined = arrows on; old documents stay byte-identical.
+      if (ray?.kind === 'ray') expect(ray.arrows).toBeUndefined();
+    }
+  });
+
   it('rejects an unknown drawable kind', () => {
     const bad = displayGraph([{ kind: 'ellipse', at: [0, 0] }]);
     expect(InteractiveGraphBlock.safeParse(bad).success).toBe(false);

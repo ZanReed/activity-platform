@@ -147,6 +147,41 @@ describe('renderGraphSvg — drawables', () => {
     expect(degenerate).not.toContain('marker-end'); // dot only, no direction
   });
 
+  it('unbounded curve gets continuation arrows at its window exits', () => {
+    // y = 2x + 3 exits a ±10 window through the top/bottom — two arrow lines.
+    const out = svg(axis(), [
+      { kind: 'curve', model: { family: 'linear', slope: 2, intercept: 3, slopeTolerance: 0.1, interceptTolerance: 0.1 } },
+    ] as Drawable[]);
+    expect(out.match(/marker-end/g)).toHaveLength(2);
+  });
+
+  it("a domain bound suppresses that end's arrow; arrows: false kills both", () => {
+    const model = { family: 'linear', slope: 1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1 };
+    const oneBound = svg(axis(), [
+      { kind: 'curve', model, domain: { min: 0, minStyle: 'closed' } },
+    ] as Drawable[]);
+    expect(oneBound.match(/marker-end/g)).toHaveLength(1);
+    const off = svg(axis(), [{ kind: 'curve', model, arrows: false }] as Drawable[]);
+    expect(off).not.toContain('marker-end');
+  });
+
+  it('vertical line arrows both window edges; ray arrow sits INSIDE the clip box', () => {
+    const vertical = svg(axis(), [
+      { kind: 'curve', model: { family: 'vertical', x: 3, xTolerance: 0.1 } },
+    ] as Drawable[]);
+    expect(vertical.match(/marker-end/g)).toHaveLength(2);
+    // The ray's marker line must end within the 400×400 box — the old
+    // implementation parked it at 3× SIZE where the clipPath erased it.
+    const ray = svg(axis(), [{ kind: 'ray', from: [0, 0], through: [1, 1] }] as Drawable[]);
+    const markerLine = ray.match(/<line [^>]*marker-end[^>]*\/>/)![0];
+    const x2 = Number(markerLine.match(/x2="([-\d.]+)"/)![1]);
+    const y2 = Number(markerLine.match(/y2="([-\d.]+)"/)![1]);
+    expect(x2).toBeGreaterThanOrEqual(0);
+    expect(x2).toBeLessThanOrEqual(400);
+    expect(y2).toBeGreaterThanOrEqual(0);
+    expect(y2).toBeLessThanOrEqual(400);
+  });
+
   it('polygon: filled at low opacity; unfilled is outline-only', () => {
     const filled = svg(axis(), [
       { kind: 'polygon', vertices: [[0, 0], [4, 0], [0, 4]], filled: true },
