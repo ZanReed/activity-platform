@@ -247,6 +247,8 @@ The Tiptap NodeView is structurally larger than the math NodeView — multiple s
 
 **This will be the most complex NodeView in the editor.** Plan for a UX-iteration loop with real teachers before locking it in. The cost-of-change inside the NodeView is low; the cost of teaching teachers a confusing authoring UI is high.
 
+**Static `display` drawables (shipped).** The ungraded display mode authors its drawables through `DrawableListEditor` (a per-drawable row list, shared with the MC/matching choice-figure panel). Curves are authored with a **freeform formula field** — the same `FormulaField` + `parseGraphFormula` the graded answer field uses — so any family (`y = x^2 - 4`, `y = 2^x`, `x = 4`) plus an optional `for …` domain clause is typed directly, round-tripped via `formatModel` + `formatCurveDomain`. (Before 2026-07-11 this row was a linear-only slope/intercept editor, a Drop-2 stopgap that predated the parser and silently coerced any imported non-linear curve back to a line.) The row still carries the orthogonal display toggles — dashed, continuation arrows — and steers a typed point or inequality to an inline error rather than corrupting the model. **Inequality shading on a display curve has no editor path yet** — it's authorable only via the `` ```graph `` import DSL (`show: line y > 2x`), which sets `shade` on the drawable; wiring shading into the row is the natural next step (see the calculator note in [calculator-tool.md](calculator-tool.md) on the shared inequality machinery).
+
 ## Accessibility
 
 This is the part that distinguishes a real educational tool from a demo, and the part most likely to be under-built without explicit planning.
