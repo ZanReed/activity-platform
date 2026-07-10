@@ -67,6 +67,7 @@ import type {
 import {
     SIMPLE_MARK_TYPES,
     InlineNode as InlineNodeSchema,
+    DefinitionContentInline as DefinitionContentInlineSchema,
     createInteractiveGraphBlock,
     createMultipleChoiceOption,
     createMatchingItem,
@@ -103,6 +104,18 @@ function sanitizeInlineNodes(raw: unknown): InlineNode[] {
     const nodes: InlineNode[] = [];
     for (const node of raw) {
         const parsed = InlineNodeSchema.safeParse(node);
+        if (parsed.success) nodes.push(parsed.data);
+    }
+    return nodes;
+}
+
+// Same posture for definition-mark popover content, which uses the narrower
+// DefinitionContentInline union (SimpleMark only — no nested definitions).
+function sanitizeDefinitionContent(raw: unknown): DefinitionContentInline[] {
+    if (!Array.isArray(raw)) return [];
+    const nodes: DefinitionContentInline[] = [];
+    for (const node of raw) {
+        const parsed = DefinitionContentInlineSchema.safeParse(node);
         if (parsed.success) nodes.push(parsed.data);
     }
     return nodes;
@@ -815,15 +828,13 @@ function extractMarks(
     const out: Mark[] = [];
     for (const m of marks) {
         if (m.type === 'definition') {
-            // Attribute-carrying mark. `content` is canonical InlineNode[] (the
-            // nested mini-editor writes it that way, like blank hints), passed
-            // straight through; `image` is an optional {src, alt}. Keep the
-            // mark only if it carries content or an image. glossaryKey is
-            // reserved for Phase 4 and carried through if set.
-            const rawContent = m.attrs?.content;
-            const content: DefinitionContentInline[] = Array.isArray(rawContent)
-                ? (rawContent as DefinitionContentInline[])
-                : [];
+            // Attribute-carrying mark. `content` is canonical
+            // DefinitionContentInline[] (the nested mini-editor writes it that
+            // way, like blank hints); sanitize rather than pass through.
+            // `image` is an optional {src, alt}. Keep the mark only if it
+            // carries content or an image. glossaryKey is reserved for
+            // Phase 4 and carried through if set.
+            const content = sanitizeDefinitionContent(m.attrs?.content);
             const rawImage = m.attrs?.image;
             let image: DefinitionImage | undefined;
             if (

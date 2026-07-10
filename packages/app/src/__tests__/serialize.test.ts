@@ -488,7 +488,7 @@ describe('paragraphs', () => {
                         {
                             type: 'text',
                             text: 'factor',
-                            marks: [{ type: 'definition', attrs: { content: [{ type: 'text', text: 'a number that divides another exactly' }] } }],
+                            marks: [{ type: 'definition', attrs: { content: [{ type: 'text', text: 'a number that divides another exactly', marks: [] }] } }],
                         },
                     ],
                 },
@@ -507,7 +507,7 @@ describe('paragraphs', () => {
                         {
                             type: 'text',
                             text: 'hypotenuse',
-                            marks: [{ type: 'definition', attrs: { content: [{ type: 'text', text: 'the longest side' }], image: { src: 'https://example.com/triangle.png', alt: 'a right triangle' }, glossaryKey: 'factor-noun' } }],
+                            marks: [{ type: 'definition', attrs: { content: [{ type: 'text', text: 'the longest side', marks: [] }], image: { src: 'https://example.com/triangle.png', alt: 'a right triangle' }, glossaryKey: 'factor-noun' } }],
                         },
                     ],
                 },
@@ -2230,6 +2230,52 @@ describe('attrs-stored inline content sanitize', () => {
         expect(blank.mistakeFeedback).toEqual([
             { match: '5', feedback: sanitized },
         ]);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+    });
+
+    it('sanitizes definition mark content', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'vertex',
+                            marks: [
+                                {
+                                    type: 'definition',
+                                    attrs: { content: tiptapShapedContent },
+                                },
+                            ],
+                        },
+                        {
+                            type: 'text',
+                            text: 'slope',
+                            marks: [
+                                {
+                                    type: 'definition',
+                                    // Entirely malformed content sanitizes to
+                                    // empty; with no image the mark drops.
+                                    attrs: { content: [{ type: 'mathInline' }] },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'paragraph') throw new Error('unreachable');
+        const [vertex, slope] = block.content;
+        if (vertex?.type !== 'text') throw new Error('unreachable');
+        expect(vertex.marks).toEqual([
+            { type: 'definition', content: sanitized },
+        ]);
+        if (slope?.type !== 'text') throw new Error('unreachable');
+        expect(slope.marks).toEqual([]);
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
     });
 });
