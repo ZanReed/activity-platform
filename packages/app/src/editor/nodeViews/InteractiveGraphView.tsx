@@ -729,7 +729,6 @@ export default function InteractiveGraphView({
                 interaction: {
                     type: 'plot_function',
                     models: [model],
-                    ...(parsed.domain ? { domains: [parsed.domain] } : {}),
                 },
             });
             return null;

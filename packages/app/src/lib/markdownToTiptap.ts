@@ -42,9 +42,21 @@
 // =============================================================================
 
 import { parseGraphFormula, parsePointList, parseRaySegment } from '@activity/graph-kit';
+import type { ParsedDomain } from '@activity/graph-kit';
 import type { JSONContent } from '@tiptap/react';
 import type { InlineNode } from '@activity/schema';
 import { tiptapInlineToActivity } from './serialize';
+
+// ParsedDomain carries minClosed/maxClosed booleans; the CurveDrawable schema
+// wants minStyle/maxStyle ('open' | 'closed'). Both renderers default a missing
+// style to 'closed', so passing the booleans through unchanged silently renders
+// an open endpoint ("for x > 0") as a closed dot.
+function toCurveDomain(d: ParsedDomain): Record<string, unknown> {
+    return {
+        ...(d.min !== undefined ? { min: d.min, minStyle: d.minClosed ? 'closed' : 'open' } : {}),
+        ...(d.max !== undefined ? { max: d.max, maxStyle: d.maxClosed ? 'closed' : 'open' } : {}),
+    };
+}
 
 // Minimal structural view of a markdown-it token — only the fields the mapper
 // reads. Defined locally (rather than importing markdown-it's Token type) so
@@ -1315,7 +1327,7 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                     // line / curve: freeform equation or inequality (pictured).
                     const parsed = parseGraphFormula(rest);
                     if (parsed.kind === 'function') {
-                        drawables.push({ kind: 'curve', model: parsed.model, ...(style ? { style } : {}), ...(parsed.domain ? { domain: parsed.domain } : {}) });
+                        drawables.push({ kind: 'curve', model: parsed.model, ...(style ? { style } : {}), ...(parsed.domain ? { domain: toCurveDomain(parsed.domain) } : {}) });
                     } else if (parsed.kind === 'inequality') {
                         drawables.push({
                             kind: 'curve', model: parsed.boundary,

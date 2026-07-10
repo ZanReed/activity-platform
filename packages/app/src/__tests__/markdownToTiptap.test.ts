@@ -795,6 +795,19 @@ describe('```graph fence (Drop 7)', () => {
         expect(q.drawables[1].style).toBe('open');
     });
 
+    it('translates show-line domain clauses to minStyle/maxStyle endpoint styles', () => {
+        // Regression: parseGraphFormula's ParsedDomain uses minClosed/maxClosed
+        // booleans, but CurveDrawable.domain wants minStyle/maxStyle. Passing
+        // the booleans through meant renderers fell back to 'closed' and drew
+        // an open endpoint ("for x > 0") as a closed dot.
+        const md = '```graph\nshow: curve y = x^2 for x > 0\nshow: line y = 2x for -2 <= x < 5\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        const q = g.attrs!.interaction;
+        expect(q.type).toBe('display');
+        expect(q.drawables[0].domain).toEqual({ min: 0, minStyle: 'open' });
+        expect(q.drawables[1].domain).toEqual({ min: -2, minStyle: 'closed', max: 5, maxStyle: 'open' });
+    });
+
     it('accepts "dotted" as a synonym for "dashed" without eating the line options', () => {
         // Regression: 'dotted' wasn't a recognized style token, so it stayed in
         // the formula body, failed the inequality parse, and the drawable fell
