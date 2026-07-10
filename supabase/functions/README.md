@@ -8,7 +8,7 @@ Phase 1 Edge Functions for the activity platform.
 |---|---|---|
 | `publish-activity` | Take a draft, atomically snapshot a version, render to HTML, upload to Cloudflare R2, return URLs. | ✅ Deployed |
 | `ingest-submission` | Receive student submissions from published HTML, validate, write to `submissions`. **Must be deployed with `--no-verify-jwt`** (see Build + deploy). | ✅ Deployed |
-| `upload-image` | Editor image uploads: validate MIME/size, check edit rights, PUT to R2 `uploads/{activityId}/`, return the public URL. | ⏳ Built, not yet deployed |
+| `upload-image` | Editor image uploads: validate MIME/size, check edit rights, PUT to R2 `uploads/{activityId}/`, return the public URL. | ✅ Deployed |
 
 ## Shared code
 
@@ -34,7 +34,7 @@ supabase secrets set R2_PUBLIC_URL_BASE="https://pub-<hash>.r2.dev"
 
 `R2_PUBLIC_URL_BASE` is also mirrored client-side as `VITE_PUBLISHED_URL_BASE` in the app's `.env.local` (Supabase secrets are write-only, so the SPA can't read it).
 
-> The legacy Supabase Storage bucket `activities` predates the R2 migration and is slated for deletion once the end-to-end pass verifies R2 (see STATE.md "Pending author actions").
+> The legacy Supabase Storage bucket `activities` was deleted 2026-06-18 after R2 was verified end to end. The app's `.from('activities')` calls refer to the DB table, not that bucket.
 
 ### 2. Set environment secrets
 
@@ -74,6 +74,8 @@ supabase functions deploy ingest-submission --no-verify-jwt
 supabase functions deploy upload-image
 ```
 
+The root `package.json` wraps these so the flags can't be forgotten: `pnpm deploy:publish`, `pnpm deploy:ingest` (bakes in `--no-verify-jwt`), `pnpm deploy:upload-image`. For a multi-part deploy, `pnpm deploy:train` walks the whole ordering below interactively.
+
 **`ingest-submission` must always be deployed with `--no-verify-jwt`.** Students submit anonymously (no auth header); with JWT verification on, the platform gateway 401s every submission before the function runs. There is no `config.toml`, so the flag lives only on the Supabase platform — a plain redeploy silently re-enables verification. The function self-authenticates with the service role and validates in its body.
 
 **On any submission wire-format (`schemaVersion`) bump, redeploy `ingest-submission` BEFORE republishing any activity.** A page publishing the new wire POSTs a version the live ingest rejects (400) until ingest is redeployed. Ingest keeps accepting older wire versions (it migrates them on write), so redeploying it first never breaks already-published pages.
@@ -84,30 +86,30 @@ If you change anything in `packages/renderer` or `packages/schema`, re-run `pnpm
 
 The calculator widget (`@activity/graph-kit`) is too heavy to inline, so it ships as **one shared, content-hashed ESM bundle on R2** under `shared/`, lazy-`import()`ed by published pages on the first summon click. `publish-activity` reads the hashed filename from the committed manifest `_shared/graph-kit-manifest.ts` and joins it with `R2_PUBLIC_URL_BASE` to form the `calculatorKitUrl` it passes to the renderer (the renderer only emits the calculator when an activity opts in *and* that URL is present).
 
-Build + upload (the upload runs only when R2 creds are in the env, so it's an author/deploy step).
+Building and uploading are separate commands: `pnpm build:graph-kit` is build-only and **never uploads** (safe to run reflexively); `pnpm upload:graph-kit` builds AND uploads — the author/deploy step. It requires R2 creds in the env.
 
 **Recommended one-time setup — a local creds file (no more pasting):**
 
 ```bash
-cp .env.r2.example .env.r2   # then fill in the two secret values
-pnpm build:graph-kit         # auto-loads .env.r2 on every run from now on
+cp .env.r2.example .env.r2    # then fill in the two secret values
+pnpm upload:graph-kit         # auto-loads .env.r2 on every run from now on
 ```
 
-`.env.r2` is gitignored; the build script loads it via `node --env-file-if-exists`. The account id, bucket, and public URL are pre-filled in the example (they're not secrets); you only paste the Access Key ID + Secret Access Key once.
+`.env.r2` is gitignored; the upload command loads it via `node --env-file-if-exists`. The account id, bucket, and public URL are pre-filled in the example (they're not secrets); you only paste the Access Key ID + Secret Access Key once.
 
 **One-off / CI alternative — creds inline:**
 
 ```bash
 # From the repo root, with the same R2 secrets used for the functions in env:
 R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… \
-R2_BUCKET_NAME=… R2_PUBLIC_URL_BASE=… pnpm build:graph-kit
+R2_BUCKET_NAME=… R2_PUBLIC_URL_BASE=… node scripts/build-graph-kit.mjs --upload
 ```
 
 Inline vars take precedence over `.env.r2`, so this still works to override for a one-off.
 
 This bundles the kit, content-hashes it to `graph-kit-<hash>.js`, rewrites the manifest, and PUTs the asset to `shared/<filename>` (immutable cache; Cloudflare brotli-compresses at the edge). MathLive fonts are **not** uploaded — the kit points `MathfieldElement.fontsDirectory` at the version-matched jsDelivr CDN (same pattern as KaTeX fonts).
 
-After any change to `packages/graph-kit`: re-run `pnpm build:graph-kit` (with creds, to re-upload), **commit the regenerated manifest**, and **redeploy `publish-activity`** so it serves the new hashed URL. **The order matters: upload FIRST, then deploy the function** — the reverse points the live function at a not-yet-uploaded hash and 404s the summon button on every page published in the gap. Confirm the `Uploaded:` lines before deploying. Older hashes stay on R2, so already-published pages keep working until re-published. A run without creds just rebuilds + refreshes the manifest (no upload).
+After any change to `packages/graph-kit`: run `pnpm upload:graph-kit`, **commit the regenerated manifest**, and **redeploy `publish-activity`** so it serves the new hashed URL. **The order matters: upload FIRST, then deploy the function** — the reverse points the live function at a not-yet-uploaded hash and 404s the summon button on every page published in the gap. Confirm the `Uploaded:` lines before deploying (`pnpm deploy:train` sequences all of this). Older hashes stay on R2, so already-published pages keep working until re-published. `pnpm build:graph-kit` (no `--upload`) just rebuilds + refreshes the manifest and never touches R2.
 
 ## Calling the publish function
 

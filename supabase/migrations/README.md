@@ -1,6 +1,6 @@
 # Supabase migrations
 
-Phase 1 schema for the activity platform. Five core migrations plus an optional dev seed.
+Phase 1 schema for the activity platform. Seven core migrations plus an optional dev seed. All applied to the live project (see STATE.md "Status by area").
 
 ## Files
 
@@ -12,8 +12,10 @@ Phase 1 schema for the activity platform. Five core migrations plus an optional 
 | `0004_seed_dev.sql` | **Dev only.** Seeds your email into the allowlist so you can sign up. Edit the email first. |
 | `0005_attempt_number.sql` | Adds the `attempt_number` column on `submissions` plus two partial unique indexes for per-student attempt scoping; replaces `ingest_submission` to derive `attempt_number` server-side (it now returns `jsonb {submission_id, attempt_number}`). |
 | `0006_account_tier.sql` | Adds the `account_tier` enum and the `users.account_tier` column; extends the `users_update_self` RLS policy to block client-side tier escalation. |
+| `0007_submission_version.sql` | Pins each submission to the `activity_versions` row it was made against, so the dashboard reads the answer key the student actually saw. |
+| `0008_soft_delete_activity.sql` | `SECURITY DEFINER` RPC `soft_delete_activity` — a client-side soft-delete UPDATE is rejected under the `deleted_at is null` SELECT policy (the post-update row becomes invisible to SELECT). See DECISIONS.md → "Activity deletion". |
 
-Run order is the file order. Each builds on the previous. `0004` is the dev seed and only matters on a dev project; the schema migrations `0005` and `0006` come after it numerically and run after it.
+Run order is the file order. Each builds on the previous. `0004` is the dev seed and only matters on a dev project; the schema migrations `0005`+ come after it numerically and run after it.
 
 ## How to run them
 
@@ -36,7 +38,7 @@ The CLI normally names migrations with timestamps (`20240505140000_initial_schem
 
 ### Option B: Paste into the SQL editor
 
-Open your Supabase project → SQL Editor → New query. Paste and run `0001`, `0002`, `0003`, `0005`, and `0006` in order. `0004` is the dev seed — edit the email first, then run it any time after `0003` (only against a dev project).
+Open your Supabase project → SQL Editor → New query. Paste and run `0001`, `0002`, `0003`, `0005`, `0006`, `0007`, and `0008` in order. `0004` is the dev seed — edit the email first, then run it any time after `0003` (only against a dev project).
 
 This works but isn't reproducible. Use Option A once you're past the prototype stage.
 

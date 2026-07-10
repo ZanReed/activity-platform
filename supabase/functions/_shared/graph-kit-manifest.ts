@@ -5,8 +5,8 @@
 // graphing-kit ENTRY bundle on R2 (under shared/). publish-activity joins it
 // with R2_PUBLIC_URL_BASE to form the calculatorKitUrl it passes to the
 // renderer. The entry pulls its JSXGraph chunk by a relative URL, so only this
-// filename is needed here. Re-run `pnpm build:graph-kit` after any change to
-// packages/graph-kit, commit this file, re-upload, and redeploy publish-activity.
+// filename is needed here. After any change to packages/graph-kit: upload with
+// `pnpm upload:graph-kit`, commit this file, and redeploy publish-activity.
 // =============================================================================
 
 export const CALCULATOR_KIT_FILE = "graph-kit-3MAUZ5QQ.js";

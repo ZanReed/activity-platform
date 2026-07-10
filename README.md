@@ -29,6 +29,23 @@ pnpm test
 - `@activity/graph-kit` — `tests/`
 - `@activity/app` — `src/__tests__/`
 
+### Running the app
+
+The editor/dashboard needs Supabase credentials before it can start:
+
+```bash
+cp packages/app/.env.local.example packages/app/.env.local
+# fill in the Supabase URL + anon key (see the comments in the file)
+pnpm --filter @activity/app dev        # Vite dev server on http://localhost:5173
+```
+
+Sign-in is Google OAuth, allowlist-only in Phase 1 — your email must be in the
+`signup_allowlist` table (the dev seed `supabase/migrations/0004_seed_dev.sql`
+adds it; `scripts/seed-test-data.sql` and the `seed-e2e-*.sql` scripts create
+sample activities/submissions). The editor playground at `/playground` and the
+`/dev/*` harnesses need no Supabase data and are the fastest way to poke at
+editor and runtime behavior (dev builds only).
+
 ## Common commands
 
 | Command | What it does |
@@ -39,7 +56,11 @@ pnpm test
 | `pnpm lint` | Lint all packages (currently the app) |
 | `pnpm build` | Build all packages |
 | `pnpm bundle:renderer` | Bundle the renderer for Edge Function consumption → `supabase/functions/_shared/renderer.bundle.js` |
-| `pnpm build:graph-kit` | Bundle the graphing kit, upload it to R2 (`shared/`), and regenerate `supabase/functions/_shared/graph-kit-manifest.ts` (creds auto-load from gitignored `.env.r2`) |
+| `pnpm build:graph-kit` | Bundle the graphing kit + regenerate `supabase/functions/_shared/graph-kit-manifest.ts`. Build-only — never uploads |
+| `pnpm upload:graph-kit` | Build the kit AND upload it to R2 (`shared/`) — the deploy step (creds auto-load from gitignored `.env.r2`) |
+| `pnpm deploy:ingest` | Redeploy `ingest-submission` with the required `--no-verify-jwt` flag baked in |
+| `pnpm deploy:publish` | Redeploy `publish-activity` |
+| `pnpm deploy:train` | Interactive walkthrough that sequences kit upload → ingest → publish-activity in the safe order |
 | `pnpm clean` | Remove all `dist/` directories |
 
 Single-package commands work too:

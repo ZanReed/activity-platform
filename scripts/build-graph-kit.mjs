@@ -19,20 +19,25 @@
 //   1. esbuilds packages/graph-kit/src/index.ts with splitting -> entry + chunks.
 //   2. Writes the committed manifest with the ENTRY filename (content-hashed by
 //      esbuild; same source => same hashes, so re-running is idempotent).
-//   3. Uploads EVERY .js output to shared/<filename> — ONLY when R2 creds are in
-//      the env (the author/deploy step). A no-creds run builds + rewrites the
-//      manifest and skips the upload.
+//   3. Uploads EVERY .js output to shared/<filename> — ONLY when the explicit
+//      `--upload` flag is passed AND R2 creds are in the env (the author/deploy
+//      step, `pnpm upload:graph-kit`). Without the flag the script is build-only:
+//      it rewrites the manifest and never touches R2, even with creds present.
+//      (The flag exists because "does it still build?" must never deploy.)
 //
 // MathLive fonts come from the version-matched jsDelivr CDN (not uploaded; same
 // pattern as the renderer's KaTeX fonts). Brotli is Cloudflare's edge job.
 //
 // Run:
-//   pnpm build:graph-kit                  # build + manifest only
+//   pnpm build:graph-kit                  # build + manifest only, never uploads
+//   pnpm upload:graph-kit                 # + upload (auto-loads .env.r2)
 //   R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… \
-//   R2_BUCKET_NAME=… R2_PUBLIC_URL_BASE=… pnpm build:graph-kit   # + upload
+//   R2_BUCKET_NAME=… R2_PUBLIC_URL_BASE=… \
+//   node scripts/build-graph-kit.mjs --upload   # one-off / CI with inline creds
 //
-// After a build that changes the hashes: commit the manifest, re-upload (with
-// creds), and redeploy publish-activity so it serves the new entry URL.
+// After a build that changes the hashes: upload (`pnpm upload:graph-kit`),
+// commit the manifest, and redeploy publish-activity so it serves the new
+// entry URL — upload FIRST, then the function deploy (see CLAUDE.md).
 // =============================================================================
 
 import { build } from 'esbuild';
@@ -98,15 +103,16 @@ const manifest =
   '// graphing-kit ENTRY bundle on R2 (under shared/). publish-activity joins it\n' +
   '// with R2_PUBLIC_URL_BASE to form the calculatorKitUrl it passes to the\n' +
   '// renderer. The entry pulls its JSXGraph chunk by a relative URL, so only this\n' +
-  '// filename is needed here. Re-run `pnpm build:graph-kit` after any change to\n' +
-  '// packages/graph-kit, commit this file, re-upload, and redeploy publish-activity.\n' +
+  '// filename is needed here. After any change to packages/graph-kit: upload with\n' +
+  '// `pnpm upload:graph-kit`, commit this file, and redeploy publish-activity.\n' +
   '// =============================================================================\n' +
   '\n' +
   `export const CALCULATOR_KIT_FILE = ${JSON.stringify(entryFile)};\n`;
 await writeFile(manifestPath, manifest);
 
-// ---- 3. Upload every .js to R2 (only with creds) ----------------------------
+// ---- 3. Upload every .js to R2 (only with --upload AND creds) ---------------
 const env = (k) => process.env[k] ?? '';
+const wantUpload = process.argv.includes('--upload');
 const haveCreds =
   env('R2_ACCOUNT_ID') &&
   env('R2_ACCESS_KEY_ID') &&
@@ -122,22 +128,30 @@ for (const o of jsOutputs) {
 }
 console.log('manifest: ' + manifestPath);
 
-if (!haveCreds) {
+if (!wantUpload) {
+  console.log('');
+  console.log('Build-only run: R2 upload not attempted (no --upload flag).');
+  console.log('To upload — the deploy step — run `pnpm upload:graph-kit`.');
+} else if (!haveCreds) {
   const { existsSync } = await import('node:fs');
   const hasEnvFile = existsSync(new URL('../.env.r2', import.meta.url));
-  console.log('');
-  console.log('R2 upload SKIPPED (no R2 creds in env). Built + manifest written.');
+  console.error('');
+  console.error('--upload requested but R2 creds are missing from the env.');
+  console.error('Built + manifest written; NOTHING was uploaded.');
   if (hasEnvFile) {
-    // The file exists but a value is missing/blank — likely a still-placeholder
-    // field or a typo'd var name.
-    console.log('A .env.r2 was found but at least one of R2_ACCOUNT_ID /');
-    console.log('R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET_NAME is');
-    console.log('empty or still a placeholder — fill it in and re-run.');
+    // A .env.r2 exists. Either this invocation skipped the auto-loader (bare
+    // `node scripts/… --upload` instead of `pnpm upload:graph-kit`) or a value
+    // in the file is blank / still a placeholder / under a typo'd var name.
+    console.error('A .env.r2 exists — run `pnpm upload:graph-kit`, which auto-loads');
+    console.error('it. If you already did, at least one of R2_ACCOUNT_ID /');
+    console.error('R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET_NAME is');
+    console.error('empty or still a placeholder in the file — fill it in and re-run.');
   } else {
-    console.log('Tip: `cp .env.r2.example .env.r2`, fill in the two secret');
-    console.log('values, and future `pnpm build:graph-kit` runs upload with no');
-    console.log('creds to paste (the script auto-loads .env.r2).');
+    console.error('Tip: `cp .env.r2.example .env.r2`, fill in the two secret');
+    console.error('values, and `pnpm upload:graph-kit` uploads with no creds');
+    console.error('to paste (it auto-loads .env.r2).');
   }
+  process.exit(1);
 } else {
   // Guard against placeholder creds (e.g. a copy-pasted `R2_ACCOUNT_ID=…`):
   // fail with a plain message before aws4fetch throws an opaque Invalid URL.
