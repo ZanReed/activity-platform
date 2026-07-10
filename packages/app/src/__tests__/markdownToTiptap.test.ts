@@ -808,6 +808,14 @@ describe('```graph fence (Drop 7)', () => {
         expect(q.drawables[1].domain).toEqual({ min: -2, minStyle: 'closed', max: 5, maxStyle: 'open' });
     });
 
+    it('translates a max-only domain clause (no min keys emitted)', () => {
+        const md = '```graph\nshow: curve y = x^2 for x <= 5\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        const q = g.attrs!.interaction;
+        expect(q.type).toBe('display');
+        expect(q.drawables[0].domain).toEqual({ max: 5, maxStyle: 'closed' });
+    });
+
     it('accepts "dotted" as a synonym for "dashed" without eating the line options', () => {
         // Regression: 'dotted' wasn't a recognized style token, so it stayed in
         // the formula body, failed the inequality parse, and the drawable fell

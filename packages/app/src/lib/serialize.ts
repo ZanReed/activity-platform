@@ -80,9 +80,10 @@ import type { JSONContent } from '@tiptap/react';
 
 // Canonical inline content (rich text + inline math) as the schema models it.
 // Used for the rich popover fields — blank hint, mistake feedback, problem
-// solution — which the editor stores as InlineNode[] and serialize passes
-// through verbatim. Re-exported from this bridge module so editor components
-// can name the type without importing @activity/schema directly.
+// solution — which the editor stores as InlineNode[] and serialize sanitizes
+// against the schema at save time (see sanitizeInlineNodes below). Re-exported
+// from this bridge module so editor components can name the type without
+// importing @activity/schema directly.
 export type InlineNodes = InlineNode[];
 
 // Simple (attribute-free) Tiptap marks the schema accepts. Tiptap marks not
@@ -99,14 +100,43 @@ const SUPPORTED_SIMPLE_MARKS: ReadonlySet<SimpleMarkType> = new Set(SIMPLE_MARK_
 // drop malformed entries, keep the rest (the ChoiceImage/ChoiceGraph posture).
 // Parsing also fills the `marks` default, so entries that omitted it come out
 // canonical rather than crashing `node.marks` consumers.
+//
+// Every drop is warned: before sanitize existed, a malformed shape failed the
+// whole-document save gate loudly and the stored draft survived; a silent drop
+// here would turn the same class of bug into invisible content loss on the
+// next autosave.
 function sanitizeInlineNodes(raw: unknown): InlineNode[] {
     if (!Array.isArray(raw)) return [];
     const nodes: InlineNode[] = [];
     for (const node of raw) {
         const parsed = InlineNodeSchema.safeParse(node);
         if (parsed.success) nodes.push(parsed.data);
+        else {
+            console.warn(
+                '[serialize] Dropping malformed inline node:',
+                JSON.stringify(node),
+            );
+        }
     }
     return nodes;
+}
+
+// Mistake-feedback entries ({match, feedback}) for blanks and graph blocks
+// share one drop rule: a non-string or empty match, or feedback that
+// sanitizes away to nothing, makes the entry unusable — drop it, keep the
+// rest. One helper so the two call sites can't drift.
+function sanitizeMistakeFeedback(
+    raw: unknown,
+): Array<{ match: string; feedback: InlineNode[] }> {
+    if (!Array.isArray(raw)) return [];
+    return (raw as unknown[]).flatMap((entry) => {
+        if (!entry || typeof entry !== 'object') return [];
+        const e = entry as { match?: unknown; feedback?: unknown };
+        if (typeof e.match !== 'string' || e.match.length === 0) return [];
+        const feedback = sanitizeInlineNodes(e.feedback);
+        if (feedback.length === 0) return [];
+        return [{ match: e.match, feedback }];
+    });
 }
 
 // Same posture for definition-mark popover content, which uses the narrower
@@ -117,6 +147,12 @@ function sanitizeDefinitionContent(raw: unknown): DefinitionContentInline[] {
     for (const node of raw) {
         const parsed = DefinitionContentInlineSchema.safeParse(node);
         if (parsed.success) nodes.push(parsed.data);
+        else {
+            console.warn(
+                '[serialize] Dropping malformed definition content node:',
+                JSON.stringify(node),
+            );
+        }
     }
     return nodes;
 }
@@ -618,18 +654,7 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
         noSolutionCorrect: Boolean(attrs.noSolutionCorrect),
         // Built-in mistake classifiers default ON (absent attr = true).
         builtinFeedback: attrs.builtinFeedback !== false,
-        mistakeFeedback: Array.isArray(attrs.mistakeFeedback)
-            ? (attrs.mistakeFeedback as unknown[]).flatMap((m) => {
-                  if (!m || typeof m !== 'object') return [];
-                  const e = m as { match?: unknown; feedback?: unknown };
-                  if (typeof e.match !== 'string' || !Array.isArray(e.feedback)) {
-                      return [];
-                  }
-                  return [
-                      { match: e.match, feedback: sanitizeInlineNodes(e.feedback) },
-                  ];
-              })
-            : [],
+        mistakeFeedback: sanitizeMistakeFeedback(attrs.mistakeFeedback),
         hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
@@ -803,19 +828,9 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
         result.hint = hint;
     }
 
-    const rawFeedback = node.attrs?.mistakeFeedback;
-    if (Array.isArray(rawFeedback)) {
-        const cleaned = (rawFeedback as unknown[]).flatMap((p) => {
-            if (!p || typeof p !== 'object') return [];
-            const e = p as { match?: unknown; feedback?: unknown };
-            if (typeof e.match !== 'string' || e.match.length === 0) return [];
-            const feedback = sanitizeInlineNodes(e.feedback);
-            if (feedback.length === 0) return [];
-            return [{ match: e.match, feedback }];
-        });
-        if (cleaned.length > 0) {
-            result.mistakeFeedback = cleaned;
-        }
+    const cleaned = sanitizeMistakeFeedback(node.attrs?.mistakeFeedback);
+    if (cleaned.length > 0) {
+        result.mistakeFeedback = cleaned;
     }
 
     return result;

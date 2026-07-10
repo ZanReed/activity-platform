@@ -2178,6 +2178,11 @@ describe('attrs-stored inline content sanitize', () => {
                             { match: '(1, 2)', feedback: tiptapShapedContent },
                             { match: 42, feedback: [] }, // bad match — dropped
                             'garbage', // not an object — dropped
+                            // Same drop rules as the blank path (shared
+                            // sanitizeMistakeFeedback): empty match and
+                            // feedback that sanitizes to empty both drop.
+                            { match: '', feedback: tiptapShapedContent },
+                            { match: 'y = x', feedback: [{ type: 'mathInline' }] },
                         ],
                     },
                     content: [],
@@ -2276,6 +2281,51 @@ describe('attrs-stored inline content sanitize', () => {
         ]);
         if (slope?.type !== 'text') throw new Error('unreachable');
         expect(slope.marks).toEqual([]);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+    });
+
+    it('definition content rejects what InlineNode allows (no nested definitions)', () => {
+        // Pins the narrowness of sanitizeDefinitionContent: a text node
+        // carrying a nested definition mark is valid InlineNode content but
+        // NOT valid DefinitionContentInline (SimpleMark only), so it drops
+        // from a popover while plain text beside it survives. Guards against
+        // accidentally swapping in the wider InlineNode schema.
+        const nested = [
+            { type: 'text', text: 'plain survives', marks: [] },
+            {
+                type: 'text',
+                text: 'nested definition drops',
+                marks: [
+                    { type: 'definition', content: [{ type: 'text', text: 'inner', marks: [] }] },
+                ],
+            },
+        ];
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'radius',
+                            marks: [{ type: 'definition', attrs: { content: nested } }],
+                        },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'paragraph') throw new Error('unreachable');
+        const [radius] = block.content;
+        if (radius?.type !== 'text') throw new Error('unreachable');
+        expect(radius.marks).toEqual([
+            {
+                type: 'definition',
+                content: [{ type: 'text', text: 'plain survives', marks: [] }],
+            },
+        ]);
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
     });
 });
