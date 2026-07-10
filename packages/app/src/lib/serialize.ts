@@ -66,6 +66,7 @@ import type {
 } from '@activity/schema';
 import {
     SIMPLE_MARK_TYPES,
+    InlineNode as InlineNodeSchema,
     createInteractiveGraphBlock,
     createMultipleChoiceOption,
     createMatchingItem,
@@ -87,6 +88,25 @@ export type InlineNodes = InlineNode[];
 // listed here (e.g. 'strike', 'link') are silently dropped. The 'definition'
 // mark carries attributes and is handled separately in extractMarks.
 const SUPPORTED_SIMPLE_MARKS: ReadonlySet<SimpleMarkType> = new Set(SIMPLE_MARK_TYPES);
+
+// Attrs-stored rich inline content (choice text/feedback, solutions, blank
+// hints, mistake feedback) is written by the nested mini-editors in canonical
+// InlineNode[] form — but the attr itself is untyped JSON, so anything that
+// writes attrs directly (an importer, a hand-crafted payload) can store the
+// wrong shape, and downstream consumers (activityInlineToTiptap, the renderer)
+// assume the canonical one. Sanitize with the real schema: validate each node,
+// drop malformed entries, keep the rest (the ChoiceImage/ChoiceGraph posture).
+// Parsing also fills the `marks` default, so entries that omitted it come out
+// canonical rather than crashing `node.marks` consumers.
+function sanitizeInlineNodes(raw: unknown): InlineNode[] {
+    if (!Array.isArray(raw)) return [];
+    const nodes: InlineNode[] = [];
+    for (const node of raw) {
+        const parsed = InlineNodeSchema.safeParse(node);
+        if (parsed.success) nodes.push(parsed.data);
+    }
+    return nodes;
+}
 
 // =============================================================================
 // Tiptap → ActivityDocument
@@ -339,13 +359,13 @@ function tiptapFillInBlankToActivity(node: JSONContent): FillInBlankBlock {
     };
 
     // solution is optional in the schema — stored as canonical InlineNode[] in
-    // the Tiptap attrs (written by the nested mini-editor), so it passes
-    // straight through. Only carry it when non-empty so the saved document
+    // the Tiptap attrs (written by the nested mini-editor). Sanitize rather
+    // than pass through. Only carry it when non-empty so the saved document
     // doesn't accrue a phantom empty key and round-trip equality holds for
     // problems without a solution.
-    const rawSolution = node.attrs?.solution;
-    if (Array.isArray(rawSolution) && rawSolution.length > 0) {
-        block.solution = rawSolution as InlineNode[];
+    const solution = sanitizeInlineNodes(node.attrs?.solution);
+    if (solution.length > 0) {
+        block.solution = solution;
     }
 
     // workSpace is optional (absent = inherit the activity print default). Only
@@ -384,11 +404,12 @@ function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock 
                 typeof c.id === 'string' && c.id.length > 0
                     ? c.id
                     : crypto.randomUUID(),
-            content: Array.isArray(c.content) ? (c.content as InlineNode[]) : [],
+            content: sanitizeInlineNodes(c.content),
             correct: c.correct === true,
         };
-        if (Array.isArray(c.feedback) && c.feedback.length > 0) {
-            option.feedback = c.feedback as InlineNode[];
+        const feedback = sanitizeInlineNodes(c.feedback);
+        if (feedback.length > 0) {
+            option.feedback = feedback;
         }
         // Optional figures: validate with the real schemas (same "drop
         // malformed, keep the rest" posture as the row-level sanitize) so a
@@ -419,9 +440,9 @@ function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock 
 
     // Optional fields — carried only when meaningful, same omit-when-absent
     // discipline as fill-in-blank.
-    const rawSolution = attrs.solution;
-    if (Array.isArray(rawSolution) && rawSolution.length > 0) {
-        block.solution = rawSolution as InlineNode[];
+    const solution = sanitizeInlineNodes(attrs.solution);
+    if (solution.length > 0) {
+        block.solution = solution;
     }
     const rawWorkSpace = attrs.workSpace;
     if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
@@ -450,7 +471,7 @@ function sanitizeMatchSides(raw: unknown): Array<MatchingItem | MatchingTarget> 
                 typeof s.id === 'string' && s.id.length > 0
                     ? s.id
                     : crypto.randomUUID(),
-            content: Array.isArray(s.content) ? (s.content as InlineNode[]) : [],
+            content: sanitizeInlineNodes(s.content),
         };
         const image = ChoiceImage.safeParse(s.image);
         if (s.image !== undefined && image.success) side.image = image.data;
@@ -511,9 +532,9 @@ function tiptapMatchingToActivity(node: JSONContent): MatchingBlock {
             : [],
     };
 
-    const rawSolution = attrs.solution;
-    if (Array.isArray(rawSolution) && rawSolution.length > 0) {
-        block.solution = rawSolution as InlineNode[];
+    const solution = sanitizeInlineNodes(attrs.solution);
+    if (solution.length > 0) {
+        block.solution = solution;
     }
     const rawWorkSpace = attrs.workSpace;
     if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
@@ -536,7 +557,7 @@ function tiptapOrderingToActivity(node: JSONContent): OrderingBlock {
                 typeof i.id === 'string' && i.id.length > 0
                     ? i.id
                     : crypto.randomUUID(),
-            content: Array.isArray(i.content) ? (i.content as InlineNode[]) : [],
+            content: sanitizeInlineNodes(i.content),
         });
     }
     while (items.length < 2) items.push(createOrderingItem());
@@ -554,9 +575,9 @@ function tiptapOrderingToActivity(node: JSONContent): OrderingBlock {
             : [],
     };
 
-    const rawSolution = attrs.solution;
-    if (Array.isArray(rawSolution) && rawSolution.length > 0) {
-        block.solution = rawSolution as InlineNode[];
+    const solution = sanitizeInlineNodes(attrs.solution);
+    if (solution.length > 0) {
+        block.solution = solution;
     }
     const rawWorkSpace = attrs.workSpace;
     if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
@@ -585,9 +606,16 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
         // Built-in mistake classifiers default ON (absent attr = true).
         builtinFeedback: attrs.builtinFeedback !== false,
         mistakeFeedback: Array.isArray(attrs.mistakeFeedback)
-            ? (attrs.mistakeFeedback as InteractiveGraphBlock['mistakeFeedback']).filter(
-                  (m) => m && typeof m.match === 'string' && Array.isArray(m.feedback),
-              )
+            ? (attrs.mistakeFeedback as unknown[]).flatMap((m) => {
+                  if (!m || typeof m !== 'object') return [];
+                  const e = m as { match?: unknown; feedback?: unknown };
+                  if (typeof e.match !== 'string' || !Array.isArray(e.feedback)) {
+                      return [];
+                  }
+                  return [
+                      { match: e.match, feedback: sanitizeInlineNodes(e.feedback) },
+                  ];
+              })
             : [],
         hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
@@ -596,9 +624,9 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
     };
     // Optional solution — carry only when non-empty so round-trip equality holds
     // for graphs without one (same pattern as fill-in-blank).
-    const rawSolution = attrs.solution;
-    if (Array.isArray(rawSolution) && rawSolution.length > 0) {
-        block.solution = rawSolution as InlineNode[];
+    const solution = sanitizeInlineNodes(attrs.solution);
+    if (solution.length > 0) {
+        block.solution = solution;
     }
     return block;
 }
@@ -755,24 +783,23 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
 
     // hint and each mistakeFeedback entry's feedback are stored as canonical
     // InlineNode[] in the Tiptap attrs (the nested mini-editor writes them in
-    // that form), so they pass straight through. Only carry them when
+    // that form); sanitize rather than pass through. Only carry them when
     // non-empty so round-trip equality holds for blanks without them.
-    const rawHint = node.attrs?.hint;
-    if (Array.isArray(rawHint) && rawHint.length > 0) {
-        result.hint = rawHint as InlineNode[];
+    const hint = sanitizeInlineNodes(node.attrs?.hint);
+    if (hint.length > 0) {
+        result.hint = hint;
     }
 
     const rawFeedback = node.attrs?.mistakeFeedback;
     if (Array.isArray(rawFeedback)) {
-        const cleaned = rawFeedback.filter(
-            (p): p is { match: string; feedback: InlineNode[] } =>
-            p &&
-            typeof p === 'object' &&
-            typeof p.match === 'string' &&
-            Array.isArray(p.feedback) &&
-            p.match.length > 0 &&
-            p.feedback.length > 0,
-        );
+        const cleaned = (rawFeedback as unknown[]).flatMap((p) => {
+            if (!p || typeof p !== 'object') return [];
+            const e = p as { match?: unknown; feedback?: unknown };
+            if (typeof e.match !== 'string' || e.match.length === 0) return [];
+            const feedback = sanitizeInlineNodes(e.feedback);
+            if (feedback.length === 0) return [];
+            return [{ match: e.match, feedback }];
+        });
         if (cleaned.length > 0) {
             result.mistakeFeedback = cleaned;
         }

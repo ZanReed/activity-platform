@@ -2062,3 +2062,174 @@ describe('image', () => {
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
     });
 });
+
+describe('attrs-stored inline content sanitize', () => {
+    // Regression for the markdown-importer bug (fixed at the importer in
+    // aa8ffd3): Tiptap-shaped inline nodes stored in attrs — no `marks`
+    // array, `mathInline` instead of `math_inline` — crashed
+    // activityInlineToTiptap and the renderer. The serialize boundary now
+    // validates every attrs-stored InlineNode[] with the schema: malformed
+    // entries drop, valid ones keep, and the marks default fills in.
+    const tiptapShapedContent = [
+        { type: 'text', text: 'kept, marks filled' }, // no marks — valid, default fills
+        { type: 'mathInline', attrs: { latex: 'x^2' } }, // Tiptap name — dropped
+        { type: 'text', text: 42 }, // wrong text type — dropped
+        { type: 'math_inline', latex: '\\pi' }, // canonical — kept
+    ];
+    const sanitized = [
+        { type: 'text', text: 'kept, marks filled', marks: [] },
+        { type: 'math_inline', latex: '\\pi' },
+    ];
+
+    it('sanitizes multiple_choice choice content, feedback, and solution', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'multipleChoice',
+                    attrs: {
+                        choices: [
+                            {
+                                id: '550e8400-e29b-41d4-a716-446655440301',
+                                content: tiptapShapedContent,
+                                correct: true,
+                                feedback: tiptapShapedContent,
+                            },
+                            {
+                                id: '550e8400-e29b-41d4-a716-446655440302',
+                                // Entirely malformed feedback sanitizes to
+                                // empty → the optional key is omitted.
+                                content: [],
+                                correct: false,
+                                feedback: [{ type: 'mathInline' }],
+                            },
+                        ],
+                        solution: tiptapShapedContent,
+                    },
+                    content: [],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'multiple_choice') throw new Error('unreachable');
+        expect(block.choices[0]!.content).toEqual(sanitized);
+        expect(block.choices[0]!.feedback).toEqual(sanitized);
+        expect(block.choices[1]!.feedback).toBeUndefined();
+        expect(block.solution).toEqual(sanitized);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+    });
+
+    it('sanitizes matching item/target content and ordering item content', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'matching',
+                    attrs: {
+                        items: [
+                            { id: '550e8400-e29b-41d4-a716-446655440401', content: tiptapShapedContent },
+                            { id: '550e8400-e29b-41d4-a716-446655440402', content: [] },
+                        ],
+                        targets: [
+                            { id: '550e8400-e29b-41d4-a716-446655440411', content: tiptapShapedContent },
+                            { id: '550e8400-e29b-41d4-a716-446655440412', content: [] },
+                        ],
+                        key: {},
+                        solution: tiptapShapedContent,
+                    },
+                    content: [],
+                },
+                {
+                    type: 'ordering',
+                    attrs: {
+                        items: [
+                            { id: '550e8400-e29b-41d4-a716-446655440421', content: tiptapShapedContent },
+                            { id: '550e8400-e29b-41d4-a716-446655440422', content: 'not-an-array' },
+                        ],
+                        solution: tiptapShapedContent,
+                    },
+                    content: [],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const [matching, ordering] = activity.sections[0]!.blocks;
+        if (matching?.type !== 'matching') throw new Error('unreachable');
+        expect(matching.items[0]!.content).toEqual(sanitized);
+        expect(matching.targets[0]!.content).toEqual(sanitized);
+        expect(matching.solution).toEqual(sanitized);
+        if (ordering?.type !== 'ordering') throw new Error('unreachable');
+        expect(ordering.items[0]!.content).toEqual(sanitized);
+        expect(ordering.items[1]!.content).toEqual([]);
+        expect(ordering.solution).toEqual(sanitized);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+    });
+
+    it('sanitizes interactive_graph solution and mistakeFeedback', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'interactiveGraph',
+                    attrs: {
+                        solution: tiptapShapedContent,
+                        mistakeFeedback: [
+                            { match: '(1, 2)', feedback: tiptapShapedContent },
+                            { match: 42, feedback: [] }, // bad match — dropped
+                            'garbage', // not an object — dropped
+                        ],
+                    },
+                    content: [],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'interactive_graph') throw new Error('unreachable');
+        expect(block.solution).toEqual(sanitized);
+        expect(block.mistakeFeedback).toEqual([
+            { match: '(1, 2)', feedback: sanitized },
+        ]);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+    });
+
+    it('sanitizes blank hint and mistakeFeedback', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'fillInBlank',
+                    attrs: { solution: tiptapShapedContent },
+                    content: [
+                        {
+                            type: 'blank',
+                            attrs: {
+                                id: '550e8400-e29b-41d4-a716-446655440303',
+                                answer: '7',
+                                hint: tiptapShapedContent,
+                                mistakeFeedback: [
+                                    { match: '5', feedback: tiptapShapedContent },
+                                    // Feedback sanitizes to empty → entry drops
+                                    // (same posture as empty-feedback entries).
+                                    { match: '6', feedback: [{ type: 'mathInline' }] },
+                                ],
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type !== 'fill_in_blank') throw new Error('unreachable');
+        expect(block.solution).toEqual(sanitized);
+        const blank = block.content[0]!;
+        if (blank.type !== 'blank') throw new Error('unreachable');
+        expect(blank.hint).toEqual(sanitized);
+        expect(blank.mistakeFeedback).toEqual([
+            { match: '5', feedback: sanitized },
+        ]);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+    });
+});
