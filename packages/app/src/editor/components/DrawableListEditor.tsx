@@ -1,9 +1,12 @@
 import type { CSSProperties } from 'react';
+import { parseGraphFormula, formatModel } from '@activity/graph-kit';
 import type {
     DrawableAttr,
     FunctionModelAttr,
     LinearFunctionModel,
 } from '../extensions/InteractiveGraph';
+import FormulaField from './FormulaField';
+import { toCurveDomain, formatCurveDomain } from '../../lib/graphDomain';
 
 // ============================================================================
 // DrawableListEditor — add/edit/remove the drawables of a static graph.
@@ -33,13 +36,6 @@ export type DrawableKind = (typeof ALL_DRAWABLE_KINDS)[number];
 const DEFAULT_LINEAR: LinearFunctionModel = {
     family: 'linear', slope: 1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1,
 };
-
-// The row editor edits curves as lines (richer families come from the graph
-// block's freeform entry); coerce a non-linear/absent model to a line here.
-function firstLinearModel(models: FunctionModelAttr[]): LinearFunctionModel {
-    const m = models[0];
-    return m && m.family === 'linear' ? m : DEFAULT_LINEAR;
-}
 
 const num = (v: string, fallback: number): number => {
     const n = Number(v);
@@ -97,6 +93,37 @@ export default function DrawableListEditor({
         onChange(drawables.map((x, j) => (j === i ? d : x)));
     const remove = (i: number): void =>
         onChange(drawables.filter((_, j) => j !== i));
+    // The curve row's freeform equation field: parse any family (+ optional
+    // `for …` domain) with the same parser as the graded answer + import DSL,
+    // preserving the row's style/arrows/shade. Returns an error string (shown
+    // inline) or null. A new formula's domain fully replaces the old one; a
+    // formula with no clause clears any prior restriction.
+    const applyCurveFormula = (
+        i: number,
+        d: Extract<DrawableAttr, { kind: 'curve' }>,
+        raw: string,
+    ): string | null => {
+        const parsed = parseGraphFormula(raw);
+        if (parsed.kind === 'error') return parsed.message;
+        if (parsed.kind === 'points') {
+            return 'That looks like a point — add a point shape instead.';
+        }
+        if (parsed.kind === 'inequality') {
+            return 'Type an equation like y = x^2 - 4 (shaded inequalities aren’t authored here).';
+        }
+        // Preserve the row's display options (style/shade/arrows); the new
+        // formula fully replaces the model and the domain — a clause-free
+        // formula clears any prior restriction.
+        replace(i, {
+            kind: 'curve',
+            model: parsed.model as FunctionModelAttr,
+            ...(d.style ? { style: d.style } : {}),
+            ...(d.shade ? { shade: d.shade } : {}),
+            ...(d.arrows !== undefined ? { arrows: d.arrows } : {}),
+            ...(parsed.domain ? { domain: toCurveDomain(parsed.domain) } : {}),
+        });
+        return null;
+    };
     const add = (kind: DrawableKind): void => {
         const fresh: DrawableAttr =
             kind === 'point'
@@ -152,15 +179,17 @@ export default function DrawableListEditor({
                     )}
                     {d.kind === 'curve' && (
                         <>
-                            <strong style={{ minWidth: '4.5rem' }}>Line y=</strong>
-                            {/* The row editor is linear-only (Drop 2); other
-                                families come from freeform entry (Drop 3). Coerce so a
-                                non-linear model still edits as a line here. */}
-                            <NumCell value={firstLinearModel([d.model]).slope} disabled={disabled}
-                                onChange={(slope) => replace(i, { ...d, model: { ...firstLinearModel([d.model]), slope } })} />
-                            <span>x +</span>
-                            <NumCell value={firstLinearModel([d.model]).intercept} disabled={disabled}
-                                onChange={(intercept) => replace(i, { ...d, model: { ...firstLinearModel([d.model]), intercept } })} />
+                            <strong style={{ minWidth: '4.5rem' }}>Curve</strong>
+                            {/* Freeform equation (any family) + optional `for …`
+                                domain — the same parser as the graded answer field
+                                and the ```graph import DSL. */}
+                            <FormulaField
+                                value={formatModel(d.model) + formatCurveDomain(d.domain)}
+                                disabled={disabled}
+                                placeholder="y = x^2 - 4   ·   y = 2^x   ·   x = 4   ·   y = 2x for x >= 0"
+                                containerStyle={{ marginTop: 0, flex: 1, minWidth: '12rem' }}
+                                onApply={(raw) => applyCurveFormula(i, d, raw)}
+                            />
                             <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
                                 <input type="checkbox" checked={d.style === 'dashed'} disabled={disabled}
                                     onChange={(e) => replace(i, { ...d, style: e.target.checked ? 'dashed' : undefined })} />

@@ -22,6 +22,7 @@ import {
 } from '@activity/graph-kit';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import DrawableListEditor from '../components/DrawableListEditor';
+import FormulaField from '../components/FormulaField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
 import {
@@ -321,75 +322,6 @@ function fittedToModel(
     }
 }
 
-// The freeform answer command line. Shows the canonical answer while idle
-// (dragging handles live-updates it); focus + type anything → Enter/blur parses
-// and applies. Draft state is local so a half-typed equation never fights the
-// canonical text; Escape abandons the draft.
-function FormulaField({
-    value,
-    disabled,
-    placeholder,
-    onApply,
-}: {
-    value: string;
-    disabled: boolean;
-    placeholder: string;
-    onApply: (raw: string) => string | null;
-}) {
-    const [draft, setDraft] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const commit = (): void => {
-        if (draft === null) return;
-        if (draft.trim() === '' || draft === value) {
-            setDraft(null);
-            setError(null);
-            return;
-        }
-        const err = onApply(draft);
-        setError(err);
-        if (!err) setDraft(null);
-    };
-    return (
-        <div style={{ marginTop: '0.35rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#475569' }}>
-                Answer:
-                <input
-                    type="text"
-                    value={draft ?? value}
-                    placeholder={placeholder}
-                    disabled={disabled}
-                    spellCheck={false}
-                    style={{
-                        flex: 1,
-                        fontFamily: 'ui-monospace, monospace',
-                        fontSize: '0.82rem',
-                        padding: '0.15rem 0.4rem',
-                        border: error ? '1px solid #dc2626' : '1px solid #cbd5e1',
-                        borderRadius: 4,
-                    }}
-                    onChange={(e) => {
-                        setDraft(e.target.value);
-                        setError(null);
-                    }}
-                    onBlur={commit}
-                    onKeyDown={(e) => {
-                        e.stopPropagation();
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            commit();
-                        } else if (e.key === 'Escape') {
-                            setDraft(null);
-                            setError(null);
-                        }
-                    }}
-                />
-            </label>
-            {error && (
-                <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: '#b91c1c' }}>{error}</p>
-            )}
-        </div>
-    );
-}
 
 export default function InteractiveGraphView({
     node,
@@ -814,6 +746,7 @@ export default function InteractiveGraphView({
                                       : 'Drag the handles — or type the equation below in any format. '}
                         </p>
                         <FormulaField
+                            label="Answer:"
                             value={answerText}
                             disabled={!isEditable}
                             placeholder={

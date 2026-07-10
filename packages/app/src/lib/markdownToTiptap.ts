@@ -42,21 +42,10 @@
 // =============================================================================
 
 import { parseGraphFormula, parsePointList, parseRaySegment } from '@activity/graph-kit';
-import type { ParsedDomain } from '@activity/graph-kit';
 import type { JSONContent } from '@tiptap/react';
 import type { InlineNode } from '@activity/schema';
 import { tiptapInlineToActivity } from './serialize';
-
-// ParsedDomain carries minClosed/maxClosed booleans; the CurveDrawable schema
-// wants minStyle/maxStyle ('open' | 'closed'). Both renderers default a missing
-// style to 'closed', so passing the booleans through unchanged silently renders
-// an open endpoint ("for x > 0") as a closed dot.
-function toCurveDomain(d: ParsedDomain): Record<string, unknown> {
-    return {
-        ...(d.min !== undefined ? { min: d.min, minStyle: d.minClosed ? 'closed' : 'open' } : {}),
-        ...(d.max !== undefined ? { max: d.max, maxStyle: d.maxClosed ? 'closed' : 'open' } : {}),
-    };
-}
+import { toCurveDomain } from './graphDomain';
 
 // Minimal structural view of a markdown-it token — only the fields the mapper
 // reads. Defined locally (rather than importing markdown-it's Token type) so
