@@ -6,8 +6,11 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting:
 
-1. **Graded-families pass + display continuation arrows (2026-07-10 fourth session) need one deploy train:** `pnpm build:graph-kit` (uploads + re-hashes the manifest — confirm the `Uploaded:` lines), THEN redeploy `publish-activity` (carries BOTH the new kit hash and the regenerated renderer bundle — print-SVG arrows + the ray-arrowhead fix ride it). No wire bump, so NO `ingest-submission` redeploy and no forced republish — already-published pages keep their pinned kit until re-published. App deploy picks up the editor label, dashboard fitted equation, and the drawable-editor arrows checkboxes.
-2. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
+1. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
+
+Nothing else queued — the fourth-session train cleared (below).
+
+Cleared 2026-07-10 fourth session (author-confirmed "deployed"): **the graded-families + display-arrows train** — kit uploaded, `publish-activity` redeployed (new kit hash + regenerated renderer bundle: print-SVG arrows, ray-arrowhead fix, readDrawables ray/expression fix), app deployed (editor "Plot a function" label, dashboard fitted equation, drawable-row arrows checkboxes). No wire bump — ingest untouched; pages pick up changes on their next re-publish.
 
 **Standing deploy-ordering rules now live in CLAUDE.md (Division of labor) + `supabase/functions/README.md`** — kit upload FIRST then `publish-activity` deploy; on a wire bump, `ingest-submission` redeploy BEFORE any republish. This pointer can be dropped once familiar.
 
@@ -91,8 +94,8 @@ Also queued:
 | Numeric blanks (`answerType: 'numeric'` + tolerance; strategy seam; editor checkbox; `{{=…}}` import) | ✅ Live (deploy train cleared 2026-07-10); browser-verified (`1a997fd`); no wire change |
 | Multiple-choice block (schema + wire v5 + renderer + runtime + editor + ```mc import + dashboard) | ✅ Live (ingest v5 + publish-activity + app deployed, cleared 2026-07-10); browser-verified at `/playground` (`c334b96`/`dce312a`/`bb96f7d`/`7a8584d`) |
 | Static graph-paper SVG fallback (author's print fix) | ✅ Live (cleared 2026-07-10); committed in `c334b96` |
-| Graded function families — quad/exp/log + quadratic inequalities (seeding fix, "Plot a function" picker, quadratic classifiers, dashboard fitted equation, dev-harness scenarios) | ✅ Built + browser-verified at `/dev/graph-question` 2026-07-10; AWAITING deploy (kit upload → publish-activity → app; pending action 1) |
-| Display-graph continuation arrows (window-exit placement, per-drawable toggle, print-SVG parity) + readDrawables ray/expression drop fix + print ray-arrowhead fix | ✅ Built + browser-verified (dev-harness "Static display" scenario) 2026-07-10; AWAITING same deploy train (pending action 1) |
+| Graded function families — quad/exp/log + quadratic inequalities (seeding fix, "Plot a function" picker, quadratic classifiers, dashboard fitted equation, dev-harness scenarios) | ✅ Live (deploy train cleared 2026-07-10); browser-verified at `/dev/graph-question`; `38b9fbe` |
+| Display-graph continuation arrows (window-exit placement, per-drawable toggle, print-SVG parity) + readDrawables ray/expression drop fix + print ray-arrowhead fix | ✅ Live (same train, cleared 2026-07-10); browser-verified; `131f62d`. Drawable-row arrows checkbox pattern-verified only — glance at it next editor session |
 
 Test counts at last session: schema 187 / graph-kit 228 / renderer 416 / app 358 (1189 total); typecheck + lint (0 errors) green. Runtime bundle **base 21.2 KiB / graphs variant 23.8 KiB** (base is over the 20 KiB soft target — numeric strategy + MC plumbing, core question machinery that belongs in base; 40 KiB hard ceiling far off). The graph-runtime-into-kit lever was PULLED 2026-07-10 — graph work now grows the cached kit, not the inline bundles. (Environment note: this machine is the 2026-07-04 recovery clone — old computer died; toolchain re-set-up verified by a full green run. Deploy creds for `pnpm build:graph-kit` live in a gitignored `.env.r2`, auto-loaded — AND NOTE: with creds present the script auto-uploads to R2; see `.env.r2.example`.)
 
@@ -153,4 +156,4 @@ activity-platform/
 
 ---
 
-**Last updated:** 2026-07-10 (fourth session) — TWO drops built + browser-verified, awaiting one deploy train (**pending action 1: kit upload → publish-activity → app**; no wire bump, no ingest redeploy): (a) graded function families (quad/exp/log + quadratic inequalities; docs/design/graded-function-families.md), (b) display-graph continuation arrows (window-exit placement, per-drawable toggle, print parity) + two latent bug fixes (published pages dropped ray/expression drawables; printed rays never showed their arrowhead). Inequality-bar/domain-glider author verify cleared. Suite: schema 187 / graph-kit 228 / renderer 416 / app 358 (1189); typecheck/lint/test green.
+**Last updated:** 2026-07-10 (fourth session, closed out) — TWO drops shipped, DEPLOYED + author-confirmed: (a) graded function families `38b9fbe` (quad/exp/log + quadratic inequalities; docs/design/graded-function-families.md), (b) display-graph continuation arrows `131f62d` (window-exit placement, per-drawable toggle, print parity) + two latent bug fixes (published pages dropped ray/expression drawables; printed rays never showed their arrowhead). No pending author actions beyond the standing ingest `--no-verify-jwt` reminder. Suite: schema 187 / graph-kit 228 / renderer 416 / app 358 (1189); typecheck/lint/test green.
