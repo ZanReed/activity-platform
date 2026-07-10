@@ -180,3 +180,110 @@ describe('evaluate — error handling', () => {
     if (!r.ok) expect(r.error).toMatch(/can't be evaluated/i);
   });
 });
+
+// ---- Calculator-parity batch (2026-07-11): the widened function table ---------
+
+describe('evaluate — reciprocal trig (gated, angle-aware)', () => {
+  it('sec/csc/cot are reciprocals of cos/sin/tan', () => {
+    expect(evaluate('sec(60)', { angleMode: 'deg' })).toEqual({ ok: true, value: expect.closeTo(2) });
+    expect(evaluate('csc(30)', { angleMode: 'deg' })).toEqual({ ok: true, value: expect.closeTo(2) });
+    expect(evaluate('cot(45)', { angleMode: 'deg' })).toEqual({ ok: true, value: expect.closeTo(1) });
+  });
+
+  it('inverses return angles in the current mode', () => {
+    expect(evaluate('asec(2)', { angleMode: 'deg' })).toEqual({ ok: true, value: expect.closeTo(60) });
+    expect(evaluate('acot(1)', { angleMode: 'deg' })).toEqual({ ok: true, value: expect.closeTo(45) });
+    // acot uses the school range (0, π): negative arguments land in Q2.
+    expect(evaluate('acot(-1)', { angleMode: 'deg' })).toEqual({ ok: true, value: expect.closeTo(135) });
+  });
+
+  it('sits behind the trig gate', () => {
+    expect(evaluate('sec(1)', { allowTrig: false })).toEqual({
+      ok: false,
+      error: 'Trig functions are turned off here',
+    });
+  });
+});
+
+describe('evaluate — hyperbolics (gated, NEVER angle-converted)', () => {
+  it('computes sinh/cosh/tanh and inverses on real arguments', () => {
+    expect(evaluate('sinh(1)')).toEqual({ ok: true, value: expect.closeTo(Math.sinh(1)) });
+    expect(evaluate('atanh(0.5)')).toEqual({ ok: true, value: expect.closeTo(Math.atanh(0.5)) });
+  });
+
+  it('ignores degree mode — hyperbolic arguments are not angles', () => {
+    expect(evaluate('sinh(1)', { angleMode: 'deg' })).toEqual({
+      ok: true,
+      value: expect.closeTo(Math.sinh(1)),
+    });
+  });
+
+  it('sits behind the trig gate (author call: the whole family gates together)', () => {
+    expect(evaluate('sinh(1)', { allowTrig: false })).toEqual({
+      ok: false,
+      error: 'Trig functions are turned off here',
+    });
+  });
+
+  it('normalizes MathLive inverse notation: sinh^(-1) → asinh', () => {
+    expect(normalizeAsciiMath('sinh ^(-1)(1)')).toBe('asinh(1)');
+  });
+});
+
+describe('evaluate — rounding, counting, aggregates', () => {
+  it('floor/ceil/round/sign', () => {
+    expect(evaluate('floor(2.7)')).toEqual({ ok: true, value: 2 });
+    expect(evaluate('ceil(2.1)')).toEqual({ ok: true, value: 3 });
+    expect(evaluate('round(2.5)')).toEqual({ ok: true, value: 3 });
+    expect(evaluate('round(2.345, 2)')).toEqual({ ok: true, value: expect.closeTo(2.35) });
+    expect(evaluate('sign(-9)')).toEqual({ ok: true, value: -1 });
+  });
+
+  it('mod works as the operator and the function (mathjs modDependencies)', () => {
+    expect(evaluate('10 mod 3')).toEqual({ ok: true, value: 1 });
+    expect(evaluate('mod(10, 3)')).toEqual({ ok: true, value: 1 });
+  });
+
+  it('nPr and nCr', () => {
+    expect(evaluate('nPr(5, 2)')).toEqual({ ok: true, value: 20 });
+    expect(evaluate('nCr(5, 2)')).toEqual({ ok: true, value: 10 });
+    expect(evaluate('nCr(1000, 3)')).toEqual({ ok: true, value: 166167000 });
+  });
+
+  it('nPr/nCr reject non-whole or r > n input with a friendly error', () => {
+    expect(evaluate('nCr(2, 5)')).toEqual({
+      ok: false,
+      error: 'nPr and nCr need whole numbers with r ≤ n',
+    });
+  });
+
+  it('min/max/mean are variadic', () => {
+    expect(evaluate('min(3, 1, 2)')).toEqual({ ok: true, value: 1 });
+    expect(evaluate('max(3, 1, 2)')).toEqual({ ok: true, value: 3 });
+    expect(evaluate('mean(1, 2, 3, 4)')).toEqual({ ok: true, value: 2.5 });
+  });
+});
+
+describe('normalizeAsciiMath — spaced-letter reassembly (MathLive unknown names)', () => {
+  it('reassembles the spaced forms MathLive serializes', () => {
+    expect(normalizeAsciiMath('f l o o r(2.7)')).toBe('floor(2.7)');
+    expect(normalizeAsciiMath('n C r(5,2)')).toBe('nCr(5,2)');
+    expect(normalizeAsciiMath('m e a n(1,2,3)')).toBe('mean(1,2,3)');
+    expect(normalizeAsciiMath('10m o d 3')).toBe('10 mod  3');
+    expect(evaluate('10m o d3')).toEqual({ ok: true, value: 1 });
+  });
+
+  it('evaluates through the spaced forms end to end', () => {
+    expect(evaluate('f l o o r(2.7)')).toEqual({ ok: true, value: 2 });
+    expect(evaluate('n C r(5,2)')).toEqual({ ok: true, value: 10 });
+    expect(evaluate('a c o t(-1)', { angleMode: 'deg' })).toEqual({
+      ok: true,
+      value: expect.closeTo(135),
+    });
+  });
+
+  it('leaves unspaced spellings untouched', () => {
+    expect(normalizeAsciiMath('floor(2.7)')).toBe('floor(2.7)');
+    expect(normalizeAsciiMath('min(1,2)')).toBe('min(1,2)');
+  });
+});

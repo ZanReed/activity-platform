@@ -24,6 +24,7 @@
 // safe because evaluate() is synchronous and single-threaded.
 // =============================================================================
 
+import { extractDomain, type ParsedDomain } from './solve.js';
 import {
   create,
   evaluateDependencies,
@@ -45,6 +46,12 @@ export interface EvalOptions {
   allowTrig?: boolean;
   /** When false, log/ln/exp throw a friendly error; default true. */
   allowLogExp?: boolean;
+  /**
+   * When false, an inequality row classifies as a friendly error instead of a
+   * shaded plot; default true. Classification-only — evaluate() never sees a
+   * comparison operator (rows are split at the operator before evaluation).
+   */
+  allowInequalities?: boolean;
 }
 
 export type EvalResult =
@@ -79,6 +86,32 @@ function factorial(n: number): number {
   let r = 1;
   for (let k = 2; k <= n; k++) r *= k;
   return r;
+}
+
+// nPr / nCr share the "whole numbers, r ≤ n" contract; computed multiplicatively
+// (not via factorial quotients) so nCr(1000, 3) doesn't overflow on the way.
+function countArgs(n: number, r: number): void {
+  if (!Number.isInteger(n) || !Number.isInteger(r) || n < 0 || r < 0 || r > n) {
+    throw new CalcError('nPr and nCr need whole numbers with r ≤ n');
+  }
+}
+function nPr(n: number, r: number): number {
+  countArgs(n, r);
+  let out = 1;
+  for (let k = n - r + 1; k <= n; k++) out *= k;
+  return out;
+}
+function nCr(n: number, r: number): number {
+  countArgs(n, r);
+  const s = Math.min(r, n - r);
+  let out = 1;
+  for (let k = 1; k <= s; k++) out = (out * (n - s + k)) / k;
+  return Math.round(out);
+}
+
+function spread(name: string, xs: number[]): number[] {
+  if (xs.length === 0) throw new CalcError(`${name} needs at least one number`);
+  return xs;
 }
 
 // math.js instance: the parser + arithmetic operators only. Every named
@@ -119,15 +152,81 @@ math.import(
       x < 0 && n % 2 !== 0 ? -Math.pow(-x, 1 / n) : Math.pow(x, 1 / n),
     abs: (x: number) => Math.abs(x),
     factorial,
+    // Reciprocal trig rides the trig gate + angle mode like sin/cos/tan. The
+    // inverses use the school-convention ranges (acot in (0, π)).
+    sec: (x: number) => (trigGate(), 1 / Math.cos(toRad(x))),
+    csc: (x: number) => (trigGate(), 1 / Math.sin(toRad(x))),
+    cot: (x: number) => (trigGate(), 1 / Math.tan(toRad(x))),
+    asec: (x: number) => (trigGate(), fromRad(Math.acos(1 / x))),
+    acsc: (x: number) => (trigGate(), fromRad(Math.asin(1 / x))),
+    acot: (x: number) => (trigGate(), fromRad(Math.PI / 2 - Math.atan(x))),
+    // Hyperbolics sit behind the trig gate too (a teacher untoggling "trig"
+    // expects the whole family gone) but take REAL arguments — never
+    // angle-converted (author call, calculator-parity design pass item 3).
+    sinh: (x: number) => (trigGate(), Math.sinh(x)),
+    cosh: (x: number) => (trigGate(), Math.cosh(x)),
+    tanh: (x: number) => (trigGate(), Math.tanh(x)),
+    asinh: (x: number) => (trigGate(), Math.asinh(x)),
+    acosh: (x: number) => (trigGate(), Math.acosh(x)),
+    atanh: (x: number) => (trigGate(), Math.atanh(x)),
+    // Rounding / integer helpers — ungated. round takes an optional digit count.
+    floor: (x: number) => Math.floor(x),
+    ceil: (x: number) => Math.ceil(x),
+    round: (x: number, digits = 0) => {
+      const p = Math.pow(10, digits);
+      return Math.round(x * p) / p;
+    },
+    sign: (x: number) => Math.sign(x),
+    // Counting + aggregates — ungated. min/max/mean are variadic.
+    nPr,
+    nCr,
+    min: (...xs: number[]) => Math.min(...spread('min', xs)),
+    max: (...xs: number[]) => Math.max(...spread('max', xs)),
+    mean: (...xs: number[]) =>
+      spread('mean', xs).reduce((s, v) => s + v, 0) / xs.length,
   },
   { override: true },
 );
 
+// MathLive serializes multi-letter identifiers it doesn't know as SPACED
+// letters — a student typing floor(2.7) yields "f l o o r(2.7)", nCr(5,2)
+// yields "n C r(5,2)". Followed by an argument list, the student clearly meant
+// the function, so reassemble our provided names. (sin/sec/sinh etc. are
+// MathLive-native and never arrive spaced.) \s* also matches the unspaced
+// spelling, so pasted plain text reassembles to itself harmlessly.
+const SPACED_FN_RES = [
+  'asinh', 'acosh', 'atanh',
+  'asec', 'acsc', 'acot',
+  'floor', 'ceil', 'round', 'sign',
+  'mean', 'min', 'max',
+  'nPr', 'nCr',
+].map((name) => ({
+  name,
+  // Letter-boundary lookarounds, not \b: MathLive omits the space between a
+  // digit and a letter ("2f l o o r(…)"), where \b would fail to anchor.
+  re: new RegExp(
+    '(?<![a-zA-Z])' + name.split('').join('\\s*') + '\\s*(?=\\()',
+    'g',
+  ),
+}));
+
 /** Rewrite MathLive AsciiMath into a math.js-parseable expression. Lexical only. */
 export function normalizeAsciiMath(ascii: string): string {
   let s = ascii;
-  // Inverse trig BEFORE generic cleanup: sin ^(-1)( -> asin(
-  s = s.replace(/\b(sin|cos|tan)\s*\^\s*\(\s*-1\s*\)/g, (_m, f) => 'a' + f);
+  // Unicode comparison operators (word-processor paste, some keycap paths).
+  // Harmless for evaluation — a row is split at its operator before math.js
+  // ever sees it; whole-string evaluation of a comparison fails either way.
+  s = s.replace(/≤/g, '<=').replace(/≥/g, '>=');
+  // Reassemble spaced-letter function names (see SPACED_FN_RES), plus `mod`
+  // anywhere — it's also the infix operator (10 mod 3), so no lookahead; the
+  // replacement re-pads it so "10m o d3" parses.
+  for (const { name, re } of SPACED_FN_RES) s = s.replace(re, name);
+  s = s.replace(/(?<![a-zA-Z])m\s*o\s*d(?![a-zA-Z])/g, ' mod ');
+  // Inverse trig/hyperbolic BEFORE generic cleanup: sin ^(-1)( -> asin(
+  s = s.replace(
+    /\b(sinh|cosh|tanh|sin|cos|tan|sec|csc|cot)\s*\^\s*\(\s*-1\s*\)/g,
+    (_m, f) => 'a' + f,
+  );
   // Log base: log _b( ... ) -> logBase(..., b)
   s = s.replace(
     /\blog\s*_\s*(\d+(?:\.\d+)?)\s*\(([^()]*)\)/g,
@@ -140,13 +239,15 @@ export function normalizeAsciiMath(ascii: string): string {
   // |x| -> abs(x)  (single level; nested absolute values are out of scope)
   s = s.replace(/\|([^|]+)\|/g, 'abs($1)');
   // function name followed by space(s) then '(' -> drop the space
+  // (longer names alongside their prefixes are safe: the alternation backtracks
+  // until the \s+\( actually follows, so `sinh (` matches sinh, not sin)
   s = s.replace(
-    /\b(sin|cos|tan|asin|acos|atan|ln|log|sqrt|abs|exp|nthRoot|logBase)\s+\(/g,
+    /\b(asinh|acosh|atanh|sinh|cosh|tanh|asin|acos|atan|asec|acsc|acot|sin|cos|tan|sec|csc|cot|ln|log|sqrt|abs|exp|nthRoot|logBase|floor|ceil|round|sign|nPr|nCr|min|max|mean|mod)\s+\(/g,
     '$1(',
   );
   // function name + space + a bare number/constant -> wrap in parens (\sin 30)
   s = s.replace(
-    /\b(sin|cos|tan|asin|acos|atan|ln|log|sqrt|abs|exp)\s+(\d+(?:\.\d+)?|pi|e)\b/g,
+    /\b(asinh|acosh|atanh|sinh|cosh|tanh|asin|acos|atan|asec|acsc|acot|sin|cos|tan|sec|csc|cot|ln|log|sqrt|abs|exp|floor|ceil|round|sign)\s+(\d+(?:\.\d+)?|pi|e)\b/g,
     '$1($2)',
   );
   return s.trim();
@@ -235,7 +336,21 @@ export type ExpressionRow =
       px: (vars?: Record<string, number>) => number;
       py: (vars?: Record<string, number>) => number;
     }
-  | { kind: 'function'; fn: (x: number, vars?: Record<string, number>) => number }
+  | {
+      kind: 'function';
+      fn: (x: number, vars?: Record<string, number>) => number;
+      /** A `for x >= 0` / `{x >= 0}` clause — the board clips to it. */
+      domain?: ParsedDomain;
+    }
+  // An inequality row carries g(x, y) = LHS − RHS COMPILED but not yet solved:
+  // slider values only exist at plot time, so the expression list runs the
+  // solve-for-y + side probe per rebuild with the live scope (solve.ts).
+  | {
+      kind: 'inequality';
+      g: (x: number, y: number, vars?: Record<string, number>) => number;
+      op: '<' | '<=' | '>' | '>=';
+      domain?: ParsedDomain;
+    }
   // A no-variable expression (2+3, sin(30)) — shown as "= value", not plotted.
   // Desmos-style: `y = 5` is still a function (a horizontal line); a bare
   // constant is a calculation.
@@ -283,6 +398,41 @@ export function classifyExpression(
   let expr = normalizeAsciiMath(ascii);
   if (!expr) return { kind: 'empty' };
 
+  // Per-row domain restriction (`… for x >= 0` / `… {x >= 0}`) comes off
+  // first — the clause's comparison operator must not read as an inequality.
+  const { rest, domain } = extractDomain(expr);
+  expr = rest;
+
+  // Inequality row: exactly one top-level comparison operator. Detected before
+  // the `y =` strip (`y >= 2x` must not half-match function notation).
+  const ineq = /(<=|>=|<|>)/.exec(expr);
+  if (ineq) {
+    if (opts.allowInequalities === false) {
+      return { kind: 'error', message: 'Inequalities are turned off here' };
+    }
+    const op = ineq[1] as '<' | '<=' | '>' | '>=';
+    const lhs = expr.slice(0, ineq.index).trim();
+    const rhs = expr.slice(ineq.index + op.length).trim();
+    if (/[<>]/.test(lhs) || /[<>]/.test(rhs)) {
+      return { kind: 'error', message: 'Use a single inequality, like y > 2x + 1' };
+    }
+    const gl = lhs ? compileFunction(lhs, opts) : null;
+    const gr = rhs ? compileFunction(rhs, opts) : null;
+    if (!gl || !gr) {
+      return { kind: 'error', message: "That inequality can't be read" };
+    }
+    // One scratch object reused per call — the half-plane fill re-samples g
+    // continuously during pan/zoom/slider drags, same hot path as
+    // compileFunction's own scratch. (Stale keys linger harmlessly.)
+    const scratch: Record<string, number> = {};
+    const g = (x: number, y: number, vars?: Record<string, number>): number => {
+      if (vars) Object.assign(scratch, vars);
+      scratch.y = y;
+      return gl(x, scratch) - gr(x, scratch);
+    };
+    return { kind: 'inequality', g, op, ...(domain && { domain }) };
+  }
+
   // `y = …` is just function notation — strip and fall through.
   const yDef = /^y\s*=\s*(.*)$/.exec(expr);
   if (yDef) {
@@ -294,6 +444,7 @@ export function classifyExpression(
     // expression (2pi fine; other slider names not, v1).
     const slider = /^([a-df-wz])\s*=\s*(.+)$/.exec(expr);
     if (slider) {
+      if (domain) return domainMisuse();
       const name = slider[1] ?? '';
       const r = evaluate(slider[2] ?? '', opts);
       if (!r.ok) {
@@ -309,6 +460,7 @@ export function classifyExpression(
     if (isSingleParenGroup(expr)) {
       const parts = splitTopLevelComma(expr.slice(1, -1));
       if (parts) {
+        if (domain) return domainMisuse();
         const px = compileFunction(parts[0], opts);
         const py = compileFunction(parts[1], opts);
         if (!px || !py) {
@@ -328,10 +480,23 @@ export function classifyExpression(
     // number here — evaluate() has no x/slider scope, so anything with a
     // variable throws and falls through to a function/plot instead.
     const calc = evaluate(expr, opts);
-    if (calc.ok) return { kind: 'calculation', value: calc.value };
+    if (calc.ok) {
+      if (domain) return domainMisuse();
+      return { kind: 'calculation', value: calc.value };
+    }
   }
 
   const fn = compileFunction(expr, opts);
   if (!fn) return { kind: 'error', message: "That expression can't be plotted" };
-  return { kind: 'function', fn };
+  return { kind: 'function', fn, ...(domain && { domain }) };
+}
+
+// A `for …` clause on a row that isn't a graphed equation (slider, point,
+// plain calculation) — surface it rather than silently dropping the
+// restriction the student typed.
+function domainMisuse(): ExpressionRow {
+  return {
+    kind: 'error',
+    message: "A restriction like 'for x >= 0' only works on a graphed equation",
+  };
 }

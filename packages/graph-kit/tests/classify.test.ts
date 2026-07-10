@@ -126,3 +126,86 @@ describe('compileFunction — slider vars', () => {
     expect(Number.isNaN(fn(1, { a: 2 }))).toBe(true);
   });
 });
+
+// ---- Calculator-parity batch (2026-07-11): inequality + domain rows -----------
+
+describe('classifyExpression — inequalities', () => {
+  const solveAt = (
+    row: ReturnType<typeof classifyExpression>,
+    x: number,
+    y: number,
+    vars?: Record<string, number>,
+  ): number => {
+    if (row.kind !== 'inequality') throw new Error('expected inequality row');
+    return row.g(x, y, vars);
+  };
+
+  it('classifies y > 2x + 1 with the operator and a working g', () => {
+    const row = classifyExpression('y > 2x + 1');
+    if (row.kind !== 'inequality') throw new Error('expected inequality');
+    expect(row.op).toBe('>');
+    // g = LHS − RHS = y − (2x + 1): zero on the boundary, positive above.
+    expect(solveAt(row, 1, 3)).toBeCloseTo(0);
+    expect(solveAt(row, 1, 5)).toBeCloseTo(2);
+  });
+
+  it('reads <= / >= and the unicode forms', () => {
+    expect(classifyExpression('y <= x').kind).toBe('inequality');
+    expect(classifyExpression('y ≥ x').kind).toBe('inequality');
+  });
+
+  it('supports any plottable boundary, not just school families', () => {
+    const row = classifyExpression('y > sin(x)');
+    if (row.kind !== 'inequality') throw new Error('expected inequality');
+    expect(solveAt(row, Math.PI / 2, 1)).toBeCloseTo(0);
+  });
+
+  it('threads slider vars through g', () => {
+    const row = classifyExpression('y > a*x');
+    expect(solveAt(row as never, 2, 6, { a: 3 })).toBeCloseTo(0);
+  });
+
+  it('carries a trailing domain clause', () => {
+    const row = classifyExpression('y > 2x for x >= 0');
+    if (row.kind !== 'inequality') throw new Error('expected inequality');
+    expect(row.domain).toEqual({ min: 0, minClosed: true });
+  });
+
+  it('rejects a chained inequality', () => {
+    const row = classifyExpression('1 < y < 2');
+    expect(row.kind).toBe('error');
+  });
+
+  it('rejects a one-sided comparison', () => {
+    expect(classifyExpression('y >').kind).toBe('error');
+  });
+
+  it('is gated by allowInequalities with a friendly message', () => {
+    const row = classifyExpression('y > 2x', { allowInequalities: false });
+    expect(row).toEqual({
+      kind: 'error',
+      message: 'Inequalities are turned off here',
+    });
+  });
+});
+
+describe('classifyExpression — per-row domains', () => {
+  it('a function row carries its domain', () => {
+    const row = classifyExpression('y = 2x for x >= 0');
+    if (row.kind !== 'function') throw new Error('expected function');
+    expect(row.domain).toEqual({ min: 0, minClosed: true });
+    expect(row.fn(3)).toBeCloseTo(6); // fn itself is unclipped — the list clips
+  });
+
+  it('accepts the brace form', () => {
+    const row = classifyExpression('x^2 {0 < x < 5}');
+    if (row.kind !== 'function') throw new Error('expected function');
+    expect(row.domain).toEqual({ min: 0, minClosed: false, max: 5, maxClosed: false });
+  });
+
+  it('rejects a domain on a slider / point / calculation row', () => {
+    expect(classifyExpression('a = 3 for x > 0').kind).toBe('error');
+    expect(classifyExpression('(1, 2) for x > 0').kind).toBe('error');
+    expect(classifyExpression('2 + 3 for x > 0').kind).toBe('error');
+  });
+});

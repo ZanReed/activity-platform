@@ -146,6 +146,8 @@ export {
   parseGraphFormula,
   parsePointList,
   formatModel,
+  formatInequality,
+  formatDomainClause,
   formatPoints,
   parseRaySegment,
   formatRay,

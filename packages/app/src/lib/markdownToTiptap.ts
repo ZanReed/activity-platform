@@ -1322,6 +1322,7 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                             kind: 'curve', model: parsed.boundary,
                             style: parsed.strict ? 'dashed' : (style ?? 'solid'),
                             shade: parsed.side,
+                            ...(parsed.domain ? { domain: toCurveDomain(parsed.domain) } : {}),
                         });
                     } else {
                         // Anything else plots as a sampled expression.

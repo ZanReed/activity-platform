@@ -15,6 +15,7 @@
 
 import { JSXGraph } from 'jsxgraph';
 import { compileFunction } from './evaluate.js';
+import { halfPlaneOutline, type ShadeSide, type WindowBox } from './solve.js';
 import {
   curveEndArrows,
   rayArrowSpec,
@@ -25,9 +26,26 @@ import {
 // Stage 4: what one expression-list row contributes to the board. Coordinates
 // and functions are CLOSURES over the caller's live slider scope — JSXGraph
 // re-evaluates them on every update, so a slider drag only needs refresh().
+// An inequality item carries its already-solved boundary the same way: fn / x
+// are closures over the scope, so the boundary tracks slider drags; side and
+// strict re-derive on the next full rebuild (a sign flip mid-drag paints the
+// stale side for one gesture — accepted).
 export type PlotItem =
   | { kind: 'curve'; color: string; fn: (x: number) => number }
-  | { kind: 'point'; color: string; px: () => number; py: () => number };
+  | { kind: 'point'; color: string; px: () => number; py: () => number }
+  | {
+      kind: 'inequality';
+      color: string;
+      strict: boolean;
+      side: ShadeSide;
+      boundary:
+        | { type: 'fn'; fn: (x: number) => number }
+        | { type: 'vertical'; x: () => number };
+    };
+
+// The half-plane fill geometry (halfPlaneOutline, WindowBox) lives in solve.ts
+// — pure and DOM-free, shared by the three fill sites below and unit-testable
+// without loading JSXGraph.
 
 export interface BoardController {
   /** Plot (or replace) the single function curve; pass null to clear it. */
@@ -223,17 +241,28 @@ export function createBoard(container: HTMLElement): BoardController {
   let listObjects: unknown[] = [];
   let plotItems: PlotItem[] = []; // kept for trace + fit (need the fns/coords)
 
+  // The live viewport as a WindowBox (getBoundingBox is [xMin, yMax, xMax, yMin]).
+  function liveBox(): WindowBox {
+    const [xMin, yMax, xMax, yMin] = board.getBoundingBox();
+    return { xMin, xMax, yMin, yMax };
+  }
+
   function setPlots(items: PlotItem[]): void {
     for (const obj of listObjects) board.removeObject(obj);
     plotItems = items;
-    listObjects = items.map((item) =>
-      item.kind === 'curve'
-        ? board.create('functiongraph', [item.fn], {
+    listObjects = [];
+    for (const item of items) {
+      if (item.kind === 'curve') {
+        listObjects.push(
+          board.create('functiongraph', [item.fn], {
             strokeColor: item.color,
             strokeWidth: 2,
             highlight: false,
-          })
-        : board.create('point', [item.px, item.py], {
+          }),
+        );
+      } else if (item.kind === 'point') {
+        listObjects.push(
+          board.create('point', [item.px, item.py], {
             fixed: true,
             withLabel: false,
             size: 3,
@@ -241,7 +270,62 @@ export function createBoard(container: HTMLElement): BoardController {
             fillColor: item.color,
             highlight: false,
           }),
-    );
+        );
+      } else {
+        // Inequality: a translucent half-plane fill + the boundary on top.
+        // Both re-derive from the LIVE viewport on every board.update(), so
+        // they track pan/zoom (and slider drags, via the closures) for free.
+        // Overlapping rows darken naturally (independent translucent fills).
+        const { side, boundary } = item;
+        const fill = board.create('curve', [[], []], {
+          strokeWidth: 0,
+          highlight: false,
+          fixed: true,
+          fillColor: item.color,
+          fillOpacity: 0.15,
+        }) as { dataX: number[]; dataY: number[]; updateDataArray?: () => void };
+        fill.updateDataArray = function (this: { dataX: number[]; dataY: number[] }): void {
+          const { xs, ys } = halfPlaneOutline(
+            side,
+            liveBox(),
+            boundary.type === 'fn' ? { fn: boundary.fn } : { x: boundary.x() },
+          );
+          this.dataX = xs;
+          this.dataY = ys;
+        };
+        listObjects.push(fill);
+        if (boundary.type === 'fn') {
+          listObjects.push(
+            board.create('functiongraph', [boundary.fn], {
+              strokeColor: item.color,
+              strokeWidth: 2,
+              highlight: false,
+              dash: item.strict ? 2 : 0,
+            }),
+          );
+        } else {
+          const edge = board.create('curve', [[], []], {
+            strokeColor: item.color,
+            strokeWidth: 2,
+            highlight: false,
+            fixed: true,
+            dash: item.strict ? 2 : 0,
+          }) as { dataX: number[]; dataY: number[]; updateDataArray?: () => void };
+          edge.updateDataArray = function (this: { dataX: number[]; dataY: number[] }): void {
+            const k = boundary.x();
+            const { yMin, yMax } = liveBox();
+            if (!Number.isFinite(k)) {
+              this.dataX = [];
+              this.dataY = [];
+              return;
+            }
+            this.dataX = [k, k];
+            this.dataY = [yMin, yMax];
+          };
+          listObjects.push(edge);
+        }
+      }
+    }
     board.update();
   }
 
@@ -807,7 +891,6 @@ export function createPointAnswerBoard(
   let shadeSide: 'above' | 'below' | 'left' | 'right' | null = null;
   if (config.shadeBoundary) {
     const derive = config.deriveCurve;
-    const SAMPLES = 120;
     const shade = board.create('curve', [[], []], {
       strokeWidth: 0,
       highlight: false,
@@ -823,29 +906,19 @@ export function createPointAnswerBoard(
       this.dataY = [];
       if (!shadeSide) return;
       const pts = currentPoints();
+      let boundary: { fn?: (x: number) => number; x?: number };
       if (shadeSide === 'left' || shadeSide === 'right') {
         // Vertical boundary: the handles' mean x names the line.
         if (pts.length < 2) return;
-        const k = pts.reduce((s, [px]) => s + px, 0) / pts.length;
-        const edge = shadeSide === 'right' ? config.xMax : config.xMin;
-        this.dataX = [k, k, edge, edge, k];
-        this.dataY = [config.yMin, config.yMax, config.yMax, config.yMin, config.yMin];
-        return;
+        boundary = { x: pts.reduce((s, [px]) => s + px, 0) / pts.length };
+      } else {
+        const fn = derive ? derive(pts) : null;
+        if (!fn) return;
+        boundary = { fn };
       }
-      const fn = derive ? derive(pts) : null;
-      if (!fn) return;
-      const edge = shadeSide === 'above' ? config.yMax : config.yMin;
-      const clamp = (y: number): number =>
-        Math.min(config.yMax, Math.max(config.yMin, y));
-      for (let i = 0; i <= SAMPLES; i++) {
-        const x = config.xMin + ((config.xMax - config.xMin) * i) / SAMPLES;
-        const y = fn(x);
-        this.dataX.push(x);
-        this.dataY.push(Number.isFinite(y) ? clamp(y) : edge);
-      }
-      // Close the region against the window edge.
-      this.dataX.push(config.xMax, config.xMin, this.dataX[0]!);
-      this.dataY.push(edge, edge, this.dataY[0]!);
+      const { xs, ys } = halfPlaneOutline(shadeSide, config, boundary);
+      this.dataX = xs;
+      this.dataY = ys;
     };
 
     // Click empty space → report which side of the boundary was clicked. Drags
@@ -1196,10 +1269,10 @@ export function createDisplayBoard(
             for (const s of verticalArrowSpecs(k, config)) drawArrow(s);
           }
           if (d.shade === 'left' || d.shade === 'right') {
-            const edge = d.shade === 'right' ? config.xMax : config.xMin;
-            board.create('polygon', [[k, config.yMin], [k, config.yMax], [edge, config.yMax], [edge, config.yMin]] as unknown[], {
-              fillColor: DISPLAY_FILL_COLOR, fillOpacity: 0.15, fixed: true,
-              vertices: { visible: false, fixed: true }, borders: { strokeWidth: 0, highlight: false },
+            const { xs, ys } = halfPlaneOutline(d.shade, config, { x: k });
+            board.create('curve', [xs, ys], {
+              strokeWidth: 0, fixed: true, highlight: false,
+              fillColor: DISPLAY_FILL_COLOR, fillOpacity: 0.15,
             });
           }
           break;
@@ -1226,17 +1299,7 @@ export function createDisplayBoard(
           for (const s of curveEndArrows(fn, lo, hi, config, ends)) drawArrow(s);
         }
         if (d.shade === 'above' || d.shade === 'below') {
-          const edge = d.shade === 'above' ? config.yMax : config.yMin;
-          const xs: number[] = []; const ys: number[] = [];
-          const N = 120;
-          for (let i = 0; i <= N; i++) {
-            const x = config.xMin + ((config.xMax - config.xMin) * i) / N;
-            const y = fn(x);
-            xs.push(x);
-            ys.push(Number.isFinite(y) ? Math.min(config.yMax, Math.max(config.yMin, y)) : edge);
-          }
-          xs.push(config.xMax, config.xMin, xs[0]!);
-          ys.push(edge, edge, ys[0]!);
+          const { xs, ys } = halfPlaneOutline(d.shade, config, { fn });
           board.create('curve', [xs, ys], {
             strokeWidth: 0, fixed: true, highlight: false,
             fillColor: DISPLAY_FILL_COLOR, fillOpacity: 0.15,

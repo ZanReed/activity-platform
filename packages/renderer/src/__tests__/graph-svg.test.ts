@@ -117,6 +117,24 @@ describe('renderGraphSvg — drawables', () => {
     expect(out).toContain('fill-opacity="0.12"');
   });
 
+  it('an editor-authored inequality drawable (dashed + shade + domain) composes on paper', () => {
+    // The exact shape the curve row's formula field / the ```graph importer
+    // write for `y > 2x + 1 for x >= 0` (calculator-parity batch) — the
+    // kit-free print path must show boundary dash, half-plane fill, and the
+    // domain endpoint together.
+    const out = svg(axis(), [
+      {
+        kind: 'curve',
+        model: { family: 'linear', slope: 2, intercept: 1 },
+        style: 'dashed',
+        shade: 'above',
+        domain: { min: 0, minStyle: 'closed' },
+      },
+    ] as Drawable[]);
+    expect(out).toContain('stroke-dasharray');
+    expect(out).toContain('fill-opacity="0.12"');
+  });
+
   it('domain-restricted curve draws endpoint dots per style', () => {
     const out = svg(axis(), [
       {

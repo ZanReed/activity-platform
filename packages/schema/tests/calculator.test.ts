@@ -23,7 +23,8 @@ const DEFAULT_RESTRICTIONS = {
   mode: 'scientific',
   allowTrig: true,
   allowLogExp: true,
-  allowedRegressionModels: ['linear', 'quadratic', 'exponential'],
+  allowInequalities: true,
+  allowedRegressionModels: ['linear', 'quadratic', 'exponential', 'logarithmic'],
 };
 
 const DEFAULT_TOOL = {
@@ -55,12 +56,29 @@ describe('CalculatorRestrictions', () => {
 
   // Stage 3 flag. Additive + defaulted, so documents stored before the field
   // existed parse to the permissive default (all models) — no schemaVersion bump.
-  it('defaults allowedRegressionModels to all three models', () => {
+  it('defaults allowedRegressionModels to all four models', () => {
     expect(CalculatorRestrictions.parse({}).allowedRegressionModels).toEqual([
       'linear',
       'quadratic',
       'exponential',
+      'logarithmic',
     ]);
+  });
+
+  it('accepts the logarithmic model (calculator-parity batch)', () => {
+    expect(
+      CalculatorRestrictions.parse({ allowedRegressionModels: ['logarithmic'] })
+        .allowedRegressionModels,
+    ).toEqual(['logarithmic']);
+  });
+
+  // Calculator-parity batch gate. Additive + defaulted like allowTrig — a doc
+  // stored before the field existed parses permissive.
+  it('defaults allowInequalities to true and keeps an explicit false', () => {
+    expect(CalculatorRestrictions.parse({}).allowInequalities).toBe(true);
+    expect(
+      CalculatorRestrictions.parse({ allowInequalities: false }).allowInequalities,
+    ).toBe(false);
   });
 
   it('accepts a subset of regression models', () => {

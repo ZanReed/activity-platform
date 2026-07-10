@@ -808,6 +808,17 @@ describe('```graph fence (Drop 7)', () => {
         expect(q.drawables[1].domain).toEqual({ min: -2, minStyle: 'closed', max: 5, maxStyle: 'open' });
     });
 
+    it('carries a domain clause on a pictured inequality (calculator-parity batch)', () => {
+        const md = '```graph\nshow: line y > 2x + 1 for x >= 0\n```';
+        const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;
+        const q = g.attrs!.interaction;
+        expect(q.type).toBe('display');
+        expect(q.drawables[0].kind).toBe('curve');
+        expect(q.drawables[0].shade).toBe('above');
+        expect(q.drawables[0].style).toBe('dashed'); // strict
+        expect(q.drawables[0].domain).toEqual({ min: 0, minStyle: 'closed' });
+    });
+
     it('translates a max-only domain clause (no min keys emitted)', () => {
         const md = '```graph\nshow: curve y = x^2 for x <= 5\n```';
         const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;

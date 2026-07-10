@@ -30,6 +30,8 @@ export interface CalculatorConfig {
   mode?: 'scientific' | 'graphing';
   allowTrig?: boolean;
   allowLogExp?: boolean;
+  /** Inequality rows in the graphing expression list; default true. */
+  allowInequalities?: boolean;
   /** Stage 3: fit models the data panel offers; empty = no data panel. */
   allowedRegressionModels?: RegressionModel[];
   /** Stage 4: cap on graphing expression rows; absent = unlimited. */
@@ -60,6 +62,7 @@ const ALL_REGRESSION_MODELS: RegressionModel[] = [
   'linear',
   'quadratic',
   'exponential',
+  'logarithmic',
 ];
 
 // Like CalculatorConfig but with every gate resolved to a concrete value.
@@ -69,6 +72,7 @@ interface ResolvedConfig {
   mode: 'scientific' | 'graphing';
   allowTrig: boolean;
   allowLogExp: boolean;
+  allowInequalities: boolean;
   allowedRegressionModels: RegressionModel[];
   maxExpressions: number | undefined;
 }
@@ -81,6 +85,7 @@ function readConfig(raw: unknown): ResolvedConfig {
     mode: c.mode === 'graphing' ? 'graphing' : 'scientific',
     allowTrig: c.allowTrig !== false, // permissive default
     allowLogExp: c.allowLogExp !== false,
+    allowInequalities: c.allowInequalities !== false,
     // Filter against the known set (canonical order, unknowns dropped); a
     // missing/garbled value falls back to all models — permissive, like the
     // boolean gates.
@@ -244,6 +249,12 @@ function virtualKeyboard(): VirtualKeyboardConfig | undefined {
 // leaving the rest of the (author-verified) layout untouched. If MathLive's
 // internals ever change shape, fall back to the plain 'numeric' layout —
 // comma-less but functional — rather than break the keyboard.
+//
+// (Inequality keys need no graft — verified in the browser 2026-07-11: the
+// built-in numeric layout already carries `<`/`>` keycaps whose shift layer
+// types ≤/≥, plus ≤/≥ long-press variants on `=`. When the teacher gates
+// inequalities off, pressing them just yields the friendly row message — the
+// same UX as a physical keyboard, which can't be suppressed either.)
 function numericLayoutWithComma(vk: VirtualKeyboardConfig): unknown {
   try {
     vk.layouts = ['numeric'];
@@ -349,6 +360,7 @@ export function mountCalculator(
           angleMode: angle,
           allowTrig: cfg.allowTrig,
           allowLogExp: cfg.allowLogExp,
+          allowInequalities: cfg.allowInequalities,
         }),
         maxRows: cfg.maxExpressions,
         onPlotsChange: (items) => {

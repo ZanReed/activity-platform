@@ -18,6 +18,7 @@
 
 import { MathfieldElement } from 'mathlive';
 import { classifyExpression, type EvalOptions, type ExpressionRow } from './evaluate.js';
+import { solveForY, curveSide, verticalSide, inDomain, type ParsedDomain } from './solve.js';
 import type { PlotItem } from './board.js';
 
 export interface ExpressionListDeps {
@@ -84,6 +85,57 @@ function sliderBounds(value: number): { min: number; max: number } {
   return { min: -span, max: span };
 }
 
+// NaN outside the domain — the board renders that as a break, and the
+// half-plane fill collapses unshaded there.
+function clipToDomain(
+  fn: (x: number) => number,
+  domain?: ParsedDomain,
+): (x: number) => number {
+  if (!domain) return fn;
+  return (x) => (inDomain(x, domain) ? fn(x) : NaN);
+}
+
+// Solve one inequality row against the live slider scope: boundary fn / x are
+// closures over the scope (drags track free); side + strict are fixed until
+// the next rebuild. Returns the plot item, or the row-note error string.
+function solveInequalityItem(
+  c: Extract<ExpressionRow, { kind: 'inequality' }>,
+  scope: Record<string, number>,
+  color: string,
+): PlotItem | string {
+  const g = (x: number, y: number): number => c.g(x, y, scope);
+  const solved = solveForY(g);
+  if (solved.kind === 'error') return solved.message;
+  const strict = c.op === '<' || c.op === '>';
+  if (solved.kind === 'vertical') {
+    if (c.domain) {
+      return "A 'for x …' restriction doesn't apply to a vertical boundary";
+    }
+    return {
+      kind: 'inequality',
+      color,
+      strict,
+      side: verticalSide(g, solved.x, c.op),
+      boundary: {
+        type: 'vertical',
+        // Recomputed per sample so `x > a` follows its slider mid-drag.
+        x: () => {
+          const h0 = g(0, 0);
+          const s = g(1, 0) - h0;
+          return Math.abs(s) < 1e-12 ? NaN : -h0 / s;
+        },
+      },
+    };
+  }
+  return {
+    kind: 'inequality',
+    color,
+    strict,
+    side: curveSide(g, solved.fn, c.op),
+    boundary: { type: 'fn', fn: clipToDomain(solved.fn, c.domain) },
+  };
+}
+
 export function createExpressionList(deps: ExpressionListDeps): ExpressionListHandle {
   const root = document.createElement('div');
   root.className = 'gk-exprlist';
@@ -135,14 +187,23 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
         scope[row.classified.name] = row.dragValue ?? row.classified.value;
       }
     }
-    // Pass 3 — per-row UI + the plot list.
+    // Pass 3 — per-row UI + the plot list. Inequality rows solve for y HERE
+    // (not at classification) because the boundary can reference sliders, and
+    // slider values only exist once the scope is built (pass 2). An unsolvable
+    // one surfaces on the row's note line like any other row error.
     const items: PlotItem[] = [];
     for (const row of rows) {
       const c = row.classified;
+      let noteError: string | null = null;
+      if (c.kind === 'inequality') {
+        const item = solveInequalityItem(c, scope, row.color);
+        if (typeof item === 'string') noteError = item;
+        else items.push(item);
+      }
       // The note doubles as the error line and the "= value" calculation
       // readout (a no-variable row), styled apart via data-kind.
-      if (c.kind === 'error') {
-        row.note.textContent = c.message;
+      if (c.kind === 'error' || noteError) {
+        row.note.textContent = c.kind === 'error' ? c.message : noteError;
         row.note.dataset.kind = 'error';
       } else if (c.kind === 'calculation') {
         row.note.textContent = '= ' + formatNumber(c.value);
@@ -156,7 +217,11 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
       else row.sliderBox.textContent = '';
       if (c.kind === 'function') {
         const fn = c.fn;
-        items.push({ kind: 'curve', color: row.color, fn: (x) => fn(x, scope) });
+        items.push({
+          kind: 'curve',
+          color: row.color,
+          fn: clipToDomain((x) => fn(x, scope), c.domain),
+        });
       } else if (c.kind === 'point') {
         const { px, py } = c;
         items.push({

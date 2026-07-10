@@ -1,12 +1,12 @@
 import type { CSSProperties } from 'react';
-import { parseGraphFormula, formatModel } from '@activity/graph-kit';
+import { parseGraphFormula, formatModel, formatInequality } from '@activity/graph-kit';
 import type {
     DrawableAttr,
-    FunctionModelAttr,
     LinearFunctionModel,
 } from '../extensions/InteractiveGraph';
 import FormulaField from './FormulaField';
-import { toCurveDomain, formatCurveDomain } from '../../lib/graphDomain';
+import { formatCurveDomain } from '../../lib/graphDomain';
+import { curveFromFormula } from './drawableFormulaLogic';
 
 // ============================================================================
 // DrawableListEditor — add/edit/remove the drawables of a static graph.
@@ -94,10 +94,8 @@ export default function DrawableListEditor({
     const remove = (i: number): void =>
         onChange(drawables.filter((_, j) => j !== i));
     // The curve row's freeform equation field: parse any family (+ optional
-    // `for …` domain) with the same parser as the graded answer + import DSL,
-    // preserving the row's style/arrows/shade. Returns an error string (shown
-    // inline) or null. A new formula's domain fully replaces the old one; a
-    // formula with no clause clears any prior restriction.
+    // `for …` domain) with the same parser as the graded answer + import DSL.
+    // Returns an error string (shown inline) or null.
     const applyCurveFormula = (
         i: number,
         d: Extract<DrawableAttr, { kind: 'curve' }>,
@@ -108,20 +106,7 @@ export default function DrawableListEditor({
         if (parsed.kind === 'points') {
             return 'That looks like a point — add a point shape instead.';
         }
-        if (parsed.kind === 'inequality') {
-            return 'Type an equation like y = x^2 - 4 (shaded inequalities aren’t authored here).';
-        }
-        // Preserve the row's display options (style/shade/arrows); the new
-        // formula fully replaces the model and the domain — a clause-free
-        // formula clears any prior restriction.
-        replace(i, {
-            kind: 'curve',
-            model: parsed.model as FunctionModelAttr,
-            ...(d.style ? { style: d.style } : {}),
-            ...(d.shade ? { shade: d.shade } : {}),
-            ...(d.arrows !== undefined ? { arrows: d.arrows } : {}),
-            ...(parsed.domain ? { domain: toCurveDomain(parsed.domain) } : {}),
-        });
+        replace(i, curveFromFormula(d, parsed));
         return null;
     };
     const add = (kind: DrawableKind): void => {
@@ -180,13 +165,20 @@ export default function DrawableListEditor({
                     {d.kind === 'curve' && (
                         <>
                             <strong style={{ minWidth: '4.5rem' }}>Curve</strong>
-                            {/* Freeform equation (any family) + optional `for …`
-                                domain — the same parser as the graded answer field
-                                and the ```graph import DSL. */}
+                            {/* Freeform equation OR inequality (any family) +
+                                optional `for …` domain — the same parser as the
+                                graded answer field and the ```graph import DSL.
+                                A shaded row displays as its inequality (strict
+                                iff dashed — the same convention the import
+                                mapping writes). */}
                             <FormulaField
-                                value={formatModel(d.model) + formatCurveDomain(d.domain)}
+                                value={
+                                    (d.shade
+                                        ? formatInequality(d.model, d.shade, d.style === 'dashed')
+                                        : formatModel(d.model)) + formatCurveDomain(d.domain)
+                                }
                                 disabled={disabled}
-                                placeholder="y = x^2 - 4   ·   y = 2^x   ·   x = 4   ·   y = 2x for x >= 0"
+                                placeholder="y = x^2 - 4   ·   y > 2x + 1   ·   x = 4   ·   y = 2x for x >= 0"
                                 containerStyle={{ marginTop: 0, flex: 1, minWidth: '12rem' }}
                                 onApply={(raw) => applyCurveFormula(i, d, raw)}
                             />

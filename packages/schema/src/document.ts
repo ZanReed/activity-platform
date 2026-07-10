@@ -263,16 +263,30 @@ export type ReferencePanel = z.infer<typeof ReferencePanel>;
 // offers. Permissive default (all three); an EMPTY array turns regression off
 // entirely (no data panel). Only meaningful under mode 'graphing' — the
 // 'scientific' ceiling already excludes the board the fits draw on.
-export const RegressionModel = z.enum(['linear', 'quadratic', 'exponential']);
+// 'logarithmic' joined 2026-07-11 (calculator-parity batch): the kit computed
+// log fits all along; the enum was the only gap. NOTE a stored doc that carries
+// the explicit three-model array stays three-model (indistinguishable from a
+// deliberate restriction) until the teacher touches the config — accepted at
+// the design pass; the permissive default only applies when the field is absent.
+export const RegressionModel = z.enum([
+  'linear',
+  'quadratic',
+  'exponential',
+  'logarithmic',
+]);
 export type RegressionModel = z.infer<typeof RegressionModel>;
 
 export const CalculatorRestrictions = z.object({
   mode: z.enum(['scientific', 'graphing']).default('scientific'),
   allowTrig: z.boolean().default(true),
   allowLogExp: z.boolean().default(true),
+  // Inequality rows in the graphing expression list (calculator-parity batch).
+  // Additive + defaulted like the other gates — no schemaVersion bump; the kit
+  // reads a missing value as permissive, so old published pages stay full-tool.
+  allowInequalities: z.boolean().default(true),
   allowedRegressionModels: z
     .array(RegressionModel)
-    .default(['linear', 'quadratic', 'exponential']),
+    .default(['linear', 'quadratic', 'exponential', 'logarithmic']),
   // Stage 4: cap on the graphing expression list. ABSENT = unlimited (the
   // permissive default — optional, not defaulted, so it stays out of stored
   // docs unless a teacher sets it). Graphing mode only.

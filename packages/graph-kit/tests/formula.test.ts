@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { describe, it, expect } from 'vitest';
-import { parseGraphFormula, parsePointList, formatModel } from '../src/formula.js';
+import { parseGraphFormula, parsePointList, formatModel, formatInequality } from '../src/formula.js';
 
 function expectLinear(input: string, slope: number, intercept: number): void {
   const r = parseGraphFormula(input);
@@ -188,4 +188,55 @@ describe('formatModel round-trips through parseGraphFormula', () => {
       }
     });
   }
+});
+
+// ---- Calculator-parity batch (2026-07-11) --------------------------------------
+
+describe('parseGraphFormula — inequality domains', () => {
+  it('carries a trailing for clause on an inequality', () => {
+    const p = parseGraphFormula('y > 2x + 1 for x >= 0');
+    if (p.kind !== 'inequality') throw new Error('expected inequality');
+    expect(p.strict).toBe(true);
+    expect(p.side).toBe('above');
+    expect(p.domain).toEqual({ min: 0, minClosed: true });
+  });
+
+  it('still parses a domain-free inequality without one', () => {
+    const p = parseGraphFormula('y <= x^2');
+    if (p.kind !== 'inequality') throw new Error('expected inequality');
+    expect(p.domain).toBeUndefined();
+  });
+});
+
+describe('formatInequality — the round trip', () => {
+  const roundTrip = (src: string): void => {
+    const p = parseGraphFormula(src);
+    if (p.kind !== 'inequality') throw new Error(`expected inequality for ${src}`);
+    const text = formatInequality(p.boundary, p.side, p.strict);
+    const again = parseGraphFormula(text);
+    expect(again).toEqual(p);
+  };
+
+  it('round-trips linear, strict and inclusive', () => {
+    roundTrip('y > 2x + 1');
+    roundTrip('y <= -x + 4');
+  });
+
+  it('round-trips quadratic and vertical boundaries', () => {
+    roundTrip('y < x^2 - 4');
+    roundTrip('x >= 3');
+  });
+
+  it('formats rearranged input back to the canonical side', () => {
+    // 2x + 1 > y means y < 2x + 1.
+    const p = parseGraphFormula('2x + 1 > y');
+    if (p.kind !== 'inequality') throw new Error('expected inequality');
+    expect(formatInequality(p.boundary, p.side, p.strict)).toBe('y < 2x + 1');
+  });
+
+  it('formats a vertical boundary with the side operator', () => {
+    const p = parseGraphFormula('x < -2');
+    if (p.kind !== 'inequality') throw new Error('expected inequality');
+    expect(formatInequality(p.boundary, p.side, p.strict)).toBe('x < -2');
+  });
 });

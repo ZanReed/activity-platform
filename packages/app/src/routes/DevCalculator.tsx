@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 
-const ALL_MODELS = ['linear', 'quadratic', 'exponential'] as const;
+const ALL_MODELS = ['linear', 'quadratic', 'exponential', 'logarithmic'] as const;
 type Model = (typeof ALL_MODELS)[number];
 
 export default function DevCalculator() {
@@ -13,6 +13,7 @@ export default function DevCalculator() {
   const handleRef = useRef<CalculatorHandle | null>(null);
   const [allowTrig, setAllowTrig] = useState(true);
   const [allowLogExp, setAllowLogExp] = useState(true);
+  const [allowInequalities, setAllowInequalities] = useState(true);
   const [mode, setMode] = useState<'scientific' | 'graphing'>('scientific');
   const [models, setModels] = useState<Model[]>([...ALL_MODELS]);
   const [maxExpr, setMaxExpr] = useState<number | undefined>(undefined);
@@ -33,6 +34,7 @@ export default function DevCalculator() {
         mode,
         allowTrig,
         allowLogExp,
+        allowInequalities,
         allowedRegressionModels: models,
         maxExpressions: maxExpr,
       },
@@ -51,7 +53,7 @@ export default function DevCalculator() {
       handle?.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, allowTrig, allowLogExp, models.join(','), maxExpr]);
+  }, [mode, allowTrig, allowLogExp, allowInequalities, models.join(','), maxExpr]);
 
   const toggleModel = (m: Model, on: boolean): void =>
     setModels(ALL_MODELS.filter((x) => (x === m ? on : models.includes(x))));
@@ -95,6 +97,14 @@ export default function DevCalculator() {
             onChange={(e) => setAllowLogExp(e.target.checked)}
           />{' '}
           allowLogExp
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={allowInequalities}
+            onChange={(e) => setAllowInequalities(e.target.checked)}
+          />{' '}
+          allowInequalities
         </label>
         {ALL_MODELS.map((m) => (
           <label key={m}>

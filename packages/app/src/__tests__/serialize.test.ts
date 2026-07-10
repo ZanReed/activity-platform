@@ -293,6 +293,7 @@ describe('calculator (opaque carry)', () => {
             mode: 'scientific',
             allowTrig: false,
             allowLogExp: true,
+            allowInequalities: true,
             allowedRegressionModels: ['linear', 'quadratic', 'exponential'],
         },
     };

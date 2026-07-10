@@ -867,6 +867,7 @@ const REGRESSION_MODEL_OPTIONS: { model: RegressionModel; label: string }[] = [
     { model: 'linear', label: 'Linear (y = ax + b)' },
     { model: 'quadratic', label: 'Quadratic (y = ax² + bx + c)' },
     { model: 'exponential', label: 'Exponential (y = a·bˣ)' },
+    { model: 'logarithmic', label: 'Logarithmic (y = a + b·ln x)' },
 ];
 
 // Live preview of the calculator in its restricted state — the SAME
@@ -923,6 +924,7 @@ function CalculatorPreview({
         restrictions.mode,
         restrictions.allowTrig,
         restrictions.allowLogExp,
+        restrictions.allowInequalities,
         modelsKey,
         restrictions.maxExpressions,
     ]);
@@ -1038,6 +1040,18 @@ function CalculatorBody({
                         />
                         <span>Logarithms &amp; exponentials (ln, log)</span>
                     </label>
+                    <label className="mt-1 flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                            type="checkbox"
+                            checked={restrictions.allowInequalities}
+                            onChange={(e) =>
+                                patchRestrictions({
+                                    allowInequalities: e.target.checked,
+                                })
+                            }
+                        />
+                        <span>Inequality graphing (y &gt; 2x + 1)</span>
+                    </label>
                     {restrictions.mode === 'graphing' && (
                         <div className="mt-3">
                             <label
@@ -1076,8 +1090,8 @@ function CalculatorBody({
                             </p>
                             <p className={`${SETTINGS_HELP_CLASS} mb-1`}>
                                 Students type (x, y) data and fit a model —
-                                equation and r² shown like a TI-84. Uncheck all
-                                three for a no-regression lesson.
+                                equation and r² shown like a TI-84. Uncheck
+                                them all for a no-regression lesson.
                             </p>
                             {REGRESSION_MODEL_OPTIONS.map(({ model, label }) => (
                                 <label

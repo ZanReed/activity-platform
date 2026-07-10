@@ -69,6 +69,7 @@ export const MARKDOWN_IMPORT_AI_PROMPT = [
     '- For an ungraded figure, use show: lines instead of an answer:',
     '    show: point (2, 3) closed "A"',
     '    show: line y = x dashed      (dotted works too)',
+    '    show: line y > 2x + 1 for x >= 0   (inequalities shade; domains clip)',
     '    show: expression sin(x)      (plots any formula)',
     '    show: ray (0,0) (2,1) open',
     '',
