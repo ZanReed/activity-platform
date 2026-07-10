@@ -58,11 +58,19 @@ import type {
     InteractiveGraphBlock,
     MultipleChoiceBlock,
     MultipleChoiceOption,
+    MatchingBlock,
+    MatchingItem,
+    MatchingTarget,
+    OrderingBlock,
+    OrderingItem,
 } from '@activity/schema';
 import {
     SIMPLE_MARK_TYPES,
     createInteractiveGraphBlock,
     createMultipleChoiceOption,
+    createMatchingItem,
+    createMatchingTarget,
+    createOrderingItem,
     ChoiceImage,
     ChoiceGraph,
 } from '@activity/schema';
@@ -193,6 +201,10 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             return tiptapInteractiveGraphToActivity(node);
         case 'multipleChoice':
             return tiptapMultipleChoiceToActivity(node);
+        case 'matching':
+            return tiptapMatchingToActivity(node);
+        case 'ordering':
+            return tiptapOrderingToActivity(node);
         case 'fillInBlank':
             return tiptapFillInBlankToActivity(node);
 
@@ -407,6 +419,141 @@ function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock 
 
     // Optional fields — carried only when meaningful, same omit-when-absent
     // discipline as fill-in-blank.
+    const rawSolution = attrs.solution;
+    if (Array.isArray(rawSolution) && rawSolution.length > 0) {
+        block.solution = rawSolution as InlineNode[];
+    }
+    const rawWorkSpace = attrs.workSpace;
+    if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
+        block.workSpace = rawWorkSpace;
+    }
+
+    return block;
+}
+
+// Shared row sanitizer for matching items/targets (the MC-choice pattern:
+// sanitize structurally, validate figures with the real Zod schemas, drop
+// malformed pieces, keep the rest).
+function sanitizeMatchSides(raw: unknown): Array<MatchingItem | MatchingTarget> {
+    const sides: Array<MatchingItem | MatchingTarget> = [];
+    if (!Array.isArray(raw)) return sides;
+    for (const entry of raw as unknown[]) {
+        if (!entry || typeof entry !== 'object') continue;
+        const s = entry as {
+            id?: unknown;
+            content?: unknown;
+            image?: unknown;
+            graph?: unknown;
+        };
+        const side: MatchingItem = {
+            id:
+                typeof s.id === 'string' && s.id.length > 0
+                    ? s.id
+                    : crypto.randomUUID(),
+            content: Array.isArray(s.content) ? (s.content as InlineNode[]) : [],
+        };
+        const image = ChoiceImage.safeParse(s.image);
+        if (s.image !== undefined && image.success) side.image = image.data;
+        const graph = ChoiceGraph.safeParse(s.graph);
+        if (s.graph !== undefined && graph.success) side.graph = graph.data;
+        sides.push(side);
+    }
+    return sides;
+}
+
+function tiptapMatchingToActivity(node: JSONContent): MatchingBlock {
+    const attrs = node.attrs ?? {};
+
+    // Items/targets come through as the canonical schema shape (the NodeView
+    // writes them that way); pad defensively to the schema minimum so a
+    // damaged payload still yields a valid block instead of dropping the
+    // teacher's work at save time (the MC pattern).
+    const items = sanitizeMatchSides(attrs.items);
+    while (items.length < 2) items.push(createMatchingItem());
+    const targets = sanitizeMatchSides(attrs.targets);
+    while (targets.length < 2) targets.push(createMatchingTarget());
+
+    const allowTargetReuse = attrs.allowTargetReuse === true;
+
+    // Key: keep only entries whose item AND target actually exist; without
+    // reuse, additionally keep only the first item using each target (the
+    // NodeView enforces this live — this is the save-boundary backstop).
+    const itemIds = new Set(items.map((i) => i.id));
+    const targetIds = new Set(targets.map((t) => t.id));
+    const usedTargets = new Set<string>();
+    const key: Record<string, string> = {};
+    const rawKey =
+        attrs.key && typeof attrs.key === 'object' && !Array.isArray(attrs.key)
+            ? (attrs.key as Record<string, unknown>)
+            : {};
+    for (const item of items) {
+        const t = rawKey[item.id];
+        if (typeof t !== 'string' || !targetIds.has(t)) continue;
+        if (!allowTargetReuse && usedTargets.has(t)) continue;
+        if (!itemIds.has(item.id)) continue;
+        key[item.id] = t;
+        usedTargets.add(t);
+    }
+
+    const block: MatchingBlock = {
+        id: crypto.randomUUID(),
+        type: 'matching',
+        prompt: tiptapInlineToActivity(node.content ?? []),
+        items,
+        targets,
+        key,
+        allowTargetReuse,
+        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
+        skills: Array.isArray(attrs.skills)
+            ? (attrs.skills as unknown[]).filter(
+                  (s): s is string => typeof s === 'string',
+              )
+            : [],
+    };
+
+    const rawSolution = attrs.solution;
+    if (Array.isArray(rawSolution) && rawSolution.length > 0) {
+        block.solution = rawSolution as InlineNode[];
+    }
+    const rawWorkSpace = attrs.workSpace;
+    if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
+        block.workSpace = rawWorkSpace;
+    }
+
+    return block;
+}
+
+function tiptapOrderingToActivity(node: JSONContent): OrderingBlock {
+    const attrs = node.attrs ?? {};
+
+    const rawItems = Array.isArray(attrs.items) ? attrs.items : [];
+    const items: OrderingItem[] = [];
+    for (const raw of rawItems as unknown[]) {
+        if (!raw || typeof raw !== 'object') continue;
+        const i = raw as { id?: unknown; content?: unknown };
+        items.push({
+            id:
+                typeof i.id === 'string' && i.id.length > 0
+                    ? i.id
+                    : crypto.randomUUID(),
+            content: Array.isArray(i.content) ? (i.content as InlineNode[]) : [],
+        });
+    }
+    while (items.length < 2) items.push(createOrderingItem());
+
+    const block: OrderingBlock = {
+        id: crypto.randomUUID(),
+        type: 'ordering',
+        prompt: tiptapInlineToActivity(node.content ?? []),
+        items,
+        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
+        skills: Array.isArray(attrs.skills)
+            ? (attrs.skills as unknown[]).filter(
+                  (s): s is string => typeof s === 'string',
+              )
+            : [],
+    };
+
     const rawSolution = attrs.solution;
     if (Array.isArray(rawSolution) && rawSolution.length > 0) {
         block.solution = rawSolution as InlineNode[];
@@ -774,6 +921,12 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'multiple_choice':
             return activityMultipleChoiceToTiptap(block);
 
+        case 'matching':
+            return activityMatchingToTiptap(block);
+
+        case 'ordering':
+            return activityOrderingToTiptap(block);
+
         case 'callout':
         case 'problem':
             console.warn(
@@ -891,6 +1044,41 @@ function activityMultipleChoiceToTiptap(block: MultipleChoiceBlock): JSONContent
             // edits it in place).
             choices: block.choices,
             multiSelect: block.multiSelect,
+            solution: block.solution ?? null,
+            hasConfidenceRating: block.hasConfidenceRating,
+            skills: block.skills,
+            workSpace: block.workSpace ?? null,
+        },
+        content: activityInlineToTiptap(block.prompt),
+    };
+}
+
+function activityMatchingToTiptap(block: MatchingBlock): JSONContent {
+    return {
+        type: 'matching',
+        attrs: {
+            id: block.id,
+            // Canonical schema shapes pass straight through (the NodeView
+            // edits them in place).
+            items: block.items,
+            targets: block.targets,
+            key: block.key,
+            allowTargetReuse: block.allowTargetReuse,
+            solution: block.solution ?? null,
+            hasConfidenceRating: block.hasConfidenceRating,
+            skills: block.skills,
+            workSpace: block.workSpace ?? null,
+        },
+        content: activityInlineToTiptap(block.prompt),
+    };
+}
+
+function activityOrderingToTiptap(block: OrderingBlock): JSONContent {
+    return {
+        type: 'ordering',
+        attrs: {
+            id: block.id,
+            items: block.items,
             solution: block.solution ?? null,
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,

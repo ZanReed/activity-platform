@@ -11,8 +11,8 @@
 // leaves the Edge runtime.
 //
 // Validation happens in three layers, defense in depth:
-//   1. Edge Function (this file): shape check, schemaVersion=3 check, Zod parse,
-//      score range
+//   1. Edge Function (this file): shape check, schemaVersion 3–6 check, Zod
+//      parse, score range
 //   2. SQL function ingest_submission: activity is published, identity present,
 //      attempt_number derivation (NEVER from client input)
 //   3. submissions CHECK constraint + partial unique indexes: identity present
@@ -34,6 +34,7 @@ import {
   SubmissionResponses,
   SubmissionResponsesV3,
   SubmissionResponsesV4,
+  SubmissionResponsesV5,
   migrateSubmissionResponses,
   type SubmissionResponses as SubmissionResponsesType,
 } from '../_shared/renderer.bundle.js';
@@ -138,22 +139,24 @@ Deno.serve(async (req: Request) => {
     return errorResponse(req, 400, 'Must provide display_name or opaque_token');
   }
 
-  // ---- Reject non-v3/v4/v5 responses ----------------------------------------
-  // The current runtime emits v5 (multiple choice: the `choices` map); pages
-  // published before the v5 runtime still POST v4 (graphs) or v3, which remain
-  // accepted and migrate forward here (each is a strict subset of v5). v1/v2
-  // only exist as already-stored data and are handled by
-  // migrateSubmissionResponses on read. Reject anything else cleanly rather
-  // than silently accepting it through a discriminated union — this is the
-  // canonical place to enforce wire-format version, and a schemaVersion
-  // mismatch is a clear "your client is out of date" signal we want surfaced.
+  // ---- Reject non-v3/v4/v5/v6 responses --------------------------------------
+  // The current runtime emits v6 (matching + ordering: the `matches` and
+  // `orderings` maps); pages published before the v6 runtime still POST v5
+  // (multiple choice), v4 (graphs), or v3, which remain accepted and migrate
+  // forward here (each is a strict subset of v6). v1/v2 only exist as
+  // already-stored data and are handled by migrateSubmissionResponses on
+  // read. Reject anything else cleanly rather than silently accepting it
+  // through a discriminated union — this is the canonical place to enforce
+  // wire-format version, and a schemaVersion mismatch is a clear "your
+  // client is out of date" signal we want surfaced.
   const rawResponses = body.responses as { schemaVersion?: unknown } | null;
   if (
     typeof rawResponses !== 'object' ||
     rawResponses === null ||
     (rawResponses.schemaVersion !== 3 &&
       rawResponses.schemaVersion !== 4 &&
-      rawResponses.schemaVersion !== 5)
+      rawResponses.schemaVersion !== 5 &&
+      rawResponses.schemaVersion !== 6)
   ) {
     const got =
     typeof rawResponses === 'object' && rawResponses !== null
@@ -162,19 +165,21 @@ Deno.serve(async (req: Request) => {
 return errorResponse(
   req,
   400,
-  `responses must use schemaVersion 3, 4, or 5 (received: ${got})`,
+  `responses must use schemaVersion 3, 4, 5, or 6 (received: ${got})`,
 );
   }
 
   // ---- Validate responses with Zod ----------------------------------------
-  // v5 parses directly; v4/v3 parse via their legacy schemas and migrate
+  // v6 parses directly; v5/v4/v3 parse via their legacy schemas and migrate
   // forward, so the stored row is always current-shape.
   const parsed =
-    rawResponses.schemaVersion === 5
+    rawResponses.schemaVersion === 6
       ? SubmissionResponses.safeParse(body.responses)
-      : rawResponses.schemaVersion === 4
-        ? SubmissionResponsesV4.safeParse(body.responses)
-        : SubmissionResponsesV3.safeParse(body.responses);
+      : rawResponses.schemaVersion === 5
+        ? SubmissionResponsesV5.safeParse(body.responses)
+        : rawResponses.schemaVersion === 4
+          ? SubmissionResponsesV4.safeParse(body.responses)
+          : SubmissionResponsesV3.safeParse(body.responses);
   if (!parsed.success) {
     return errorResponse(req, 422, 'responses failed schema validation', {
       issues: parsed.error.issues,

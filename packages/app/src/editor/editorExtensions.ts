@@ -27,6 +27,8 @@ import { Columns, Column } from './extensions/Columns';
 import { Image } from './extensions/Image';
 import { InteractiveGraph } from './extensions/InteractiveGraph';
 import { MultipleChoice } from './extensions/MultipleChoice';
+import { Matching } from './extensions/Matching';
+import { Ordering } from './extensions/Ordering';
 import { Definition } from './extensions/Definition';
 
 export interface EditorExtensionOptions {
@@ -82,5 +84,9 @@ export function buildEditorExtensions({
         // Multiple-choice question block: editable prompt + structured
         // choice list (single or multi-select), authored in-place.
         MultipleChoice,
+        // Matching + ordering question blocks (2026-07-10): editable prompt +
+        // structured item/target lists, authored in-place like MC.
+        Matching,
+        Ordering,
     ];
 }

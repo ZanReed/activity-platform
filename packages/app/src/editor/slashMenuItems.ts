@@ -226,6 +226,24 @@ export const slashMenuItems: SlashMenuItem[] = [
             begin(editor, range).insertMultipleChoice().run();
         },
     },
+    {
+        title: 'Matching',
+        description: 'Students drag lettered options onto items. Extra options are distractors.',
+        keywords: ['matching', 'match', 'pairs', 'pair', 'connect', 'drag', 'categorize'],
+        group: 'Questions',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertMatching().run();
+        },
+    },
+    {
+        title: 'Ordering',
+        description: 'Students drag a shuffled list into the correct sequence.',
+        keywords: ['ordering', 'order', 'sequence', 'sequencing', 'sort', 'steps', 'arrange'],
+        group: 'Questions',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertOrdering().run();
+        },
+    },
 ];
 
 // Group headings in dropdown display order.

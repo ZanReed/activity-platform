@@ -481,6 +481,131 @@ describe('multiple-choice fence (```mc)', () => {
     });
 });
 
+describe('matching fence (```match)', () => {
+    type Side = { id: string; content: JSONContent[]; image?: { src: string } };
+
+    it('splits pairs on the LAST " = " so equation items keep their equals signs', () => {
+        const { blocks, warnings } = convert(
+            '```match\nprompt: Match each equation to its slope.\ny = 2x = 2\ny = -x = -1\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const match = blocks[0]!;
+        expect(match.type).toBe('matching');
+        const items = match.attrs!.items as Side[];
+        const targets = match.attrs!.targets as Side[];
+        const key = match.attrs!.key as Record<string, string>;
+        expect(items[0]!.content).toEqual([{ type: 'text', text: 'y = 2x' }]);
+        expect(targets[0]!.content).toEqual([{ type: 'text', text: '2' }]);
+        expect(key[items[0]!.id]).toBe(targets[0]!.id);
+        expect(key[items[1]!.id]).toBe(targets[1]!.id);
+    });
+
+    it('" -> " wins over " = " when present', () => {
+        const { blocks } = convert(
+            '```match\na = b -> x = y\nc -> d\n```',
+        );
+        const items = blocks[0]!.attrs!.items as Side[];
+        const targets = blocks[0]!.attrs!.targets as Side[];
+        expect(items[0]!.content).toEqual([{ type: 'text', text: 'a = b' }]);
+        expect(targets[0]!.content).toEqual([{ type: 'text', text: 'x = y' }]);
+    });
+
+    it('a leading = (or ->) line adds a distractor target with no key entry', () => {
+        const { blocks } = convert(
+            '```match\na = 1\nb = 2\n= 3\n-> 4\n```',
+        );
+        const items = blocks[0]!.attrs!.items as Side[];
+        const targets = blocks[0]!.attrs!.targets as Side[];
+        const key = blocks[0]!.attrs!.key as Record<string, string>;
+        expect(items).toHaveLength(2);
+        expect(targets).toHaveLength(4);
+        expect(Object.keys(key)).toHaveLength(2);
+    });
+
+    it('\\= escapes a literal equals', () => {
+        const { blocks } = convert('```match\na \\= b = c\nd = e\n```');
+        const items = blocks[0]!.attrs!.items as Side[];
+        expect(items[0]!.content).toEqual([{ type: 'text', text: 'a = b' }]);
+    });
+
+    it('options: reuse + confidence and solution carry through', () => {
+        const { blocks } = convert(
+            '```match\na = 1\nb = 1\nsolution: Same slope.\noptions: reuse, confidence\n```',
+        );
+        expect(blocks[0]!.attrs).toMatchObject({
+            allowTargetReuse: true,
+            hasConfidenceRating: true,
+        });
+        expect(blocks[0]!.attrs!.solution).toEqual([
+            { type: 'text', text: 'Same slope.' },
+        ]);
+    });
+
+    it('an image on a side becomes that side\'s figure', () => {
+        const { blocks, warnings } = convert(
+            '```match\n![line](https://example.com/l.png) = positive slope\nb = 2\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const items = blocks[0]!.attrs!.items as Side[];
+        expect(items[0]!.image?.src).toBe('https://example.com/l.png');
+        expect(items[0]!.content).toEqual([]);
+    });
+
+    it('fewer than two pairs degrades with a warning', () => {
+        const { blocks, warnings } = convert('```match\na = 1\n= 2\n```');
+        expect(blocks[0]!.type).not.toBe('matching');
+        expect(warnings.some((w) => w.includes('two'))).toBe(true);
+    });
+
+    it('a line with no separator degrades with a warning', () => {
+        const { blocks, warnings } = convert('```match\na = 1\nno separator here\n```');
+        expect(blocks[0]!.type).not.toBe('matching');
+        expect(warnings.length).toBeGreaterThan(0);
+    });
+});
+
+describe('ordering fence (```order)', () => {
+    it('imports items in listed order with numbers stripped', () => {
+        const { blocks, warnings } = convert(
+            '```order\nprompt: Put the steps in order.\n1. Subtract 3\n2. Divide by 2\n3. Check\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const ordering = blocks[0]!;
+        expect(ordering.type).toBe('ordering');
+        const items = ordering.attrs!.items as Array<{ content: JSONContent[] }>;
+        expect(items.map((i) => (i.content[0] as { text?: string }).text)).toEqual([
+            'Subtract 3',
+            'Divide by 2',
+            'Check',
+        ]);
+    });
+
+    it('bare and dashed lines work too; inline math carries through', () => {
+        const { blocks } = convert(
+            '```order\n- solve $2x = 8$\nfirst bare line\n```',
+        );
+        const items = blocks[0]!.attrs!.items as Array<{ content: JSONContent[] }>;
+        expect(items).toHaveLength(2);
+        expect(items[0]!.content).toEqual([
+            { type: 'text', text: 'solve ' },
+            { type: 'mathInline', attrs: { latex: '2x = 8' } },
+        ]);
+    });
+
+    it('solution and options: confidence carry through', () => {
+        const { blocks } = convert(
+            '```order\na\nb\nsolution: Reverse the operations.\noptions: confidence\n```',
+        );
+        expect(blocks[0]!.attrs).toMatchObject({ hasConfidenceRating: true });
+    });
+
+    it('fewer than two items degrades with a warning', () => {
+        const { blocks, warnings } = convert('```order\nonly one\n```');
+        expect(blocks[0]!.type).not.toBe('ordering');
+        expect(warnings.some((w) => w.includes('two'))).toBe(true);
+    });
+});
+
 describe('numeric blanks ({{=…}})', () => {
     it('a leading = makes the blank numeric (and is stripped)', () => {
         const out = convert('the area is {{=12}}.').blocks;

@@ -17,7 +17,9 @@ export function problemNumberAt(editor: Editor, pos: number | undefined): number
         if (nodePos >= pos) return false;
         if (
             node.type.name === 'fillInBlank' ||
-            node.type.name === 'multipleChoice'
+            node.type.name === 'multipleChoice' ||
+            node.type.name === 'matching' ||
+            node.type.name === 'ordering'
         ) {
             count++;
         } else if (node.type.name === 'interactiveGraph') {

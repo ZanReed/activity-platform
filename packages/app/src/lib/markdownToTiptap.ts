@@ -281,6 +281,16 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 if (mc) return [mc];
                 return [rawTextParagraph(node.token.content)];
             }
+            if ((node.token.info ?? '').trim() === 'match') {
+                const match = parseMatchFence(node.token.content, ctx);
+                if (match) return [match];
+                return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'order') {
+                const order = parseOrderFence(node.token.content, ctx);
+                if (order) return [order];
+                return [rawTextParagraph(node.token.content)];
+            }
             ctx.warnings.add(
                 'Code blocks aren’t supported yet — imported as plain text.',
             );
@@ -925,6 +935,225 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
             id: '',
             choices,
             multiSelect,
+            solution,
+            hasConfidenceRating,
+            skills: [],
+            workSpace: null,
+        },
+        content: graphPromptContent(prompt, ctx),
+    };
+}
+
+// Pull an optional markdown image — ![alt](url) — out of a match-line side,
+// returning the remaining text. Same contract as the mc choice image: an
+// unparseable URL stays as literal text so the author notices; a side may be
+// image-only.
+function extractSideImage(body: string): {
+    text: string;
+    image?: { src: string; alt: string };
+} {
+    let image: { src: string; alt: string } | undefined;
+    const text = body
+        .replace(/!\[([^\]]*)\]\(([^)]+)\)/, (whole, alt: string, src: string) => {
+            const url = src.trim();
+            try {
+                new URL(url);
+            } catch {
+                return whole;
+            }
+            image = { src: url, alt: alt.trim() };
+            return '';
+        })
+        .trim();
+    return image ? { text, image } : { text };
+}
+
+// ```match fence — the matching DSL. One statement per line:
+//   prompt: Match each equation to its slope.
+//   y = 2x = 2                 (item = its correct option)
+//   y = -x -> -1               ("->" also splits — use it when both sides
+//                               contain "=")
+//   = 0                        (option-only line: a distractor)
+//   solution: Read off the x coefficient.
+//   options: confidence, reuse
+//
+// The separator is the LAST unescaped " = " on the line (so equation items
+// like "y = 2x + 1 = A" split before the final term), or the FIRST " -> "
+// when present (which always wins — the unambiguous spelling). "\=" escapes
+// a literal equals. A markdown image ![alt](url) on either side becomes that
+// side's figure. Students see the options shuffled with letters assigned by
+// the platform — letters are never authored.
+function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
+    const fail = (msg: string): null => {
+        ctx.warnings.add('Matching block: ' + msg + ' — imported as plain text.');
+        return null;
+    };
+
+    let prompt = '';
+    let solution: JSONContent[] | null = null;
+    let hasConfidenceRating = false;
+    let allowTargetReuse = false;
+    type Side = {
+        id: string;
+        content: JSONContent[];
+        image?: { src: string; alt: string };
+    };
+    const items: Side[] = [];
+    const targets: Side[] = [];
+    const key: Record<string, string> = {};
+
+    const buildSide = (raw: string): Side | null => {
+        const { text, image } = extractSideImage(raw.replace(/\\=/g, '='));
+        if (!text && !image) return null;
+        return {
+            id: crypto.randomUUID(),
+            content: graphPromptContent(text, ctx),
+            ...(image ? { image } : {}),
+        };
+    };
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const directive = /^(prompt|solution|options):\s*(.*)$/i.exec(line);
+        if (directive) {
+            const value = (directive[2] ?? '').trim();
+            switch ((directive[1] ?? '').toLowerCase()) {
+                case 'prompt':
+                    prompt = value;
+                    break;
+                case 'solution':
+                    if (value) solution = graphPromptContent(value, ctx);
+                    break;
+                case 'options':
+                    for (const opt of value
+                        .split(',')
+                        .map((o) => o.trim().toLowerCase())) {
+                        if (opt === 'confidence') hasConfidenceRating = true;
+                        else if (opt === 'reuse') allowTargetReuse = true;
+                        else if (opt) return fail(`unknown option "${opt}"`);
+                    }
+                    break;
+            }
+            continue;
+        }
+
+        // Option-only line (a distractor): "= 0" or "-> 0".
+        const distractor = /^(?:=|->)\s*(.+)$/.exec(line);
+        if (distractor) {
+            const side = buildSide(distractor[1] ?? '');
+            if (!side) return fail('a distractor line needs option text');
+            targets.push(side);
+            continue;
+        }
+
+        // Pair line. "->" wins when present; otherwise split on the LAST
+        // unescaped " = " so equation-shaped items keep their equals signs.
+        let leftRaw: string;
+        let rightRaw: string;
+        const arrow = line.indexOf(' -> ');
+        if (arrow !== -1) {
+            leftRaw = line.slice(0, arrow);
+            rightRaw = line.slice(arrow + 4);
+        } else {
+            const splitAt = line.replace(/\\=/g, '  ').lastIndexOf(' = ');
+            if (splitAt === -1) {
+                return fail(
+                    `unrecognized line "${line}" (pairs look like "item = option"; ` +
+                        'distractors start with "=")',
+                );
+            }
+            leftRaw = line.slice(0, splitAt);
+            rightRaw = line.slice(splitAt + 3);
+        }
+        const item = buildSide(leftRaw);
+        const target = buildSide(rightRaw);
+        if (!item || !target) {
+            return fail(`a pair line needs text on both sides ("${line}")`);
+        }
+        items.push(item);
+        targets.push(target);
+        key[item.id] = target.id;
+    }
+
+    if (items.length < 2) return fail('needs at least two "item = option" lines');
+
+    return {
+        type: 'matching',
+        attrs: {
+            id: '',
+            items,
+            targets,
+            key,
+            allowTargetReuse,
+            solution,
+            hasConfidenceRating,
+            skills: [],
+            workSpace: null,
+        },
+        content: graphPromptContent(prompt, ctx),
+    };
+}
+
+// ```order fence — the ordering DSL. One item per line, LISTED ORDER =
+// CORRECT ORDER (students see them shuffled); leading list markers ("1.",
+// "2)", "-") are tolerated decoration and stripped:
+//   prompt: Put the steps in order.
+//   1. Subtract 3 from both sides
+//   2. Divide both sides by 2
+//   3. Check the solution
+//   solution: Undo operations in reverse.
+//   options: confidence
+function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
+    const fail = (msg: string): null => {
+        ctx.warnings.add('Ordering block: ' + msg + ' — imported as plain text.');
+        return null;
+    };
+
+    let prompt = '';
+    let solution: JSONContent[] | null = null;
+    let hasConfidenceRating = false;
+    const items: { id: string; content: JSONContent[] }[] = [];
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const directive = /^(prompt|solution|options):\s*(.*)$/i.exec(line);
+        if (directive) {
+            const value = (directive[2] ?? '').trim();
+            switch ((directive[1] ?? '').toLowerCase()) {
+                case 'prompt':
+                    prompt = value;
+                    break;
+                case 'solution':
+                    if (value) solution = graphPromptContent(value, ctx);
+                    break;
+                case 'options':
+                    for (const opt of value
+                        .split(',')
+                        .map((o) => o.trim().toLowerCase())) {
+                        if (opt === 'confidence') hasConfidenceRating = true;
+                        else if (opt) return fail(`unknown option "${opt}"`);
+                    }
+                    break;
+            }
+            continue;
+        }
+
+        const body = line.replace(/^(?:\d+[.)]|-)\s+/, '').trim();
+        if (!body) return fail('an item line needs text');
+        items.push({ id: crypto.randomUUID(), content: graphPromptContent(body, ctx) });
+    }
+
+    if (items.length < 2) return fail('needs at least two item lines');
+
+    return {
+        type: 'ordering',
+        attrs: {
+            id: '',
+            items,
             solution,
             hasConfidenceRating,
             skills: [],

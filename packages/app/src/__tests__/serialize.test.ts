@@ -1302,6 +1302,141 @@ describe('lists', () => {
             }
         });
 
+        it('round-trips a matching block (items, targets, key, reuse, figure)', () => {
+            const i1 = '550e8400-e29b-41d4-a716-446655440201';
+            const i2 = '550e8400-e29b-41d4-a716-446655440202';
+            const t1 = '550e8400-e29b-41d4-a716-446655440211';
+            const t2 = '550e8400-e29b-41d4-a716-446655440212';
+            const t3 = '550e8400-e29b-41d4-a716-446655440213';
+            const attrs = {
+                id: 'match-1',
+                items: [
+                    {
+                        id: i1,
+                        content: [{ type: 'text', text: 'y = 2x', marks: [] }],
+                        image: { src: 'https://example.com/a.png', alt: 'line' },
+                    },
+                    {
+                        id: i2,
+                        content: [{ type: 'math_inline', latex: 'y = -x' }],
+                    },
+                ],
+                targets: [
+                    { id: t1, content: [{ type: 'text', text: '2', marks: [] }] },
+                    { id: t2, content: [{ type: 'text', text: '-1', marks: [] }] },
+                    { id: t3, content: [{ type: 'text', text: '0', marks: [] }] },
+                ],
+                key: { [i1]: t1, [i2]: t2 },
+                allowTargetReuse: false,
+                solution: [{ type: 'text', text: 'Read the slope.', marks: [] }],
+                hasConfidenceRating: true,
+                skills: [],
+                workSpace: null,
+            };
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'matching',
+                        attrs,
+                        content: [{ type: 'text', text: 'Match each slope.' }],
+                    },
+                ],
+            };
+            const result = roundTrip(doc);
+            const match = result.content?.[0] as JSONContent;
+            expect(match.type).toBe('matching');
+            // Block id is re-minted; item/target ids are preserved — they key
+            // the submission's pairs map.
+            expect(match.attrs).toMatchObject({
+                items: attrs.items,
+                targets: attrs.targets,
+                key: attrs.key,
+                allowTargetReuse: false,
+                solution: attrs.solution,
+                hasConfidenceRating: true,
+            });
+            expect(match.content).toEqual([
+                { type: 'text', text: 'Match each slope.' },
+            ]);
+        });
+
+        it('sanitizes a matching key: dangling refs dropped; duplicate targets collapsed without reuse', () => {
+            const i1 = '550e8400-e29b-41d4-a716-446655440221';
+            const i2 = '550e8400-e29b-41d4-a716-446655440222';
+            const t1 = '550e8400-e29b-41d4-a716-446655440231';
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'matching',
+                        attrs: {
+                            id: 'match-2',
+                            items: [
+                                { id: i1, content: [] },
+                                { id: i2, content: [] },
+                            ],
+                            targets: [
+                                { id: t1, content: [] },
+                                {
+                                    id: '550e8400-e29b-41d4-a716-446655440232',
+                                    content: [],
+                                },
+                            ],
+                            key: {
+                                [i1]: t1,
+                                [i2]: t1, // duplicate use without reuse
+                                'not-an-item': t1, // dangling item
+                            },
+                            allowTargetReuse: false,
+                        },
+                        content: [],
+                    },
+                ],
+            };
+            const activity = tiptapToActivity(doc, META);
+            const block = activity.sections[0]!.blocks[0]!;
+            expect(block.type).toBe('matching');
+            if (block.type === 'matching') {
+                expect(block.key).toEqual({ [i1]: t1 });
+            }
+        });
+
+        it('round-trips an ordering block (authored order preserved)', () => {
+            const o1 = '550e8400-e29b-41d4-a716-446655440241';
+            const o2 = '550e8400-e29b-41d4-a716-446655440242';
+            const o3 = '550e8400-e29b-41d4-a716-446655440243';
+            const attrs = {
+                id: 'order-1',
+                items: [
+                    { id: o1, content: [{ type: 'text', text: 'Subtract 3', marks: [] }] },
+                    { id: o2, content: [{ type: 'text', text: 'Divide by 2', marks: [] }] },
+                    { id: o3, content: [{ type: 'text', text: 'Check', marks: [] }] },
+                ],
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+                workSpace: null,
+            };
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'ordering',
+                        attrs,
+                        content: [{ type: 'text', text: 'Order the steps.' }],
+                    },
+                ],
+            };
+            const result = roundTrip(doc);
+            const ordering = result.content?.[0] as JSONContent;
+            expect(ordering.type).toBe('ordering');
+            expect(ordering.attrs).toMatchObject({ items: attrs.items });
+            expect(ordering.content).toEqual([
+                { type: 'text', text: 'Order the steps.' },
+            ]);
+        });
+
         it('drops a stray tolerance on a text blank (meaningless without numeric)', () => {
             const doc: JSONContent = {
                 type: 'doc',

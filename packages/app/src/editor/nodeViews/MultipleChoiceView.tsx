@@ -63,17 +63,27 @@ function isValidUrl(s: string): boolean {
     }
 }
 
-// The per-choice figure panel (image URL/alt or a static graph). Module-scope
-// so element identity survives the parent's re-renders, same rule as NumCell.
-function ChoiceFigureEditor({
+// Anything carrying the optional figure slot (MC choices, matching items and
+// targets — the shapes are structural twins).
+export interface FigureHolder {
+    id: string;
+    image?: EditorMcChoice['image'];
+    graph?: EditorMcChoice['graph'];
+}
+
+// The per-figure panel (image URL/alt or a static graph). Module-scope so
+// element identity survives the parent's re-renders, same rule as NumCell.
+// Exported for MatchingView, which reuses it per item/target row.
+export function ChoiceFigureEditor({
     choice,
-    letter,
+    label,
     disabled,
     onImage,
     onGraph,
 }: {
-    choice: EditorMcChoice;
-    letter: string;
+    choice: FigureHolder;
+    /** e.g. "choice B" / "item 2" — completes "Figure under …". */
+    label: string;
     disabled: boolean;
     onImage: (image: EditorMcChoice['image'] | undefined) => void;
     onGraph: (graph: EditorMcChoice['graph'] | undefined) => void;
@@ -101,7 +111,7 @@ function ChoiceFigureEditor({
     return (
         <div className="mc-block__figure">
             <span className="mc-block__figure-label">
-                Figure under choice {letter} (shown to students)
+                Figure under {label} (shown to students)
             </span>
             {!image && !graph && (
                 <div className="mc-block__figure-actions">
@@ -491,7 +501,7 @@ export default function MultipleChoiceView({
                                     Boolean(choice.image || choice.graph)) && (
                                     <ChoiceFigureEditor
                                         choice={choice}
-                                        letter={LETTERS[index % 26] ?? 'A'}
+                                        label={`choice ${LETTERS[index % 26] ?? 'A'}`}
                                         disabled={!isEditable}
                                         onImage={(image) =>
                                             setImage(choice.id, image)

@@ -18,6 +18,8 @@ import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
 import { InteractiveGraph } from './extensions/InteractiveGraph';
 import { MultipleChoice } from './extensions/MultipleChoice';
+import { Matching } from './extensions/Matching';
+import { Ordering } from './extensions/Ordering';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
@@ -86,6 +88,10 @@ export default function ReferencePanelEditor({
             // InteractiveGraph (the column content expression names it as of
             // the MC-in-columns fix; pinned by ActivityConfigDrawer.test.tsx).
             MultipleChoice,
+            // Matching + Ordering: same story (the column content expression
+            // names both as of the 2026-07-10 matching/ordering drop).
+            Matching,
+            Ordering,
             Image,
         ],
         content: initialContent,

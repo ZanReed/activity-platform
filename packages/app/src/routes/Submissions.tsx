@@ -243,6 +243,41 @@ function SubmissionDetail({
               })
         : [];
 
+    // Matching responses, ordered by problem number then id. Pair ids resolve
+    // to item/target TEXT through the activity index (no letters — published
+    // letters follow the publish-time shuffle, which the dashboard doesn't
+    // re-derive); an id no longer in the document renders as "?".
+    const matchRows = responses.matches
+        ? Object.entries(responses.matches)
+              .map(([blockId, resp]) => ({
+                  blockId,
+                  info: index.matchings.get(blockId),
+                  resp,
+              }))
+              .sort((a, b) => {
+                  const an = a.info?.problemNumber ?? Infinity;
+                  const bn = b.info?.problemNumber ?? Infinity;
+                  if (an !== bn) return an - bn;
+                  return a.blockId.localeCompare(b.blockId);
+              })
+        : [];
+
+    // Ordering responses, ordered by problem number then id.
+    const orderingRows = responses.orderings
+        ? Object.entries(responses.orderings)
+              .map(([blockId, resp]) => ({
+                  blockId,
+                  info: index.orderings.get(blockId),
+                  resp,
+              }))
+              .sort((a, b) => {
+                  const an = a.info?.problemNumber ?? Infinity;
+                  const bn = b.info?.problemNumber ?? Infinity;
+                  if (an !== bn) return an - bn;
+                  return a.blockId.localeCompare(b.blockId);
+              })
+        : [];
+
     // Interactive-graph responses (Stage 5), ordered by problem number then id.
     const graphRows = responses.graphResponses
         ? Object.entries(responses.graphResponses)
@@ -261,7 +296,11 @@ function SubmissionDetail({
 
     return (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
-        {blankCount === 0 && graphRows.length === 0 && mcRows.length === 0 ? (
+        {blankCount === 0 &&
+        graphRows.length === 0 &&
+        mcRows.length === 0 &&
+        matchRows.length === 0 &&
+        orderingRows.length === 0 ? (
             <p className="text-sm text-slate-500">No responses recorded.</p>
         ) : (
             <div className="space-y-4">
@@ -374,6 +413,150 @@ function SubmissionDetail({
                     <td className="py-1 text-slate-600">
                     {m.resp.confidence
                         ? CONFIDENCE_LABELS[m.resp.confidence]
+                        : '—'}
+                    </td>
+                    </tr>
+                ))}
+                </tbody>
+                </table>
+                </div>
+            )}
+
+            {matchRows.length > 0 && (
+                <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Matching
+                </p>
+                <table className="mt-2 w-full text-sm">
+                <thead>
+                <tr className="text-left text-xs text-slate-400">
+                <th className="py-1 pr-3 font-medium">Problem</th>
+                <th className="py-1 pr-3 font-medium">Student&apos;s pairs</th>
+                <th className="py-1 pr-3 font-medium">Result</th>
+                <th className="py-1 font-medium">Confidence</th>
+                </tr>
+                </thead>
+                <tbody>
+                {matchRows.map((m) => (
+                    <tr key={m.blockId} className="border-t border-slate-200">
+                    <td className="py-1 pr-3 text-slate-700">
+                    {m.info?.problemNumber != null
+                        ? `Problem ${m.info.problemNumber}`
+                        : 'Question'}
+                    {m.info?.problemPrompt && (
+                        <span className="block text-xs text-slate-400">
+                        {m.info.problemPrompt}
+                        </span>
+                    )}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-900">
+                    {(m.info?.items ?? []).map((item) => {
+                        const picked = m.resp.pairs[item.id];
+                        const pickedText = picked
+                            ? m.info?.targets.find((t) => t.id === picked)
+                                  ?.text ?? '?'
+                            : null;
+                        const correctId = m.info?.key[item.id];
+                        const pairCorrect =
+                            picked !== undefined && picked === correctId;
+                        const correctText = correctId
+                            ? m.info?.targets.find((t) => t.id === correctId)
+                                  ?.text ?? '?'
+                            : '—';
+                        return (
+                            <span key={item.id} className="block">
+                            {item.text} →{' '}
+                            {pickedText ?? (
+                                <span className="text-slate-400">
+                                (unmatched)
+                                </span>
+                            )}{' '}
+                            {pairCorrect ? (
+                                <span className="text-green-700">✓</span>
+                            ) : (
+                                <span className="text-red-600">
+                                ✗ (key: {correctText})
+                                </span>
+                            )}
+                            </span>
+                        );
+                    })}
+                    {!m.info && '?'}
+                    </td>
+                    <td className="py-1 pr-3">
+                    <span
+                        className={
+                            m.resp.correct
+                                ? 'font-medium text-green-700'
+                                : 'font-medium text-red-600'
+                        }
+                    >
+                    {m.resp.earned} / {m.resp.total} pairs
+                    </span>
+                    </td>
+                    <td className="py-1 text-slate-600">
+                    {m.resp.confidence
+                        ? CONFIDENCE_LABELS[m.resp.confidence]
+                        : '—'}
+                    </td>
+                    </tr>
+                ))}
+                </tbody>
+                </table>
+                </div>
+            )}
+
+            {orderingRows.length > 0 && (
+                <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Ordering
+                </p>
+                <table className="mt-2 w-full text-sm">
+                <thead>
+                <tr className="text-left text-xs text-slate-400">
+                <th className="py-1 pr-3 font-medium">Problem</th>
+                <th className="py-1 pr-3 font-medium">Correct order</th>
+                <th className="py-1 pr-3 font-medium">Student&apos;s order</th>
+                <th className="py-1 pr-3 font-medium">Result</th>
+                <th className="py-1 font-medium">Confidence</th>
+                </tr>
+                </thead>
+                <tbody>
+                {orderingRows.map((o) => (
+                    <tr key={o.blockId} className="border-t border-slate-200">
+                    <td className="py-1 pr-3 text-slate-700">
+                    {o.info?.problemNumber != null
+                        ? `Problem ${o.info.problemNumber}`
+                        : 'Question'}
+                    {o.info?.problemPrompt && (
+                        <span className="block text-xs text-slate-400">
+                        {o.info.problemPrompt}
+                        </span>
+                    )}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-600">
+                    {o.info?.answerSummary ?? '—'}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-900">
+                    {o.resp.order
+                        .map((itemId, n) => {
+                            const text =
+                                o.info?.items.find((i) => i.id === itemId)
+                                    ?.text ?? '?';
+                            return `${n + 1}. ${text}`;
+                        })
+                        .join('  ')}
+                    </td>
+                    <td className="py-1 pr-3">
+                    {o.resp.correct ? (
+                        <span className="font-medium text-green-700">✓ correct</span>
+                    ) : (
+                        <span className="font-medium text-red-600">✗ incorrect</span>
+                    )}
+                    </td>
+                    <td className="py-1 text-slate-600">
+                    {o.resp.confidence
+                        ? CONFIDENCE_LABELS[o.resp.confidence]
                         : '—'}
                     </td>
                     </tr>

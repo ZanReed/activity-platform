@@ -244,6 +244,47 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'matching fence with last-equals split and a distractor',
+        fragment: 'y = 2x = 2',
+        md: '```match\nprompt: Match each equation to its slope.\ny = 2x = 2\ny = -x = -1\n= 0\n```',
+        check: (b) => {
+            const match = b.find((n) => n.type === 'matching')!;
+            expect(match).toBeDefined();
+            const items = match.attrs!.items as Array<{ id: string }>;
+            const targets = match.attrs!.targets as Array<{ id: string }>;
+            const key = match.attrs!.key as Record<string, string>;
+            expect(items).toHaveLength(2);
+            expect(targets).toHaveLength(3); // two keyed + one distractor
+            expect(key[items[0]!.id]).toBe(targets[0]!.id);
+        },
+    },
+    {
+        name: 'matching arrow separator',
+        fragment: 'y = 2x -> 2',
+        md: '```match\nprompt: Match.\ny = 2x -> 2\ny = -x -> -1\n```',
+        check: (b) => {
+            const match = b.find((n) => n.type === 'matching')!;
+            expect(match).toBeDefined();
+            expect(match.attrs!.items as unknown[]).toHaveLength(2);
+        },
+    },
+    {
+        name: 'ordering fence: listed order is the answer, numbers stripped',
+        fragment: '1. Subtract 3 from both sides',
+        md: '```order\nprompt: Put the steps in order.\n1. Subtract 3 from both sides\n2. Divide both sides by 2\n3. Check the solution\n```',
+        check: (b) => {
+            const ordering = b.find((n) => n.type === 'ordering')!;
+            expect(ordering).toBeDefined();
+            const items = ordering.attrs!.items as Array<{
+                content: Array<{ type: string; text?: string }>;
+            }>;
+            expect(items).toHaveLength(3);
+            expect(items[0]!.content[0]!.text).toBe(
+                'Subtract 3 from both sides',
+            );
+        },
+    },
+    {
         name: 'image ![alt](url)',
         fragment: '![a short description](https://full-image-url)',
         md: '![a short description](https://full-image-url)',

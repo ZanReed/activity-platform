@@ -406,6 +406,22 @@
     border-radius: 0.375rem;
     padding: 0.35rem 0.6rem;
 }
+/* Matching/ordering NodeViews share the mc-block chrome; these are their
+ own small additions (section headings + the per-item correct-match picker). */
+.mc-block__section-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgb(71 85 105); /* slate-600 */
+    margin-top: 0.35rem;
+}
+.match-block__key-picker {
+    max-width: 11rem;
+    font-size: 0.8rem;
+    border: 1px solid rgb(203 213 225); /* slate-300 */
+    border-radius: 0.375rem;
+    padding: 0.2rem 0.3rem;
+    background: white;
+}
 .mc-block__choices {
     display: flex;
     flex-direction: column;

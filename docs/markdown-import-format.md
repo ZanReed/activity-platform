@@ -26,6 +26,8 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a list whose items contain `{{…}}` | **one problem block per item** |
 | `## Topic {checkpoint}` | a **checkpoint section break** titled "Topic" |
 | a ` ```mc ` fenced block | a **multiple-choice question** (see below) |
+| a ` ```match ` fenced block | a **matching question** (see below) |
+| a ` ```order ` fenced block | an **ordering question** (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
@@ -147,13 +149,40 @@ MULTIPLE CHOICE (a fenced block with the `mc` tag becomes a multiple-choice ques
 - A choice may carry an image, shown below its text:  (x) ![a square](https://…)
   — the choice text may be the image alone.
 
+MATCHING (a fenced block with the `match` tag becomes a matching question)
+- ```match … ``` with one pair per line, written item = correct option:
+    prompt: Match each equation to its slope.
+    y = 2x = 2
+    y = -x = -1
+    = 0
+- The LAST " = " on the line splits the pair, so equation items keep their
+  equals signs (write \= for a literal equals, or use " -> " as the
+  separator instead:  y = 2x -> 2).
+- A line starting with = (or ->) adds an extra wrong option (a distractor).
+- Students see the options shuffled and lettered automatically — never write
+  the letters yourself.
+- Optional lines:  solution: <worked explanation>   and   options: confidence
+  (add options: reuse when several items share one option, e.g. classifying).
+- Either side may include $inline$ math or an image ![alt](https://…).
+
+ORDERING (a fenced block with the `order` tag becomes a put-in-order question)
+- ```order … ``` with one item per line, LISTED IN THE CORRECT ORDER
+  (students see them shuffled and drag them back into sequence):
+    prompt: Put the steps for solving $2x + 3 = 11$ in order.
+    1. Subtract 3 from both sides
+    2. Divide both sides by 2
+    3. Check the solution
+- Leading numbers like "1." are optional decoration — the listed order is
+  what counts.
+- Optional lines:  solution: <worked explanation>   and   options: confidence
+
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
-  other than ```graph and ```mc — only the single outer block that wraps the
-  whole reply and those fences are allowed; anything unsupported imports as
-  plain text.
+  other than ```graph, ```mc, ```match, and ```order — only the single outer
+  block that wraps the whole reply and those fences are allowed; anything
+  unsupported imports as plain text.
 
 When I describe the activity I want, reply with only that single code block.
 ```
@@ -204,3 +233,44 @@ options: confidence
 - `solution:` optional worked explanation revealed post-check.
 - `options: confidence` asks students for a confidence rating.
 - At least two choices and at least one `(x)` are required — a fence without a marked correct answer imports as plain text with a warning.
+
+## Matching blocks (```match fence)
+
+A fenced code block with the `match` language tag becomes a matching question. One pair per line:
+
+```
+```match
+prompt: Match each equation to its slope.
+y = 2x = 2
+y = -x -> -1
+= 0
+solution: Read the slope off the x coefficient.
+options: confidence
+```⠀
+```
+
+- **Pair lines** — `item = correct option`. The **last** ` = ` on the line is the separator, so equation-shaped items keep their internal equals signs (`y = 2x + 1 = A` pairs `y = 2x + 1` with `A`). Escape a literal equals as `\=`, or sidestep entirely with the ` -> ` separator, which always wins when present.
+- **Distractor lines** — a line starting with `=` (or `->`) adds an option that matches nothing (defeats process-of-elimination).
+- **Letters are never authored.** The published page shuffles the options deterministically and letters them by position; the editor's key picker refers to options by their text for the same reason.
+- **Per-side images**: `![alt](https://…)` on either side becomes that side's figure (the MC choice-image contract: stripped from the text, image-only sides legal, bad URLs stay literal). Per-side *graphs* are editor-only, like MC choice graphs.
+- `options: reuse` allows several items to share one option (categorization-style); without it each option docks on at most one item.
+- `options: confidence` asks students for a confidence rating; `solution:` is the optional worked explanation.
+- At least two pair lines are required. Scoring is **per pair** (each item is one point).
+
+## Ordering blocks (```order fence)
+
+A fenced code block with the `order` language tag becomes an ordering (sequencing) question. One item per line, **listed order = correct order**:
+
+```
+```order
+prompt: Put the steps for solving $2x + 3 = 11$ in order.
+1. Subtract 3 from both sides
+2. Divide both sides by 2
+3. Check the solution
+```⠀
+```
+
+- Leading list markers (`1.`, `2)`, `-`) are tolerated decoration and stripped — the listed order is the answer either way.
+- Students see the items shuffled (publish-time deterministic, never the correct order) and drag them back into sequence. Scoring is **all-or-nothing** on the exact sequence.
+- `solution:` and `options: confidence` as in the other fences.
+- At least two item lines are required.

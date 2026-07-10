@@ -230,10 +230,50 @@ export interface McInfo {
     sectionTitle: string | null;
 }
 
+// One side (item or target) of a matching block, for reading its submission
+// back. NO letters here: published letters follow the publish-time shuffle,
+// so the dashboard reads by CONTENT (the stable thing) instead.
+export interface MatchSideInfo {
+    id: string;
+    /** Plain-text rendering of the side's content (LaTeX shown as source). */
+    text: string;
+}
+
+// One matching block, for reading its submission back.
+export interface MatchInfo {
+    blockId: string;
+    problemNumber: number | null;
+    problemPrompt: string;
+    items: MatchSideInfo[];
+    targets: MatchSideInfo[];
+    /** item id → correct target id (the authored key). */
+    key: Record<string, string>;
+    allowTargetReuse: boolean;
+    /** Human-readable answer key, e.g. "y = 2x → 2; y = −x → −1". */
+    answerSummary: string;
+    sectionId: string;
+    sectionTitle: string | null;
+}
+
+// One ordering block, for reading its submission back.
+export interface OrderingInfo {
+    blockId: string;
+    problemNumber: number | null;
+    problemPrompt: string;
+    /** Items in the AUTHORED (correct) order. */
+    items: MatchSideInfo[];
+    /** Human-readable answer key: the correct sequence, numbered. */
+    answerSummary: string;
+    sectionId: string;
+    sectionTitle: string | null;
+}
+
 export interface ActivityIndex {
     blanks: Map<string, BlankInfo>;
     graphs: Map<string, GraphInfo>;
     mcs: Map<string, McInfo>;
+    matchings: Map<string, MatchInfo>;
+    orderings: Map<string, OrderingInfo>;
     sections: Map<string, SectionInfo>;
 }
 
@@ -268,6 +308,8 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
     const blanks = new Map<string, BlankInfo>();
     const graphs = new Map<string, GraphInfo>();
     const mcs = new Map<string, McInfo>();
+    const matchings = new Map<string, MatchInfo>();
+    const orderings = new Map<string, OrderingInfo>();
     const sections = new Map<string, SectionInfo>();
 
     doc.sections.forEach((section, idx) => {
@@ -391,6 +433,57 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 });
                 return;
             }
+            if (block.type === 'matching') {
+                const items: MatchSideInfo[] = block.items.map((i) => ({
+                    id: i.id,
+                    text: reconstructPrompt(i.content),
+                }));
+                const targets: MatchSideInfo[] = block.targets.map((t) => ({
+                    id: t.id,
+                    text: reconstructPrompt(t.content),
+                }));
+                const targetText = new Map(targets.map((t) => [t.id, t.text]));
+                const answerSummary =
+                    items
+                        .map((i) => {
+                            const t = block.key[i.id];
+                            return t
+                                ? `${i.text} → ${targetText.get(t) ?? '?'}`
+                                : `${i.text} → (unmatched)`;
+                        })
+                        .join('; ') || '—';
+                matchings.set(block.id, {
+                    blockId: block.id,
+                    problemNumber: block.number ?? null,
+                    problemPrompt: reconstructPrompt(block.prompt),
+                    items,
+                    targets,
+                    key: block.key,
+                    allowTargetReuse: block.allowTargetReuse,
+                    answerSummary,
+                    sectionId: section.id,
+                    sectionTitle: section.title ?? null,
+                });
+                return;
+            }
+            if (block.type === 'ordering') {
+                const items: MatchSideInfo[] = block.items.map((i) => ({
+                    id: i.id,
+                    text: reconstructPrompt(i.content),
+                }));
+                orderings.set(block.id, {
+                    blockId: block.id,
+                    problemNumber: block.number ?? null,
+                    problemPrompt: reconstructPrompt(block.prompt),
+                    items,
+                    answerSummary:
+                        items.map((i, n) => `${n + 1}. ${i.text}`).join('  ') ||
+                        '—',
+                    sectionId: section.id,
+                    sectionTitle: section.title ?? null,
+                });
+                return;
+            }
             if (block.type !== 'fill_in_blank') return;
             const prompt = reconstructPrompt(block.content);
 
@@ -449,7 +542,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
         for (const block of section.blocks) indexBlock(block);
     });
 
-    return { blanks, graphs, mcs, sections };
+    return { blanks, graphs, mcs, matchings, orderings, sections };
 }
 
 // ---- Score formatting -------------------------------------------------------
