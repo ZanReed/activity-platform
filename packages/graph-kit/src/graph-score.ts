@@ -167,6 +167,60 @@ export function handlesForFamily(family: string): number {
   }
 }
 
+// The coordinate window a widget seeds its handles into (the axis config,
+// minus the display-only fields).
+export interface SeedWindow {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  xGridStep: number;
+  yGridStep: number;
+}
+
+// Family-aware default handle starts for the STUDENT widget. The board's
+// generic default spreads handles along y = 0, which sits outside some
+// families' fit domain (fitExponential rejects y ≤ 0, fitLogarithmic rejects
+// x ≤ 0) — the student would see handles but no curve, with no way to know
+// why. These seeds sit in valid fit territory (never on the answer curve —
+// they're start positions, not hints). Families the generic default already
+// serves return undefined; so do windows where the family can't be drawn at
+// all (an authoring error this function can't fix).
+export function startsForFamily(
+  family: string,
+  win: SeedWindow,
+  count: number,
+): [number, number][] | undefined {
+  const clampX = (x: number): number => Math.min(Math.max(x, win.xMin), win.xMax);
+  const clampY = (y: number): number => Math.min(Math.max(y, win.yMin), win.yMax);
+  if (family === 'exponential') {
+    // Every y must be positive. Spread x like the generic default; step y up
+    // one grid line per handle from the lowest visible positive value.
+    if (win.yMax <= 0) return undefined;
+    const yLow = Math.max(win.yGridStep, win.yMin);
+    if (yLow > win.yMax) return undefined;
+    const out: [number, number][] = [];
+    for (let i = 0; i < count; i++) {
+      const x = win.xMin + ((i + 1) * (win.xMax - win.xMin)) / (count + 1);
+      out.push([clampX(x), Math.min(yLow + i * win.yGridStep, win.yMax)]);
+    }
+    return out;
+  }
+  if (family === 'logarithmic') {
+    // Every x must be positive. Step x out one grid line per handle from the
+    // lowest visible positive value; y sits on (or nearest to) the x-axis.
+    if (win.xMax <= 0) return undefined;
+    const xLow = Math.max(win.xGridStep, win.xMin);
+    if (xLow > win.xMax) return undefined;
+    const out: [number, number][] = [];
+    for (let i = 0; i < count; i++) {
+      out.push([Math.min(xLow + i * win.xGridStep, win.xMax), clampY(0)]);
+    }
+    return out;
+  }
+  return undefined;
+}
+
 export type Fitted =
   | { family: 'linear'; slope: number; intercept: number; predict: (x: number) => number }
   | { family: 'quadratic'; a: number; b: number; c: number; predict: (x: number) => number }

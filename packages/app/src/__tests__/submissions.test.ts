@@ -4,6 +4,7 @@ import {
     groupSubmissions,
     buildActivityIndex,
     formatScore,
+    fitStudentEquation,
     type SubmissionRow,
 } from '../lib/submissions';
 
@@ -480,6 +481,39 @@ describe('buildActivityIndex', () => {
         const g = buildActivityIndex(funcDoc).graphs.get(U(510))!;
         expect(g.interactionType).toBe('plot_function');
         expect(g.answerSummary).toBe('y = 2x + 3');
+        // The family rides along so the dashboard can re-fit the student's
+        // raw points into an equation (fitStudentEquation).
+        expect(g.functionFamily).toBe('linear');
+    });
+
+    it('summarizes non-linear plot_function families and carries the family', () => {
+        const quadDoc: ActivityDocument = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta: {
+                title: 'Parabolas', course: 'Algebra I', submissionMode: 'free',
+                revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet',
+                answerFeedback: 'on_check', skills: [],
+            },
+            sections: [
+                {
+                    id: U(410), isCheckpoint: false,
+                    blocks: [
+                        {
+                            id: U(511), type: 'interactive_graph', number: 1,
+                            prompt: [{ type: 'text', text: 'Graph y = x² − 4.', marks: [] }],
+                            axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+                            interaction: {
+                                type: 'plot_function',
+                                models: [{ family: 'quadratic', a: 1, b: 0, c: -4 }],
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+        const g = buildActivityIndex(quadDoc).graphs.get(U(511))!;
+        expect(g.answerSummary).toBe('y = 1x² + 0x + -4');
+        expect(g.functionFamily).toBe('quadratic');
     });
 
     it('does not index a display (static) graph — it is ungraded', () => {
@@ -510,6 +544,21 @@ describe('buildActivityIndex', () => {
         const idx = buildActivityIndex(displayDoc);
         expect(idx.graphs.size).toBe(0);
         expect(idx.graphs.has(U(520))).toBe(false);
+    });
+});
+
+describe('fitStudentEquation', () => {
+    it('re-fits raw student points into the equation they define, rounded', () => {
+        expect(fitStudentEquation('linear', [[0, 3], [1, 5]])).toBe('y = 2x + 3');
+        expect(fitStudentEquation('quadratic', [[0, -4], [1, -3], [2, 0]])).toBe(
+            'y = 1x² + 0x + -4',
+        );
+        expect(fitStudentEquation('vertical', [[4, 0], [4, 5]])).toBe('x = 4');
+    });
+
+    it('returns null when the points cannot define the family curve', () => {
+        // y ≤ 0 is outside fitExponential's domain.
+        expect(fitStudentEquation('exponential', [[0, 0], [1, 2]])).toBeNull();
     });
 });
 

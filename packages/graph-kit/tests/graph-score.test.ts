@@ -7,6 +7,7 @@ import {
   scoreFunctionsPartial,
   fitFunction,
   handlesForFamily,
+  startsForFamily,
   scoreRegion,
   scoreRegionsPartial,
   scoreInequality,
@@ -96,6 +97,46 @@ describe('handlesForFamily', () => {
     expect(handlesForFamily('exponential')).toBe(2);
     expect(handlesForFamily('logarithmic')).toBe(2);
     expect(handlesForFamily('vertical')).toBe(2);
+  });
+});
+
+describe('startsForFamily (family-aware student seeds)', () => {
+  const win = {
+    xMin: -10, xMax: 10, yMin: -10, yMax: 10,
+    xGridStep: 1, yGridStep: 1,
+  };
+  it('families the generic y = 0 spread already serves return undefined', () => {
+    expect(startsForFamily('linear', win, 2)).toBeUndefined();
+    expect(startsForFamily('quadratic', win, 3)).toBeUndefined();
+    expect(startsForFamily('vertical', win, 2)).toBeUndefined();
+  });
+  it('exponential seeds sit at positive y and define a curve', () => {
+    const starts = startsForFamily('exponential', win, 2)!;
+    expect(starts).toHaveLength(2);
+    for (const [, y] of starts) expect(y).toBeGreaterThan(0);
+    expect(fitFunction('exponential', starts)).not.toBeNull();
+  });
+  it('logarithmic seeds sit at positive x and define a curve', () => {
+    const starts = startsForFamily('logarithmic', win, 2)!;
+    expect(starts).toHaveLength(2);
+    for (const [x] of starts) expect(x).toBeGreaterThan(0);
+    expect(fitFunction('logarithmic', starts)).not.toBeNull();
+  });
+  it('seeds respect an offset window (exp above a raised yMin, log inside xMax)', () => {
+    const raised = { ...win, yMin: 5 };
+    for (const [, y] of startsForFamily('exponential', raised, 2)!) {
+      expect(y).toBeGreaterThanOrEqual(5);
+      expect(y).toBeLessThanOrEqual(10);
+    }
+    const narrow = { ...win, xMax: 1.5 };
+    for (const [x] of startsForFamily('logarithmic', narrow, 2)!) {
+      expect(x).toBeGreaterThan(0);
+      expect(x).toBeLessThanOrEqual(1.5);
+    }
+  });
+  it('windows where the family cannot be drawn return undefined', () => {
+    expect(startsForFamily('exponential', { ...win, yMax: 0 }, 2)).toBeUndefined();
+    expect(startsForFamily('logarithmic', { ...win, xMax: 0 }, 2)).toBeUndefined();
   });
 });
 

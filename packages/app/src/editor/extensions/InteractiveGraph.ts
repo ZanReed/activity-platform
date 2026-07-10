@@ -205,8 +205,9 @@ export function defaultDisplayInteraction(): DisplayInteractionAttr {
 }
 
 // A fresh plot_function interaction (a single linear curve, y = x) — used when
-// the author switches the picker to "Plot a line". Array-of-one; systems add
-// more curves later.
+// the author switches the picker to "Plot a function". Typing a formula in any
+// family (y = x², y = 2·3ˣ, …) re-derives the model + handle count from the
+// formula field. Array-of-one; systems add more curves later.
 export function defaultFunctionInteraction(): FunctionInteractionAttr {
     return {
         type: 'plot_function',

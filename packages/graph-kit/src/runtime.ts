@@ -29,6 +29,7 @@ import {
   type GraphQuestionHandle,
   type GraphResponseData,
 } from './graph-question.js';
+import { fitFunction, handlesForFamily } from './graph-score.js';
 import type {
   GraphBlockState,
   GraphRuntimeBlockRef,
@@ -151,6 +152,32 @@ export function buildGraphChrome(
   };
 }
 
+// True when a curve-fitting block's plotted points can't define its family's
+// curve (e.g. a handle at y ≤ 0 on an exponential, coincident x on a linear).
+// Sighted students see the drawn curve vanish; the narrate line says the same
+// thing for screen-reader users. Vertical is excluded — it draws a line through
+// the handles directly, no fit involved.
+function curveUndefined(
+  chrome: GraphChromeRef,
+  points: [number, number][],
+): boolean {
+  let model: unknown;
+  if (chrome.interactionType === 'plot_function') {
+    const models = ((chrome.answerKey ?? {}) as { models?: unknown }).models;
+    model = Array.isArray(models) ? models[0] : undefined;
+  } else if (chrome.interactionType === 'graph_inequality') {
+    const arr = ((chrome.answerKey ?? {}) as { inequalities?: unknown }).inequalities;
+    const first = Array.isArray(arr) ? arr[0] : undefined;
+    model = (first as { boundary?: unknown } | undefined)?.boundary;
+  } else {
+    return false;
+  }
+  const family = (model as { family?: unknown } | undefined)?.family;
+  if (typeof family !== 'string' || family === 'vertical') return false;
+  if (points.length < handlesForFamily(family)) return false;
+  return fitFunction(family, points) === null;
+}
+
 /**
  * Reflect one graph block's state into the DOM regions this module owns: the
  * aria-live feedback line, the solution slot, the confidence radios, and the
@@ -218,6 +245,9 @@ export function renderGraphChrome(
       const label =
         graphState.points.length > 1 ? 'Points plotted at ' : 'Point plotted at ';
       text = label + plotted + '.';
+      if (curveUndefined(chrome, graphState.points)) {
+        text += ' These points do not define a curve yet.';
+      }
       dataMode = 'narrate';
     }
     const wantHidden = text === '' && richKey === null;

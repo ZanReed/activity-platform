@@ -26,6 +26,7 @@ import type {
     Block,
     ColumnCellBlock,
 } from '@activity/schema';
+import { fitFunction } from '@activity/graph-kit';
 
 // ---- Raw row shape (mirrors the columns the dashboard selects) --------------
 
@@ -148,6 +149,10 @@ export interface GraphInfo {
     // Human-readable answer key next to what the student plotted — a point list
     // "(3, 4)" for plot_point, "y = 2x + 3" for a linear plot_function.
     answerSummary: string;
+    // plot_function only: the (first) model's family, so the dashboard can fit
+    // the student's raw points back into an equation with the same engine that
+    // scored them (fitStudentEquation).
+    functionFamily?: string;
     sectionId: string;
     sectionTitle: string | null;
 }
@@ -158,6 +163,47 @@ function formatLinear(slope: number, intercept: number): string {
     const b = Math.round(intercept * 100) / 100;
     const bPart = b === 0 ? '' : b > 0 ? ` + ${b}` : ` − ${Math.abs(b)}`;
     return `y = ${m}x${bPart}`;
+}
+
+// One human-readable equation per family — shared by the answer-key summary
+// and the fitted student curve, so the two columns always read alike.
+const r2 = (n: number): number => Math.round(n * 100) / 100;
+function formatFunctionModel(m: {
+    family: string;
+    slope?: number;
+    intercept?: number;
+    a?: number;
+    b?: number;
+    c?: number;
+    x?: number;
+}): string {
+    switch (m.family) {
+        case 'linear':
+            return formatLinear(m.slope ?? 0, m.intercept ?? 0);
+        case 'quadratic':
+            return `y = ${r2(m.a ?? 0)}x² + ${r2(m.b ?? 0)}x + ${r2(m.c ?? 0)}`;
+        case 'exponential':
+            return `y = ${r2(m.a ?? 0)}·${r2(m.b ?? 0)}ˣ`;
+        case 'logarithmic':
+            return `y = ${r2(m.a ?? 0)} + ${r2(m.b ?? 0)}·ln(x)`;
+        case 'vertical':
+            return `x = ${r2(m.x ?? 0)}`;
+        default:
+            return `(${m.family})`;
+    }
+}
+
+// The student's plotted points, re-fit into the equation they define — the
+// schema stores raw points (uniform with plot_point) precisely because the
+// parameters are re-derivable with the SAME engine that scored them. Null when
+// the points don't define a curve of the family (the teacher still sees the
+// raw points).
+export function fitStudentEquation(
+    family: string,
+    points: [number, number][],
+): string | null {
+    const fitted = fitFunction(family, points);
+    return fitted ? formatFunctionModel(fitted) : null;
 }
 
 // One choice of a multiple_choice block, for reading its submission back.
@@ -250,29 +296,18 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 // so they never appear in a submission and aren't indexed here.
                 if (block.interaction.type === 'display') return;
                 let answerSummary = '—';
+                let functionFamily: string | undefined;
                 if (block.interaction.type === 'plot_point') {
                     answerSummary = block.interaction.correctPoints
                         .map((p) => `(${p[0]}, ${p[1]})`)
                         .join(', ');
                 } else if (block.interaction.type === 'plot_function') {
-                    // One entry per curve (a system shows all). Linear renders as an
-                    // equation; other families show their form.
+                    // One entry per curve (a system shows all), through the shared
+                    // per-family formatter.
                     answerSummary = block.interaction.models
-                        .map((m) => {
-                            switch (m.family) {
-                                case 'linear':
-                                    return formatLinear(m.slope, m.intercept);
-                                case 'quadratic':
-                                    return `y = ${m.a}x² + ${m.b}x + ${m.c}`;
-                                case 'exponential':
-                                    return `y = ${m.a}·${m.b}ˣ`;
-                                case 'logarithmic':
-                                    return `y = ${m.a} + ${m.b}·ln(x)`;
-                                case 'vertical':
-                                    return `x = ${m.x}`;
-                            }
-                        })
+                        .map(formatFunctionModel)
                         .join('; ');
+                    functionFamily = block.interaction.models[0]?.family;
                 } else if (block.interaction.type === 'graph_inequality') {
                     answerSummary = block.interaction.inequalities
                         .map((q) => {
@@ -324,6 +359,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                     problemPrompt: reconstructPrompt(block.prompt),
                     interactionType: block.interaction.type,
                     answerSummary,
+                    ...(functionFamily ? { functionFamily } : {}),
                     sectionId: section.id,
                     sectionTitle: section.title ?? null,
                 });

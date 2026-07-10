@@ -34,6 +34,7 @@ import {
     buildActivityIndex,
     groupSubmissions,
     formatScore,
+    fitStudentEquation,
     type ActivityIndex,
     type StudentGroup,
     type SubmissionRow,
@@ -415,6 +416,17 @@ function SubmissionDetail({
                     </td>
                     <td className="py-1 pr-3 font-mono text-slate-900">
                     {formatPoints(g.resp.studentPoints)}
+                    {g.resp.type === 'plot_function' &&
+                        g.info?.functionFamily &&
+                        (() => {
+                            // The points the student placed, re-fit into the curve
+                            // they define — same engine that scored them.
+                            const eq = fitStudentEquation(
+                                g.info.functionFamily,
+                                g.resp.studentPoints,
+                            );
+                            return eq ? ` ≈ ${eq}` : '';
+                        })()}
                     {(g.resp.type === 'plot_ray' || g.resp.type === 'plot_segment') &&
                         g.resp.shape &&
                         ` — drew ${

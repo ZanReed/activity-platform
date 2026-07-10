@@ -212,11 +212,41 @@ export function classifyPointMistake(
   return null;
 }
 
-/** plot_function (linear only in v1): slope/intercept mix-ups. */
+/** plot_function: linear slope/intercept mix-ups + quadratic shape nudges.
+ * Exponential/logarithmic classifiers wait on observed student data (author
+ * call 2026-07-10) — authored mistakeFeedback covers those families today. */
 export function classifyFunctionMistake(
   model: FunctionModel,
   studentPoints: [number, number][],
 ): string | null {
+  if (model.family === 'quadratic') {
+    const fitted = fitFunction('quadratic', studentPoints);
+    if (!fitted || fitted.family !== 'quadratic') return null;
+    const aOk = Math.abs(fitted.a - model.a) <= model.aTolerance;
+    const bOk = Math.abs(fitted.b - model.b) <= model.bTolerance;
+    const cOk = Math.abs(fitted.c - model.c) <= model.cTolerance;
+    // Opens the wrong way dominates: a mirrored parabola usually disturbs b and
+    // c too, so test the flipped leading coefficient before the part-wise
+    // nudges. Skip when the key's parabola is (near-)degenerate — a ≈ −a would
+    // fire on every answer.
+    if (
+      !aOk &&
+      Math.abs(model.a) > model.aTolerance &&
+      Math.abs(fitted.a + model.a) <= model.aTolerance
+    ) {
+      return 'Check which way your parabola opens — upward or downward?';
+    }
+    if (aOk && bOk && !cOk) {
+      return 'The shape of your parabola looks right — check where it crosses the y-axis.';
+    }
+    if (aOk && !bOk && cOk) {
+      return 'Your parabola opens the right way and crosses the y-axis in the right place — check where its lowest or highest point sits.';
+    }
+    if (!aOk && bOk && cOk) {
+      return 'Check how wide or narrow your parabola should be.';
+    }
+    return null;
+  }
   if (model.family !== 'linear') return null;
   const fitted = fitFunction('linear', studentPoints);
   if (!fitted || fitted.family !== 'linear') return null;

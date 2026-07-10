@@ -28,6 +28,8 @@ import {
   endpointLabels,
   fitFunction,
   handlesForFamily,
+  startsForFamily,
+  type SeedWindow,
   type PointAnswerKey,
   type FunctionModel,
   type RegionAnswerKey,
@@ -156,14 +158,20 @@ interface Recipe {
   deriveCurve?: PointAnswerConfig['deriveCurve'];
   lineThroughHandles?: boolean;
   polygon?: boolean;
+  starts?: [number, number][];
 }
 
-function recipeFor(interactionType: string, answerKey: unknown): Recipe {
+function recipeFor(
+  interactionType: string,
+  answerKey: unknown,
+  axis: SeedWindow,
+): Recipe {
   if (interactionType === 'plot_function') {
     const model = readModel(answerKey);
     const family = model.family;
     return {
       count: handlesForFamily(family),
+      starts: startsForFamily(family, axis, handlesForFamily(family)),
       scorer: (pts) => scoreFunction(model, pts),
       deriveCurve: (pts) => {
         const f = fitFunction(family, pts);
@@ -532,12 +540,12 @@ export async function mountGraphQuestion(
     interactionType === 'plot_function' ? readDomainKey(cfg.answerKey) : null;
   const recipe: Recipe = isInequality
     ? // Boundary rides the plot_function machinery for its family.
-      recipeFor('plot_function', { models: [ineqKey!.boundary] })
+      recipeFor('plot_function', { models: [ineqKey!.boundary] }, axis)
     : isRay || isSegment
       ? // Two endpoint handles; scoring is parts-based in build() (styles ride
         // alongside points), so the recipe scorer is a stub.
         { count: 2, scorer: () => false }
-      : recipeFor(interactionType, cfg.answerKey);
+      : recipeFor(interactionType, cfg.answerKey, axis);
 
   // The renderer seeds a static no-JS placeholder inside the canvas; clear it
   // before JSXGraph mounts so the two don't overlap.
@@ -736,6 +744,7 @@ export async function mountGraphQuestion(
     {
       ...axis,
       count: recipe.count,
+      starts: recipe.starts,
       deriveCurve: recipe.deriveCurve,
       lineThroughHandles: recipe.lineThroughHandles,
       // Student ray/segment boards use the DYNAMIC shape mode — the figure is

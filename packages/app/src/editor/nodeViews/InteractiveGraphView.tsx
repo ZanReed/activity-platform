@@ -769,7 +769,7 @@ export default function InteractiveGraphView({
                             onKeyDown={(e) => e.stopPropagation()}
                         >
                             <option value="plot_point">Plot a point</option>
-                            <option value="plot_function">Plot a line</option>
+                            <option value="plot_function">Plot a function</option>
                             <option value="graph_inequality">Graph an inequality</option>
                             <option value="plot_ray">Draw a ray or segment</option>
                             <option value="shade_region">Shade a region</option>
@@ -829,7 +829,7 @@ export default function InteractiveGraphView({
                                         ? 'y > 2x + 1   ·   y <= x^2   ·   x >= 3'
                                         : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
                                           ? 'ray (1, 2) through (3, 4) open   ·   segment (1, 2) to (3, 4)'
-                                          : 'y = 2x + 3   ·   2x + 3y = 6   ·   x^2 - 4   ·   x = 4'
+                                          : 'y = 2x + 3   ·   x^2 - 4   ·   y = 3 * 2^x   ·   x = 4'
                             }
                             onApply={applyFormula}
                         />

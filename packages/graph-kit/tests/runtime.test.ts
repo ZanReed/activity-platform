@@ -28,10 +28,10 @@ const SECTION_ID = '22222222-2222-4222-8222-222222222222';
 
 const esc = (s: string): string => s.replace(/"/g, '&quot;');
 
-/** Renderer-shaped markup for a plot_point graph block. */
-function mount(opts: { withSolution?: boolean; withMistakes?: boolean; withConfidence?: boolean } = {}): GraphRuntimeBlockRef {
+/** Renderer-shaped markup for a graph block (plot_point unless overridden). */
+function mount(opts: { withSolution?: boolean; withMistakes?: boolean; withConfidence?: boolean; interactionType?: string; answerKey?: unknown } = {}): GraphRuntimeBlockRef {
   const config = esc(JSON.stringify({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 }));
-  const answerKey = esc(JSON.stringify({ correctPoints: [[3, 4]], tolerance: 0.1 }));
+  const answerKey = esc(JSON.stringify(opts.answerKey ?? { correctPoints: [[3, 4]], tolerance: 0.1 }));
   const solution = opts.withSolution
     ? '<div class="js-solution" data-for-block="' + GRAPH_ID + '" hidden>The origin.</div>'
     : '';
@@ -51,7 +51,7 @@ function mount(opts: { withSolution?: boolean; withMistakes?: boolean; withConfi
     '<div class="block block-interactive-graph" data-block-category="question"' +
     ' data-block-type="interactive_graph" data-block-id="' + GRAPH_ID + '"' +
     ' data-graph-block-id="' + GRAPH_ID + '"' +
-    ' data-graph-interaction-type="plot_point"' +
+    ' data-graph-interaction-type="' + (opts.interactionType ?? 'plot_point') + '"' +
     ' data-graph-config="' + config + '"' +
     ' data-graph-answer-key="' + answerKey + '"' +
     mistakeAttr + '>' +
@@ -65,7 +65,7 @@ function mount(opts: { withSolution?: boolean; withMistakes?: boolean; withConfi
     el,
     canvas: el.querySelector<HTMLElement>('.graph-canvas')!,
     sectionId: SECTION_ID,
-    interactionType: 'plot_point',
+    interactionType: opts.interactionType ?? 'plot_point',
   };
 }
 
@@ -129,6 +129,24 @@ describe('feedback line modes', () => {
     // live coordinate readout gives away plot-the-point answers.
     expect(el.getAttribute('data-mode')).toBe('narrate');
     expect((el as HTMLElement).hidden).toBe(false);
+  });
+
+  it('narrates when plotted points cannot define the family curve (exp, y ≤ 0)', () => {
+    const chrome = chromeFor(mount({
+      interactionType: 'plot_function',
+      answerKey: {
+        models: [{ family: 'exponential', a: 1, b: 2, aTolerance: 0.1, bTolerance: 0.1 }],
+      },
+    }));
+    // A handle dragged to y = 0 → fitExponential rejects → the drawn curve
+    // vanishes; the narrate line must say so for screen-reader users.
+    renderGraphChrome(chrome, freshState({ points: [[1, 0], [2, 4]], answered: true }), UNCHECKED);
+    const el = document.querySelector('.js-graph-feedback')!;
+    expect(el.textContent).toContain('These points do not define a curve yet.');
+    expect(el.getAttribute('data-mode')).toBe('narrate');
+    // Valid points → plain position narration, no undefined-curve note.
+    renderGraphChrome(chrome, freshState({ points: [[0, 1], [2, 4]], answered: true }), UNCHECKED);
+    expect(el.textContent).toBe('Points plotted at (0, 1), (2, 4).');
   });
 
   it('post-check correctness is visible (data-mode="result")', () => {

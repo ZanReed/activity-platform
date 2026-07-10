@@ -74,14 +74,58 @@ describe('classifyFunctionMistake', () => {
     expect(classifyFunctionMistake(linear, lineThrough(1, 2))).toMatch(/traded places/);
   });
 
-  it('returns null for unrecognized misses and non-linear families', () => {
+  it('returns null for unrecognized misses and unclassified families (exp/log)', () => {
     expect(classifyFunctionMistake(linear, lineThrough(5, -7))).toBeNull();
     expect(
       classifyFunctionMistake(
-        { family: 'quadratic', a: 1, b: 0, c: 0, aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1 },
-        [[0, 0], [1, 1], [2, 4]],
+        { family: 'exponential', a: 1, b: 2, aTolerance: 0.1, bTolerance: 0.1 },
+        [[0, 3], [1, 9]],
       ),
     ).toBeNull();
+  });
+});
+
+describe('classifyFunctionMistake — quadratic', () => {
+  // Three points ON y = ax² + bx + c: (0, c), (1, a+b+c), (−1, a−b+c).
+  const parabola = (a: number, b: number, c: number): [number, number][] => [
+    [0, c],
+    [1, a + b + c],
+    [-1, a - b + c],
+  ];
+  const quad = (a: number, b: number, c: number) => ({
+    family: 'quadratic' as const,
+    a, b, c,
+    aTolerance: 0.2, bTolerance: 0.2, cTolerance: 0.2,
+  });
+
+  it('leading coefficient flipped → opens-the-wrong-way nudge', () => {
+    // Key y = x² − 4; student drew y = −x² + 4 (the full mirror).
+    expect(classifyFunctionMistake(quad(1, 0, -4), parabola(-1, 0, 4))).toMatch(/opens/);
+  });
+
+  it('shape right, c wrong → y-axis nudge (vertical shift)', () => {
+    expect(classifyFunctionMistake(quad(1, 0, -4), parabola(1, 0, 1))).toMatch(/crosses the y-axis/);
+  });
+
+  it('a and c right, b flipped → vertex nudge (mirrored horizontal position)', () => {
+    // Key y = x² − 2x + 1 (vertex at x = 1); student y = x² + 2x + 1 (vertex at −1).
+    expect(classifyFunctionMistake(quad(1, -2, 1), parabola(1, 2, 1))).toMatch(/lowest or highest point/);
+  });
+
+  it('b and c right, a magnitude wrong → width nudge', () => {
+    expect(classifyFunctionMistake(quad(1, 0, -4), parabola(3, 0, -4))).toMatch(/wide or narrow/);
+  });
+
+  it('near-degenerate key never fires the opens nudge (a ≈ −a would always match)', () => {
+    const msg = classifyFunctionMistake(
+      { family: 'quadratic', a: 0.08, b: 0, c: 0, aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1 },
+      parabola(-0.08, 0, 0),
+    );
+    expect(msg).not.toMatch(/opens/);
+  });
+
+  it('returns null when several parts are wrong (no clean pattern)', () => {
+    expect(classifyFunctionMistake(quad(1, 0, -4), parabola(2, 3, 7))).toBeNull();
   });
 });
 
