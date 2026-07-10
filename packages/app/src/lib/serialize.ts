@@ -63,6 +63,8 @@ import {
     SIMPLE_MARK_TYPES,
     createInteractiveGraphBlock,
     createMultipleChoiceOption,
+    ChoiceImage,
+    ChoiceGraph,
 } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 
@@ -362,6 +364,8 @@ function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock 
             content?: unknown;
             correct?: unknown;
             feedback?: unknown;
+            image?: unknown;
+            graph?: unknown;
         };
         const option: MultipleChoiceOption = {
             id:
@@ -374,6 +378,13 @@ function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock 
         if (Array.isArray(c.feedback) && c.feedback.length > 0) {
             option.feedback = c.feedback as InlineNode[];
         }
+        // Optional figures: validate with the real schemas (same "drop
+        // malformed, keep the rest" posture as the row-level sanitize) so a
+        // half-authored figure never poisons the whole save.
+        const image = ChoiceImage.safeParse(c.image);
+        if (c.image !== undefined && image.success) option.image = image.data;
+        const graph = ChoiceGraph.safeParse(c.graph);
+        if (c.graph !== undefined && graph.success) option.graph = graph.data;
         choices.push(option);
     }
     while (choices.length < 2) {

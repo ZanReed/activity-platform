@@ -4,9 +4,15 @@ import {
     NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
+import { renderGraphSvg, type AxisConfig, type Drawable } from '@activity/renderer';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
+import DrawableListEditor, {
+    NumCell,
+    ALL_DRAWABLE_KINDS,
+} from '../components/DrawableListEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import type { EditorMcChoice } from '../extensions/MultipleChoice';
+import type { GraphAxisConfig } from '../extensions/InteractiveGraph';
 import { problemNumberAt } from '../problemNumbering';
 
 // ============================================================================
@@ -33,6 +39,200 @@ import { problemNumberAt } from '../problemNumbering';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
+// Choice-figure graphs are rendered kit-free on the published page
+// (renderGraphSvg), which cannot evaluate freeform formulas — so the
+// `expression` drawable is not offered here (it would silently draw nothing).
+const MC_DRAWABLE_KINDS = ALL_DRAWABLE_KINDS.filter((k) => k !== 'expression');
+
+// A compact default window for a choice-sized figure (the block-level graph
+// default of ±10 reads cramped at ~11rem).
+function defaultChoiceAxis(): GraphAxisConfig {
+    return {
+        xMin: -5, xMax: 5, yMin: -5, yMax: 5,
+        xGridStep: 1, yGridStep: 1,
+        showGrid: true, snapToGrid: true,
+    };
+}
+
+function isValidUrl(s: string): boolean {
+    try {
+        new URL(s);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// The per-choice figure panel (image URL/alt or a static graph). Module-scope
+// so element identity survives the parent's re-renders, same rule as NumCell.
+function ChoiceFigureEditor({
+    choice,
+    letter,
+    disabled,
+    onImage,
+    onGraph,
+}: {
+    choice: EditorMcChoice;
+    letter: string;
+    disabled: boolean;
+    onImage: (image: EditorMcChoice['image'] | undefined) => void;
+    onGraph: (graph: EditorMcChoice['graph'] | undefined) => void;
+}) {
+    const { image, graph } = choice;
+    // Live preview through the EXACT engine the published page uses — the
+    // renderer is pure, so this is a string transform, no I/O. The editor-side
+    // attr types are structural twins of the schema shapes (the save boundary
+    // re-validates), hence the casts.
+    const previewSvg = useMemo(
+        () =>
+            graph
+                ? renderGraphSvg(
+                      graph.axis as AxisConfig,
+                      graph.drawables as Drawable[],
+                      'mcfig-' + choice.id,
+                  )
+                : '',
+        [graph, choice.id],
+    );
+    const setAxis = (patch: Partial<GraphAxisConfig>): void => {
+        if (graph) onGraph({ ...graph, axis: { ...graph.axis, ...patch } });
+    };
+
+    return (
+        <div className="mc-block__figure">
+            <span className="mc-block__figure-label">
+                Figure under choice {letter} (shown to students)
+            </span>
+            {!image && !graph && (
+                <div className="mc-block__figure-actions">
+                    <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => onImage({ src: '', alt: '' })}
+                    >
+                        + Image (URL)
+                    </button>
+                    <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={() =>
+                            onGraph({ axis: defaultChoiceAxis(), drawables: [] })
+                        }
+                    >
+                        + Graph
+                    </button>
+                </div>
+            )}
+            {image && (
+                <div className="mc-block__figure-section">
+                    <label className="mc-block__figure-field">
+                        <span>Image URL</span>
+                        <input
+                            type="url"
+                            value={image.src}
+                            placeholder="https://…"
+                            disabled={disabled}
+                            onChange={(e) =>
+                                onImage({ ...image, src: e.target.value })
+                            }
+                            onKeyDown={(e) => e.stopPropagation()}
+                        />
+                    </label>
+                    <label className="mc-block__figure-field">
+                        <span>Alt text</span>
+                        <input
+                            type="text"
+                            value={image.alt}
+                            placeholder="Describe the picture"
+                            disabled={disabled}
+                            onChange={(e) =>
+                                onImage({ ...image, alt: e.target.value })
+                            }
+                            onKeyDown={(e) => e.stopPropagation()}
+                        />
+                    </label>
+                    {!isValidUrl(image.src) && (
+                        <span className="mc-block__figure-hint">
+                            Paste a full image URL — the figure is left off the
+                            published page until it&apos;s valid.
+                        </span>
+                    )}
+                    {isValidUrl(image.src) && image.alt.trim() === '' && (
+                        <span className="mc-block__figure-hint">
+                            Add alt text so screen-reader users can compare the
+                            choices.
+                        </span>
+                    )}
+                    {isValidUrl(image.src) && (
+                        <img
+                            className="mc-block__figure-preview"
+                            src={image.src}
+                            alt={image.alt}
+                        />
+                    )}
+                    <button
+                        type="button"
+                        className="mc-block__figure-remove"
+                        disabled={disabled}
+                        onClick={() => onImage(undefined)}
+                    >
+                        Remove image
+                    </button>
+                </div>
+            )}
+            {graph && (
+                <div className="mc-block__figure-section">
+                    {previewSvg !== '' && (
+                        <div
+                            className="mc-block__figure-preview"
+                            aria-hidden="true"
+                            dangerouslySetInnerHTML={{ __html: previewSvg }}
+                        />
+                    )}
+                    <div className="mc-block__figure-axis">
+                        {(['xMin', 'xMax', 'yMin', 'yMax'] as const).map((k) => (
+                            <label key={k}>
+                                {k}
+                                <NumCell
+                                    value={graph.axis[k]}
+                                    disabled={disabled}
+                                    onChange={(v) => setAxis({ [k]: v })}
+                                />
+                            </label>
+                        ))}
+                        {(['xGridStep', 'yGridStep'] as const).map((k) => (
+                            <label key={k}>
+                                {k === 'xGridStep' ? 'x grid' : 'y grid'}
+                                <NumCell
+                                    value={graph.axis[k]}
+                                    disabled={disabled}
+                                    onChange={(v) => {
+                                        if (v > 0) setAxis({ [k]: v });
+                                    }}
+                                />
+                            </label>
+                        ))}
+                    </div>
+                    <DrawableListEditor
+                        drawables={graph.drawables}
+                        disabled={disabled}
+                        onChange={(drawables) => onGraph({ ...graph, drawables })}
+                        kinds={MC_DRAWABLE_KINDS}
+                    />
+                    <button
+                        type="button"
+                        className="mc-block__figure-remove"
+                        disabled={disabled}
+                        onClick={() => onGraph(undefined)}
+                    >
+                        Remove graph
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function MultipleChoiceView({
     node,
     editor,
@@ -42,6 +242,7 @@ export default function MultipleChoiceView({
 }: NodeViewProps) {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [openFeedback, setOpenFeedback] = useState<Record<string, boolean>>({});
+    const [openFigure, setOpenFigure] = useState<Record<string, boolean>>({});
 
     const choices = (node.attrs.choices as EditorMcChoice[]) ?? [];
     const multiSelect = Boolean(node.attrs.multiSelect);
@@ -99,6 +300,36 @@ export default function MultipleChoiceView({
                 const cleared = { ...c };
                 delete cleared.feedback;
                 return cleared;
+            }),
+        );
+    };
+
+    const setImage = (
+        choiceId: string,
+        image: EditorMcChoice['image'] | undefined,
+    ) => {
+        commitChoices(
+            choices.map((c) => {
+                if (c.id !== choiceId) return c;
+                const next = { ...c };
+                if (image) next.image = image;
+                else delete next.image;
+                return next;
+            }),
+        );
+    };
+
+    const setGraph = (
+        choiceId: string,
+        graph: EditorMcChoice['graph'] | undefined,
+    ) => {
+        commitChoices(
+            choices.map((c) => {
+                if (c.id !== choiceId) return c;
+                const next = { ...c };
+                if (graph) next.graph = graph;
+                else delete next.graph;
+                return next;
             }),
         );
     };
@@ -222,6 +453,26 @@ export default function MultipleChoiceView({
                                     <button
                                         type="button"
                                         className="mc-block__row-btn"
+                                        onClick={() =>
+                                            setOpenFigure((prev) => ({
+                                                ...prev,
+                                                [choice.id]: !prev[choice.id],
+                                            }))
+                                        }
+                                        aria-expanded={
+                                            openFigure[choice.id] ??
+                                            Boolean(choice.image || choice.graph)
+                                        }
+                                        title="Image or graph shown under this choice"
+                                        disabled={!isEditable}
+                                    >
+                                        {choice.image || choice.graph
+                                            ? '🖼'
+                                            : '🖼＋'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="mc-block__row-btn"
                                         onClick={() => removeChoice(choice.id)}
                                         aria-label={`Remove choice ${
                                             LETTERS[index % 26]
@@ -236,6 +487,20 @@ export default function MultipleChoiceView({
                                         ×
                                     </button>
                                 </div>
+                                {(openFigure[choice.id] ??
+                                    Boolean(choice.image || choice.graph)) && (
+                                    <ChoiceFigureEditor
+                                        choice={choice}
+                                        letter={LETTERS[index % 26] ?? 'A'}
+                                        disabled={!isEditable}
+                                        onImage={(image) =>
+                                            setImage(choice.id, image)
+                                        }
+                                        onGraph={(graph) =>
+                                            setGraph(choice.id, graph)
+                                        }
+                                    />
+                                )}
                                 {(openFeedback[choice.id] ??
                                     Boolean(choice.feedback?.length)) && (
                                     <div className="mc-block__feedback">

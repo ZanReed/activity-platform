@@ -84,6 +84,8 @@ export const MARKDOWN_IMPORT_AI_PROMPT = [
     '- Optional feedback after :: on any choice is shown to a student who picks it.',
     '- Optional lines:  solution: <worked explanation>   and   options: confidence',
     '- Choice text and the prompt may include $inline$ math.',
+    '- A choice may carry an image, shown below its text:  (x) ![a square](https://…)',
+    '  — the choice text may be the image alone.',
     '',
     'OTHER',
     '- Bold **like this**, italic *like this*, inline code `like this`.',

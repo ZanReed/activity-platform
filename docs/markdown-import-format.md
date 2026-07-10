@@ -144,6 +144,8 @@ MULTIPLE CHOICE (a fenced block with the `mc` tag becomes a multiple-choice ques
 - Optional feedback after :: on any choice is shown to a student who picks it.
 - Optional lines:  solution: <worked explanation>   and   options: confidence
 - Choice text and the prompt may include $inline$ math.
+- A choice may carry an image, shown below its text:  (x) ![a square](https://…)
+  — the choice text may be the image alone.
 
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
@@ -198,6 +200,7 @@ options: confidence
 - **Choice lines**: `( )` is a wrong choice, `(x)` a correct one. Square brackets — `[ ]` / `[x]` — author a **select-all-that-apply** (multi-select) question; any square bracket, or more than one `(x)`, switches the block to multi-select (a single-answer question with two right answers would be unanswerable on radios).
 - **Per-choice feedback**: append `:: feedback text` to a choice line; a student who picks that choice sees it after checking. Distractors are usually authored *because* they're anticipated mistakes — this is where the explanation goes.
 - `prompt:` the question text. Both it and choice text accept `$inline$` math.
+- **Per-choice images**: a markdown image — `![alt](https://…)` — anywhere in a choice's text becomes the choice's figure, rendered below the text ("which diagram shows…"). The image markdown is stripped from the text; an image-only choice is legal. An unparseable URL stays as literal text so the author notices. Per-choice *graphs* have no fence syntax — author them in the editor's choice-figure panel (nesting a graph DSL inside the mc fence isn't supported).
 - `solution:` optional worked explanation revealed post-check.
 - `options: confidence` asks students for a confidence rating.
 - At least two choices and at least one `(x)` are required — a fence without a marked correct answer imports as plain text with a warning.

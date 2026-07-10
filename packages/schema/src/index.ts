@@ -42,6 +42,8 @@ export {
   InteractiveGraphBlock,
   MultipleChoiceBlock,
   MultipleChoiceOption,
+  ChoiceImage,
+  ChoiceGraph,
   AxisConfig,
   PointInteraction,
   FunctionInteraction,

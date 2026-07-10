@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     NodeViewWrapper,
     NodeViewContent,
@@ -21,6 +21,7 @@ import {
     type GraphDisplayHandle,
 } from '@activity/graph-kit';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
+import DrawableListEditor from '../components/DrawableListEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
 import {
@@ -112,10 +113,6 @@ const DEFAULT_LINEAR: LinearFunctionModel = {
 };
 function firstModel(models: FunctionModelAttr[]): FunctionModelAttr {
     return models[0] ?? DEFAULT_LINEAR;
-}
-function firstLinearModel(models: FunctionModelAttr[]): LinearFunctionModel {
-    const m = models[0];
-    return m && m.family === 'linear' ? m : DEFAULT_LINEAR;
 }
 function firstRegion(regions: RegionAnswerAttr[]): RegionAnswerAttr {
     return regions[0] ?? { correctVertices: [], minOverlap: 0.9 };
@@ -784,7 +781,7 @@ export default function InteractiveGraphView({
                             axisConfig={axisConfig}
                             drawables={interaction.drawables}
                         />
-                        <DisplayDrawableEditor
+                        <DrawableListEditor
                             drawables={interaction.drawables}
                             disabled={!isEditable}
                             onChange={setDrawables}
@@ -1239,271 +1236,3 @@ function DisplayPreviewBoard({
     );
 }
 
-// A stable (module-scope) numeric cell — kept out of the editor's render body so
-// its element identity survives re-renders and the input doesn't lose focus
-// mid-edit.
-function NumCell({
-    value,
-    disabled,
-    onChange,
-}: {
-    value: number;
-    disabled: boolean;
-    onChange: (n: number) => void;
-}) {
-    return (
-        <input
-            type="number"
-            value={value}
-            disabled={disabled}
-            step={0.5}
-            style={{ width: '3.2rem' }}
-            onChange={(e) => onChange(num(e.target.value, value))}
-            onKeyDown={(e) => e.stopPropagation()}
-        />
-    );
-}
-
-const rowStyle: CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.35rem',
-    flexWrap: 'wrap',
-    fontSize: '0.78rem',
-    color: '#475569',
-    padding: '0.25rem 0',
-    borderTop: '1px solid #eef2f6',
-};
-
-// The drawable list editor: add/edit/remove the point/curve/segment/polygon
-// drawables of a display graph. Numeric coordinates (dragging on the board is a
-// future enhancement); the preview above reflects every change live.
-function DisplayDrawableEditor({
-    drawables,
-    disabled,
-    onChange,
-}: {
-    drawables: DrawableAttr[];
-    disabled: boolean;
-    onChange: (drawables: DrawableAttr[]) => void;
-}) {
-    const replace = (i: number, d: DrawableAttr): void =>
-        onChange(drawables.map((x, j) => (j === i ? d : x)));
-    const remove = (i: number): void =>
-        onChange(drawables.filter((_, j) => j !== i));
-    const add = (kind: DrawableAttr['kind']): void => {
-        const fresh: DrawableAttr =
-            kind === 'point'
-                ? { kind: 'point', at: [0, 0] }
-                : kind === 'curve'
-                  ? {
-                        kind: 'curve',
-                        model: {
-                            family: 'linear',
-                            slope: 1,
-                            intercept: 0,
-                            slopeTolerance: 0.1,
-                            interceptTolerance: 0.1,
-                        },
-                    }
-                  : kind === 'expression'
-                    ? { kind: 'expression', expression: 'sin(x)' }
-                    : kind === 'segment'
-                      ? { kind: 'segment', from: [0, 0], to: [2, 2] }
-                      : kind === 'ray'
-                        ? { kind: 'ray', from: [0, 0], through: [2, 1] }
-                        : { kind: 'polygon', vertices: [[0, 0], [3, 0], [1, 3]], filled: true };
-        onChange([...drawables, fresh]);
-    };
-
-    return (
-        <div style={{ marginTop: '0.4rem' }}>
-            {drawables.length === 0 && (
-                <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
-                    No shapes yet — add one below.
-                </p>
-            )}
-            {drawables.map((d, i) => (
-                <div key={i} style={rowStyle}>
-                    {d.kind === 'point' && (
-                        <>
-                            <strong style={{ minWidth: '4.5rem' }}>Point</strong>
-                            <NumCell value={d.at[0]} disabled={disabled}
-                                onChange={(x) => replace(i, { ...d, at: [x, d.at[1]] })} />
-                            <NumCell value={d.at[1]} disabled={disabled}
-                                onChange={(y) => replace(i, { ...d, at: [d.at[0], y] })} />
-                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
-                                <input type="checkbox" checked={d.style === 'open'} disabled={disabled}
-                                    onChange={(e) => replace(i, { ...d, style: e.target.checked ? 'open' : undefined })} />
-                                open
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="label"
-                                value={d.label ?? ''}
-                                disabled={disabled}
-                                style={{ width: '5rem' }}
-                                onChange={(e) =>
-                                    replace(i, {
-                                        ...d,
-                                        label: e.target.value || undefined,
-                                    })
-                                }
-                                onKeyDown={(e) => e.stopPropagation()}
-                            />
-                        </>
-                    )}
-                    {d.kind === 'curve' && (
-                        <>
-                            <strong style={{ minWidth: '4.5rem' }}>Line y=</strong>
-                            {/* The display curve editor is linear-only (Drop 2); other
-                                families come from freeform entry (Drop 3). Coerce so a
-                                non-linear model still edits as a line here. */}
-                            <NumCell value={firstLinearModel([d.model]).slope} disabled={disabled}
-                                onChange={(slope) => replace(i, { ...d, model: { ...firstLinearModel([d.model]), slope } })} />
-                            <span>x +</span>
-                            <NumCell value={firstLinearModel([d.model]).intercept} disabled={disabled}
-                                onChange={(intercept) => replace(i, { ...d, model: { ...firstLinearModel([d.model]), intercept } })} />
-                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
-                                <input type="checkbox" checked={d.style === 'dashed'} disabled={disabled}
-                                    onChange={(e) => replace(i, { ...d, style: e.target.checked ? 'dashed' : undefined })} />
-                                dashed
-                            </label>
-                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
-                                <input type="checkbox" checked={d.arrows !== false} disabled={disabled}
-                                    onChange={(e) => replace(i, { ...d, arrows: e.target.checked ? undefined : false })} />
-                                arrows
-                            </label>
-                        </>
-                    )}
-                    {d.kind === 'expression' && (
-                        <>
-                            <strong style={{ minWidth: '4.5rem' }}>Formula</strong>
-                            <input
-                                type="text"
-                                value={d.expression}
-                                disabled={disabled}
-                                spellCheck={false}
-                                style={{ flex: 1, fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem' }}
-                                onChange={(e) => replace(i, { ...d, expression: e.target.value })}
-                                onKeyDown={(e) => e.stopPropagation()}
-                            />
-                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
-                                <input type="checkbox" checked={d.style === 'dashed'} disabled={disabled}
-                                    onChange={(e) => replace(i, { ...d, style: e.target.checked ? 'dashed' : undefined })} />
-                                dashed
-                            </label>
-                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
-                                <input type="checkbox" checked={d.arrows !== false} disabled={disabled}
-                                    onChange={(e) => replace(i, { ...d, arrows: e.target.checked ? undefined : false })} />
-                                arrows
-                            </label>
-                        </>
-                    )}
-                    {d.kind === 'ray' && (
-                        <>
-                            <strong style={{ minWidth: '4.5rem' }}>Ray</strong>
-                            <NumCell value={d.from[0]} disabled={disabled}
-                                onChange={(x) => replace(i, { ...d, from: [x, d.from[1]] })} />
-                            <NumCell value={d.from[1]} disabled={disabled}
-                                onChange={(y) => replace(i, { ...d, from: [d.from[0], y] })} />
-                            <span>→ through</span>
-                            <NumCell value={d.through[0]} disabled={disabled}
-                                onChange={(x) => replace(i, { ...d, through: [x, d.through[1]] })} />
-                            <NumCell value={d.through[1]} disabled={disabled}
-                                onChange={(y) => replace(i, { ...d, through: [d.through[0], y] })} />
-                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
-                                <input type="checkbox" checked={d.fromStyle === 'open'} disabled={disabled}
-                                    onChange={(e) => replace(i, { ...d, fromStyle: e.target.checked ? 'open' : undefined })} />
-                                open start
-                            </label>
-                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
-                                <input type="checkbox" checked={d.arrows !== false} disabled={disabled}
-                                    onChange={(e) => replace(i, { ...d, arrows: e.target.checked ? undefined : false })} />
-                                arrow
-                            </label>
-                        </>
-                    )}
-                    {d.kind === 'segment' && (
-                        <>
-                            <strong style={{ minWidth: '4.5rem' }}>Segment</strong>
-                            <NumCell value={d.from[0]} disabled={disabled}
-                                onChange={(x) => replace(i, { ...d, from: [x, d.from[1]] })} />
-                            <NumCell value={d.from[1]} disabled={disabled}
-                                onChange={(y) => replace(i, { ...d, from: [d.from[0], y] })} />
-                            <span>→</span>
-                            <NumCell value={d.to[0]} disabled={disabled}
-                                onChange={(x) => replace(i, { ...d, to: [x, d.to[1]] })} />
-                            <NumCell value={d.to[1]} disabled={disabled}
-                                onChange={(y) => replace(i, { ...d, to: [d.to[0], y] })} />
-                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
-                                <input type="checkbox" checked={d.endpoints?.[0] === 'open'} disabled={disabled}
-                                    onChange={(e) => replace(i, { ...d, endpoints: [e.target.checked ? 'open' : 'closed', d.endpoints?.[1] ?? 'closed'] })} />
-                                open start
-                            </label>
-                            <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
-                                <input type="checkbox" checked={d.endpoints?.[1] === 'open'} disabled={disabled}
-                                    onChange={(e) => replace(i, { ...d, endpoints: [d.endpoints?.[0] ?? 'closed', e.target.checked ? 'open' : 'closed'] })} />
-                                open end
-                            </label>
-                        </>
-                    )}
-                    {d.kind === 'polygon' && (
-                        <>
-                            <strong style={{ minWidth: '4.5rem' }}>Polygon</strong>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                {d.vertices.map((v, vi) => (
-                                    <span key={vi} style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                                        <NumCell value={v[0]} disabled={disabled}
-                                            onChange={(x) =>
-                                                replace(i, {
-                                                    ...d,
-                                                    vertices: d.vertices.map((w, wj) => (wj === vi ? [x, w[1]] : w)),
-                                                })
-                                            } />
-                                        <NumCell value={v[1]} disabled={disabled}
-                                            onChange={(y) =>
-                                                replace(i, {
-                                                    ...d,
-                                                    vertices: d.vertices.map((w, wj) => (wj === vi ? [w[0], y] : w)),
-                                                })
-                                            } />
-                                        {d.vertices.length > 3 && (
-                                            <button type="button" disabled={disabled}
-                                                onClick={() =>
-                                                    replace(i, { ...d, vertices: d.vertices.filter((_, wj) => wj !== vi) })
-                                                }
-                                                style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8' }}
-                                                aria-label="Remove vertex">×</button>
-                                        )}
-                                    </span>
-                                ))}
-                                <span style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    <button type="button" disabled={disabled}
-                                        onClick={() => replace(i, { ...d, vertices: [...d.vertices, [0, 0]] })}
-                                        style={{ fontSize: '0.72rem', cursor: 'pointer' }}>+ vertex</button>
-                                    <label style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                                        <input type="checkbox" checked={d.filled} disabled={disabled}
-                                            onChange={(e) => replace(i, { ...d, filled: e.target.checked })} />
-                                        filled
-                                    </label>
-                                </span>
-                            </div>
-                        </>
-                    )}
-                    <button type="button" disabled={disabled} onClick={() => remove(i)}
-                        style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.78rem' }}
-                        aria-label="Remove shape">Remove</button>
-                </div>
-            ))}
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
-                {(['point', 'curve', 'expression', 'segment', 'ray', 'polygon'] as const).map((k) => (
-                    <button key={k} type="button" disabled={disabled} onClick={() => add(k)}
-                        style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', border: '1px solid #cbd5e1', borderRadius: 4, background: '#f8fafc', cursor: 'pointer', color: '#334155' }}>
-                        + {k === 'curve' ? 'line' : k === 'expression' ? 'formula' : k}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-}

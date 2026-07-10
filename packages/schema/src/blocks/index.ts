@@ -52,7 +52,12 @@ export {
   ColumnsBlock,
   InteractiveGraphBlock,
 };
-export { MultipleChoiceBlock, MultipleChoiceOption } from './multiple-choice.js';
+export {
+  MultipleChoiceBlock,
+  MultipleChoiceOption,
+  ChoiceImage,
+  ChoiceGraph,
+} from './multiple-choice.js';
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,

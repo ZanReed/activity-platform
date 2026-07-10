@@ -835,6 +835,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
         content: JSONContent[];
         correct: boolean;
         feedback?: JSONContent[];
+        image?: { src: string; alt: string };
     }[] = [];
 
     for (const rawLine of src.split('\n')) {
@@ -855,12 +856,33 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
                     feedback = graphPromptContent(feedbackText, ctx);
                 }
             }
-            if (!body) return fail('a choice line needs answer text');
+            // Optional per-choice image: markdown ![alt](url) anywhere in the
+            // choice text (feedback already split off above). Extracted into
+            // the option's figure slot; a choice may be image-only. An
+            // unparseable URL stays as literal text so the author notices.
+            let image: { src: string; alt: string } | undefined;
+            body = body
+                .replace(
+                    /!\[([^\]]*)\]\(([^)]+)\)/,
+                    (whole, alt: string, src: string) => {
+                        const url = src.trim();
+                        try {
+                            new URL(url);
+                        } catch {
+                            return whole;
+                        }
+                        image = { src: url, alt: alt.trim() };
+                        return '';
+                    },
+                )
+                .trim();
+            if (!body && !image) return fail('a choice line needs answer text');
             choices.push({
                 id: crypto.randomUUID(),
                 content: graphPromptContent(body, ctx),
                 correct,
                 ...(feedback ? { feedback } : {}),
+                ...(image ? { image } : {}),
             });
             continue;
         }

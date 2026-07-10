@@ -1,6 +1,7 @@
-import type { MultipleChoiceBlock } from '@activity/schema';
+import type { MultipleChoiceBlock, MultipleChoiceOption } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
+import { renderGraphSvg } from '../graph-svg.js';
 
 export interface MultipleChoiceRenderContext {
   problemNumber: number;
@@ -14,6 +15,37 @@ export interface MultipleChoiceRenderContext {
 // (AA…) is not handled.
 function choiceLetter(index: number): string {
   return String.fromCharCode(65 + (index % 26));
+}
+
+/**
+ * Optional per-choice figure (image and/or static graph), rendered below the
+ * choice text inside the label so clicking the figure selects the choice.
+ * The graph is the SAME kit-free SVG engine as the interactive block's
+ * print/no-JS fallback (graph-svg.ts) — inline, static, works on paper;
+ * `expression` drawables are absent by the engine's documented limitation.
+ * The SVG's internal ids are namespaced by block+choice id (ids are
+ * document-global and one block can hold several choice graphs).
+ */
+function renderChoiceFigure(
+  choice: MultipleChoiceOption,
+  blockId: string,
+): string {
+  const image = choice.image
+    ? '<img src="' + attr(choice.image.src) + '"' +
+      ' alt="' + attr(choice.image.alt) + '"' +
+      ' loading="lazy"' +
+      ' decoding="async"' +
+      ' />'
+    : '';
+  const graph = choice.graph
+    ? renderGraphSvg(
+        choice.graph.axis,
+        choice.graph.drawables,
+        blockId + '-' + choice.id,
+      )
+    : '';
+  if (!image && !graph) return '';
+  return '<span class="mc-choice-figure">' + image + graph + '</span>';
 }
 
 /**
@@ -66,6 +98,7 @@ export function renderMultipleChoice(
         '.</span>' +
         '<span class="mc-choice-content">' +
         renderInlineNodes(choice.content) +
+        renderChoiceFigure(choice, block.id) +
         '</span>' +
         '</label>';
       // Per-choice feedback (the MC analogue of blank mistakeFeedback):
@@ -143,6 +176,12 @@ export function renderMultipleChoice(
     ? '<div class="mc-multi-hint">Select all that apply.</div>'
     : '';
 
+  // Two or more figured choices switch the list to a 2-up grid — the classic
+  // "which graph shows…" textbook layout. A single figure keeps the vertical
+  // list (a lone 2-up cell reads as a mistake).
+  const figureCount = block.choices.filter((c) => c.image || c.graph).length;
+  const gridClass = figureCount >= 2 ? ' mc-choices-grid' : '';
+
   return (
     '<div class="block block-multiple-choice"' +
     ' data-block-category="question"' +
@@ -158,7 +197,7 @@ export function renderMultipleChoice(
     '<div class="block-problem-body">' +
     '<div class="mc-prompt">' + renderInlineNodes(block.prompt) + '</div>' +
     multiHint +
-    '<fieldset class="mc-choices" aria-label="Answer choices">' +
+    '<fieldset class="mc-choices' + gridClass + '" aria-label="Answer choices">' +
     choicesHtml +
     '</fieldset>' +
     confidenceFieldset +

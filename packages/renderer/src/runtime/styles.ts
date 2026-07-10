@@ -268,6 +268,40 @@ body {
   background: #fffbeb;
   border-radius: 0 6px 6px 0;
 }
+/* Optional per-choice figure (image and/or static graph SVG), stacked below
+ the choice text inside the label — clicking the figure selects the choice.
+ The 11rem cap matches the graph block's minimum usable board width. */
+.mc-choice-figure {
+  display: block;
+  margin-top: 0.35rem;
+  max-width: 11rem;
+}
+.mc-choice-figure img,
+.mc-choice-figure .graph-paper {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.mc-choice-figure img { border: 1px solid #e2e8f0; }
+/* Two or more figured choices switch to the classic 2-up "which graph
+ shows…" textbook grid (emitted as .mc-choices-grid by the renderer). Cells
+ top-align; a revealed feedback div spans the full row so it never becomes a
+ stray grid cell. Collapses back to one column on narrow screens. */
+.mc-choices-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem 1rem;
+  align-items: start;
+}
+.mc-choices-grid .mc-choice-figure { max-width: 100%; }
+/* In grid cells the figure dominates the label; baseline alignment would sink
+ the input + letter to the figure's bottom edge. Pin them to the top instead. */
+.mc-choices-grid .mc-choice { align-items: flex-start; }
+.mc-choices-grid .mc-choice-feedback { grid-column: 1 / -1; }
+@media (max-width: 40rem) {
+  .mc-choices-grid { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* The display (static-figure) variant emits no problem number, so the numbered
  grid would auto-place its single body child into the 2.5rem gutter track and

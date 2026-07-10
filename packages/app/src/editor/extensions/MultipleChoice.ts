@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import MultipleChoiceView from '../nodeViews/MultipleChoiceView';
+import type { GraphAxisConfig, DrawableAttr } from './InteractiveGraph';
 
 // ============================================================================
 // MultipleChoice — Tiptap block node for a multiple-choice question.
@@ -28,6 +29,11 @@ export interface EditorMcChoice {
     content: unknown[];
     correct: boolean;
     feedback?: unknown[];
+    // Optional figure below the choice text (canonical schema shapes, using
+    // the graph node's parallel attr types; the save boundary re-validates
+    // with ChoiceImage/ChoiceGraph and drops malformed figures).
+    image?: { src: string; alt: string };
+    graph?: { axis: GraphAxisConfig; drawables: DrawableAttr[] };
 }
 
 declare module '@tiptap/core' {

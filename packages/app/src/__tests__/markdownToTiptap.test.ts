@@ -436,6 +436,49 @@ describe('multiple-choice fence (```mc)', () => {
         expect(blocks[0]!.type).not.toBe('multipleChoice');
         expect(warnings.length).toBeGreaterThan(0);
     });
+
+    it('![alt](url) on a choice line becomes the choice image', () => {
+        const { blocks, warnings } = convert(
+            '```mc\nprompt: Which shape?\n(x) a square ![a square](https://example.com/sq.png)\n( ) circle\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const choices = blocks[0]!.attrs!.choices as Array<{
+            content: JSONContent[];
+            image?: { src: string; alt: string };
+        }>;
+        expect(choices[0]!.image).toEqual({
+            src: 'https://example.com/sq.png',
+            alt: 'a square',
+        });
+        // The image markdown is stripped from the choice text.
+        expect(choices[0]!.content).toEqual([
+            { type: 'text', text: 'a square' },
+        ]);
+        expect(choices[1]!.image).toBeUndefined();
+    });
+
+    it('an image-only choice line is legal', () => {
+        const { blocks, warnings } = convert(
+            '```mc\n(x) ![the graph of y = x](https://example.com/a.png)\n( ) b\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const choices = blocks[0]!.attrs!.choices as Array<{
+            content: JSONContent[];
+            image?: { src: string; alt: string };
+        }>;
+        expect(choices[0]!.image?.src).toBe('https://example.com/a.png');
+        expect(choices[0]!.content).toEqual([]);
+    });
+
+    it('an unparseable image URL stays literal text', () => {
+        const { blocks } = convert(
+            '```mc\n(x) ![alt](not a url)\n( ) b\n```',
+        );
+        const choices = blocks[0]!.attrs!.choices as Array<{
+            image?: { src: string; alt: string };
+        }>;
+        expect(choices[0]!.image).toBeUndefined();
+    });
 });
 
 describe('numeric blanks ({{=…}})', () => {

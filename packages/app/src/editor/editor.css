@@ -463,6 +463,95 @@
     font-weight: 600;
     color: rgb(146 64 14); /* amber-800 */
 }
+/* Per-choice figure panel (image URL/alt or static graph). Slate-toned to
+   read as structure, unlike the amber feedback panel (authored content). */
+.mc-block__figure {
+    margin-left: 3.1rem;
+    padding: 0.4rem 0.6rem;
+    border-left: 3px solid rgb(148 163 184); /* slate-400 */
+    background: rgb(248 250 252); /* slate-50 */
+    border-radius: 0 0.375rem 0.375rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.mc-block__figure-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgb(51 65 85); /* slate-700 */
+}
+.mc-block__figure-actions {
+    display: flex;
+    gap: 0.4rem;
+}
+.mc-block__figure-actions button {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid rgb(203 213 225); /* slate-300 */
+    border-radius: 0.25rem;
+    background: white;
+    color: rgb(51 65 85); /* slate-700 */
+    cursor: pointer;
+}
+.mc-block__figure-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.mc-block__figure-field {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: rgb(71 85 105); /* slate-600 */
+}
+.mc-block__figure-field span {
+    min-width: 4.5rem;
+}
+.mc-block__figure-field input {
+    flex: 1;
+    font-size: 0.78rem;
+}
+.mc-block__figure-hint {
+    font-size: 0.72rem;
+    color: rgb(180 83 9); /* amber-700 */
+}
+.mc-block__figure-preview {
+    max-width: 11rem; /* matches the published .mc-choice-figure cap */
+}
+.mc-block__figure-preview img,
+.mc-block__figure-preview svg,
+img.mc-block__figure-preview {
+    display: block;
+    width: 100%;
+    max-width: 11rem;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid rgb(226 232 240); /* slate-200 */
+}
+.mc-block__figure-axis {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: 0.25rem 0.6rem;
+    justify-content: start;
+    font-size: 0.75rem;
+    color: rgb(71 85 105); /* slate-600 */
+}
+.mc-block__figure-axis label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.mc-block__figure-remove {
+    align-self: flex-start;
+    border: none;
+    background: none;
+    color: rgb(239 68 68); /* red-500 */
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0;
+}
+
 .mc-block__add-choice {
     align-self: flex-start;
     border: 1px dashed rgb(203 213 225); /* slate-300 */
