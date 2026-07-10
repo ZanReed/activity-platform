@@ -46,10 +46,14 @@ import { createRequire } from 'node:module';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 
-// Runtime size budget (RUNTIME.md / STATE.md standing constraint). The runtime
-// is student-facing and loads on school Chromebooks over slow Wi-Fi.
-const RUNTIME_SIZE_TARGET = 20 * 1024; // soft target — warn past this
-const RUNTIME_SIZE_CEILING = 40 * 1024; // hard ceiling — fail past this
+// Runtime size budget (RUNTIME.md "Standing constraints"; amended 2026-07-10,
+// was 20/40 — reasoning in docs/DECISIONS.md "Runtime size budget amendment").
+// The runtime is student-facing and runs on school Chromebooks, where JS
+// parse/execute cost is the binding constraint. Heavy capability goes in lazy
+// kits on R2, never in these inlined bundles — that invariant, not this
+// number, is the non-negotiable part.
+const RUNTIME_SIZE_TARGET = 40 * 1024; // soft target — warn past this
+const RUNTIME_SIZE_CEILING = 60 * 1024; // hard ceiling — fail past this
 
 // -----------------------------------------------------------------------------
 // Step 1 — Runtime build (two variants from one source)

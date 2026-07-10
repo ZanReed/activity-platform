@@ -23,9 +23,9 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 
 - **Never `git push`.** The author always pushes. Committing locally when work is done and verified is fine.
 - **The author runs all deploys and migrations** (`supabase functions deploy …`, `supabase db push`, dashboard changes). Claude prepares the change, then records it under "Pending author actions" in STATE.md.
-- **`ingest-submission` must always be redeployed with `--no-verify-jwt`.** There is no `config.toml`; the flag lives only on the Supabase platform and a plain redeploy silently re-enables JWT verification, 401-ing anonymous student submissions.
+- **`ingest-submission` must always be redeployed with `--no-verify-jwt`.** There is no `config.toml`; the flag lives only on the Supabase platform and a plain redeploy silently re-enables JWT verification, 401-ing anonymous student submissions. Use `pnpm deploy:ingest` (flag baked in) instead of a raw `supabase functions deploy`; `pnpm deploy:train` walks a full multi-part deploy in the safe order.
 - **On any submission wire-format (`schemaVersion`) bump: redeploy `ingest-submission` BEFORE republishing any activity.** A page publishing the new wire POSTs a version the live ingest rejects (400) until ingest is redeployed. Ingest keeps accepting older wire versions, so the reverse order is never needed.
-- **On any `packages/graph-kit` change: upload the kit FIRST, then redeploy `publish-activity`.** Every kit change re-hashes the bundle; deploying the function first points it at a not-yet-uploaded hash and 404s the summon button. `pnpm build:graph-kit` (creds auto-load from gitignored `.env.r2`) uploads to R2 and regenerates the committed manifest — confirm the `Uploaded:` lines before the function deploy. **The regenerated `supabase/functions/_shared/graph-kit-manifest.ts` must be committed after the deploy** — it's easy to miss because the deploy runs author-side; whoever notices the dirty file commits it (an uncommitted manifest means a future function deploy from a clean checkout silently points pages back at the stale hash). Older hashes stay on R2, so already-published pages keep working until re-published.
+- **On any `packages/graph-kit` change: upload the kit FIRST, then redeploy `publish-activity`.** Every kit change re-hashes the bundle; deploying the function first points it at a not-yet-uploaded hash and 404s the summon button. `pnpm upload:graph-kit` (creds auto-load from gitignored `.env.r2`) uploads to R2 and regenerates the committed manifest — confirm the `Uploaded:` lines before the function deploy. (`pnpm build:graph-kit` is build-only and never uploads.) **The regenerated `supabase/functions/_shared/graph-kit-manifest.ts` must be committed after the deploy** — it's easy to miss because the deploy runs author-side; whoever notices the dirty file commits it (an uncommitted manifest means a future function deploy from a clean checkout silently points pages back at the stale hash). Older hashes stay on R2, so already-published pages keep working until re-published.
 - **After any change to schema, renderer, or runtime source: run `pnpm bundle:renderer` and commit the bundle in the same commit.** If the change must reach published pages, flag the `publish-activity` redeploy as a pending author action.
 
 ## Working style
@@ -61,7 +61,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - Don't regress flowing-water UX as features land — performance budget, optimistic autosave, visible state indicators, predictable shortcuts. Flag friction risks proactively.
 - Don't mix `@tiptap/*` package versions. Update the family together.
 - Don't make breaking changes to the runtime data-attribute contract. Add new attributes; never rename or remove existing ones.
-- Don't import `@activity/schema` from the runtime. Parallel types are deliberate; 20KB budget rules out Zod. Wire format is the contract.
+- Don't import `@activity/schema` from the runtime. Parallel types are deliberate; the runtime size budget (40 KiB target / 60 KiB ceiling, amended 2026-07-10) rules out Zod. Wire format is the contract.
 - **Don't mutate the DOM outside `render()`.** The single permitted exception is `applyStoredState` setting `input.value` during bootstrap restoration, before the initial render runs and before handlers attach. Every other DOM mutation goes through render.
 - **Don't query the DOM outside `init.ts`.** All `querySelector` / `querySelectorAll` against arbitrary subtrees happens once at init; downstream consumes typed refs.
 - **Don't widen the persistence schema without bumping `STORAGE_SCHEMA_VERSION`.** Load returns null on mismatch (fresh state, which is correct behavior); silently accepting wider shapes risks reading stale incompatible data.
@@ -94,3 +94,22 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - **Never use `mcp__claude-in-chrome__*` tools.** Route all browser interaction through `/browse` (or the other gstack browser skills) instead.
 
 Available skills: `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/design-shotgun`, `/design-html`, `/review`, `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/browse`, `/connect-chrome`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/setup-deploy`, `/setup-gbrain`, `/retro`, `/investigate`, `/document-release`, `/document-generate`, `/codex`, `/cso`, `/autoplan`, `/plan-devex-review`, `/devex-review`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`, `/learn`.
+
+## Skill routing
+
+When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+
+Key routing rules:
+- Product ideas/brainstorming → invoke /office-hours
+- Strategy/scope → invoke /plan-ceo-review
+- Architecture → invoke /plan-eng-review
+- Design system/plan review → invoke /design-consultation or /plan-design-review
+- Full review pipeline → invoke /autoplan
+- Bugs/errors → invoke /investigate
+- QA/testing site behavior → invoke /qa or /qa-only
+- Code review/diff check → invoke /review
+- Visual polish → invoke /design-review
+- Ship/deploy/PR → invoke /ship or /land-and-deploy
+- Save progress → invoke /context-save
+- Resume context → invoke /context-restore
+- Author a backlog-ready spec/issue → invoke /spec
