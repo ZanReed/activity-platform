@@ -1,6 +1,6 @@
 # Matching + ordering question types
 
-**Status: BUILT (2026-07-10, same session) — implemented per the decisions below; browser-verified on a bundle-rendered published page; awaiting the wire-v6 deploy train (STATE.md pending action 1).**
+**Status: BUILT (2026-07-10, same session) — implemented per the decisions below; browser-verified on a bundle-rendered published page; DEPLOYED 2026-07-10, author-confirmed.**
 
 **As-built deltas from this contract:** (1) the ```match separator splits on the
 LAST ` = ` (not the first, which broke equation items like `y = 2x + 1 = A`),
