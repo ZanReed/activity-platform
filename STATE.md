@@ -6,7 +6,8 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting:
 
-1. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
+1. **App deploy — markdown importer domain-endpoint fix (`407740e`, 2026-07-11):** imported `show: curve/line … for x > 0` domains now translate ParsedDomain's minClosed/maxClosed booleans to the schema's minStyle/maxStyle, so open endpoints stop rendering as closed dots. App-only (importer + a dead-code removal in InteractiveGraphView) — no bundle regen, no kit upload, no function redeploys.
+2. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
 
 Cleared 2026-07-10 sixth session (author-confirmed "deployed"): **the matching + ordering wire-v6 train** — `ingest-submission` (`--no-verify-jwt`, accepts v3–v6) redeployed BEFORE republish, `publish-activity` redeployed (two new blocks + storage-v7 runtime), app deployed (editor NodeViews, ```match/```order import, dashboard tables). No kit change. One eyeball still open: pointer-DRAG on a real mouse/touch device (see the status row).
 
@@ -164,4 +165,4 @@ activity-platform/
 
 ---
 
-**Last updated:** 2026-07-10 (sixth session) — matching + ordering question types built end to end (design pass → author decisions → schema/wire v6/storage v7 → renderer with deterministic shuffle + print conventions → pointer-drag/keyboard runtime → editor NodeViews → ```match/```order import fences → dashboard tables → ingest v3–v6), browser-verified on a bundle-rendered published page. Pending: the wire-v6 deploy train (action 1 — ingest FIRST). Suite: schema 206 / graph-kit 228 / renderer 460 / app 386 (1280); typecheck/lint/test green.
+**Last updated:** 2026-07-10 (sixth session) — matching + ordering question types built end to end (design pass → author decisions → schema/wire v6/storage v7 → renderer with deterministic shuffle + print conventions → pointer-drag/keyboard runtime → editor NodeViews → ```match/```order import fences → dashboard tables → ingest v3–v6), browser-verified on a bundle-rendered published page. Wire-v6 deploy train since cleared (author-confirmed, sixth session). 2026-07-11: markdown importer domain-endpoint fix committed (`407740e`) — pending an app deploy (action 1). Suite: schema 206 / graph-kit 228 / renderer 460 / app 387 (1281); typecheck/lint/test green.
