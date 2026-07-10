@@ -32,6 +32,11 @@ import type {
   InteractiveGraphBlock,
   MultipleChoiceBlock,
   MultipleChoiceOption,
+  MatchingBlock,
+  MatchingItem,
+  MatchingTarget,
+  OrderingBlock,
+  OrderingItem,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
@@ -95,6 +100,55 @@ export function createMultipleChoiceBlock(): MultipleChoiceBlock {
       createMultipleChoiceOption(),
     ],
     multiSelect: false,
+    hasConfidenceRating: false,
+    skills: [],
+  };
+}
+
+export function createMatchingItem(): MatchingItem {
+  return { id: uuid(), content: [] };
+}
+
+export function createMatchingTarget(): MatchingTarget {
+  return { id: uuid(), content: [] };
+}
+
+// Two empty item/target rows with an identity key (item n → target n) — a
+// valid starting shape the teacher edits in place. The editor warns when key
+// coverage goes incomplete (the MC zero-correct-warning precedent).
+export function createMatchingBlock(): MatchingBlock {
+  const items = [createMatchingItem(), createMatchingItem()];
+  const targets = [createMatchingTarget(), createMatchingTarget()];
+  const key: Record<string, string> = {};
+  items.forEach((item, i) => {
+    const target = targets[i];
+    if (target) key[item.id] = target.id;
+  });
+  return {
+    id: uuid(),
+    type: 'matching',
+    prompt: [],
+    items,
+    targets,
+    key,
+    allowTargetReuse: false,
+    hasConfidenceRating: false,
+    skills: [],
+  };
+}
+
+export function createOrderingItem(): OrderingItem {
+  return { id: uuid(), content: [] };
+}
+
+export function createOrderingBlock(): OrderingBlock {
+  // Three empty items (the smallest ordering that isn't a coin flip); the
+  // authored order is the correct order.
+  return {
+    id: uuid(),
+    type: 'ordering',
+    prompt: [],
+    items: [createOrderingItem(), createOrderingItem(), createOrderingItem()],
     hasConfidenceRating: false,
     skills: [],
   };

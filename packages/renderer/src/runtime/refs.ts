@@ -120,6 +120,80 @@ export interface McRef {
     sectionId: string;
 }
 
+/** One left-column item inside a matching block. */
+export interface MatchItemRef {
+    /** The .match-item row. */
+    el: HTMLElement;
+    /** The .match-slot dock render() parks a target card (or chip) into. */
+    slot: HTMLElement;
+}
+
+/** One right-column target card inside a matching block. */
+export interface MatchTargetRef {
+    /** The draggable .match-target card. */
+    card: HTMLElement;
+    /** The .match-target-slot home wrapper (holds the ghost letter). */
+    home: HTMLElement;
+    /** The card's letter (A…), fixed by the publish-time shuffle. */
+    letter: string;
+}
+
+/** One per matching block. */
+export interface MatchRef {
+    /** The block <div>. */
+    el: HTMLElement;
+    /** Item ids in document order — the per-pair scoring denominator. */
+    itemIds: string[];
+    /** Per-item refs, keyed by item id. */
+    items: Map<string, MatchItemRef>;
+    /** Target ids in rendered (publish-time shuffled) order. */
+    targetIds: string[];
+    /** Per-target refs, keyed by target id. */
+    targets: Map<string, MatchTargetRef>;
+    /** The baked answer key from data-match-key (item id → target id). */
+    key: Record<string, string>;
+    /** Many-to-one docking allowed (data-match-reuse) — dock COPIES the card. */
+    allowReuse: boolean;
+    /** The .js-match-status live region for drag/keyboard narration. */
+    statusEl: HTMLElement | null;
+    /** The .js-solution slot, revealed at check time; null when none authored. */
+    solutionEl: HTMLElement | null;
+    /** Whether the block surfaces a confidence-rating fieldset. */
+    hasConfidenceRating: boolean;
+    /** Radios inside the confidence fieldset (empty when none). */
+    confidenceRadios: HTMLInputElement[];
+    /** Skill tags from data-skills (empty when absent). */
+    skills: string[];
+    /** ID of the section this block belongs to. */
+    sectionId: string;
+}
+
+/** One per ordering block. */
+export interface OrderingRef {
+    /** The block <div>. */
+    el: HTMLElement;
+    /** The .order-list container render() re-sequences. */
+    list: HTMLElement;
+    /** Item elements keyed by item id. */
+    items: Map<string, HTMLElement>;
+    /** Item ids in the rendered (publish-time shuffled) order at load. */
+    initialOrder: string[];
+    /** The authored (correct) order from data-order-answer. */
+    answer: string[];
+    /** The .js-order-status live region for drag/keyboard narration. */
+    statusEl: HTMLElement | null;
+    /** The .js-solution slot, revealed at check time; null when none authored. */
+    solutionEl: HTMLElement | null;
+    /** Whether the block surfaces a confidence-rating fieldset. */
+    hasConfidenceRating: boolean;
+    /** Radios inside the confidence fieldset (empty when none). */
+    confidenceRadios: HTMLInputElement[];
+    /** Skill tags from data-skills (empty when absent). */
+    skills: string[];
+    /** ID of the section this block belongs to. */
+    sectionId: string;
+}
+
 /**
  * One per graded interactive_graph block. SLIM since the 2026-07-10 bundle-
  * budget move: only what the INLINE runtime consumes — scoring totals, the
@@ -180,6 +254,10 @@ export interface SectionRef {
     graphBlockIds: string[];
     /** IDs of every multiple_choice block in this section (each scores as 1). */
     mcBlockIds: string[];
+    /** IDs of every matching block in this section (each pair scores as 1). */
+    matchBlockIds: string[];
+    /** IDs of every ordering block in this section (each scores as 1). */
+    orderingBlockIds: string[];
     /** The .js-checkpoint-btn — present only on checkpoint sections in locked/free mode. */
     checkButton: HTMLButtonElement | null;
     /** The .js-section-score slot — present only on checkpoint sections in locked/free mode. */
@@ -214,6 +292,8 @@ export interface Refs {
     blanks: Map<string, BlankRef>;
     fillInBlanks: Map<string, FillInBlankRef>;
     mcs: Map<string, McRef>;
+    matches: Map<string, MatchRef>;
+    orderings: Map<string, OrderingRef>;
     graphs: Map<string, GraphRef>;
     /** Static (display-mode) graph blocks — mounted read-only, never scored. */
     graphDisplays: Map<string, GraphDisplayRef>;

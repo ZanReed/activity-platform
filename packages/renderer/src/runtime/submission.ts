@@ -26,6 +26,8 @@
 import { $ } from './dom.js';
 import { scoreBlanksInScope, trimValue } from './blanks.js';
 import { scoreMcBlocks } from './mcs.js';
+import { scoreMatchBlocks } from './matches.js';
+import { scoreOrderingBlocks } from './orderings.js';
 import { graphExt } from './graph-integration.js';
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
@@ -84,6 +86,23 @@ export interface McResult {
   confidence?: 'unsure' | 'think_so' | 'certain';
 }
 
+// Mirrors schema MatchResponse — one matching block's answer (per-pair
+// earned/total; the pairing map is item id → docked target id).
+export interface MatchResult {
+  pairs: Record<string, string>;
+  correct: boolean;
+  earned: number;
+  total: number;
+  confidence?: 'unsure' | 'think_so' | 'certain';
+}
+
+// Mirrors schema OrderResponse — one ordering block's full arrangement.
+export interface OrderResult {
+  order: string[];
+  correct: boolean;
+  confidence?: 'unsure' | 'think_so' | 'certain';
+}
+
 interface CheckpointResultPayload {
   score: number;
   total: number;
@@ -91,11 +110,13 @@ interface CheckpointResultPayload {
 }
 
 interface SubmissionResponsesPayload {
-  schemaVersion: 5;
+  schemaVersion: 6;
   blanks: Record<string, BlankResult>;
   checkpointResults?: Record<string, CheckpointResultPayload>;
   graphResponses?: Record<string, GraphResult>;
   choices?: Record<string, McResult>;
+  matches?: Record<string, MatchResult>;
+  orderings?: Record<string, OrderResult>;
 }
 
 // Wire shape POSTed to the ingest-submission Edge Function. Keys are
@@ -123,12 +144,14 @@ export function buildSubmissionPayload(
     blanks: Record<string, BlankResult>;
     graphResponses?: Record<string, GraphResult>;
     choices?: Record<string, McResult>;
+    matches?: Record<string, MatchResult>;
+    orderings?: Record<string, OrderResult>;
     score: number;
   },
   checkpointResults: Record<string, CheckpointResultPayload> | undefined,
 ): SubmissionPayload {
   const responses: SubmissionResponsesPayload = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     blanks: gathered.blanks,
   };
   if (checkpointResults) {
@@ -139,6 +162,12 @@ export function buildSubmissionPayload(
   }
   if (gathered.choices) {
     responses.choices = gathered.choices;
+  }
+  if (gathered.matches) {
+    responses.matches = gathered.matches;
+  }
+  if (gathered.orderings) {
+    responses.orderings = gathered.orderings;
   }
   return {
     activity_id: config.activityId,
@@ -152,6 +181,8 @@ interface GatheredResponses {
   blanks: Record<string, BlankResult>;
   graphResponses?: Record<string, GraphResult>;
   choices?: Record<string, McResult>;
+  matches?: Record<string, MatchResult>;
+  orderings?: Record<string, OrderResult>;
   score: number;
   totalScored: number;
 }
@@ -216,6 +247,43 @@ export function gatherResponses(
     (choices ??= {})[blockId] = result;
   }
 
+  // Matching blocks — scored per pair: an answered block contributes its item
+  // count to the total and its earned pairs to correct. Unanswered blocks are
+  // omissions (absent from the map, out of the score).
+  scoreMatchBlocks(state, refs, refs.matches.keys());
+  let matches: Record<string, MatchResult> | undefined;
+  for (const [blockId] of refs.matches) {
+    const matchState = state.matches[blockId];
+    if (!matchState || matchState.result === null) continue;
+    totalScored += matchState.total;
+    totalCorrect += matchState.earned;
+    const result: MatchResult = {
+      pairs: matchState.pairs,
+      correct: matchState.result === true,
+      earned: matchState.earned,
+      total: matchState.total,
+    };
+    if (matchState.confidence) result.confidence = matchState.confidence;
+    (matches ??= {})[blockId] = result;
+  }
+
+  // Ordering blocks — one scorable unit each, all-or-nothing. An untouched
+  // list is an omission (absent from the map, out of the score).
+  scoreOrderingBlocks(state, refs, refs.orderings.keys());
+  let orderings: Record<string, OrderResult> | undefined;
+  for (const [blockId] of refs.orderings) {
+    const orderState = state.orderings[blockId];
+    if (!orderState || orderState.result === null) continue;
+    totalScored += 1;
+    if (orderState.result === true) totalCorrect += 1;
+    const result: OrderResult = {
+      order: orderState.order,
+      correct: orderState.result === true,
+    };
+    if (orderState.confidence) result.confidence = orderState.confidence;
+    (orderings ??= {})[blockId] = result;
+  }
+
   // Interactive-graph blocks score alongside blanks (each is one scorable unit,
   // client-side-scored by the graph feature as the student moved the point). An
   // unanswered graph is an omission — counted in neither total nor correct, and
@@ -229,6 +297,8 @@ export function gatherResponses(
     blanks,
     ...(graphs.graphResponses && { graphResponses: graphs.graphResponses }),
     ...(choices && { choices }),
+    ...(matches && { matches }),
+    ...(orderings && { orderings }),
     score: computeScore(totalCorrect, totalScored),
     totalScored,
   };

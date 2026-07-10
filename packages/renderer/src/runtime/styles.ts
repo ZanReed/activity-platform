@@ -303,6 +303,195 @@ body {
   .mc-choices-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* Matching block — same two-column problem grid as fill-in-blank. Items on
+ the left each carry a dashed dock (.match-slot); the lettered target cards on
+ the right are dragged into the docks (pointer drag with a keyboard
+ select-then-place grammar underneath — runtime/matches.ts). */
+.block-matching {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+  align-items: start;
+}
+.match-prompt { margin-bottom: 0.5rem; }
+.match-prompt > :first-child { margin-top: 0; }
+.match-prompt > :last-child { margin-bottom: 0; }
+.match-reuse-hint {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 0.35rem;
+}
+.match-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 0.5rem 1.25rem;
+  align-items: start;
+}
+@media (max-width: 40rem) {
+  .match-columns { grid-template-columns: minmax(0, 1fr); }
+}
+.match-items,
+.match-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.match-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+}
+.match-item-content { flex: 1 1 auto; min-width: 0; }
+/* The dock. Runtime render() parks a target card inside; drag-over highlight
+ and the docked state are runtime-toggled classes. */
+.match-slot {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  min-height: 2.1rem;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 6px;
+  display: flex;
+  align-items: stretch;
+}
+.match-slot.drag-over { border-color: #2563eb; background: #eff6ff; }
+.match-slot .match-target { flex: 1 1 auto; }
+/* Target cards: grabbable. touch-action none hands the gesture to the
+ runtime's pointer-drag instead of scrolling the page (the graph canvas
+ precedent). */
+.match-target {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.match-target:focus-visible,
+.order-item:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+/* Runtime drag/keyboard-lift states (shared grammar, both blocks). */
+.match-target.dragging,
+.order-item.dragging {
+  opacity: 0.85;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+  cursor: grabbing;
+  position: relative;
+  z-index: 10;
+}
+.match-target.lifted,
+.order-item.lifted {
+  outline: 2px dashed #2563eb;
+  outline-offset: 2px;
+}
+.match-target-letter {
+  font-weight: 600;
+  color: #64748b;
+  min-width: 1.1rem;
+}
+.match-target-content { min-width: 0; }
+/* Ghost letter left behind in an emptied right-column slot, so the bank's
+ letters stay put while the card is docked on an item. */
+.match-slot-ghost { display: none; }
+.match-target-slot.is-empty .match-slot-ghost {
+  display: flex;
+  align-items: center;
+  min-height: 2.1rem;
+  padding: 0 0.6rem;
+  border: 1.5px dashed #e2e8f0;
+  border-radius: 6px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+/* Post-check per-pair result classes (toggled by the runtime on the item). */
+.match-item.correct { background: var(--color-success-bg, #ecfdf5); }
+.match-item.incorrect { background: #fef2f2; }
+/* Optional per-item/target figure — same treatment as .mc-choice-figure. */
+.match-figure {
+  display: block;
+  margin-top: 0.35rem;
+  max-width: 11rem;
+}
+.match-figure img,
+.match-figure .graph-paper {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.match-figure img { border: 1px solid #e2e8f0; }
+/* Write-the-letter line — print-only (see the print block). */
+.match-letter-line { display: none; }
+
+/* Ordering block — same two-column problem grid as fill-in-blank. The list
+ renders publish-time shuffled; students drag rows into sequence
+ (runtime/orderings.ts). */
+.block-ordering {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+  align-items: start;
+}
+.order-prompt { margin-bottom: 0.5rem; }
+.order-prompt > :first-child { margin-top: 0; }
+.order-prompt > :last-child { margin-bottom: 0; }
+.order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.order-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.order-item-grip { color: #94a3b8; }
+.order-item-content { min-width: 0; }
+/* Drop-position gap the runtime opens while a row is dragged over the list. */
+.order-item.drop-before { margin-top: 1.4rem; }
+.order-item.drop-after { margin-bottom: 1.4rem; }
+/* Post-check per-position result classes (block SCORE stays all-or-nothing;
+ the per-row verdicts are feedback, like per-blank verdicts). */
+.order-item.correct { background: var(--color-success-bg, #ecfdf5); border-color: #a7f3d0; }
+.order-item.incorrect { background: #fef2f2; border-color: #fecaca; }
+/* Write-in sequence-number box — print-only (see the print block). */
+.order-number-box { display: none; }
+/* Visually-hidden live region for drag/keyboard narration (matching +
+ ordering). Standard clip-rect screen-reader-only recipe. */
+.sr-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+/* Reuse-mode docked COPY of a target card (runtime-built; the original card
+ stays in the bank). Click/tap removes the pairing. */
+.match-docked-chip { cursor: pointer; }
+.match-docked-chip:hover { border-color: #dc2626; }
+
 /* The display (static-figure) variant emits no problem number, so the numbered
  grid would auto-place its single body child into the 2.5rem gutter track and
  crush the canvas to 40px. No gutter → no grid. */
@@ -1173,7 +1362,9 @@ body {
   .block-problem,
   .block-fill-in-blank,
   .block-interactive-graph,
-  .block-multiple-choice {
+  .block-multiple-choice,
+  .block-matching,
+  .block-ordering {
     break-inside: avoid;
     margin-top: var(--print-problem-spacing, 1.25rem);
     margin-bottom: var(--print-problem-spacing, 1.25rem);
@@ -1197,6 +1388,52 @@ body {
     outline: 1.5px solid black;
     outline-offset: 2px;
     border-radius: 50%;
+  }
+
+  /* Matching on paper: the century-old convention — a lettered bank on the
+   right, a write-the-letter line on each item. The interactive dock (and any
+   ghost letters) disappear; verdict backgrounds are neutralized (a printed
+   worksheet is the blank version). The answer-key variant fills the line. */
+  .match-slot,
+  .match-slot-ghost,
+  .match-target-slot.is-empty .match-slot-ghost {
+    display: none;
+  }
+  .match-letter-line {
+    display: inline-block;
+    min-width: 2.5rem;
+    border-bottom: 1px solid black;
+    text-align: center;
+    font-weight: 600;
+    align-self: baseline;
+  }
+  .match-item,
+  .match-item.correct,
+  .match-item.incorrect {
+    background: transparent;
+  }
+  .match-target { border-color: black; cursor: default; }
+  .match-target-letter { color: black; }
+
+  /* Ordering on paper: "number the steps 1–N" — a write-in box per row, grip
+   glyphs hidden, verdict styling neutralized. The answer-key variant fills
+   each box with the item's correct position. */
+  .order-item-grip { display: none; }
+  .order-number-box {
+    display: inline-block;
+    min-width: 1.6rem;
+    min-height: 1.4rem;
+    border: 1px solid black;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 600;
+  }
+  .order-item,
+  .order-item.correct,
+  .order-item.incorrect {
+    background: transparent;
+    border-color: black;
+    cursor: default;
   }
   .activity-section {
     break-before: auto; /* explicit: flow naturally, don't force a page */

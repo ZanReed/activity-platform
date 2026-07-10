@@ -102,6 +102,69 @@ export interface McBlockState {
     confidence: 'unsure' | 'think_so' | 'certain' | null;
 }
 
+export interface MatchBlockState {
+    /**
+     * Docked pairs: item id → target id. Empty = unanswered (an omission at
+     * check/submit time). Under allowTargetReuse several items may carry the
+     * same target id; otherwise setPair enforces one dock per target.
+     */
+    pairs: Record<string, string>;
+    /**
+     * Scoring result: true = every pair correct, false = at least one wrong/
+     * missing pair, null = unscored (unanswered, or never checked). Written
+     * at check/submit time. earned/total carry the per-pair breakdown
+     * (earned of total items correctly paired) for the score fold + payload.
+     */
+    result: boolean | null;
+    earned: number;
+    total: number;
+    /** Whether this block's solution slot has been revealed (post-check). */
+    solutionRevealed: boolean;
+    /** Student's per-block confidence selection (null until picked). */
+    confidence: 'unsure' | 'think_so' | 'certain' | null;
+}
+
+export interface OrderBlockState {
+    /**
+     * The student's current arrangement — ALWAYS the full item-id list.
+     * Starts as the publish-time shuffled order read from the DOM at init.
+     */
+    order: string[];
+    /**
+     * True once the student has rearranged anything. A shuffled list is
+     * always *some* sequence, so an untouched list must read as an OMISSION
+     * — this flag is what distinguishes "hasn't started" from "submitted
+     * the dealt order on purpose" (the latter requires at least one move).
+     */
+    moved: boolean;
+    /**
+     * Scoring result: true = exact sequence match with the authored order
+     * (all-or-nothing), false = any deviation, null = unscored (untouched,
+     * or never checked). Written at check/submit time.
+     */
+    result: boolean | null;
+    /** Whether this block's solution slot has been revealed (post-check). */
+    solutionRevealed: boolean;
+    /** Student's per-block confidence selection (null until picked). */
+    confidence: 'unsure' | 'think_so' | 'certain' | null;
+}
+
+/**
+ * Transient keyboard select-then-place gesture (matching + ordering) — the
+ * lifted card/row and, for matching, the currently targeted item dock.
+ * Deliberately NOT persisted (like popover): a reload shouldn't restore a
+ * half-made keyboard gesture. Pointer drags never touch this — they track
+ * in handler-local variables (the popover-drag precedent).
+ */
+export interface ArrangeState {
+    kind: 'match' | 'order';
+    blockId: string;
+    /** The lifted target id (match) or item id (order). */
+    id: string;
+    /** match only: the item dock the next drop lands on. */
+    cursorItemId: string | null;
+}
+
 // GraphBlockState moved to the SHARED bridge↔kit contract (the kit-side
 // plumbing writes its fields, this runtime persists + scores them): single
 // definition, imported type-only here (erased at build — zero bytes, no
@@ -138,6 +201,15 @@ export interface RuntimeState {
     blocks: Record<string, BlockState>;
     /** Per-multiple-choice-block status, keyed by block.id. */
     mcs: Record<string, McBlockState>;
+    /** Per-matching-block status, keyed by block.id. */
+    matches: Record<string, MatchBlockState>;
+    /** Per-ordering-block status, keyed by block.id. */
+    orderings: Record<string, OrderBlockState>;
+    /**
+     * The in-flight keyboard select-then-place gesture, or null. One at a
+     * time page-wide (a second lift cancels the first). Not persisted.
+     */
+    arrange: ArrangeState | null;
     /** Per-interactive-graph-block status, keyed by block.id. */
     graphs: Record<string, GraphBlockState>;
 }
@@ -186,6 +258,27 @@ export function createInitialState(refs: Refs): RuntimeState {
             confidence: null,
         };
     }
+    const matches: Record<string, MatchBlockState> = {};
+    for (const [id] of refs.matches) {
+        matches[id] = {
+            pairs: {},
+            result: null,
+            earned: 0,
+            total: 0,
+            solutionRevealed: false,
+            confidence: null,
+        };
+    }
+    const orderings: Record<string, OrderBlockState> = {};
+    for (const [id, ref] of refs.orderings) {
+        orderings[id] = {
+            order: ref.initialOrder.slice(),
+            moved: false,
+            result: null,
+            solutionRevealed: false,
+            confidence: null,
+        };
+    }
     const graphs = graphExt.initGraphState(refs);
     return {
         submitted: false,
@@ -196,6 +289,9 @@ export function createInitialState(refs: Refs): RuntimeState {
         blanks,
         blocks,
         mcs,
+        matches,
+        orderings,
+        arrange: null,
         graphs,
     };
 }

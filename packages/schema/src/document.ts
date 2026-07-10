@@ -286,11 +286,23 @@ export const CalculatorTool = z.object({
 });
 export type CalculatorTool = z.infer<typeof CalculatorTool>;
 
-export const ActivityDocument = z.object({
-  schemaVersion: z.literal(1),
-                                         meta: ActivityMeta,
-                                         sections: z.array(Section),
-                                         referencePanel: ReferencePanel.optional(),
-                                         calculator: CalculatorTool.optional(),
-});
-export type ActivityDocument = z.infer<typeof ActivityDocument>;
+// The explicit type + z.ZodType annotation (instead of z.infer) exists because
+// the fully inferred document type outgrew tsc's declaration-serialization
+// limit (TS7056) when the Block union reached 14 members. Structurally
+// identical to what inference produced; nothing here loses type safety —
+// the annotation is checked against the object schema.
+export interface ActivityDocument {
+  schemaVersion: 1;
+  meta: ActivityMeta;
+  sections: Section[];
+  referencePanel?: ReferencePanel;
+  calculator?: CalculatorTool;
+}
+export const ActivityDocument: z.ZodType<ActivityDocument, z.ZodTypeDef, unknown> =
+  z.object({
+    schemaVersion: z.literal(1),
+    meta: ActivityMeta,
+    sections: z.array(Section),
+    referencePanel: ReferencePanel.optional(),
+    calculator: CalculatorTool.optional(),
+  });

@@ -22,6 +22,8 @@ import type {
     BlankRef,
     FillInBlankRef,
     McRef,
+    MatchRef,
+    OrderingRef,
     SectionRef,
     PopoverRef,
 } from './refs.js';
@@ -30,6 +32,8 @@ import type {
     BlankState,
     BlockState,
     McBlockState,
+    MatchBlockState,
+    OrderBlockState,
     SectionState,
 } from './state.js';
 import { graphExt } from './graph-integration.js';
@@ -50,6 +54,14 @@ export function render(state: RuntimeState, refs: Refs): void {
     for (const [id, ref] of refs.mcs) {
         const mcState = state.mcs[id];
         if (mcState) renderMcBlock(mcState, ref, state);
+    }
+    for (const [id, ref] of refs.matches) {
+        const matchState = state.matches[id];
+        if (matchState) renderMatchBlock(id, matchState, ref, state);
+    }
+    for (const [id, ref] of refs.orderings) {
+        const orderState = state.orderings[id];
+        if (orderState) renderOrderBlock(id, orderState, ref, state);
     }
     graphExt.renderGraphs(state, refs);
     for (const [id, ref] of refs.sections) {
@@ -224,6 +236,210 @@ function renderMcBlock(
         if (radio.checked !== wantChecked) {
             radio.checked = wantChecked;
         }
+    }
+}
+
+/**
+ * Matching block rendering. State (pairs) is the single source of truth for
+ * where every target card lives:
+ *
+ *   - Without reuse, the REAL card node is MOVED between its bank home and
+ *     the paired item's dock (appendChild relocation — the card's listeners
+ *     travel with it), and the emptied bank slot shows its ghost letter via
+ *     .is-empty.
+ *   - With reuse, cards never leave the bank; each paired dock instead holds
+ *     a cloned .match-docked-chip (guarded by data-docked-target so render
+ *     ticks don't re-clone), removed by the delegated click handler.
+ *
+ * Verdicts appear per PAIR once the owning section has been checked and the
+ * block was answered at all: paired items get .correct/.incorrect from a
+ * live key comparison (the MC pattern — stale stored verdicts can't drift
+ * from what's on screen), and unpaired items read .incorrect because they
+ * cost a point. A wholly unanswered block is an omission and shows nothing.
+ */
+function renderMatchBlock(
+    blockId: string,
+    matchState: MatchBlockState,
+    ref: MatchRef,
+    state: RuntimeState,
+): void {
+    const sectionState = state.sections[ref.sectionId];
+    const sectionChecked = sectionState?.checked === true;
+    const locked = sectionState?.locked === true || state.submitted;
+    const answered = Object.keys(matchState.pairs).length > 0;
+
+    // Which target sits on which item (reverse map, first wins for reuse).
+    const targetByItem = matchState.pairs;
+
+    for (const targetId of ref.targetIds) {
+        const target = ref.targets.get(targetId);
+        if (!target) continue;
+
+        const lifted =
+            state.arrange?.kind === 'match' &&
+            state.arrange.blockId === blockId &&
+            state.arrange.id === targetId;
+        target.card.classList.toggle('lifted', lifted === true);
+        const wantPressed = lifted ? 'true' : 'false';
+        if (target.card.getAttribute('aria-pressed') !== wantPressed) {
+            target.card.setAttribute('aria-pressed', wantPressed);
+        }
+        const wantTabindex = locked ? '-1' : '0';
+        if (target.card.getAttribute('tabindex') !== wantTabindex) {
+            target.card.setAttribute('tabindex', wantTabindex);
+        }
+
+        if (ref.allowReuse) {
+            // Bank cards never move under reuse; docks hold chips (below).
+            continue;
+        }
+        const dockedItem = Object.keys(targetByItem).find(
+            (itemId) => targetByItem[itemId] === targetId,
+        );
+        const desiredParent = dockedItem
+            ? ref.items.get(dockedItem)?.slot ?? target.home
+            : target.home;
+        if (target.card.parentElement !== desiredParent) {
+            desiredParent.appendChild(target.card);
+        }
+        target.home.classList.toggle('is-empty', dockedItem !== undefined);
+    }
+
+    for (const itemId of ref.itemIds) {
+        const item = ref.items.get(itemId);
+        if (!item) continue;
+        const pairedTarget = matchState.pairs[itemId];
+
+        // Reuse mode: reconcile the dock's chip against state, guarded so a
+        // render tick with an unchanged pairing doesn't re-clone.
+        if (ref.allowReuse) {
+            const want = pairedTarget ?? '';
+            if (item.slot.dataset.dockedTarget !== want) {
+                if (pairedTarget) {
+                    const source = ref.targets.get(pairedTarget);
+                    if (source) {
+                        const chip = source.card.cloneNode(true) as HTMLElement;
+                        chip.classList.add('match-docked-chip');
+                        chip.classList.remove('lifted', 'dragging');
+                        chip.removeAttribute('tabindex');
+                        chip.dataset.itemId = itemId;
+                        item.slot.replaceChildren(chip);
+                    }
+                } else {
+                    item.slot.replaceChildren();
+                }
+                item.slot.dataset.dockedTarget = want;
+            }
+        }
+
+        // Keyboard cursor highlight while a card is lifted.
+        const isCursor =
+            state.arrange?.kind === 'match' &&
+            state.arrange.blockId === blockId &&
+            state.arrange.cursorItemId === itemId;
+        item.slot.classList.toggle('drag-over', isCursor === true);
+
+        // Per-pair verdicts (live key comparison — see the function comment).
+        const showVerdict = sectionChecked && answered;
+        const pairCorrect =
+            pairedTarget !== undefined && pairedTarget === ref.key[itemId];
+        item.el.classList.toggle('correct', showVerdict && pairCorrect);
+        item.el.classList.toggle('incorrect', showVerdict && !pairCorrect);
+    }
+
+    // Solution slot — hidden until solutionRevealed flips true.
+    if (ref.solutionEl) {
+        const wantHidden = !matchState.solutionRevealed;
+        if (ref.solutionEl.hidden !== wantHidden) {
+            ref.solutionEl.hidden = wantHidden;
+        }
+    }
+
+    // Confidence radio reflection — same contract as renderBlock's.
+    for (const radio of ref.confidenceRadios) {
+        const wantChecked = radio.value === matchState.confidence;
+        if (radio.checked !== wantChecked) {
+            radio.checked = wantChecked;
+        }
+        if (radio.disabled !== locked) radio.disabled = locked;
+    }
+}
+
+/**
+ * Ordering block rendering. State (order) is the single source of truth for
+ * the row sequence: render re-sequences the list's children to match with
+ * minimal insertBefore moves (idempotent — an already-ordered list is
+ * untouched). Verdicts appear per POSITION once the owning section has been
+ * checked and the student has moved anything (the block score itself stays
+ * all-or-nothing; per-row verdicts are feedback, like per-blank verdicts).
+ */
+function renderOrderBlock(
+    blockId: string,
+    orderState: OrderBlockState,
+    ref: OrderingRef,
+    state: RuntimeState,
+): void {
+    const sectionState = state.sections[ref.sectionId];
+    const sectionChecked = sectionState?.checked === true;
+    const locked = sectionState?.locked === true || state.submitted;
+
+    // Re-sequence with minimal moves: walk the desired order and pull each
+    // element into place only when it isn't already there.
+    let prev: HTMLElement | null = null;
+    for (const itemId of orderState.order) {
+        const el = ref.items.get(itemId);
+        if (!el) continue;
+        const expectedPrev = prev;
+        if (el.previousElementSibling !== expectedPrev) {
+            ref.list.insertBefore(
+                el,
+                expectedPrev ? expectedPrev.nextSibling : ref.list.firstChild,
+            );
+        }
+        prev = el;
+    }
+
+    const showVerdict = sectionChecked && orderState.moved;
+    for (let i = 0; i < orderState.order.length; i++) {
+        const itemId = orderState.order[i];
+        if (itemId === undefined) continue;
+        const el = ref.items.get(itemId);
+        if (!el) continue;
+
+        const lifted =
+            state.arrange?.kind === 'order' &&
+            state.arrange.blockId === blockId &&
+            state.arrange.id === itemId;
+        el.classList.toggle('lifted', lifted === true);
+        const wantPressed = lifted ? 'true' : 'false';
+        if (el.getAttribute('aria-pressed') !== wantPressed) {
+            el.setAttribute('aria-pressed', wantPressed);
+        }
+        const wantTabindex = locked ? '-1' : '0';
+        if (el.getAttribute('tabindex') !== wantTabindex) {
+            el.setAttribute('tabindex', wantTabindex);
+        }
+
+        const positionCorrect = ref.answer[i] === itemId;
+        el.classList.toggle('correct', showVerdict && positionCorrect);
+        el.classList.toggle('incorrect', showVerdict && !positionCorrect);
+    }
+
+    // Solution slot — hidden until solutionRevealed flips true.
+    if (ref.solutionEl) {
+        const wantHidden = !orderState.solutionRevealed;
+        if (ref.solutionEl.hidden !== wantHidden) {
+            ref.solutionEl.hidden = wantHidden;
+        }
+    }
+
+    // Confidence radio reflection — same contract as renderBlock's.
+    for (const radio of ref.confidenceRadios) {
+        const wantChecked = radio.value === orderState.confidence;
+        if (radio.checked !== wantChecked) {
+            radio.checked = wantChecked;
+        }
+        if (radio.disabled !== locked) radio.disabled = locked;
     }
 }
 

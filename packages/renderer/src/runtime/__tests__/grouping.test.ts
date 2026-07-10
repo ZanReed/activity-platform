@@ -49,7 +49,7 @@ function makeRefs(refs: BlankRef[]): Refs {
   return {
     blanks,
     fillInBlanks: new Map(),
-    mcs: new Map(),
+    mcs: new Map(), matches: new Map(), orderings: new Map(),
     graphs: new Map(),
     graphDisplays: new Map(),
     sections: new Map(),
@@ -68,7 +68,7 @@ function makeState(blankIds: string[]): RuntimeState {
     sections: {},
     blanks,
     blocks: {},
-    mcs: {},
+    mcs: {}, matches: {}, orderings: {}, arrange: null,
     graphs: {},
   };
 }

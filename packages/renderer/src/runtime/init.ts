@@ -25,6 +25,10 @@ import {
     type BlankRef,
     type FillInBlankRef,
     type McRef,
+    type MatchRef,
+    type MatchItemRef,
+    type MatchTargetRef,
+    type OrderingRef,
     type GraphRef,
     type GraphDisplayRef,
     type SectionRef,
@@ -54,6 +58,8 @@ export function buildRefs(doc: Document = document): Refs {
     const fillInBlanks = new Map<string, FillInBlankRef>();
     const blanks = new Map<string, BlankRef>();
     const mcs = new Map<string, McRef>();
+    const matches = new Map<string, MatchRef>();
+    const orderings = new Map<string, OrderingRef>();
     const graphs = new Map<string, GraphRef>();
     const graphDisplays = new Map<string, GraphDisplayRef>();
 
@@ -67,6 +73,8 @@ export function buildRefs(doc: Document = document): Refs {
         const sectionBlockIds: string[] = [];
         const sectionBlankIds: string[] = [];
         const sectionMcBlockIds: string[] = [];
+        const sectionMatchBlockIds: string[] = [];
+        const sectionOrderingBlockIds: string[] = [];
         const sectionGraphBlockIds: string[] = [];
 
         for (const blockEl of $$<HTMLElement>(
@@ -112,6 +120,38 @@ export function buildRefs(doc: Document = document): Refs {
             sectionMcBlockIds.push(blockId);
         }
 
+        // Matching blocks — scored per pair (each item is one point).
+        for (const blockEl of $$<HTMLElement>(
+            '[data-block-type="matching"]',
+            sectionEl,
+        )) {
+            const blockId = blockEl.dataset.blockId;
+            if (!blockId) {
+                warn('Matching block is missing data-block-id; skipping.');
+                continue;
+            }
+            const ref = buildMatchRef(blockEl, blockId, sectionId);
+            if (!ref) continue;
+            matches.set(blockId, ref);
+            sectionMatchBlockIds.push(blockId);
+        }
+
+        // Ordering blocks — one scorable unit each, all-or-nothing.
+        for (const blockEl of $$<HTMLElement>(
+            '[data-block-type="ordering"]',
+            sectionEl,
+        )) {
+            const blockId = blockEl.dataset.blockId;
+            if (!blockId) {
+                warn('Ordering block is missing data-block-id; skipping.');
+                continue;
+            }
+            const ref = buildOrderingRef(blockEl, blockId, sectionId);
+            if (!ref) continue;
+            orderings.set(blockId, ref);
+            sectionOrderingBlockIds.push(blockId);
+        }
+
         // Graph blocks (graded + display) are the graph feature's to walk: in
         // the base runtime build this is a no-op and no graph code ships.
         sectionGraphBlockIds.push(
@@ -125,6 +165,8 @@ export function buildRefs(doc: Document = document): Refs {
                 sectionBlockIds,
                 sectionBlankIds,
                 sectionMcBlockIds,
+                sectionMatchBlockIds,
+                sectionOrderingBlockIds,
                 sectionGraphBlockIds,
             ),
         );
@@ -134,6 +176,8 @@ export function buildRefs(doc: Document = document): Refs {
         blanks,
         fillInBlanks,
         mcs,
+        matches,
+        orderings,
         graphs,
         graphDisplays,
         sections,
@@ -362,11 +406,181 @@ function buildMcRef(
     };
 }
 
+/**
+ * Build the ref for one matching block. Returns null when the baked answer
+ * key (data-match-key) is missing or malformed — a block the runtime can't
+ * score is skipped whole (its cards stay inert), the rest of the page works.
+ */
+function buildMatchRef(
+    el: HTMLElement,
+    blockId: string,
+    sectionId: string,
+): MatchRef | null {
+    let key: Record<string, string> | null = null;
+    try {
+        const parsed = JSON.parse(el.dataset.matchKey ?? '') as unknown;
+        if (
+            parsed !== null &&
+            typeof parsed === 'object' &&
+            !Array.isArray(parsed) &&
+            Object.values(parsed).every((v) => typeof v === 'string')
+        ) {
+            key = parsed as Record<string, string>;
+        }
+    } catch {
+        /* fall through to the warn below */
+    }
+    if (key === null) {
+        warn('Block ' + blockId + ' has malformed data-match-key; skipping.');
+        return null;
+    }
+
+    const itemIds: string[] = [];
+    const items = new Map<string, MatchItemRef>();
+    for (const itemEl of $$<HTMLElement>('.match-item', el)) {
+        const itemId = itemEl.dataset.itemId;
+        const slot = itemEl.querySelector<HTMLElement>('.match-slot');
+        if (!itemId || !slot) continue;
+        itemIds.push(itemId);
+        items.set(itemId, { el: itemEl, slot });
+    }
+
+    const targetIds: string[] = [];
+    const targets = new Map<string, MatchTargetRef>();
+    for (const home of $$<HTMLElement>('.match-target-slot', el)) {
+        const targetId = home.dataset.targetId;
+        const card = home.querySelector<HTMLElement>('.match-target');
+        const letterEl = home.querySelector<HTMLElement>('.match-target-letter');
+        if (!targetId || !card) continue;
+        targetIds.push(targetId);
+        targets.set(targetId, {
+            card,
+            home,
+            letter: (letterEl?.textContent ?? '').replace('.', ''),
+        });
+    }
+
+    const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
+        '.js-confidence-rating',
+    );
+    const confidenceRadios: HTMLInputElement[] = confidenceFieldset
+        ? Array.prototype.slice.call(
+              confidenceFieldset.querySelectorAll<HTMLInputElement>(
+                  'input[type="radio"]',
+              ),
+          )
+        : [];
+
+    let skills: string[] = [];
+    const rawSkills = el.dataset.skills;
+    if (rawSkills) {
+        try {
+            const parsed = JSON.parse(rawSkills);
+            if (Array.isArray(parsed)) skills = parsed;
+        } catch {
+            warn('Block ' + blockId + ' has malformed data-skills; ignoring.');
+        }
+    }
+
+    return {
+        el,
+        itemIds,
+        items,
+        targetIds,
+        targets,
+        key,
+        allowReuse: el.dataset.matchReuse === 'true',
+        statusEl: el.querySelector<HTMLElement>('.js-match-status'),
+        solutionEl: el.querySelector<HTMLElement>('.js-solution'),
+        hasConfidenceRating: el.dataset.hasConfidenceRating === 'true',
+        confidenceRadios,
+        skills,
+        sectionId,
+    };
+}
+
+/**
+ * Build the ref for one ordering block. Returns null when the baked answer
+ * key (data-order-answer) is missing or malformed.
+ */
+function buildOrderingRef(
+    el: HTMLElement,
+    blockId: string,
+    sectionId: string,
+): OrderingRef | null {
+    let answer: string[] | null = null;
+    try {
+        const parsed = JSON.parse(el.dataset.orderAnswer ?? '');
+        if (Array.isArray(parsed) && parsed.every((v) => typeof v === 'string')) {
+            answer = parsed;
+        }
+    } catch {
+        /* fall through to the warn below */
+    }
+    if (answer === null) {
+        warn('Block ' + blockId + ' has malformed data-order-answer; skipping.');
+        return null;
+    }
+
+    const list = el.querySelector<HTMLElement>('.order-list');
+    if (!list) {
+        warn('Block ' + blockId + ' has no .order-list; skipping.');
+        return null;
+    }
+
+    const initialOrder: string[] = [];
+    const items = new Map<string, HTMLElement>();
+    for (const itemEl of $$<HTMLElement>('.order-item', el)) {
+        const itemId = itemEl.dataset.itemId;
+        if (!itemId) continue;
+        initialOrder.push(itemId);
+        items.set(itemId, itemEl);
+    }
+
+    const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
+        '.js-confidence-rating',
+    );
+    const confidenceRadios: HTMLInputElement[] = confidenceFieldset
+        ? Array.prototype.slice.call(
+              confidenceFieldset.querySelectorAll<HTMLInputElement>(
+                  'input[type="radio"]',
+              ),
+          )
+        : [];
+
+    let skills: string[] = [];
+    const rawSkills = el.dataset.skills;
+    if (rawSkills) {
+        try {
+            const parsed = JSON.parse(rawSkills);
+            if (Array.isArray(parsed)) skills = parsed;
+        } catch {
+            warn('Block ' + blockId + ' has malformed data-skills; ignoring.');
+        }
+    }
+
+    return {
+        el,
+        list,
+        items,
+        initialOrder,
+        answer,
+        statusEl: el.querySelector<HTMLElement>('.js-order-status'),
+        solutionEl: el.querySelector<HTMLElement>('.js-solution'),
+        hasConfidenceRating: el.dataset.hasConfidenceRating === 'true',
+        confidenceRadios,
+        skills,
+        sectionId,
+    };
+}
+
 function buildSectionRef(
     el: HTMLElement,
     blockIds: string[],
     blankIds: string[],
     mcBlockIds: string[],
+    matchBlockIds: string[],
+    orderingBlockIds: string[],
     graphBlockIds: string[],
 ): SectionRef {
     const isCheckpoint = el.dataset.isCheckpoint === 'true';
@@ -379,6 +593,8 @@ function buildSectionRef(
         blankIds,
         blockIds,
         mcBlockIds,
+        matchBlockIds,
+        orderingBlockIds,
         graphBlockIds,
         checkButton,
         scoreEl,

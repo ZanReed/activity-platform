@@ -23,6 +23,8 @@ import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
 import { scoreBlanksInScope } from './blanks.js';
 import { scoreMcBlocks } from './mcs.js';
+import { scoreMatchBlocks } from './matches.js';
+import { scoreOrderingBlocks } from './orderings.js';
 import { graphExt } from './graph-integration.js';
 
 /**
@@ -66,6 +68,27 @@ export function checkSection(
         if (state.mcs[mcId]?.result === true) correct += 1;
     }
 
+    // Matching blocks — scored PER PAIR: every item is one point in the
+    // section total (like every blank is), earned pairs count as correct.
+    // An unanswered block contributes its items to the total only (omission).
+    scoreMatchBlocks(state, refs, sectionRef.matchBlockIds);
+    let matchPairTotal = 0;
+    for (const matchId of sectionRef.matchBlockIds) {
+        const matchState = state.matches[matchId];
+        const itemCount = refs.matches.get(matchId)?.itemIds.length ?? 0;
+        matchPairTotal += itemCount;
+        if (matchState && matchState.result !== null) {
+            correct += matchState.earned;
+        }
+    }
+
+    // Ordering blocks — one scorable unit each, all-or-nothing. An untouched
+    // list is an omission: in the total, not correct.
+    scoreOrderingBlocks(state, refs, sectionRef.orderingBlockIds);
+    for (const orderingId of sectionRef.orderingBlockIds) {
+        if (state.orderings[orderingId]?.result === true) correct += 1;
+    }
+
     // Interactive-graph blocks score too — each is one scorable unit (the graph
     // feature computed correctness live as the student moved the point). In the
     // base runtime build this contributes nothing (no graph blocks exist).
@@ -77,6 +100,8 @@ export function checkSection(
     sectionState.total =
         sectionRef.blankIds.length +
         sectionRef.mcBlockIds.length +
+        matchPairTotal +
+        sectionRef.orderingBlockIds.length +
         graphScore.total;
     sectionState.checkedAt = new Date().toISOString();
     if (config.submissionMode === 'locked') {
@@ -100,6 +125,22 @@ export function checkSection(
         if (!mcRef || !mcState) continue;
         if (mcRef.solutionEl !== null) {
             mcState.solutionRevealed = true;
+        }
+    }
+    for (const matchId of sectionRef.matchBlockIds) {
+        const matchRef = refs.matches.get(matchId);
+        const matchState = state.matches[matchId];
+        if (!matchRef || !matchState) continue;
+        if (matchRef.solutionEl !== null) {
+            matchState.solutionRevealed = true;
+        }
+    }
+    for (const orderingId of sectionRef.orderingBlockIds) {
+        const orderingRef = refs.orderings.get(orderingId);
+        const orderState = state.orderings[orderingId];
+        if (!orderingRef || !orderState) continue;
+        if (orderingRef.solutionEl !== null) {
+            orderState.solutionRevealed = true;
         }
     }
     graphExt.revealGraphSolutions(sectionRef, refs, state);

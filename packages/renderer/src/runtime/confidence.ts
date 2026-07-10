@@ -73,6 +73,39 @@ export function wireConfidence(
         }
     }
 
+    // Matching + ordering blocks carry the same per-block confidence
+    // fieldset; wire them into their state maps identically.
+    for (const [blockId, ref] of refs.matches) {
+        if (!ref.hasConfidenceRating || ref.confidenceRadios.length === 0) {
+            continue;
+        }
+        for (const radio of ref.confidenceRadios) {
+            radio.addEventListener('change', () => {
+                if (!radio.checked) return;
+                if (!isConfidence(radio.value)) return;
+                const matchState = state.matches[blockId];
+                if (!matchState) return;
+                matchState.confidence = radio.value;
+                onUpdate();
+            });
+        }
+    }
+    for (const [blockId, ref] of refs.orderings) {
+        if (!ref.hasConfidenceRating || ref.confidenceRadios.length === 0) {
+            continue;
+        }
+        for (const radio of ref.confidenceRadios) {
+            radio.addEventListener('change', () => {
+                if (!radio.checked) return;
+                if (!isConfidence(radio.value)) return;
+                const orderState = state.orderings[blockId];
+                if (!orderState) return;
+                orderState.confidence = radio.value;
+                onUpdate();
+            });
+        }
+    }
+
     // Interactive-graph blocks carry the same per-block confidence fieldset;
     // wire it into state.graphs[id].confidence identically.
     for (const [blockId, ref] of refs.graphs) {

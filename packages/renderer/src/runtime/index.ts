@@ -31,6 +31,8 @@ import {
 } from './storage.js';
 import { wireBlanks, wireHints, wireMistakes, wirePopover } from './blanks.js';
 import { wireMcChoices } from './mcs.js';
+import { wireMatching } from './matches.js';
+import { wireOrdering } from './orderings.js';
 import { wireCheckpoints } from './checkpoints.js';
 import { wireConfidence } from './confidence.js';
 import { graphExt } from './graph-integration.js';
@@ -78,6 +80,8 @@ function bootstrap(): void {
 
   wireBlanks(config.answerFeedback, state, refs, onUpdate);
   wireMcChoices(state, refs, onUpdate);
+  wireMatching(state, refs, onUpdate);
+  wireOrdering(state, refs, onUpdate);
   wireHints(state, refs, onUpdate);
   wireMistakes(state, refs, onUpdate);
   wirePopover(state, refs, onUpdate);

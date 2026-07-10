@@ -19,6 +19,8 @@ import { renderBulletList, renderOrderedList } from './lists.js';
 import { renderColumns } from './columns.js';
 import { renderInteractiveGraph } from './interactive-graph.js';
 import { renderMultipleChoice } from './multiple-choice.js';
+import { renderMatching } from './matching.js';
+import { renderOrdering } from './ordering.js';
 
 export interface BlockRenderContext {
   /**
@@ -85,6 +87,16 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
         problemNumber: ctx.nextProblemNumber(),
         showAnswers: ctx.showAnswers,
       });
+    case 'matching':
+      return renderMatching(block, {
+        problemNumber: ctx.nextProblemNumber(),
+        showAnswers: ctx.showAnswers,
+      });
+    case 'ordering':
+      return renderOrdering(block, {
+        problemNumber: ctx.nextProblemNumber(),
+        showAnswers: ctx.showAnswers,
+      });
     default: {
       // Exhaustiveness check — if a new block type is added to the schema
       // and not handled here, TypeScript emits an error on this assignment.
@@ -106,6 +118,8 @@ export function isNumberedBlock(block: Block): boolean {
     block.type === 'problem' ||
     block.type === 'fill_in_blank' ||
     block.type === 'multiple_choice' ||
+    block.type === 'matching' ||
+    block.type === 'ordering' ||
     (block.type === 'interactive_graph' && block.interaction.type !== 'display')
   );
 }

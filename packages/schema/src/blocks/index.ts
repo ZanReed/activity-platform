@@ -20,6 +20,8 @@ import { BulletListBlock, OrderedListBlock, ListItem } from './list.js';
 import { ColumnsBlock } from './columns.js';
 import { InteractiveGraphBlock } from './interactive-graph.js';
 import { MultipleChoiceBlock } from './multiple-choice.js';
+import { MatchingBlock } from './matching.js';
+import { OrderingBlock } from './ordering.js';
 
 export const Block = z.discriminatedUnion('type', [
   ParagraphBlock,
@@ -34,6 +36,8 @@ export const Block = z.discriminatedUnion('type', [
   ColumnsBlock,
   InteractiveGraphBlock,
   MultipleChoiceBlock,
+  MatchingBlock,
+  OrderingBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -58,6 +62,8 @@ export {
   ChoiceImage,
   ChoiceGraph,
 } from './multiple-choice.js';
+export { MatchingBlock, MatchingItem, MatchingTarget } from './matching.js';
+export { OrderingBlock, OrderingItem } from './ordering.js';
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,

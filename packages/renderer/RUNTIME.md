@@ -50,6 +50,9 @@ packages/renderer/src/runtime/
 ├── dom.ts           — $, $$ jQuery-style helpers (typed)
 ├── strategies.ts    — evaluateAnswer dispatch; list strategy (Phase 1); expression/computed (Phase 2.5+)
 ├── blanks.ts        — scoreBlank + matchMistakeFeedback (pure); scoreBlankAndUpdateState + clearBlankState (state); wireBlanks + wireHints (event handlers)
+├── mcs.ts           — multiple-choice: isSelectionCorrect + scoreMcBlocks (pure) + wireMcChoices
+├── matches.ts       — matching: scoreMatchPairs/setPair/removePair (pure) + wireMatching (pointer drag + keyboard select-then-place)
+├── orderings.ts     — ordering: isOrderCorrect/moveItem (pure) + wireOrdering (pointer drag-to-reorder + keyboard)
 ├── checkpoints.ts   — checkSection (pure mutator) + wireCheckpoints (click handler)
 ├── confidence.ts    — wireConfidence (change handler on per-block radios)
 ├── render.ts        — render(state, refs); renderBlank + renderBlock + renderSection. THE ONLY DOM MUTATOR after init.
@@ -62,7 +65,7 @@ packages/renderer/src/runtime/
 ├── definitions.ts   — sidecar: inline vocabulary-definition popovers
 ├── calculator-summon.ts — sidecar: summon button + lazy-import of the calculator widget (Phase 2.7)
 ├── generated/       — runtime-bundle.ts (base) + runtime-graphs-bundle.ts (graphs) + reference-panel-bundle.ts + definitions-bundle.ts + calculator-summon-bundle.ts (committed string modules produced by bundler)
-└── __tests__/       — strategies, init, blanks, render, checkpoints, storage, confidence, grouping, definitions
+└── __tests__/       — strategies, init, blanks, mcs, matches-orderings, render, checkpoints, storage, confidence, grouping, definitions
 ```
 
 ## Bootstrap flow
@@ -481,6 +484,80 @@ A graded question: prompt + 2+ choices, single-select (radios) or multi-select c
 - **Selection state lives in state, not the DOM**: `render` syncs each input's `checked` from `state.mcs[id].selected` (restore-on-load is state-only — `applyStoredState` never touches these inputs). Change handlers rebuild `selected` from the inputs in document order.
 - Verdicts appear only post-check: selected labels get `.correct`/`.incorrect` + selected inputs get `aria-invalid`; unselected correct choices are never highlighted (no answer leak — the solution slot is the sanctioned reveal). There is deliberately NO immediate-feedback mode for MC (closed-form brute-forcing).
 - Print: native inputs hidden; the letters are the circle-me markers. Answer-key print variant pre-checks correct inputs + rings their letters (`.mc-key-correct`).
+
+### Matching block (`data-block-category="question"`)
+
+A graded question: two columns — left items (stems, document order), right target cards (lettered, **publish-time shuffled**, deterministic by block id). The student drags a card onto an item's dock (`runtime/matches.ts`: pointer drag over a keyboard select-then-place grammar — Enter/Space lifts, arrows walk the docks, Enter places, Escape cancels, Delete un-docks; a tap on a bank card lifts it, a tap on an item places it, a tap on a docked card returns it). Scored **per pair**: every item is one point in the section total (like every blank); an unanswered block (no pairs) is an omission whose items still count in the total. Submits as `SubmissionResponses.matches` (wire **v6**) with `pairs` + `earned`/`total`.
+
+```html
+<div class="block block-matching" data-block-category="question"
+     data-block-type="matching"
+     data-block-id="<uuid>"
+     data-match-key="{&quot;<item-uuid>&quot;:&quot;<target-uuid>&quot;}"
+     data-match-reuse="true">  <!-- omit-when-default: absent = one-to-one -->
+  <div class="block-problem-number">1.</div>
+  <div class="block-problem-body">
+    <div class="match-prompt">…inline prompt…</div>
+    <div class="match-reuse-hint">Options may be used more than once.</div>  <!-- reuse only -->
+    <div class="match-columns">
+      <div class="match-items" role="list" aria-label="Items to match">
+        <div class="match-item" role="listitem" data-item-id="<item-uuid>">
+          <span class="match-letter-line" aria-hidden="true"></span>  <!-- print-only write-the-letter -->
+          <span class="match-item-content">…rendered inline… (+ optional .match-figure)</span>
+          <span class="match-slot" data-item-id="<item-uuid>"></span>  <!-- the dock -->
+        </div>
+      </div>
+      <div class="match-targets" role="list" aria-label="Answer options">
+        <div class="match-target-slot" role="listitem" data-target-id="<target-uuid>">
+          <span class="match-slot-ghost" aria-hidden="true">A.</span>  <!-- shown while docked away -->
+          <div class="match-target" data-target-id="<target-uuid>" tabindex="0">
+            <span class="match-target-letter" aria-hidden="true">A.</span>
+            <span class="match-target-content">…rendered inline… (+ optional .match-figure)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="sr-status js-match-status" aria-live="polite"></span>
+    <!-- optional: .js-confidence-rating fieldset, .print-confidence row,
+         .js-solution slot (all identical to fill_in_blank) -->
+  </div>
+</div>
+```
+
+- `data-match-key` — JSON object of item id → CORRECT target id (baked answer key; same ceiling as `data-mc-answer`). Malformed → init skips the whole block.
+- `data-match-reuse="true"` — many-to-one docking allowed (categorization-lite). Without it, render() MOVES the real card node between bank home and dock (listeners travel with it) and the emptied home shows its ghost letter (`.is-empty`); with it, cards never leave the bank and render() places a cloned `.match-docked-chip` (guarded by `data-docked-target`; removed via a delegated click).
+- **Pairing state lives in state, not the DOM**: `state.matches[id].pairs` is the single source of truth; render() reconciles card positions from it (restore-on-load is state-only). Verdicts are a LIVE key comparison post-check — paired items get `.correct`/`.incorrect`, unpaired items read `.incorrect` (they cost a point); a wholly unanswered block shows nothing.
+- During a pointer drag the card's transform + dock highlight are written directly (the popover-drag exception); the drop commits through state + `onUpdate`. Narration goes to the `.js-match-status` live region.
+- Print: docks and ghosts hidden; each item shows the write-the-letter line (answer-key variant fills it, `.match-key-correct`); the target column reads as the lettered bank.
+
+### Ordering block (`data-block-category="question"`)
+
+A graded question: one list, rendered in a **publish-time shuffled** order (deterministic by block id, never the authored order), dragged back into sequence (`runtime/orderings.ts`: pointer drag reorders live — crossing a neighbor's midpoint commits the swap; keyboard: Enter/Space grabs, arrows move one position, Enter drops, Escape drops in place). Scored **all-or-nothing** on exact sequence equality; one point in the section total. An UNTOUCHED list is an omission — a shuffled list is always *some* sequence, so only a student move (`state.orderings[id].moved`) turns it into an answer. Submits as `SubmissionResponses.orderings` (wire **v6**).
+
+```html
+<div class="block block-ordering" data-block-category="question"
+     data-block-type="ordering"
+     data-block-id="<uuid>"
+     data-order-answer="[&quot;<item-uuid>&quot;,…]">  <!-- authored = correct order -->
+  <div class="block-problem-number">1.</div>
+  <div class="block-problem-body">
+    <div class="order-prompt">…inline prompt…</div>
+    <div class="order-list" role="list" aria-label="Items to put in order">
+      <div class="order-item" role="listitem" data-item-id="<item-uuid>" tabindex="0">
+        <span class="order-number-box" aria-hidden="true"></span>  <!-- print-only write-in box -->
+        <span class="order-item-grip" aria-hidden="true">⠿</span>
+        <span class="order-item-content">…rendered inline…</span>
+      </div>
+    </div>
+    <span class="sr-status js-order-status" aria-live="polite"></span>
+    <!-- optional: confidence/solution chrome, identical to fill_in_blank -->
+  </div>
+</div>
+```
+
+- `data-order-answer` — JSON array of item ids in the AUTHORED (correct) order. Malformed → init skips the block.
+- **The arrangement lives in state**: `state.orderings[id].order` (seeded from the rendered DOM order at init); render() re-sequences the list's children to match with minimal `insertBefore` moves. Post-check, rows get per-POSITION `.correct`/`.incorrect` (feedback only — the block score stays all-or-nothing).
+- Print: grips hidden; each row shows a write-in number box ("number the steps 1–N"; answer-key variant fills it, `.order-key-correct`).
 
 ### Reading discipline
 

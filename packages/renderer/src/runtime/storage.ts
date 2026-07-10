@@ -28,6 +28,8 @@ import type {
   BlankState,
   BlockState,
   McBlockState,
+  MatchBlockState,
+  OrderBlockState,
   GraphBlockState,
   SectionState,
 } from './state.js';
@@ -74,7 +76,9 @@ export function saveName(name: string): void {
 // side), noSolution, and partial-credit earned/total.
 // 5 → 6 (multiple choice): the blob gained an `mcs` map (selection, result,
 // solution reveal, confidence per multiple_choice block).
-const STORAGE_SCHEMA_VERSION = 6;
+// 6 → 7 (matching + ordering): the blob gained `matches` (docked pairs,
+// per-pair earned/total) and `orderings` (arrangement + moved flag) maps.
+const STORAGE_SCHEMA_VERSION = 7;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {
@@ -87,6 +91,10 @@ export interface StoredActivityState {
   blocks: Record<string, BlockState>;
   /** Per-multiple-choice-block state snapshot. */
   mcs: Record<string, McBlockState>;
+  /** Per-matching-block state snapshot. */
+  matches: Record<string, MatchBlockState>;
+  /** Per-ordering-block state snapshot. */
+  orderings: Record<string, OrderBlockState>;
   /** Per-interactive-graph-block state snapshot. */
   graphs: Record<string, GraphBlockState>;
   /** Per-section state snapshot. */
@@ -124,6 +132,8 @@ export function saveActivityState(
       blanks: state.blanks,
       blocks: state.blocks,
       mcs: state.mcs,
+      matches: state.matches,
+      orderings: state.orderings,
       graphs: state.graphs,
       sections: state.sections,
     };
@@ -257,6 +267,14 @@ export function applyStoredState(
   // checked flag from the restored state.
   for (const [id, mcState] of Object.entries(stored.mcs ?? {})) {
     if (state.mcs[id]) state.mcs[id] = mcState;
+  }
+  // Matching/ordering restore is state-only, like MC: render() re-docks the
+  // cards and re-sequences the rows from the restored maps.
+  for (const [id, matchState] of Object.entries(stored.matches ?? {})) {
+    if (state.matches[id]) state.matches[id] = matchState;
+  }
+  for (const [id, orderState] of Object.entries(stored.orderings ?? {})) {
+    if (state.orderings[id]) state.orderings[id] = orderState;
   }
   for (const [id, graphState] of Object.entries(stored.graphs ?? {})) {
     if (state.graphs[id]) state.graphs[id] = graphState;
