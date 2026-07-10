@@ -43,6 +43,8 @@
 
 import { parseGraphFormula, parsePointList, parseRaySegment } from '@activity/graph-kit';
 import type { JSONContent } from '@tiptap/react';
+import type { InlineNode } from '@activity/schema';
+import { tiptapInlineToActivity } from './serialize';
 
 // Minimal structural view of a markdown-it token — only the fields the mapper
 // reads. Defined locally (rather than importing markdown-it's Token type) so
@@ -818,6 +820,15 @@ function graphPromptContent(raw: string, ctx: Ctx): JSONContent[] {
     return out;
 }
 
+// Attrs-stored inline content (MC choices/feedback/solution, matching sides,
+// ordering items) lives in the CANONICAL schema shape — the NodeViews write it
+// that way and read it back through activityInlineToTiptap, which requires
+// `marks` arrays and `math_inline` (not Tiptap's bare text / `mathInline`).
+// Node content (prompts) stays Tiptap-shaped; only attrs convert here.
+function schemaInlineContent(raw: string, ctx: Ctx): InlineNode[] {
+    return tiptapInlineToActivity(graphPromptContent(raw, ctx));
+}
+
 // ```mc fence — the multiple-choice DSL. One statement per line:
 //   prompt: What is $2 + 2$?          (question text; $inline$ math ok)
 //   ( ) 3 :: Check your addition.     (a choice; optional "::" feedback)
@@ -837,14 +848,14 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
     };
 
     let prompt = '';
-    let solution: JSONContent[] | null = null;
+    let solution: InlineNode[] | null = null;
     let hasConfidenceRating = false;
     let sawSquare = false;
     const choices: {
         id: string;
-        content: JSONContent[];
+        content: InlineNode[];
         correct: boolean;
-        feedback?: JSONContent[];
+        feedback?: InlineNode[];
         image?: { src: string; alt: string };
     }[] = [];
 
@@ -857,13 +868,13 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
             sawSquare = sawSquare || choiceMatch[1] === '[';
             const correct = (choiceMatch[2] ?? '') !== '';
             let body = (choiceMatch[3] ?? '').trim();
-            let feedback: JSONContent[] | undefined;
+            let feedback: InlineNode[] | undefined;
             const sep = body.indexOf('::');
             if (sep !== -1) {
                 const feedbackText = body.slice(sep + 2).trim();
                 body = body.slice(0, sep).trim();
                 if (feedbackText) {
-                    feedback = graphPromptContent(feedbackText, ctx);
+                    feedback = schemaInlineContent(feedbackText, ctx);
                 }
             }
             // Optional per-choice image: markdown ![alt](url) anywhere in the
@@ -889,7 +900,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
             if (!body && !image) return fail('a choice line needs answer text');
             choices.push({
                 id: crypto.randomUUID(),
-                content: graphPromptContent(body, ctx),
+                content: schemaInlineContent(body, ctx),
                 correct,
                 ...(feedback ? { feedback } : {}),
                 ...(image ? { image } : {}),
@@ -909,7 +920,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
                 prompt = value;
                 break;
             case 'solution':
-                if (value) solution = graphPromptContent(value, ctx);
+                if (value) solution = schemaInlineContent(value, ctx);
                 break;
             case 'options':
                 for (const opt of value
@@ -990,12 +1001,12 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
     };
 
     let prompt = '';
-    let solution: JSONContent[] | null = null;
+    let solution: InlineNode[] | null = null;
     let hasConfidenceRating = false;
     let allowTargetReuse = false;
     type Side = {
         id: string;
-        content: JSONContent[];
+        content: InlineNode[];
         image?: { src: string; alt: string };
     };
     const items: Side[] = [];
@@ -1007,7 +1018,7 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
         if (!text && !image) return null;
         return {
             id: crypto.randomUUID(),
-            content: graphPromptContent(text, ctx),
+            content: schemaInlineContent(text, ctx),
             ...(image ? { image } : {}),
         };
     };
@@ -1024,7 +1035,7 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
                     prompt = value;
                     break;
                 case 'solution':
-                    if (value) solution = graphPromptContent(value, ctx);
+                    if (value) solution = schemaInlineContent(value, ctx);
                     break;
                 case 'options':
                     for (const opt of value
@@ -1112,9 +1123,9 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
     };
 
     let prompt = '';
-    let solution: JSONContent[] | null = null;
+    let solution: InlineNode[] | null = null;
     let hasConfidenceRating = false;
-    const items: { id: string; content: JSONContent[] }[] = [];
+    const items: { id: string; content: InlineNode[] }[] = [];
 
     for (const rawLine of src.split('\n')) {
         const line = rawLine.trim();
@@ -1128,7 +1139,7 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
                     prompt = value;
                     break;
                 case 'solution':
-                    if (value) solution = graphPromptContent(value, ctx);
+                    if (value) solution = schemaInlineContent(value, ctx);
                     break;
                 case 'options':
                     for (const opt of value
@@ -1144,7 +1155,7 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
 
         const body = line.replace(/^(?:\d+[.)]|-)\s+/, '').trim();
         if (!body) return fail('an item line needs text');
-        items.push({ id: crypto.randomUUID(), content: graphPromptContent(body, ctx) });
+        items.push({ id: crypto.randomUUID(), content: schemaInlineContent(body, ctx) });
     }
 
     if (items.length < 2) return fail('needs at least two item lines');

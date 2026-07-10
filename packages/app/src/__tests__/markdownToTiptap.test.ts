@@ -379,8 +379,12 @@ describe('multiple-choice fence (```mc)', () => {
         }>;
         expect(choices).toHaveLength(3);
         expect(choices.map((c) => c.correct)).toEqual([false, true, false]);
+        // Attrs-stored inline content is the CANONICAL schema shape (marks
+        // arrays, math_inline) — the NodeViews read it back through
+        // activityInlineToTiptap, which requires it. Node content (the prompt
+        // below) stays Tiptap-shaped.
         expect(choices[0]!.feedback).toEqual([
-            { type: 'text', text: 'Check your addition.' },
+            { type: 'text', text: 'Check your addition.', marks: [] },
         ]);
         expect(choices[1]!.feedback).toBeUndefined();
         // Prompt carries real inline math.
@@ -413,9 +417,9 @@ describe('multiple-choice fence (```mc)', () => {
         const mc = blocks[0]!;
         expect(mc.attrs).toMatchObject({ hasConfidenceRating: true });
         expect(mc.attrs!.solution).toEqual([
-            { type: 'text', text: 'Because ' },
-            { type: 'mathInline', attrs: { latex: 'x = 1' } },
-            { type: 'text', text: '.' },
+            { type: 'text', text: 'Because ', marks: [] },
+            { type: 'math_inline', latex: 'x = 1' },
+            { type: 'text', text: '.', marks: [] },
         ]);
     });
 
@@ -452,7 +456,7 @@ describe('multiple-choice fence (```mc)', () => {
         });
         // The image markdown is stripped from the choice text.
         expect(choices[0]!.content).toEqual([
-            { type: 'text', text: 'a square' },
+            { type: 'text', text: 'a square', marks: [] },
         ]);
         expect(choices[1]!.image).toBeUndefined();
     });
@@ -494,8 +498,8 @@ describe('matching fence (```match)', () => {
         const items = match.attrs!.items as Side[];
         const targets = match.attrs!.targets as Side[];
         const key = match.attrs!.key as Record<string, string>;
-        expect(items[0]!.content).toEqual([{ type: 'text', text: 'y = 2x' }]);
-        expect(targets[0]!.content).toEqual([{ type: 'text', text: '2' }]);
+        expect(items[0]!.content).toEqual([{ type: 'text', text: 'y = 2x', marks: [] }]);
+        expect(targets[0]!.content).toEqual([{ type: 'text', text: '2', marks: [] }]);
         expect(key[items[0]!.id]).toBe(targets[0]!.id);
         expect(key[items[1]!.id]).toBe(targets[1]!.id);
     });
@@ -506,8 +510,8 @@ describe('matching fence (```match)', () => {
         );
         const items = blocks[0]!.attrs!.items as Side[];
         const targets = blocks[0]!.attrs!.targets as Side[];
-        expect(items[0]!.content).toEqual([{ type: 'text', text: 'a = b' }]);
-        expect(targets[0]!.content).toEqual([{ type: 'text', text: 'x = y' }]);
+        expect(items[0]!.content).toEqual([{ type: 'text', text: 'a = b', marks: [] }]);
+        expect(targets[0]!.content).toEqual([{ type: 'text', text: 'x = y', marks: [] }]);
     });
 
     it('a leading = (or ->) line adds a distractor target with no key entry', () => {
@@ -525,7 +529,7 @@ describe('matching fence (```match)', () => {
     it('\\= escapes a literal equals', () => {
         const { blocks } = convert('```match\na \\= b = c\nd = e\n```');
         const items = blocks[0]!.attrs!.items as Side[];
-        expect(items[0]!.content).toEqual([{ type: 'text', text: 'a = b' }]);
+        expect(items[0]!.content).toEqual([{ type: 'text', text: 'a = b', marks: [] }]);
     });
 
     it('options: reuse + confidence and solution carry through', () => {
@@ -537,7 +541,7 @@ describe('matching fence (```match)', () => {
             hasConfidenceRating: true,
         });
         expect(blocks[0]!.attrs!.solution).toEqual([
-            { type: 'text', text: 'Same slope.' },
+            { type: 'text', text: 'Same slope.', marks: [] },
         ]);
     });
 
@@ -587,8 +591,8 @@ describe('ordering fence (```order)', () => {
         const items = blocks[0]!.attrs!.items as Array<{ content: JSONContent[] }>;
         expect(items).toHaveLength(2);
         expect(items[0]!.content).toEqual([
-            { type: 'text', text: 'solve ' },
-            { type: 'mathInline', attrs: { latex: '2x = 8' } },
+            { type: 'text', text: 'solve ', marks: [] },
+            { type: 'math_inline', latex: '2x = 8' },
         ]);
     });
 
