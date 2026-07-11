@@ -105,6 +105,38 @@ function refineTip(
   return inP;
 }
 
+// Outward heading at `tip`, taken from the LOCAL slope of the sampled function
+// rather than a two-sample chord. A chord between adjacent samples can straddle
+// a local extremum on an oscillating curve (sin, cos) and collapse to a nearly
+// flat direction while the true tangent is steep — so the arrowhead pointed the
+// wrong way. `sx` is the outward x-sign (+1 at the high-x end, −1 at the low-x
+// end); the tangent line through `tip` continues outward as (sx, sx·slope).
+// Falls back to `chord` when the function isn't finite on both sides (an
+// asymptote sitting just past the tip, e.g. log near x → 0⁺).
+function outwardDir(
+  fn: (x: number) => number,
+  x: number,
+  sx: 1 | -1,
+  win: ArrowWindow,
+  chord: [number, number],
+): [number, number] {
+  const h = 1e-4 * (win.xMax - win.xMin);
+  const yr = fn(x + h);
+  const yl = fn(x - h);
+  if (Number.isFinite(yr) && Number.isFinite(yl)) {
+    const slope = (yr - yl) / (2 * h);
+    if (Number.isFinite(slope)) return [sx, sx * slope];
+  }
+  // One-sided toward the inside when a boundary/asymptote is just outside.
+  const y0 = fn(x);
+  const yIn = fn(x - sx * h);
+  if (Number.isFinite(y0) && Number.isFinite(yIn)) {
+    const slope = (y0 - yIn) / (sx * h);
+    if (Number.isFinite(slope)) return [sx, sx * slope];
+  }
+  return chord;
+}
+
 // Tip pulled in by `inset` along the direction, tail backed off by `len` more.
 function withTail(
   tip: [number, number],
@@ -152,13 +184,14 @@ export function curveEndArrows(
       const p = pts[i]!;
       if (!isInside(p, win)) continue;
       const tip = i === N ? p : refineTip(fn, p[0], pts[i + 1]![0], win);
-      // Outward direction: inside sample → tip; when they coincide (curve
-      // terminates at the drawn edge) fall back to the local slope.
-      let dir: [number, number] = [tip[0] - p[0], tip[1] - p[1]];
-      if (Math.hypot(dir[0], dir[1]) < 1e-9) {
+      // Chord fallback: inside sample → tip; when they coincide (curve
+      // terminates at the drawn edge) use the previous sample instead.
+      let chord: [number, number] = [tip[0] - p[0], tip[1] - p[1]];
+      if (Math.hypot(chord[0], chord[1]) < 1e-9) {
         const prev = pts[Math.max(0, i - 1)]!;
-        dir = [tip[0] - prev[0], tip[1] - prev[1]];
+        chord = [tip[0] - prev[0], tip[1] - prev[1]];
       }
+      const dir = outwardDir(fn, tip[0], 1, win, chord);
       const spec = withTail(tip, dir, len, inset);
       if (spec) out.push(spec);
       break;
@@ -169,11 +202,12 @@ export function curveEndArrows(
       const p = pts[i]!;
       if (!isInside(p, win)) continue;
       const tip = i === 0 ? p : refineTip(fn, p[0], pts[i - 1]![0], win);
-      let dir: [number, number] = [tip[0] - p[0], tip[1] - p[1]];
-      if (Math.hypot(dir[0], dir[1]) < 1e-9) {
+      let chord: [number, number] = [tip[0] - p[0], tip[1] - p[1]];
+      if (Math.hypot(chord[0], chord[1]) < 1e-9) {
         const next = pts[Math.min(N, i + 1)]!;
-        dir = [tip[0] - next[0], tip[1] - next[1]];
+        chord = [tip[0] - next[0], tip[1] - next[1]];
       }
+      const dir = outwardDir(fn, tip[0], -1, win, chord);
       const spec = withTail(tip, dir, len, inset);
       if (spec) out.push(spec);
       break;

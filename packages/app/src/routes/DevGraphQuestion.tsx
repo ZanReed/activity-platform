@@ -100,6 +100,16 @@ const SCENARIOS: Record<string, Scenario> = {
       { kind: 'curve', model: { family: 'linear', slope: -0.4, intercept: 8 }, style: 'dashed', arrows: false },
     ],
   },
+  'sin-expression': {
+    label: 'Static display — sin(3x) expression continuation arrows',
+    interactionType: 'display',
+    answerKey: null,
+    restorePoints: [],
+    hint: 'A freeform sin(3x) expression curve with continuation arrows at both window edges — the arrowheads must follow the steep local tangent where the curve exits (regression: they used to point nearly flat).',
+    displayDrawables: [
+      { kind: 'expression', expression: 'sin(3x)' },
+    ],
+  },
   'bounded-quad': {
     label: 'Bounded curve — y = x² − 4 for −2 ≤ x ≤ 3',
     interactionType: 'plot_function',

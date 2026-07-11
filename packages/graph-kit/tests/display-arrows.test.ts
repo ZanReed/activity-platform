@@ -69,6 +69,35 @@ describe('curveEndArrows', () => {
     near(first.tip[1], -10);
   });
 
+  it('oscillating curve: arrowheads follow the local tangent, not a straddling chord', () => {
+    // A two-sample chord near the window edge can span a local extremum of a
+    // higher-frequency sinusoid and report a near-flat direction while the true
+    // tangent is steep. The arrow angle must track the local slope of f at the
+    // tip on BOTH ends. (Regression: sin(3x) arrows pointed ~69° off-tangent.)
+    const inset = 0.015 * 20; // matches display-arrows edgeInset for this window
+    for (const fn of [(x: number) => Math.sin(3 * x), (x: number) => Math.cos(x)]) {
+      const specs = curveEndArrows(fn, -10, 10, win, { first: true, last: true });
+      expect(specs).toHaveLength(2);
+      for (const s of specs) {
+        const dx = s.tip[0] - s.tail[0];
+        const dy = s.tip[1] - s.tail[1];
+        const mag = Math.hypot(dx, dy);
+        // The arrow encodes the tangent at the window-exit BOUNDARY, which sits
+        // one inset beyond the (inset) tip along the heading. On a fast curve
+        // the tangent shifts across the shaft, so compare at that boundary x.
+        const boundaryX = s.tip[0] + (dx / mag) * inset;
+        const outwardSx = boundaryX > 0 ? 1 : -1;
+        const h = 1e-4;
+        const slope = (fn(boundaryX + h) - fn(boundaryX - h)) / (2 * h);
+        const wantAngle = Math.atan2(outwardSx * slope, outwardSx);
+        const gotAngle = Math.atan2(dy, dx);
+        let diff = Math.abs(wantAngle - gotAngle);
+        if (diff > Math.PI) diff = 2 * Math.PI - diff;
+        expect(diff).toBeLessThan(0.05); // < ~3°
+      }
+    }
+  });
+
   it('a curve entirely outside the window yields no arrows', () => {
     const specs = curveEndArrows((x) => x + 100, -10, 10, win, { first: true, last: true });
     expect(specs).toHaveLength(0);
