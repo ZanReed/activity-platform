@@ -78,6 +78,7 @@ function freshState(overrides: Partial<GraphBlockState> = {}): GraphBlockState {
 
 const UNCHECKED: GraphSectionStateView = { checked: false, locked: false };
 const CHECKED: GraphSectionStateView = { checked: true, locked: false };
+const LOCKED: GraphSectionStateView = { checked: true, locked: true };
 
 function chromeFor(ref: GraphRuntimeBlockRef): GraphChromeRef {
   return buildGraphChrome(GRAPH_ID, ref);
@@ -225,5 +226,22 @@ describe('solution slot + confidence radios', () => {
     renderGraphChrome(chrome, freshState({ confidence: 'certain' }), UNCHECKED);
     expect(chrome.confidenceRadios.find((r) => r.value === 'certain')!.checked).toBe(true);
     expect(chrome.confidenceRadios.find((r) => r.value === 'unsure')!.checked).toBe(false);
+  });
+
+  // Corrected 2026-07-11: confidence radios freeze with the widget (same
+  // section.locked condition as setLocked), matching every other question
+  // type — previously they stayed editable after a locked-mode check.
+  it('freezes the confidence radios once the section is locked', () => {
+    const chrome = chromeFor(mount({ withConfidence: true }));
+    renderGraphChrome(chrome, freshState({ confidence: 'certain' }), CHECKED);
+    for (const radio of chrome.confidenceRadios) {
+      expect(radio.disabled).toBe(false);
+    }
+    renderGraphChrome(chrome, freshState({ confidence: 'certain' }), LOCKED);
+    for (const radio of chrome.confidenceRadios) {
+      expect(radio.disabled).toBe(true);
+    }
+    // Still reflects the stored selection while frozen.
+    expect(chrome.confidenceRadios.find((r) => r.value === 'certain')!.checked).toBe(true);
   });
 });

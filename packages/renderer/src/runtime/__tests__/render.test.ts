@@ -625,6 +625,60 @@ describe('render — confidence reflection', () => {
         );
         expect(() => render(state, refs)).not.toThrow();
     });
+
+    // Corrected 2026-07-11: confidence radios freeze with their block's
+    // inputs. Previously blank/MC left them editable in locked mode while
+    // matching/ordering disabled theirs — an asymmetry with no reason.
+    it('disables the confidence radios when the section is locked', () => {
+        const blockRef = makeFillInBlankRef('block-1', null, true);
+        const refs = makeRefs(
+            new Map(),
+                              new Map([['block-1', blockRef]]),
+        );
+        const state = makeState(
+            {},
+            { 'block-1': { solutionRevealed: false, confidence: 'think_so' } },
+            {
+                'sec-1': {
+                    checked: true,
+                    locked: true,
+                    score: 1,
+                    total: 1,
+                    checkedAt: null,
+                },
+            },
+        );
+        render(state, refs);
+        for (const radio of blockRef.confidenceRadios) {
+            expect(radio.disabled).toBe(true);
+        }
+        expect(blockRef.confidenceRadios[1]!.checked).toBe(true); // still reflects state
+    });
+
+    it('leaves the confidence radios enabled when the section is not locked', () => {
+        const blockRef = makeFillInBlankRef('block-1', null, true);
+        const refs = makeRefs(
+            new Map(),
+                              new Map([['block-1', blockRef]]),
+        );
+        const state = makeState(
+            {},
+            { 'block-1': { solutionRevealed: false, confidence: 'think_so' } },
+            {
+                'sec-1': {
+                    checked: true,
+                    locked: false,
+                    score: 1,
+                    total: 1,
+                    checkedAt: null,
+                },
+            },
+        );
+        render(state, refs);
+        for (const radio of blockRef.confidenceRadios) {
+            expect(radio.disabled).toBe(false);
+        }
+    });
 });
 
 describe('render — section score', () => {

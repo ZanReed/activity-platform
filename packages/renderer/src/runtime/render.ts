@@ -49,7 +49,7 @@ export function render(state: RuntimeState, refs: Refs): void {
     }
     for (const [id, ref] of refs.fillInBlanks) {
         const blockState = state.blocks[id];
-        if (blockState) renderBlock(blockState, ref);
+        if (blockState) renderBlock(blockState, ref, state);
     }
     for (const [id, ref] of refs.mcs) {
         const mcState = state.mcs[id];
@@ -149,9 +149,12 @@ type ConfidenceValue = 'unsure' | 'think_so' | 'certain' | null;
  * state. No hasConfidenceRating guard is needed: an empty confidenceRadios
  * (no fieldset) iterates zero times.
  *
- * `locked` is optional because only the drag-based blocks (matching, ordering)
- * freeze their confidence radios; blank/MC omit it and leave radio.disabled
- * untouched, preserving each type's existing behavior.
+ * `locked` freezes the confidence radios in lockstep with the rest of the
+ * block: every question type passes the SAME condition it uses to disable its
+ * own answer inputs, so a student can't re-rate their confidence once the
+ * block is frozen. (Previously blank/MC left their radios editable in locked
+ * mode while matching/ordering disabled theirs — an asymmetry with no reason
+ * behind it.)
  */
 function renderSolutionAndConfidence(
     ref: {
@@ -159,7 +162,7 @@ function renderSolutionAndConfidence(
         confidenceRadios: HTMLInputElement[];
     },
     block: { solutionRevealed: boolean; confidence: ConfidenceValue },
-    locked?: boolean,
+    locked: boolean,
 ): void {
     // Solution slot — hidden until solutionRevealed flips true.
     if (ref.solutionEl) {
@@ -174,14 +177,21 @@ function renderSolutionAndConfidence(
         if (radio.checked !== wantChecked) {
             radio.checked = wantChecked;
         }
-        if (locked !== undefined && radio.disabled !== locked) {
+        if (radio.disabled !== locked) {
             radio.disabled = locked;
         }
     }
 }
 
-function renderBlock(blockState: BlockState, ref: FillInBlankRef): void {
-    renderSolutionAndConfidence(ref, blockState);
+function renderBlock(
+    blockState: BlockState,
+    ref: FillInBlankRef,
+    state: RuntimeState,
+): void {
+    // Confidence radios freeze with this block's inputs (renderBlank uses the
+    // same section-locked condition for input.disabled).
+    const locked = state.sections[ref.sectionId]?.locked === true;
+    renderSolutionAndConfidence(ref, blockState, locked);
 }
 
 /**
@@ -245,7 +255,8 @@ function renderMcBlock(
         }
     }
 
-    renderSolutionAndConfidence(ref, mcState);
+    // Confidence radios freeze with the choice inputs (same wantDisabled).
+    renderSolutionAndConfidence(ref, mcState, wantDisabled);
 }
 
 /**

@@ -198,11 +198,18 @@ export function renderGraphChrome(
   }
 
   // Confidence radios reflect the stored selection (restore-on-load + keep
-  // state↔DOM consistent). No-op when the block has no fieldset.
+  // state↔DOM consistent) and freeze with the widget: once the section is
+  // locked, the student can't re-rate confidence any more than they can move
+  // the board (same section?.locked condition as the setLocked call below).
+  // No-op when the block has no fieldset.
+  const locked = section?.locked === true;
   for (const radio of chrome.confidenceRadios) {
     const wantChecked = radio.value === graphState.confidence;
     if (radio.checked !== wantChecked) {
       radio.checked = wantChecked;
+    }
+    if (radio.disabled !== locked) {
+      radio.disabled = locked;
     }
   }
 
