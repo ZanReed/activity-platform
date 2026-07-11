@@ -610,6 +610,26 @@ export default function InteractiveGraphView({
             return null;
         }
         if (interaction.type === 'plot_ray' || interaction.type === 'plot_segment') {
+            // Two bare points ("(1, 2), (3, 4)" — what math mode can express)
+            // keep the current figure + endpoint styles; only the command
+            // syntax names a kind and can swap it.
+            const pts = parsePointList(raw);
+            if (pts && pts.length === 2) {
+                const [a, b] = pts as [[number, number], [number, number]];
+                if (a[0] === b[0] && a[1] === b[1]) return 'The two points must be different';
+                if (interaction.type === 'plot_ray') {
+                    const prev = firstRay(interaction.rays);
+                    updateAttributes({
+                        interaction: { type: 'plot_ray', rays: [{ ...prev, from: a, through: b }] },
+                    });
+                } else {
+                    const prev = firstSegment(interaction.segments);
+                    updateAttributes({
+                        interaction: { type: 'plot_segment', segments: [{ ...prev, from: a, to: b }] },
+                    });
+                }
+                return null;
+            }
             // One authoring surface for both figures: typing either kind just
             // swaps the stored interaction type (like the shape pills do).
             const parsed = parseRaySegment(raw);
@@ -746,6 +766,11 @@ export default function InteractiveGraphView({
                                       : 'Drag the handles — or type the equation below in any format. '}
                         </p>
                         <FormulaField
+                            // Remount on question-type switch so the input mode
+                            // re-derives from the new type's preference group
+                            // (state would otherwise carry math-mode onto a
+                            // ray/segment answer, or vice versa).
+                            key={`answer:${interaction.type === 'plot_segment' ? 'plot_ray' : interaction.type}`}
                             label="Answer:"
                             value={answerText}
                             disabled={!isEditable}
@@ -761,6 +786,24 @@ export default function InteractiveGraphView({
                                           : 'y = 2x + 3   ·   x^2 - 4   ·   y = 3 * 2^x   ·   x = 4'
                             }
                             onApply={applyFormula}
+                            // Math mode (LaTeX-rendered input) is the default for
+                            // notation the field can express; ray/segment default
+                            // to text because the command words aren't math — in
+                            // math mode they author as just the two points (the
+                            // question type already names the figure).
+                            modeKey={`answer:${interaction.type === 'plot_segment' ? 'plot_ray' : interaction.type}`}
+                            defaultMode={
+                                interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
+                                    ? 'text'
+                                    : 'math'
+                            }
+                            mathValue={
+                                interaction.type === 'plot_ray'
+                                    ? formatPoints([firstRay(interaction.rays).from, firstRay(interaction.rays).through])
+                                    : interaction.type === 'plot_segment'
+                                      ? formatPoints([firstSegment(interaction.segments).from, firstSegment(interaction.segments).to])
+                                      : undefined
+                            }
                         />
                     </>
                 )}

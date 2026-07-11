@@ -175,6 +175,8 @@ export default function DrawableListEditor({
                                 placeholder="y = x^2 - 4   ·   y > 2x + 1   ·   x = 4   ·   y = 2x for x >= 0"
                                 containerStyle={{ marginTop: 0, flex: 1, minWidth: '12rem' }}
                                 onApply={(raw) => applyCurveFormula(i, d, raw)}
+                                modeKey="drawable:curve"
+                                defaultMode="math"
                             />
                             <label style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', fontSize: '0.72rem' }}>
                                 <input type="checkbox" checked={d.style === 'dashed'} disabled={disabled}
@@ -316,6 +318,11 @@ export default function DrawableListEditor({
                     placeholder="y = x^2 - 4   ·   (2, 3)   ·   y > 2x + 1   ·   ray (0, 0) through (2, 1)   ·   segment (1, 1) to (4, 3)"
                     containerStyle={{ marginTop: 0, flex: 1, minWidth: '16rem' }}
                     onApply={addFromFormula}
+                    // Text default: the add box accepts command syntax (ray/
+                    // segment) that isn't math notation. Flippable to math for
+                    // equation/point entry.
+                    modeKey="drawable:add"
+                    defaultMode="text"
                 />
                 {kinds.includes('polygon') && (
                     <button type="button" disabled={disabled} onClick={addPolygon}
