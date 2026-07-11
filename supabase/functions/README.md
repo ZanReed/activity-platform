@@ -111,6 +111,16 @@ This bundles the kit, content-hashes it to `graph-kit-<hash>.js`, rewrites the m
 
 After any change to `packages/graph-kit`: run `pnpm upload:graph-kit`, **commit the regenerated manifest**, and **redeploy `publish-activity`** so it serves the new hashed URL. **The order matters: upload FIRST, then deploy the function** — the reverse points the live function at a not-yet-uploaded hash and 404s the summon button on every page published in the gap. Confirm the `Uploaded:` lines before deploying (`pnpm deploy:train` sequences all of this). Older hashes stay on R2, so already-published pages keep working until re-published. `pnpm build:graph-kit` (no `--upload`) just rebuilds + refreshes the manifest and never touches R2.
 
+## How these functions authorize (and the RPC grants they depend on)
+
+Each function calls a `SECURITY DEFINER` RPC, and migration `0009` locked EXECUTE on those RPCs down to exactly the caller each function uses — so the grants below are now load-bearing, not incidental:
+
+- **`publish-activity`** builds a Supabase client with the **user's JWT** (anon key + the request's `Authorization` header → the `authenticated` role) and calls `publish_activity`. It is NOT service-role. `publish_activity` is granted to `authenticated`; its internal `can_edit_activity` check is the real authorization.
+- **`upload-image`** works the same way (user JWT) and calls `can_edit_activity` directly.
+- **`ingest-submission`** uses the **service role** and calls `ingest_submission`, which after 0009 is granted to `service_role` **only** — `anon`/`authenticated` can no longer reach it via `/rest/v1/rpc/ingest_submission`, so a student can't bypass this function's Zod validation and IP-hashing by POSTing to PostgREST directly.
+
+Implication for changes: if you ever recreate one of these RPCs or add a new one, Supabase's default privileges re-grant EXECUTE to `PUBLIC`/`anon`/`authenticated`, so a new migration must re-apply the revoke/grant stanza (see `0009_security_housekeeping.sql` and DECISIONS.md → "Supabase security/performance housekeeping (0009)"). Redeploying a function does **not** change grants — those live in the database.
+
 ## Calling the publish function
 
 From the React app, with the user's auth session available:

@@ -40,7 +40,7 @@ pnpm --filter @activity/app dev        # Vite dev server on http://localhost:517
 ```
 
 Sign-in is Google OAuth, allowlist-only in Phase 1 — your email must be in the
-`signup_allowlist` table (the dev seed `supabase/migrations/0004_seed_dev.sql`
+`allowlist` table (the dev seed `supabase/migrations/0004_seed_dev.sql`
 adds it; `scripts/seed-test-data.sql` and the `seed-e2e-*.sql` scripts create
 sample activities/submissions). The editor playground at `/playground` and the
 `/dev/*` harnesses need no Supabase data and are the fastest way to poke at

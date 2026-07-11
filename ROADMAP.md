@@ -256,7 +256,7 @@ The endgame. Teachers publish high-quality activities for sale. Other teachers (
 - Pricing model: per-activity purchase, subscription, both?
 - Revenue split (if any) between author and platform.
 - Whether districts can buy bulk seats vs individual teachers paying.
-- How aggregation stats work cross-organization without leaking student data — almost certainly through the same `activity_aggregate_stats` view we already sketched, computed server-side per author.
+- How aggregation stats work cross-organization without leaking student data. The `activity_aggregate_stats` view we sketched is the shape, but NOT the cross-org mechanism: migration 0009 set it to `security_invoker`, so it now respects the querying user's RLS and only returns an owner's own activities. The cross-teacher case (a marketplace author seeing aggregates over buyers' assignments) needs a dedicated `SECURITY DEFINER` **function** with an explicit authorization check — as 0003's comment and DECISIONS.md → "Supabase security/performance housekeeping (0009)" both record. Don't reach for the view here; it's deliberately owner-scoped now.
 - Quality control: editorial review, community flagging, both, neither?
 
 **Done when**: A teacher who has never met another marketplace user can search, find, purchase, assign, and use an activity — and an author who's never met that buyer is paid for the use, with the platform never seeing student data flow between them.
