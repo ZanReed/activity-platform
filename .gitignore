@@ -75,5 +75,8 @@ coverage/
 # ---- Claude Code local config ----------------------------------------------
 # Machine-specific Claude Code settings (permissions, launch config). Not
 # shared; keep it out of the repo so it stops showing as untracked.
-.claude/
+# EXCEPTION: .claude/skills/ is versioned — project skills (e.g. /drift-audit)
+# are part of the repo's working method and must survive a fresh clone.
+.claude/*
+!.claude/skills/
 .gstack/
