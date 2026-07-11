@@ -83,7 +83,6 @@ function functionStartPoints(
     model: FunctionModelAttr,
     axis: GraphAxisConfig,
 ): [number, number][] {
-    const span = axis.xMax - axis.xMin || 1;
     const ySpan = axis.yMax - axis.yMin || 1;
     if (model.family === 'vertical') {
         return [
@@ -94,13 +93,37 @@ function functionStartPoints(
     const predict = modelPredict(model)!;
     const count = handlesForFamily(model.family);
     const fractions = count === 3 ? [0.25, 0.5, 0.75] : [0.3, 0.7];
-    let xs = fractions.map((f) => axis.xMin + span * f);
-    if (model.family === 'logarithmic') {
-        // ln needs x > 0 — seed inside the positive part of the window.
-        const posMin = Math.max(axis.xMin, 0.25);
-        const posSpan = axis.xMax - posMin || 1;
-        xs = fractions.map((f) => posMin + posSpan * f);
+    // The x-range to spread handles across. ln needs x > 0.
+    let lo = model.family === 'logarithmic' ? Math.max(axis.xMin, 0.25) : axis.xMin;
+    let hi = axis.xMax;
+    // Keep the handles where the curve stays IN the y-window: a steep curve
+    // (y = x² − 5 hits y = 20 at x = 5) would otherwise seed points the board
+    // clamps to the window edge — and 3 clamped points fit a FLATTER curve than
+    // the authored one (the drawn preview then lies about the answer). Sample
+    // the window and shrink [lo, hi] to the in-window x's so the seed handles
+    // land on the true curve.
+    const inWindow = (x: number): boolean => {
+        const y = predict(x);
+        return Number.isFinite(y) && y >= axis.yMin && y <= axis.yMax;
+    };
+    const STEPS = 200;
+    let firstIn = Infinity;
+    let lastIn = -Infinity;
+    for (let i = 0; i <= STEPS; i++) {
+        const x = lo + ((hi - lo) * i) / STEPS;
+        if (inWindow(x)) {
+            firstIn = Math.min(firstIn, x);
+            lastIn = Math.max(lastIn, x);
+        }
     }
+    // Only tighten when part of the curve left the window AND enough of it
+    // stays (a hair of in-window range can't spread the handles). Otherwise
+    // keep the full span (the pre-existing behavior).
+    if (firstIn < lastIn && lastIn - firstIn >= (hi - lo) * 0.1) {
+        lo = firstIn;
+        hi = lastIn;
+    }
+    const xs = fractions.map((f) => lo + (hi - lo) * f);
     return xs.map((x) => [round2(x), round2(predict(x))] as [number, number]);
 }
 
@@ -145,6 +168,7 @@ function GraphAuthorBoard({
     interaction,
     onPointsChange,
     onLinearChange,
+    onDomainChange,
     formulaEpoch,
 }: {
     axisConfig: GraphAxisConfig;
@@ -156,6 +180,12 @@ function GraphAuthorBoard({
         rayEndpointStyle: 'open' | 'closed';
         segStyles: ['open' | 'closed', 'open' | 'closed'];
     }) => void;
+    onDomainChange?: (domain: {
+        min?: number;
+        minStyle?: 'open' | 'closed';
+        max?: number;
+        maxStyle?: 'open' | 'closed';
+    }) => void;
     /** Bumped when the freeform answer field applies: remounts the board so
      *  the handles (and shape pills) jump to the typed answer. Drags never
      *  bump it — remounting mid-drag would yank the board from the pointer. */
@@ -166,6 +196,8 @@ function GraphAuthorBoard({
     cbRef.current = onPointsChange;
     const linearCbRef = useRef(onLinearChange);
     linearCbRef.current = onLinearChange;
+    const domainCbRef = useRef(onDomainChange);
+    domainCbRef.current = onDomainChange;
 
     const family =
         interaction.type === 'plot_function'
@@ -208,13 +240,21 @@ function GraphAuthorBoard({
     // stored TYPE, and remounting mid-toggle would rebuild the board under the
     // teacher's pointer.
     const typeKey = interaction.type === 'plot_segment' ? 'plot_ray' : interaction.type;
+    // Which bounds are present (NOT their values — dragging a bound must not
+    // remount). Only typing a clause changes this, and that also bumps
+    // formulaEpoch; kept explicit so absent↔present always rebuilds the board.
+    const authoredDomain =
+        interaction.type === 'plot_function' ? interaction.domains?.[0] ?? undefined : undefined;
+    const domainSig = authoredDomain
+        ? `${typeof authoredDomain.min === 'number'}:${typeof authoredDomain.max === 'number'}`
+        : 'none';
     const key = useMemo(
-        () => JSON.stringify([axisConfig, typeKey, family, count, formulaEpoch ?? 0]),
+        () => JSON.stringify([axisConfig, typeKey, family, count, domainSig, formulaEpoch ?? 0]),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [
             axisConfig.xMin, axisConfig.xMax, axisConfig.yMin, axisConfig.yMax,
             axisConfig.xGridStep, axisConfig.yGridStep, axisConfig.showGrid,
-            axisConfig.snapToGrid, typeKey, family, count, formulaEpoch,
+            axisConfig.snapToGrid, typeKey, family, count, domainSig, formulaEpoch,
         ],
     );
 
@@ -247,10 +287,15 @@ function GraphAuthorBoard({
                 correctPoints: startRef.current,
                 family,
                 linear,
+                domain:
+                    interaction.type === 'plot_function'
+                        ? interaction.domains?.[0] ?? undefined
+                        : undefined,
             },
             {
                 onChange: (pts) => cbRef.current(pts),
                 onLinearChange: (out) => linearCbRef.current?.(out),
+                onDomainChange: (domain) => domainCbRef.current?.(domain),
             },
         ).then((h) => {
             if (disposed) { h.destroy(); return; }
@@ -374,7 +419,13 @@ export default function InteractiveGraphView({
             const next = fittedToModel(firstModel(interaction.models), points);
             if (next) {
                 updateAttributes({
-                    interaction: { type: 'plot_function', models: [next] },
+                    // Preserve any domain — a curve-handle drag reshapes the
+                    // curve, not its bounds (the endpoints re-project onto it).
+                    interaction: {
+                        type: 'plot_function',
+                        models: [next],
+                        ...(interaction.domains && { domains: interaction.domains }),
+                    },
                 });
             }
         } else if (interaction.type === 'graph_inequality') {
@@ -391,6 +442,26 @@ export default function InteractiveGraphView({
         }
         // plot_ray / plot_segment moves arrive through onLinearChange (which
         // carries the shape + styles alongside the points) — nothing to do here.
+    };
+
+    // Bounded plot_function authoring: the endpoint handles / Start-End pills
+    // report the current bound; fold it into domains[0] (leaving the model and
+    // the untouched side alone).
+    const onDomainChange = (domain: {
+        min?: number;
+        minStyle?: 'open' | 'closed';
+        max?: number;
+        maxStyle?: 'open' | 'closed';
+    }): void => {
+        if (interaction.type !== 'plot_function') return;
+        const prev = interaction.domains?.[0] ?? {};
+        updateAttributes({
+            interaction: {
+                type: 'plot_function',
+                models: interaction.models,
+                domains: [{ ...prev, ...domain }],
+            },
+        });
     };
 
     // Ray/segment authoring: the shared shape-toggle controls report the full
@@ -772,6 +843,7 @@ export default function InteractiveGraphView({
                             interaction={interaction}
                             onPointsChange={onPointsChange}
                             onLinearChange={onLinearChange}
+                            onDomainChange={onDomainChange}
                             formulaEpoch={formulaEpoch}
                         />
 

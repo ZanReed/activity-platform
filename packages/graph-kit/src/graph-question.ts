@@ -975,6 +975,13 @@ export interface GraphAuthorConfig {
     rayEndpointStyle?: 'open' | 'closed';
     segStyles?: ['open' | 'closed', 'open' | 'closed'];
   };
+  /**
+   * Bounded plot_function authoring: the authored domain, so the preview clips
+   * the curve and mounts the two endpoint handles + Start/End pills the STUDENT
+   * gets ("what the teacher sees is what the student gets"). Curved family only
+   * — a linear/vertical bound is a ray/segment (routed before this board).
+   */
+  domain?: { min?: number; minStyle?: 'open' | 'closed'; max?: number; maxStyle?: 'open' | 'closed' };
 }
 
 export interface GraphAuthorHooks {
@@ -991,6 +998,17 @@ export interface GraphAuthorHooks {
     shape: LinearShape | null;
     rayEndpointStyle: 'open' | 'closed';
     segStyles: ['open' | 'closed', 'open' | 'closed'];
+  }) => void;
+  /**
+   * Bounded plot_function authoring: fired as the teacher drags an endpoint
+   * handle OR toggles a Start/End pill, with the current bound. The NodeView
+   * folds it into interaction.domains[0].
+   */
+  onDomainChange?: (domain: {
+    min?: number;
+    minStyle?: 'open' | 'closed';
+    max?: number;
+    maxStyle?: 'open' | 'closed';
   }) => void;
 }
 
@@ -1036,6 +1054,16 @@ export async function mountGraphAuthor(
     : undefined;
   const lineThroughHandles = family === 'vertical';
 
+  // Bounded plot_function authoring: a curved family with an authored bound
+  // gets the student's clip + endpoint handles + pills, so the preview IS the
+  // student figure. (Linear bounds are ray/segment, routed before this board.)
+  const dom = cfg.domain;
+  const hasMin = typeof dom?.min === 'number';
+  const hasMax = typeof dom?.max === 'number';
+  const hasDomain = Boolean(deriveCurve) && (hasMin || hasMax);
+  let minStyle: 'open' | 'closed' = dom?.minStyle === 'open' ? 'open' : 'closed';
+  let maxStyle: 'open' | 'closed' = dom?.maxStyle === 'open' ? 'open' : 'closed';
+
   mount.textContent = '';
   const { createPointAnswerBoard } = await import('./board.js');
 
@@ -1052,6 +1080,10 @@ export async function mountGraphAuthor(
       // Ray/segment authoring uses the SAME dynamic shape mode students get —
       // the teacher chooses the figure with the same pills.
       linearShape: isLinear,
+      // Bounded curve: show the endpoints, pinned — the teacher sets their
+      // position by typing the range, so a curve-handle drag can't clobber it.
+      domainEndpoints: hasDomain ? { min: hasMin, max: hasMax } : undefined,
+      domainEndpointsFixed: true,
     },
     {
       onMove: (_active, pts) => {
@@ -1063,6 +1095,43 @@ export async function mountGraphAuthor(
       },
     },
   );
+
+  // Seed the endpoint handles at the authored bounds + styles, then mount the
+  // Start/End pills (the SAME controls the student gets).
+  if (hasDomain) {
+    board.setDomainXs?.({
+      ...(hasMin && { minX: dom!.min }),
+      ...(hasMax && { maxX: dom!.max }),
+    });
+    board.setDomainStyles?.({ min: minStyle, max: maxStyle });
+    const bar = document.createElement('div');
+    bar.style.cssText =
+      'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
+      'flex-wrap:wrap;padding:0.3rem;background:rgba(255,255,255,0.88);' +
+      'border-top:1px solid #e2e8f0;z-index:5;';
+    // The pills change only the endpoint STYLE — positions come from the typed
+    // range and never move on this board, so report just the style and let the
+    // NodeView merge it (no getDomainXs read that could drift the bound).
+    if (hasMin) {
+      const btn = pill(minStyle === 'closed' ? 'Start: ● closed' : 'Start: ○ open', () => {
+        minStyle = minStyle === 'closed' ? 'open' : 'closed';
+        btn.textContent = minStyle === 'closed' ? 'Start: ● closed' : 'Start: ○ open';
+        board.setDomainStyles?.({ min: minStyle });
+        hooks.onDomainChange?.({ minStyle });
+      });
+      bar.appendChild(btn);
+    }
+    if (hasMax) {
+      const btn = pill(maxStyle === 'closed' ? 'End: ● closed' : 'End: ○ open', () => {
+        maxStyle = maxStyle === 'closed' ? 'open' : 'closed';
+        btn.textContent = maxStyle === 'closed' ? 'End: ● closed' : 'End: ○ open';
+        board.setDomainStyles?.({ max: maxStyle });
+        hooks.onDomainChange?.({ maxStyle });
+      });
+      bar.appendChild(btn);
+    }
+    mount.appendChild(bar);
+  }
 
   // Shared shape/style controls (identical to the student widget's), mounted
   // in the author's own control bar. Pre-set from the stored answer.

@@ -559,6 +559,13 @@ export interface PointAnswerConfig {
    */
   domainEndpoints?: { min?: boolean; max?: boolean };
   /**
+   * AUTHOR boards: render the domain endpoints but pin them (no drag). The
+   * teacher sets the bound by TYPING the range; the fixed handles make the
+   * preview match the student figure (clip + open/closed dots) without the
+   * two-callback clobber a draggable author endpoint would cause.
+   */
+  domainEndpointsFixed?: boolean;
+  /**
    * shade_region: draw a filled polygon through the handles (in order). It
    * follows the handles as they drag. Absent for plot_point / plot_function.
    */
@@ -891,14 +898,19 @@ export function createPointAnswerBoard(
         highlightFillColor: ANSWER_COLOR,
         showInfobox: false,
         withLabel: false,
+        fixed: config.domainEndpointsFixed === true,
       }) as unknown as JxgPoint;
       domainGliders.push({ which, p: g });
       if (which === 'min') minGlider = g;
       else maxGlider = g;
-      g.on('drag', () => {
-        moved = true;
-        hooks.onMove?.(activeIndex, currentPoints());
-      });
+      // Author boards pin the endpoints (position comes from the typed range);
+      // only the student's draggable gliders report moves.
+      if (!config.domainEndpointsFixed) {
+        g.on('drag', () => {
+          moved = true;
+          hooks.onMove?.(activeIndex, currentPoints());
+        });
+      }
     };
     // Seed nearer the middle of the window (not 0.25/0.75): on a steep curve the
     // old outer fractions put the gliders far up the y-axis, off-screen. The
@@ -1092,9 +1104,15 @@ export function createPointAnswerBoard(
       return out;
     },
     setDomainXs(xs): void {
+      // Move to the point ON the curve at x — moving to [x, 0] lets JSXGraph
+      // project the glider to the NEAREST curve point, which for a curve is a
+      // different x (the endpoints drift off the authored/saved value).
+      const fn = config.deriveCurve?.(currentPoints());
       for (const { which, p } of domainGliders) {
         const x = which === 'min' ? xs.minX : xs.maxX;
-        if (typeof x === 'number') p.moveTo([x, 0]); // glider re-projects onto the curve
+        if (typeof x !== 'number') continue;
+        const y = fn ? fn(x) : 0;
+        p.moveTo([x, Number.isFinite(y) ? y : 0]);
       }
       board.update();
     },
