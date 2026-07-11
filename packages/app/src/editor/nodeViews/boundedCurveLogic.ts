@@ -1,9 +1,11 @@
-import type { ParsedDomain } from '@activity/graph-kit';
+import { parseGraphFormula, type ParsedDomain } from '@activity/graph-kit';
 import type {
+    FunctionInteractionAttr,
     FunctionModelAttr,
     RayInteractionAttr,
     SegmentInteractionAttr,
 } from '../extensions/InteractiveGraph';
+import { toCurveDomain } from '../../lib/graphDomain';
 
 // ============================================================================
 // boundedCurveLogic — unified authoring for "a bounded curve".
@@ -91,4 +93,67 @@ export function linearDomainToRayOrSegment(
             },
         ],
     };
+}
+
+// ============================================================================
+// routeCurveFormula — the shared "an equation typed into a graded answer field
+// becomes the right interaction" router.
+// ----------------------------------------------------------------------------
+// Both the plot_function answer field and the plot_ray/plot_segment answer
+// field delegate here, so a curve-with-domain like `x^2 {-1<x<1}` authors the
+// same way regardless of the question's current type — mirroring the static
+// (display) graph's unified `drawablesFromFreeform` router. Family + bounds
+// decide the interaction:
+//
+//   nonlinear, no clause  → plot_function (full curve)
+//   nonlinear + domain    → plot_function + domains[] (bounded-curve handles)
+//   linear   + domain     → ray/segment (linearDomainToRayOrSegment)
+//   linear/vertical, bare → plot_function (a full line question)
+//
+// `prevModel`, when the caller is already in plot_function mode with the same
+// family, carries the teacher's tuned tolerances forward. Coordinates and
+// inequalities are steered to their own question types with a teacher-safe
+// message (they aren't curves).
+// ============================================================================
+
+export type CurveRoute =
+    | { ok: true; interaction: FunctionInteractionAttr | RayInteractionAttr | SegmentInteractionAttr }
+    | { ok: false; message: string };
+
+export function routeCurveFormula(raw: string, prevModel?: FunctionModelAttr): CurveRoute {
+    const parsed = parseGraphFormula(raw);
+    if (parsed.kind === 'error') return { ok: false, message: parsed.message };
+    if (parsed.kind === 'points') {
+        return { ok: false, message: 'That looks like coordinates — switch the question type to "Plot a point"' };
+    }
+    if (parsed.kind === 'inequality') {
+        // Graded inequalities are their own interaction (Drop 4); steer there.
+        return { ok: false, message: 'That is an inequality — switch the question type to "Graph an inequality"' };
+    }
+
+    let model = parsed.model as FunctionModelAttr;
+    // Same family → keep the teacher's tuned tolerances; new family → defaults.
+    if (prevModel && model.family === prevModel.family) {
+        const tolerances = Object.fromEntries(
+            Object.entries(prevModel).filter(([k]) => k.endsWith('Tolerance')),
+        );
+        model = { ...model, ...tolerances } as FunctionModelAttr;
+    }
+
+    if (parsed.domain) {
+        if (model.family === 'vertical') {
+            return {
+                ok: false,
+                message: 'A vertical line can’t take an x-range. For a vertical segment, type "segment (4, 1) to (4, 5)".',
+            };
+        }
+        if (model.family === 'linear') {
+            return { ok: true, interaction: linearDomainToRayOrSegment(model, parsed.domain) };
+        }
+        return {
+            ok: true,
+            interaction: { type: 'plot_function', models: [model], domains: [toCurveDomain(parsed.domain)] },
+        };
+    }
+    return { ok: true, interaction: { type: 'plot_function', models: [model] } };
 }

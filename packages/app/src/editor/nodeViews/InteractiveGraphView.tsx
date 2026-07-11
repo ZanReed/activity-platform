@@ -25,8 +25,8 @@ import DrawableListEditor from '../components/DrawableListEditor';
 import FormulaField from '../components/FormulaField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
-import { toCurveDomain, formatCurveDomain } from '../../lib/graphDomain';
-import { linearDomainToRayOrSegment } from './boundedCurveLogic';
+import { formatCurveDomain } from '../../lib/graphDomain';
+import { routeCurveFormula } from './boundedCurveLogic';
 import {
     defaultDisplayInteraction,
     defaultFunctionInteraction,
@@ -734,78 +734,49 @@ export default function InteractiveGraphView({
                 }
                 return null;
             }
-            // One authoring surface for both figures: typing either kind just
-            // swaps the stored interaction type (like the shape pills do).
-            const parsed = parseRaySegment(raw);
-            if (parsed.kind === 'error') return parsed.message;
-            const tolerance =
-                interaction.type === 'plot_ray'
-                    ? firstRay(interaction.rays).tolerance
-                    : firstSegment(interaction.segments).tolerance;
-            if (parsed.kind === 'ray') {
-                updateAttributes({
-                    interaction: {
-                        type: 'plot_ray',
-                        rays: [{ from: parsed.from, through: parsed.through, fromStyle: parsed.fromStyle, tolerance }],
-                    },
-                });
-            } else {
-                updateAttributes({
-                    interaction: {
-                        type: 'plot_segment',
-                        segments: [{ from: parsed.from, to: parsed.to, endpoints: parsed.endpoints, tolerance }],
-                    },
-                });
+            // A `ray …` / `segment …` command names a kind and can swap it.
+            if (/^\s*(ray|segment)\b/i.test(raw)) {
+                const parsed = parseRaySegment(raw);
+                if (parsed.kind === 'error') return parsed.message;
+                const tolerance =
+                    interaction.type === 'plot_ray'
+                        ? firstRay(interaction.rays).tolerance
+                        : firstSegment(interaction.segments).tolerance;
+                if (parsed.kind === 'ray') {
+                    updateAttributes({
+                        interaction: {
+                            type: 'plot_ray',
+                            rays: [{ from: parsed.from, through: parsed.through, fromStyle: parsed.fromStyle, tolerance }],
+                        },
+                    });
+                } else {
+                    updateAttributes({
+                        interaction: {
+                            type: 'plot_segment',
+                            segments: [{ from: parsed.from, to: parsed.to, endpoints: parsed.endpoints, tolerance }],
+                        },
+                    });
+                }
+                return null;
             }
+            // Anything else is an equation/curve — route it exactly like the
+            // plot_function field and the static-graph add box do, so a bounded
+            // curve like `x^2 {-1<x<1}` authors here too (a linear+domain lands
+            // back on a ray/segment; a curved family becomes a bounded curve).
+            const route = routeCurveFormula(raw);
+            if (!route.ok) return route.message;
+            updateAttributes({ interaction: route.interaction });
             return null;
         }
         if (interaction.type === 'plot_function') {
-            const parsed = parseGraphFormula(raw);
-            if (parsed.kind === 'error') return parsed.message;
-            if (parsed.kind === 'points') return 'That looks like coordinates — switch the question type to "Plot a point"';
-            if (parsed.kind === 'inequality') {
-                // Graded inequalities are their own interaction (Drop 4); steer there.
-                return 'That is an inequality — switch the question type to "Graph an inequality"';
-            }
-            const prev = firstModel(interaction.models);
-            // Same family → keep the teacher's tuned tolerances; new family → defaults.
-            let model = parsed.model as FunctionModelAttr;
-            if (model.family === prev.family) {
-                const tolerances = Object.fromEntries(
-                    Object.entries(prev).filter(([k]) => k.endsWith('Tolerance')),
-                );
-                model = { ...model, ...tolerances } as FunctionModelAttr;
-            }
-            if (parsed.domain) {
-                // Unified authoring: a domain clause makes a BOUNDED curve. A
-                // linear/vertical bound is a ray/segment (route to the pills
-                // mechanic); a curved family stays plot_function + domains[]
-                // (the endpoint-handle mechanic).
-                if (model.family === 'vertical') {
-                    return 'A vertical line can’t take an x-range. For a vertical segment, type "segment (4, 1) to (4, 5)".';
-                }
-                if (model.family === 'linear') {
-                    updateAttributes({
-                        interaction: linearDomainToRayOrSegment(model, parsed.domain),
-                    });
-                    return null;
-                }
-                updateAttributes({
-                    interaction: {
-                        type: 'plot_function',
-                        models: [model],
-                        domains: [toCurveDomain(parsed.domain)],
-                    },
-                });
-                return null;
-            }
-            updateAttributes({
-                interaction: {
-                    // No clause → a full (unbounded) curve; drop any prior domain.
-                    type: 'plot_function',
-                    models: [model],
-                },
-            });
+            // Unified authoring: family + bounds decide the interaction. A domain
+            // clause on a curved family stays plot_function + domains[] (the
+            // endpoint-handle mechanic); a linear bound becomes a ray/segment;
+            // no clause is a full curve. Same routing the ray/segment field and
+            // the static-display add box use.
+            const route = routeCurveFormula(raw, firstModel(interaction.models));
+            if (!route.ok) return route.message;
+            updateAttributes({ interaction: route.interaction });
             return null;
         }
         return null;
