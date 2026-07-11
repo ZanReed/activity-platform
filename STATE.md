@@ -6,13 +6,9 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting:
 
-1. **The calculator-parity Tier A train (2026-07-11, one deploy sweep, order matters):**
-   1. `pnpm upload:graph-kit` — the kit re-hashed (inequality rows + fills, per-row domains, new function table, logarithmic in the model list). Confirm the `Uploaded:` lines, then commit the regenerated `graph-kit-manifest.ts` after the deploy.
-   2. `supabase functions deploy publish-activity` — picks up the new kit hash + the regenerated renderer bundle (schema gained `allowInequalities` + the logarithmic enum member; renderer source untouched).
-   3. App deploy — config-drawer checkbox + logarithmic label, display-curve inequality authoring, importer inequality-domain composition, dev-harness toggles.
-   No `ingest-submission` redeploy (no wire change; the calculator is never scored). Published pages pick everything up on their next re-publish; ALREADY-published pages keep working (old kit hashes stay on R2, and a missing `allowInequalities` reads as permissive).
-2. **App deploy — markdown importer domain-endpoint fix (`407740e`, 2026-07-11):** imported `show: curve/line … for x > 0` domains now translate ParsedDomain's minClosed/maxClosed booleans to the schema's minStyle/maxStyle, so open endpoints stop rendering as closed dots. App-only — rides along with train item 3 above.
-3. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
+1. **Reminder:** any future redeploy of `ingest-submission` needs `--no-verify-jwt` (see CLAUDE.md).
+
+Cleared 2026-07-11 (author-confirmed "done"): **the calculator-parity Tier A train** — kit uploaded (hash `graph-kit-AG2PA3TB.js`, manifest synced + committed `eb92fb3`), `publish-activity` redeployed (new kit hash + regenerated renderer bundle: `allowInequalities` + logarithmic enum, renderer source untouched), app deployed (config-drawer inequality checkbox + logarithmic label, display-curve inequality authoring, importer inequality-domain composition, dev-harness toggles) — the `407740e` importer domain-endpoint fix rode along. No `ingest-submission` redeploy (no wire change; the calculator is never scored). Commits `c8f2a38` + `eb92fb3`.
 
 Cleared 2026-07-10 sixth session (author-confirmed "deployed"): **the matching + ordering wire-v6 train** — `ingest-submission` (`--no-verify-jwt`, accepts v3–v6) redeployed BEFORE republish, `publish-activity` redeployed (two new blocks + storage-v7 runtime), app deployed (editor NodeViews, ```match/```order import, dashboard tables). No kit change. One eyeball still open: pointer-DRAG on a real mouse/touch device (see the status row).
 
