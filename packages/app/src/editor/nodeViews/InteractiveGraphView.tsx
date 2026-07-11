@@ -25,6 +25,8 @@ import DrawableListEditor from '../components/DrawableListEditor';
 import FormulaField from '../components/FormulaField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
+import { toCurveDomain, formatCurveDomain } from '../../lib/graphDomain';
+import { linearDomainToRayOrSegment } from './boundedCurveLogic';
 import {
     defaultDisplayInteraction,
     defaultFunctionInteraction,
@@ -557,7 +559,7 @@ export default function InteractiveGraphView({
             : interaction.type === 'shade_region'
               ? formatPoints(firstRegion(interaction.regions).correctVertices)
               : interaction.type === 'plot_function'
-                ? formatModel(firstModel(interaction.models))
+                ? formatModel(firstModel(interaction.models)) + formatCurveDomain(interaction.domains?.[0])
                 : interaction.type === 'graph_inequality'
                   ? formatInequality(firstInequality(interaction.inequalities))
                   : interaction.type === 'plot_ray'
@@ -663,11 +665,6 @@ export default function InteractiveGraphView({
                 // Graded inequalities are their own interaction (Drop 4); steer there.
                 return 'That is an inequality — switch the question type to "Graph an inequality"';
             }
-            if (parsed.kind === 'function' && parsed.domain) {
-                // Domain clauses used to author the glider UX (deprecated).
-                // Rays/segments are first-class now — steer there.
-                return 'For a ray or segment, switch the question type to "Draw a ray" or "Draw a segment"';
-            }
             const prev = firstModel(interaction.models);
             // Same family → keep the teacher's tuned tolerances; new family → defaults.
             let model = parsed.model as FunctionModelAttr;
@@ -677,8 +674,32 @@ export default function InteractiveGraphView({
                 );
                 model = { ...model, ...tolerances } as FunctionModelAttr;
             }
+            if (parsed.domain) {
+                // Unified authoring: a domain clause makes a BOUNDED curve. A
+                // linear/vertical bound is a ray/segment (route to the pills
+                // mechanic); a curved family stays plot_function + domains[]
+                // (the endpoint-handle mechanic).
+                if (model.family === 'vertical') {
+                    return 'A vertical line can’t take an x-range. For a vertical segment, type "segment (4, 1) to (4, 5)".';
+                }
+                if (model.family === 'linear') {
+                    updateAttributes({
+                        interaction: linearDomainToRayOrSegment(model, parsed.domain),
+                    });
+                    return null;
+                }
+                updateAttributes({
+                    interaction: {
+                        type: 'plot_function',
+                        models: [model],
+                        domains: [toCurveDomain(parsed.domain)],
+                    },
+                });
+                return null;
+            }
             updateAttributes({
                 interaction: {
+                    // No clause → a full (unbounded) curve; drop any prior domain.
                     type: 'plot_function',
                     models: [model],
                 },
@@ -763,7 +784,7 @@ export default function InteractiveGraphView({
                                     ? 'Type the inequality below — the sign sets dotted/solid and the shaded side. Drag the handles to move the boundary. '
                                     : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
                                       ? 'Drag the two handles, then use the buttons on the graph to choose ray or segment and open/closed endpoints — exactly what students will do. Or type it below. '
-                                      : 'Drag the handles — or type the equation below in any format. '}
+                                      : 'Drag the handles — or type the equation below in any format. Add a range (e.g. "for -2 <= x <= 3") to bound the curve; a straight line with a range becomes a ray or segment. '}
                         </p>
                         <FormulaField
                             // Remount on question-type switch so the input mode
@@ -783,7 +804,7 @@ export default function InteractiveGraphView({
                                         ? 'y > 2x + 1   ·   y <= x^2   ·   x >= 3'
                                         : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
                                           ? 'ray (1, 2) through (3, 4) open   ·   segment (1, 2) to (3, 4)'
-                                          : 'y = 2x + 3   ·   x^2 - 4   ·   y = 3 * 2^x   ·   x = 4'
+                                          : 'y = 2x + 3   ·   x^2 - 4   ·   y = x^2 - 4 for -2 <= x <= 3   ·   x = 4'
                             }
                             onApply={applyFormula}
                             // Math mode (LaTeX-rendered input) is the default for

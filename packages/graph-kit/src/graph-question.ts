@@ -838,11 +838,14 @@ export async function mountGraphQuestion(
       bar.append(solidBtn, dottedBtn, sideABtn, sideBBtn);
     }
     if (domainKey) {
-      // One toggle per authored bound: open (hollow, excluded) vs closed.
+      // One toggle per authored bound: open (hollow, excluded) vs closed. The
+      // toggle also restyles the endpoint handle hollow/filled — same as the
+      // ray/segment endpoints, so the pill and the drawn point always agree.
       if (typeof domainKey.min === 'number') {
         minStyleBtn = pill('Start: ● closed', () => {
           minStyle = minStyle === 'closed' ? 'open' : 'closed';
           minStyleBtn!.textContent = minStyle === 'closed' ? 'Start: ● closed' : 'Start: ○ open';
+          board.setDomainStyles?.({ min: minStyle });
           answered = true;
           hooks.onChange?.(build());
         });
@@ -852,6 +855,7 @@ export async function mountGraphQuestion(
         maxStyleBtn = pill('End: ● closed', () => {
           maxStyle = maxStyle === 'closed' ? 'open' : 'closed';
           maxStyleBtn!.textContent = maxStyle === 'closed' ? 'End: ● closed' : 'End: ○ open';
+          board.setDomainStyles?.({ max: maxStyle });
           answered = true;
           hooks.onChange?.(build());
         });
@@ -919,6 +923,9 @@ export async function mountGraphQuestion(
             maxStyle = extras.domain.maxStyle;
             if (maxStyleBtn) maxStyleBtn.textContent = maxStyle === 'closed' ? 'End: ● closed' : 'End: ○ open';
           }
+          // Restyle the endpoint handles hollow/filled to match the restored
+          // choices (a reloaded open endpoint must not render as a filled dot).
+          board.setDomainStyles?.({ min: minStyle, max: maxStyle });
         }
         syncBar();
       }

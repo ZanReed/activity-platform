@@ -100,6 +100,26 @@ const SCENARIOS: Record<string, Scenario> = {
       { kind: 'curve', model: { family: 'linear', slope: -0.4, intercept: 8 }, style: 'dashed', arrows: false },
     ],
   },
+  'bounded-quad': {
+    label: 'Bounded curve — y = x² − 4 for −2 ≤ x ≤ 3',
+    interactionType: 'plot_function',
+    answerKey: {
+      models: [{ family: 'quadratic', a: 1, b: 0, c: -4, aTolerance: 0.2, bTolerance: 0.2, cTolerance: 0.2 }],
+      domains: [{ min: -2, minStyle: 'closed', max: 3, maxStyle: 'closed' }],
+    },
+    restorePoints: [[0, -4], [1, -3], [-2, 0]],
+    hint: 'THREE curve handles + two purple endpoint handles (drag along the curve to x = −2 and x = 3); Start/End pills toggle open/closed. Curve CLIPS between the endpoints.',
+  },
+  'bounded-linear': {
+    label: 'Bounded curve — y = 2x + 3 for 0 ≤ x ≤ 4',
+    interactionType: 'plot_function',
+    answerKey: {
+      models: [{ family: 'linear', slope: 2, intercept: 3, slopeTolerance: 0.2, interceptTolerance: 0.2 }],
+      domains: [{ min: 0, minStyle: 'closed', max: 4, maxStyle: 'closed' }],
+    },
+    restorePoints: [[0, 3], [1, 5]],
+    hint: 'Two curve handles + two domain gliders (x = 0 and x = 4) — the segment-equivalent via the glider mechanic.',
+  },
   'quad-inequality': {
     label: 'Graph an inequality — y > x² − 4',
     interactionType: 'graph_inequality',

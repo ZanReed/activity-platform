@@ -78,6 +78,12 @@ export interface RegionAnswerAttr {
 export interface FunctionInteractionAttr {
     type: 'plot_function';
     models: FunctionModelAttr[];
+    // Optional per-curve domain restriction (parallel to models by index). A
+    // NON-LINEAR family + domain is a bounded curve (the student drags the two
+    // endpoint handles along the curve). Linear/vertical + domain routes to
+    // plot_ray/plot_segment instead (see boundedCurveLogic), so a populated
+    // entry here is always a curved family.
+    domains?: ({ min?: number; minStyle?: 'open' | 'closed'; max?: number; maxStyle?: 'open' | 'closed' } | null)[];
 }
 export interface RegionInteractionAttr {
     type: 'shade_region';
