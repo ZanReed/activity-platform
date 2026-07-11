@@ -1,6 +1,6 @@
 # Supabase migrations
 
-Phase 1 schema for the activity platform. Seven core migrations plus an optional dev seed. All applied to the live project (see STATE.md "Status by area").
+Phase 1 schema for the activity platform. Eight core migrations plus an optional dev seed. `0001`–`0008` are applied to the live project; `0009` is prepared and awaiting apply (see STATE.md "Pending author actions" / "Status by area").
 
 ## Files
 
@@ -14,6 +14,7 @@ Phase 1 schema for the activity platform. Seven core migrations plus an optional
 | `0006_account_tier.sql` | Adds the `account_tier` enum and the `users.account_tier` column; extends the `users_update_self` RLS policy to block client-side tier escalation. |
 | `0007_submission_version.sql` | Pins each submission to the `activity_versions` row it was made against, so the dashboard reads the answer key the student actually saw. |
 | `0008_soft_delete_activity.sql` | `SECURITY DEFINER` RPC `soft_delete_activity` — a client-side soft-delete UPDATE is rejected under the `deleted_at is null` SELECT policy (the post-update row becomes invisible to SELECT). See DECISIONS.md → "Activity deletion". |
+| `0009_security_housekeeping.sql` | Advisor-driven security + performance pass (2026-07-11 run): `activity_aggregate_stats` → `security_invoker` (was leaking cross-teacher aggregates to any signed-in user); EXECUTE revoked from PUBLIC/anon/authenticated on the SECURITY DEFINER RPCs, re-granted only to verified call sites (`publish_activity` + `soft_delete_activity` keep `authenticated`); pinned `search_path` on the three RLS helpers; `auth.uid()` → `(select auth.uid())` initplan rewrite across 9 policies; covering indexes for 5 unindexed FKs. Verification queries (with expected results) are commented at the bottom of the file. Intentional non-fixes documented in DECISIONS.md → "Supabase security/performance housekeeping (0009)". |
 
 Run order is the file order. Each builds on the previous. `0004` is the dev seed and only matters on a dev project; the schema migrations `0005`+ come after it numerically and run after it.
 
@@ -38,7 +39,7 @@ The CLI normally names migrations with timestamps (`20240505140000_initial_schem
 
 ### Option B: Paste into the SQL editor
 
-Open your Supabase project → SQL Editor → New query. Paste and run `0001`, `0002`, `0003`, `0005`, `0006`, `0007`, and `0008` in order. `0004` is the dev seed — edit the email first, then run it any time after `0003` (only against a dev project).
+Open your Supabase project → SQL Editor → New query. Paste and run `0001`, `0002`, `0003`, `0005`, `0006`, `0007`, `0008`, and `0009` in order. `0004` is the dev seed — edit the email first, then run it any time after `0003` (only against a dev project).
 
 This works but isn't reproducible. Use Option A once you're past the prototype stage.
 
