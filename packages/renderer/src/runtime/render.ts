@@ -136,29 +136,52 @@ function renderBlank(
     }
 }
 
-function renderBlock(blockState: BlockState, ref: FillInBlankRef): void {
+type ConfidenceValue = 'unsure' | 'think_so' | 'certain' | null;
+
+/**
+ * Shared block-chrome reflection used by every question type (fill-in-blank,
+ * MC, matching, ordering): the solution slot (hidden until revealed) and the
+ * confidence radios (checked mirrors state).
+ *
+ * Confidence reflection drives restoration-on-load — a stored selection
+ * re-checks the right radio when bootstrap renders for the first time — and
+ * keeps state ↔ DOM consistent if anything other than the user's click sets
+ * state. No hasConfidenceRating guard is needed: an empty confidenceRadios
+ * (no fieldset) iterates zero times.
+ *
+ * `locked` is optional because only the drag-based blocks (matching, ordering)
+ * freeze their confidence radios; blank/MC omit it and leave radio.disabled
+ * untouched, preserving each type's existing behavior.
+ */
+function renderSolutionAndConfidence(
+    ref: {
+        solutionEl: HTMLElement | null;
+        confidenceRadios: HTMLInputElement[];
+    },
+    block: { solutionRevealed: boolean; confidence: ConfidenceValue },
+    locked?: boolean,
+): void {
     // Solution slot — hidden until solutionRevealed flips true.
     if (ref.solutionEl) {
-        const wantHidden = !blockState.solutionRevealed;
+        const wantHidden = !block.solutionRevealed;
         if (ref.solutionEl.hidden !== wantHidden) {
             ref.solutionEl.hidden = wantHidden;
         }
     }
 
-    // Confidence radio reflection — sync each radio's checked state to
-    // state.blocks[id].confidence. Drives restoration-on-load (a stored
-    // confidence selection re-checks the right radio when bootstrap
-    // renders for the first time) and keeps state ↔ DOM consistent if
-    // anything other than the user's click ever sets state.
-    //
-    // No explicit guard for hasConfidenceRating — when confidenceRadios
-    // is empty (no fieldset), the loop iterates zero times.
     for (const radio of ref.confidenceRadios) {
-        const wantChecked = radio.value === blockState.confidence;
+        const wantChecked = radio.value === block.confidence;
         if (radio.checked !== wantChecked) {
             radio.checked = wantChecked;
         }
+        if (locked !== undefined && radio.disabled !== locked) {
+            radio.disabled = locked;
+        }
     }
+}
+
+function renderBlock(blockState: BlockState, ref: FillInBlankRef): void {
+    renderSolutionAndConfidence(ref, blockState);
 }
 
 /**
@@ -222,21 +245,7 @@ function renderMcBlock(
         }
     }
 
-    // Solution slot — hidden until solutionRevealed flips true.
-    if (ref.solutionEl) {
-        const wantHidden = !mcState.solutionRevealed;
-        if (ref.solutionEl.hidden !== wantHidden) {
-            ref.solutionEl.hidden = wantHidden;
-        }
-    }
-
-    // Confidence radio reflection — same contract as renderBlock's.
-    for (const radio of ref.confidenceRadios) {
-        const wantChecked = radio.value === mcState.confidence;
-        if (radio.checked !== wantChecked) {
-            radio.checked = wantChecked;
-        }
-    }
+    renderSolutionAndConfidence(ref, mcState);
 }
 
 /**
@@ -347,22 +356,7 @@ function renderMatchBlock(
         item.el.classList.toggle('incorrect', showVerdict && !pairCorrect);
     }
 
-    // Solution slot — hidden until solutionRevealed flips true.
-    if (ref.solutionEl) {
-        const wantHidden = !matchState.solutionRevealed;
-        if (ref.solutionEl.hidden !== wantHidden) {
-            ref.solutionEl.hidden = wantHidden;
-        }
-    }
-
-    // Confidence radio reflection — same contract as renderBlock's.
-    for (const radio of ref.confidenceRadios) {
-        const wantChecked = radio.value === matchState.confidence;
-        if (radio.checked !== wantChecked) {
-            radio.checked = wantChecked;
-        }
-        if (radio.disabled !== locked) radio.disabled = locked;
-    }
+    renderSolutionAndConfidence(ref, matchState, locked);
 }
 
 /**
@@ -425,22 +419,7 @@ function renderOrderBlock(
         el.classList.toggle('incorrect', showVerdict && !positionCorrect);
     }
 
-    // Solution slot — hidden until solutionRevealed flips true.
-    if (ref.solutionEl) {
-        const wantHidden = !orderState.solutionRevealed;
-        if (ref.solutionEl.hidden !== wantHidden) {
-            ref.solutionEl.hidden = wantHidden;
-        }
-    }
-
-    // Confidence radio reflection — same contract as renderBlock's.
-    for (const radio of ref.confidenceRadios) {
-        const wantChecked = radio.value === orderState.confidence;
-        if (radio.checked !== wantChecked) {
-            radio.checked = wantChecked;
-        }
-        if (radio.disabled !== locked) radio.disabled = locked;
-    }
+    renderSolutionAndConfidence(ref, orderState, locked);
 }
 
 function renderSection(
