@@ -914,7 +914,8 @@ export async function mountGraphQuestion(
           });
         }
         if (extras.domain) {
-          board.setDomainXs?.({ minX: extras.domain.minX, maxX: extras.domain.maxX });
+          // Positions ride the restored HANDLES (setPoints below); only the
+          // open/closed styles need re-applying here.
           if (extras.domain.minStyle) {
             minStyle = extras.domain.minStyle;
             if (minStyleBtn) minStyleBtn.textContent = minStyle === 'closed' ? 'Start: ● closed' : 'Start: ○ open';
@@ -923,8 +924,6 @@ export async function mountGraphQuestion(
             maxStyle = extras.domain.maxStyle;
             if (maxStyleBtn) maxStyleBtn.textContent = maxStyle === 'closed' ? 'End: ● closed' : 'End: ○ open';
           }
-          // Restyle the endpoint handles hollow/filled to match the restored
-          // choices (a reloaded open endpoint must not render as a filled dot).
           board.setDomainStyles?.({ min: minStyle, max: maxStyle });
         }
         syncBar();
@@ -1080,10 +1079,11 @@ export async function mountGraphAuthor(
       // Ray/segment authoring uses the SAME dynamic shape mode students get —
       // the teacher chooses the figure with the same pills.
       linearShape: isLinear,
-      // Bounded curve: show the endpoints, pinned — the teacher sets their
-      // position by typing the range, so a curve-handle drag can't clobber it.
+      // Bounded curve: the outer HANDLES are the endpoints. The teacher seeds
+      // them at the typed range (functionStartPoints) and can drag them — a
+      // drag reports through onChange, and the NodeView recomputes the bound
+      // from the handles (one update, no clobber).
       domainEndpoints: hasDomain ? { min: hasMin, max: hasMax } : undefined,
-      domainEndpointsFixed: true,
     },
     {
       onMove: (_active, pts) => {
@@ -1096,22 +1096,17 @@ export async function mountGraphAuthor(
     },
   );
 
-  // Seed the endpoint handles at the authored bounds + styles, then mount the
-  // Start/End pills (the SAME controls the student gets).
+  // Seed the endpoint open/closed styles, then mount the Start/End pills (the
+  // SAME controls the student gets). Positions come from the handles.
   if (hasDomain) {
-    board.setDomainXs?.({
-      ...(hasMin && { minX: dom!.min }),
-      ...(hasMax && { maxX: dom!.max }),
-    });
     board.setDomainStyles?.({ min: minStyle, max: maxStyle });
     const bar = document.createElement('div');
     bar.style.cssText =
       'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
       'flex-wrap:wrap;padding:0.3rem;background:rgba(255,255,255,0.88);' +
       'border-top:1px solid #e2e8f0;z-index:5;';
-    // The pills change only the endpoint STYLE — positions come from the typed
-    // range and never move on this board, so report just the style and let the
-    // NodeView merge it (no getDomainXs read that could drift the bound).
+    // The pills change only the endpoint STYLE; positions are the handles, so
+    // report just the style and let the NodeView merge it.
     if (hasMin) {
       const btn = pill(minStyle === 'closed' ? 'Start: ● closed' : 'Start: ○ open', () => {
         minStyle = minStyle === 'closed' ? 'open' : 'closed';

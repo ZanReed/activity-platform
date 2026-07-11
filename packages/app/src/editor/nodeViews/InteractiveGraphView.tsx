@@ -82,6 +82,7 @@ function modelPredict(model: FunctionModelAttr): ((x: number) => number) | null 
 function functionStartPoints(
     model: FunctionModelAttr,
     axis: GraphAxisConfig,
+    domain?: { min?: number; max?: number } | null,
 ): [number, number][] {
     const ySpan = axis.yMax - axis.yMin || 1;
     if (model.family === 'vertical') {
@@ -123,7 +124,26 @@ function functionStartPoints(
         lo = firstIn;
         hi = lastIn;
     }
-    const xs = fractions.map((f) => lo + (hi - lo) * f);
+    // Bounded curve: the two OUTER handles ARE the domain ends, so pin them at
+    // the authored bounds (interior handle[s] spread between). An unbounded side
+    // falls back to the in-window edge. This is why a bounded parabola authors
+    // with 3 handles, not 5 — the ends double as curve-defining points.
+    const hasBound = domain && (domain.min !== undefined || domain.max !== undefined);
+    const xs = hasBound
+        ? (() => {
+              const left = domain!.min ?? lo;
+              const right = domain!.max ?? hi;
+              if (count === 2) return [left, right];
+              // The middle handle must land on the curve AND on a grid line, or
+              // snapToGrid moves it off the curve and the fit goes wrong (a
+              // midpoint of 0.5 snaps to x=1 while its y stays 0.5's value). Seed
+              // it at a grid-aligned x between the ends.
+              const step = axis.xGridStep || 1;
+              let mid = Math.round((left + right) / 2 / step) * step;
+              if (mid <= left || mid >= right) mid = (left + right) / 2;
+              return [left, mid, right];
+          })()
+        : fractions.map((f) => lo + (hi - lo) * f);
     return xs.map((x) => [round2(x), round2(predict(x))] as [number, number]);
 }
 
@@ -219,7 +239,7 @@ function GraphAuthorBoard({
                   : 1;
     const startPoints =
         interaction.type === 'plot_function'
-            ? functionStartPoints(firstModel(interaction.models), axisConfig)
+            ? functionStartPoints(firstModel(interaction.models), axisConfig, interaction.domains?.[0])
             : interaction.type === 'graph_inequality'
               ? functionStartPoints(firstInequality(interaction.inequalities).boundary, axisConfig)
               : interaction.type === 'shade_region'
@@ -418,13 +438,24 @@ export default function InteractiveGraphView({
         } else if (interaction.type === 'plot_function') {
             const next = fittedToModel(firstModel(interaction.models), points);
             if (next) {
+                // Bounded curve: the outer handles ARE the ends, so a drag
+                // updates BOTH the model (refit) and the bound (extreme x's) in
+                // ONE update — only the authored side(s) move; styles persist.
+                const prev = interaction.domains?.[0];
+                let domains = interaction.domains;
+                if (prev && points.length > 0) {
+                    const xsOnly = points.map((p) => p[0]);
+                    domains = [{
+                        ...prev,
+                        ...(prev.min !== undefined && { min: round2(Math.min(...xsOnly)) }),
+                        ...(prev.max !== undefined && { max: round2(Math.max(...xsOnly)) }),
+                    }];
+                }
                 updateAttributes({
-                    // Preserve any domain — a curve-handle drag reshapes the
-                    // curve, not its bounds (the endpoints re-project onto it).
                     interaction: {
                         type: 'plot_function',
                         models: [next],
-                        ...(interaction.domains && { domains: interaction.domains }),
+                        ...(domains && { domains }),
                     },
                 });
             }

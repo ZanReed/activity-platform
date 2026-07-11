@@ -553,18 +553,12 @@ export interface PointAnswerConfig {
    */
   shadeBoundary?: boolean;
   /**
-   * Drop 6 follow-up: domain endpoint handles. For each authored bound, a
-   * GLIDER point rides the derived curve — the student drags it along the curve
-   * to mark where the ray/segment starts/ends. Requires deriveCurve.
+   * Bounded-curve mode: which ends are bounded (min and/or max). The two
+   * extreme-x HANDLES double as the domain endpoints (no separate gliders) —
+   * the curve fits through all handles and clips between the ends. Requires
+   * deriveCurve.
    */
   domainEndpoints?: { min?: boolean; max?: boolean };
-  /**
-   * AUTHOR boards: render the domain endpoints but pin them (no drag). The
-   * teacher sets the bound by TYPING the range; the fixed handles make the
-   * preview match the student figure (clip + open/closed dots) without the
-   * two-callback clobber a draggable author endpoint would cause.
-   */
-  domainEndpointsFixed?: boolean;
   /**
    * shade_region: draw a filled polygon through the handles (in order). It
    * follows the handles as they drag. Absent for plot_point / plot_function.
@@ -611,12 +605,10 @@ export interface PointAnswerController {
   setPoints(points: [number, number][]): void;
   /** Lock (post-check) or unlock dragging + keyboard on every handle. */
   setInteractive(on: boolean): void;
-  /** domainEndpoints boards: the gliders' current x positions. */
+  /** domainEndpoints boards: the bound = the extreme handles' current x. */
   getDomainXs?(): { minX?: number; maxX?: number };
-  /** domainEndpoints boards: reposition the gliders (state restore). */
-  setDomainXs?(xs: { minX?: number; maxX?: number }): void;
-  /** domainEndpoints boards: render each endpoint hollow (open) / filled
-   *  (closed), matching the ray/segment endpoints. */
+  /** domainEndpoints boards: render each endpoint handle hollow (open) /
+   *  filled (closed). Positions come from the handles (setPoints on restore). */
   setDomainStyles?(styles: { min?: 'open' | 'closed'; max?: 'open' | 'closed' }): void;
   /** shadeBoundary boards: shade one side of the boundary (null clears). */
   setShadeSide?(side: 'above' | 'below' | 'left' | 'right' | null): void;
@@ -747,16 +739,13 @@ export function createPointAnswerBoard(
   let curveObj: { setAttribute(attrs: Record<string, unknown>): void } | null = null;
   let lineObj: { setAttribute(attrs: Record<string, unknown>): void } | null = null;
 
-  // Bounded-curve (domain-endpoint) mode: the curve the gliders ride is drawn
-  // FAINT and full-width so a glider can be dragged anywhere along it (a hard
-  // clip would leave no path to project onto outside the current bounds, locking
-  // the gliders); a BOLD arc clipped between the two gliders is the answer.
+  // Bounded-curve mode: the OUTER handles (min-x / max-x) ARE the domain
+  // endpoints — no separate gliders. The curve is drawn FAINT full-width for
+  // context and a BOLD arc clipped between the extreme handles is the answer.
   // Without domain endpoints the single curve is bold as usual. The full curve
   // isn't a leak — the student drew it by placing the handles; only the domain
-  // (the endpoints) is being answered here.
+  // (which handles are the ends + their open/closed style) is being answered.
   const bounded = !!config.domainEndpoints;
-  let minGlider: JxgPoint | null = null;
-  let maxGlider: JxgPoint | null = null;
   let boundedDeriveFn: ((x: number) => number) | null = null;
 
   if (config.deriveCurve) {
@@ -878,65 +867,59 @@ export function createPointAnswerBoard(
     points.forEach((p) => p.on('drag', updateShapeAttrs));
   }
 
-  // Domain endpoint handles: points constrained to the derived curve (a glider
-  // re-projects onto its parent on every update, so they ride the curve as the
-  // curve handles drag). Styled like the ray/segment endpoint handles — same
-  // purple circle, same hollow(open)/filled(closed) rendering driven by the
-  // Start/End pills — so "drag the two ends + toggle open/closed" is the same
-  // mental model as a ray, not a foreign amber slider.
-  const domainGliders: { which: 'min' | 'max'; p: JxgPoint }[] = [];
-  if (config.domainEndpoints && config.deriveCurve) {
-    const curveParent = curveObj as unknown;
-    const span = config.xMax - config.xMin;
-    const mk = (which: 'min' | 'max', frac: number): void => {
-      const x0 = config.xMin + span * frac;
-      const g = board.create('glider', [x0, 0, curveParent], {
-        size: HANDLE_SIZE,
-        strokeColor: ANSWER_COLOR,
-        fillColor: ANSWER_COLOR,
-        highlightStrokeColor: ANSWER_COLOR,
-        highlightFillColor: ANSWER_COLOR,
-        showInfobox: false,
-        withLabel: false,
-        fixed: config.domainEndpointsFixed === true,
-      }) as unknown as JxgPoint;
-      domainGliders.push({ which, p: g });
-      if (which === 'min') minGlider = g;
-      else maxGlider = g;
-      // Author boards pin the endpoints (position comes from the typed range);
-      // only the student's draggable gliders report moves.
-      if (!config.domainEndpointsFixed) {
-        g.on('drag', () => {
-          moved = true;
-          hooks.onMove?.(activeIndex, currentPoints());
-        });
-      }
-    };
-    // Seed nearer the middle of the window (not 0.25/0.75): on a steep curve the
-    // old outer fractions put the gliders far up the y-axis, off-screen. The
-    // student drags them to the answer regardless; this only picks a visible
-    // starting point.
-    if (config.domainEndpoints.min) mk('min', 0.35);
-    if (config.domainEndpoints.max) mk('max', 0.65);
-
-    // The BOLD answer arc, clipped between the live gliders. An absent bound
-    // (one-sided domain — the ray-of-a-curve case) falls back to the window
-    // edge, so the arc runs from its glider to the edge. Created after the
-    // gliders so the clip closures read real positions; sorted so a student
-    // dragging one endpoint past the other still draws a forward arc.
-    if (bounded && boundedDeriveFn) {
-      const fn = boundedDeriveFn;
-      const clipLo = (): number =>
-        Math.min(minGlider ? minGlider.X() : config.xMin, maxGlider ? maxGlider.X() : config.xMax);
-      const clipHi = (): number =>
-        Math.max(minGlider ? minGlider.X() : config.xMin, maxGlider ? maxGlider.X() : config.xMax);
-      board.create('functiongraph', [fn, clipLo, clipHi], {
-        strokeColor: ANSWER_COLOR,
-        strokeWidth: 2.5,
-        highlight: false,
-        fixed: true,
-      });
+  // Bounded-curve endpoints: the outer handles double as the domain ends, so
+  // there are no separate glider points — a bounded parabola is 3 handles (2
+  // ends + 1 middle), an exp/log is 2 (both ends), just like a segment's two
+  // endpoints define its line. deriveCurve fits through ALL handles; the two
+  // extreme-x handles are the ends. `extremeHandles` is recomputed live because
+  // a drag can change which handle is leftmost/rightmost.
+  const extremeHandles = (): { minI: number; maxI: number } => {
+    let minI = 0;
+    let maxI = 0;
+    for (let i = 1; i < points.length; i++) {
+      if (points[i]!.X() < points[minI]!.X()) minI = i;
+      if (points[i]!.X() > points[maxI]!.X()) maxI = i;
     }
+    return { minI, maxI };
+  };
+  let boundedMinStyle: 'open' | 'closed' = 'closed';
+  let boundedMaxStyle: 'open' | 'closed' = 'closed';
+  // Render the endpoint handle(s) hollow(open)/filled(closed); interior handles
+  // stay the default filled dot. Re-run on every move (notify) since the
+  // min/max handle identity can flip mid-drag.
+  const applyBoundedStyles = (): void => {
+    if (!bounded) return;
+    const ends = config.domainEndpoints!;
+    const { minI, maxI } = extremeHandles();
+    points.forEach((p, i) => {
+      const style =
+        ends.min && i === minI
+          ? boundedMinStyle
+          : ends.max && i === maxI
+            ? boundedMaxStyle
+            : 'closed';
+      (p as unknown as { setAttribute(a: Record<string, unknown>): void }).setAttribute(
+        style === 'open'
+          ? { fillColor: '#ffffff', highlightFillColor: '#ffffff' }
+          : { fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR },
+      );
+    });
+    board.update();
+  };
+
+  if (bounded && boundedDeriveFn) {
+    const fn = boundedDeriveFn;
+    const ends = config.domainEndpoints!;
+    // The BOLD answer arc, clipped between the extreme handles. An unbounded
+    // side (one-sided domain — a "half" curve) runs to the window edge.
+    const clipLo = (): number => (ends.min ? points[extremeHandles().minI]!.X() : config.xMin);
+    const clipHi = (): number => (ends.max ? points[extremeHandles().maxI]!.X() : config.xMax);
+    board.create('functiongraph', [fn, clipLo, clipHi], {
+      strokeColor: ANSWER_COLOR,
+      strokeWidth: 2.5,
+      highlight: false,
+      fixed: true,
+    });
   }
 
   // graph_inequality: a filled half-plane region computed by hand (a closed
@@ -1024,6 +1007,9 @@ export function createPointAnswerBoard(
 
   const notify = (fromUser: boolean): void => {
     if (fromUser) moved = true;
+    // The endpoint hollow/filled follows the current extreme handles, which a
+    // move can change — restyle before reporting.
+    if (bounded) applyBoundedStyles();
     hooks.onMove?.(activeIndex, currentPoints());
   };
 
@@ -1093,41 +1079,23 @@ export function createPointAnswerBoard(
     setInteractive(on: boolean): void {
       interactive = on;
       for (const p of points) p.setAttribute({ fixed: !on });
-      for (const { p } of domainGliders) p.setAttribute({ fixed: !on });
     },
     getDomainXs(): { minX?: number; maxX?: number } {
-      const out: { minX?: number; maxX?: number } = {};
-      for (const { which, p } of domainGliders) {
-        if (which === 'min') out.minX = p.X();
-        else out.maxX = p.X();
-      }
-      return out;
-    },
-    setDomainXs(xs): void {
-      // Move to the point ON the curve at x — moving to [x, 0] lets JSXGraph
-      // project the glider to the NEAREST curve point, which for a curve is a
-      // different x (the endpoints drift off the authored/saved value).
-      const fn = config.deriveCurve?.(currentPoints());
-      for (const { which, p } of domainGliders) {
-        const x = which === 'min' ? xs.minX : xs.maxX;
-        if (typeof x !== 'number') continue;
-        const y = fn ? fn(x) : 0;
-        p.moveTo([x, Number.isFinite(y) ? y : 0]);
-      }
-      board.update();
+      // The bound IS the extreme handles' x — no separate stored positions.
+      if (!bounded) return {};
+      const ends = config.domainEndpoints!;
+      const { minI, maxI } = extremeHandles();
+      return {
+        ...(ends.min && { minX: points[minI]!.X() }),
+        ...(ends.max && { maxX: points[maxI]!.X() }),
+      };
     },
     setDomainStyles(styles): void {
-      // Hollow (open) / filled (closed), matching the ray/segment endpoints.
-      for (const { which, p } of domainGliders) {
-        const st = which === 'min' ? styles.min : styles.max;
-        if (!st) continue;
-        (p as unknown as { setAttribute(a: Record<string, unknown>): void }).setAttribute(
-          st === 'open'
-            ? { fillColor: '#ffffff', highlightFillColor: '#ffffff' }
-            : { fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR },
-        );
-      }
-      board.update();
+      // Store the open/closed choices; applyBoundedStyles paints the CURRENT
+      // extreme handles (identity tracked live).
+      if (styles.min) boundedMinStyle = styles.min;
+      if (styles.max) boundedMaxStyle = styles.max;
+      applyBoundedStyles();
     },
     setShadeSide(side): void {
       shadeSide = side;
