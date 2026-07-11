@@ -1,12 +1,9 @@
 import type { CSSProperties } from 'react';
 import { parseGraphFormula, formatModel, formatInequality } from '@activity/graph-kit';
-import type {
-    DrawableAttr,
-    LinearFunctionModel,
-} from '../extensions/InteractiveGraph';
+import type { DrawableAttr } from '../extensions/InteractiveGraph';
 import FormulaField from './FormulaField';
 import { formatCurveDomain } from '../../lib/graphDomain';
-import { curveFromFormula } from './drawableFormulaLogic';
+import { curveFromFormula, drawablesFromFreeform } from './drawableFormulaLogic';
 
 // ============================================================================
 // DrawableListEditor — add/edit/remove the drawables of a static graph.
@@ -16,10 +13,14 @@ import { curveFromFormula } from './drawableFormulaLogic';
 // Numeric coordinates (dragging on a board is a future enhancement); the
 // caller renders its own live preview above/beside this list.
 //
-// `kinds` narrows the add-buttons row: the interactive graph block offers
-// every drawable, while MC choice figures omit `expression` — a formula
-// drawable needs the kit's parser at render time and the choice figure is
-// rendered kit-free (renderGraphSvg), so an expression there would silently
+// Adding is one calculator-style formula box (drawablesFromFreeform routes
+// points / equations / inequalities / ray+segment commands to the right
+// drawable kind) plus a button for polygon, the one kind with no text syntax.
+//
+// `kinds` narrows what the freeform box may create: the interactive graph
+// block offers every drawable, while MC choice figures omit `expression` — a
+// formula drawable needs the kit's parser at render time and the choice figure
+// is rendered kit-free (renderGraphSvg), so an expression there would silently
 // draw nothing on the published page.
 // ============================================================================
 
@@ -32,10 +33,6 @@ export const ALL_DRAWABLE_KINDS = [
     'polygon',
 ] as const;
 export type DrawableKind = (typeof ALL_DRAWABLE_KINDS)[number];
-
-const DEFAULT_LINEAR: LinearFunctionModel = {
-    family: 'linear', slope: 1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1,
-};
 
 const num = (v: string, fallback: number): number => {
     const n = Number(v);
@@ -109,27 +106,24 @@ export default function DrawableListEditor({
         replace(i, curveFromFormula(d, parsed));
         return null;
     };
-    const add = (kind: DrawableKind): void => {
-        const fresh: DrawableAttr =
-            kind === 'point'
-                ? { kind: 'point', at: [0, 0] }
-                : kind === 'curve'
-                  ? { kind: 'curve', model: { ...DEFAULT_LINEAR } }
-                  : kind === 'expression'
-                    ? { kind: 'expression', expression: 'sin(x)' }
-                    : kind === 'segment'
-                      ? { kind: 'segment', from: [0, 0], to: [2, 2] }
-                      : kind === 'ray'
-                        ? { kind: 'ray', from: [0, 0], through: [2, 1] }
-                        : { kind: 'polygon', vertices: [[0, 0], [3, 0], [1, 3]], filled: true };
-        onChange([...drawables, fresh]);
+    // The unified add box: route whatever the author types — point list,
+    // equation/inequality, ray/segment command, freeform expression — to the
+    // right drawable kind(s). Polygon is the one kind with no text syntax; it
+    // keeps a button.
+    const addFromFormula = (raw: string): string | null => {
+        const res = drawablesFromFreeform(raw, kinds);
+        if (res.kind === 'error') return res.message;
+        onChange([...drawables, ...res.drawables]);
+        return null;
     };
+    const addPolygon = (): void =>
+        onChange([...drawables, { kind: 'polygon', vertices: [[0, 0], [3, 0], [1, 3]], filled: true }]);
 
     return (
         <div style={{ marginTop: '0.4rem' }}>
             {drawables.length === 0 && (
                 <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
-                    No shapes yet — add one below.
+                    No shapes yet — type a formula, point, ray, or segment below.
                 </p>
             )}
             {drawables.map((d, i) => (
@@ -314,13 +308,21 @@ export default function DrawableListEditor({
                         aria-label="Remove shape">Remove</button>
                 </div>
             ))}
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
-                {kinds.map((k) => (
-                    <button key={k} type="button" disabled={disabled} onClick={() => add(k)}
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'flex-start', marginTop: '0.4rem' }}>
+                <FormulaField
+                    value=""
+                    disabled={disabled}
+                    label="Add:"
+                    placeholder="y = x^2 - 4   ·   (2, 3)   ·   y > 2x + 1   ·   ray (0, 0) through (2, 1)   ·   segment (1, 1) to (4, 3)"
+                    containerStyle={{ marginTop: 0, flex: 1, minWidth: '16rem' }}
+                    onApply={addFromFormula}
+                />
+                {kinds.includes('polygon') && (
+                    <button type="button" disabled={disabled} onClick={addPolygon}
                         style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', border: '1px solid #cbd5e1', borderRadius: 4, background: '#f8fafc', cursor: 'pointer', color: '#334155' }}>
-                        + {k === 'curve' ? 'line' : k === 'expression' ? 'formula' : k}
+                        + polygon
                     </button>
-                ))}
+                )}
             </div>
         </div>
     );
