@@ -24,7 +24,7 @@ The runtime is the JavaScript that runs in students' browsers on every published
 - Confidence rating capture (per-block fieldset; one selection per problem)
 - State persistence across page reloads (typed values + scoring state + hint reveals + solution reveals + locked state + section scores + confidence; per `activityId + versionNum` localStorage blob)
 - Student name persistence across activities (separate localStorage key)
-- Final submission to `ingest-submission` with `responses.schemaVersion: 5` payload including per-blank confidence and the optional `checkpointResults` / `graphResponses` / `choices` maps
+- Final submission to `ingest-submission` with `responses.schemaVersion: 6` payload including per-blank confidence and the optional `checkpointResults` / `graphResponses` / `choices` / `matches` / `orderings` maps
 - Persistence cleared on submit success
 - Graceful degradation throughout — malformed config → no-op runtime; private-mode localStorage → silent skip; missing per-element attributes → warn-and-skip
 
@@ -136,9 +136,9 @@ The bootstrap in `index.ts` runs once on `DOMContentLoaded` (or immediately if t
 
 - **Name** (cross-activity): localStorage key `activity_student_name`. Plain string. Carried across all activities on the domain.
 
-- **Activity state blob** (per `activityId + versionNum`): localStorage key `activity_state_${activityId}_v${versionNum}`. JSON blob with shape `{ schemaVersion, values, blanks, blocks, mcs, graphs, sections }`. Versioned key auto-invalidates on republish (v1 → v2 means the v1 blob is no longer found). Schema-versioned internally (`STORAGE_SCHEMA_VERSION = 6`) so future runtime changes can bail cleanly on shape mismatch. Save gated by `!state.submitted`. Cleared on submit success.
+- **Activity state blob** (per `activityId + versionNum`): localStorage key `activity_state_${activityId}_v${versionNum}`. JSON blob with shape `{ schemaVersion, values, blanks, blocks, mcs, matches, orderings, graphs, sections }`. Versioned key auto-invalidates on republish (v1 → v2 means the v1 blob is no longer found). Schema-versioned internally (the current `STORAGE_SCHEMA_VERSION` lives in `runtime/storage.ts` — 7 at last edit) so future runtime changes can bail cleanly on shape mismatch. Save gated by `!state.submitted`. Cleared on submit success.
 
-- **Submission payload** (network): POSTed to `ingest-submission`. `responses` is v5 shape: `{ schemaVersion: 5, blanks: Record<uuid, BlankResult>, checkpointResults?, graphResponses?, choices? }` plus `activity_id`, `display_name`, `score` at top level.
+- **Submission payload** (network): POSTed to `ingest-submission`. `responses` is v6 shape: `{ schemaVersion: 6, blanks: Record<uuid, BlankResult>, checkpointResults?, graphResponses?, choices?, matches?, orderings? }` plus `activity_id`, `display_name`, `score` at top level. (The current wire version lives in `runtime/submission.ts`.)
 
 ### Specific behavior rules
 
@@ -449,7 +449,7 @@ The bridge↔kit shapes live in `@activity/graph-kit/runtime-contract` (types on
 
 ### Multiple-choice block (`data-block-category="question"`)
 
-A graded question: prompt + 2+ choices, single-select (radios) or multi-select checkboxes, scored **all-or-nothing** by selected-set equality against the baked answer key. Lives inside `.activity-section`; the `init` walker picks it up; scores into the section checkpoint + the submit payload (`SubmissionResponses.choices`, schemaVersion **5**) as one scorable unit — an unanswered block is an omission, like an empty blank.
+A graded question: prompt + 2+ choices, single-select (radios) or multi-select checkboxes, scored **all-or-nothing** by selected-set equality against the baked answer key. Lives inside `.activity-section`; the `init` walker picks it up; scores into the section checkpoint + the submit payload (`SubmissionResponses.choices`, introduced at wire v5; the current wire version lives in `runtime/submission.ts`) as one scorable unit — an unanswered block is an omission, like an empty blank.
 
 ```html
 <div class="block block-multiple-choice" data-block-category="question"
@@ -705,6 +705,10 @@ interface StoredActivityState {
     values: Record<string, string>;          // typed values from DOM at persist time
     blanks: Record<string, BlankState>;
     blocks: Record<string, BlockState>;
+    mcs: Record<string, McBlockState>;
+    matches: Record<string, MatchBlockState>;
+    orderings: Record<string, OrderBlockState>;
+    graphs: Record<string, GraphBlockState>;
     sections: Record<string, SectionState>;
 }
 
@@ -716,7 +720,7 @@ applyStoredState(stored, refs, state): void        // mutates inputs + state in 
 
 Storage key: `activity_state_${activityId}_v${versionNum}`. Versioned key means republishing the activity (versionNum bump) auto-invalidates prior persistence.
 
-Schema versioning: `STORAGE_SCHEMA_VERSION = 6`. Load returns null on mismatch (fresh state). Bump when `BlankState` / `BlockState` / `McBlockState` / `GraphBlockState` / `SectionState` / blob shape changes in a way that older serialized blobs can no longer be interpreted as.
+Schema versioning: `STORAGE_SCHEMA_VERSION` (7 at last edit; the live value lives in `runtime/storage.ts`). Load returns null on mismatch (fresh state). Bump when `BlankState` / `BlockState` / `McBlockState` / `MatchBlockState` / `OrderBlockState` / `GraphBlockState` / `SectionState` / blob shape changes in a way that older serialized blobs can no longer be interpreted as.
 
 Save is gated by `!state.submitted`. Once submitted, persistence is irrelevant (`clearActivityState` fires on success) and re-writing post-submit edits would confuse the next session's restore.
 
@@ -733,7 +737,7 @@ All localStorage access is try/catch wrapped. Private-mode browsers, locked-down
     activityId: string,
     displayName: string,
     responses: {
-        schemaVersion: 2,
+        schemaVersion: 6,
         blanks: Record<blankId, {
             answer: string,
             correct: boolean,
@@ -833,7 +837,7 @@ Test suite at `packages/renderer/src/runtime/__tests__/`. Files (scoring runtime
 - **Every DOM write in `render` is change-guarded.** `classList.toggle(name, condition)` is idempotent. Attribute / `hidden` / `checked` / `textContent` get explicit current-vs-target checks.
 - **All attribute reads have a fallback.** No `dataset.X` access without `?? default`. No `JSON.parse(...)` without try/catch.
 - **No JS dependencies.** Vanilla TypeScript. Adding utility libraries would blow size budget and add attack surface.
-- **Persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION = 6`. Bump when `BlankState`, `BlockState`, `McBlockState`, `GraphBlockState`, `SectionState`, or blob shape changes incompatibly.
+- **Persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION` (7 at last edit; source of truth is `runtime/storage.ts`). Bump when `BlankState`, `BlockState`, `McBlockState`, `MatchBlockState`, `OrderBlockState`, `GraphBlockState`, `SectionState`, or blob shape changes incompatibly.
 - **Heavy widgets are lazy-loaded into separate bundles — the kit invariant.** Realized: interactive graphs, the calculator (MathLive), and mathjs all live in the content-hashed graph kit on R2 (see Build pipeline step 5 notes); `[target — Phase 2.9+]` annotation widgets and the future photo-submit/AI-feedback client follow the same pattern. Pages without those block types pay nothing. This — not the budget number — is what keeps a plain worksheet light; it is not renegotiable the way the number is.
 - **Naming convention discipline:**
   - TypeScript fields: `camelCase` (`attemptNumber`, `revisionMode`)
