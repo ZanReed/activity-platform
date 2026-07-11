@@ -312,8 +312,22 @@ create index submissions_activity_version_idx on submissions (activity_version_i
 --
 -- -- 8. Re-run both advisors (dashboard → Advisors). EXPECT remaining:
 -- --    * INFO rls_enabled_no_policy on allowlist + audit_log   (by design)
--- --    * INFO unused_index (various)                           (no traffic yet)
+-- --    * INFO unused_index (various) — now ALSO the 5 FK indexes
+-- --      this migration added; a brand-new index reads as unused until a
+-- --      query scans it (no traffic yet)
 -- --    * WARN auth_leaked_password_protection                  (OAuth-only)
 -- --    * WARN multiple_permissive_policies on submissions      (kept; see
 -- --      DECISIONS.md)
--- --    Everything else from the 2026-07-11 run should be gone.
+-- --    * WARN authenticated_security_definer_function_executable on
+-- --      publish_activity + soft_delete_activity — these two are DELIBERATELY
+-- --      still `authenticated`-executable (real client/JWT callers), and a
+-- --      SECURITY DEFINER function callable by `authenticated` always trips
+-- --      this lint. Silencing it would mean SECURITY INVOKER (breaks their
+-- --      RLS-bypass) or revoking `authenticated` (breaks the call sites), so
+-- --      the WARN is the correct residue. The other 4 DEFINER functions +
+-- --      all 6 anon variants are gone.
+-- --    Confirmed cleared by the 2026-07-11 post-apply run: the
+-- --    security_definer_view ERROR, all 3 function_search_path_mutable WARNs,
+-- --    all 6 anon_security_definer_function_executable, 4 of 6
+-- --    authenticated_security_definer_function_executable, all 9
+-- --    auth_rls_initplan, and all 5 unindexed_foreign_keys.
