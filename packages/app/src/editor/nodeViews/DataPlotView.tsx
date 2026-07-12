@@ -4,12 +4,14 @@ import {
     NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
-import { renderDataPlotSvg } from '@activity/renderer';
+import { renderDataPlotSvg, fiveNumberSummary } from '@activity/renderer';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
 import {
     defaultDataPlotBuildInteraction,
+    defaultDataPlotHistogramInteraction,
+    defaultDataPlotBoxplotInteraction,
     defaultDataPlotDisplayInteraction,
     type DataPlotConfigAttr,
     type DataPlotInteractionAttr,
@@ -25,7 +27,13 @@ import {
 // ============================================================================
 
 // One combined picker value spanning the interaction union.
-type Mode = 'build_dotplot' | 'display:dotplot' | 'display:histogram' | 'display:boxplot';
+type Mode =
+    | 'build_dotplot'
+    | 'build_histogram'
+    | 'build_boxplot'
+    | 'display:dotplot'
+    | 'display:histogram'
+    | 'display:boxplot';
 
 const num = (v: string, d: number): number => {
     const n = Number(v);
@@ -33,13 +41,16 @@ const num = (v: string, d: number): number => {
 };
 
 function modeOf(interaction: DataPlotInteractionAttr): Mode {
-    return interaction.type === 'build_dotplot'
-        ? 'build_dotplot'
-        : (`display:${interaction.chart}` as Mode);
+    return interaction.type === 'display'
+        ? (`display:${interaction.chart}` as Mode)
+        : (interaction.type as Mode);
 }
 
 function chartOf(interaction: DataPlotInteractionAttr): 'dotplot' | 'histogram' | 'boxplot' {
-    return interaction.type === 'display' ? interaction.chart : 'dotplot';
+    if (interaction.type === 'display') return interaction.chart;
+    if (interaction.type === 'build_histogram') return 'histogram';
+    if (interaction.type === 'build_boxplot') return 'boxplot';
+    return 'dotplot';
 }
 
 // Parse a free-typed "3, 5, 5, 6 8" into numbers (commas and/or whitespace).
@@ -69,7 +80,7 @@ export default function DataPlotView({
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
     const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const isEditable = editor.isEditable;
-    const isGraded = interaction.type === 'build_dotplot';
+    const isGraded = interaction.type !== 'display';
     const chart = chartOf(interaction);
 
     // The dataset field is free text so the author can type mid-value without the
@@ -104,14 +115,17 @@ export default function DataPlotView({
 
     const switchMode = (mode: Mode): void => {
         if (mode === modeOf(interaction)) return;
-        updateAttributes({
-            interaction:
-                mode === 'build_dotplot'
-                    ? defaultDataPlotBuildInteraction()
+        const next: DataPlotInteractionAttr =
+            mode === 'build_dotplot'
+                ? defaultDataPlotBuildInteraction()
+                : mode === 'build_histogram'
+                  ? defaultDataPlotHistogramInteraction()
+                  : mode === 'build_boxplot'
+                    ? defaultDataPlotBoxplotInteraction()
                     : defaultDataPlotDisplayInteraction(
                           mode.split(':')[1] as 'dotplot' | 'histogram' | 'boxplot',
-                      ),
-        });
+                      );
+        updateAttributes({ interaction: next });
     };
 
     return (
@@ -133,6 +147,8 @@ export default function DataPlotView({
                             onKeyDown={(e) => e.stopPropagation()}
                         >
                             <option value="build_dotplot">Build a dot plot (graded)</option>
+                            <option value="build_histogram">Build a histogram (graded)</option>
+                            <option value="build_boxplot">Build a box plot (graded)</option>
                             <option value="display:dotplot">Display: dot plot</option>
                             <option value="display:histogram">Display: histogram</option>
                             <option value="display:boxplot">Display: box plot</option>
@@ -158,9 +174,17 @@ export default function DataPlotView({
                     style={{ border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff', padding: '0.4rem', maxWidth: '34rem' }}
                     dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
+                {interaction.type === 'build_boxplot' && data.length > 0 && (() => {
+                    const s = fiveNumberSummary(data);
+                    return (
+                        <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: '#475569' }}>
+                            Target (TI-84): min {s.min} · Q1 {s.q1} · median {s.median} · Q3 {s.q3} · max {s.max}
+                        </p>
+                    );
+                })()}
                 <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
                     {isGraded
-                        ? 'Students build this dot plot; it is scored against the data above.'
+                        ? `Students build this ${chart === 'histogram' ? 'histogram' : chart === 'boxplot' ? 'box plot' : 'dot plot'}; it is scored against the data above.`
                         : 'A static figure students read (pair it with a question block to grade).'}
                 </p>
             </div>
@@ -210,6 +234,14 @@ export default function DataPlotView({
                                         Bin width:
                                         <input type="number" value={config.binWidth ?? config.tickStep} min={0} disabled={!isEditable} step="any" style={{ width: '4rem' }}
                                             onChange={(e) => setConfig({ binWidth: Math.max(0.0001, num(e.target.value, config.binWidth ?? config.tickStep)) })}
+                                            onKeyDown={(e) => e.stopPropagation()} />
+                                    </label>
+                                )}
+                                {interaction.type === 'build_boxplot' && (
+                                    <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                        Tolerance:
+                                        <input type="number" value={interaction.tolerance} min={0} disabled={!isEditable} step="any" style={{ width: '4rem' }}
+                                            onChange={(e) => updateAttributes({ interaction: { ...interaction, tolerance: Math.max(0, num(e.target.value, interaction.tolerance)) } })}
                                             onKeyDown={(e) => e.stopPropagation()} />
                                     </label>
                                 )}

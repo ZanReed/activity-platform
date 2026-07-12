@@ -32,12 +32,27 @@ export interface DataPlotDisplayInteractionAttr {
 export interface DataPlotDotplotInteractionAttr {
     type: 'build_dotplot';
 }
+export interface DataPlotHistogramInteractionAttr {
+    type: 'build_histogram';
+}
+export interface DataPlotBoxplotInteractionAttr {
+    type: 'build_boxplot';
+    tolerance: number;
+}
 export type DataPlotInteractionAttr =
     | DataPlotDisplayInteractionAttr
-    | DataPlotDotplotInteractionAttr;
+    | DataPlotDotplotInteractionAttr
+    | DataPlotHistogramInteractionAttr
+    | DataPlotBoxplotInteractionAttr;
 
 export function defaultDataPlotBuildInteraction(): DataPlotDotplotInteractionAttr {
     return { type: 'build_dotplot' };
+}
+export function defaultDataPlotHistogramInteraction(): DataPlotHistogramInteractionAttr {
+    return { type: 'build_histogram' };
+}
+export function defaultDataPlotBoxplotInteraction(): DataPlotBoxplotInteractionAttr {
+    return { type: 'build_boxplot', tolerance: 0.5 };
 }
 export function defaultDataPlotDisplayInteraction(
     chart: DataPlotDisplayInteractionAttr['chart'] = 'dotplot',

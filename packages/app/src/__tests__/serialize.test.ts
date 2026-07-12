@@ -376,6 +376,49 @@ describe('data plot block', () => {
         }
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
     });
+
+    it('round-trips a build_histogram interaction', () => {
+        const node: JSONContent = {
+            type: 'dataPlot',
+            attrs: {
+                id: 'h',
+                data: [0, 4, 5, 9, 10],
+                config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true, binWidth: 5 },
+                interaction: { type: 'build_histogram' },
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Build a histogram.' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [node] });
+        const n = out.content!.find((x) => x.type === 'dataPlot')!;
+        expect(n.attrs!.interaction).toEqual({ type: 'build_histogram' });
+        expect(n.attrs!.config).toEqual(node.attrs!.config);
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('round-trips a build_boxplot interaction with tolerance', () => {
+        const node: JSONContent = {
+            type: 'dataPlot',
+            attrs: {
+                id: 'b',
+                data: [1, 2, 3, 4, 5, 6, 7],
+                config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
+                interaction: { type: 'build_boxplot', tolerance: 0.25 },
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Build a box plot.' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [node] });
+        const n = out.content!.find((x) => x.type === 'dataPlot')!;
+        expect(n.attrs!.interaction).toEqual({ type: 'build_boxplot', tolerance: 0.25 });
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
 });
 
 describe('reference panel (opaque carry)', () => {
