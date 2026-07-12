@@ -1080,7 +1080,11 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
             leftRaw = line.slice(0, arrow);
             rightRaw = line.slice(arrow + 4);
         } else {
-            const splitAt = line.replace(/\\=/g, '  ').lastIndexOf(' = ');
+            // Mask each escaped "\=" with a same-length sentinel so it can't be
+            // chosen as the split point, while splitAt still indexes the original
+            // line. A private-use codepoint (not a NUL byte \u2014 NUL made the whole
+            // file read as binary to grep/rg) that teachers can't type.
+            const splitAt = line.replace(/\\=/g, '\uE000\uE000').lastIndexOf(' = ');
             if (splitAt === -1) {
                 return fail(
                     `unrecognized line "${line}" (pairs look like "item = option"; ` +
