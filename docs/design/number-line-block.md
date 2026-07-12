@@ -1,6 +1,6 @@
 # Number-line block (`number_line`)
 
-**Status:** 🟡 DESIGN — awaiting author decisions (not implemented, 2026-07-12). This is a design pass, not a code drop: the numbered decisions in §3 need a yes/no each before any build. Nothing here touches the tree yet.
+**Status:** 🔨 IN PROGRESS (2026-07-12). All §3 decisions resolved by the author = the recommended answers (1b both interactions; 2a own `numberLineResponses` map + wire v6→v7 + storage bump; 3a reuse the kit; 4 print-SVG in slice 1; 5 lean config, integer ticks; 6 all-or-nothing; 7 defer import). **Built + committed so far:** schema + wire v7 + ingest (`b5fe4aa`), the static renderer + print/no-JS SVG (`b5fe4aa`), and the pure kit scorer (`592c15b`). **Remaining:** the interactive JSXGraph board + mount entries, the runtime bridge (+storage bump), the editor NodeView (author board + serialize), and the dashboard table — the browser-verified half. As-built deltas: the block is deliberately leaner than the graph block (no partialCredit / allowNoSolution / mistakeFeedback); an interval omits a bound to become a ray (no separate `plot_ray` variant in slice 1).
 
 A 1-D graded block: the student places point(s) and/or drags interval(s) with open/closed endpoints on a single number line. The K-8 / early-algebra counterpart to the 2-D `interactive_graph` block — "graph the inequality on the number line," "plot 3/4," "show all x where x ≥ −2."
 
