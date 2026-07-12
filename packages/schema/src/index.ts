@@ -76,6 +76,9 @@ export {
   Drawable,
   DisplayInteraction,
   GraphInteraction,
+  LearningObjectivesBlock,
+  WorkedExampleBlock,
+  WorkedExampleChild,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
@@ -156,6 +159,8 @@ export {
   createOrderingItem,
   createNumberLineBlock,
   createDataPlotBlock,
+  createLearningObjectivesBlock,
+  createWorkedExampleBlock,
   createBlankToken,
   createSection,
   createEmptyDocument,

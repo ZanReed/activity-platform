@@ -22,6 +22,8 @@ import { DataPlot } from './extensions/DataPlot';
 import { MultipleChoice } from './extensions/MultipleChoice';
 import { Matching } from './extensions/Matching';
 import { Ordering } from './extensions/Ordering';
+import { LearningObjectives } from './extensions/LearningObjectives';
+import { WorkedExample } from './extensions/WorkedExample';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
@@ -100,6 +102,13 @@ export default function ReferencePanelEditor({
             // DataPlot: same registered-only-for-the-schema story (the column
             // content expression names it as of the data_plot editor drop).
             DataPlot,
+            // LearningObjectives + WorkedExample: same registered-only-for-the-
+            // schema story — the column content expression names both as of the
+            // Phase 2 content-block drop. The reference toolbar's Insert
+            // dropdown never offers them (they aren't referenceSafe), but the
+            // constrained schema must still compile with the cell content spec.
+            LearningObjectives,
+            WorkedExample,
             Image,
         ],
         content: initialContent,

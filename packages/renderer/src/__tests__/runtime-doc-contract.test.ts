@@ -56,6 +56,8 @@ const CONTAINER = new Set<string>([
   'bullet_list',
   'ordered_list',
   'columns',
+  'learning_objectives',
+  'worked_example',
 ]);
 
 // Discriminator literals of the Block discriminated union, read at runtime.

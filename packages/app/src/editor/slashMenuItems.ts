@@ -169,6 +169,24 @@ export const slashMenuItems: SlashMenuItem[] = [
         },
     },
     {
+        title: 'Learning objectives',
+        description: 'A titled list of "students will be able to…" goals.',
+        keywords: ['learning', 'objectives', 'goals', 'aims', 'outcomes', 'swbat', 'targets'],
+        group: 'Structure',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertLearningObjectives().run();
+        },
+    },
+    {
+        title: 'Worked example',
+        description: 'A boxed, fully-worked example for students to study.',
+        keywords: ['worked', 'example', 'solution', 'model', 'demonstration', 'sample', 'exemplar'],
+        group: 'Structure',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertWorkedExample().run();
+        },
+    },
+    {
         title: 'Static graph',
         description: 'A display-only graph — a figure or exemplar. No answer collected.',
         keywords: ['graph', 'static', 'display', 'figure', 'diagram', 'stimulus', 'exemplar', 'chart', 'plot'],

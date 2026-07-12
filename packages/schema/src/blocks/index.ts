@@ -24,6 +24,8 @@ import { MatchingBlock } from './matching.js';
 import { OrderingBlock } from './ordering.js';
 import { NumberLineBlock } from './number-line.js';
 import { DataPlotBlock } from './data-plot.js';
+import { LearningObjectivesBlock } from './learning-objectives.js';
+import { WorkedExampleBlock } from './worked-example.js';
 
 export const Block = z.discriminatedUnion('type', [
   ParagraphBlock,
@@ -42,6 +44,8 @@ export const Block = z.discriminatedUnion('type', [
   OrderingBlock,
   NumberLineBlock,
   DataPlotBlock,
+  LearningObjectivesBlock,
+  WorkedExampleBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -86,6 +90,8 @@ export {
   DataPlotHistogramInteraction,
   DataPlotBoxplotInteraction,
 } from './data-plot.js';
+export { LearningObjectivesBlock } from './learning-objectives.js';
+export { WorkedExampleBlock, WorkedExampleChild } from './worked-example.js';
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,

@@ -39,6 +39,8 @@ import type {
   OrderingItem,
   NumberLineBlock,
   DataPlotBlock,
+  LearningObjectivesBlock,
+  WorkedExampleBlock,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
@@ -67,6 +69,24 @@ export function createImageBlock(src: string, alt: string = ''): ImageBlock {
 
 export function createCalloutBlock(variant: CalloutVariant = 'info'): CalloutBlock {
   return { id: uuid(), type: 'callout', variant, content: [] };
+}
+
+export function createLearningObjectivesBlock(): LearningObjectivesBlock {
+  return {
+    id: uuid(),
+    type: 'learning_objectives',
+    title: 'Learning objectives',
+    items: [],
+  };
+}
+
+export function createWorkedExampleBlock(): WorkedExampleBlock {
+  return {
+    id: uuid(),
+    type: 'worked_example',
+    title: 'Worked example',
+    content: [],
+  };
 }
 
 export function createProblemBlock(): ProblemBlock {

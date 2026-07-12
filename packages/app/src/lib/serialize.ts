@@ -65,6 +65,9 @@ import type {
     MatchingTarget,
     OrderingBlock,
     OrderingItem,
+    LearningObjectivesBlock,
+    WorkedExampleBlock,
+    WorkedExampleChild,
 } from '@activity/schema';
 import {
     SIMPLE_MARK_TYPES,
@@ -288,6 +291,11 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
         case 'columns':
             return tiptapColumnsToActivity(node);
 
+        case 'learningObjectives':
+            return tiptapLearningObjectivesToActivity(node);
+        case 'workedExample':
+            return tiptapWorkedExampleToActivity(node);
+
         case 'image':
             return tiptapImageToActivity(node);
 
@@ -297,6 +305,47 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             );
             return null;
     }
+}
+
+// The editor-mappable child block types a worked example may contain — mirrors
+// the schema's WorkedExampleChild union and the WorkedExample node's content
+// expression. Used to narrow tiptapBlockToActivity's Block|null result.
+const WORKED_EXAMPLE_CHILD_TYPES = new Set<Block['type']>([
+    'paragraph',
+    'heading',
+    'math_block',
+    'image',
+    'bullet_list',
+    'ordered_list',
+]);
+
+function tiptapLearningObjectivesToActivity(
+    node: JSONContent,
+): LearningObjectivesBlock {
+    return {
+        id: crypto.randomUUID(),
+        type: 'learning_objectives',
+        title:
+            (node.attrs?.title as string | undefined) ?? 'Learning objectives',
+        // Each objective is one paragraph child; its inline run is the item.
+        items: (node.content ?? [])
+            .filter((n) => n.type === 'paragraph')
+            .map((p) => tiptapInlineToActivity(p.content ?? [])),
+    };
+}
+
+function tiptapWorkedExampleToActivity(node: JSONContent): WorkedExampleBlock {
+    return {
+        id: crypto.randomUUID(),
+        type: 'worked_example',
+        title: (node.attrs?.title as string | undefined) ?? 'Worked example',
+        content: (node.content ?? [])
+            .map(tiptapBlockToActivity)
+            .filter(
+                (b): b is WorkedExampleChild =>
+                    b !== null && WORKED_EXAMPLE_CHILD_TYPES.has(b.type),
+            ),
+    };
 }
 
 function tiptapImageToActivity(node: JSONContent): ImageBlock | null {
@@ -1016,6 +1065,12 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'columns':
             return activityColumnsToTiptap(block);
 
+        case 'learning_objectives':
+            return activityLearningObjectivesToTiptap(block);
+
+        case 'worked_example':
+            return activityWorkedExampleToTiptap(block);
+
         case 'image':
             return {
                 type: 'image',
@@ -1063,6 +1118,37 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
             return _exhaustive;
         }
     }
+}
+
+function activityLearningObjectivesToTiptap(
+    block: LearningObjectivesBlock,
+): JSONContent {
+    // Each item becomes one paragraph child. The node's content spec is
+    // `paragraph+`, so seed an empty paragraph when there are no items.
+    const paragraphs: JSONContent[] = block.items.map((item) => ({
+        type: 'paragraph',
+        content: activityInlineToTiptap(item),
+    }));
+    return {
+        type: 'learningObjectives',
+        attrs: { id: block.id, title: block.title },
+        content: paragraphs.length > 0 ? paragraphs : [{ type: 'paragraph' }],
+    };
+}
+
+function activityWorkedExampleToTiptap(
+    block: WorkedExampleBlock,
+): JSONContent {
+    const children = block.content
+        .map(activityBlockToTiptap)
+        .filter((n): n is JSONContent => n !== null);
+    // Content expression requires at least one block; seed an empty paragraph
+    // if every child was unmappable (or the body is empty).
+    return {
+        type: 'workedExample',
+        attrs: { id: block.id, title: block.title },
+        content: children.length > 0 ? children : [{ type: 'paragraph' }],
+    };
 }
 
 function activityColumnsToTiptap(block: ColumnsBlock): JSONContent {

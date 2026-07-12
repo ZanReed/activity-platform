@@ -1725,3 +1725,81 @@ img.mc-block__figure-preview {
     font-size: 0.75rem;
     color: rgb(100 116 139); /* slate-500 */
 }
+
+/* =============================================================================
+ *  Content blocks (Phase 2): learning_objectives + worked_example NodeViews.
+ *  Both wrap an editable title input (a block attribute, in a
+ *  contentEditable=false header) over a NodeViewContent body. The resting /
+ *  hover / is-selected treatment matches .fill-in-blank-block for consistency.
+ *  ========================================================================= */
+
+.learning-objectives-block,
+.worked-example-block {
+    margin: 1rem 0;
+    padding: 0.6rem 0.85rem;
+    border-radius: 0.375rem;
+    background-color: rgb(248 250 252); /* slate-50 */
+    transition: background-color 0.15s;
+}
+
+.learning-objectives-block {
+    border-left: 3px solid rgb(99 102 241); /* indigo-500 */
+}
+
+.worked-example-block {
+    border: 1px solid rgb(226 232 240); /* slate-200 */
+    border-top: 3px solid rgb(99 102 241); /* indigo-500 */
+}
+
+.learning-objectives-block.is-selected,
+.worked-example-block.is-selected {
+    background-color: rgb(239 246 255); /* blue-50 */
+    outline: 2px solid rgb(59 130 246); /* blue-500 */
+}
+
+.learning-objectives-block__header,
+.worked-example-block__header {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+}
+
+.worked-example-block__icon {
+    color: rgb(99 102 241); /* indigo-500 */
+    user-select: none;
+}
+
+.learning-objectives-block__title,
+.worked-example-block__title {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: rgb(51 65 85); /* slate-700 */
+    padding: 0.1rem 0.2rem;
+    border-radius: 0.25rem;
+}
+
+.learning-objectives-block__title:focus,
+.worked-example-block__title:focus {
+    outline: 2px solid rgb(59 130 246); /* blue-500 */
+    background: white;
+}
+
+/* Objectives render as a marked list in the editor (published output is a
+ * <ul>); each objective is one paragraph child. */
+.learning-objectives-block__list {
+    margin: 0;
+    padding-left: 1.25rem;
+    list-style: disc;
+}
+
+.learning-objectives-block__list > p {
+    display: list-item;
+    margin: 0.15rem 0;
+}
+
+.worked-example-block__body > :first-child { margin-top: 0; }
+.worked-example-block__body > :last-child { margin-bottom: 0; }

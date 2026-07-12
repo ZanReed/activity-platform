@@ -194,6 +194,53 @@ body {
 .block-callout-success { background: var(--color-success-bg); border-color: var(--color-success); }
 .block-callout-note    { background: var(--color-note-bg);    border-color: var(--color-note);    }
 
+/* Learning objectives — a titled goals list fronting an activity/section.
+   Pure content: quiet card, accent rule to read as a scaffold not a question. */
+.block-learning-objectives {
+  margin: 1.25rem 0;
+  padding: 0.85rem 1.1rem;
+  border-radius: 6px;
+  border-left: 4px solid var(--color-accent);
+  background: var(--color-note-bg);
+}
+.block-learning-objectives__title {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+}
+.block-learning-objectives__list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+.block-learning-objectives__item { margin: 0.2rem 0; }
+
+/* Worked example — a boxed, fully-worked solution to study. A framed card so it
+   reads as "read this," distinct from a problem to attempt. Nested content
+   blocks render inside the body via the shared block dispatch. */
+.block-worked-example {
+  margin: 1.25rem 0;
+  padding: 0.85rem 1.1rem 0.95rem;
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-accent);
+  border-radius: 6px;
+  background: var(--color-bg);
+}
+.block-worked-example__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  color: var(--color-accent);
+}
+.block-worked-example__icon { font-size: 1rem; line-height: 1; }
+.block-worked-example__body > .block:first-child { margin-top: 0; }
+.block-worked-example__body > .block:last-child { margin-bottom: 0; }
+
 .block-problem,
 .block-fill-in-blank {
   display: grid;
@@ -1612,5 +1659,15 @@ body {
   .block-callout-warning { border-left-style: dashed; }
   .block-callout-success { border-left-style: double; }
   .block-callout-note    { border-left-style: dotted; }
+
+  /* Content scaffolds print as plain bordered boxes (colour carries no meaning
+     in B&W; the border + label do). Keep them whole on the page. */
+  .block-learning-objectives,
+  .block-worked-example {
+    background: transparent;
+    border: 1px solid black;
+    break-inside: avoid;
+  }
+  .block-worked-example__title { color: black; }
 }
 `.trim();

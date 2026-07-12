@@ -23,6 +23,8 @@ import { renderMatching } from './matching.js';
 import { renderOrdering } from './ordering.js';
 import { renderNumberLine } from './number-line.js';
 import { renderDataPlot } from './data-plot.js';
+import { renderLearningObjectives } from './learning-objectives.js';
+import { renderWorkedExample } from './worked-example.js';
 
 export interface BlockRenderContext {
   /**
@@ -114,6 +116,10 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
         graphKitUrl: ctx.graphKitUrl,
         showAnswers: ctx.showAnswers,
       });
+    case 'learning_objectives':
+      return renderLearningObjectives(block);
+    case 'worked_example':
+      return renderWorkedExample(block, ctx);
     default: {
       // Exhaustiveness check — if a new block type is added to the schema
       // and not handled here, TypeScript emits an error on this assignment.

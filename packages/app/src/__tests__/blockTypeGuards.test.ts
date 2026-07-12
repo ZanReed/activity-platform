@@ -39,6 +39,8 @@ import {
     createInteractiveGraphBlock,
     createNumberLineBlock,
     createDataPlotBlock,
+    createLearningObjectivesBlock,
+    createWorkedExampleBlock,
     createBlankToken,
     type Block,
 } from '@activity/schema';
@@ -95,6 +97,22 @@ function representativeBlock(type: string): ColumnCellBlock {
             return createBulletListBlock();
         case 'ordered_list':
             return createOrderedListBlock();
+        case 'learning_objectives': {
+            const block = createLearningObjectivesBlock();
+            block.items = [[{ type: 'text', text: 'Solve linear equations', marks: [] }]];
+            return block;
+        }
+        case 'worked_example': {
+            const block = createWorkedExampleBlock();
+            block.content = [
+                {
+                    id: crypto.randomUUID(),
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Step 1: isolate x', marks: [] }],
+                },
+            ];
+            return block;
+        }
         default:
             throw new Error(
                 `No representative block for type '${type}' — a new block type ` +

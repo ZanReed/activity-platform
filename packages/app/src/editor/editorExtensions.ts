@@ -31,6 +31,8 @@ import { DataPlot } from './extensions/DataPlot';
 import { MultipleChoice } from './extensions/MultipleChoice';
 import { Matching } from './extensions/Matching';
 import { Ordering } from './extensions/Ordering';
+import { LearningObjectives } from './extensions/LearningObjectives';
+import { WorkedExample } from './extensions/WorkedExample';
 import { Definition } from './extensions/Definition';
 
 export interface EditorExtensionOptions {
@@ -94,5 +96,10 @@ export function buildEditorExtensions({
         // structured item/target lists, authored in-place like MC.
         Matching,
         Ordering,
+        // Pedagogical content blocks (Phase 2): a titled objectives list and a
+        // boxed worked example whose body holds nested content blocks. Pure
+        // content — no runtime, no scoring.
+        LearningObjectives,
+        WorkedExample,
     ];
 }

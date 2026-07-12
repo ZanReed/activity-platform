@@ -2519,3 +2519,59 @@ describe('attrs-stored inline content sanitize', () => {
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
     });
 });
+
+describe('content blocks — learning_objectives + worked_example', () => {
+    it('round-trips a learning-objectives block (title + items)', () => {
+        const node: JSONContent = {
+            type: 'learningObjectives',
+            attrs: { id: 'ignored-regenerated', title: 'Goals for today' },
+            content: [
+                { type: 'paragraph', content: [{ type: 'text', text: 'Solve linear equations' }] },
+                { type: 'paragraph', content: [{ type: 'text', text: 'Graph a line' }] },
+            ],
+        };
+        const out = roundTrip({ type: 'doc', content: [node] });
+        const lo = out.content!.find((n) => n.type === 'learningObjectives')!;
+        expect(lo.attrs!.title).toBe('Goals for today');
+        expect(lo.content).toEqual(node.content);
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('round-trips a worked-example block with nested content', () => {
+        const node: JSONContent = {
+            type: 'workedExample',
+            attrs: { id: 'ignored-regenerated', title: 'Solving 2x + 3 = 11' },
+            content: [
+                { type: 'paragraph', content: [{ type: 'text', text: 'Subtract 3 from both sides.' }] },
+                { type: 'mathBlock', attrs: { latex: 'x = 4' } },
+            ],
+        };
+        const out = roundTrip({ type: 'doc', content: [node] });
+        const we = out.content!.find((n) => n.type === 'workedExample')!;
+        expect(we.attrs!.title).toBe('Solving 2x + 3 = 11');
+        expect(we.content!.map((c) => c.type)).toEqual(['paragraph', 'mathBlock']);
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('drops a non-content child from a worked example (content-only union)', () => {
+        // A fillInBlank pasted into a worked example must not survive to the doc —
+        // the schema's WorkedExampleChild union rejects it.
+        const node: JSONContent = {
+            type: 'workedExample',
+            attrs: { id: 'x', title: 'WE' },
+            content: [
+                { type: 'paragraph', content: [{ type: 'text', text: 'ok' }] },
+                { type: 'fillInBlank', attrs: { id: 'q' }, content: [{ type: 'text', text: 'x=' }] },
+            ],
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+        const block = activity.sections[0]!.blocks[0]!;
+        expect(block.type).toBe('worked_example');
+        if (block.type === 'worked_example') {
+            expect(block.content.map((c) => c.type)).toEqual(['paragraph']);
+        }
+    });
+});
