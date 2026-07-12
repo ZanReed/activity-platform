@@ -273,8 +273,9 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
 
         case 'fence': {
             // Tagged fences are block DSLs — ```graph (Drop 7), ```mc,
-            // ```match, ```order, ```dataplot, ```numberline; other fences stay
-            // unsupported.
+            // ```match, ```order, ```dataplot, ```numberline, and the Phase 2
+            // pedagogical blocks ```objectives / ```explain / ```worked /
+            // ```faded; other fences stay unsupported.
             if ((node.token.info ?? '').trim() === 'graph') {
                 const graph = parseGraphFence(node.token.content, ctx);
                 if (graph) return [graph];
@@ -303,6 +304,26 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
             if ((node.token.info ?? '').trim() === 'numberline') {
                 const numberLine = parseNumberLineFence(node.token.content, ctx);
                 if (numberLine) return [numberLine];
+                return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'objectives') {
+                const objectives = parseObjectivesFence(node.token.content, ctx);
+                if (objectives) return [objectives];
+                return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'explain') {
+                const explain = parseExplainFence(node.token.content, ctx);
+                if (explain) return [explain];
+                return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'worked') {
+                const worked = parseWorkedFence(node.token.content, ctx);
+                if (worked) return [worked];
+                return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'faded') {
+                const faded = parseFadedFence(node.token.content, ctx);
+                if (faded) return [faded];
                 return [rawTextParagraph(node.token.content)];
             }
             ctx.warnings.add(
@@ -819,6 +840,19 @@ function removeLast(arr: string[], value: string): void {
 // the spans to the document table (remapping the fresh 0-based indices to
 // global ones), and reuse the shared inline emitter.
 function graphPromptContent(raw: string, ctx: Ctx): JSONContent[] {
+    return fenceInline(raw, ctx, false);
+}
+
+// Inline content from a fence line: extract its $math$, remap the span indices
+// into ctx.spans, and emit inline nodes. `allowBlanks` gates {{…}} parsing —
+// false for prompts/objectives (a stray {{ stays literal), true for the faded
+// worked-example step lines where a blank IS the point. graphPromptContent is
+// the allowBlanks=false wrapper used by the older fences.
+function fenceInline(
+    raw: string,
+    ctx: Ctx,
+    allowBlanks: boolean,
+): JSONContent[] {
     if (!raw) return [];
     const base = ctx.spans.length;
     const { text, spans } = extractMath(raw);
@@ -828,8 +862,24 @@ function graphPromptContent(raw: string, ctx: Ctx): JSONContent[] {
         (_, i: string) => `${MATH_OPEN}${base + Number(i)}${MATH_CLOSE}`,
     );
     const out: JSONContent[] = [];
-    emitInline(out, remapped, [], false, ctx);
+    emitInline(out, remapped, [], allowBlanks, ctx);
     return out;
+}
+
+// One body block from a worked/faded fence line: a sole $$…$$ line → mathBlock;
+// otherwise inline content routed by blockFromInline (a {{…}}-bearing line, when
+// allowed, becomes a fillInBlank; else a paragraph). Reused by both example
+// fences so worked (allowBlanks=false) and faded (true) build identically.
+function fenceBodyBlock(
+    line: string,
+    ctx: Ctx,
+    allowBlanks: boolean,
+): JSONContent {
+    const mathOnly = /^\$\$([\s\S]+?)\$\$$/.exec(line);
+    if (mathOnly) {
+        return { type: 'mathBlock', attrs: { latex: (mathOnly[1] ?? '').trim() } };
+    }
+    return blockFromInline(fenceInline(line, ctx, allowBlanks));
 }
 
 // Attrs-stored inline content (MC choices/feedback/solution, matching sides,
@@ -1188,6 +1238,133 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
         },
         content: graphPromptContent(prompt, ctx),
     };
+}
+
+// ```objectives fence — a titled learning-objectives list (learning_objectives
+// block). `title:` is optional (defaults to "Learning objectives"); every other
+// non-empty line is one objective (inline; $math$ ok). A leading list marker
+// (-, *, 1.) is stripped so a pasted markdown list Just Works.
+function parseObjectivesFence(src: string, ctx: Ctx): JSONContent | null {
+    let title = 'Learning objectives';
+    const items: JSONContent[] = [];
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const t = /^title:\s*(.*)$/i.exec(line);
+        if (t) {
+            const v = (t[1] ?? '').trim();
+            if (v) title = v;
+            continue;
+        }
+
+        const body = line.replace(/^(?:[-*]|\d+[.)])\s+/, '').trim();
+        if (!body) continue;
+        items.push({ type: 'paragraph', content: fenceInline(body, ctx, false) });
+    }
+
+    if (items.length === 0) {
+        ctx.warnings.add(
+            'Learning objectives block: needs at least one objective — imported as plain text.',
+        );
+        return null;
+    }
+
+    return { type: 'learningObjectives', attrs: { id: '', title }, content: items };
+}
+
+// ```explain fence — an ungraded self-explanation prompt (self_explanation
+// block). Non-directive lines form the prompt (joined); an optional `starter:`
+// line sets the textarea placeholder.
+function parseExplainFence(src: string, ctx: Ctx): JSONContent | null {
+    let placeholder = '';
+    const promptLines: string[] = [];
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const s = /^starter:\s*(.*)$/i.exec(line);
+        if (s) {
+            placeholder = (s[1] ?? '').trim();
+            continue;
+        }
+        promptLines.push(line);
+    }
+
+    if (promptLines.length === 0) {
+        ctx.warnings.add(
+            'Self-explanation block: needs a prompt — imported as plain text.',
+        );
+        return null;
+    }
+
+    return {
+        type: 'selfExplanation',
+        attrs: { id: '', placeholder },
+        content: fenceInline(promptLines.join(' '), ctx, false),
+    };
+}
+
+// ```worked / ```faded fences — a worked example (or its faded, fill-in
+// variant). `title:` optional; every other line is one body block via
+// fenceBodyBlock. Worked disallows blanks (a {{…}} stays literal — the example
+// shows the answer); faded allows them, so a {{…}} line becomes a fill-in step.
+function parseExampleFence(
+    src: string,
+    ctx: Ctx,
+    nodeType: 'workedExample' | 'fadedWorkedExample',
+    defaultTitle: string,
+    allowBlanks: boolean,
+    label: string,
+): JSONContent | null {
+    let title = defaultTitle;
+    const blocks: JSONContent[] = [];
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const t = /^title:\s*(.*)$/i.exec(line);
+        if (t) {
+            const v = (t[1] ?? '').trim();
+            if (v) title = v;
+            continue;
+        }
+        blocks.push(fenceBodyBlock(line, ctx, allowBlanks));
+    }
+
+    if (blocks.length === 0) {
+        ctx.warnings.add(
+            label + ': needs at least one body line — imported as plain text.',
+        );
+        return null;
+    }
+
+    return { type: nodeType, attrs: { id: '', title }, content: blocks };
+}
+
+function parseWorkedFence(src: string, ctx: Ctx): JSONContent | null {
+    return parseExampleFence(
+        src,
+        ctx,
+        'workedExample',
+        'Worked example',
+        false,
+        'Worked example block',
+    );
+}
+
+function parseFadedFence(src: string, ctx: Ctx): JSONContent | null {
+    return parseExampleFence(
+        src,
+        ctx,
+        'fadedWorkedExample',
+        'Guided practice',
+        true,
+        'Faded worked example block',
+    );
 }
 
 // ```dataplot fence — the statistics-chart DSL (data_plot block). One statement

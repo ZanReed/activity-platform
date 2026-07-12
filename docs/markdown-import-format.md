@@ -30,6 +30,10 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```mc ` fenced block | a **multiple-choice question** (see below) |
 | a ` ```match ` fenced block | a **matching question** (see below) |
 | a ` ```order ` fenced block | an **ordering question** (see below) |
+| a ` ```objectives ` fenced block | a **learning-objectives list** (see below) |
+| a ` ```worked ` fenced block | a **worked example** to study (see below) |
+| a ` ```faded ` fenced block | a **faded worked example** — shown steps + fill-in steps (see below) |
+| a ` ```explain ` fenced block | an **ungraded self-explanation** prompt (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
@@ -50,7 +54,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 
 ## Not supported (degrades to plain text, with a warning)
 
-Tables, fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. (Callouts and other block types beyond fill-in-the-blank have no Markdown round-trip yet.)
+Tables, fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. (Callouts, columns, and images-or-lists *inside* a worked/faded example have no Markdown round-trip yet — author those in the editor.)
 
 ## Worked example
 
@@ -211,13 +215,48 @@ ORDERING (a fenced block with the `order` tag becomes a put-in-order question)
   what counts.
 - Optional lines:  solution: <worked explanation>   and   options: confidence
 
+LEARNING OBJECTIVES (a fenced block with the `objectives` tag becomes a goals list)
+- ```objectives … ``` with one objective per line:
+    title: Today's goals        (optional; defaults to "Learning objectives")
+    Solve two-step linear equations
+    Graph a line from its equation
+- A leading list marker (-, *, 1.) is fine — it is stripped. $inline$ math ok.
+
+WORKED EXAMPLE (a fenced block with the `worked` tag becomes a boxed example to study)
+- ```worked … ``` with an optional title: line, then one block per line:
+    title: Solving $2x + 3 = 11$   (optional)
+    Subtract 3 from both sides.
+    $$2x = 8$$
+    Divide by 2.
+    $$x = 4$$
+- Each line is its own block: a line that is only $$…$$ becomes a displayed
+  equation, every other line becomes a paragraph. Lists and images inside an
+  example are not supported here — add those in the editor.
+
+FADED WORKED EXAMPLE (a `faded` fenced block is a guided example the student completes)
+- ```faded … ``` is written just like ```worked, but any line containing a
+  {{blank}} becomes a step the STUDENT fills in:
+    title: Guided practice        (optional)
+    Subtract 3 from both sides.
+    $$2x = 8$$
+    x = {{4}}
+- Show the first steps, then fade (blank) the later ones. Blanks use the same
+  {{answer|alt}} / {{=numeric}} grammar as fill-in-the-blank.
+
+SELF-EXPLANATION (an `explain` fenced block is an ungraded free-text reflection)
+- ```explain … ``` — the prompt text, plus an optional sentence starter:
+    Why did you subtract 3 from both sides?
+    starter: I subtracted 3 because…
+- Ungraded: the student writes an answer for you to read; there is no key.
+
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
-  other than ```graph, ```numberline, ```dataplot, ```mc, ```match, and
-  ```order — only the single outer block that wraps the whole reply and those
-  fences are allowed; anything unsupported imports as plain text.
+  other than ```graph, ```numberline, ```dataplot, ```mc, ```match, ```order,
+  ```objectives, ```worked, ```faded, and ```explain — only the single outer
+  block that wraps the whole reply and those fences are allowed; anything
+  unsupported imports as plain text.
 
 When I describe the activity I want, reply with only that single code block.
 ```
@@ -353,3 +392,68 @@ prompt: Put the steps for solving $2x + 3 = 11$ in order.
 - Students see the items shuffled (publish-time deterministic, never the correct order) and drag them back into sequence. Scoring is **all-or-nothing** on the exact sequence.
 - `solution:` and `options: confidence` as in the other fences.
 - At least two item lines are required.
+
+## Learning-objectives blocks (```objectives fence)
+
+A fenced code block with the `objectives` language tag becomes a learning-objectives list. An optional `title:` line names it; every other non-empty line is one objective (inline `$math$` ok, leading list markers stripped).
+
+```
+```objectives
+title: Today's goals
+Solve two-step linear equations
+Graph a line from its equation
+```⠀
+```
+
+- `title:` is optional and defaults to "Learning objectives".
+- At least one objective line is required; an empty fence imports as plain text.
+- Pure content — no answer, never scored.
+
+## Worked-example blocks (```worked fence)
+
+A fenced code block with the `worked` language tag becomes a worked example (a boxed, fully-worked solution to study). An optional `title:` line; every other line is one body block — a line that is **only** `$$…$$` becomes a display-math block, every other line becomes a paragraph.
+
+```
+```worked
+title: Solving $2x + 3 = 11$
+Subtract 3 from both sides.
+$$2x = 8$$
+Divide by 2.
+$$x = 4$$
+```⠀
+```
+
+- `title:` optional (defaults to "Worked example").
+- One block per line; **lists, images, and headings inside an example are not supported** in the fence — add those in the editor. Everything else degrades to a paragraph.
+- Pure content — no answer, never scored.
+
+## Faded-worked-example blocks (```faded fence)
+
+A fenced code block with the `faded` language tag becomes a *faded* worked example — shown steps plus fill-in steps the student completes. Written exactly like `worked`, except any line containing a `{{blank}}` becomes a faded (fill-in-the-blank) step.
+
+```
+```faded
+title: Guided practice
+Subtract 3 from both sides.
+$$2x = 8$$
+x = {{4}}
+```⠀
+```
+
+- `title:` optional (defaults to "Guided practice").
+- A `{{answer}}` line becomes a graded fill-in step (same `{{answer|alt}}` / `{{=numeric}}` grammar as fill-in-the-blank); a plain line is a shown step; a `$$…$$` line is shown display math.
+- The faded steps number as ordinary problems and are scored like any fill-in-the-blank; the frame itself is ungraded scaffolding.
+
+## Self-explanation blocks (```explain fence)
+
+A fenced code block with the `explain` language tag becomes an ungraded self-explanation prompt (a free-text reflection). Non-directive lines form the prompt; an optional `starter:` line seeds the textarea placeholder.
+
+```
+```explain
+Why did you subtract 3 from both sides?
+starter: I subtracted 3 because…
+```⠀
+```
+
+- `starter:` is optional (a sentence-starter shown in the empty answer box).
+- **Ungraded** — the student writes a response for you to read; there is no answer key, no problem number, and it never affects the score. Its text lands in the submissions dashboard.

@@ -1213,3 +1213,84 @@ describe('```graph fence (Drop 7)', () => {
         expect(g.content).toEqual([{ type: 'text', text: 'A {{trap}} answer.' }]);
     });
 });
+
+describe('pedagogical block fences (objectives / worked / faded / explain)', () => {
+    it('```objectives → a titled learning-objectives list', () => {
+        const md = '```objectives\ntitle: Today\'s goals\nSolve two-step equations\n- Graph a line\n```';
+        const out = blocks(md);
+        expect(out).toEqual([
+            {
+                type: 'learningObjectives',
+                attrs: { title: 'Today\'s goals' },
+                content: [
+                    { type: 'paragraph', content: [{ type: 'text', text: 'Solve two-step equations' }] },
+                    { type: 'paragraph', content: [{ type: 'text', text: 'Graph a line' }] },
+                ],
+            },
+        ]);
+    });
+
+    it('```objectives defaults the title and survives the schema round-trip', () => {
+        const md = '```objectives\nUnderstand slope\n```';
+        expect(blocks(md)[0]).toMatchObject({
+            type: 'learningObjectives',
+            attrs: { title: 'Learning objectives' },
+        });
+        expect(roundTrip(md)[0]).toMatchObject({ type: 'learningObjectives' });
+    });
+
+    it('```explain → an ungraded self-explanation with an optional starter', () => {
+        const md = '```explain\nWhy did you subtract 3?\nstarter: I subtracted 3 because…\n```';
+        expect(blocks(md)).toEqual([
+            {
+                type: 'selfExplanation',
+                attrs: { placeholder: 'I subtracted 3 because…' },
+                content: [{ type: 'text', text: 'Why did you subtract 3?' }],
+            },
+        ]);
+        expect(roundTrip(md)[0]).toMatchObject({ type: 'selfExplanation' });
+    });
+
+    it('```worked → one block per line; a $$…$$ line becomes block math', () => {
+        const md = '```worked\ntitle: Solve it\nSubtract 3.\n$$2x = 8$$\n```';
+        expect(blocks(md)).toEqual([
+            {
+                type: 'workedExample',
+                attrs: { title: 'Solve it' },
+                content: [
+                    { type: 'paragraph', content: [{ type: 'text', text: 'Subtract 3.' }] },
+                    { type: 'mathBlock', attrs: { latex: '2x = 8' } },
+                ],
+            },
+        ]);
+        expect(roundTrip(md)[0]).toMatchObject({ type: 'workedExample' });
+    });
+
+    it('```worked keeps {{…}} literal (the example shows the answer)', () => {
+        const md = '```worked\nx = {{4}} after dividing\n```';
+        const we = blocks(md)[0]!;
+        expect(we.type).toBe('workedExample');
+        expect(we.content).toEqual([
+            { type: 'paragraph', content: [{ type: 'text', text: 'x = {{4}} after dividing' }] },
+        ]);
+    });
+
+    it('```faded → a {{blank}} line becomes a fill-in step; other lines are shown', () => {
+        const md = '```faded\nSubtract 3.\n$$2x = 8$$\nx = {{4}}\n```';
+        const fwe = blocks(md)[0]!;
+        expect(fwe.type).toBe('fadedWorkedExample');
+        expect(fwe.attrs).toMatchObject({ title: 'Guided practice' });
+        expect(fwe.content!.map((c) => c.type)).toEqual([
+            'paragraph',
+            'mathBlock',
+            'fillInBlank',
+        ]);
+        expect(roundTrip(md)[0]).toMatchObject({ type: 'fadedWorkedExample' });
+    });
+
+    it('an empty fence degrades to plain text with a warning', () => {
+        const res = convert('```worked\n```');
+        expect(res.blocks.every((b) => b.type !== 'workedExample')).toBe(true);
+        expect(res.warnings.length).toBeGreaterThan(0);
+    });
+});
