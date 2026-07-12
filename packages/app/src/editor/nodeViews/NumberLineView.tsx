@@ -31,6 +31,7 @@ import {
 // ============================================================================
 
 type InteractionType = NumberLineInteractionAttr['type'];
+type IntervalShape = 'segment' | 'ray_positive' | 'ray_negative';
 
 const num = (v: string, d: number): number => {
     const n = Number(v);
@@ -213,8 +214,9 @@ export default function NumberLineView({
         bump();
     };
 
-    // plot_interval numeric editing. Each side may be bounded (value + style) or
-    // unbounded (a ray). At least one side must stay bounded.
+    // plot_interval numeric editing. The shape (segment / ray →‎ / ray ←‎)
+    // mirrors the student's shape pills; a ray is one bound omitted. At least one
+    // side must stay bounded.
     const iv: NumberLineIntervalAttr =
         interaction.type === 'plot_interval' ? interaction.correctInterval : {};
     const setInterval = (next: NumberLineIntervalAttr): void => {
@@ -222,6 +224,80 @@ export default function NumberLineView({
         if (next.min === undefined && next.max === undefined) return; // keep 1+ bound
         updateAttributes({ interaction: { ...interaction, correctInterval: next } });
         bump();
+    };
+
+    // Shape derived from which bound is present: both → segment; only min → ray
+    // to +∞; only max → ray to −∞ (matches the kit widget's mapping exactly).
+    const intervalShape: IntervalShape =
+        iv.min !== undefined && iv.max !== undefined
+            ? 'segment'
+            : iv.max === undefined
+              ? 'ray_positive'
+              : 'ray_negative';
+    const setIntervalShape = (shape: IntervalShape): void => {
+        if (interaction.type !== 'plot_interval') return;
+        if (shape === 'segment') {
+            setInterval({
+                min: iv.min ?? config.min,
+                minStyle: iv.minStyle ?? 'closed',
+                max: iv.max ?? config.max,
+                maxStyle: iv.maxStyle ?? 'closed',
+            });
+        } else if (shape === 'ray_positive') {
+            setInterval({ min: iv.min ?? config.min, minStyle: iv.minStyle ?? 'closed' });
+        } else {
+            setInterval({ max: iv.max ?? config.max, maxStyle: iv.maxStyle ?? 'closed' });
+        }
+    };
+    // A pill button matching the kit widget's shape pills (active = filled blue).
+    const shapePill = (shape: IntervalShape, label: string) => (
+        <button
+            type="button"
+            disabled={!isEditable}
+            aria-pressed={intervalShape === shape}
+            onClick={() => setIntervalShape(shape)}
+            onKeyDown={(e) => e.stopPropagation()}
+            style={{
+                font: 'inherit',
+                fontSize: '0.75rem',
+                padding: '0.15rem 0.5rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: 999,
+                background: intervalShape === shape ? '#2563eb' : '#fff',
+                color: intervalShape === shape ? '#fff' : 'inherit',
+                cursor: isEditable ? 'pointer' : 'default',
+            }}
+        >
+            {label}
+        </button>
+    );
+    // A bounded endpoint's value + open/closed style (rendered per present side).
+    const boundRow = (side: 'min' | 'max', label: string) => {
+        const styleKey = side === 'min' ? 'minStyle' : 'maxStyle';
+        const fallback = side === 'min' ? config.min : config.max;
+        return (
+            <span key={side} style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center', ...labelStyle }}>
+                {label}:
+                <input
+                    type="number"
+                    value={iv[side] ?? fallback}
+                    disabled={!isEditable}
+                    step="any"
+                    style={{ width: '4rem' }}
+                    onChange={(e) => setInterval({ ...iv, [side]: num(e.target.value, iv[side] ?? fallback) })}
+                    onKeyDown={(e) => e.stopPropagation()}
+                />
+                <select
+                    value={iv[styleKey] ?? 'closed'}
+                    disabled={!isEditable}
+                    onChange={(e) => setInterval({ ...iv, [styleKey]: e.target.value as 'open' | 'closed' })}
+                    onKeyDown={(e) => e.stopPropagation()}
+                >
+                    <option value="closed">● closed</option>
+                    <option value="open">○ open</option>
+                </select>
+            </span>
+        );
     };
 
     return (
@@ -259,7 +335,7 @@ export default function NumberLineView({
                 <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
                     {interaction.type === 'plot_point'
                         ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} — or type the ${interaction.correctPoints.length > 1 ? 'values' : 'value'} below.`
-                        : 'Drag the two ends and use the pills to set open/closed or unbounded — exactly what students do. Or type the bounds below.'}
+                        : 'Pick Segment / Ray → / Ray ← and drag the ends — exactly what students do. Or set the shape and bounds below.'}
                 </p>
 
                 {interaction.type === 'plot_point' && (
@@ -296,62 +372,21 @@ export default function NumberLineView({
 
                 {interaction.type === 'plot_interval' && (
                     <div style={{ marginTop: '0.35rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-                        {(['min', 'max'] as const).map((side) => {
-                            const styleKey = side === 'min' ? 'minStyle' : 'maxStyle';
-                            const bounded = iv[side] !== undefined;
-                            const otherBounded = iv[side === 'min' ? 'max' : 'min'] !== undefined;
-                            return (
-                                <span key={side} style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center', ...labelStyle }}>
-                                    {side === 'min' ? 'Left' : 'Right'}:
-                                    <label style={{ display: 'inline-flex', gap: '0.2rem', alignItems: 'center' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={!bounded}
-                                            // Can't make BOTH ends unbounded.
-                                            disabled={!isEditable || (!bounded && !otherBounded)}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    const next = { ...iv };
-                                                    delete next[side];
-                                                    delete next[styleKey];
-                                                    setInterval(next);
-                                                } else {
-                                                    setInterval({
-                                                        ...iv,
-                                                        [side]: side === 'min' ? config.min : config.max,
-                                                        [styleKey]: 'closed',
-                                                    });
-                                                }
-                                            }}
-                                            onKeyDown={(e) => e.stopPropagation()}
-                                        />
-                                        unbounded
-                                    </label>
-                                    {bounded && (
-                                        <>
-                                            <input
-                                                type="number"
-                                                value={iv[side]}
-                                                disabled={!isEditable}
-                                                step="any"
-                                                style={{ width: '4rem' }}
-                                                onChange={(e) => setInterval({ ...iv, [side]: num(e.target.value, iv[side]!) })}
-                                                onKeyDown={(e) => e.stopPropagation()}
-                                            />
-                                            <select
-                                                value={iv[styleKey] ?? 'closed'}
-                                                disabled={!isEditable}
-                                                onChange={(e) => setInterval({ ...iv, [styleKey]: e.target.value as 'open' | 'closed' })}
-                                                onKeyDown={(e) => e.stopPropagation()}
-                                            >
-                                                <option value="closed">● closed</option>
-                                                <option value="open">○ open</option>
-                                            </select>
-                                        </>
-                                    )}
-                                </span>
-                            );
-                        })}
+                        <span style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center' }}>
+                            {shapePill('ray_positive', 'Ray →')}
+                            {shapePill('ray_negative', 'Ray ←')}
+                            {shapePill('segment', 'Segment')}
+                        </span>
+                        {intervalShape === 'segment' ? (
+                            <>
+                                {boundRow('min', 'Left')}
+                                {boundRow('max', 'Right')}
+                            </>
+                        ) : intervalShape === 'ray_positive' ? (
+                            boundRow('min', 'Endpoint')
+                        ) : (
+                            boundRow('max', 'Endpoint')
+                        )}
                     </div>
                 )}
             </div>

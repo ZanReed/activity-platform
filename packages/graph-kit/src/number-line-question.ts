@@ -128,14 +128,140 @@ function pill(label: string, onClick: () => void): HTMLButtonElement {
   b.addEventListener('click', onClick);
   return b;
 }
+function setPillActive(b: HTMLButtonElement, on: boolean): void {
+  b.style.background = on ? '#2563eb' : '#fff';
+  b.style.color = on ? '#fff' : 'inherit';
+  b.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
 
-const END_LABEL: Record<IntervalEndState, string> = {
-  closed: '● closed',
-  open: '○ open',
-  unbounded: '→ unbounded',
-};
-const nextEndState = (s: IntervalEndState): IntervalEndState =>
-  s === 'closed' ? 'open' : s === 'open' ? 'unbounded' : 'closed';
+// ---- Shared shape controls (student widget + author board) -------------------
+// The interval interaction is "two handles + a SHAPE choice + endpoint styles",
+// mirroring the graph's ray/segment control set (graph-question.ts) so the two
+// widgets can't drift and authoring is literally the student experience. Three
+// shape pills — "Ray →" / "Ray ←" / "Segment" — plus contextual style pills.
+//
+// A number line has only two directions, so the ray labels are static (no need
+// for the graph's 8-way true-direction glyphs). The chosen shape maps onto the
+// board's two end-states: segment = both bounded; ray_positive = left bounded +
+// right unbounded (→ +∞); ray_negative = left unbounded + right bounded (→ −∞).
+// A ray = one bound omitted, which is exactly how scoreNumberLineInterval and
+// the stored interval already model it — so this is a control swap only.
+type IntervalShape = 'segment' | 'ray_positive' | 'ray_negative';
+
+interface IntervalShapeControls {
+  /** Append the shape + style pills to a control bar and sync visuals. */
+  attach(bar: HTMLElement): void;
+  /** Current end-states derived from the shape choice (for the board + answer). */
+  endStates(): [IntervalEndState, IntervalEndState];
+  /** Restore the shape + styles from a stored interval (which bound is omitted
+   *  picks the shape). Does not fire onUserChange. */
+  setFromInterval(iv: NumberLineRestoreExtras['interval']): void;
+  setDisabled(disabled: boolean): void;
+}
+
+const styleLabel = (s: EndpointStyle): string => (s === 'closed' ? '● closed' : '○ open');
+const toggleStyle = (s: EndpointStyle): EndpointStyle => (s === 'closed' ? 'open' : 'closed');
+
+function createIntervalShapeControls(
+  board: Pick<NumberLineBoardController, 'setEndState'>,
+  onUserChange: () => void,
+): IntervalShapeControls {
+  const state = {
+    shape: 'segment' as IntervalShape,
+    segStyles: ['closed', 'closed'] as [EndpointStyle, EndpointStyle],
+    rayStyle: 'closed' as EndpointStyle,
+  };
+
+  const ends = (): [IntervalEndState, IntervalEndState] => {
+    switch (state.shape) {
+      case 'ray_positive':
+        return [state.rayStyle, 'unbounded'];
+      case 'ray_negative':
+        return ['unbounded', state.rayStyle];
+      default:
+        return [state.segStyles[0], state.segStyles[1]];
+    }
+  };
+
+  const pickShape = (shape: IntervalShape): void => {
+    state.shape = shape;
+    sync();
+    onUserChange();
+  };
+  const rayPosBtn = pill('Ray →', () => pickShape('ray_positive'));
+  const rayNegBtn = pill('Ray ←', () => pickShape('ray_negative'));
+  const segmentBtn = pill('Segment', () => pickShape('segment'));
+  const rayStyleBtn = pill('Endpoint: ● closed', () => {
+    state.rayStyle = toggleStyle(state.rayStyle);
+    sync();
+    onUserChange();
+  });
+  const segLeftBtn = pill('Left: ● closed', () => {
+    state.segStyles = [toggleStyle(state.segStyles[0]), state.segStyles[1]];
+    sync();
+    onUserChange();
+  });
+  const segRightBtn = pill('Right: ● closed', () => {
+    state.segStyles = [state.segStyles[0], toggleStyle(state.segStyles[1])];
+    sync();
+    onUserChange();
+  });
+  const buttons = [rayPosBtn, rayNegBtn, segmentBtn, rayStyleBtn, segLeftBtn, segRightBtn];
+
+  function sync(): void {
+    const [l, r] = ends();
+    board.setEndState?.('left', l);
+    board.setEndState?.('right', r);
+    setPillActive(rayPosBtn, state.shape === 'ray_positive');
+    setPillActive(rayNegBtn, state.shape === 'ray_negative');
+    setPillActive(segmentBtn, state.shape === 'segment');
+    const isRay = state.shape !== 'segment';
+    // Ray: one endpoint style (the bounded end; the arrow end has no style).
+    rayStyleBtn.hidden = !isRay;
+    rayStyleBtn.textContent = `Endpoint: ${styleLabel(state.rayStyle)}`;
+    // Segment: a style pill per end.
+    segLeftBtn.hidden = isRay;
+    segRightBtn.hidden = isRay;
+    segLeftBtn.textContent = `Left: ${styleLabel(state.segStyles[0])}`;
+    segRightBtn.textContent = `Right: ${styleLabel(state.segStyles[1])}`;
+  }
+
+  return {
+    attach(bar: HTMLElement): void {
+      bar.append(...buttons);
+      sync();
+    },
+    endStates: ends,
+    setFromInterval(iv): void {
+      const hasMin = iv?.min !== undefined;
+      const hasMax = iv?.max !== undefined;
+      if (hasMin && hasMax) {
+        state.shape = 'segment';
+        state.segStyles = [iv?.minStyle ?? 'closed', iv?.maxStyle ?? 'closed'];
+      } else if (hasMin) {
+        state.shape = 'ray_positive';
+        state.rayStyle = iv?.minStyle ?? 'closed';
+      } else if (hasMax) {
+        state.shape = 'ray_negative';
+        state.rayStyle = iv?.maxStyle ?? 'closed';
+      }
+      sync();
+    },
+    setDisabled(disabled: boolean): void {
+      for (const b of buttons) b.disabled = disabled;
+    },
+  };
+}
+
+// The control bar chrome (shared by student + author mounts).
+function makeControlBar(): HTMLDivElement {
+  const bar = document.createElement('div');
+  bar.style.cssText =
+    'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
+    'flex-wrap:wrap;padding:0.3rem;background:rgba(255,255,255,0.88);' +
+    'border-top:1px solid #e2e8f0;z-index:5;';
+  return bar;
+}
 
 export async function mountNumberLineQuestion(
   mount: HTMLElement,
@@ -155,8 +281,6 @@ export async function mountNumberLineQuestion(
   const { createNumberLineBoard } = await import('./number-line-board.js');
 
   let answered = false;
-  // Interval endpoint states, owned here (the board mirrors them visually).
-  const endStates: [IntervalEndState, IntervalEndState] = ['closed', 'closed'];
 
   const board: NumberLineBoardController = createNumberLineBoard(
     mount,
@@ -168,6 +292,15 @@ export async function mountNumberLineQuestion(
     { onMove: () => handleMove() },
   );
 
+  // Interval shape/style controls (the board mirrors them visually). Owns the
+  // shape choice; endStates() derives the per-end bounded/unbounded from it.
+  const controls: IntervalShapeControls | null = isInterval
+    ? createIntervalShapeControls(board, () => {
+        answered = true;
+        hooks.onChange?.(build());
+      })
+    : null;
+
   // Build the student's interval from the two handle positions + endpoint states.
   function studentInterval(): StudentInterval {
     const vals = board.getValues();
@@ -175,14 +308,15 @@ export async function mountNumberLineQuestion(
     const b = vals[1] ?? 0;
     const leftX = Math.min(a, b);
     const rightX = Math.max(a, b);
+    const [l, r] = controls!.endStates();
     const out: StudentInterval = {};
-    if (endStates[0] !== 'unbounded') {
+    if (l !== 'unbounded') {
       out.min = leftX;
-      out.minStyle = endStates[0];
+      out.minStyle = l;
     }
-    if (endStates[1] !== 'unbounded') {
+    if (r !== 'unbounded') {
       out.max = rightX;
-      out.maxStyle = endStates[1];
+      out.maxStyle = r;
     }
     return out;
   }
@@ -211,27 +345,10 @@ export async function mountNumberLineQuestion(
     hooks.onChange?.(build());
   }
 
-  // Interval control bar: one 3-state pill per end (closed → open → unbounded).
-  const bar = document.createElement('div');
-  const endButtons: HTMLButtonElement[] = [];
-  if (isInterval) {
-    bar.style.cssText =
-      'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
-      'flex-wrap:wrap;padding:0.3rem;background:rgba(255,255,255,0.88);' +
-      'border-top:1px solid #e2e8f0;z-index:5;';
-    (['left', 'right'] as const).forEach((which, i) => {
-      const label = which === 'left' ? 'Left' : 'Right';
-      const btn = pill(`${label}: ${END_LABEL[endStates[i]!]}`, () => {
-        const next = nextEndState(endStates[i]!);
-        endStates[i] = next;
-        btn.textContent = `${label}: ${END_LABEL[next]}`;
-        board.setEndState?.(which, next);
-        answered = true;
-        hooks.onChange?.(build());
-      });
-      endButtons.push(btn);
-      bar.appendChild(btn);
-    });
+  // Interval control bar: the shared Ray →/Ray ←/Segment shape pills + styles.
+  if (isInterval && controls) {
+    const bar = makeControlBar();
+    controls.attach(bar);
     mount.appendChild(bar);
   }
 
@@ -239,16 +356,9 @@ export async function mountNumberLineQuestion(
     getResponse: build,
     restore(values: number[], extras?: NumberLineRestoreExtras): void {
       answered = true;
-      if (isInterval && extras?.interval) {
+      if (isInterval && controls && extras?.interval) {
         const iv = extras.interval;
-        endStates[0] = iv.min === undefined ? 'unbounded' : iv.minStyle ?? 'closed';
-        endStates[1] = iv.max === undefined ? 'unbounded' : iv.maxStyle ?? 'closed';
-        endButtons.forEach((btn, i) => {
-          const label = i === 0 ? 'Left' : 'Right';
-          btn.textContent = `${label}: ${END_LABEL[endStates[i]!]}`;
-        });
-        board.setEndState?.('left', endStates[0]);
-        board.setEndState?.('right', endStates[1]);
+        controls.setFromInterval(iv);
         // Position the bounded handles at the restored bounds; leave unbounded
         // ones at their default (hidden) spot.
         const left = iv.min ?? line.min;
@@ -262,7 +372,7 @@ export async function mountNumberLineQuestion(
     },
     setLocked(locked: boolean): void {
       board.setInteractive(!locked);
-      for (const b of endButtons) b.disabled = locked;
+      controls?.setDisabled(locked);
     },
     destroy(): void {
       board.destroy();
@@ -318,11 +428,6 @@ export async function mountNumberLineAuthor(
   mount.textContent = '';
   const { createNumberLineBoard } = await import('./number-line-board.js');
 
-  const endStates: [IntervalEndState, IntervalEndState] = [
-    cfg.correctInterval?.min === undefined ? 'unbounded' : cfg.correctInterval.minStyle ?? 'closed',
-    cfg.correctInterval?.max === undefined ? 'unbounded' : cfg.correctInterval.maxStyle ?? 'closed',
-  ];
-
   const starts = isInterval
     ? [cfg.correctInterval?.min ?? line.min, cfg.correctInterval?.max ?? line.max]
     : points;
@@ -338,18 +443,25 @@ export async function mountNumberLineAuthor(
     { onMove: () => emit() },
   );
 
+  // Same shape controls the student sees, so the authored key is defined the
+  // same way it's answered. Seeded from the stored correctInterval.
+  const controls: IntervalShapeControls | null = isInterval
+    ? createIntervalShapeControls(board, () => emit())
+    : null;
+
   function currentInterval(): StudentInterval {
     const vals = board.getValues();
     const leftX = Math.min(vals[0] ?? 0, vals[1] ?? 0);
     const rightX = Math.max(vals[0] ?? 0, vals[1] ?? 0);
+    const [l, r] = controls!.endStates();
     const out: StudentInterval = {};
-    if (endStates[0] !== 'unbounded') {
+    if (l !== 'unbounded') {
       out.min = leftX;
-      out.minStyle = endStates[0];
+      out.minStyle = l;
     }
-    if (endStates[1] !== 'unbounded') {
+    if (r !== 'unbounded') {
       out.max = rightX;
-      out.maxStyle = endStates[1];
+      out.maxStyle = r;
     }
     return out;
   }
@@ -359,24 +471,10 @@ export async function mountNumberLineAuthor(
     else hooks.onChange?.(board.getValues());
   }
 
-  if (isInterval) {
-    const bar = document.createElement('div');
-    bar.style.cssText =
-      'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
-      'flex-wrap:wrap;padding:0.3rem;background:rgba(255,255,255,0.88);' +
-      'border-top:1px solid #e2e8f0;z-index:5;';
-    (['left', 'right'] as const).forEach((which, i) => {
-      const label = which === 'left' ? 'Left' : 'Right';
-      board.setEndState?.(which, endStates[i]!);
-      const btn = pill(`${label}: ${END_LABEL[endStates[i]!]}`, () => {
-        const next = nextEndState(endStates[i]!);
-        endStates[i] = next;
-        btn.textContent = `${label}: ${END_LABEL[next]}`;
-        board.setEndState?.(which, next);
-        emit();
-      });
-      bar.appendChild(btn);
-    });
+  if (isInterval && controls) {
+    controls.setFromInterval(cfg.correctInterval);
+    const bar = makeControlBar();
+    controls.attach(bar);
     mount.appendChild(bar);
   }
 
