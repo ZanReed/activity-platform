@@ -227,6 +227,15 @@ export const slashMenuItems: SlashMenuItem[] = [
         },
     },
     {
+        title: 'Data plot',
+        description: 'A dot plot, histogram, or box plot — graded (students build it) or a static figure.',
+        keywords: ['data', 'plot', 'dot', 'histogram', 'box', 'boxplot', 'statistics', 'stats', 'chart', 'distribution'],
+        group: 'Questions',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertDataPlot().run();
+        },
+    },
+    {
         title: 'Multiple choice',
         description: 'A question with answer choices — single answer or select-all-that-apply.',
         keywords: ['multiple', 'choice', 'mc', 'select', 'options', 'quiz', 'radio', 'checkbox'],

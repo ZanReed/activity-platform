@@ -18,6 +18,7 @@ import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
 import { InteractiveGraph } from './extensions/InteractiveGraph';
 import { NumberLine } from './extensions/NumberLine';
+import { DataPlot } from './extensions/DataPlot';
 import { MultipleChoice } from './extensions/MultipleChoice';
 import { Matching } from './extensions/Matching';
 import { Ordering } from './extensions/Ordering';
@@ -96,6 +97,9 @@ export default function ReferencePanelEditor({
             // NumberLine: same registered-only-for-the-schema story (the column
             // content expression names it as of the number_line editor drop).
             NumberLine,
+            // DataPlot: same registered-only-for-the-schema story (the column
+            // content expression names it as of the data_plot editor drop).
+            DataPlot,
             Image,
         ],
         content: initialContent,

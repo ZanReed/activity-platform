@@ -317,6 +317,67 @@ describe('number line block', () => {
     });
 });
 
+describe('data plot block', () => {
+    const buildNode: JSONContent = {
+        type: 'dataPlot',
+        attrs: {
+            id: 'ignored-regenerated',
+            data: [3, 5, 5, 6, 8],
+            config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
+            interaction: { type: 'build_dotplot' },
+            solution: [{ type: 'text', text: 'Stack the dots per value.', marks: [] }],
+            hasConfidenceRating: true,
+            skills: ['statistics'],
+        },
+        content: [{ type: 'text', text: 'Build a dot plot of the data.' }],
+    };
+    const doc: JSONContent = { type: 'doc', content: [buildNode] };
+
+    it('round-trips data, config, interaction, prompt, solution, and flags', () => {
+        const out = roundTrip(doc);
+        const n = out.content!.find((x) => x.type === 'dataPlot')!;
+        expect(n.attrs!.data).toEqual([3, 5, 5, 6, 8]);
+        expect(n.attrs!.config).toEqual(buildNode.attrs!.config);
+        expect(n.attrs!.interaction).toEqual(buildNode.attrs!.interaction);
+        expect(n.attrs!.hasConfidenceRating).toBe(true);
+        expect(n.attrs!.skills).toEqual(['statistics']);
+        expect(n.attrs!.solution).toEqual(buildNode.attrs!.solution);
+        expect(n.content).toEqual([{ type: 'text', text: 'Build a dot plot of the data.' }]);
+    });
+
+    it('round-trips a display box plot (chart carried, ungraded)', () => {
+        const node: JSONContent = {
+            type: 'dataPlot',
+            attrs: {
+                id: 'd',
+                data: [2, 4, 4, 6, 7, 9],
+                config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
+                interaction: { type: 'display', chart: 'boxplot' },
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Box plot of the sample:' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [node] });
+        const n = out.content!.find((x) => x.type === 'dataPlot')!;
+        expect(n.attrs!.interaction).toEqual({ type: 'display', chart: 'boxplot' });
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('serializes to a schema-valid data_plot block', () => {
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks.find((b) => b.type === 'data_plot');
+        expect(block).toBeDefined();
+        if (block && block.type === 'data_plot') {
+            expect(block.interaction.type).toBe('build_dotplot');
+            expect(block.data).toEqual([3, 5, 5, 6, 8]);
+        }
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+});
+
 describe('reference panel (opaque carry)', () => {
     // The panel is authored on its own surface and threaded into
     // tiptapToActivity as a third argument — it is never encoded in the main

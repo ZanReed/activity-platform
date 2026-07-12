@@ -24,7 +24,11 @@ export function problemNumberAt(editor: Editor, pos: number | undefined): number
             node.type.name === 'numberLine'
         ) {
             count++;
-        } else if (node.type.name === 'interactiveGraph') {
+        } else if (
+            node.type.name === 'interactiveGraph' ||
+            node.type.name === 'dataPlot'
+        ) {
+            // Only a graded interaction is numbered; a display chart is not.
             const interactionType = (
                 node.attrs.interaction as { type?: string } | undefined
             )?.type;

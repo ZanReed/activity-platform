@@ -57,6 +57,7 @@ import type {
     MathBlock,
     InteractiveGraphBlock,
     NumberLineBlock,
+    DataPlotBlock,
     MultipleChoiceBlock,
     MultipleChoiceOption,
     MatchingBlock,
@@ -71,6 +72,7 @@ import {
     DefinitionContentInline as DefinitionContentInlineSchema,
     createInteractiveGraphBlock,
     createNumberLineBlock,
+    createDataPlotBlock,
     createMultipleChoiceOption,
     createMatchingItem,
     createMatchingTarget,
@@ -272,6 +274,8 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             return tiptapInteractiveGraphToActivity(node);
         case 'numberLine':
             return tiptapNumberLineToActivity(node);
+        case 'dataPlot':
+            return tiptapDataPlotToActivity(node);
         case 'multipleChoice':
             return tiptapMultipleChoiceToActivity(node);
         case 'matching':
@@ -700,6 +704,34 @@ function tiptapNumberLineToActivity(node: JSONContent): NumberLineBlock {
     return block;
 }
 
+function tiptapDataPlotToActivity(node: JSONContent): DataPlotBlock {
+    const attrs = node.attrs ?? {};
+    const fresh = createDataPlotBlock();
+    const block: DataPlotBlock = {
+        id: crypto.randomUUID(),
+        type: 'data_plot',
+        // The prompt is the node's editable inline content (caption for display).
+        prompt: tiptapInlineToActivity(node.content ?? []),
+        data: Array.isArray(attrs.data)
+            ? (attrs.data as unknown[]).filter((n): n is number => typeof n === 'number')
+            : fresh.data,
+        config: (attrs.config as DataPlotBlock['config']) ?? fresh.config,
+        interaction: (attrs.interaction as DataPlotBlock['interaction']) ?? fresh.interaction,
+        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
+        skills: Array.isArray(attrs.skills)
+            ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
+            : [],
+    };
+    // A parse that yielded no numbers falls back to the factory dataset so the
+    // schema's `data` min-length invariant always holds.
+    if (block.data.length === 0) block.data = fresh.data;
+    const solution = sanitizeInlineNodes(attrs.solution);
+    if (solution.length > 0) {
+        block.solution = solution;
+    }
+    return block;
+}
+
 function tiptapBulletListToActivity(node: JSONContent): BulletListBlock {
     return {
         id: crypto.randomUUID(),
@@ -1005,6 +1037,9 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'number_line':
             return activityNumberLineToTiptap(block);
 
+        case 'data_plot':
+            return activityDataPlotToTiptap(block);
+
         case 'multiple_choice':
             return activityMultipleChoiceToTiptap(block);
 
@@ -1014,14 +1049,10 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'ordering':
             return activityOrderingToTiptap(block);
 
-        // data_plot's editor NodeView lands in slice 5; until then it shares the
-        // callout/problem omit-stub (round-trips through storage, omitted from the
-        // editor view) — the same stub number_line used before its NodeView shipped.
-        case 'data_plot':
         case 'callout':
         case 'problem':
-            // These have no editor mapping yet; they round-trip through storage
-            // but are omitted from the editor view.
+            // callout/problem have no editor mapping yet; they round-trip through
+            // storage but are omitted from the editor view.
             console.warn(
                 `[serialize] No Tiptap mapping for ${block.type} yet; block omitted from editor view.`,
             );
@@ -1206,6 +1237,22 @@ function activityNumberLineToTiptap(block: NumberLineBlock): JSONContent {
         type: 'numberLine',
         attrs: {
             id: block.id,
+            config: block.config,
+            interaction: block.interaction,
+            solution: block.solution ?? null,
+            hasConfidenceRating: block.hasConfidenceRating,
+            skills: block.skills,
+        },
+        content: activityInlineToTiptap(block.prompt),
+    };
+}
+
+function activityDataPlotToTiptap(block: DataPlotBlock): JSONContent {
+    return {
+        type: 'dataPlot',
+        attrs: {
+            id: block.id,
+            data: block.data,
             config: block.config,
             interaction: block.interaction,
             solution: block.solution ?? null,
