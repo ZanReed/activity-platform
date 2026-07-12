@@ -454,6 +454,64 @@ await writeFile(calcSummonModulePath, calcSummonModule, 'utf8');
 const calcSummonBytes = Buffer.byteLength(calcSummonJsText, 'utf8');
 
 // -----------------------------------------------------------------------------
+// Step 2f — Manual-feedback sidecar build (Phase 2.6)
+// -----------------------------------------------------------------------------
+// A small self-contained IIFE that fetches this student's per-criterion grading
+// feedback (get-feedback Edge Function) and fills the `.free-text-feedback`
+// mount points. Inlined by document.ts ONLY when a page has a short_answer/essay
+// block — kept OUT of the base runtime so no page pays for it unless gradable.
+
+const feedbackEntry = resolve(
+  root,
+  'packages/renderer/src/runtime/feedback.ts',
+);
+const feedbackModulePath = resolve(
+  root,
+  'packages/renderer/src/runtime/generated/feedback-bundle.ts',
+);
+
+const feedbackResult = await build({
+  entryPoints: [feedbackEntry],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: 'chrome90',
+  minify: true,
+  write: false,
+  outdir: resolve(root, 'packages/renderer/dist'),
+  logLevel: 'info',
+});
+
+const feedbackJsText = feedbackResult.outputFiles.find(
+  (f) => !f.path.endsWith('.map'),
+)?.text;
+if (!feedbackJsText) {
+  throw new Error('Feedback sidecar build produced no JS output — aborting.');
+}
+
+const escapedFeedback = JSON.stringify(feedbackJsText).replace(
+  /<\/script/gi,
+  '<\\/script',
+);
+
+const feedbackModule =
+  '// =============================================================================\n' +
+  '// runtime/generated/feedback-bundle.ts — GENERATED FILE, DO NOT EDIT\n' +
+  '// -----------------------------------------------------------------------------\n' +
+  '// Produced by scripts/bundle-renderer.mjs from runtime/feedback.ts.\n' +
+  '// Re-run `pnpm run bundle:renderer` after changing that source. Committed to\n' +
+  '// git so a clean checkout can typecheck/build the renderer without the bundler.\n' +
+  '// =============================================================================\n' +
+  '\n' +
+  '/** Minified feedback IIFE; inlined by document.ts when the page has a graded block. */\n' +
+  'export const feedbackJs = ' +
+  escapedFeedback +
+  ';\n';
+
+await writeFile(feedbackModulePath, feedbackModule, 'utf8');
+const feedbackBytes = Buffer.byteLength(feedbackJsText, 'utf8');
+
+// -----------------------------------------------------------------------------
 // Step 3 — Renderer bundle (pre-existing build, unchanged)
 // -----------------------------------------------------------------------------
 // Bundles the renderer (with schema and katex inlined) into a single ESM file
@@ -528,6 +586,8 @@ console.log('Definitions: ' + definitionsModulePath);
 console.log('          ' + (definitionsBytes / 1024).toFixed(1) + ' KiB minified');
 console.log('Calc summon: ' + calcSummonModulePath);
 console.log('          ' + (calcSummonBytes / 1024).toFixed(1) + ' KiB minified');
+console.log('Feedback: ' + feedbackModulePath);
+console.log('          ' + (feedbackBytes / 1024).toFixed(1) + ' KiB minified');
 console.log('KaTeX CSS: ' + katexCssModulePath);
 console.log(
   '          ' +

@@ -101,6 +101,17 @@ const PUBLIC_URL_BASE = R2_PUBLIC_URL_BASE.replace(/\/+$/, '');
 // present, so a page without a calculator never references it.
 const CALCULATOR_KIT_URL = `${PUBLIC_URL_BASE}/shared/${CALCULATOR_KIT_FILE}`;
 
+// The get-feedback Edge Function URL (Phase 2.6). Prefer an explicit
+// FEEDBACK_ENDPOINT; otherwise derive it from the submission endpoint by
+// swapping the function name (both are `.../functions/v1/<name>`). Empty when
+// neither is available — the renderer then omits it and the feedback sidecar
+// no-ops, so a missing config degrades gracefully rather than breaking submit.
+const FEEDBACK_ENDPOINT =
+  Deno.env.get('FEEDBACK_ENDPOINT') ??
+  (SUBMISSION_ENDPOINT.includes('ingest-submission')
+    ? SUBMISSION_ENDPOINT.replace('ingest-submission', 'get-feedback')
+    : '');
+
 // The self-hosted activity fonts (meta.typography). Uploaded out-of-band by
 // `pnpm build:fonts`; the renderer emits @font-face rules under this base only
 // for documents that opt into a non-default font, so pages without typography
@@ -239,6 +250,7 @@ Deno.serve(async (req: Request) => {
       activityId,
       versionNum: version.version_num,
       submissionEndpoint: SUBMISSION_ENDPOINT,
+      ...(FEEDBACK_ENDPOINT ? { feedbackEndpoint: FEEDBACK_ENDPOINT } : {}),
       calculatorKitUrl: CALCULATOR_KIT_URL,
       fontsBaseUrl: FONTS_BASE_URL,
     });

@@ -48,6 +48,7 @@ import { runtimeGraphsJs } from './runtime/generated/runtime-graphs-bundle.js';
 import { referencePanelJs } from './runtime/generated/reference-panel-bundle.js';
 import { definitionsJs } from './runtime/generated/definitions-bundle.js';
 import { calculatorSummonJs } from './runtime/generated/calculator-summon-bundle.js';
+import { feedbackJs } from './runtime/generated/feedback-bundle.js';
 import { katexCss } from './generated/katex-css.js';
 
 export interface RenderContext {
@@ -57,6 +58,13 @@ export interface RenderContext {
   versionNum: number;
   /** Absolute URL to POST submissions to (the ingest-submission Edge Function). */
   submissionEndpoint: string;
+  /**
+   * Absolute URL of the get-feedback Edge Function (Phase 2.6). Optional: when
+   * absent the manual-feedback sidecar no-ops (dev without it, or a build that
+   * predates it). Supplied by publish-activity, derived from the submission
+   * endpoint — the renderer stays pure and just forwards it.
+   */
+  feedbackEndpoint?: string;
   /**
    * Absolute URL of the shared, content-hashed calculator/graph kit on R2.
    * Optional: when absent (e.g. dev without R2 configured), the calculator is
@@ -175,6 +183,8 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
     activityId: ctx.activityId,
     versionNum: ctx.versionNum,
     submissionEndpoint: ctx.submissionEndpoint,
+    // Only emitted when supplied — the feedback sidecar keys on its presence.
+    ...(ctx.feedbackEndpoint ? { feedbackEndpoint: ctx.feedbackEndpoint } : {}),
     submissionMode: doc.meta.submissionMode,
     revisionMode: doc.meta.revisionMode,
     gradingMode: doc.meta.gradingMode,
@@ -328,6 +338,16 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
   // widget it imports lives on R2, never here. Separate from the scoring runtime
   // above; it manages only its own DOM.
   (calculatorHtml ? '<script>' + calculatorSummonJs + '</script>' : '') +
+
+  // Manual-feedback sidecar (Phase 2.6), inlined ONLY when a page has a
+  // short_answer/essay block (the gradable free-text types carry a
+  // `.free-text-feedback` mount point). It fetches this student's grading
+  // feedback via get-feedback. self_explanation is ungraded and never emits a
+  // feedback container, so a reflection-only page ships none of this.
+  (body.includes('data-block-type="short_answer"') ||
+  body.includes('data-block-type="essay"')
+    ? '<script>' + feedbackJs + '</script>'
+    : '') +
 
   '</body>' +
   '</html>'

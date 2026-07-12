@@ -187,6 +187,8 @@ describe('renderShortAnswer + renderEssay (manually-graded free text)', () => {
     expect(html).not.toContain('block-problem-number');
     expect(html).not.toContain('answer-key');
     expect(html).not.toContain('free-text-wordcount'); // short answer has no counter
+    // Manual-feedback mount point (hidden until the sidecar fills it).
+    expect(html).toContain('class="free-text-feedback"');
   });
 
   it('essay: renders a live word counter with the target range in data-*', () => {

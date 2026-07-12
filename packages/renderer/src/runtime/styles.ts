@@ -302,6 +302,49 @@ body {
 .free-text-wordcount.in-range { color: var(--color-success); }
 .free-text-wordcount.out-of-range { color: var(--color-warning); }
 
+/* Manual-feedback panel (Phase 2.6) — filled + revealed by the get-feedback
+   sidecar once a teacher has graded this block. Hidden until then. */
+.free-text-feedback__panel {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--color-accent);
+  border-radius: 6px;
+  background: var(--color-note-bg);
+}
+.free-text-feedback__heading {
+  margin: 0 0 0.4rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+  color: var(--color-accent);
+}
+.free-text-feedback__criterion {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 0.75rem;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--color-border);
+}
+.free-text-feedback__criterion:first-of-type { border-top: none; }
+.free-text-feedback__criterion-label { font-weight: 500; }
+.free-text-feedback__criterion-score {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+.free-text-feedback__criterion-fb {
+  grid-column: 1 / -1;
+  margin: 0.1rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+.free-text-feedback__general {
+  margin: 0.5rem 0 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.9rem;
+}
+
 .block-problem,
 .block-fill-in-blank {
   display: grid;
@@ -1750,5 +1793,7 @@ body {
     break-inside: avoid;
   }
   .free-text-wordcount { display: none; }
+  /* Feedback is an online-only affordance — a printed worksheet has none. */
+  .free-text-feedback { display: none; }
 }
 `.trim();

@@ -67,6 +67,26 @@ function makeGraphDoc(): ActivityDocument {
   });
 }
 
+// An essay page — carries a gradable free-text block (needs the feedback sidecar).
+function makeEssayDoc(): ActivityDocument {
+  return ActivityDocument.parse({
+    schemaVersion: 1,
+    meta: { title: 'Essay' },
+    sections: [
+      {
+        id: SECTION_ID,
+        blocks: [
+          {
+            id: '44444444-4444-4444-8444-444444444444',
+            type: 'essay',
+            prompt: [{ type: 'text', text: 'Discuss.' }],
+          },
+        ],
+      },
+    ],
+  });
+}
+
 describe('runtime variant selection', () => {
   it('a graph-free page inlines the base runtime (no graph code)', () => {
     const html = renderActivity(makePlainDoc(), CTX);
@@ -77,5 +97,30 @@ describe('runtime variant selection', () => {
     const html = renderActivity(makeGraphDoc(), CTX);
     expect(html).toContain('data-block-type="interactive_graph"');
     expect(html).toContain('attachGraphRuntime');
+  });
+});
+
+// The manual-feedback sidecar is inlined ONLY when a page has a gradable
+// free-text block. `feedbackEndpoint` (a config property the sidecar reads) is
+// absent from the base runtime, and from the config blob when CTX carries no
+// feedbackEndpoint — so its presence in the output means the sidecar shipped.
+describe('feedback sidecar inlining', () => {
+  it('an essay page inlines the feedback sidecar + its mount point', () => {
+    const html = renderActivity(makeEssayDoc(), CTX);
+    expect(html).toContain('class="free-text-feedback"');
+    expect(html).toContain('feedbackEndpoint');
+  });
+
+  it('a plain page ships no feedback sidecar', () => {
+    const html = renderActivity(makePlainDoc(), CTX);
+    expect(html).not.toContain('feedbackEndpoint');
+  });
+
+  it('forwards ctx.feedbackEndpoint into the config when supplied', () => {
+    const html = renderActivity(makeEssayDoc(), {
+      ...CTX,
+      feedbackEndpoint: 'https://example.test/functions/v1/get-feedback',
+    });
+    expect(html).toContain('https://example.test/functions/v1/get-feedback');
   });
 });

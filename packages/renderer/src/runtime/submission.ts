@@ -36,6 +36,7 @@ import type { RuntimeState } from './state.js';
 import {
   clearActivityState,
   saveName,
+  saveSubmissionId,
   savePendingSubmission,
   loadPendingSubmission,
   clearPendingSubmission,
@@ -446,6 +447,8 @@ interface SendResult {
   ok: boolean;
   /** Canonical server attempt_number, present on success when returned. */
   attemptNumber?: number;
+  /** Server submission_id (the manual-feedback capability), present on success. */
+  submissionId?: string;
   /** On failure: true = don't retry (bad payload); false = transient. */
   terminal?: boolean;
   /** On failure: a human-readable message for the status line. */
@@ -491,16 +494,23 @@ async function postOnce(
 
   if (res.ok) {
     let attemptNumber: number | undefined;
+    let submissionId: string | undefined;
     try {
-      const data = (await res.json()) as { attempt_number?: unknown };
+      const data = (await res.json()) as {
+        attempt_number?: unknown;
+        submission_id?: unknown;
+      };
       if (typeof data.attempt_number === 'number') {
         attemptNumber = data.attempt_number;
       }
+      if (typeof data.submission_id === 'string') {
+        submissionId = data.submission_id;
+      }
     } catch {
       // Response wasn't JSON — the submission still succeeded; we just can't
-      // reconcile the attempt number. Leave it undefined.
+      // reconcile the attempt number / submission id. Leave them undefined.
     }
-    return { ok: true, attemptNumber };
+    return { ok: true, attemptNumber, submissionId };
   }
 
   let message = 'Submission failed (' + res.status + ')';
@@ -630,6 +640,10 @@ export function submit(
   }).then((result) => {
     if (result.ok) {
       state.attemptNumber = result.attemptNumber ?? state.attemptNumber;
+      // Remember this submission so the feedback sidecar can fetch grades later.
+      if (result.submissionId) {
+        saveSubmissionId(config.activityId, result.submissionId);
+      }
       clearPendingSubmission(config);
       applySubmitSuccess(config, state, button, {
         score: data.score,
@@ -682,6 +696,10 @@ export function flushPendingSubmission(
   }).then((result) => {
     if (result.ok) {
       state.attemptNumber = result.attemptNumber ?? state.attemptNumber;
+      // Remember this submission so the feedback sidecar can fetch grades later.
+      if (result.submissionId) {
+        saveSubmissionId(config.activityId, result.submissionId);
+      }
       clearPendingSubmission(config);
       applySubmitSuccess(config, state, button, null);
     } else if (result.terminal) {

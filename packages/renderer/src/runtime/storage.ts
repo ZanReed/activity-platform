@@ -59,6 +59,24 @@ export function saveName(name: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Submission id (Phase 2.6 — the capability for fetching manual feedback).
+// ---------------------------------------------------------------------------
+// The server returns an unguessable submission_id on a successful submit; we
+// store it per-activity so the feedback sidecar (runtime/feedback.ts) can later
+// fetch this student's per-criterion feedback. NOTE: runtime/feedback.ts reads
+// the SAME key inline (it's a separate bundle) — keep the format in sync.
+
+const SUBMISSION_ID_PREFIX = 'activity_submission_id_';
+
+export function saveSubmissionId(activityId: string, submissionId: string): void {
+  try {
+    localStorage.setItem(SUBMISSION_ID_PREFIX + activityId, submissionId);
+  } catch {
+    /* private mode etc — feedback is best-effort */
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Activity state (per activityId + versionNum).
 // ---------------------------------------------------------------------------
 

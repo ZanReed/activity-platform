@@ -40,6 +40,10 @@ function renderPromptAndTextarea(
     placeholderAttr +
     ' aria-label="Your answer"></textarea>' +
     extra +
+    // Feedback mount point — the get-feedback sidecar fills + reveals this when
+    // the teacher has graded this block (see RUNTIME.md). Empty + hidden until
+    // then; a page without grading never fetches, so it stays inert.
+    '<div class="free-text-feedback" data-for-block="' + attr(id) + '" hidden></div>' +
     '</div>'
   );
 }
