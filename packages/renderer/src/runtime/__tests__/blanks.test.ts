@@ -303,7 +303,7 @@ describe('wireBlanks answerFeedback gating', () => {
             mcs: new Map(), matches: new Map(), orderings: new Map(),
     graphs: new Map(),
             graphDisplays: new Map(),
-            numberLines: new Map(), dataPlots: new Map(), selfExplanations: new Map(),
+            numberLines: new Map(), dataPlots: new Map(), freeText: new Map(),
             sections: new Map(),
             popover: null,
         };

@@ -28,6 +28,7 @@ import { LearningObjectivesBlock } from './learning-objectives.js';
 import { WorkedExampleBlock } from './worked-example.js';
 import { FadedWorkedExampleBlock } from './faded-worked-example.js';
 import { SelfExplanationBlock } from './self-explanation.js';
+import { ShortAnswerBlock, EssayBlock } from './free-response.js';
 
 export const Block = z.discriminatedUnion('type', [
   ParagraphBlock,
@@ -50,6 +51,8 @@ export const Block = z.discriminatedUnion('type', [
   WorkedExampleBlock,
   FadedWorkedExampleBlock,
   SelfExplanationBlock,
+  ShortAnswerBlock,
+  EssayBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -101,6 +104,7 @@ export {
   FadedWorkedExampleChild,
 } from './faded-worked-example.js';
 export { SelfExplanationBlock } from './self-explanation.js';
+export { ShortAnswerBlock, EssayBlock, WordCountHint } from './free-response.js';
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,

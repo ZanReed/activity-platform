@@ -33,7 +33,7 @@ import {
     type GraphDisplayRef,
     type NumberLineRef,
     type DataPlotRef,
-    type SelfExplanationRef,
+    type FreeTextRef,
     type SectionRef,
     type PopoverRef,
 } from './refs.js';
@@ -67,7 +67,7 @@ export function buildRefs(doc: Document = document): Refs {
     const graphDisplays = new Map<string, GraphDisplayRef>();
     const numberLines = new Map<string, NumberLineRef>();
     const dataPlots = new Map<string, DataPlotRef>();
-    const selfExplanations = new Map<string, SelfExplanationRef>();
+    const freeText = new Map<string, FreeTextRef>();
 
     for (const sectionEl of $$<HTMLElement>('.activity-section', doc)) {
         const sectionId = sectionEl.dataset.sectionId;
@@ -195,26 +195,25 @@ export function buildRefs(doc: Document = document): Refs {
         );
     }
 
-    // Self-explanation blocks — ungraded free text, so scanned document-wide
-    // (not per-section): they carry no score and need no section membership.
-    // Each just needs its textarea captured at persist/submit.
-    for (const blockEl of $$<HTMLElement>(
-        '[data-block-type="self_explanation"]',
-        doc,
-    )) {
-        const blockId = blockEl.dataset.blockId;
+    // Free-text blocks (self_explanation / short_answer / essay) — ungraded by
+    // the runtime, so scanned document-wide (not per-section) by the shared
+    // `.free-text-input` class. Each just needs its textarea captured at
+    // persist/submit; an essay also carries a live word counter + target.
+    for (const textarea of $$<HTMLTextAreaElement>('.free-text-input', doc)) {
+        const blockId = textarea.dataset.forBlock;
         if (!blockId) {
-            warn('Self-explanation block is missing data-block-id; skipping.');
+            warn('Free-text block is missing data-for-block; skipping.');
             continue;
         }
-        const textarea = blockEl.querySelector<HTMLTextAreaElement>(
-            '.self-explanation-input',
-        );
-        if (!textarea) {
-            warn('Self-explanation block is missing its textarea; skipping.');
-            continue;
-        }
-        selfExplanations.set(blockId, { el: blockEl, textarea });
+        const block = textarea.closest<HTMLElement>('.block');
+        const wordCountEl =
+            block?.querySelector<HTMLElement>('.free-text-wordcount') ?? null;
+        freeText.set(blockId, {
+            textarea,
+            wordCountEl,
+            wordMin: intAttr(wordCountEl, 'data-word-min'),
+            wordMax: intAttr(wordCountEl, 'data-word-max'),
+        });
     }
 
     return {
@@ -227,10 +226,20 @@ export function buildRefs(doc: Document = document): Refs {
         graphDisplays,
         numberLines,
         dataPlots,
-        selfExplanations,
+        freeText,
         sections,
         popover: buildPopoverRef(doc),
     };
+}
+
+// Parse a positive-integer data-* attribute (word-count targets); null when
+// absent or malformed.
+function intAttr(el: HTMLElement | null, name: string): number | null {
+    if (!el) return null;
+    const raw = el.getAttribute(name);
+    if (raw === null) return null;
+    const n = Number(raw);
+    return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 /**

@@ -66,6 +66,16 @@ const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
     certain: 'Certain',
 };
 
+// Badge labels for the three free-text block types in the written-responses list.
+const FREE_TEXT_LABELS: Record<
+    'self_explanation' | 'short_answer' | 'essay',
+    string
+> = {
+    self_explanation: 'Reflection',
+    short_answer: 'Short answer',
+    essay: 'Essay',
+};
+
 // Resolve the activity index a submission should be read against: the version
 // the student actually answered, falling back to the current version for legacy
 // rows that predate per-submission version pinning (activity_version_id null).
@@ -330,13 +340,15 @@ function SubmissionDetail({
               })
         : [];
 
-    // Self-explanation responses — ungraded free text (no answer key / result /
-    // confidence). Sorted by block id (these carry no problem number).
+    // Free-text responses (self_explanation / short_answer / essay) — no answer
+    // key / result / confidence. Sorted by block id (these carry no problem
+    // number). short_answer/essay await manual grading (a later slice); for now
+    // all render as raw text with a type badge.
     const freeRows = responses.freeResponses
         ? Object.entries(responses.freeResponses)
               .map(([blockId, resp]) => ({
                   blockId,
-                  info: index.selfExplanations.get(blockId),
+                  info: index.freeText.get(blockId),
                   resp,
               }))
               .sort((a, b) => a.blockId.localeCompare(b.blockId))
@@ -808,7 +820,7 @@ function SubmissionDetail({
             {freeRows.length > 0 && (
                 <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Self-explanation
+                Written responses
                 </p>
                 <div className="mt-2 space-y-2">
                 {freeRows.map((f) => (
@@ -816,14 +828,25 @@ function SubmissionDetail({
                     key={f.blockId}
                     className="border-t border-slate-200 pt-2"
                     >
+                    <div className="flex items-baseline gap-2">
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                    {FREE_TEXT_LABELS[f.info?.blockType ?? 'self_explanation']}
+                    </span>
                     {f.info?.problemPrompt && (
                         <p className="text-xs text-slate-400">
                         {f.info.problemPrompt}
                         </p>
                     )}
-                    <p className="whitespace-pre-wrap text-sm text-slate-900">
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-slate-900">
                     {f.resp.text}
                     </p>
+                    {(f.info?.blockType === 'short_answer' ||
+                        f.info?.blockType === 'essay') && (
+                        <p className="mt-0.5 text-xs italic text-amber-600">
+                        Needs grading
+                        </p>
+                    )}
                     </div>
                 ))}
                 </div>

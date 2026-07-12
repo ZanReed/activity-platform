@@ -639,24 +639,45 @@ The statistics-chart block (Phase 2.7) — dot plot / histogram / box plot. It s
 - `data-dataplot-kit-src` — absolute R2 kit URL; **omitted** on print / when unavailable → static fallback stays, block submits unanswered. Display never carries a kit src (it has no interaction).
 - **Hydration + scoring** for graded builds mirror `number_line`: the `dataPlotExt` inline bridge walks + seeds + folds + gathers, and `attachDataPlotRuntime` in the kit mounts the chart-specific board (dot / bar-height / five-handle box), bridges edits into `state.dataPlots[id]`, restores, and renders chrome. Display blocks are never walked (they carry no `data-dataplot-block-id`). `DataPlotBlockState` enters the persisted blob at storage v9.
 
-### Self-explanation block (`data-block-category="question"`)
+### Free-text blocks — `self_explanation`, `short_answer`, `essay` (`data-block-category="question"`)
 
-An **ungraded** free-text reflection prompt (metacognitive self-explanation). Unlike every other question block it is never scored — no answer key, no `correct`, no problem number, no contribution to the section total. The runtime's only job is to **capture the textarea value**: persist it (so a reload restores the student's writing) and include it in the submit payload. Submits as `SubmissionResponses.freeResponses` (introduced at wire **v9**); Phase 2.6 `short_answer` / `essay` reuse that same map.
+Three blocks share ONE runtime — a free-text capture. None is auto-scored (no answer key, no `correct`, no problem number, no section-total contribution): `self_explanation` is ungraded reflection; `short_answer` / `essay` are **manually graded** (a teacher applies a rubric later — Phase 2.6). The runtime's only job is to **capture the textarea value**: persist it (so a reload restores the writing) and include it in the submit payload. All three submit into the SAME `SubmissionResponses.freeResponses` map (introduced at wire **v9**), keyed by block id.
+
+Every free-text textarea carries the shared **`.free-text-input`** class (+ `data-for-block`) — the runtime scans by that class, not by block type. `self_explanation`'s textarea keeps its original `.self-explanation-input` class too (additive; the class is the contract). `essay` adds a live word counter.
 
 ```html
+<!-- self_explanation (ungraded reflection) -->
 <div class="block block-self-explanation" data-block-category="question"
-     data-block-type="self_explanation"
-     data-block-id="<uuid>">
+     data-block-type="self_explanation" data-block-id="<uuid>">
   <div class="block-self-explanation__prompt">…inline prompt…</div>
-  <textarea class="self-explanation-input" data-for-block="<uuid>"
+  <textarea class="free-text-input self-explanation-input" data-for-block="<uuid>"
             rows="4" placeholder="…optional sentence-starter…"
             aria-label="Your explanation"></textarea>
 </div>
+
+<!-- short_answer (manually graded, brief) -->
+<div class="block block-free-response block-short-answer" data-block-category="question"
+     data-block-type="short_answer" data-block-id="<uuid>">
+  <div class="block-free-response__prompt">…inline prompt…</div>
+  <textarea class="free-text-input" data-for-block="<uuid>" rows="3"
+            aria-label="Your answer"></textarea>
+</div>
+
+<!-- essay (manually graded, long; live word counter with an optional target) -->
+<div class="block block-free-response block-essay" data-block-category="question"
+     data-block-type="essay" data-block-id="<uuid>">
+  <div class="block-free-response__prompt">…inline prompt…</div>
+  <textarea class="free-text-input" data-for-block="<uuid>" rows="10"
+            aria-label="Your answer"></textarea>
+  <div class="free-text-wordcount" data-for-block="<uuid>"
+       data-word-min="200" data-word-max="300" aria-live="polite"></div>
+</div>
 ```
 
-- No `data-*` answer key or config — the block carries only its identity (`data-block-type` + `data-block-id`); the response lives in the `.self-explanation-input` textarea.
-- **No state entry / no scoring.** The textarea is its own source of truth (like the name input): the runtime wires an `input` handler that just calls `onUpdate` to persist. At persist time the value is snapshotted into the blob's `freeTexts` map (keyed by block id) and restored into the textarea at bootstrap (the `applyStoredState` DOM-write exception). At submit, `gatherFreeResponses` reads each textarea into `freeResponses[blockId] = { text }`, omitting empty ones. `freeTexts` enters the persisted blob at storage **v10**.
-- Print: the textarea prints as a bordered blank writing area (no answer-key variant — there is no answer).
+- No `data-*` answer key or config — a block carries only its identity; the response lives in the `.free-text-input` textarea. `essay` additionally carries the optional `data-word-min` / `data-word-max` target on its `.free-text-wordcount` element.
+- **No state entry / no scoring.** The textarea is its own source of truth (like the name input): the runtime wires an `input` handler that calls `onUpdate` to persist (and, for an essay, refreshes the word counter). At persist time each value is snapshotted into the blob's `freeTexts` map (keyed by block id) and restored into the textarea at bootstrap (the `applyStoredState` DOM-write exception). At submit, `gatherFreeResponses` reads each textarea into `freeResponses[blockId] = { text }`, omitting empty ones. `freeTexts` enters the persisted blob at storage **v10**.
+- The essay word count is **computed-on-read** (runtime display + dashboard recompute) — never stored in the wire, since it's derivable from the text.
+- Print: each textarea prints as a bordered blank writing area (no answer-key variant — there is no key); the essay word counter is screen-only.
 
 ### Reading discipline
 

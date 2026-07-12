@@ -35,6 +35,8 @@ import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
 import { FadedWorkedExample } from './extensions/FadedWorkedExample';
 import { SelfExplanation } from './extensions/SelfExplanation';
+import { ShortAnswer } from './extensions/ShortAnswer';
+import { Essay } from './extensions/Essay';
 import { Definition } from './extensions/Definition';
 
 export interface EditorExtensionOptions {
@@ -109,5 +111,9 @@ export function buildEditorExtensions({
         FadedWorkedExample,
         // Self-explanation — an ungraded free-text reflection prompt.
         SelfExplanation,
+        // Manually-graded free text (Phase 2.6): short_answer + essay. Same
+        // capture as self-explanation; graded later against a rubric.
+        ShortAnswer,
+        Essay,
     ];
 }

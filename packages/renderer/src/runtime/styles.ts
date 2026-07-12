@@ -265,10 +265,14 @@ body {
 .block-faded-example__body > .block:first-child { margin-top: 0; }
 .block-faded-example__body > .block:last-child { margin-bottom: 0; }
 
-/* Self-explanation — an ungraded reflection prompt over a free-text area. */
-.block-self-explanation { margin: 1.25rem 0; }
-.block-self-explanation__prompt { margin-bottom: 0.5rem; }
-.self-explanation-input {
+/* Free-text blocks — self_explanation (ungraded), short_answer + essay (manually
+   graded). All share the .free-text-input textarea; the runtime captures them by
+   that class. */
+.block-self-explanation,
+.block-free-response { margin: 1.25rem 0; }
+.block-self-explanation__prompt,
+.block-free-response__prompt { margin-bottom: 0.5rem; }
+.free-text-input {
   display: block;
   width: 100%;
   box-sizing: border-box;
@@ -281,11 +285,22 @@ body {
   border-radius: 6px;
   resize: vertical;
 }
-.self-explanation-input:focus {
+.free-text-input:focus {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
   border-color: var(--color-accent);
 }
+
+/* Essay live word counter — the runtime fills its text on init + input and
+   toggles .in-range / .out-of-range when a target is set. */
+.free-text-wordcount {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  text-align: right;
+}
+.free-text-wordcount.in-range { color: var(--color-success); }
+.free-text-wordcount.out-of-range { color: var(--color-warning); }
 
 .block-problem,
 .block-fill-in-blank {
@@ -1724,14 +1739,16 @@ body {
   .block-worked-example__title,
   .block-faded-example__title { color: black; }
 
-  /* Self-explanation prints as a blank writing area (a bordered box with
-     room to write by hand); on-screen focus styling is dropped. */
-  .self-explanation-input {
+  /* Free-text blocks print as a blank writing area (a bordered box with room to
+     write by hand); on-screen focus styling is dropped. The essay word counter
+     is a screen-only affordance. */
+  .free-text-input {
     border: 1px solid black;
     background: transparent;
     min-height: 4.5rem;
     resize: none;
     break-inside: avoid;
   }
+  .free-text-wordcount { display: none; }
 }
 `.trim();

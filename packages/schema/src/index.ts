@@ -82,6 +82,9 @@ export {
   FadedWorkedExampleBlock,
   FadedWorkedExampleChild,
   SelfExplanationBlock,
+  ShortAnswerBlock,
+  EssayBlock,
+  WordCountHint,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
@@ -168,6 +171,8 @@ export {
   createWorkedExampleBlock,
   createFadedWorkedExampleBlock,
   createSelfExplanationBlock,
+  createShortAnswerBlock,
+  createEssayBlock,
   createBlankToken,
   createSection,
   createEmptyDocument,

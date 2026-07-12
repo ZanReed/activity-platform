@@ -12,12 +12,15 @@ import { renderLearningObjectives } from '../blocks/learning-objectives.js';
 import { renderWorkedExample } from '../blocks/worked-example.js';
 import { renderFadedWorkedExample } from '../blocks/faded-worked-example.js';
 import { renderSelfExplanation } from '../blocks/self-explanation.js';
+import { renderShortAnswer, renderEssay } from '../blocks/free-response.js';
 import type { BlockRenderContext } from '../blocks/index.js';
 import {
   LearningObjectivesBlock,
   WorkedExampleBlock,
   FadedWorkedExampleBlock,
   SelfExplanationBlock,
+  ShortAnswerBlock,
+  EssayBlock,
 } from '@activity/schema';
 
 const OID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
@@ -160,5 +163,56 @@ describe('renderSelfExplanation', () => {
       prompt: text('Explain.'),
     });
     expect(renderSelfExplanation(bare)).not.toContain('placeholder=');
+  });
+});
+
+describe('renderShortAnswer + renderEssay (manually-graded free text)', () => {
+  const SAID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const ESID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+
+  it('short_answer: question category, shared .free-text-input, no answer key', () => {
+    const block = ShortAnswerBlock.parse({
+      id: SAID,
+      type: 'short_answer',
+      prompt: text('Summarize the passage.'),
+      placeholder: 'In your own words…',
+    });
+    const html = renderShortAnswer(block);
+    expect(html).toContain('data-block-category="question"');
+    expect(html).toContain('data-block-type="short_answer"');
+    expect(html).toContain('data-block-id="' + SAID + '"');
+    expect(html).toContain('class="free-text-input"');
+    expect(html).toContain('data-for-block="' + SAID + '"');
+    expect(html).toContain('placeholder="In your own words…"');
+    expect(html).not.toContain('block-problem-number');
+    expect(html).not.toContain('answer-key');
+    expect(html).not.toContain('free-text-wordcount'); // short answer has no counter
+  });
+
+  it('essay: renders a live word counter with the target range in data-*', () => {
+    const block = EssayBlock.parse({
+      id: ESID,
+      type: 'essay',
+      prompt: text('Write a persuasive essay.'),
+      wordCountHint: { min: 200, max: 300 },
+    });
+    const html = renderEssay(block);
+    expect(html).toContain('data-block-type="essay"');
+    expect(html).toContain('class="free-text-input"');
+    expect(html).toContain('free-text-wordcount');
+    expect(html).toContain('data-word-min="200"');
+    expect(html).toContain('data-word-max="300"');
+  });
+
+  it('essay: omits target data-* when no word-count hint is set', () => {
+    const bare = EssayBlock.parse({
+      id: ESID,
+      type: 'essay',
+      prompt: text('Write freely.'),
+    });
+    const html = renderEssay(bare);
+    expect(html).toContain('free-text-wordcount'); // counter still present
+    expect(html).not.toContain('data-word-min');
+    expect(html).not.toContain('data-word-max');
   });
 });

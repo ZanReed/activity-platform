@@ -1886,3 +1886,104 @@ img.mc-block__figure-preview {
     border: 1px solid rgb(203 213 225); /* slate-300 */
     border-radius: 0.25rem;
 }
+
+/* =============================================================================
+ *  Free-response block NodeView (Phase 2.6): short_answer + essay. An editable
+ *  prompt over a disabled preview textarea + an options footer (placeholder;
+ *  essay adds word-count targets).
+ *  ========================================================================= */
+
+.free-response-block {
+    margin: 1rem 0;
+    padding: 0.6rem 0.85rem;
+    border-radius: 0.375rem;
+    border-left: 3px solid rgb(217 119 6); /* amber-600 — "you grade this" */
+    background-color: rgb(248 250 252); /* slate-50 */
+    transition: background-color 0.15s;
+}
+
+.free-response-block.is-selected {
+    background-color: rgb(239 246 255); /* blue-50 */
+    outline: 2px solid rgb(59 130 246); /* blue-500 */
+}
+
+.free-response-block__prompt {
+    line-height: 1.6;
+    min-height: 1.5em; /* keeps an empty prompt clickable */
+}
+
+.free-response-block__preview {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.55rem;
+    font: inherit;
+    color: rgb(148 163 184); /* slate-400 — clearly inert preview */
+    background-color: rgb(241 245 249); /* slate-100 */
+    border: 1px dashed rgb(203 213 225); /* slate-300 */
+    border-radius: 0.25rem;
+    resize: none;
+}
+
+.free-response-block__wordhint {
+    margin-top: 0.3rem;
+    font-size: 0.8rem;
+    color: rgb(100 116 139); /* slate-500 */
+    text-align: right;
+}
+
+.free-response-block__footer {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+}
+
+.free-response-block__footer-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: rgb(100 116 139); /* slate-500 */
+    background: none;
+    border: none;
+    padding: 0.1rem 0;
+    cursor: pointer;
+}
+
+.free-response-block__options {
+    margin-top: 0.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.free-response-block__option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.free-response-block__option > span {
+    min-width: 5.5rem;
+    color: rgb(71 85 105); /* slate-600 */
+}
+
+.free-response-block__option input {
+    flex: 1;
+    padding: 0.25rem 0.45rem;
+    border: 1px solid rgb(203 213 225); /* slate-300 */
+    border-radius: 0.25rem;
+    font: inherit;
+}
+
+.free-response-block__word-targets {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.free-response-block__word-targets .free-response-block__option {
+    flex: 1;
+}
+
+.free-response-block__word-targets .free-response-block__option > span {
+    min-width: auto;
+}

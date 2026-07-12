@@ -43,6 +43,8 @@ import {
     createWorkedExampleBlock,
     createFadedWorkedExampleBlock,
     createSelfExplanationBlock,
+    createShortAnswerBlock,
+    createEssayBlock,
     createBlankToken,
     type Block,
 } from '@activity/schema';
@@ -140,6 +142,17 @@ function representativeBlock(type: string): ColumnCellBlock {
             block.prompt = [
                 { type: 'text', text: 'Explain your reasoning.', marks: [] },
             ];
+            return block;
+        }
+        case 'short_answer': {
+            const block = createShortAnswerBlock();
+            block.prompt = [{ type: 'text', text: 'Answer briefly.', marks: [] }];
+            return block;
+        }
+        case 'essay': {
+            const block = createEssayBlock();
+            block.prompt = [{ type: 'text', text: 'Write an essay.', marks: [] }];
+            block.wordCountHint = { min: 200, max: 300 };
             return block;
         }
         default:

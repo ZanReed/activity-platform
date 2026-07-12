@@ -144,10 +144,11 @@ export function saveActivityState(
     for (const [id, ref] of refs.blanks) {
       values[id] = ref.input.value;
     }
-    // Self-explanation textareas: snapshot raw non-empty values (DOM is the
-    // source of truth, like blank `values`). Empty ones stay out of the blob.
+    // Free-text textareas (self_explanation / short_answer / essay): snapshot
+    // raw non-empty values (DOM is the source of truth, like blank `values`).
+    // Empty ones stay out of the blob.
     const freeTexts: Record<string, string> = {};
-    for (const [id, ref] of refs.selfExplanations) {
+    for (const [id, ref] of refs.freeText) {
       if (ref.textarea.value.length > 0) freeTexts[id] = ref.textarea.value;
     }
     const blob: StoredActivityState = {
@@ -281,10 +282,10 @@ export function applyStoredState(
     const ref = refs.blanks.get(blankId);
     if (ref) ref.input.value = value;
   }
-  // Restore self-explanation textareas (the bootstrap DOM-write exception,
-  // like blank inputs above). `?? {}` guards blobs written before this field.
+  // Restore free-text textareas (the bootstrap DOM-write exception, like blank
+  // inputs above). `?? {}` guards blobs written before this field.
   for (const [blockId, text] of Object.entries(stored.freeTexts ?? {})) {
-    const ref = refs.selfExplanations.get(blockId);
+    const ref = refs.freeText.get(blockId);
     if (ref) ref.textarea.value = text;
   }
   for (const [id, blankState] of Object.entries(stored.blanks)) {

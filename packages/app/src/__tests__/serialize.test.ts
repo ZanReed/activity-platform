@@ -2585,6 +2585,55 @@ describe('content blocks — learning_objectives + worked_example', () => {
         }
     });
 
+    it('round-trips a short-answer block (prompt + placeholder)', () => {
+        const node: JSONContent = {
+            type: 'shortAnswer',
+            attrs: { id: 'x', placeholder: 'In your own words…' },
+            content: [{ type: 'text', text: 'Summarize the passage.' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [node] });
+        const sa = out.content!.find((n) => n.type === 'shortAnswer')!;
+        expect(sa.attrs!.placeholder).toBe('In your own words…');
+        expect(sa.content).toEqual([{ type: 'text', text: 'Summarize the passage.' }]);
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('round-trips an essay block with a word-count target', () => {
+        const node: JSONContent = {
+            type: 'essay',
+            attrs: { id: 'x', placeholder: '', wordMin: 200, wordMax: 300 },
+            content: [{ type: 'text', text: 'Write a persuasive essay.' }],
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+        const block = activity.sections[0]!.blocks[0]!;
+        expect(block.type).toBe('essay');
+        if (block.type === 'essay') {
+            expect(block.wordCountHint).toEqual({ min: 200, max: 300 });
+        }
+        // And back to Tiptap with the targets intact.
+        const out = activityToTiptap(activity);
+        const es = out.content!.find((n) => n.type === 'essay')!;
+        expect(es.attrs!.wordMin).toBe(200);
+        expect(es.attrs!.wordMax).toBe(300);
+    });
+
+    it('drops an inverted essay word-count range on publish (schema refine)', () => {
+        const node: JSONContent = {
+            type: 'essay',
+            attrs: { id: 'x', placeholder: '', wordMin: 300, wordMax: 200 },
+            content: [{ type: 'text', text: 'Write.' }],
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        // serialize drops the invalid hint rather than emit a block that fails Zod.
+        if (block.type === 'essay') {
+            expect(block.wordCountHint).toBeUndefined();
+        }
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
     it('round-trips a faded worked example with a fill_in_blank step', () => {
         const node: JSONContent = {
             type: 'fadedWorkedExample',

@@ -27,7 +27,10 @@ export function renderSelfExplanation(block: SelfExplanationBlock): string {
     ' data-block-type="self_explanation"' +
     ' data-block-id="' + attr(block.id) + '">' +
     '<div class="block-self-explanation__prompt">' + prompt + '</div>' +
-    '<textarea class="self-explanation-input"' +
+    // Carries the shared `.free-text-input` hook (the runtime captures all
+    // three free-text block types by it) plus its original class for the
+    // existing data-attribute contract.
+    '<textarea class="free-text-input self-explanation-input"' +
     ' data-for-block="' + attr(block.id) + '"' +
     ' rows="4"' +
     placeholderAttr +

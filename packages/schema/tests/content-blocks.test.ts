@@ -15,10 +15,14 @@ import {
   WorkedExampleBlock,
   FadedWorkedExampleBlock,
   SelfExplanationBlock,
+  ShortAnswerBlock,
+  EssayBlock,
   createLearningObjectivesBlock,
   createWorkedExampleBlock,
   createFadedWorkedExampleBlock,
   createSelfExplanationBlock,
+  createShortAnswerBlock,
+  createEssayBlock,
 } from '../src/index.js';
 
 const uuid = () => crypto.randomUUID();
@@ -148,5 +152,44 @@ describe('SelfExplanationBlock', () => {
     expect(ColumnCellBlock.safeParse(createSelfExplanationBlock()).success).toBe(
       true,
     );
+  });
+});
+
+describe('ShortAnswerBlock + EssayBlock (manually-graded free text)', () => {
+  it('short_answer factory + parse; accepts a prompt + optional placeholder', () => {
+    const block = createShortAnswerBlock();
+    expect(ShortAnswerBlock.safeParse(block).success).toBe(true);
+    block.prompt = text('Summarize the passage.');
+    block.placeholder = 'In your own words…';
+    expect(Block.safeParse(block).success).toBe(true);
+  });
+
+  it('essay factory + parse; accepts an optional word-count hint', () => {
+    const block = createEssayBlock();
+    expect(EssayBlock.safeParse(block).success).toBe(true);
+    block.prompt = text('Write a persuasive essay.');
+    block.wordCountHint = { min: 200, max: 300 };
+    expect(Block.safeParse(block).success).toBe(true);
+  });
+
+  it('essay rejects an inverted word-count range (min > max)', () => {
+    const block = createEssayBlock();
+    block.wordCountHint = { min: 300, max: 200 };
+    expect(EssayBlock.safeParse(block).success).toBe(false);
+  });
+
+  it('neither carries an answer key (manually graded)', () => {
+    for (const block of [
+      createShortAnswerBlock() as Record<string, unknown>,
+      createEssayBlock() as Record<string, unknown>,
+    ]) {
+      expect('answer' in block).toBe(false);
+      expect('correct' in block).toBe(false);
+    }
+  });
+
+  it('both are legal column-cell blocks', () => {
+    expect(ColumnCellBlock.safeParse(createShortAnswerBlock()).success).toBe(true);
+    expect(ColumnCellBlock.safeParse(createEssayBlock()).success).toBe(true);
   });
 });

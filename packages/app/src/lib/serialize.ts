@@ -71,11 +71,14 @@ import type {
     FadedWorkedExampleBlock,
     FadedWorkedExampleChild,
     SelfExplanationBlock,
+    ShortAnswerBlock,
+    EssayBlock,
 } from '@activity/schema';
 import {
     SIMPLE_MARK_TYPES,
     InlineNode as InlineNodeSchema,
     DefinitionContentInline as DefinitionContentInlineSchema,
+    WordCountHint,
     createInteractiveGraphBlock,
     createNumberLineBlock,
     createDataPlotBlock,
@@ -302,6 +305,10 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             return tiptapFadedWorkedExampleToActivity(node);
         case 'selfExplanation':
             return tiptapSelfExplanationToActivity(node);
+        case 'shortAnswer':
+            return tiptapShortAnswerToActivity(node);
+        case 'essay':
+            return tiptapEssayToActivity(node);
 
         case 'image':
             return tiptapImageToActivity(node);
@@ -388,6 +395,45 @@ function tiptapSelfExplanationToActivity(node: JSONContent): SelfExplanationBloc
     const placeholder = (node.attrs?.placeholder as string | undefined)?.trim();
     if (placeholder) block.placeholder = placeholder;
     return block;
+}
+
+function tiptapShortAnswerToActivity(node: JSONContent): ShortAnswerBlock {
+    const block: ShortAnswerBlock = {
+        id: crypto.randomUUID(),
+        type: 'short_answer',
+        prompt: tiptapInlineToActivity(node.content ?? []),
+    };
+    const placeholder = (node.attrs?.placeholder as string | undefined)?.trim();
+    if (placeholder) block.placeholder = placeholder;
+    return block;
+}
+
+function tiptapEssayToActivity(node: JSONContent): EssayBlock {
+    const block: EssayBlock = {
+        id: crypto.randomUUID(),
+        type: 'essay',
+        prompt: tiptapInlineToActivity(node.content ?? []),
+    };
+    const placeholder = (node.attrs?.placeholder as string | undefined)?.trim();
+    if (placeholder) block.placeholder = placeholder;
+    // wordMin / wordMax → wordCountHint (only positive integers; omit an empty
+    // hint). A schema safeParse drops an inverted range on publish.
+    const min = numOrUndefined(node.attrs?.wordMin);
+    const max = numOrUndefined(node.attrs?.wordMax);
+    if (min !== undefined || max !== undefined) {
+        const hint = WordCountHint.safeParse({
+            ...(min !== undefined ? { min } : {}),
+            ...(max !== undefined ? { max } : {}),
+        });
+        if (hint.success) block.wordCountHint = hint.data;
+    }
+    return block;
+}
+
+function numOrUndefined(raw: unknown): number | undefined {
+    return typeof raw === 'number' && Number.isInteger(raw) && raw > 0
+        ? raw
+        : undefined;
 }
 
 function tiptapImageToActivity(node: JSONContent): ImageBlock | null {
@@ -1122,6 +1168,25 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
                 attrs: {
                     id: block.id,
                     placeholder: block.placeholder ?? '',
+                },
+                content: activityInlineToTiptap(block.prompt),
+            };
+
+        case 'short_answer':
+            return {
+                type: 'shortAnswer',
+                attrs: { id: block.id, placeholder: block.placeholder ?? '' },
+                content: activityInlineToTiptap(block.prompt),
+            };
+
+        case 'essay':
+            return {
+                type: 'essay',
+                attrs: {
+                    id: block.id,
+                    placeholder: block.placeholder ?? '',
+                    wordMin: block.wordCountHint?.min ?? null,
+                    wordMax: block.wordCountHint?.max ?? null,
                 },
                 content: activityInlineToTiptap(block.prompt),
             };

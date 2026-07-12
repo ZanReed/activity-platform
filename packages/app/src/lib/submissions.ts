@@ -296,10 +296,13 @@ export interface DataPlotInfo {
     sectionTitle: string | null;
 }
 
-// One self_explanation block, for reading its ungraded free-text response back.
-// No answer key (it's ungraded) — just the prompt, to label the response.
-export interface SelfExplanationInfo {
+// One free-text block (self_explanation / short_answer / essay), for reading its
+// response back. No answer key — just the prompt, to label the response, plus
+// the block type so the dashboard can badge ungraded vs manually-graded (and,
+// in a later slice, attach the grading UI to short_answer/essay).
+export interface FreeTextInfo {
     blockId: string;
+    blockType: 'self_explanation' | 'short_answer' | 'essay';
     problemPrompt: string;
     sectionId: string;
     sectionTitle: string | null;
@@ -313,7 +316,7 @@ export interface ActivityIndex {
     mcs: Map<string, McInfo>;
     matchings: Map<string, MatchInfo>;
     orderings: Map<string, OrderingInfo>;
-    selfExplanations: Map<string, SelfExplanationInfo>;
+    freeText: Map<string, FreeTextInfo>;
     sections: Map<string, SectionInfo>;
 }
 
@@ -398,7 +401,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
     const mcs = new Map<string, McInfo>();
     const matchings = new Map<string, MatchInfo>();
     const orderings = new Map<string, OrderingInfo>();
-    const selfExplanations = new Map<string, SelfExplanationInfo>();
+    const freeText = new Map<string, FreeTextInfo>();
     const sections = new Map<string, SectionInfo>();
 
     doc.sections.forEach((section, idx) => {
@@ -430,11 +433,17 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 for (const child of block.content) indexBlock(child);
                 return;
             }
-            if (block.type === 'self_explanation') {
-                // Ungraded free-text prompt: no answer key, just the prompt so
-                // the dashboard can label the student's response.
-                selfExplanations.set(block.id, {
+            if (
+                block.type === 'self_explanation' ||
+                block.type === 'short_answer' ||
+                block.type === 'essay'
+            ) {
+                // Free-text prompt: no answer key, just the prompt (+ type) so
+                // the dashboard can label the response. short_answer/essay get a
+                // grading UI in a later slice; for now all show as raw text.
+                freeText.set(block.id, {
                     blockId: block.id,
+                    blockType: block.type,
                     problemPrompt: reconstructPrompt(block.prompt),
                     sectionId: section.id,
                     sectionTitle: section.title ?? null,
@@ -699,7 +708,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
         mcs,
         matchings,
         orderings,
-        selfExplanations,
+        freeText,
         sections,
     };
 }

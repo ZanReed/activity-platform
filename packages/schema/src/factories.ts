@@ -43,6 +43,8 @@ import type {
   WorkedExampleBlock,
   FadedWorkedExampleBlock,
   SelfExplanationBlock,
+  ShortAnswerBlock,
+  EssayBlock,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
@@ -104,6 +106,22 @@ export function createSelfExplanationBlock(): SelfExplanationBlock {
   return {
     id: uuid(),
     type: 'self_explanation',
+    prompt: [],
+  };
+}
+
+export function createShortAnswerBlock(): ShortAnswerBlock {
+  return {
+    id: uuid(),
+    type: 'short_answer',
+    prompt: [],
+  };
+}
+
+export function createEssayBlock(): EssayBlock {
+  return {
+    id: uuid(),
+    type: 'essay',
     prompt: [],
   };
 }

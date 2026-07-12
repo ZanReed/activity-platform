@@ -298,6 +298,24 @@ export const slashMenuItems: SlashMenuItem[] = [
             begin(editor, range).insertSelfExplanation().run();
         },
     },
+    {
+        title: 'Short answer',
+        description: 'A brief free-text response you grade by hand (a few sentences).',
+        keywords: ['short', 'answer', 'free', 'text', 'response', 'written', 'graded', 'open', 'question'],
+        group: 'Questions',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertShortAnswer().run();
+        },
+    },
+    {
+        title: 'Essay',
+        description: 'A long free-text response you grade by hand, with an optional word-count target.',
+        keywords: ['essay', 'long', 'writing', 'free', 'text', 'response', 'paragraph', 'graded', 'open', 'word', 'count'],
+        group: 'Questions',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertEssay().run();
+        },
+    },
 ];
 
 // Group headings in dropdown display order.

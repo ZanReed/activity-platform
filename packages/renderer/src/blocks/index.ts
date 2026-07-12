@@ -27,6 +27,7 @@ import { renderLearningObjectives } from './learning-objectives.js';
 import { renderWorkedExample } from './worked-example.js';
 import { renderFadedWorkedExample } from './faded-worked-example.js';
 import { renderSelfExplanation } from './self-explanation.js';
+import { renderShortAnswer, renderEssay } from './free-response.js';
 
 export interface BlockRenderContext {
   /**
@@ -126,6 +127,10 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
       return renderFadedWorkedExample(block, ctx);
     case 'self_explanation':
       return renderSelfExplanation(block);
+    case 'short_answer':
+      return renderShortAnswer(block);
+    case 'essay':
+      return renderEssay(block);
     default: {
       // Exhaustiveness check — if a new block type is added to the schema
       // and not handled here, TypeScript emits an error on this assignment.

@@ -283,15 +283,20 @@ export interface DataPlotRef {
 
 /** One per <section class="activity-section">. */
 /**
- * One per self_explanation block. Ungraded free text — no scoring, no section
- * tracking, no state entry. The textarea is its own source of truth (like the
- * name input): the runtime just persists its value and gathers it at submit.
+ * One per free-text block (self_explanation, short_answer, essay). No scoring,
+ * no section tracking, no state entry. The textarea is its own source of truth
+ * (like the name input): the runtime just persists its value and gathers it at
+ * submit. Discovered by the shared `.free-text-input` class, keyed by the
+ * block id on `data-for-block`.
  */
-export interface SelfExplanationRef {
-    /** The block element. */
-    el: HTMLElement;
-    /** The response textarea (.self-explanation-input). */
+export interface FreeTextRef {
+    /** The response textarea (.free-text-input). */
     textarea: HTMLTextAreaElement;
+    /** The essay live word-counter (.free-text-wordcount), or null. */
+    wordCountEl: HTMLElement | null;
+    /** Optional word-count target (essay), parsed from the counter's data-*. */
+    wordMin: number | null;
+    wordMax: number | null;
 }
 
 export interface SectionRef {
@@ -364,8 +369,9 @@ export interface Refs {
     numberLines: Map<string, NumberLineRef>;
     /** Graded data_plot blocks (stats charts) — ride the same lazy kit as graphs. */
     dataPlots: Map<string, DataPlotRef>;
-    /** Ungraded self_explanation blocks — free-text captured at persist/submit. */
-    selfExplanations: Map<string, SelfExplanationRef>;
+    /** Free-text blocks (self_explanation / short_answer / essay) — captured at
+     * persist/submit; never scored. */
+    freeText: Map<string, FreeTextRef>;
     sections: Map<string, SectionRef>;
     /** The shared floating popover, or null when the page has no popover markup. */
     popover: PopoverRef | null;

@@ -28,7 +28,7 @@ import { scoreBlanksInScope, trimValue } from './blanks.js';
 import { scoreMcBlocks } from './mcs.js';
 import { scoreMatchBlocks } from './matches.js';
 import { scoreOrderingBlocks } from './orderings.js';
-import { gatherFreeResponses, type FreeResult } from './self-explanations.js';
+import { gatherFreeResponses, type FreeResult } from './free-text.js';
 import { graphExt, numberLineExt, dataPlotExt } from './graph-integration.js';
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
@@ -364,8 +364,10 @@ export function gatherResponses(
   totalScored += dataPlots.scored;
   totalCorrect += dataPlots.correct;
 
-  // Self-explanation free text — UNGRADED, so it touches neither total nor
-  // correct. Just gathered into the payload (undefined when nothing written).
+  // Free-text blocks (self_explanation / short_answer / essay) — never
+  // auto-scored, so they touch neither total nor correct. Just gathered into the
+  // payload (undefined when nothing written); short_answer/essay await manual
+  // grading in a separate table.
   const freeResponses = gatherFreeResponses(refs);
 
   return {

@@ -252,7 +252,7 @@ function buildFixture(spec: FixtureSpec): Fixture {
     return {
         config,
         state,
-        refs: { blanks, fillInBlanks, mcs: new Map(), matches: new Map(), orderings: new Map(), graphs: new Map(), graphDisplays: new Map(), numberLines: new Map(), dataPlots: new Map(), selfExplanations: new Map(), sections, popover: null },
+        refs: { blanks, fillInBlanks, mcs: new Map(), matches: new Map(), orderings: new Map(), graphs: new Map(), graphDisplays: new Map(), numberLines: new Map(), dataPlots: new Map(), freeText: new Map(), sections, popover: null },
     };
 }
 
