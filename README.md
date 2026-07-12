@@ -82,7 +82,7 @@ Three rules. Violating any of them rots the architecture.
 
 *Schema:* a new file under `packages/schema/src/blocks/`, registered in `blocks/index.ts`'s discriminated union; a factory in `packages/schema/src/factories.ts`; ★ added to `ColumnCellBlock` in `blocks/columns.ts` (guard: `schema/tests/columns.test.ts`).
 
-*Renderer:* a new file under `packages/renderer/src/blocks/`, registered in `blocks/index.ts`'s dispatch switch (the `never` exhaustiveness check won't compile until you add it), plus matching styles in `packages/renderer/src/runtime/styles.ts`. If the block is interactive, RUNTIME.md's data-attribute contract gains a section (additive only) and the runtime grows its wiring. If the block is a NUMBERED question, add it to `isNumberedBlock` (renderer `blocks/index.ts`) AND its editor mirror `problemNumberAt` (`app/src/editor/problemNumbering.ts`) — these two lists must agree or editor numbers drift from published ones.
+*Renderer:* a new file under `packages/renderer/src/blocks/`, registered in `blocks/index.ts`'s dispatch switch (the `never` exhaustiveness check won't compile until you add it), plus matching styles in `packages/renderer/src/runtime/styles.ts`. ★ If the block is interactive, RUNTIME.md's data-attribute contract gains a section (additive only) and the runtime grows its wiring — guard: `renderer/src/__tests__/runtime-doc-contract.test.ts`, which fails until you classify the new type and (if interactive) add its RUNTIME.md section. If the block is a NUMBERED question, add it to `isNumberedBlock` (renderer `blocks/index.ts`) AND its editor mirror `problemNumberAt` (`app/src/editor/problemNumbering.ts`) — these two lists must agree or editor numbers drift from published ones.
 
 *Editor:* a Tiptap extension (plus a NodeView for blocks that render interactively) under `packages/app/src/editor/`; one entry in `slashMenuItems.ts` — it drives BOTH the slash menu and the toolbar's "+ Insert" dropdown, so there is no separate toolbar step; ★ the node name added to the `Column` node's content expression in `extensions/Columns.ts` (guard: `app/src/__tests__/blockTypeGuards.test.ts`, which also requires a `representativeBlock` case for the new type); registered in `ReferencePanelEditor.tsx` if the serializer can emit it in panel content (guard: `ActivityConfigDrawer.test.tsx`); both directions in `lib/serialize.ts`.
 
@@ -117,7 +117,8 @@ const html = renderActivity(result.data, {
   submissionEndpoint: 'https://your-edge-function-url/ingest-submission',
 });
 
-// `html` is a complete <!DOCTYPE html>...</html> string ready to upload to Supabase Storage.
+// `html` is a complete <!DOCTYPE html>...</html> string ready to upload to Cloudflare R2
+// (published HTML is hosted on R2 — Supabase can't serve text/html; see CLAUDE.md).
 ```
 
 ## Project status

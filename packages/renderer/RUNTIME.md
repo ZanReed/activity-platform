@@ -6,7 +6,7 @@ Update at the end of each work session that touches the runtime — replace the 
 
 **Status.** This document is the architecture spec for the runtime as built through Stage 13. The runtime is feature-complete for the Phase 1 MVP student loop: scoring, mistake feedback, hints, checkpoints, solutions, locked-mode freezing, confidence capture, full state persistence, and submission with per-blank confidence + optional checkpointResults. The remaining Phase 1 work is in Stage 14 (submission flow polish — retry queue, attempt_number reconciliation, free-mode resubmit), Stage 15 (editor UI for new feature fields), and Stage 16 (submissions dashboard); none of these touches runtime code substantively. Where this doc describes Stage 14+ behavior, it's marked `[target — Stage N]` or `[target — Phase N]`.
 
-*Last reconciled against code at end of Stage 13.*
+*Last reconciled against code 2026-07-12 (drift audit): storage v9, wire v8, block families through `number_line` + `data_plot`. The architecture prose below is the Stage-13 spec for the core scoring loop; per-block data-attribute contracts are kept current in "The data-attribute contract".*
 
 ## What this is
 
@@ -24,7 +24,7 @@ The runtime is the JavaScript that runs in students' browsers on every published
 - Confidence rating capture (per-block fieldset; one selection per problem)
 - State persistence across page reloads (typed values + scoring state + hint reveals + solution reveals + locked state + section scores + confidence; per `activityId + versionNum` localStorage blob)
 - Student name persistence across activities (separate localStorage key)
-- Final submission to `ingest-submission` with `responses.schemaVersion: 6` payload including per-blank confidence and the optional `checkpointResults` / `graphResponses` / `choices` / `matches` / `orderings` maps
+- Final submission to `ingest-submission` with a versioned `responses` payload (the current wire `schemaVersion` lives in `runtime/submission.ts` — 8 at last edit) including per-blank confidence and the optional `checkpointResults` / `graphResponses` / `choices` / `matches` / `orderings` / `numberLineResponses` / `dataPlotResponses` maps
 - Persistence cleared on submit success
 - Graceful degradation throughout — malformed config → no-op runtime; private-mode localStorage → silent skip; missing per-element attributes → warn-and-skip
 
@@ -136,9 +136,9 @@ The bootstrap in `index.ts` runs once on `DOMContentLoaded` (or immediately if t
 
 - **Name** (cross-activity): localStorage key `activity_student_name`. Plain string. Carried across all activities on the domain.
 
-- **Activity state blob** (per `activityId + versionNum`): localStorage key `activity_state_${activityId}_v${versionNum}`. JSON blob with shape `{ schemaVersion, values, blanks, blocks, mcs, matches, orderings, graphs, sections }`. Versioned key auto-invalidates on republish (v1 → v2 means the v1 blob is no longer found). Schema-versioned internally (the current `STORAGE_SCHEMA_VERSION` lives in `runtime/storage.ts` — 7 at last edit) so future runtime changes can bail cleanly on shape mismatch. Save gated by `!state.submitted`. Cleared on submit success.
+- **Activity state blob** (per `activityId + versionNum`): localStorage key `activity_state_${activityId}_v${versionNum}`. JSON blob with shape `{ schemaVersion, values, blanks, blocks, mcs, matches, orderings, graphs, numberLines, dataPlots, sections }`. Versioned key auto-invalidates on republish (v1 → v2 means the v1 blob is no longer found). Schema-versioned internally (the current `STORAGE_SCHEMA_VERSION` lives in `runtime/storage.ts` — 9 at last edit) so future runtime changes can bail cleanly on shape mismatch. Save gated by `!state.submitted`. Cleared on submit success.
 
-- **Submission payload** (network): POSTed to `ingest-submission`. `responses` is v6 shape: `{ schemaVersion: 6, blanks: Record<uuid, BlankResult>, checkpointResults?, graphResponses?, choices?, matches?, orderings? }` plus `activity_id`, `display_name`, `score` at top level. (The current wire version lives in `runtime/submission.ts`.)
+- **Submission payload** (network): POSTed to `ingest-submission`. `responses` is the current wire shape (v8 at last edit): `{ schemaVersion, blanks: Record<uuid, BlankResult>, checkpointResults?, graphResponses?, choices?, matches?, orderings?, numberLineResponses?, dataPlotResponses? }` plus `activity_id`, `display_name`, `score` at top level. (The current wire version lives in `runtime/submission.ts`.)
 
 ### Specific behavior rules
 
@@ -222,13 +222,13 @@ When the section is a checkpoint (in locked/free mode), it includes:
 
 Every top-level block carries `data-block-category`, `data-block-type`, and `data-block-id`. `<section>` is a container, not a block (carries `data-block-category` + `data-section-id` only). `<li>` carries neither (list items are inside list blocks).
 
-- `data-block-type` is the Zod schema discriminant **verbatim** — snake_case (`paragraph`, `heading`, `math_block`, `image`, `callout`, `problem`, `fill_in_blank`, `bullet_list`, `ordered_list`, `interactive_graph`). Init's selector `[data-block-type="fill_in_blank"]` matches this literal exactly.
+- `data-block-type` is the Zod schema discriminant **verbatim** — snake_case (`paragraph`, `heading`, `math_block`, `image`, `callout`, `problem`, `fill_in_blank`, `bullet_list`, `ordered_list`, `interactive_graph`, `multiple_choice`, `matching`, `ordering`, `number_line`, `data_plot`). Init's selector `[data-block-type="fill_in_blank"]` matches this literal exactly.
 - `data-block-id` is the block's stable document `id` (uuid).
 - `data-block-category` is `content | question | scaffold`. Coarse discriminator; analytics and dashboard features can branch on this without enumerating every block-type string.
 
-Phase 1 block types by category:
-- `content` — `paragraph`, `heading`, `image`, `callout`, `math_block`, `bullet_list`, `ordered_list`
-- `question` — `problem`, `fill_in_blank`, `interactive_graph`
+Block types by category:
+- `content` — `paragraph`, `heading`, `image`, `callout`, `math_block`, `bullet_list`, `ordered_list`, plus a `display`-interaction `data_plot` (a static stat-chart stimulus — the one block type that spans both categories, `question` when graded / `content` when display)
+- `question` — `problem`, `fill_in_blank`, `interactive_graph`, `multiple_choice`, `matching`, `ordering`, `number_line`, `data_plot` (graded builds)
 - `scaffold` — `[target — Phase 2+]` `worked_example`, `faded_worked_example`, `self_explanation`, etc.
 
 ### Sizing attributes (additive, presentational — runtime never reads them)
@@ -559,6 +559,86 @@ A graded question: one list, rendered in a **publish-time shuffled** order (dete
 - **The arrangement lives in state**: `state.orderings[id].order` (seeded from the rendered DOM order at init); render() re-sequences the list's children to match with minimal `insertBefore` moves. Post-check, rows get per-POSITION `.correct`/`.incorrect` (feedback only — the block score stays all-or-nothing).
 - Print: grips hidden; each row shows a write-in number box ("number the steps 1–N"; answer-key variant fills it, `.order-key-correct`).
 
+### Number-line block (`data-block-category="question"`)
+
+The graded 1-D block (Phase 2.7). Like `interactive_graph` it's a graded question inside a `.activity-section`, scored into the section checkpoint + the submit payload, and its heavy widget rides the SAME lazy graph kit — but through its OWN bridge seam (`numberLineExt`, mirroring `graphExt`) and its own kit runtime attach. Two interactions: `plot_point` (mark value(s) on the line) and `plot_interval` (drag an inequality interval with open/closed endpoints; an omitted bound = a ray). Submits as `SubmissionResponses.numberLineResponses` (introduced at wire v7).
+
+```html
+<div class="block block-number-line" data-block-category="question"
+     data-block-type="number_line"
+     data-block-id="<uuid>" data-numberline-block-id="<uuid>"
+     data-numberline-interaction-type="plot_point"
+     data-numberline-config="{&quot;min&quot;:-10,&quot;max&quot;:10,…}"
+     data-numberline-answer-key="{&quot;correctPoints&quot;:[3],&quot;tolerance&quot;:0.25}"
+     data-numberline-kit-src="https://…/shared/graph-kit-<hash>.js">
+  <div class="block-problem-number">1.</div>
+  <div class="block-problem-body">
+    <div class="number-line-prompt">…inline prompt…</div>
+    <div class="number-line-canvas" data-numberline-canvas="<uuid>"
+         role="application" tabindex="0">
+      <svg>…static fallback (blank line to hand-mark; answer-key marks in the print variant)…</svg>
+      <p class="number-line-nojs">…needs-JS cue…</p>
+    </div>
+    <div class="js-numberline-feedback" data-for-numberline="<uuid>" aria-live="polite" hidden></div>
+    <!-- optional: .js-confidence-rating fieldset, .print-confidence row, .js-solution slot -->
+  </div>
+</div>
+```
+
+- `data-numberline-interaction-type` — `plot_point | plot_interval`.
+- `data-numberline-config` — JSON of the `NumberLineConfig` (the line window + ticks), HTML-entity-escaped, parsed once (bad JSON → kit defaults).
+- `data-numberline-answer-key` — JSON of the interaction's answer key (the interaction minus its discriminant: `correctPoints`+`tolerance`, or `correctInterval`+`tolerance`), same client-side-scoring ceiling as `data-graph-answer-key` (Phase 5 server grading removes it).
+- `data-numberline-kit-src` — absolute R2 kit URL (per-render, from `publish-activity`); **omitted** on the print path and when no kit URL is available → the sidecar leaves the static SVG fallback and the block submits as unanswered.
+- The canvas's pre-hydration content is the static `renderNumberLineSvg` fallback (a blank line to hand-mark; the answer key drawn on in the `showAnswers` print variant) + a screen-only needs-JS cue; the kit clears it on mount.
+- `.js-numberline-feedback` receives the kit's move narration (SR-only) pre-check and the correctness verdict post-check, same as `.js-graph-feedback`.
+- **Hydration + scoring** mirror `interactive_graph` exactly: the inline `numberLineExt` bridge does the slim walk + state seed + checkpoint score fold + submit gather (a restored answer scores/submits even if the kit never loads), and `attachNumberLineRuntime` in the kit owns config parsing, board mount, move→`state.numberLines[id]`, restore, chrome render, and lock. `NumberLineBlockState` enters the persisted blob at storage v8.
+
+### Data-plot block (graded `question` / display `content`)
+
+The statistics-chart block (Phase 2.7) — dot plot / histogram / box plot. It spans two categories: a graded **build** (`build_dotplot` / `build_histogram` / `build_boxplot` — the student constructs the chart from a given dataset) is a `question`; a **display** interaction is a static, ungraded stimulus categorized as `content`. The display form is pure static SVG the renderer draws — no kit, no runtime, no problem number — so it stays on the leaner base runtime; only a GRADED data_plot pulls the graphs variant. Graded builds submit as `SubmissionResponses.dataPlotResponses` (introduced at wire v8), scored through the `dataPlotExt` bridge + kit attach, same shape as `numberLineExt`.
+
+```html
+<!-- graded build -->
+<div class="block block-data-plot" data-block-category="question"
+     data-block-type="data_plot"
+     data-block-id="<uuid>" data-dataplot-block-id="<uuid>"
+     data-dataplot-interaction-type="build_histogram"
+     data-dataplot-config="{&quot;min&quot;:0,&quot;max&quot;:20,&quot;binWidth&quot;:5,…}"
+     data-dataplot-data="[3,7,7,12,15]"
+     data-dataplot-answer-key="{&quot;tolerance&quot;:0.5}"  <!-- build_boxplot ONLY -->
+     data-dataplot-kit-src="https://…/shared/graph-kit-<hash>.js">
+  <div class="block-problem-number">1.</div>
+  <div class="block-problem-body">
+    <div class="data-plot-prompt">…inline prompt…</div>
+    <p class="data-plot-source">Make a histogram of these values: 3, 7, 7, 12, 15</p>
+    <div class="data-plot-canvas" data-dataplot-canvas="<uuid>" role="application" tabindex="0">
+      <svg>…static fallback (empty axis to hand-mark; computed chart in the print variant)…</svg>
+      <p class="data-plot-nojs">…needs-JS cue…</p>
+    </div>
+    <div class="js-dataplot-feedback" data-for-dataplot="<uuid>" aria-live="polite" hidden></div>
+    <!-- optional: .js-confidence-rating fieldset, .print-confidence row, .js-solution slot -->
+  </div>
+</div>
+
+<!-- display (static stimulus, no hydration) -->
+<div class="block block-data-plot block-data-plot-display" data-block-category="content"
+     data-block-type="data_plot" data-block-id="<uuid>">
+  <div class="block-problem-body">
+    <div class="data-plot-prompt data-plot-caption">…optional caption…</div>
+    <div class="data-plot-canvas data-plot-static" role="img" aria-label="Histogram">
+      <svg>…static chart…</svg>
+    </div>
+  </div>
+</div>
+```
+
+- `data-dataplot-interaction-type` — `build_dotplot | build_histogram | build_boxplot` (display carries NONE — its absence, together with `data-block-category="content"`, is how the runtime skips it).
+- `data-dataplot-config` — JSON of the `DataPlotConfig` (axis window + histogram bin width), HTML-entity-escaped.
+- `data-dataplot-data` — JSON of the source dataset. This **IS** the answer key: the correct dot counts / bin frequencies / five-number summary are COMPUTED from it (baked in like `data-graph-answer-key`; Phase 5 server grading strips it).
+- `data-dataplot-answer-key` — emitted for `build_boxplot` ONLY, carrying the scoring `tolerance` (the exact-count builds compute their answer and need none). The box plot is scored within tolerance against the TI-84 exclusive-median five-number summary.
+- `data-dataplot-kit-src` — absolute R2 kit URL; **omitted** on print / when unavailable → static fallback stays, block submits unanswered. Display never carries a kit src (it has no interaction).
+- **Hydration + scoring** for graded builds mirror `number_line`: the `dataPlotExt` inline bridge walks + seeds + folds + gathers, and `attachDataPlotRuntime` in the kit mounts the chart-specific board (dot / bar-height / five-handle box), bridges edits into `state.dataPlots[id]`, restores, and renders chrome. Display blocks are never walked (they carry no `data-dataplot-block-id`). `DataPlotBlockState` enters the persisted blob at storage v9.
+
 ### Reading discipline
 
 Two sources, two patterns. Activity-level config is parsed once from the `#activity-config` blob via `parseConfig`. Per-element data is read off `data-*` attributes during the init pass and stored on typed refs. Downstream code consumes refs and never re-queries.
@@ -684,7 +764,7 @@ interface Refs {
 }
 ```
 
-`[target — Phase 2+]` Adds parallel refs maps for each new question category (`choices`, `orderings`, `matches`, `graphs`, `freeResponses`, `files`, `annotations`). Same pattern; init populates them once.
+Parallel refs/state maps are added for each new question category (shipped: `mcs`, `matches`, `orderings`, `graphs`, `numberLines`, `dataPlots`; `[target — Phase 2.8+]` `freeResponses`, `files`, `annotations`). Same pattern; init populates them once.
 
 ## Persistence (`storage.ts`)
 
@@ -709,6 +789,8 @@ interface StoredActivityState {
     matches: Record<string, MatchBlockState>;
     orderings: Record<string, OrderBlockState>;
     graphs: Record<string, GraphBlockState>;
+    numberLines: Record<string, NumberLineBlockState>;
+    dataPlots: Record<string, DataPlotBlockState>;      // graded builds only
     sections: Record<string, SectionState>;
 }
 
@@ -720,7 +802,7 @@ applyStoredState(stored, refs, state): void        // mutates inputs + state in 
 
 Storage key: `activity_state_${activityId}_v${versionNum}`. Versioned key means republishing the activity (versionNum bump) auto-invalidates prior persistence.
 
-Schema versioning: `STORAGE_SCHEMA_VERSION` (7 at last edit; the live value lives in `runtime/storage.ts`). Load returns null on mismatch (fresh state). Bump when `BlankState` / `BlockState` / `McBlockState` / `MatchBlockState` / `OrderBlockState` / `GraphBlockState` / `SectionState` / blob shape changes in a way that older serialized blobs can no longer be interpreted as.
+Schema versioning: `STORAGE_SCHEMA_VERSION` (9 at last edit; the live value lives in `runtime/storage.ts`). Load returns null on mismatch (fresh state). Bump when `BlankState` / `BlockState` / `McBlockState` / `MatchBlockState` / `OrderBlockState` / `GraphBlockState` / `NumberLineBlockState` / `DataPlotBlockState` / `SectionState` / blob shape changes in a way that older serialized blobs can no longer be interpreted as.
 
 Save is gated by `!state.submitted`. Once submitted, persistence is irrelevant (`clearActivityState` fires on success) and re-writing post-submit edits would confuse the next session's restore.
 
@@ -737,7 +819,7 @@ All localStorage access is try/catch wrapped. Private-mode browsers, locked-down
     activityId: string,
     displayName: string,
     responses: {
-        schemaVersion: 6,
+        schemaVersion: 8,   // current wire version; lives in runtime/submission.ts
         blanks: Record<blankId, {
             answer: string,
             correct: boolean,
@@ -770,9 +852,9 @@ On successful submit:
 
 1. **Runtime build (two variants).** Entry `packages/renderer/src/runtime/index.ts` → output as IIFE (not ESM — runs immediately when inlined into a `<script>` tag, no module loader). Minified, target `chrome90` (covers school Chromebooks, Firefox 88+, Safari 14+, Edge 90+). Built TWICE from the one source:
    - **base** — the interactive-graph feature is stubbed. The source imports the real `runtime/graph-integration.ts`, but this build redirects that specifier to `graph-integration.noop.ts` via an esbuild `onResolve` alias, so no graph code is bundled. Written to `runtime/generated/runtime-bundle.ts` (`runtimeJs`). Inlined on the majority of pages, which have no graph block.
-   - **graphs** — the real `graph-integration.ts` is kept, bundling the thin graph BRIDGE (slim walk, state seed, score fold, submit gather, the kit hand-off; the DOM-heavy plumbing lives in the lazy kit — see "Interactive graph blocks"). Written to `runtime/generated/runtime-graphs-bundle.ts` (`runtimeGraphsJs`). `document.ts` inlines it ONLY when the rendered body contains a `data-block-type="interactive_graph"` block (graded or display).
+   - **graphs** — the real `graph-integration.ts` is kept, bundling the thin graph BRIDGE plus the `number_line` and `data_plot` bridges (which live in the same module — slim walk, state seed, score fold, submit gather, the kit hand-off; the DOM-heavy plumbing lives in the lazy kit — see "Interactive graph blocks"). Written to `runtime/generated/runtime-graphs-bundle.ts` (`runtimeGraphsJs`). `document.ts` inlines it ONLY when the rendered body needs it: an `interactive_graph` block (graded or display), a `number_line` block, OR a GRADED `data_plot` (detected via `data-dataplot-block-id` — a DISPLAY data plot is static SVG the base build serves fine, so it deliberately does NOT trigger the heavier variant).
 
-   The split keeps every non-graph page off the graph code (bridge included), and — since the 2026-07-10 bundle-budget move — a future graph runtime feature grows the lazy KIT, not even the graphs variant, so neither inline bundle trends up with graph work. Source maps at `dist/runtime-base.js.map` + `dist/runtime-graphs.js.map` (dev-only, gitignored). Both generated string modules are **committed to git** so a clean checkout can typecheck the renderer without running the bundler. The base build is the one bound by the 40 KiB soft target (the common case); the graphs variant is a superset held only to the 60 KiB hard ceiling.
+   The split keeps every non-graph page off the graph code (bridge included), and — since the 2026-07-10 bundle-budget move — a future graph/number-line/data-plot runtime feature grows the lazy KIT, not even the graphs variant, so neither inline bundle trends up with that work. Source maps at `dist/runtime-base.js.map` + `dist/runtime-graphs.js.map` (dev-only, gitignored). Both generated string modules are **committed to git** so a clean checkout can typecheck the renderer without running the bundler. The base build is the one bound by the 40 KiB soft target (the common case); the graphs variant is a superset held only to the 60 KiB hard ceiling.
 
 2. **Reference-panel sidecar build.** Entry `packages/renderer/src/runtime/reference-panel.ts` → minified IIFE, same `chrome90` target → generated string module `runtime/generated/reference-panel-bundle.ts` (also committed). A small (~1.3 KiB) self-contained script for the floating reference panel (summon/close toggling + header drag-to-move), kept OUT of the main runtime so the scoring runtime stays pure and panel-less pages ship none of it; `document.ts` inlines it only when an activity has a `referencePanel`. (This is the realized form of the "lazy-loaded sidecar bundle" pattern noted below — inlined-when-present rather than lazy-loaded, since it's tiny.)
 
@@ -782,9 +864,9 @@ On successful submit:
 
 5. **Renderer build.** Entry `packages/renderer/src/index.ts` → output as ESM at `supabase/functions/_shared/renderer.bundle.js`. The renderer's `document.ts` imports the generated string modules from steps 1–4 and inlines them into `<script>` tags in published pages (exactly one runtime variant — base or graphs; each sidecar only when its feature is present).
 
-Inlined model means `publish-activity` only uploads `index.html` to Storage — no separate `runtime.js` artifact.
+Inlined model means `publish-activity` only uploads `index.html` to Cloudflare R2 (published HTML can't live on Supabase — see CLAUDE.md) — no separate `runtime.js` artifact.
 
-Bundle size (as of the 2026-07-10 matching + ordering build): base runtime IIFE is **~35.8 KiB minified**; the graphs variant is **~38.5 KiB** (base + the ~2.8 KiB bridge). Matching + ordering added ~15 KiB of core interaction machinery — accepted growth, and the trigger for the 2026-07-10 budget amendment (20/40 → 40/60 KiB; reasoning in `docs/DECISIONS.md` → "Runtime size budget amendment"). Future graph runtime features grow the lazy kit, not these numbers. Re-check with `pnpm bundle:renderer`, which prints both — treat the printed numbers as the truth, not this paragraph.
+Bundle size (as of the 2026-07-12 data_plot graded-builds build): base runtime IIFE is **~37.5 KiB minified**; the graphs variant is **~44.3 KiB** (base + the graph/number-line/data-plot bridges). The graphs variant sits over the 40 KiB soft target — under the 60 KiB hard ceiling, accepted per the 2026-07-10 budget amendment (20/40 → 40/60 KiB; reasoning in `docs/DECISIONS.md` → "Runtime size budget amendment"). The number-line and data-plot WIDGETS ride the lazy kit, not these bundles — only their thin bridges (walk/seed/fold/gather) land here. Base is at ~94% of its soft target: schedule the next budget-ladder lever (per-question-type inlining variants) before the next question-type generation. Re-check with `pnpm bundle:renderer`, which prints both — treat the printed numbers as the truth, not this paragraph.
 
 `[Phase 2.7]` The calculator-summon sidecar (step 4) is the cheap, inlined half of the graphing track; the heavy kit is a **separate content-hashed bundle on R2** — never inlined, cached after first load, served brotli. `data-calculator-kit-src` / `data-graph-kit-src` (from `RenderContext.calculatorKitUrl`) is the URL. Since 2026-07-10 the kit is THREE-way split: the entry (scorers, formula parser, widget mounts, the graph runtime plumbing, plus a statically-imported mathjs chunk) is what graph pages fetch at bootstrap; **JSXGraph** and **the calculator (MathLive)** are each their own lazy chunk behind it — so a graph-only page never downloads MathLive, and a calculator page pays one extra round trip on first open (`mountCalculator` on the entry is an async wrapper). `[target — Phase 2.9+]` adds `annotation-widget.js`. Main runtime stays small; pages without those block types pay nothing.
 
@@ -837,7 +919,7 @@ Test suite at `packages/renderer/src/runtime/__tests__/`. Files (scoring runtime
 - **Every DOM write in `render` is change-guarded.** `classList.toggle(name, condition)` is idempotent. Attribute / `hidden` / `checked` / `textContent` get explicit current-vs-target checks.
 - **All attribute reads have a fallback.** No `dataset.X` access without `?? default`. No `JSON.parse(...)` without try/catch.
 - **No JS dependencies.** Vanilla TypeScript. Adding utility libraries would blow size budget and add attack surface.
-- **Persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION` (7 at last edit; source of truth is `runtime/storage.ts`). Bump when `BlankState`, `BlockState`, `McBlockState`, `MatchBlockState`, `OrderBlockState`, `GraphBlockState`, `SectionState`, or blob shape changes incompatibly.
+- **Persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION` (9 at last edit; source of truth is `runtime/storage.ts`). Bump when `BlankState`, `BlockState`, `McBlockState`, `MatchBlockState`, `OrderBlockState`, `GraphBlockState`, `NumberLineBlockState`, `DataPlotBlockState`, `SectionState`, or blob shape changes incompatibly.
 - **Heavy widgets are lazy-loaded into separate bundles — the kit invariant.** Realized: interactive graphs, the calculator (MathLive), and mathjs all live in the content-hashed graph kit on R2 (see Build pipeline step 5 notes); `[target — Phase 2.9+]` annotation widgets and the future photo-submit/AI-feedback client follow the same pattern. Pages without those block types pay nothing. This — not the budget number — is what keeps a plain worksheet light; it is not renegotiable the way the number is.
 - **Naming convention discipline:**
   - TypeScript fields: `camelCase` (`attemptNumber`, `revisionMode`)

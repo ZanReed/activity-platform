@@ -1,6 +1,6 @@
 # Supabase migrations
 
-Phase 1 schema for the activity platform. Eight core migrations plus an optional dev seed. `0001`–`0008` are applied to the live project; `0009` is prepared and awaiting apply (see STATE.md "Pending author actions" / "Status by area").
+Phase 1 schema for the activity platform. Nine core migrations plus an optional dev seed. `0001`–`0009` are all applied to the live project (`0009` applied + fully verified 2026-07-11 — see STATE.md "Status by area").
 
 ## Files
 
