@@ -91,7 +91,7 @@ Follow-ups (post-slice-1): `build_histogram` + `build_boxplot` (+ decision 4 met
 
 # Follow-up design pass: graded histogram + box-plot builds
 
-**Status:** 🟡 DESIGN — decisions in §B await the author's yes/no per item before any code drop. Extends the SHIPPED block above (slice 1: `display` + `build_dotplot`).
+**Status:** 🟢 APPROVED — building (2026-07-12). All §B decisions = the recommended answers: 1a both builds (histogram → box), 2 NO wire/storage bump (additive union members), 3a draggable bar tops, **4 box-plot method LOCKED: TI-84 exclusive-median + `tolerance`**, 5 histogram marker / box `tolerance`, 6 all-or-nothing, 7 picker + preview (no author board), 8 per-variant dashboard formatting, 9 defer the ```dataplot``` fence. Extends the SHIPPED block above (slice 1: `display` + `build_dotplot`).
 
 Slice 1 shipped `display` (all three chart types render statically) + graded `build_dotplot`. This pass adds the two remaining graded *constructions* so the block can grade a student building **any** of the three stats charts: **`build_histogram`** (set each bar's frequency) and **`build_boxplot`** (drag the five-number-summary handles). The static renderers already exist — `renderDataPlotSvg` draws all three charts, and `histogramBins` / `fiveNumberSummary` (TI-84 exclusive-median) already compute the keys — so this pass is mostly two new interactive widgets + their pure scorers, riding every seam slice 1 built.
 

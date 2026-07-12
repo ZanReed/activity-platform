@@ -384,8 +384,42 @@ export const DataPlotDotplotResponse = z.object({
 });
 export type DataPlotDotplotResponse = z.infer<typeof DataPlotDotplotResponse>;
 
+// build_histogram: the student's per-bin frequencies, in bin order (left→right).
+// Non-empty; an untouched histogram is an omission (absent from the map).
+export const DataPlotHistogramResponse = z.object({
+  type: z.literal('build_histogram'),
+  studentBins: z.array(z.number()).min(1),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type DataPlotHistogramResponse = z.infer<
+  typeof DataPlotHistogramResponse
+>;
+
+// build_boxplot: the student's placed five-number summary (line units).
+export const DataPlotBoxplotResponse = z.object({
+  type: z.literal('build_boxplot'),
+  studentFive: z.object({
+    min: z.number(),
+    q1: z.number(),
+    median: z.number(),
+    q3: z.number(),
+    max: z.number(),
+  }),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type DataPlotBoxplotResponse = z.infer<typeof DataPlotBoxplotResponse>;
+
+// The three build variants are additive members: widening the union only ACCEPTS
+// MORE, so pages that emit histogram/box responses (published after the ingest
+// that carries this widened union) need no wire-format bump — the same discipline
+// the graph block's plot_ray/plot_segment used within v4. A build_dotplot-only
+// page keeps validating.
 export const DataPlotResponse = z.discriminatedUnion('type', [
   DataPlotDotplotResponse,
+  DataPlotHistogramResponse,
+  DataPlotBoxplotResponse,
 ]);
 export type DataPlotResponse = z.infer<typeof DataPlotResponse>;
 

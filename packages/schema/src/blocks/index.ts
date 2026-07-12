@@ -83,6 +83,8 @@ export {
   DataPlotInteraction,
   DataPlotDisplayInteraction,
   DataPlotDotplotInteraction,
+  DataPlotHistogramInteraction,
+  DataPlotBoxplotInteraction,
 } from './data-plot.js';
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {

@@ -556,6 +556,48 @@ describe('v8 additions (data plot)', () => {
     expect(parsed.success).toBe(false);
   });
 
+  it('parses a build_histogram response (additive union member, no version bump)', () => {
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 8,
+      blanks: {},
+      dataPlotResponses: {
+        [dpId]: { type: 'build_histogram', studentBins: [2, 3, 1, 0], correct: false },
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('parses a build_boxplot response (five-number summary, additive)', () => {
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 8,
+      blanks: {},
+      dataPlotResponses: {
+        [dpId]: {
+          type: 'build_boxplot',
+          studentFive: { min: 2, q1: 4, median: 5, q3: 7, max: 8 },
+          correct: true,
+          confidence: 'certain',
+        },
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects a build_boxplot response missing a summary field', () => {
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 8,
+      blanks: {},
+      dataPlotResponses: {
+        [dpId]: {
+          type: 'build_boxplot',
+          studentFive: { min: 2, q1: 4, median: 5, q3: 7 },
+          correct: true,
+        },
+      },
+    });
+    expect(parsed.success).toBe(false);
+  });
+
   it('migrates a v7 submission (numberLine maps intact) to v8', () => {
     const nlId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
     const result = migrateSubmissionResponses({

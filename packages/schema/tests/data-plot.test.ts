@@ -75,6 +75,22 @@ describe('DataPlotInteraction', () => {
     const i = DataPlotInteraction.parse({ type: 'build_dotplot' });
     expect(i.type).toBe('build_dotplot');
   });
+
+  it('parses a build_histogram interaction (bare marker)', () => {
+    const i = DataPlotInteraction.parse({ type: 'build_histogram' });
+    expect(i.type).toBe('build_histogram');
+  });
+
+  it('parses a build_boxplot interaction with a default tolerance', () => {
+    const i = DataPlotInteraction.parse({ type: 'build_boxplot' });
+    expect(i.type).toBe('build_boxplot');
+    if (i.type === 'build_boxplot') expect(i.tolerance).toBe(0.5);
+  });
+
+  it('carries an authored box-plot tolerance', () => {
+    const i = DataPlotInteraction.parse({ type: 'build_boxplot', tolerance: 0.25 });
+    if (i.type === 'build_boxplot') expect(i.tolerance).toBe(0.25);
+  });
 });
 
 describe('DataPlotBlock', () => {

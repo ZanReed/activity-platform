@@ -128,6 +128,16 @@ export interface DataPlotResult {
   type: string;
   /** build_dotplot: the student's plotted dot values (a multiset). */
   studentValues?: number[];
+  /** build_histogram: the student's per-bin frequencies, in bin order. */
+  studentBins?: number[];
+  /** build_boxplot: the student's placed five-number summary (line units). */
+  studentFive?: {
+    min: number;
+    q1: number;
+    median: number;
+    q3: number;
+    max: number;
+  };
   correct: boolean;
   confidence?: 'unsure' | 'think_so' | 'certain';
 }

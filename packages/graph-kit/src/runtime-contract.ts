@@ -294,7 +294,25 @@ export interface DataPlotBlockState {
    * restores the built plot (the kit plumbing calls the widget's restore()).
    */
   studentValues: number[];
-  /** True once the student has added or removed a dot at least once. */
+  /**
+   * build_histogram: the student's per-bin frequencies, in bin order. Additive
+   * optional field (an older blob simply lacks it — no STORAGE_SCHEMA_VERSION
+   * bump). Present only on histogram blocks the student has touched.
+   */
+  studentBins?: number[];
+  /**
+   * build_boxplot: the student's placed five-number summary. Additive optional
+   * field, same discipline as studentBins. Present only on box-plot blocks the
+   * student has touched.
+   */
+  studentFive?: {
+    min: number;
+    q1: number;
+    median: number;
+    q3: number;
+    max: number;
+  };
+  /** True once the student has interacted with the widget at least once. */
   answered: boolean;
   /**
    * Scoring result: true correct, false incorrect, null unscored. Null until

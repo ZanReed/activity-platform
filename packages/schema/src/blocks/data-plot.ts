@@ -85,12 +85,43 @@ export type DataPlotDotplotInteraction = z.infer<
   typeof DataPlotDotplotInteraction
 >;
 
+// build_histogram: the student sets each bar's frequency to reproduce the
+// histogram of `data` (binned by config.binWidth over [min,max]). Scored
+// all-or-nothing on exact per-bin integer-frequency equality (a bar is a whole
+// count — no tolerance), the frequency-distribution twin of build_dotplot. The
+// correct heights are COMPUTED from `data`, so this too is a bare marker variant.
+export const DataPlotHistogramInteraction = z.object({
+  type: z.literal('build_histogram'),
+});
+export type DataPlotHistogramInteraction = z.infer<
+  typeof DataPlotHistogramInteraction
+>;
+
+// build_boxplot: the student drags the five-number-summary handles (min, Q1,
+// median, Q3, max) to build the box + whiskers of `data`. Scored all-or-nothing
+// with each handle within `tolerance` line units of the computed summary. Unlike
+// the frequency builds this carries a tolerance because box positions are
+// continuous and the two common quartile methods can differ by a data point on
+// even-length sets — the key uses the TI-84 exclusive-median method (locked,
+// design decision 4) and the tolerance absorbs the adjacent-method answer.
+export const DataPlotBoxplotInteraction = z.object({
+  type: z.literal('build_boxplot'),
+  // Match radius in line units, applied to each of the five handles. Default
+  // half a unit tick.
+  tolerance: z.number().nonnegative().default(0.5),
+});
+export type DataPlotBoxplotInteraction = z.infer<
+  typeof DataPlotBoxplotInteraction
+>;
+
 // Discriminated on `type` so consumers branch uniformly and the wire format
 // always carries it. Growing a variant is a new member here + a new scorer
 // branch in the kit — no other block touched.
 export const DataPlotInteraction = z.discriminatedUnion('type', [
   DataPlotDisplayInteraction,
   DataPlotDotplotInteraction,
+  DataPlotHistogramInteraction,
+  DataPlotBoxplotInteraction,
 ]);
 export type DataPlotInteraction = z.infer<typeof DataPlotInteraction>;
 
