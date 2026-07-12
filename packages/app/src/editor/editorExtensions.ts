@@ -26,6 +26,7 @@ import { Blank } from './extensions/Blank';
 import { Columns, Column } from './extensions/Columns';
 import { Image } from './extensions/Image';
 import { InteractiveGraph } from './extensions/InteractiveGraph';
+import { NumberLine } from './extensions/NumberLine';
 import { MultipleChoice } from './extensions/MultipleChoice';
 import { Matching } from './extensions/Matching';
 import { Ordering } from './extensions/Ordering';
@@ -81,6 +82,9 @@ export function buildEditorExtensions({
         // editable prompt (NodeViewContent) + a live author board reusing
         // the graph kit.
         InteractiveGraph,
+        // Graded number-line block (1-D, K-8). The lean sibling of the graph
+        // block: editable prompt + a live author board reusing the same kit.
+        NumberLine,
         // Multiple-choice question block: editable prompt + structured
         // choice list (single or multi-select), authored in-place.
         MultipleChoice,

@@ -218,6 +218,15 @@ export const slashMenuItems: SlashMenuItem[] = [
         },
     },
     {
+        title: 'Number line',
+        description: 'Students plot a point or graph an interval on a 1-D number line.',
+        keywords: ['number', 'line', 'interval', 'inequality', 'ray', 'plot', 'point', 'graph', '1d'],
+        group: 'Questions',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertNumberLine().run();
+        },
+    },
+    {
         title: 'Multiple choice',
         description: 'A question with answer choices — single answer or select-all-that-apply.',
         keywords: ['multiple', 'choice', 'mc', 'select', 'options', 'quiz', 'radio', 'checkbox'],

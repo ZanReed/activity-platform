@@ -56,6 +56,7 @@ import type {
     ImageBlock,
     MathBlock,
     InteractiveGraphBlock,
+    NumberLineBlock,
     MultipleChoiceBlock,
     MultipleChoiceOption,
     MatchingBlock,
@@ -69,6 +70,7 @@ import {
     InlineNode as InlineNodeSchema,
     DefinitionContentInline as DefinitionContentInlineSchema,
     createInteractiveGraphBlock,
+    createNumberLineBlock,
     createMultipleChoiceOption,
     createMatchingItem,
     createMatchingTarget,
@@ -268,6 +270,8 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
 
         case 'interactiveGraph':
             return tiptapInteractiveGraphToActivity(node);
+        case 'numberLine':
+            return tiptapNumberLineToActivity(node);
         case 'multipleChoice':
             return tiptapMultipleChoiceToActivity(node);
         case 'matching':
@@ -669,6 +673,33 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
     return block;
 }
 
+function tiptapNumberLineToActivity(node: JSONContent): NumberLineBlock {
+    const attrs = node.attrs ?? {};
+    const fresh = createNumberLineBlock();
+    const block: NumberLineBlock = {
+        id: crypto.randomUUID(),
+        type: 'number_line',
+        // The prompt is the node's editable inline content (text + inline math).
+        prompt: tiptapInlineToActivity(node.content ?? []),
+        // config / interaction come populated from the node's attr defaults; fall
+        // back to the factory shape if a hand-crafted payload dropped them. The
+        // schema Zod-validates on the save boundary.
+        config: (attrs.config as NumberLineBlock['config']) ?? fresh.config,
+        interaction: (attrs.interaction as NumberLineBlock['interaction']) ?? fresh.interaction,
+        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
+        skills: Array.isArray(attrs.skills)
+            ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
+            : [],
+    };
+    // Optional solution — carry only when non-empty so round-trip equality holds
+    // for number lines without one (same pattern as the graph block).
+    const solution = sanitizeInlineNodes(attrs.solution);
+    if (solution.length > 0) {
+        block.solution = solution;
+    }
+    return block;
+}
+
 function tiptapBulletListToActivity(node: JSONContent): BulletListBlock {
     return {
         id: crypto.randomUUID(),
@@ -971,6 +1002,9 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'interactive_graph':
             return activityInteractiveGraphToTiptap(block);
 
+        case 'number_line':
+            return activityNumberLineToTiptap(block);
+
         case 'multiple_choice':
             return activityMultipleChoiceToTiptap(block);
 
@@ -982,10 +1016,8 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
 
         case 'callout':
         case 'problem':
-        case 'number_line':
-            // callout/problem have no editor mapping. number_line's authorable
-            // NodeView lands in the editor slice; until then it round-trips
-            // through storage but is omitted from the editor view.
+            // callout/problem have no editor mapping yet; they round-trip through
+            // storage but are omitted from the editor view.
             console.warn(
                 `[serialize] No Tiptap mapping for ${block.type} yet; block omitted from editor view.`,
             );
@@ -1157,6 +1189,21 @@ function activityInteractiveGraphToTiptap(block: InteractiveGraphBlock): JSONCon
             noSolutionCorrect: block.noSolutionCorrect,
             builtinFeedback: block.builtinFeedback,
             mistakeFeedback: block.mistakeFeedback,
+            solution: block.solution ?? null,
+            hasConfidenceRating: block.hasConfidenceRating,
+            skills: block.skills,
+        },
+        content: activityInlineToTiptap(block.prompt),
+    };
+}
+
+function activityNumberLineToTiptap(block: NumberLineBlock): JSONContent {
+    return {
+        type: 'numberLine',
+        attrs: {
+            id: block.id,
+            config: block.config,
+            interaction: block.interaction,
             solution: block.solution ?? null,
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,

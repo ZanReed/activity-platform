@@ -4,10 +4,11 @@ import type { Editor } from '@tiptap/core';
 // problemNumbering — the editor-side mirror of the renderer's isNumberedBlock.
 // ----------------------------------------------------------------------------
 // One shared walk so every question NodeView (fill-in-blank, multiple choice,
-// interactive graph) shows the same number the published page will render.
-// Counts, in document order before `pos`: fillInBlank, multipleChoice, and
-// non-display interactiveGraph nodes. Keep in sync with the renderer's
-// isNumberedBlock in packages/renderer/src/blocks/index.ts.
+// matching, ordering, number line, interactive graph) shows the same number the
+// published page will render. Counts, in document order before `pos`:
+// fillInBlank, multipleChoice, matching, ordering, numberLine, and non-display
+// interactiveGraph nodes. Keep in sync with the renderer's isNumberedBlock in
+// packages/renderer/src/blocks/index.ts.
 // ============================================================================
 
 export function problemNumberAt(editor: Editor, pos: number | undefined): number {
@@ -19,7 +20,8 @@ export function problemNumberAt(editor: Editor, pos: number | undefined): number
             node.type.name === 'fillInBlank' ||
             node.type.name === 'multipleChoice' ||
             node.type.name === 'matching' ||
-            node.type.name === 'ordering'
+            node.type.name === 'ordering' ||
+            node.type.name === 'numberLine'
         ) {
             count++;
         } else if (node.type.name === 'interactiveGraph') {

@@ -232,6 +232,91 @@ describe('interactive graph block', () => {
     });
 });
 
+describe('number line block', () => {
+    const pointNode: JSONContent = {
+        type: 'numberLine',
+        attrs: {
+            id: 'ignored-regenerated',
+            config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
+            interaction: { type: 'plot_point', correctPoints: [3], tolerance: 0.1 },
+            solution: [{ type: 'text', text: 'Three tick marks right of zero.', marks: [] }],
+            hasConfidenceRating: true,
+            skills: ['number line'],
+        },
+        content: [{ type: 'text', text: 'Plot the point at 3.' }],
+    };
+    const doc: JSONContent = { type: 'doc', content: [pointNode] };
+
+    it('round-trips config, interaction, prompt, solution, and flags', () => {
+        const out = roundTrip(doc);
+        const n = out.content!.find((x) => x.type === 'numberLine')!;
+        expect(n.attrs!.config).toEqual(pointNode.attrs!.config);
+        expect(n.attrs!.interaction).toEqual(pointNode.attrs!.interaction);
+        expect(n.attrs!.hasConfidenceRating).toBe(true);
+        expect(n.attrs!.skills).toEqual(['number line']);
+        expect(n.attrs!.solution).toEqual(pointNode.attrs!.solution);
+        expect(n.content).toEqual([{ type: 'text', text: 'Plot the point at 3.' }]);
+    });
+
+    it('round-trips a plot_interval (closed/open) interaction', () => {
+        const node: JSONContent = {
+            type: 'numberLine',
+            attrs: {
+                id: 'i',
+                config: { min: -10, max: 10, tickStep: 2, minorTicksPerStep: 0, snapToTick: true },
+                interaction: {
+                    type: 'plot_interval',
+                    correctInterval: { min: -2, minStyle: 'closed', max: 4, maxStyle: 'open' },
+                    tolerance: 0.1,
+                },
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Graph -2 <= x < 4.' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [node] });
+        const n = out.content!.find((x) => x.type === 'numberLine')!;
+        expect(n.attrs!.interaction).toEqual(node.attrs!.interaction);
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('round-trips a one-sided ray interval (unbounded max omitted)', () => {
+        const node: JSONContent = {
+            type: 'numberLine',
+            attrs: {
+                id: 'r',
+                config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
+                interaction: {
+                    type: 'plot_interval',
+                    correctInterval: { min: 3, minStyle: 'closed' },
+                    tolerance: 0.1,
+                },
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Graph x >= 3.' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [node] });
+        const n = out.content!.find((x) => x.type === 'numberLine')!;
+        expect(n.attrs!.interaction).toEqual(node.attrs!.interaction);
+    });
+
+    it('serializes to a schema-valid number_line block', () => {
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections[0]!.blocks.find(
+            (b) => b.type === 'number_line',
+        );
+        expect(block).toBeDefined();
+        if (block && block.type === 'number_line') {
+            expect(block.interaction.type).toBe('plot_point');
+        }
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+});
+
 describe('reference panel (opaque carry)', () => {
     // The panel is authored on its own surface and threaded into
     // tiptapToActivity as a third argument — it is never encoded in the main

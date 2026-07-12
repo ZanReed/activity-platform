@@ -29,6 +29,7 @@ describe('slashMenuItems', () => {
             'Answer blank',
             'Interactive graph',
             'Static graph',
+            'Number line',
         ];
         for (const title of activityOnly) {
             const item = slashMenuItems.find((i) => i.title === title);

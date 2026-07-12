@@ -17,6 +17,7 @@ import { Image } from './extensions/Image';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
 import { InteractiveGraph } from './extensions/InteractiveGraph';
+import { NumberLine } from './extensions/NumberLine';
 import { MultipleChoice } from './extensions/MultipleChoice';
 import { Matching } from './extensions/Matching';
 import { Ordering } from './extensions/Ordering';
@@ -92,6 +93,9 @@ export default function ReferencePanelEditor({
             // names both as of the 2026-07-10 matching/ordering drop).
             Matching,
             Ordering,
+            // NumberLine: same registered-only-for-the-schema story (the column
+            // content expression names it as of the number_line editor drop).
+            NumberLine,
             Image,
         ],
         content: initialContent,
