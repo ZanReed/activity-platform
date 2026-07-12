@@ -575,6 +575,70 @@ body {
   white-space: nowrap;
 }
 
+/* ---- number_line block (1-D) — mirrors the graph block, wide + short ------- */
+.number-line-prompt { margin-bottom: 0.5rem; }
+.number-line-prompt > :first-child { margin-top: 0; }
+.number-line-prompt > :last-child { margin-bottom: 0; }
+.number-line-canvas {
+  position: relative;
+  width: 100%;
+  max-width: 34rem;
+  aspect-ratio: 500 / 90;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  touch-action: none;
+}
+.number-line-canvas:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+/* In a column cell: keep a legible floor and scroll horizontally rather than
+ crushing the line (same treatment as the graph block). Screen only. */
+@media screen {
+  .column-cell .block-number-line { overflow-x: auto; }
+  .column-cell .number-line-canvas { min-width: 15rem; }
+}
+.number-line-canvas > .number-line-paper {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.number-line-nojs {
+  position: absolute;
+  left: 50%;
+  bottom: 0.2rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.15rem 0.6rem;
+  max-width: 92%;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 4px;
+}
+.js-numberline-feedback {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+.js-numberline-feedback[data-state="correct"] { color: #15803d; }
+.js-numberline-feedback[data-state="incorrect"] { color: #b91c1c; }
+/* Position narration is SCREEN-READER-ONLY — a visible value readout would hand
+ the answer to any "mark the point" question. Same visually-hidden treatment as
+ the graph feedback; post-check results (data-mode="result") stay visible. */
+.js-numberline-feedback[data-mode="narrate"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .block-bullet-list,
 .block-ordered-list {
   padding-left: 1.5rem;
@@ -1329,6 +1393,8 @@ body {
   .tool-corner,
   .js-graph-feedback,
   .graph-nojs,
+  .js-numberline-feedback,
+  .number-line-nojs,
   .js-solution {
     display: none;
   }
@@ -1341,6 +1407,14 @@ body {
    hidden above. Answer checking is on-screen only. */
   .graph-canvas {
     max-width: 3.5in;
+  }
+
+  /* Number line on paper: the static fallback SVG (number-line-svg.ts) prints —
+   a real number line the student hand-marks (answer key drawn in the
+   showAnswers variant). Cap at a hand-markable width; the "needs JavaScript"
+   cue is hidden above. Answer checking is on-screen only. */
+  .number-line-canvas {
+    max-width: 5in;
   }
 
   /* Don't establish an inline-flex formatting context in print — let the
@@ -1362,6 +1436,7 @@ body {
   .block-problem,
   .block-fill-in-blank,
   .block-interactive-graph,
+  .block-number-line,
   .block-multiple-choice,
   .block-matching,
   .block-ordering {

@@ -982,6 +982,9 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
 
         case 'callout':
         case 'problem':
+        // number_line: authorable NodeView lands in the editor slice; until then
+        // it round-trips through storage but is omitted from the editor view.
+        case 'number_line':
             console.warn(
                 `[serialize] No Tiptap mapping for ${block.type} yet; block omitted from editor view.`,
             );

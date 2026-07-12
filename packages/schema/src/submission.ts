@@ -33,6 +33,10 @@
 //                       earned/total) and `orderings` map (OrderResponse:
 //                       the arranged item-id sequence, all-or-nothing).
 //                       v5 rows migrate on read by setting schemaVersion: 6.
+//   v6 → v7 (number line): adds the optional `numberLineResponses` map
+//                       (NumberLineResponse: plotted 1-D points, or an
+//                       interval/ray with open/closed bounds; all-or-nothing).
+//                       v6 rows migrate on read by setting schemaVersion: 7.
 //
 // Extension pattern — adding new response shapes (Phase 2+):
 //   When a new question category needs a different response shape — MC
@@ -50,6 +54,7 @@
 //     orderings       — SHIPPED at v6 (ordering / sequencing, all-or-nothing)
 //     freeResponses   — Phase 2.6 short_answer / essay
 //     graphResponses  — Phase 2.7 interactive graphs
+//     numberLineResponses — Phase 2.7 number-line blocks (1-D)
 //     files           — Phase 2.8 audio / video / file upload
 //     annotations     — Phase 2.9 highlight / label / region
 //
@@ -318,13 +323,64 @@ export const OrderResponse = z.object({
 });
 export type OrderResponse = z.infer<typeof OrderResponse>;
 
-// ---- v6 (current) shape -------------------------------------------------------
-// New submissions write this shape. v5 → v6 (matching + ordering): adds the
-// optional `matches` and `orderings` maps. Application code that reads
-// submissions calls migrateSubmissionResponses() once after reading to handle
-// v1–v6 uniformly.
-export const SubmissionResponses = z.object({
+// One number_line block's response (1-D). Like BlankResponse, `correct` is
+// computed CLIENT-SIDE in the published page's lazy kit (the answer key is baked
+// into the HTML) — convenience for the teacher viewer, not authoritative
+// grading. Discriminated on `type` so plot_ray / display add a variant here with
+// no consumer change. Slice 1 ships plot_point + plot_interval.
+export const NumberLinePointResponse = z.object({
+  type: z.literal('plot_point'),
+  // Every position the student plotted, in line units. Order follows the block's
+  // correctPoints for multi-point questions; a single point is the common case.
+  studentPoints: z.array(z.number()),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type NumberLinePointResponse = z.infer<typeof NumberLinePointResponse>;
+
+// plot_interval: the student's interval/ray — present bounds + open/closed
+// styles, same shape as the block's correctInterval. An absent bound is an
+// unbounded (ray) end.
+export const NumberLineIntervalResponse = z.object({
+  type: z.literal('plot_interval'),
+  min: z.number().optional(),
+  minStyle: z.enum(['open', 'closed']).optional(),
+  max: z.number().optional(),
+  maxStyle: z.enum(['open', 'closed']).optional(),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type NumberLineIntervalResponse = z.infer<
+  typeof NumberLineIntervalResponse
+>;
+
+export const NumberLineResponse = z.discriminatedUnion('type', [
+  NumberLinePointResponse,
+  NumberLineIntervalResponse,
+]);
+export type NumberLineResponse = z.infer<typeof NumberLineResponse>;
+
+// ---- v6 (legacy) shape --------------------------------------------------------
+// Pre-number-line submissions (and pages published before the v7 runtime that
+// are still live). Kept so ingest keeps ACCEPTING v6 posts and stored rows
+// migrate forward on read. Never written by new code.
+export const SubmissionResponsesV6 = z.object({
   schemaVersion: z.literal(6),
+  blanks: z.record(z.string().uuid(), BlankResponse),
+  checkpointResults: z.record(z.string().uuid(), CheckpointResult).optional(),
+  graphResponses: z.record(z.string().uuid(), GraphResponseV4).optional(),
+  choices: z.record(z.string().uuid(), ChoiceResponse).optional(),
+  matches: z.record(z.string().uuid(), MatchResponse).optional(),
+  orderings: z.record(z.string().uuid(), OrderResponse).optional(),
+});
+export type SubmissionResponsesV6 = z.infer<typeof SubmissionResponsesV6>;
+
+// ---- v7 (current) shape -------------------------------------------------------
+// New submissions write this shape. v6 → v7 (number line): adds the optional
+// `numberLineResponses` map. Application code that reads submissions calls
+// migrateSubmissionResponses() once after reading to handle v1–v7 uniformly.
+export const SubmissionResponses = z.object({
+  schemaVersion: z.literal(7),
   // Keyed by blank.id (uuid).
   blanks: z.record(z.string().uuid(), BlankResponse),
   // Keyed by section.id. Only present in locked/free submission modes for
@@ -343,11 +399,18 @@ export const SubmissionResponses = z.object({
   matches: z.record(z.string().uuid(), MatchResponse).optional(),
   // Keyed by ordering block.id (uuid). Same omission rule.
   orderings: z.record(z.string().uuid(), OrderResponse).optional(),
+  // Keyed by number_line block.id (uuid). Absent when the activity has no
+  // number-line blocks or none were answered. Sibling to `graphResponses`,
+  // never merged — 1-D geometric answers are shaped differently and the
+  // dashboard renders them differently.
+  numberLineResponses: z
+    .record(z.string().uuid(), NumberLineResponse)
+    .optional(),
 });
 export type SubmissionResponses = z.infer<typeof SubmissionResponses>;
 
 // ---- Migration --------------------------------------------------------------
-// Reads a stored submission of any shape and returns the current (v6) shape.
+// Reads a stored submission of any shape and returns the current (v7) shape.
 // Application code that consumes submissions calls this once after reading
 // from the database; older input shapes are never propagated past this layer.
 // The Edge Function writes only the current shape.
@@ -357,14 +420,30 @@ export type SubmissionResponses = z.infer<typeof SubmissionResponses>;
 // always a valid instance of the newer shape with the new fields absent.
 export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   // Try the current shape first (the common case for new data).
-  const v6 = SubmissionResponses.safeParse(raw);
-  if (v6.success) return v6.data;
+  const v7 = SubmissionResponses.safeParse(raw);
+  if (v7.success) return v7.data;
+
+  // v6: promote by bumping the version — numberLineResponses simply absent.
+  const v6 = SubmissionResponsesV6.safeParse(raw);
+  if (v6.success) {
+    return {
+      schemaVersion: 7,
+      blanks: v6.data.blanks,
+      ...(v6.data.checkpointResults && {
+        checkpointResults: v6.data.checkpointResults,
+      }),
+      ...(v6.data.graphResponses && { graphResponses: v6.data.graphResponses }),
+      ...(v6.data.choices && { choices: v6.data.choices }),
+      ...(v6.data.matches && { matches: v6.data.matches }),
+      ...(v6.data.orderings && { orderings: v6.data.orderings }),
+    };
+  }
 
   // v5: promote by bumping the version — matches/orderings simply absent.
   const v5 = SubmissionResponsesV5.safeParse(raw);
   if (v5.success) {
     return {
-      schemaVersion: 6,
+      schemaVersion: 7,
       blanks: v5.data.blanks,
       ...(v5.data.checkpointResults && {
         checkpointResults: v5.data.checkpointResults,
@@ -378,7 +457,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   const v4 = SubmissionResponsesV4.safeParse(raw);
   if (v4.success) {
     return {
-      schemaVersion: 6,
+      schemaVersion: 7,
       blanks: v4.data.blanks,
       ...(v4.data.checkpointResults && {
         checkpointResults: v4.data.checkpointResults,
@@ -392,7 +471,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   const v3 = SubmissionResponsesV3.safeParse(raw);
   if (v3.success) {
     return {
-      schemaVersion: 6,
+      schemaVersion: 7,
       blanks: v3.data.blanks,
       ...(v3.data.checkpointResults && {
         checkpointResults: v3.data.checkpointResults,
@@ -405,7 +484,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   const v2 = SubmissionResponsesV2.safeParse(raw);
   if (v2.success) {
     return {
-      schemaVersion: 6,
+      schemaVersion: 7,
       blanks: v2.data.blanks,
       ...(v2.data.checkpointResults && {
         checkpointResults: v2.data.checkpointResults,
@@ -418,7 +497,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   // version submissions should fail loudly, not silently pass.
   const v1 = SubmissionResponsesV1.parse(raw);
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     blanks: v1.blanks,
   };
 }

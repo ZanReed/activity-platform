@@ -53,6 +53,8 @@ export type { FontSpec } from './typography.js';
 // live-preview per-choice figures with the exact engine the published page
 // uses (mc-choice figures, print/no-JS graph fallbacks).
 export { renderGraphSvg } from './graph-svg.js';
+export { renderNumberLineSvg, answerKeyMarks } from './number-line-svg.js';
+export type { NumberLineMark } from './number-line-svg.js';
 
 // Re-export the schema. Validating inputs against ActivityDocument is part
 // of the renderer's contract — anything that doesn't parse here is a

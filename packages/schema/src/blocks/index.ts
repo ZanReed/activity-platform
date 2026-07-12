@@ -22,6 +22,7 @@ import { InteractiveGraphBlock } from './interactive-graph.js';
 import { MultipleChoiceBlock } from './multiple-choice.js';
 import { MatchingBlock } from './matching.js';
 import { OrderingBlock } from './ordering.js';
+import { NumberLineBlock } from './number-line.js';
 
 export const Block = z.discriminatedUnion('type', [
   ParagraphBlock,
@@ -38,6 +39,7 @@ export const Block = z.discriminatedUnion('type', [
   MultipleChoiceBlock,
   MatchingBlock,
   OrderingBlock,
+  NumberLineBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -64,6 +66,14 @@ export {
 } from './multiple-choice.js';
 export { MatchingBlock, MatchingItem, MatchingTarget } from './matching.js';
 export { OrderingBlock, OrderingItem } from './ordering.js';
+export {
+  NumberLineBlock,
+  NumberLineConfig,
+  NumberLineInteraction,
+  NumberLinePointInteraction,
+  NumberLineIntervalInteraction,
+  NumberLineInterval,
+} from './number-line.js';
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,

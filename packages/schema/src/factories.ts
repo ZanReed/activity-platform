@@ -37,10 +37,11 @@ import type {
   MatchingTarget,
   OrderingBlock,
   OrderingItem,
+  NumberLineBlock,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
-import { AxisConfig } from './blocks/index.js';
+import { AxisConfig, NumberLineConfig } from './blocks/index.js';
 import type { BlankToken } from './inline.js';
 
 const uuid = (): string => crypto.randomUUID();
@@ -196,6 +197,21 @@ export function createInteractiveGraphBlock(): InteractiveGraphBlock {
     noSolutionCorrect: false,
     builtinFeedback: true,
     mistakeFeedback: [],
+    hasConfidenceRating: false,
+    skills: [],
+  };
+}
+
+// A default plot-a-point number line: 0..10 with unit ticks and snap on, one
+// correct point at 5 for the author to drag into place. NumberLineConfig.parse
+// fills the tick/minor/snap defaults so the result validates.
+export function createNumberLineBlock(): NumberLineBlock {
+  return {
+    id: uuid(),
+    type: 'number_line',
+    prompt: [],
+    config: NumberLineConfig.parse({ min: 0, max: 10 }),
+    interaction: { type: 'plot_point', correctPoints: [5], tolerance: 0.1 },
     hasConfidenceRating: false,
     skills: [],
   };

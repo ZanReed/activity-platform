@@ -35,6 +35,7 @@ import {
   SubmissionResponsesV3,
   SubmissionResponsesV4,
   SubmissionResponsesV5,
+  SubmissionResponsesV6,
   migrateSubmissionResponses,
   type SubmissionResponses as SubmissionResponsesType,
 } from '../_shared/renderer.bundle.js';
@@ -139,11 +140,11 @@ Deno.serve(async (req: Request) => {
     return errorResponse(req, 400, 'Must provide display_name or opaque_token');
   }
 
-  // ---- Reject non-v3/v4/v5/v6 responses --------------------------------------
-  // The current runtime emits v6 (matching + ordering: the `matches` and
-  // `orderings` maps); pages published before the v6 runtime still POST v5
-  // (multiple choice), v4 (graphs), or v3, which remain accepted and migrate
-  // forward here (each is a strict subset of v6). v1/v2 only exist as
+  // ---- Reject non-v3..v7 responses -------------------------------------------
+  // The current runtime emits v7 (number line: the `numberLineResponses` map);
+  // pages published before the v7 runtime still POST v6 (matching + ordering),
+  // v5 (multiple choice), v4 (graphs), or v3, which remain accepted and migrate
+  // forward here (each is a strict subset of v7). v1/v2 only exist as
   // already-stored data and are handled by migrateSubmissionResponses on
   // read. Reject anything else cleanly rather than silently accepting it
   // through a discriminated union — this is the canonical place to enforce
@@ -156,7 +157,8 @@ Deno.serve(async (req: Request) => {
     (rawResponses.schemaVersion !== 3 &&
       rawResponses.schemaVersion !== 4 &&
       rawResponses.schemaVersion !== 5 &&
-      rawResponses.schemaVersion !== 6)
+      rawResponses.schemaVersion !== 6 &&
+      rawResponses.schemaVersion !== 7)
   ) {
     const got =
     typeof rawResponses === 'object' && rawResponses !== null
@@ -165,21 +167,23 @@ Deno.serve(async (req: Request) => {
 return errorResponse(
   req,
   400,
-  `responses must use schemaVersion 3, 4, 5, or 6 (received: ${got})`,
+  `responses must use schemaVersion 3, 4, 5, 6, or 7 (received: ${got})`,
 );
   }
 
   // ---- Validate responses with Zod ----------------------------------------
-  // v6 parses directly; v5/v4/v3 parse via their legacy schemas and migrate
+  // v7 parses directly; v6/v5/v4/v3 parse via their legacy schemas and migrate
   // forward, so the stored row is always current-shape.
   const parsed =
-    rawResponses.schemaVersion === 6
+    rawResponses.schemaVersion === 7
       ? SubmissionResponses.safeParse(body.responses)
-      : rawResponses.schemaVersion === 5
-        ? SubmissionResponsesV5.safeParse(body.responses)
-        : rawResponses.schemaVersion === 4
-          ? SubmissionResponsesV4.safeParse(body.responses)
-          : SubmissionResponsesV3.safeParse(body.responses);
+      : rawResponses.schemaVersion === 6
+        ? SubmissionResponsesV6.safeParse(body.responses)
+        : rawResponses.schemaVersion === 5
+          ? SubmissionResponsesV5.safeParse(body.responses)
+          : rawResponses.schemaVersion === 4
+            ? SubmissionResponsesV4.safeParse(body.responses)
+            : SubmissionResponsesV3.safeParse(body.responses);
   if (!parsed.success) {
     return errorResponse(req, 422, 'responses failed schema validation', {
       issues: parsed.error.issues,

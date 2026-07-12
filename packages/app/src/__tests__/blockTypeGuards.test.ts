@@ -37,6 +37,7 @@ import {
     createBulletListBlock,
     createOrderedListBlock,
     createInteractiveGraphBlock,
+    createNumberLineBlock,
     createBlankToken,
     type Block,
 } from '@activity/schema';
@@ -85,6 +86,8 @@ function representativeBlock(type: string): ColumnCellBlock {
             return createOrderingBlock();
         case 'interactive_graph':
             return createInteractiveGraphBlock();
+        case 'number_line':
+            return createNumberLineBlock();
         case 'bullet_list':
             return createBulletListBlock();
         case 'ordered_list':
