@@ -268,13 +268,50 @@ export interface OrderingInfo {
     sectionTitle: string | null;
 }
 
+// One number_line block, for reading its submission back (1-D). Mirrors
+// GraphInfo but leaner — point values or an interval/ray, no families.
+export interface NumberLineInfo {
+    blockId: string;
+    problemNumber: number | null;
+    problemPrompt: string;
+    interactionType: string; // 'plot_point' | 'plot_interval'
+    // Human-readable answer key: a point list "3" / "−4, 5" for plot_point, or an
+    // inequality "−2 ≤ x < 4" / "x ≥ 3" for plot_interval.
+    answerSummary: string;
+    sectionId: string;
+    sectionTitle: string | null;
+}
+
 export interface ActivityIndex {
     blanks: Map<string, BlankInfo>;
     graphs: Map<string, GraphInfo>;
+    numberLines: Map<string, NumberLineInfo>;
     mcs: Map<string, McInfo>;
     matchings: Map<string, MatchInfo>;
     orderings: Map<string, OrderingInfo>;
     sections: Map<string, SectionInfo>;
+}
+
+// A student/answer-key interval → a readable inequality. Both bounds present →
+// "a ≤ x < b"; one bound → a ray "x ≥ a" / "x < b". A closed bound uses ≤/≥, an
+// open bound uses </>. Shared by the answer-key summary and the submitted-answer
+// cell so the two read alike.
+export function formatNumberLineInterval(iv: {
+    min?: number;
+    minStyle?: 'open' | 'closed';
+    max?: number;
+    maxStyle?: 'open' | 'closed';
+}): string {
+    const hasMin = typeof iv.min === 'number';
+    const hasMax = typeof iv.max === 'number';
+    if (hasMin && hasMax) {
+        const lo = iv.minStyle === 'open' ? '<' : '≤';
+        const hi = iv.maxStyle === 'open' ? '<' : '≤';
+        return `${iv.min} ${lo} x ${hi} ${iv.max}`;
+    }
+    if (hasMin) return `x ${iv.minStyle === 'open' ? '>' : '≥'} ${iv.min}`;
+    if (hasMax) return `x ${iv.maxStyle === 'open' ? '<' : '≤'} ${iv.max}`;
+    return '—';
 }
 
 // Render a fill-in-blank block's inline content to a plain-text prompt. Blanks
@@ -307,6 +344,7 @@ function canonicalAnswer(answer: string, acceptable: string[]): string {
 export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
     const blanks = new Map<string, BlankInfo>();
     const graphs = new Map<string, GraphInfo>();
+    const numberLines = new Map<string, NumberLineInfo>();
     const mcs = new Map<string, McInfo>();
     const matchings = new Map<string, MatchInfo>();
     const orderings = new Map<string, OrderingInfo>();
@@ -484,6 +522,22 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 });
                 return;
             }
+            if (block.type === 'number_line') {
+                const answerSummary =
+                    block.interaction.type === 'plot_point'
+                        ? block.interaction.correctPoints.join(', ')
+                        : formatNumberLineInterval(block.interaction.correctInterval);
+                numberLines.set(block.id, {
+                    blockId: block.id,
+                    problemNumber: block.number ?? null,
+                    problemPrompt: reconstructPrompt(block.prompt),
+                    interactionType: block.interaction.type,
+                    answerSummary,
+                    sectionId: section.id,
+                    sectionTitle: section.title ?? null,
+                });
+                return;
+            }
             if (block.type !== 'fill_in_blank') return;
             const prompt = reconstructPrompt(block.content);
 
@@ -542,7 +596,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
         for (const block of section.blocks) indexBlock(block);
     });
 
-    return { blanks, graphs, mcs, matchings, orderings, sections };
+    return { blanks, graphs, numberLines, mcs, matchings, orderings, sections };
 }
 
 // ---- Score formatting -------------------------------------------------------

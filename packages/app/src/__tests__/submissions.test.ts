@@ -315,6 +315,73 @@ describe('buildActivityIndex', () => {
         expect(idx.blanks.size).toBe(0);
     });
 
+    it('indexes a number_line block (plot_point + plot_interval, incl. a ray)', () => {
+        const meta = {
+            title: 'NL', course: 'Algebra I', submissionMode: 'free' as const,
+            revisionMode: 'free' as const, gradingMode: 'auto' as const,
+            activityType: 'worksheet' as const, answerFeedback: 'on_check' as const, skills: [],
+        };
+        const nlDoc: ActivityDocument = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta,
+            sections: [
+                {
+                    id: U(410),
+                    title: 'Lines',
+                    isCheckpoint: true,
+                    blocks: [
+                        {
+                            id: U(600),
+                            type: 'number_line',
+                            number: 1,
+                            prompt: [{ type: 'text', text: 'Plot 3.', marks: [] }],
+                            config: { min: 0, max: 10, tickStep: 1 },
+                            interaction: { type: 'plot_point', correctPoints: [3], tolerance: 0.1 },
+                        },
+                        {
+                            id: U(601),
+                            type: 'number_line',
+                            number: 2,
+                            prompt: [{ type: 'text', text: 'Graph the inequality.', marks: [] }],
+                            config: { min: -10, max: 10, tickStep: 2 },
+                            interaction: {
+                                type: 'plot_interval',
+                                correctInterval: { min: -2, minStyle: 'closed', max: 4, maxStyle: 'open' },
+                                tolerance: 0.1,
+                            },
+                        },
+                        {
+                            id: U(602),
+                            type: 'number_line',
+                            number: 3,
+                            prompt: [{ type: 'text', text: 'Graph x >= 3.', marks: [] }],
+                            config: { min: 0, max: 10, tickStep: 1 },
+                            interaction: {
+                                type: 'plot_interval',
+                                correctInterval: { min: 3, minStyle: 'closed' },
+                                tolerance: 0.1,
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(nlDoc);
+        expect(idx.numberLines.size).toBe(3);
+        const point = idx.numberLines.get(U(600))!;
+        expect(point.interactionType).toBe('plot_point');
+        expect(point.answerSummary).toBe('3');
+        expect(point.problemNumber).toBe(1);
+        expect(point.sectionTitle).toBe('Lines');
+        // Bounded closed/open interval → an inequality.
+        expect(idx.numberLines.get(U(601))!.answerSummary).toBe('-2 ≤ x < 4');
+        // One-sided ray.
+        expect(idx.numberLines.get(U(602))!.answerSummary).toBe('x ≥ 3');
+        // Not mistaken for a blank or a graph.
+        expect(idx.blanks.size).toBe(0);
+        expect(idx.graphs.size).toBe(0);
+    });
+
     it('indexes a multiple_choice block with lettered choices + answer summary', () => {
         const mcDoc: ActivityDocument = ActivityDocument.parse({
             schemaVersion: 1,

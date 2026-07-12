@@ -35,6 +35,7 @@ import {
     groupSubmissions,
     formatScore,
     fitStudentEquation,
+    formatNumberLineInterval,
     type ActivityIndex,
     type StudentGroup,
     type SubmissionRow,
@@ -294,10 +295,27 @@ function SubmissionDetail({
               })
         : [];
 
+    // Number-line responses (1-D), ordered by problem number then id.
+    const numberLineRows = responses.numberLineResponses
+        ? Object.entries(responses.numberLineResponses)
+              .map(([blockId, resp]) => ({
+                  blockId,
+                  info: index.numberLines.get(blockId),
+                  resp,
+              }))
+              .sort((a, b) => {
+                  const an = a.info?.problemNumber ?? Infinity;
+                  const bn = b.info?.problemNumber ?? Infinity;
+                  if (an !== bn) return an - bn;
+                  return a.blockId.localeCompare(b.blockId);
+              })
+        : [];
+
     return (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
         {blankCount === 0 &&
         graphRows.length === 0 &&
+        numberLineRows.length === 0 &&
         mcRows.length === 0 &&
         matchRows.length === 0 &&
         orderingRows.length === 0 ? (
@@ -631,6 +649,61 @@ function SubmissionDetail({
                     <td className="py-1 text-slate-600">
                     {g.resp.confidence
                         ? CONFIDENCE_LABELS[g.resp.confidence]
+                        : '—'}
+                    </td>
+                    </tr>
+                ))}
+                </tbody>
+                </table>
+                </div>
+            )}
+
+            {numberLineRows.length > 0 && (
+                <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Number line
+                </p>
+                <table className="mt-2 w-full text-sm">
+                <thead>
+                <tr className="text-left text-xs text-slate-400">
+                <th className="py-1 pr-3 font-medium">Problem</th>
+                <th className="py-1 pr-3 font-medium">Answer key</th>
+                <th className="py-1 pr-3 font-medium">Student answer</th>
+                <th className="py-1 pr-3 font-medium">Result</th>
+                <th className="py-1 font-medium">Confidence</th>
+                </tr>
+                </thead>
+                <tbody>
+                {numberLineRows.map((n) => (
+                    <tr key={n.blockId} className="border-t border-slate-200">
+                    <td className="py-1 pr-3 text-slate-700">
+                    {n.info?.problemNumber != null
+                        ? `Problem ${n.info.problemNumber}`
+                        : 'Number line'}
+                    {n.info?.problemPrompt && (
+                        <span className="block text-xs text-slate-400">
+                        {n.info.problemPrompt}
+                        </span>
+                    )}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-600">
+                    {n.info ? n.info.answerSummary : '—'}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-900">
+                    {n.resp.type === 'plot_point'
+                        ? n.resp.studentPoints.join(', ')
+                        : formatNumberLineInterval(n.resp)}
+                    </td>
+                    <td className="py-1 pr-3">
+                    {n.resp.correct ? (
+                        <span className="font-medium text-green-700">✓ correct</span>
+                    ) : (
+                        <span className="font-medium text-red-600">✗ incorrect</span>
+                    )}
+                    </td>
+                    <td className="py-1 text-slate-600">
+                    {n.resp.confidence
+                        ? CONFIDENCE_LABELS[n.resp.confidence]
                         : '—'}
                     </td>
                     </tr>
