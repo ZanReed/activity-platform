@@ -273,7 +273,8 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
 
         case 'fence': {
             // Tagged fences are block DSLs — ```graph (Drop 7), ```mc,
-            // ```match, ```order, ```dataplot; other fences stay unsupported.
+            // ```match, ```order, ```dataplot, ```numberline; other fences stay
+            // unsupported.
             if ((node.token.info ?? '').trim() === 'graph') {
                 const graph = parseGraphFence(node.token.content, ctx);
                 if (graph) return [graph];
@@ -297,6 +298,11 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
             if ((node.token.info ?? '').trim() === 'dataplot') {
                 const dataPlot = parseDataPlotFence(node.token.content, ctx);
                 if (dataPlot) return [dataPlot];
+                return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'numberline') {
+                const numberLine = parseNumberLineFence(node.token.content, ctx);
+                if (numberLine) return [numberLine];
                 return [rawTextParagraph(node.token.content)];
             }
             ctx.warnings.add(
@@ -1327,6 +1333,193 @@ function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
         },
         content: graphPromptContent(prompt, ctx),
     };
+}
+
+// ```numberline fence — the 1-D number-line DSL (number_line block). One
+// statement per line:
+//   prompt: Graph x >= -2.                ($inline$ math ok)
+//   answer: x >= -2                       (an inequality → an interval/ray)
+//   axis: -10..10 step 2                  (optional; omitted → auto-fit)
+//   solution: A closed dot means "or equal to".
+//   options: confidence
+// The answer is EITHER a point list — bare numbers, "answer: -3, 4" — OR a
+// single/compound inequality that becomes an interval or ray:
+//   x >= 3        min 3 closed, no max  (ray → +∞)
+//   x < 5         max 5 open,   no min  (ray → -∞)
+//   -2 <= x < 5   min -2 closed, max 5 open  (bounded interval)
+// >= / <= give closed endpoints, > / < open ones. Unlike the graph and data-plot
+// fences there is NO show: line — the number_line block has no static display
+// mode; both its interactions are graded. The match tolerance is the block
+// default (0.1 line units); the axis window auto-fits the answer values when no
+// axis: line is given.
+function parseNumberLineFence(src: string, ctx: Ctx): JSONContent | null {
+    const fail = (msg: string): null => {
+        ctx.warnings.add('Number line block: ' + msg + ' — imported as plain text.');
+        return null;
+    };
+
+    let prompt = '';
+    let solution: InlineNode[] | null = null;
+    let hasConfidenceRating = false;
+    let axis: { min: number; max: number } | null = null;
+    let step = 1;
+    let interaction: Record<string, unknown> | null = null;
+    // Finite anchor values (point positions or present interval bounds) the
+    // auto-fit window is sized around.
+    let anchors: number[] = [];
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        const m = /^(prompt|answer|axis|solution|options):\s*(.*)$/i.exec(line);
+        if (!m) return fail(`unrecognized line "${line}"`);
+        const value = (m[2] ?? '').trim();
+        switch ((m[1] ?? '').toLowerCase()) {
+            case 'prompt':
+                prompt = value;
+                break;
+            case 'solution':
+                if (value) solution = schemaInlineContent(value, ctx);
+                break;
+            case 'options':
+                for (const opt of value.split(',').map((o) => o.trim().toLowerCase())) {
+                    if (opt === 'confidence') hasConfidenceRating = true;
+                    else if (opt) return fail(`unknown option "${opt}"`);
+                }
+                break;
+            case 'axis': {
+                const a = /^(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)(?:\s+step\s+([\d.]+))?$/i.exec(value);
+                if (!a) return fail('axis must look like "-10..10" or "-10..10 step 2"');
+                const min = Number(a[1]);
+                const max = Number(a[2]);
+                if (!(min < max)) return fail('the axis range needs min < max');
+                axis = { min, max };
+                if (a[3] !== undefined) {
+                    step = Number(a[3]);
+                    if (!(step > 0)) return fail('the axis step must be positive');
+                }
+                break;
+            }
+            case 'answer': {
+                if (interaction) return fail('only one answer: line per block');
+                if (/[<>]/.test(value)) {
+                    const interval = parseNumberLineInterval(value);
+                    if (!interval) {
+                        return fail(
+                            `couldn't read the inequality "${value}" — write e.g. "x >= 3", "x < 5", or "-2 <= x < 5"`,
+                        );
+                    }
+                    interaction = { type: 'plot_interval', correctInterval: interval, tolerance: 0.1 };
+                    if (interval.min !== undefined) anchors.push(interval.min);
+                    if (interval.max !== undefined) anchors.push(interval.max);
+                } else {
+                    const parts = value.split(/[,\s]+/).filter((p) => p.length > 0);
+                    if (parts.length === 0) return fail('the answer needs a value');
+                    const points: number[] = [];
+                    for (const p of parts) {
+                        const n = Number(p);
+                        if (!Number.isFinite(n)) {
+                            return fail(`"${p}" is not a number or a recognized inequality`);
+                        }
+                        points.push(n);
+                    }
+                    interaction = { type: 'plot_point', correctPoints: points, tolerance: 0.1 };
+                    anchors = anchors.concat(points);
+                }
+                break;
+            }
+        }
+    }
+
+    if (!interaction) return fail('needs an answer: line');
+
+    let min: number;
+    let max: number;
+    if (axis) {
+        min = axis.min;
+        max = axis.max;
+        if (anchors.some((v) => v < min || v > max)) {
+            ctx.warnings.add(
+                'Number line block: an answer value falls outside the axis window — the student can’t place it there.',
+            );
+        }
+    } else {
+        // Auto-fit around the answer anchors, floor/ceil'd to the step, then
+        // padded a step each side so a point or endpoint isn't jammed at the
+        // edge and a ray visibly extends past its bound.
+        let lo = Math.floor(Math.min(...anchors) / step) * step;
+        let hi = Math.ceil(Math.max(...anchors) / step) * step;
+        if (hi - lo < step) {
+            lo -= step;
+            hi += step;
+        }
+        min = lo - step;
+        max = hi + step;
+    }
+
+    return {
+        type: 'numberLine',
+        attrs: {
+            id: '',
+            config: { min, max, tickStep: step, minorTicksPerStep: 0, snapToTick: true },
+            interaction,
+            solution,
+            hasConfidenceRating,
+            skills: [],
+        },
+        content: graphPromptContent(prompt, ctx),
+    };
+}
+
+// Parse a single or compound 1-D inequality into a NumberLineInterval
+// ({ min?, minStyle?, max?, maxStyle? }). Returns null on anything unrecognized.
+// >= / <= are closed endpoints, > / < open. The variable is any single letter.
+function parseNumberLineInterval(
+    raw: string,
+): { min?: number; minStyle?: 'open' | 'closed'; max?: number; maxStyle?: 'open' | 'closed' } | null {
+    const value = raw.trim();
+    const style = (op: string): 'open' | 'closed' => (op === '<=' || op === '>=' ? 'closed' : 'open');
+
+    // Compound, low-on-the-left form: "-2 <= x < 5" (both operators point the
+    // same increasing direction). The left number is the lower bound, the right
+    // the upper.
+    const compound = /^(-?[\d.]+)\s*(<=|<)\s*[a-z]\s*(<=|<)\s*(-?[\d.]+)$/i.exec(value);
+    if (compound) {
+        const lo = Number(compound[1]);
+        const hi = Number(compound[4]);
+        if (!Number.isFinite(lo) || !Number.isFinite(hi) || !(lo < hi)) return null;
+        return {
+            min: lo,
+            minStyle: style(compound[2]!),
+            max: hi,
+            maxStyle: style(compound[3]!),
+        };
+    }
+
+    // Single, variable on the left: "x >= 3", "x < 5".
+    const left = /^[a-z]\s*(<=|>=|<|>)\s*(-?[\d.]+)$/i.exec(value);
+    if (left) {
+        const op = left[1]!;
+        const n = Number(left[2]);
+        if (!Number.isFinite(n)) return null;
+        return op === '>' || op === '>='
+            ? { min: n, minStyle: style(op) }
+            : { max: n, maxStyle: style(op) };
+    }
+
+    // Single, variable on the right: "3 <= x" (≡ x >= 3), "5 > x" (≡ x < 5).
+    const right = /^(-?[\d.]+)\s*(<=|>=|<|>)\s*[a-z]$/i.exec(value);
+    if (right) {
+        const op = right[2]!;
+        const n = Number(right[1]);
+        if (!Number.isFinite(n)) return null;
+        // Flip: "n < x" means x > n (a lower bound); "n > x" means x < n (upper).
+        return op === '<' || op === '<='
+            ? { min: n, minStyle: style(op) }
+            : { max: n, maxStyle: style(op) };
+    }
+
+    return null;
 }
 
 function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {

@@ -1,6 +1,6 @@
 # Number-line block (`number_line`)
 
-**Status:** ✅ SHIPPED (code complete, all green; 2026-07-12) — pending the author's deploy train (wire-v7 ingest redeploy + kit upload, see STATE). All §3 decisions resolved by the author = the recommended answers (1b both interactions; 2a own `numberLineResponses` map + wire v6→v7 + storage bump; 3a reuse the kit; 4 print-SVG in slice 1; 5 lean config, integer ticks; 6 all-or-nothing; 7 defer import). **Built + committed (all 6 slices):** schema + wire v7 + ingest (`b5fe4aa`), static renderer + print/no-JS SVG (`b5fe4aa`), pure kit scorer (`592c15b`), interactive JSXGraph 1-D board + mount entries (`31de219`, browser-verified at `/dev/number-line`), the **runtime bridge** (`numberLineExt` seam + `attachNumberLineRuntime` + `STORAGE_SCHEMA_VERSION` 7→8 + runtime wire 6→7; `565ca6d`, browser-verified on a bundle-rendered page: plot→check→score→reload-restore→submit), the **editor NodeView** (author board reusing `mountNumberLineAuthor` + numeric editor + serialize round-trip; `5a551d6`, browser-verified at `/playground`), and the **dashboard "Number line" table** (`9ea33e4`). As-built deltas: the block is deliberately leaner than the graph block (no partialCredit / allowNoSolution / mistakeFeedback); an interval omits a bound to become a ray (no separate `plot_ray` variant in slice 1). Follow-ups (§4) unchanged: ```numberline``` import fence, `plot_ray`/`display` variants, fraction tick labels, interval partial credit.
+**Status:** ✅ SHIPPED (code complete, all green; 2026-07-12) — pending the author's deploy train (wire-v7 ingest redeploy + kit upload, see STATE). All §3 decisions resolved by the author = the recommended answers (1b both interactions; 2a own `numberLineResponses` map + wire v6→v7 + storage bump; 3a reuse the kit; 4 print-SVG in slice 1; 5 lean config, integer ticks; 6 all-or-nothing; 7 defer import). **Built + committed (all 6 slices):** schema + wire v7 + ingest (`b5fe4aa`), static renderer + print/no-JS SVG (`b5fe4aa`), pure kit scorer (`592c15b`), interactive JSXGraph 1-D board + mount entries (`31de219`, browser-verified at `/dev/number-line`), the **runtime bridge** (`numberLineExt` seam + `attachNumberLineRuntime` + `STORAGE_SCHEMA_VERSION` 7→8 + runtime wire 6→7; `565ca6d`, browser-verified on a bundle-rendered page: plot→check→score→reload-restore→submit), the **editor NodeView** (author board reusing `mountNumberLineAuthor` + numeric editor + serialize round-trip; `5a551d6`, browser-verified at `/playground`), and the **dashboard "Number line" table** (`9ea33e4`). As-built deltas: the block is deliberately leaner than the graph block (no partialCredit / allowNoSolution / mistakeFeedback); an interval omits a bound to become a ray (no separate `plot_ray` variant in slice 1). Follow-ups (§4): the ```numberline``` import fence ✅ SHIPPED 2026-07-12 (fast follow — importer + Copy-AI prompt + docs/markdown-import-format.md + drift guards); remaining: `plot_ray`/`display` variants, fraction tick labels, interval partial credit.
 
 A 1-D graded block: the student places point(s) and/or drags interval(s) with open/closed endpoints on a single number line. The K-8 / early-algebra counterpart to the 2-D `interactive_graph` block — "graph the inequality on the number line," "plot 3/4," "show all x where x ≥ −2."
 
@@ -62,7 +62,7 @@ Proposed lean config: `{ min, max, tickStep, minorTicksPerStep?, snapToTick (def
 
 **Decision 7 — Markdown ```numberline``` import in slice 1, or defer?**
 The ```graph``` fence shipped *after* the graph block, once the shape settled.
-- **Recommendation: defer.** Build the block + editor first; add the fence (and the Copy-AI prompt line + drift-guard test) as a fast follow once the authored shape is proven — same sequence graph followed.
+- **Recommendation: defer.** Build the block + editor first; add the fence (and the Copy-AI prompt line + drift-guard test) as a fast follow once the authored shape is proven — same sequence graph followed. *(✅ SHIPPED 2026-07-12 as the fast follow: `answer:` is a point list OR a single/compound inequality → interval/ray (`>=`/`<=` closed, `>`/`<` open); optional auto-fit `axis:`; no `show:` line since the block has no display mode. Spec in [markdown-import-format.md](../markdown-import-format.md).)*
 
 ## 4. Proposed slice plan (once decisions land)
 
@@ -75,7 +75,7 @@ Assuming the recommended answers (1b, 2a, 3a, 4-yes, 5 lean, 6 all-or-nothing, 7
 5. **Editor** — NodeView with a WYSIWYG author board (teacher places the key) + a numeric list editor (mirror `DrawableListEditor`); slash-menu + Insert entry; serialize round-trip; columns content expr.
 6. **Dashboard** — `numberLines` index map + a "Number line" table (plotted value/interval vs key).
 
-Follow-ups (post-slice-1): ```numberline``` import fence, `plot_ray`/`display` variants, fraction tick labels, interval partial credit.
+Follow-ups (post-slice-1): ```numberline``` import fence ✅ SHIPPED 2026-07-12, `plot_ray`/`display` variants, fraction tick labels, interval partial credit.
 
 ## 5. Cost / risk notes
 

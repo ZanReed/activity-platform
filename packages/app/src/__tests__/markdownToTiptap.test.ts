@@ -10,7 +10,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
-import { ActivityMeta, DataPlotBlock } from '@activity/schema';
+import { ActivityMeta, DataPlotBlock, NumberLineBlock } from '@activity/schema';
 import {
     getMarkdownImporter,
     type MarkdownImporter,
@@ -764,6 +764,134 @@ describe('data-plot fence (```dataplot)', () => {
         expect(() => DataPlotBlock.parse(block)).not.toThrow();
         // And it re-emits unchanged — imported ≡ authored.
         expect(roundTrip(md)).toEqual(blocks(md));
+    });
+});
+
+describe('number-line fence (```numberline)', () => {
+    it('imports a point-plot answer and auto-fits the axis around it', () => {
+        const { blocks, warnings } = convert(
+            '```numberline\nprompt: Plot $-3$ and 4.\nanswer: -3, 4\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const nl = blocks[0]!;
+        expect(nl.type).toBe('numberLine');
+        expect(nl.attrs).toMatchObject({
+            interaction: { type: 'plot_point', correctPoints: [-3, 4], tolerance: 0.1 },
+            // floor(-3)..ceil(4) padded a step each side at the default step 1
+            config: { min: -4, max: 5, tickStep: 1, snapToTick: true },
+        });
+        expect(nl.content).toEqual([
+            { type: 'text', text: 'Plot ' },
+            { type: 'mathInline', attrs: { latex: '-3' } },
+            { type: 'text', text: ' and 4.' },
+        ]);
+    });
+
+    it('a single >= inequality becomes a closed-min ray', () => {
+        const nl = convert('```numberline\nanswer: x >= -2\n```').blocks[0]!;
+        expect(nl.attrs).toMatchObject({
+            interaction: {
+                type: 'plot_interval',
+                correctInterval: { min: -2, minStyle: 'closed' },
+                tolerance: 0.1,
+            },
+        });
+        expect(nl.attrs!.interaction.correctInterval).not.toHaveProperty('max');
+    });
+
+    it('a strict < inequality becomes an open-max ray', () => {
+        const nl = convert('```numberline\nanswer: x < 5\n```').blocks[0]!;
+        expect(nl.attrs!.interaction.correctInterval).toEqual({ max: 5, maxStyle: 'open' });
+    });
+
+    it('a compound inequality becomes a two-sided interval with per-end styles', () => {
+        const nl = convert('```numberline\nanswer: -2 <= x < 5\n```').blocks[0]!;
+        expect(nl.attrs!.interaction.correctInterval).toEqual({
+            min: -2,
+            minStyle: 'closed',
+            max: 5,
+            maxStyle: 'open',
+        });
+    });
+
+    it('accepts the variable on the right (3 < x) and flips it to a lower bound', () => {
+        const nl = convert('```numberline\nanswer: 3 < x\n```').blocks[0]!;
+        expect(nl.attrs!.interaction.correctInterval).toEqual({ min: 3, minStyle: 'open' });
+    });
+
+    it('an explicit axis line sets the window and step', () => {
+        const { blocks, warnings } = convert(
+            '```numberline\nanswer: x >= 3\naxis: -10..10 step 2\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        expect(blocks[0]!.attrs).toMatchObject({
+            config: { min: -10, max: 10, tickStep: 2 },
+        });
+    });
+
+    it('solution and options: confidence carry through', () => {
+        const nl = convert(
+            '```numberline\nanswer: 5\nsolution: A dot marks the value.\noptions: confidence\n```',
+        ).blocks[0]!;
+        expect(nl.attrs).toMatchObject({ hasConfidenceRating: true });
+        expect(nl.attrs!.solution).toEqual([
+            { type: 'text', text: 'A dot marks the value.', marks: [] },
+        ]);
+    });
+
+    it('an answer value outside an explicit window imports with a warning', () => {
+        const { blocks, warnings } = convert(
+            '```numberline\nanswer: 25\naxis: 0..10\n```',
+        );
+        expect(blocks[0]!.type).toBe('numberLine');
+        expect(warnings.some((w) => w.includes('outside the axis window'))).toBe(true);
+    });
+
+    it('the imported block survives the schema bridge and Zod-validates', () => {
+        const md =
+            '```numberline\nprompt: Graph the solution.\nanswer: -2 <= x < 5\nsolution: Note the endpoints.\noptions: confidence\n```';
+        const doc = { type: 'doc', content: convert(md).blocks };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections
+            .flatMap((s) => s.blocks)
+            .find((b) => b.type === 'number_line')!;
+        expect(() => NumberLineBlock.parse(block)).not.toThrow();
+        expect(roundTrip(md)).toEqual(blocks(md));
+    });
+
+    const degraded: { name: string; md: string; hint: string }[] = [
+        { name: 'no answer line', md: '```numberline\nprompt: hi\n```', hint: 'answer:' },
+        {
+            name: 'two answer lines',
+            md: '```numberline\nanswer: 5\nanswer: x > 1\n```',
+            hint: 'one answer:',
+        },
+        {
+            name: 'an unreadable inequality',
+            md: '```numberline\nanswer: x =< 3\n```',
+            hint: "couldn't read the inequality",
+        },
+        {
+            name: 'a non-numeric point',
+            md: '```numberline\nanswer: -3, foo\n```',
+            hint: 'not a number',
+        },
+        {
+            name: 'a malformed axis line',
+            md: '```numberline\nanswer: 5\naxis: 0 to 10\n```',
+            hint: 'axis must look like',
+        },
+        {
+            name: 'an unrecognized line',
+            md: '```numberline\nanswer: 5\nshow: dotplot\n```',
+            hint: 'unrecognized line',
+        },
+    ];
+
+    it.each(degraded)('$name degrades to plain text with a warning', ({ md, hint }) => {
+        const { blocks, warnings } = convert(md);
+        expect(blocks[0]!.type).not.toBe('numberLine');
+        expect(warnings.some((w) => w.includes(hint))).toBe(true);
     });
 });
 

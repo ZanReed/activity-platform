@@ -25,6 +25,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a paragraph containing `{{…}}` | a **fill-in-the-blank problem block** |
 | a list whose items contain `{{…}}` | **one problem block per item** |
 | `## Topic {checkpoint}` | a **checkpoint section break** titled "Topic" |
+| a ` ```numberline ` fenced block | a **1-D number-line question** — plot points, or graph an inequality (see below) |
 | a ` ```dataplot ` fenced block | a **statistics-chart question** — dot plot, histogram, box plot (see below) |
 | a ` ```mc ` fenced block | a **multiple-choice question** (see below) |
 | a ` ```match ` fenced block | a **matching question** (see below) |
@@ -136,6 +137,20 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     show: expression sin(x)      (plots any formula)
     show: ray (0,0) (2,1) open
 
+NUMBER LINES (a fenced block with the `numberline` tag becomes a 1-D number-line question)
+- ```numberline … ``` with one statement per line:
+    prompt: Graph $x \ge -2$.
+    answer: x >= -2
+- answer: is EITHER a point (or comma-separated points) the student plots —
+  answer: -3, 4 — OR an inequality the student graphs as an interval/ray:
+    answer: x >= 3        (a ray from 3 to the right, closed dot)
+    answer: x < 5         (a ray to the left, open dot)
+    answer: -2 <= x < 5   (a bounded interval)
+  >= and <= draw a closed (filled) endpoint; > and < draw an open one.
+- axis: -10..10 step 2 (optional) sets the window and tick step; left out,
+  the axis fits the answer automatically.
+- Optional lines:  solution: <worked explanation>   and   options: confidence
+
 DATA PLOTS (a fenced block with the `dataplot` tag becomes a statistics-chart question)
 - ```dataplot … ``` with one statement per line:
     prompt: Make a dot plot of the data.
@@ -200,9 +215,9 @@ OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
-  other than ```graph, ```dataplot, ```mc, ```match, and ```order — only the
-  single outer block that wraps the whole reply and those fences are allowed;
-  anything unsupported imports as plain text.
+  other than ```graph, ```numberline, ```dataplot, ```mc, ```match, and
+  ```order — only the single outer block that wraps the whole reply and those
+  fences are allowed; anything unsupported imports as plain text.
 
 When I describe the activity I want, reply with only that single code block.
 ```
@@ -230,6 +245,28 @@ options: partial-credit, allow-no-solution
 - `options:` `partial-credit`, `allow-no-solution`, `no-solution-correct`.
 
 A malformed graph block imports as plain text with a warning, never silently guessing.
+
+## Number-line blocks (```numberline fence)
+
+A fenced code block with the `numberline` language tag becomes a number-line (1-D) block — the student plots points, or graphs an inequality as an interval/ray. One statement per line:
+
+```
+```numberline
+prompt: Graph the solution set.
+answer: -2 <= x < 5
+options: confidence
+```⠀
+```
+
+- `answer:` **required**, and is ONE of:
+  - **Points** — bare numbers, comma- or space-separated: `answer: -3, 4` (the student plots each). Scored consume-once, all-or-nothing.
+  - **An inequality** → an interval or ray. A single inequality gives a ray: `x >= 3` (min 3, closed, extends right), `x < 5` (max 5, open, extends left). A compound inequality gives a bounded interval: `-2 <= x < 5`. `>=`/`<=` draw a **closed** (filled) endpoint, `>`/`<` an **open** one. The variable may be on either side (`3 < x` ≡ `x > 3`).
+- `axis: -10..10 step 2` (optional) — the window and tick step (step optional, default 1). Left out, the window auto-fits the answer values (padded a step each side so points and endpoints aren't jammed at the edge, and a ray visibly extends). An answer value outside an *explicit* window imports with a warning (the student couldn't place it there).
+- `prompt:` the question text (optional). Accepts `$inline$` math; `{{…}}` blanks stay literal here.
+- `solution:` optional worked explanation; `options: confidence` asks for a confidence rating.
+- There is **no `show:` line** — unlike the graph and data-plot fences, the number-line block has no static display mode; both interactions are graded.
+
+A malformed number-line block imports as plain text with a warning.
 
 ## Data-plot blocks (```dataplot fence)
 

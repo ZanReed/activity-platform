@@ -219,6 +219,44 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'number-line fence: point-plot answer',
+        fragment: 'answer: -3, 4',
+        md: '```numberline\nanswer: -3, 4\n```',
+        check: (b) => {
+            const nl = b.find((n) => n.type === 'numberLine')!;
+            expect(nl).toBeDefined();
+            expect(nl.attrs).toMatchObject({
+                interaction: { type: 'plot_point', correctPoints: [-3, 4] },
+            });
+        },
+    },
+    {
+        name: 'number-line fence: inequality → ray',
+        fragment: 'answer: x >= 3',
+        md: '```numberline\nanswer: x >= 3\n```',
+        check: (b) => {
+            const nl = b.find((n) => n.type === 'numberLine')!;
+            expect(nl.attrs!.interaction).toMatchObject({
+                type: 'plot_interval',
+                correctInterval: { min: 3, minStyle: 'closed' },
+            });
+        },
+    },
+    {
+        name: 'number-line fence: compound inequality → interval',
+        fragment: 'answer: -2 <= x < 5',
+        md: '```numberline\nanswer: -2 <= x < 5\n```',
+        check: (b) => {
+            const nl = b.find((n) => n.type === 'numberLine')!;
+            expect(nl.attrs!.interaction.correctInterval).toEqual({
+                min: -2,
+                minStyle: 'closed',
+                max: 5,
+                maxStyle: 'open',
+            });
+        },
+    },
+    {
         name: 'data-plot fence: graded build computed from the data',
         fragment: 'data: 3, 5, 5, 6, 8',
         md: '```dataplot\nprompt: Make a dot plot of the data.\ndata: 3, 5, 5, 6, 8\nanswer: dotplot\n```',
