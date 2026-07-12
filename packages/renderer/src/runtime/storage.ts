@@ -31,6 +31,7 @@ import type {
   MatchBlockState,
   OrderBlockState,
   GraphBlockState,
+  NumberLineBlockState,
   SectionState,
 } from './state.js';
 
@@ -78,7 +79,9 @@ export function saveName(name: string): void {
 // solution reveal, confidence per multiple_choice block).
 // 6 → 7 (matching + ordering): the blob gained `matches` (docked pairs,
 // per-pair earned/total) and `orderings` (arrangement + moved flag) maps.
-const STORAGE_SCHEMA_VERSION = 7;
+// 7 → 8 (number line): the blob gained a `numberLines` map (plotted points or
+// interval/ray bounds + styles, scoring, solution reveal, confidence).
+const STORAGE_SCHEMA_VERSION = 8;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {
@@ -97,6 +100,8 @@ export interface StoredActivityState {
   orderings: Record<string, OrderBlockState>;
   /** Per-interactive-graph-block state snapshot. */
   graphs: Record<string, GraphBlockState>;
+  /** Per-number_line-block state snapshot. */
+  numberLines: Record<string, NumberLineBlockState>;
   /** Per-section state snapshot. */
   sections: Record<string, SectionState>;
 }
@@ -135,6 +140,7 @@ export function saveActivityState(
       matches: state.matches,
       orderings: state.orderings,
       graphs: state.graphs,
+      numberLines: state.numberLines,
       sections: state.sections,
     };
     localStorage.setItem(
@@ -278,6 +284,11 @@ export function applyStoredState(
   }
   for (const [id, graphState] of Object.entries(stored.graphs ?? {})) {
     if (state.graphs[id]) state.graphs[id] = graphState;
+  }
+  // Number-line restore is state-only, like graphs: the kit's attach reads the
+  // restored studentPoints/interval and calls the widget's restore().
+  for (const [id, nlState] of Object.entries(stored.numberLines ?? {})) {
+    if (state.numberLines[id]) state.numberLines[id] = nlState;
   }
   for (const [id, sectionState] of Object.entries(stored.sections)) {
     if (state.sections[id]) state.sections[id] = sectionState;

@@ -15,8 +15,8 @@
 // The real graph-integration.ts is what dev, tsc, and the vitest suite see.
 // =============================================================================
 
-import type { GraphExt } from './graph-integration.js';
-import type { GraphBlockState } from './state.js';
+import type { GraphExt, NumberLineExt } from './graph-integration.js';
+import type { GraphBlockState, NumberLineBlockState } from './state.js';
 
 export const graphExt: GraphExt = {
   walkGraphBlocks: () => [],
@@ -26,4 +26,14 @@ export const graphExt: GraphExt = {
   revealGraphSolutions: () => {},
   gatherGraphResponses: () => ({ correct: 0, scored: 0 }),
   wireGraphs: () => {},
+};
+
+export const numberLineExt: NumberLineExt = {
+  walkNumberLineBlocks: () => [],
+  initNumberLineState: (): Record<string, NumberLineBlockState> => ({}),
+  renderNumberLines: () => {},
+  scoreSectionNumberLines: () => ({ correct: 0, total: 0 }),
+  revealNumberLineSolutions: () => {},
+  gatherNumberLineResponses: () => ({ correct: 0, scored: 0 }),
+  wireNumberLines: () => {},
 };

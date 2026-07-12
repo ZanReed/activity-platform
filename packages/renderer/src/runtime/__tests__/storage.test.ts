@@ -106,6 +106,7 @@ function makeState(
         blocks,
         mcs: {}, matches: {}, orderings: {}, arrange: null,
         graphs: {},
+        numberLines: {},
         ...overrides,
     };
 }
@@ -117,6 +118,7 @@ function makeRefs(blanks: Map<string, BlankRef>): Refs {
         mcs: new Map(), matches: new Map(), orderings: new Map(),
     graphs: new Map(),
         graphDisplays: new Map(),
+        numberLines: new Map(),
         sections: new Map(),
         popover: null,
     };
@@ -254,6 +256,7 @@ describe('applyStoredState', () => {
             blocks: {},
             mcs: {}, matches: {}, orderings: {},
             graphs: {},
+            numberLines: {},
             sections: {},
         };
         applyStoredState(stored, refs, state);
@@ -282,6 +285,7 @@ describe('applyStoredState', () => {
             },
             mcs: {}, matches: {}, orderings: {},
             graphs: {},
+            numberLines: {},
             sections: {
                 'sec-1': {
                     checked: true,
@@ -314,6 +318,7 @@ describe('applyStoredState', () => {
             blocks: {},
             mcs: {}, matches: {}, orderings: {},
             graphs: {},
+            numberLines: {},
             sections: {},
         };
         applyStoredState(stored, refs, state);

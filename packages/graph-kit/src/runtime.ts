@@ -29,6 +29,11 @@ import {
   type GraphQuestionHandle,
   type GraphResponseData,
 } from './graph-question.js';
+import {
+  mountNumberLineQuestion,
+  type NumberLineQuestionHandle,
+  type NumberLineResponseData,
+} from './number-line-question.js';
 import { fitFunction, handlesForFamily } from './graph-score.js';
 import type {
   GraphBlockState,
@@ -36,6 +41,10 @@ import type {
   GraphRuntimeContext,
   GraphRuntimeExt,
   GraphSectionStateView,
+  NumberLineBlockState,
+  NumberLineRuntimeBlockRef,
+  NumberLineRuntimeContext,
+  NumberLineRuntimeExt,
 } from './runtime-contract.js';
 
 function warn(message: string): void {
@@ -406,6 +415,244 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
   // First chrome paint: reflect whatever state the runtime restored before we
   // arrived (revealed solutions, verdicts, confidence) — the "beat later"
   // paint the move accepted.
+  ext.render();
+
+  return ext;
+}
+
+// =============================================================================
+// Number-line plumbing (kit side of the numberLineExt bridge)
+// -----------------------------------------------------------------------------
+// The 1-D sibling of the graph plumbing above, riding the SAME lazy kit. The
+// inline bridge (packages/renderer/src/runtime/graph-integration.ts) keeps only
+// the cheap init walk + scoring fold + submit gather; this owns the DOM-heavy
+// half: data-attribute parsing, chrome rendering (feedback line, solution slot,
+// confidence radios, widget lock), and mounting/restoring the board. Leaner
+// than the graph plumbing by design (decision 6): no mistakes, no partial
+// credit — the widget scores all-or-nothing and reports correct/answered.
+// =============================================================================
+
+/** The chrome-level view of one graded number-line block: parsed attributes +
+ *  the DOM regions this module owns. `handle` resolves asynchronously on mount. */
+export interface NumberLineChromeRef {
+  el: HTMLElement;
+  canvas: HTMLElement;
+  sectionId: string;
+  interactionType: string;
+  feedbackEl: HTMLElement | null;
+  solutionEl: HTMLElement | null;
+  confidenceRadios: HTMLInputElement[];
+  config: unknown;
+  answerKey: unknown;
+  handle: NumberLineQuestionHandle | null;
+}
+
+/** Parse one graded number-line block's chrome from its element. Exported for
+ *  the kit's own tests, like buildGraphChrome. */
+export function buildNumberLineChrome(
+  blockId: string,
+  ref: NumberLineRuntimeBlockRef,
+): NumberLineChromeRef {
+  const el = ref.el;
+  const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
+    '.js-confidence-rating',
+  );
+  const confidenceRadios: HTMLInputElement[] = confidenceFieldset
+    ? Array.prototype.slice.call(
+        confidenceFieldset.querySelectorAll<HTMLInputElement>(
+          'input[type="radio"]',
+        ),
+      )
+    : [];
+
+  return {
+    el,
+    canvas: ref.canvas,
+    sectionId: ref.sectionId,
+    interactionType: ref.interactionType,
+    feedbackEl: el.querySelector<HTMLElement>('.js-numberline-feedback'),
+    solutionEl: el.querySelector<HTMLElement>('.js-solution'),
+    confidenceRadios,
+    config: parseGraphAttr(
+      el.dataset.numberlineConfig,
+      blockId,
+      'data-numberline-config',
+    ),
+    answerKey: parseGraphAttr(
+      el.dataset.numberlineAnswerKey,
+      blockId,
+      'data-numberline-answer-key',
+    ),
+    handle: null,
+  };
+}
+
+// SR-only narration of an interval/ray answer (the visible readout would hand
+// away a "graph the inequality" answer, so the block CSS hides data-mode=
+// narrate). Describes each bounded end + its open/closed style; an absent bound
+// reads as unbounded (a ray).
+function describeInterval(iv: NumberLineBlockState['interval']): string {
+  if (!iv) return '';
+  const left =
+    iv.min === undefined
+      ? 'unbounded on the left'
+      : 'from ' + iv.min + ' (' + (iv.minStyle ?? 'closed') + ')';
+  const right =
+    iv.max === undefined
+      ? 'unbounded on the right'
+      : 'to ' + iv.max + ' (' + (iv.maxStyle ?? 'closed') + ')';
+  return 'Interval ' + left + ' ' + right + '.';
+}
+
+/**
+ * Reflect one number-line block's state into the DOM regions this module owns:
+ * the aria-live feedback line, the solution slot, the confidence radios, and the
+ * widget lock. The board itself is the widget's. Exported for the kit's tests.
+ */
+export function renderNumberLineChrome(
+  chrome: NumberLineChromeRef,
+  nlState: NumberLineBlockState,
+  section: GraphSectionStateView | undefined,
+): void {
+  // Solution slot — hidden until revealed at check time (fail-closed).
+  if (chrome.solutionEl) {
+    const wantHidden = !nlState.solutionRevealed;
+    if (chrome.solutionEl.hidden !== wantHidden) {
+      chrome.solutionEl.hidden = wantHidden;
+    }
+  }
+
+  // Confidence radios reflect the stored selection and freeze with the widget
+  // once the section is locked (same section?.locked condition as setLocked).
+  const locked = section?.locked === true;
+  for (const radio of chrome.confidenceRadios) {
+    const wantChecked = radio.value === nlState.confidence;
+    if (radio.checked !== wantChecked) radio.checked = wantChecked;
+    if (radio.disabled !== locked) radio.disabled = locked;
+  }
+
+  // Feedback line: after the section is checked, reveal correctness; before
+  // that, narrate the plotted answer for screen-reader users (SR-only via
+  // data-mode=narrate; the visible result stays data-mode=result). Lean —
+  // no mistake feedback (decision 6).
+  if (chrome.feedbackEl) {
+    const checked = section?.checked === true;
+    let text = '';
+    let dataState: string | null = null;
+    let dataMode: string | null = null;
+    if (checked && nlState.result !== null) {
+      dataState = nlState.result ? 'correct' : 'incorrect';
+      dataMode = 'result';
+      text = nlState.result ? 'Correct!' : 'Not quite — try again.';
+    } else if (nlState.answered) {
+      if (chrome.interactionType === 'plot_interval') {
+        text = describeInterval(nlState.interval);
+      } else if (nlState.studentPoints.length > 0) {
+        const plotted = nlState.studentPoints.join(', ');
+        text =
+          (nlState.studentPoints.length > 1
+            ? 'Points plotted at '
+            : 'Point plotted at ') +
+          plotted +
+          '.';
+      }
+      if (text !== '') dataMode = 'narrate';
+    }
+    const wantHidden = text === '';
+    if (chrome.feedbackEl.hidden !== wantHidden) {
+      chrome.feedbackEl.hidden = wantHidden;
+    }
+    if (chrome.feedbackEl.textContent !== text) {
+      chrome.feedbackEl.textContent = text;
+    }
+    const currentState = chrome.feedbackEl.getAttribute('data-state');
+    if (dataState !== currentState) {
+      if (dataState === null) chrome.feedbackEl.removeAttribute('data-state');
+      else chrome.feedbackEl.setAttribute('data-state', dataState);
+    }
+    const currentMode = chrome.feedbackEl.getAttribute('data-mode');
+    if (dataMode !== currentMode) {
+      if (dataMode === null) chrome.feedbackEl.removeAttribute('data-mode');
+      else chrome.feedbackEl.setAttribute('data-mode', dataMode);
+    }
+  }
+
+  // Lock the widget once the section is locked. The handle resolves async on
+  // mount, so this no-ops until the board is up (attach re-applies on arrival).
+  if (chrome.handle) {
+    chrome.handle.setLocked(section?.locked === true);
+  }
+}
+
+/**
+ * The bridge's entry point for number-line blocks: parse each block's chrome,
+ * mount the graded widget, bridge widget moves into the runtime's state, and
+ * hand back the render delegate the runtime drives on every tick.
+ *
+ * Defensive throughout: a missing canvas or a failed mount leaves the static
+ * SVG fallback in place — the line just can't be answered (it still submits as
+ * unanswered, and a RESTORED answer still scores + submits via the inline
+ * fold/gather in the bridge).
+ */
+export function attachNumberLineRuntime(
+  ctx: NumberLineRuntimeContext,
+): NumberLineRuntimeExt {
+  const chromes = new Map<string, NumberLineChromeRef>();
+  for (const [blockId, ref] of ctx.blocks) {
+    chromes.set(blockId, buildNumberLineChrome(blockId, ref));
+  }
+
+  for (const [blockId, chrome] of chromes) {
+    const config = {
+      interactionType: chrome.interactionType,
+      config: chrome.config,
+      answerKey: chrome.answerKey,
+    };
+
+    mountNumberLineQuestion(chrome.canvas, config, {
+      onChange: (resp: NumberLineResponseData) => {
+        const ns = ctx.state.numberLines[blockId];
+        if (!ns) return;
+        ns.studentPoints = resp.studentPoints ?? [];
+        ns.interval = resp.interval;
+        ns.answered = resp.answered;
+        // Unanswered → unscored (an omission), like an empty blank.
+        ns.result = resp.answered ? resp.correct : null;
+        ctx.onUpdate();
+      },
+    })
+      .then((handle) => {
+        chrome.handle = handle;
+        // Restore the answer persisted on a prior load. Its onChange re-populates
+        // state.numberLines[blockId] (answered + result), so a checked-and-
+        // reloaded line comes back scored.
+        const ns = ctx.state.numberLines[blockId];
+        const hasInterval =
+          ns?.interval !== undefined &&
+          (ns.interval.min !== undefined || ns.interval.max !== undefined);
+        if (ns && (ns.studentPoints.length > 0 || hasInterval)) {
+          handle.restore(ns.studentPoints, { interval: ns.interval });
+        }
+        if (ctx.state.sections[chrome.sectionId]?.locked) handle.setLocked(true);
+      })
+      .catch((err) => {
+        console.error('[activity-runtime] number-line widget failed to mount', err);
+      });
+  }
+
+  const ext: NumberLineRuntimeExt = {
+    render(): void {
+      for (const [blockId, chrome] of chromes) {
+        const ns = ctx.state.numberLines[blockId];
+        if (ns) {
+          renderNumberLineChrome(chrome, ns, ctx.state.sections[chrome.sectionId]);
+        }
+      }
+    },
+  };
+
+  // First chrome paint: reflect whatever state the runtime restored before we
+  // arrived (revealed solutions, verdicts, confidence).
   ext.render();
 
   return ext;

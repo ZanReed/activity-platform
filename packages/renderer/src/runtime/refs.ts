@@ -234,6 +234,29 @@ export interface GraphDisplayRef {
     kitSrc: string | null;
 }
 
+/**
+ * One per graded number_line block. SLIM like GraphRef — only what the INLINE
+ * runtime consumes: scoring totals, the submit gather (interactionType),
+ * confidence wiring, and the kit hand-off (el/canvas/kitSrc). The kit parses
+ * config + answer key from `el` when it attaches (numberLineExt.wire).
+ */
+export interface NumberLineRef {
+    /** The block <div> — the kit parses its data-* attributes on attach. */
+    el: HTMLElement;
+    /** The .number-line-canvas the kit mounts the board into. */
+    canvas: HTMLElement;
+    /** Absolute URL of the graph kit on R2; null when unavailable (no hydrate). */
+    kitSrc: string | null;
+    /** The block's interaction discriminant ('plot_point' | 'plot_interval'). */
+    interactionType: string;
+    /** Whether the block surfaces a confidence-rating fieldset. */
+    hasConfidenceRating: boolean;
+    /** Radios inside the confidence fieldset (empty when none). */
+    confidenceRadios: HTMLInputElement[];
+    /** ID of the section this block belongs to. */
+    sectionId: string;
+}
+
 /** One per <section class="activity-section">. */
 export interface SectionRef {
     /** The section element. */
@@ -252,6 +275,8 @@ export interface SectionRef {
     blockIds: string[];
     /** IDs of every interactive_graph block in this section (each scores as 1). */
     graphBlockIds: string[];
+    /** IDs of every number_line block in this section (each scores as 1). */
+    numberLineBlockIds: string[];
     /** IDs of every multiple_choice block in this section (each scores as 1). */
     mcBlockIds: string[];
     /** IDs of every matching block in this section (each pair scores as 1). */
@@ -297,6 +322,8 @@ export interface Refs {
     graphs: Map<string, GraphRef>;
     /** Static (display-mode) graph blocks — mounted read-only, never scored. */
     graphDisplays: Map<string, GraphDisplayRef>;
+    /** Graded number_line blocks (1-D) — ride the same lazy kit as graphs. */
+    numberLines: Map<string, NumberLineRef>;
     sections: Map<string, SectionRef>;
     /** The shared floating popover, or null when the page has no popover markup. */
     popover: PopoverRef | null;

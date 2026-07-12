@@ -31,11 +31,12 @@ import {
     type OrderingRef,
     type GraphRef,
     type GraphDisplayRef,
+    type NumberLineRef,
     type SectionRef,
     type PopoverRef,
 } from './refs.js';
 import { createInitialState, type RuntimeState } from './state.js';
-import { graphExt } from './graph-integration.js';
+import { graphExt, numberLineExt } from './graph-integration.js';
 import { $$ } from './dom.js';
 
 export interface InitResult {
@@ -62,6 +63,7 @@ export function buildRefs(doc: Document = document): Refs {
     const orderings = new Map<string, OrderingRef>();
     const graphs = new Map<string, GraphRef>();
     const graphDisplays = new Map<string, GraphDisplayRef>();
+    const numberLines = new Map<string, NumberLineRef>();
 
     for (const sectionEl of $$<HTMLElement>('.activity-section', doc)) {
         const sectionId = sectionEl.dataset.sectionId;
@@ -76,6 +78,7 @@ export function buildRefs(doc: Document = document): Refs {
         const sectionMatchBlockIds: string[] = [];
         const sectionOrderingBlockIds: string[] = [];
         const sectionGraphBlockIds: string[] = [];
+        const sectionNumberLineBlockIds: string[] = [];
 
         for (const blockEl of $$<HTMLElement>(
             '[data-block-type="fill_in_blank"]',
@@ -158,6 +161,12 @@ export function buildRefs(doc: Document = document): Refs {
             ...graphExt.walkGraphBlocks(sectionEl, sectionId, graphs, graphDisplays),
         );
 
+        // Number-line blocks — the number_line feature's to walk (same lazy kit
+        // as graphs; a no-op in the base build).
+        sectionNumberLineBlockIds.push(
+            ...numberLineExt.walkNumberLineBlocks(sectionEl, sectionId, numberLines),
+        );
+
         sections.set(
             sectionId,
             buildSectionRef(
@@ -168,6 +177,7 @@ export function buildRefs(doc: Document = document): Refs {
                 sectionMatchBlockIds,
                 sectionOrderingBlockIds,
                 sectionGraphBlockIds,
+                sectionNumberLineBlockIds,
             ),
         );
     }
@@ -180,6 +190,7 @@ export function buildRefs(doc: Document = document): Refs {
         orderings,
         graphs,
         graphDisplays,
+        numberLines,
         sections,
         popover: buildPopoverRef(doc),
     };
@@ -582,6 +593,7 @@ function buildSectionRef(
     matchBlockIds: string[],
     orderingBlockIds: string[],
     graphBlockIds: string[],
+    numberLineBlockIds: string[],
 ): SectionRef {
     const isCheckpoint = el.dataset.isCheckpoint === 'true';
     const checkButton = el.querySelector<HTMLButtonElement>('.js-checkpoint-btn');
@@ -596,6 +608,7 @@ function buildSectionRef(
         matchBlockIds,
         orderingBlockIds,
         graphBlockIds,
+        numberLineBlockIds,
         checkButton,
         scoreEl,
     };

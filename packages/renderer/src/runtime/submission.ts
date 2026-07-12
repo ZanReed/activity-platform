@@ -28,7 +28,7 @@ import { scoreBlanksInScope, trimValue } from './blanks.js';
 import { scoreMcBlocks } from './mcs.js';
 import { scoreMatchBlocks } from './matches.js';
 import { scoreOrderingBlocks } from './orderings.js';
-import { graphExt } from './graph-integration.js';
+import { graphExt, numberLineExt } from './graph-integration.js';
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
@@ -103,6 +103,23 @@ export interface OrderResult {
   confidence?: 'unsure' | 'think_so' | 'certain';
 }
 
+// Mirrors schema NumberLineResponse — one number_line block's answer (1-D).
+// Discriminated on `type` (validated by the schema on ingest): a plot_point
+// carries studentPoints, a plot_interval its bounds + styles (never both). The
+// bridge builds the correct variant; the runtime carries `type` as a string.
+export interface NumberLineResult {
+  type: string;
+  /** plot_point: the student's plotted positions in line units. */
+  studentPoints?: number[];
+  /** plot_interval: interval/ray bounds + open/closed styles (absent = unbounded). */
+  min?: number;
+  minStyle?: 'open' | 'closed';
+  max?: number;
+  maxStyle?: 'open' | 'closed';
+  correct: boolean;
+  confidence?: 'unsure' | 'think_so' | 'certain';
+}
+
 interface CheckpointResultPayload {
   score: number;
   total: number;
@@ -110,13 +127,14 @@ interface CheckpointResultPayload {
 }
 
 interface SubmissionResponsesPayload {
-  schemaVersion: 6;
+  schemaVersion: 7;
   blanks: Record<string, BlankResult>;
   checkpointResults?: Record<string, CheckpointResultPayload>;
   graphResponses?: Record<string, GraphResult>;
   choices?: Record<string, McResult>;
   matches?: Record<string, MatchResult>;
   orderings?: Record<string, OrderResult>;
+  numberLineResponses?: Record<string, NumberLineResult>;
 }
 
 // Wire shape POSTed to the ingest-submission Edge Function. Keys are
@@ -146,12 +164,13 @@ export function buildSubmissionPayload(
     choices?: Record<string, McResult>;
     matches?: Record<string, MatchResult>;
     orderings?: Record<string, OrderResult>;
+    numberLineResponses?: Record<string, NumberLineResult>;
     score: number;
   },
   checkpointResults: Record<string, CheckpointResultPayload> | undefined,
 ): SubmissionPayload {
   const responses: SubmissionResponsesPayload = {
-    schemaVersion: 6,
+    schemaVersion: 7,
     blanks: gathered.blanks,
   };
   if (checkpointResults) {
@@ -169,6 +188,9 @@ export function buildSubmissionPayload(
   if (gathered.orderings) {
     responses.orderings = gathered.orderings;
   }
+  if (gathered.numberLineResponses) {
+    responses.numberLineResponses = gathered.numberLineResponses;
+  }
   return {
     activity_id: config.activityId,
     display_name: displayName,
@@ -183,6 +205,7 @@ interface GatheredResponses {
   choices?: Record<string, McResult>;
   matches?: Record<string, MatchResult>;
   orderings?: Record<string, OrderResult>;
+  numberLineResponses?: Record<string, NumberLineResult>;
   score: number;
   totalScored: number;
 }
@@ -293,12 +316,21 @@ export function gatherResponses(
   totalScored += graphs.scored;
   totalCorrect += graphs.correct;
 
+  // Number-line blocks — one scorable unit each, all-or-nothing (same omission
+  // rule as graphs). A no-op in the base runtime build (no number-line blocks).
+  const numberLines = numberLineExt.gatherNumberLineResponses(state, refs);
+  totalScored += numberLines.scored;
+  totalCorrect += numberLines.correct;
+
   return {
     blanks,
     ...(graphs.graphResponses && { graphResponses: graphs.graphResponses }),
     ...(choices && { choices }),
     ...(matches && { matches }),
     ...(orderings && { orderings }),
+    ...(numberLines.numberLineResponses && {
+      numberLineResponses: numberLines.numberLineResponses,
+    }),
     score: computeScore(totalCorrect, totalScored),
     totalScored,
   };

@@ -190,7 +190,7 @@ describe('scoring + checkSection', () => {
     });
 });
 
-describe('gatherResponses + payload (v6)', () => {
+describe('gatherResponses + payload (v7)', () => {
     it('answered MC lands in the choices map and the score', () => {
         const { refs, state } = setup();
         state.mcs[MC]!.selected = [A];
@@ -203,7 +203,7 @@ describe('gatherResponses + payload (v6)', () => {
         expect(gathered.totalScored).toBe(1);
 
         const payload = buildSubmissionPayload(CONFIG, 'Kid', gathered, undefined);
-        expect(payload.responses.schemaVersion).toBe(6);
+        expect(payload.responses.schemaVersion).toBe(7);
         expect(payload.responses.choices).toEqual(gathered.choices);
     });
 

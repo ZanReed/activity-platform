@@ -36,7 +36,7 @@ import type {
     OrderBlockState,
     SectionState,
 } from './state.js';
-import { graphExt } from './graph-integration.js';
+import { graphExt, numberLineExt } from './graph-integration.js';
 
 /**
  * Render the entire activity from state. Idempotent — calling twice with
@@ -64,6 +64,7 @@ export function render(state: RuntimeState, refs: Refs): void {
         if (orderState) renderOrderBlock(id, orderState, ref, state);
     }
     graphExt.renderGraphs(state, refs);
+    numberLineExt.renderNumberLines(state, refs);
     for (const [id, ref] of refs.sections) {
         const sectionState = state.sections[id];
         if (sectionState) renderSection(sectionState, ref);

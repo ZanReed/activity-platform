@@ -11,8 +11,11 @@
 // =============================================================================
 
 import type { Refs } from './refs.js';
-import { graphExt } from './graph-integration.js';
-import type { GraphBlockState } from '@activity/graph-kit/runtime-contract';
+import { graphExt, numberLineExt } from './graph-integration.js';
+import type {
+  GraphBlockState,
+  NumberLineBlockState,
+} from '@activity/graph-kit/runtime-contract';
 
 export interface SectionState {
     /** True once the student has clicked the check button for this section. */
@@ -170,8 +173,9 @@ export interface ArrangeState {
 // definition, imported type-only here (erased at build — zero bytes, no
 // runtime dependency), so the two sides can't drift. It remains part of the
 // persisted blob — widening it incompatibly still means bumping
-// STORAGE_SCHEMA_VERSION (storage.ts).
-export type { GraphBlockState };
+// STORAGE_SCHEMA_VERSION (storage.ts). NumberLineBlockState follows the same
+// pattern (shared contract, persisted, kit-written).
+export type { GraphBlockState, NumberLineBlockState };
 
 export interface RuntimeState {
     /** True once the final submit has completed successfully. */
@@ -212,6 +216,8 @@ export interface RuntimeState {
     arrange: ArrangeState | null;
     /** Per-interactive-graph-block status, keyed by block.id. */
     graphs: Record<string, GraphBlockState>;
+    /** Per-number_line-block status, keyed by block.id. */
+    numberLines: Record<string, NumberLineBlockState>;
 }
 
 /**
@@ -280,6 +286,7 @@ export function createInitialState(refs: Refs): RuntimeState {
         };
     }
     const graphs = graphExt.initGraphState(refs);
+    const numberLines = numberLineExt.initNumberLineState(refs);
     return {
         submitted: false,
         attemptNumber: 1,
@@ -293,5 +300,6 @@ export function createInitialState(refs: Refs): RuntimeState {
         orderings,
         arrange: null,
         graphs,
+        numberLines,
     };
 }

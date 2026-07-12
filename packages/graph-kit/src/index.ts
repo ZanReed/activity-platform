@@ -202,6 +202,23 @@ export type {
   GraphSectionStateView,
 } from './runtime-contract.js';
 
+// The number-line plumbing (1-D sibling, same lazy kit): the bridge's
+// numberLineExt seam dynamic-imports this entry and calls attachNumberLineRuntime.
+export {
+  attachNumberLineRuntime,
+  buildNumberLineChrome,
+  renderNumberLineChrome,
+} from './runtime.js';
+export type { NumberLineChromeRef } from './runtime.js';
+export type {
+  NumberLineBlockState,
+  NumberLineInterval,
+  NumberLineRuntimeBlockRef,
+  NumberLineRuntimeContext,
+  NumberLineRuntimeExt,
+  NumberLineRuntimeStateView,
+} from './runtime-contract.js';
+
 // NOTE: board.ts (JSXGraph) is deliberately NOT re-exported here — that would
 // static-import it into the entry and defeat the lazy-split. Consumers that need
 // the board (the calculator's graphing mode, the future graded block) dynamic-

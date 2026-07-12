@@ -36,14 +36,27 @@
 // =============================================================================
 
 import { $$ } from './dom.js';
-import type { Refs, GraphRef, GraphDisplayRef, SectionRef } from './refs.js';
-import type { RuntimeState, GraphBlockState } from './state.js';
-import type { GraphResult } from './submission.js';
+import type {
+  Refs,
+  GraphRef,
+  GraphDisplayRef,
+  NumberLineRef,
+  SectionRef,
+} from './refs.js';
+import type {
+  RuntimeState,
+  GraphBlockState,
+  NumberLineBlockState,
+} from './state.js';
+import type { GraphResult, NumberLineResult } from './submission.js';
 import type {
   GraphRuntimeBlockRef,
   GraphRuntimeContext,
   GraphRuntimeDisplayRef,
   GraphRuntimeExt,
+  NumberLineRuntimeBlockRef,
+  NumberLineRuntimeContext,
+  NumberLineRuntimeExt,
 } from '@activity/graph-kit/runtime-contract';
 
 // ---- The seam contract ------------------------------------------------------
@@ -385,4 +398,269 @@ export const graphExt: GraphExt = {
   revealGraphSolutions,
   gatherGraphResponses,
   wireGraphs,
+};
+
+// =============================================================================
+// numberLineExt — the number_line BRIDGE (1-D sibling of graphExt)
+// -----------------------------------------------------------------------------
+// The number_line block rides the SAME lazy kit as graphs, so its bridge lives
+// in THIS module — the base build's noop alias and the graphs-variant split
+// therefore cover it for free (a page with a number_line block is emitted with
+// the graphs variant; see document.ts). Same thin-inline discipline as graphExt:
+// the cheap init walk + state seed + scoring fold + submit gather stay inline
+// (so a kit that fails to load never breaks scoring/submission of restored
+// answers); the DOM-heavy plumbing (attribute parsing, chrome, board) is
+// attachNumberLineRuntime in the kit. Leaner than graphs — no partial credit,
+// no mistakes (decision 6, all-or-nothing).
+// =============================================================================
+
+export interface NumberLineExt {
+  /**
+   * init.ts: walk one section's number_line blocks into the `numberLines` refs
+   * map. Returns the section's number-line block ids (for
+   * SectionRef.numberLineBlockIds).
+   */
+  walkNumberLineBlocks(
+    sectionEl: HTMLElement,
+    sectionId: string,
+    numberLines: Map<string, NumberLineRef>,
+  ): string[];
+  /** state.ts: build the initial per-number-line-block state map from refs. */
+  initNumberLineState(refs: Refs): Record<string, NumberLineBlockState>;
+  /** render.ts: reflect number-line-block state into chrome (kit-attached). */
+  renderNumberLines(state: RuntimeState, refs: Refs): void;
+  /**
+   * checkpoints.ts: the section's number-line contribution to the score — how
+   * many are correct and how many count toward the total (each is one scorable
+   * unit; an unanswered one is an omission, counted in total only).
+   */
+  scoreSectionNumberLines(
+    sectionRef: SectionRef,
+    state: RuntimeState,
+  ): { correct: number; total: number };
+  /** checkpoints.ts: reveal solution slots for the section's number lines. */
+  revealNumberLineSolutions(
+    sectionRef: SectionRef,
+    refs: Refs,
+    state: RuntimeState,
+  ): void;
+  /**
+   * submission.ts: gather number-line responses for the payload plus their
+   * score contribution (correct + scored counts).
+   */
+  gatherNumberLineResponses(
+    state: RuntimeState,
+    refs: Refs,
+  ): {
+    numberLineResponses?: Record<string, NumberLineResult>;
+    correct: number;
+    scored: number;
+  };
+  /** index.ts: fetch the lazy kit once and hand it the page's number lines. */
+  wireNumberLines(state: RuntimeState, refs: Refs, onUpdate: () => void): void;
+}
+
+// ---- init: DOM → slim refs ---------------------------------------------------
+
+function buildNumberLineRef(
+  el: HTMLElement,
+  canvas: HTMLElement,
+  sectionId: string,
+): NumberLineRef {
+  const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
+    '.js-confidence-rating',
+  );
+  const confidenceRadios: HTMLInputElement[] = confidenceFieldset
+    ? Array.prototype.slice.call(
+        confidenceFieldset.querySelectorAll<HTMLInputElement>(
+          'input[type="radio"]',
+        ),
+      )
+    : [];
+
+  return {
+    el,
+    canvas,
+    kitSrc: el.dataset.numberlineKitSrc ?? null,
+    interactionType: el.dataset.numberlineInteractionType ?? 'plot_point',
+    hasConfidenceRating: el.dataset.hasConfidenceRating === 'true',
+    confidenceRadios,
+    sectionId,
+  };
+}
+
+function walkNumberLineBlocks(
+  sectionEl: HTMLElement,
+  sectionId: string,
+  numberLines: Map<string, NumberLineRef>,
+): string[] {
+  const sectionNumberLineBlockIds: string[] = [];
+  for (const el of $$<HTMLElement>('[data-block-type="number_line"]', sectionEl)) {
+    const blockId = el.dataset.numberlineBlockId;
+    if (!blockId) {
+      warn('Number-line block is missing data-numberline-block-id; skipping.');
+      continue;
+    }
+    const canvas = el.querySelector<HTMLElement>('.number-line-canvas');
+    if (!canvas) {
+      warn('Number-line block ' + blockId + ' has no .number-line-canvas; skipping.');
+      continue;
+    }
+    numberLines.set(blockId, buildNumberLineRef(el, canvas, sectionId));
+    sectionNumberLineBlockIds.push(blockId);
+  }
+  return sectionNumberLineBlockIds;
+}
+
+// ---- state: initial per-block state ----------------------------------------
+
+function initNumberLineState(refs: Refs): Record<string, NumberLineBlockState> {
+  const numberLines: Record<string, NumberLineBlockState> = {};
+  for (const [id] of refs.numberLines) {
+    numberLines[id] = {
+      studentPoints: [],
+      answered: false,
+      result: null,
+      solutionRevealed: false,
+      confidence: null,
+    };
+  }
+  return numberLines;
+}
+
+// ---- render: delegate to the attached kit plumbing ---------------------------
+
+let numberLineInstalled: NumberLineRuntimeExt | null = null;
+
+function renderNumberLines(): void {
+  if (numberLineInstalled) numberLineInstalled.render();
+}
+
+// ---- checkpoints: scoring + solution reveal ---------------------------------
+
+// Each number line is one scorable unit, all-or-nothing (no partial credit).
+// The kit computed correctness live (state.numberLines[id].result) as the
+// student answered; an unanswered line is null → an omission (in total, not
+// correct), like an empty blank. Pure state math — works with or without the kit.
+function scoreSectionNumberLines(
+  sectionRef: SectionRef,
+  state: RuntimeState,
+): { correct: number; total: number } {
+  let correct = 0;
+  for (const id of sectionRef.numberLineBlockIds) {
+    if (state.numberLines[id]?.result === true) correct += 1;
+  }
+  return { correct, total: sectionRef.numberLineBlockIds.length };
+}
+
+function revealNumberLineSolutions(
+  sectionRef: SectionRef,
+  refs: Refs,
+  state: RuntimeState,
+): void {
+  for (const id of sectionRef.numberLineBlockIds) {
+    const ns = state.numberLines[id];
+    if (ns) ns.solutionRevealed = true;
+  }
+}
+
+// ---- submission: gather responses -------------------------------------------
+
+// One scorable unit each, client-side-scored by the kit. An unanswered line is
+// an omission — absent from the map, out of scored + correct. Pure state → JSON:
+// a restored answer gathers and submits even when the kit never loaded. The
+// response is discriminated on `type`: a plot_point carries studentPoints, a
+// plot_interval its bounds + styles (never both — the schema union requires it).
+function gatherNumberLineResponses(
+  state: RuntimeState,
+  refs: Refs,
+): {
+  numberLineResponses?: Record<string, NumberLineResult>;
+  correct: number;
+  scored: number;
+} {
+  const numberLineResponses: Record<string, NumberLineResult> = {};
+  let count = 0;
+  let correct = 0;
+  let scored = 0;
+  for (const [id, ref] of refs.numberLines) {
+    const ns = state.numberLines[id];
+    if (!ns) continue;
+    if (ns.result !== null) {
+      scored += 1;
+      if (ns.result === true) correct += 1;
+    }
+    const iv = ns.interval;
+    const hasInterval = iv !== undefined && (iv.min !== undefined || iv.max !== undefined);
+    if (!ns.answered || (ns.studentPoints.length === 0 && !hasInterval)) continue;
+    let result: NumberLineResult;
+    if (ref.interactionType === 'plot_interval') {
+      result = { type: 'plot_interval', correct: ns.result === true };
+      if (iv?.min !== undefined) {
+        result.min = iv.min;
+        result.minStyle = iv.minStyle ?? 'closed';
+      }
+      if (iv?.max !== undefined) {
+        result.max = iv.max;
+        result.maxStyle = iv.maxStyle ?? 'closed';
+      }
+    } else {
+      result = {
+        type: 'plot_point',
+        studentPoints: ns.studentPoints,
+        correct: ns.result === true,
+      };
+    }
+    if (ns.confidence) result.confidence = ns.confidence;
+    numberLineResponses[id] = result;
+    count += 1;
+  }
+  return { ...(count > 0 && { numberLineResponses }), correct, scored };
+}
+
+// ---- wire: fetch the kit, hand over the number-line blocks -------------------
+
+interface NumberLineKitRuntimeModule {
+  attachNumberLineRuntime(ctx: NumberLineRuntimeContext): NumberLineRuntimeExt;
+}
+
+function wireNumberLines(
+  state: RuntimeState,
+  refs: Refs,
+  onUpdate: () => void,
+): void {
+  numberLineInstalled = null;
+
+  let kitSrc: string | null = null;
+  const blocks = new Map<string, NumberLineRuntimeBlockRef>();
+  for (const [blockId, ref] of refs.numberLines) {
+    if (!ref.kitSrc) continue;
+    kitSrc = kitSrc ?? ref.kitSrc;
+    blocks.set(blockId, {
+      el: ref.el,
+      canvas: ref.canvas,
+      sectionId: ref.sectionId,
+      interactionType: ref.interactionType,
+    });
+  }
+  if (!kitSrc) return;
+
+  import(/* @vite-ignore */ kitSrc)
+    .then((mod: NumberLineKitRuntimeModule) => {
+      numberLineInstalled = mod.attachNumberLineRuntime({ state, blocks, onUpdate });
+    })
+    .catch((err) => {
+      console.error('[activity-runtime] number-line kit failed to load', err);
+    });
+}
+
+/** The real number-line feature, wired into the base runtime's seam. */
+export const numberLineExt: NumberLineExt = {
+  walkNumberLineBlocks,
+  initNumberLineState,
+  renderNumberLines,
+  scoreSectionNumberLines,
+  revealNumberLineSolutions,
+  gatherNumberLineResponses,
+  wireNumberLines,
 };

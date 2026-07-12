@@ -162,3 +162,107 @@ export interface GraphRuntimeExt {
    */
   render(): void;
 }
+
+// =============================================================================
+// Number-line block (number_line) — the 1-D sibling of the graph contract
+// -----------------------------------------------------------------------------
+// The number_line block rides the SAME lazy kit as the graph feature (one
+// bundle, one fetch), so its bridge↔kit contract lives here too. The shapes
+// mirror the graph ones but are deliberately LEANER (decision 6, all-or-
+// nothing): no mistake feedback, no partial credit, no domain/shape variants.
+// The runtime persists NumberLineBlockState in its localStorage blob, so the
+// same additive discipline applies (widening it incompatibly means bumping
+// STORAGE_SCHEMA_VERSION in runtime/storage.ts).
+// =============================================================================
+
+/** A student's plotted interval/ray: present bounds carry a style; an absent
+ *  bound is unbounded that direction (a ray). Mirrors the schema's answer key. */
+export interface NumberLineInterval {
+  min?: number;
+  minStyle?: 'open' | 'closed';
+  max?: number;
+  maxStyle?: 'open' | 'closed';
+}
+
+/**
+ * Per-number_line-block state. Lives in the runtime's RuntimeState (and its
+ * persisted blob); written by the kit-side plumbing as the student answers;
+ * read by the runtime's inline scoring fold and submit gather (which stay in
+ * the bridge so a kit that fails to load never breaks scoring/submission of
+ * restored answers).
+ */
+export interface NumberLineBlockState {
+  /**
+   * plot_point: the student's plotted position(s) in line units — one per
+   * answer handle (usually one; "plot both" has more). Empty before they've
+   * touched the widget. Persisted so a reload restores the plotted answer.
+   */
+  studentPoints: number[];
+  /**
+   * plot_interval: the student's interval/ray (bounds + open/closed styles).
+   * Absent on plot_point blocks and before the student touches an interval
+   * widget. Persisted so a reload restores the interval + endpoint choices.
+   */
+  interval?: NumberLineInterval;
+  /** True once the student has moved a handle or cycled an endpoint pill. */
+  answered: boolean;
+  /**
+   * Scoring result: true correct, false incorrect, null unscored. Null until
+   * the student answers — an untouched line is an omission (counts in the
+   * section total, not the correct count), exactly like an empty blank.
+   */
+  result: boolean | null;
+  /** Whether this block's solution slot has been revealed (post-check). */
+  solutionRevealed: boolean;
+  /** Student's per-block confidence selection (null until picked). */
+  confidence: GraphConfidence | null;
+}
+
+/**
+ * One graded number_line block, as the bridge's cheap init walk found it.
+ * Minimal by design: the kit parses config + answer key from `el`'s data
+ * attributes itself.
+ */
+export interface NumberLineRuntimeBlockRef {
+  /** The block root (`[data-block-type="number_line"]`) — data-* attrs live here. */
+  el: HTMLElement;
+  /** The .number-line-canvas the kit mounts the board into. */
+  canvas: HTMLElement;
+  /** ID of the section the block belongs to (keys state.sections). */
+  sectionId: string;
+  /** The block's interaction discriminant ('plot_point' | 'plot_interval'). */
+  interactionType: string;
+}
+
+/**
+ * The slice of the runtime's live state the number-line plumbing sees — the
+ * SAME object the runtime renders and persists from. The kit mutates
+ * state.numberLines[id] on widget changes, then calls ctx.onUpdate().
+ */
+export interface NumberLineRuntimeStateView {
+  sections: Record<string, GraphSectionStateView>;
+  numberLines: Record<string, NumberLineBlockState>;
+}
+
+/** Everything attachNumberLineRuntime needs from the inline bridge. */
+export interface NumberLineRuntimeContext {
+  /** The runtime's LIVE state (structural view). */
+  state: NumberLineRuntimeStateView;
+  /** Graded number-line blocks by block id. */
+  blocks: ReadonlyMap<string, NumberLineRuntimeBlockRef>;
+  /** render + persist. Call after ANY mutation of state.numberLines. */
+  onUpdate(): void;
+}
+
+/**
+ * What attachNumberLineRuntime hands back. The bridge stores it and delegates
+ * its seam's renderNumberLines to render() on every runtime render tick.
+ */
+export interface NumberLineRuntimeExt {
+  /**
+   * Reflect state.numberLines + section checked/locked into every number-line
+   * block's chrome (feedback line, solution slot, confidence radios) and widget
+   * lock. Idempotent; called on every runtime render.
+   */
+  render(): void;
+}

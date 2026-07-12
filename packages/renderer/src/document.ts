@@ -289,13 +289,15 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
 
   // Runtime JS (vanilla, no framework) — baked in at build time as a string
   // constant by scripts/bundle-renderer.mjs; see runtime/generated/. Two
-  // variants: the graphs build (full interactive-graph feature) is inlined ONLY
-  // when the page has a graph block; every other page ships the leaner base
-  // build. Detection mirrors the definitions sidecar below (scan the rendered
-  // output for the block's marker attribute — graded and display graphs both
-  // emit data-block-type="interactive_graph").
+  // variants: the graphs build (full interactive-graph + number-line feature) is
+  // inlined ONLY when the page has one of those blocks; every other page ships
+  // the leaner base build. Detection mirrors the definitions sidecar below (scan
+  // the rendered output for the block's marker attribute). The number_line
+  // bridge (numberLineExt) lives in the same graph-integration module, so it
+  // rides the graphs variant too — a number-line-only page must trigger it.
   '<script>' +
-  (body.includes('data-block-type="interactive_graph"')
+  (body.includes('data-block-type="interactive_graph"') ||
+  body.includes('data-block-type="number_line"')
     ? runtimeGraphsJs
     : runtimeJs) +
   '</script>' +

@@ -123,4 +123,22 @@ export function wireConfidence(
             });
         }
     }
+
+    // Number-line blocks carry the same per-block confidence fieldset; wire it
+    // into state.numberLines[id].confidence identically.
+    for (const [blockId, ref] of refs.numberLines) {
+        if (!ref.hasConfidenceRating || ref.confidenceRadios.length === 0) {
+            continue;
+        }
+        for (const radio of ref.confidenceRadios) {
+            radio.addEventListener('change', () => {
+                if (!radio.checked) return;
+                if (!isConfidence(radio.value)) return;
+                const nlState = state.numberLines[blockId];
+                if (!nlState) return;
+                nlState.confidence = radio.value;
+                onUpdate();
+            });
+        }
+    }
 }

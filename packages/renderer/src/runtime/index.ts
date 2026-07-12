@@ -35,7 +35,7 @@ import { wireMatching } from './matches.js';
 import { wireOrdering } from './orderings.js';
 import { wireCheckpoints } from './checkpoints.js';
 import { wireConfidence } from './confidence.js';
-import { graphExt } from './graph-integration.js';
+import { graphExt, numberLineExt } from './graph-integration.js';
 import { render } from './render.js';
 import { submit, flushPendingSubmission } from './submission.js';
 
@@ -94,6 +94,8 @@ function bootstrap(): void {
   // the page. No-ops in the base runtime build (a page with no graph blocks);
   // document.ts inlines the graphs variant only when the page has one.
   graphExt.wireGraphs(state, refs, onUpdate);
+  // Number-line blocks ride the same lazy kit — one more attach, same pattern.
+  numberLineExt.wireNumberLines(state, refs, onUpdate);
 
   const button = $<HTMLButtonElement>('.submit-button');
   if (button) {
