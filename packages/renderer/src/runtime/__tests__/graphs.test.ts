@@ -148,7 +148,7 @@ describe('submit payload', () => {
     expect(gathered.score).toBe(1);
     expect(gathered.totalScored).toBe(1);
     const payload = buildSubmissionPayload(config, 'Ada', gathered, undefined);
-    expect(payload.responses.schemaVersion).toBe(8);
+    expect(payload.responses.schemaVersion).toBe(9);
     expect(payload.responses.graphResponses).toEqual({
       [GRAPH_ID]: {
         type: 'plot_point',

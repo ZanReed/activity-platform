@@ -42,6 +42,10 @@
 //                       plotted dot-plot values; all-or-nothing). display-mode
 //                       data_plots are ungraded stimuli and never appear here.
 //                       v7 rows migrate on read by setting schemaVersion: 8.
+//   v8 → v9 (self-explanation): adds the optional `freeResponses` map
+//                       (FreeResponse: ungraded free text, just { text }). Never
+//                       scored. v8 rows migrate on read by setting
+//                       schemaVersion: 9.
 //
 // Extension pattern — adding new response shapes (Phase 2+):
 //   When a new question category needs a different response shape — MC
@@ -57,7 +61,8 @@
 //     choices         — SHIPPED at v5 (multiple choice, single + multi-select)
 //     matches         — SHIPPED at v6 (matching pairs, per-pair earned/total)
 //     orderings       — SHIPPED at v6 (ordering / sequencing, all-or-nothing)
-//     freeResponses   — Phase 2.6 short_answer / essay
+//     freeResponses   — SHIPPED at v9 (self-explanation; Phase 2.6 short_answer
+//                       / essay reuse the same map, no further wire bump)
 //     graphResponses  — Phase 2.7 interactive graphs
 //     numberLineResponses — Phase 2.7 number-line blocks (1-D)
 //     dataPlotResponses — Phase 2.7 data-plot blocks (stats charts)
@@ -456,12 +461,44 @@ export const SubmissionResponsesV7 = z.object({
 });
 export type SubmissionResponsesV7 = z.infer<typeof SubmissionResponsesV7>;
 
-// ---- v8 (current) shape -------------------------------------------------------
-// New submissions write this shape. v7 → v8 (data plot): adds the optional
-// `dataPlotResponses` map. Application code that reads submissions calls
-// migrateSubmissionResponses() once after reading to handle v1–v8 uniformly.
-export const SubmissionResponses = z.object({
+// One self_explanation block's response: the free text the student wrote.
+// UNGRADED — there is no `correct` field and it never contributes to the score;
+// the teacher dashboard shows the text raw. This is the shape the reserved
+// `freeResponses` map carries, and it is deliberately minimal (just a string)
+// so Phase 2.6 short_answer / essay reuse it unchanged — their grading lives in
+// a separate table, not in the response. Non-empty: an untouched prompt is an
+// omission (absent from the map), like any other unanswered block.
+export const FreeResponse = z.object({
+  text: z.string().min(1),
+});
+export type FreeResponse = z.infer<typeof FreeResponse>;
+
+// ---- v8 (legacy) shape --------------------------------------------------------
+// Pre-self-explanation submissions (and pages published before the v9 runtime
+// that are still live). Kept so ingest keeps ACCEPTING v8 posts and stored rows
+// migrate forward on read. Never written by new code.
+export const SubmissionResponsesV8 = z.object({
   schemaVersion: z.literal(8),
+  blanks: z.record(z.string().uuid(), BlankResponse),
+  checkpointResults: z.record(z.string().uuid(), CheckpointResult).optional(),
+  graphResponses: z.record(z.string().uuid(), GraphResponseV4).optional(),
+  choices: z.record(z.string().uuid(), ChoiceResponse).optional(),
+  matches: z.record(z.string().uuid(), MatchResponse).optional(),
+  orderings: z.record(z.string().uuid(), OrderResponse).optional(),
+  numberLineResponses: z
+    .record(z.string().uuid(), NumberLineResponse)
+    .optional(),
+  dataPlotResponses: z.record(z.string().uuid(), DataPlotResponse).optional(),
+});
+export type SubmissionResponsesV8 = z.infer<typeof SubmissionResponsesV8>;
+
+// ---- v9 (current) shape -------------------------------------------------------
+// New submissions write this shape. v8 → v9 (self-explanation): adds the
+// optional `freeResponses` map (ungraded free text). Application code that reads
+// submissions calls migrateSubmissionResponses() once after reading to handle
+// v1–v9 uniformly.
+export const SubmissionResponses = z.object({
+  schemaVersion: z.literal(9),
   // Keyed by blank.id (uuid).
   blanks: z.record(z.string().uuid(), BlankResponse),
   // Keyed by section.id. Only present in locked/free submission modes for
@@ -493,6 +530,10 @@ export const SubmissionResponses = z.object({
   dataPlotResponses: z
     .record(z.string().uuid(), DataPlotResponse)
     .optional(),
+  // Keyed by self_explanation block.id (uuid). Ungraded free text — never in
+  // the score. Absent when the activity has no self-explanation blocks or none
+  // were written. Phase 2.6 short_answer / essay will reuse this same map.
+  freeResponses: z.record(z.string().uuid(), FreeResponse).optional(),
 });
 export type SubmissionResponses = z.infer<typeof SubmissionResponses>;
 
@@ -507,14 +548,36 @@ export type SubmissionResponses = z.infer<typeof SubmissionResponses>;
 // always a valid instance of the newer shape with the new fields absent.
 export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   // Try the current shape first (the common case for new data).
-  const v8 = SubmissionResponses.safeParse(raw);
-  if (v8.success) return v8.data;
+  const v9 = SubmissionResponses.safeParse(raw);
+  if (v9.success) return v9.data;
+
+  // v8: promote by bumping the version — freeResponses simply absent.
+  const v8 = SubmissionResponsesV8.safeParse(raw);
+  if (v8.success) {
+    return {
+      schemaVersion: 9,
+      blanks: v8.data.blanks,
+      ...(v8.data.checkpointResults && {
+        checkpointResults: v8.data.checkpointResults,
+      }),
+      ...(v8.data.graphResponses && { graphResponses: v8.data.graphResponses }),
+      ...(v8.data.choices && { choices: v8.data.choices }),
+      ...(v8.data.matches && { matches: v8.data.matches }),
+      ...(v8.data.orderings && { orderings: v8.data.orderings }),
+      ...(v8.data.numberLineResponses && {
+        numberLineResponses: v8.data.numberLineResponses,
+      }),
+      ...(v8.data.dataPlotResponses && {
+        dataPlotResponses: v8.data.dataPlotResponses,
+      }),
+    };
+  }
 
   // v7: promote by bumping the version — dataPlotResponses simply absent.
   const v7 = SubmissionResponsesV7.safeParse(raw);
   if (v7.success) {
     return {
-      schemaVersion: 8,
+      schemaVersion: 9,
       blanks: v7.data.blanks,
       ...(v7.data.checkpointResults && {
         checkpointResults: v7.data.checkpointResults,
@@ -533,7 +596,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   const v6 = SubmissionResponsesV6.safeParse(raw);
   if (v6.success) {
     return {
-      schemaVersion: 8,
+      schemaVersion: 9,
       blanks: v6.data.blanks,
       ...(v6.data.checkpointResults && {
         checkpointResults: v6.data.checkpointResults,
@@ -549,7 +612,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   const v5 = SubmissionResponsesV5.safeParse(raw);
   if (v5.success) {
     return {
-      schemaVersion: 8,
+      schemaVersion: 9,
       blanks: v5.data.blanks,
       ...(v5.data.checkpointResults && {
         checkpointResults: v5.data.checkpointResults,
@@ -563,7 +626,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   const v4 = SubmissionResponsesV4.safeParse(raw);
   if (v4.success) {
     return {
-      schemaVersion: 8,
+      schemaVersion: 9,
       blanks: v4.data.blanks,
       ...(v4.data.checkpointResults && {
         checkpointResults: v4.data.checkpointResults,
@@ -577,7 +640,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   const v3 = SubmissionResponsesV3.safeParse(raw);
   if (v3.success) {
     return {
-      schemaVersion: 8,
+      schemaVersion: 9,
       blanks: v3.data.blanks,
       ...(v3.data.checkpointResults && {
         checkpointResults: v3.data.checkpointResults,
@@ -590,7 +653,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   const v2 = SubmissionResponsesV2.safeParse(raw);
   if (v2.success) {
     return {
-      schemaVersion: 8,
+      schemaVersion: 9,
       blanks: v2.data.blanks,
       ...(v2.data.checkpointResults && {
         checkpointResults: v2.data.checkpointResults,
@@ -603,7 +666,7 @@ export function migrateSubmissionResponses(raw: unknown): SubmissionResponses {
   // version submissions should fail loudly, not silently pass.
   const v1 = SubmissionResponsesV1.parse(raw);
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     blanks: v1.blanks,
   };
 }

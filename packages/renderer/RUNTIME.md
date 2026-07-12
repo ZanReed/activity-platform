@@ -639,6 +639,25 @@ The statistics-chart block (Phase 2.7) — dot plot / histogram / box plot. It s
 - `data-dataplot-kit-src` — absolute R2 kit URL; **omitted** on print / when unavailable → static fallback stays, block submits unanswered. Display never carries a kit src (it has no interaction).
 - **Hydration + scoring** for graded builds mirror `number_line`: the `dataPlotExt` inline bridge walks + seeds + folds + gathers, and `attachDataPlotRuntime` in the kit mounts the chart-specific board (dot / bar-height / five-handle box), bridges edits into `state.dataPlots[id]`, restores, and renders chrome. Display blocks are never walked (they carry no `data-dataplot-block-id`). `DataPlotBlockState` enters the persisted blob at storage v9.
 
+### Self-explanation block (`data-block-category="question"`)
+
+An **ungraded** free-text reflection prompt (metacognitive self-explanation). Unlike every other question block it is never scored — no answer key, no `correct`, no problem number, no contribution to the section total. The runtime's only job is to **capture the textarea value**: persist it (so a reload restores the student's writing) and include it in the submit payload. Submits as `SubmissionResponses.freeResponses` (introduced at wire **v9**); Phase 2.6 `short_answer` / `essay` reuse that same map.
+
+```html
+<div class="block block-self-explanation" data-block-category="question"
+     data-block-type="self_explanation"
+     data-block-id="<uuid>">
+  <div class="block-self-explanation__prompt">…inline prompt…</div>
+  <textarea class="self-explanation-input" data-for-block="<uuid>"
+            rows="4" placeholder="…optional sentence-starter…"
+            aria-label="Your explanation"></textarea>
+</div>
+```
+
+- No `data-*` answer key or config — the block carries only its identity (`data-block-type` + `data-block-id`); the response lives in the `.self-explanation-input` textarea.
+- **No state entry / no scoring.** The textarea is its own source of truth (like the name input): the runtime wires an `input` handler that just calls `onUpdate` to persist. At persist time the value is snapshotted into the blob's `freeTexts` map (keyed by block id) and restored into the textarea at bootstrap (the `applyStoredState` DOM-write exception). At submit, `gatherFreeResponses` reads each textarea into `freeResponses[blockId] = { text }`, omitting empty ones. `freeTexts` enters the persisted blob at storage **v10**.
+- Print: the textarea prints as a bordered blank writing area (no answer-key variant — there is no answer).
+
 ### Reading discipline
 
 Two sources, two patterns. Activity-level config is parsed once from the `#activity-config` blob via `parseConfig`. Per-element data is read off `data-*` attributes during the init pass and stored on typed refs. Downstream code consumes refs and never re-queries.

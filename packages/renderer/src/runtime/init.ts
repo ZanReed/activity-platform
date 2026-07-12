@@ -33,6 +33,7 @@ import {
     type GraphDisplayRef,
     type NumberLineRef,
     type DataPlotRef,
+    type SelfExplanationRef,
     type SectionRef,
     type PopoverRef,
 } from './refs.js';
@@ -66,6 +67,7 @@ export function buildRefs(doc: Document = document): Refs {
     const graphDisplays = new Map<string, GraphDisplayRef>();
     const numberLines = new Map<string, NumberLineRef>();
     const dataPlots = new Map<string, DataPlotRef>();
+    const selfExplanations = new Map<string, SelfExplanationRef>();
 
     for (const sectionEl of $$<HTMLElement>('.activity-section', doc)) {
         const sectionId = sectionEl.dataset.sectionId;
@@ -193,6 +195,28 @@ export function buildRefs(doc: Document = document): Refs {
         );
     }
 
+    // Self-explanation blocks — ungraded free text, so scanned document-wide
+    // (not per-section): they carry no score and need no section membership.
+    // Each just needs its textarea captured at persist/submit.
+    for (const blockEl of $$<HTMLElement>(
+        '[data-block-type="self_explanation"]',
+        doc,
+    )) {
+        const blockId = blockEl.dataset.blockId;
+        if (!blockId) {
+            warn('Self-explanation block is missing data-block-id; skipping.');
+            continue;
+        }
+        const textarea = blockEl.querySelector<HTMLTextAreaElement>(
+            '.self-explanation-input',
+        );
+        if (!textarea) {
+            warn('Self-explanation block is missing its textarea; skipping.');
+            continue;
+        }
+        selfExplanations.set(blockId, { el: blockEl, textarea });
+    }
+
     return {
         blanks,
         fillInBlanks,
@@ -203,6 +227,7 @@ export function buildRefs(doc: Document = document): Refs {
         graphDisplays,
         numberLines,
         dataPlots,
+        selfExplanations,
         sections,
         popover: buildPopoverRef(doc),
     };

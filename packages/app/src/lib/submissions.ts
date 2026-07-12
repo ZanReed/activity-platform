@@ -296,6 +296,15 @@ export interface DataPlotInfo {
     sectionTitle: string | null;
 }
 
+// One self_explanation block, for reading its ungraded free-text response back.
+// No answer key (it's ungraded) — just the prompt, to label the response.
+export interface SelfExplanationInfo {
+    blockId: string;
+    problemPrompt: string;
+    sectionId: string;
+    sectionTitle: string | null;
+}
+
 export interface ActivityIndex {
     blanks: Map<string, BlankInfo>;
     graphs: Map<string, GraphInfo>;
@@ -304,6 +313,7 @@ export interface ActivityIndex {
     mcs: Map<string, McInfo>;
     matchings: Map<string, MatchInfo>;
     orderings: Map<string, OrderingInfo>;
+    selfExplanations: Map<string, SelfExplanationInfo>;
     sections: Map<string, SectionInfo>;
 }
 
@@ -388,6 +398,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
     const mcs = new Map<string, McInfo>();
     const matchings = new Map<string, MatchInfo>();
     const orderings = new Map<string, OrderingInfo>();
+    const selfExplanations = new Map<string, SelfExplanationInfo>();
     const sections = new Map<string, SectionInfo>();
 
     doc.sections.forEach((section, idx) => {
@@ -417,6 +428,17 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 // forbids columns / worked-examples / faded-examples, so this
                 // recursion is one predictable level deep.
                 for (const child of block.content) indexBlock(child);
+                return;
+            }
+            if (block.type === 'self_explanation') {
+                // Ungraded free-text prompt: no answer key, just the prompt so
+                // the dashboard can label the student's response.
+                selfExplanations.set(block.id, {
+                    blockId: block.id,
+                    problemPrompt: reconstructPrompt(block.prompt),
+                    sectionId: section.id,
+                    sectionTitle: section.title ?? null,
+                });
                 return;
             }
             if (block.type === 'interactive_graph') {
@@ -669,7 +691,17 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
         for (const block of section.blocks) indexBlock(block);
     });
 
-    return { blanks, graphs, numberLines, dataPlots, mcs, matchings, orderings, sections };
+    return {
+        blanks,
+        graphs,
+        numberLines,
+        dataPlots,
+        mcs,
+        matchings,
+        orderings,
+        selfExplanations,
+        sections,
+    };
 }
 
 // ---- Score formatting -------------------------------------------------------

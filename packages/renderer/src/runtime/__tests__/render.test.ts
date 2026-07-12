@@ -227,7 +227,7 @@ function makeRefs(
                   sections: Map<string, SectionRef> = new Map(),
                   popover: PopoverRef | null = null,
 ): Refs {
-    return { blanks, fillInBlanks, mcs: new Map(), matches: new Map(), orderings: new Map(), graphs: new Map(), graphDisplays: new Map(), numberLines: new Map(), dataPlots: new Map(), sections, popover };
+    return { blanks, fillInBlanks, mcs: new Map(), matches: new Map(), orderings: new Map(), graphs: new Map(), graphDisplays: new Map(), numberLines: new Map(), dataPlots: new Map(), selfExplanations: new Map(), sections, popover };
 }
 
 function makeState(

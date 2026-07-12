@@ -52,7 +52,7 @@ function makeRefs(refs: BlankRef[]): Refs {
     mcs: new Map(), matches: new Map(), orderings: new Map(),
     graphs: new Map(),
     graphDisplays: new Map(),
-    numberLines: new Map(), dataPlots: new Map(),
+    numberLines: new Map(), dataPlots: new Map(), selfExplanations: new Map(),
     sections: new Map(),
     popover: null,
   };

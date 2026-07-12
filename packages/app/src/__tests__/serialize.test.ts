@@ -2555,6 +2555,36 @@ describe('content blocks — learning_objectives + worked_example', () => {
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
     });
 
+    it('round-trips a self-explanation block (prompt + placeholder)', () => {
+        const node: JSONContent = {
+            type: 'selfExplanation',
+            attrs: { id: 'ignored', placeholder: 'I know this because…' },
+            content: [{ type: 'text', text: 'Explain your reasoning.' }],
+        };
+        const out = roundTrip({ type: 'doc', content: [node] });
+        const se = out.content!.find((n) => n.type === 'selfExplanation')!;
+        expect(se.attrs!.placeholder).toBe('I know this because…');
+        expect(se.content).toEqual([
+            { type: 'text', text: 'Explain your reasoning.' },
+        ]);
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('drops an empty placeholder from a self-explanation block', () => {
+        const node: JSONContent = {
+            type: 'selfExplanation',
+            attrs: { id: 'x', placeholder: '' },
+            content: [{ type: 'text', text: 'Explain.' }],
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        expect(block.type).toBe('self_explanation');
+        if (block.type === 'self_explanation') {
+            expect(block.placeholder).toBeUndefined();
+        }
+    });
+
     it('round-trips a faded worked example with a fill_in_blank step', () => {
         const node: JSONContent = {
             type: 'fadedWorkedExample',

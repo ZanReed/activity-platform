@@ -282,6 +282,18 @@ export interface DataPlotRef {
 }
 
 /** One per <section class="activity-section">. */
+/**
+ * One per self_explanation block. Ungraded free text — no scoring, no section
+ * tracking, no state entry. The textarea is its own source of truth (like the
+ * name input): the runtime just persists its value and gathers it at submit.
+ */
+export interface SelfExplanationRef {
+    /** The block element. */
+    el: HTMLElement;
+    /** The response textarea (.self-explanation-input). */
+    textarea: HTMLTextAreaElement;
+}
+
 export interface SectionRef {
     /** The section element. */
     el: HTMLElement;
@@ -352,6 +364,8 @@ export interface Refs {
     numberLines: Map<string, NumberLineRef>;
     /** Graded data_plot blocks (stats charts) — ride the same lazy kit as graphs. */
     dataPlots: Map<string, DataPlotRef>;
+    /** Ungraded self_explanation blocks — free-text captured at persist/submit. */
+    selfExplanations: Map<string, SelfExplanationRef>;
     sections: Map<string, SectionRef>;
     /** The shared floating popover, or null when the page has no popover markup. */
     popover: PopoverRef | null;

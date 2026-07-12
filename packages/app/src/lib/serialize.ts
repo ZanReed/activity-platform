@@ -70,6 +70,7 @@ import type {
     WorkedExampleChild,
     FadedWorkedExampleBlock,
     FadedWorkedExampleChild,
+    SelfExplanationBlock,
 } from '@activity/schema';
 import {
     SIMPLE_MARK_TYPES,
@@ -299,6 +300,8 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             return tiptapWorkedExampleToActivity(node);
         case 'fadedWorkedExample':
             return tiptapFadedWorkedExampleToActivity(node);
+        case 'selfExplanation':
+            return tiptapSelfExplanationToActivity(node);
 
         case 'image':
             return tiptapImageToActivity(node);
@@ -374,6 +377,17 @@ function tiptapFadedWorkedExampleToActivity(
                     b !== null && FADED_WORKED_EXAMPLE_CHILD_TYPES.has(b.type),
             ),
     };
+}
+
+function tiptapSelfExplanationToActivity(node: JSONContent): SelfExplanationBlock {
+    const block: SelfExplanationBlock = {
+        id: crypto.randomUUID(),
+        type: 'self_explanation',
+        prompt: tiptapInlineToActivity(node.content ?? []),
+    };
+    const placeholder = (node.attrs?.placeholder as string | undefined)?.trim();
+    if (placeholder) block.placeholder = placeholder;
+    return block;
 }
 
 function tiptapImageToActivity(node: JSONContent): ImageBlock | null {
@@ -1101,6 +1115,16 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
 
         case 'faded_worked_example':
             return activityFadedWorkedExampleToTiptap(block);
+
+        case 'self_explanation':
+            return {
+                type: 'selfExplanation',
+                attrs: {
+                    id: block.id,
+                    placeholder: block.placeholder ?? '',
+                },
+                content: activityInlineToTiptap(block.prompt),
+            };
 
         case 'image':
             return {

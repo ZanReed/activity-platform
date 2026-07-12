@@ -11,7 +11,7 @@
 // leaves the Edge runtime.
 //
 // Validation happens in three layers, defense in depth:
-//   1. Edge Function (this file): shape check, schemaVersion 3–8 check, Zod
+//   1. Edge Function (this file): shape check, schemaVersion 3–9 check, Zod
 //      parse, score range
 //   2. SQL function ingest_submission: activity is published, identity present,
 //      attempt_number derivation (NEVER from client input)
@@ -37,6 +37,7 @@ import {
   SubmissionResponsesV5,
   SubmissionResponsesV6,
   SubmissionResponsesV7,
+  SubmissionResponsesV8,
   migrateSubmissionResponses,
   type SubmissionResponses as SubmissionResponsesType,
 } from '../_shared/renderer.bundle.js';
@@ -142,11 +143,11 @@ Deno.serve(async (req: Request) => {
   }
 
   // ---- Reject non-v3..v7 responses -------------------------------------------
-  // The current runtime emits v8 (data plot: the `dataPlotResponses` map);
-  // pages published before the v8 runtime still POST v7 (number line), v6
-  // (matching + ordering), v5 (multiple choice), v4 (graphs), or v3, which
-  // remain accepted and migrate forward here (each is a strict subset of v8).
-  // v1/v2 only exist as already-stored data and are handled by
+  // The current runtime emits v9 (self-explanation: the `freeResponses` map);
+  // pages published before the v9 runtime still POST v8 (data plot), v7 (number
+  // line), v6 (matching + ordering), v5 (multiple choice), v4 (graphs), or v3,
+  // which remain accepted and migrate forward here (each is a strict subset of
+  // v9). v1/v2 only exist as already-stored data and are handled by
   // migrateSubmissionResponses on read. Reject anything else cleanly rather
   // than silently accepting it through a discriminated union — this is the
   // canonical place to enforce wire-format version, and a schemaVersion
@@ -160,7 +161,8 @@ Deno.serve(async (req: Request) => {
       rawResponses.schemaVersion !== 5 &&
       rawResponses.schemaVersion !== 6 &&
       rawResponses.schemaVersion !== 7 &&
-      rawResponses.schemaVersion !== 8)
+      rawResponses.schemaVersion !== 8 &&
+      rawResponses.schemaVersion !== 9)
   ) {
     const got =
     typeof rawResponses === 'object' && rawResponses !== null
@@ -169,25 +171,27 @@ Deno.serve(async (req: Request) => {
 return errorResponse(
   req,
   400,
-  `responses must use schemaVersion 3, 4, 5, 6, 7, or 8 (received: ${got})`,
+  `responses must use schemaVersion 3, 4, 5, 6, 7, 8, or 9 (received: ${got})`,
 );
   }
 
   // ---- Validate responses with Zod ----------------------------------------
-  // v8 parses directly; v7/v6/v5/v4/v3 parse via their legacy schemas and
+  // v9 parses directly; v8/v7/v6/v5/v4/v3 parse via their legacy schemas and
   // migrate forward, so the stored row is always current-shape.
   const parsed =
-    rawResponses.schemaVersion === 8
+    rawResponses.schemaVersion === 9
       ? SubmissionResponses.safeParse(body.responses)
-      : rawResponses.schemaVersion === 7
-        ? SubmissionResponsesV7.safeParse(body.responses)
-        : rawResponses.schemaVersion === 6
-          ? SubmissionResponsesV6.safeParse(body.responses)
-          : rawResponses.schemaVersion === 5
-            ? SubmissionResponsesV5.safeParse(body.responses)
-            : rawResponses.schemaVersion === 4
-              ? SubmissionResponsesV4.safeParse(body.responses)
-              : SubmissionResponsesV3.safeParse(body.responses);
+      : rawResponses.schemaVersion === 8
+        ? SubmissionResponsesV8.safeParse(body.responses)
+        : rawResponses.schemaVersion === 7
+          ? SubmissionResponsesV7.safeParse(body.responses)
+          : rawResponses.schemaVersion === 6
+            ? SubmissionResponsesV6.safeParse(body.responses)
+            : rawResponses.schemaVersion === 5
+              ? SubmissionResponsesV5.safeParse(body.responses)
+              : rawResponses.schemaVersion === 4
+                ? SubmissionResponsesV4.safeParse(body.responses)
+                : SubmissionResponsesV3.safeParse(body.responses);
   if (!parsed.success) {
     return errorResponse(req, 422, 'responses failed schema validation', {
       issues: parsed.error.issues,

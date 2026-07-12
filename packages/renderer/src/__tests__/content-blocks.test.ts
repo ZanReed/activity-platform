@@ -11,11 +11,13 @@ import { describe, it, expect } from 'vitest';
 import { renderLearningObjectives } from '../blocks/learning-objectives.js';
 import { renderWorkedExample } from '../blocks/worked-example.js';
 import { renderFadedWorkedExample } from '../blocks/faded-worked-example.js';
+import { renderSelfExplanation } from '../blocks/self-explanation.js';
 import type { BlockRenderContext } from '../blocks/index.js';
 import {
   LearningObjectivesBlock,
   WorkedExampleBlock,
   FadedWorkedExampleBlock,
+  SelfExplanationBlock,
 } from '@activity/schema';
 
 const OID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
@@ -121,5 +123,42 @@ describe('renderFadedWorkedExample', () => {
     expect(html).toContain('blank'); // the blank input carries the .blank hook
     // The faded step pulled a problem number from the shared sequence.
     expect(html).toContain('block-problem-number');
+  });
+});
+
+describe('renderSelfExplanation', () => {
+  const SID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const block = SelfExplanationBlock.parse({
+    id: SID,
+    type: 'self_explanation',
+    prompt: text('Explain why you subtracted 3.'),
+    placeholder: 'I subtracted 3 because…',
+  });
+  const html = renderSelfExplanation(block);
+
+  it('is a question-category block that carries no answer key', () => {
+    expect(html).toContain('data-block-category="question"');
+    expect(html).toContain('data-block-type="self_explanation"');
+    expect(html).toContain('data-block-id="' + SID + '"');
+    // Ungraded: no problem number, no answer-key attribute.
+    expect(html).not.toContain('block-problem-number');
+    expect(html).not.toContain('answer-key');
+  });
+
+  it('renders the prompt and a response textarea with the placeholder', () => {
+    expect(html).toContain('Explain why you subtracted 3.');
+    expect(html).toContain('<textarea');
+    expect(html).toContain('self-explanation-input');
+    expect(html).toContain('data-for-block="' + SID + '"');
+    expect(html).toContain('placeholder="I subtracted 3 because…"');
+  });
+
+  it('omits the placeholder attribute when none is set', () => {
+    const bare = SelfExplanationBlock.parse({
+      id: SID,
+      type: 'self_explanation',
+      prompt: text('Explain.'),
+    });
+    expect(renderSelfExplanation(bare)).not.toContain('placeholder=');
   });
 });

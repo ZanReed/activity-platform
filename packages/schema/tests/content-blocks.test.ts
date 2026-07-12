@@ -14,9 +14,11 @@ import {
   LearningObjectivesBlock,
   WorkedExampleBlock,
   FadedWorkedExampleBlock,
+  SelfExplanationBlock,
   createLearningObjectivesBlock,
   createWorkedExampleBlock,
   createFadedWorkedExampleBlock,
+  createSelfExplanationBlock,
 } from '../src/index.js';
 
 const uuid = () => crypto.randomUUID();
@@ -118,6 +120,32 @@ describe('FadedWorkedExampleBlock', () => {
 
   it('is a legal column-cell block', () => {
     expect(ColumnCellBlock.safeParse(createFadedWorkedExampleBlock()).success).toBe(
+      true,
+    );
+  });
+});
+
+describe('SelfExplanationBlock', () => {
+  it('factory produces a valid block (empty prompt, no placeholder)', () => {
+    const block = createSelfExplanationBlock();
+    expect(SelfExplanationBlock.safeParse(block).success).toBe(true);
+  });
+
+  it('accepts a rich prompt + optional placeholder and parses in the Block union', () => {
+    const block = createSelfExplanationBlock();
+    block.prompt = text('Why did you subtract 3?');
+    block.placeholder = 'I subtracted 3 because…';
+    expect(Block.safeParse(block).success).toBe(true);
+  });
+
+  it('has no answer key (ungraded — the shape carries only prompt + placeholder)', () => {
+    const block = createSelfExplanationBlock() as Record<string, unknown>;
+    expect('answer' in block).toBe(false);
+    expect('correct' in block).toBe(false);
+  });
+
+  it('is a legal column-cell block', () => {
+    expect(ColumnCellBlock.safeParse(createSelfExplanationBlock()).success).toBe(
       true,
     );
   });

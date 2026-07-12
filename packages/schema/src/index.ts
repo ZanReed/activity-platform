@@ -81,6 +81,7 @@ export {
   WorkedExampleChild,
   FadedWorkedExampleBlock,
   FadedWorkedExampleChild,
+  SelfExplanationBlock,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
@@ -125,6 +126,7 @@ export {
   DataPlotHistogramResponse,
   DataPlotBoxplotResponse,
   DataPlotResponse,
+  FreeResponse,
   SubmissionResponses,
   SubmissionResponsesV1,
   SubmissionResponsesV2,
@@ -133,6 +135,7 @@ export {
   SubmissionResponsesV5,
   SubmissionResponsesV6,
   SubmissionResponsesV7,
+  SubmissionResponsesV8,
   migrateSubmissionResponses,
 } from './submission.js';
 
@@ -164,6 +167,7 @@ export {
   createLearningObjectivesBlock,
   createWorkedExampleBlock,
   createFadedWorkedExampleBlock,
+  createSelfExplanationBlock,
   createBlankToken,
   createSection,
   createEmptyDocument,

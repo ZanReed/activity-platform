@@ -27,6 +27,7 @@ import { DataPlotBlock } from './data-plot.js';
 import { LearningObjectivesBlock } from './learning-objectives.js';
 import { WorkedExampleBlock } from './worked-example.js';
 import { FadedWorkedExampleBlock } from './faded-worked-example.js';
+import { SelfExplanationBlock } from './self-explanation.js';
 
 export const Block = z.discriminatedUnion('type', [
   ParagraphBlock,
@@ -48,6 +49,7 @@ export const Block = z.discriminatedUnion('type', [
   LearningObjectivesBlock,
   WorkedExampleBlock,
   FadedWorkedExampleBlock,
+  SelfExplanationBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -98,6 +100,7 @@ export {
   FadedWorkedExampleBlock,
   FadedWorkedExampleChild,
 } from './faded-worked-example.js';
+export { SelfExplanationBlock } from './self-explanation.js';
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,

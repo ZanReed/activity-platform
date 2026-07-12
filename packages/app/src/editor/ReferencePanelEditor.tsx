@@ -25,6 +25,7 @@ import { Ordering } from './extensions/Ordering';
 import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
 import { FadedWorkedExample } from './extensions/FadedWorkedExample';
+import { SelfExplanation } from './extensions/SelfExplanation';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
@@ -111,6 +112,7 @@ export default function ReferencePanelEditor({
             LearningObjectives,
             WorkedExample,
             FadedWorkedExample,
+            SelfExplanation,
             Image,
         ],
         content: initialContent,

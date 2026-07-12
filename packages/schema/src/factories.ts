@@ -42,6 +42,7 @@ import type {
   LearningObjectivesBlock,
   WorkedExampleBlock,
   FadedWorkedExampleBlock,
+  SelfExplanationBlock,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
@@ -96,6 +97,14 @@ export function createFadedWorkedExampleBlock(): FadedWorkedExampleBlock {
     type: 'faded_worked_example',
     title: 'Guided practice',
     content: [],
+  };
+}
+
+export function createSelfExplanationBlock(): SelfExplanationBlock {
+  return {
+    id: uuid(),
+    type: 'self_explanation',
+    prompt: [],
   };
 }
 

@@ -42,6 +42,7 @@ import {
     createLearningObjectivesBlock,
     createWorkedExampleBlock,
     createFadedWorkedExampleBlock,
+    createSelfExplanationBlock,
     createBlankToken,
     type Block,
 } from '@activity/schema';
@@ -131,6 +132,13 @@ function representativeBlock(type: string): ColumnCellBlock {
                     content: [{ type: 'text', text: 'Step 1: isolate x', marks: [] }],
                 },
                 faded,
+            ];
+            return block;
+        }
+        case 'self_explanation': {
+            const block = createSelfExplanationBlock();
+            block.prompt = [
+                { type: 'text', text: 'Explain your reasoning.', marks: [] },
             ];
             return block;
         }

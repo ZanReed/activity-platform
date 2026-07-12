@@ -35,6 +35,7 @@ import { wireMatching } from './matches.js';
 import { wireOrdering } from './orderings.js';
 import { wireCheckpoints } from './checkpoints.js';
 import { wireConfidence } from './confidence.js';
+import { wireSelfExplanations } from './self-explanations.js';
 import { graphExt, numberLineExt, dataPlotExt } from './graph-integration.js';
 import { render } from './render.js';
 import { submit, flushPendingSubmission } from './submission.js';
@@ -87,6 +88,8 @@ function bootstrap(): void {
   wirePopover(state, refs, onUpdate);
   wireCheckpoints(config, state, refs, onUpdate);
   wireConfidence(state, refs, onUpdate);
+  // Self-explanation textareas — persist-on-input (ungraded, no scoring).
+  wireSelfExplanations(refs, onUpdate);
   // Hand the page's graph blocks (graded widgets + static display figures) to
   // the lazy kit: one fetch, one attach; the kit bridges widget moves into
   // state and takes over graph-chrome rendering. Async — the initial render

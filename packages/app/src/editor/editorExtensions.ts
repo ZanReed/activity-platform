@@ -34,6 +34,7 @@ import { Ordering } from './extensions/Ordering';
 import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
 import { FadedWorkedExample } from './extensions/FadedWorkedExample';
+import { SelfExplanation } from './extensions/SelfExplanation';
 import { Definition } from './extensions/Definition';
 
 export interface EditorExtensionOptions {
@@ -106,5 +107,7 @@ export function buildEditorExtensions({
         // fill_in_blank steps. Scoring rides the nested fill_in_blank blocks
         // (already registered above), so no runtime wiring of its own.
         FadedWorkedExample,
+        // Self-explanation — an ungraded free-text reflection prompt.
+        SelfExplanation,
     ];
 }

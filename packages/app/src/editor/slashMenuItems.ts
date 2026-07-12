@@ -289,6 +289,15 @@ export const slashMenuItems: SlashMenuItem[] = [
             begin(editor, range).insertOrdering().run();
         },
     },
+    {
+        title: 'Self-explanation',
+        description: 'Students explain their reasoning in free text. Ungraded — collected for you to read.',
+        keywords: ['self', 'explanation', 'explain', 'reflection', 'reflect', 'reasoning', 'writing', 'free', 'text', 'response', 'why'],
+        group: 'Questions',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertSelfExplanation().run();
+        },
+    },
 ];
 
 // Group headings in dropdown display order.

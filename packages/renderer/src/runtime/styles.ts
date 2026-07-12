@@ -265,6 +265,28 @@ body {
 .block-faded-example__body > .block:first-child { margin-top: 0; }
 .block-faded-example__body > .block:last-child { margin-bottom: 0; }
 
+/* Self-explanation — an ungraded reflection prompt over a free-text area. */
+.block-self-explanation { margin: 1.25rem 0; }
+.block-self-explanation__prompt { margin-bottom: 0.5rem; }
+.self-explanation-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 5rem;
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  resize: vertical;
+}
+.self-explanation-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  border-color: var(--color-accent);
+}
+
 .block-problem,
 .block-fill-in-blank {
   display: grid;
@@ -1701,5 +1723,15 @@ body {
   }
   .block-worked-example__title,
   .block-faded-example__title { color: black; }
+
+  /* Self-explanation prints as a blank writing area (a bordered box with
+     room to write by hand); on-screen focus styling is dropped. */
+  .self-explanation-input {
+    border: 1px solid black;
+    background: transparent;
+    min-height: 4.5rem;
+    resize: none;
+    break-inside: avoid;
+  }
 }
 `.trim();

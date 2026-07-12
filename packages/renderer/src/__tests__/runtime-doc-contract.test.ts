@@ -41,6 +41,10 @@ const INTERACTIVE = new Set<string>([
   'ordering',
   'number_line',
   'data_plot',
+  // Ungraded, but INTERACTIVE: the runtime reads the block's textarea value
+  // (keyed by data-block-id) to persist + submit it, so it carries a
+  // data-attribute contract and a RUNTIME.md section.
+  'self_explanation',
 ]);
 
 // Content / pure-container block types the runtime never reads type-specific

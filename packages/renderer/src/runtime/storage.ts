@@ -84,7 +84,9 @@ export function saveName(name: string): void {
 // interval/ray bounds + styles, scoring, solution reveal, confidence).
 // 8 → 9 (data plot): the blob gained a `dataPlots` map (the student's plotted
 // dot values, scoring, solution reveal, confidence per graded data_plot block).
-const STORAGE_SCHEMA_VERSION = 9;
+// 9 → 10 (self-explanation): the blob gained a `freeTexts` map (the raw
+// textarea value per self_explanation block — no scoring, just restore-on-load).
+const STORAGE_SCHEMA_VERSION = 10;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {
@@ -107,6 +109,12 @@ export interface StoredActivityState {
   numberLines: Record<string, NumberLineBlockState>;
   /** Per-graded-data_plot-block state snapshot. */
   dataPlots: Record<string, DataPlotBlockState>;
+  /**
+   * Raw textarea value per self_explanation block (DOM source-of-truth at
+   * persist time, like `values` for blanks). Ungraded — no state entry;
+   * restored straight into the textarea at bootstrap.
+   */
+  freeTexts: Record<string, string>;
   /** Per-section state snapshot. */
   sections: Record<string, SectionState>;
 }
@@ -136,9 +144,16 @@ export function saveActivityState(
     for (const [id, ref] of refs.blanks) {
       values[id] = ref.input.value;
     }
+    // Self-explanation textareas: snapshot raw non-empty values (DOM is the
+    // source of truth, like blank `values`). Empty ones stay out of the blob.
+    const freeTexts: Record<string, string> = {};
+    for (const [id, ref] of refs.selfExplanations) {
+      if (ref.textarea.value.length > 0) freeTexts[id] = ref.textarea.value;
+    }
     const blob: StoredActivityState = {
       schemaVersion: STORAGE_SCHEMA_VERSION,
       values,
+      freeTexts,
       blanks: state.blanks,
       blocks: state.blocks,
       mcs: state.mcs,
@@ -265,6 +280,12 @@ export function applyStoredState(
   for (const [blankId, value] of Object.entries(stored.values)) {
     const ref = refs.blanks.get(blankId);
     if (ref) ref.input.value = value;
+  }
+  // Restore self-explanation textareas (the bootstrap DOM-write exception,
+  // like blank inputs above). `?? {}` guards blobs written before this field.
+  for (const [blockId, text] of Object.entries(stored.freeTexts ?? {})) {
+    const ref = refs.selfExplanations.get(blockId);
+    if (ref) ref.textarea.value = text;
   }
   for (const [id, blankState] of Object.entries(stored.blanks)) {
     if (state.blanks[id]) state.blanks[id] = blankState;

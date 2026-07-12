@@ -66,9 +66,9 @@ describe('buildSubmissionPayload — wire contract with ingest-submission', () =
         expect('displayName' in payload).toBe(false);
     });
 
-    it('carries responses with schemaVersion 8 and the gathered blanks', () => {
+    it('carries responses with schemaVersion 9 and the gathered blanks', () => {
         const payload = buildSubmissionPayload(CONFIG, 'Ada', gathered, undefined);
-        expect(payload.responses.schemaVersion).toBe(8);
+        expect(payload.responses.schemaVersion).toBe(9);
         expect(payload.responses.blanks).toEqual(gathered.blanks);
         // No checkpointResults / graphResponses keys when none were gathered.
         expect('checkpointResults' in payload.responses).toBe(false);

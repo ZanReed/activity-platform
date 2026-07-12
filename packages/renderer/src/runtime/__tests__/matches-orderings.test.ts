@@ -298,7 +298,7 @@ describe('checkSection aggregation', () => {
     });
 });
 
-describe('gatherResponses + payload (v8)', () => {
+describe('gatherResponses + payload (v9)', () => {
     it('answered matching lands in the matches map with earned/total', () => {
         const { refs, state } = setup(matchingHtml());
         state.matches[MB]!.pairs = { [I1]: T1 };
@@ -317,7 +317,7 @@ describe('gatherResponses + payload (v8)', () => {
         expect(gathered.totalScored).toBe(2);
 
         const payload = buildSubmissionPayload(CONFIG, 'Kid', gathered, undefined);
-        expect(payload.responses.schemaVersion).toBe(8);
+        expect(payload.responses.schemaVersion).toBe(9);
         expect(payload.responses.matches).toEqual(gathered.matches);
     });
 

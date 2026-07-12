@@ -1816,3 +1816,73 @@ img.mc-block__figure-preview {
 .faded-example-block__body > :first-child { margin-top: 0; }
 .worked-example-block__body > :last-child,
 .faded-example-block__body > :last-child { margin-bottom: 0; }
+
+/* =============================================================================
+ *  Self-explanation block NodeView (Phase 2): an editable prompt over a
+ *  disabled preview textarea + an optional sentence-starter footer.
+ *  ========================================================================= */
+
+.self-explanation-block {
+    margin: 1rem 0;
+    padding: 0.6rem 0.85rem;
+    border-radius: 0.375rem;
+    border-left: 3px solid rgb(20 184 166); /* teal-500 — distinct from indigo */
+    background-color: rgb(248 250 252); /* slate-50 */
+    transition: background-color 0.15s;
+}
+
+.self-explanation-block.is-selected {
+    background-color: rgb(239 246 255); /* blue-50 */
+    outline: 2px solid rgb(59 130 246); /* blue-500 */
+}
+
+.self-explanation-block__prompt {
+    line-height: 1.6;
+    min-height: 1.5em; /* keeps an empty prompt clickable */
+}
+
+.self-explanation-block__preview {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.55rem;
+    font: inherit;
+    color: rgb(148 163 184); /* slate-400 — clearly inert preview */
+    background-color: rgb(241 245 249); /* slate-100 */
+    border: 1px dashed rgb(203 213 225); /* slate-300 */
+    border-radius: 0.25rem;
+    resize: none;
+}
+
+.self-explanation-block__footer {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+}
+
+.self-explanation-block__footer-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: rgb(100 116 139); /* slate-500 */
+    background: none;
+    border: none;
+    padding: 0.1rem 0;
+    cursor: pointer;
+}
+
+.self-explanation-block__footer-badge {
+    color: rgb(51 65 85); /* slate-700 */
+    font-style: italic;
+}
+
+.self-explanation-block__starter-input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 0.3rem;
+    padding: 0.3rem 0.5rem;
+    font: inherit;
+    border: 1px solid rgb(203 213 225); /* slate-300 */
+    border-radius: 0.25rem;
+}

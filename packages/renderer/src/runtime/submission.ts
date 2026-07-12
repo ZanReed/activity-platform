@@ -28,6 +28,7 @@ import { scoreBlanksInScope, trimValue } from './blanks.js';
 import { scoreMcBlocks } from './mcs.js';
 import { scoreMatchBlocks } from './matches.js';
 import { scoreOrderingBlocks } from './orderings.js';
+import { gatherFreeResponses, type FreeResult } from './self-explanations.js';
 import { graphExt, numberLineExt, dataPlotExt } from './graph-integration.js';
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
@@ -149,7 +150,7 @@ interface CheckpointResultPayload {
 }
 
 interface SubmissionResponsesPayload {
-  schemaVersion: 8;
+  schemaVersion: 9;
   blanks: Record<string, BlankResult>;
   checkpointResults?: Record<string, CheckpointResultPayload>;
   graphResponses?: Record<string, GraphResult>;
@@ -158,6 +159,8 @@ interface SubmissionResponsesPayload {
   orderings?: Record<string, OrderResult>;
   numberLineResponses?: Record<string, NumberLineResult>;
   dataPlotResponses?: Record<string, DataPlotResult>;
+  /** Ungraded free text per self_explanation block. Never in the score. */
+  freeResponses?: Record<string, FreeResult>;
 }
 
 // Wire shape POSTed to the ingest-submission Edge Function. Keys are
@@ -189,12 +192,13 @@ export function buildSubmissionPayload(
     orderings?: Record<string, OrderResult>;
     numberLineResponses?: Record<string, NumberLineResult>;
     dataPlotResponses?: Record<string, DataPlotResult>;
+    freeResponses?: Record<string, FreeResult>;
     score: number;
   },
   checkpointResults: Record<string, CheckpointResultPayload> | undefined,
 ): SubmissionPayload {
   const responses: SubmissionResponsesPayload = {
-    schemaVersion: 8,
+    schemaVersion: 9,
     blanks: gathered.blanks,
   };
   if (checkpointResults) {
@@ -218,6 +222,9 @@ export function buildSubmissionPayload(
   if (gathered.dataPlotResponses) {
     responses.dataPlotResponses = gathered.dataPlotResponses;
   }
+  if (gathered.freeResponses) {
+    responses.freeResponses = gathered.freeResponses;
+  }
   return {
     activity_id: config.activityId,
     display_name: displayName,
@@ -234,6 +241,7 @@ interface GatheredResponses {
   orderings?: Record<string, OrderResult>;
   numberLineResponses?: Record<string, NumberLineResult>;
   dataPlotResponses?: Record<string, DataPlotResult>;
+  freeResponses?: Record<string, FreeResult>;
   score: number;
   totalScored: number;
 }
@@ -356,6 +364,10 @@ export function gatherResponses(
   totalScored += dataPlots.scored;
   totalCorrect += dataPlots.correct;
 
+  // Self-explanation free text — UNGRADED, so it touches neither total nor
+  // correct. Just gathered into the payload (undefined when nothing written).
+  const freeResponses = gatherFreeResponses(refs);
+
   return {
     blanks,
     ...(graphs.graphResponses && { graphResponses: graphs.graphResponses }),
@@ -368,6 +380,7 @@ export function gatherResponses(
     ...(dataPlots.dataPlotResponses && {
       dataPlotResponses: dataPlots.dataPlotResponses,
     }),
+    ...(freeResponses && { freeResponses }),
     score: computeScore(totalCorrect, totalScored),
     totalScored,
   };

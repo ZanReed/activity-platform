@@ -330,6 +330,18 @@ function SubmissionDetail({
               })
         : [];
 
+    // Self-explanation responses — ungraded free text (no answer key / result /
+    // confidence). Sorted by block id (these carry no problem number).
+    const freeRows = responses.freeResponses
+        ? Object.entries(responses.freeResponses)
+              .map(([blockId, resp]) => ({
+                  blockId,
+                  info: index.selfExplanations.get(blockId),
+                  resp,
+              }))
+              .sort((a, b) => a.blockId.localeCompare(b.blockId))
+        : [];
+
     return (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
         {blankCount === 0 &&
@@ -338,7 +350,8 @@ function SubmissionDetail({
         dataPlotRows.length === 0 &&
         mcRows.length === 0 &&
         matchRows.length === 0 &&
-        orderingRows.length === 0 ? (
+        orderingRows.length === 0 &&
+        freeRows.length === 0 ? (
             <p className="text-sm text-slate-500">No responses recorded.</p>
         ) : (
             <div className="space-y-4">
@@ -789,6 +802,31 @@ function SubmissionDetail({
                 ))}
                 </tbody>
                 </table>
+                </div>
+            )}
+
+            {freeRows.length > 0 && (
+                <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Self-explanation
+                </p>
+                <div className="mt-2 space-y-2">
+                {freeRows.map((f) => (
+                    <div
+                    key={f.blockId}
+                    className="border-t border-slate-200 pt-2"
+                    >
+                    {f.info?.problemPrompt && (
+                        <p className="text-xs text-slate-400">
+                        {f.info.problemPrompt}
+                        </p>
+                    )}
+                    <p className="whitespace-pre-wrap text-sm text-slate-900">
+                    {f.resp.text}
+                    </p>
+                    </div>
+                ))}
+                </div>
                 </div>
             )}
 

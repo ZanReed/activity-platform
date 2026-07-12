@@ -118,7 +118,7 @@ function makeRefs(blanks: Map<string, BlankRef>): Refs {
         mcs: new Map(), matches: new Map(), orderings: new Map(),
     graphs: new Map(),
         graphDisplays: new Map(),
-        numberLines: new Map(), dataPlots: new Map(),
+        numberLines: new Map(), dataPlots: new Map(), selfExplanations: new Map(),
         sections: new Map(),
         popover: null,
     };
@@ -252,6 +252,7 @@ describe('applyStoredState', () => {
         const stored: StoredActivityState = {
             schemaVersion: 1,
             values: { 'b1': 'x+1', 'b2': 'y-2' },
+            freeTexts: {},
             blanks: {},
             blocks: {},
             mcs: {}, matches: {}, orderings: {},
@@ -274,6 +275,7 @@ describe('applyStoredState', () => {
         const stored: StoredActivityState = {
             schemaVersion: 1,
             values: {},
+            freeTexts: {},
             blanks: {
                 'b1': {
                     result: true,
@@ -311,6 +313,7 @@ describe('applyStoredState', () => {
         const stored: StoredActivityState = {
             schemaVersion: 1,
             values: { 'b1': 'x', 'orphan': 'y' },
+            freeTexts: {},
             blanks: {
                 'b1': makeBlankState({ result: true }),
        'orphan': makeBlankState({ result: false }),
