@@ -41,6 +41,7 @@ import type {
   DataPlotBlock,
   LearningObjectivesBlock,
   WorkedExampleBlock,
+  FadedWorkedExampleBlock,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
@@ -85,6 +86,15 @@ export function createWorkedExampleBlock(): WorkedExampleBlock {
     id: uuid(),
     type: 'worked_example',
     title: 'Worked example',
+    content: [],
+  };
+}
+
+export function createFadedWorkedExampleBlock(): FadedWorkedExampleBlock {
+  return {
+    id: uuid(),
+    type: 'faded_worked_example',
+    title: 'Guided practice',
     content: [],
   };
 }

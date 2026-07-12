@@ -1734,7 +1734,8 @@ img.mc-block__figure-preview {
  *  ========================================================================= */
 
 .learning-objectives-block,
-.worked-example-block {
+.worked-example-block,
+.faded-example-block {
     margin: 1rem 0;
     padding: 0.6rem 0.85rem;
     border-radius: 0.375rem;
@@ -1751,27 +1752,36 @@ img.mc-block__figure-preview {
     border-top: 3px solid rgb(99 102 241); /* indigo-500 */
 }
 
+/* Dashed frame mirrors the published faded example (do, not just study). */
+.faded-example-block {
+    border: 1px dashed rgb(99 102 241); /* indigo-500 */
+}
+
 .learning-objectives-block.is-selected,
-.worked-example-block.is-selected {
+.worked-example-block.is-selected,
+.faded-example-block.is-selected {
     background-color: rgb(239 246 255); /* blue-50 */
     outline: 2px solid rgb(59 130 246); /* blue-500 */
 }
 
 .learning-objectives-block__header,
-.worked-example-block__header {
+.worked-example-block__header,
+.faded-example-block__header {
     display: flex;
     align-items: center;
     gap: 0.35rem;
     margin-bottom: 0.35rem;
 }
 
-.worked-example-block__icon {
+.worked-example-block__icon,
+.faded-example-block__icon {
     color: rgb(99 102 241); /* indigo-500 */
     user-select: none;
 }
 
 .learning-objectives-block__title,
-.worked-example-block__title {
+.worked-example-block__title,
+.faded-example-block__title {
     flex: 1;
     border: none;
     background: transparent;
@@ -1783,7 +1793,8 @@ img.mc-block__figure-preview {
 }
 
 .learning-objectives-block__title:focus,
-.worked-example-block__title:focus {
+.worked-example-block__title:focus,
+.faded-example-block__title:focus {
     outline: 2px solid rgb(59 130 246); /* blue-500 */
     background: white;
 }
@@ -1801,5 +1812,7 @@ img.mc-block__figure-preview {
     margin: 0.15rem 0;
 }
 
-.worked-example-block__body > :first-child { margin-top: 0; }
-.worked-example-block__body > :last-child { margin-bottom: 0; }
+.worked-example-block__body > :first-child,
+.faded-example-block__body > :first-child { margin-top: 0; }
+.worked-example-block__body > :last-child,
+.faded-example-block__body > :last-child { margin-bottom: 0; }

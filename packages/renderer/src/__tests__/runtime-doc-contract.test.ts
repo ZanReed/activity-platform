@@ -58,6 +58,10 @@ const CONTAINER = new Set<string>([
   'columns',
   'learning_objectives',
   'worked_example',
+  // Scaffold shell whose scoring rides its child fill_in_blank blanks — the
+  // runtime reads no type-specific attributes off the frame itself (like
+  // `problem`), so no RUNTIME.md contract section is required.
+  'faded_worked_example',
 ]);
 
 // Discriminator literals of the Block discriminated union, read at runtime.

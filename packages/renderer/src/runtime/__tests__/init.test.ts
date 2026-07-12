@@ -203,6 +203,36 @@ describe('buildRefs — fill-in-blank blocks', () => {
         expect(block?.confidenceFieldset).toBeNull();
         expect(block?.skills).toEqual([]);
     });
+
+    it('discovers a fill_in_blank NESTED inside a faded worked example', () => {
+        // The core faded_worked_example claim: init scans each section for
+        // [data-block-type="fill_in_blank"] with querySelectorAll (descendants,
+        // not just direct children), so a faded step nested in the scaffold
+        // frame is discovered and scored with ZERO faded-example runtime code.
+        setupDOM(
+            configScript() +
+            '<section class="activity-section" data-section-id="sec-1">' +
+            '<section class="block block-faded-example"' +
+            ' data-block-category="scaffold"' +
+            ' data-block-type="faded_worked_example"' +
+            ' data-block-id="faded-1">' +
+            '<p class="block-faded-example__title">Guided practice</p>' +
+            '<div class="block-faded-example__body">' +
+            '<div class="block block-fill-in-blank"' +
+            ' data-block-type="fill_in_blank" data-block-id="fib-1">' +
+            '<div class="block-problem-body">' +
+            '<span class="blank-wrapper">' +
+            '<input class="blank" data-blank-id="blk-1"' +
+            ' data-blank-answers="4" data-blank-strategy="list" />' +
+            '</span></div></div>' +
+            '</div></section></section>',
+        );
+        const refs = buildRefs();
+        // The nested block and its blank are found and attributed to the section.
+        expect(refs.fillInBlanks.has('fib-1')).toBe(true);
+        expect(refs.blanks.has('blk-1')).toBe(true);
+        expect(refs.sections.get('sec-1')?.blankIds).toContain('blk-1');
+    });
 });
 
 describe('buildRefs — display (static) graphs', () => {

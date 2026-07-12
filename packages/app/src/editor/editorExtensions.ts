@@ -33,6 +33,7 @@ import { Matching } from './extensions/Matching';
 import { Ordering } from './extensions/Ordering';
 import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
+import { FadedWorkedExample } from './extensions/FadedWorkedExample';
 import { Definition } from './extensions/Definition';
 
 export interface EditorExtensionOptions {
@@ -101,5 +102,9 @@ export function buildEditorExtensions({
         // content — no runtime, no scoring.
         LearningObjectives,
         WorkedExample,
+        // Faded worked example — the interactive sibling: shown steps + faded
+        // fill_in_blank steps. Scoring rides the nested fill_in_blank blocks
+        // (already registered above), so no runtime wiring of its own.
+        FadedWorkedExample,
     ];
 }

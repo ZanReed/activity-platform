@@ -79,6 +79,8 @@ export {
   LearningObjectivesBlock,
   WorkedExampleBlock,
   WorkedExampleChild,
+  FadedWorkedExampleBlock,
+  FadedWorkedExampleChild,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
@@ -161,6 +163,7 @@ export {
   createDataPlotBlock,
   createLearningObjectivesBlock,
   createWorkedExampleBlock,
+  createFadedWorkedExampleBlock,
   createBlankToken,
   createSection,
   createEmptyDocument,

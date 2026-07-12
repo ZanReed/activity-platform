@@ -13,8 +13,10 @@ import {
   ColumnCellBlock,
   LearningObjectivesBlock,
   WorkedExampleBlock,
+  FadedWorkedExampleBlock,
   createLearningObjectivesBlock,
   createWorkedExampleBlock,
+  createFadedWorkedExampleBlock,
 } from '../src/index.js';
 
 const uuid = () => crypto.randomUUID();
@@ -79,5 +81,44 @@ describe('WorkedExampleBlock', () => {
 
   it('is a legal column-cell block', () => {
     expect(ColumnCellBlock.safeParse(createWorkedExampleBlock()).success).toBe(true);
+  });
+});
+
+describe('FadedWorkedExampleBlock', () => {
+  it('factory produces a valid block with the default title', () => {
+    const block = createFadedWorkedExampleBlock();
+    expect(block.title).toBe('Guided practice');
+    expect(FadedWorkedExampleBlock.safeParse(block).success).toBe(true);
+  });
+
+  it('accepts a fill_in_blank child (the faded step) and parses in the Block union', () => {
+    const block = createFadedWorkedExampleBlock();
+    block.content = [
+      { id: uuid(), type: 'paragraph', content: text('Shown step: subtract 3.') },
+      {
+        id: uuid(),
+        type: 'fill_in_blank',
+        content: [
+          { type: 'text', text: 'x = ', marks: [] },
+          { type: 'blank', id: uuid(), answer: '4', acceptableAnswers: [] },
+        ],
+        skills: [],
+      },
+    ];
+    expect(Block.safeParse(block).success).toBe(true);
+  });
+
+  it('rejects a non-fill_in_blank question child (e.g. multiple_choice)', () => {
+    const block = createFadedWorkedExampleBlock();
+    (block.content as unknown[]) = [
+      { id: uuid(), type: 'multiple_choice', prompt: [], options: [], selectMode: 'single' },
+    ];
+    expect(FadedWorkedExampleBlock.safeParse(block).success).toBe(false);
+  });
+
+  it('is a legal column-cell block', () => {
+    expect(ColumnCellBlock.safeParse(createFadedWorkedExampleBlock()).success).toBe(
+      true,
+    );
   });
 });

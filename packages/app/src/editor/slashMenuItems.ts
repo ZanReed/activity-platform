@@ -187,6 +187,15 @@ export const slashMenuItems: SlashMenuItem[] = [
         },
     },
     {
+        title: 'Faded worked example',
+        description: 'A guided example: shown steps + fill-in-blank steps the student completes.',
+        keywords: ['faded', 'worked', 'example', 'guided', 'practice', 'scaffold', 'completion', 'fill', 'blank', 'steps'],
+        group: 'Structure',
+        command: ({ editor, range }) => {
+            begin(editor, range).insertFadedWorkedExample().run();
+        },
+    },
+    {
         title: 'Static graph',
         description: 'A display-only graph — a figure or exemplar. No answer collected.',
         keywords: ['graph', 'static', 'display', 'figure', 'diagram', 'stimulus', 'exemplar', 'chart', 'plot'],

@@ -24,6 +24,7 @@ import { Matching } from './extensions/Matching';
 import { Ordering } from './extensions/Ordering';
 import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
+import { FadedWorkedExample } from './extensions/FadedWorkedExample';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
@@ -109,6 +110,7 @@ export default function ReferencePanelEditor({
             // constrained schema must still compile with the cell content spec.
             LearningObjectives,
             WorkedExample,
+            FadedWorkedExample,
             Image,
         ],
         content: initialContent,

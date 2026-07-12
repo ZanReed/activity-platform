@@ -241,6 +241,30 @@ body {
 .block-worked-example__body > .block:first-child { margin-top: 0; }
 .block-worked-example__body > .block:last-child { margin-bottom: 0; }
 
+/* Faded worked example — a scaffold: shown steps + fill-in-blank (faded) steps
+   the student completes. A dashed frame distinguishes it from the solid
+   worked-example box (study vs. do), and survives grayscale print. */
+.block-faded-example {
+  margin: 1.25rem 0;
+  padding: 0.85rem 1.1rem 0.95rem;
+  border: 1px dashed var(--color-accent);
+  border-radius: 6px;
+  background: var(--color-bg);
+}
+.block-faded-example__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  color: var(--color-accent);
+}
+.block-faded-example__icon { font-size: 1rem; line-height: 1; }
+.block-faded-example__body > .block:first-child { margin-top: 0; }
+.block-faded-example__body > .block:last-child { margin-bottom: 0; }
+
 .block-problem,
 .block-fill-in-blank {
   display: grid;
@@ -1661,13 +1685,21 @@ body {
   .block-callout-note    { border-left-style: dotted; }
 
   /* Content scaffolds print as plain bordered boxes (colour carries no meaning
-     in B&W; the border + label do). Keep them whole on the page. */
+     in B&W; the border + label do). Keep them whole on the page. The faded
+     example keeps a DASHED border so it stays visually distinct from the solid
+     worked-example box in grayscale. */
   .block-learning-objectives,
   .block-worked-example {
     background: transparent;
     border: 1px solid black;
     break-inside: avoid;
   }
-  .block-worked-example__title { color: black; }
+  .block-faded-example {
+    background: transparent;
+    border: 1px dashed black;
+    break-inside: avoid;
+  }
+  .block-worked-example__title,
+  .block-faded-example__title { color: black; }
 }
 `.trim();

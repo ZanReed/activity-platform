@@ -411,6 +411,14 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 }
                 return;
             }
+            if (block.type === 'faded_worked_example') {
+                // Scaffold shell: its faded steps are fill_in_blank children,
+                // which index exactly like top-level ones. The child union
+                // forbids columns / worked-examples / faded-examples, so this
+                // recursion is one predictable level deep.
+                for (const child of block.content) indexBlock(child);
+                return;
+            }
             if (block.type === 'interactive_graph') {
                 // Display (static) graphs are ungraded — they collect no answer,
                 // so they never appear in a submission and aren't indexed here.

@@ -68,6 +68,8 @@ import type {
     LearningObjectivesBlock,
     WorkedExampleBlock,
     WorkedExampleChild,
+    FadedWorkedExampleBlock,
+    FadedWorkedExampleChild,
 } from '@activity/schema';
 import {
     SIMPLE_MARK_TYPES,
@@ -295,6 +297,8 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             return tiptapLearningObjectivesToActivity(node);
         case 'workedExample':
             return tiptapWorkedExampleToActivity(node);
+        case 'fadedWorkedExample':
+            return tiptapFadedWorkedExampleToActivity(node);
 
         case 'image':
             return tiptapImageToActivity(node);
@@ -344,6 +348,30 @@ function tiptapWorkedExampleToActivity(node: JSONContent): WorkedExampleBlock {
             .filter(
                 (b): b is WorkedExampleChild =>
                     b !== null && WORKED_EXAMPLE_CHILD_TYPES.has(b.type),
+            ),
+    };
+}
+
+// A faded worked example admits everything a worked example does, PLUS
+// fill_in_blank (the faded steps). Mirrors the schema's FadedWorkedExampleChild
+// union and the FadedWorkedExample node's content expression.
+const FADED_WORKED_EXAMPLE_CHILD_TYPES = new Set<Block['type']>([
+    ...WORKED_EXAMPLE_CHILD_TYPES,
+    'fill_in_blank',
+]);
+
+function tiptapFadedWorkedExampleToActivity(
+    node: JSONContent,
+): FadedWorkedExampleBlock {
+    return {
+        id: crypto.randomUUID(),
+        type: 'faded_worked_example',
+        title: (node.attrs?.title as string | undefined) ?? 'Guided practice',
+        content: (node.content ?? [])
+            .map(tiptapBlockToActivity)
+            .filter(
+                (b): b is FadedWorkedExampleChild =>
+                    b !== null && FADED_WORKED_EXAMPLE_CHILD_TYPES.has(b.type),
             ),
     };
 }
@@ -1071,6 +1099,9 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'worked_example':
             return activityWorkedExampleToTiptap(block);
 
+        case 'faded_worked_example':
+            return activityFadedWorkedExampleToTiptap(block);
+
         case 'image':
             return {
                 type: 'image',
@@ -1146,6 +1177,21 @@ function activityWorkedExampleToTiptap(
     // if every child was unmappable (or the body is empty).
     return {
         type: 'workedExample',
+        attrs: { id: block.id, title: block.title },
+        content: children.length > 0 ? children : [{ type: 'paragraph' }],
+    };
+}
+
+function activityFadedWorkedExampleToTiptap(
+    block: FadedWorkedExampleBlock,
+): JSONContent {
+    const children = block.content
+        .map(activityBlockToTiptap)
+        .filter((n): n is JSONContent => n !== null);
+    // Content expression requires at least one block; seed an empty paragraph
+    // if every child was unmappable (or the body is empty).
+    return {
+        type: 'fadedWorkedExample',
         attrs: { id: block.id, title: block.title },
         content: children.length > 0 ? children : [{ type: 'paragraph' }],
     };

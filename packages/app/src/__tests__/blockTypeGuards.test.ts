@@ -41,6 +41,7 @@ import {
     createDataPlotBlock,
     createLearningObjectivesBlock,
     createWorkedExampleBlock,
+    createFadedWorkedExampleBlock,
     createBlankToken,
     type Block,
 } from '@activity/schema';
@@ -110,6 +111,26 @@ function representativeBlock(type: string): ColumnCellBlock {
                     type: 'paragraph',
                     content: [{ type: 'text', text: 'Step 1: isolate x', marks: [] }],
                 },
+            ];
+            return block;
+        }
+        case 'faded_worked_example': {
+            // A shown step + a faded (fill_in_blank) step carrying a real blank,
+            // so the dashboard indexing guard is non-vacuous (the nested blank
+            // must index the same at top level and inside a column).
+            const block = createFadedWorkedExampleBlock();
+            const faded = createFillInBlankBlock();
+            faded.content = [
+                { type: 'text', text: 'x = ', marks: [] },
+                createBlankToken('4'),
+            ];
+            block.content = [
+                {
+                    id: crypto.randomUUID(),
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Step 1: isolate x', marks: [] }],
+                },
+                faded,
             ];
             return block;
         }

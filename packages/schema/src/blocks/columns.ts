@@ -38,6 +38,7 @@ import { DataPlotBlock } from './data-plot.js';
 import { BulletListBlock, OrderedListBlock } from './list.js';
 import { LearningObjectivesBlock } from './learning-objectives.js';
 import { WorkedExampleBlock } from './worked-example.js';
+import { FadedWorkedExampleBlock } from './faded-worked-example.js';
 
 // Cell content = the full Block union MINUS ColumnsBlock. When a new leaf block
 // type is added, add it here too (and to blocks/index.ts's full union).
@@ -59,6 +60,7 @@ export const ColumnCellBlock = z.discriminatedUnion('type', [
   OrderedListBlock,
   LearningObjectivesBlock,
   WorkedExampleBlock,
+  FadedWorkedExampleBlock,
 ]);
 export type ColumnCellBlock = z.infer<typeof ColumnCellBlock>;
 

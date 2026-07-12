@@ -2555,6 +2555,36 @@ describe('content blocks — learning_objectives + worked_example', () => {
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
     });
 
+    it('round-trips a faded worked example with a fill_in_blank step', () => {
+        const node: JSONContent = {
+            type: 'fadedWorkedExample',
+            attrs: { id: 'ignored-regenerated', title: 'Guided practice' },
+            content: [
+                { type: 'paragraph', content: [{ type: 'text', text: 'First, subtract 3.' }] },
+                {
+                    type: 'fillInBlank',
+                    attrs: { id: 'ignored' },
+                    content: [
+                        { type: 'text', text: 'x = ' },
+                        { type: 'blank', attrs: { answer: '4', acceptableAnswers: [] } },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+        const block = activity.sections[0]!.blocks[0]!;
+        expect(block.type).toBe('faded_worked_example');
+        if (block.type === 'faded_worked_example') {
+            expect(block.content.map((c) => c.type)).toEqual(['paragraph', 'fill_in_blank']);
+        }
+        // And the block survives a full round-trip back to Tiptap.
+        const out = activityToTiptap(activity);
+        const fwe = out.content!.find((n) => n.type === 'fadedWorkedExample')!;
+        expect(fwe.attrs!.title).toBe('Guided practice');
+        expect(fwe.content!.map((c) => c.type)).toEqual(['paragraph', 'fillInBlank']);
+    });
+
     it('drops a non-content child from a worked example (content-only union)', () => {
         // A fillInBlank pasted into a worked example must not survive to the doc —
         // the schema's WorkedExampleChild union rejects it.

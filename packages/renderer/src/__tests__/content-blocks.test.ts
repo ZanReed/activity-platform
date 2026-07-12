@@ -10,8 +10,13 @@
 import { describe, it, expect } from 'vitest';
 import { renderLearningObjectives } from '../blocks/learning-objectives.js';
 import { renderWorkedExample } from '../blocks/worked-example.js';
+import { renderFadedWorkedExample } from '../blocks/faded-worked-example.js';
 import type { BlockRenderContext } from '../blocks/index.js';
-import { LearningObjectivesBlock, WorkedExampleBlock } from '@activity/schema';
+import {
+  LearningObjectivesBlock,
+  WorkedExampleBlock,
+  FadedWorkedExampleBlock,
+} from '@activity/schema';
 
 const OID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const WID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
@@ -76,5 +81,45 @@ describe('renderWorkedExample', () => {
     expect(html).toContain('Subtract 3 from both sides.');
     // The math_block child rendered through the shared dispatch.
     expect(html).toContain('data-block-type="math_block"');
+  });
+});
+
+describe('renderFadedWorkedExample', () => {
+  const FID = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+  let problemNum = 0;
+  const ctx: BlockRenderContext = { nextProblemNumber: () => ++problemNum };
+  const block = FadedWorkedExampleBlock.parse({
+    id: FID,
+    type: 'faded_worked_example',
+    title: 'Guided practice',
+    content: [
+      { id: 'ffffffff-ffff-4fff-8fff-000000000001', type: 'paragraph', content: text('First, subtract 3.') },
+      {
+        id: 'ffffffff-ffff-4fff-8fff-000000000002',
+        type: 'fill_in_blank',
+        content: [
+          { type: 'text', text: 'x = ', marks: [] },
+          { type: 'blank', id: 'ffffffff-ffff-4fff-8fff-000000000003', answer: '4', acceptableAnswers: [] },
+        ],
+        skills: [],
+      },
+    ],
+  });
+  const html = renderFadedWorkedExample(block, ctx);
+
+  it('is tagged as a scaffold shell (scoring rides its child blanks)', () => {
+    expect(html).toContain('data-block-category="scaffold"');
+    expect(html).toContain('data-block-type="faded_worked_example"');
+    expect(html).toContain('data-block-id="' + FID + '"');
+  });
+
+  it('renders shown steps and recurses the faded fill_in_blank step', () => {
+    expect(html).toContain('First, subtract 3.');
+    // The nested fill_in_blank rendered with its own runtime markup — this is
+    // what init.ts scans each section for, so scoring works with no new runtime.
+    expect(html).toContain('data-block-type="fill_in_blank"');
+    expect(html).toContain('blank'); // the blank input carries the .blank hook
+    // The faded step pulled a problem number from the shared sequence.
+    expect(html).toContain('block-problem-number');
   });
 });

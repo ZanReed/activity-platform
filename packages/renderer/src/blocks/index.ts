@@ -25,6 +25,7 @@ import { renderNumberLine } from './number-line.js';
 import { renderDataPlot } from './data-plot.js';
 import { renderLearningObjectives } from './learning-objectives.js';
 import { renderWorkedExample } from './worked-example.js';
+import { renderFadedWorkedExample } from './faded-worked-example.js';
 
 export interface BlockRenderContext {
   /**
@@ -120,6 +121,8 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
       return renderLearningObjectives(block);
     case 'worked_example':
       return renderWorkedExample(block, ctx);
+    case 'faded_worked_example':
+      return renderFadedWorkedExample(block, ctx);
     default: {
       // Exhaustiveness check — if a new block type is added to the schema
       // and not handled here, TypeScript emits an error on this assignment.
