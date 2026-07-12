@@ -77,6 +77,34 @@ export type {
 } from './graph-question.js';
 export type { DisplayDrawable } from './board.js';
 
+// The graded number-line widget (1-D). mountNumberLineQuestion is what the
+// runtime sidecar calls per number_line block; mountNumberLineAuthor is the
+// editor's authoring twin. Both dynamic-import the 1-D board so JSXGraph stays
+// in its own chunk. The pure scorers are exported for the runtime/tests/server.
+export {
+  mountNumberLineQuestion,
+  mountNumberLineAuthor,
+} from './number-line-question.js';
+export type {
+  NumberLineQuestionConfig,
+  NumberLineQuestionHandle,
+  NumberLineQuestionHooks,
+  NumberLineResponseData,
+  NumberLineRestoreExtras,
+  NumberLineAuthorConfig,
+  NumberLineAuthorHandle,
+  NumberLineAuthorHooks,
+} from './number-line-question.js';
+export {
+  scoreNumberLinePoints,
+  scoreNumberLineInterval,
+} from './number-line-score.js';
+export type {
+  NumberLinePointKey,
+  NumberLineIntervalKey,
+  StudentInterval,
+} from './number-line-score.js';
+
 // Continuation-arrow geometry (pure) — exported for tests; board.ts is the
 // real consumer.
 export {
