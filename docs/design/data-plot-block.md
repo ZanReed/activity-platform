@@ -87,6 +87,90 @@ Assuming the recommended answers (1b, 2 own-map + v7→v8 / storage 8→9, 3a co
 
 Follow-ups (post-slice-1): `build_histogram` + `build_boxplot` (+ decision 4 method call), ```dataplot``` import fence, unequal-bin `binEdges`, per-bin partial credit, custom tick labels.
 
+---
+
+# Follow-up design pass: graded histogram + box-plot builds
+
+**Status:** 🟡 DESIGN — decisions in §B await the author's yes/no per item before any code drop. Extends the SHIPPED block above (slice 1: `display` + `build_dotplot`).
+
+Slice 1 shipped `display` (all three chart types render statically) + graded `build_dotplot`. This pass adds the two remaining graded *constructions* so the block can grade a student building **any** of the three stats charts: **`build_histogram`** (set each bar's frequency) and **`build_boxplot`** (drag the five-number-summary handles). The static renderers already exist — `renderDataPlotSvg` draws all three charts, and `histogramBins` / `fiveNumberSummary` (TI-84 exclusive-median) already compute the keys — so this pass is mostly two new interactive widgets + their pure scorers, riding every seam slice 1 built.
+
+## A. What's already in place (the seams these reuse)
+
+| Concern | Already built (slice 1) | What this pass adds |
+|---|---|---|
+| Schema union | `DataPlotInteraction` = `display` \| `build_dotplot` | `build_histogram`, `build_boxplot` members (additive) |
+| Config | `DataPlotConfig` has `binWidth` + `maxFrequency` already | reused as-is; box adds a per-interaction `tolerance` |
+| Static draw | `renderDataPlotSvg(config, chart, values, uid)` draws dot/histogram/box | reused verbatim (the widgets' no-JS fallback + preview) |
+| Key compute | `histogramBins`, `fiveNumberSummary` (renderer, pure) | mirror in the kit scorer (or share) |
+| Response | `DataPlotResponse` = `build_dotplot` (`studentValues`) | `build_histogram` (`studentBins`), `build_boxplot` (`studentFive`) members |
+| Widget | `createDataPlotBoard` (SVG dot builder) + `mountDataPlotQuestion` | a bar-height board + a 5-handle board; same mount entry branches on type |
+| Runtime | `dataPlotExt` + `attachDataPlotRuntime`; `DataPlotBlockState.studentValues` | additive optional `studentBins?` / `studentFive?` on the state |
+| Editor | `DataPlotView` Type picker (build_dotplot + display×3) | two more picker options; a five-number readout for box |
+| Dashboard | `dataPlots` index + `formatDotValues` | `formatBins` / `formatFive` for the answer + student cells |
+
+## B. Decisions needed (please yes/no or pick per item)
+
+**Decision 1 — Scope: both builds this pass, or one at a time?**
+- (a) Both `build_histogram` + `build_boxplot` in one pass (two sub-slices). Completes the stats-construction set; they share the schema/runtime/editor/dashboard seams and differ only in the widget + scorer.
+- (b) Histogram first (closer to the dot-plot frequency model), box-plot as a later pass.
+- **Recommendation: (a),** sequenced histogram → box. The shared plumbing is written once; only two widgets + two scorers are genuinely new, and doing them together keeps the editor picker / dashboard formatting changes to a single edit.
+
+**Decision 2 — Version bumps: NONE (additive union members), unlike slice 1.**
+Slice 1 introduced the `dataPlotResponses` map, which needed the v7→v8 wire bump. Adding *variants* to the existing `DataPlotResponse` union only WIDENS what's accepted — the exact pattern the graph block's `plot_ray`/`plot_segment` used ("v4-only members … adding union members ACCEPTS MORE — no stored row is invalidated and no version bump is needed", submission.ts). Likewise `DataPlotBlockState` gains OPTIONAL `studentBins?` / `studentFive?` fields — additive, so an older blob reads forward with them absent → **no `STORAGE_SCHEMA_VERSION` bump** either.
+- **Recommendation: no wire bump, no storage bump.** Still a kit change + a widened ingest union, so the deploy is: upload the re-hashed kit → **redeploy `ingest-submission`** (now accepts the widened union) → redeploy `publish-activity` (pins the new kit) — same ordering discipline, just no schemaVersion number change. (Sanity floor: keep the `build_dotplot`-only shape a valid parse so already-published slice-1 pages keep submitting.)
+
+**Decision 3 — Histogram widget interaction.**
+The student sets each bin's frequency; the correct heights are `histogramBins(data, config)`.
+- (a) **Draggable bar tops** — each bin is a column with a draggable top edge; drag up/down sets the integer frequency (snaps to whole dots of height). Keyboard: Tab to a bin, ↑/↓ change its height. Mirrors the dot-plot board's SVG+pointer model.
+- (b) +/− steppers per bin (no drag).
+- **Recommendation: (a).** "Build the histogram" is most direct as draggable bars; keyboard ↑/↓ keeps it accessible. Bars snap to integer frequencies (a histogram bar is a whole count), y-scale capped by `config.maxFrequency` (or auto). Bins come straight from `config.binWidth` over `[min,max]`.
+
+**Decision 4 — Box-plot widget interaction + the quartile method (decision 4 from slice 1 now bites).**
+The student drags five handles — min, Q1, median, Q3, max — along the axis; the box + whiskers redraw live. The correct answer is `fiveNumberSummary(data)`.
+- **Handles:** five tick-snapping draggable markers, each **clamped between its neighbors** (min ≤ Q1 ≤ median ≤ Q3 ≤ max) so the box is always well-formed; keyboard ←/→ to nudge the active handle, Tab to cycle. The box (Q1–Q3) + median line + whiskers (min/Q1, Q3/max) reuse `renderDataPlotSvg`'s box drawing.
+- **Method:** the computed key uses `fiveNumberSummary` = **TI-84 exclusive-median** (already implemented + tested). A per-interaction `tolerance` (line units, default = half a `tickStep`) absorbs the adjacent inclusive-median answer on even-length sets, so a student who used the other common method isn't marked wrong. Per-block method choice stays deferred (YAGNI).
+- **Recommendation:** 5 clamped tick-snapping handles + a `tolerance`-scored key against `fiveNumberSummary`; all-or-nothing (all five within tolerance). This is the moment to lock the method — confirm **TI-84 exclusive-median + tolerance** rather than adding a method flag now.
+
+**Decision 5 — Config + interaction shapes.**
+- `DataPlotConfig` is unchanged — `binWidth` (histogram) and `maxFrequency` (bar/dot y-cap) already exist; the box uses the numeric axis already there.
+- New interaction members: `build_histogram` is a **bare marker** (exact integer frequencies, like `build_dotplot`); `build_boxplot` carries a **`tolerance`** (line units, default `tickStep/2`).
+- **Recommendation:** as above — histogram exact/no-tolerance, box-plot tolerance-bearing. The answer for both is still COMPUTED from `data` (no hand-authored key), consistent with decision 3a.
+
+**Decision 6 — Scoring (confirm all-or-nothing).**
+- Histogram: correct iff every bin's frequency matches exactly (integers); all-or-nothing.
+- Box plot: correct iff all five values are within `tolerance`; all-or-nothing.
+- **Recommendation: all-or-nothing both**, matching the block's stance. Per-bin / per-handle partial credit is a documented later lever (would ride the graph block's `earned`/`total` precedent if ever wanted).
+
+**Decision 7 — Editor authoring (no new author board).**
+Same compute-from-data model as `build_dotplot`: the author types the dataset, the preview shows the computed chart. The Type picker gains **"Build a histogram"** and **"Build a box plot"**. For box-plot, show a small **five-number-summary readout** under the preview so the author sees the target (min/Q1/median/Q3/max); histogram reuses the existing bin-width advanced control (shown when the chart is a histogram) + a `tolerance` field for box.
+- **Recommendation: extend the picker + preview only.** No `mountDataPlotAuthor` (there still isn't one — authoring is dataset entry, as decided in slice 1's as-built delta).
+
+**Decision 8 — Dashboard.**
+The "Data plot" table's answer-key + student cells format per variant: histogram → the bin frequencies (`2, 3, 1, 0`); box-plot → the five-number summary (`min 2 · Q1 4 · med 5 · Q3 7 · max 8`).
+- **Recommendation:** add `formatBins` / `formatFive`, branch the table cells on `resp.type` (the response is already a discriminated union, so this is a small switch).
+
+**Decision 9 — ```dataplot``` markdown import** — still **defer** (out of scope; same as slice 1 decision 9).
+
+## C. Proposed slice plan (once decisions land)
+
+Assuming the recommended answers (1a both, 2 no version bump, 3a draggable bars, 4 clamped handles + TI-84/tolerance, 5 as above, 6 all-or-nothing, 7 picker+preview, 8 per-variant formatting, 9 defer):
+
+1. **Schema + wire** — add `build_histogram` (marker) + `build_boxplot` (`tolerance`) to `DataPlotInteraction`; add `build_histogram` (`studentBins: number[]`) + `build_boxplot` (`studentFive`) to `DataPlotResponse`; widen `DataPlotBlockState` with optional `studentBins?` / `studentFive?`. NO version bumps. Ingest's `DataPlotResponse` parse widens (redeploy, no schemaVersion change). Guard/factory/round-trip tests.
+2. **Kit** — pure `scoreHistogram(data, config, studentBins)` (exact bin-frequency equality) + `scoreBoxplot(data, tolerance, studentFive)` (each of five within tolerance vs `fiveNumberSummary`); a bar-height board + a 5-handle clamped board; `mountDataPlotQuestion` branches on `interactionType`. Extend `/dev/data-plot` with histogram + box scenarios; browser-verify.
+3. **Runtime** — `attachDataPlotRuntime` / the `dataPlotExt` gather branch on the interaction type to read `studentBins` / `studentFive` into the response; scoring fold is unchanged (still one all-or-nothing unit each). Bundle regen. Browser-verify on a bundle-rendered page.
+4. **Editor** — two Type-picker options + the box five-number readout + a `tolerance` field; serialize round-trip covers the new interactions.
+5. **Dashboard** — `formatBins` / `formatFive`; per-variant table cells.
+
+Deploy (author): re-hashed kit → `ingest-submission` (widened union) → `publish-activity`. No wire/storage bump, so no migration; already-published dot-plot pages are unaffected.
+
+## D. Cost / risk notes
+
+- **Cheaper than slice 1** — no version bumps, no new submission map, every non-widget seam already exists. The genuinely new code is two SVG widgets + two pure scorers (+ small editor/dashboard formatting).
+- **Bundle:** both widgets ride the lazy kit (not the inline runtime), so base/graphs bundles barely move (the `dataPlotExt` bridge is untouched — it already handles the generic data_plot gather; only the response-building branch grows a little).
+- **Box-plot method** is the one real judgment call (decision 4) — locking TI-84 exclusive-median + tolerance now avoids a later method-flag migration.
+- **New concept count ≈ 0** — draggable-handle boards mirror the number-line board; bar-drag mirrors the dot board; both static renders already ship.
+
 ## 5. Cost / risk notes
 
 - **Wire + storage bump** is the only "careful" part (deploy ordering — redeploy `ingest-submission` before republishing). Everything else is additive and touches no existing block. If slice 1 goes display-only (1a), even that disappears until the first build.
