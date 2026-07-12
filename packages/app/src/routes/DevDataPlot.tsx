@@ -1,9 +1,10 @@
-// Dev-only harness for the @activity/graph-kit data-plot WIDGET
-// (mountDataPlotQuestion). Mounts it the way the published page's runtime
-// sidecar will — so the click-to-add / click-to-remove dots, keyboard cursor,
-// tick snap, and frequency scoring are exercisable by hand (jsdom can't drive
-// SVG pointer geometry). The renderer→runtime spine is covered by unit tests;
-// this route proves the interactive surface.
+// Dev-only harness for the @activity/graph-kit data-plot WIDGETS
+// (mountDataPlotQuestion). Mounts each graded build the way the published page's
+// runtime sidecar will — dot plot (click/stack dots), histogram (set bar
+// heights), box plot (drag five clamped handles) — so the interactions + scoring
+// are exercisable by hand (jsdom can't drive SVG pointer geometry). The
+// renderer→runtime spine is covered by unit tests; this route proves the
+// interactive surface.
 // Route: /dev/data-plot (DEV builds only — see App.tsx).
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -14,29 +15,46 @@ import {
 
 interface Scenario {
   label: string;
+  interactionType: 'build_dotplot' | 'build_histogram' | 'build_boxplot';
   config: unknown;
   data: number[];
+  answerKey?: unknown;
   hint: string;
+  /** A payload that satisfies the key — the "Restore" seed. */
+  restore: {
+    studentValues?: number[];
+    studentBins?: number[];
+    studentFive?: { min: number; q1: number; median: number; q3: number; max: number };
+  };
 }
 
+const AXIS = { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true };
+
 const SCENARIOS: Record<string, Scenario> = {
-  basic: {
-    label: 'Dot plot of 3, 5, 5, 6, 8 (0–10)',
-    config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
+  dotplot: {
+    label: 'Dot plot of 3, 5, 5, 6, 8',
+    interactionType: 'build_dotplot',
+    config: AXIS,
     data: [3, 5, 5, 6, 8],
-    hint: 'Click above a tick to stack a dot; click a dot to remove it. Match the data exactly.',
+    hint: 'Click above a tick to stack a dot; click a dot to remove it.',
+    restore: { studentValues: [3, 5, 5, 6, 8] },
   },
-  repeats: {
-    label: 'Dot plot with repeats: 2, 2, 2, 4, 4, 7 (0–10)',
-    config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
-    data: [2, 2, 2, 4, 4, 7],
-    hint: 'Three dots on 2, two on 4, one on 7. Arrow keys move the cursor; Enter adds, Backspace removes.',
+  histogram: {
+    label: 'Histogram of 0,4,5,9,10 (bin width 5 → [2, 3])',
+    interactionType: 'build_histogram',
+    config: { ...AXIS, binWidth: 5, maxFrequency: 5 },
+    data: [0, 4, 5, 9, 10],
+    hint: 'Click at a height in a bin to set its bar; or Tab to a bin and use ↑/↓. Target: 2 then 3.',
+    restore: { studentBins: [2, 3] },
   },
-  halves: {
-    label: 'Half-unit ticks: 1, 1.5, 2, 2, 3.5 (0–5, minor ticks)',
-    config: { min: 0, max: 5, tickStep: 1, minorTicksPerStep: 1, snapToTick: true },
-    data: [1, 1.5, 2, 2, 3.5],
-    hint: 'Minor ticks add half-unit columns; a dot can land on 1.5 or 3.5.',
+  boxplot: {
+    label: 'Box plot of 1,2,3,4,5,6,7 (→ 1 · 2 · 4 · 6 · 7)',
+    interactionType: 'build_boxplot',
+    config: AXIS,
+    answerKey: { tolerance: 0.5 },
+    data: [1, 2, 3, 4, 5, 6, 7],
+    hint: 'Drag the five handles to min 1, Q1 2, median 4, Q3 6, max 7 (Tab + ←/→ also works).',
+    restore: { studentFive: { min: 1, q1: 2, median: 4, q3: 6, max: 7 } },
   },
 };
 
@@ -46,7 +64,7 @@ export default function DevDataPlot() {
   const [resp, setResp] = useState<DataPlotResponseData | null>(null);
   const [checked, setChecked] = useState<DataPlotResponseData | null>(null);
   const [locked, setLocked] = useState(false);
-  const [scenarioKey, setScenarioKey] = useState<keyof typeof SCENARIOS>('basic');
+  const [scenarioKey, setScenarioKey] = useState<keyof typeof SCENARIOS>('dotplot');
 
   const scenario = SCENARIOS[scenarioKey]!;
 
@@ -63,7 +81,12 @@ export default function DevDataPlot() {
     setChecked(null);
     void mountDataPlotQuestion(
       el,
-      { interactionType: 'build_dotplot', config: scenario.config, data: scenario.data },
+      {
+        interactionType: scenario.interactionType,
+        config: scenario.config,
+        data: scenario.data,
+        answerKey: scenario.answerKey,
+      },
       { onChange: (r) => setResp(r) },
     ).then((h) => {
       if (disposed) {
@@ -84,7 +107,7 @@ export default function DevDataPlot() {
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Data-plot question — dev harness</h1>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Data-plot builds — dev harness</h1>
       <label style={{ display: 'block', margin: '0.5rem 0', color: '#475569' }}>
         Scenario:{' '}
         <select
@@ -130,7 +153,7 @@ export default function DevDataPlot() {
         >
           {locked ? 'Unlock' : 'Lock'}
         </button>
-        <button type="button" onClick={() => handleRef.current?.restore(scenario.data)}>
+        <button type="button" onClick={() => handleRef.current?.restore(scenario.restore)}>
           Restore to answer
         </button>
       </div>

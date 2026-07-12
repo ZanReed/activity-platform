@@ -17,6 +17,8 @@
 // board and the static print/no-JS fallback look identical.
 // =============================================================================
 
+import { histogramCounts } from './data-plot-score.js';
+
 const SVGNS = 'http://www.w3.org/2000/svg';
 
 const WIDTH = 500;
@@ -41,7 +43,10 @@ export interface DataPlotBoardConfig {
   minorTicksPerStep: number;
   snapToTick: boolean;
   maxFrequency?: number;
+  binWidth?: number;
 }
+
+const FILL = '#c4b5fd'; // bar / box fill (light purple — student's answer)
 
 export interface DataPlotBoardHooks {
   /** Fired on every add/remove/cursor move. fromKeyboard steers narration. */
@@ -330,6 +335,349 @@ export function createDataPlotBoard(
     },
     destroy(): void {
       svg.removeEventListener('pointerdown', onPointerDown);
+      container.removeEventListener('keydown', onKeyDown);
+      svg.remove();
+    },
+  };
+}
+
+// =============================================================================
+// Histogram + box-plot builders (GB slice 2) — same SVG idiom as the dot board
+// -----------------------------------------------------------------------------
+// Two more graded-build widgets sharing the dot board's constants + `el` helper.
+// The histogram board lets the student set each bar's frequency; the box-plot
+// board lets them drag five clamped, tick-snapping handles into the box +
+// whiskers. Both draw the axis + ticks the same way (extracted below).
+// =============================================================================
+
+function makeSvg(container: HTMLElement): SVGSVGElement {
+  const svg = el('svg', {
+    class: 'data-plot-paper',
+    viewBox: `0 0 ${WIDTH} ${HEIGHT}`,
+  }) as SVGSVGElement;
+  svg.style.display = 'block';
+  svg.style.width = '100%';
+  svg.style.height = '100%';
+  container.appendChild(svg);
+  return svg;
+}
+
+// Value → viewBox px, and the reverse.
+function makeScaler(min: number, max: number): {
+  px: (v: number) => number;
+  vx: (x: number) => number;
+} {
+  const span = (max > min ? max : min + 10) - min;
+  return {
+    px: (v) => MARGIN + ((v - min) / span) * (WIDTH - 2 * MARGIN),
+    vx: (x) => min + ((x - MARGIN) / (WIDTH - 2 * MARGIN)) * span,
+  };
+}
+
+// Draw the horizontal axis line + labeled/minor ticks + numeric labels.
+function drawAxis(
+  svg: SVGSVGElement,
+  config: { min: number; max: number; tickStep: number; minorTicksPerStep: number },
+  px: (v: number) => number,
+): void {
+  svg.appendChild(
+    el('line', {
+      x1: MARGIN - 8, y1: AXIS_Y, x2: WIDTH - MARGIN + 8, y2: AXIS_Y,
+      stroke: AXIS_COLOR, 'stroke-width': 1.5,
+    }),
+  );
+  const step = config.tickStep > 0 ? config.tickStep : 1;
+  const minors = config.minorTicksPerStep;
+  const snapUnit = minors > 0 ? step / (minors + 1) : step;
+  for (let i = 0, v = config.min; v <= config.max + 1e-9 && i < 500; i++, v = config.min + i * snapUnit) {
+    const x = px(v);
+    const labeled = Math.abs(Math.round((v - config.min) / step) * step - (v - config.min)) < 1e-9;
+    const half = labeled ? TICK : MINOR_TICK;
+    svg.appendChild(el('line', { x1: x, y1: AXIS_Y - half, x2: x, y2: AXIS_Y + half, stroke: AXIS_COLOR, 'stroke-width': labeled ? 1.5 : 1 }));
+    if (labeled) {
+      const t = el('text', { x, y: AXIS_Y + TICK + 14, 'text-anchor': 'middle', fill: LABEL_COLOR, 'font-size': 12, 'font-family': 'inherit' });
+      t.textContent = Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000);
+      svg.appendChild(t);
+    }
+  }
+}
+
+function pointerToVb(svg: SVGSVGElement, evt: PointerEvent): { x: number; y: number } {
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX;
+  pt.y = evt.clientY;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return { x: 0, y: 0 };
+  const p = pt.matrixTransform(ctm.inverse());
+  return { x: p.x, y: p.y };
+}
+
+// ---- Histogram board (set each bar's frequency) -----------------------------
+
+export interface HistogramBoardController {
+  getBins(): number[];
+  getActive(): { bin: number; freq: number };
+  hasAnswered(): boolean;
+  setBins(bins: number[]): void;
+  setInteractive(on: boolean): void;
+  destroy(): void;
+}
+
+export function createHistogramBoard(
+  container: HTMLElement,
+  config: DataPlotBoardConfig,
+  data: number[],
+  hooks: DataPlotBoardHooks = {},
+): HistogramBoardController {
+  const min = config.min;
+  const max = config.max > min ? config.max : min + 10;
+  const width = config.binWidth && config.binWidth > 0 ? config.binWidth : (config.tickStep > 0 ? config.tickStep : 1);
+  const { px } = makeScaler(min, max);
+
+  // Bin edges spanning [min, max]; the y-cap must fit the true max bar, so
+  // derive it from the data when the author didn't pin config.maxFrequency.
+  const edges: { x0: number; x1: number }[] = [];
+  for (let i = 0, x0 = min; x0 < max - 1e-9 && i < 200; i++, x0 += width) {
+    edges.push({ x0, x1: Math.min(x0 + width, max) });
+  }
+  const cap = config.maxFrequency ?? Math.max(1, ...histogramCounts(data, config)) + 1;
+  const unitH = (AXIS_Y - TOP_PAD) / cap;
+
+  const bins = new Array(edges.length).fill(0) as number[];
+  let active = 0;
+  let answered = false;
+  let interactive = true;
+
+  const svg = makeSvg(container);
+  const barsLayer = el('g', {});
+  const cursorLayer = el('g', {});
+
+  // y gridlines + labels (0..cap) on the left margin.
+  for (let f = 0; f <= cap; f++) {
+    const y = AXIS_Y - f * unitH;
+    svg.appendChild(el('line', { x1: MARGIN - 4, y1: y, x2: WIDTH - MARGIN, y2: y, stroke: '#e2e8f0', 'stroke-width': f === 0 ? 0 : 1 }));
+    const t = el('text', { x: MARGIN - 8, y: y + 4, 'text-anchor': 'end', fill: LABEL_COLOR, 'font-size': 10, 'font-family': 'inherit' });
+    t.textContent = String(f);
+    svg.appendChild(t);
+  }
+  drawAxis(svg, config, px);
+  svg.appendChild(cursorLayer);
+  svg.appendChild(barsLayer);
+
+  function redraw(): void {
+    barsLayer.textContent = '';
+    cursorLayer.textContent = '';
+    edges.forEach((e, i) => {
+      const left = px(e.x0);
+      const right = px(e.x1);
+      if (interactive && i === active) {
+        cursorLayer.appendChild(el('rect', { x: left, y: TOP_PAD, width: Math.max(0, right - left), height: AXIS_Y - TOP_PAD, fill: '#f1f5f9' }));
+      }
+      const f = bins[i]!;
+      if (f > 0) {
+        barsLayer.appendChild(el('rect', { x: left, y: AXIS_Y - f * unitH, width: Math.max(0, right - left), height: f * unitH, fill: FILL, stroke: INK, 'stroke-width': 1.5 }));
+      }
+    });
+  }
+
+  function change(fromKeyboard: boolean): void {
+    redraw();
+    hooks.onChange?.({ fromKeyboard });
+  }
+
+  const binAtX = (x: number): number => {
+    for (let i = 0; i < edges.length; i++) {
+      if (x >= px(edges[i]!.x0) - 0.5 && x < px(edges[i]!.x1) + 0.5) return i;
+    }
+    return x < px(min) ? 0 : edges.length - 1;
+  };
+
+  const onPointerDown = (evt: PointerEvent): void => {
+    if (!interactive) return;
+    evt.preventDefault();
+    container.focus();
+    const { x, y } = pointerToVb(svg, evt);
+    active = binAtX(x);
+    // Frequency = height of the click above the axis, snapped to a whole count.
+    bins[active] = Math.max(0, Math.min(cap, Math.round((AXIS_Y - y) / unitH)));
+    answered = true;
+    change(false);
+  };
+  svg.addEventListener('pointerdown', onPointerDown);
+
+  const onKeyDown = (e: KeyboardEvent): void => {
+    if (!interactive) return;
+    if (e.key === 'ArrowLeft') { active = Math.max(0, active - 1); e.preventDefault(); change(true); }
+    else if (e.key === 'ArrowRight') { active = Math.min(edges.length - 1, active + 1); e.preventDefault(); change(true); }
+    else if (e.key === 'ArrowUp' || e.key === '+') { bins[active] = Math.min(cap, bins[active]! + 1); answered = true; e.preventDefault(); change(true); }
+    else if (e.key === 'ArrowDown' || e.key === '-') { bins[active] = Math.max(0, bins[active]! - 1); answered = true; e.preventDefault(); change(true); }
+  };
+  container.addEventListener('keydown', onKeyDown);
+
+  redraw();
+
+  return {
+    getBins: () => bins.slice(),
+    getActive: () => ({ bin: active, freq: bins[active] ?? 0 }),
+    hasAnswered: () => answered,
+    setBins(next: number[]): void {
+      for (let i = 0; i < bins.length; i++) bins[i] = Math.max(0, Math.min(cap, next[i] ?? 0));
+      answered = true;
+      change(false);
+    },
+    setInteractive(on: boolean): void { interactive = on; redraw(); },
+    destroy(): void {
+      svg.removeEventListener('pointerdown', onPointerDown);
+      container.removeEventListener('keydown', onKeyDown);
+      svg.remove();
+    },
+  };
+}
+
+// ---- Box-plot board (drag five clamped, tick-snapping handles) ---------------
+
+export interface FiveHandles {
+  min: number;
+  q1: number;
+  median: number;
+  q3: number;
+  max: number;
+}
+export interface BoxplotBoardController {
+  getFive(): FiveHandles;
+  getActive(): { label: string; value: number };
+  hasAnswered(): boolean;
+  setFive(five: FiveHandles): void;
+  setInteractive(on: boolean): void;
+  destroy(): void;
+}
+
+const BOX_LABELS = ['minimum', 'Q1', 'median', 'Q3', 'maximum'];
+
+export function createBoxplotBoard(
+  container: HTMLElement,
+  config: DataPlotBoardConfig,
+  hooks: DataPlotBoardHooks = {},
+): BoxplotBoardController {
+  const min = config.min;
+  const max = config.max > min ? config.max : min + 10;
+  const span = max - min;
+  const step = config.tickStep > 0 ? config.tickStep : 1;
+  const minors = config.minorTicksPerStep >= 0 ? Math.floor(config.minorTicksPerStep) : 0;
+  const snapUnit = minors > 0 ? step / (minors + 1) : step;
+  const { px, vx } = makeScaler(min, max);
+  const cy = Math.round((TOP_PAD + AXIS_Y) / 2);
+  const half = 24;
+
+  const snap = (v: number): number => (config.snapToTick ? Math.round((v - min) / snapUnit) * snapUnit + min : v);
+  const clampRange = (v: number): number => Math.min(Math.max(v, min), max);
+
+  // Start the five handles evenly spread across the axis (a valid box), snapped.
+  const h: number[] = [0, 0.25, 0.5, 0.75, 1].map((f) => clampRange(snap(min + f * span)));
+  let active = 0;
+  let answered = false;
+  let interactive = true;
+  let dragging = -1;
+
+  const svg = makeSvg(container);
+  const boxLayer = el('g', {});
+  drawAxis(svg, config, px);
+  svg.appendChild(boxLayer);
+
+  // Keep h[i] within its neighbors so the box is always well-formed.
+  function clampNeighbors(i: number, v: number): number {
+    let x = clampRange(v);
+    if (i > 0) x = Math.max(x, h[i - 1]!);
+    if (i < 4) x = Math.min(x, h[i + 1]!);
+    return x;
+  }
+
+  function redraw(): void {
+    boxLayer.textContent = '';
+    const [x0, xq1, xmed, xq3, x4] = h.map(px) as [number, number, number, number, number];
+    const g = `stroke="${INK}" stroke-width="2"`;
+    boxLayer.innerHTML =
+      `<line x1="${x0}" y1="${cy}" x2="${xq1}" y2="${cy}" ${g}/>` +
+      `<line x1="${xq3}" y1="${cy}" x2="${x4}" y2="${cy}" ${g}/>` +
+      `<line x1="${x0}" y1="${cy - 12}" x2="${x0}" y2="${cy + 12}" ${g}/>` +
+      `<line x1="${x4}" y1="${cy - 12}" x2="${x4}" y2="${cy + 12}" ${g}/>` +
+      `<rect x="${xq1}" y="${cy - half}" width="${Math.max(0, xq3 - xq1)}" height="${2 * half}" fill="${FILL}" ${g}/>` +
+      `<line x1="${xmed}" y1="${cy - half}" x2="${xmed}" y2="${cy + half}" ${g}/>`;
+    // Draggable handles on top.
+    h.forEach((v, i) => {
+      const c = el('circle', {
+        cx: px(v), cy, r: i === active ? 8 : 6,
+        fill: ANSWER_COLOR, stroke: '#fff', 'stroke-width': 2,
+      });
+      boxLayer.appendChild(c);
+    });
+  }
+
+  function change(fromKeyboard: boolean): void {
+    redraw();
+    hooks.onChange?.({ fromKeyboard });
+  }
+
+  const nearestHandle = (x: number): number => {
+    let best = 0, bestD = Infinity;
+    h.forEach((v, i) => { const d = Math.abs(px(v) - x); if (d < bestD) { bestD = d; best = i; } });
+    return best;
+  };
+
+  const onPointerDown = (evt: PointerEvent): void => {
+    if (!interactive) return;
+    evt.preventDefault();
+    container.focus();
+    const { x } = pointerToVb(svg, evt);
+    active = nearestHandle(x);
+    dragging = active;
+    h[active] = clampNeighbors(active, snap(vx(x)));
+    answered = true;
+    change(false);
+  };
+  const onPointerMove = (evt: PointerEvent): void => {
+    if (dragging < 0 || !interactive) return;
+    const { x } = pointerToVb(svg, evt);
+    h[dragging] = clampNeighbors(dragging, snap(vx(x)));
+    change(false);
+  };
+  const onPointerUp = (): void => { dragging = -1; };
+  svg.addEventListener('pointerdown', onPointerDown);
+  svg.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+
+  const onKeyDown = (e: KeyboardEvent): void => {
+    if (!interactive) return;
+    if (e.key === 'Tab') {
+      const next = active + (e.shiftKey ? -1 : 1);
+      if (next >= 0 && next < 5) { active = next; e.preventDefault(); change(true); }
+      return;
+    }
+    if (e.key === 'ArrowLeft') { h[active] = clampNeighbors(active, snap(h[active]! - snapUnit)); answered = true; e.preventDefault(); change(true); }
+    else if (e.key === 'ArrowRight') { h[active] = clampNeighbors(active, snap(h[active]! + snapUnit)); answered = true; e.preventDefault(); change(true); }
+  };
+  container.addEventListener('keydown', onKeyDown);
+
+  redraw();
+
+  const five = (): FiveHandles => ({ min: h[0]!, q1: h[1]!, median: h[2]!, q3: h[3]!, max: h[4]! });
+
+  return {
+    getFive: five,
+    getActive: () => ({ label: BOX_LABELS[active]!, value: h[active]! }),
+    hasAnswered: () => answered,
+    setFive(f: FiveHandles): void {
+      const vals = [f.min, f.q1, f.median, f.q3, f.max];
+      // Re-clamp left→right so a restored summary stays monotonic.
+      for (let i = 0; i < 5; i++) h[i] = clampNeighbors(i, clampRange(vals[i]!));
+      answered = true;
+      change(false);
+    },
+    setInteractive(on: boolean): void { interactive = on; redraw(); },
+    destroy(): void {
+      svg.removeEventListener('pointerdown', onPointerDown);
+      svg.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('keydown', onKeyDown);
       svg.remove();
     },

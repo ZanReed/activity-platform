@@ -686,6 +686,7 @@ interface DataPlotChromeRef {
   confidenceRadios: HTMLInputElement[];
   config: unknown;
   data: unknown;
+  answerKey: unknown; // build_boxplot: { tolerance }
   handle: DataPlotQuestionHandle | null;
 }
 
@@ -721,6 +722,11 @@ export function buildDataPlotChrome(
       'data-dataplot-config',
     ),
     data: parseGraphAttr(el.dataset.dataplotData, blockId, 'data-dataplot-data'),
+    answerKey: parseGraphAttr(
+      el.dataset.dataplotAnswerKey,
+      blockId,
+      'data-dataplot-answer-key',
+    ),
     handle: null,
   };
 }
@@ -765,10 +771,18 @@ export function renderDataPlotChrome(
       dataState = dpState.result ? 'correct' : 'incorrect';
       dataMode = 'result';
       text = dpState.result ? 'Correct!' : 'Not quite — try again.';
-    } else if (dpState.answered && dpState.studentValues.length > 0) {
-      const n = dpState.studentValues.length;
-      text = n === 1 ? '1 dot plotted.' : n + ' dots plotted.';
-      dataMode = 'narrate';
+    } else if (dpState.answered) {
+      // Narrate a shape-appropriate progress cue (never the target answer).
+      if (dpState.studentBins) {
+        text = 'Bar heights: ' + dpState.studentBins.join(', ') + '.';
+      } else if (dpState.studentFive) {
+        const f = dpState.studentFive;
+        text = `Box: min ${f.min}, Q1 ${f.q1}, median ${f.median}, Q3 ${f.q3}, max ${f.max}.`;
+      } else if (dpState.studentValues.length > 0) {
+        const n = dpState.studentValues.length;
+        text = n === 1 ? '1 dot plotted.' : n + ' dots plotted.';
+      }
+      if (text !== '') dataMode = 'narrate';
     }
     const wantHidden = text === '';
     if (chrome.feedbackEl.hidden !== wantHidden) {
@@ -814,13 +828,18 @@ export function attachDataPlotRuntime(
       interactionType: chrome.interactionType,
       config: chrome.config,
       data: chrome.data,
+      answerKey: chrome.answerKey, // build_boxplot: { tolerance }
     };
 
     mountDataPlotQuestion(chrome.canvas, config, {
       onChange: (resp: DataPlotResponseData) => {
         const dp = ctx.state.dataPlots[blockId];
         if (!dp) return;
-        dp.studentValues = resp.studentValues;
+        // Exactly one of these is set per interaction type; keep them all so a
+        // reload restores whichever build this block uses.
+        dp.studentValues = resp.studentValues ?? [];
+        dp.studentBins = resp.studentBins;
+        dp.studentFive = resp.studentFive;
         dp.answered = resp.answered;
         // Unanswered → unscored (an omission), like an empty blank.
         dp.result = resp.answered ? resp.correct : null;
@@ -833,8 +852,17 @@ export function attachDataPlotRuntime(
         // state.dataPlots[blockId], so a checked-and-reloaded plot comes back
         // scored.
         const dp = ctx.state.dataPlots[blockId];
-        if (dp && dp.studentValues.length > 0) {
-          handle.restore(dp.studentValues);
+        const hasAnswer =
+          dp &&
+          ((dp.studentValues && dp.studentValues.length > 0) ||
+            (dp.studentBins && dp.studentBins.length > 0) ||
+            dp.studentFive !== undefined);
+        if (dp && hasAnswer) {
+          handle.restore({
+            studentValues: dp.studentValues,
+            studentBins: dp.studentBins,
+            studentFive: dp.studentFive,
+          });
         }
         if (ctx.state.sections[chrome.sectionId]?.locked) handle.setLocked(true);
       })

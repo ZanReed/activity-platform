@@ -116,10 +116,21 @@ export type {
   DataPlotQuestionHooks,
   DataPlotResponseData,
 } from './data-plot-question.js';
-export { scoreDotplot, frequencyMap } from './data-plot-score.js';
+export {
+  scoreDotplot,
+  frequencyMap,
+  scoreHistogram,
+  histogramCounts,
+  scoreBoxplot,
+  fiveNumberSummary,
+} from './data-plot-score.js';
+export type { FiveNumberSummary } from './data-plot-score.js';
 export type {
   DataPlotBoardConfig,
   DataPlotBoardController,
+  HistogramBoardController,
+  BoxplotBoardController,
+  FiveHandles,
 } from './data-plot-board.js';
 
 // Continuation-arrow geometry (pure) — exported for tests; board.ts is the
