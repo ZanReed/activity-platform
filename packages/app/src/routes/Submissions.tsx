@@ -30,6 +30,7 @@ import {
 } from '@activity/schema';
 import { rayArrowGlyphs } from '@activity/graph-kit';
 import { supabase } from '../lib/supabase';
+import { useSession } from '../lib/SessionContext';
 import {
     buildActivityIndex,
     groupSubmissions,
@@ -43,6 +44,14 @@ import {
     type StudentGroup,
     type SubmissionRow,
 } from '../lib/submissions';
+import {
+    loadGrades,
+    gradableBlocks,
+    submissionNeedsGrading,
+    type BlockGrade,
+    type GradesBySubmission,
+} from '../lib/grades';
+import { GradingProvider, GradingPanel, useGrading } from './grading';
 
 const UUID_RE =
 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -85,6 +94,7 @@ interface LoadedData {
     title: string;
     resolveIndex: IndexResolver;
     groups: StudentGroup[];
+    hasGradableContent: boolean;
 }
 
 type LoadState =
@@ -147,6 +157,7 @@ function SubmissionDetail({
     row: SubmissionRow;
     index: ActivityIndex;
 }) {
+    const grading = useGrading();
     const parsed = useMemo(() => {
         try {
             return { ok: true as const, value: migrateSubmissionResponses(row.responses) };
@@ -841,17 +852,20 @@ function SubmissionDetail({
                     <p className="mt-1 whitespace-pre-wrap text-sm text-slate-900">
                     {f.resp.text}
                     </p>
-                    {(f.info?.blockType === 'short_answer' ||
-                        f.info?.blockType === 'essay') && (
-                        <p className="mt-0.5 text-xs italic text-amber-600">
-                        Needs grading
-                        </p>
-                    )}
                     </div>
                 ))}
                 </div>
                 </div>
             )}
+
+            <GradingPanel
+                submissionId={row.id}
+                blocks={gradableBlocks(
+                    index,
+                    responses,
+                    grading?.grades.get(row.id),
+                )}
+            />
 
             {checkpoints.length > 0 && (
                 <div>
@@ -973,14 +987,22 @@ function AttemptRow({
 
 export default function Submissions() {
     const { id } = useParams();
+    const { session } = useSession();
+    const gradedBy = session?.user.id ?? null;
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
     const [view, setView] = useState<ViewMode>('summary');
+    // Grades live outside loadState so a save can update one entry without a
+    // reload. Keyed submissionId → blockId → grade.
+    const [grades, setGrades] = useState<GradesBySubmission>(new Map());
+    const [needsGradingOnly, setNeedsGradingOnly] = useState(false);
 
     useEffect(() => {
         if (!id || !UUID_RE.test(id)) {
             setLoadState({ status: 'not_found' });
             return;
         }
+        setGrades(new Map());
+        setNeedsGradingOnly(false);
         // Reset synchronously so switching activities (e.g. browser back/forward
         // between two /submissions URLs) doesn't render the previous activity's
         // rows under the new id until the fetch resolves.
@@ -1112,14 +1134,35 @@ export default function Submissions() {
             const resolveIndex: IndexResolver = (versionId) =>
             (versionId != null && indexByVersion.get(versionId)) || fallbackIndex;
 
+            // Does any indexed version carry a rubric-bearing block? Gates the
+            // "Needs grading" filter + affects nothing else when false.
+            const hasGradableContent = [
+                fallbackIndex,
+                ...indexByVersion.values(),
+            ].some((idx) =>
+                [...idx.freeText.values()].some((info) => info.rubric != null),
+            );
+
             setLoadState({
                 status: 'ready',
                 data: {
                     title: act.title,
                     resolveIndex,
                     groups: groupSubmissions(rows),
+                    hasGradableContent,
                 },
             });
+
+            // Grades load separately (and tolerantly): pre-migration-0010 this
+            // 404s, which just means everything reads as ungraded.
+            if (hasGradableContent && rows.length > 0) {
+                try {
+                    const g = await loadGrades(rows.map((r) => r.id));
+                    if (!cancelled) setGrades(g);
+                } catch {
+                    /* grades table not present yet, or read error — stay empty */
+                }
+            }
         })();
 
         return () => {
@@ -1169,8 +1212,38 @@ export default function Submissions() {
         );
     }
 
-    const { title, resolveIndex, groups } = loadState.data;
+    const { title, resolveIndex, groups, hasGradableContent } = loadState.data;
     const totalSubmissions = groups.reduce((n, g) => n + g.count, 0);
+
+    // Merge one saved grade into the map (optimistic; the DB trigger already
+    // stamped it). A fresh Map so React sees the change.
+    const onGradeSaved = (saved: BlockGrade) => {
+        setGrades((prev) => {
+            const next = new Map(prev);
+            const bySub = new Map(next.get(saved.submissionId) ?? []);
+            bySub.set(saved.blockId, saved);
+            next.set(saved.submissionId, bySub);
+            return next;
+        });
+    };
+
+    // A group needs grading when its LATEST attempt (the summary headline) has an
+    // answered rubric block that isn't fully graded. Unreadable responses are
+    // treated as not-needing (nothing we can grade).
+    const groupNeedsGrading = (g: StudentGroup): boolean => {
+        try {
+            const responses = migrateSubmissionResponses(g.latest.responses);
+            const idx = resolveIndex(g.latest.activity_version_id);
+            return submissionNeedsGrading(idx, responses, grades.get(g.latest.id));
+        } catch {
+            return false;
+        }
+    };
+
+    const visibleGroups =
+        needsGradingOnly && hasGradableContent
+            ? groups.filter(groupNeedsGrading)
+            : groups;
 
     return (
         <Shell>
@@ -1236,7 +1309,23 @@ export default function Submissions() {
             </button>
             </div>
 
-            {view === 'summary' ? (
+            {hasGradableContent && (
+                <label className="ml-3 inline-flex items-center gap-1.5 text-sm text-slate-600">
+                <input
+                type="checkbox"
+                checked={needsGradingOnly}
+                onChange={(e) => setNeedsGradingOnly(e.target.checked)}
+                />
+                Needs grading only
+                </label>
+            )}
+
+            <GradingProvider value={{ grades, gradedBy, onSaved: onGradeSaved }}>
+            {visibleGroups.length === 0 ? (
+                <p className="mt-6 text-sm text-slate-500">
+                Nothing needs grading — every written response is graded.
+                </p>
+            ) : view === 'summary' ? (
                 <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                 <table className="w-full text-sm">
                 <thead>
@@ -1249,7 +1338,7 @@ export default function Submissions() {
                 </tr>
                 </thead>
                 <tbody>
-                {groups.map((g) => (
+                {visibleGroups.map((g) => (
                     <SummaryRow key={g.key} group={g} resolveIndex={resolveIndex} />
                 ))}
                 </tbody>
@@ -1257,7 +1346,7 @@ export default function Submissions() {
                 </div>
             ) : (
                 <div className="mt-4 space-y-5">
-                {groups.map((g) => (
+                {visibleGroups.map((g) => (
                     <div key={g.key}>
                     <p className="mb-1.5 text-sm font-semibold text-slate-900">
                     {g.label}{' '}
@@ -1276,6 +1365,7 @@ export default function Submissions() {
                 ))}
                 </div>
             )}
+            </GradingProvider>
             </>
         )}
         </Shell>
