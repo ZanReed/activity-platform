@@ -47,8 +47,34 @@ export function renderDataPlot(
   if (block.interaction.type === 'display') {
     return renderDisplayDataPlot(block);
   }
-  return renderBuildDotplot(block, ctx);
+  return renderBuildDataPlot(block, ctx);
 }
+
+// The chart a build interaction constructs.
+function buildChart(
+  type: 'build_dotplot' | 'build_histogram' | 'build_boxplot',
+): 'dotplot' | 'histogram' | 'boxplot' {
+  return type === 'build_histogram'
+    ? 'histogram'
+    : type === 'build_boxplot'
+      ? 'boxplot'
+      : 'dotplot';
+}
+
+const BUILD_ARIA: Record<string, string> = {
+  build_dotplot:
+    'Interactive dot plot. Tab to the plot, then use arrow keys to choose a value and Enter to add or remove a dot.',
+  build_histogram:
+    'Interactive histogram. Tab to a bar, then use the up and down arrows to set its height.',
+  build_boxplot:
+    'Interactive box plot. Tab to a handle, then use the left and right arrows to move it.',
+};
+
+const BUILD_VERB: Record<string, string> = {
+  build_dotplot: 'Make a dot plot of these values',
+  build_histogram: 'Make a histogram of these values',
+  build_boxplot: 'Make a box plot of these values',
+};
 
 // display: a static figure, role="img", categorized as content (no number).
 function renderDisplayDataPlot(block: DataPlotBlock): string {
@@ -88,15 +114,28 @@ function renderDisplayDataPlot(block: DataPlotBlock): string {
   );
 }
 
-// build_dotplot: the graded shell. Mirrors renderNumberLine.
-function renderBuildDotplot(
+// build_dotplot / build_histogram / build_boxplot: the graded shell. Mirrors
+// renderNumberLine; the chart type + aria + fallback vary by interaction.
+function renderBuildDataPlot(
   block: DataPlotBlock,
   ctx: DataPlotRenderContext,
 ): string {
+  if (block.interaction.type === 'display') return ''; // narrowing
+  const interactionType = block.interaction.type;
+  const chart = buildChart(interactionType);
   const num = block.number ?? ctx.problemNumber;
   const promptHtml = renderInlineNodes(block.prompt);
   const configJson = JSON.stringify(block.config);
   const dataJson = JSON.stringify(block.data);
+
+  // Answer-key attr — only box-plot carries an authored field (tolerance); the
+  // frequency builds compute exactly, so they emit none.
+  const answerKeyAttr =
+    block.interaction.type === 'build_boxplot'
+      ? ' data-dataplot-answer-key="' +
+        attr(JSON.stringify({ tolerance: block.interaction.tolerance })) +
+        '"'
+      : '';
 
   const kitSrcAttr = ctx.graphKitUrl
     ? ' data-dataplot-kit-src="' + attr(ctx.graphKitUrl) + '"'
@@ -112,10 +151,12 @@ function renderBuildDotplot(
     : '';
 
   // The dataset the student is asked to plot, shown sorted. Also the answer key
-  // (its frequencies), so it's both prompt material and the scoring source.
+  // (computed from it), so it's both prompt material and the scoring source.
   const sorted = [...block.data].sort((a, b) => a - b);
   const dataList =
-    '<p class="data-plot-source">Plot these values: ' +
+    '<p class="data-plot-source">' +
+    escape(BUILD_VERB[interactionType] ?? 'Plot these values') +
+    ': ' +
     escape(sorted.join(', ')) +
     '</p>';
 
@@ -157,12 +198,12 @@ function renderBuildDotplot(
       '</div>'
     : '';
 
-  // Pre-hydration content: the static fallback (empty dot-plot axis to mark by
-  // hand; the computed dot plot in the showAnswers print variant) plus a
-  // screen-only "needs JavaScript" cue. The kit clears it on mount.
+  // Pre-hydration content: the static fallback (an empty chart axis to mark by
+  // hand; the computed chart in the showAnswers print variant) plus a screen-only
+  // "needs JavaScript" cue. The kit clears it on mount.
   const fallbackSvg = renderDataPlotSvg(
     block.config,
-    'dotplot',
+    chart,
     ctx.showAnswers ? block.data : [],
     block.id,
   );
@@ -170,7 +211,7 @@ function renderBuildDotplot(
     '<div class="data-plot-canvas"' +
     ' data-dataplot-canvas="' + attr(block.id) + '"' +
     ' role="application"' +
-    ' aria-label="Interactive dot plot. Tab to the plot, then use arrow keys to choose a value and Enter to add or remove a dot."' +
+    ' aria-label="' + attr(BUILD_ARIA[interactionType] ?? BUILD_ARIA.build_dotplot!) + '"' +
     ' tabindex="0">' +
     fallbackSvg +
     '<p class="data-plot-nojs">This question needs JavaScript to mark your answer.</p>' +
@@ -187,9 +228,10 @@ function renderBuildDotplot(
     ' data-block-type="data_plot"' +
     ' data-block-id="' + attr(block.id) + '"' +
     ' data-dataplot-block-id="' + attr(block.id) + '"' +
-    ' data-dataplot-interaction-type="build_dotplot"' +
+    ' data-dataplot-interaction-type="' + attr(interactionType) + '"' +
     ' data-dataplot-config="' + attr(configJson) + '"' +
     ' data-dataplot-data="' + attr(dataJson) + '"' +
+    answerKeyAttr +
     kitSrcAttr +
     ratingAttr +
     skillsAttr +

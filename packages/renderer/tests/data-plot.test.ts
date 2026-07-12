@@ -53,7 +53,7 @@ describe('renderDataPlot — build_dotplot (via renderBody)', () => {
     const html = renderBody(docWith(dp), { graphKitUrl: ctx.calculatorKitUrl });
     expect(html).toMatch(/data-dataplot-data="[^"]*\[2,4,4,5\]/);
     // and shows the sorted values to the student
-    expect(html).toContain('Plot these values: 2, 4, 4, 5');
+    expect(html).toContain('Make a dot plot of these values: 2, 4, 4, 5');
   });
 
   it('emits the kit src only when a kit URL is available', () => {
@@ -87,6 +87,36 @@ describe('renderDataPlot — build_dotplot (via renderBody)', () => {
     const countBlank = (withoutKey.match(/<circle/g) ?? []).length;
     expect(countKey).toBeGreaterThan(countBlank);
     expect(countKey).toBe(3); // one dot per value
+  });
+});
+
+describe('renderDataPlot — histogram + box builds (via renderBody)', () => {
+  it('emits build_histogram with the right interaction type + verb', () => {
+    const dp = createDataPlotBlock();
+    dp.interaction = { type: 'build_histogram' };
+    dp.config = { ...dp.config, binWidth: 5, maxFrequency: 5 };
+    const html = renderBody(docWith(dp), { graphKitUrl: ctx.calculatorKitUrl });
+    expect(html).toContain('data-dataplot-interaction-type="build_histogram"');
+    expect(html).toContain('Make a histogram of these values');
+    expect(html).toContain('role="application"');
+    // No answer-key attr for the exact frequency build.
+    expect(html).not.toContain('data-dataplot-answer-key');
+  });
+
+  it('emits build_boxplot with the tolerance answer key', () => {
+    const dp = createDataPlotBlock();
+    dp.interaction = { type: 'build_boxplot', tolerance: 0.25 };
+    const html = renderBody(docWith(dp), { graphKitUrl: ctx.calculatorKitUrl });
+    expect(html).toContain('data-dataplot-interaction-type="build_boxplot"');
+    expect(html).toContain('Make a box plot of these values');
+    expect(html).toMatch(/data-dataplot-answer-key="[^"]*&quot;tolerance&quot;:0\.25/);
+  });
+
+  it('is auto-numbered like any graded build', () => {
+    const dp = createDataPlotBlock();
+    dp.interaction = { type: 'build_boxplot', tolerance: 0.5 };
+    const html = renderBody(docWith(dp));
+    expect(html).toMatch(/<div class="block-problem-number">1\.<\/div>/);
   });
 });
 

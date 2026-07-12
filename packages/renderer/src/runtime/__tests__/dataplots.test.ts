@@ -37,9 +37,10 @@ const config: RuntimeConfig = {
 const esc = (s: string): string => s.replace(/"/g, '&quot;');
 
 /** Renderer-shaped markup for a graded data_plot block in a checkpoint section. */
-function mount(opts: { withSolution?: boolean; withKit?: boolean } = {}): void {
+function mount(opts: { withSolution?: boolean; withKit?: boolean; interactionType?: string } = {}): void {
   const cfg = esc(JSON.stringify({ min: 0, max: 10, tickStep: 1, snapToTick: true }));
   const data = esc(JSON.stringify([3, 5, 5, 6, 8]));
+  const interactionType = opts.interactionType ?? 'build_dotplot';
   const kitAttr =
     opts.withKit === false
       ? ''
@@ -53,7 +54,7 @@ function mount(opts: { withSolution?: boolean; withKit?: boolean } = {}): void {
     '<div class="block block-data-plot" data-block-category="question"' +
     ' data-block-type="data_plot" data-block-id="' + DP_ID + '"' +
     ' data-dataplot-block-id="' + DP_ID + '"' +
-    ' data-dataplot-interaction-type="build_dotplot"' +
+    ' data-dataplot-interaction-type="' + interactionType + '"' +
     ' data-dataplot-config="' + cfg + '"' +
     ' data-dataplot-data="' + data + '"' +
     kitAttr + '>' +
@@ -177,6 +178,35 @@ describe('submit payload', () => {
         correct: true,
         confidence: 'certain',
       },
+    });
+  });
+
+  it('gathers a build_histogram response as studentBins (not studentValues)', () => {
+    mount({ interactionType: 'build_histogram' });
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    state.dataPlots[DP_ID] = {
+      studentValues: [], studentBins: [2, 3], answered: true, result: false, solutionRevealed: false, confidence: null,
+    };
+    const gathered = gatherResponses(state, refs);
+    expect(gathered.dataPlotResponses![DP_ID]).toEqual({
+      type: 'build_histogram', studentBins: [2, 3], correct: false,
+    });
+    expect('studentValues' in gathered.dataPlotResponses![DP_ID]!).toBe(false);
+  });
+
+  it('gathers a build_boxplot response as studentFive', () => {
+    mount({ interactionType: 'build_boxplot' });
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    const five = { min: 1, q1: 2, median: 4, q3: 6, max: 7 };
+    state.dataPlots[DP_ID] = {
+      studentValues: [], studentFive: five, answered: true, result: true, solutionRevealed: false, confidence: null,
+    };
+    const gathered = gatherResponses(state, refs);
+    expect(gathered.score).toBe(1);
+    expect(gathered.dataPlotResponses![DP_ID]).toEqual({
+      type: 'build_boxplot', studentFive: five, correct: true,
     });
   });
 

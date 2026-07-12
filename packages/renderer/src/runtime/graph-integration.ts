@@ -853,12 +853,21 @@ function gatherDataPlotResponses(
       scored += 1;
       if (dp.result === true) correct += 1;
     }
-    if (!dp.answered || dp.studentValues.length === 0) continue;
-    const result: DataPlotResult = {
-      type: ref.interactionType,
-      studentValues: dp.studentValues,
-      correct: dp.result === true,
-    };
+    // Each build type carries a different answer shape; an untouched block (no
+    // shape populated) is an omission.
+    const hasAnswer =
+      dp.studentValues.length > 0 ||
+      (dp.studentBins !== undefined && dp.studentBins.length > 0) ||
+      dp.studentFive !== undefined;
+    if (!dp.answered || !hasAnswer) continue;
+    let result: DataPlotResult;
+    if (ref.interactionType === 'build_histogram') {
+      result = { type: 'build_histogram', studentBins: dp.studentBins ?? [], correct: dp.result === true };
+    } else if (ref.interactionType === 'build_boxplot') {
+      result = { type: 'build_boxplot', studentFive: dp.studentFive, correct: dp.result === true };
+    } else {
+      result = { type: 'build_dotplot', studentValues: dp.studentValues, correct: dp.result === true };
+    }
     if (dp.confidence) result.confidence = dp.confidence;
     dataPlotResponses[id] = result;
     count += 1;
