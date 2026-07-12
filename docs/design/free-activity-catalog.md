@@ -100,12 +100,18 @@ The capture above is 2026-06-16; roughly ten question-type families and the whol
 3. **Consumer print is a real decision, not a freebie.** The `/activity/:id/print` route loads **draft-first** (draft > published, same as the editor) and reads `activities` + `activity_versions` directly — both owner-gated. If consumers get the full print engine (worksheet config, foldables, answer-key variant), they need (a) a consumer print path that renders the **published version only, never the draft**, and (b) a narrow read policy on `activity_versions` scoped to *the current version of listed activities* (not version history). The zero-cost alternative is browser-printing the published R2 page (baseline print CSS is a standing constraint, so it's respectable) — but that forfeits worksheet config, foldables, and the answer-key print.
 4. **Answer keys are not a new exposure.** Grading is client-side; answers already live in the published HTML of every listed activity ("acceptable for low-stakes practice" per ROADMAP). Offering consumers the answer-key print variant reveals nothing the page source doesn't.
 
-### Decisions for the author (v1 scope)
+### Decisions — AUTHOR-RULED 2026-07-13 (green light on 6 of 7; #6 open)
 
-1. **Reaffirm v1 scope**: browse + run/assign-by-link/print, run-in-place; no clone/fork; no consumer submission dashboards (Phase 3). *(Reaffirmation of the 2026-06-16 calls.)*
-2. **Listing mechanism**: `visibility='public'` on a published activity = listed. Toggle lives with PublishControl in the page header (activity-level action, per the publish-button precedent). No new columns.
-3. **Catalog read surface**: security-definer RPC returning catalog-safe columns only; new narrow policy for published-version content if decision 5 goes full-engine; `can_read_activity` untouched. *(Corrections #1/#2.)*
-4. **Audience v1**: signed-in (allowlisted) teachers only; RPC written so the later anon flip is a grant. Public browse waits for self-signup.
-5. **Consumer print**: full print engine on the published version only (recommended — printables are the early-adopter value), or defer to browser-print of the R2 page. Answer-key variant included either way (correction #4).
-6. **Taxonomy v1**: existing `course` + `unit` + `description` + author attribution; course is the only facet filter. No tags column until real content demands it (`tsvector` later, per capture).
-7. **Route + name**: own top-level route; product name "Activity Bank". Linked from the Activities dashboard header.
+Rulings recorded verbatim-in-spirit; this section is the reference for the implementation session. **No code has been written** — this pass is design-only by author instruction.
+
+1. **v1 scope: YES, with a standing design constraint** — browse + run/assign-by-link/print, run-in-place; no clone/fork; no consumer submission dashboards (Phase 3). Author's caveat: *build with the eventual goal in mind — other teachers opting their own activities into the free bank.* Implication: listing is a **per-activity opt-in** any owner can exercise (the toggle isn't hard-wired to the platform owner's account); attribution, the definer RPC, and the listing semantics must not assume first-party-only content. That's keep-the-door-open seam #4 promoted from "nice generalization" to a requirement. (Curation/quality-bar for third-party opt-ins stays a deferred question — open question #4 above — v1's allowlist means everyone listing is hand-picked anyway.)
+2. **Listing mechanism: YES** — `visibility='public'` on a published activity = listed; toggle beside PublishControl in the page header; no new columns.
+3. **Catalog read surface: YES** — security-definer RPC returning catalog-safe columns only; narrow published-version read policy for print; `can_read_activity` untouched.
+4. **Audience v1: YES** — signed-in (allowlisted) teachers only; RPC written so the later anon flip is a grant.
+5. **Consumer print: YES (full engine)** — full print engine rendering the **published version only, never the draft**; narrow `activity_versions` policy scoped to current versions of listed activities; answer-key variant included.
+6. **Taxonomy: OPEN — tags discussion wanted before the code drop.** Author: tags might be important for navigating a large library. Options to discuss at kickoff:
+   - **(a) Existing columns only** (course/unit facets) — zero schema; weakest navigation; the original recommendation.
+   - **(b) `tags text[]` on the activities row + GIN index** — cheap, flexible, filter/`tsvector`-friendly later. Governance note: in the v1 single-author (then allowlisted-opt-in) era, tag hygiene is a small hand-curated problem; free-text tag sprawl only becomes real when strangers list content — the same moment decision 1's multi-author future arrives.
+   - **(c) Controlled vocabulary** (tag table + join, curated list) — the Phase 5 standards-alignment direction; heaviest now, but the migration path from (b) is mechanical (canonicalize + backfill), so (c) can wait.
+   - Working lean: **(b)**, with the author curating the tag set editorially until multi-author listing forces (c). Not ruled — decide at kickoff.
+7. **Route + name: YES** — own top-level route; product name **"Activity Bank"**; linked from the Activities dashboard header.
