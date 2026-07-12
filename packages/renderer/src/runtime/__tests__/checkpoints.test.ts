@@ -149,7 +149,7 @@ function makeSectionRef(
         blockIds,
         mcBlockIds: [], matchBlockIds: [], orderingBlockIds: [],
         graphBlockIds: [],
-        numberLineBlockIds: [],
+        numberLineBlockIds: [], dataPlotBlockIds: [],
         checkButton,
         scoreEl,
     };
@@ -246,13 +246,13 @@ function buildFixture(spec: FixtureSpec): Fixture {
         blocks: blocksState,
         mcs: {}, matches: {}, orderings: {}, arrange: null,
     graphs: {},
-    numberLines: {},
+    numberLines: {}, dataPlots: {},
     };
 
     return {
         config,
         state,
-        refs: { blanks, fillInBlanks, mcs: new Map(), matches: new Map(), orderings: new Map(), graphs: new Map(), graphDisplays: new Map(), numberLines: new Map(), sections, popover: null },
+        refs: { blanks, fillInBlanks, mcs: new Map(), matches: new Map(), orderings: new Map(), graphs: new Map(), graphDisplays: new Map(), numberLines: new Map(), dataPlots: new Map(), sections, popover: null },
     };
 }
 

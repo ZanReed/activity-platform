@@ -28,7 +28,7 @@ import { scoreBlanksInScope, trimValue } from './blanks.js';
 import { scoreMcBlocks } from './mcs.js';
 import { scoreMatchBlocks } from './matches.js';
 import { scoreOrderingBlocks } from './orderings.js';
-import { graphExt, numberLineExt } from './graph-integration.js';
+import { graphExt, numberLineExt, dataPlotExt } from './graph-integration.js';
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
@@ -120,6 +120,18 @@ export interface NumberLineResult {
   confidence?: 'unsure' | 'think_so' | 'certain';
 }
 
+// Mirrors schema DataPlotResponse — one graded data_plot block's answer.
+// Discriminated on `type` (validated by the schema on ingest): build_dotplot
+// carries the plotted dot values. The bridge builds it; the runtime carries
+// `type` as a string.
+export interface DataPlotResult {
+  type: string;
+  /** build_dotplot: the student's plotted dot values (a multiset). */
+  studentValues?: number[];
+  correct: boolean;
+  confidence?: 'unsure' | 'think_so' | 'certain';
+}
+
 interface CheckpointResultPayload {
   score: number;
   total: number;
@@ -127,7 +139,7 @@ interface CheckpointResultPayload {
 }
 
 interface SubmissionResponsesPayload {
-  schemaVersion: 7;
+  schemaVersion: 8;
   blanks: Record<string, BlankResult>;
   checkpointResults?: Record<string, CheckpointResultPayload>;
   graphResponses?: Record<string, GraphResult>;
@@ -135,6 +147,7 @@ interface SubmissionResponsesPayload {
   matches?: Record<string, MatchResult>;
   orderings?: Record<string, OrderResult>;
   numberLineResponses?: Record<string, NumberLineResult>;
+  dataPlotResponses?: Record<string, DataPlotResult>;
 }
 
 // Wire shape POSTed to the ingest-submission Edge Function. Keys are
@@ -165,12 +178,13 @@ export function buildSubmissionPayload(
     matches?: Record<string, MatchResult>;
     orderings?: Record<string, OrderResult>;
     numberLineResponses?: Record<string, NumberLineResult>;
+    dataPlotResponses?: Record<string, DataPlotResult>;
     score: number;
   },
   checkpointResults: Record<string, CheckpointResultPayload> | undefined,
 ): SubmissionPayload {
   const responses: SubmissionResponsesPayload = {
-    schemaVersion: 7,
+    schemaVersion: 8,
     blanks: gathered.blanks,
   };
   if (checkpointResults) {
@@ -191,6 +205,9 @@ export function buildSubmissionPayload(
   if (gathered.numberLineResponses) {
     responses.numberLineResponses = gathered.numberLineResponses;
   }
+  if (gathered.dataPlotResponses) {
+    responses.dataPlotResponses = gathered.dataPlotResponses;
+  }
   return {
     activity_id: config.activityId,
     display_name: displayName,
@@ -206,6 +223,7 @@ interface GatheredResponses {
   matches?: Record<string, MatchResult>;
   orderings?: Record<string, OrderResult>;
   numberLineResponses?: Record<string, NumberLineResult>;
+  dataPlotResponses?: Record<string, DataPlotResult>;
   score: number;
   totalScored: number;
 }
@@ -322,6 +340,12 @@ export function gatherResponses(
   totalScored += numberLines.scored;
   totalCorrect += numberLines.correct;
 
+  // Data-plot blocks — one scorable unit each, all-or-nothing (same omission
+  // rule as graphs). A no-op in the base runtime build (no data-plot blocks).
+  const dataPlots = dataPlotExt.gatherDataPlotResponses(state, refs);
+  totalScored += dataPlots.scored;
+  totalCorrect += dataPlots.correct;
+
   return {
     blanks,
     ...(graphs.graphResponses && { graphResponses: graphs.graphResponses }),
@@ -330,6 +354,9 @@ export function gatherResponses(
     ...(orderings && { orderings }),
     ...(numberLines.numberLineResponses && {
       numberLineResponses: numberLines.numberLineResponses,
+    }),
+    ...(dataPlots.dataPlotResponses && {
+      dataPlotResponses: dataPlots.dataPlotResponses,
     }),
     score: computeScore(totalCorrect, totalScored),
     totalScored,

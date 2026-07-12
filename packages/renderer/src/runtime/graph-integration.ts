@@ -41,14 +41,20 @@ import type {
   GraphRef,
   GraphDisplayRef,
   NumberLineRef,
+  DataPlotRef,
   SectionRef,
 } from './refs.js';
 import type {
   RuntimeState,
   GraphBlockState,
   NumberLineBlockState,
+  DataPlotBlockState,
 } from './state.js';
-import type { GraphResult, NumberLineResult } from './submission.js';
+import type {
+  GraphResult,
+  NumberLineResult,
+  DataPlotResult,
+} from './submission.js';
 import type {
   GraphRuntimeBlockRef,
   GraphRuntimeContext,
@@ -57,6 +63,9 @@ import type {
   NumberLineRuntimeBlockRef,
   NumberLineRuntimeContext,
   NumberLineRuntimeExt,
+  DataPlotRuntimeBlockRef,
+  DataPlotRuntimeContext,
+  DataPlotRuntimeExt,
 } from '@activity/graph-kit/runtime-contract';
 
 // ---- The seam contract ------------------------------------------------------
@@ -663,4 +672,243 @@ export const numberLineExt: NumberLineExt = {
   revealNumberLineSolutions,
   gatherNumberLineResponses,
   wireNumberLines,
+};
+
+// =============================================================================
+// dataPlotExt — the data_plot BRIDGE (statistics sibling of numberLineExt)
+// -----------------------------------------------------------------------------
+// The graded data_plot block rides the SAME lazy kit as graphs, so its bridge
+// lives here too (the base-build noop alias + graphs-variant split cover it for
+// free; a page with a data_plot block is emitted with the graphs variant — see
+// document.ts). Same thin-inline discipline: the cheap init walk + state seed +
+// scoring fold + submit gather stay inline (so a kit that fails to load never
+// breaks scoring/submission of restored answers); the DOM-heavy plumbing is
+// attachDataPlotRuntime in the kit. Leaner still than number-line — one
+// interaction (build_dotplot), all-or-nothing.
+//
+// display data_plots are ungraded static SVG the renderer draws; they carry NO
+// data-dataplot-* runtime attrs and never reach this bridge — so there is no
+// display walk/wire here (unlike graphs).
+// =============================================================================
+
+export interface DataPlotExt {
+  /** init.ts: walk one section's graded data_plot blocks into the `dataPlots`
+   *  refs map. Returns the section's data_plot block ids. */
+  walkDataPlotBlocks(
+    sectionEl: HTMLElement,
+    sectionId: string,
+    dataPlots: Map<string, DataPlotRef>,
+  ): string[];
+  /** state.ts: build the initial per-data-plot-block state map from refs. */
+  initDataPlotState(refs: Refs): Record<string, DataPlotBlockState>;
+  /** render.ts: reflect data-plot-block state into chrome (kit-attached). */
+  renderDataPlots(state: RuntimeState, refs: Refs): void;
+  /** checkpoints.ts: the section's data-plot contribution to the score. */
+  scoreSectionDataPlots(
+    sectionRef: SectionRef,
+    state: RuntimeState,
+  ): { correct: number; total: number };
+  /** checkpoints.ts: reveal solution slots for the section's data plots. */
+  revealDataPlotSolutions(
+    sectionRef: SectionRef,
+    refs: Refs,
+    state: RuntimeState,
+  ): void;
+  /** submission.ts: gather data-plot responses + their score contribution. */
+  gatherDataPlotResponses(
+    state: RuntimeState,
+    refs: Refs,
+  ): {
+    dataPlotResponses?: Record<string, DataPlotResult>;
+    correct: number;
+    scored: number;
+  };
+  /** index.ts: fetch the lazy kit once and hand it the page's data plots. */
+  wireDataPlots(state: RuntimeState, refs: Refs, onUpdate: () => void): void;
+}
+
+// ---- init: DOM → slim refs ---------------------------------------------------
+
+function buildDataPlotRef(
+  el: HTMLElement,
+  canvas: HTMLElement,
+  sectionId: string,
+): DataPlotRef {
+  const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
+    '.js-confidence-rating',
+  );
+  const confidenceRadios: HTMLInputElement[] = confidenceFieldset
+    ? Array.prototype.slice.call(
+        confidenceFieldset.querySelectorAll<HTMLInputElement>(
+          'input[type="radio"]',
+        ),
+      )
+    : [];
+
+  return {
+    el,
+    canvas,
+    kitSrc: el.dataset.dataplotKitSrc ?? null,
+    interactionType: el.dataset.dataplotInteractionType ?? 'build_dotplot',
+    hasConfidenceRating: el.dataset.hasConfidenceRating === 'true',
+    confidenceRadios,
+    sectionId,
+  };
+}
+
+function walkDataPlotBlocks(
+  sectionEl: HTMLElement,
+  sectionId: string,
+  dataPlots: Map<string, DataPlotRef>,
+): string[] {
+  const sectionDataPlotBlockIds: string[] = [];
+  for (const el of $$<HTMLElement>('[data-block-type="data_plot"]', sectionEl)) {
+    // Only GRADED data plots carry data-dataplot-block-id (display ones don't);
+    // a display block therefore falls out here without any special-casing.
+    const blockId = el.dataset.dataplotBlockId;
+    if (!blockId) continue;
+    const canvas = el.querySelector<HTMLElement>('.data-plot-canvas');
+    if (!canvas) {
+      warn('Data-plot block ' + blockId + ' has no .data-plot-canvas; skipping.');
+      continue;
+    }
+    dataPlots.set(blockId, buildDataPlotRef(el, canvas, sectionId));
+    sectionDataPlotBlockIds.push(blockId);
+  }
+  return sectionDataPlotBlockIds;
+}
+
+// ---- state: initial per-block state ----------------------------------------
+
+function initDataPlotState(refs: Refs): Record<string, DataPlotBlockState> {
+  const dataPlots: Record<string, DataPlotBlockState> = {};
+  for (const [id] of refs.dataPlots) {
+    dataPlots[id] = {
+      studentValues: [],
+      answered: false,
+      result: null,
+      solutionRevealed: false,
+      confidence: null,
+    };
+  }
+  return dataPlots;
+}
+
+// ---- render: delegate to the attached kit plumbing ---------------------------
+
+let dataPlotInstalled: DataPlotRuntimeExt | null = null;
+
+function renderDataPlots(): void {
+  if (dataPlotInstalled) dataPlotInstalled.render();
+}
+
+// ---- checkpoints: scoring + solution reveal ---------------------------------
+
+// Each data plot is one scorable unit, all-or-nothing. The kit computed
+// correctness live as the student built the plot; an unanswered one is null → an
+// omission (in total, not correct), like an empty blank. Pure state math.
+function scoreSectionDataPlots(
+  sectionRef: SectionRef,
+  state: RuntimeState,
+): { correct: number; total: number } {
+  let correct = 0;
+  for (const id of sectionRef.dataPlotBlockIds) {
+    if (state.dataPlots[id]?.result === true) correct += 1;
+  }
+  return { correct, total: sectionRef.dataPlotBlockIds.length };
+}
+
+function revealDataPlotSolutions(
+  sectionRef: SectionRef,
+  refs: Refs,
+  state: RuntimeState,
+): void {
+  for (const id of sectionRef.dataPlotBlockIds) {
+    const dp = state.dataPlots[id];
+    if (dp) dp.solutionRevealed = true;
+  }
+}
+
+// ---- submission: gather responses -------------------------------------------
+
+// One scorable unit each, client-side-scored by the kit. An unanswered plot is
+// an omission — absent from the map, out of scored + correct. Pure state → JSON:
+// a restored answer gathers and submits even when the kit never loaded.
+function gatherDataPlotResponses(
+  state: RuntimeState,
+  refs: Refs,
+): {
+  dataPlotResponses?: Record<string, DataPlotResult>;
+  correct: number;
+  scored: number;
+} {
+  const dataPlotResponses: Record<string, DataPlotResult> = {};
+  let count = 0;
+  let correct = 0;
+  let scored = 0;
+  for (const [id, ref] of refs.dataPlots) {
+    const dp = state.dataPlots[id];
+    if (!dp) continue;
+    if (dp.result !== null) {
+      scored += 1;
+      if (dp.result === true) correct += 1;
+    }
+    if (!dp.answered || dp.studentValues.length === 0) continue;
+    const result: DataPlotResult = {
+      type: ref.interactionType,
+      studentValues: dp.studentValues,
+      correct: dp.result === true,
+    };
+    if (dp.confidence) result.confidence = dp.confidence;
+    dataPlotResponses[id] = result;
+    count += 1;
+  }
+  return { ...(count > 0 && { dataPlotResponses }), correct, scored };
+}
+
+// ---- wire: fetch the kit, hand over the data-plot blocks --------------------
+
+interface DataPlotKitRuntimeModule {
+  attachDataPlotRuntime(ctx: DataPlotRuntimeContext): DataPlotRuntimeExt;
+}
+
+function wireDataPlots(
+  state: RuntimeState,
+  refs: Refs,
+  onUpdate: () => void,
+): void {
+  dataPlotInstalled = null;
+
+  let kitSrc: string | null = null;
+  const blocks = new Map<string, DataPlotRuntimeBlockRef>();
+  for (const [blockId, ref] of refs.dataPlots) {
+    if (!ref.kitSrc) continue;
+    kitSrc = kitSrc ?? ref.kitSrc;
+    blocks.set(blockId, {
+      el: ref.el,
+      canvas: ref.canvas,
+      sectionId: ref.sectionId,
+      interactionType: ref.interactionType,
+    });
+  }
+  if (!kitSrc) return;
+
+  import(/* @vite-ignore */ kitSrc)
+    .then((mod: DataPlotKitRuntimeModule) => {
+      dataPlotInstalled = mod.attachDataPlotRuntime({ state, blocks, onUpdate });
+    })
+    .catch((err) => {
+      console.error('[activity-runtime] data-plot kit failed to load', err);
+    });
+}
+
+/** The real data-plot feature, wired into the base runtime's seam. */
+export const dataPlotExt: DataPlotExt = {
+  walkDataPlotBlocks,
+  initDataPlotState,
+  renderDataPlots,
+  scoreSectionDataPlots,
+  revealDataPlotSolutions,
+  gatherDataPlotResponses,
+  wireDataPlots,
 };

@@ -52,7 +52,7 @@ function makeRefs(refs: BlankRef[]): Refs {
     mcs: new Map(), matches: new Map(), orderings: new Map(),
     graphs: new Map(),
     graphDisplays: new Map(),
-    numberLines: new Map(),
+    numberLines: new Map(), dataPlots: new Map(),
     sections: new Map(),
     popover: null,
   };
@@ -71,7 +71,7 @@ function makeState(blankIds: string[]): RuntimeState {
     blocks: {},
     mcs: {}, matches: {}, orderings: {}, arrange: null,
     graphs: {},
-    numberLines: {},
+    numberLines: {}, dataPlots: {},
   };
 }
 

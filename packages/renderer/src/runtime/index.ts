@@ -35,7 +35,7 @@ import { wireMatching } from './matches.js';
 import { wireOrdering } from './orderings.js';
 import { wireCheckpoints } from './checkpoints.js';
 import { wireConfidence } from './confidence.js';
-import { graphExt, numberLineExt } from './graph-integration.js';
+import { graphExt, numberLineExt, dataPlotExt } from './graph-integration.js';
 import { render } from './render.js';
 import { submit, flushPendingSubmission } from './submission.js';
 
@@ -96,6 +96,8 @@ function bootstrap(): void {
   graphExt.wireGraphs(state, refs, onUpdate);
   // Number-line blocks ride the same lazy kit — one more attach, same pattern.
   numberLineExt.wireNumberLines(state, refs, onUpdate);
+  // Graded data-plot blocks ride the same lazy kit — one more attach.
+  dataPlotExt.wireDataPlots(state, refs, onUpdate);
 
   const button = $<HTMLButtonElement>('.submit-button');
   if (button) {

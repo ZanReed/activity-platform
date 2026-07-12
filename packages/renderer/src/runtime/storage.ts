@@ -32,6 +32,7 @@ import type {
   OrderBlockState,
   GraphBlockState,
   NumberLineBlockState,
+  DataPlotBlockState,
   SectionState,
 } from './state.js';
 
@@ -81,7 +82,9 @@ export function saveName(name: string): void {
 // per-pair earned/total) and `orderings` (arrangement + moved flag) maps.
 // 7 → 8 (number line): the blob gained a `numberLines` map (plotted points or
 // interval/ray bounds + styles, scoring, solution reveal, confidence).
-const STORAGE_SCHEMA_VERSION = 8;
+// 8 → 9 (data plot): the blob gained a `dataPlots` map (the student's plotted
+// dot values, scoring, solution reveal, confidence per graded data_plot block).
+const STORAGE_SCHEMA_VERSION = 9;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {
@@ -102,6 +105,8 @@ export interface StoredActivityState {
   graphs: Record<string, GraphBlockState>;
   /** Per-number_line-block state snapshot. */
   numberLines: Record<string, NumberLineBlockState>;
+  /** Per-graded-data_plot-block state snapshot. */
+  dataPlots: Record<string, DataPlotBlockState>;
   /** Per-section state snapshot. */
   sections: Record<string, SectionState>;
 }
@@ -141,6 +146,7 @@ export function saveActivityState(
       orderings: state.orderings,
       graphs: state.graphs,
       numberLines: state.numberLines,
+      dataPlots: state.dataPlots,
       sections: state.sections,
     };
     localStorage.setItem(
@@ -289,6 +295,11 @@ export function applyStoredState(
   // restored studentPoints/interval and calls the widget's restore().
   for (const [id, nlState] of Object.entries(stored.numberLines ?? {})) {
     if (state.numberLines[id]) state.numberLines[id] = nlState;
+  }
+  // Data-plot restore is state-only, like graphs/number-lines: the kit's attach
+  // reads the restored studentValues and calls the widget's restore().
+  for (const [id, dpState] of Object.entries(stored.dataPlots ?? {})) {
+    if (state.dataPlots[id]) state.dataPlots[id] = dpState;
   }
   for (const [id, sectionState] of Object.entries(stored.sections)) {
     if (state.sections[id]) state.sections[id] = sectionState;

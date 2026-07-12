@@ -141,4 +141,22 @@ export function wireConfidence(
             });
         }
     }
+
+    // Graded data-plot blocks carry the same per-block confidence fieldset; wire
+    // it into state.dataPlots[id].confidence identically.
+    for (const [blockId, ref] of refs.dataPlots) {
+        if (!ref.hasConfidenceRating || ref.confidenceRadios.length === 0) {
+            continue;
+        }
+        for (const radio of ref.confidenceRadios) {
+            radio.addEventListener('change', () => {
+                if (!radio.checked) return;
+                if (!isConfidence(radio.value)) return;
+                const dpState = state.dataPlots[blockId];
+                if (!dpState) return;
+                dpState.confidence = radio.value;
+                onUpdate();
+            });
+        }
+    }
 }

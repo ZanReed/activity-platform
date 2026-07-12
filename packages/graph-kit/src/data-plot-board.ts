@@ -319,7 +319,10 @@ export function createDataPlotBoard(
       counts.clear();
       for (const raw of values) addAt(nearestPosition(raw));
       answered = true;
-      redrawDots();
+      // change() (not just redrawDots) so restore fires onChange — the question
+      // mount re-populates state.dataPlots[id] (answered + result) on reload,
+      // like the number-line board's setValues → notify.
+      change(false);
     },
     setInteractive(on: boolean): void {
       interactive = on;

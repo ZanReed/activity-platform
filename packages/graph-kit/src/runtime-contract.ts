@@ -266,3 +266,93 @@ export interface NumberLineRuntimeExt {
    */
   render(): void;
 }
+
+// =============================================================================
+// Data-plot block (data_plot) — the statistics sibling of the graph contract
+// -----------------------------------------------------------------------------
+// The GRADED data_plot (build_dotplot) rides the SAME lazy kit as the graph
+// feature, so its bridge↔kit contract lives here too. Even leaner than the
+// number-line contract: one interaction (build_dotplot), all-or-nothing, no
+// interval/endpoint state. (display data_plots are ungraded static SVG rendered
+// entirely by the renderer — they never reach the kit runtime, so there is no
+// display ref here, unlike the graph contract.) The runtime persists
+// DataPlotBlockState in its blob, so the same additive discipline applies (a
+// wider shape means bumping STORAGE_SCHEMA_VERSION in runtime/storage.ts).
+// =============================================================================
+
+/**
+ * Per-graded-data_plot-block state. Lives in the runtime's RuntimeState (and its
+ * persisted blob); written by the kit-side plumbing as the student builds the
+ * plot; read by the runtime's inline scoring fold and submit gather (which stay
+ * in the bridge so a kit that fails to load never breaks scoring/submission of
+ * restored answers).
+ */
+export interface DataPlotBlockState {
+  /**
+   * build_dotplot: the student's plotted dot values (a multiset — one entry per
+   * dot). Empty before they've touched the widget. Persisted so a reload
+   * restores the built plot (the kit plumbing calls the widget's restore()).
+   */
+  studentValues: number[];
+  /** True once the student has added or removed a dot at least once. */
+  answered: boolean;
+  /**
+   * Scoring result: true correct, false incorrect, null unscored. Null until
+   * the student answers — an untouched plot is an omission (counts in the
+   * section total, not the correct count), exactly like an empty blank.
+   */
+  result: boolean | null;
+  /** Whether this block's solution slot has been revealed (post-check). */
+  solutionRevealed: boolean;
+  /** Student's per-block confidence selection (null until picked). */
+  confidence: GraphConfidence | null;
+}
+
+/**
+ * One graded data_plot block, as the bridge's cheap init walk found it. Minimal
+ * by design: the kit parses config + the dataset (the answer source) from `el`'s
+ * data attributes itself.
+ */
+export interface DataPlotRuntimeBlockRef {
+  /** The block root (`[data-block-type="data_plot"]`) — data-* attrs live here. */
+  el: HTMLElement;
+  /** The .data-plot-canvas the kit mounts the board into. */
+  canvas: HTMLElement;
+  /** ID of the section the block belongs to (keys state.sections). */
+  sectionId: string;
+  /** The block's interaction discriminant ('build_dotplot'). */
+  interactionType: string;
+}
+
+/**
+ * The slice of the runtime's live state the data-plot plumbing sees — the SAME
+ * object the runtime renders and persists from. The kit mutates
+ * state.dataPlots[id] on widget changes, then calls ctx.onUpdate().
+ */
+export interface DataPlotRuntimeStateView {
+  sections: Record<string, GraphSectionStateView>;
+  dataPlots: Record<string, DataPlotBlockState>;
+}
+
+/** Everything attachDataPlotRuntime needs from the inline bridge. */
+export interface DataPlotRuntimeContext {
+  /** The runtime's LIVE state (structural view). */
+  state: DataPlotRuntimeStateView;
+  /** Graded data-plot blocks by block id. */
+  blocks: ReadonlyMap<string, DataPlotRuntimeBlockRef>;
+  /** render + persist. Call after ANY mutation of state.dataPlots. */
+  onUpdate(): void;
+}
+
+/**
+ * What attachDataPlotRuntime hands back. The bridge stores it and delegates its
+ * seam's renderDataPlots to render() on every runtime render tick.
+ */
+export interface DataPlotRuntimeExt {
+  /**
+   * Reflect state.dataPlots + section checked/locked into every data-plot
+   * block's chrome (feedback line, solution slot, confidence radios) and widget
+   * lock. Idempotent; called on every runtime render.
+   */
+  render(): void;
+}

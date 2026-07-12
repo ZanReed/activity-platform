@@ -257,6 +257,30 @@ export interface NumberLineRef {
     sectionId: string;
 }
 
+/**
+ * One per graded data_plot block (build_dotplot). SLIM like NumberLineRef — only
+ * what the INLINE runtime consumes: scoring totals, the submit gather, confidence
+ * wiring, and the kit hand-off. The kit parses config + the dataset from `el`
+ * when it attaches (dataPlotExt.wire). (Display data_plots are static SVG the
+ * renderer draws — they never reach the runtime, so there is no display ref.)
+ */
+export interface DataPlotRef {
+    /** The block <div> — the kit parses its data-* attributes on attach. */
+    el: HTMLElement;
+    /** The .data-plot-canvas the kit mounts the board into. */
+    canvas: HTMLElement;
+    /** Absolute URL of the graph kit on R2; null when unavailable (no hydrate). */
+    kitSrc: string | null;
+    /** The block's interaction discriminant ('build_dotplot'). */
+    interactionType: string;
+    /** Whether the block surfaces a confidence-rating fieldset. */
+    hasConfidenceRating: boolean;
+    /** Radios inside the confidence fieldset (empty when none). */
+    confidenceRadios: HTMLInputElement[];
+    /** ID of the section this block belongs to. */
+    sectionId: string;
+}
+
 /** One per <section class="activity-section">. */
 export interface SectionRef {
     /** The section element. */
@@ -277,6 +301,8 @@ export interface SectionRef {
     graphBlockIds: string[];
     /** IDs of every number_line block in this section (each scores as 1). */
     numberLineBlockIds: string[];
+    /** IDs of every graded data_plot block in this section (each scores as 1). */
+    dataPlotBlockIds: string[];
     /** IDs of every multiple_choice block in this section (each scores as 1). */
     mcBlockIds: string[];
     /** IDs of every matching block in this section (each pair scores as 1). */
@@ -324,6 +350,8 @@ export interface Refs {
     graphDisplays: Map<string, GraphDisplayRef>;
     /** Graded number_line blocks (1-D) — ride the same lazy kit as graphs. */
     numberLines: Map<string, NumberLineRef>;
+    /** Graded data_plot blocks (stats charts) — ride the same lazy kit as graphs. */
+    dataPlots: Map<string, DataPlotRef>;
     sections: Map<string, SectionRef>;
     /** The shared floating popover, or null when the page has no popover markup. */
     popover: PopoverRef | null;

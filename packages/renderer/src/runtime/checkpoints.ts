@@ -25,7 +25,7 @@ import { scoreBlanksInScope } from './blanks.js';
 import { scoreMcBlocks } from './mcs.js';
 import { scoreMatchBlocks } from './matches.js';
 import { scoreOrderingBlocks } from './orderings.js';
-import { graphExt, numberLineExt } from './graph-integration.js';
+import { graphExt, numberLineExt, dataPlotExt } from './graph-integration.js';
 
 /**
  * Score every blank in the section, aggregate state, reveal solutions for
@@ -100,6 +100,11 @@ export function checkSection(
     const numberLineScore = numberLineExt.scoreSectionNumberLines(sectionRef, state);
     correct += numberLineScore.correct;
 
+    // Data-plot blocks — one scorable unit each, all-or-nothing (same shape as
+    // graphs). A no-op in the base build (no data-plot blocks exist).
+    const dataPlotScore = dataPlotExt.scoreSectionDataPlots(sectionRef, state);
+    correct += dataPlotScore.correct;
+
     sectionState.checked = true;
     sectionState.score = correct;
     sectionState.total =
@@ -108,7 +113,8 @@ export function checkSection(
         matchPairTotal +
         sectionRef.orderingBlockIds.length +
         graphScore.total +
-        numberLineScore.total;
+        numberLineScore.total +
+        dataPlotScore.total;
     sectionState.checkedAt = new Date().toISOString();
     if (config.submissionMode === 'locked') {
         sectionState.locked = true;
@@ -151,6 +157,7 @@ export function checkSection(
     }
     graphExt.revealGraphSolutions(sectionRef, refs, state);
     numberLineExt.revealNumberLineSolutions(sectionRef, refs, state);
+    dataPlotExt.revealDataPlotSolutions(sectionRef, refs, state);
 }
 
 /**

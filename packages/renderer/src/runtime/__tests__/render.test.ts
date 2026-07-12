@@ -204,7 +204,7 @@ function makeSectionRefHelper(
         blockIds: [],
         mcBlockIds: [], matchBlockIds: [], orderingBlockIds: [],
         graphBlockIds: [],
-        numberLineBlockIds: [],
+        numberLineBlockIds: [], dataPlotBlockIds: [],
         checkButton,
         scoreEl,
     };
@@ -227,7 +227,7 @@ function makeRefs(
                   sections: Map<string, SectionRef> = new Map(),
                   popover: PopoverRef | null = null,
 ): Refs {
-    return { blanks, fillInBlanks, mcs: new Map(), matches: new Map(), orderings: new Map(), graphs: new Map(), graphDisplays: new Map(), numberLines: new Map(), sections, popover };
+    return { blanks, fillInBlanks, mcs: new Map(), matches: new Map(), orderings: new Map(), graphs: new Map(), graphDisplays: new Map(), numberLines: new Map(), dataPlots: new Map(), sections, popover };
 }
 
 function makeState(
@@ -245,7 +245,7 @@ function makeState(
         blocks: blockStates,
         mcs: {}, matches: {}, orderings: {}, arrange: null,
     graphs: {},
-    numberLines: {},
+    numberLines: {}, dataPlots: {},
     };
 }
 

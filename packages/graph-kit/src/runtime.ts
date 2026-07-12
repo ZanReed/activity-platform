@@ -34,6 +34,11 @@ import {
   type NumberLineQuestionHandle,
   type NumberLineResponseData,
 } from './number-line-question.js';
+import {
+  mountDataPlotQuestion,
+  type DataPlotQuestionHandle,
+  type DataPlotResponseData,
+} from './data-plot-question.js';
 import { fitFunction, handlesForFamily } from './graph-score.js';
 import type {
   GraphBlockState,
@@ -45,6 +50,10 @@ import type {
   NumberLineRuntimeBlockRef,
   NumberLineRuntimeContext,
   NumberLineRuntimeExt,
+  DataPlotBlockState,
+  DataPlotRuntimeBlockRef,
+  DataPlotRuntimeContext,
+  DataPlotRuntimeExt,
 } from './runtime-contract.js';
 
 function warn(message: string): void {
@@ -655,5 +664,196 @@ export function attachNumberLineRuntime(
   // arrived (revealed solutions, verdicts, confidence).
   ext.render();
 
+  return ext;
+}
+
+// =============================================================================
+// Data-plot runtime (build_dotplot) — the statistics sibling of the above
+// -----------------------------------------------------------------------------
+// The graded data_plot widget's kit-side plumbing, mirroring the number-line
+// runtime but leaner still: one interaction (build_dotplot), no interval state,
+// no partial credit. display data_plots never reach here — they're static SVG
+// the renderer draws, so there is no display path to mount.
+// =============================================================================
+
+interface DataPlotChromeRef {
+  el: HTMLElement;
+  canvas: HTMLElement;
+  sectionId: string;
+  interactionType: string;
+  feedbackEl: HTMLElement | null;
+  solutionEl: HTMLElement | null;
+  confidenceRadios: HTMLInputElement[];
+  config: unknown;
+  data: unknown;
+  handle: DataPlotQuestionHandle | null;
+}
+
+/** Parse one graded data-plot block's chrome from its element. Exported for the
+ *  kit's own tests, like buildNumberLineChrome. */
+export function buildDataPlotChrome(
+  blockId: string,
+  ref: DataPlotRuntimeBlockRef,
+): DataPlotChromeRef {
+  const el = ref.el;
+  const confidenceFieldset = el.querySelector<HTMLFieldSetElement>(
+    '.js-confidence-rating',
+  );
+  const confidenceRadios: HTMLInputElement[] = confidenceFieldset
+    ? Array.prototype.slice.call(
+        confidenceFieldset.querySelectorAll<HTMLInputElement>(
+          'input[type="radio"]',
+        ),
+      )
+    : [];
+
+  return {
+    el,
+    canvas: ref.canvas,
+    sectionId: ref.sectionId,
+    interactionType: ref.interactionType,
+    feedbackEl: el.querySelector<HTMLElement>('.js-dataplot-feedback'),
+    solutionEl: el.querySelector<HTMLElement>('.js-solution'),
+    confidenceRadios,
+    config: parseGraphAttr(
+      el.dataset.dataplotConfig,
+      blockId,
+      'data-dataplot-config',
+    ),
+    data: parseGraphAttr(el.dataset.dataplotData, blockId, 'data-dataplot-data'),
+    handle: null,
+  };
+}
+
+/**
+ * Reflect one data-plot block's state into the DOM regions this module owns: the
+ * aria-live feedback line, the solution slot, the confidence radios, and the
+ * widget lock. Exported for the kit's tests.
+ */
+export function renderDataPlotChrome(
+  chrome: DataPlotChromeRef,
+  dpState: DataPlotBlockState,
+  section: GraphSectionStateView | undefined,
+): void {
+  // Solution slot — hidden until revealed at check time (fail-closed).
+  if (chrome.solutionEl) {
+    const wantHidden = !dpState.solutionRevealed;
+    if (chrome.solutionEl.hidden !== wantHidden) {
+      chrome.solutionEl.hidden = wantHidden;
+    }
+  }
+
+  // Confidence radios reflect the stored selection and freeze with the widget
+  // once the section is locked (same section?.locked condition as setLocked).
+  const locked = section?.locked === true;
+  for (const radio of chrome.confidenceRadios) {
+    const wantChecked = radio.value === dpState.confidence;
+    if (radio.checked !== wantChecked) radio.checked = wantChecked;
+    if (radio.disabled !== locked) radio.disabled = locked;
+  }
+
+  // Feedback line: after the section is checked, reveal correctness; before that,
+  // narrate the number of dots placed for screen-reader users (SR-only via
+  // data-mode=narrate). Narrating the COUNT (not "where") avoids handing away the
+  // target distribution the student is building. Lean — no mistake feedback.
+  if (chrome.feedbackEl) {
+    const checked = section?.checked === true;
+    let text = '';
+    let dataState: string | null = null;
+    let dataMode: string | null = null;
+    if (checked && dpState.result !== null) {
+      dataState = dpState.result ? 'correct' : 'incorrect';
+      dataMode = 'result';
+      text = dpState.result ? 'Correct!' : 'Not quite — try again.';
+    } else if (dpState.answered && dpState.studentValues.length > 0) {
+      const n = dpState.studentValues.length;
+      text = n === 1 ? '1 dot plotted.' : n + ' dots plotted.';
+      dataMode = 'narrate';
+    }
+    const wantHidden = text === '';
+    if (chrome.feedbackEl.hidden !== wantHidden) {
+      chrome.feedbackEl.hidden = wantHidden;
+    }
+    if (chrome.feedbackEl.textContent !== text) {
+      chrome.feedbackEl.textContent = text;
+    }
+    const currentState = chrome.feedbackEl.getAttribute('data-state');
+    if (dataState !== currentState) {
+      if (dataState === null) chrome.feedbackEl.removeAttribute('data-state');
+      else chrome.feedbackEl.setAttribute('data-state', dataState);
+    }
+    const currentMode = chrome.feedbackEl.getAttribute('data-mode');
+    if (dataMode !== currentMode) {
+      if (dataMode === null) chrome.feedbackEl.removeAttribute('data-mode');
+      else chrome.feedbackEl.setAttribute('data-mode', dataMode);
+    }
+  }
+
+  if (chrome.handle) {
+    chrome.handle.setLocked(section?.locked === true);
+  }
+}
+
+/**
+ * The bridge's entry point for data-plot blocks: parse each block's chrome, mount
+ * the graded widget, bridge widget changes into the runtime's state, and hand
+ * back the render delegate the runtime drives on every tick. Defensive: a failed
+ * mount leaves the static SVG fallback in place (the plot can't be built, but a
+ * RESTORED answer still scores + submits via the inline fold/gather in the bridge).
+ */
+export function attachDataPlotRuntime(
+  ctx: DataPlotRuntimeContext,
+): DataPlotRuntimeExt {
+  const chromes = new Map<string, DataPlotChromeRef>();
+  for (const [blockId, ref] of ctx.blocks) {
+    chromes.set(blockId, buildDataPlotChrome(blockId, ref));
+  }
+
+  for (const [blockId, chrome] of chromes) {
+    const config = {
+      interactionType: chrome.interactionType,
+      config: chrome.config,
+      data: chrome.data,
+    };
+
+    mountDataPlotQuestion(chrome.canvas, config, {
+      onChange: (resp: DataPlotResponseData) => {
+        const dp = ctx.state.dataPlots[blockId];
+        if (!dp) return;
+        dp.studentValues = resp.studentValues;
+        dp.answered = resp.answered;
+        // Unanswered → unscored (an omission), like an empty blank.
+        dp.result = resp.answered ? resp.correct : null;
+        ctx.onUpdate();
+      },
+    })
+      .then((handle) => {
+        chrome.handle = handle;
+        // Restore the answer persisted on a prior load. Its onChange re-populates
+        // state.dataPlots[blockId], so a checked-and-reloaded plot comes back
+        // scored.
+        const dp = ctx.state.dataPlots[blockId];
+        if (dp && dp.studentValues.length > 0) {
+          handle.restore(dp.studentValues);
+        }
+        if (ctx.state.sections[chrome.sectionId]?.locked) handle.setLocked(true);
+      })
+      .catch((err) => {
+        console.error('[activity-runtime] data-plot widget failed to mount', err);
+      });
+  }
+
+  const ext: DataPlotRuntimeExt = {
+    render(): void {
+      for (const [blockId, chrome] of chromes) {
+        const dp = ctx.state.dataPlots[blockId];
+        if (dp) {
+          renderDataPlotChrome(chrome, dp, ctx.state.sections[chrome.sectionId]);
+        }
+      }
+    },
+  };
+
+  ext.render();
   return ext;
 }

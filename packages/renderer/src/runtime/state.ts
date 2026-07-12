@@ -11,10 +11,11 @@
 // =============================================================================
 
 import type { Refs } from './refs.js';
-import { graphExt, numberLineExt } from './graph-integration.js';
+import { graphExt, numberLineExt, dataPlotExt } from './graph-integration.js';
 import type {
   GraphBlockState,
   NumberLineBlockState,
+  DataPlotBlockState,
 } from '@activity/graph-kit/runtime-contract';
 
 export interface SectionState {
@@ -175,7 +176,7 @@ export interface ArrangeState {
 // persisted blob — widening it incompatibly still means bumping
 // STORAGE_SCHEMA_VERSION (storage.ts). NumberLineBlockState follows the same
 // pattern (shared contract, persisted, kit-written).
-export type { GraphBlockState, NumberLineBlockState };
+export type { GraphBlockState, NumberLineBlockState, DataPlotBlockState };
 
 export interface RuntimeState {
     /** True once the final submit has completed successfully. */
@@ -218,6 +219,8 @@ export interface RuntimeState {
     graphs: Record<string, GraphBlockState>;
     /** Per-number_line-block status, keyed by block.id. */
     numberLines: Record<string, NumberLineBlockState>;
+    /** Per-graded-data_plot-block status, keyed by block.id. */
+    dataPlots: Record<string, DataPlotBlockState>;
 }
 
 /**
@@ -287,6 +290,7 @@ export function createInitialState(refs: Refs): RuntimeState {
     }
     const graphs = graphExt.initGraphState(refs);
     const numberLines = numberLineExt.initNumberLineState(refs);
+    const dataPlots = dataPlotExt.initDataPlotState(refs);
     return {
         submitted: false,
         attemptNumber: 1,
@@ -301,5 +305,6 @@ export function createInitialState(refs: Refs): RuntimeState {
         arrange: null,
         graphs,
         numberLines,
+        dataPlots,
     };
 }
