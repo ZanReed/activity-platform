@@ -11,6 +11,7 @@ import DevFoldableColumns from './routes/DevFoldableColumns';
 import DevCalculator from './routes/DevCalculator';
 import DevGraphQuestion from './routes/DevGraphQuestion';
 import DevNumberLine from './routes/DevNumberLine';
+import DevDataPlot from './routes/DevDataPlot';
 import DevConfigDrawer from './routes/DevConfigDrawer';
 
 export default function App() {
@@ -64,6 +65,9 @@ export default function App() {
         )}
         {import.meta.env.DEV && (
             <Route path="/dev/number-line" element={<DevNumberLine />} />
+        )}
+        {import.meta.env.DEV && (
+            <Route path="/dev/data-plot" element={<DevDataPlot />} />
         )}
         {import.meta.env.DEV && (
             <Route path="/dev/config-drawer" element={<DevConfigDrawer />} />

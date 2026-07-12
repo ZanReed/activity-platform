@@ -105,6 +105,23 @@ export type {
   StudentInterval,
 } from './number-line-score.js';
 
+// The graded data-plot widget (statistics charts). mountDataPlotQuestion is what
+// the runtime sidecar calls per graded data_plot block; it dynamic-imports the
+// SVG dot-plot board (no JSXGraph). There is no author twin — a data_plot is
+// authored by editing its dataset and previewed with the renderer's static SVG.
+export { mountDataPlotQuestion } from './data-plot-question.js';
+export type {
+  DataPlotQuestionConfig,
+  DataPlotQuestionHandle,
+  DataPlotQuestionHooks,
+  DataPlotResponseData,
+} from './data-plot-question.js';
+export { scoreDotplot, frequencyMap } from './data-plot-score.js';
+export type {
+  DataPlotBoardConfig,
+  DataPlotBoardController,
+} from './data-plot-board.js';
+
 // Continuation-arrow geometry (pure) — exported for tests; board.ts is the
 // real consumer.
 export {
