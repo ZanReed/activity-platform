@@ -10,7 +10,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
-import { ActivityMeta } from '@activity/schema';
+import { ActivityMeta, DataPlotBlock } from '@activity/schema';
 import {
     getMarkdownImporter,
     type MarkdownImporter,
@@ -607,6 +607,163 @@ describe('ordering fence (```order)', () => {
         const { blocks, warnings } = convert('```order\nonly one\n```');
         expect(blocks[0]!.type).not.toBe('ordering');
         expect(warnings.some((w) => w.includes('two'))).toBe(true);
+    });
+});
+
+describe('data-plot fence (```dataplot)', () => {
+    it('imports a graded dot-plot build with prompt math and an auto-fit axis', () => {
+        const { blocks, warnings } = convert(
+            '```dataplot\nprompt: Make a dot plot of $x$.\ndata: 3, 5, 5, 6, 8\nanswer: dotplot\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const plot = blocks[0]!;
+        expect(plot.type).toBe('dataPlot');
+        expect(plot.attrs).toMatchObject({
+            data: [3, 5, 5, 6, 8],
+            interaction: { type: 'build_dotplot' },
+            // auto-fit: floor(3)..ceil(8) at the default step 1
+            config: { min: 3, max: 8, tickStep: 1, snapToTick: true },
+            hasConfidenceRating: false,
+        });
+        expect(plot.content).toEqual([
+            { type: 'text', text: 'Make a dot plot of ' },
+            { type: 'mathInline', attrs: { latex: 'x' } },
+            { type: 'text', text: '.' },
+        ]);
+    });
+
+    it('an explicit axis line sets the window and step (= histogram bin width)', () => {
+        const { blocks, warnings } = convert(
+            '```dataplot\ndata: 2 7 7 12 18\naxis: 0..20 step 5\nanswer: histogram\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        expect(blocks[0]!.attrs).toMatchObject({
+            interaction: { type: 'build_histogram' },
+            config: { min: 0, max: 20, tickStep: 5 },
+        });
+    });
+
+    it('auto-fit rounds the window out to the step', () => {
+        const { blocks } = convert(
+            '```dataplot\ndata: 2, 7, 18\naxis: 0..20 step 5\nshow: histogram\n```',
+        );
+        expect(blocks[0]!.attrs).toMatchObject({ config: { min: 0, max: 20 } });
+        const auto = convert('```dataplot\ndata: 2, 7, 18\nanswer: dotplot\n```')
+            .blocks[0]!;
+        expect(auto.attrs).toMatchObject({ config: { min: 2, max: 18, tickStep: 1 } });
+    });
+
+    it('a boxplot answer takes an optional tolerance (default 0.5)', () => {
+        const withTol = convert(
+            '```dataplot\ndata: 1, 2, 4, 6, 7\nanswer: boxplot tolerance 1\n```',
+        ).blocks[0]!;
+        expect(withTol.attrs).toMatchObject({
+            interaction: { type: 'build_boxplot', tolerance: 1 },
+        });
+        const noTol = convert(
+            '```dataplot\ndata: 1, 2, 4, 6, 7\nanswer: box plot\n```',
+        ).blocks[0]!;
+        expect(noTol.attrs).toMatchObject({
+            interaction: { type: 'build_boxplot', tolerance: 0.5 },
+        });
+    });
+
+    it('show: makes a static display chart; spaced/hyphenated names tolerated', () => {
+        const { blocks, warnings } = convert(
+            '```dataplot\ndata: 1, 2, 4, 6, 7\nshow: box-plot\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        expect(blocks[0]!.attrs).toMatchObject({
+            interaction: { type: 'display', chart: 'boxplot' },
+        });
+    });
+
+    it('repeated data lines append (long datasets)', () => {
+        const { blocks } = convert(
+            '```dataplot\ndata: 1, 2, 3\ndata: 4, 5\nanswer: dotplot\n```',
+        );
+        expect(blocks[0]!.attrs).toMatchObject({ data: [1, 2, 3, 4, 5] });
+    });
+
+    it('solution and options: confidence carry through', () => {
+        const { blocks } = convert(
+            '```dataplot\ndata: 1, 2\nanswer: dotplot\nsolution: Stack a dot per value.\noptions: confidence\n```',
+        );
+        expect(blocks[0]!.attrs).toMatchObject({ hasConfidenceRating: true });
+        expect(blocks[0]!.attrs!.solution).toEqual([
+            { type: 'text', text: 'Stack a dot per value.', marks: [] },
+        ]);
+    });
+
+    it('data outside an explicit axis window imports with a warning', () => {
+        const { blocks, warnings } = convert(
+            '```dataplot\ndata: 5, 25\naxis: 0..10\nanswer: dotplot\n```',
+        );
+        expect(blocks[0]!.type).toBe('dataPlot');
+        expect(warnings.some((w) => w.includes('outside the axis window'))).toBe(true);
+    });
+
+    const degraded: { name: string; md: string; hint: string }[] = [
+        {
+            name: 'no data line',
+            md: '```dataplot\nprompt: hi\nanswer: dotplot\n```',
+            hint: 'data:',
+        },
+        {
+            name: 'neither answer nor show',
+            md: '```dataplot\ndata: 1, 2\n```',
+            hint: 'answer:',
+        },
+        {
+            name: 'both answer and show',
+            md: '```dataplot\ndata: 1, 2\nanswer: dotplot\nshow: boxplot\n```',
+            hint: 'one answer: or show:',
+        },
+        {
+            name: 'an unknown chart name',
+            md: '```dataplot\ndata: 1, 2\nanswer: scatterplot\n```',
+            hint: 'dotplot, histogram, or boxplot',
+        },
+        {
+            name: 'a non-numeric data entry',
+            md: '```dataplot\ndata: 1, two, 3\nanswer: dotplot\n```',
+            hint: 'not a number',
+        },
+        {
+            name: 'tolerance on a non-boxplot answer',
+            md: '```dataplot\ndata: 1, 2\nanswer: histogram tolerance 1\n```',
+            hint: 'boxplot answer',
+        },
+        {
+            name: 'a malformed axis line',
+            md: '```dataplot\ndata: 1, 2\naxis: 0 to 10\nanswer: dotplot\n```',
+            hint: 'axis must look like',
+        },
+        {
+            name: 'an unrecognized line',
+            md: '```dataplot\ndata: 1, 2\nbins: 4\nanswer: dotplot\n```',
+            hint: 'unrecognized line',
+        },
+    ];
+
+    it.each(degraded)('$name degrades to plain text with a warning', ({ md, hint }) => {
+        const { blocks, warnings } = convert(md);
+        expect(blocks[0]!.type).not.toBe('dataPlot');
+        expect(warnings.some((w) => w.includes(hint))).toBe(true);
+    });
+
+    it('the imported block survives the schema bridge and Zod-validates', () => {
+        const md =
+            '```dataplot\nprompt: Build the box plot.\ndata: 1, 2, 4, 6, 7\nanswer: boxplot tolerance 1\nsolution: Order the data first.\noptions: confidence\n```';
+        // The save-boundary path: Tiptap doc → ActivityDocument → Zod parse.
+        const doc = { type: 'doc', content: convert(md).blocks };
+        const activity = tiptapToActivity(doc, META);
+        const block = activity.sections
+            .flatMap((s) => s.blocks)
+            .find((b) => b.type === 'data_plot')!;
+        expect(() => DataPlotBlock.parse(block)).not.toThrow();
+        // And it re-emits unchanged — imported ≡ authored.
+        expect(roundTrip(md)).toEqual(blocks(md));
     });
 });
 

@@ -25,6 +25,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a paragraph containing `{{…}}` | a **fill-in-the-blank problem block** |
 | a list whose items contain `{{…}}` | **one problem block per item** |
 | `## Topic {checkpoint}` | a **checkpoint section break** titled "Topic" |
+| a ` ```dataplot ` fenced block | a **statistics-chart question** — dot plot, histogram, box plot (see below) |
 | a ` ```mc ` fenced block | a **multiple-choice question** (see below) |
 | a ` ```match ` fenced block | a **matching question** (see below) |
 | a ` ```order ` fenced block | an **ordering question** (see below) |
@@ -135,6 +136,24 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     show: expression sin(x)      (plots any formula)
     show: ray (0,0) (2,1) open
 
+DATA PLOTS (a fenced block with the `dataplot` tag becomes a statistics-chart question)
+- ```dataplot … ``` with one statement per line:
+    prompt: Make a dot plot of the data.
+    data: 3, 5, 5, 6, 8
+    answer: dotplot
+- data: lists the dataset (commas or spaces; repeat the line to continue a
+  long dataset). The correct chart is COMPUTED from the data — never try
+  to describe the chart itself.
+- answer: dotplot, histogram, or boxplot makes a graded build (the student
+  constructs that chart of the data). Use show: instead of answer: for a
+  static ungraded chart the student just reads:  show: boxplot
+- axis: 0..20 step 5 (optional) sets the number-line window and tick step;
+  left out, the axis fits the data automatically. For a histogram the step
+  is also the bar (bin) width.
+- A boxplot answer may add how close each of the five handles must be:
+  answer: boxplot tolerance 1   (default 0.5).
+- Optional lines:  solution: <worked explanation>   and   options: confidence
+
 MULTIPLE CHOICE (a fenced block with the `mc` tag becomes a multiple-choice question)
 - ```mc … ``` with one statement per line:
     prompt: What is $2 + 2$?
@@ -181,9 +200,9 @@ OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
-  other than ```graph, ```mc, ```match, and ```order — only the single outer
-  block that wraps the whole reply and those fences are allowed; anything
-  unsupported imports as plain text.
+  other than ```graph, ```dataplot, ```mc, ```match, and ```order — only the
+  single outer block that wraps the whole reply and those fences are allowed;
+  anything unsupported imports as plain text.
 
 When I describe the activity I want, reply with only that single code block.
 ```
@@ -211,6 +230,28 @@ options: partial-credit, allow-no-solution
 - `options:` `partial-credit`, `allow-no-solution`, `no-solution-correct`.
 
 A malformed graph block imports as plain text with a warning, never silently guessing.
+
+## Data-plot blocks (```dataplot fence)
+
+A fenced code block with the `dataplot` language tag becomes a data-plot (statistics chart) block — a dot plot, histogram, or box plot. One statement per line:
+
+```
+```dataplot
+prompt: Make a dot plot of the data.
+data: 3, 5, 5, 6, 8
+answer: dotplot
+options: confidence
+```⠀
+```
+
+- `data:` the dataset — numbers separated by commas or spaces. **Required.** Repeat the line to continue a long dataset (the values append). The correct chart is **computed from the data** (the block's single source of truth) — there is no hand-authored answer chart.
+- `answer:` ONE of `dotplot`, `histogram`, `boxplot` — a **graded build**: the student constructs that chart of the data ("dot plot" / "box-plot" spellings are tolerated). A box-plot answer takes an optional trailing tolerance — `answer: boxplot tolerance 1` — how close each five-number-summary handle must be, in line units (default 0.5; the key uses the TI-84 exclusive-median method).
+- `show:` the same three chart names — a **static, ungraded chart** the student reads (pair it with a sibling question). Exactly one of `answer:`/`show:` per block.
+- `axis: 0..20 step 5` (optional) — the number-line window and tick step (step optional, default 1). Left out, the window auto-fits the data, rounded out to the step. For a histogram the step doubles as the bar (bin) width. Data outside an explicit window imports with a warning (it wouldn't appear on the chart).
+- `prompt:` the question text (optional). Accepts `$inline$` math; `{{…}}` blanks stay literal here.
+- `solution:` optional worked explanation; `options: confidence` asks for a confidence rating.
+
+Scoring is all-or-nothing per chart (exact frequencies for dot plot/histogram; all five handles within tolerance for box plot). A malformed dataplot block imports as plain text with a warning.
 
 ## Multiple-choice blocks (```mc fence)
 

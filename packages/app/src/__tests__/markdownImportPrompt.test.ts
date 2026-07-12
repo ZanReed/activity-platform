@@ -219,6 +219,41 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'data-plot fence: graded build computed from the data',
+        fragment: 'data: 3, 5, 5, 6, 8',
+        md: '```dataplot\nprompt: Make a dot plot of the data.\ndata: 3, 5, 5, 6, 8\nanswer: dotplot\n```',
+        check: (b) => {
+            const plot = b.find((n) => n.type === 'dataPlot')!;
+            expect(plot).toBeDefined();
+            expect(plot.attrs).toMatchObject({
+                data: [3, 5, 5, 6, 8],
+                interaction: { type: 'build_dotplot' },
+            });
+        },
+    },
+    {
+        name: 'data-plot show: static ungraded chart',
+        fragment: 'show: boxplot',
+        md: '```dataplot\ndata: 1, 2, 4, 6, 7\nshow: boxplot\n```',
+        check: (b) => {
+            const plot = b.find((n) => n.type === 'dataPlot')!;
+            expect(plot.attrs).toMatchObject({
+                interaction: { type: 'display', chart: 'boxplot' },
+            });
+        },
+    },
+    {
+        name: 'data-plot boxplot tolerance suffix',
+        fragment: 'answer: boxplot tolerance 1',
+        md: '```dataplot\ndata: 1, 2, 4, 6, 7\nanswer: boxplot tolerance 1\n```',
+        check: (b) => {
+            const plot = b.find((n) => n.type === 'dataPlot')!;
+            expect(plot.attrs).toMatchObject({
+                interaction: { type: 'build_boxplot', tolerance: 1 },
+            });
+        },
+    },
+    {
         name: 'multiple-choice fence with (x) correct marker and :: feedback',
         fragment: '( ) 3 :: Check your addition.',
         md: '```mc\nprompt: What is $2 + 2$?\n( ) 3 :: Check your addition.\n(x) 4\n( ) 22\n```',

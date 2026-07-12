@@ -272,8 +272,8 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
             return mapList(node, 'orderedList', ctx);
 
         case 'fence': {
-            // ```graph fenced blocks are the graph DSL (Drop 7); ```mc blocks
-            // are the multiple-choice DSL; other fences stay unsupported.
+            // Tagged fences are block DSLs — ```graph (Drop 7), ```mc,
+            // ```match, ```order, ```dataplot; other fences stay unsupported.
             if ((node.token.info ?? '').trim() === 'graph') {
                 const graph = parseGraphFence(node.token.content, ctx);
                 if (graph) return [graph];
@@ -292,6 +292,11 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
             if ((node.token.info ?? '').trim() === 'order') {
                 const order = parseOrderFence(node.token.content, ctx);
                 if (order) return [order];
+                return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'dataplot') {
+                const dataPlot = parseDataPlotFence(node.token.content, ctx);
+                if (dataPlot) return [dataPlot];
                 return [rawTextParagraph(node.token.content)];
             }
             ctx.warnings.add(
@@ -1170,6 +1175,155 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
             hasConfidenceRating,
             skills: [],
             workSpace: null,
+        },
+        content: graphPromptContent(prompt, ctx),
+    };
+}
+
+// ```dataplot fence — the statistics-chart DSL (data_plot block). One statement
+// per line:
+//   prompt: Make a dot plot of the data.   ($inline$ math ok)
+//   data: 3, 5, 5, 6, 8                    (the dataset — commas or spaces;
+//                                           repeat the line to continue it)
+//   axis: 0..10 step 1                     (optional; omitted → auto-fit)
+//   answer: dotplot                        (graded build: the student
+//                                           constructs the chart of the data)
+//   show: boxplot                          (OR a static ungraded chart)
+//   solution: Count each value's dots.     (optional)
+//   options: confidence                    (optional)
+// Exactly one of answer:/show:. The correct plot is COMPUTED from the data
+// (schema decision 3a) — there is no separately-authored key. A box-plot answer
+// takes an optional trailing "tolerance <n>" (line units, default 0.5); the
+// axis step doubles as the histogram bin width (the schema's binWidth →
+// tickStep fallback). Chart names tolerate "dot plot" / "box-plot" spellings.
+function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
+    const fail = (msg: string): null => {
+        ctx.warnings.add('Data plot block: ' + msg + ' — imported as plain text.');
+        return null;
+    };
+
+    let prompt = '';
+    let solution: InlineNode[] | null = null;
+    let hasConfidenceRating = false;
+    const data: number[] = [];
+    let axis: { min: number; max: number } | null = null;
+    let step = 1;
+    let interaction: Record<string, unknown> | null = null;
+
+    const chartWord = (raw: string): 'dotplot' | 'histogram' | 'boxplot' | null => {
+        const w = raw.toLowerCase().replace(/[\s-]+/g, '');
+        return w === 'dotplot' || w === 'histogram' || w === 'boxplot' ? w : null;
+    };
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        const m = /^(prompt|data|axis|answer|show|solution|options):\s*(.*)$/i.exec(line);
+        if (!m) return fail(`unrecognized line "${line}"`);
+        const value = (m[2] ?? '').trim();
+        switch ((m[1] ?? '').toLowerCase()) {
+            case 'prompt':
+                prompt = value;
+                break;
+            case 'solution':
+                if (value) solution = schemaInlineContent(value, ctx);
+                break;
+            case 'options':
+                for (const opt of value.split(',').map((o) => o.trim().toLowerCase())) {
+                    if (opt === 'confidence') hasConfidenceRating = true;
+                    else if (opt) return fail(`unknown option "${opt}"`);
+                }
+                break;
+            case 'data': {
+                const parts = value.split(/[,\s]+/).filter((p) => p.length > 0);
+                if (parts.length === 0) return fail('the data line needs at least one number');
+                for (const p of parts) {
+                    const n = Number(p);
+                    if (!Number.isFinite(n)) return fail(`"${p}" in the data line is not a number`);
+                    data.push(n);
+                }
+                break;
+            }
+            case 'axis': {
+                const a = /^(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)(?:\s+step\s+([\d.]+))?$/i.exec(value);
+                if (!a) return fail('axis must look like "0..10" or "0..20 step 5"');
+                const min = Number(a[1]);
+                const max = Number(a[2]);
+                if (!(min < max)) return fail('the axis range needs min < max');
+                axis = { min, max };
+                if (a[3] !== undefined) {
+                    step = Number(a[3]);
+                    if (!(step > 0)) return fail('the axis step must be positive');
+                }
+                break;
+            }
+            case 'answer': {
+                if (interaction) return fail('only one answer: or show: line per block');
+                let body = value;
+                let tolerance: number | undefined;
+                const tol = /\s+tolerance\s+(\d*\.?\d+)$/i.exec(body);
+                if (tol) {
+                    tolerance = Number(tol[1]);
+                    body = body.slice(0, tol.index).trim();
+                }
+                const chart = chartWord(body);
+                if (!chart) return fail(`the answer must be dotplot, histogram, or boxplot (got "${value}")`);
+                if (tolerance !== undefined && chart !== 'boxplot') {
+                    return fail('tolerance applies only to a boxplot answer');
+                }
+                interaction =
+                    chart === 'dotplot'
+                        ? { type: 'build_dotplot' }
+                        : chart === 'histogram'
+                          ? { type: 'build_histogram' }
+                          : { type: 'build_boxplot', tolerance: tolerance ?? 0.5 };
+                break;
+            }
+            case 'show': {
+                if (interaction) return fail('only one answer: or show: line per block');
+                const chart = chartWord(value);
+                if (!chart) return fail(`show must name dotplot, histogram, or boxplot (got "${value}")`);
+                interaction = { type: 'display', chart };
+                break;
+            }
+        }
+    }
+
+    if (data.length === 0) return fail('needs a data: line with the dataset');
+    if (!interaction) {
+        return fail('needs an answer: line (a graded build) or a show: line (a static chart)');
+    }
+
+    // No axis line → auto-fit the window to the data, floor/ceil'd to the tick
+    // step (the most likely author/AI mistake is a window that clips the data —
+    // histogramBins drops out-of-window values, silently changing the computed
+    // answer). A single-tick dataset still gets a non-degenerate span.
+    let min: number;
+    let max: number;
+    if (axis) {
+        min = axis.min;
+        max = axis.max;
+        if (data.some((v) => v < min || v > max)) {
+            ctx.warnings.add(
+                'Data plot block: some data values fall outside the axis window — they won’t appear on the chart.',
+            );
+        }
+    } else {
+        min = Math.floor(Math.min(...data) / step) * step;
+        max = Math.ceil(Math.max(...data) / step) * step;
+        if (max - min < step) max = min + step;
+    }
+
+    return {
+        type: 'dataPlot',
+        attrs: {
+            id: '',
+            data,
+            config: { min, max, tickStep: step, minorTicksPerStep: 0, snapToTick: true },
+            interaction,
+            solution,
+            hasConfidenceRating,
+            skills: [],
         },
         content: graphPromptContent(prompt, ctx),
     };
