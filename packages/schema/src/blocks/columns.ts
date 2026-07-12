@@ -34,6 +34,7 @@ import { MultipleChoiceBlock } from './multiple-choice.js';
 import { MatchingBlock } from './matching.js';
 import { OrderingBlock } from './ordering.js';
 import { NumberLineBlock } from './number-line.js';
+import { DataPlotBlock } from './data-plot.js';
 import { BulletListBlock, OrderedListBlock } from './list.js';
 
 // Cell content = the full Block union MINUS ColumnsBlock. When a new leaf block
@@ -51,6 +52,7 @@ export const ColumnCellBlock = z.discriminatedUnion('type', [
   MatchingBlock,
   OrderingBlock,
   NumberLineBlock,
+  DataPlotBlock,
   BulletListBlock,
   OrderedListBlock,
 ]);

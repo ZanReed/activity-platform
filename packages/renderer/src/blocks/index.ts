@@ -22,6 +22,7 @@ import { renderMultipleChoice } from './multiple-choice.js';
 import { renderMatching } from './matching.js';
 import { renderOrdering } from './ordering.js';
 import { renderNumberLine } from './number-line.js';
+import { renderDataPlot } from './data-plot.js';
 
 export interface BlockRenderContext {
   /**
@@ -104,6 +105,15 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
         graphKitUrl: ctx.graphKitUrl,
         showAnswers: ctx.showAnswers,
       });
+    case 'data_plot':
+      // A display (static) data plot is ungraded content — it doesn't pull from
+      // the problem sequence. Only a graded build interaction consumes a number.
+      return renderDataPlot(block, {
+        problemNumber:
+          block.interaction.type === 'display' ? 0 : ctx.nextProblemNumber(),
+        graphKitUrl: ctx.graphKitUrl,
+        showAnswers: ctx.showAnswers,
+      });
     default: {
       // Exhaustiveness check — if a new block type is added to the schema
       // and not handled here, TypeScript emits an error on this assignment.
@@ -128,6 +138,7 @@ export function isNumberedBlock(block: Block): boolean {
     block.type === 'matching' ||
     block.type === 'ordering' ||
     block.type === 'number_line' ||
-    (block.type === 'interactive_graph' && block.interaction.type !== 'display')
+    (block.type === 'interactive_graph' && block.interaction.type !== 'display') ||
+    (block.type === 'data_plot' && block.interaction.type !== 'display')
   );
 }

@@ -638,6 +638,76 @@ body {
   overflow: hidden;
   white-space: nowrap;
 }
+/* ---- data_plot block (statistics charts) — mirrors the number-line block --- */
+.data-plot-canvas {
+  position: relative;
+  width: 100%;
+  max-width: 34rem;
+  aspect-ratio: 500 / 200;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  touch-action: none;
+}
+.data-plot-canvas:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+/* A display (static) chart is not interactive: no focus box, no fixed height —
+ the SVG sets its own aspect ratio and the figure sizes to it. */
+.data-plot-static {
+  border: none;
+  aspect-ratio: auto;
+  touch-action: auto;
+}
+@media screen {
+  .column-cell .block-data-plot { overflow-x: auto; }
+  .column-cell .data-plot-canvas { min-width: 15rem; }
+}
+.data-plot-canvas > .data-plot-paper {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.data-plot-static > .data-plot-paper { height: auto; }
+.data-plot-source {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+}
+.data-plot-caption {
+  margin-bottom: 0.4rem;
+}
+.data-plot-nojs {
+  position: absolute;
+  left: 50%;
+  bottom: 0.2rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.15rem 0.6rem;
+  max-width: 92%;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 4px;
+}
+.js-dataplot-feedback {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+.js-dataplot-feedback[data-state="correct"] { color: #15803d; }
+.js-dataplot-feedback[data-state="incorrect"] { color: #b91c1c; }
+.js-dataplot-feedback[data-mode="narrate"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
 
 .block-bullet-list,
 .block-ordered-list {

@@ -1014,10 +1014,14 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'ordering':
             return activityOrderingToTiptap(block);
 
+        // data_plot's editor NodeView lands in slice 5; until then it shares the
+        // callout/problem omit-stub (round-trips through storage, omitted from the
+        // editor view) — the same stub number_line used before its NodeView shipped.
+        case 'data_plot':
         case 'callout':
         case 'problem':
-            // callout/problem have no editor mapping yet; they round-trip through
-            // storage but are omitted from the editor view.
+            // These have no editor mapping yet; they round-trip through storage
+            // but are omitted from the editor view.
             console.warn(
                 `[serialize] No Tiptap mapping for ${block.type} yet; block omitted from editor view.`,
             );

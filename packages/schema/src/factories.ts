@@ -38,10 +38,11 @@ import type {
   OrderingBlock,
   OrderingItem,
   NumberLineBlock,
+  DataPlotBlock,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
-import { AxisConfig, NumberLineConfig } from './blocks/index.js';
+import { AxisConfig, NumberLineConfig, DataPlotConfig } from './blocks/index.js';
 import type { BlankToken } from './inline.js';
 
 const uuid = (): string => crypto.randomUUID();
@@ -212,6 +213,24 @@ export function createNumberLineBlock(): NumberLineBlock {
     prompt: [],
     config: NumberLineConfig.parse({ min: 0, max: 10 }),
     interaction: { type: 'plot_point', correctPoints: [5], tolerance: 0.1 },
+    hasConfidenceRating: false,
+    skills: [],
+  };
+}
+
+// A default build-a-dot-plot block: a 0..10 unit axis and a small sample
+// dataset for the author to replace. The correct plot is derived from `data`
+// (no separate answer key). DataPlotConfig.parse fills the tick/minor/snap
+// defaults so the result validates. The editor's type/mode picker switches this
+// to a `display` chart (or, later, histogram/box builds).
+export function createDataPlotBlock(): DataPlotBlock {
+  return {
+    id: uuid(),
+    type: 'data_plot',
+    prompt: [],
+    data: [3, 5, 5, 6, 8],
+    config: DataPlotConfig.parse({ min: 0, max: 10 }),
+    interaction: { type: 'build_dotplot' },
     hasConfidenceRating: false,
     skills: [],
   };

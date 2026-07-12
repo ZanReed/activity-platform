@@ -23,6 +23,7 @@ import { MultipleChoiceBlock } from './multiple-choice.js';
 import { MatchingBlock } from './matching.js';
 import { OrderingBlock } from './ordering.js';
 import { NumberLineBlock } from './number-line.js';
+import { DataPlotBlock } from './data-plot.js';
 
 export const Block = z.discriminatedUnion('type', [
   ParagraphBlock,
@@ -40,6 +41,7 @@ export const Block = z.discriminatedUnion('type', [
   MatchingBlock,
   OrderingBlock,
   NumberLineBlock,
+  DataPlotBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -74,6 +76,14 @@ export {
   NumberLineIntervalInteraction,
   NumberLineInterval,
 } from './number-line.js';
+export {
+  DataPlotBlock,
+  DataPlotConfig,
+  DataPlotChart,
+  DataPlotInteraction,
+  DataPlotDisplayInteraction,
+  DataPlotDotplotInteraction,
+} from './data-plot.js';
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,

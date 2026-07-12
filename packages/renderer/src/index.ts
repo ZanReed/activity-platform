@@ -55,6 +55,12 @@ export type { FontSpec } from './typography.js';
 export { renderGraphSvg } from './graph-svg.js';
 export { renderNumberLineSvg, answerKeyMarks } from './number-line-svg.js';
 export type { NumberLineMark } from './number-line-svg.js';
+export {
+  renderDataPlotSvg,
+  dotCounts,
+  histogramBins,
+  fiveNumberSummary,
+} from './data-plot-svg.js';
 
 // Re-export the schema. Validating inputs against ActivityDocument is part
 // of the renderer's contract — anything that doesn't parse here is a
