@@ -282,14 +282,35 @@ export interface NumberLineInfo {
     sectionTitle: string | null;
 }
 
+// One graded data_plot block, for reading its submission back. The answer key
+// is the target distribution (the block's dataset); the interaction is
+// build_dotplot in slice 1.
+export interface DataPlotInfo {
+    blockId: string;
+    problemNumber: number | null;
+    problemPrompt: string;
+    interactionType: string; // 'build_dotplot'
+    answerSummary: string; // the target dot plot as a sorted value list
+    sectionId: string;
+    sectionTitle: string | null;
+}
+
 export interface ActivityIndex {
     blanks: Map<string, BlankInfo>;
     graphs: Map<string, GraphInfo>;
     numberLines: Map<string, NumberLineInfo>;
+    dataPlots: Map<string, DataPlotInfo>;
     mcs: Map<string, McInfo>;
     matchings: Map<string, MatchInfo>;
     orderings: Map<string, OrderingInfo>;
     sections: Map<string, SectionInfo>;
+}
+
+// A dot-plot's values → a readable sorted list ("3, 5, 5, 6, 8"). Shared by the
+// answer-key summary and the submitted-answer cell so the two read alike.
+export function formatDotValues(values: number[]): string {
+    if (values.length === 0) return '—';
+    return [...values].sort((a, b) => a - b).join(', ');
 }
 
 // A student/answer-key interval → a readable inequality. Both bounds present →
@@ -345,6 +366,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
     const blanks = new Map<string, BlankInfo>();
     const graphs = new Map<string, GraphInfo>();
     const numberLines = new Map<string, NumberLineInfo>();
+    const dataPlots = new Map<string, DataPlotInfo>();
     const mcs = new Map<string, McInfo>();
     const matchings = new Map<string, MatchInfo>();
     const orderings = new Map<string, OrderingInfo>();
@@ -538,6 +560,22 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 });
                 return;
             }
+            if (block.type === 'data_plot') {
+                // Only GRADED data plots produce a submission — a display chart is
+                // an ungraded stimulus, so it isn't indexed. The answer key is the
+                // target dot plot (the block's dataset).
+                if (block.interaction.type !== 'build_dotplot') return;
+                dataPlots.set(block.id, {
+                    blockId: block.id,
+                    problemNumber: block.number ?? null,
+                    problemPrompt: reconstructPrompt(block.prompt),
+                    interactionType: block.interaction.type,
+                    answerSummary: formatDotValues(block.data),
+                    sectionId: section.id,
+                    sectionTitle: section.title ?? null,
+                });
+                return;
+            }
             if (block.type !== 'fill_in_blank') return;
             const prompt = reconstructPrompt(block.content);
 
@@ -596,7 +634,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
         for (const block of section.blocks) indexBlock(block);
     });
 
-    return { blanks, graphs, numberLines, mcs, matchings, orderings, sections };
+    return { blanks, graphs, numberLines, dataPlots, mcs, matchings, orderings, sections };
 }
 
 // ---- Score formatting -------------------------------------------------------

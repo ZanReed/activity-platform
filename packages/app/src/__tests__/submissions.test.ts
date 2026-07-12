@@ -382,6 +382,54 @@ describe('buildActivityIndex', () => {
         expect(idx.graphs.size).toBe(0);
     });
 
+    it('indexes a graded data_plot block but skips a display one', () => {
+        const meta = {
+            title: 'DP', course: 'Algebra I', submissionMode: 'free' as const,
+            revisionMode: 'free' as const, gradingMode: 'auto' as const,
+            activityType: 'worksheet' as const, answerFeedback: 'on_check' as const, skills: [],
+        };
+        const dpDoc: ActivityDocument = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta,
+            sections: [
+                {
+                    id: U(420),
+                    title: 'Stats',
+                    isCheckpoint: true,
+                    blocks: [
+                        {
+                            id: U(700),
+                            type: 'data_plot',
+                            number: 1,
+                            prompt: [{ type: 'text', text: 'Build a dot plot.', marks: [] }],
+                            data: [8, 3, 5, 5, 6],
+                            config: { min: 0, max: 10, tickStep: 1 },
+                            interaction: { type: 'build_dotplot' },
+                        },
+                        {
+                            id: U(701),
+                            type: 'data_plot',
+                            prompt: [{ type: 'text', text: 'Read this box plot.', marks: [] }],
+                            data: [2, 4, 6, 9],
+                            config: { min: 0, max: 10, tickStep: 1 },
+                            interaction: { type: 'display', chart: 'boxplot' },
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(dpDoc);
+        // Only the graded build_dotplot is indexed; the display box plot is not.
+        expect(idx.dataPlots.size).toBe(1);
+        const dp = idx.dataPlots.get(U(700))!;
+        expect(dp.interactionType).toBe('build_dotplot');
+        // The answer key is the target distribution, shown sorted.
+        expect(dp.answerSummary).toBe('3, 5, 5, 6, 8');
+        expect(dp.problemNumber).toBe(1);
+        expect(dp.sectionTitle).toBe('Stats');
+        expect(idx.dataPlots.has(U(701))).toBe(false);
+    });
+
     it('indexes a multiple_choice block with lettered choices + answer summary', () => {
         const mcDoc: ActivityDocument = ActivityDocument.parse({
             schemaVersion: 1,

@@ -36,6 +36,7 @@ import {
     formatScore,
     fitStudentEquation,
     formatNumberLineInterval,
+    formatDotValues,
     type ActivityIndex,
     type StudentGroup,
     type SubmissionRow,
@@ -311,11 +312,28 @@ function SubmissionDetail({
               })
         : [];
 
+    // Data-plot responses (stats charts), ordered by problem number then id.
+    const dataPlotRows = responses.dataPlotResponses
+        ? Object.entries(responses.dataPlotResponses)
+              .map(([blockId, resp]) => ({
+                  blockId,
+                  info: index.dataPlots.get(blockId),
+                  resp,
+              }))
+              .sort((a, b) => {
+                  const an = a.info?.problemNumber ?? Infinity;
+                  const bn = b.info?.problemNumber ?? Infinity;
+                  if (an !== bn) return an - bn;
+                  return a.blockId.localeCompare(b.blockId);
+              })
+        : [];
+
     return (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
         {blankCount === 0 &&
         graphRows.length === 0 &&
         numberLineRows.length === 0 &&
+        dataPlotRows.length === 0 &&
         mcRows.length === 0 &&
         matchRows.length === 0 &&
         orderingRows.length === 0 ? (
@@ -704,6 +722,61 @@ function SubmissionDetail({
                     <td className="py-1 text-slate-600">
                     {n.resp.confidence
                         ? CONFIDENCE_LABELS[n.resp.confidence]
+                        : '—'}
+                    </td>
+                    </tr>
+                ))}
+                </tbody>
+                </table>
+                </div>
+            )}
+
+            {dataPlotRows.length > 0 && (
+                <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Data plot
+                </p>
+                <table className="mt-2 w-full text-sm">
+                <thead>
+                <tr className="text-left text-xs text-slate-400">
+                <th className="py-1 pr-3 font-medium">Problem</th>
+                <th className="py-1 pr-3 font-medium">Answer key</th>
+                <th className="py-1 pr-3 font-medium">Student answer</th>
+                <th className="py-1 pr-3 font-medium">Result</th>
+                <th className="py-1 font-medium">Confidence</th>
+                </tr>
+                </thead>
+                <tbody>
+                {dataPlotRows.map((d) => (
+                    <tr key={d.blockId} className="border-t border-slate-200">
+                    <td className="py-1 pr-3 text-slate-700">
+                    {d.info?.problemNumber != null
+                        ? `Problem ${d.info.problemNumber}`
+                        : 'Data plot'}
+                    {d.info?.problemPrompt && (
+                        <span className="block text-xs text-slate-400">
+                        {d.info.problemPrompt}
+                        </span>
+                    )}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-600">
+                    {d.info ? d.info.answerSummary : '—'}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-900">
+                    {d.resp.type === 'build_dotplot'
+                        ? formatDotValues(d.resp.studentValues)
+                        : '—'}
+                    </td>
+                    <td className="py-1 pr-3">
+                    {d.resp.correct ? (
+                        <span className="font-medium text-green-700">✓ correct</span>
+                    ) : (
+                        <span className="font-medium text-red-600">✗ incorrect</span>
+                    )}
+                    </td>
+                    <td className="py-1 text-slate-600">
+                    {d.resp.confidence
+                        ? CONFIDENCE_LABELS[d.resp.confidence]
                         : '—'}
                     </td>
                     </tr>
