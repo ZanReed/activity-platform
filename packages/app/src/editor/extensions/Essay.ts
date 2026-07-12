@@ -62,6 +62,23 @@ export const Essay = Node.create({
             },
             wordMin: numAttr('wordMin', 'data-word-min'),
             wordMax: numAttr('wordMax', 'data-word-max'),
+            // Grading rubric (Phase 2.6) — see ShortAnswer.ts for the pattern.
+            rubric: {
+                default: null as unknown,
+                parseHTML: (element: HTMLElement) => {
+                    const raw = element.getAttribute('data-rubric');
+                    if (!raw) return null;
+                    try {
+                        return JSON.parse(raw);
+                    } catch {
+                        return null;
+                    }
+                },
+                renderHTML: (attributes: Record<string, unknown>) =>
+                    attributes.rubric
+                        ? { 'data-rubric': JSON.stringify(attributes.rubric) }
+                        : {},
+            },
         };
     },
 

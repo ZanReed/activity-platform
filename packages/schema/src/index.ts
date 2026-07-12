@@ -85,6 +85,8 @@ export {
   ShortAnswerBlock,
   EssayBlock,
   WordCountHint,
+  Rubric,
+  RubricCriterion,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 

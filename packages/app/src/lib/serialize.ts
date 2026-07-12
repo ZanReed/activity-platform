@@ -79,6 +79,8 @@ import {
     InlineNode as InlineNodeSchema,
     DefinitionContentInline as DefinitionContentInlineSchema,
     WordCountHint,
+    RubricCriterion,
+    type Rubric,
     createInteractiveGraphBlock,
     createNumberLineBlock,
     createDataPlotBlock,
@@ -405,7 +407,29 @@ function tiptapShortAnswerToActivity(node: JSONContent): ShortAnswerBlock {
     };
     const placeholder = (node.attrs?.placeholder as string | undefined)?.trim();
     if (placeholder) block.placeholder = placeholder;
+    const rubric = sanitizeRubric(node.attrs?.rubric);
+    if (rubric) block.rubric = rubric;
     return block;
+}
+
+// Attrs-stored rubric → schema shape. Sanitized PER CRITERION (not whole-rubric
+// safeParse) so one half-built criterion — e.g. a label cleared mid-edit when an
+// autosave fires — costs only that criterion, never the teacher's whole rubric.
+// The rubric is dropped only when no valid criterion remains (the schema
+// requires min 1).
+function sanitizeRubric(raw: unknown): Rubric | undefined {
+    if (!raw || typeof raw !== 'object') return undefined;
+    const rawCriteria = (raw as { criteria?: unknown }).criteria;
+    if (!Array.isArray(rawCriteria)) return undefined;
+    const criteria = rawCriteria.flatMap((c) => {
+        const parsed = RubricCriterion.safeParse(c);
+        if (!parsed.success) {
+            console.warn('[serialize] Dropping malformed rubric criterion:', c);
+            return [];
+        }
+        return [parsed.data];
+    });
+    return criteria.length > 0 ? { criteria } : undefined;
 }
 
 function tiptapEssayToActivity(node: JSONContent): EssayBlock {
@@ -427,6 +451,8 @@ function tiptapEssayToActivity(node: JSONContent): EssayBlock {
         });
         if (hint.success) block.wordCountHint = hint.data;
     }
+    const rubric = sanitizeRubric(node.attrs?.rubric);
+    if (rubric) block.rubric = rubric;
     return block;
 }
 
@@ -1175,7 +1201,11 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'short_answer':
             return {
                 type: 'shortAnswer',
-                attrs: { id: block.id, placeholder: block.placeholder ?? '' },
+                attrs: {
+                    id: block.id,
+                    placeholder: block.placeholder ?? '',
+                    rubric: block.rubric ?? null,
+                },
                 content: activityInlineToTiptap(block.prompt),
             };
 
@@ -1187,6 +1217,7 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
                     placeholder: block.placeholder ?? '',
                     wordMin: block.wordCountHint?.min ?? null,
                     wordMax: block.wordCountHint?.max ?? null,
+                    rubric: block.rubric ?? null,
                 },
                 content: activityInlineToTiptap(block.prompt),
             };

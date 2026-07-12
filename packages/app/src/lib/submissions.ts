@@ -25,6 +25,7 @@ import type {
     ActivityDocument,
     Block,
     ColumnCellBlock,
+    Rubric,
 } from '@activity/schema';
 import { fitFunction } from '@activity/graph-kit';
 import { histogramBins, fiveNumberSummary } from '@activity/renderer';
@@ -304,6 +305,12 @@ export interface FreeTextInfo {
     blockId: string;
     blockType: 'self_explanation' | 'short_answer' | 'essay';
     problemPrompt: string;
+    /**
+     * The block's grading rubric (short_answer/essay only, when authored).
+     * Read from the submission's PINNED document version, so grading always
+     * sees the exact rubric the student was assessed against.
+     */
+    rubric: Rubric | null;
     sectionId: string;
     sectionTitle: string | null;
 }
@@ -445,6 +452,10 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                     blockId: block.id,
                     blockType: block.type,
                     problemPrompt: reconstructPrompt(block.prompt),
+                    rubric:
+                        block.type === 'self_explanation'
+                            ? null
+                            : (block.rubric ?? null),
                     sectionId: section.id,
                     sectionTitle: section.title ?? null,
                 });

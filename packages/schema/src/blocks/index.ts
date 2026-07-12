@@ -104,7 +104,13 @@ export {
   FadedWorkedExampleChild,
 } from './faded-worked-example.js';
 export { SelfExplanationBlock } from './self-explanation.js';
-export { ShortAnswerBlock, EssayBlock, WordCountHint } from './free-response.js';
+export {
+  ShortAnswerBlock,
+  EssayBlock,
+  WordCountHint,
+  Rubric,
+  RubricCriterion,
+} from './free-response.js';
 export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,

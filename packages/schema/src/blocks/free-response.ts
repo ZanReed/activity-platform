@@ -20,11 +20,35 @@ import { InlineNode } from '../inline.js';
 // in the wire — it's derivable from the text), so this is display guidance only.
 // =============================================================================
 
+// One rubric criterion: a label ("Thesis clarity"), the points it's worth, and
+// an optional description of what full credit looks like. Leveled descriptor
+// grids (4/3/2/1 columns) are a future ADDITIVE extension of this shape.
+export const RubricCriterion = z.object({
+  id: z.string().uuid(),
+  label: z.string().min(1),
+  maxPoints: z.number().positive().finite(),
+  description: z.string().optional(),
+});
+export type RubricCriterion = z.infer<typeof RubricCriterion>;
+
+// A block's grading rubric. Lives IN the document (author decision 2026-07-13,
+// docs/design/manual-grading.md): submissions pin to activity_versions, so the
+// grading UI reads the exact rubric the student was assessed against — version
+// pinning IS the "rubric edits apply prospectively" mechanism. The renderer
+// never emits it (teacher-side data; stays out of student HTML). Grades
+// themselves are mutable and live in the `grades` TABLE, keyed by
+// (submission_id, block_id) + criterion id.
+export const Rubric = z.object({
+  criteria: z.array(RubricCriterion).min(1),
+});
+export type Rubric = z.infer<typeof Rubric>;
+
 export const ShortAnswerBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('short_answer'),
   prompt: z.array(InlineNode),
   placeholder: z.string().optional(),
+  rubric: Rubric.optional(),
 });
 export type ShortAnswerBlock = z.infer<typeof ShortAnswerBlock>;
 
@@ -47,5 +71,6 @@ export const EssayBlock = z.object({
   prompt: z.array(InlineNode),
   placeholder: z.string().optional(),
   wordCountHint: WordCountHint.optional(),
+  rubric: Rubric.optional(),
 });
 export type EssayBlock = z.infer<typeof EssayBlock>;

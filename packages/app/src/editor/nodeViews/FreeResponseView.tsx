@@ -4,6 +4,7 @@ import {
     NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
+import type { Rubric, RubricCriterion } from '@activity/schema';
 
 // ============================================================================
 // FreeResponseView — shared NodeView for short_answer + essay.
@@ -29,9 +30,11 @@ export default function FreeResponseView({
     const placeholder = (node.attrs.placeholder as string | undefined) ?? '';
     const wordMin = (node.attrs.wordMin as number | null) ?? null;
     const wordMax = (node.attrs.wordMax as number | null) ?? null;
+    const rubric = (node.attrs.rubric as Rubric | null) ?? null;
     const isEditable = editor.isEditable;
     const [footerOpen, setFooterOpen] = useState(false);
-    const configured = placeholder.length > 0 || wordMin !== null || wordMax !== null;
+    const configured =
+        placeholder.length > 0 || wordMin !== null || wordMax !== null || rubric !== null;
     const showFooter = isEditable || configured;
 
     const setNum = (key: 'wordMin' | 'wordMax', raw: string) => {
@@ -39,6 +42,34 @@ export default function FreeResponseView({
         const n = Number(raw);
         if (Number.isInteger(n) && n > 0) updateAttributes({ [key]: n });
     };
+
+    // Rubric edits write straight to the node attr (document concern). New
+    // criteria are seeded VALID (non-empty label, positive points) so a fresh
+    // rubric survives an immediate autosave — serialize drops invalid criteria.
+    const setRubric = (next: Rubric | null) => updateAttributes({ rubric: next });
+    const addCriterion = () => {
+        const n = (rubric?.criteria.length ?? 0) + 1;
+        const fresh: RubricCriterion = {
+            id: crypto.randomUUID(),
+            label: `Criterion ${n}`,
+            maxPoints: 4,
+        };
+        setRubric({ criteria: [...(rubric?.criteria ?? []), fresh] });
+    };
+    const updateCriterion = (id: string, patch: Partial<RubricCriterion>) => {
+        if (!rubric) return;
+        setRubric({
+            criteria: rubric.criteria.map((c) =>
+                c.id === id ? { ...c, ...patch } : c,
+            ),
+        });
+    };
+    const removeCriterion = (id: string) => {
+        if (!rubric) return;
+        const remaining = rubric.criteria.filter((c) => c.id !== id);
+        setRubric(remaining.length > 0 ? { criteria: remaining } : null);
+    };
+    const totalPoints = rubric?.criteria.reduce((sum, c) => sum + c.maxPoints, 0) ?? 0;
 
     return (
         <NodeViewWrapper
@@ -75,6 +106,15 @@ export default function FreeResponseView({
                         disabled={!isEditable}
                     >
                         <span aria-hidden="true">⚙</span> Options
+                        {!footerOpen && rubric && (
+                            <span className="free-response-block__footer-badge">
+                                Rubric: {rubric.criteria.length}{' '}
+                                {rubric.criteria.length === 1
+                                    ? 'criterion'
+                                    : 'criteria'}{' '}
+                                · {totalPoints} pts
+                            </span>
+                        )}
                     </button>
                     {footerOpen && (
                         <div className="free-response-block__options">
@@ -119,6 +159,86 @@ export default function FreeResponseView({
                                     </label>
                                 </div>
                             )}
+                            <div className="free-response-block__rubric">
+                                <div className="free-response-block__rubric-head">
+                                    <span>Rubric</span>
+                                    {rubric && (
+                                        <span className="free-response-block__rubric-total">
+                                            {totalPoints} pts total
+                                        </span>
+                                    )}
+                                </div>
+                                {rubric?.criteria.map((c) => (
+                                    <div
+                                        key={c.id}
+                                        className="free-response-block__criterion"
+                                    >
+                                        <input
+                                            type="text"
+                                            className="free-response-block__criterion-label"
+                                            value={c.label}
+                                            placeholder="Criterion"
+                                            aria-label="Criterion label"
+                                            disabled={!isEditable}
+                                            onChange={(e) =>
+                                                updateCriterion(c.id, {
+                                                    label: e.target.value,
+                                                })
+                                            }
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                        />
+                                        <input
+                                            type="number"
+                                            className="free-response-block__criterion-points"
+                                            min={0.5}
+                                            step={0.5}
+                                            value={c.maxPoints}
+                                            aria-label="Points"
+                                            disabled={!isEditable}
+                                            onChange={(e) => {
+                                                const n = Number(e.target.value);
+                                                if (Number.isFinite(n) && n > 0)
+                                                    updateCriterion(c.id, {
+                                                        maxPoints: n,
+                                                    });
+                                            }}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                        />
+                                        <input
+                                            type="text"
+                                            className="free-response-block__criterion-desc"
+                                            value={c.description ?? ''}
+                                            placeholder="What does full credit look like? (optional)"
+                                            aria-label="Criterion description"
+                                            disabled={!isEditable}
+                                            onChange={(e) =>
+                                                updateCriterion(c.id, {
+                                                    description:
+                                                        e.target.value || undefined,
+                                                })
+                                            }
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="free-response-block__criterion-remove"
+                                            aria-label="Remove criterion"
+                                            disabled={!isEditable}
+                                            onClick={() => removeCriterion(c.id)}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    className="free-response-block__rubric-add"
+                                    disabled={!isEditable}
+                                    onClick={addCriterion}
+                                >
+                                    {rubric ? '+ Add criterion' : '+ Add rubric'}
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

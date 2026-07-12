@@ -41,6 +41,25 @@ export const ShortAnswer = Node.create({
                         ? { 'data-placeholder': attributes.placeholder as string }
                         : {},
             },
+            // Grading rubric (Phase 2.6): opaque JSON here ({criteria: [...]});
+            // serialize.ts Zod-sanitizes it into the schema Rubric shape. Same
+            // attrs-stored pattern as FillInBlank's solution.
+            rubric: {
+                default: null as unknown,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-rubric');
+                    if (!raw) return null;
+                    try {
+                        return JSON.parse(raw);
+                    } catch {
+                        return null;
+                    }
+                },
+                renderHTML: (attributes) =>
+                    attributes.rubric
+                        ? { 'data-rubric': JSON.stringify(attributes.rubric) }
+                        : {},
+            },
         };
     },
 

@@ -2619,6 +2619,78 @@ describe('content blocks — learning_objectives + worked_example', () => {
         expect(es.attrs!.wordMax).toBe(300);
     });
 
+    it('round-trips a rubric on a short-answer block', () => {
+        const rubric = {
+            criteria: [
+                {
+                    id: '11111111-1111-4111-8111-111111111111',
+                    label: 'Thesis clarity',
+                    maxPoints: 4,
+                },
+                {
+                    id: '11111111-1111-4111-8111-111111111112',
+                    label: 'Evidence',
+                    maxPoints: 6,
+                    description: 'Cites two sources.',
+                },
+            ],
+        };
+        const node: JSONContent = {
+            type: 'shortAnswer',
+            attrs: { id: 'x', placeholder: '', rubric },
+            content: [{ type: 'text', text: 'Summarize.' }],
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type === 'short_answer') {
+            expect(block.rubric).toEqual(rubric);
+        }
+        const out = activityToTiptap(activity);
+        const sa = out.content!.find((n) => n.type === 'shortAnswer')!;
+        expect(sa.attrs!.rubric).toEqual(rubric);
+    });
+
+    it('sanitizes a rubric per criterion — invalid ones drop, valid survive', () => {
+        const node: JSONContent = {
+            type: 'essay',
+            attrs: {
+                id: 'x',
+                placeholder: '',
+                wordMin: null,
+                wordMax: null,
+                rubric: {
+                    criteria: [
+                        { id: '11111111-1111-4111-8111-111111111111', label: 'Valid', maxPoints: 4 },
+                        { id: '11111111-1111-4111-8111-111111111112', label: '', maxPoints: 4 }, // empty label mid-edit
+                        { id: 'not-a-uuid', label: 'Bad id', maxPoints: 2 },
+                    ],
+                },
+            },
+            content: [{ type: 'text', text: 'Write.' }],
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type === 'essay') {
+            expect(block.rubric?.criteria.map((c) => c.label)).toEqual(['Valid']);
+        }
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('drops a rubric entirely when no valid criterion remains', () => {
+        const node: JSONContent = {
+            type: 'shortAnswer',
+            attrs: { id: 'x', placeholder: '', rubric: { criteria: [{ label: '' }] } },
+            content: [{ type: 'text', text: 'Q' }],
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        if (block.type === 'short_answer') {
+            expect(block.rubric).toBeUndefined();
+        }
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
     it('drops an inverted essay word-count range on publish (schema refine)', () => {
         const node: JSONContent = {
             type: 'essay',

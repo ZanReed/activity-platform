@@ -193,3 +193,39 @@ describe('ShortAnswerBlock + EssayBlock (manually-graded free text)', () => {
     expect(ColumnCellBlock.safeParse(createEssayBlock()).success).toBe(true);
   });
 });
+
+describe('Rubric (in-document, on short_answer/essay)', () => {
+  const criterion = (label: string, maxPoints = 4) => ({
+    id: uuid(),
+    label,
+    maxPoints,
+  });
+
+  it('accepts a rubric on both block types and parses in the Block union', () => {
+    for (const make of [createShortAnswerBlock, createEssayBlock]) {
+      const block = make();
+      block.prompt = text('Respond.');
+      block.rubric = {
+        criteria: [
+          criterion('Thesis clarity'),
+          { ...criterion('Evidence', 6), description: 'Cites two sources.' },
+        ],
+      };
+      expect(Block.safeParse(block).success).toBe(true);
+    }
+  });
+
+  it('rejects an empty criteria list (min 1)', () => {
+    const block = createEssayBlock();
+    block.rubric = { criteria: [] };
+    expect(EssayBlock.safeParse(block).success).toBe(false);
+  });
+
+  it('rejects a criterion with an empty label or non-positive points', () => {
+    const base = createShortAnswerBlock();
+    base.rubric = { criteria: [criterion('')] };
+    expect(ShortAnswerBlock.safeParse(base).success).toBe(false);
+    base.rubric = { criteria: [criterion('Effort', 0)] };
+    expect(ShortAnswerBlock.safeParse(base).success).toBe(false);
+  });
+});
