@@ -37,6 +37,8 @@ import {
     fitStudentEquation,
     formatNumberLineInterval,
     formatDotValues,
+    formatBins,
+    formatFive,
     type ActivityIndex,
     type StudentGroup,
     type SubmissionRow,
@@ -763,9 +765,13 @@ function SubmissionDetail({
                     {d.info ? d.info.answerSummary : '—'}
                     </td>
                     <td className="py-1 pr-3 font-mono text-slate-900">
-                    {d.resp.type === 'build_dotplot'
-                        ? formatDotValues(d.resp.studentValues)
-                        : '—'}
+                    {d.resp.type === 'build_histogram'
+                        ? formatBins(d.resp.studentBins)
+                        : d.resp.type === 'build_boxplot'
+                          ? formatFive(d.resp.studentFive)
+                          : d.resp.type === 'build_dotplot'
+                            ? formatDotValues(d.resp.studentValues)
+                            : '—'}
                     </td>
                     <td className="py-1 pr-3">
                     {d.resp.correct ? (

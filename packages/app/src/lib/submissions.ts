@@ -27,6 +27,7 @@ import type {
     ColumnCellBlock,
 } from '@activity/schema';
 import { fitFunction } from '@activity/graph-kit';
+import { histogramBins, fiveNumberSummary } from '@activity/renderer';
 
 // ---- Raw row shape (mirrors the columns the dashboard selects) --------------
 
@@ -313,6 +314,23 @@ export function formatDotValues(values: number[]): string {
     return [...values].sort((a, b) => a - b).join(', ');
 }
 
+// A histogram's per-bin frequencies → a readable list ("2, 3, 1, 0").
+export function formatBins(bins: number[]): string {
+    if (bins.length === 0) return '—';
+    return bins.join(', ');
+}
+
+// A five-number summary → a readable line ("min 2 · Q1 4 · median 5 · Q3 7 · max 8").
+export function formatFive(five: {
+    min: number;
+    q1: number;
+    median: number;
+    q3: number;
+    max: number;
+}): string {
+    return `min ${five.min} · Q1 ${five.q1} · median ${five.median} · Q3 ${five.q3} · max ${five.max}`;
+}
+
 // A student/answer-key interval → a readable inequality. Both bounds present →
 // "a ≤ x < b"; one bound → a ray "x ≥ a" / "x < b". A closed bound uses ≤/≥, an
 // open bound uses </>. Shared by the answer-key summary and the submitted-answer
@@ -563,14 +581,23 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
             if (block.type === 'data_plot') {
                 // Only GRADED data plots produce a submission — a display chart is
                 // an ungraded stimulus, so it isn't indexed. The answer key is the
-                // target dot plot (the block's dataset).
-                if (block.interaction.type !== 'build_dotplot') return;
+                // target chart computed from the block's dataset, formatted per
+                // build type.
+                if (block.interaction.type === 'display') return;
+                const answerSummary =
+                    block.interaction.type === 'build_histogram'
+                        ? formatBins(
+                              histogramBins(block.data, block.config).map((b) => b.count),
+                          )
+                        : block.interaction.type === 'build_boxplot'
+                          ? formatFive(fiveNumberSummary(block.data))
+                          : formatDotValues(block.data);
                 dataPlots.set(block.id, {
                     blockId: block.id,
                     problemNumber: block.number ?? null,
                     problemPrompt: reconstructPrompt(block.prompt),
                     interactionType: block.interaction.type,
-                    answerSummary: formatDotValues(block.data),
+                    answerSummary,
                     sectionId: section.id,
                     sectionTitle: section.title ?? null,
                 });

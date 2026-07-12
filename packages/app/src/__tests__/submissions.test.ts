@@ -430,6 +430,45 @@ describe('buildActivityIndex', () => {
         expect(idx.dataPlots.has(U(701))).toBe(false);
     });
 
+    it('indexes histogram + box builds with per-type answer summaries', () => {
+        const meta = {
+            title: 'DP2', course: 'Algebra I', submissionMode: 'free' as const,
+            revisionMode: 'free' as const, gradingMode: 'auto' as const,
+            activityType: 'worksheet' as const, answerFeedback: 'on_check' as const, skills: [],
+        };
+        const doc: ActivityDocument = ActivityDocument.parse({
+            schemaVersion: 1,
+            meta,
+            sections: [
+                {
+                    id: U(430), title: 'Stats', isCheckpoint: true,
+                    blocks: [
+                        {
+                            id: U(710), type: 'data_plot', number: 1,
+                            prompt: [{ type: 'text', text: 'Histogram.', marks: [] }],
+                            data: [0, 4, 5, 9, 10],
+                            config: { min: 0, max: 10, tickStep: 1, binWidth: 5 },
+                            interaction: { type: 'build_histogram' },
+                        },
+                        {
+                            id: U(711), type: 'data_plot', number: 2,
+                            prompt: [{ type: 'text', text: 'Box.', marks: [] }],
+                            data: [1, 2, 3, 4, 5, 6, 7],
+                            config: { min: 0, max: 10, tickStep: 1 },
+                            interaction: { type: 'build_boxplot', tolerance: 0.5 },
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(doc);
+        expect(idx.dataPlots.size).toBe(2);
+        // histogram → per-bin frequencies [2, 3]
+        expect(idx.dataPlots.get(U(710))!.answerSummary).toBe('2, 3');
+        // box → five-number summary
+        expect(idx.dataPlots.get(U(711))!.answerSummary).toBe('min 1 · Q1 2 · median 4 · Q3 6 · max 7');
+    });
+
     it('indexes a multiple_choice block with lettered choices + answer summary', () => {
         const mcDoc: ActivityDocument = ActivityDocument.parse({
             schemaVersion: 1,
