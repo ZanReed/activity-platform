@@ -22,8 +22,13 @@ import { FillInBlankBlock } from './fill-in-blank.js';
 //     existing BlankResponse map, so there is NO submission wire/storage bump.
 //   - Scoring rides the child blanks; this frame reads no type-specific
 //     attributes itself → it is a CONTAINER (like `problem`), not INTERACTIVE.
-//   - The faded fill_in_blank steps number as ordinary problems (they pull from
-//     the shared problem sequence at render), for a consistent worksheet.
+//   - Numbering (revised 2026-07-13): the WHOLE box is one numbered problem —
+//     its number leads the title, and the faded fill_in_blank steps are lettered
+//     (a)/(b)… LOCALLY (showStepLabels toggles them off), so they no longer
+//     consume worksheet problem numbers. See renderFadedWorkedExample and the
+//     editor's problemNumberAt (which treats the box as atomic). This reversed
+//     the original "steps number as ordinary problems" choice, which wasted
+//     writing/print width and polluted the worksheet's numbering.
 //
 // The child union still excludes questions OTHER than fill_in_blank, plus
 // columns / worked_example / faded_worked_example itself — so nesting
@@ -48,5 +53,11 @@ export const FadedWorkedExampleBlock = z.object({
   type: z.literal('faded_worked_example'),
   title: z.string(),
   content: z.array(FadedWorkedExampleChild),
+  // The whole box is ONE numbered problem (its number leads the title); the
+  // faded fill_in_blank steps are lettered (a), (b)… WITHIN the box instead of
+  // consuming worksheet problem numbers. showStepLabels toggles those letters
+  // off per box (bare blanks, no gutter) for teachers who want maximum writing
+  // room. Defaulted so pre-existing documents (no field) render labelled.
+  showStepLabels: z.boolean().default(true),
 });
 export type FadedWorkedExampleBlock = z.infer<typeof FadedWorkedExampleBlock>;

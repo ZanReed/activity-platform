@@ -6,7 +6,7 @@ import {
 } from '@tiptap/react';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
-import { problemNumberAt } from '../problemNumbering';
+import { problemNumberAt, fadedStepContextAt } from '../problemNumbering';
 
 // ============================================================================
 // FillInBlankView — NodeView for the fill_in_blank block.
@@ -73,24 +73,46 @@ export default function FillInBlankView({
     // the editor (preview/read-only) keep it hidden unless already configured.
     const showFooter = isEditable || isConfigured;
 
-    const problemNumber = useMemo(
-        () =>
-            problemNumberAt(
-                editor,
-                typeof getPos === 'function' ? getPos() : undefined,
-            ),
+    // A fill_in_blank nested directly in a faded worked example is a "faded
+    // step": it drops the problem-number gutter and shows a compact inline
+    // letter — the box owns the one problem number. fadedStep is null for a
+    // standalone problem, which keeps its numeric gutter.
+    const { problemNumber, fadedStep } = useMemo(() => {
+        const pos = typeof getPos === 'function' ? getPos() : undefined;
+        const step = fadedStepContextAt(editor, pos);
+        return {
+            problemNumber: step ? 0 : problemNumberAt(editor, pos),
+            fadedStep: step,
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [editor.state, getPos],
-    );
+    }, [editor.state, getPos]);
 
     return (
         <NodeViewWrapper
-            className={`fill-in-blank-block${selected ? ' is-selected' : ''}`}
+            className={`fill-in-blank-block${
+                fadedStep ? ' is-faded-step' : ''
+            }${selected ? ' is-selected' : ''}`}
             data-block-id={node.attrs.id ?? ''}
         >
-            <div className="fill-in-blank-block__number" contentEditable={false}>
-                {problemNumber}.
-            </div>
+            {fadedStep ? (
+                // Always rendered; the parent box hides these via a CSS
+                // modifier when its showStepLabels toggle is off. (A NodeView
+                // can't react to a parent attr change, so visibility lives with
+                // the parent that re-renders, not here.)
+                <span
+                    className="fill-in-blank-block__step-label"
+                    contentEditable={false}
+                >
+                    ({fadedStep.letter})
+                </span>
+            ) : (
+                <div
+                    className="fill-in-blank-block__number"
+                    contentEditable={false}
+                >
+                    {problemNumber}.
+                </div>
+            )}
             <NodeViewContent className="fill-in-blank-block__body" />
             {showFooter && (
                 <div

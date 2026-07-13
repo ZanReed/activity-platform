@@ -124,8 +124,30 @@ describe('renderFadedWorkedExample', () => {
     // what init.ts scans each section for, so scoring works with no new runtime.
     expect(html).toContain('data-block-type="fill_in_blank"');
     expect(html).toContain('blank'); // the blank input carries the .blank hook
-    // The faded step pulled a problem number from the shared sequence.
-    expect(html).toContain('block-problem-number');
+  });
+
+  it('numbers the box once (in the title) and letters the faded step', () => {
+    // The box owns the single problem number, leading its title…
+    expect(html).toContain('block-faded-example__number');
+    expect(html).toContain('>1.</span>');
+    // …and the faded step is gutter-less with a compact "(a)" label, NOT a
+    // standalone problem-number gutter.
+    expect(html).toContain('is-faded-step');
+    expect(html).toContain('block-faded-step__label');
+    expect(html).toContain('(a)');
+    expect(html).not.toContain('block-problem-number');
+    // Only one number was drawn from the sequence (the box).
+    expect(problemNum).toBe(1);
+  });
+
+  it('drops the step letters when showStepLabels is false', () => {
+    const bare = renderFadedWorkedExample(
+      FadedWorkedExampleBlock.parse({ ...block, showStepLabels: false }),
+      { nextProblemNumber: () => 5 },
+    );
+    expect(bare).toContain('is-faded-step');
+    expect(bare).not.toContain('block-faded-step__label');
+    expect(bare).toContain('>5.</span>'); // box still numbered
   });
 });
 

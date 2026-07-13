@@ -2729,11 +2729,35 @@ describe('content blocks — learning_objectives + worked_example', () => {
         if (block.type === 'faded_worked_example') {
             expect(block.content.map((c) => c.type)).toEqual(['paragraph', 'fill_in_blank']);
         }
+        // Absent showStepLabels attr defaults to true (older docs stay labelled).
+        if (block.type === 'faded_worked_example') {
+            expect(block.showStepLabels).toBe(true);
+        }
         // And the block survives a full round-trip back to Tiptap.
         const out = activityToTiptap(activity);
         const fwe = out.content!.find((n) => n.type === 'fadedWorkedExample')!;
         expect(fwe.attrs!.title).toBe('Guided practice');
+        expect(fwe.attrs!.showStepLabels).toBe(true);
         expect(fwe.content!.map((c) => c.type)).toEqual(['paragraph', 'fillInBlank']);
+    });
+
+    it('round-trips showStepLabels:false on a faded worked example', () => {
+        const node: JSONContent = {
+            type: 'fadedWorkedExample',
+            attrs: { id: 'x', title: 'Guided practice', showStepLabels: false },
+            content: [
+                { type: 'paragraph', content: [{ type: 'text', text: 'Step.' }] },
+            ],
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        const block = activity.sections[0]!.blocks[0]!;
+        expect(block.type).toBe('faded_worked_example');
+        if (block.type === 'faded_worked_example') {
+            expect(block.showStepLabels).toBe(false);
+        }
+        const out = activityToTiptap(activity);
+        const fwe = out.content!.find((n) => n.type === 'fadedWorkedExample')!;
+        expect(fwe.attrs!.showStepLabels).toBe(false);
     });
 
     it('drops a non-content child from a worked example (content-only union)', () => {

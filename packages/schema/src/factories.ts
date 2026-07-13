@@ -99,6 +99,7 @@ export function createFadedWorkedExampleBlock(): FadedWorkedExampleBlock {
     type: 'faded_worked_example',
     title: 'Guided practice',
     content: [],
+    showStepLabels: true,
   };
 }
 

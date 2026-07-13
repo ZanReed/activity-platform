@@ -6,6 +6,14 @@ export interface FillInBlankRenderContext {
   problemNumber: number;
   /** Answer-key print variant: prefill each blank with its answer (Drop C). */
   showAnswers?: boolean;
+  /**
+   * Rendered as a faded worked-example step rather than a standalone problem:
+   * drop the problem-number gutter entirely and (if `stepLabel` is set) run a
+   * compact inline label like "(a)" in front of the body. Keeps writing/print
+   * width maximal — the box already supplies the one problem number.
+   */
+  fadedStep?: boolean;
+  stepLabel?: string;
 }
 
 export function renderFillInBlank(
@@ -127,8 +135,23 @@ export function renderFillInBlank(
   '</div>'
   : '';
 
+  // Faded step: no number gutter; a compact inline "(a)" label leads the body
+  // (omitted when the box has step labels turned off). Standalone problem: the
+  // right-aligned number gutter as before.
+  const numberCell = ctx.fadedStep
+    ? ''
+    : '<div class="block-problem-number">' + escape(String(num)) + '.</div>';
+  const stepLabelHtml =
+    ctx.fadedStep && ctx.stepLabel
+      ? '<span class="block-faded-step__label">' +
+        escape(ctx.stepLabel) +
+        '</span> '
+      : '';
+
   return (
-    '<div class="block block-fill-in-blank"' +
+    '<div class="block block-fill-in-blank' +
+    (ctx.fadedStep ? ' is-faded-step' : '') +
+    '"' +
     ' data-block-category="question"' +
     ' data-block-type="fill_in_blank"' +
     ' data-block-id="' + attr(block.id) + '"' +
@@ -136,8 +159,9 @@ export function renderFillInBlank(
     skillsAttr +
     workSpaceStyle +
     '>' +
-    '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
+    numberCell +
     '<div class="block-problem-body">' +
+    stepLabelHtml +
     inner +
     confidenceFieldset +
     printConfidence +

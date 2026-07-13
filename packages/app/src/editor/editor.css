@@ -1817,18 +1817,46 @@ img.mc-block__figure-preview {
 .worked-example-block__body > :last-child,
 .faded-example-block__body > :last-child { margin-bottom: 0; }
 
-/* Faded steps are already inset by the box padding, so the standalone
- * problem's wide 2.5rem number gutter wastes writing/print room. Inside a
- * faded example, narrow it to an auto-width gutter with the number leading
- * flush-left. Mirrors the renderer's .block-faded-example .block-fill-in-blank
- * override so the editor and the published/print page indent identically. */
-.faded-example-block__body .fill-in-blank-block {
-    grid-template-columns: auto 1fr;
-    gap: 0.4rem;
+/* Box problem number, leading the title ("3. ✍ Guided practice"). */
+.faded-example-block__number {
+    font-weight: 700;
+    color: rgb(51 65 85); /* slate-700 */
+    user-select: none;
 }
-.faded-example-block__body .fill-in-blank-block__number {
-    text-align: left;
-    padding-right: 0.15rem;
+
+/* Per-box "Label steps" toggle, pushed to the right of the flex header. */
+.faded-example-block__steps-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: rgb(100 116 139); /* slate-500 */
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+}
+
+/* A faded step drops the 2.5rem number gutter (the box owns the one problem
+ * number) and becomes a plain block so its body spans the full writing width.
+ * The compact (a)/(b) label runs inline in front of the body. Mirrors the
+ * renderer's .block-fill-in-blank.is-faded-step so editor and published/print
+ * pages match. Tighter margins than a standalone problem — these are parts of
+ * one example, not separate questions. */
+.faded-example-block__body .fill-in-blank-block.is-faded-step {
+    display: block;
+    margin: 0.4rem 0;
+    padding: 0.25rem 0.35rem;
+}
+.fill-in-blank-block__step-label {
+    font-weight: 600;
+    color: rgb(99 102 241); /* indigo-500 — matches the box accent */
+    margin-right: 0.15rem;
+    user-select: none;
+}
+/* Steps still render their letter (a child NodeView can't react to the parent's
+ * toggle), so the parent hides them here when "Label steps" is off. */
+.faded-example-block.is-labels-off .fill-in-blank-block__step-label {
+    display: none;
 }
 
 /* =============================================================================

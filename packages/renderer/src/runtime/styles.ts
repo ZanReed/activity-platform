@@ -262,21 +262,24 @@ body {
   color: var(--color-accent);
 }
 .block-faded-example__icon { font-size: 1rem; line-height: 1; }
+/* Box problem number, leading the title ("3. ✍ Guided practice"). */
+.block-faded-example__number { font-weight: 700; }
 .block-faded-example__body > .block:first-child { margin-top: 0; }
 .block-faded-example__body > .block:last-child { margin-bottom: 0; }
-/* Faded steps live inside the box's own padding, so the wide standalone-problem
-   number gutter (2.5rem, right-aligned to align multi-digit numbers) just wastes
-   horizontal room the student needs for writing and the page needs for print.
-   Inside a faded example, the fill-in step number leads flush in an auto-width
-   gutter with a minimal gap. Applies to screen and print (the print block never
-   overrides grid-template-columns). */
-.block-faded-example .block-fill-in-blank {
-  grid-template-columns: auto 1fr;
-  gap: 0.4rem;
+/* A faded step is NOT a standalone problem: it drops the 2.5rem number gutter
+   entirely (the box owns the one problem number) and becomes a plain block so
+   its body spans the full width the student writes in. The step letter runs
+   inline in front of the body — a compact "(a)" that costs almost no horizontal
+   room. Tighter vertical rhythm than standalone problems, since these are parts
+   of one example, not separate questions. Applies to screen and print. */
+.block-faded-example .block-fill-in-blank.is-faded-step {
+  display: block;
+  margin: 0.5rem 0;
 }
-.block-faded-example .block-fill-in-blank .block-problem-number {
-  text-align: left;
-  padding-right: 0;
+.block-faded-step__label {
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-right: 0.15rem;
 }
 
 /* Free-text blocks — self_explanation (ungraded), short_answer + essay (manually

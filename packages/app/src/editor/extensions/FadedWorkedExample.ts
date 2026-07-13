@@ -49,6 +49,18 @@ export const FadedWorkedExample = Node.create({
                     'data-title': (attributes.title as string) ?? '',
                 }),
             },
+            // Whether the faded (fill_in_blank) steps show compact (a)/(b)
+            // letters. Default on; the NodeView exposes a per-box toggle.
+            showStepLabels: {
+                default: true,
+                parseHTML: (element) =>
+                    element.getAttribute('data-step-labels') !== 'false',
+                renderHTML: (attributes) => ({
+                    'data-step-labels': attributes.showStepLabels
+                        ? 'true'
+                        : 'false',
+                }),
+            },
         };
     },
 

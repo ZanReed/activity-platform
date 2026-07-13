@@ -379,6 +379,8 @@ function tiptapFadedWorkedExampleToActivity(
         id: crypto.randomUUID(),
         type: 'faded_worked_example',
         title: (node.attrs?.title as string | undefined) ?? 'Guided practice',
+        // Absent (older docs) or any non-false value → labels on.
+        showStepLabels: node.attrs?.showStepLabels !== false,
         content: (node.content ?? [])
             .map(tiptapBlockToActivity)
             .filter(
@@ -1312,7 +1314,11 @@ function activityFadedWorkedExampleToTiptap(
     // if every child was unmappable (or the body is empty).
     return {
         type: 'fadedWorkedExample',
-        attrs: { id: block.id, title: block.title },
+        attrs: {
+            id: block.id,
+            title: block.title,
+            showStepLabels: block.showStepLabels,
+        },
         content: children.length > 0 ? children : [{ type: 'paragraph' }],
     };
 }

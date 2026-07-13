@@ -155,6 +155,11 @@ export function isNumberedBlock(block: Block): boolean {
     block.type === 'matching' ||
     block.type === 'ordering' ||
     block.type === 'number_line' ||
+    // The faded worked-example box counts as ONE problem (its number leads the
+    // title). Its own fill_in_blank children are lettered locally and do NOT
+    // pull from the sequence — that context-dependent exception lives in
+    // renderFadedWorkedExample, not this type-level predicate.
+    block.type === 'faded_worked_example' ||
     (block.type === 'interactive_graph' && block.interaction.type !== 'display') ||
     (block.type === 'data_plot' && block.interaction.type !== 'display')
   );
