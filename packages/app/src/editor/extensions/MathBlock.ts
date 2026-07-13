@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import MathBlockView from '../nodeViews/MathBlockView';
+import { signalOpenInsertedMath } from './MathFocus';
 
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
@@ -73,6 +74,10 @@ export const MathBlock = Node.create({
             chain()
             .focus()
             .insertContent({ type: this.name, attrs: { latex } })
+            .command(({ tr, dispatch }) => {
+                if (dispatch) signalOpenInsertedMath(tr, this.name);
+                return true;
+            })
             .run(),
         };
     },

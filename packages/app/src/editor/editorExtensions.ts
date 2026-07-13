@@ -18,6 +18,7 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { MathInline } from './extensions/MathInline';
 import { MathBlock } from './extensions/MathBlock';
+import { MathFocus } from './extensions/MathFocus';
 import { SlashMenu } from './extensions/SlashMenu';
 import { BlockReorderShortcuts } from './extensions/BlockReorderShortcuts';
 import { SectionBreak } from './extensions/SectionBreak';
@@ -55,6 +56,9 @@ export function buildEditorExtensions({
         }),
         MathInline,
         MathBlock,
+        // Caret handoff between the doc and the MathLive fields: auto-open on
+        // insert, keyboard re-entry (Enter / arrow-in), and move-out exit.
+        MathFocus,
         SlashMenu,
         BlockReorderShortcuts,
         SectionBreak,

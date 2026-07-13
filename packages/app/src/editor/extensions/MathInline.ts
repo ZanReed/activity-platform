@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import MathInlineView from '../nodeViews/MathInlineView';
+import { signalOpenInsertedMath } from './MathFocus';
 
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
@@ -47,6 +48,10 @@ export const MathInline = Node.create({
             chain()
             .focus()
             .insertContent({ type: this.name, attrs: { latex } })
+            .command(({ tr, dispatch }) => {
+                if (dispatch) signalOpenInsertedMath(tr, this.name);
+                return true;
+            })
             .run(),
         };
     },
