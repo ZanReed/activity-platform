@@ -326,6 +326,26 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 if (faded) return [faded];
                 return [rawTextParagraph(node.token.content)];
             }
+            if ((node.token.info ?? '').trim() === 'shortanswer') {
+                const block = parseFreeResponseFence(
+                    node.token.content,
+                    ctx,
+                    'shortAnswer',
+                    'Short-answer block',
+                );
+                if (block) return [block];
+                return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'essay') {
+                const block = parseFreeResponseFence(
+                    node.token.content,
+                    ctx,
+                    'essay',
+                    'Essay block',
+                );
+                if (block) return [block];
+                return [rawTextParagraph(node.token.content)];
+            }
             ctx.warnings.add(
                 'Code blocks aren’t supported yet — imported as plain text.',
             );
@@ -1365,6 +1385,150 @@ function parseFadedFence(src: string, ctx: Ctx): JSONContent | null {
         true,
         'Faded worked example block',
     );
+}
+
+// One rubric criterion from a `rubric:` line — `Label | points | optional note`.
+// The pipe splits label / maxPoints / description; a criterion id is minted here
+// (serialize's sanitizeRubric VALIDATES ids, it doesn't mint them, so an import
+// must supply a real uuid up front). Returns null for a missing label or a
+// non-positive/unparseable points value so the caller can warn + skip just that
+// line — one bad criterion never sinks the block, mirroring the editor's
+// per-criterion serialize sanitize.
+interface ImportedCriterion {
+    id: string;
+    label: string;
+    maxPoints: number;
+    description?: string;
+}
+function parseRubricLine(raw: string): ImportedCriterion | null {
+    if (!raw) return null;
+    const parts = raw.split('|').map((p) => p.trim());
+    const label = parts[0] ?? '';
+    const maxPoints = Number(parts[1] ?? '');
+    if (!label) return null;
+    if (!Number.isFinite(maxPoints) || maxPoints <= 0) return null;
+    const crit: ImportedCriterion = {
+        id: crypto.randomUUID(),
+        label,
+        maxPoints,
+    };
+    const description = (parts[2] ?? '').trim();
+    if (description) crit.description = description;
+    return crit;
+}
+
+// An essay `words:` target — `min-max`, either side optional (`200-300`,
+// `200-` min only, `-300` max only). The dash is required (a bare number is
+// ambiguous). Word counts are positive integers, so a zero/negative or an
+// inverted min>max range returns null (warn + drop the hint, keep the block).
+function parseWordRange(
+    raw: string,
+): { min: number | null; max: number | null } | null {
+    const m = /^(\d+)?\s*-\s*(\d+)?$/.exec(raw);
+    if (!m) return null;
+    const minText = m[1];
+    const maxText = m[2];
+    if (minText === undefined && maxText === undefined) return null;
+    const min = minText !== undefined ? Number(minText) : null;
+    const max = maxText !== undefined ? Number(maxText) : null;
+    if ((min !== null && min <= 0) || (max !== null && max <= 0)) return null;
+    if (min !== null && max !== null && min > max) return null;
+    return { min, max };
+}
+
+// ```shortanswer / ```essay fences — the manually-graded free-text blocks
+// (Phase 2.6), siblings of the ungraded ```explain (self_explanation). Shared
+// grammar: a prompt (a `prompt:` line or any bare line, joined), an optional
+// `starter:` placeholder, and an optional pipe-delimited `rubric:` line
+// (repeatable). Essay adds a `words: min-max` target range. The rubric attr is
+// stored as `{ criteria }` exactly like the editor writes it; serialize carries
+// it through untouched.
+function parseFreeResponseFence(
+    src: string,
+    ctx: Ctx,
+    kind: 'shortAnswer' | 'essay',
+    label: string,
+): JSONContent | null {
+    let placeholder = '';
+    let wordMin: number | null = null;
+    let wordMax: number | null = null;
+    const criteria: ImportedCriterion[] = [];
+    const promptLines: string[] = [];
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const s = /^starter:\s*(.*)$/i.exec(line);
+        if (s) {
+            placeholder = (s[1] ?? '').trim();
+            continue;
+        }
+
+        const p = /^prompt:\s*(.*)$/i.exec(line);
+        if (p) {
+            const v = (p[1] ?? '').trim();
+            if (v) promptLines.push(v);
+            continue;
+        }
+
+        const w = /^words:\s*(.*)$/i.exec(line);
+        if (w) {
+            if (kind !== 'essay') {
+                ctx.warnings.add(
+                    label +
+                        ': a word-count target (words:) applies only to an essay — ignored.',
+                );
+            } else {
+                const range = parseWordRange((w[1] ?? '').trim());
+                if (range) {
+                    wordMin = range.min;
+                    wordMax = range.max;
+                } else {
+                    ctx.warnings.add(
+                        label +
+                            ': couldn’t read the words: range (use words: 200-300) — ignored.',
+                    );
+                }
+            }
+            continue;
+        }
+
+        const r = /^rubric:\s*(.*)$/i.exec(line);
+        if (r) {
+            const crit = parseRubricLine((r[1] ?? '').trim());
+            if (crit) criteria.push(crit);
+            else
+                ctx.warnings.add(
+                    label +
+                        ': skipped a rubric line I couldn’t read (use rubric: Label | points | optional note).',
+                );
+            continue;
+        }
+
+        promptLines.push(line);
+    }
+
+    if (promptLines.length === 0) {
+        ctx.warnings.add(label + ': needs a prompt — imported as plain text.');
+        return null;
+    }
+
+    const rubric = criteria.length > 0 ? { criteria } : null;
+    const content = fenceInline(promptLines.join(' '), ctx, false);
+
+    if (kind === 'essay') {
+        return {
+            type: 'essay',
+            attrs: { id: '', placeholder, wordMin, wordMax, rubric },
+            content,
+        };
+    }
+    return {
+        type: 'shortAnswer',
+        attrs: { id: '', placeholder, rubric },
+        content,
+    };
 }
 
 // ```dataplot fence — the statistics-chart DSL (data_plot block). One statement

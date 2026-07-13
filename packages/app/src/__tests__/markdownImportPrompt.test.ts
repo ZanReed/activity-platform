@@ -358,6 +358,37 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'short-answer fence with a pipe-delimited rubric',
+        fragment: 'rubric: Label | points | optional note',
+        md: '```shortanswer\nprompt: Explain why the sum of two even numbers is even.\nrubric: Correct reasoning | 3 | Uses that an even number is 2k\nrubric: Clear explanation | 2\n```',
+        check: (b) => {
+            const sa = b.find((n) => n.type === 'shortAnswer')!;
+            expect(sa).toBeDefined();
+            const criteria = (sa.attrs!.rubric as { criteria: Array<Record<string, unknown>> }).criteria;
+            expect(criteria).toHaveLength(2);
+            expect(criteria[0]).toMatchObject({
+                label: 'Correct reasoning',
+                maxPoints: 3,
+                description: 'Uses that an even number is 2k',
+            });
+            expect(criteria[1]).toMatchObject({ label: 'Clear explanation', maxPoints: 2 });
+            expect(criteria[1]).not.toHaveProperty('description');
+        },
+    },
+    {
+        name: 'essay fence with a word-count target and rubric',
+        fragment: 'words: 200-300',
+        md: '```essay\nprompt: Argue whether zoos do more good than harm.\nwords: 200-300\nrubric: Thesis | 3\n```',
+        check: (b) => {
+            const essay = b.find((n) => n.type === 'essay')!;
+            expect(essay).toBeDefined();
+            expect(essay.attrs).toMatchObject({ wordMin: 200, wordMax: 300 });
+            const criteria = (essay.attrs!.rubric as { criteria: Array<Record<string, unknown>> }).criteria;
+            expect(criteria).toHaveLength(1);
+            expect(criteria[0]).toMatchObject({ label: 'Thesis', maxPoints: 3 });
+        },
+    },
+    {
         name: 'image ![alt](url)',
         fragment: '![a short description](https://full-image-url)',
         md: '![a short description](https://full-image-url)',

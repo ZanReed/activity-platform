@@ -1294,3 +1294,93 @@ describe('pedagogical block fences (objectives / worked / faded / explain)', () 
         expect(res.warnings.length).toBeGreaterThan(0);
     });
 });
+
+describe('graded free-text fences (```shortanswer / ```essay)', () => {
+    type Criteria = Array<Record<string, unknown>>;
+    const criteriaOf = (node: JSONContent): Criteria =>
+        (node.attrs!.rubric as { criteria: Criteria }).criteria;
+
+    it('```shortanswer → a graded short-answer with a pipe rubric', () => {
+        const md =
+            '```shortanswer\nprompt: Explain the idea.\nstarter: Because…\nrubric: Reasoning | 3 | Names the rule\nrubric: Clarity | 2\n```';
+        const sa = blocks(md)[0]!;
+        expect(sa.type).toBe('shortAnswer');
+        expect(sa.attrs).toMatchObject({ placeholder: 'Because…' });
+        expect(sa.content).toEqual([{ type: 'text', text: 'Explain the idea.' }]);
+        const criteria = criteriaOf(sa);
+        expect(criteria).toHaveLength(2);
+        expect(criteria[0]).toMatchObject({
+            label: 'Reasoning',
+            maxPoints: 3,
+            description: 'Names the rule',
+        });
+        expect(criteria[0]!.id).toEqual(expect.any(String));
+        expect(criteria[1]).toMatchObject({ label: 'Clarity', maxPoints: 2 });
+        expect(criteria[1]).not.toHaveProperty('description');
+    });
+
+    it('a short-answer rubric survives the schema round-trip', () => {
+        const md = '```shortanswer\nprompt: Q\nrubric: Reasoning | 3\n```';
+        const sa = roundTrip(md)[0]!;
+        expect(sa.type).toBe('shortAnswer');
+        expect(criteriaOf(sa)[0]).toMatchObject({ label: 'Reasoning', maxPoints: 3 });
+    });
+
+    it('```shortanswer with no rubric leaves rubric null', () => {
+        const sa = blocks('```shortanswer\nprompt: Just answer.\n```')[0]!;
+        expect(sa.type).toBe('shortAnswer');
+        expect(sa.attrs!.rubric).toBeNull();
+    });
+
+    it('a bad rubric line is skipped with a warning; the block still imports', () => {
+        const res = convert(
+            '```shortanswer\nprompt: Q\nrubric: | 3\nrubric: Good | 2\n```',
+        );
+        const sa = res.blocks[0]!;
+        expect(sa.type).toBe('shortAnswer');
+        expect(criteriaOf(sa)).toHaveLength(1);
+        expect(res.warnings.some((w) => /rubric/i.test(w))).toBe(true);
+    });
+
+    it('a rubric with non-numeric points is skipped', () => {
+        const res = convert('```shortanswer\nprompt: Q\nrubric: Reasoning | lots\n```');
+        expect(res.blocks[0]!.attrs!.rubric).toBeNull();
+        expect(res.warnings.some((w) => /rubric/i.test(w))).toBe(true);
+    });
+
+    it('```essay → a graded essay with a words range and rubric', () => {
+        const md = '```essay\nprompt: Argue it.\nwords: 200-300\nrubric: Thesis | 3\n```';
+        const essay = blocks(md)[0]!;
+        expect(essay.type).toBe('essay');
+        expect(essay.attrs).toMatchObject({ wordMin: 200, wordMax: 300 });
+        expect(criteriaOf(essay)).toHaveLength(1);
+        expect(roundTrip(md)[0]).toMatchObject({ type: 'essay' });
+    });
+
+    it('essay words: accepts an open-ended range (min only / max only)', () => {
+        expect(blocks('```essay\nprompt: Q\nwords: 200-\n```')[0]!.attrs).toMatchObject(
+            { wordMin: 200, wordMax: null },
+        );
+        expect(blocks('```essay\nprompt: Q\nwords: -300\n```')[0]!.attrs).toMatchObject(
+            { wordMin: null, wordMax: 300 },
+        );
+    });
+
+    it('an inverted essay words range is dropped with a warning', () => {
+        const res = convert('```essay\nprompt: Q\nwords: 300-200\n```');
+        expect(res.blocks[0]!.attrs).toMatchObject({ wordMin: null, wordMax: null });
+        expect(res.warnings.some((w) => /words/i.test(w))).toBe(true);
+    });
+
+    it('a words: line inside a shortanswer is ignored with a warning', () => {
+        const res = convert('```shortanswer\nprompt: Q\nwords: 200-300\n```');
+        expect(res.blocks[0]!.type).toBe('shortAnswer');
+        expect(res.warnings.some((w) => /word-count|words/i.test(w))).toBe(true);
+    });
+
+    it('a graded free-text fence with no prompt degrades to plain text', () => {
+        const res = convert('```essay\nrubric: Thesis | 3\n```');
+        expect(res.blocks.every((b) => b.type !== 'essay')).toBe(true);
+        expect(res.warnings.length).toBeGreaterThan(0);
+    });
+});

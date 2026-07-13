@@ -34,6 +34,8 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```worked ` fenced block | a **worked example** to study (see below) |
 | a ` ```faded ` fenced block | a **faded worked example** — shown steps + fill-in steps (see below) |
 | a ` ```explain ` fenced block | an **ungraded self-explanation** prompt (see below) |
+| a ` ```shortanswer ` fenced block | a **graded short-answer** question (rubric optional; see below) |
+| a ` ```essay ` fenced block | a **graded essay** question (word-count target + rubric optional; see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
@@ -249,14 +251,36 @@ SELF-EXPLANATION (an `explain` fenced block is an ungraded free-text reflection)
     starter: I subtracted 3 because…
 - Ungraded: the student writes an answer for you to read; there is no key.
 
+SHORT ANSWER / ESSAY (a `shortanswer` or `essay` fence is a graded free-text question)
+- Both take a prompt line, an optional starter: placeholder, and an optional
+  grading rubric — one criterion per rubric: line, written
+  rubric: Label | points | optional note
+    ```shortanswer
+    prompt: Explain why the sum of two even numbers is even.
+    starter: The sum is even because…
+    rubric: Correct reasoning | 3 | Uses that an even number is 2k
+    rubric: Clear explanation | 2
+    ```
+- An essay adds a words: min-max length target (either side optional —
+  words: 200-300, words: 200-, words: -300); it shows the student a live
+  word counter:
+    ```essay
+    prompt: Argue whether zoos do more good than harm.
+    words: 200-300
+    rubric: Thesis | 3
+    rubric: Evidence | 5 | Cites at least two examples
+    ```
+- Both are teacher-graded against the rubric — there is no auto-scored key.
+  Use ```explain instead when the reflection should be ungraded.
+
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match, ```order,
-  ```objectives, ```worked, ```faded, and ```explain — only the single outer
-  block that wraps the whole reply and those fences are allowed; anything
-  unsupported imports as plain text.
+  ```objectives, ```worked, ```faded, ```explain, ```shortanswer, and
+  ```essay — only the single outer block that wraps the whole reply and
+  those fences are allowed; anything unsupported imports as plain text.
 
 When I describe the activity I want, reply with only that single code block.
 ```
@@ -457,3 +481,33 @@ starter: I subtracted 3 because…
 
 - `starter:` is optional (a sentence-starter shown in the empty answer box).
 - **Ungraded** — the student writes a response for you to read; there is no answer key, no problem number, and it never affects the score. Its text lands in the submissions dashboard.
+
+## Short-answer and essay blocks (```shortanswer / ```essay fences)
+
+The graded free-text siblings of `explain`. A ` ```shortanswer ` fence is a brief written response; a ` ```essay ` fence is a longer one that adds an optional word-count target. Both are **manually graded** by the teacher against an optional rubric — there is no auto-scored answer key. (Reach for `explain` instead when the reflection should be ungraded.)
+
+```
+```shortanswer
+prompt: Explain why the sum of two even numbers is even.
+starter: The sum is even because…
+rubric: Correct reasoning | 3 | Uses that an even number is 2k
+rubric: Clear explanation | 2
+```⠀
+```
+
+```
+```essay
+prompt: Argue whether zoos do more good than harm.
+words: 200-300
+starter: In my view…
+rubric: Thesis | 3
+rubric: Evidence | 5 | Cites at least two examples
+rubric: Mechanics | 2
+```⠀
+```
+
+- **Prompt** — a `prompt:` line, or any non-directive line (multiple lines join with a space). **Required**; a fence with no prompt imports as plain text with a warning.
+- `starter:` — optional placeholder text shown in the empty answer box (same as `explain`).
+- `rubric:` — optional and **repeatable**; each line is one criterion, `Label | points | optional note`. The `|` splits the three parts (label required; points a positive number; the note optional). A rubric line that can't be read (no label, or non-numeric points) is skipped with a warning and the rest of the block still imports — one bad criterion never sinks the question. The rubric is teacher-side data: it's carried into the grading UI, never emitted into the student page.
+- `words:` (**essay only**) — an optional length target, `min-max`, with either side optional: `words: 200-300`, `words: 200-` (minimum only), `words: -300` (maximum only). The dash is required (a bare number is ambiguous); word counts are positive whole numbers, and an inverted `min-max` is dropped with a warning. The student sees a live word counter against the target. A `words:` line inside a `shortanswer` fence is ignored with a warning.
+- Neither block is auto-scored; both show up under "Written responses" in the submissions dashboard for grading.
