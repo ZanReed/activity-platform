@@ -264,6 +264,20 @@ body {
 .block-faded-example__icon { font-size: 1rem; line-height: 1; }
 .block-faded-example__body > .block:first-child { margin-top: 0; }
 .block-faded-example__body > .block:last-child { margin-bottom: 0; }
+/* Faded steps live inside the box's own padding, so the wide standalone-problem
+   number gutter (2.5rem, right-aligned to align multi-digit numbers) just wastes
+   horizontal room the student needs for writing and the page needs for print.
+   Inside a faded example, the fill-in step number leads flush in an auto-width
+   gutter with a minimal gap. Applies to screen and print (the print block never
+   overrides grid-template-columns). */
+.block-faded-example .block-fill-in-blank {
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem;
+}
+.block-faded-example .block-fill-in-blank .block-problem-number {
+  text-align: left;
+  padding-right: 0;
+}
 
 /* Free-text blocks — self_explanation (ungraded), short_answer + essay (manually
    graded). All share the .free-text-input textarea; the runtime captures them by

@@ -1817,6 +1817,20 @@ img.mc-block__figure-preview {
 .worked-example-block__body > :last-child,
 .faded-example-block__body > :last-child { margin-bottom: 0; }
 
+/* Faded steps are already inset by the box padding, so the standalone
+ * problem's wide 2.5rem number gutter wastes writing/print room. Inside a
+ * faded example, narrow it to an auto-width gutter with the number leading
+ * flush-left. Mirrors the renderer's .block-faded-example .block-fill-in-blank
+ * override so the editor and the published/print page indent identically. */
+.faded-example-block__body .fill-in-blank-block {
+    grid-template-columns: auto 1fr;
+    gap: 0.4rem;
+}
+.faded-example-block__body .fill-in-blank-block__number {
+    text-align: left;
+    padding-right: 0.15rem;
+}
+
 /* =============================================================================
  *  Self-explanation block NodeView (Phase 2): an editable prompt over a
  *  disabled preview textarea + an optional sentence-starter footer.
