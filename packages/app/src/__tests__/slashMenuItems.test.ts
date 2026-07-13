@@ -78,6 +78,19 @@ describe('slashMenuItems', () => {
         expect(inlineMath?.insertMenu).toBe(false);
     });
 
+    it('gives every Insert-dropdown item an icon (the left gutter renders it)', () => {
+        // The "+ Insert" dropdown shows a lucide icon per row. Text items live
+        // in the TextStylePicker and inline math (insertMenu:false) keeps its
+        // flat ƒx button, so neither needs one — but everything the dropdown
+        // actually renders must have an icon or the gutter goes ragged.
+        for (const item of slashMenuItems) {
+            if (item.group === 'Text' || item.insertMenu === false) continue;
+            // A lucide icon is a forwardRef component (an object), not a plain
+            // function — assert presence rather than a callable type.
+            expect(item.icon, item.title).toBeTruthy();
+        }
+    });
+
     it('gives every contextual (gated) item a disabled hint for the dropdown', () => {
         for (const item of slashMenuItems) {
             if (item.isEnabled) {
