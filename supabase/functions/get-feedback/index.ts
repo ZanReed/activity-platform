@@ -9,8 +9,13 @@
 // feedback and nothing else. Returns { graded:false } when nothing is graded
 // yet, so the sidecar can quietly show nothing.
 //
-// Deploy: `supabase functions deploy get-feedback`. No --no-verify-jwt games —
-// this is a plain anonymous JSON endpoint (the id is the auth). Set the
+// Deploy with `pnpm deploy:feedback` (flag baked in). This endpoint MUST run
+// with `--no-verify-jwt`, exactly like ingest-submission: published pages fetch
+// it anonymously with NO Authorization header, so the platform's default
+// verify_jwt gate would 401 every request before this code runs. The
+// submission_id capability is the only auth — that's by design. (A plain
+// `supabase functions deploy get-feedback` re-enables verify_jwt and silently
+// breaks anonymous feedback, the same footgun ingest-submission has.) Set the
 // publish-activity FEEDBACK_ENDPOINT (or let it derive from SUBMISSION_ENDPOINT)
 // so published pages point at it.
 // =============================================================================

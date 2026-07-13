@@ -11,6 +11,7 @@
     "upload:graph-kit": "node --env-file-if-exists=.env.r2 scripts/build-graph-kit.mjs --upload",
     "build:fonts": "node --env-file-if-exists=.env.r2 scripts/build-fonts.mjs",
     "deploy:ingest": "supabase functions deploy ingest-submission --no-verify-jwt",
+    "deploy:feedback": "supabase functions deploy get-feedback --no-verify-jwt",
     "deploy:publish": "supabase functions deploy publish-activity",
     "deploy:upload-image": "supabase functions deploy upload-image",
     "deploy:train": "node scripts/deploy-train.mjs",
