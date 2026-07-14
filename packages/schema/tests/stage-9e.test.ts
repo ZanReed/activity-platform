@@ -1,11 +1,29 @@
 import { describe, it, expect } from 'vitest';
 import { ActivityDocument } from '../src/index.js';
 
+// Helper: wrap a single paragraph block in the section → row → column stack the
+// reshaped schema requires (blocks no longer live directly on a section).
+const sectionWith = (content: unknown[]) => ({
+    id: '11111111-1111-1111-1111-111111111111',
+    isCheckpoint: false,
+    rows: [{
+        id: '33333333-3333-3333-3333-333333333333',
+        columns: [{
+            id: '44444444-4444-4444-4444-444444444444',
+            blocks: [{
+                id: '22222222-2222-2222-2222-222222222222',
+                type: 'paragraph',
+                content,
+            }],
+        }],
+    }],
+});
+
 describe('Stage 9e — schema additions', () => {
     describe('ActivityMeta.gradingMode', () => {
         it('defaults to "auto" when omitted', () => {
             const doc = ActivityDocument.parse({
-                schemaVersion: 1,
+                schemaVersion: 2,
                 meta: { title: 'Test' },
                 sections: [],
             });
@@ -15,7 +33,7 @@ describe('Stage 9e — schema additions', () => {
         it('accepts each valid value', () => {
             for (const value of ['auto', 'manual', 'mixed'] as const) {
                 const doc = ActivityDocument.parse({
-                    schemaVersion: 1,
+                    schemaVersion: 2,
                     meta: { title: 'Test', gradingMode: value },
                     sections: [],
                 });
@@ -25,7 +43,7 @@ describe('Stage 9e — schema additions', () => {
 
         it('rejects unknown values', () => {
             expect(() => ActivityDocument.parse({
-                schemaVersion: 1,
+                schemaVersion: 2,
                 meta: { title: 'Test', gradingMode: 'partial' },
                 sections: [],
             })).toThrow();
@@ -35,7 +53,7 @@ describe('Stage 9e — schema additions', () => {
     describe('ActivityDocument.referencePanel', () => {
         it('is absent on documents that do not provide it', () => {
             const doc = ActivityDocument.parse({
-                schemaVersion: 1,
+                schemaVersion: 2,
                 meta: { title: 'Test' },
                 sections: [],
             });
@@ -44,7 +62,7 @@ describe('Stage 9e — schema additions', () => {
 
         it('accepts a panel with title and empty blocks', () => {
             const doc = ActivityDocument.parse({
-                schemaVersion: 1,
+                schemaVersion: 2,
                 meta: { title: 'Test' },
                 sections: [],
                 referencePanel: {
@@ -58,7 +76,7 @@ describe('Stage 9e — schema additions', () => {
 
         it('accepts a panel without a title', () => {
             const doc = ActivityDocument.parse({
-                schemaVersion: 1,
+                schemaVersion: 2,
                 meta: { title: 'Test' },
                 sections: [],
                 referencePanel: { blocks: [] },
@@ -68,7 +86,7 @@ describe('Stage 9e — schema additions', () => {
 
         it('round-trips through JSON without data loss', () => {
             const parsed = ActivityDocument.parse({
-                schemaVersion: 1,
+                schemaVersion: 2,
                 meta: { title: 'Test' },
                 sections: [],
                 referencePanel: {
@@ -83,55 +101,35 @@ describe('Stage 9e — schema additions', () => {
     describe('Mark — subscript and superscript', () => {
         it('accepts subscript and superscript on text nodes', () => {
             expect(() => ActivityDocument.parse({
-                schemaVersion: 1,
+                schemaVersion: 2,
                 meta: { title: 'Test' },
-                sections: [{
-                    id: '11111111-1111-1111-1111-111111111111',
-                    isCheckpoint: false,
-                    blocks: [{
-                        id: '22222222-2222-2222-2222-222222222222',
-                        type: 'paragraph',
-                        content: [
-                            { type: 'text', text: 'H' },
-                            { type: 'text', text: '2', marks: ['subscript'] },
-                            { type: 'text', text: 'O' },
-                            { type: 'text', text: 'x' },
-                            { type: 'text', text: '2', marks: ['superscript'] },
-                        ],
-                    }],
-                }],
+                sections: [sectionWith([
+                    { type: 'text', text: 'H' },
+                    { type: 'text', text: '2', marks: ['subscript'] },
+                    { type: 'text', text: 'O' },
+                    { type: 'text', text: 'x' },
+                    { type: 'text', text: '2', marks: ['superscript'] },
+                ])],
             })).not.toThrow();
         });
 
         it('accepts both marks together on the same text run', () => {
             expect(() => ActivityDocument.parse({
-                schemaVersion: 1,
+                schemaVersion: 2,
                 meta: { title: 'Test' },
-                sections: [{
-                    id: '11111111-1111-1111-1111-111111111111',
-                    isCheckpoint: false,
-                    blocks: [{
-                        id: '22222222-2222-2222-2222-222222222222',
-                        type: 'paragraph',
-                        content: [{ type: 'text', text: 'x', marks: ['bold', 'superscript'] }],
-                    }],
-                }],
+                sections: [sectionWith([
+                    { type: 'text', text: 'x', marks: ['bold', 'superscript'] },
+                ])],
             })).not.toThrow();
         });
 
         it('rejects unknown mark values', () => {
             expect(() => ActivityDocument.parse({
-                schemaVersion: 1,
+                schemaVersion: 2,
                 meta: { title: 'Test' },
-                sections: [{
-                    id: '11111111-1111-1111-1111-111111111111',
-                    isCheckpoint: false,
-                    blocks: [{
-                        id: '22222222-2222-2222-2222-222222222222',
-                        type: 'paragraph',
-                        content: [{ type: 'text', text: 'x', marks: ['strikethrough'] }],
-                    }],
-                }],
+                sections: [sectionWith([
+                    { type: 'text', text: 'x', marks: ['strikethrough'] },
+                ])],
             })).toThrow();
         });
     });

@@ -16,6 +16,7 @@ import type {
   Section,
 } from './document.js';
 import { PrintConfig, CalculatorTool } from './document.js';
+import type { Row, Column } from './layout.js';
 import type {
   ParagraphBlock,
   HeadingBlock,
@@ -27,8 +28,6 @@ import type {
   BulletListBlock,
   OrderedListBlock,
   ListItem,
-  Column,
-  ColumnsBlock,
   InteractiveGraphBlock,
   MultipleChoiceBlock,
   MultipleChoiceOption,
@@ -226,16 +225,20 @@ export function createOrderedListBlock(): OrderedListBlock {
   return { id: uuid(), type: 'ordered_list', items: [createListItem()] };
 }
 
+// A column seeds one empty paragraph so it satisfies the block+ (non-empty)
+// content rule — mirrors the editor's `column` node, which fills a new cell
+// with a paragraph.
 export function createColumn(): Column {
-  return { id: uuid(), blocks: [] };
+  return { id: uuid(), blocks: [createParagraphBlock()] };
 }
 
-// count is clamped to the schema's 2..6 range so the result always validates.
-export function createColumnsBlock(count: number = 2): ColumnsBlock {
-  const n = Math.min(Math.max(Math.trunc(count), 2), 6);
+// count is clamped to the schema's 1..6 range so the result always validates.
+// Default 1 = a full-width single-column row (the identity state); "add columns"
+// grows it. Replaces the old createColumnsBlock (columns is no longer a block).
+export function createRow(count: number = 1): Row {
+  const n = Math.min(Math.max(Math.trunc(count), 1), 6);
   return {
     id: uuid(),
-    type: 'columns',
     columns: Array.from({ length: n }, createColumn),
     gridLines: 'inherit',
   };
@@ -308,13 +311,16 @@ export function createBlankToken(answer: string): BlankToken {
 
 // ---- Structure --------------------------------------------------------------
 
+// A section seeds one 1-column row (with an empty paragraph) so a fresh section
+// is immediately editable and satisfies the "every section has >=1 row with a
+// paragraph" empty-state guarantee.
 export function createSection(title?: string): Section {
-  return { id: uuid(), title, blocks: [], isCheckpoint: false };
+  return { id: uuid(), title, rows: [createRow()], isCheckpoint: false };
 }
 
 export function createEmptyDocument(meta: Partial<ActivityMeta> = {}): ActivityDocument {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     meta: {
       title: meta.title ?? 'Untitled activity',
       course: meta.course ?? 'Algebra II',

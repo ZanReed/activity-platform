@@ -12,7 +12,7 @@ import {
   NumberLineConfig,
   NumberLineInteraction,
   Block,
-  ColumnCellBlock,
+  Column,
   createNumberLineBlock,
 } from '../src/index.js';
 
@@ -85,8 +85,8 @@ describe('NumberLineBlock', () => {
     expect(Block.safeParse(baseLine()).success).toBe(true);
   });
 
-  it('is a member of the ColumnCellBlock union (placeable in columns)', () => {
-    expect(ColumnCellBlock.safeParse(baseLine()).success).toBe(true);
+  it('is a member of the Column block stack (placeable in a column)', () => {
+    expect(Column.safeParse({ id: crypto.randomUUID(), blocks: [baseLine()] }).success).toBe(true);
   });
 });
 

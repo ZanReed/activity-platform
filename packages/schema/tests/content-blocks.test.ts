@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   Block,
-  ColumnCellBlock,
+  Column,
   LearningObjectivesBlock,
   WorkedExampleBlock,
   FadedWorkedExampleBlock,
@@ -27,6 +27,9 @@ import {
 
 const uuid = () => crypto.randomUUID();
 const text = (t: string) => [{ type: 'text' as const, text: t }];
+// A block is "placeable in a column" iff it parses as a member of a Column's
+// block stack — the reshape's replacement for the old ColumnCellBlock union.
+const inColumn = (b: unknown) => Column.safeParse({ id: uuid(), blocks: [b] });
 
 describe('LearningObjectivesBlock', () => {
   it('factory produces a valid block with the default title', () => {
@@ -48,7 +51,7 @@ describe('LearningObjectivesBlock', () => {
   });
 
   it('is a legal column-cell block', () => {
-    expect(ColumnCellBlock.safeParse(createLearningObjectivesBlock()).success).toBe(
+    expect(inColumn(createLearningObjectivesBlock()).success).toBe(
       true,
     );
   });
@@ -86,7 +89,7 @@ describe('WorkedExampleBlock', () => {
   });
 
   it('is a legal column-cell block', () => {
-    expect(ColumnCellBlock.safeParse(createWorkedExampleBlock()).success).toBe(true);
+    expect(inColumn(createWorkedExampleBlock()).success).toBe(true);
   });
 });
 
@@ -123,7 +126,7 @@ describe('FadedWorkedExampleBlock', () => {
   });
 
   it('is a legal column-cell block', () => {
-    expect(ColumnCellBlock.safeParse(createFadedWorkedExampleBlock()).success).toBe(
+    expect(inColumn(createFadedWorkedExampleBlock()).success).toBe(
       true,
     );
   });
@@ -149,7 +152,7 @@ describe('SelfExplanationBlock', () => {
   });
 
   it('is a legal column-cell block', () => {
-    expect(ColumnCellBlock.safeParse(createSelfExplanationBlock()).success).toBe(
+    expect(inColumn(createSelfExplanationBlock()).success).toBe(
       true,
     );
   });
@@ -189,8 +192,8 @@ describe('ShortAnswerBlock + EssayBlock (manually-graded free text)', () => {
   });
 
   it('both are legal column-cell blocks', () => {
-    expect(ColumnCellBlock.safeParse(createShortAnswerBlock()).success).toBe(true);
-    expect(ColumnCellBlock.safeParse(createEssayBlock()).success).toBe(true);
+    expect(inColumn(createShortAnswerBlock()).success).toBe(true);
+    expect(inColumn(createEssayBlock()).success).toBe(true);
   });
 });
 

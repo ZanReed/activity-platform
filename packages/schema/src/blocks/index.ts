@@ -17,7 +17,6 @@ import { CalloutBlock } from './callout.js';
 import { ProblemBlock } from './problem.js';
 import { FillInBlankBlock } from './fill-in-blank.js';
 import { BulletListBlock, OrderedListBlock, ListItem } from './list.js';
-import { ColumnsBlock } from './columns.js';
 import { InteractiveGraphBlock } from './interactive-graph.js';
 import { MultipleChoiceBlock } from './multiple-choice.js';
 import { MatchingBlock } from './matching.js';
@@ -40,7 +39,6 @@ export const Block = z.discriminatedUnion('type', [
   FillInBlankBlock,
   BulletListBlock,
   OrderedListBlock,
-  ColumnsBlock,
   InteractiveGraphBlock,
   MultipleChoiceBlock,
   MatchingBlock,
@@ -56,6 +54,10 @@ export const Block = z.discriminatedUnion('type', [
 ]);
 export type Block = z.infer<typeof Block>;
 
+// NOTE: layout is NOT a block. Rows/Columns (packages/schema/src/layout.ts) are
+// the structural container ABOVE blocks — a Column holds Block[], never the
+// reverse — so the Block union is leaf blocks only and can never nest a row.
+
 // Re-export individual block types so consumers can import them by name.
 export {
   ParagraphBlock,
@@ -68,7 +70,6 @@ export {
   BulletListBlock,
   OrderedListBlock,
   ListItem,
-  ColumnsBlock,
   InteractiveGraphBlock,
 };
 export {
@@ -111,7 +112,6 @@ export {
   Rubric,
   RubricCriterion,
 } from './free-response.js';
-export { ColumnCellBlock, Column, ColumnGridLines } from './columns.js';
 export {
   AxisConfig,
   PointInteraction,

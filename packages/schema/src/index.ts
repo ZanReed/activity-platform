@@ -35,10 +35,6 @@ export {
   BulletListBlock,
   OrderedListBlock,
   ListItem,
-  ColumnsBlock,
-  ColumnCellBlock,
-  Column,
-  ColumnGridLines,
   InteractiveGraphBlock,
   MultipleChoiceBlock,
   MultipleChoiceOption,
@@ -92,6 +88,9 @@ export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
 // Sizing (shared per-block width/align fragment)
 export { BlockAlign, BlockWidthFraction } from './sizing.js';
+
+// Layout (structural rows-of-columns container above blocks)
+export { Row, Column, ColumnGridLines } from './layout.js';
 
 // Document
 export {
@@ -158,7 +157,7 @@ export {
   createOrderedListBlock,
   createListItem,
   createColumn,
-  createColumnsBlock,
+  createRow,
   createInteractiveGraphBlock,
   createMultipleChoiceBlock,
   createMultipleChoiceOption,

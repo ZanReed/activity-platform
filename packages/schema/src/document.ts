@@ -6,19 +6,27 @@
 // source of truth — the renderer parses it, the editor produces it via the
 // serialize layer, the database stores it as jsonb.
 //
-// schemaVersion is the migration anchor. When a future schema needs a
-// non-trivial migration (e.g., changing how marks are represented), bump
-// the version and write a migrate(N -> N+1) function. Old versions in
-// activity_versions stay at their original schemaVersion forever; migrations
-// happen on read, never by mutating stored versions.
+// schemaVersion is the migration anchor. It is currently 2. The 1→2 reshape
+// (block-stream sections → rows-of-columns) was a GREENFIELD HARD-CUT: there was
+// no production data to preserve, so there is deliberately NO migrate(1→2) and
+// NO migrate-on-read — the parser is z.literal(2) and REJECTS a v1 document
+// (a stray v1 fails loudly at parse rather than mis-parsing into garbage).
+// When a FUTURE schema needs a non-trivial migration against real stored data,
+// bump the version and add a migrate(N -> N+1) that runs on read (old
+// activity_versions rows stay at their original schemaVersion forever; migrate
+// on read, never by mutating stored versions). The greenfield hard-cut is a
+// one-time exception, not the general policy.
 // =============================================================================
 
 import { z } from 'zod';
 import { Block } from './blocks/index.js';
+import { Row } from './layout.js';
 
-// Section: a collection of blocks with an optional title. Sections are
-// organizational only — they don't constrain content or layout. Phase 2+
-// may add per-section tinting (color background) but Phase 1 is plain.
+// Section: a collection of ROWS with an optional title. Sections are the
+// vertical checkpoint primitive; rows are the horizontal-split primitive
+// (layout.ts). A section is usually one 1-column row whose column stacks many
+// blocks; a columned region is a multi-column row. Sections are organizational
+// only — they don't constrain content beyond holding rows.
 //
 // isCheckpoint marks this section as having a "Check this section" button at
 // its bottom in the published HTML. Only meaningful when the activity's
@@ -28,7 +36,7 @@ export const Section = z.object({
   id: z.string().uuid(),
                                 title: z.string().optional(),
                                 isCheckpoint: z.boolean().default(false),
-                                blocks: z.array(Block),
+                                rows: z.array(Row),
 });
 export type Section = z.infer<typeof Section>;
 
@@ -118,8 +126,8 @@ export type PrintHeader = z.infer<typeof PrintHeader>;
 //                    rules cannot reliably read custom properties.
 //   columns        — 1..3. column-count in print; 1 is a no-op (single col).
 //                    DORMANT: the author-facing control was retired when
-//                    structural authored columns (the ColumnsBlock content
-//                    primitive) landed — a columns block renders consistently
+//                    structural authored columns (the Row/Column layout
+//                    primitive) landed — a multi-column row renders consistently
 //                    on screen, in worksheet print, and inside a foldable, so
 //                    this per-mode print setting became redundant. The field +
 //                    its renderer var/CSS are kept (not deleted) so values
@@ -132,10 +140,10 @@ export type PrintHeader = z.infer<typeof PrintHeader>;
 //   fontSize       — pt. Applied to .activity-container in print only.
 //   problemSpacing — rem of vertical margin around each problem in print.
 //   margin         — inches. The @page margin (literal, like paperSize).
-//   gridLines      — activity-wide default for ruled columns blocks. A
-//                    ColumnsBlock with gridLines:'inherit' (the per-block
-//                    default) resolves to this; 'on'/'off' on a block override
-//                    it. Off by default — ruled grids are opt-in.
+//   gridLines      — activity-wide default for ruled rows. A Row with
+//                    gridLines:'inherit' (the per-row default) resolves to this;
+//                    'on'/'off' on a row override it. Off by default — ruled
+//                    grids are opt-in.
 //   printReferencePanel — whether the activity's reference panel prints as a
 //                    box at the top of the worksheet. On by default; a teacher
 //                    with a class set of charts can turn it off so it isn't
@@ -148,7 +156,7 @@ export type PrintHeader = z.infer<typeof PrintHeader>;
 // columns/workSpace/fontSize/problemSpacing ride as --print-* CSS vars on the
 // container (normal selectors can read them); paperSize/margin are emitted as
 // a per-document literal @page rule. gridLines is not a container var — it is
-// resolved per columns block at render time (see renderColumns).
+// resolved per row at render time (see renderRow).
 export const PrintConfig = z.object({
   paperSize: z.enum(['letter', 'a4']).default('letter'),
                                      columns: z.number().int().min(1).max(3).default(1),
@@ -306,7 +314,7 @@ export type CalculatorTool = z.infer<typeof CalculatorTool>;
 // identical to what inference produced; nothing here loses type safety —
 // the annotation is checked against the object schema.
 export interface ActivityDocument {
-  schemaVersion: 1;
+  schemaVersion: 2;
   meta: ActivityMeta;
   sections: Section[];
   referencePanel?: ReferencePanel;
@@ -314,7 +322,7 @@ export interface ActivityDocument {
 }
 export const ActivityDocument: z.ZodType<ActivityDocument, z.ZodTypeDef, unknown> =
   z.object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal(2),
     meta: ActivityMeta,
     sections: z.array(Section),
     referencePanel: ReferencePanel.optional(),

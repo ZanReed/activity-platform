@@ -26,16 +26,16 @@ describe('ActivityDocument', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects document with wrong schemaVersion', () => {
+  it('rejects a v1 document (greenfield hard-cut: parser is literal(2))', () => {
     const doc = createEmptyDocument();
-    const bad = { ...doc, schemaVersion: 2 };
+    const bad = { ...doc, schemaVersion: 1 };
     const result = ActivityDocument.safeParse(bad);
     expect(result.success).toBe(false);
   });
 
   it('rejects document with missing meta.title', () => {
     const bad = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       meta: { course: 'Algebra II' }, // no title
       sections: [],
     };
@@ -43,7 +43,7 @@ describe('ActivityDocument', () => {
     expect(result.success).toBe(false);
   });
 
-  it('parses a document with all phase 1 block types', () => {
+  it('parses a document with all phase 1 block types (in a row/column)', () => {
     const doc = createEmptyDocument({ title: 'Mixed' });
     const blank = createBlankToken('x+2');
     const fillIn = createFillInBlankBlock();
@@ -51,7 +51,8 @@ describe('ActivityDocument', () => {
       { type: 'text', text: 'Solve: ', marks: [] },
       blank,
     ];
-    doc.sections[0]!.blocks = [
+    // Blocks now live in a section's row → column stack, never at the top level.
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       { ...createParagraphBlock(), content: [{ type: 'text', text: 'Hello', marks: [] }] },
       createHeadingBlock(2),
       { id: crypto.randomUUID(), type: 'math_block', latex: 'x^2 + 1' },

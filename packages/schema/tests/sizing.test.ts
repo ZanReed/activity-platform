@@ -11,10 +11,10 @@ import { describe, it, expect } from 'vitest';
 import {
   ImageBlock,
   MathBlock,
-  ColumnsBlock,
+  Row,
   createImageBlock,
   createMathBlock,
-  createColumnsBlock,
+  createRow,
 } from '../src/index.js';
 
 describe('Per-block sizing (width/align)', () => {
@@ -65,23 +65,23 @@ describe('ImageBlock.height (fixed display height, rem)', () => {
 
 describe('Column.minHeight', () => {
   it('a column without minHeight still validates (additive change)', () => {
-    expect(ColumnsBlock.safeParse(createColumnsBlock()).success).toBe(true);
+    expect(Row.safeParse(createRow()).success).toBe(true);
   });
 
   it('accepts a positive rem floor', () => {
-    const block = createColumnsBlock(2);
+    const block = createRow(2);
     block.columns[0]!.minHeight = 8;
     block.columns[1]!.minHeight = 2.5;
-    expect(ColumnsBlock.safeParse(block).success).toBe(true);
+    expect(Row.safeParse(block).success).toBe(true);
   });
 
   it('rejects zero and negative minHeight', () => {
-    const zero = createColumnsBlock(2);
+    const zero = createRow(2);
     (zero.columns[0] as { minHeight: number }).minHeight = 0;
-    expect(ColumnsBlock.safeParse(zero).success).toBe(false);
+    expect(Row.safeParse(zero).success).toBe(false);
 
-    const negative = createColumnsBlock(2);
+    const negative = createRow(2);
     (negative.columns[0] as { minHeight: number }).minHeight = -3;
-    expect(ColumnsBlock.safeParse(negative).success).toBe(false);
+    expect(Row.safeParse(negative).success).toBe(false);
   });
 });

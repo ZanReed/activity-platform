@@ -70,12 +70,12 @@ describe('ActivityMeta — flow + feedback fields', () => {
 
 describe('Section — isCheckpoint', () => {
   it('defaults isCheckpoint to false', () => {
-    const parsed = Section.parse({ id: SECTION_ID, blocks: [] });
+    const parsed = Section.parse({ id: SECTION_ID, rows: [] });
     expect(parsed.isCheckpoint).toBe(false);
   });
 
   it('accepts isCheckpoint: true', () => {
-    const parsed = Section.parse({ id: SECTION_ID, isCheckpoint: true, blocks: [] });
+    const parsed = Section.parse({ id: SECTION_ID, isCheckpoint: true, rows: [] });
     expect(parsed.isCheckpoint).toBe(true);
   });
 

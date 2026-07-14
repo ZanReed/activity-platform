@@ -13,7 +13,7 @@ import {
   DataPlotConfig,
   DataPlotInteraction,
   Block,
-  ColumnCellBlock,
+  Column,
   createDataPlotBlock,
 } from '../src/index.js';
 
@@ -111,8 +111,8 @@ describe('DataPlotBlock', () => {
     expect(Block.safeParse(basePlot()).success).toBe(true);
   });
 
-  it('is a member of the ColumnCellBlock union (placeable in columns)', () => {
-    expect(ColumnCellBlock.safeParse(basePlot()).success).toBe(true);
+  it('is a member of the Column block stack (placeable in a column)', () => {
+    expect(Column.safeParse({ id: crypto.randomUUID(), blocks: [basePlot()] }).success).toBe(true);
   });
 });
 
