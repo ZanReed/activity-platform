@@ -1,6 +1,6 @@
 # Columns as the universal container — design
 
-**Status:** 🟢 **SLICES 1–3 SHIPPED + GREEN on branch `rows-refactor` (2026-07-15).** The
+**Status:** 🟢 **SLICES 1–4 SHIPPED + GREEN on branch `rows-refactor` (2026-07-15).** The
 schema reshape, renderer, and editor+serialize bridge are all committed and the whole
 monorepo is green (1736 tests); browser-verified on `/playground`. Remaining: merge to
 `main` + slice 5 deploy (author-run `publish-activity` redeploy), and slice 6 (the separate
@@ -21,10 +21,11 @@ unwraps back to bare blocks. Consequences:
 - The 8 outside-voice editor hazards **largely evaporate** — single-column typing is native
   ProseMirror (no isolating-row cross-row keymap, no merge-back data loss, no empty-state
   backfill). They were artifacts of the *strict* model.
-- **Slice 4 collapses.** add/remove-column, width presets, grid lines, cell-height already
-  work (they're the existing columns commands on the renamed node). "Split-into-columns /
-  escape-the-row / non-destructive merge-back" were strict-model concerns and are moot; a
-  "wrap selected blocks into columns" gesture remains an optional nice-to-have.
+- **Slice 4 collapsed to one verb** (shipped `109338e`): add/remove-column, width presets,
+  grid lines, cell-height already work (existing commands on the renamed node); the
+  escape-the-row / non-destructive merge-back hazards were strict-model concerns and are
+  moot. The one real add is `wrapInColumns` + a "Split into columns" slash/insert item —
+  move the current top-level block into column 1 of a new multi-col row (browser-verified).
 - The strict "everything visibly in a grid" editor is **slice 6** (Notion-hybrid), where it
   is the actual deliverable — not built twice.
 
