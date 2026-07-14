@@ -36,6 +36,20 @@ export default function SelfExplanationView({
             className={`self-explanation-block${selected ? ' is-selected' : ''}`}
             data-block-id={node.attrs.id ?? ''}
         >
+            <div
+                className="self-explanation-block__header"
+                contentEditable={false}
+            >
+                <span
+                    className="self-explanation-block__icon"
+                    aria-hidden="true"
+                >
+                    ❝
+                </span>
+                <span className="self-explanation-block__label">
+                    Self-explanation
+                </span>
+            </div>
             <NodeViewContent className="self-explanation-block__prompt" />
             <textarea
                 className="self-explanation-block__preview"

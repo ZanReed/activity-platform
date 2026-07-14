@@ -14,16 +14,22 @@ export function renderLearningObjectives(block: LearningObjectivesBlock): string
     .join('');
 
   const title = block.title.trim();
-  const titleHtml = title
-    ? '<p class="block-learning-objectives__title">' + escape(title) + '</p>'
-    : '';
+  const label = title || 'Learning objectives';
+  // Always render the titled header with the type icon (matching worked_example):
+  // the leading glyph is the non-colour cue that replaces the old accent
+  // left-stripe, so it must be present even when the author left the title blank.
+  const titleHtml =
+    '<p class="block-learning-objectives__title">' +
+    '<span class="block-learning-objectives__icon" aria-hidden="true">◎</span>' +
+    escape(label) +
+    '</p>';
 
   return (
     '<section class="block block-learning-objectives"' +
     ' data-block-category="content"' +
     ' data-block-type="learning_objectives"' +
     ' data-block-id="' + attr(block.id) + '"' +
-    ' aria-label="' + attr(title || 'Learning objectives') + '">' +
+    ' aria-label="' + attr(label) + '">' +
     titleHtml +
     '<ul class="block-learning-objectives__list">' + items + '</ul>' +
     '</section>'

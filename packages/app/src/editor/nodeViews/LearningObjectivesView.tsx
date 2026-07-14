@@ -38,6 +38,12 @@ export default function LearningObjectivesView({
                 className="learning-objectives-block__header"
                 contentEditable={false}
             >
+                <span
+                    className="learning-objectives-block__icon"
+                    aria-hidden="true"
+                >
+                    ◎
+                </span>
                 <input
                     type="text"
                     className="learning-objectives-block__title"

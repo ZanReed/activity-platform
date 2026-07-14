@@ -76,6 +76,20 @@ export default function FreeResponseView({
             className={`free-response-block${isEssay ? ' is-essay' : ''}${selected ? ' is-selected' : ''}`}
             data-block-id={node.attrs.id ?? ''}
         >
+            <div
+                className="free-response-block__header"
+                contentEditable={false}
+            >
+                <span
+                    className="free-response-block__icon"
+                    aria-hidden="true"
+                >
+                    ¶
+                </span>
+                <span className="free-response-block__label">
+                    {isEssay ? 'Essay' : 'Short answer'}
+                </span>
+            </div>
             <NodeViewContent className="free-response-block__prompt" />
             <textarea
                 className="free-response-block__preview"

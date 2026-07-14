@@ -195,20 +195,29 @@ body {
 .block-callout-note    { background: var(--color-note-bg);    border-color: var(--color-note);    }
 
 /* Learning objectives — a titled goals list fronting an activity/section.
-   Pure content: quiet card, accent rule to read as a scaffold not a question. */
+   Pure content: quiet card, a full hairline + leading type icon (not a colored
+   left-stripe) so it reads as a scaffold not a question and survives grayscale. */
 .block-learning-objectives {
   margin: 1.25rem 0;
   padding: 0.85rem 1.1rem;
   border-radius: 6px;
-  border-left: 4px solid var(--color-accent);
+  border: 1px solid var(--color-accent);
   background: var(--color-note-bg);
 }
 .block-learning-objectives__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   margin: 0 0 0.5rem;
   font-weight: 600;
   font-size: 0.95rem;
   letter-spacing: 0.01em;
   color: var(--color-text);
+}
+.block-learning-objectives__icon {
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-accent);
 }
 .block-learning-objectives__list {
   margin: 0;

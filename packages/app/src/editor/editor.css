@@ -47,7 +47,10 @@
     --ed-amber-800: rgb(146 64 14);
     /* Primitives — emerald (correct) / teal (self-explanation) / red (danger) */
     --ed-emerald-600: rgb(5 150 105);
+    --ed-teal-50: rgb(240 253 250);
+    --ed-teal-200: rgb(153 246 228);
     --ed-teal-500: rgb(20 184 166);
+    --ed-teal-700: rgb(15 118 110);
     --ed-red-50: rgb(254 242 242);
     --ed-red-100: rgb(254 226 226);
     --ed-red-200: rgb(254 202 202);
@@ -97,6 +100,9 @@
     --ed-warning-border-2: var(--ed-amber-300);
     --ed-correct: var(--ed-emerald-600);
     --ed-self-explain: var(--ed-teal-500);
+    --ed-self-explain-bg: var(--ed-teal-50);
+    --ed-self-explain-border: var(--ed-teal-200);
+    --ed-self-explain-strong: var(--ed-teal-700);
     --ed-danger: var(--ed-red-600);
     --ed-danger-2: var(--ed-red-500);
     --ed-danger-bg: var(--ed-red-50);
@@ -2183,8 +2189,13 @@ img.mc-block__figure-preview {
     transition: background-color 0.15s;
 }
 
+/* Instructional / response block-type key: a leading type icon + a full 1px
+ * tinted hairline + a tint wash carry the block's identity (indigo = objectives,
+ * teal = self-explanation, amber = free response). Replaces the former colored
+ * left-stripe — the icon adds a non-color cue that also survives grayscale. */
 .learning-objectives-block {
-    border-left: 3px solid var(--ed-accent-alt); /* indigo-500 */
+    border: 1px solid var(--ed-accent-alt-ring); /* indigo-200 */
+    background-color: var(--ed-accent-alt-bg); /* indigo-50 */
 }
 
 .worked-example-block {
@@ -2197,10 +2208,17 @@ img.mc-block__figure-preview {
     border: 1px dashed var(--ed-accent-alt); /* indigo-500 */
 }
 
-.learning-objectives-block.is-selected,
 .worked-example-block.is-selected,
 .faded-example-block.is-selected {
     background-color: var(--ed-accent-bg); /* blue-50 */
+    outline: 2px solid var(--ed-accent); /* blue-500 */
+}
+
+/* Tinted block-type blocks keep their own wash when selected — only the blue
+ * focus outline is added, so the block's identity colour doesn't flip to blue. */
+.learning-objectives-block.is-selected,
+.self-explanation-block.is-selected,
+.free-response-block.is-selected {
     outline: 2px solid var(--ed-accent); /* blue-500 */
 }
 
@@ -2213,6 +2231,7 @@ img.mc-block__figure-preview {
     margin-bottom: 0.35rem;
 }
 
+.learning-objectives-block__icon,
 .worked-example-block__icon,
 .faded-example-block__icon {
     color: var(--ed-accent-alt); /* indigo-500 */
@@ -2308,14 +2327,48 @@ img.mc-block__figure-preview {
     margin: 1rem 0;
     padding: 0.6rem 0.85rem;
     border-radius: 0.375rem;
-    border-left: 3px solid var(--ed-self-explain); /* teal-500 — distinct from indigo */
-    background-color: var(--ed-surface); /* slate-50 */
+    border: 1px solid var(--ed-self-explain-border); /* teal-200 */
+    background-color: var(--ed-self-explain-bg); /* teal-50 */
     transition: background-color 0.15s;
 }
 
-.self-explanation-block.is-selected {
-    background-color: var(--ed-accent-bg); /* blue-50 */
-    outline: 2px solid var(--ed-accent); /* blue-500 */
+/* Type-key header for the prompt-led blocks (self-explanation, free response),
+ * which have no editable title. A leading icon + a small static label name the
+ * block type in its accent colour — the non-colour cue the former left-stripe
+ * lacked. Authoring-only chrome (contentEditable=false); the published page is
+ * bare prompt + input. */
+.self-explanation-block__header,
+.free-response-block__header {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.4rem;
+    user-select: none;
+}
+
+.self-explanation-block__icon,
+.free-response-block__icon {
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.self-explanation-block__label,
+.free-response-block__label {
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.self-explanation-block__icon {
+    color: var(--ed-self-explain); /* teal-500 */
+}
+.self-explanation-block__label {
+    color: var(--ed-self-explain-strong); /* teal-700 */
+}
+.free-response-block__icon {
+    color: var(--ed-warning); /* amber-600 */
+}
+.free-response-block__label {
+    color: var(--ed-warning-text-strong); /* amber-800 */
 }
 
 .self-explanation-block__prompt {
@@ -2379,14 +2432,9 @@ img.mc-block__figure-preview {
     margin: 1rem 0;
     padding: 0.6rem 0.85rem;
     border-radius: 0.375rem;
-    border-left: 3px solid var(--ed-warning); /* amber-600 — "you grade this" */
-    background-color: var(--ed-surface); /* slate-50 */
+    border: 1px solid var(--ed-warning-border); /* amber-200 — "you grade this" */
+    background-color: var(--ed-warning-bg); /* amber-50 */
     transition: background-color 0.15s;
-}
-
-.free-response-block.is-selected {
-    background-color: var(--ed-accent-bg); /* blue-50 */
-    outline: 2px solid var(--ed-accent); /* blue-500 */
 }
 
 .free-response-block__prompt {
