@@ -23,7 +23,7 @@ const ctx: RenderContext = {
 function docWith(nl: NumberLineBlock): ActivityDocument {
   const doc = createEmptyDocument({ title: 'Number lines' });
   const section = createSection('Mark it');
-  section.blocks = [nl];
+  section.rows[0]!.columns[0]!.blocks = [nl];
   doc.sections = [section];
   return doc;
 }

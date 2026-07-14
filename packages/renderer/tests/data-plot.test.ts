@@ -26,7 +26,7 @@ const ctx: RenderContext = {
 function docWith(dp: DataPlotBlock): ActivityDocument {
   const doc = createEmptyDocument({ title: 'Data plots' });
   const section = createSection('Plot it');
-  section.blocks = [dp];
+  section.rows[0]!.columns[0]!.blocks = [dp];
   doc.sections = [section];
   return doc;
 }
@@ -144,7 +144,7 @@ describe('renderDataPlot — display (via renderBody)', () => {
     const doc = createEmptyDocument({ title: 'Mixed' });
     const section = createSection('S');
     const graded = createDataPlotBlock();
-    section.blocks = [displayPlot('dotplot'), graded];
+    section.rows[0]!.columns[0]!.blocks = [displayPlot('dotplot'), graded];
     doc.sections = [section];
     const html = renderBody(doc);
     expect(html).toMatch(/<div class="block-problem-number">1\.<\/div>/);

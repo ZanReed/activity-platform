@@ -163,7 +163,7 @@ describe('renderBody (body fragment only)', () => {
       { type: 'text', text: 'The answer is ', marks: [] },
      blank,
     ];
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createParagraphBlock(), {
         content: [{ type: 'text', text: 'A paragraph.', marks: [] }],
       }),
@@ -202,7 +202,7 @@ describe('renderBody (body fragment only)', () => {
 describe('Inline rendering', () => {
   it('applies marks in stable order', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createParagraphBlock(), {
         content: [
           { type: 'text', text: 'styled', marks: [{ type: 'bold' }, { type: 'italic' }] },
@@ -216,7 +216,7 @@ describe('Inline rendering', () => {
 
   it('escapes text content', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createParagraphBlock(), {
         content: [{ type: 'text', text: '<script>', marks: [] }],
       }),
@@ -228,7 +228,7 @@ describe('Inline rendering', () => {
 
   it('renders inline math via KaTeX (output contains katex class)', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createParagraphBlock(), {
         content: [{ type: 'math_inline', latex: 'a+b' }],
       }),
@@ -239,7 +239,7 @@ describe('Inline rendering', () => {
 
   it('renders a hard break as <br> between text runs', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createParagraphBlock(), {
         content: [
           { type: 'text', text: 'Hello!', marks: [] },
@@ -258,7 +258,7 @@ describe('Inline rendering', () => {
     blank.acceptableAnswers = ['CORRECT', 'Correct'];
     const fill = createFillInBlankBlock();
     fill.content = [blank];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain('data-blank-id="' + blank.id + '"');
     expect(body).toContain('data-blank-answers="correct|CORRECT|Correct"');
@@ -274,7 +274,7 @@ describe('Inline rendering', () => {
     blank.tolerance = 0.01;
     const fill = createFillInBlankBlock();
     fill.content = [blank];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain('data-blank-strategy="numeric"');
     expect(body).toContain('data-blank-tolerance="0.01"');
@@ -287,7 +287,7 @@ describe('Inline rendering', () => {
     blank.answerType = 'numeric';
     const fill = createFillInBlankBlock();
     fill.content = [blank];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain('data-blank-strategy="numeric"');
     expect(body).not.toContain('data-blank-tolerance');
@@ -301,7 +301,7 @@ describe('Inline rendering', () => {
      { type: 'text', text: ', y = ', marks: [] },
      createBlankToken('b'),
     ];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain('aria-label="Blank 1 of 2"');
     expect(body).toContain('aria-label="Blank 2 of 2"');
@@ -311,7 +311,7 @@ describe('Inline rendering', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const fill = createFillInBlankBlock();
     fill.content = [createBlankToken('a')];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain('aria-label="Fill in the blank"');
   });
@@ -321,7 +321,7 @@ describe('Inline rendering', () => {
     const blank = createBlankToken('answer');
     const fill = createFillInBlankBlock();
     fill.content = [blank];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain('<span class="blank-wrapper">');
     expect(body).toContain('<input type="text" class="blank"');
@@ -336,7 +336,7 @@ describe('Inline rendering', () => {
     const blank = createBlankToken('answer');
     const fill = createFillInBlankBlock();
     fill.content = [blank];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     // Inline feedback text was replaced by the popover; no slot is emitted.
     expect(body).not.toContain('js-blank-feedback');
@@ -352,7 +352,7 @@ describe('Inline rendering', () => {
     ];
     const fill = createFillInBlankBlock();
     fill.content = [blank];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain(
       '<button class="js-blank-mistake" type="button"' +
@@ -375,7 +375,7 @@ describe('Inline rendering', () => {
     blank.hint = [{ type: 'text', text: 'Try factoring first.', marks: [] }];
     const fill = createFillInBlankBlock();
     fill.content = [blank];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
 
     expect(body).toContain(
@@ -403,7 +403,7 @@ describe('Inline rendering', () => {
     ];
     const fill = createFillInBlankBlock();
     fill.content = [blank];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain('<strong>Pythagoras</strong>');
     // KaTeX ran server-side: the rendered math carries the katex class.
@@ -416,7 +416,7 @@ describe('Inline rendering', () => {
     blank.hint = [{ type: 'text', text: 'a & b < c', marks: [] }];
     const fill = createFillInBlankBlock();
     fill.content = [blank];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).not.toContain('a & b < c');
     expect(body).toContain('a &amp; b &lt; c');
@@ -429,7 +429,7 @@ describe('Inline rendering', () => {
         const b = createBlankToken('a');
         const f = createFillInBlankBlock();
         f.content = [b];
-        d.sections[0]!.blocks = [f];
+        d.sections[0]!.rows[0]!.columns[0]!.blocks = [f];
         return d;
       })(),
      (() => {
@@ -438,7 +438,7 @@ describe('Inline rendering', () => {
        b.hint = [];
        const f = createFillInBlankBlock();
        f.content = [b];
-       d.sections[0]!.blocks = [f];
+       d.sections[0]!.rows[0]!.columns[0]!.blocks = [f];
        return d;
      })(),
     ];
@@ -457,7 +457,7 @@ describe('Inline rendering', () => {
     ];
     const fill = createFillInBlankBlock();
     fill.content = [blank];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     const first = body.indexOf(
       '<template class="js-blank-mistake-content" data-match="2x">Did you forget the constant?</template>',
@@ -476,7 +476,7 @@ describe('Inline rendering', () => {
         const b = createBlankToken('a');
         const f = createFillInBlankBlock();
         f.content = [b];
-        d.sections[0]!.blocks = [f];
+        d.sections[0]!.rows[0]!.columns[0]!.blocks = [f];
         return d;
       })(),
      (() => {
@@ -485,7 +485,7 @@ describe('Inline rendering', () => {
        b.mistakeFeedback = [];
        const f = createFillInBlankBlock();
        f.content = [b];
-       d.sections[0]!.blocks = [f];
+       d.sections[0]!.rows[0]!.columns[0]!.blocks = [f];
        return d;
      })(),
     ];
@@ -497,7 +497,7 @@ describe('Inline rendering', () => {
 
   it('handles invalid LaTeX without throwing', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createMathBlock(), { latex: '\\unknownmacro{x}' }),
     ];
     expect(() => renderBody(doc)).not.toThrow();
@@ -512,7 +512,7 @@ describe('Order-independent blank grouping (data-blank-group)', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const fill = createFillInBlankBlock();
     fill.content = blanks;
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     return renderBody(doc);
   }
 
@@ -570,7 +570,7 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const fill = createFillInBlankBlock();
     fill.solution = [{ type: 'text', text: 'Combine like terms, then divide.', marks: [] }];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain(
       '<div class="js-solution" data-for-block="' + fill.id + '" hidden>' +
@@ -590,7 +590,7 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
       { type: 'text', text: ', the answer is ', marks: [] },
       { type: 'text', text: 'four', marks: [{ type: 'italic' }] },
     ];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain('<em>four</em>');
     expect(body).toContain('class="katex"');
@@ -600,7 +600,7 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const fill = createFillInBlankBlock();
     fill.solution = [{ type: 'text', text: 'Use a & b < c', marks: [] }];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).not.toContain('Use a & b < c');
     expect(body).toContain('>Use a &amp; b &lt; c<');
@@ -610,14 +610,14 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
     const docs = [
       (() => {
         const d = createEmptyDocument({ title: 'T' });
-        d.sections[0]!.blocks = [createFillInBlankBlock()];
+        d.sections[0]!.rows[0]!.columns[0]!.blocks = [createFillInBlankBlock()];
         return d;
       })(),
      (() => {
        const d = createEmptyDocument({ title: 'T' });
        const f = createFillInBlankBlock();
        f.solution = [];
-       d.sections[0]!.blocks = [f];
+       d.sections[0]!.rows[0]!.columns[0]!.blocks = [f];
        return d;
      })(),
     ];
@@ -632,7 +632,7 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
     const fill = createFillInBlankBlock();
     fill.hasConfidenceRating = true;
     fill.content = [createBlankToken('a'), createBlankToken('b')];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain('data-has-confidence-rating="true"');
     expect(body).toContain(
@@ -648,7 +648,7 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
 
   it('omits the confidence fieldset and attribute when hasConfidenceRating is false', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [createFillInBlankBlock()];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [createFillInBlankBlock()];
     const body = renderBody(doc);
     expect(body).not.toContain('data-has-confidence-rating');
     expect(body).not.toContain('js-confidence-rating');
@@ -658,7 +658,7 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const fill = createFillInBlankBlock();
     fill.skills = ['factoring-quadratics', 'distributive-property'];
-    doc.sections[0]!.blocks = [fill];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
     const body = renderBody(doc);
     expect(body).toContain('data-skills="');
     expect(body).toContain('&quot;factoring-quadratics&quot;');
@@ -667,7 +667,7 @@ describe('Fill-in-blank block-level emission (Stage 9a fields)', () => {
 
   it('omits data-skills when skills is empty (the schema default)', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [createFillInBlankBlock()];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [createFillInBlankBlock()];
     const body = renderBody(doc);
     expect(body).not.toContain('data-skills');
   });
@@ -731,7 +731,7 @@ describe('Section checkpoint emission (Stage 12 step 4)', () => {
     const doc = createEmptyDocument({ title: 'T', submissionMode: 'free' });
     const section = doc.sections[0]!;
     section.isCheckpoint = true;
-    section.blocks = [createProblemBlock()];
+    section.rows[0]!.columns[0]!.blocks = [createProblemBlock()];
     const body = renderBody(doc);
     const blockIdx = body.indexOf('block-problem');
     const btnIdx = body.indexOf('js-checkpoint-btn');
@@ -748,7 +748,7 @@ describe('Multiple-choice block', () => {
     mc.choices[0]!.content = [{ type: 'text', text: '4', marks: [] }];
     mc.choices[1]!.content = [{ type: 'text', text: '5', marks: [] }];
     mc.choices[2]!.content = [{ type: 'text', text: '22', marks: [] }];
-    doc.sections[0]!.blocks = [mc];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [mc];
     return { doc, mc };
   }
 
@@ -777,7 +777,7 @@ describe('Multiple-choice block', () => {
 
   it('multi-select renders checkboxes, the attr, and the instruction line', () => {
     const { doc } = mcDoc();
-    (doc.sections[0]!.blocks[0] as { multiSelect: boolean }).multiSelect = true;
+    (doc.sections[0]!.rows[0]!.columns[0]!.blocks[0] as { multiSelect: boolean }).multiSelect = true;
     const body = renderBody(doc);
     expect(body).toContain('type="checkbox"');
     expect(body).toContain('data-mc-multi="true"');
@@ -831,7 +831,7 @@ describe('Multiple-choice block', () => {
     const fib = createFillInBlankBlock();
     fib.content = [createBlankToken('x')];
     const mc = createMultipleChoiceBlock();
-    doc.sections[0]!.blocks = [fib, mc];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fib, mc];
     const body = renderBody(doc);
     expect(body).toContain('<div class="block-problem-number">1.</div>');
     expect(body).toContain('<div class="block-problem-number">2.</div>');
@@ -841,7 +841,7 @@ describe('Multiple-choice block', () => {
 describe('Problem numbering', () => {
   it('auto-numbers problems sequentially', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       createProblemBlock(),
      createProblemBlock(),
      createProblemBlock(),
@@ -854,9 +854,9 @@ describe('Problem numbering', () => {
 
   it('numbers across sections continue from where the last left off', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [createProblemBlock(), createProblemBlock()];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [createProblemBlock(), createProblemBlock()];
     const second = createSection('Part 2');
-    second.blocks = [createProblemBlock()];
+    second.rows[0]!.columns[0]!.blocks = [createProblemBlock()];
     doc.sections.push(second);
     const body = renderBody(doc);
     expect(body).toContain('>1.<');
@@ -868,7 +868,7 @@ describe('Problem numbering', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const overridden = createProblemBlock();
     overridden.number = 99;
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       createProblemBlock(),
      overridden,
      createProblemBlock(),
@@ -881,7 +881,7 @@ describe('Problem numbering', () => {
 
   it('counts both problem and fill_in_blank toward numbering', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       createProblemBlock(),
      createFillInBlankBlock(),
      createProblemBlock(),
@@ -893,12 +893,12 @@ describe('Problem numbering', () => {
   });
   it('wraps subscript marks in <sub> and superscript marks in <sup>', () => {
     const doc: ActivityDocument = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
       sections: [{
         id: '11111111-1111-1111-1111-111111111111',
         isCheckpoint: false,
-        blocks: [{
+        rows: [{ id: '55555555-5555-4555-8555-555555555555', columns: [{ id: '66666666-6666-4666-8666-666666666666', blocks: [{
           id: '22222222-2222-2222-2222-222222222222',
           type: 'paragraph',
           content: [
@@ -908,7 +908,7 @@ describe('Problem numbering', () => {
             { type: 'text', text: ' x', marks: [] },
             { type: 'text', text: '2', marks: [{ type: 'superscript' }] },
           ],
-        }],
+        }] }] }],
       }],
     };
     const body = renderBody(doc);
@@ -917,18 +917,18 @@ describe('Problem numbering', () => {
   });
   it('wraps underline marks in <u>', () => {
     const doc: ActivityDocument = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
       sections: [{
         id: '11111111-1111-1111-1111-111111111111',
         isCheckpoint: false,
-        blocks: [{
+        rows: [{ id: '55555555-5555-4555-8555-555555555555', columns: [{ id: '66666666-6666-4666-8666-666666666666', blocks: [{
           id: '22222222-2222-2222-2222-222222222222',
           type: 'paragraph',
           content: [
             { type: 'text', text: 'key term', marks: [{ type: 'underline' }] },
           ],
-        }],
+        }] }] }],
       }],
     };
     const body = renderBody(doc);
@@ -936,18 +936,18 @@ describe('Problem numbering', () => {
   });
   it('renders a definition mark as a span (escaped plain-text fallback) + content template', () => {
     const doc: ActivityDocument = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
       sections: [{
         id: '11111111-1111-1111-1111-111111111111',
         isCheckpoint: false,
-        blocks: [{
+        rows: [{ id: '55555555-5555-4555-8555-555555555555', columns: [{ id: '66666666-6666-4666-8666-666666666666', blocks: [{
           id: '22222222-2222-2222-2222-222222222222',
           type: 'paragraph',
           content: [
             { type: 'text', text: 'factor', marks: [{ type: 'definition', content: [{ type: 'text', text: 'a number that "divides" exactly', marks: [] }] }] },
           ],
-        }],
+        }] }] }],
       }],
     };
     const body = renderBody(doc);
@@ -962,18 +962,18 @@ describe('Problem numbering', () => {
   });
   it('renders math and an optional image into the content template', () => {
     const doc: ActivityDocument = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
       sections: [{
         id: '11111111-1111-1111-1111-111111111111',
         isCheckpoint: false,
-        blocks: [{
+        rows: [{ id: '55555555-5555-4555-8555-555555555555', columns: [{ id: '66666666-6666-4666-8666-666666666666', blocks: [{
           id: '22222222-2222-2222-2222-222222222222',
           type: 'paragraph',
           content: [
             { type: 'text', text: 'hypotenuse', marks: [{ type: 'definition', content: [{ type: 'text', text: 'the longest side ', marks: [] }, { type: 'math_inline', latex: 'c' }], image: { src: 'https://example.com/triangle.png', alt: 'a right triangle' } }] },
           ],
-        }],
+        }] }] }],
       }],
     };
     const body = renderBody(doc);
@@ -984,18 +984,18 @@ describe('Problem numbering', () => {
   });
   it('emits data-glossary-key only when the definition mark carries one', () => {
     const doc: ActivityDocument = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
       sections: [{
         id: '11111111-1111-1111-1111-111111111111',
         isCheckpoint: false,
-        blocks: [{
+        rows: [{ id: '55555555-5555-4555-8555-555555555555', columns: [{ id: '66666666-6666-4666-8666-666666666666', blocks: [{
           id: '22222222-2222-2222-2222-222222222222',
           type: 'paragraph',
           content: [
             { type: 'text', text: 'factor', marks: [{ type: 'definition', content: [{ type: 'text', text: 'a divisor', marks: [] }], glossaryKey: 'factor-noun' }] },
           ],
-        }],
+        }] }] }],
       }],
     };
     const body = renderBody(doc);
@@ -1006,7 +1006,7 @@ describe('Problem numbering', () => {
 describe('lists', () => {
   it('renders a bullet list as <ul> with content category', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createBulletListBlock(), {
         items: [
           Object.assign(createListItem(), {
@@ -1030,7 +1030,7 @@ describe('lists', () => {
 
   it('renders an ordered list as <ol> with content category', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createOrderedListBlock(), {
         items: [
           Object.assign(createListItem(), {
@@ -1049,7 +1049,7 @@ describe('lists', () => {
 
   it('renders a nested bullet list inside its parent list item', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createBulletListBlock(), {
         items: [
           Object.assign(createListItem(), {
@@ -1075,7 +1075,7 @@ describe('lists', () => {
 
   it('dispatches mixed nesting (a bullet list inside an ordered list)', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createOrderedListBlock(), {
         items: [
           Object.assign(createListItem(), {
@@ -1104,7 +1104,7 @@ describe('lists', () => {
 
   it('renders inline marks inside a list item', () => {
     const doc = createEmptyDocument({ title: 'T' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       Object.assign(createBulletListBlock(), {
         items: [
           Object.assign(createListItem(), {
@@ -1127,7 +1127,7 @@ describe('lists', () => {
 describe('block identity attributes', () => {
   it('emits data-block-type (the snake_case schema discriminant) for every block type', () => {
     const doc = createEmptyDocument({ title: 'All blocks' });
-    doc.sections[0]!.blocks = [
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [
       createParagraphBlock(),
      createHeadingBlock(2),
      Object.assign(createMathBlock(), { latex: 'x' }),
@@ -1153,7 +1153,7 @@ describe('block identity attributes', () => {
   it('emits the block id under data-block-id, not data-id', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const para = createParagraphBlock();
-    doc.sections[0]!.blocks = [para];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [para];
     const body = renderBody(doc);
     expect(body).toContain('data-block-id="' + para.id + '"');
     expect(body).not.toContain(' data-id="' + para.id + '"');

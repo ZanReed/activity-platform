@@ -909,20 +909,20 @@ body {
 .block-problem-body > :first-child { margin-top: 0; }
 .block-problem-body > :last-child { margin-bottom: 0; }
 
-/* Structural columns. The grid track sizing comes from --columns-template
+/* Structural rows (rows-of-columns layout). The grid track sizing comes from --columns-template
  (set inline by the renderer from per-column width weights); the fallback keeps
  a config-less context (e.g. a stray clone) sane. min-width:0 on each cell lets
  the grid track shrink so wide content (long math, pre, images) can't blow the
  track out. The container lays out side by side everywhere — print and the
  foldable inherit this rule unconditionally; only @media screen narrows it. */
-.block-columns {
+.block-row {
   display: grid;
   grid-template-columns: var(--columns-template, 1fr 1fr);
   gap: 1.5rem;
   align-items: start;
   margin: 1rem 0;
 }
-.block-columns > .column-cell {
+.block-row > .column-cell {
   min-width: 0;
   /* Reserved work space (Column.minHeight): the renderer sets
    --cell-min-height inline only when authored, so the fallback keeps every
@@ -931,8 +931,8 @@ body {
    in every output: on paper this IS the write-in work space. */
   min-height: var(--cell-min-height, auto);
 }
-.block-columns > .column-cell > :first-child { margin-top: 0; }
-.block-columns > .column-cell > :last-child { margin-bottom: 0; }
+.block-row > .column-cell > :first-child { margin-top: 0; }
+.block-row > .column-cell > :last-child { margin-bottom: 0; }
 
 /* Ruled grid (gridLines). The renderer emits data-grid-lines="true" only when
  the resolved tri-state is on (per-block, or the activity-wide print default).
@@ -941,7 +941,7 @@ body {
  out on paper. The gap collapses to 0 so a single hairline (the border layer)
  sits between regions instead of empty space; cells get their own padding back.
  Renders in every output (screen, print, foldable), like the columns themselves. */
-.block-columns[data-grid-lines="true"] {
+.block-row[data-grid-lines="true"] {
   gap: 0;
   border: 1px solid #94a3b8;
   /* Override the unruled default (align-items:start). Ruled cells must stretch
@@ -951,18 +951,18 @@ body {
    regions, which is the point of a ruled grid on paper. */
   align-items: stretch;
 }
-.block-columns[data-grid-lines="true"] > .column-cell {
+.block-row[data-grid-lines="true"] > .column-cell {
   padding: 0.75rem;
   border-left: 1px solid #94a3b8;
 }
-.block-columns[data-grid-lines="true"] > .column-cell:first-child {
+.block-row[data-grid-lines="true"] > .column-cell:first-child {
   border-left: none;
 }
 /* Horizontal rule between stacked blocks in a cell. Zero the block's own
  top-margin and use symmetric padding so the rule sits centered in even space,
  not doubled against a block margin. :first-child stays flush (rule is between
  blocks, not above the first). */
-.block-columns[data-grid-lines="true"] > .column-cell > * + * {
+.block-row[data-grid-lines="true"] > .column-cell > * + * {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid #cbd5e1;
@@ -987,18 +987,18 @@ body {
  stays readable on a phone. Scoped to @media SCREEN so it never reaches paper
  or the foldable (both print-media), where columns must stay side by side. */
 @media screen and (max-width: 640px) {
-  .block-columns { grid-template-columns: 1fr; }
+  .block-row { grid-template-columns: 1fr; }
   /* Authored block widths relax to full on a phone (a 33%-wide figure in a
    ~360px viewport is unusable) — paper and the foldable keep them. */
   .block-sized { width: 100%; }
   /* Stacked: the between-cell rule flips from a left border to a top border so
    the grid still reads as separated regions when columns sit on top of
    each other. */
-  .block-columns[data-grid-lines="true"] > .column-cell {
+  .block-row[data-grid-lines="true"] > .column-cell {
     border-left: none;
     border-top: 1px solid #94a3b8;
   }
-  .block-columns[data-grid-lines="true"] > .column-cell:first-child {
+  .block-row[data-grid-lines="true"] > .column-cell:first-child {
     border-top: none;
   }
 }

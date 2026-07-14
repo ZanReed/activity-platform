@@ -24,22 +24,24 @@ const CTX: RenderContext = {
 };
 
 const SECTION_ID = '22222222-2222-4222-8222-222222222222';
+const ROW_ID = '55555555-5555-4555-8555-555555555555';
+const COL_ID = '66666666-6666-4666-8666-666666666666';
 
 /** A plain single-paragraph activity — no graph anywhere. */
 function makePlainDoc(): ActivityDocument {
   return ActivityDocument.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     meta: { title: 'Plain' },
     sections: [
       {
         id: SECTION_ID,
-        blocks: [
+        rows: [{ id: ROW_ID, columns: [{ id: COL_ID, blocks: [
           {
             id: '33333333-3333-4333-8333-333333333333',
             type: 'paragraph',
             content: [{ type: 'text', text: 'Hello.' }],
           },
-        ],
+        ] }] }],
       },
     ],
   });
@@ -48,12 +50,12 @@ function makePlainDoc(): ActivityDocument {
 /** An activity with one graded interactive_graph block. */
 function makeGraphDoc(): ActivityDocument {
   return ActivityDocument.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     meta: { title: 'Graphing' },
     sections: [
       {
         id: SECTION_ID,
-        blocks: [
+        rows: [{ id: ROW_ID, columns: [{ id: COL_ID, blocks: [
           {
             id: '44444444-4444-4444-8444-444444444444',
             type: 'interactive_graph',
@@ -61,7 +63,7 @@ function makeGraphDoc(): ActivityDocument {
             axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
             interaction: { type: 'plot_point', correctPoints: [[1, 1]] },
           },
-        ],
+        ] }] }],
       },
     ],
   });
@@ -70,18 +72,18 @@ function makeGraphDoc(): ActivityDocument {
 // An essay page — carries a gradable free-text block (needs the feedback sidecar).
 function makeEssayDoc(): ActivityDocument {
   return ActivityDocument.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     meta: { title: 'Essay' },
     sections: [
       {
         id: SECTION_ID,
-        blocks: [
+        rows: [{ id: ROW_ID, columns: [{ id: COL_ID, blocks: [
           {
             id: '44444444-4444-4444-8444-444444444444',
             type: 'essay',
             prompt: [{ type: 'text', text: 'Discuss.' }],
           },
-        ],
+        ] }] }],
       },
     ],
   });

@@ -28,18 +28,20 @@ const FIB_PLAIN_ID = '55555555-5555-4555-8555-555555555555';
 const FIB_CONF_ID = '66666666-6666-4666-8666-666666666666';
 const FIB_BLANK_ID = '77777777-7777-4777-8777-777777777777';
 const BLANK_ID = '88888888-8888-4888-8888-888888888888';
+const ROW_ID = '99999999-9999-4999-8999-999999999999';
+const COL_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 // A document with one fill-in-blank carrying a single blank whose canonical
 // answer is "49" and one acceptable alternate ("forty-nine"), for asserting
 // the answer-key (showAnswers) variant.
 function makeBlankDoc(): ActivityDocument {
     return ActivityDocument.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         meta: { title: 'Squares' },
         sections: [
             {
                 id: SECTION_ID,
-                blocks: [
+                rows: [{ id: ROW_ID, columns: [{ id: COL_ID, blocks: [
                     {
                         id: FIB_BLANK_ID,
                         type: 'fill_in_blank',
@@ -53,7 +55,7 @@ function makeBlankDoc(): ActivityDocument {
                             },
                         ],
                     },
-                ],
+                ] }] }],
             },
         ],
     });
@@ -63,12 +65,12 @@ function makeBlankDoc(): ActivityDocument {
 // plain one (FIB_PLAIN_ID), for asserting the print-only confidence row.
 function makeConfidenceDoc(): ActivityDocument {
     return ActivityDocument.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         meta: { title: 'Radicals' },
         sections: [
             {
                 id: SECTION_ID,
-                blocks: [
+                rows: [{ id: ROW_ID, columns: [{ id: COL_ID, blocks: [
                     {
                         id: FIB_CONF_ID,
                         type: 'fill_in_blank',
@@ -76,7 +78,7 @@ function makeConfidenceDoc(): ActivityDocument {
                         hasConfidenceRating: true,
                     },
                     { id: FIB_PLAIN_ID, type: 'fill_in_blank', content: [] },
-                ],
+                ] }] }],
             },
         ],
     });
@@ -87,16 +89,16 @@ function makeConfidenceDoc(): ActivityDocument {
 // is merged into meta so individual tests can configure the print layer.
 function makeDoc(printMeta: Record<string, unknown> = {}): ActivityDocument {
     return ActivityDocument.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         meta: { title: 'Radicals', print: printMeta },
         sections: [
             {
                 id: SECTION_ID,
-                blocks: [
+                rows: [{ id: ROW_ID, columns: [{ id: COL_ID, blocks: [
                     { id: PARA_ID, type: 'paragraph', content: [{ type: 'text', text: 'BODYMARKER' }] },
                     { id: FIB_WORK_ID, type: 'fill_in_blank', content: [], workSpace: 3 },
                     { id: FIB_PLAIN_ID, type: 'fill_in_blank', content: [] },
-                ],
+                ] }] }],
             },
         ],
     });

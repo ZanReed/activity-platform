@@ -18,7 +18,7 @@ const ctx: RenderContext = {
 function docWith(graph: InteractiveGraphBlock): ActivityDocument {
   const doc = createEmptyDocument({ title: 'Graphing' });
   const section = createSection('Plot it');
-  section.blocks = [graph];
+  section.rows[0]!.columns[0]!.blocks = [graph];
   doc.sections = [section];
   return doc;
 }

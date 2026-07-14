@@ -25,6 +25,7 @@ import type {
   CalculatorTool,
 } from '@activity/schema';
 import { renderBlock } from './blocks/index.js';
+import { renderRow } from './row.js';
 import { attr, escape } from './html.js';
 
 // Local mirror of the schema enum — keeps the renderer free of a non-type
@@ -208,12 +209,12 @@ function renderSection(section: Section, ctx: SectionRenderContext): string {
   ? '<h2 class="section-title">' + escape(section.title) + '</h2>'
   : '';
 
-  const blocksHtml = section.blocks.map((block) => {
-    // renderBlock pulls auto-numbers from the shared sequence itself (once per
+  const blocksHtml = section.rows.map((row) => {
+    // renderRow pulls auto-numbers from the shared sequence itself (once per
     // numbered block, in render order) — including problems nested inside a
-    // columns container, which draw from the same closure for column-major
-    // numbering. Non-numbered blocks simply don't pull.
-    return renderBlock(block, {
+    // multi-column row, which draw from the same closure for column-major
+    // numbering. A 1-column row renders its block stack flat (no grid wrapper).
+    return renderRow(row, {
       nextProblemNumber: ctx.nextProblemNumber,
       showAnswers: ctx.showAnswers,
       gridLinesDefault: ctx.gridLinesDefault,

@@ -62,7 +62,6 @@ const CONTAINER = new Set<string>([
   'problem',
   'bullet_list',
   'ordered_list',
-  'columns',
   'learning_objectives',
   'worked_example',
   // Scaffold shell whose scoring rides its child fill_in_blank blanks — the

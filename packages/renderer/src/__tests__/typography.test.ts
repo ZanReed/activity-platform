@@ -28,10 +28,12 @@ const CTX: RenderContext = {
 
 const SECTION_ID = '22222222-2222-4222-8222-222222222222';
 const PARA_ID = '33333333-3333-4333-8333-333333333333';
+const ROW_ID = '44444444-4444-4444-8444-444444444444';
+const COL_ID = '55555555-5555-4555-8555-555555555555';
 
 function makeDoc(typography?: Record<string, unknown>): ActivityDocument {
   return ActivityDocument.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     meta: {
       title: 'Radicals',
       ...(typography ? { typography } : {}),
@@ -39,13 +41,13 @@ function makeDoc(typography?: Record<string, unknown>): ActivityDocument {
     sections: [
       {
         id: SECTION_ID,
-        blocks: [
+        rows: [{ id: ROW_ID, columns: [{ id: COL_ID, blocks: [
           {
             id: PARA_ID,
             type: 'paragraph',
             content: [{ type: 'text', text: 'BODYMARKER' }],
           },
-        ],
+        ] }] }],
       },
     ],
   });

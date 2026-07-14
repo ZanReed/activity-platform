@@ -16,7 +16,6 @@ import { renderCallout } from './callout.js';
 import { renderProblem } from './problem.js';
 import { renderFillInBlank } from './fill-in-blank.js';
 import { renderBulletList, renderOrderedList } from './lists.js';
-import { renderColumns } from './columns.js';
 import { renderInteractiveGraph } from './interactive-graph.js';
 import { renderMultipleChoice } from './multiple-choice.js';
 import { renderMatching } from './matching.js';
@@ -33,7 +32,7 @@ export interface BlockRenderContext {
   /**
    * Pull the next auto-number from the document-wide problem sequence. Called
    * once per numbered block (problem / fill_in_blank), in render order. A
-   * closure (not a static number) so a columns container can draw numbers for
+   * closure (not a static number) so a multi-column row can draw numbers for
    * the problems nested in its cells from the same shared sequence — yielding
    * column-major numbering (column 1 top-to-bottom, then column 2, …).
    */
@@ -41,9 +40,9 @@ export interface BlockRenderContext {
   /** Answer-key print variant: prefill each blank with its answer (Drop C). */
   showAnswers?: boolean;
   /**
-   * Activity-wide default for ruled columns grids (meta.print.gridLines). A
-   * ColumnsBlock with gridLines:'inherit' resolves to this; an explicit
-   * 'on'/'off' on the block overrides it. Defaults to false when absent.
+   * Activity-wide default for ruled row grids (meta.print.gridLines). A Row
+   * with gridLines:'inherit' resolves to this; an explicit 'on'/'off' on the
+   * row overrides it. Defaults to false when absent.
    */
   gridLinesDefault?: boolean;
   /**
@@ -78,8 +77,6 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
       return renderBulletList(block);
     case 'ordered_list':
       return renderOrderedList(block);
-    case 'columns':
-      return renderColumns(block, ctx);
     case 'interactive_graph':
       // Display (static) graphs are ungraded content — they don't pull from the
       // problem sequence. Only graded interactions consume a number.

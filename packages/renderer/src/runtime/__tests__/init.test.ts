@@ -188,6 +188,33 @@ describe('buildRefs — fill-in-blank blocks', () => {
         expect(block?.sectionId).toBe('sec-1');
     });
 
+    // Reshape pin (rows-of-columns): a fill_in_blank nested inside a
+    // multi-column row's cell must still be discovered. buildRefs walks the
+    // section with a depth-agnostic querySelectorAll, so the extra
+    // .block-row > .column-cell wrappers don't hide it — scoring keeps working
+    // for blanks placed inside a columned layout.
+    it('discovers a fill_in_blank nested inside a row cell', () => {
+        setupDOM(
+            configScript() +
+            '<section class="activity-section" data-section-id="sec-1">' +
+            '<div class="block block-row" data-block-category="layout"' +
+            ' data-block-type="row" data-block-id="row-1"' +
+            ' style="--columns-template:1fr 1fr">' +
+            '<div class="column-cell"></div>' +
+            '<div class="column-cell">' +
+            '<div class="block block-fill-in-blank"' +
+            ' data-block-category="question"' +
+            ' data-block-type="fill_in_blank"' +
+            ' data-block-id="nested-blank">' +
+            '<div class="block-problem-body"></div>' +
+            '</div></div></div></section>',
+        );
+        const refs = buildRefs();
+        const block = refs.fillInBlanks.get('nested-blank');
+        expect(block).toBeDefined();
+        expect(block?.sectionId).toBe('sec-1');
+    });
+
     it('leaves solution/confidence fields at defaults when attributes are absent', () => {
         setupDOM(
             configScript() +

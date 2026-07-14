@@ -5,16 +5,24 @@
 import { describe, it, expect } from 'vitest';
 import {
   createEmptyDocument,
-  createColumnsBlock,
+  createRow,
   createImageBlock,
   createMathBlock,
   type ActivityDocument,
+  type Block,
+  type Row,
 } from '@activity/schema';
 import { renderBody } from '../src/index.js';
 
-function docWith(...blocks: ActivityDocument['sections'][number]['blocks']): ActivityDocument {
+function docWith(...blocks: Block[]): ActivityDocument {
   const doc = createEmptyDocument({ title: 'T' });
-  doc.sections[0]!.blocks = blocks;
+  doc.sections[0]!.rows[0]!.columns[0]!.blocks = blocks;
+  return doc;
+}
+
+function docWithRow(row: Row): ActivityDocument {
+  const doc = createEmptyDocument({ title: 'T' });
+  doc.sections[0]!.rows = [row];
   return doc;
 }
 
@@ -119,18 +127,18 @@ describe('sizing CSS (published stylesheet)', () => {
 
 describe('Column.minHeight (reserved work space)', () => {
   it('a floored cell carries --cell-min-height in rem', () => {
-    const cols = createColumnsBlock(2);
-    cols.columns[0]!.minHeight = 8;
-    const body = renderBody(docWith(cols));
+    const row = createRow(2);
+    row.columns[0]!.minHeight = 8;
+    const body = renderBody(docWithRow(row));
     expect(body).toContain('<div class="column-cell" style="--cell-min-height:8rem">');
     // The unfloored sibling stays style-free.
     expect(body).toContain('<div class="column-cell">');
   });
 
   it('keeps fractional rem values', () => {
-    const cols = createColumnsBlock(2);
-    cols.columns[1]!.minHeight = 2.5;
-    const body = renderBody(docWith(cols));
+    const row = createRow(2);
+    row.columns[1]!.minHeight = 2.5;
+    const body = renderBody(docWithRow(row));
     expect(body).toContain('--cell-min-height:2.5rem');
   });
 });
