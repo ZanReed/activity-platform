@@ -2199,8 +2199,8 @@ img.mc-block__figure-preview {
 }
 
 .worked-example-block {
-    border: 1px solid var(--ed-border); /* slate-200 */
-    border-top: 3px solid var(--ed-accent-alt); /* indigo-500 */
+    border: 1px solid var(--ed-accent-alt-ring); /* indigo-200 */
+    background-color: var(--ed-accent-alt-bg); /* indigo-50 */
 }
 
 /* Dashed frame mirrors the published faded example (do, not just study). */
@@ -2208,7 +2208,6 @@ img.mc-block__figure-preview {
     border: 1px dashed var(--ed-accent-alt); /* indigo-500 */
 }
 
-.worked-example-block.is-selected,
 .faded-example-block.is-selected {
     background-color: var(--ed-accent-bg); /* blue-50 */
     outline: 2px solid var(--ed-accent); /* blue-500 */
@@ -2217,6 +2216,7 @@ img.mc-block__figure-preview {
 /* Tinted block-type blocks keep their own wash when selected — only the blue
  * focus outline is added, so the block's identity colour doesn't flip to blue. */
 .learning-objectives-block.is-selected,
+.worked-example-block.is-selected,
 .self-explanation-block.is-selected,
 .free-response-block.is-selected {
     outline: 2px solid var(--ed-accent); /* blue-500 */

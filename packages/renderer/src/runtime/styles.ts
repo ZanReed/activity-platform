@@ -226,15 +226,15 @@ body {
 .block-learning-objectives__item { margin: 0.2rem 0; }
 
 /* Worked example — a boxed, fully-worked solution to study. A framed card so it
-   reads as "read this," distinct from a problem to attempt. Nested content
-   blocks render inside the body via the shared block dispatch. */
+   reads as "read this," distinct from a problem to attempt — a full accent
+   hairline + leading icon (matching learning objectives), not a top-stripe.
+   Nested content blocks render inside the body via the shared block dispatch. */
 .block-worked-example {
   margin: 1.25rem 0;
   padding: 0.85rem 1.1rem 0.95rem;
-  border: 1px solid var(--color-border);
-  border-top: 3px solid var(--color-accent);
+  border: 1px solid var(--color-accent);
   border-radius: 6px;
-  background: var(--color-bg);
+  background: var(--color-note-bg);
 }
 .block-worked-example__title {
   display: flex;
@@ -244,9 +244,9 @@ body {
   font-weight: 600;
   font-size: 0.95rem;
   letter-spacing: 0.01em;
-  color: var(--color-accent);
+  color: var(--color-text);
 }
-.block-worked-example__icon { font-size: 1rem; line-height: 1; }
+.block-worked-example__icon { font-size: 1rem; line-height: 1; color: var(--color-accent); }
 .block-worked-example__body > .block:first-child { margin-top: 0; }
 .block-worked-example__body > .block:last-child { margin-bottom: 0; }
 
