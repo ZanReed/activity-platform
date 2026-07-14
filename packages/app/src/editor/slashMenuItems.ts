@@ -211,6 +211,19 @@ export const slashMenuItems: SlashMenuItem[] = [
         },
     },
     {
+        title: 'Split into columns',
+        description: 'Move this block into the first of two side-by-side columns',
+        keywords: ['split', 'column', 'columns', 'wrap', 'side', 'beside', 'layout'],
+        group: 'Structure',
+        subgroup: 'Layout',
+        icon: Columns2,
+        referenceSafe: true,
+        topLevelOnly: true,
+        command: ({ editor, range }) => {
+            begin(editor, range).wrapInColumns(2).run();
+        },
+    },
+    {
         title: 'Learning objectives',
         description: 'A titled list of "students will be able to…" goals.',
         keywords: ['learning', 'objectives', 'goals', 'aims', 'outcomes', 'swbat', 'targets'],

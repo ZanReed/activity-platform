@@ -1,6 +1,7 @@
 import { Node, mergeAttributes, type Editor } from '@tiptap/core';
 import {
     NodeSelection,
+    TextSelection,
     Plugin,
     PluginKey,
     type EditorState,
@@ -37,6 +38,12 @@ declare module '@tiptap/core' {
         columns: {
             // count is clamped to 2–6; defaults to 2.
             insertColumns: (count?: number) => ReturnType;
+            // Split the current TOP-LEVEL block into a multi-column row: its
+            // content moves into the first column, the remaining columns start
+            // empty. count is clamped to 2–6; defaults to 2. No-op when the
+            // cursor isn't on a plain top-level block (e.g. already inside a
+            // row, or on a section break).
+            wrapInColumns: (count?: number) => ReturnType;
             // Cycle the selected columns block's grid-lines state
             // (inherit → on → off → inherit).
             cycleColumnsGridLines: () => ReturnType;
@@ -469,6 +476,70 @@ export const Columns = Node.create<ColumnsOptions>({
                         content: [{ type: 'paragraph' }],
                     })),
                 });
+            },
+
+            // Split the current TOP-LEVEL block into a multi-column row: its
+            // content moves into column 1, the remaining columns start empty,
+            // and the caret lands in the first empty column so the author can
+            // type straight away. Returns false (and is toolbar/slash-disabled
+            // via editor.can()) when the cursor isn't on a plain top-level block
+            // — already inside a row, a section break, or nested deeper.
+            wrapInColumns:
+            (count = 2) =>
+            ({ state, dispatch, tr }) => {
+                const n = Math.min(Math.max(Math.trunc(count), 2), 6);
+                const columnType = state.schema.nodes.column;
+                const rowType = state.schema.nodes.row;
+                if (!columnType || !rowType) return false;
+
+                // Resolve the single top-level block to wrap: a text cursor
+                // inside it (depth 1) or a NodeSelection on it (depth 0).
+                const sel = state.selection;
+                let from: number;
+                let to: number;
+                let block: ProseMirrorNode | null = null;
+                if (sel instanceof NodeSelection && sel.$from.depth === 0) {
+                    from = sel.from;
+                    to = sel.to;
+                    block = sel.node;
+                } else if (sel.$from.depth === 1) {
+                    from = sel.$from.before(1);
+                    to = sel.$from.after(1);
+                    block = sel.$from.node(1);
+                } else {
+                    return false;
+                }
+
+                // Never wrap a row (no nesting) or a section-break marker.
+                if (
+                    !block ||
+                    block.type.name === 'row' ||
+                    block.type.name === 'sectionBreak'
+                ) {
+                    return false;
+                }
+
+                if (dispatch) {
+                    const firstCol = columnType.create(null, block);
+                    const restCols = Array.from({ length: n - 1 }, () =>
+                        columnType.createAndFill(),
+                    );
+                    if (restCols.some((c) => c === null)) return false;
+                    const row = rowType.create({ id: crypto.randomUUID() }, [
+                        firstCol,
+                        ...(restCols as ProseMirrorNode[]),
+                    ]);
+                    tr.replaceRangeWith(from, to, row);
+                    // Caret into the first empty column (just past column 1).
+                    const posInSecondCol = from + 1 + firstCol.nodeSize + 1;
+                    tr.setSelection(
+                        TextSelection.near(
+                            tr.doc.resolve(Math.min(posInSecondCol, tr.doc.content.size)),
+                        ),
+                    );
+                    dispatch(tr.scrollIntoView());
+                }
+                return true;
             },
 
             // Cycle the selected columns block's grid-lines tri-state:
