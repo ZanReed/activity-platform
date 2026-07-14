@@ -1,9 +1,34 @@
 # Columns as the universal container — design
 
-**Status:** 🟢 **PLAN LOCKED via /plan-eng-review (2026-07-14).** Architecture, data model,
-and slice plan ratified; ready to implement. Migration subsystem CUT (no stored data to
-preserve — see §Migration). Outside-voice pass absorbed (8 editor/serialize hazards folded
-in as hard requirements). Review report at the bottom.
+**Status:** 🟢 **SLICES 1–3 SHIPPED + GREEN on branch `rows-refactor` (2026-07-15).** The
+schema reshape, renderer, and editor+serialize bridge are all committed and the whole
+monorepo is green (1736 tests); browser-verified on `/playground`. Remaining: merge to
+`main` + slice 5 deploy (author-run `publish-activity` redeploy), and slice 6 (the separate
+Notion-hybrid paradigm). Plan was locked via /plan-eng-review (2026-07-14). Migration
+subsystem CUT (no stored data). Review report at the bottom.
+
+## As-built amendment — the editor uses the "pragmatic bridge" (Option A, 2026-07-15)
+
+The plan below described a **strict** editor (`(sectionBreak | row)+`, blocks only in
+columns) with a large keymap/insertion rework. During slice 3 that was reconsidered and
+the author ruled the **pragmatic bridge** instead: the **stored schema is fully
+rows-of-columns either way**, but the *editor's ProseMirror tree* keeps its familiar block
+stream — single-column content is bare top-level blocks (native typing), and a `row` node
+(the renamed `columns` node, 2–6 cols) is used only for multi-column regions. `serialize`
+bridges: on save, consecutive bare blocks collapse into one 1-col Row; on load, a 1-col Row
+unwraps back to bare blocks. Consequences:
+
+- The 8 outside-voice editor hazards **largely evaporate** — single-column typing is native
+  ProseMirror (no isolating-row cross-row keymap, no merge-back data loss, no empty-state
+  backfill). They were artifacts of the *strict* model.
+- **Slice 4 collapses.** add/remove-column, width presets, grid lines, cell-height already
+  work (they're the existing columns commands on the renamed node). "Split-into-columns /
+  escape-the-row / non-destructive merge-back" were strict-model concerns and are moot; a
+  "wrap selected blocks into columns" gesture remains an optional nice-to-have.
+- The strict "everything visibly in a grid" editor is **slice 6** (Notion-hybrid), where it
+  is the actual deliverable — not built twice.
+
+Everything below is the original locked plan; read §Editor / §Slices through this amendment.
 
 Supersedes the memory note `columns-as-universal-container-idea` and the STATE
 "Also-queued" stub.
