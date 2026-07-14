@@ -759,7 +759,7 @@ describe('data-plot fence (```dataplot)', () => {
         const doc = { type: 'doc', content: convert(md).blocks };
         const activity = tiptapToActivity(doc, META);
         const block = activity.sections
-            .flatMap((s) => s.blocks)
+            .flatMap((s) => s.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks)))
             .find((b) => b.type === 'data_plot')!;
         expect(() => DataPlotBlock.parse(block)).not.toThrow();
         // And it re-emits unchanged — imported ≡ authored.
@@ -853,7 +853,7 @@ describe('number-line fence (```numberline)', () => {
         const doc = { type: 'doc', content: convert(md).blocks };
         const activity = tiptapToActivity(doc, META);
         const block = activity.sections
-            .flatMap((s) => s.blocks)
+            .flatMap((s) => s.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks)))
             .find((b) => b.type === 'number_line')!;
         expect(() => NumberLineBlock.parse(block)).not.toThrow();
         expect(roundTrip(md)).toEqual(blocks(md));

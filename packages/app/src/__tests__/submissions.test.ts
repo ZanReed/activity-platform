@@ -12,6 +12,46 @@ import {
 const U = (n: number): string =>
     `00000000-0000-4000-8000-${n.toString().padStart(12, '0')}`;
 
+// Bridge helper: the fixtures below are written with the familiar section.blocks
+// shape; this wraps them into the rows-of-columns schema (mirroring serialize's
+// save bridge) so buildActivityIndex sees valid v2 docs. A run of bare blocks
+// becomes one full-width 1-col row; an authored `columns` block becomes a
+// multi-column row. schemaVersion is forced to 2.
+function parseDoc(raw: Record<string, unknown>): ActivityDocument {
+    const rawSections = (raw.sections ?? []) as Array<Record<string, unknown>>;
+    const sections = rawSections.map((s) => {
+        const { blocks, ...rest } = s as {
+            blocks?: Array<Record<string, unknown>>;
+        };
+        const rows: Array<Record<string, unknown>> = [];
+        let pending: Array<Record<string, unknown>> = [];
+        const flush = (): void => {
+            if (pending.length === 0) return;
+            rows.push({
+                id: crypto.randomUUID(),
+                gridLines: 'inherit',
+                columns: [{ id: crypto.randomUUID(), blocks: pending }],
+            });
+            pending = [];
+        };
+        for (const b of blocks ?? []) {
+            if (b.type === 'columns') {
+                flush();
+                rows.push({
+                    id: (b.id as string | undefined) ?? crypto.randomUUID(),
+                    gridLines: (b.gridLines as string | undefined) ?? 'inherit',
+                    columns: b.columns,
+                });
+            } else {
+                pending.push(b);
+            }
+        }
+        flush();
+        return { ...rest, rows };
+    });
+    return ActivityDocument.parse({ ...raw, schemaVersion: 2, sections });
+}
+
 function row(partial: Partial<SubmissionRow>): SubmissionRow {
     return {
         id: partial.id ?? U(999),
@@ -135,7 +175,7 @@ describe('groupSubmissions', () => {
 });
 
 describe('buildActivityIndex', () => {
-    const doc: ActivityDocument = ActivityDocument.parse({
+    const doc: ActivityDocument = parseDoc({
         schemaVersion: 1,
         meta: {
             title: 'Test',
@@ -206,7 +246,7 @@ describe('buildActivityIndex', () => {
     });
 
     it('attaches the group answer set to order-independent blanks', () => {
-        const grouped: ActivityDocument = ActivityDocument.parse({
+        const grouped: ActivityDocument = parseDoc({
             schemaVersion: 1,
             meta: {
                 title: 'Grouped',
@@ -269,7 +309,7 @@ describe('buildActivityIndex', () => {
     });
 
     it('indexes an interactive_graph block with prompt + answer key', () => {
-        const graphDoc: ActivityDocument = ActivityDocument.parse({
+        const graphDoc: ActivityDocument = parseDoc({
             schemaVersion: 1,
             meta: {
                 title: 'Graphing',
@@ -321,7 +361,7 @@ describe('buildActivityIndex', () => {
             revisionMode: 'free' as const, gradingMode: 'auto' as const,
             activityType: 'worksheet' as const, answerFeedback: 'on_check' as const, skills: [],
         };
-        const nlDoc: ActivityDocument = ActivityDocument.parse({
+        const nlDoc: ActivityDocument = parseDoc({
             schemaVersion: 1,
             meta,
             sections: [
@@ -388,7 +428,7 @@ describe('buildActivityIndex', () => {
             revisionMode: 'free' as const, gradingMode: 'auto' as const,
             activityType: 'worksheet' as const, answerFeedback: 'on_check' as const, skills: [],
         };
-        const dpDoc: ActivityDocument = ActivityDocument.parse({
+        const dpDoc: ActivityDocument = parseDoc({
             schemaVersion: 1,
             meta,
             sections: [
@@ -436,7 +476,7 @@ describe('buildActivityIndex', () => {
             revisionMode: 'free' as const, gradingMode: 'auto' as const,
             activityType: 'worksheet' as const, answerFeedback: 'on_check' as const, skills: [],
         };
-        const doc: ActivityDocument = ActivityDocument.parse({
+        const doc: ActivityDocument = parseDoc({
             schemaVersion: 1,
             meta,
             sections: [
@@ -470,7 +510,7 @@ describe('buildActivityIndex', () => {
     });
 
     it('indexes a multiple_choice block with lettered choices + answer summary', () => {
-        const mcDoc: ActivityDocument = ActivityDocument.parse({
+        const mcDoc: ActivityDocument = parseDoc({
             schemaVersion: 1,
             meta: {
                 title: 'MC', course: 'Algebra I', submissionMode: 'free',
@@ -521,7 +561,7 @@ describe('buildActivityIndex', () => {
     });
 
     it('recurses into columns — nested blank, graph, and MC blocks all index', () => {
-        const columnsDoc: ActivityDocument = ActivityDocument.parse({
+        const columnsDoc: ActivityDocument = parseDoc({
             schemaVersion: 1,
             meta: {
                 title: 'Two-up', course: 'Algebra I', submissionMode: 'free',
@@ -608,7 +648,7 @@ describe('buildActivityIndex', () => {
     });
 
     it('summarizes a plot_function (linear) answer as an equation', () => {
-        const funcDoc: ActivityDocument = ActivityDocument.parse({
+        const funcDoc: ActivityDocument = parseDoc({
             schemaVersion: 1,
             meta: {
                 title: 'Lines', course: 'Algebra I', submissionMode: 'free',
@@ -641,7 +681,7 @@ describe('buildActivityIndex', () => {
     });
 
     it('summarizes non-linear plot_function families and carries the family', () => {
-        const quadDoc: ActivityDocument = ActivityDocument.parse({
+        const quadDoc: ActivityDocument = parseDoc({
             schemaVersion: 1,
             meta: {
                 title: 'Parabolas', course: 'Algebra I', submissionMode: 'free',
@@ -671,7 +711,7 @@ describe('buildActivityIndex', () => {
     });
 
     it('does not index a display (static) graph — it is ungraded', () => {
-        const displayDoc: ActivityDocument = ActivityDocument.parse({
+        const displayDoc: ActivityDocument = parseDoc({
             schemaVersion: 1,
             meta: {
                 title: 'Figures', course: 'Algebra I', submissionMode: 'free',

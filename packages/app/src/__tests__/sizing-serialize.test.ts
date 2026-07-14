@@ -18,7 +18,7 @@ function doc(...content: JSONContent[]): JSONContent {
 }
 
 function firstBlock(input: JSONContent) {
-    return tiptapToActivity(input, META).sections[0]!.blocks[0]!;
+    return tiptapToActivity(input, META).sections[0]!.rows[0]!.columns[0]!.blocks[0]!;
 }
 
 describe('tiptapToActivity — sizing attrs', () => {
@@ -67,23 +67,24 @@ describe('tiptapToActivity — sizing attrs', () => {
     });
 
     it('carries a positive minHeight on a column and drops non-positive ones', () => {
-        const columns = (minHeight: unknown) =>
+        const rowWith = (minHeight: unknown) =>
             doc({
-                type: 'columns',
+                type: 'row',
                 attrs: { gridLines: 'inherit' },
                 content: [
                     { type: 'column', attrs: { minHeight }, content: [{ type: 'paragraph' }] },
                     { type: 'column', attrs: {}, content: [{ type: 'paragraph' }] },
                 ],
             });
+        // A multi-column row becomes a schema Row at section.rows[0].
+        const firstRow = (input: JSONContent) =>
+            tiptapToActivity(input, META).sections[0]!.rows[0]!;
 
-        const ok = firstBlock(columns(8));
-        if (ok.type !== 'columns') throw new Error('expected columns');
+        const ok = firstRow(rowWith(8));
         expect(ok.columns[0]!.minHeight).toBe(8);
         expect('minHeight' in ok.columns[1]!).toBe(false);
 
-        const bad = firstBlock(columns(0));
-        if (bad.type !== 'columns') throw new Error('expected columns');
+        const bad = firstRow(rowWith(0));
         expect('minHeight' in bad.columns[0]!).toBe(false);
     });
 });
@@ -111,7 +112,7 @@ describe('round-trips (Tiptap side, strict deep-equal)', () => {
         // fresh, so assert on the column attrs rather than strict deep-equal.
         const out = roundTrip(
             doc({
-                type: 'columns',
+                type: 'row',
                 attrs: { gridLines: 'inherit' },
                 content: [
                     {
@@ -140,7 +141,7 @@ describe('round-trips (Tiptap side, strict deep-equal)', () => {
                     attrs: { src: 'https://example.com/a.png', alt: '', height },
                 }),
                 META,
-            ).sections[0]!.blocks[0]!;
+            ).sections[0]!.rows[0]!.columns[0]!.blocks[0]!;
 
         expect(make(12)).toMatchObject({ type: 'image', height: 12 });
         expect('height' in make(0)).toBe(false);

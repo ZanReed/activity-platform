@@ -250,7 +250,7 @@ function findColumnsTarget(state: EditorState): ColumnsTarget | null {
     const { selection } = state;
     if (
         selection instanceof NodeSelection &&
-        selection.node.type.name === 'columns'
+        selection.node.type.name === 'row'
     ) {
         const columnsNode = selection.node;
         // Position just before the columns node's closing token = end of its
@@ -270,7 +270,7 @@ function findColumnsTarget(state: EditorState): ColumnsTarget | null {
     // `column{2,6}`), so the active cell is at depth d+1.
     const { $from } = selection;
     for (let d = $from.depth; d > 0; d--) {
-        if ($from.node(d).type.name === 'columns') {
+        if ($from.node(d).type.name === 'row') {
             const targetStart = $from.before(d + 1);
             const targetEnd = $from.after(d + 1);
             return {
@@ -346,8 +346,8 @@ function buildColumnsGrip(
         // take its `before` position (robust to position shifts).
         const $pos = view.state.doc.resolve(widgetPos);
         let depth = $pos.depth;
-        while (depth > 0 && $pos.node(depth).type.name !== 'columns') depth -= 1;
-        if ($pos.node(depth)?.type.name !== 'columns') return;
+        while (depth > 0 && $pos.node(depth).type.name !== 'row') depth -= 1;
+        if ($pos.node(depth)?.type.name !== 'row') return;
         const columnsPos = depth === 0 ? widgetPos : $pos.before(depth);
         const selection = NodeSelection.create(view.state.doc, columnsPos);
         const slice = view.state.doc.slice(selection.from, selection.to);
@@ -370,7 +370,7 @@ function buildColumnsGrip(
 function columnsGripDecorations(state: EditorState): DecorationSet {
     const decorations: Decoration[] = [];
     state.doc.descendants((node, pos) => {
-        if (node.type.name !== 'columns') return true;
+        if (node.type.name !== 'row') return true;
         // Place the widget just inside the columns node (its first child slot),
         // so getPos() resolves inside the node. CSS pins it to the corner and
         // takes it out of flex flow, so it never disturbs the cells.
@@ -386,7 +386,7 @@ function columnsGripDecorations(state: EditorState): DecorationSet {
 }
 
 export const Columns = Node.create<ColumnsOptions>({
-    name: 'columns',
+    name: 'row',
     group: 'block',
     content: 'column{2,6}',
     draggable: true,

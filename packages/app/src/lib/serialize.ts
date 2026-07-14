@@ -50,9 +50,8 @@ import type {
     OrderedListBlock,
     ListItem,
     FillInBlankBlock,
-    ColumnsBlock,
+    Row,
     Column,
-    ColumnCellBlock,
     ImageBlock,
     MathBlock,
     InteractiveGraphBlock,
@@ -189,9 +188,9 @@ export function tiptapToActivity(
     }
 
     const doc: ActivityDocument = {
-        schemaVersion: 1,
+        schemaVersion: 2,
         meta,
-        sections: splitTiptapBlocksIntoSections(tiptap.content ?? []),
+        sections: splitTiptapRowsIntoSections(tiptap.content ?? []),
     };
     // The reference panel is authored on its own surface (Drop C) and carried
     // as separate state, NOT encoded in the main editor's Tiptap doc — so it
@@ -209,25 +208,53 @@ export function tiptapToActivity(
     return doc;
 }
 
-function splitTiptapBlocksIntoSections(nodes: JSONContent[]): Section[] {
+// Bridge the editor's tree to the rows-of-columns schema. The editor keeps a
+// familiar block STREAM: sectionBreak nodes slice it into Sections, a `row` node
+// is an authored multi-column region, and every other top-level node is a bare
+// block (single-column flow). On save we normalize to the clean schema:
+// consecutive bare blocks collapse into ONE full-width 1-column Row; a `row`
+// node becomes a multi-column Row. (Row/Column construction lives HERE, at the
+// section-body level only — never in the shared block converters, which also
+// serve worked-example / faded / reference-panel children that are block+, not
+// rows.) activityToTiptap does the inverse: a 1-col Row unwraps back to bare
+// blocks, a multi-col Row emits a `row` node — so the round-trip is lossless.
+function splitTiptapRowsIntoSections(nodes: JSONContent[]): Section[] {
     const sections: Section[] = [];
     const startsWithBreak = nodes[0]?.type === 'sectionBreak';
 
     let current: Section = startsWithBreak
     ? sectionFromBreak(nodes[0]!)
-    : { id: crypto.randomUUID(), isCheckpoint: false, blocks: [] };
+    : { id: crypto.randomUUID(), isCheckpoint: false, rows: [] };
+
+    // Bare top-level blocks accumulate here until a `row` node or sectionBreak
+    // flushes them into a single full-width 1-column Row.
+    let pending: Block[] = [];
+    const flushPending = (): void => {
+        if (pending.length === 0) return;
+        current.rows.push({
+            id: crypto.randomUUID(),
+            gridLines: 'inherit',
+            columns: [{ id: crypto.randomUUID(), blocks: pending }],
+        });
+        pending = [];
+    };
 
     for (let i = startsWithBreak ? 1 : 0; i < nodes.length; i++) {
         const node = nodes[i]!;
         if (node.type === 'sectionBreak') {
+            flushPending();
             sections.push(current);
             current = sectionFromBreak(node);
+        } else if (node.type === 'row') {
+            flushPending();
+            current.rows.push(tiptapRowToActivity(node));
         } else {
             const block = tiptapBlockToActivity(node);
-            if (block) current.blocks.push(block);
+            if (block) pending.push(block);
         }
     }
 
+    flushPending();
     sections.push(current);
     return sections;
 }
@@ -237,7 +264,7 @@ function sectionFromBreak(node: JSONContent): Section {
     const section: Section = {
         id: crypto.randomUUID(),
         isCheckpoint: Boolean(node.attrs?.isCheckpoint),
-        blocks: [],
+        rows: [],
     };
     if (typeof rawTitle === 'string' && rawTitle.length > 0) {
         section.title = rawTitle;
@@ -295,9 +322,6 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
             return tiptapOrderingToActivity(node);
         case 'fillInBlank':
             return tiptapFillInBlankToActivity(node);
-
-        case 'columns':
-            return tiptapColumnsToActivity(node);
 
         case 'learningObjectives':
             return tiptapLearningObjectivesToActivity(node);
@@ -520,7 +544,7 @@ function applySizingAttrs(
     }
 }
 
-function tiptapColumnsToActivity(node: JSONContent): ColumnsBlock {
+function tiptapRowToActivity(node: JSONContent): Row {
     // Tri-state grid-lines override. The editor stores 'inherit' | 'on' | 'off'
     // in attrs.gridLines; anything unexpected (or absent) falls back to
     // 'inherit' so a malformed attr can't widen the schema enum.
@@ -528,28 +552,32 @@ function tiptapColumnsToActivity(node: JSONContent): ColumnsBlock {
     const gridLines =
         rawGridLines === 'on' || rawGridLines === 'off' ? rawGridLines : 'inherit';
 
-    return {
-        id: crypto.randomUUID(),
-        type: 'columns',
-        gridLines,
-        columns: (node.content ?? [])
+    const columns = (node.content ?? [])
         .filter((c) => c.type === 'column')
-        .map(tiptapColumnToActivity),
-    };
+        .map(tiptapColumnToActivity)
+        // A column must hold at least one block (block+). Drop any that ended up
+        // empty (every child unmappable) so the row still validates; if every
+        // column dropped, seed one so Row.columns.min(1) holds.
+        .filter((col) => col.blocks.length > 0);
+    if (columns.length === 0) {
+        columns.push({
+            id: crypto.randomUUID(),
+            blocks: [{ id: crypto.randomUUID(), type: 'paragraph', content: [] }],
+        });
+    }
+
+    return { id: crypto.randomUUID(), gridLines, columns };
 }
 
 function tiptapColumnToActivity(node: JSONContent): Column {
     const column: Column = {
         id: crypto.randomUUID(),
-        // The editor's `column` content expression forbids nested `columns`,
-        // so tiptapBlockToActivity never yields a ColumnsBlock here. The
-        // type !== 'columns' guard makes that invariant explicit and narrows
-        // Block down to ColumnCellBlock for the schema's Column.blocks field.
+        // Row/Column are not members of the Block union, so tiptapBlockToActivity
+        // (which only knows leaf blocks) can never yield one here — the "columns
+        // don't nest" invariant is now structural, not a filtered exclusion.
         blocks: (node.content ?? [])
         .map(tiptapBlockToActivity)
-        .filter(
-            (b): b is ColumnCellBlock => b !== null && b.type !== 'columns',
-        ),
+        .filter((b): b is Block => b !== null),
     };
 
     const rawWidth = node.attrs?.width;
@@ -1129,9 +1157,19 @@ function emitSectionsAsTiptapBlocks(sections: Section[]): JSONContent[] {
         if (!isFirst || hasMetadata) {
             out.push(sectionBreakNode(section));
         }
-        for (const block of section.blocks) {
-            const node = activityBlockToTiptap(block);
-            if (node) out.push(node);
+        for (const row of section.rows) {
+            // A full-width 1-column Row unwraps back to a bare block stream (the
+            // editor's single-column flow); a multi-column Row becomes a `row`
+            // node. The editor's `row` node is 2..6 columns, so a 1-col row has
+            // no editor representation other than its bare blocks.
+            if (row.columns.length === 1) {
+                for (const block of row.columns[0]!.blocks) {
+                    const node = activityBlockToTiptap(block);
+                    if (node) out.push(node);
+                }
+            } else {
+                out.push(activityRowToTiptap(row));
+            }
         }
     });
 
@@ -1177,9 +1215,6 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
 
         case 'fill_in_blank':
             return activityFillInBlankToTiptap(block);
-
-        case 'columns':
-            return activityColumnsToTiptap(block);
 
         case 'learning_objectives':
             return activityLearningObjectivesToTiptap(block);
@@ -1323,14 +1358,14 @@ function activityFadedWorkedExampleToTiptap(
     };
 }
 
-function activityColumnsToTiptap(block: ColumnsBlock): JSONContent {
+function activityRowToTiptap(row: Row): JSONContent {
     return {
-        type: 'columns',
+        type: 'row',
         // gridLines always carries through (the schema defaults it to 'inherit',
         // so it's never undefined) — the editor's gridLines attr mirrors the
         // schema tri-state 1:1.
-        attrs: { id: block.id, gridLines: block.gridLines },
-        content: block.columns.map(activityColumnToTiptap),
+        attrs: { id: row.id, gridLines: row.gridLines },
+        content: row.columns.map(activityColumnToTiptap),
     };
 }
 

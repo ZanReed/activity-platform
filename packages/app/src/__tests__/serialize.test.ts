@@ -13,6 +13,8 @@ import {
     ActivityDocument,
     ActivityMeta,
     ReferencePanel,
+    type Block,
+    type Section,
     type CalculatorTool,
 } from '@activity/schema';
 import {
@@ -26,6 +28,14 @@ const META = ActivityMeta.parse({
     title: 'Test Activity',
     course: 'Algebra II',
 });
+
+// A section's blocks flattened across its rows/columns. Single-column content
+// lives in one 1-col row (the Option-A bridge), so for the many single-column
+// assertions this reads exactly like the old `section.blocks`. Empty sections
+// (no rows) flatten to [].
+function flatBlocks(section: Section): Block[] {
+    return section.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks));
+}
 
 // Round-trip from the Tiptap side.
 function roundTrip(input: JSONContent): JSONContent {
@@ -168,7 +178,7 @@ describe('interactive graph block', () => {
         const activity = tiptapToActivity(doc, META);
         const parsed = ActivityDocument.safeParse(activity);
         expect(parsed.success).toBe(true);
-        const block = activity.sections[0]!.blocks.find(
+        const block = flatBlocks(activity.sections[0]!).find(
             (b) => b.type === 'interactive_graph',
         );
         expect(block).toBeDefined();
@@ -224,7 +234,7 @@ describe('interactive graph block', () => {
         };
         const activity = tiptapToActivity({ type: 'doc', content: [exemplar] }, META);
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
-        const block = activity.sections[0]!.blocks.find((b) => b.type === 'interactive_graph');
+        const block = flatBlocks(activity.sections[0]!).find((b) => b.type === 'interactive_graph');
         if (block && block.type === 'interactive_graph') {
             expect(block.interaction.type).toBe('display');
             expect(block.prompt).toEqual([]);
@@ -306,7 +316,7 @@ describe('number line block', () => {
 
     it('serializes to a schema-valid number_line block', () => {
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks.find(
+        const block = flatBlocks(activity.sections[0]!).find(
             (b) => b.type === 'number_line',
         );
         expect(block).toBeDefined();
@@ -368,7 +378,7 @@ describe('data plot block', () => {
 
     it('serializes to a schema-valid data_plot block', () => {
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks.find((b) => b.type === 'data_plot');
+        const block = flatBlocks(activity.sections[0]!).find((b) => b.type === 'data_plot');
         expect(block).toBeDefined();
         if (block && block.type === 'data_plot') {
             expect(block.interaction.type).toBe('build_dotplot');
@@ -719,7 +729,7 @@ describe('paragraphs', () => {
             ],
         };
         const result = tiptapToActivity(doc, META);
-        const block = result.sections[0]!.blocks[0]!;
+        const block = flatBlocks(result.sections[0]!)[0]!;
         if (block.type !== 'paragraph') throw new Error('expected paragraph');
         const text = block.content[0]!;
         if (text.type !== 'text') throw new Error('expected text node');
@@ -915,9 +925,9 @@ describe('graceful degradation', () => {
             ],
         };
         const result = tiptapToActivity(doc, META);
-        expect(result.sections[0]!.blocks).toHaveLength(2);
-        expect(result.sections[0]!.blocks[0]!.type).toBe('paragraph');
-        expect(result.sections[0]!.blocks[1]!.type).toBe('paragraph');
+        expect(flatBlocks(result.sections[0]!)).toHaveLength(2);
+        expect(flatBlocks(result.sections[0]!)[0]!.type).toBe('paragraph');
+        expect(flatBlocks(result.sections[0]!)[1]!.type).toBe('paragraph');
     });
 
     it('drops unsupported marks (e.g., strike) silently', () => {
@@ -937,7 +947,7 @@ describe('graceful degradation', () => {
             ],
         };
         const result = tiptapToActivity(doc, META);
-        const block = result.sections[0]!.blocks[0]!;
+        const block = flatBlocks(result.sections[0]!)[0]!;
         if (block.type !== 'paragraph') throw new Error('expected paragraph');
         const text = block.content[0]!;
         if (text.type !== 'text') throw new Error('expected text node');
@@ -1014,7 +1024,7 @@ describe('section breaks', () => {
         expect(result.sections).toHaveLength(1);
         expect(result.sections[0]!.title).toBe('Warm-up');
         expect(result.sections[0]!.isCheckpoint).toBe(true);
-        expect(result.sections[0]!.blocks).toHaveLength(1);
+        expect(flatBlocks(result.sections[0]!)).toHaveLength(1);
     });
 
     it('splits content at a mid-doc sectionBreak', () => {
@@ -1030,9 +1040,9 @@ describe('section breaks', () => {
         expect(result.sections).toHaveLength(2);
         expect(result.sections[0]!.title).toBeUndefined();
         expect(result.sections[0]!.isCheckpoint).toBe(false);
-        expect(result.sections[0]!.blocks).toHaveLength(1);
+        expect(flatBlocks(result.sections[0]!)).toHaveLength(1);
         expect(result.sections[1]!.title).toBe('Practice');
-        expect(result.sections[1]!.blocks).toHaveLength(1);
+        expect(flatBlocks(result.sections[1]!)).toHaveLength(1);
     });
 
     it('produces a trailing empty section for a trailing sectionBreak', () => {
@@ -1046,7 +1056,7 @@ describe('section breaks', () => {
         const result = tiptapToActivity(doc, META);
         expect(result.sections).toHaveLength(2);
         expect(result.sections[1]!.title).toBe('Last');
-        expect(result.sections[1]!.blocks).toHaveLength(0);
+        expect(flatBlocks(result.sections[1]!)).toHaveLength(0);
     });
 
     it('handles consecutive sectionBreaks — empty first, second carries the latter break', () => {
@@ -1061,10 +1071,10 @@ describe('section breaks', () => {
         const result = tiptapToActivity(doc, META);
         expect(result.sections).toHaveLength(2);
         expect(result.sections[0]!.title).toBe('A');
-        expect(result.sections[0]!.blocks).toHaveLength(0);
+        expect(flatBlocks(result.sections[0]!)).toHaveLength(0);
         expect(result.sections[1]!.title).toBe('B');
         expect(result.sections[1]!.isCheckpoint).toBe(true);
-        expect(result.sections[1]!.blocks).toHaveLength(1);
+        expect(flatBlocks(result.sections[1]!)).toHaveLength(1);
     });
 
     it('round-trip: doc without sectionBreaks (default first section)', () => {
@@ -1485,7 +1495,7 @@ describe('lists', () => {
                 ],
             };
             const activity = tiptapToActivity(doc, META);
-            const block = activity.sections[0]!.blocks[0]!;
+            const block = flatBlocks(activity.sections[0]!)[0]!;
             expect(block.type).toBe('multiple_choice');
             if (block.type === 'multiple_choice') {
                 expect(block.choices).toHaveLength(2);
@@ -1585,7 +1595,7 @@ describe('lists', () => {
                 ],
             };
             const activity = tiptapToActivity(doc, META);
-            const block = activity.sections[0]!.blocks[0]!;
+            const block = flatBlocks(activity.sections[0]!)[0]!;
             expect(block.type).toBe('matching');
             if (block.type === 'matching') {
                 expect(block.key).toEqual({ [i1]: t1 });
@@ -1728,7 +1738,7 @@ describe('lists', () => {
                 ],
             };
             const activity = tiptapToActivity(doc, META);
-            const block = activity.sections[0]!.blocks[0]!;
+            const block = flatBlocks(activity.sections[0]!)[0]!;
             expect(block.type).toBe('fill_in_blank');
             if (block.type !== 'fill_in_blank') throw new Error('unreachable');
             expect(block.solution).toEqual([
@@ -1759,7 +1769,7 @@ describe('lists', () => {
                 ],
             };
             const activity = tiptapToActivity(doc, META);
-            const block = activity.sections[0]!.blocks[0]!;
+            const block = flatBlocks(activity.sections[0]!)[0]!;
             if (block.type !== 'fill_in_blank') throw new Error('unreachable');
             expect(block.solution).toBeUndefined();
             expect(block.hasConfidenceRating).toBe(false);
@@ -1793,7 +1803,7 @@ describe('lists', () => {
                 ],
             };
             const activity = tiptapToActivity(doc, META);
-            const block = activity.sections[0]!.blocks[0]!;
+            const block = flatBlocks(activity.sections[0]!)[0]!;
             if (block.type !== 'fill_in_blank') throw new Error('unreachable');
             expect(block.workSpace).toBe(3);
 
@@ -1819,20 +1829,20 @@ describe('lists', () => {
                 ],
             };
             const activity = tiptapToActivity(doc, META);
-            const block = activity.sections[0]!.blocks[0]!;
+            const block = flatBlocks(activity.sections[0]!)[0]!;
             if (block.type !== 'fill_in_blank') throw new Error('unreachable');
             expect(block.workSpace).toBeUndefined();
         });
     });
 });
 
-describe('columns', () => {
+describe('rows (multi-column layout)', () => {
     it('round-trips a two-column block preserving cell content and order', () => {
         const doc: JSONContent = {
             type: 'doc',
             content: [
                 {
-                    type: 'columns',
+                    type: 'row',
                     attrs: { id: 'cols-1' },
                     content: [
                         {
@@ -1857,7 +1867,7 @@ describe('columns', () => {
         // convention), so assert on the content shape rather than the id.
         const result = roundTrip(doc);
         const cols = result.content?.[0] as JSONContent;
-        expect(cols.type).toBe('columns');
+        expect(cols.type).toBe('row');
         expect(cols.content).toEqual([
             {
                 type: 'column',
@@ -1881,7 +1891,7 @@ describe('columns', () => {
             type: 'doc',
             content: [
                 {
-                    type: 'columns',
+                    type: 'row',
                     attrs: { id: 'cols-1' },
                     content: [
                         {
@@ -1928,8 +1938,7 @@ describe('columns', () => {
         // union now admits interactive_graph).
         const activity = tiptapToActivity(doc, META);
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
-        const block = activity.sections[0]!.blocks[0]!;
-        if (block.type !== 'columns') throw new Error('unreachable');
+        const block = activity.sections[0]!.rows[0]!;
         expect(block.columns[0]!.blocks[0]!.type).toBe('interactive_graph');
     });
 
@@ -1938,7 +1947,7 @@ describe('columns', () => {
             type: 'doc',
             content: [
                 {
-                    type: 'columns',
+                    type: 'row',
                     attrs: { id: 'cols-1' },
                     content: [
                         {
@@ -1956,8 +1965,7 @@ describe('columns', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
-        if (block.type !== 'columns') throw new Error('unreachable');
+        const block = activity.sections[0]!.rows[0]!;
         expect(block.columns[0]!.width).toBe(2);
         expect(block.columns[1]!.width).toBeUndefined();
 
@@ -1980,7 +1988,7 @@ describe('columns', () => {
             type: 'doc',
             content: [
                 {
-                    type: 'columns',
+                    type: 'row',
                     attrs: { id: 'cols-1' },
                     content: [
                         { type: 'column', attrs: {}, content: [fib('a'), fib('b')] },
@@ -1990,8 +1998,7 @@ describe('columns', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
-        if (block.type !== 'columns') throw new Error('unreachable');
+        const block = activity.sections[0]!.rows[0]!;
         // Column-major cell order is structural here; the renderer assigns the
         // visible numbers by walking cells in array order (verified in the
         // renderer's columns.test.ts). This asserts the serialize layer keeps
@@ -2010,7 +2017,7 @@ describe('columns', () => {
             type: 'doc',
             content: [
                 {
-                    type: 'columns',
+                    type: 'row',
                     attrs: { id: 'cols-1' },
                     content: [
                         { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
@@ -2023,22 +2030,27 @@ describe('columns', () => {
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
     });
 
-    it('seeds an empty paragraph when a column would otherwise be empty', () => {
-        // A column whose only block is unmappable (e.g. a future/unsupported
-        // type) must still emit a valid `(...)+` cell in the editor direction.
+    it('emits a `row` node with one cell per column for a multi-column Row', () => {
+        // Load direction: a stored multi-column Row becomes a `row` node whose
+        // cells are `column` nodes, one per schema Column, content preserved.
         const activity = ActivityDocument.parse({
-            schemaVersion: 1,
+            schemaVersion: 2,
             meta: META,
             sections: [
                 {
                     id: crypto.randomUUID(),
                     isCheckpoint: false,
-                    blocks: [
+                    rows: [
                         {
                             id: crypto.randomUUID(),
-                            type: 'columns',
+                            gridLines: 'inherit',
                             columns: [
-                                { id: crypto.randomUUID(), blocks: [] },
+                                {
+                                    id: crypto.randomUUID(),
+                                    blocks: [
+                                        { id: crypto.randomUUID(), type: 'paragraph', content: [] },
+                                    ],
+                                },
                                 {
                                     id: crypto.randomUUID(),
                                     blocks: [
@@ -2056,9 +2068,11 @@ describe('columns', () => {
             ],
         });
         const tiptap = activityToTiptap(activity);
-        const cols = tiptap.content?.[0] as JSONContent;
-        const cells = cols.content as JSONContent[];
-        expect(cells[0]!.content).toEqual([{ type: 'paragraph' }]);
+        const row = tiptap.content?.[0] as JSONContent;
+        expect(row.type).toBe('row');
+        const cells = row.content as JSONContent[];
+        expect(cells).toHaveLength(2);
+        expect(cells[0]!.type).toBe('column');
     });
 
     it('round-trips an explicit gridLines override', () => {
@@ -2066,7 +2080,7 @@ describe('columns', () => {
             type: 'doc',
             content: [
                 {
-                    type: 'columns',
+                    type: 'row',
                     attrs: { id: 'cols-1', gridLines: 'on' },
                     content: [
                         { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
@@ -2076,8 +2090,7 @@ describe('columns', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
-        if (block.type !== 'columns') throw new Error('unreachable');
+        const block = activity.sections[0]!.rows[0]!;
         expect(block.gridLines).toBe('on');
 
         const back = roundTrip(doc);
@@ -2090,7 +2103,7 @@ describe('columns', () => {
             type: 'doc',
             content: [
                 {
-                    type: 'columns',
+                    type: 'row',
                     attrs: { id: 'cols-1' },
                     content: [
                         { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
@@ -2100,8 +2113,7 @@ describe('columns', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
-        if (block.type !== 'columns') throw new Error('unreachable');
+        const block = activity.sections[0]!.rows[0]!;
         expect(block.gridLines).toBe('inherit');
     });
 
@@ -2110,7 +2122,7 @@ describe('columns', () => {
             type: 'doc',
             content: [
                 {
-                    type: 'columns',
+                    type: 'row',
                     attrs: { id: 'cols-1', gridLines: 'bogus' },
                     content: [
                         { type: 'column', attrs: {}, content: [{ type: 'paragraph', content: [] }] },
@@ -2120,9 +2132,60 @@ describe('columns', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
-        if (block.type !== 'columns') throw new Error('unreachable');
+        const block = activity.sections[0]!.rows[0]!;
         expect(block.gridLines).toBe('inherit');
+    });
+});
+
+// Reshape pin (Option A pragmatic bridge): the editor keeps a bare block stream
+// for single-column content; serialize wraps it into a clean 1-col schema Row on
+// save and unwraps it back on load. Round-trip must be lossless.
+describe('rows-of-columns bridge (single-column ↔ bare blocks)', () => {
+    const paras = (...texts: string[]): JSONContent[] =>
+        texts.map((t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] }));
+
+    it('wraps consecutive bare top-level blocks into ONE full-width 1-col Row', () => {
+        const doc: JSONContent = { type: 'doc', content: paras('a', 'b', 'c') };
+        const activity = tiptapToActivity(doc, META);
+        const section = activity.sections[0]!;
+        expect(section.rows).toHaveLength(1);
+        expect(section.rows[0]!.columns).toHaveLength(1);
+        expect(section.rows[0]!.columns[0]!.blocks.map((b) => b.type)).toEqual([
+            'paragraph',
+            'paragraph',
+            'paragraph',
+        ]);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('unwraps a 1-col Row back to a bare block stream (no `row` node)', () => {
+        const activity = tiptapToActivity({ type: 'doc', content: paras('x', 'y') }, META);
+        const tiptap = activityToTiptap(activity);
+        expect(tiptap.content?.map((n) => n.type)).toEqual(['paragraph', 'paragraph']);
+    });
+
+    it('is lossless across a bare-blocks + multi-col-row round-trip', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                ...paras('intro'),
+                {
+                    type: 'row',
+                    attrs: { id: 'r1' },
+                    content: [
+                        { type: 'column', attrs: {}, content: paras('left') },
+                        { type: 'column', attrs: {}, content: paras('right') },
+                    ],
+                },
+                ...paras('outro'),
+            ],
+        };
+        const back = roundTrip(doc);
+        expect(back.content?.map((n) => n.type)).toEqual([
+            'paragraph', // intro (unwrapped 1-col row)
+            'row', // the authored multi-col region
+            'paragraph', // outro (unwrapped 1-col row)
+        ]);
     });
 });
 
@@ -2168,7 +2231,7 @@ describe('image', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         if (block.type !== 'image') throw new Error('unreachable');
         expect(block.caption).toBeUndefined();
 
@@ -2188,7 +2251,7 @@ describe('image', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const types = activity.sections[0]!.blocks.map((b) => b.type);
+        const types = flatBlocks(activity.sections[0]!).map((b) => b.type);
         expect(types).toEqual(['paragraph']);
     });
 
@@ -2216,7 +2279,7 @@ describe('image', () => {
             type: 'doc',
             content: [
                 {
-                    type: 'columns',
+                    type: 'row',
                     attrs: { id: 'cols-1' },
                     content: [
                         {
@@ -2246,8 +2309,7 @@ describe('image', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
-        if (block.type !== 'columns') throw new Error('unreachable');
+        const block = activity.sections[0]!.rows[0]!;
         expect(block.columns[0]!.blocks.map((b) => b.type)).toEqual(['image']);
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
     });
@@ -2301,7 +2363,7 @@ describe('attrs-stored inline content sanitize', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         if (block.type !== 'multiple_choice') throw new Error('unreachable');
         expect(block.choices[0]!.content).toEqual(sanitized);
         expect(block.choices[0]!.feedback).toEqual(sanitized);
@@ -2344,7 +2406,7 @@ describe('attrs-stored inline content sanitize', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const [matching, ordering] = activity.sections[0]!.blocks;
+        const [matching, ordering] = flatBlocks(activity.sections[0]!);
         if (matching?.type !== 'matching') throw new Error('unreachable');
         expect(matching.items[0]!.content).toEqual(sanitized);
         expect(matching.targets[0]!.content).toEqual(sanitized);
@@ -2380,7 +2442,7 @@ describe('attrs-stored inline content sanitize', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         if (block.type !== 'interactive_graph') throw new Error('unreachable');
         expect(block.solution).toEqual(sanitized);
         expect(block.mistakeFeedback).toEqual([
@@ -2416,7 +2478,7 @@ describe('attrs-stored inline content sanitize', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         if (block.type !== 'fill_in_blank') throw new Error('unreachable');
         expect(block.solution).toEqual(sanitized);
         const blank = block.content[0]!;
@@ -2462,7 +2524,7 @@ describe('attrs-stored inline content sanitize', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         if (block.type !== 'paragraph') throw new Error('unreachable');
         const [vertex, slope] = block.content;
         if (vertex?.type !== 'text') throw new Error('unreachable');
@@ -2506,7 +2568,7 @@ describe('attrs-stored inline content sanitize', () => {
             ],
         };
         const activity = tiptapToActivity(doc, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         if (block.type !== 'paragraph') throw new Error('unreachable');
         const [radius] = block.content;
         if (radius?.type !== 'text') throw new Error('unreachable');
@@ -2578,7 +2640,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
             content: [{ type: 'text', text: 'Explain.' }],
         };
         const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         expect(block.type).toBe('self_explanation');
         if (block.type === 'self_explanation') {
             expect(block.placeholder).toBeUndefined();
@@ -2607,7 +2669,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
         };
         const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         expect(block.type).toBe('essay');
         if (block.type === 'essay') {
             expect(block.wordCountHint).toEqual({ min: 200, max: 300 });
@@ -2642,7 +2704,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
         };
         const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         if (block.type === 'short_answer') {
             expect(block.rubric).toEqual(rubric);
         }
@@ -2670,7 +2732,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
             content: [{ type: 'text', text: 'Write.' }],
         };
         const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         if (block.type === 'essay') {
             expect(block.rubric?.criteria.map((c) => c.label)).toEqual(['Valid']);
         }
@@ -2684,7 +2746,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
             content: [{ type: 'text', text: 'Q' }],
         };
         const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         if (block.type === 'short_answer') {
             expect(block.rubric).toBeUndefined();
         }
@@ -2698,7 +2760,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
             content: [{ type: 'text', text: 'Write.' }],
         };
         const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         // serialize drops the invalid hint rather than emit a block that fails Zod.
         if (block.type === 'essay') {
             expect(block.wordCountHint).toBeUndefined();
@@ -2724,7 +2786,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
         };
         const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         expect(block.type).toBe('faded_worked_example');
         if (block.type === 'faded_worked_example') {
             expect(block.content.map((c) => c.type)).toEqual(['paragraph', 'fill_in_blank']);
@@ -2750,7 +2812,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
             ],
         };
         const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         expect(block.type).toBe('faded_worked_example');
         if (block.type === 'faded_worked_example') {
             expect(block.showStepLabels).toBe(false);
@@ -2773,7 +2835,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
         };
         const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
-        const block = activity.sections[0]!.blocks[0]!;
+        const block = flatBlocks(activity.sections[0]!)[0]!;
         expect(block.type).toBe('worked_example');
         if (block.type === 'worked_example') {
             expect(block.content.map((c) => c.type)).toEqual(['paragraph']);

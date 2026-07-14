@@ -647,7 +647,7 @@ export default function InteractiveGraphView({
             if (typeof pos !== 'number') return 0;
             const $pos = editor.state.doc.resolve(pos);
             for (let d = $pos.depth; d > 0; d--) {
-                if ($pos.node(d).type.name === 'columns') return $pos.node(d).childCount;
+                if ($pos.node(d).type.name === 'row') return $pos.node(d).childCount;
             }
         } catch {
             // resolving during a transaction race → no warning this render

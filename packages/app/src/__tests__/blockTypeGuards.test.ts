@@ -21,9 +21,8 @@ import { describe, it, expect } from 'vitest';
 import { getSchema } from '@tiptap/core';
 import {
     ActivityDocument,
-    ColumnCellBlock,
     createEmptyDocument,
-    createColumnsBlock,
+    createRow,
     createParagraphBlock,
     createHeadingBlock,
     createMathBlock,
@@ -46,7 +45,7 @@ import {
     createShortAnswerBlock,
     createEssayBlock,
     createBlankToken,
-    type Block,
+    Block,
 } from '@activity/schema';
 import { activityToTiptap } from '../lib/serialize';
 import { buildEditorExtensions } from '../editor/editorExtensions';
@@ -63,7 +62,7 @@ const unionTypes = (union: { options: readonly unknown[] }): string[] =>
 // which would let the dashboard guard pass vacuously). A NEW block type hits
 // the `default` throw — extend this map as part of the add-a-block-type
 // checklist, then the two guards below cover it automatically.
-function representativeBlock(type: string): ColumnCellBlock {
+function representativeBlock(type: string): Block {
     switch (type) {
         case 'paragraph':
             return createParagraphBlock();
@@ -158,7 +157,7 @@ function representativeBlock(type: string): ColumnCellBlock {
         default:
             throw new Error(
                 `No representative block for type '${type}' — a new block type ` +
-                    `was added to ColumnCellBlock. Extend this map (and see the ` +
+                    `was added to the Block union. Extend this map (and see the ` +
                     `README add-a-block-type checklist).`,
             );
     }
@@ -170,11 +169,18 @@ function representativeBlock(type: string): ColumnCellBlock {
 // block has no editor mapping).
 function docWith(...blocks: Block[]): ActivityDocument {
     const doc = createEmptyDocument({ title: 'Guard' });
-    doc.sections[0]!.blocks = blocks;
+    // Single-column content lives in one full-width 1-col row (the schema's
+    // rows-of-columns shape). activityToTiptap unwraps it back to a bare block
+    // stream, so the editor guard still sees the block at the doc top level.
+    doc.sections[0]!.rows = [
+        { id: crypto.randomUUID(), gridLines: 'inherit', columns: [{ id: crypto.randomUUID(), blocks }] },
+    ];
     return ActivityDocument.parse(doc);
 }
 
-const cellTypes = unionTypes(ColumnCellBlock);
+// Every leaf Block is column-legal now (the old ColumnCellBlock "Block minus
+// columns" carve-out is gone — layout is not a block).
+const cellTypes = unionTypes(Block);
 
 describe('editor column-cell guard', () => {
     const pmSchema = getSchema(buildEditorExtensions());
@@ -227,15 +233,19 @@ describe('dashboard column-indexing guard', () => {
         (type) => {
             const topIdx = buildActivityIndex(docWith(representativeBlock(type)));
 
-            const columns = createColumnsBlock(2);
-            columns.columns[0]!.blocks = [representativeBlock(type)];
-            const colIdx = buildActivityIndex(docWith(columns));
+            // The same block nested in the FIRST cell of a multi-column row must
+            // index identically (buildActivityIndex walks row → column → block).
+            const row = createRow(2);
+            row.columns[0]!.blocks = [representativeBlock(type)];
+            const doc = createEmptyDocument({ title: 'Guard' });
+            doc.sections[0]!.rows = [row];
+            const colIdx = buildActivityIndex(ActivityDocument.parse(doc));
 
             expect(
                 mapSizes(colIdx),
                 `'${type}' indexes differently inside a column cell — ` +
                     `buildActivityIndex (lib/submissions.ts) must handle it in its ` +
-                    `columns recursion`,
+                    `row/column recursion`,
             ).toEqual(mapSizes(topIdx));
         },
     );

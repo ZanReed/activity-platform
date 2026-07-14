@@ -28,20 +28,32 @@ import { extractFlowBlocks } from '../lib/foldable/measure';
 // exactly what the published renderer sees.
 function docWithColumns(): ActivityDocument {
   return ActivityDocument.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     meta: { title: 'Columns foldable', course: 'Algebra II' },
     sections: [
       {
         id: '11111111-1111-4111-8111-111111111111',
-        blocks: [
+        rows: [
+          // 1-col row (renders flat: the INTRO paragraph directly).
           {
-            id: '22222222-2222-4222-8222-222222222222',
-            type: 'paragraph',
-            content: [{ type: 'text', text: 'INTRO' }],
+            id: 'a1111111-1111-4111-8111-111111111111',
+            gridLines: 'inherit',
+            columns: [
+              {
+                id: 'b1111111-1111-4111-8111-111111111111',
+                blocks: [
+                  {
+                    id: '22222222-2222-4222-8222-222222222222',
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'INTRO' }],
+                  },
+                ],
+              },
+            ],
           },
+          // 2-col row (renders as a .block-row grid).
           {
             id: '33333333-3333-4333-8333-333333333333',
-            type: 'columns',
             gridLines: 'inherit',
             columns: [
               {
@@ -68,10 +80,22 @@ function docWithColumns(): ActivityDocument {
               },
             ],
           },
+          // 1-col row (renders flat: the OUTRO paragraph directly).
           {
-            id: '88888888-8888-4888-8888-888888888888',
-            type: 'paragraph',
-            content: [{ type: 'text', text: 'OUTRO' }],
+            id: 'c1111111-1111-4111-8111-111111111111',
+            gridLines: 'inherit',
+            columns: [
+              {
+                id: 'd1111111-1111-4111-8111-111111111111',
+                blocks: [
+                  {
+                    id: '88888888-8888-4888-8888-888888888888',
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'OUTRO' }],
+                  },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -95,7 +119,7 @@ describe('extractFlowBlocks — columns containers flow whole', () => {
   it('preserves document order across the columns container', () => {
     const items = blocks();
     expect(items[0]?.textContent).toContain('INTRO');
-    expect(items[1]?.className).toContain('block-columns');
+    expect(items[1]?.className).toContain('block-row');
     expect(items[2]?.textContent).toContain('OUTRO');
   });
 
@@ -105,7 +129,7 @@ describe('extractFlowBlocks — columns containers flow whole', () => {
     expect(columns?.textContent).toContain('LEFTCELL');
     expect(columns?.textContent).toContain('RIGHTCELL');
     expect(columns?.querySelectorAll('.column-cell')).toHaveLength(2);
-    expect(columns?.getAttribute('data-block-type')).toBe('columns');
+    expect(columns?.getAttribute('data-block-type')).toBe('row');
   });
 
   it('carries the fr track template so inner width resolves against the panel', () => {

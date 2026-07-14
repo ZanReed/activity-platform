@@ -24,7 +24,6 @@
 import type {
     ActivityDocument,
     Block,
-    ColumnCellBlock,
     Rubric,
 } from '@activity/schema';
 import { fitFunction } from '@activity/graph-kit';
@@ -419,19 +418,11 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
         });
 
         // One question block → index entry. A closure (not a loop body) so a
-        // columns container can recurse into its cells — a question nested in
-        // a column indexes exactly like a top-level one. `continue` in the old
-        // loop body became `return`.
-        const indexBlock = (block: Block | ColumnCellBlock): void => {
-            if (block.type === 'columns') {
-                // Structural, not a question: descend into each cell. Columns
-                // can't nest (schema forbids columns-in-columns), so this
-                // recursion is one level deep in practice.
-                for (const column of block.columns) {
-                    for (const cellBlock of column.blocks) indexBlock(cellBlock);
-                }
-                return;
-            }
+        // scaffold container (faded_worked_example) can recurse into its
+        // children — a question nested inside indexes exactly like a top-level
+        // one. Layout (rows/columns) is walked by the caller below, not here:
+        // rows/columns are not blocks, so indexBlock only ever sees leaf blocks.
+        const indexBlock = (block: Block): void => {
             if (block.type === 'faded_worked_example') {
                 // Scaffold shell: its faded steps are fill_in_blank children,
                 // which index exactly like top-level ones. The child union
@@ -708,7 +699,14 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
             });
         };
 
-        for (const block of section.blocks) indexBlock(block);
+        // Walk the layout: section → rows → columns → blocks. Rows/columns are
+        // pure layout (not questions), so every leaf block reaches indexBlock
+        // exactly as a top-level block would.
+        for (const row of section.rows) {
+            for (const column of row.columns) {
+                for (const block of column.blocks) indexBlock(block);
+            }
+        }
     });
 
     return {

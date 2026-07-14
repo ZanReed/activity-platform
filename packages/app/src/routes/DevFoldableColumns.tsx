@@ -19,7 +19,7 @@ import { buildFoldableDocument } from '../lib/foldable';
 // each cell → outro. Enough content that the side-by-side layout, the fr
 // proportions, and the per-cell work-space floor are all visible in one panel.
 const columnsDoc: ActivityDocument = ActivityDocument.parse({
-  schemaVersion: 1,
+  schemaVersion: 2,
   meta: {
     title: 'Foldable × columns — dev bench',
     course: 'Algebra II',
@@ -29,20 +29,32 @@ const columnsDoc: ActivityDocument = ActivityDocument.parse({
     {
       id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       title: 'Side-by-side work',
-      blocks: [
+      rows: [
+        // Intro paragraph — a full-width 1-col row (renders flat).
         {
-          id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-          type: 'paragraph',
-          content: [
+          id: 'a0000000-0000-4000-8000-000000000001',
+          gridLines: 'inherit',
+          columns: [
             {
-              type: 'text',
-              text: 'Intro paragraph before the columns. The container below should flow whole into a panel and lay out side-by-side at the panel width.',
+              id: 'a0000000-0000-4000-8000-000000000002',
+              blocks: [
+                {
+                  id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Intro paragraph before the columns. The container below should flow whole into a panel and lay out side-by-side at the panel width.',
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
+        // The 2:1 weighted, ruled multi-column row with reserved work space.
         {
           id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-          type: 'columns',
           gridLines: 'on',
           columns: [
             {
@@ -76,10 +88,22 @@ const columnsDoc: ActivityDocument = ActivityDocument.parse({
             },
           ],
         },
+        // Outro paragraph — another full-width 1-col row.
         {
-          id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
-          type: 'paragraph',
-          content: [{ type: 'text', text: 'Outro paragraph after the columns.' }],
+          id: 'a0000000-0000-4000-8000-000000000003',
+          gridLines: 'inherit',
+          columns: [
+            {
+              id: 'a0000000-0000-4000-8000-000000000004',
+              blocks: [
+                {
+                  id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: 'Outro paragraph after the columns.' }],
+                },
+              ],
+            },
+          ],
         },
       ],
     },

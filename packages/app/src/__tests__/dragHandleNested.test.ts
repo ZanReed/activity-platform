@@ -46,8 +46,8 @@ describe('columnsDragDeduction', () => {
         // container is never a hover-handle target — excluded both outside a
         // cell (no redundant rival to the grip) and inside one (so reaching for
         // an inner block's handle can't flip up to the container).
-        expect(columnsDragDeduction('columns', 1, false)).toBe(1000);
-        expect(columnsDragDeduction('columns', 1, true)).toBe(1000);
+        expect(columnsDragDeduction('row', 1, false)).toBe(1000);
+        expect(columnsDragDeduction('row', 1, true)).toBe(1000);
     });
 });
 

@@ -67,7 +67,7 @@ export function columnsDragDeduction(
     // cells too, because the whole-block move is owned by the dedicated grip
     // widget (extensions/Columns.ts) — a second hover affordance on the
     // container would just be a redundant, flicker-prone rival to the grip.
-    if (nodeTypeName === 'columns') return 1000;
+    if (nodeTypeName === 'row') return 1000;
     // Any other top-level block stays draggable as a whole block.
     if (depth <= 1) return 0;
     // A deeper block is a drag target only inside a column cell (the inner

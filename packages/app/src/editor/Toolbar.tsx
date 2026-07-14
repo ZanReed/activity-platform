@@ -38,7 +38,7 @@ interface ToolbarProps {
 export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) {
     if (!editor) return null;
 
-    const inColumns = editor.isActive('columns');
+    const inColumns = editor.isActive('row');
 
     return (
         // sticky: on long documents the toolbar follows the viewport instead
@@ -158,14 +158,14 @@ export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) 
                             editor.chain().focus().cycleColumnsGridLines().run()
                         }
                         active={
-                            editor.getAttributes('columns').gridLines === 'on'
+                            editor.getAttributes('row').gridLines === 'on'
                         }
                         title="Cycle grid lines on the selected columns block (auto → on → off)"
                     >
                         {`Grid: ${
-                            editor.getAttributes('columns').gridLines === 'on'
+                            editor.getAttributes('row').gridLines === 'on'
                                 ? 'on'
-                                : editor.getAttributes('columns').gridLines ===
+                                : editor.getAttributes('row').gridLines ===
                                     'off'
                                   ? 'off'
                                   : 'auto'
