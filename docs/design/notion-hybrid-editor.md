@@ -1,10 +1,14 @@
 # Notion-hybrid editor — slice 6 design
 
-**Status:** 🎨 **DESIGN LOCKED via /design-consultation (2026-07-15); not yet built.** This
-is the design direction for slice 6 of the columns-as-universal-container arc — the
-authoring-paradigm layer deliberately deferred while slices 1–4 (schema reshape → renderer
-→ editor Option-A bridge → split gesture) shipped. It is design-only; no code yet. The next
-step is `/plan-eng-review` on an implementation plan derived from this.
+**Status:** 🎨 **DESIGN LOCKED + REVISED via /plan-design-review (2026-07-15); not yet built.**
+Original direction locked via /design-consultation; then steelmanned + pressure-tested
+against the author's UX goals, which surfaced two goal-conflicts that were folded back in
+(see §Revision log): the pill is now **docked/anchored** (not floating — floating fought
+"snaps into place"), and **click places the caret** (not selects — select-first fought
+"works how people feel it should" for Docs-native teachers). This is the design direction
+for slice 6 of the columns-as-universal-container arc — the authoring-paradigm layer
+deferred while slices 1–4 shipped. Design-only; no code yet. Next step is `/plan-eng-review`
+on an implementation plan derived from this.
 
 This designs ONLY the editor's missing **interaction + motion + progressive-disclosure
 layer**. The visual vocabulary is already settled (the `--ed-` token system in
@@ -31,46 +35,61 @@ doc, not a project-level DESIGN.md.
 5. **Technical under Advanced** — a two-tier control model on every block; the 1–2 things a
    teacher wants are surfaced, everything technical waits behind `Advanced`.
 
-## Locked direction — "Calm base, float + spring"
+## Locked direction — "Calm base, anchored + spring" (revised)
 
 Chosen from two explored variants (mockups persisted under
-`~/.gstack/projects/<slug>/designs/notion-hybrid-editor-*`):
+`~/.gstack/projects/<slug>/designs/notion-hybrid-editor-*`), then revised by the design
+review to protect the two lead goals:
 
-| Layer | Decision | From |
+| Layer | Decision | Note |
 |---|---|---|
 | **Resting canvas** | Calm, **full brightness** (easy to scan a whole worksheet) | Variant A |
-| **Selected block controls** | A **floating command pill** above the block that tracks the selection (keeps the block itself clean) | Variant B |
-| **Motion** | **Springy** snap-zone + drop-settle + insert pop-in | Variant B |
-| **Focus / dim canvas** | **Optional toggle, OFF by default** (available as a "focus mode" for deep editing) | Variant B, gated |
-| **Everywhere** | Two-tier `Advanced`; controls dock to the block; keep the flowing caret | Both |
+| **Selected block controls** | A command bar **anchored to the block** (docked top-right), *not* floating — it stays put, so it reads as "snapped into a logical place." **Spring is on its appearance, not its position.** | revised (was Variant B floating) |
+| **Motion** | **Springy** confirm-motion on *all* placement: insert, reorder, and column-split — a magnetic insert-line + snap-to-gap settle everywhere, not just columns. | revised (broadened) |
+| **Focus / dim canvas** | **Optional toggle, OFF by default** | Variant B, gated |
+| **Everywhere** | Two-tier `Advanced` (with smart defaults + just-in-time surfacing) · controls docked to the block · keep the flowing caret · **click = edit** | Both + review |
 
-**Guardrail (unchanged from the refactor):** the caret is never removed — prose typing stays
-native ProseMirror (Enter → next block, Backspace merges). "Calm" comes from the empty-until-
-hover gutter + a clean selection state, NOT from killing the caret (this is how Notion
-actually works — confirmed in the reference research).
+**Guardrail (unchanged):** the caret is never removed — prose typing stays native ProseMirror
+(Enter → next block, Backspace merges). "Calm" comes from the empty-until-approach gutter + a
+clean selection state, NOT from killing the caret.
+
+**Audience guardrail (added by review):** the target user is a **Docs/Word-native teacher**,
+not a Notion power user. Where a Notion convention would feel *wrong* to a Docs user, the
+Docs behavior wins — hence **click places the caret** (not selects), and selection is a
+secondary, opt-in state reached via the grip or `Esc`.
 
 ## The four-state model — one grammar
 
 | State | What the teacher sees | Trigger | Keyboard |
 |---|---|---|---|
-| **Rest** | Block stream + flowing caret. **Empty left gutter, no chrome.** | default | type freely; `/` opens the block picker |
-| **Hover** | Left-gutter cluster fades in: `⋮⋮` grip + `+`. *Nothing else.* | pointer over a block | — |
-| **Select** | Soft `--ed-accent` outline + a **floating command pill** above the block with its 1–2 primary actions, `⌄ Advanced`, and a move handle. | click grip · `Esc` from text · click block frame | ↑/↓ move selection; `Enter` → edit; `⌫` delete; `⌘D` duplicate |
-| **Edit** | Caret live in the block's inline editor. Top toolbar shows **text formatting only**. | type · double-click · `Enter` on a selected block | text editing; `Esc` → back to Select |
+| **Rest** | Block stream + flowing caret. **Quiet gutter** (a faint always-present dot; see §Touch & a11y), no other chrome. | default | type freely; `/` opens the block picker |
+| **Hover / focus** | The gutter dot expands into `⋮⋮` grip + `+`. *Nothing else.* Also triggers on keyboard focus and tap (not hover-only). | pointer over · keyboard focus · tap | — |
+| **Edit** *(the default on click)* | Click lands the **caret** and you type immediately — exactly like Google Docs. The block's inline editor is live; the top toolbar shows text formatting only. | **click** · type · `/` | text editing; `Esc` → Select |
+| **Select** *(secondary, opt-in)* | Soft `--ed-accent` outline + the **docked command bar** with the block's 1–2 primary actions, `⌄ Advanced`, and a move handle. | click the **grip** · `Esc` from text · tap the block frame edge | ↑/↓ move selection; `Enter` → edit; `⌫` delete; `⌘D` duplicate |
 
-Transitions animate (see Motion). Select↔Edit is the load-bearing pair — the "click to
-select, click-again to edit" grammar people already know.
+**The key revision:** click = **edit** (caret), not select — a Docs-native teacher clicks
+expecting to type, and now they do. Selection is the *secondary* state, reached deliberately
+via the grip or `Esc`. This keeps the block-control power without making first contact feel
+broken. (Notion's click-selects model was rejected here: right for note-takers, wrong for a
+worksheet tool whose users come from Docs.)
 
-## The floating command pill
+## The docked command bar
 
-- **Placement:** centered above the selected block, ~22px gap, small downward caret. Tracks
-  the block on scroll; flips below if the block is near the top of the viewport.
+- **Placement:** **anchored to the selected block, top-right**, inside the selection outline —
+  it does *not* float or track scroll. Staying put is the point: it reads as "snapped into a
+  logical place," which serves the lead goal. It scrolls with its block like any content.
+- **Motion:** springs *in* on select (scale .95→1, `--ed-spring`) — the delight is on
+  appearance, not on chasing the selection around.
 - **Contents (left→right):** `[primary]` `[primary]` · `⌄ Advanced` · `⋮⋮ move`. Primary
-  actions use the accent fill; Advanced + move are ghost. Max **two** primary actions — if a
-  block needs more, they belong under Advanced.
-- **Advanced** opens a drawer docked *inside* the block (not a modal) so the technical
-  controls stay in the block's "logical space." Closed by default, remembers per-session.
-- Dark pill (`--ed-ink`, a new near-black primitive) so it reads above any block content.
+  actions use the accent fill; Advanced + move are ghost.
+- **The 2-primary cap is a *default*, not a hard rule.** Most blocks want ≤2. A few
+  (fill_in_blank: answer key + hint + feedback are all common for self-check practice) may
+  earn a third — validate per block with `docs/design/ux-lens.md` at build. Never bury a
+  *frequently used* action under Advanced just to hit the cap (that would break "findable in a
+  logical space").
+- **Advanced** opens a drawer docked *inside* the block (not a modal), **grouped and
+  ordered most-common-first** so opening it isn't just a relocated wall (see §Advanced drawer).
+- Uses `--ed-ink` (a new near-black primitive) so it reads above any block content.
 
 ## Per-block control inventory (the buildable core)
 
@@ -106,10 +125,45 @@ question sees `Edit · Answer` and is never dragged into tolerance or axis confi
 
 - The current top toolbar is overloaded (block-style dropdown, formatting, insert, math,
   define, column controls). **Slim it to text formatting + inline math + define.** Block
-  insertion already lives in the gutter `+` / `/`; block-type controls move to the pill.
-- Nothing technical is visible until Select → Advanced. The `/` picker stays the two-pane
-  visual window (icon + title, no descriptions crowding).
-- Empty lines keep the ghost `Type / to add a block` signifier.
+  insertion already lives in the gutter `+` / `/`; block-type controls move to the docked bar.
+- Nothing technical is visible until Select → Advanced.
+- **Block picker = visual preview, not icon+title-only (review fix).** Your goal was "signal
+  what they can do *and how it can help*." Cutting descriptions served "no walls of text" but
+  dropped the "how it helps" half — a teacher who doesn't know what "faded worked example" is
+  gets zero signal. Replace descriptions with a **tiny thumbnail/preview per block type** (a
+  mini render of what it looks like) so the picker conveys *what it is + how it helps* with no
+  prose. On hover/focus of a picker item, a slightly larger live preview.
+- Empty lines keep the ghost `Type / to add a block` signifier. The first-run empty *doc* is a
+  richer moment — see §First-run.
+
+## Smart defaults + just-in-time surfacing (review fix — the other half of "Advanced")
+
+Hiding technical settings under `Advanced` is only half the goal. "Never *dragged into*
+technical" also means never being *surprised* by a hidden default later. The failure mode:
+a teacher makes a numeric blank answered `0.5`, tolerance sits hidden at some default, a
+student types `1/2`, gets marked wrong — and now the teacher is dragged into Advanced *later*,
+confused, debugging a bad outcome. So:
+
+- **Ship correctness-safe defaults** for every hidden setting.
+- **Surface just-in-time, inline, when a default is likely wrong.** Detect the trigger and
+  *offer* the fix in one tap without opening Advanced. Examples:
+  - Numeric-looking answer with a fraction/decimal → an inline chip "Accept equivalent forms
+    (½ = 0.5)?" on the blank itself.
+  - A graph answer that's a curve → "Accept any correct-shape curve?" inline.
+  - An essay with no word target → a quiet "Set a length?" affordance (dismissable).
+- These are **suggestions, not walls** — one tap to accept, dismiss to ignore, and they never
+  block. This is what keeps `Advanced` closed for real while still preventing the later
+  surprise.
+
+## The Advanced drawer
+
+- Opens **inside the block**, not a modal — the technical controls stay in the block's logical
+  space.
+- **Grouped + ordered, most-common-first** (review fix). `interactive_graph` has ~7 Advanced
+  fields; a flat dump is a relocated wall. Group them (e.g. *Grading* · *Display* · *Meta*)
+  with the one or two a teacher touches most at the top. Opening Advanced should still feel
+  like "a little more," not "everything at once."
+- Closed by default; remembers per-session.
 
 ## Motion tokens (springy, reduced-motion safe)
 
@@ -123,12 +177,48 @@ New motion layer (add to the token system):
 --ed-spring: cubic-bezier(.34,1.56,.64,1);  /* pill pop-in, drop bounce, snap-zone open */
 ```
 
-- **Pill:** spring-in on select (scale .92→1, `--ed-spring`).
-- **Snap zone:** opens with a pulse when a drag hovers a "make columns" gap.
-- **Drop:** the row settles with a small bounce (`--ed-spring`, `--ed-motion-base`).
-- **Insert:** new block pops in (opacity + scale, `--ed-ease-out`).
+**"Snaps into place" applies to ALL placement, not just columns (review fix).** Insert and
+reorder are the *common* actions; they must feel snapped too, or the signature feeling only
+shows up in the rare column case.
+
+- **Insert:** a **magnetic insert-line** that snaps to the nearest gap as you approach (from
+  `+`, `/`, or drag); the new block **settles** into the gap (opacity + scale, `--ed-spring`).
+- **Reorder (drag to move):** the same magnetic insert-line snaps to gaps; on drop the block
+  **settles with a small bounce** — no ambiguous free-floating drop.
+- **Column split:** the "make columns" snap zone opens with a pulse when a drag nears a
+  side-gap; the row settles on release (`--ed-spring`, `--ed-motion-base`).
+- **Command bar:** springs *in on appearance* (scale .95→1) — never chases the selection.
 - **`@media (prefers-reduced-motion: reduce)`** collapses all of the above to instant/opacity
   only — mandatory.
+
+## First-run / empty state (review fix — the highest-leverage "no tutorial" moment)
+
+A brand-new empty worksheet is the one screen where "no tutorial" is decided. Calm-and-empty
+is right for a *working* doc but reads as "broken / where do I start?" on first contact, and a
+lone ghost hint isn't enough. Design it as a feature:
+
+- A warm, centered **"Start here"** with **2–3 one-tap starters** shown as small visual cards:
+  *Title + instructions*, *A question* (opens the picker), *Two-column layout*. Tapping one
+  drops the block and places the caret — instant momentum, zero reading.
+- The `/` and `+` affordances are still present and, on this screen only, gently emphasized.
+- Dismisses the moment the first block has real content; never returns.
+
+## Touch & accessibility (review fix — affordances can't be hover-only)
+
+Hover doesn't exist on touch (many teachers author on iPads) and can't be reached by keyboard
+or screen-reader users. Hover-only gutter affordances would make the primary discovery path
+*invisible* for those users — the opposite of "no tutorial."
+
+- **Persistent-but-quiet gutter dot** at rest (a single faint `--ed-gutter-affordance` dot),
+  which **expands into the `⋮⋮` grip + `+` on hover, keyboard focus, OR tap** — parity across
+  input methods.
+- **Keyboard:** `focus-visible` shows the gutter cluster; the docked bar's actions are all
+  tab-reachable; block selection + move works via keyboard (arrows + a documented shortcut).
+- **Touch:** tap a block = caret (edit); tap the grip = select + bar; long-press the grip =
+  drag to move. Decide the exact gesture set at build, but it is *in scope*, not deferred.
+- **Targets:** 44px minimum on the grip, `+`, and every bar action.
+- **Contrast:** the docked bar on `--ed-ink` and all state outlines meet AA (inherits the
+  existing token discipline).
 
 ## New `--ed-` state tokens
 
@@ -141,31 +231,60 @@ Built on existing primitives (no new palette): `--ed-ink` (near-black for the pi
 Build on the shipped Option-A editor. Each stage is independently shippable and browser-
 verifiable on `/playground`.
 
-1. **Gutter + hover state.** Left-gutter `⋮⋮` + `+` on hover, empty at rest. (Partly exists —
-   the insert line + `+` square — reconcile into one gutter cluster.)
-2. **Select state + floating pill (generic).** Block selection outline + a floating pill with
-   move/duplicate/delete + the Select↔Edit click grammar. No per-block controls yet.
-3. **Per-block primary actions in the pill.** Wire the inventory table's *primary* column per
-   block type, reusing each block's existing NodeView editor surfaces.
-4. **The `Advanced` drawer.** Move each block's technical fields out of its inline body into
-   the block-docked Advanced drawer. This is the bulk of the "never overwhelmed" win.
-5. **Top-toolbar diet.** Remove the migrated block controls from the top toolbar.
-6. **Motion pass.** Spring/settle/pop-in tokens + the snap-zone pulse; reduced-motion.
-7. **Focus mode (optional).** The dim-the-rest toggle, off by default.
+1. **Gutter with input parity.** Persistent quiet dot at rest → `⋮⋮` + `+` on hover/focus/tap,
+   empty otherwise. (Reconcile the existing insert line + `+` square into this one cluster.)
+2. **Select state + docked command bar (generic) + click=edit.** Block-selection outline +
+   an anchored bar with move/duplicate/delete; confirm click still lands the caret (edit) and
+   selection is grip/`Esc`-only. No per-block controls yet.
+3. **Per-block primary actions in the bar.** Wire the inventory's *primary* column per block
+   type, reusing each block's existing NodeView editor surfaces.
+4. **The grouped `Advanced` drawer.** Move each block's technical fields into the block-docked,
+   grouped Advanced drawer. The bulk of the "never overwhelmed" win.
+5. **Smart defaults + just-in-time surfacing.** Inline "accept equivalent forms?"-style
+   suggestions so hidden defaults never surprise a teacher later.
+6. **Block-picker previews + first-run empty state.** Thumbnails per block type; the "Start
+   here" starters on a fresh doc.
+7. **Snap motion pass.** Magnetic insert-line + settle for insert/reorder/columns;
+   spring-on-appear for the bar; reduced-motion.
+8. **Top-toolbar diet + optional focus mode.** Remove migrated controls; ship the dim-the-rest
+   toggle (off by default).
 
 ## Risks / open questions
 
-- **Pill vs. mobile / touch.** A hover-gutter + floating pill needs a touch story (tap =
-  select, long-press = move?). Decide at build.
-- **Two-primary-actions cap** may pinch a few blocks (fill_in_blank has a lot) — validate the
-  inventory with the ux-lens before building stage 3.
-- **NodeView reconciliation.** Per-block pills/drawers must not reintroduce the Stage-13.5
-  reconciliation hazard — the pill is a single selection-driven host at editor root (like
-  BlankPopoverHost), not per-block mounting.
-- **`Esc` semantics** already carry meaning in some NodeViews (math field exit) — audit before
-  overloading Esc for select.
+- **Two-primary-actions cap** is a default, not a rule — validate per block with the ux-lens
+  before stage 3 (fill_in_blank likely earns a third). Never bury a frequently-used action.
+- **NodeView reconciliation.** The docked bar + drawer must be a single selection-driven host
+  at editor root (like `BlankPopoverHost`), NOT per-block mounting — that reintroduces the
+  Stage-13.5 hazard.
+- **`Esc` semantics** already mean "exit the math field" in some NodeViews — audit before
+  overloading `Esc` for text→Select.
+- **Touch gesture set** (tap/grip-tap/long-press) is in scope but needs a real-device pass;
+  don't ship the gutter without it.
 
 ## Not designed here (out of scope for slice 6)
 
-- Visual tokens (settled), the runtime/published page (unaffected), drag-to-reorder mechanics
-  (exist), the reference-panel/calculator surfaces (separate).
+- Visual tokens (settled), the runtime/published page (unaffected), the drag-to-reorder
+  *mechanics* (exist — this restyles their motion), the reference-panel/calculator surfaces.
+
+## Revision log
+
+**2026-07-15 — /plan-design-review (steelman + goal-alignment pass).** The /design-consultation
+direction was pressure-tested against the author's five UX goals. Two goal-conflicts were the
+root cause of most findings (leaning on Notion power-user conventions for a Docs-native teacher
+audience), plus five gaps. All folded in above:
+
+| # | Finding (drift from a goal) | Fix folded in |
+|---|---|---|
+| 1 | Floating pill *drifts* — fights "snaps into place" | Bar **anchored** to the block; spring on *appearance*, not tracking |
+| 2 | Select-first click *feels wrong* to Docs users — fights "works how they feel" | **Click = edit (caret)**; selection is grip/`Esc`-only, secondary |
+| 3 | "Snaps into place" only designed for columns | Magnetic insert-line + settle for **insert + reorder** too |
+| 4 | `Advanced` hiding can *backfire* (later surprise) — fights "never dragged in" | **Smart defaults + just-in-time inline** suggestions |
+| 5 | Cut descriptions but dropped "how it helps" | Block-picker **visual previews/thumbnails** |
+| 6 | Hover-only affordances break touch + a11y — fight "no tutorial" | **Persistent quiet gutter dot**; hover/focus/tap parity; 44px targets |
+| 7 | First-run empty state under-designed | **"Start here"** with 2–3 one-tap visual starters |
+| 8 | `Advanced`, once open, is a wall | **Grouped, most-common-first** drawer |
+
+Post-revision self-assessment against the goals: *snaps into place* 6→9, *no tutorial / feels
+right* 5→8, *never overwhelmed* 8→9, *no walls of text / how it helps* 6→8, *technical under
+Advanced* 7→9. The remaining softness is inherent uncertainty that only a **real-device
+prototype + a teacher watching** resolves — the design can't fully close #2 and #6 on paper.
