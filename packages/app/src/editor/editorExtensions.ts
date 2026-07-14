@@ -20,6 +20,7 @@ import { MathInline } from './extensions/MathInline';
 import { MathBlock } from './extensions/MathBlock';
 import { MathFocus } from './extensions/MathFocus';
 import { SlashMenu } from './extensions/SlashMenu';
+import { PlaceholderHint } from './extensions/PlaceholderHint';
 import { BlockReorderShortcuts } from './extensions/BlockReorderShortcuts';
 import { SectionBreak } from './extensions/SectionBreak';
 import { FillInBlank } from './extensions/FillInBlank';
@@ -60,6 +61,8 @@ export function buildEditorExtensions({
         // insert, keyboard re-entry (Enter / arrow-in), and move-out exit.
         MathFocus,
         SlashMenu,
+        // Grey "/" hint on empty top-level lines — the slash menu's signifier.
+        PlaceholderHint,
         BlockReorderShortcuts,
         SectionBreak,
         Subscript,

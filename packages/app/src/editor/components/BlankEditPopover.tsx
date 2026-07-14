@@ -135,6 +135,12 @@ export default function BlankEditPopover({
         initialTolerance !== undefined ? String(initialTolerance) : '',
     );
 
+    // "More options" holds the lower-frequency answer-matching controls
+    // (acceptable answers, interchangeable grouping). Collapsed by default so
+    // the common case — type the answer, optionally flag numeric — is all the
+    // teacher sees. Auto-expands when the blank already carries those values.
+    const [moreExpanded, setMoreExpanded] = useState(false);
+
     const [hintExpanded, setHintExpanded] = useState(false);
     const [feedbackExpanded, setFeedbackExpanded] = useState(false);
 
@@ -182,6 +188,9 @@ export default function BlankEditPopover({
             setIsNumeric(initialAnswerType === 'numeric');
             setToleranceDraft(
                 initialTolerance !== undefined ? String(initialTolerance) : '',
+            );
+            setMoreExpanded(
+                initialAcceptableAnswers.length > 0 || initialInterchangeable,
             );
             setHintExpanded(Boolean(initialHint && initialHint.length > 0));
             setFeedbackExpanded(
@@ -553,56 +562,6 @@ export default function BlankEditPopover({
                 </label>
 
                 <div className="blank-edit-popover__field">
-                    <span className="blank-edit-popover__label">
-                        Acceptable answers
-                    </span>
-                    <div className="blank-edit-popover__list">
-                        {acceptableRows.map((value, index) => {
-                            const isTrailingEmpty =
-                                index === acceptableAnswers.length;
-                            return (
-                                <div
-                                    className="blank-edit-popover__list-row"
-                                    key={`acc-${index}`}
-                                >
-                                    <input
-                                        type="text"
-                                        className="blank-edit-popover__input"
-                                        value={value}
-                                        placeholder={
-                                            isTrailingEmpty
-                                                ? 'Add another acceptable answer'
-                                                : undefined
-                                        }
-                                        onChange={(e) =>
-                                            updateAcceptableRow(
-                                                index,
-                                                e.target.value,
-                                            )
-                                        }
-                                        onBlur={commitAcceptable}
-                                        onKeyDown={handleAcceptableKeyDown}
-                                    />
-                                    {!isTrailingEmpty && (
-                                        <button
-                                            type="button"
-                                            className="blank-edit-popover__remove"
-                                            onClick={() =>
-                                                removeAcceptableRow(index)
-                                            }
-                                            aria-label="Remove acceptable answer"
-                                            title="Remove"
-                                        >
-                                            ×
-                                        </button>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                <div className="blank-edit-popover__field">
                     <label className="blank-edit-popover__checkbox">
                         <input
                             type="checkbox"
@@ -615,10 +574,12 @@ export default function BlankEditPopover({
                             Numeric answer
                         </span>
                     </label>
-                    <div className="blank-edit-popover__sublabel">
-                        Equivalent forms count as correct — 0.5, 1/2, and .50
-                        all match. Fractions and mixed numbers work.
-                    </div>
+                    {isNumeric && (
+                        <div className="blank-edit-popover__sublabel">
+                            Equivalent forms count as correct — 0.5, 1/2, and
+                            .50 all match. Fractions and mixed numbers work.
+                        </div>
+                    )}
                     {isNumeric && (
                         <label className="blank-edit-popover__field">
                             <span className="blank-edit-popover__label">
@@ -641,26 +602,98 @@ export default function BlankEditPopover({
                     )}
                 </div>
 
-                {canGroupWithPrevious && (
-                    <div className="blank-edit-popover__field">
-                        <label className="blank-edit-popover__checkbox">
-                            <input
-                                type="checkbox"
-                                checked={interchangeable}
-                                onChange={(e) =>
-                                    handleInterchangeableToggle(e.target.checked)
-                                }
-                            />
-                            <span className="blank-edit-popover__label">
-                                Interchangeable with the blank before it
-                            </span>
-                        </label>
-                        <div className="blank-edit-popover__sublabel">
-                            Their answers may be entered in either order (e.g.
-                            factoring). Each correct answer still counts once.
-                        </div>
-                    </div>
-                )}
+                <div className="blank-edit-popover__field">
+                    {moreExpanded ? (
+                        <>
+                            <div className="blank-edit-popover__field">
+                                <span className="blank-edit-popover__label">
+                                    Acceptable answers
+                                </span>
+                                <div className="blank-edit-popover__list">
+                                    {acceptableRows.map((value, index) => {
+                                        const isTrailingEmpty =
+                                            index === acceptableAnswers.length;
+                                        return (
+                                            <div
+                                                className="blank-edit-popover__list-row"
+                                                key={`acc-${index}`}
+                                            >
+                                                <input
+                                                    type="text"
+                                                    className="blank-edit-popover__input"
+                                                    value={value}
+                                                    placeholder={
+                                                        isTrailingEmpty
+                                                            ? 'Add another acceptable answer'
+                                                            : undefined
+                                                    }
+                                                    onChange={(e) =>
+                                                        updateAcceptableRow(
+                                                            index,
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    onBlur={commitAcceptable}
+                                                    onKeyDown={
+                                                        handleAcceptableKeyDown
+                                                    }
+                                                />
+                                                {!isTrailingEmpty && (
+                                                    <button
+                                                        type="button"
+                                                        className="blank-edit-popover__remove"
+                                                        onClick={() =>
+                                                            removeAcceptableRow(
+                                                                index,
+                                                            )
+                                                        }
+                                                        aria-label="Remove acceptable answer"
+                                                        title="Remove"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {canGroupWithPrevious && (
+                                <div className="blank-edit-popover__field">
+                                    <label className="blank-edit-popover__checkbox">
+                                        <input
+                                            type="checkbox"
+                                            checked={interchangeable}
+                                            onChange={(e) =>
+                                                handleInterchangeableToggle(
+                                                    e.target.checked,
+                                                )
+                                            }
+                                        />
+                                        <span className="blank-edit-popover__label">
+                                            Accept in any order
+                                        </span>
+                                    </label>
+                                    <div className="blank-edit-popover__sublabel">
+                                        This blank and the one before it may be
+                                        answered in either order (e.g.
+                                        factoring). Each correct answer still
+                                        counts once.
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <button
+                            type="button"
+                            className="blank-edit-popover__add-section"
+                            onClick={() => setMoreExpanded(true)}
+                        >
+                            + More options
+                        </button>
+                    )}
+                </div>
 
                 <div className="blank-edit-popover__field">
                     {hintExpanded ? (

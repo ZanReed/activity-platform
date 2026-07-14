@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { Plus } from 'lucide-react';
 import {
     useEditor,
     EditorContent,
@@ -15,6 +16,8 @@ import './editor.css';
 import 'mathlive';
 import { buildEditorExtensions } from './editorExtensions';
 import { columnsNestedDragOptions } from './dragHandleNested';
+import BlockInsertModal from './components/BlockInsertModal';
+import type { SlashMenuItem } from './slashMenuItems';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
 import DefinitionPopoverHost from './components/DefinitionPopoverHost';
@@ -73,6 +76,110 @@ export default function Editor({
         },
     });
 
+    // Canvas wrapper — the insert-line overlay is positioned against it, so it
+    // needs a ref and `position: relative`.
+    const canvasRef = useRef<HTMLDivElement>(null);
+
+    // The insert line follows the top-level block under the cursor: positioned
+    // (canvas-relative px) at that block's top edge. Clicking it opens the
+    // window to insert ABOVE that block — which also covers a line above the
+    // very first block. Driven by the drag-handle's onNodeChange.
+    const [insertLine, setInsertLine] = useState<{
+        top: number;
+        left: number;
+        width: number;
+        pos: number;
+    } | null>(null);
+
+    // The open "Add a block" window and the doc position a pick lands at. null
+    // = closed.
+    const [insertPos, setInsertPos] = useState<number | null>(null);
+
+    // The top-level block the line currently targets — guards against
+    // re-rendering on every mousemove within the same block.
+    const lineTargetRef = useRef<number | null>(null);
+
+    // Self-contained hover tracking (independent of the drag-handle's internal
+    // mousemove logic): find the top-level block under the cursor and place the
+    // line at its top edge. Insert lands ABOVE that block — which also gives a
+    // line above the very first block.
+    const handleCanvasMouseMove = (e: React.MouseEvent) => {
+        if (!editor || !canvasRef.current) return;
+        const hit = editor.view.posAtCoords({
+            left: e.clientX,
+            top: e.clientY,
+        });
+        if (!hit) return; // keep the last line sticky
+        const $pos = editor.state.doc.resolve(hit.pos);
+        // Target the block that is a direct child of the doc OR a column cell:
+        // walk up from the cursor, stopping at the first block whose parent is a
+        // `column` (so the line lands INSIDE a cell) or the doc (top level).
+        // Without this, hovering inside columns jumps up to the whole block and
+        // there's no way to insert into a cell.
+        let d = $pos.depth;
+        while (d > 1 && $pos.node(d - 1).type.name !== 'column') d--;
+        const targetPos = d >= 1 ? $pos.before(d) : hit.pos;
+        if (lineTargetRef.current === targetPos) return;
+        const dom = editor.view.nodeDOM(targetPos);
+        if (!(dom instanceof HTMLElement)) return;
+        lineTargetRef.current = targetPos;
+        const cr = canvasRef.current.getBoundingClientRect();
+        const blockBox = dom.getBoundingClientRect();
+        // Span the full width of the containing column — a cell inside a columns
+        // block, or the whole page when not (the implicit "column of one") —
+        // rather than the hovered block's own width. Reads as "insert into this
+        // column here", and stays full-width even above a narrow block (image,
+        // centered math). The block's parent element is the column's contentDOM
+        // (or .ProseMirror at top level).
+        let left = blockBox.left - cr.left;
+        let width = blockBox.width;
+        const container = dom.parentElement;
+        if (container) {
+            const cbox = container.getBoundingClientRect();
+            const cs = getComputedStyle(container);
+            const padL = parseFloat(cs.paddingLeft) || 0;
+            const padR = parseFloat(cs.paddingRight) || 0;
+            left = cbox.left + padL - cr.left;
+            width = cbox.width - padL - padR;
+        }
+        setInsertLine({
+            top: blockBox.top - cr.top,
+            left,
+            width,
+            pos: targetPos,
+        });
+    };
+
+    const clearInsertLine = () => {
+        lineTargetRef.current = null;
+        setInsertLine(null);
+    };
+
+    // Insert a block at `pos`; if the doc was just the initial empty paragraph,
+    // drop that leftover empty line so a fresh activity starts clean.
+    const runInsert = (pos: number, item: SlashMenuItem) => {
+        if (!editor) return;
+        const before = editor.state.doc;
+        const wasEmpty =
+            before.childCount === 1 &&
+            before.firstChild?.type.name === 'paragraph' &&
+            before.firstChild.content.size === 0;
+        editor.commands.setTextSelection(Math.min(pos, before.content.size));
+        item.command({ editor });
+        if (wasEmpty) {
+            const first = editor.state.doc.firstChild;
+            if (
+                editor.state.doc.childCount > 1 &&
+                first &&
+                first.type.name === 'paragraph' &&
+                first.content.size === 0
+            ) {
+                editor.chain().deleteRange({ from: 0, to: first.nodeSize }).run();
+            }
+        }
+        setInsertPos(null);
+    };
+
     // Dev-only escape hatch: expose the live editor so scripted browser
     // checks (and quick console experiments) can set content / inspect state.
     // Stripped from production builds by the DEV guard.
@@ -124,7 +231,12 @@ export default function Editor({
             style={typographyVars}
         >
             <Toolbar editor={editor} />
-            <div className="p-6">
+            <div
+                ref={canvasRef}
+                className="relative p-6"
+                onMouseMove={handleCanvasMouseMove}
+                onMouseLeave={clearInsertLine}
+            >
                 <DragHandle editor={editor} nested={columnsNestedDragOptions}>
                     <button
                         type="button"
@@ -149,7 +261,51 @@ export default function Editor({
                         </svg>
                     </button>
                 </DragHandle>
+                {/* Between-block insert line: appears at the top edge of the
+                    hovered block (also covers a line above the first block).
+                    Clicking opens the window to insert above that block. */}
+                {insertLine && insertPos === null ? (
+                    <button
+                        type="button"
+                        className="block-insert-line"
+                        style={{
+                            top: `${insertLine.top}px`,
+                            left: `${insertLine.left}px`,
+                            width: `${insertLine.width}px`,
+                        }}
+                        aria-label="Insert a block here"
+                        title="Insert a block here"
+                        onClick={() => setInsertPos(insertLine.pos)}
+                    >
+                        <span className="block-insert-line__plus">
+                            <Plus size={12} aria-hidden="true" />
+                        </span>
+                    </button>
+                ) : null}
                 <EditorContent editor={editor} />
+                {/* Persistent "add block" square at the end of the document —
+                    also the sole affordance on a brand-new empty activity.
+                    Appends at the very end. */}
+                <button
+                    type="button"
+                    className="block-insert-end"
+                    aria-label="Add a block"
+                    title="Add a block"
+                    onClick={() =>
+                        editor &&
+                        setInsertPos(editor.state.doc.content.size)
+                    }
+                >
+                    <Plus size={16} aria-hidden="true" />
+                </button>
+                {editor && insertPos !== null ? (
+                    <BlockInsertModal
+                        editor={editor}
+                        insertPos={insertPos}
+                        onInsert={(item) => runInsert(insertPos, item)}
+                        onClose={() => setInsertPos(null)}
+                    />
+                ) : null}
                 {/*
                   BlankPopoverHost sits as a sibling of EditorContent. It
                   watches the editor's selection and shows a popover when a

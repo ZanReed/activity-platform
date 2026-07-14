@@ -70,6 +70,12 @@ export interface SlashMenuItem {
     // disabled (with disabledHint as the tooltip) and the slash menu hides it.
     isEnabled?: (editor: Editor) => boolean;
     disabledHint?: string;
+    // Structural blocks that can only live at the document top level (never
+    // inside a column cell or other container) — the schema's `column` content
+    // spec excludes them, so inserting one at a nested position lifts it out and
+    // fragments the container. The "Add a block" window disables these when the
+    // insert point is inside a container.
+    topLevelOnly?: boolean;
     command: (props: { editor: Editor; range?: Range }) => void;
 }
 
@@ -173,6 +179,7 @@ export const slashMenuItems: SlashMenuItem[] = [
         group: 'Structure',
         subgroup: 'Layout',
         icon: SquareSplitHorizontal,
+        topLevelOnly: true,
         command: ({ editor, range }) => {
             begin(editor, range).insertSectionBreak().run();
         },
@@ -185,6 +192,7 @@ export const slashMenuItems: SlashMenuItem[] = [
         subgroup: 'Layout',
         icon: Columns2,
         referenceSafe: true,
+        topLevelOnly: true,
         command: ({ editor, range }) => {
             begin(editor, range).insertColumns(2).run();
         },
@@ -197,6 +205,7 @@ export const slashMenuItems: SlashMenuItem[] = [
         subgroup: 'Layout',
         icon: Columns3,
         referenceSafe: true,
+        topLevelOnly: true,
         command: ({ editor, range }) => {
             begin(editor, range).insertColumns(3).run();
         },

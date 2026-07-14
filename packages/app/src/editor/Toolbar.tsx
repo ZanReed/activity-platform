@@ -29,8 +29,9 @@ interface ToolbarProps {
 // 1. Flat controls — ONLY selection formatting: the block-style picker
 //    (headings/paragraph/lists are transforms of the current block, not
 //    insertions), the marks, and the inline-math atom.
-// 2. "+ Insert" — ALL block insertion, in one dropdown driven by
-//    slashMenuItems.ts so it and the slash menu share one item list.
+// 2. Block insertion — in the activity editor this lives OUTSIDE the toolbar
+//    now (the in-canvas "Add a block" window + the "/" slash menu). Only the
+//    reference panel still shows the "+ Insert" dropdown here.
 // 3. Contextual cluster — column controls render only while the selection is
 //    inside a columns block (the pattern the graph NodeView's inline controls
 //    set: controls live where/when they apply).
@@ -122,9 +123,17 @@ export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) 
                 ƒx
             </ToolbarButton>
 
-            <Divider />
-
-            <InsertMenu editor={editor} variant={variant} />
+            {/* Block insertion in the ACTIVITY editor moved into the in-canvas
+                "Add a block" window (the between-block line + end square) and
+                the "/" slash menu, so no toolbar insert button here. The
+                constrained REFERENCE panel keeps its dropdown — it has no
+                in-canvas affordances of its own. */}
+            {variant === 'reference' && (
+                <>
+                    <Divider />
+                    <InsertMenu editor={editor} variant={variant} />
+                </>
+            )}
 
             {/*
               Contextual column cluster — rendered ONLY while the selection is

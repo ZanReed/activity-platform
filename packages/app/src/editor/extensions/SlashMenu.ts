@@ -19,11 +19,17 @@ export const SlashMenu = Extension.create({
 
                 items: ({ query, editor }) => {
                     const q = query.toLowerCase();
+                    // Inside a container (column cell, list item, worked-example
+                    // body, …) the cursor sits below the doc top level, so a
+                    // top-level-only structural block would split the container.
+                    // Hide those there — same rule the "Add a block" window uses.
+                    const nested = editor.state.selection.$from.depth > 1;
                     return slashMenuItems.filter(
                         (item) =>
                         // Contextual items (e.g. Answer blank, only valid
                         // inside a problem) are hidden where they can't apply.
                         (item.isEnabled?.(editor) ?? true) &&
+                        !(item.topLevelOnly && nested) &&
                         (item.title.toLowerCase().includes(q) ||
                         (item.keywords?.some((kw) => kw.includes(q)) ?? false)),
                     );
