@@ -422,7 +422,11 @@
     position: relative;
 }
 
-.ProseMirror > *::before {
+/* :not(.is-empty-hint) — an empty line's ::before is the "/" placeholder hint,
+ * not a dot. Without the exclusion, this rule's width/left/background leak into
+ * that shared ::before (only the properties the hint rule doesn't set), which
+ * squeezed the placeholder text into a 5px column (rendered vertically). */
+.ProseMirror > *:not(.is-empty-hint)::before {
     content: '';
     position: absolute;
     top: 0.55em;
@@ -436,7 +440,7 @@
     transition: opacity 0.12s ease;
 }
 
-.ProseMirror > *:hover::before {
+.ProseMirror > *:not(.is-empty-hint):hover::before {
     opacity: 0;
 }
 

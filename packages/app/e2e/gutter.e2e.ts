@@ -37,6 +37,31 @@ test('every top-level block shows a persistent rest dot', async ({ page }) => {
     expect(dot!.w).not.toBe('0px');
 });
 
+test('the empty-line "/" placeholder renders horizontally (not squeezed by the dot)', async ({
+    page,
+}) => {
+    // Regression: the rest-dot ::before and the placeholder-hint ::before share
+    // the same pseudo-element on an empty line; the dot's width:5px once leaked
+    // in and squeezed the hint text into a vertical 5px column.
+    const hint = await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        ed.commands.insertContentAt(ed.state.doc.content.size, {
+            type: 'paragraph',
+        });
+        ed.commands.focus('end');
+        const el = document.querySelector('.ProseMirror .is-empty-hint');
+        if (!el) return null;
+        const cs = getComputedStyle(el, '::before');
+        return { width: parseFloat(cs.width), left: cs.left, content: cs.content };
+    });
+    expect(hint).not.toBeNull();
+    // Wide enough for the sentence to flow left-to-right, anchored at the text.
+    expect(hint!.width).toBeGreaterThan(40);
+    expect(hint!.left).toBe('0px');
+    expect(hint!.content).toContain('Type /');
+});
+
 test('hovering a block reveals the grip + insert cluster', async ({ page }) => {
     const para = await firstParagraph(page);
     await para.hover();
