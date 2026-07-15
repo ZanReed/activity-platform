@@ -4,6 +4,13 @@ import {
     NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
+import {
+    MessageSquare,
+    MessageSquarePlus,
+    Image as ImageIcon,
+    ImagePlus,
+    X,
+} from 'lucide-react';
 import { renderGraphSvg, type AxisConfig, type Drawable } from '@activity/renderer';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
@@ -416,9 +423,16 @@ export default function MultipleChoiceView({
                                             }`}
                                         />
                                     </div>
+                                    {/* Quiet row tools (quick-bar language):
+                                        fade in on row hover/focus; a populated
+                                        one stays visible + accented. */}
                                     <button
                                         type="button"
-                                        className="mc-block__row-btn"
+                                        className={`mc-block__row-btn${
+                                            choice.feedback?.length
+                                                ? ' mc-block__row-btn--on'
+                                                : ''
+                                        }`}
                                         onClick={() =>
                                             setOpenFeedback((prev) => ({
                                                 ...prev,
@@ -429,14 +443,31 @@ export default function MultipleChoiceView({
                                             openFeedback[choice.id] ??
                                             Boolean(choice.feedback?.length)
                                         }
+                                        aria-label={`Feedback for choice ${
+                                            LETTERS[index % 26]
+                                        }`}
                                         title="Feedback shown when this choice is picked"
                                         disabled={!isEditable}
                                     >
-                                        {choice.feedback?.length ? '💬' : '💬＋'}
+                                        {choice.feedback?.length ? (
+                                            <MessageSquare
+                                                size={14}
+                                                aria-hidden="true"
+                                            />
+                                        ) : (
+                                            <MessageSquarePlus
+                                                size={14}
+                                                aria-hidden="true"
+                                            />
+                                        )}
                                     </button>
                                     <button
                                         type="button"
-                                        className="mc-block__row-btn"
+                                        className={`mc-block__row-btn${
+                                            choice.image || choice.graph
+                                                ? ' mc-block__row-btn--on'
+                                                : ''
+                                        }`}
                                         onClick={() =>
                                             setOpenFigure((prev) => ({
                                                 ...prev,
@@ -447,12 +478,23 @@ export default function MultipleChoiceView({
                                             openFigure[choice.id] ??
                                             Boolean(choice.image || choice.graph)
                                         }
+                                        aria-label={`Figure for choice ${
+                                            LETTERS[index % 26]
+                                        }`}
                                         title="Image or graph shown under this choice"
                                         disabled={!isEditable}
                                     >
-                                        {choice.image || choice.graph
-                                            ? '🖼'
-                                            : '🖼＋'}
+                                        {choice.image || choice.graph ? (
+                                            <ImageIcon
+                                                size={14}
+                                                aria-hidden="true"
+                                            />
+                                        ) : (
+                                            <ImagePlus
+                                                size={14}
+                                                aria-hidden="true"
+                                            />
+                                        )}
                                     </button>
                                     <button
                                         type="button"
@@ -468,7 +510,7 @@ export default function MultipleChoiceView({
                                         }
                                         disabled={!isEditable || choices.length <= 2}
                                     >
-                                        ×
+                                        <X size={14} aria-hidden="true" />
                                     </button>
                                 </div>
                                 {(openFigure[choice.id] ??

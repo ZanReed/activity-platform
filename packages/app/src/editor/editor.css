@@ -1334,37 +1334,67 @@
     flex: 1;
     min-width: 0;
 }
+/* Row tools (feedback / figure / remove / reorder) — quick-bar visual
+ * language: quiet lucide icons that fade in on row hover or focus; a
+ * populated toggle (--on) stays visible + accented so a configured row shows
+ * its state at rest. */
 .mc-block__row-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: none;
     background: transparent;
     color: var(--ed-faint); /* slate-400 */
-    font-size: 0.85rem;
     line-height: 1;
     padding: 0.25rem;
     border-radius: 0.25rem;
     cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s ease, background-color 0.12s ease,
+        color 0.12s ease;
+}
+.mc-block__choice-row:hover .mc-block__row-btn,
+.mc-block__choice-row:focus-within .mc-block__row-btn,
+.mc-block__row-btn--on {
+    opacity: 1;
 }
 .mc-block__row-btn:hover:not(:disabled) {
     background: var(--ed-border); /* slate-200 */
     color: var(--ed-text-strong); /* slate-700 */
 }
+.mc-block__row-btn--on {
+    color: var(--ed-accent-strong); /* blue-600 — "this row has one" */
+}
+.mc-block__row-btn:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--ed-accent);
+    outline-offset: 1px;
+}
 .mc-block__row-btn:disabled {
-    opacity: 0.4;
+    opacity: 0;
     cursor: default;
 }
+.mc-block__choice-row:hover .mc-block__row-btn:disabled,
+.mc-block__choice-row:focus-within .mc-block__row-btn:disabled {
+    opacity: 0.35;
+}
+/* Per-choice annotation panels — the de-striped treatment (hairline + wash,
+ * no side-tab): amber = authored feedback content, slate = structure. */
 .mc-block__feedback {
     margin-left: 3.1rem;
     padding: 0.4rem 0.6rem;
-    border-left: 3px solid var(--ed-warning-accent); /* amber-500 */
+    border: 1px solid var(--ed-warning-accent); /* amber-500 hairline */
     background: var(--ed-warning-bg); /* amber-50 */
-    border-radius: 0 0.375rem 0.375rem 0;
+    border-radius: 0.375rem;
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
 }
 .mc-block__feedback-label {
-    font-size: 0.72rem;
+    font-size: 0.6875rem;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
     color: var(--ed-warning-text-strong); /* amber-800 */
 }
 /* Per-choice figure panel (image URL/alt or static graph). Slate-toned to
@@ -1372,17 +1402,19 @@
 .mc-block__figure {
     margin-left: 3.1rem;
     padding: 0.4rem 0.6rem;
-    border-left: 3px solid var(--ed-faint); /* slate-400 */
+    border: 1px solid var(--ed-border); /* slate-200 hairline */
     background: var(--ed-surface); /* slate-50 */
-    border-radius: 0 0.375rem 0.375rem 0;
+    border-radius: 0.375rem;
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
 }
 .mc-block__figure-label {
-    font-size: 0.72rem;
+    font-size: 0.6875rem;
     font-weight: 600;
-    color: var(--ed-text-strong); /* slate-700 */
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ed-text-muted); /* slate-500 */
 }
 .mc-block__figure-actions {
     display: flex;

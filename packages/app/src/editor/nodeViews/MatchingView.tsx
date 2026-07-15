@@ -7,6 +7,7 @@ import {
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import type { EditorMatchSide } from '../extensions/Matching';
+import { Image as ImageIcon, ImagePlus, X } from 'lucide-react';
 import { ChoiceFigureEditor } from './MultipleChoiceView';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt } from '../problemNumbering';
@@ -155,15 +156,22 @@ export default function MatchingView({
     const figureToggle = (side: EditorMatchSide, label: string) => (
         <button
             type="button"
-            className="mc-block__row-btn"
+            className={`mc-block__row-btn${
+                side.image || side.graph ? ' mc-block__row-btn--on' : ''
+            }`}
             onClick={() =>
                 setOpenFigure((prev) => ({ ...prev, [side.id]: !prev[side.id] }))
             }
             aria-expanded={openFigure[side.id] ?? Boolean(side.image || side.graph)}
+            aria-label={`Figure for ${label}`}
             title={`Image or graph shown with ${label}`}
             disabled={!isEditable}
         >
-            {side.image || side.graph ? '🖼' : '🖼＋'}
+            {side.image || side.graph ? (
+                <ImageIcon size={14} aria-hidden="true" />
+            ) : (
+                <ImagePlus size={14} aria-hidden="true" />
+            )}
         </button>
     );
 
@@ -266,7 +274,7 @@ export default function MatchingView({
                                         }
                                         disabled={!isEditable || items.length <= 2}
                                     >
-                                        ×
+                                        <X size={14} aria-hidden="true" />
                                     </button>
                                 </div>
                                 {figurePanel('items', item, `item ${index + 1}`)}
@@ -318,7 +326,7 @@ export default function MatchingView({
                                         }
                                         disabled={!isEditable || targets.length <= 2}
                                     >
-                                        ×
+                                        <X size={14} aria-hidden="true" />
                                     </button>
                                 </div>
                                 {figurePanel('targets', target, `option ${index + 1}`)}

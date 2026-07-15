@@ -7,6 +7,7 @@ import {
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import type { EditorOrderItem } from '../extensions/Ordering';
+import { ArrowDown, ArrowUp, X } from 'lucide-react';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt } from '../problemNumbering';
 
@@ -117,7 +118,7 @@ export default function OrderingView({
                                         title="Move up"
                                         disabled={!isEditable || index === 0}
                                     >
-                                        ↑
+                                        <ArrowUp size={14} aria-hidden="true" />
                                     </button>
                                     <button
                                         type="button"
@@ -129,7 +130,7 @@ export default function OrderingView({
                                             !isEditable || index === items.length - 1
                                         }
                                     >
-                                        ↓
+                                        <ArrowDown size={14} aria-hidden="true" />
                                     </button>
                                     <button
                                         type="button"
@@ -143,7 +144,7 @@ export default function OrderingView({
                                         }
                                         disabled={!isEditable || items.length <= 2}
                                     >
-                                        ×
+                                        <X size={14} aria-hidden="true" />
                                     </button>
                                 </div>
                             </div>
