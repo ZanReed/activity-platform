@@ -2,7 +2,12 @@ import { useEffect, useState, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import { NodeSelection } from 'prosemirror-state';
 import { ChevronDown } from 'lucide-react';
-import { controlsFor, type BlockControls } from '../blockControls';
+import {
+    controlsFor,
+    universalActions,
+    type BlockControls,
+    type ControlEntry,
+} from '../blockControls';
 
 // ============================================================================
 // BlockCommandBarHost — root-level docked command bar for the selected block.
@@ -121,20 +126,26 @@ export default function BlockCommandBarHost({
             // which would move the selection and unmount the bar mid-click.
             onMouseDown={(e) => e.preventDefault()}
         >
-            {selected.controls.primary.map((entry) => {
-                const Icon = entry.icon;
-                return (
-                    <button
-                        key={entry.label}
-                        type="button"
-                        className="block-command-bar__action"
-                        onClick={() => entry.onActivate(editor, selected.pos)}
-                    >
-                        <Icon size={14} aria-hidden="true" />
-                        <span>{entry.label}</span>
-                    </button>
-                );
-            })}
+            {selected.controls.primary.map((entry) => (
+                <BarButton
+                    key={entry.label}
+                    entry={entry}
+                    editor={editor}
+                    pos={selected.pos}
+                    primary
+                />
+            ))}
+            {selected.controls.primary.length > 0 ? (
+                <span className="block-command-bar__divider" aria-hidden="true" />
+            ) : null}
+            {universalActions.map((entry) => (
+                <BarButton
+                    key={entry.label}
+                    entry={entry}
+                    editor={editor}
+                    pos={selected.pos}
+                />
+            ))}
             {hasAdvanced ? (
                 <button
                     type="button"
@@ -148,5 +159,30 @@ export default function BlockCommandBarHost({
                 </button>
             ) : null}
         </div>
+    );
+}
+
+interface BarButtonProps {
+    entry: ControlEntry;
+    editor: Editor;
+    pos: number;
+    /** Block-specific primary (accent fill) vs a universal action (ghost). */
+    primary?: boolean;
+}
+
+function BarButton({ entry, editor, pos, primary }: BarButtonProps) {
+    const Icon = entry.icon;
+    return (
+        <button
+            type="button"
+            className={
+                'block-command-bar__action' +
+                (primary ? ' block-command-bar__action--primary' : '')
+            }
+            onClick={() => entry.onActivate(editor, pos)}
+        >
+            <Icon size={14} aria-hidden="true" />
+            <span>{entry.label}</span>
+        </button>
     );
 }

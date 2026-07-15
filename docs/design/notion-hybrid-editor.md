@@ -271,9 +271,19 @@ verifiable on `/playground`.
    Esc handlers — they own Esc only while focused, when PM isn't). **Click stays edit** (caret);
    a text range + Esc falls through. `Esc` semantics audited — no collision. 5 select-state
    e2e specs (click=caret, Esc→select, outline drawn, grip→select, range-Esc falls through).
-3. **Per-block controls via the descriptor.** Fill the inventory's *primary* + *Advanced*
-   descriptors per block type, extracting each block's control surface out of its NodeView
-   into its descriptor. This is a ~20-NodeView refactor, not wiring — simplest blocks first.
+3. **Per-block controls via the descriptor. 🚧 IN PROGRESS (batch 1 shipped 2026-07-15).**
+   Fill each block's *primary* descriptor (Advanced fields are stage 4's drawer — its
+   field-type system is designed there, not populated prematurely here). Corrected the stage-0
+   model: **Duplicate/Delete are universal** (rendered by the host after the block-specific
+   primaries, accent-primary vs ghost-universal with a divider), so a descriptor's `primary`
+   is block-specific only (empty for paragraph/heading). Shared **`enterEdit`** primary = the
+   Select → Edit transition (caret into the block's content). **Batch 1** (instructional +
+   free-text, no popover-host conflict): `learningObjectives`/`workedExample` (**Edit**),
+   `fadedWorkedExample` (**Edit** + a `showStepLabels` toggle as the first `advanced` entry),
+   `selfExplanation` (**Prompt**). Batches remaining: 2 = question family (MC/matching/ordering/
+   graphs/number_line/data_plot); 3 = the **popover-host blocks** (`image`, `fill_in_blank`) —
+   the deferred coexistence (their bar primary becomes the single affordance; suppress the
+   auto-open-on-selection popover). ~20-NodeView refactor, simplest first.
 4. **The grouped `Advanced` drawer.** Rendered from the descriptor's grouped `advanced`;
    most-common-first. The bulk of the "never overwhelmed" win.
 5. **Block-picker previews + first-run empty state.** Static SVG thumbnails per block type;

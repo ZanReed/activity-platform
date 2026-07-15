@@ -67,10 +67,10 @@ test('math_block selection shows a bar with a real "Edit" primary', async ({
     await expect(bar).toBeVisible();
     await expect(bar).toHaveAttribute('data-block-type', 'mathBlock');
     await expect(bar.getByRole('button', { name: 'Edit' })).toBeVisible();
-    // math_block's descriptor is Edit-only — not the generic duplicate/delete.
-    await expect(
-        bar.getByRole('button', { name: 'Duplicate' }),
-    ).toHaveCount(0);
+    // Edit is math_block's block-specific primary; Duplicate/Delete are the
+    // universal actions every block's bar carries.
+    await expect(bar.getByRole('button', { name: 'Duplicate' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Delete' })).toBeVisible();
 });
 
 test('the bar is anchored on-screen at the block top-right', async ({
@@ -100,6 +100,34 @@ test('the bar is anchored on-screen at the block top-right', async ({
             barBox.x + barBox.width - (blockBox.x + blockBox.width),
         ),
     ).toBeLessThan(48);
+});
+
+test('a content block shows its block-specific primary + universal actions, and the primary enters edit', async ({
+    page,
+}) => {
+    // Insert a self_explanation, node-select it, and read its bar.
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.commands.insertSelfExplanation();
+    });
+    await selectFirstNode(page, 'selfExplanation');
+    const bar = page.locator(BAR);
+    await expect(bar).toHaveAttribute('data-block-type', 'selfExplanation');
+    // Block-specific primary + the universal actions.
+    await expect(bar.getByRole('button', { name: 'Prompt' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Duplicate' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Delete' })).toBeVisible();
+
+    // The primary performs Select -> Edit: a caret lands inside the block.
+    await bar.getByRole('button', { name: 'Prompt' }).click();
+    const selType = await page.evaluate(() =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.state.selection.constructor.name.replace(
+            /^_+/,
+            '',
+        ),
+    );
+    expect(selType).toBe('TextSelection');
 });
 
 test('a caret (TextSelection) shows no bar', async ({ page }) => {

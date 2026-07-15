@@ -538,6 +538,23 @@
     background: rgb(255 255 255 / 0.14);
 }
 
+/* Block-specific primary — accent fill; universal actions stay ghost. */
+.block-command-bar__action--primary {
+    background: var(--ed-accent);
+}
+
+.block-command-bar__action--primary:hover {
+    background: var(--ed-accent-strong);
+}
+
+/* Separates the block-specific primaries from the universal actions. */
+.block-command-bar__divider {
+    width: 1px;
+    align-self: stretch;
+    margin: 0.125rem 0.1875rem;
+    background: rgb(255 255 255 / 0.16);
+}
+
 .block-command-bar__action:focus-visible,
 .block-command-bar__advanced:focus-visible {
     outline: 2px solid var(--ed-white);

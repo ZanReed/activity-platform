@@ -1,6 +1,6 @@
 import type { Editor } from '@tiptap/core';
 import type { LucideIcon } from 'lucide-react';
-import { Pencil, Copy, Trash2 } from 'lucide-react';
+import { Pencil, Copy, Trash2, MessageSquareText, Tags } from 'lucide-react';
 import { openMathFieldMeta } from './extensions/MathFocus';
 
 // ============================================================================
@@ -62,10 +62,10 @@ export interface BlockControls {
     advanced?: AdvancedGroup[];
 }
 
-// --- Generic controls shared by plain text blocks -------------------------
-// paragraph / heading have no block-specific primary; their bar is just the
-// universal move/duplicate/delete. (Move is the gutter grip — a later stage —
-// so stage 0's generic primary is duplicate + delete.)
+// --- Universal actions ----------------------------------------------------
+// Every block gets these, rendered by the host AFTER the block-specific
+// primaries. They are NOT part of any descriptor's `primary` (a block's primary
+// is its own 1-2 actions). Move (the gutter grip) is a later stage.
 
 function duplicateBlock(editor: Editor, pos: number): void {
     const node = editor.state.doc.nodeAt(pos);
@@ -85,26 +85,30 @@ function deleteBlock(editor: Editor, pos: number): void {
         .run();
 }
 
-const duplicateEntry: ControlEntry = {
-    label: 'Duplicate',
-    icon: Copy,
-    onActivate: duplicateBlock,
-};
+/** Actions the host appends to every block's command bar. */
+export const universalActions: ReadonlyArray<ControlEntry> = [
+    { label: 'Duplicate', icon: Copy, onActivate: duplicateBlock },
+    { label: 'Delete', icon: Trash2, onActivate: deleteBlock },
+];
 
-const deleteEntry: ControlEntry = {
-    label: 'Delete',
-    icon: Trash2,
-    onActivate: deleteBlock,
-};
+// --- Shared primaries -----------------------------------------------------
 
-const genericControls: BlockControls = {
-    primary: [duplicateEntry, deleteEntry],
-};
+/**
+ * Enter Edit from the Select state: place the caret inside the block's editable
+ * content (the four-state model's Select → Edit transition). ProseMirror snaps
+ * `pos + 1` to the nearest valid text position inside the node.
+ */
+function enterEdit(editor: Editor, pos: number): void {
+    editor.chain().focus().setTextSelection(pos + 1).run();
+}
 
-// --- math_block: a real block-specific primary ----------------------------
-// "Edit" raises the MathFocus open signal (mode 'all' so the whole formula is
-// selected, first keystroke replaces) — the same handoff the insert path uses.
+/** An "enter the block's content" primary — the common case for content blocks. */
+function editPrimary(label = 'Edit', icon: LucideIcon = Pencil): ControlEntry {
+    return { label, icon, onActivate: enterEdit };
+}
 
+// math_block: "Edit" opens the MathLive field (mode 'all' selects the whole
+// formula so the first keystroke replaces) — the same handoff the insert uses.
 const mathBlockControls: BlockControls = {
     primary: [
         {
@@ -117,18 +121,57 @@ const mathBlockControls: BlockControls = {
             },
         },
     ],
-    // width / align exist as attrs but have no UI yet — extracted in stage 3/4.
+    // width / align exist as attrs but have no UI yet — Advanced, stage 4.
 };
 
 // ============================================================================
 // The registry, keyed by ProseMirror node-type name. Adding a block type =
 // one entry here (+ its NodeView/extension). controlsFor is the host's lookup.
+// Plain text blocks (paragraph/heading) have no block-specific primary — their
+// bar is just the universal actions.
 // ============================================================================
 
 export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
-    paragraph: genericControls,
-    heading: genericControls,
+    paragraph: { primary: [] },
+    heading: { primary: [] },
     mathBlock: mathBlockControls,
+
+    // Batch 1 — instructional + free-text content blocks. Their primary is the
+    // Select → Edit transition (enter the editable content). Advanced fields
+    // (placeholder, step labels) are the stage-4 drawer's job.
+    learningObjectives: { primary: [editPrimary()] },
+    workedExample: { primary: [editPrimary()] },
+    fadedWorkedExample: {
+        primary: [editPrimary()],
+        advanced: [
+            {
+                group: 'Display',
+                entries: [
+                    {
+                        label: 'Toggle step labels',
+                        icon: Tags,
+                        onActivate: (editor, pos) => {
+                            const node = editor.state.doc.nodeAt(pos);
+                            if (!node) return;
+                            editor
+                                .chain()
+                                .focus()
+                                .command(({ tr }) => {
+                                    tr.setNodeAttribute(
+                                        pos,
+                                        'showStepLabels',
+                                        node.attrs.showStepLabels === false,
+                                    );
+                                    return true;
+                                })
+                                .run();
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    selfExplanation: { primary: [editPrimary('Prompt', MessageSquareText)] },
 };
 
 /** The descriptor for a node type, or null when the type has no controls. */
