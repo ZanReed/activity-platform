@@ -355,11 +355,16 @@ is its spec; build it as 6.5.
 Root cause: the four-state model made **Select** (which reveals the command bar's
 Duplicate/Delete/Advanced) reachable ONLY via grip-click or `Esc` — both undiscoverable to a
 non-power-user. The "secondary, opt-in" Select state went too far. **Resolution (author-directed,
-SHIPPED):** an always-visible mini **quick-bar** — a small quiet `[🗑 Delete][⋮ More]` control
-top-right of a block, shown on **hover** AND **while the caret is in the block** (the latter is
-what makes it discoverable on touch/iPad — no hover there). `⋮` selects the block → the full
-command bar takes over; `🗑` deletes in one click. Icon-only with `title` tooltips (the two
-actions have universal icons; the full bar behind `⋮` keeps text labels). New
+SHIPPED):** an always-visible mini **quick-bar** — a small quiet row of standard icon buttons
+`[🗑 Delete][⧉ Duplicate][⚙ Settings]` top-right of a block, shown on **hover** AND **while the
+caret is in the block** (the latter is what makes it discoverable on touch/iPad — no hover
+there). Delete/Duplicate act directly; the ⚙ gear selects the block → the full command bar (its
+block-specific primary + the Advanced drawer). Icon-only with `title` tooltips on each (all three
+have universal glyphs; the full bar behind ⚙ keeps text labels). A **stay-alive** grace timer +
+on-bar freeze keeps it clickable on pure hover — the bar sits just outside the ProseMirror
+content, so without it the gutter DragHandle reported "left the block" and unmounted the bar
+before the click landed (the reported "can't click without clicking into the editor first" bug).
+New
 `BlockQuickBarHost` (single root host, mutually exclusive with the command bar). **Grip-click
 select removed** — it had a two-click bug; the grip is drag-only now, and `⋮`/`Esc` are the
 select paths. This also delivers the **focus/tap input-parity** deferred from stage 1. 5

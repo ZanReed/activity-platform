@@ -1,26 +1,35 @@
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import { NodeSelection, TextSelection } from 'prosemirror-state';
-import { Trash2, MoreVertical } from 'lucide-react';
+import { Trash2, Copy, Settings } from 'lucide-react';
 
 // ============================================================================
 // BlockQuickBarHost — the always-discoverable block affordance (slice 6).
 // ----------------------------------------------------------------------------
-// Dogfooding showed the four-state model hid block actions too well: select
-// (which reveals the docked command bar) was only reachable via grip-click or
-// Esc, which a real teacher never found. This host fixes that: a small quiet
-// [Delete][More] control that appears top-right of a block whenever it's
-// HOVERED or has the CARET in it — no gesture to discover, and "while editing"
-// visibility is what makes it work on touch (iPad: tap to edit → it shows).
+// Dogfooding showed the four-state model hid block actions too well: select was
+// only reachable via grip-click or Esc, which a real teacher never found. This
+// host fixes that: a small quiet row of icon buttons that appears top-right of
+// a block whenever it's HOVERED or has the CARET in it — no gesture to
+// discover, and "while editing" visibility is what makes it work on touch
+// (iPad: tap to edit → it shows). Each button has a text tooltip on hover.
 //
-//   • Delete (trash) removes the block in one click.
-//   • More (⋮) selects the block → the full command bar takes over (its ⋮
-//     path also sidesteps the grip's 2-click select bug).
+//   • Delete (trash)      — remove the block in one click.
+//   • Duplicate (copy)    — clone the block below.
+//   • Settings (gear)     — select the block → the full command bar (its
+//                           block-specific primary + the Advanced drawer).
 //
 // Single root host, one anchor (mirrors BlockCommandBarHost) — never per-block.
-// Mutually exclusive with the full command bar: it hides the moment a block is
-// node-selected, so the full bar owns that state and the two never stack.
+// Hides the moment a block is node-selected (the full bar owns that state).
+//
+// STAY-ALIVE: the bar is anchored just OUTSIDE the ProseMirror content, so the
+// gutter DragHandle reports "left the block" as the pointer travels toward the
+// buttons, which would unmount the bar before the click lands. We keep it alive
+// while the pointer is on the bar, and clear on a short grace timer otherwise,
+// so you can reach the buttons on pure hover (no need to click into the editor
+// first).
 // ============================================================================
+
+const CLEAR_GRACE_MS = 160;
 
 interface BlockQuickBarHostProps {
     editor: Editor | null;
@@ -48,25 +57,59 @@ export default function BlockQuickBarHost({
     const [position, setPosition] = useState<{ top: number; left: number } | null>(
         null,
     );
+    // Pointer is over the bar itself — freeze the target so it can't move or
+    // clear out from under the click.
+    const onBarRef = useRef(false);
+    const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Phase 1 — the active block is the hovered one, else the caret's block.
-    // Suppressed while a block is node-selected: the full command bar owns that.
+    // Suppressed while a block is node-selected (the full command bar owns it).
     useEffect(() => {
         if (!editor) return;
+
+        const cancelClear = () => {
+            if (clearTimer.current) {
+                clearTimeout(clearTimer.current);
+                clearTimer.current = null;
+            }
+        };
+        const scheduleClear = () => {
+            if (clearTimer.current) return;
+            clearTimer.current = setTimeout(() => {
+                clearTimer.current = null;
+                if (!onBarRef.current) setActivePos(null);
+            }, CLEAR_GRACE_MS);
+        };
+
         const update = () => {
+            // While the pointer is on the bar, hold the current target steady.
+            if (onBarRef.current) {
+                cancelClear();
+                return;
+            }
             if (editor.state.selection instanceof NodeSelection) {
+                cancelClear();
                 setActivePos((prev) => (prev === null ? prev : null));
                 return;
             }
             const next = hoveredPos ?? caretBlockPos(editor);
-            setActivePos((prev) => (prev === next ? prev : next));
+            if (next !== null) {
+                cancelClear();
+                setActivePos((prev) => (prev === next ? prev : next));
+            } else {
+                // Grace period so the pointer can travel from the block to the
+                // bar (which sits just outside the block) without it vanishing.
+                scheduleClear();
+            }
         };
+
         editor.on('selectionUpdate', update);
         editor.on('transaction', update);
         update();
         return () => {
             editor.off('selectionUpdate', update);
             editor.off('transaction', update);
+            cancelClear();
         };
     }, [editor, hoveredPos]);
 
@@ -101,7 +144,16 @@ export default function BlockQuickBarHost({
             .run();
     };
 
-    const selectBlock = () => {
+    const duplicateBlock = () => {
+        const node = editor.state.doc.nodeAt(activePos);
+        if (!node) return;
+        editor
+            .chain()
+            .insertContentAt(activePos + node.nodeSize, node.toJSON())
+            .run();
+    };
+
+    const openSettings = () => {
         editor.chain().setNodeSelection(activePos).run();
     };
 
@@ -109,9 +161,20 @@ export default function BlockQuickBarHost({
         <div
             className="block-quickbar"
             style={{ top: `${position.top}px`, left: `${position.left}px` }}
-            // Don't steal the caret / move the selection when clicking — the
-            // buttons' onClick drives the action explicitly.
+            // Don't steal the caret / move the selection when clicking.
             onMouseDown={(e) => e.preventDefault()}
+            // Freeze the target while the pointer is on the bar so it stays
+            // clickable even on pure hover (no click-into-editor-first needed).
+            onMouseEnter={() => {
+                onBarRef.current = true;
+            }}
+            onMouseLeave={() => {
+                onBarRef.current = false;
+                clearTimer.current = setTimeout(() => {
+                    clearTimer.current = null;
+                    if (!onBarRef.current) setActivePos(null);
+                }, CLEAR_GRACE_MS);
+            }}
         >
             <button
                 type="button"
@@ -125,11 +188,20 @@ export default function BlockQuickBarHost({
             <button
                 type="button"
                 className="block-quickbar__btn"
-                title="More actions"
-                aria-label="More actions"
-                onClick={selectBlock}
+                title="Duplicate block"
+                aria-label="Duplicate block"
+                onClick={duplicateBlock}
             >
-                <MoreVertical size={14} aria-hidden="true" />
+                <Copy size={14} aria-hidden="true" />
+            </button>
+            <button
+                type="button"
+                className="block-quickbar__btn"
+                title="Block settings"
+                aria-label="Block settings"
+                onClick={openSettings}
+            >
+                <Settings size={14} aria-hidden="true" />
             </button>
         </div>
     );
