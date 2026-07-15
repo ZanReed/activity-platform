@@ -25,9 +25,16 @@ const styleItems = slashMenuItems.filter((item) => item.group === 'Text');
 
 interface TextStylePickerProps {
     editor: Editor;
+    // Block styles transform the MAIN document's current block; while a nested
+    // rich field (choice text, hint, solution …) has focus the picker disables
+    // (a hint can't become a heading).
+    disabled?: boolean;
 }
 
-export default function TextStylePicker({ editor }: TextStylePickerProps) {
+export default function TextStylePicker({
+    editor,
+    disabled = false,
+}: TextStylePickerProps) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -106,6 +113,7 @@ export default function TextStylePicker({ editor }: TextStylePickerProps) {
             <button
                 ref={triggerRef}
                 type="button"
+                disabled={disabled}
                 onClick={() => setOpen((o) => !o)}
                 onKeyDown={(e) => {
                     if (e.key === 'ArrowDown' && !open) {
@@ -116,7 +124,11 @@ export default function TextStylePicker({ editor }: TextStylePickerProps) {
                 title="Text style of the current block"
                 aria-haspopup="menu"
                 aria-expanded={open}
-                className="min-w-[7.5rem] rounded bg-white px-2 py-1 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-200"
+                className={`min-w-[7.5rem] rounded px-2 py-1 text-left text-sm font-medium transition ${
+                    disabled
+                        ? 'cursor-not-allowed bg-white text-slate-300'
+                        : 'bg-white text-slate-700 hover:bg-slate-200'
+                }`}
             >
                 {current?.title ?? 'Text'} ▾
             </button>

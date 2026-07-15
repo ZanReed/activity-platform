@@ -17,6 +17,11 @@ function isMarkActive(editor: Editor, markName: string): boolean {
 
 interface ToolbarProps {
     editor: Editor | null;
+    // The focused nested rich field (MC choice/feedback, worked solutions,
+    // blank hints …), reported through FieldFocusContext. While set, the mark
+    // and inline-math buttons route to IT — the one toolbar formats everything
+    // — and the main-document-only controls (style picker, Define) disable.
+    fieldEditor?: Editor | null;
     // 'activity' (default) is the full toolbar. 'reference' is the constrained
     // set for the reference-panel editor: same selection formatting and column
     // controls, but the "+ Insert" dropdown only offers the reference-safe
@@ -28,15 +33,26 @@ interface ToolbarProps {
 // Three tiers (editor toolbar reorganization, 2026-07-08):
 // 1. Flat controls — ONLY selection formatting: the block-style picker
 //    (headings/paragraph/lists are transforms of the current block, not
-//    insertions), the marks, and the inline-math atom.
+//    insertions), the marks, and the inline-math atom. These route to the
+//    focused nested field when one is active (slice-6 MC pass).
 // 2. Block insertion — in the activity editor this lives OUTSIDE the toolbar
 //    now (the in-canvas "Add a block" window + the "/" slash menu). Only the
 //    reference panel still shows the "+ Insert" dropdown here.
 // 3. Contextual cluster — column controls render only while the selection is
 //    inside a columns block (the pattern the graph NodeView's inline controls
 //    set: controls live where/when they apply).
-export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) {
+export default function Toolbar({
+    editor,
+    fieldEditor = null,
+    variant = 'activity',
+}: ToolbarProps) {
     if (!editor) return null;
+
+    // The formatting target: the focused nested field, else the main editor.
+    const field =
+        fieldEditor && !fieldEditor.isDestroyed ? fieldEditor : null;
+    const target = field ?? editor;
+    const inField = field !== null;
 
     const inColumns = editor.isActive('row');
 
@@ -47,44 +63,48 @@ export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) 
         // (z-50, portaled to body). The opaque bg + bottom border keep
         // scrolled content from showing through; rounded-t-lg replaces the
         // corner clipping the card's removed overflow-hidden provided.
-        <div className="sticky top-0 z-30 flex flex-wrap gap-1 rounded-t-lg border-b border-slate-200 bg-slate-50 p-2">
-            <TextStylePicker editor={editor} />
+        // `editor-toolbar` is the stable hook the popovers' outside-click
+        // handlers allowlist (formatting a popover field mustn't close it).
+        <div className="editor-toolbar sticky top-0 z-30 flex flex-wrap gap-1 rounded-t-lg border-b border-slate-200 bg-slate-50 p-2">
+            {/* Block styles are main-document transforms — disabled while a
+                nested field has focus (a hint can't become a heading). */}
+            <TextStylePicker editor={editor} disabled={inField} />
 
             <Divider />
 
             <ToolbarButton
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                active={isMarkActive(editor, 'bold')}
+                onClick={() => target.chain().focus().toggleBold().run()}
+                active={isMarkActive(target, 'bold')}
             >
                 <strong>B</strong>
             </ToolbarButton>
             <ToolbarButton
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                active={isMarkActive(editor, 'italic')}
+                onClick={() => target.chain().focus().toggleItalic().run()}
+                active={isMarkActive(target, 'italic')}
             >
                 <em>I</em>
             </ToolbarButton>
             <ToolbarButton
-                onClick={() => editor.chain().focus().toggleUnderline().run()}
-                active={isMarkActive(editor, 'underline')}
+                onClick={() => target.chain().focus().toggleUnderline().run()}
+                active={isMarkActive(target, 'underline')}
             >
                 <u>U</u>
             </ToolbarButton>
             <ToolbarButton
-                onClick={() => editor.chain().focus().toggleCode().run()}
-                active={isMarkActive(editor, 'code')}
+                onClick={() => target.chain().focus().toggleCode().run()}
+                active={isMarkActive(target, 'code')}
             >
                 <code>{'<>'}</code>
             </ToolbarButton>
             <ToolbarButton
-                onClick={() => editor.chain().focus().toggleSubscript().run()}
-                active={isMarkActive(editor, 'subscript')}
+                onClick={() => target.chain().focus().toggleSubscript().run()}
+                active={isMarkActive(target, 'subscript')}
             >
                 X<sub>2</sub>
             </ToolbarButton>
             <ToolbarButton
-                onClick={() => editor.chain().focus().toggleSuperscript().run()}
-                active={isMarkActive(editor, 'superscript')}
+                onClick={() => target.chain().focus().toggleSuperscript().run()}
+                active={isMarkActive(target, 'superscript')}
             >
                 X<sup>2</sup>
             </ToolbarButton>
@@ -94,7 +114,8 @@ export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) 
               mark, so it lives with the other text marks. Enabled when there's
               a selection to define, or when the cursor is already inside a
               definition (active). Re-clicking while active is a no-op so it
-              never clobbers the existing definition text.
+              never clobbers the existing definition text. Main-document only —
+              nested fields have no definition mark.
             */}
             <ToolbarButton
                 onClick={() => {
@@ -102,10 +123,11 @@ export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) 
                     editor.chain().focus().setDefinition().run();
                 }}
                 disabled={
-                    editor.state.selection.empty &&
-                    !editor.isActive('definition')
+                    inField ||
+                    (editor.state.selection.empty &&
+                        !editor.isActive('definition'))
                 }
-                active={isMarkActive(editor, 'definition')}
+                active={!inField && isMarkActive(editor, 'definition')}
                 title="Define the selected term (adds a vocabulary definition)"
             >
                 Define
@@ -115,9 +137,16 @@ export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) 
 
             {/* Inline math is selection-level (an inline atom at the cursor),
                 so it stays a flat button; every BLOCK insert lives in the
-                "+ Insert" dropdown. */}
+                "+ Insert" dropdown. In a nested field the seed is empty — the
+                fields don't register MathFocus, so the atom opens on click. */}
             <ToolbarButton
-                onClick={() => editor.chain().focus().insertMathInline('x^2').run()}
+                onClick={() =>
+                    target
+                        .chain()
+                        .focus()
+                        .insertMathInline(inField ? '' : 'x^2')
+                        .run()
+                }
                 title="Insert inline math at the cursor"
             >
                 ƒx
@@ -141,7 +170,7 @@ export default function Toolbar({ editor, variant = 'activity' }: ToolbarProps) 
               Within the cluster, + / − Column still use editor.can() for
               enablement at the schema's 2–6 bounds.
             */}
-            {inColumns && (
+            {inColumns && !inField && (
                 <>
                     <Divider />
 
@@ -226,6 +255,12 @@ function ToolbarButton({
     return (
         <button
             type="button"
+            // preventDefault keeps the mousedown from stealing focus — the
+            // formatting target (main doc or a nested field) must stay focused
+            // so the command applies to ITS selection. Without this, clicking
+            // a mark button while in a nested field blurs the field first and
+            // the command would route to the wrong editor.
+            onMouseDown={(e) => e.preventDefault()}
             onClick={onClick}
             disabled={disabled}
             title={title}

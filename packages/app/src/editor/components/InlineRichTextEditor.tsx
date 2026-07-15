@@ -1,14 +1,10 @@
-import { useState } from 'react';
-import {
-    useEditor,
-    EditorContent,
-    type JSONContent,
-    type Editor,
-} from '@tiptap/react';
+import { useContext, useEffect, useRef } from 'react';
+import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { MathInline } from '../extensions/MathInline';
+import { FieldFocusContext } from './fieldFocus';
 import {
     activityInlineToTiptap,
     tiptapInlineToActivity,
@@ -16,8 +12,9 @@ import {
 } from '../../lib/serialize';
 
 // ============================================================================
-// InlineRichTextEditor — a small nested Tiptap editor for the rich popover
-// fields (blank hint, mistake feedback, problem solution).
+// InlineRichTextEditor — a small nested Tiptap editor for the rich sub-fields
+// (blank hint, mistake feedback, problem solution, MC choice text, matching
+// items …).
 // ----------------------------------------------------------------------------
 // Same inline alphabet the renderer pre-renders into <template> nodes: text
 // with marks (bold/italic/code/sub/sup/underline) + inline math. No block
@@ -25,6 +22,12 @@ import {
 // hint can't accidentally grow a heading. The value is canonical InlineNode[]
 // (the schema's inline type); we treat it opaquely here and let serialize own
 // the shape via its two exported converters.
+//
+// Formatting comes from the TOP toolbar, not a per-field mini toolbar: the
+// field reports its focus through FieldFocusContext and Toolbar routes the
+// mark/math buttons to it (the toolbar's buttons preventDefault on mousedown,
+// so clicking them never blurs the field). The old 6-button mini toolbar per
+// field was the main source of visual noise in the choice/feedback rows.
 //
 // Multi-paragraph flattening:
 //   The doc may technically hold more than one paragraph (Enter splits one).
@@ -68,13 +71,18 @@ export default function InlineRichTextEditor({
     onBlur,
     ariaLabel,
 }: InlineRichTextEditorProps) {
-    // Force a re-render on every transaction so the toolbar's active states
-    // track stored marks on a collapsed cursor (same nudge the main editor
-    // needs — see Editor.tsx).
-    const [, forceTick] = useState(0);
+    const reportFocus = useContext(FieldFocusContext);
+    // The handlers below close over mount-time props; refs keep them current
+    // without rebuilding the editor.
+    const reportRef = useRef(reportFocus);
+    reportRef.current = reportFocus;
+    const onBlurRef = useRef(onBlur);
+    onBlurRef.current = onBlur;
 
     const editor = useEditor({
         extensions: [
+            // StarterKit v3 bundles the underline mark, so the top toolbar's
+            // full mark set (B/I/U/<>/sub/sup) works on nested fields too.
             StarterKit.configure({
                 heading: false,
                 bulletList: false,
@@ -95,103 +103,29 @@ export default function InlineRichTextEditor({
             ],
         },
         onUpdate: ({ editor }) => onChange(docToInline(editor.getJSON())),
-        onBlur: () => onBlur?.(),
-        onTransaction: () => forceTick((t) => t + 1),
+        onFocus: ({ editor }) => reportRef.current(editor, true),
+        onBlur: ({ editor }) => {
+            reportRef.current(editor, false);
+            onBlurRef.current?.();
+        },
     });
+
+    // Unmounting while focused (e.g. the feedback disclosure collapses) must
+    // release the toolbar back to the main editor.
+    useEffect(() => {
+        if (!editor) return;
+        return () => reportRef.current(editor, false);
+    }, [editor]);
 
     if (!editor) return null;
 
     return (
         <div className="inline-rte" onKeyDown={(e) => e.stopPropagation()}>
-            <div className="inline-rte__toolbar">
-                <MarkButton editor={editor} mark="bold" label={<strong>B</strong>} />
-                <MarkButton editor={editor} mark="italic" label={<em>I</em>} />
-                <MarkButton editor={editor} mark="code" label={<code>{'<>'}</code>} />
-                <MarkButton
-                    editor={editor}
-                    mark="subscript"
-                    label={
-                        <>
-                            X<sub>2</sub>
-                        </>
-                    }
-                />
-                <MarkButton
-                    editor={editor}
-                    mark="superscript"
-                    label={
-                        <>
-                            X<sup>2</sup>
-                        </>
-                    }
-                />
-                <button
-                    type="button"
-                    className="inline-rte__btn"
-                    title="Insert inline math"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() =>
-                        editor.chain().focus().insertMathInline('').run()
-                    }
-                >
-                    ƒx
-                </button>
-            </div>
             <EditorContent
                 editor={editor}
                 className="inline-rte__content"
                 aria-label={ariaLabel}
             />
         </div>
-    );
-}
-
-function isMarkActive(editor: Editor, mark: string): boolean {
-    if (editor.isActive(mark)) return true;
-    return (
-        editor.state.storedMarks?.some((m) => m.type.name === mark) ?? false
-    );
-}
-
-interface MarkButtonProps {
-    editor: Editor;
-    mark: 'bold' | 'italic' | 'code' | 'subscript' | 'superscript';
-    label: React.ReactNode;
-}
-
-function MarkButton({ editor, mark, label }: MarkButtonProps) {
-    const active = isMarkActive(editor, mark);
-    const run = () => {
-        const chain = editor.chain().focus();
-        switch (mark) {
-            case 'bold':
-                chain.toggleBold().run();
-                break;
-            case 'italic':
-                chain.toggleItalic().run();
-                break;
-            case 'code':
-                chain.toggleCode().run();
-                break;
-            case 'subscript':
-                chain.toggleSubscript().run();
-                break;
-            case 'superscript':
-                chain.toggleSuperscript().run();
-                break;
-        }
-    };
-    return (
-        <button
-            type="button"
-            className={`inline-rte__btn${active ? ' is-active' : ''}`}
-            // preventDefault keeps the editor's selection/focus from being
-            // stolen by the button mousedown, so the toggle applies to the
-            // current selection rather than a blurred one.
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={run}
-        >
-            {label}
-        </button>
     );
 }

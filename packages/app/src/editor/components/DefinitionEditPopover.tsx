@@ -92,6 +92,14 @@ export default function DefinitionEditPopover({
             const floatingEl = refs.floating.current;
             if (floatingEl && floatingEl.contains(target)) return;
             if (referenceElement && referenceElement.contains(target)) return;
+            // The top toolbar formats the popover's rich definition field —
+            // clicking its (focus-preserving) buttons must not close us.
+            if (
+                target instanceof Element &&
+                target.closest('.editor-toolbar')
+            ) {
+                return;
+            }
             commitAndClose();
         };
         const onKeyDown = (e: KeyboardEvent) => {

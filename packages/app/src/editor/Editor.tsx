@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Plus } from 'lucide-react';
 import {
@@ -24,6 +24,7 @@ import ImagePopoverHost from './components/ImagePopoverHost';
 import DefinitionPopoverHost from './components/DefinitionPopoverHost';
 import BlockCommandBarHost from './components/BlockCommandBarHost';
 import BlockQuickBarHost from './components/BlockQuickBarHost';
+import { FieldFocusContext } from './components/fieldFocus';
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -82,6 +83,33 @@ export default function Editor({
     // Canvas wrapper — the insert-line overlay is positioned against it, so it
     // needs a ref and `position: relative`.
     const canvasRef = useRef<HTMLDivElement>(null);
+
+    // ------------------------------------------------------------------------
+    // Focused nested field (FieldFocusContext). The rich sub-fields (choice
+    // text, feedback, solutions, hints …) are nested Tiptap instances; while
+    // one has focus the top toolbar routes its mark/math buttons there instead
+    // of the main editor. Cleared only by the same field's blur/unmount, so a
+    // blur racing the next field's focus can't null the fresh value.
+    // ------------------------------------------------------------------------
+    const [fieldEditor, setFieldEditor] = useState<TiptapEditor | null>(null);
+    const reportFieldFocus = useCallback(
+        (field: TiptapEditor, focused: boolean) => {
+            setFieldEditor((prev) =>
+                focused ? field : prev === field ? null : prev,
+            );
+        },
+        [],
+    );
+    // The toolbar's active states must track the FIELD's transactions too
+    // (stored marks on a collapsed cursor) — same nudge the main editor needs.
+    useEffect(() => {
+        if (!fieldEditor) return;
+        const tick = () => forceTick((t) => t + 1);
+        fieldEditor.on('transaction', tick);
+        return () => {
+            fieldEditor.off('transaction', tick);
+        };
+    }, [fieldEditor]);
 
     // The open "Add a block" window: the doc position a pick lands at, plus an
     // optional rail category to open on (the "A question" starter lands on
@@ -235,11 +263,14 @@ export default function Editor({
         // toolbar's containing scroll box and silently disable its
         // position:sticky against the window scroll. Corner rounding is
         // handled per-edge instead (toolbar rounds its own top corners).
+        // FieldFocusContext reaches the NodeViews through EditorContent's
+        // React portals, so nested fields anywhere in the doc report here.
+        <FieldFocusContext.Provider value={reportFieldFocus}>
         <div
             className="rounded-lg border border-slate-200 bg-white shadow-sm"
             style={typographyVars}
         >
-            <Toolbar editor={editor} />
+            <Toolbar editor={editor} fieldEditor={fieldEditor} />
             <div
                 ref={canvasRef}
                 className={`relative p-6${
@@ -382,5 +413,6 @@ export default function Editor({
                 />
             </div>
         </div>
+        </FieldFocusContext.Provider>
     );
 }

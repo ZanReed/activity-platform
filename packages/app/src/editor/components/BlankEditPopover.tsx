@@ -308,6 +308,15 @@ export default function BlankEditPopover({
             ) {
                 return;
             }
+            // The top toolbar formats the popover's rich fields (hint,
+            // feedback) — its buttons preventDefault on mousedown so the field
+            // keeps focus; clicking them must not close the popover.
+            if (
+                target instanceof Element &&
+                target.closest('.editor-toolbar')
+            ) {
+                return;
+            }
             flushAll();
             onClose();
         };

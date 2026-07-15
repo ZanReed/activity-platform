@@ -1687,9 +1687,10 @@ img.mc-block__figure-preview {
 /* =============================================================================
  *  InlineRichTextEditor (Phase 2 — rich popover fields)
  *  -----------------------------------------------------------------------
- *  A compact nested Tiptap editor used for blank hints, mistake feedback, and
- *  problem solutions. Single bordered box with a tiny mark/math toolbar above
- *  the editable line. Matches the .blank-edit-popover__input look so it sits
+ *  A compact nested Tiptap editor used for blank hints, mistake feedback,
+ *  problem solutions, and MC choice text. A single bordered box — formatting
+ *  comes from the TOP toolbar (routed via FieldFocusContext), not a per-field
+ *  mini toolbar. Matches the .blank-edit-popover__input look so it sits
  *  naturally among the plain-text fields.
  *  ========================================================================= */
 
@@ -1705,36 +1706,6 @@ img.mc-block__figure-preview {
 .inline-rte:focus-within {
     border-color: var(--ed-accent); /* blue-500 */
     box-shadow: 0 0 0 3px var(--ed-focus-ring); /* blue-200 */
-}
-
-.inline-rte__toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.125rem;
-    padding: 0.1875rem;
-    border-bottom: 1px solid var(--ed-border); /* slate-200 */
-    background: var(--ed-surface); /* slate-50 */
-}
-
-.inline-rte__btn {
-    min-width: 1.625rem;
-    padding: 0.125rem 0.3125rem;
-    border: none;
-    border-radius: 0.1875rem;
-    background: transparent;
-    color: var(--ed-text-strong); /* slate-700 */
-    font-size: 0.8125rem;
-    line-height: 1.2;
-    cursor: pointer;
-}
-
-.inline-rte__btn:hover {
-    background: var(--ed-border); /* slate-200 */
-}
-
-.inline-rte__btn.is-active {
-    background: var(--ed-text); /* slate-900 */
-    color: white;
 }
 
 .inline-rte__content .ProseMirror {
