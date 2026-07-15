@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react';
 import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { LucideIcon } from 'lucide-react';
+import { renderRubricField } from './components/RubricEditor';
 import {
     Pencil,
     Copy,
@@ -93,6 +95,17 @@ export type AdvancedField =
           options: ReadonlyArray<{ label: string; value: string }>;
           get: (node: PMNode) => string;
           set: (editor: Editor, pos: number, value: string) => void;
+      })
+    // A complex sub-editor the simple field kinds can't express (rubric builder,
+    // per-choice figures, axis config …). Renders its own React UI from the live
+    // node; `label` heads the section. The drawer only lays it out.
+    | (AdvancedFieldBase & {
+          kind: 'custom';
+          render: (ctx: {
+              editor: Editor;
+              node: PMNode;
+              pos: number;
+          }) => ReactNode;
       });
 
 /**
@@ -186,6 +199,13 @@ const placeholderField: AdvancedField = {
     set: (editor, pos, value) => setNodeAttr(editor, pos, 'placeholder', value),
 };
 
+/** The rubric builder (custom sub-editor), shared by the graded free-text blocks. */
+const rubricField: AdvancedField = {
+    kind: 'custom',
+    label: 'Rubric',
+    render: renderRubricField,
+};
+
 // math_block: "Edit" opens the MathLive field (mode 'all' selects the whole
 // formula so the first keystroke replaces) — the same handoff the insert uses.
 const mathBlockControls: BlockControls = {
@@ -246,7 +266,10 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     // + the rubric builder itself are a complex sub-editor for a later pass.
     shortAnswer: {
         primary: [editPrimary('Prompt', MessageSquareText)],
-        advanced: [{ group: 'Response', fields: [placeholderField] }],
+        advanced: [
+            { group: 'Response', fields: [placeholderField] },
+            { group: 'Grading', fields: [rubricField] },
+        ],
     },
     essay: {
         primary: [editPrimary('Prompt', MessageSquareText)],
@@ -281,6 +304,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                     },
                 ],
             },
+            { group: 'Grading', fields: [rubricField] },
         ],
     },
 

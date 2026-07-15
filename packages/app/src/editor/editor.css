@@ -591,6 +591,8 @@
 .block-advanced-drawer {
     width: 17rem;
     max-width: min(17rem, 80vw);
+    max-height: 60vh;
+    overflow-y: auto;
     padding: 0.625rem 0.75rem;
     border: 1px solid var(--ed-border);
     border-radius: 0.5rem;
@@ -598,6 +600,13 @@
     box-shadow: var(--ed-shadow-popover);
     text-align: left;
     animation: block-command-bar-in var(--ed-motion-base) var(--ed-ease-out);
+}
+
+/* Wider when it hosts a custom sub-editor (e.g. the rubric's multi-column rows,
+ * which need ~26rem of content width to lay out without overflowing). */
+.block-advanced-drawer--wide {
+    width: 28rem;
+    max-width: min(28rem, 90vw);
 }
 
 .block-advanced-drawer__group + .block-advanced-drawer__group {

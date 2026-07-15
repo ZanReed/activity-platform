@@ -62,15 +62,22 @@ describe('blockControls registry', () => {
                     const where = `${name} field '${field.label}'`;
                     expect(field.label, `${where} missing label`).toBeTruthy();
                     expect(
-                        ['toggle', 'number', 'text', 'select'],
+                        ['toggle', 'number', 'text', 'select', 'custom'],
                         `${where} bad kind`,
                     ).toContain(field.kind);
-                    expect(typeof field.get, `${where} missing get`).toBe(
-                        'function',
-                    );
-                    expect(typeof field.set, `${where} missing set`).toBe(
-                        'function',
-                    );
+                    if (field.kind === 'custom') {
+                        expect(
+                            typeof field.render,
+                            `${where} missing render`,
+                        ).toBe('function');
+                    } else {
+                        expect(typeof field.get, `${where} missing get`).toBe(
+                            'function',
+                        );
+                        expect(typeof field.set, `${where} missing set`).toBe(
+                            'function',
+                        );
+                    }
                 }
             }
         }

@@ -296,7 +296,7 @@ verifiable on `/playground`.
    unregistered. **26 e2e + 578 unit green; /playground-verified** (image bar shows
    Replace/Caption, popover on demand not on selection). Stage 4 decomposes each block's rich
    Advanced (image width/align/height/crop, the free-text Rubric, …) into the drawer.
-4. **The grouped `Advanced` drawer. ✅ CORE SHIPPED 2026-07-15** (app-only). Introduced the
+4. **The grouped `Advanced` drawer. ✅ SHIPPED 2026-07-15** (app-only; core + 4b custom fields). Introduced the
    **field-type system**: `AdvancedField` = a discriminated union `toggle | number | text |
    select`, each pure data (`get(node)` reads the attr, `set(editor,pos,value)` writes via an
    editor command — never DOM). `AdvancedGroup { group, fields }` renders most-common-first. A
@@ -306,12 +306,17 @@ verifiable on `/playground`.
    resets per selection. **First fields:** `fadedWorkedExample` (show-step-labels toggle),
    `essay` (placeholder + min/max words), `shortAnswer`/`selfExplanation` (placeholder) — all
    attr-backed, so they stay in sync with the inline NodeView footers (which stage 7 removes).
-   4 drawer e2e + a field-shape unit guard. **DEFERRED to a 4b pass:** the **complex
-   sub-editors** (rubric builder, per-choice figures, axis config, mistake feedback, skills)
-   and **image sizing** (width/align/height/crop — entangled with decomposing the image
-   popover) — these are custom UIs, not simple fields, and the field-type union may grow a
-   `custom` kind for them. `/playground`-verified (essay drawer shows Placeholder/Min/Max
-   fields). The bulk of the "never overwhelmed" win.
+   4 drawer e2e + a field-shape unit guard. **4b (SHIPPED):** added the **`custom` field kind**
+   (`render(ctx)→ReactNode`) for sub-editors the simple kinds can't express. Migrated the
+   **rubric builder** — extracted it out of `FreeResponseView` into a reusable `RubricEditor`
+   (deduped: the SAME component backs both the block's inline footer and the drawer's `custom`
+   field, in sync via the `rubric` attr), added as a `Grading` group on `shortAnswer`/`essay`.
+   The drawer **widens** (`--wide` 28rem, caps 60vh scroll) when it hosts a custom field so the
+   rubric's multi-column rows don't overflow. `/playground`-verified end to end ("+ Add rubric"
+   writes the `rubric` attr, synced to the footer). **Still deferred:** the OTHER complex
+   sub-editors (per-choice figures, axis config, mistake feedback, skills — same `custom`
+   pattern) and **image sizing** (entangled with decomposing the image popover). The bulk of
+   the "never overwhelmed" win.
 5. **Block-picker previews + first-run empty state.** Static SVG thumbnails per block type;
    the "Start here" starters on a fresh doc.
 6. **Snap motion pass.** Magnetic insert-line + settle for insert/reorder/columns;

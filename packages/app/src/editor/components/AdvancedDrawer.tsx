@@ -26,9 +26,17 @@ export default function AdvancedDrawer({
     pos,
     groups,
 }: AdvancedDrawerProps) {
+    // Custom sub-editors (the rubric builder's multi-column rows) need more room
+    // than the simple-field width; widen the drawer when one is present.
+    const hasCustom = groups.some((g) =>
+        g.fields.some((f) => f.kind === 'custom'),
+    );
     return (
         <div
-            className="block-advanced-drawer"
+            className={
+                'block-advanced-drawer' +
+                (hasCustom ? ' block-advanced-drawer--wide' : '')
+            }
             role="group"
             aria-label="Advanced settings"
             // Keystrokes/clicks stay in the drawer — they must not reach the
@@ -64,6 +72,16 @@ interface FieldRowProps {
 }
 
 function FieldRow({ field, editor, node, pos }: FieldRowProps) {
+    if (field.kind === 'custom') {
+        // A complex sub-editor owns its own layout + heading; the drawer just
+        // gives it a slot.
+        return (
+            <div className="block-advanced-drawer__custom">
+                {field.render({ editor, node, pos })}
+            </div>
+        );
+    }
+
     if (field.kind === 'toggle') {
         const value = field.get(node);
         return (

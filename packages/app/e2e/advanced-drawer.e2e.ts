@@ -93,6 +93,24 @@ test('a number field commits on blur and writes the attr', async ({ page }) => {
     expect(await attrOfFirst(page, 'essay', 'wordMin')).toBe(150);
 });
 
+test('a custom field (the rubric builder) renders in the drawer and edits the node', async ({
+    page,
+}) => {
+    await insertAndSelect(page, 'insertEssay', 'essay');
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    const drawer = page.locator(DRAWER);
+    // The Grading group hosts the rubric sub-editor (a `custom` field).
+    await expect(drawer.getByText('Grading')).toBeVisible();
+    expect(await attrOfFirst(page, 'essay', 'rubric')).toBeNull();
+
+    await drawer.getByRole('button', { name: '+ Add rubric' }).click();
+    // A criterion row appears and the node's rubric attr is now populated.
+    await expect(
+        drawer.getByRole('textbox', { name: 'Criterion label' }),
+    ).toBeVisible();
+    expect(await attrOfFirst(page, 'essay', 'rubric')).not.toBeNull();
+});
+
 test('the drawer closes when the selection moves to another block', async ({
     page,
 }) => {
