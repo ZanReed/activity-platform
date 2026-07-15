@@ -117,6 +117,11 @@ export interface AdvancedGroup {
     fields: AdvancedField[];
 }
 
+// Transaction-meta signal: the quick-bar's ⚙ selects the block AND asks the
+// command-bar host to open straight into settings mode (one click to settings,
+// not "select then click the gear"). Read in the host's transaction listener.
+export const OPEN_BLOCK_SETTINGS = 'openBlockSettings';
+
 /** Write a node attribute at `pos` — the common setter for attr-backed fields. */
 export function setNodeAttr(
     editor: Editor,
@@ -141,7 +146,14 @@ export interface BlockControls {
      * per block with docs/design/ux-lens.md at extraction time.
      */
     primary: ControlEntry[];
-    /** Tucked technical controls, grouped. Optional — many blocks have none. */
+    /**
+     * The common 1-2 settings, shown as BUTTONS in the bar's settings mode
+     * (⚙ Settings). A toggle flips in place; a text/number/select button opens
+     * its single field in the drawer below. Everything multi-field or complex
+     * goes in `advanced` instead.
+     */
+    simple?: AdvancedField[];
+    /** Tucked technical controls, grouped — the "Advanced" drawer. Optional. */
     advanced?: AdvancedGroup[];
 }
 
@@ -242,42 +254,37 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     workedExample: { primary: [editPrimary()] },
     fadedWorkedExample: {
         primary: [editPrimary()],
-        advanced: [
+        // A single toggle — flips in place from the bar; no Advanced drawer.
+        simple: [
             {
-                group: 'Display',
-                fields: [
-                    {
-                        kind: 'toggle',
-                        label: 'Show step labels',
-                        help: 'Letter each faded step (a), (b), … for reference.',
-                        get: (node) => node.attrs.showStepLabels !== false,
-                        set: (editor, pos, value) =>
-                            setNodeAttr(editor, pos, 'showStepLabels', value),
-                    },
-                ],
+                kind: 'toggle',
+                label: 'Show step labels',
+                help: 'Letter each faded step (a), (b), … for reference.',
+                get: (node) => node.attrs.showStepLabels !== false,
+                set: (editor, pos, value) =>
+                    setNodeAttr(editor, pos, 'showStepLabels', value),
             },
         ],
     },
     selfExplanation: {
         primary: [editPrimary('Prompt', MessageSquareText)],
-        advanced: [{ group: 'Response', fields: [placeholderField] }],
+        // Placeholder is the only setting → a simple button, no Advanced drawer.
+        simple: [placeholderField],
     },
-    // short_answer + essay share FreeResponseView. Their second primary (Rubric)
-    // + the rubric builder itself are a complex sub-editor for a later pass.
+    // short_answer + essay share FreeResponseView. Placeholder is simple; the
+    // rubric builder (a complex sub-editor) lives in Advanced.
     shortAnswer: {
         primary: [editPrimary('Prompt', MessageSquareText)],
-        advanced: [
-            { group: 'Response', fields: [placeholderField] },
-            { group: 'Grading', fields: [rubricField] },
-        ],
+        simple: [placeholderField],
+        advanced: [{ group: 'Grading', fields: [rubricField] }],
     },
     essay: {
         primary: [editPrimary('Prompt', MessageSquareText)],
+        simple: [placeholderField],
         advanced: [
             {
                 group: 'Response',
                 fields: [
-                    placeholderField,
                     {
                         kind: 'number',
                         label: 'Min words',

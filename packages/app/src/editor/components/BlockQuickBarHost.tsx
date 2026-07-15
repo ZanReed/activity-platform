@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import { NodeSelection, TextSelection } from 'prosemirror-state';
 import { Trash2, Copy, Settings } from 'lucide-react';
+import { OPEN_BLOCK_SETTINGS } from '../blockControls';
 
 // ============================================================================
 // BlockQuickBarHost — the always-discoverable block affordance (slice 6).
@@ -153,8 +154,17 @@ export default function BlockQuickBarHost({
             .run();
     };
 
+    // ⚙ selects the block AND opens settings mode in one go (the meta tells the
+    // command-bar host to skip straight past action mode).
     const openSettings = () => {
-        editor.chain().setNodeSelection(activePos).run();
+        editor
+            .chain()
+            .setNodeSelection(activePos)
+            .command(({ tr, dispatch }) => {
+                if (dispatch) tr.setMeta(OPEN_BLOCK_SETTINGS, true);
+                return true;
+            })
+            .run();
     };
 
     return (

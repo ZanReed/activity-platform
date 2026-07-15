@@ -92,6 +92,29 @@ test('Settings (gear) selects the block → full command bar; quick-bar hides', 
     await expect(page.locator(QUICKBAR)).toHaveCount(0);
 });
 
+test('the quick-bar gear opens the command bar straight into settings mode', async ({
+    page,
+}) => {
+    // A block WITH settings (essay). Caret inside it → quick-bar shows.
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        ed.commands.insertEssay();
+        let pos: number | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.descendants((node: any, p: number) => {
+            if (pos === null && node.type.name === 'essay') pos = p;
+            return pos === null;
+        });
+        ed.commands.setTextSelection((pos ?? 0) + 1);
+    });
+    await page.getByRole('button', { name: 'Block settings' }).click();
+    // Command bar opened directly in settings mode (simple + Advanced visible).
+    const bar = page.locator(BAR);
+    await expect(bar.getByRole('button', { name: 'Placeholder' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Advanced' })).toBeVisible();
+});
+
 test('a node-selected block shows the full bar, NOT the quick-bar', async ({
     page,
 }) => {

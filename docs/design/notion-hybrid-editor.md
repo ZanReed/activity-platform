@@ -350,6 +350,23 @@ is its spec; build it as 6.5.
 
 ## Revision log
 
+**2026-07-15 — settings mode (author-directed redesign, SHIPPED).** Refines the two prior
+settings passes into a cleaner interaction: the command bar's **⚙ gear toggles "settings mode"**
+— Duplicate/Delete are swapped for the block's **`simple` settings as buttons**, plus an
+**"Advanced ⌄"** disclosure that appears *only when* the block has advanced settings (none →
+no button). This adds a third descriptor tier: `simple: AdvancedField[]` (the common 1-2,
+rendered as bar buttons) alongside the grouped `advanced`. A **toggle** simple setting flips in
+place (checkmark state); a **text/number/select** button opens its single field in the drawer
+below (reuses `AdvancedDrawer` with a one-field group). Split for the free-text/faded blocks:
+placeholder + step-labels = `simple`; word-count + rubric = `advanced`. The quick-bar's ⚙
+opens the command bar **straight into settings mode** via an `OPEN_BLOCK_SETTINGS` transaction
+meta (inline-reset trick so the per-selection reset doesn't clobber it — same race as the image
+popover). A `hasSettings` guard means a no-settings block can't enter settings mode. Net naming:
+the **gear = "Settings"** (enters the mode); the overflow inside = **"Advanced"** (this partly
+re-reverts the earlier Advanced→Settings label — now both live, at different levels). 7
+settings-mode e2e + a quick-bar-handoff e2e; `/playground`-verified (essay: `[Prompt] Placeholder⌄
+Advanced⌄ ⚙`).
+
 **2026-07-15 — /plan-eng-review (settings surfacing: home + naming).** After dogfooding surfaced
 that the drawer and the old inline "⚙ Options" footers both edit the same settings, an eng
 consultation locked two calls (author-ratified). **(1) The drawer is the single settings home;

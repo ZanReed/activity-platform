@@ -1,10 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
 
 // ============================================================================
-// Advanced drawer — slice-6 stage-4 interaction harness.
+// Settings mode + Advanced drawer — slice-6.
 // ----------------------------------------------------------------------------
-// The command bar's Advanced disclosure opens a grouped drawer of typed fields
-// (toggle / number / text) that read + write the selected node's attrs.
+// The command bar's ⚙ gear enters "settings mode": Duplicate/Delete are swapped
+// for the block's `simple` settings (as buttons) plus an "Advanced" disclosure
+// (only when the block has advanced settings). A toggle flips in place; a
+// text/number setting opens its single-field editor in the drawer below;
+// "Advanced" opens the grouped overflow (word-count, rubric).
 // ============================================================================
 
 const BAR = '.block-command-bar';
@@ -48,6 +51,9 @@ function attrOfFirst(page: Page, type: string, attr: string) {
     );
 }
 
+const gear = (page: Page) =>
+    page.locator(BAR).getByRole('button', { name: 'Settings', exact: true });
+
 test.beforeEach(async ({ page }) => {
     await page.goto('/playground');
     await expect(page.locator('.ProseMirror')).toBeVisible();
@@ -57,70 +63,117 @@ test.beforeEach(async ({ page }) => {
     );
 });
 
-test('Advanced is closed by default; the disclosure opens the drawer', async ({
+test('the gear enters settings mode: simple settings appear, actions hide', async ({
     page,
 }) => {
-    await insertAndSelect(page, 'insertFadedWorkedExample', 'fadedWorkedExample');
+    await insertAndSelect(page, 'insertEssay', 'essay');
+    const bar = page.locator(BAR);
+    // Action mode: Duplicate/Delete present, no simple settings yet.
+    await expect(bar.getByRole('button', { name: 'Duplicate' })).toBeVisible();
     await expect(page.locator(DRAWER)).toHaveCount(0);
-    await page.locator(BAR).getByRole('button', { name: 'Settings' }).click();
-    await expect(page.locator(DRAWER)).toBeVisible();
+
+    await gear(page).click();
+    // Settings mode: simple (Placeholder) + Advanced appear; actions gone.
+    await expect(bar.getByRole('button', { name: 'Placeholder' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Advanced' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Duplicate' })).toHaveCount(0);
+    await expect(bar.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 });
 
-test('a toggle field reads + writes the node attribute', async ({ page }) => {
-    await insertAndSelect(page, 'insertFadedWorkedExample', 'fadedWorkedExample');
-    await page.locator(BAR).getByRole('button', { name: 'Settings' }).click();
-
-    const toggle = page
+test('a simple text setting (Placeholder) opens its field editor below', async ({
+    page,
+}) => {
+    await insertAndSelect(page, 'insertEssay', 'essay');
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Placeholder' }).click();
+    const input = page
         .locator(DRAWER)
-        .getByRole('checkbox', { name: /Show step labels/ });
-    await expect(toggle).toBeChecked(); // default: labels on
-    await toggle.click();
-    expect(await attrOfFirst(page, 'fadedWorkedExample', 'showStepLabels')).toBe(
-        false,
+        .getByRole('textbox', { name: 'Placeholder' });
+    await input.fill('Write 2 sentences');
+    await input.blur();
+    expect(await attrOfFirst(page, 'essay', 'placeholder')).toBe(
+        'Write 2 sentences',
     );
 });
 
-test('a number field commits on blur and writes the attr', async ({ page }) => {
+test('Advanced opens the overflow (word count + rubric)', async ({ page }) => {
     await insertAndSelect(page, 'insertEssay', 'essay');
-    await page.locator(BAR).getByRole('button', { name: 'Settings' }).click();
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
     const drawer = page.locator(DRAWER);
-    // The free-text Response group carries Placeholder + Min/Max words.
     await expect(drawer.getByText('Response')).toBeVisible();
-
+    await expect(drawer.getByText('Grading')).toBeVisible();
     const minWords = drawer.getByRole('spinbutton', { name: 'Min words' });
     await minWords.fill('150');
     await minWords.blur();
     expect(await attrOfFirst(page, 'essay', 'wordMin')).toBe(150);
 });
 
-test('a custom field (the rubric builder) renders in the drawer and edits the node', async ({
+test('a toggle simple setting flips in place; no Advanced button', async ({
+    page,
+}) => {
+    await insertAndSelect(page, 'insertFadedWorkedExample', 'fadedWorkedExample');
+    await gear(page).click();
+    const bar = page.locator(BAR);
+    // Faded has only a toggle → no Advanced disclosure.
+    await expect(bar.getByRole('button', { name: 'Advanced' })).toHaveCount(0);
+    const toggle = bar.getByRole('button', { name: 'Show step labels' });
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true'); // default on
+    await toggle.click();
+    expect(await attrOfFirst(page, 'fadedWorkedExample', 'showStepLabels')).toBe(
+        false,
+    );
+    // Flipping does NOT open a drawer.
+    await expect(page.locator(DRAWER)).toHaveCount(0);
+});
+
+test('the rubric (a custom field) lives under Advanced and edits the node', async ({
     page,
 }) => {
     await insertAndSelect(page, 'insertEssay', 'essay');
-    await page.locator(BAR).getByRole('button', { name: 'Settings' }).click();
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
     const drawer = page.locator(DRAWER);
-    // The Grading group hosts the rubric sub-editor (a `custom` field).
-    await expect(drawer.getByText('Grading')).toBeVisible();
     expect(await attrOfFirst(page, 'essay', 'rubric')).toBeNull();
-
     await drawer.getByRole('button', { name: '+ Add rubric' }).click();
-    // A criterion row appears and the node's rubric attr is now populated.
     await expect(
         drawer.getByRole('textbox', { name: 'Criterion label' }),
     ).toBeVisible();
     expect(await attrOfFirst(page, 'essay', 'rubric')).not.toBeNull();
 });
 
-test('the drawer closes when the selection moves to another block', async ({
+test('a block with no settings shows no gear', async ({ page }) => {
+    // Select the heading (generic block: no simple, no advanced).
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        let pos: number | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.descendants((node: any, p: number) => {
+            if (pos === null && node.type.name === 'heading') pos = p;
+            return pos === null;
+        });
+        ed.commands.setNodeSelection(pos);
+    });
+    await expect(page.locator(BAR)).toBeVisible();
+    await expect(gear(page)).toHaveCount(0);
+});
+
+test('settings mode resets when the selection moves to another block', async ({
     page,
 }) => {
-    await insertAndSelect(page, 'insertFadedWorkedExample', 'fadedWorkedExample');
-    await page.locator(BAR).getByRole('button', { name: 'Settings' }).click();
-    await expect(page.locator(DRAWER)).toBeVisible();
-    // Select a different block: the bar re-anchors and the drawer resets closed.
+    await insertAndSelect(page, 'insertEssay', 'essay');
+    await gear(page).click();
+    await expect(
+        page.locator(BAR).getByRole('button', { name: 'Placeholder' }),
+    ).toBeVisible();
+    // Move selection: the bar re-anchors in action mode.
     await page.evaluate(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (window as any).__tiptapEditor.commands.setTextSelection(1);
     });
-    await expect(page.locator(DRAWER)).toHaveCount(0);
+    await expect(
+        page.locator(BAR).getByRole('button', { name: 'Placeholder' }),
+    ).toHaveCount(0);
 });

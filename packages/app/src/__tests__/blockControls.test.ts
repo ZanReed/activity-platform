@@ -54,30 +54,36 @@ describe('blockControls registry', () => {
         }
     });
 
-    it('every Advanced field has a label, a kind, and get/set functions', () => {
+    it('every simple + Advanced field has a label, a kind, and handlers', () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const checkField = (where: string, field: any) => {
+            expect(field.label, `${where} missing label`).toBeTruthy();
+            expect(
+                ['toggle', 'number', 'text', 'select', 'custom'],
+                `${where} bad kind`,
+            ).toContain(field.kind);
+            if (field.kind === 'custom') {
+                expect(typeof field.render, `${where} missing render`).toBe(
+                    'function',
+                );
+            } else {
+                expect(typeof field.get, `${where} missing get`).toBe('function');
+                expect(typeof field.set, `${where} missing set`).toBe('function');
+            }
+        };
         for (const [name, controls] of Object.entries(blockControlsRegistry)) {
+            // Simple settings (bar buttons) — not `custom`, which needs a drawer.
+            for (const field of controls.simple ?? []) {
+                expect(
+                    field.kind,
+                    `${name} simple '${field.label}' can't be custom`,
+                ).not.toBe('custom');
+                checkField(`${name} simple '${field.label}'`, field);
+            }
             for (const group of controls.advanced ?? []) {
                 expect(group.group, `${name} group missing name`).toBeTruthy();
                 for (const field of group.fields) {
-                    const where = `${name} field '${field.label}'`;
-                    expect(field.label, `${where} missing label`).toBeTruthy();
-                    expect(
-                        ['toggle', 'number', 'text', 'select', 'custom'],
-                        `${where} bad kind`,
-                    ).toContain(field.kind);
-                    if (field.kind === 'custom') {
-                        expect(
-                            typeof field.render,
-                            `${where} missing render`,
-                        ).toBe('function');
-                    } else {
-                        expect(typeof field.get, `${where} missing get`).toBe(
-                            'function',
-                        );
-                        expect(typeof field.set, `${where} missing set`).toBe(
-                            'function',
-                        );
-                    }
+                    checkField(`${name} advanced '${field.label}'`, field);
                 }
             }
         }

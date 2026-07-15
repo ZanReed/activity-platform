@@ -1,14 +1,24 @@
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
+import type { Node as PMNode } from '@tiptap/pm/model';
 import { NodeSelection } from 'prosemirror-state';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Settings, Check } from 'lucide-react';
 import {
     controlsFor,
     universalActions,
+    OPEN_BLOCK_SETTINGS,
     type BlockControls,
     type ControlEntry,
+    type AdvancedField,
+    type AdvancedGroup,
 } from '../blockControls';
 import AdvancedDrawer from './AdvancedDrawer';
+
+// What the drawer below the bar is currently showing.
+type DrawerContent =
+    | null
+    | { kind: 'advanced' }
+    | { kind: 'field'; field: AdvancedField };
 
 // ============================================================================
 // BlockCommandBarHost — root-level docked command bar for the selected block.
@@ -52,11 +62,16 @@ export default function BlockCommandBarHost({
     const [position, setPosition] = useState<{ top: number; left: number } | null>(
         null,
     );
-    // The Advanced drawer is closed by default and resets per selection.
-    const [drawerOpen, setDrawerOpen] = useState(false);
-    useEffect(() => {
-        setDrawerOpen(false);
-    }, [selected?.pos, selected?.typeName]);
+    // Settings mode swaps the bar's action buttons (Duplicate/Delete) for the
+    // block's `simple` settings + an Advanced disclosure. drawerContent is what
+    // shows below: nothing, the Advanced groups, or one simple field's editor.
+    const [settingsMode, setSettingsMode] = useState(false);
+    const [drawerContent, setDrawerContent] = useState<DrawerContent>(null);
+    // Identity of the last selected block. Settings state resets INLINE when it
+    // changes (not a post-render effect) so the quick-bar's ⚙ meta — which
+    // arrives in the SAME transaction that selects the block — can set
+    // settingsMode true afterward without the reset clobbering it.
+    const lastSelKey = useRef<string | null>(null);
 
     // Phase 1 — detect the selected block. Only pos/type/controls here; NO DOM
     // measurement (measuring inside the transaction handler reads pre-layout
@@ -70,6 +85,13 @@ export default function BlockCommandBarHost({
             const node =
                 selection instanceof NodeSelection ? selection.node : null;
             const controls = node ? controlsFor(node.type.name) : null;
+            const key =
+                node && controls ? `${selection.from}:${node.type.name}` : null;
+            if (key !== lastSelKey.current) {
+                lastSelKey.current = key;
+                setSettingsMode(false);
+                setDrawerContent(null);
+            }
             if (!node || !controls) {
                 setSelected((prev) => (prev === null ? prev : null));
                 return;
@@ -83,12 +105,25 @@ export default function BlockCommandBarHost({
             );
         };
 
+        // The quick-bar's ⚙ dispatches OPEN_BLOCK_SETTINGS in the same tx that
+        // selects the block — open settings mode straight away.
+        const onTransaction = ({
+            transaction,
+        }: {
+            transaction: { getMeta: (key: string) => unknown };
+        }) => {
+            update();
+            if (transaction.getMeta(OPEN_BLOCK_SETTINGS)) {
+                setSettingsMode(true);
+            }
+        };
+
         editor.on('selectionUpdate', update);
-        editor.on('transaction', update);
+        editor.on('transaction', onTransaction);
         update();
         return () => {
             editor.off('selectionUpdate', update);
-            editor.off('transaction', update);
+            editor.off('transaction', onTransaction);
         };
     }, [editor, canvasRef]);
 
@@ -117,9 +152,24 @@ export default function BlockCommandBarHost({
 
     if (!editor || !selected || !position) return null;
 
-    const advancedGroups = selected.controls.advanced ?? [];
-    const hasAdvanced = advancedGroups.length > 0;
+    const { primary, simple = [], advanced = [] } = selected.controls;
+    const hasSimple = simple.length > 0;
+    const hasAdvanced = advanced.length > 0;
+    const hasSettings = hasSimple || hasAdvanced;
+    // Guard: a block with no settings can't enter settings mode (e.g. the
+    // quick-bar ⚙ meta on a paragraph) — fall back to action mode.
+    const inSettings = settingsMode && hasSettings;
     const node = editor.state.doc.nodeAt(selected.pos);
+    const pos = selected.pos;
+
+    // What the drawer below shows: the Advanced groups, or one simple field's
+    // editor, or nothing.
+    const drawerGroups: AdvancedGroup[] | null =
+        drawerContent === null
+            ? null
+            : drawerContent.kind === 'advanced'
+              ? advanced
+              : [{ group: drawerContent.field.label, fields: [drawerContent.field] }];
 
     return (
         // Anchor holds the position + right-alignment so the bar and the drawer
@@ -135,59 +185,169 @@ export default function BlockCommandBarHost({
                 aria-label="Block controls"
                 data-block-type={selected.typeName}
             >
-                {selected.controls.primary.map((entry) => (
+                {primary.map((entry) => (
                     <BarButton
                         key={entry.label}
                         entry={entry}
                         editor={editor}
-                        pos={selected.pos}
+                        pos={pos}
                         primary
                     />
                 ))}
-                {selected.controls.primary.length > 0 ? (
+                {primary.length > 0 ? (
                     <span
                         className="block-command-bar__divider"
                         aria-hidden="true"
                     />
                 ) : null}
-                {universalActions.map((entry) => (
-                    <BarButton
-                        key={entry.label}
-                        entry={entry}
-                        editor={editor}
-                        pos={selected.pos}
-                    />
-                ))}
-                {hasAdvanced ? (
+
+                {!inSettings ? (
+                    // Action mode: the universal actions.
+                    universalActions.map((entry) => (
+                        <BarButton
+                            key={entry.label}
+                            entry={entry}
+                            editor={editor}
+                            pos={pos}
+                        />
+                    ))
+                ) : (
+                    // Settings mode: simple settings as buttons + the Advanced
+                    // disclosure (only when there are advanced settings).
+                    <>
+                        {node
+                            ? simple.map((field) => (
+                                  <SimpleSettingButton
+                                      key={field.label}
+                                      field={field}
+                                      editor={editor}
+                                      node={node}
+                                      pos={pos}
+                                      open={
+                                          drawerContent?.kind === 'field' &&
+                                          drawerContent.field === field
+                                      }
+                                      onOpenField={() =>
+                                          setDrawerContent((cur) =>
+                                              cur?.kind === 'field' &&
+                                              cur.field === field
+                                                  ? null
+                                                  : { kind: 'field', field },
+                                          )
+                                      }
+                                  />
+                              ))
+                            : null}
+                        {hasAdvanced ? (
+                            <button
+                                type="button"
+                                className={
+                                    'block-command-bar__advanced' +
+                                    (drawerContent?.kind === 'advanced'
+                                        ? ' block-command-bar__advanced--open'
+                                        : '')
+                                }
+                                aria-expanded={drawerContent?.kind === 'advanced'}
+                                onClick={() =>
+                                    setDrawerContent((cur) =>
+                                        cur?.kind === 'advanced'
+                                            ? null
+                                            : { kind: 'advanced' },
+                                    )
+                                }
+                            >
+                                <ChevronDown size={14} aria-hidden="true" />
+                                <span>Advanced</span>
+                            </button>
+                        ) : null}
+                    </>
+                )}
+
+                {hasSettings ? (
                     <button
                         type="button"
                         className={
-                            'block-command-bar__advanced' +
-                            (drawerOpen
-                                ? ' block-command-bar__advanced--open'
-                                : '')
+                            'block-command-bar__gear' +
+                            (inSettings ? ' block-command-bar__gear--active' : '')
                         }
-                        aria-expanded={drawerOpen}
+                        aria-pressed={inSettings}
                         aria-label="Settings"
-                        onClick={() => setDrawerOpen((open) => !open)}
+                        title="Settings"
+                        onClick={() => {
+                            if (inSettings) {
+                                setSettingsMode(false);
+                                setDrawerContent(null);
+                            } else {
+                                setSettingsMode(true);
+                            }
+                        }}
                     >
-                        <ChevronDown size={14} aria-hidden="true" />
-                        {/* User-visible label is "Settings" (the drawer holds
-                            the block's settings, basic + advanced); the internal
-                            `advanced` descriptor API keeps its name. */}
-                        <span>Settings</span>
+                        <Settings size={14} aria-hidden="true" />
                     </button>
                 ) : null}
             </div>
-            {hasAdvanced && drawerOpen && node ? (
+            {drawerGroups && node ? (
                 <AdvancedDrawer
                     editor={editor}
                     node={node}
-                    pos={selected.pos}
-                    groups={advancedGroups}
+                    pos={pos}
+                    groups={drawerGroups}
                 />
             ) : null}
         </div>
+    );
+}
+
+interface SimpleSettingButtonProps {
+    field: AdvancedField;
+    editor: Editor;
+    node: PMNode;
+    pos: number;
+    /** True when this field's editor is currently open in the drawer below. */
+    open: boolean;
+    onOpenField: () => void;
+}
+
+// A `simple` setting as a bar button. A toggle flips in place (with a checkmark
+// state); every other kind opens its single-field editor in the drawer below.
+function SimpleSettingButton({
+    field,
+    editor,
+    node,
+    pos,
+    open,
+    onOpenField,
+}: SimpleSettingButtonProps) {
+    if (field.kind === 'toggle') {
+        const on = field.get(node);
+        return (
+            <button
+                type="button"
+                className={
+                    'block-command-bar__setting' +
+                    (on ? ' block-command-bar__setting--on' : '')
+                }
+                aria-pressed={on}
+                onClick={() => field.set(editor, pos, !on)}
+            >
+                {on ? <Check size={13} aria-hidden="true" /> : null}
+                <span>{field.label}</span>
+            </button>
+        );
+    }
+    return (
+        <button
+            type="button"
+            className={
+                'block-command-bar__setting' +
+                (open ? ' block-command-bar__setting--open' : '')
+            }
+            aria-expanded={open}
+            onClick={onOpenField}
+        >
+            <span>{field.label}</span>
+            <ChevronDown size={13} aria-hidden="true" />
+        </button>
     );
 }
 
