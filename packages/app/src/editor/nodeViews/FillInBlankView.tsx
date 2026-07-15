@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
     NodeViewWrapper,
     NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
-import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
+import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt, fadedStepContextAt } from '../problemNumbering';
 
 // ============================================================================
@@ -35,16 +35,13 @@ import { problemNumberAt, fadedStepContextAt } from '../problemNumbering';
 // Selection state:
 //   Mirrors .math-block-wrapper.is-selected — blue outline + tinted bg.
 //
-// Block settings (Stage 15):
-//   A footer disclosure exposes the block-level fields — `solution` (a worked
-//   explanation revealed post-check) and `hasConfidenceRating` (whether the
-//   problem asks for a confidence rating). These are document concerns, so the
-//   controls write straight to ProseMirror via `updateAttributes`; only the
-//   open/closed disclosure is React state (the 5-commitments rule). The footer
-//   is contentEditable={false} so ProseMirror doesn't treat it as block
-//   content, and stays hidden for a plain, unselected, unconfigured problem to
-//   keep a long worksheet uncluttered. `skills` has no control yet (Phase 2);
-//   the attr still round-trips through serialize.
+// Block settings:
+//   `solution` / `hasConfidenceRating` / `workSpace` live in the descriptor
+//   drawer (blockControls.ts → questionAdvanced), reached via the quick-bar ⚙.
+//   The block keeps only a display-only QuestionSettingsSummary — the old
+//   inline "⚙ Settings" footer is gone (drawer = the single settings home).
+//   `skills` has no control yet (Phase 2); the attr still round-trips through
+//   serialize.
 // ============================================================================
 
 export default function FillInBlankView({
@@ -52,9 +49,7 @@ export default function FillInBlankView({
     editor,
     getPos,
     selected,
-    updateAttributes,
 }: NodeViewProps) {
-    const [settingsOpen, setSettingsOpen] = useState(false);
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
     const hasSolution = solution.length > 0;
     const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
@@ -62,16 +57,6 @@ export default function FillInBlankView({
         typeof node.attrs.workSpace === 'number'
             ? (node.attrs.workSpace as number)
             : null;
-    const hasWorkSpace = workSpace !== null;
-    const isEditable = editor.isEditable;
-    const isConfigured = hasSolution || hasConfidenceRating || hasWorkSpace;
-    // The `selected` prop is only true for a NodeSelection of the whole block.
-    // Clicking into a problem puts the cursor *inside* its editable content (a
-    // TextSelection), so `selected` stays false and a footer gated on it never
-    // reveals — teachers couldn't find these settings. Show the toggle on every
-    // problem while editing; collapsed it's a single unobtrusive row. Outside
-    // the editor (preview/read-only) keep it hidden unless already configured.
-    const showFooter = isEditable || isConfigured;
 
     // A fill_in_blank nested directly in a faded worked example is a "faded
     // step": it drops the problem-number gutter and shows a compact inline
@@ -114,103 +99,11 @@ export default function FillInBlankView({
                 </div>
             )}
             <NodeViewContent className="fill-in-blank-block__body" />
-            {showFooter && (
-                <div
-                    className="fill-in-blank-block__settings"
-                    contentEditable={false}
-                >
-                    <button
-                        type="button"
-                        className="fill-in-blank-block__settings-toggle"
-                        onClick={() => setSettingsOpen((open) => !open)}
-                        aria-expanded={settingsOpen}
-                        disabled={!isEditable}
-                    >
-                        <span aria-hidden="true">⚙</span> Settings
-                        {!settingsOpen && isConfigured && (
-                            <span className="fill-in-blank-block__settings-badge">
-                                {[
-                                    hasSolution && 'solution',
-                                    hasConfidenceRating && 'confidence',
-                                    hasWorkSpace && 'work space',
-                                ]
-                                    .filter(Boolean)
-                                    .join(' · ')}
-                            </span>
-                        )}
-                    </button>
-                    {settingsOpen && (
-                        <div className="fill-in-blank-block__settings-panel">
-                            <div className="fill-in-blank-block__settings-field">
-                                <span className="fill-in-blank-block__settings-label">
-                                    Worked solution
-                                </span>
-                                <span className="fill-in-blank-block__settings-help">
-                                    Shown to students after the section is
-                                    checked. Supports bold, italic, and inline
-                                    math.
-                                </span>
-                                <InlineRichTextEditor
-                                    value={solution}
-                                    onChange={(nodes) =>
-                                        updateAttributes({
-                                            solution:
-                                                nodes.length > 0 ? nodes : null,
-                                        })
-                                    }
-                                    ariaLabel="Worked solution"
-                                />
-                            </div>
-                            <label className="fill-in-blank-block__settings-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={hasConfidenceRating}
-                                    onChange={(e) =>
-                                        updateAttributes({
-                                            hasConfidenceRating:
-                                                e.target.checked,
-                                        })
-                                    }
-                                    onKeyDown={(e) => e.stopPropagation()}
-                                    disabled={!isEditable}
-                                />
-                                <span>Ask for a confidence rating</span>
-                            </label>
-                            <div className="fill-in-blank-block__settings-field">
-                                <span className="fill-in-blank-block__settings-label">
-                                    Print work space
-                                </span>
-                                <span className="fill-in-blank-block__settings-help">
-                                    Blank space left below this problem when
-                                    printed (in rem). Leave empty to use the
-                                    worksheet default.
-                                </span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    step={0.5}
-                                    className="fill-in-blank-block__settings-number"
-                                    value={workSpace ?? ''}
-                                    placeholder="default"
-                                    onChange={(e) => {
-                                        const v = e.target.value;
-                                        if (v === '') {
-                                            updateAttributes({ workSpace: null });
-                                            return;
-                                        }
-                                        const n = Number(v);
-                                        if (Number.isFinite(n) && n >= 0) {
-                                            updateAttributes({ workSpace: n });
-                                        }
-                                    }}
-                                    onKeyDown={(e) => e.stopPropagation()}
-                                    disabled={!isEditable}
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
+            <QuestionSettingsSummary
+                hasSolution={hasSolution}
+                hasConfidenceRating={hasConfidenceRating}
+                workSpace={workSpace}
+            />
         </NodeViewWrapper>
     );
 }

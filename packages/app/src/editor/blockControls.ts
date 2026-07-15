@@ -3,6 +3,7 @@ import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { LucideIcon } from 'lucide-react';
 import { renderRubricField } from './components/RubricEditor';
+import { renderSolutionField } from './components/QuestionSettings';
 import { Copy, Trash2, Image as ImageIcon, Captions } from 'lucide-react';
 import { OPEN_IMAGE_POPOVER, type ImagePopoverFocus } from './extensions/Image';
 
@@ -197,12 +198,129 @@ const rubricField: AdvancedField = {
     render: renderRubricField,
 };
 
+// --- Shared question-block settings ----------------------------------------
+// multiple_choice / fill_in_blank / matching / ordering carry the identical
+// block-level trio (solution / confidence / print work space). One shared
+// group list keeps them uniform; the old per-NodeView "⚙ Settings" footers are
+// deleted (drawer = the single settings home, same as the free-text blocks).
+
+const questionAdvanced: AdvancedGroup[] = [
+    {
+        group: 'Grading',
+        fields: [
+            {
+                kind: 'custom',
+                label: 'Worked solution',
+                render: renderSolutionField,
+            },
+            {
+                kind: 'toggle',
+                label: 'Ask for a confidence rating',
+                help: 'Students rate how sure they are before checking.',
+                get: (node) => Boolean(node.attrs.hasConfidenceRating),
+                set: (editor, pos, value) =>
+                    setNodeAttr(editor, pos, 'hasConfidenceRating', value),
+            },
+        ],
+    },
+    {
+        group: 'Print',
+        fields: [
+            {
+                kind: 'number',
+                label: 'Work space (rem)',
+                help: 'Blank space left below this problem when printed. Empty = the worksheet default.',
+                min: 0,
+                step: 0.5,
+                placeholder: 'default',
+                get: (node) =>
+                    typeof node.attrs.workSpace === 'number'
+                        ? (node.attrs.workSpace as number)
+                        : null,
+                set: (editor, pos, value) =>
+                    setNodeAttr(editor, pos, 'workSpace', value),
+            },
+        ],
+    },
+];
+
+/** MC's "select all that apply" — multi → single keeps only the FIRST correct
+ * choice (the same collapse the old inline checkbox performed). */
+const multiSelectField: AdvancedField = {
+    kind: 'toggle',
+    label: 'Multiple answers',
+    help: '“Select all that apply” — students may pick more than one choice.',
+    get: (node) => Boolean(node.attrs.multiSelect),
+    set: (editor, pos, value) => {
+        const node = editor.state.doc.nodeAt(pos);
+        if (!node) return;
+        if (value) {
+            setNodeAttr(editor, pos, 'multiSelect', true);
+            return;
+        }
+        const choices =
+            (node.attrs.choices as Array<{ correct?: boolean }>) ?? [];
+        let seen = false;
+        const collapsed = choices.map((c) => {
+            if (!c.correct) return c;
+            if (seen) return { ...c, correct: false };
+            seen = true;
+            return c;
+        });
+        editor
+            .chain()
+            .command(({ tr }) => {
+                tr.setNodeAttribute(pos, 'multiSelect', false);
+                tr.setNodeAttribute(pos, 'choices', collapsed);
+                return true;
+            })
+            .run();
+    },
+};
+
 // ============================================================================
 // The registry, keyed by ProseMirror node-type name. Adding a block type =
 // one entry here (+ its NodeView/extension). controlsFor is the host's lookup.
 // Most blocks have no block-specific primary — click edits them, so the bar is
 // the universal actions + ⚙ settings. Only `image` carries a primary.
 // ============================================================================
+
+/** Matching's "options may be used more than once" — turning reuse OFF keeps
+ * only the FIRST item matched to each target (the old inline toggle's
+ * collapse). */
+const allowTargetReuseField: AdvancedField = {
+    kind: 'toggle',
+    label: 'Reuse options',
+    help: 'Options may be matched to more than one item.',
+    get: (node) => Boolean(node.attrs.allowTargetReuse),
+    set: (editor, pos, value) => {
+        const node = editor.state.doc.nodeAt(pos);
+        if (!node) return;
+        if (value) {
+            setNodeAttr(editor, pos, 'allowTargetReuse', true);
+            return;
+        }
+        const items = (node.attrs.items as Array<{ id: string }>) ?? [];
+        const key = (node.attrs.key as Record<string, string>) ?? {};
+        const seen = new Set<string>();
+        const collapsed: Record<string, string> = {};
+        for (const item of items) {
+            const t = key[item.id];
+            if (t && !seen.has(t)) {
+                collapsed[item.id] = t;
+                seen.add(t);
+            }
+        }
+        editor
+            .chain()
+            .command(({ tr }) => {
+                tr.setNodeAttribute(pos, 'allowTargetReuse', false);
+                tr.setNodeAttribute(pos, 'key', collapsed);
+                return true;
+            })
+            .run();
+    },
+};
 
 export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     paragraph: { primary: [] },
@@ -279,11 +397,20 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
 
     // Batch 2 — the question family. All inline-edited (click = caret), so no
     // block-specific primary; the bar carries Duplicate/Delete + ⚙ settings.
-    // (Rich Advanced — tolerance, confidence, per-choice figures, axis — is
-    // deferred per-block work.)
-    multipleChoice: { primary: [] },
-    matching: { primary: [] },
-    ordering: { primary: [] },
+    // The four classic question blocks share the Grading/Print drawer groups
+    // (their old inline footers are gone). Graph-family rich settings
+    // (tolerance, axis config …) remain deferred per-block work.
+    multipleChoice: {
+        primary: [],
+        simple: [multiSelectField],
+        advanced: questionAdvanced,
+    },
+    matching: {
+        primary: [],
+        simple: [allowTargetReuseField],
+        advanced: questionAdvanced,
+    },
+    ordering: { primary: [], advanced: questionAdvanced },
     interactiveGraph: { primary: [] },
     numberLine: { primary: [] },
     dataPlot: { primary: [] },
@@ -292,7 +419,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     // {{blanks}}) → no primary. image DOES need one: clicking selects the atom,
     // so Replace/Caption are the only way to open the (no-longer-auto-opening)
     // edit popover — these request it via a transaction meta.
-    fillInBlank: { primary: [] },
+    fillInBlank: { primary: [], advanced: questionAdvanced },
     image: {
         primary: [
             {

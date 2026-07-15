@@ -8,6 +8,7 @@ import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import type { EditorMatchSide } from '../extensions/Matching';
 import { ChoiceFigureEditor } from './MultipleChoiceView';
+import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt } from '../problemNumbering';
 
 // ============================================================================
@@ -56,7 +57,6 @@ export default function MatchingView({
     selected,
     updateAttributes,
 }: NodeViewProps) {
-    const [settingsOpen, setSettingsOpen] = useState(false);
     const [openFigure, setOpenFigure] = useState<Record<string, boolean>>({});
 
     const items = (node.attrs.items as EditorMatchSide[]) ?? [];
@@ -71,8 +71,6 @@ export default function MatchingView({
             ? (node.attrs.workSpace as number)
             : null;
     const isEditable = editor.isEditable;
-    const isConfigured = hasSolution || hasConfidenceRating || workSpace !== null;
-    const showFooter = isEditable || isConfigured;
 
     const targetIds = new Set(targets.map((t) => t.id));
     const unmatched = items.filter(
@@ -154,24 +152,6 @@ export default function MatchingView({
         });
     };
 
-    const toggleReuse = (next: boolean) => {
-        if (!next) {
-            // Reuse → one-to-one keeps only the FIRST item using each target.
-            const seen = new Set<string>();
-            const collapsed: Record<string, string> = {};
-            for (const item of items) {
-                const t = key[item.id];
-                if (t && !seen.has(t)) {
-                    collapsed[item.id] = t;
-                    seen.add(t);
-                }
-            }
-            updateAttributes({ allowTargetReuse: false, key: collapsed });
-        } else {
-            updateAttributes({ allowTargetReuse: true });
-        }
-    };
-
     const figureToggle = (side: EditorMatchSide, label: string) => (
         <button
             type="button"
@@ -223,16 +203,6 @@ export default function MatchingView({
             <div className="mc-block__body">
                 <NodeViewContent className="mc-block__prompt" />
                 <div className="mc-block__controls" contentEditable={false}>
-                    <label className="mc-block__multi-toggle">
-                        <input
-                            type="checkbox"
-                            checked={allowTargetReuse}
-                            onChange={(e) => toggleReuse(e.target.checked)}
-                            onKeyDown={(e) => e.stopPropagation()}
-                            disabled={!isEditable}
-                        />
-                        <span>Options may be used more than once</span>
-                    </label>
                     {unmatched.length > 0 && (
                         <div className="mc-block__warning" role="alert">
                             {unmatched.length === 1
@@ -364,103 +334,11 @@ export default function MatchingView({
                         + Add option
                     </button>
                 </div>
-                {showFooter && (
-                    <div
-                        className="fill-in-blank-block__settings"
-                        contentEditable={false}
-                    >
-                        <button
-                            type="button"
-                            className="fill-in-blank-block__settings-toggle"
-                            onClick={() => setSettingsOpen((open) => !open)}
-                            aria-expanded={settingsOpen}
-                            disabled={!isEditable}
-                        >
-                            <span aria-hidden="true">⚙</span> Settings
-                            {!settingsOpen && isConfigured && (
-                                <span className="fill-in-blank-block__settings-badge">
-                                    {[
-                                        hasSolution && 'solution',
-                                        hasConfidenceRating && 'confidence',
-                                        workSpace !== null && 'work space',
-                                    ]
-                                        .filter(Boolean)
-                                        .join(' · ')}
-                                </span>
-                            )}
-                        </button>
-                        {settingsOpen && (
-                            <div className="fill-in-blank-block__settings-panel">
-                                <div className="fill-in-blank-block__settings-field">
-                                    <span className="fill-in-blank-block__settings-label">
-                                        Worked solution
-                                    </span>
-                                    <span className="fill-in-blank-block__settings-help">
-                                        Shown to students after the section is
-                                        checked. Supports bold, italic, and inline
-                                        math.
-                                    </span>
-                                    <InlineRichTextEditor
-                                        value={solution}
-                                        onChange={(nodes) =>
-                                            updateAttributes({
-                                                solution:
-                                                    nodes.length > 0 ? nodes : null,
-                                            })
-                                        }
-                                        ariaLabel="Worked solution"
-                                    />
-                                </div>
-                                <label className="fill-in-blank-block__settings-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={hasConfidenceRating}
-                                        onChange={(e) =>
-                                            updateAttributes({
-                                                hasConfidenceRating:
-                                                    e.target.checked,
-                                            })
-                                        }
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                        disabled={!isEditable}
-                                    />
-                                    <span>Ask for a confidence rating</span>
-                                </label>
-                                <div className="fill-in-blank-block__settings-field">
-                                    <span className="fill-in-blank-block__settings-label">
-                                        Print work space
-                                    </span>
-                                    <span className="fill-in-blank-block__settings-help">
-                                        Blank space left below this problem when
-                                        printed (in rem). Leave empty to use the
-                                        worksheet default.
-                                    </span>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        step={0.5}
-                                        className="fill-in-blank-block__settings-number"
-                                        value={workSpace ?? ''}
-                                        placeholder="default"
-                                        onChange={(e) => {
-                                            const v = e.target.value;
-                                            if (v === '') {
-                                                updateAttributes({ workSpace: null });
-                                                return;
-                                            }
-                                            const n = Number(v);
-                                            if (Number.isFinite(n) && n >= 0) {
-                                                updateAttributes({ workSpace: n });
-                                            }
-                                        }}
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                        disabled={!isEditable}
-                                    />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
+                <QuestionSettingsSummary
+                    hasSolution={hasSolution}
+                    hasConfidenceRating={hasConfidenceRating}
+                    workSpace={workSpace}
+                />
             </div>
         </NodeViewWrapper>
     );

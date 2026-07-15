@@ -6,6 +6,7 @@ import {
 } from '@tiptap/react';
 import { renderGraphSvg, type AxisConfig, type Drawable } from '@activity/renderer';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
+import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import DrawableListEditor, {
     NumCell,
     ALL_DRAWABLE_KINDS,
@@ -23,8 +24,10 @@ import { problemNumberAt } from '../problemNumbering';
 // owns — each row is [correct marker] [letter] [rich content editor]
 // [feedback toggle] [remove]. Choices are a structured node attr; every edit
 // writes through updateAttributes (document state, not React state — the
-// only React state here is which feedback disclosures are open + the
-// settings footer, per the 5-commitments rule).
+// only React state here is which feedback/figure disclosures are open, per
+// the 5-commitments rule). Block-level settings (multi-select, solution,
+// confidence, work space) live in the descriptor drawer (blockControls.ts);
+// the block keeps only a display-only QuestionSettingsSummary.
 //
 // Correctness marking:
 //   Single-select: marking a choice correct clears the others (radio
@@ -250,7 +253,6 @@ export default function MultipleChoiceView({
     selected,
     updateAttributes,
 }: NodeViewProps) {
-    const [settingsOpen, setSettingsOpen] = useState(false);
     const [openFeedback, setOpenFeedback] = useState<Record<string, boolean>>({});
     const [openFigure, setOpenFigure] = useState<Record<string, boolean>>({});
 
@@ -264,8 +266,6 @@ export default function MultipleChoiceView({
             ? (node.attrs.workSpace as number)
             : null;
     const isEditable = editor.isEditable;
-    const isConfigured = hasSolution || hasConfidenceRating || workSpace !== null;
-    const showFooter = isEditable || isConfigured;
     const noneCorrect = choices.length > 0 && choices.every((c) => !c.correct);
 
     const problemNumber = useMemo(
@@ -356,22 +356,6 @@ export default function MultipleChoiceView({
         commitChoices(choices.filter((c) => c.id !== choiceId));
     };
 
-    const toggleMultiSelect = (next: boolean) => {
-        if (!next) {
-            // Multi → single keeps only the first correct choice.
-            let seen = false;
-            const collapsed = choices.map((c) => {
-                if (!c.correct) return c;
-                if (seen) return { ...c, correct: false };
-                seen = true;
-                return c;
-            });
-            updateAttributes({ multiSelect: false, choices: collapsed });
-        } else {
-            updateAttributes({ multiSelect: true });
-        }
-    };
-
     return (
         <NodeViewWrapper
             className={`mc-block${selected ? ' is-selected' : ''}`}
@@ -383,16 +367,6 @@ export default function MultipleChoiceView({
             <div className="mc-block__body">
                 <NodeViewContent className="mc-block__prompt" />
                 <div className="mc-block__controls" contentEditable={false}>
-                    <label className="mc-block__multi-toggle">
-                        <input
-                            type="checkbox"
-                            checked={multiSelect}
-                            onChange={(e) => toggleMultiSelect(e.target.checked)}
-                            onKeyDown={(e) => e.stopPropagation()}
-                            disabled={!isEditable}
-                        />
-                        <span>Multiple answers (“select all that apply”)</span>
-                    </label>
                     {noneCorrect && (
                         <div className="mc-block__warning" role="alert">
                             Mark at least one choice as correct — right now every
@@ -545,102 +519,11 @@ export default function MultipleChoiceView({
                         + Add choice
                     </button>
                 </div>
-                {showFooter && (
-                    <div className="fill-in-blank-block__settings" contentEditable={false}>
-                        <button
-                            type="button"
-                            className="fill-in-blank-block__settings-toggle"
-                            onClick={() => setSettingsOpen((open) => !open)}
-                            aria-expanded={settingsOpen}
-                            disabled={!isEditable}
-                        >
-                            <span aria-hidden="true">⚙</span> Settings
-                            {!settingsOpen && isConfigured && (
-                                <span className="fill-in-blank-block__settings-badge">
-                                    {[
-                                        hasSolution && 'solution',
-                                        hasConfidenceRating && 'confidence',
-                                        workSpace !== null && 'work space',
-                                    ]
-                                        .filter(Boolean)
-                                        .join(' · ')}
-                                </span>
-                            )}
-                        </button>
-                        {settingsOpen && (
-                            <div className="fill-in-blank-block__settings-panel">
-                                <div className="fill-in-blank-block__settings-field">
-                                    <span className="fill-in-blank-block__settings-label">
-                                        Worked solution
-                                    </span>
-                                    <span className="fill-in-blank-block__settings-help">
-                                        Shown to students after the section is
-                                        checked. Supports bold, italic, and inline
-                                        math.
-                                    </span>
-                                    <InlineRichTextEditor
-                                        value={solution}
-                                        onChange={(nodes) =>
-                                            updateAttributes({
-                                                solution:
-                                                    nodes.length > 0 ? nodes : null,
-                                            })
-                                        }
-                                        ariaLabel="Worked solution"
-                                    />
-                                </div>
-                                <label className="fill-in-blank-block__settings-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={hasConfidenceRating}
-                                        onChange={(e) =>
-                                            updateAttributes({
-                                                hasConfidenceRating:
-                                                    e.target.checked,
-                                            })
-                                        }
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                        disabled={!isEditable}
-                                    />
-                                    <span>Ask for a confidence rating</span>
-                                </label>
-                                <div className="fill-in-blank-block__settings-field">
-                                    <span className="fill-in-blank-block__settings-label">
-                                        Print work space
-                                    </span>
-                                    <span className="fill-in-blank-block__settings-help">
-                                        Blank space left below this problem when
-                                        printed (in rem). Leave empty to use the
-                                        worksheet default.
-                                    </span>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        step={0.5}
-                                        className="fill-in-blank-block__settings-number"
-                                        value={workSpace ?? ''}
-                                        placeholder="default"
-                                        onChange={(e) => {
-                                            const v = e.target.value;
-                                            if (v === '') {
-                                                updateAttributes({
-                                                    workSpace: null,
-                                                });
-                                                return;
-                                            }
-                                            const n = Number(v);
-                                            if (Number.isFinite(n) && n >= 0) {
-                                                updateAttributes({ workSpace: n });
-                                            }
-                                        }}
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                        disabled={!isEditable}
-                                    />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
+                <QuestionSettingsSummary
+                    hasSolution={hasSolution}
+                    hasConfidenceRating={hasConfidenceRating}
+                    workSpace={workSpace}
+                />
             </div>
         </NodeViewWrapper>
     );
