@@ -3,18 +3,7 @@ import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { LucideIcon } from 'lucide-react';
 import { renderRubricField } from './components/RubricEditor';
-import {
-    Pencil,
-    Copy,
-    Trash2,
-    MessageSquareText,
-    ListChecks,
-    Waypoints,
-    ListOrdered,
-    Image as ImageIcon,
-    Captions,
-} from 'lucide-react';
-import { openMathFieldMeta } from './extensions/MathFocus';
+import { Copy, Trash2, Image as ImageIcon, Captions } from 'lucide-react';
 import { OPEN_IMAGE_POPOVER, type ImagePopoverFocus } from './extensions/Image';
 
 // ============================================================================
@@ -186,21 +175,11 @@ export const universalActions: ReadonlyArray<ControlEntry> = [
     { label: 'Delete', icon: Trash2, onActivate: deleteBlock },
 ];
 
-// --- Shared primaries -----------------------------------------------------
-
-/**
- * Enter Edit from the Select state: place the caret inside the block's editable
- * content (the four-state model's Select → Edit transition). ProseMirror snaps
- * `pos + 1` to the nearest valid text position inside the node.
- */
-function enterEdit(editor: Editor, pos: number): void {
-    editor.chain().focus().setTextSelection(pos + 1).run();
-}
-
-/** An "enter the block's content" primary — the common case for content blocks. */
-function editPrimary(label = 'Edit', icon: LucideIcon = Pencil): ControlEntry {
-    return { label, icon, onActivate: enterEdit };
-}
+// Almost no block has a block-specific `primary`: you edit by clicking into the
+// block (caret for text, the math field for math), so an "enter edit" button
+// would only duplicate a click. The one exception is `image` — clicking an
+// image selects the atom (there's no inline editor), so Replace/Caption are the
+// only way to open its (no-longer-auto-opening) edit popover.
 
 /** The student-answer placeholder, shared by the free-text blocks' Advanced. */
 const placeholderField: AdvancedField = {
@@ -218,42 +197,25 @@ const rubricField: AdvancedField = {
     render: renderRubricField,
 };
 
-// math_block: "Edit" opens the MathLive field (mode 'all' selects the whole
-// formula so the first keystroke replaces) — the same handoff the insert uses.
-const mathBlockControls: BlockControls = {
-    primary: [
-        {
-            label: 'Edit',
-            icon: Pencil,
-            onActivate: (editor, pos) => {
-                editor.view.dispatch(
-                    editor.state.tr.setMeta(...openMathFieldMeta(pos, 'all')),
-                );
-            },
-        },
-    ],
-    // width / align exist as attrs but have no UI yet — Advanced, stage 4.
-};
-
 // ============================================================================
 // The registry, keyed by ProseMirror node-type name. Adding a block type =
 // one entry here (+ its NodeView/extension). controlsFor is the host's lookup.
-// Plain text blocks (paragraph/heading) have no block-specific primary — their
-// bar is just the universal actions.
+// Most blocks have no block-specific primary — click edits them, so the bar is
+// the universal actions + ⚙ settings. Only `image` carries a primary.
 // ============================================================================
 
 export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     paragraph: { primary: [] },
     heading: { primary: [] },
-    mathBlock: mathBlockControls,
+    mathBlock: { primary: [] },
 
-    // Batch 1 — instructional + free-text content blocks. Their primary is the
-    // Select → Edit transition (enter the editable content). Advanced fields
-    // (placeholder, step labels) are the stage-4 drawer's job.
-    learningObjectives: { primary: [editPrimary()] },
-    workedExample: { primary: [editPrimary()] },
+    // Batch 1 — instructional + free-text content blocks. Edited by clicking
+    // into them (caret), so NO block-specific primary — an "enter edit" button
+    // would just duplicate a click. Settings live in ⚙ settings mode.
+    learningObjectives: { primary: [] },
+    workedExample: { primary: [] },
     fadedWorkedExample: {
-        primary: [editPrimary()],
+        primary: [],
         // A single toggle — flips in place from the bar; no Advanced drawer.
         simple: [
             {
@@ -267,19 +229,19 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         ],
     },
     selfExplanation: {
-        primary: [editPrimary('Prompt', MessageSquareText)],
+        primary: [],
         // Placeholder is the only setting → a simple button, no Advanced drawer.
         simple: [placeholderField],
     },
     // short_answer + essay share FreeResponseView. Placeholder is simple; the
     // rubric builder (a complex sub-editor) lives in Advanced.
     shortAnswer: {
-        primary: [editPrimary('Prompt', MessageSquareText)],
+        primary: [],
         simple: [placeholderField],
         advanced: [{ group: 'Grading', fields: [rubricField] }],
     },
     essay: {
-        primary: [editPrimary('Prompt', MessageSquareText)],
+        primary: [],
         simple: [placeholderField],
         advanced: [
             {
@@ -315,26 +277,22 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         ],
     },
 
-    // Batch 2 — the question family. All inline-edited (editable prompt), no
-    // popover host, so the primary is enterEdit labelled per the block's nature.
-    // The graph trio's second primary (Answer / Data) and every block's rich
-    // Advanced (tolerance, confidence, skills, per-choice figures, chart type,
-    // axis config, …) are the stage-4 drawer's job.
-    multipleChoice: { primary: [editPrimary('Choices', ListChecks)] },
-    matching: { primary: [editPrimary('Pairs', Waypoints)] },
-    ordering: { primary: [editPrimary('Items', ListOrdered)] },
-    interactiveGraph: { primary: [editPrimary()] },
-    numberLine: { primary: [editPrimary()] },
-    dataPlot: { primary: [editPrimary()] },
+    // Batch 2 — the question family. All inline-edited (click = caret), so no
+    // block-specific primary; the bar carries Duplicate/Delete + ⚙ settings.
+    // (Rich Advanced — tolerance, confidence, per-choice figures, axis — is
+    // deferred per-block work.)
+    multipleChoice: { primary: [] },
+    matching: { primary: [] },
+    ordering: { primary: [] },
+    interactiveGraph: { primary: [] },
+    numberLine: { primary: [] },
+    dataPlot: { primary: [] },
 
-    // Batch 3 — the blocks with an existing selection-driven popover host.
-    // fill_in_blank has no conflict (its BlankPopoverHost is CHIP-level, a
-    // different selection than the block), so it just enters edit to author
-    // {{blanks}}. image DOES conflict (atom → same selection fires both), so
-    // the bar becomes the single affordance: ImagePopoverHost no longer
-    // auto-opens on selection; these primaries request it via a transaction
-    // meta, focused on the field each names.
-    fillInBlank: { primary: [editPrimary('Edit')] },
+    // Batch 3 — popover-host / atom blocks. fill_in_blank is edited inline (type
+    // {{blanks}}) → no primary. image DOES need one: clicking selects the atom,
+    // so Replace/Caption are the only way to open the (no-longer-auto-opening)
+    // edit popover — these request it via a transaction meta.
+    fillInBlank: { primary: [] },
     image: {
         primary: [
             {

@@ -350,6 +350,17 @@ is its spec; build it as 6.5.
 
 ## Revision log
 
+**2026-07-15 — drop the "enter edit" primaries (author-flagged, SHIPPED).** The `enterEdit`
+primary (Edit/Prompt/Choices/Pairs/Items) placed the caret in a block's content — which
+*clicking the block already does*, so it was thin filler on every inline-edited block (confirmed:
+even the math block enters edit on click, via `useMathFieldEditing`'s wrapper `onClick`). Removed
+it from all ~13 content/question blocks (and math). **`image` is now the ONLY block with a
+primary** — clicking an image selects the atom (no inline editor), so Replace/Caption are the
+sole way to open its edit popover. Deleted the `enterEdit`/`editPrimary` helpers + `mathBlockControls`
++ the now-dead icon/`openMathFieldMeta` imports. Command bar for a typical block is now
+`[Duplicate] [Delete] [⚙]` (gear only when the block has settings). block-command-bar e2e
+rewritten around this; 34 e2e + 579 unit green.
+
 **2026-07-15 — settings mode (author-directed redesign, SHIPPED).** Refines the two prior
 settings passes into a cleaner interaction: the command bar's **⚙ gear toggles "settings mode"**
 — Duplicate/Delete are swapped for the block's **`simple` settings as buttons**, plus an
