@@ -1,6 +1,11 @@
 # Notion-hybrid editor — slice 6 design
 
-**Status:** 🎨 **DESIGN LOCKED + REVISED via /plan-design-review (2026-07-15); not yet built.**
+**Status:** 🎨 **DESIGN LOCKED + REVISED + ENG-REVIEWED (2026-07-15); not yet built.** After
+the design review, `/plan-eng-review` locked the build architecture (see §Engineering review):
+a **control-descriptor registry** is the spine (single host renders per-block controls from
+per-extension descriptors — no per-block mounting, no monster switch); **smart-defaults split
+out to slice 6.5**; **interaction test harness** required; several perf/feasibility fixes
+folded into the stages.
 Original direction locked via /design-consultation; then steelmanned + pressure-tested
 against the author's UX goals, which surfaced two goal-conflicts that were folded back in
 (see §Revision log): the pill is now **docked/anchored** (not floating — floating fought
@@ -231,23 +236,34 @@ Built on existing primitives (no new palette): `--ed-ink` (near-black for the pi
 Build on the shipped Option-A editor. Each stage is independently shippable and browser-
 verifiable on `/playground`.
 
+0. **(eng) Control-descriptor registry + interaction harness.** Land the `BlockControls`
+   descriptor type + the single-host skeleton + the Playwright/browse interaction harness
+   FIRST, proven on 2–3 simple blocks (paragraph, math, image) before any complex one. This
+   de-risks the whole arc (see §Engineering review).
 1. **Gutter with input parity.** Persistent quiet dot at rest → `⋮⋮` + `+` on hover/focus/tap,
-   empty otherwise. (Reconcile the existing insert line + `+` square into this one cluster.)
+   empty otherwise. **CSS-hover-driven** (a block `::before`), not a per-block PM decoration.
+   (Reconcile the existing insert line + `+` square into this one cluster.)
 2. **Select state + docked command bar (generic) + click=edit.** Block-selection outline +
-   an anchored bar with move/duplicate/delete; confirm click still lands the caret (edit) and
-   selection is grip/`Esc`-only. No per-block controls yet.
-3. **Per-block primary actions in the bar.** Wire the inventory's *primary* column per block
-   type, reusing each block's existing NodeView editor surfaces.
-4. **The grouped `Advanced` drawer.** Move each block's technical fields into the block-docked,
-   grouped Advanced drawer. The bulk of the "never overwhelmed" win.
-5. **Smart defaults + just-in-time surfacing.** Inline "accept equivalent forms?"-style
-   suggestions so hidden defaults never surprise a teacher later.
-6. **Block-picker previews + first-run empty state.** Thumbnails per block type; the "Start
-   here" starters on a fresh doc.
-7. **Snap motion pass.** Magnetic insert-line + settle for insert/reorder/columns;
+   an anchored bar with move/duplicate/delete; click lands the caret (edit); selection is
+   **grip-click + `Esc` only** (no "click frame edge").
+3. **Per-block controls via the descriptor.** Fill the inventory's *primary* + *Advanced*
+   descriptors per block type, extracting each block's control surface out of its NodeView
+   into its descriptor. This is a ~20-NodeView refactor, not wiring — simplest blocks first.
+4. **The grouped `Advanced` drawer.** Rendered from the descriptor's grouped `advanced`;
+   most-common-first. The bulk of the "never overwhelmed" win.
+5. **Block-picker previews + first-run empty state.** Static SVG thumbnails per block type;
+   the "Start here" starters on a fresh doc.
+6. **Snap motion pass.** Magnetic insert-line + settle for insert/reorder/columns;
    spring-on-appear for the bar; reduced-motion.
-8. **Top-toolbar diet + optional focus mode.** Remove migrated controls; ship the dim-the-rest
+7. **Top-toolbar diet + optional focus mode.** Remove migrated controls; ship the dim-the-rest
    toggle (off by default).
+
+**Moved OUT to slice 6.5** (eng review — split from this arc): **smart defaults + just-in-time
+surfacing** (the "accept equivalent forms?" inline suggestions). It's a net-new interaction
+subsystem with *unvalidated* heuristics (per-block detectors, dismissable chips, persistence),
+not a restyle — so it gets its own spike to prove the detectors fire reliably and that
+teachers want the chip, and it gates nothing in slice 6. The §"Smart defaults" section above
+is its spec; build it as 6.5.
 
 ## Risks / open questions
 
@@ -288,3 +304,72 @@ Post-revision self-assessment against the goals: *snaps into place* 6→9, *no t
 right* 5→8, *never overwhelmed* 8→9, *no walls of text / how it helps* 6→8, *technical under
 Advanced* 7→9. The remaining softness is inherent uncertainty that only a **real-device
 prototype + a teacher watching** resolves — the design can't fully close #2 and #6 on paper.
+
+## Engineering review (/plan-eng-review, 2026-07-15)
+
+**The architectural spine — a control-descriptor registry.** The design mandates a *single*
+selection-driven host (to dodge the Stage-13.5 per-chip reconciliation hazard) that must
+render *different* controls per block type. The mechanism: each block extension **declares
+its controls as data**, registered next to the node (same "add-a-block-in-one-place"
+discipline as `slashMenuItems` and the renderer dispatch). The single host reads the
+descriptor for the *currently selected* block's type.
+
+```
+Block extension (per type)                Single root host (one mount)
+┌─────────────────────────────┐           ┌──────────────────────────────┐
+│ export const graphControls: │           │ selection changes →          │
+│   BlockControls = {         │  register │   desc = controlsFor(type)   │
+│   primary: [Edit, Answer],  │──────────▶│   <CommandBar desc/>         │
+│   advanced: [                │  registry │   <AdvancedDrawer desc/>     │
+│     {group:'Grading',…},     │           │ (host lifetime = editor,     │
+│     {group:'Display',…}] }   │           │  NOT per block → no hazard)  │
+└─────────────────────────────┘           └──────────────────────────────┘
+   ~20 descriptors, each beside its           BlankPopoverHost pattern,
+   extension (DRY, one place)                 generalized to all blocks
+```
+
+`primary`/`advanced` entries are `{ label, icon, onActivate(editor, pos) }` (+ grouped fields
+for Advanced). Adding a block type = add its descriptor; the host needs no edit. This is the
+load-bearing piece the design doc omitted — spec + build it in stage 0.
+
+**State → ProseMirror primitive mapping** (so implementers aren't guessing):
+
+| Design state | ProseMirror | Notes |
+|---|---|---|
+| Rest | — | no active affordance |
+| Hover / focus | CSS `:hover`/`:focus-within` + one focus-driven widget | NOT a per-block decoration |
+| Edit | `TextSelection` (caret) | the default on click |
+| Select | `NodeSelection` on the block | via grip-click or `Esc` only |
+
+**Verification (the biggest gap — resolved):** the design is almost entirely interaction, and
+the repo has *no* editor-interaction test harness (`blockTypeGuards` only builds the schema;
+gestures are hand-verified on `/playground`). Slice 6 must **stand up a lightweight
+browser-driven harness** (Playwright or the gstack browse daemon) driving `/playground`:
+click=edit vs grip=select, `Esc`, arrow-move, hover-gutter, drag-snap-to-gap, Advanced-open.
+Plus **unit tests for the pure parts** — the descriptor registry, block-picker items, and the
+state-mapping. The harness pays forward to every future editor slice.
+
+**Feasibility fixes folded into the stages:** prove the descriptor pattern on 2–3 simple
+blocks before the complex ones (stage 3 is a ~20-NodeView extraction, not wiring); CSS-driven
+gutter (not a PM decoration per block); selection via grip+`Esc` only (drop "click frame
+edge"); static SVG picker thumbnails (not live renders).
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | issues_open | 1 scope-split + 1 architecture + 4 recs + 1 test-infra, all folded |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | done | 8 goal-alignment fixes (prior) |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+- **OUTSIDE VOICE:** not run (Codex unavailable; interactive review with the author sufficed
+  for a design-stage spec).
+- **VERDICT:** ENG CLEARED — the design is buildable. Locked: control-descriptor registry as
+  the spine; smart-defaults split to slice 6.5; interaction test harness required; gutter/
+  selection/preview feasibility fixes folded. Real work concentrates in stage 3 (the
+  ~20-NodeView control extraction) and stage 0 (the registry + harness) — sequence simplest
+  blocks first.
+
+NO UNRESOLVED DECISIONS
