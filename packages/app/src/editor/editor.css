@@ -372,61 +372,72 @@
 }
 
 /* =============================================================================
- *  Add-a-block affordances: the between-block insert line + the end square
+ *  Add-a-block affordances: the hover gutter cluster + the end square
  *  ========================================================================= */
 
-/* Insert line — absolutely positioned at the hovered block's top edge. A thin
- * blue rule with a "+" badge at its left; the whole thing is the click target
- * that opens the "Add a block" window (inserts above that block). */
-.block-insert-line {
-    position: absolute;
-    z-index: 5;
+/* Gutter cluster — the DragHandle floats this [grip][+] pair into the left
+ * gutter of the block under the cursor. It is the hover/focus expansion of the
+ * persistent rest dot below. */
+.block-gutter-cluster {
     display: flex;
     align-items: center;
-    height: 1rem;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    /* Pull up so the 1rem hit area straddles the gap above the block, and the
-     * rule sits in the block's top margin rather than over its text. */
-    transform: translateY(-0.5rem);
-    cursor: pointer;
-    /* Visible (muted) whenever it's rendered — it only renders while its block
-     * is hovered — and brightens on direct hover/focus. */
-    opacity: 0.55;
-    transition: opacity 0.12s ease;
+    gap: 0.0625rem;
 }
 
-.block-insert-line::after {
-    content: '';
-    flex: 1;
-    height: 2px;
-    border-radius: 1px;
-    background: var(--ed-accent-soft); /* blue-300 */
-}
-
-.block-insert-line:hover::after,
-.block-insert-line:focus-visible::after {
-    background: var(--ed-accent); /* blue-500 */
-}
-
-.block-insert-line__plus {
+/* The "+" that opens the "Add a block" window (inserts above the block the
+ * gutter currently targets). Sized to match the grip; a 44px min touch target
+ * is layered on via padding-free hit expansion on coarse pointers below. */
+.block-gutter-add {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1rem;
-    height: 1rem;
-    margin-right: 0.25rem;
-    border-radius: 9999px;
-    background: var(--ed-accent); /* blue-500 */
-    color: white;
+    width: 1.25rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--ed-faint); /* slate-400 */
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.block-insert-line:hover,
-.block-insert-line:focus-visible {
-    opacity: 1;
-    outline: none;
+.block-gutter-add:hover {
+    color: var(--ed-accent-strong); /* blue-600 */
+    background: var(--ed-accent-bg); /* blue-50 */
+}
+
+.block-gutter-add:focus-visible {
+    outline: 2px solid var(--ed-accent); /* blue-500 */
+    outline-offset: 2px;
+}
+
+/* Persistent quiet rest dot — a faint marker in the gutter of every top-level
+ * block, the calm at-rest signifier that a block is interactive. It expands
+ * into the [grip][+] cluster on hover (the DragHandle floats that in over this
+ * spot), so the dot fades out while the block is hovered. CSS-only (a ::before
+ * on the block), never a per-block ProseMirror decoration. Empty lines show the
+ * "/" placeholder hint instead (its ::before wins by specificity). */
+.ProseMirror > * {
+    position: relative;
+}
+
+.ProseMirror > *::before {
+    content: '';
+    position: absolute;
+    top: 0.55em;
+    left: -1.15rem;
+    width: 5px;
+    height: 5px;
+    border-radius: 9999px;
+    background: var(--ed-gutter-affordance); /* slate-400 */
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+}
+
+.ProseMirror > *:hover::before {
+    opacity: 0;
 }
 
 /* End square — always-visible "+" tile after the last block; the sole

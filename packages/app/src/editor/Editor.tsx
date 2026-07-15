@@ -81,80 +81,15 @@ export default function Editor({
     // needs a ref and `position: relative`.
     const canvasRef = useRef<HTMLDivElement>(null);
 
-    // The insert line follows the top-level block under the cursor: positioned
-    // (canvas-relative px) at that block's top edge. Clicking it opens the
-    // window to insert ABOVE that block — which also covers a line above the
-    // very first block. Driven by the drag-handle's onNodeChange.
-    const [insertLine, setInsertLine] = useState<{
-        top: number;
-        left: number;
-        width: number;
-        pos: number;
-    } | null>(null);
-
     // The open "Add a block" window and the doc position a pick lands at. null
     // = closed.
     const [insertPos, setInsertPos] = useState<number | null>(null);
 
-    // The top-level block the line currently targets — guards against
-    // re-rendering on every mousemove within the same block.
-    const lineTargetRef = useRef<number | null>(null);
-
-    // Self-contained hover tracking (independent of the drag-handle's internal
-    // mousemove logic): find the top-level block under the cursor and place the
-    // line at its top edge. Insert lands ABOVE that block — which also gives a
-    // line above the very first block.
-    const handleCanvasMouseMove = (e: React.MouseEvent) => {
-        if (!editor || !canvasRef.current) return;
-        const hit = editor.view.posAtCoords({
-            left: e.clientX,
-            top: e.clientY,
-        });
-        if (!hit) return; // keep the last line sticky
-        const $pos = editor.state.doc.resolve(hit.pos);
-        // Target the block that is a direct child of the doc OR a column cell:
-        // walk up from the cursor, stopping at the first block whose parent is a
-        // `column` (so the line lands INSIDE a cell) or the doc (top level).
-        // Without this, hovering inside columns jumps up to the whole block and
-        // there's no way to insert into a cell.
-        let d = $pos.depth;
-        while (d > 1 && $pos.node(d - 1).type.name !== 'column') d--;
-        const targetPos = d >= 1 ? $pos.before(d) : hit.pos;
-        if (lineTargetRef.current === targetPos) return;
-        const dom = editor.view.nodeDOM(targetPos);
-        if (!(dom instanceof HTMLElement)) return;
-        lineTargetRef.current = targetPos;
-        const cr = canvasRef.current.getBoundingClientRect();
-        const blockBox = dom.getBoundingClientRect();
-        // Span the full width of the containing column — a cell inside a columns
-        // block, or the whole page when not (the implicit "column of one") —
-        // rather than the hovered block's own width. Reads as "insert into this
-        // column here", and stays full-width even above a narrow block (image,
-        // centered math). The block's parent element is the column's contentDOM
-        // (or .ProseMirror at top level).
-        let left = blockBox.left - cr.left;
-        let width = blockBox.width;
-        const container = dom.parentElement;
-        if (container) {
-            const cbox = container.getBoundingClientRect();
-            const cs = getComputedStyle(container);
-            const padL = parseFloat(cs.paddingLeft) || 0;
-            const padR = parseFloat(cs.paddingRight) || 0;
-            left = cbox.left + padL - cr.left;
-            width = cbox.width - padL - padR;
-        }
-        setInsertLine({
-            top: blockBox.top - cr.top,
-            left,
-            width,
-            pos: targetPos,
-        });
-    };
-
-    const clearInsertLine = () => {
-        lineTargetRef.current = null;
-        setInsertLine(null);
-    };
+    // The top-level (or column-cell) block the hover gutter currently targets,
+    // reported by the DragHandle's onNodeChange as the cursor moves between
+    // blocks. The gutter "+" inserts ABOVE this block (which also covers a slot
+    // above the very first block). null when the pointer is off any block.
+    const [gutterPos, setGutterPos] = useState<number | null>(null);
 
     // Insert a block at `pos`; if the doc was just the initial empty paragraph,
     // drop that leftover empty line so a fresh activity starts clean.
@@ -232,57 +167,59 @@ export default function Editor({
             style={typographyVars}
         >
             <Toolbar editor={editor} />
-            <div
-                ref={canvasRef}
-                className="relative p-6"
-                onMouseMove={handleCanvasMouseMove}
-                onMouseLeave={clearInsertLine}
-            >
-                <DragHandle editor={editor} nested={columnsNestedDragOptions}>
-                    <button
-                        type="button"
-                        className="drag-handle-button"
-                        tabIndex={-1}
-                        aria-label="Drag to reorder block"
-                        title="Drag to reorder"
-                    >
-                        <svg
-                            width="12"
-                            height="20"
-                            viewBox="0 0 12 20"
-                            fill="currentColor"
-                            aria-hidden="true"
+            <div ref={canvasRef} className="relative p-6">
+                {/* The hover gutter cluster: the drag grip + an insert "+".
+                    The DragHandle floats this to the left of the block under the
+                    cursor and reports that block's pos via onNodeChange, which
+                    the "+" uses to insert above it. The persistent quiet rest
+                    dot is a CSS ::before on each block (editor.css); it hides
+                    while this cluster is shown. */}
+                <DragHandle
+                    editor={editor}
+                    nested={columnsNestedDragOptions}
+                    onNodeChange={({ node, pos }) =>
+                        setGutterPos(node ? pos : null)
+                    }
+                >
+                    <div className="block-gutter-cluster">
+                        <button
+                            type="button"
+                            className="drag-handle-button"
+                            tabIndex={-1}
+                            aria-label="Drag to reorder block"
+                            title="Drag to reorder"
                         >
-                            <circle cx="3" cy="4" r="1.5" />
-                            <circle cx="9" cy="4" r="1.5" />
-                            <circle cx="3" cy="10" r="1.5" />
-                            <circle cx="9" cy="10" r="1.5" />
-                            <circle cx="3" cy="16" r="1.5" />
-                            <circle cx="9" cy="16" r="1.5" />
-                        </svg>
-                    </button>
+                            <svg
+                                width="12"
+                                height="20"
+                                viewBox="0 0 12 20"
+                                fill="currentColor"
+                                aria-hidden="true"
+                            >
+                                <circle cx="3" cy="4" r="1.5" />
+                                <circle cx="9" cy="4" r="1.5" />
+                                <circle cx="3" cy="10" r="1.5" />
+                                <circle cx="9" cy="10" r="1.5" />
+                                <circle cx="3" cy="16" r="1.5" />
+                                <circle cx="9" cy="16" r="1.5" />
+                            </svg>
+                        </button>
+                        <button
+                            type="button"
+                            className="block-gutter-add"
+                            aria-label="Insert a block above"
+                            title="Insert a block"
+                            // stopPropagation so mousedown on "+" doesn't start a
+                            // drag (the cluster is the DragHandle's trigger).
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={() => {
+                                if (gutterPos !== null) setInsertPos(gutterPos);
+                            }}
+                        >
+                            <Plus size={14} aria-hidden="true" />
+                        </button>
+                    </div>
                 </DragHandle>
-                {/* Between-block insert line: appears at the top edge of the
-                    hovered block (also covers a line above the first block).
-                    Clicking opens the window to insert above that block. */}
-                {insertLine && insertPos === null ? (
-                    <button
-                        type="button"
-                        className="block-insert-line"
-                        style={{
-                            top: `${insertLine.top}px`,
-                            left: `${insertLine.left}px`,
-                            width: `${insertLine.width}px`,
-                        }}
-                        aria-label="Insert a block here"
-                        title="Insert a block here"
-                        onClick={() => setInsertPos(insertLine.pos)}
-                    >
-                        <span className="block-insert-line__plus">
-                            <Plus size={12} aria-hidden="true" />
-                        </span>
-                    </button>
-                ) : null}
                 <EditorContent editor={editor} />
                 {/* Persistent "add block" square at the end of the document —
                     also the sole affordance on a brand-new empty activity.
