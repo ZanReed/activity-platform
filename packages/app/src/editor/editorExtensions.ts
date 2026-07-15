@@ -22,6 +22,7 @@ import { MathFocus } from './extensions/MathFocus';
 import { SlashMenu } from './extensions/SlashMenu';
 import { PlaceholderHint } from './extensions/PlaceholderHint';
 import { BlockReorderShortcuts } from './extensions/BlockReorderShortcuts';
+import { SelectBlock } from './extensions/SelectBlock';
 import { SectionBreak } from './extensions/SectionBreak';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
@@ -64,6 +65,9 @@ export function buildEditorExtensions({
         // Grey "/" hint on empty top-level lines — the slash menu's signifier.
         PlaceholderHint,
         BlockReorderShortcuts,
+        // Esc lifts a text caret to a block NodeSelection (the four-state
+        // model's secondary Select state; click stays edit).
+        SelectBlock,
         SectionBreak,
         Subscript,
         Superscript,

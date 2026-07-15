@@ -186,8 +186,16 @@ export default function Editor({
                             type="button"
                             className="drag-handle-button"
                             tabIndex={-1}
-                            aria-label="Drag to reorder block"
-                            title="Drag to reorder"
+                            aria-label="Select block (drag to reorder)"
+                            title="Click to select · drag to reorder"
+                            // Grip-click SELECTS the block (the four-state model's
+                            // secondary Select state → its command bar). A drag
+                            // reorders instead; a plain click without movement
+                            // never starts a drag, so onClick means "select".
+                            onClick={() => {
+                                if (gutterPos !== null)
+                                    editor?.commands.setNodeSelection(gutterPos);
+                            }}
                         >
                             <svg
                                 width="12"

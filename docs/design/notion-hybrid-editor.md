@@ -250,12 +250,27 @@ verifiable on `/playground`.
    two-phase measure (mirrors BlankPopoverHost) fixed a pre-layout mis-anchor that browser
    verification caught but `toBeVisible` missed. This de-risks the whole arc (see §Engineering
    review).
-1. **Gutter with input parity.** Persistent quiet dot at rest → `⋮⋮` + `+` on hover/focus/tap,
-   empty otherwise. **CSS-hover-driven** (a block `::before`), not a per-block PM decoration.
-   (Reconcile the existing insert line + `+` square into this one cluster.)
-2. **Select state + docked command bar (generic) + click=edit.** Block-selection outline +
-   an anchored bar with move/duplicate/delete; click lands the caret (edit); selection is
-   **grip-click + `Esc` only** (no "click frame edge").
+1. **Gutter with input parity. ✅ CORE SHIPPED 2026-07-15** (app-only). Persistent quiet dot at
+   rest (CSS `::before` on each top-level block, not a PM decoration) → `⋮⋮` grip + `+` cluster
+   on **hover**, empty otherwise. The `+` folds into the existing DragHandle (stopPropagation so
+   it clicks without starting a drag) and opens the "Add a block" window above the hovered block
+   via `onNodeChange`; the separate mousemove insert-line is **removed** (the reconcile). End
+   square kept. `position:relative` on top-level blocks anchors the dot — verified no regression
+   on image/columns/math NodeViews. 5 gutter e2e specs. **DEFERRED — focus/tap parity:** the
+   keyboard-focus + tap reveal of the cluster needs a **focus-driven widget** (CSS `:focus-within`
+   can't identify the caret's block under a single contenteditable, and the pointer-positioned
+   DragHandle won't move to it) and a **real-device touch pass** the environment can't run. Moved
+   to a dedicated input-parity/a11y pass (author-ruled 2026-07-15); keyboard insertion via `/`
+   (signposted by the placeholder hint) + the reorder shortcut cover the a11y floor meanwhile.
+2. **Select state + docked command bar (generic) + click=edit. ✅ SHIPPED 2026-07-15**
+   (app-only). The command bar (generic Duplicate/Delete) already landed in stage 0; stage 2
+   added the *state model*: a soft accent **selection outline + ring** on
+   `.ProseMirror-selectednode` (new state tokens); **grip-click selects** the block (its
+   `onClick` → `setNodeSelection`); a new `SelectBlock` extension lifts a collapsed text caret
+   to a block NodeSelection on **`Esc`** (safe against the math-field / image-resize / popover
+   Esc handlers — they own Esc only while focused, when PM isn't). **Click stays edit** (caret);
+   a text range + Esc falls through. `Esc` semantics audited — no collision. 5 select-state
+   e2e specs (click=caret, Esc→select, outline drawn, grip→select, range-Esc falls through).
 3. **Per-block controls via the descriptor.** Fill the inventory's *primary* + *Advanced*
    descriptors per block type, extracting each block's control surface out of its NodeView
    into its descriptor. This is a ~20-NodeView refactor, not wiring — simplest blocks first.

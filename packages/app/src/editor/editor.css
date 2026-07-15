@@ -469,6 +469,19 @@
     outline-offset: 2px;
 }
 
+/* Block Select state (slice-6 stage 2). ProseMirror adds .ProseMirror-selectednode
+ * to a node-selected block; this is the four-state model's Select outline — a
+ * soft accent frame + ring around the block, reached by grip-click or Esc (never
+ * a plain text click, which stays edit/caret). The docked command bar renders
+ * alongside it. Kept subtle so a whole selected worksheet still scans calmly. */
+.ProseMirror .ProseMirror-selectednode {
+    outline: 2px solid var(--ed-block-selected-outline);
+    outline-offset: 3px;
+    border-radius: 4px;
+    box-shadow: 0 0 0 5px var(--ed-block-selected-ring);
+    transition: box-shadow var(--ed-motion-fast) var(--ed-ease-out);
+}
+
 /* Docked command bar (slice-6 stage 0). Anchored to the selected block's
  * top-right, positioned canvas-relative by BlockCommandBarHost — it does NOT
  * float or track scroll. Springs in on appearance (scale .95->1); the delight
