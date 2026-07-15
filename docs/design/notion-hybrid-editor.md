@@ -364,6 +364,29 @@ is its spec; build it as 6.5.
 
 ## Revision log
 
+**2026-07-15 — MC-coherence pass (author-flagged, SHIPPED, 3 commits).** Dogfooding the MC
+block surfaced that its settings lived in three unrelated settlements (inline ⚙ footer,
+floating multi-select checkbox, emoji per-choice buttons + side-tab panels) and that choice
+text couldn't be formatted from the top toolbar (each rich sub-field is a nested Tiptap
+instance with its own 6-button mini toolbar). Author-ruled all three fixes, all recommended
+options: **(1) The top toolbar formats everything** — new `FieldFocusContext`: nested fields
+report focus, the toolbar's mark/math buttons route to the focused field (buttons
+preventDefault on mousedown so they never blur it), main-doc-only controls (style picker,
+Define, column cluster) disable meanwhile, and the per-field mini toolbars are DELETED
+everywhere (~8 sites). The blank/definition popovers allowlist `.editor-toolbar` in their
+outside-click handlers. **(2) Block-level settings → the descriptor drawer for ALL FOUR
+classic question blocks** (MC / fill_in_blank / matching / ordering — they share the
+identical solution/confidence/workSpace trio): shared `Grading` + `Print` drawer groups
+(worked solution = a `custom` rich-text field), MC's multi-select and matching's
+target-reuse become `simple` settings-mode toggles (same collapse semantics), the four
+inline "⚙ Settings" footers + floating checkboxes are deleted (a display-only
+`QuestionSettingsSummary` line remains — the free-text readout discipline). **(3) Per-choice
+feedback/figure stay ON the row** (block-level drawer would divorce them from their letter)
+but redesigned: quiet lucide icons, hidden at rest, fade in on row hover/focus, populated =
+accent + always visible; the amber/slate panels de-striped (hairline + wash + small-caps
+label, per the 2026-07-14 block-accent pattern). 10 new e2e (4 toolbar-routing + 6
+question-settings).
+
 **2026-07-15 — stage 5 build calls (author-ruled, SHIPPED).** Three implementation forks on
 the ratified stage-5 design, all decided at kickoff: **(1) Card grid + hover caption** — the
 picker's tiles become thumbnail-forward cards (2-across); the one-line descriptions move out
