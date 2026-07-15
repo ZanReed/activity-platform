@@ -171,3 +171,35 @@ test('the "Edit" primary opens the math field (enters edit mode)', async ({
     // Entering edit mode focuses the MathLive <math-field> inside the block.
     await expect(page.locator('.ProseMirror math-field')).toBeFocused();
 });
+
+// Batch 2 — the question family: each carries its block-specific primary
+// (labelled per the block's nature) plus the universal actions.
+const questionBlocks = [
+    { insert: 'insertMultipleChoice', type: 'multipleChoice', primary: 'Choices' },
+    { insert: 'insertMatching', type: 'matching', primary: 'Pairs' },
+    { insert: 'insertOrdering', type: 'ordering', primary: 'Items' },
+    { insert: 'insertInteractiveGraph', type: 'interactiveGraph', primary: 'Edit' },
+    { insert: 'insertNumberLine', type: 'numberLine', primary: 'Edit' },
+    { insert: 'insertDataPlot', type: 'dataPlot', primary: 'Edit' },
+] as const;
+
+for (const block of questionBlocks) {
+    test(`${block.type} shows its "${block.primary}" primary + universal actions`, async ({
+        page,
+    }) => {
+        await page.evaluate((cmd) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).__tiptapEditor.commands[cmd]();
+        }, block.insert);
+        await selectFirstNode(page, block.type);
+        const bar = page.locator(BAR);
+        await expect(bar).toHaveAttribute('data-block-type', block.type);
+        await expect(
+            bar.getByRole('button', { name: block.primary, exact: true }),
+        ).toBeVisible();
+        await expect(
+            bar.getByRole('button', { name: 'Duplicate' }),
+        ).toBeVisible();
+        await expect(bar.getByRole('button', { name: 'Delete' })).toBeVisible();
+    });
+}

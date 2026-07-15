@@ -280,9 +280,12 @@ verifiable on `/playground`.
    Select → Edit transition (caret into the block's content). **Batch 1** (instructional +
    free-text, no popover-host conflict): `learningObjectives`/`workedExample` (**Edit**),
    `fadedWorkedExample` (**Edit** + a `showStepLabels` toggle as the first `advanced` entry),
-   `selfExplanation` (**Prompt**). Batches remaining: 2 = question family (MC/matching/ordering/
-   graphs/number_line/data_plot); 3 = the **popover-host blocks** (`image`, `fill_in_blank`) —
-   the deferred coexistence (their bar primary becomes the single affordance; suppress the
+   `selfExplanation` (**Prompt**). **Batch 2** (question family, all inline-edited prompts, no
+   popover conflict): `multipleChoice` (**Choices**), `matching` (**Pairs**), `ordering`
+   (**Items**), `interactiveGraph`/`numberLine`/`dataPlot` (**Edit**) — each `enterEdit`,
+   labelled per the block; the graph trio's 2nd primary (Answer/Data) waits for stage 4. 6
+   data-driven e2e. **Batch remaining: 3 = the popover-host blocks** (`image`, `fill_in_blank`)
+   — the deferred coexistence (their bar primary becomes the single affordance; suppress the
    auto-open-on-selection popover). ~20-NodeView refactor, simplest first.
 4. **The grouped `Advanced` drawer.** Rendered from the descriptor's grouped `advanced`;
    most-common-first. The bulk of the "never overwhelmed" win.

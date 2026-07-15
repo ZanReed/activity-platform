@@ -1,6 +1,15 @@
 import type { Editor } from '@tiptap/core';
 import type { LucideIcon } from 'lucide-react';
-import { Pencil, Copy, Trash2, MessageSquareText, Tags } from 'lucide-react';
+import {
+    Pencil,
+    Copy,
+    Trash2,
+    MessageSquareText,
+    Tags,
+    ListChecks,
+    Waypoints,
+    ListOrdered,
+} from 'lucide-react';
 import { openMathFieldMeta } from './extensions/MathFocus';
 
 // ============================================================================
@@ -172,6 +181,18 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         ],
     },
     selfExplanation: { primary: [editPrimary('Prompt', MessageSquareText)] },
+
+    // Batch 2 — the question family. All inline-edited (editable prompt), no
+    // popover host, so the primary is enterEdit labelled per the block's nature.
+    // The graph trio's second primary (Answer / Data) and every block's rich
+    // Advanced (tolerance, confidence, skills, per-choice figures, chart type,
+    // axis config, …) are the stage-4 drawer's job.
+    multipleChoice: { primary: [editPrimary('Choices', ListChecks)] },
+    matching: { primary: [editPrimary('Pairs', Waypoints)] },
+    ordering: { primary: [editPrimary('Items', ListOrdered)] },
+    interactiveGraph: { primary: [editPrimary()] },
+    numberLine: { primary: [editPrimary()] },
+    dataPlot: { primary: [editPrimary()] },
 };
 
 /** The descriptor for a node type, or null when the type has no controls. */
