@@ -22,6 +22,7 @@ import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
 import DefinitionPopoverHost from './components/DefinitionPopoverHost';
 import BlockCommandBarHost from './components/BlockCommandBarHost';
+import BlockQuickBarHost from './components/BlockQuickBarHost';
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -186,16 +187,11 @@ export default function Editor({
                             type="button"
                             className="drag-handle-button"
                             tabIndex={-1}
-                            aria-label="Select block (drag to reorder)"
-                            title="Click to select · drag to reorder"
-                            // Grip-click SELECTS the block (the four-state model's
-                            // secondary Select state → its command bar). A drag
-                            // reorders instead; a plain click without movement
-                            // never starts a drag, so onClick means "select".
-                            onClick={() => {
-                                if (gutterPos !== null)
-                                    editor?.commands.setNodeSelection(gutterPos);
-                            }}
+                            aria-label="Drag to reorder block"
+                            title="Drag to reorder"
+                            // Drag-only. Selecting a block is the quick-bar's ⋮
+                            // (BlockQuickBarHost) — a reliable one-click path that
+                            // avoids the drag handle's two-click select bug.
                         >
                             <svg
                                 width="12"
@@ -281,6 +277,19 @@ export default function Editor({
                   single-host discipline as the popover hosts above.
                 */}
                 <BlockCommandBarHost editor={editor} canvasRef={canvasRef} />
+                {/*
+                  BlockQuickBarHost — the always-discoverable mini control
+                  ([Delete][More]) shown top-right of a block on hover OR while
+                  the caret is in it. More (⋮) selects → the full command bar
+                  takes over. Hides while a block is node-selected. Fixes the
+                  discoverability gap dogfooding surfaced (select was grip/Esc
+                  only). Fed the hovered block from the gutter DragHandle.
+                */}
+                <BlockQuickBarHost
+                    editor={editor}
+                    canvasRef={canvasRef}
+                    hoveredPos={gutterPos}
+                />
             </div>
         </div>
     );

@@ -1,0 +1,87 @@
+import { test, expect, type Page } from '@playwright/test';
+
+// ============================================================================
+// Block quick-bar — slice-6 discoverability affordance.
+// ----------------------------------------------------------------------------
+// The always-visible [Delete][More] control top-right of a block on hover or
+// while the caret is in it. More (⋮) selects the block → the full command bar
+// takes over; Delete removes it. Fixes the dogfooding gap where block actions
+// were only reachable via the undiscoverable grip-click / Esc.
+// ============================================================================
+
+const QUICKBAR = '.block-quickbar';
+const BAR = '.block-command-bar';
+
+// A plain-text paragraph (the first paragraph holds an inline-math atom).
+function plainBlock(page: Page) {
+    return page.locator('.ProseMirror').getByText('Block math example below:');
+}
+
+function selectionType(page: Page): Promise<string> {
+    return page.evaluate(() =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.state.selection.constructor.name.replace(
+            /^_+/,
+            '',
+        ),
+    );
+}
+
+test.beforeEach(async ({ page }) => {
+    await page.goto('/playground');
+    await expect(page.locator('.ProseMirror')).toBeVisible();
+    await page.waitForFunction(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        () => Boolean((window as any).__tiptapEditor),
+    );
+});
+
+test('a caret in a block shows the mini quick-bar (while editing)', async ({
+    page,
+}) => {
+    await plainBlock(page).click();
+    await expect(page.locator(QUICKBAR)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Delete block' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'More actions' })).toBeVisible();
+});
+
+test('hovering a block shows the mini quick-bar', async ({ page }) => {
+    await plainBlock(page).hover();
+    await expect(page.locator(QUICKBAR)).toBeVisible();
+});
+
+test('More (⋮) selects the block → full command bar; quick-bar hides', async ({
+    page,
+}) => {
+    await plainBlock(page).click();
+    await page.getByRole('button', { name: 'More actions' }).click();
+    expect(await selectionType(page)).toBe('NodeSelection');
+    await expect(page.locator(BAR)).toBeVisible();
+    // Mutually exclusive — the quick-bar yields to the full bar.
+    await expect(page.locator(QUICKBAR)).toHaveCount(0);
+});
+
+test('Delete (🗑) removes the block', async ({ page }) => {
+    await plainBlock(page).click();
+    await expect(plainBlock(page)).toHaveCount(1);
+    await page.getByRole('button', { name: 'Delete block' }).click();
+    await expect(plainBlock(page)).toHaveCount(0);
+});
+
+test('a node-selected block shows the full bar, NOT the quick-bar', async ({
+    page,
+}) => {
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        let pos: number | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.descendants((node: any, p: number) => {
+            if (pos === null && node.type.name === 'mathBlock') pos = p;
+            return pos === null;
+        });
+        ed.commands.setNodeSelection(pos);
+    });
+    await expect(page.locator(BAR)).toBeVisible();
+    await expect(page.locator(QUICKBAR)).toHaveCount(0);
+});

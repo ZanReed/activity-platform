@@ -70,13 +70,15 @@ test('the selection outline is drawn on the selected block', async ({
     expect(parseFloat(outline!.outlineWidth)).toBeGreaterThan(0);
 });
 
-test('grip-click selects the block (reveals the bar)', async ({ page }) => {
+test('the grip is drag-only — clicking it does NOT select', async ({ page }) => {
+    // Grip-click select was removed (it had a two-click bug). Selection is now
+    // the quick-bar's ⋮ (see quickbar.e2e.ts) or Esc. The grip only drags.
     const para = editorParagraph(page);
+    await para.click();
     await para.hover();
     await expect(page.locator('.block-gutter-cluster')).toBeVisible();
     await page.locator('.drag-handle-button').click();
-    expect(await selectionType(page)).toBe('NodeSelection');
-    await expect(page.locator(BAR)).toBeVisible();
+    expect(await selectionType(page)).not.toBe('NodeSelection');
 });
 
 test('Esc with a range selection does not hijack (falls through)', async ({

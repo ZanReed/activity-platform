@@ -350,6 +350,22 @@ is its spec; build it as 6.5.
 
 ## Revision log
 
+**2026-07-15 — /plan-design-review #2 (dogfooding: select-discoverability).** A real teacher
+(the author's wife) tried the built editor and could not find how to delete/manipulate a block.
+Root cause: the four-state model made **Select** (which reveals the command bar's
+Duplicate/Delete/Advanced) reachable ONLY via grip-click or `Esc` — both undiscoverable to a
+non-power-user. The "secondary, opt-in" Select state went too far. **Resolution (author-directed,
+SHIPPED):** an always-visible mini **quick-bar** — a small quiet `[🗑 Delete][⋮ More]` control
+top-right of a block, shown on **hover** AND **while the caret is in the block** (the latter is
+what makes it discoverable on touch/iPad — no hover there). `⋮` selects the block → the full
+command bar takes over; `🗑` deletes in one click. Icon-only with `title` tooltips (the two
+actions have universal icons; the full bar behind `⋮` keeps text labels). New
+`BlockQuickBarHost` (single root host, mutually exclusive with the command bar). **Grip-click
+select removed** — it had a two-click bug; the grip is drag-only now, and `⋮`/`Esc` are the
+select paths. This also delivers the **focus/tap input-parity** deferred from stage 1. 5
+quick-bar e2e. Click=edit survives (the Docs-native feel is intact); discoverability is fixed by
+adding a visible affordance, not by changing what click does.
+
 **2026-07-15 — /plan-design-review (steelman + goal-alignment pass).** The /design-consultation
 direction was pressure-tested against the author's five UX goals. Two goal-conflicts were the
 root cause of most findings (leaning on Notion power-user conventions for a Docs-native teacher
