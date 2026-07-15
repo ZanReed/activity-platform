@@ -168,10 +168,14 @@ export default function BlockCommandBarHost({
                                 : '')
                         }
                         aria-expanded={drawerOpen}
+                        aria-label="Settings"
                         onClick={() => setDrawerOpen((open) => !open)}
                     >
                         <ChevronDown size={14} aria-hidden="true" />
-                        <span>Advanced</span>
+                        {/* User-visible label is "Settings" (the drawer holds
+                            the block's settings, basic + advanced); the internal
+                            `advanced` descriptor API keeps its name. */}
+                        <span>Settings</span>
                     </button>
                 ) : null}
             </div>

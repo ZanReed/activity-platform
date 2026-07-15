@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
     NodeViewWrapper,
     NodeViewContent,
@@ -9,27 +8,20 @@ import {
 // SelfExplanationView — NodeView for the self_explanation block.
 //
 //   <div.self-explanation-block>
-//     <NodeViewContent />   <- editable inline prompt (text + math)
+//     <NodeViewContent />    <- editable inline prompt (text + math)
 //     <textarea disabled />  <- preview of the student's answer area
-//     <footer> optional sentence-starter (placeholder attr) input </footer>
 //   </div>
 //
-// The preview textarea is disabled (it's authoring chrome, not content); the
-// placeholder attribute drives its placeholder text so the teacher sees what
-// the student will. The footer only appears while editing (or when a
-// placeholder is already set), mirroring FillInBlankView's settings footer.
+// The preview textarea is disabled (authoring chrome, not content); its
+// placeholder text comes from the `placeholder` attr so the teacher sees what
+// the student will. That placeholder (the "sentence starter") is edited in the
+// block's Settings drawer (⚙ → AdvancedDrawer, descriptor-driven); the old
+// inline "⚙ Sentence starter" footer was removed (2026-07-15,
+// /plan-eng-review) — one settings home across all blocks.
 // ============================================================================
 
-export default function SelfExplanationView({
-    node,
-    editor,
-    selected,
-    updateAttributes,
-}: NodeViewProps) {
+export default function SelfExplanationView({ node, selected }: NodeViewProps) {
     const placeholder = (node.attrs.placeholder as string | undefined) ?? '';
-    const isEditable = editor.isEditable;
-    const [footerOpen, setFooterOpen] = useState(false);
-    const showFooter = isEditable || placeholder.length > 0;
 
     return (
         <NodeViewWrapper
@@ -59,41 +51,6 @@ export default function SelfExplanationView({
                 contentEditable={false}
                 aria-hidden="true"
             />
-            {showFooter && (
-                <div
-                    className="self-explanation-block__footer"
-                    contentEditable={false}
-                >
-                    <button
-                        type="button"
-                        className="self-explanation-block__footer-toggle"
-                        onClick={() => setFooterOpen((open) => !open)}
-                        aria-expanded={footerOpen}
-                        disabled={!isEditable}
-                    >
-                        <span aria-hidden="true">⚙</span> Sentence starter
-                        {!footerOpen && placeholder.length > 0 && (
-                            <span className="self-explanation-block__footer-badge">
-                                “{placeholder}”
-                            </span>
-                        )}
-                    </button>
-                    {footerOpen && (
-                        <input
-                            type="text"
-                            className="self-explanation-block__starter-input"
-                            value={placeholder}
-                            placeholder="e.g. I know this because…"
-                            aria-label="Sentence starter (placeholder)"
-                            disabled={!isEditable}
-                            onChange={(e) =>
-                                updateAttributes({ placeholder: e.target.value })
-                            }
-                            onKeyDown={(e) => e.stopPropagation()}
-                        />
-                    )}
-                </div>
-            )}
         </NodeViewWrapper>
     );
 }

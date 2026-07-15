@@ -1,53 +1,34 @@
-import { useState } from 'react';
 import {
     NodeViewWrapper,
     NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
 import type { Rubric } from '@activity/schema';
-import RubricEditor from '../components/RubricEditor';
 
 // ============================================================================
 // FreeResponseView — shared NodeView for short_answer + essay.
 //
 //   <div.free-response-block>
-//     <NodeViewContent />   <- editable inline prompt (text + math)
+//     <NodeViewContent />    <- editable inline prompt (text + math)
 //     <textarea disabled />  <- preview of the student's answer area
-//     <footer> placeholder input (+ essay word-count target) </footer>
+//     <div .wordhint />       <- display-only word target (essay)
+//     <div .rubric-summary /> <- display-only "Rubric: N · X pts" when set
 //   </div>
 //
-// Same shape as SelfExplanationView. The word-guidance fields (wordMin/wordMax)
-// show only for `essay` nodes. The preview textarea rows track the block type
-// (short = 3, essay = 10) so authoring previews the student's box size.
+// Settings (placeholder, word-count, rubric) live in the block's Settings
+// drawer (⚙ on the command bar / quick-bar → AdvancedDrawer, descriptor-driven
+// via blockControls.ts). The old inline "⚙ Options" footer was removed
+// (2026-07-15, /plan-eng-review): one settings home across all blocks, no
+// per-NodeView options UI. What stays here is display-only — the readouts that
+// show the teacher what the student sees.
 // ============================================================================
 
-export default function FreeResponseView({
-    node,
-    editor,
-    selected,
-    updateAttributes,
-}: NodeViewProps) {
+export default function FreeResponseView({ node, selected }: NodeViewProps) {
     const isEssay = node.type.name === 'essay';
     const placeholder = (node.attrs.placeholder as string | undefined) ?? '';
     const wordMin = (node.attrs.wordMin as number | null) ?? null;
     const wordMax = (node.attrs.wordMax as number | null) ?? null;
     const rubric = (node.attrs.rubric as Rubric | null) ?? null;
-    const isEditable = editor.isEditable;
-    const [footerOpen, setFooterOpen] = useState(false);
-    const configured =
-        placeholder.length > 0 || wordMin !== null || wordMax !== null || rubric !== null;
-    const showFooter = isEditable || configured;
-
-    const setNum = (key: 'wordMin' | 'wordMax', raw: string) => {
-        if (raw.trim() === '') return updateAttributes({ [key]: null });
-        const n = Number(raw);
-        if (Number.isInteger(n) && n > 0) updateAttributes({ [key]: n });
-    };
-
-    // Rubric edits write straight to the node attr (document concern). The
-    // builder UI is the shared RubricEditor (also rendered by the Advanced
-    // drawer's `custom` field, so the two stay identical).
-    const setRubric = (next: Rubric | null) => updateAttributes({ rubric: next });
     const totalPoints =
         rubric?.criteria.reduce((sum, c) => sum + c.maxPoints, 0) ?? 0;
 
@@ -90,76 +71,14 @@ export default function FreeResponseView({
                     words
                 </div>
             )}
-            {showFooter && (
-                <div className="free-response-block__footer" contentEditable={false}>
-                    <button
-                        type="button"
-                        className="free-response-block__footer-toggle"
-                        onClick={() => setFooterOpen((open) => !open)}
-                        aria-expanded={footerOpen}
-                        disabled={!isEditable}
-                    >
-                        <span aria-hidden="true">⚙</span> Options
-                        {!footerOpen && rubric && (
-                            <span className="free-response-block__footer-badge">
-                                Rubric: {rubric.criteria.length}{' '}
-                                {rubric.criteria.length === 1
-                                    ? 'criterion'
-                                    : 'criteria'}{' '}
-                                · {totalPoints} pts
-                            </span>
-                        )}
-                    </button>
-                    {footerOpen && (
-                        <div className="free-response-block__options">
-                            <label className="free-response-block__option">
-                                <span>Placeholder</span>
-                                <input
-                                    type="text"
-                                    value={placeholder}
-                                    placeholder="e.g. Write 2–3 sentences…"
-                                    disabled={!isEditable}
-                                    onChange={(e) =>
-                                        updateAttributes({ placeholder: e.target.value })
-                                    }
-                                    onKeyDown={(e) => e.stopPropagation()}
-                                />
-                            </label>
-                            {isEssay && (
-                                <div className="free-response-block__word-targets">
-                                    <label className="free-response-block__option">
-                                        <span>Min words</span>
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            value={wordMin ?? ''}
-                                            placeholder="—"
-                                            disabled={!isEditable}
-                                            onChange={(e) => setNum('wordMin', e.target.value)}
-                                            onKeyDown={(e) => e.stopPropagation()}
-                                        />
-                                    </label>
-                                    <label className="free-response-block__option">
-                                        <span>Max words</span>
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            value={wordMax ?? ''}
-                                            placeholder="—"
-                                            disabled={!isEditable}
-                                            onChange={(e) => setNum('wordMax', e.target.value)}
-                                            onKeyDown={(e) => e.stopPropagation()}
-                                        />
-                                    </label>
-                                </div>
-                            )}
-                            <RubricEditor
-                                rubric={rubric}
-                                isEditable={isEditable}
-                                onChange={setRubric}
-                            />
-                        </div>
-                    )}
+            {rubric && (
+                <div
+                    className="free-response-block__rubric-summary"
+                    contentEditable={false}
+                >
+                    Rubric: {rubric.criteria.length}{' '}
+                    {rubric.criteria.length === 1 ? 'criterion' : 'criteria'} ·{' '}
+                    {totalPoints} pts
                 </div>
             )}
         </NodeViewWrapper>

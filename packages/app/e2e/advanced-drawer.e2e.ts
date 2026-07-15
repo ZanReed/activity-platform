@@ -62,13 +62,13 @@ test('Advanced is closed by default; the disclosure opens the drawer', async ({
 }) => {
     await insertAndSelect(page, 'insertFadedWorkedExample', 'fadedWorkedExample');
     await expect(page.locator(DRAWER)).toHaveCount(0);
-    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    await page.locator(BAR).getByRole('button', { name: 'Settings' }).click();
     await expect(page.locator(DRAWER)).toBeVisible();
 });
 
 test('a toggle field reads + writes the node attribute', async ({ page }) => {
     await insertAndSelect(page, 'insertFadedWorkedExample', 'fadedWorkedExample');
-    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    await page.locator(BAR).getByRole('button', { name: 'Settings' }).click();
 
     const toggle = page
         .locator(DRAWER)
@@ -82,7 +82,7 @@ test('a toggle field reads + writes the node attribute', async ({ page }) => {
 
 test('a number field commits on blur and writes the attr', async ({ page }) => {
     await insertAndSelect(page, 'insertEssay', 'essay');
-    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    await page.locator(BAR).getByRole('button', { name: 'Settings' }).click();
     const drawer = page.locator(DRAWER);
     // The free-text Response group carries Placeholder + Min/Max words.
     await expect(drawer.getByText('Response')).toBeVisible();
@@ -97,7 +97,7 @@ test('a custom field (the rubric builder) renders in the drawer and edits the no
     page,
 }) => {
     await insertAndSelect(page, 'insertEssay', 'essay');
-    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    await page.locator(BAR).getByRole('button', { name: 'Settings' }).click();
     const drawer = page.locator(DRAWER);
     // The Grading group hosts the rubric sub-editor (a `custom` field).
     await expect(drawer.getByText('Grading')).toBeVisible();
@@ -115,7 +115,7 @@ test('the drawer closes when the selection moves to another block', async ({
     page,
 }) => {
     await insertAndSelect(page, 'insertFadedWorkedExample', 'fadedWorkedExample');
-    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    await page.locator(BAR).getByRole('button', { name: 'Settings' }).click();
     await expect(page.locator(DRAWER)).toBeVisible();
     // Select a different block: the bar re-anchors and the drawer resets closed.
     await page.evaluate(() => {

@@ -2761,7 +2761,8 @@ img.mc-block__figure-preview {
     resize: none;
 }
 
-.free-response-block__wordhint {
+.free-response-block__wordhint,
+.free-response-block__rubric-summary {
     margin-top: 0.3rem;
     font-size: 0.8rem;
     color: var(--ed-text-muted); /* slate-500 */

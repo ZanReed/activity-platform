@@ -350,6 +350,25 @@ is its spec; build it as 6.5.
 
 ## Revision log
 
+**2026-07-15 — /plan-eng-review (settings surfacing: home + naming).** After dogfooding surfaced
+that the drawer and the old inline "⚙ Options" footers both edit the same settings, an eng
+consultation locked two calls (author-ratified). **(1) The drawer is the single settings home;
+the inline footers are removed.** The descriptor-driven drawer (settings-as-data in
+`blockControls.ts`, one root host) is the DRY/consistent answer vs ~20 blocks each hand-rolling a
+footer UI; removing them is only safe *now* because this session's quick-bar ⚙ made the drawer
+discoverable (the missing precondition). Done **incrementally + surgically**: removed the footers
+from `FreeResponseView` (essay/short-answer) and `SelfExplanationView` — the only blocks whose
+full settings are already in the drawer — keeping **display-only readouts** (word target, a new
+rubric summary; the preview textarea still shows the placeholder). **Standing discipline:** a
+block's inline controls stay until its drawer fields exist, and get deleted in the *same* change
+that adds them (no future duplication). **(2) The disclosure label is "Settings," not
+"Advanced."** The two-tier model is quick ACTIONS on the bar + the block's SETTINGS in the drawer
+(basic + advanced mixed) — "Advanced" implied a nonexistent basic tier and hid core config
+(rubric/word-count) from teachers. "Settings" is honest, matches the quick-bar ⚙ gear's tooltip,
+and is one consistent label. Internal `advanced`/`AdvancedField`/`AdvancedDrawer` API names
+unchanged (right-sized diff — only the user-visible label moved). App-only; e2e updated;
+`/playground`-verified (clean essay block, "⌄ Settings" on the bar).
+
 **2026-07-15 — /plan-design-review #2 (dogfooding: select-discoverability).** A real teacher
 (the author's wife) tried the built editor and could not find how to delete/manipulate a block.
 Root cause: the four-state model made **Select** (which reveals the command bar's
