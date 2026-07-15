@@ -271,7 +271,7 @@ verifiable on `/playground`.
    Esc handlers — they own Esc only while focused, when PM isn't). **Click stays edit** (caret);
    a text range + Esc falls through. `Esc` semantics audited — no collision. 5 select-state
    e2e specs (click=caret, Esc→select, outline drawn, grip→select, range-Esc falls through).
-3. **Per-block controls via the descriptor. 🚧 IN PROGRESS (batch 1 shipped 2026-07-15).**
+3. **Per-block controls via the descriptor. ✅ COMPLETE 2026-07-15** (app-only, 3 batches).
    Fill each block's *primary* descriptor (Advanced fields are stage 4's drawer — its
    field-type system is designed there, not populated prematurely here). Corrected the stage-0
    model: **Duplicate/Delete are universal** (rendered by the host after the block-specific
@@ -284,9 +284,18 @@ verifiable on `/playground`.
    popover conflict): `multipleChoice` (**Choices**), `matching` (**Pairs**), `ordering`
    (**Items**), `interactiveGraph`/`numberLine`/`dataPlot` (**Edit**) — each `enterEdit`,
    labelled per the block; the graph trio's 2nd primary (Answer/Data) waits for stage 4. 6
-   data-driven e2e. **Batch remaining: 3 = the popover-host blocks** (`image`, `fill_in_blank`)
-   — the deferred coexistence (their bar primary becomes the single affordance; suppress the
-   auto-open-on-selection popover). ~20-NodeView refactor, simplest first.
+   data-driven e2e. **Batch 3** (popover-host blocks): `fillInBlank` (**Edit** — no real
+   conflict, its BlankPopoverHost is chip-level, a different selection than the block); `image`
+   (**Replace · Caption**) — the genuine coexistence, resolved per author ruling:
+   `ImagePopoverHost` **no longer auto-opens on selection** (it doubled up with the bar), instead
+   the bar's primaries dispatch an `OPEN_IMAGE_POPOVER` transaction meta, focused on the field
+   each names (Replace→source, Caption→caption, via a new `initialFocus` prop); insert still
+   opens the popover (empty source) via the same meta. Also folded in the free-text siblings
+   `shortAnswer`/`essay` (**Prompt**). **Known small gaps** (optional, non-blocking):
+   `bulletList`/`orderedList` (would take the generic bar) and structural `row` are
+   unregistered. **26 e2e + 578 unit green; /playground-verified** (image bar shows
+   Replace/Caption, popover on demand not on selection). Stage 4 decomposes each block's rich
+   Advanced (image width/align/height/crop, the free-text Rubric, …) into the drawer.
 4. **The grouped `Advanced` drawer.** Rendered from the descriptor's grouped `advanced`;
    most-common-first. The bulk of the "never overwhelmed" win.
 5. **Block-picker previews + first-run empty state.** Static SVG thumbnails per block type;

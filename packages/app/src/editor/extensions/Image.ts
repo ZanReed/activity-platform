@@ -62,6 +62,13 @@ declare module '@tiptap/core' {
     }
 }
 
+// Transaction-meta signal: the command bar's Replace/Caption primaries ask
+// ImagePopoverHost to open the edit popover (it no longer auto-opens on
+// selection). The payload names which field to focus. A transient meta (read
+// in the host's transaction listener) — no persisted plugin state needed.
+export const OPEN_IMAGE_POPOVER = 'openImagePopover';
+export type ImagePopoverFocus = 'source' | 'caption';
+
 export const Image = Node.create({
     name: 'image',
     group: 'block',
@@ -209,6 +216,10 @@ export const Image = Node.create({
                                 }
                             }
                         }
+                        // A freshly inserted image has no source — open the edit
+                        // popover straight onto the URL field (the host no longer
+                        // auto-opens on plain selection, so the insert must ask).
+                        tr.setMeta(OPEN_IMAGE_POPOVER, { focus: 'source' });
                         dispatch(tr.scrollIntoView());
                     }
                     return true;

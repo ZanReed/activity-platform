@@ -75,6 +75,9 @@ interface ImageEditPopoverProps {
     // Remove the image block entirely. The host clears the selection, which
     // unmounts this popover — no separate onClose call needed afterward.
     onDelete: () => void;
+    // Which field to focus on open — the command bar's Replace primary opens on
+    // the source input, Caption on the caption input. Undefined = default focus.
+    initialFocus?: 'source' | 'caption';
 }
 
 type UploadState =
@@ -99,6 +102,7 @@ export default function ImageEditPopover({
     onChange,
     onClose,
     onDelete,
+    initialFocus,
 }: ImageEditPopoverProps) {
     const [tab, setTab] = useState<SourceTab>('url');
     const [src, setSrc] = useState(initialSrc);
@@ -149,7 +153,25 @@ export default function ImageEditPopover({
     }, [onChange]);
 
     const srcInputRef = useRef<HTMLInputElement>(null);
+    const captionInputRef = useRef<HTMLInputElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
+
+    // Focus the field the command bar asked for (Replace → source, Caption →
+    // caption). One rAF so it lands after FocusTrap's default initial focus.
+    // Runs once per open — imageId in deps re-focuses if the popover retargets.
+    useEffect(() => {
+        if (!initialFocus) return;
+        const raf = requestAnimationFrame(() => {
+            const el =
+                initialFocus === 'caption'
+                    ? captionInputRef.current
+                    : srcInputRef.current;
+            el?.focus();
+            el?.select();
+        });
+        return () => cancelAnimationFrame(raf);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialFocus, imageId]);
 
     useEffect(() => {
         srcRef.current = src;
@@ -461,6 +483,7 @@ export default function ImageEditPopover({
                         Caption (optional)
                     </span>
                     <input
+                        ref={captionInputRef}
                         type="text"
                         className="image-edit-popover__input"
                         value={caption}

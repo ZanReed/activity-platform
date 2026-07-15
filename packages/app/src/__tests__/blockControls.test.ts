@@ -27,7 +27,8 @@ describe('blockControls registry', () => {
     });
 
     it('controlsFor returns null for an unregistered type', () => {
-        expect(controlsFor('image')).toBeNull();
+        // `column` is a real node but a structural cell — no command bar.
+        expect(controlsFor('column')).toBeNull();
         expect(controlsFor('definitelyNotABlock')).toBeNull();
     });
 

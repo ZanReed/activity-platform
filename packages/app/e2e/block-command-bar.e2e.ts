@@ -181,6 +181,9 @@ const questionBlocks = [
     { insert: 'insertInteractiveGraph', type: 'interactiveGraph', primary: 'Edit' },
     { insert: 'insertNumberLine', type: 'numberLine', primary: 'Edit' },
     { insert: 'insertDataPlot', type: 'dataPlot', primary: 'Edit' },
+    // Batch 3: fill_in_blank has no popover conflict (its BlankPopoverHost is
+    // chip-level), so it just enters edit like the others.
+    { insert: 'insertFillInBlank', type: 'fillInBlank', primary: 'Edit' },
 ] as const;
 
 for (const block of questionBlocks) {
@@ -203,3 +206,41 @@ for (const block of questionBlocks) {
         await expect(bar.getByRole('button', { name: 'Delete' })).toBeVisible();
     });
 }
+
+// Batch 3 — the image coexistence: selecting an image shows the bar, NOT the
+// auto-popover (which used to double up). The bar's Replace primary opens it.
+const IMG_POPOVER = '.image-edit-popover';
+
+test('image: selection shows the bar (Replace/Caption); the popover opens only on demand', async ({
+    page,
+}) => {
+    // Insert opens the popover onto the URL field by design (empty source).
+    // Focus first — insert only node-selects the image when there's a caret
+    // (the real path: a teacher inserts at the cursor).
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        ed.commands.focus('end');
+        ed.commands.insertImage();
+    });
+    await expect(page.locator(IMG_POPOVER)).toBeVisible();
+
+    // Deselect → popover closes; re-select the image with NO open request.
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.commands.focus('end');
+    });
+    await expect(page.locator(IMG_POPOVER)).toHaveCount(0);
+    await selectFirstNode(page, 'image');
+
+    const bar = page.locator(BAR);
+    await expect(bar).toHaveAttribute('data-block-type', 'image');
+    await expect(bar.getByRole('button', { name: 'Replace' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Caption' })).toBeVisible();
+    // Plain selection must NOT auto-open the popover (the old double-UI).
+    await expect(page.locator(IMG_POPOVER)).toHaveCount(0);
+
+    // Replace opens it on demand.
+    await bar.getByRole('button', { name: 'Replace' }).click();
+    await expect(page.locator(IMG_POPOVER)).toBeVisible();
+});

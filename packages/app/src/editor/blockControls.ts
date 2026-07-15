@@ -9,8 +9,11 @@ import {
     ListChecks,
     Waypoints,
     ListOrdered,
+    Image as ImageIcon,
+    Captions,
 } from 'lucide-react';
 import { openMathFieldMeta } from './extensions/MathFocus';
+import { OPEN_IMAGE_POPOVER, type ImagePopoverFocus } from './extensions/Image';
 
 // ============================================================================
 // blockControls — the control-descriptor registry for the docked command bar.
@@ -181,6 +184,10 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         ],
     },
     selfExplanation: { primary: [editPrimary('Prompt', MessageSquareText)] },
+    // short_answer + essay share FreeResponseView. Their second primary (Rubric)
+    // and word-count/rubric Advanced wait for stage 4's drawer.
+    shortAnswer: { primary: [editPrimary('Prompt', MessageSquareText)] },
+    essay: { primary: [editPrimary('Prompt', MessageSquareText)] },
 
     // Batch 2 — the question family. All inline-edited (editable prompt), no
     // popover host, so the primary is enterEdit labelled per the block's nature.
@@ -193,7 +200,37 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     interactiveGraph: { primary: [editPrimary()] },
     numberLine: { primary: [editPrimary()] },
     dataPlot: { primary: [editPrimary()] },
+
+    // Batch 3 — the blocks with an existing selection-driven popover host.
+    // fill_in_blank has no conflict (its BlankPopoverHost is CHIP-level, a
+    // different selection than the block), so it just enters edit to author
+    // {{blanks}}. image DOES conflict (atom → same selection fires both), so
+    // the bar becomes the single affordance: ImagePopoverHost no longer
+    // auto-opens on selection; these primaries request it via a transaction
+    // meta, focused on the field each names.
+    fillInBlank: { primary: [editPrimary('Edit')] },
+    image: {
+        primary: [
+            {
+                label: 'Replace',
+                icon: ImageIcon,
+                onActivate: (editor) => requestImagePopover(editor, 'source'),
+            },
+            {
+                label: 'Caption',
+                icon: Captions,
+                onActivate: (editor) => requestImagePopover(editor, 'caption'),
+            },
+        ],
+    },
 };
+
+/** Ask ImagePopoverHost to open the image edit popover, focused on `focus`. */
+function requestImagePopover(editor: Editor, focus: ImagePopoverFocus): void {
+    editor.view.dispatch(
+        editor.state.tr.setMeta(OPEN_IMAGE_POPOVER, { focus }),
+    );
+}
 
 /** The descriptor for a node type, or null when the type has no controls. */
 export function controlsFor(typeName: string): BlockControls | null {
