@@ -8,6 +8,7 @@ import {
     type BlockControls,
     type ControlEntry,
 } from '../blockControls';
+import AdvancedDrawer from './AdvancedDrawer';
 
 // ============================================================================
 // BlockCommandBarHost — root-level docked command bar for the selected block.
@@ -51,6 +52,11 @@ export default function BlockCommandBarHost({
     const [position, setPosition] = useState<{ top: number; left: number } | null>(
         null,
     );
+    // The Advanced drawer is closed by default and resets per selection.
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    useEffect(() => {
+        setDrawerOpen(false);
+    }, [selected?.pos, selected?.typeName]);
 
     // Phase 1 — detect the selected block. Only pos/type/controls here; NO DOM
     // measurement (measuring inside the transaction handler reads pre-layout
@@ -111,52 +117,71 @@ export default function BlockCommandBarHost({
 
     if (!editor || !selected || !position) return null;
 
-    const hasAdvanced = (selected.controls.advanced?.length ?? 0) > 0;
+    const advancedGroups = selected.controls.advanced ?? [];
+    const hasAdvanced = advancedGroups.length > 0;
+    const node = editor.state.doc.nodeAt(selected.pos);
 
     return (
+        // Anchor holds the position + right-alignment so the bar and the drawer
+        // stack together at the block's top-right.
         <div
-            className="block-command-bar"
-            // Right-align the bar to the block's right edge (translateX(-100%))
-            // and nudge it just inside the top-right corner.
+            className="block-command-bar-anchor"
             style={{ top: `${position.top}px`, left: `${position.left}px` }}
-            role="toolbar"
-            aria-label="Block controls"
-            data-block-type={selected.typeName}
-            // Keep clicks on the bar from bubbling into the canvas mousedown,
-            // which would move the selection and unmount the bar mid-click.
             onMouseDown={(e) => e.preventDefault()}
         >
-            {selected.controls.primary.map((entry) => (
-                <BarButton
-                    key={entry.label}
-                    entry={entry}
+            <div
+                className="block-command-bar"
+                role="toolbar"
+                aria-label="Block controls"
+                data-block-type={selected.typeName}
+            >
+                {selected.controls.primary.map((entry) => (
+                    <BarButton
+                        key={entry.label}
+                        entry={entry}
+                        editor={editor}
+                        pos={selected.pos}
+                        primary
+                    />
+                ))}
+                {selected.controls.primary.length > 0 ? (
+                    <span
+                        className="block-command-bar__divider"
+                        aria-hidden="true"
+                    />
+                ) : null}
+                {universalActions.map((entry) => (
+                    <BarButton
+                        key={entry.label}
+                        entry={entry}
+                        editor={editor}
+                        pos={selected.pos}
+                    />
+                ))}
+                {hasAdvanced ? (
+                    <button
+                        type="button"
+                        className={
+                            'block-command-bar__advanced' +
+                            (drawerOpen
+                                ? ' block-command-bar__advanced--open'
+                                : '')
+                        }
+                        aria-expanded={drawerOpen}
+                        onClick={() => setDrawerOpen((open) => !open)}
+                    >
+                        <ChevronDown size={14} aria-hidden="true" />
+                        <span>Advanced</span>
+                    </button>
+                ) : null}
+            </div>
+            {hasAdvanced && drawerOpen && node ? (
+                <AdvancedDrawer
                     editor={editor}
+                    node={node}
                     pos={selected.pos}
-                    primary
+                    groups={advancedGroups}
                 />
-            ))}
-            {selected.controls.primary.length > 0 ? (
-                <span className="block-command-bar__divider" aria-hidden="true" />
-            ) : null}
-            {universalActions.map((entry) => (
-                <BarButton
-                    key={entry.label}
-                    entry={entry}
-                    editor={editor}
-                    pos={selected.pos}
-                />
-            ))}
-            {hasAdvanced ? (
-                <button
-                    type="button"
-                    className="block-command-bar__advanced"
-                    // Stage 0 stub — the grouped drawer is stage 4.
-                    aria-label="Advanced (coming soon)"
-                    disabled
-                >
-                    <ChevronDown size={14} aria-hidden="true" />
-                    <span>Advanced</span>
-                </button>
             ) : null}
         </div>
     );

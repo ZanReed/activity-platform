@@ -296,8 +296,22 @@ verifiable on `/playground`.
    unregistered. **26 e2e + 578 unit green; /playground-verified** (image bar shows
    Replace/Caption, popover on demand not on selection). Stage 4 decomposes each block's rich
    Advanced (image width/align/height/crop, the free-text Rubric, …) into the drawer.
-4. **The grouped `Advanced` drawer.** Rendered from the descriptor's grouped `advanced`;
-   most-common-first. The bulk of the "never overwhelmed" win.
+4. **The grouped `Advanced` drawer. ✅ CORE SHIPPED 2026-07-15** (app-only). Introduced the
+   **field-type system**: `AdvancedField` = a discriminated union `toggle | number | text |
+   select`, each pure data (`get(node)` reads the attr, `set(editor,pos,value)` writes via an
+   editor command — never DOM). `AdvancedGroup { group, fields }` renders most-common-first. A
+   new `AdvancedDrawer` component renders it; the command bar's `Advanced` stub is now a real
+   disclosure that opens the drawer **docked below the bar** (the anchor holds the position so
+   bar + drawer stack together — still one root host, no per-block mounting). Closed by default,
+   resets per selection. **First fields:** `fadedWorkedExample` (show-step-labels toggle),
+   `essay` (placeholder + min/max words), `shortAnswer`/`selfExplanation` (placeholder) — all
+   attr-backed, so they stay in sync with the inline NodeView footers (which stage 7 removes).
+   4 drawer e2e + a field-shape unit guard. **DEFERRED to a 4b pass:** the **complex
+   sub-editors** (rubric builder, per-choice figures, axis config, mistake feedback, skills)
+   and **image sizing** (width/align/height/crop — entangled with decomposing the image
+   popover) — these are custom UIs, not simple fields, and the field-type union may grow a
+   `custom` kind for them. `/playground`-verified (essay drawer shows Placeholder/Min/Max
+   fields). The bulk of the "never overwhelmed" win.
 5. **Block-picker previews + first-run empty state.** Static SVG thumbnails per block type;
    the "Start here" starters on a fresh doc.
 6. **Snap motion pass.** Magnetic insert-line + settle for insert/reorder/columns;

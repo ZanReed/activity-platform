@@ -41,19 +41,37 @@ describe('blockControls registry', () => {
         }
     });
 
-    it('every primary/advanced entry has a label, icon, and handler', () => {
+    it('every primary control has a label, icon, and handler', () => {
         for (const [name, controls] of Object.entries(blockControlsRegistry)) {
-            const entries = [
-                ...controls.primary,
-                ...(controls.advanced?.flatMap((g) => g.entries) ?? []),
-            ];
-            for (const entry of entries) {
-                expect(entry.label, `${name} entry missing label`).toBeTruthy();
-                expect(entry.icon, `${name} entry missing icon`).toBeTruthy();
+            for (const entry of controls.primary) {
+                expect(entry.label, `${name} primary missing label`).toBeTruthy();
+                expect(entry.icon, `${name} primary missing icon`).toBeTruthy();
                 expect(
                     typeof entry.onActivate,
-                    `${name} entry '${entry.label}' missing onActivate`,
+                    `${name} primary '${entry.label}' missing onActivate`,
                 ).toBe('function');
+            }
+        }
+    });
+
+    it('every Advanced field has a label, a kind, and get/set functions', () => {
+        for (const [name, controls] of Object.entries(blockControlsRegistry)) {
+            for (const group of controls.advanced ?? []) {
+                expect(group.group, `${name} group missing name`).toBeTruthy();
+                for (const field of group.fields) {
+                    const where = `${name} field '${field.label}'`;
+                    expect(field.label, `${where} missing label`).toBeTruthy();
+                    expect(
+                        ['toggle', 'number', 'text', 'select'],
+                        `${where} bad kind`,
+                    ).toContain(field.kind);
+                    expect(typeof field.get, `${where} missing get`).toBe(
+                        'function',
+                    );
+                    expect(typeof field.set, `${where} missing set`).toBe(
+                        'function',
+                    );
+                }
             }
         }
     });

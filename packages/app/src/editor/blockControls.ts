@@ -1,11 +1,11 @@
 import type { Editor } from '@tiptap/core';
+import type { Node as PMNode } from '@tiptap/pm/model';
 import type { LucideIcon } from 'lucide-react';
 import {
     Pencil,
     Copy,
     Trash2,
     MessageSquareText,
-    Tags,
     ListChecks,
     Waypoints,
     ListOrdered,
@@ -53,13 +53,71 @@ export interface ControlEntry {
     onActivate: (editor: Editor, pos: number) => void;
 }
 
+// --- Advanced fields (stage 4 drawer) -------------------------------------
+// A typed setting the drawer renders as a form control. Each field is pure
+// data: it reads its current value from the selected node and writes back via
+// an editor command (never a direct DOM mutation). Simple field kinds only —
+// complex sub-editors (rubric, per-choice figures, axis config) and image
+// sizing are their own custom UIs, migrated in a later pass.
+
+interface AdvancedFieldBase {
+    /** Field label shown in the drawer. */
+    label: string;
+    /** Optional one-line helper text under the control. */
+    help?: string;
+}
+
+export type AdvancedField =
+    | (AdvancedFieldBase & {
+          kind: 'toggle';
+          get: (node: PMNode) => boolean;
+          set: (editor: Editor, pos: number, value: boolean) => void;
+      })
+    | (AdvancedFieldBase & {
+          kind: 'number';
+          min?: number;
+          max?: number;
+          step?: number;
+          placeholder?: string;
+          get: (node: PMNode) => number | null;
+          set: (editor: Editor, pos: number, value: number | null) => void;
+      })
+    | (AdvancedFieldBase & {
+          kind: 'text';
+          placeholder?: string;
+          get: (node: PMNode) => string;
+          set: (editor: Editor, pos: number, value: string) => void;
+      })
+    | (AdvancedFieldBase & {
+          kind: 'select';
+          options: ReadonlyArray<{ label: string; value: string }>;
+          get: (node: PMNode) => string;
+          set: (editor: Editor, pos: number, value: string) => void;
+      });
+
 /**
- * A named cluster of Advanced controls, ordered most-common-first within the
- * drawer. Stage 0 defines the shape; stage 4 renders it.
+ * A named cluster of Advanced fields, ordered most-common-first within the
+ * drawer (so opening Advanced feels like "a little more", not a wall).
  */
 export interface AdvancedGroup {
     group: string;
-    entries: ControlEntry[];
+    fields: AdvancedField[];
+}
+
+/** Write a node attribute at `pos` — the common setter for attr-backed fields. */
+export function setNodeAttr(
+    editor: Editor,
+    pos: number,
+    key: string,
+    value: unknown,
+): void {
+    editor
+        .chain()
+        .command(({ tr }) => {
+            tr.setNodeAttribute(pos, key, value);
+            return true;
+        })
+        .run();
 }
 
 /** The full control surface for one block type. */
@@ -119,6 +177,15 @@ function editPrimary(label = 'Edit', icon: LucideIcon = Pencil): ControlEntry {
     return { label, icon, onActivate: enterEdit };
 }
 
+/** The student-answer placeholder, shared by the free-text blocks' Advanced. */
+const placeholderField: AdvancedField = {
+    kind: 'text',
+    label: 'Placeholder',
+    placeholder: 'e.g. Write 2–3 sentences…',
+    get: (node) => (node.attrs.placeholder as string) ?? '',
+    set: (editor, pos, value) => setNodeAttr(editor, pos, 'placeholder', value),
+};
+
 // math_block: "Edit" opens the MathLive field (mode 'all' selects the whole
 // formula so the first keystroke replaces) — the same handoff the insert uses.
 const mathBlockControls: BlockControls = {
@@ -158,36 +225,64 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         advanced: [
             {
                 group: 'Display',
-                entries: [
+                fields: [
                     {
-                        label: 'Toggle step labels',
-                        icon: Tags,
-                        onActivate: (editor, pos) => {
-                            const node = editor.state.doc.nodeAt(pos);
-                            if (!node) return;
-                            editor
-                                .chain()
-                                .focus()
-                                .command(({ tr }) => {
-                                    tr.setNodeAttribute(
-                                        pos,
-                                        'showStepLabels',
-                                        node.attrs.showStepLabels === false,
-                                    );
-                                    return true;
-                                })
-                                .run();
-                        },
+                        kind: 'toggle',
+                        label: 'Show step labels',
+                        help: 'Letter each faded step (a), (b), … for reference.',
+                        get: (node) => node.attrs.showStepLabels !== false,
+                        set: (editor, pos, value) =>
+                            setNodeAttr(editor, pos, 'showStepLabels', value),
                     },
                 ],
             },
         ],
     },
-    selfExplanation: { primary: [editPrimary('Prompt', MessageSquareText)] },
+    selfExplanation: {
+        primary: [editPrimary('Prompt', MessageSquareText)],
+        advanced: [{ group: 'Response', fields: [placeholderField] }],
+    },
     // short_answer + essay share FreeResponseView. Their second primary (Rubric)
-    // and word-count/rubric Advanced wait for stage 4's drawer.
-    shortAnswer: { primary: [editPrimary('Prompt', MessageSquareText)] },
-    essay: { primary: [editPrimary('Prompt', MessageSquareText)] },
+    // + the rubric builder itself are a complex sub-editor for a later pass.
+    shortAnswer: {
+        primary: [editPrimary('Prompt', MessageSquareText)],
+        advanced: [{ group: 'Response', fields: [placeholderField] }],
+    },
+    essay: {
+        primary: [editPrimary('Prompt', MessageSquareText)],
+        advanced: [
+            {
+                group: 'Response',
+                fields: [
+                    placeholderField,
+                    {
+                        kind: 'number',
+                        label: 'Min words',
+                        min: 1,
+                        placeholder: '—',
+                        get: (node) =>
+                            typeof node.attrs.wordMin === 'number'
+                                ? (node.attrs.wordMin as number)
+                                : null,
+                        set: (editor, pos, value) =>
+                            setNodeAttr(editor, pos, 'wordMin', value),
+                    },
+                    {
+                        kind: 'number',
+                        label: 'Max words',
+                        min: 1,
+                        placeholder: '—',
+                        get: (node) =>
+                            typeof node.attrs.wordMax === 'number'
+                                ? (node.attrs.wordMax as number)
+                                : null,
+                        set: (editor, pos, value) =>
+                            setNodeAttr(editor, pos, 'wordMax', value),
+                    },
+                ],
+            },
+        ],
+    },
 
     // Batch 2 — the question family. All inline-edited (editable prompt), no
     // popover host, so the primary is enterEdit labelled per the block's nature.
