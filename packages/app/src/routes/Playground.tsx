@@ -45,8 +45,21 @@ const helloDoc: JSONContent = {
     ],
 };
 
+// `/playground?empty=1` mounts the editor on a blank doc — the first-run
+// "Start here" state only shows when the doc is empty AT MOUNT, and the
+// seeded helloDoc latches it off immediately (dev drive + e2e hook).
+const emptyDoc: JSONContent = {
+    type: 'doc',
+    content: [{ type: 'paragraph' }],
+};
+
 export default function Playground() {
-    const [json, setJson] = useState<JSONContent>(helloDoc);
+    const [initialDoc] = useState<JSONContent>(() =>
+        new URLSearchParams(window.location.search).has('empty')
+            ? emptyDoc
+            : helloDoc,
+    );
+    const [json, setJson] = useState<JSONContent>(initialDoc);
     // Dev stand-in for meta.typography (the real editor gets it from the
     // activity's meta via the config drawer) — lets the canvas's WYSIWYG font
     // path be exercised here without an activity/session.
@@ -106,7 +119,7 @@ export default function Playground() {
         </div>
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
         <Editor
-        initialContent={helloDoc}
+        initialContent={initialDoc}
         onUpdate={setJson}
         typography={typography}
         />

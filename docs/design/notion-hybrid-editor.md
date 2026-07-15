@@ -317,8 +317,22 @@ verifiable on `/playground`.
    sub-editors (per-choice figures, axis config, mistake feedback, skills — same `custom`
    pattern) and **image sizing** (entangled with decomposing the image popover). The bulk of
    the "never overwhelmed" win.
-5. **Block-picker previews + first-run empty state.** Static SVG thumbnails per block type;
-   the "Start here" starters on a fresh doc.
+5. **Block-picker previews + first-run empty state. ✅ SHIPPED 2026-07-15** (app-only).
+   The "Add a block" window's tiles became **preview cards**: a static SVG mini-render per
+   pickable block (new `blockThumbnails.tsx`, keyed by slashMenuItems title, parity
+   guard-tested) over the title, in a 2-across grid. Descriptions left the tiles (previews
+   over prose) into a **caption strip** at the pane's bottom narrating the hovered/focused
+   card (sr-only text keeps them for screen readers; disabled cards caption *why* via
+   aria-disabled, which keeps hover events). Thumbnail mini-language: grey bars = text, grey
+   strokes = frames, **the blue accent marks where the student interacts**. First-run
+   **"Start here"** (new `StartHere.tsx`): centered, three one-tap starters — *Title +
+   instructions* (heading+paragraph, caret in the heading), *A question* (opens the picker
+   at **Blanks** via a new `initialCategory` prop), *Two-column layout* — shown only while
+   the doc is empty AND it has never held content this session (**session latch, no stored
+   flag** — author-ruled: an empty doc IS the first-run moment, reopening a still-empty
+   activity shows it again). The `/` hint + end square stay and are gently emphasized
+   (`editor-first-run` class). `/playground?empty=1` mounts a blank doc (dev/e2e hook).
+   11 e2e (5 picker + 6 start-here) + 5 unit.
 6. **Snap motion pass.** Magnetic insert-line + settle for insert/reorder/columns;
    spring-on-appear for the bar; reduced-motion.
 7. **Top-toolbar diet + optional focus mode.** Remove migrated controls; ship the dim-the-rest
@@ -349,6 +363,18 @@ is its spec; build it as 6.5.
   *mechanics* (exist — this restyles their motion), the reference-panel/calculator surfaces.
 
 ## Revision log
+
+**2026-07-15 — stage 5 build calls (author-ruled, SHIPPED).** Three implementation forks on
+the ratified stage-5 design, all decided at kickoff: **(1) Card grid + hover caption** — the
+picker's tiles become thumbnail-forward cards (2-across); the one-line descriptions move out
+of the tiles into a quiet caption strip narrating the hovered/focused card, keeping the "how
+it helps" half without a wall of text (rejected: tooltip-only — invisible on touch; list rows
+with thumbnails — stays text-forward). **(2) "Never returns" = session latch, not storage** —
+Start-here shows whenever an activity *opens* empty and hides for the session once the doc
+ever has content; no persisted flag (an empty doc IS the first-run moment). **(3) The "A
+question" starter opens the picker at Blanks** — there is no single "Questions" rail
+category; fill-in-the-blank is the bread-and-butter, and the other question categories are
+one rail-click away.
 
 **2026-07-15 — drop the "enter edit" primaries (author-flagged, SHIPPED).** The `enterEdit`
 primary (Edit/Prompt/Choices/Pairs/Items) placed the caret in a block's content — which

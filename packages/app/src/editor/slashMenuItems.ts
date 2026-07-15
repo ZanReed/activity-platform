@@ -79,6 +79,14 @@ export interface SlashMenuItem {
     command: (props: { editor: Editor; range?: Range }) => void;
 }
 
+// Items the "Add a block" window offers. 'Text' items are block-style
+// transforms, and inline math has its own toolbar button — both are excluded
+// from the block picker. Shared with the thumbnail parity guard
+// (blockThumbnails.test.tsx) so the two catalogues can't drift.
+export function isPickableBlock(item: SlashMenuItem): boolean {
+    return item.group !== 'Text' && item.insertMenu !== false;
+}
+
 // Focused chain, with the slash menu's typed "/query" deleted when present.
 function begin(editor: Editor, range?: Range) {
     const chain = editor.chain().focus();

@@ -15,28 +15,34 @@ import {
     MessageSquareText,
     type LucideIcon,
 } from 'lucide-react';
-import { slashMenuItems, type SlashMenuItem } from '../slashMenuItems';
+import {
+    slashMenuItems,
+    isPickableBlock,
+    type SlashMenuItem,
+} from '../slashMenuItems';
+import { blockThumbnails } from '../blockThumbnails';
 
 // ============================================================================
 // BlockInsertModal — the centered "Add a block" window.
 // ----------------------------------------------------------------------------
 // Two-pane: a rail of teaching categories on the left, the selected category's
-// block tiles on the right. Opened from the in-canvas insert affordances (the
-// between-block line and the end square). Insertion itself is owned by the
-// caller (Editor) via onInsert, which knows the target position and handles the
-// empty-doc cleanup; this component is pure picker UI.
+// block CARDS on the right — each card is a static SVG mini-preview of the
+// block (blockThumbnails) over its title, so the picker reads visually (slice-6
+// stage 5: previews over prose). The one-line descriptions move out of the
+// tiles into a quiet caption strip at the pane's bottom, shown for the
+// hovered/focused card (and kept for screen readers as visually-hidden text
+// inside each card). Opened from the in-canvas insert affordances (the gutter
+// "+" and the end square). Insertion itself is owned by the caller (Editor)
+// via onInsert, which knows the target position and handles the empty-doc
+// cleanup; this component is pure picker UI.
 //
 // Categories are the `subgroup`s already tagged on slashMenuItems (plus the
 // top-level Math group), so the catalogue is the same single source of truth
 // the slash menu uses — no drift. Rail is alphabetical; Layout is preselected
-// (subject-neutral starting point). A search field filters across every block.
+// (subject-neutral starting point) unless the opener passes initialCategory
+// (the first-run "A question" starter lands on Blanks). A search field
+// filters across every block.
 // ============================================================================
-
-// 'Text' items are block-style transforms, and inline math has its own toolbar
-// button — both are excluded from the block picker.
-function isPickable(item: SlashMenuItem): boolean {
-    return item.group !== 'Text' && item.insertMenu !== false;
-}
 
 // A block's category: its subgroup, or the top-level group when it has none
 // (Math). 'Choice & drag' is relabelled to the teacher-facing 'Choice &
@@ -72,6 +78,10 @@ interface BlockInsertModalProps {
     // Doc position the pick will insert at — used to tell whether we're inside a
     // container (column cell, etc.) so top-level-only blocks can be disabled.
     insertPos: number;
+    // Rail category preselected on open (defaults to Layout). Must match a
+    // categoryLabel; an unknown value just shows an empty pane, so callers pass
+    // known labels only.
+    initialCategory?: string;
     onInsert: (item: SlashMenuItem) => void;
     onClose: () => void;
 }
@@ -79,17 +89,24 @@ interface BlockInsertModalProps {
 export default function BlockInsertModal({
     editor,
     insertPos,
+    initialCategory,
     onInsert,
     onClose,
 }: BlockInsertModalProps) {
     const [query, setQuery] = useState('');
-    const [activeCategory, setActiveCategory] = useState(DEFAULT_CATEGORY);
+    const [activeCategory, setActiveCategory] = useState(
+        initialCategory ?? DEFAULT_CATEGORY,
+    );
+    // The caption strip's text: the hovered/focused card's description (or its
+    // disabled hint). null = nothing hovered; the strip keeps its height so the
+    // grid doesn't jump.
+    const [caption, setCaption] = useState<string | null>(null);
     const searchRef = useRef<HTMLInputElement>(null);
 
     // Categories (alphabetical) and their items, derived once from the static
     // catalogue.
     const { categories, itemsByCategory } = useMemo(() => {
-        const pickable = slashMenuItems.filter(isPickable);
+        const pickable = slashMenuItems.filter(isPickableBlock);
         const byCat = new Map<string, SlashMenuItem[]>();
         for (const item of pickable) {
             const label = categoryLabel(item);
@@ -108,7 +125,7 @@ export default function BlockInsertModal({
     const paneItems = useMemo(() => {
         if (q !== '') {
             return slashMenuItems.filter(
-                (i) => isPickable(i) && matchesQuery(i, q),
+                (i) => isPickableBlock(i) && matchesQuery(i, q),
             );
         }
         return itemsByCategory.get(activeCategory) ?? [];
@@ -252,46 +269,78 @@ export default function BlockInsertModal({
                             <div className="block-insert-pane__heading">
                                 {q === '' ? activeCategory : 'Results'}
                             </div>
-                            {paneItems.length === 0 ? (
-                                <div className="block-insert-pane__empty">
-                                    No blocks match “{query.trim()}”
-                                </div>
-                            ) : (
-                                paneItems.map((item) => {
-                                    const Icon = item.icon;
-                                    const { enabled, hint } = itemStatus(item);
-                                    return (
-                                        <button
-                                            key={item.title}
-                                            type="button"
-                                            disabled={!enabled}
-                                            title={enabled ? undefined : hint}
-                                            onClick={() => pick(item)}
-                                            className={`block-insert-tile${
-                                                enabled
-                                                    ? ''
-                                                    : ' block-insert-tile--disabled'
-                                            }`}
-                                        >
-                                            {Icon ? (
-                                                <Icon
-                                                    size={18}
+                            <div className="block-insert-pane__grid">
+                                {paneItems.length === 0 ? (
+                                    <div className="block-insert-pane__empty">
+                                        No blocks match “{query.trim()}”
+                                    </div>
+                                ) : (
+                                    paneItems.map((item) => {
+                                        const { enabled, hint } =
+                                            itemStatus(item);
+                                        // What the caption strip shows for this
+                                        // card: its description, or why it's
+                                        // unavailable.
+                                        const detail = enabled
+                                            ? item.description
+                                            : (hint ?? item.description);
+                                        return (
+                                            <button
+                                                key={item.title}
+                                                type="button"
+                                                // aria-disabled (not disabled) so
+                                                // the card still fires hover/focus
+                                                // for the caption strip and shows
+                                                // its tooltip; pick() guards the
+                                                // click.
+                                                aria-disabled={
+                                                    enabled ? undefined : true
+                                                }
+                                                title={
+                                                    enabled ? undefined : hint
+                                                }
+                                                onClick={() => pick(item)}
+                                                onMouseEnter={() =>
+                                                    setCaption(detail)
+                                                }
+                                                onMouseLeave={() =>
+                                                    setCaption(null)
+                                                }
+                                                onFocus={() =>
+                                                    setCaption(detail)
+                                                }
+                                                onBlur={() => setCaption(null)}
+                                                className={`block-insert-tile${
+                                                    enabled
+                                                        ? ''
+                                                        : ' block-insert-tile--disabled'
+                                                }`}
+                                            >
+                                                <span
+                                                    className="block-insert-tile__thumb"
                                                     aria-hidden="true"
-                                                    className="block-insert-tile__icon"
-                                                />
-                                            ) : null}
-                                            <span className="block-insert-tile__text">
+                                                >
+                                                    {blockThumbnails[
+                                                        item.title
+                                                    ] ?? null}
+                                                </span>
                                                 <span className="block-insert-tile__title">
                                                     {item.title}
                                                 </span>
-                                                <span className="block-insert-tile__desc">
+                                                <span className="sr-only">
                                                     {item.description}
                                                 </span>
-                                            </span>
-                                        </button>
-                                    );
-                                })
-                            )}
+                                            </button>
+                                        );
+                                    })
+                                )}
+                            </div>
+                            <div
+                                className="block-insert-pane__caption"
+                                aria-hidden="true"
+                            >
+                                {caption}
+                            </div>
                         </div>
                     </div>
                 </div>
