@@ -236,10 +236,20 @@ Built on existing primitives (no new palette): `--ed-ink` (near-black for the pi
 Build on the shipped Option-A editor. Each stage is independently shippable and browser-
 verifiable on `/playground`.
 
-0. **(eng) Control-descriptor registry + interaction harness.** Land the `BlockControls`
-   descriptor type + the single-host skeleton + the Playwright/browse interaction harness
-   FIRST, proven on 2–3 simple blocks (paragraph, math, image) before any complex one. This
-   de-risks the whole arc (see §Engineering review).
+0. **(eng) Control-descriptor registry + interaction harness. ✅ SHIPPED 2026-07-15**
+   (app-only, no wire/deploy). Landed `blockControls.ts` (the `BlockControls` descriptor type
+   + registry keyed by node-type name, `slashMenuItems` discipline) + `BlockCommandBarHost`
+   (single root host, 4th sibling of the popover hosts; anchored `--ed-ink` docked bar with the
+   new `--ed-spring`/motion tokens) + a **Playwright** interaction harness (`test:e2e`,
+   `e2e/*.e2e.ts` kept disjoint from vitest by filename). Proven on **3 blocks**: `mathBlock`
+   (real primary **Edit** → `openMathFieldMeta`), `paragraph`/`heading` (generic
+   Duplicate/Delete). **Image held out of the stage-0 trio** — its existing `ImagePopoverHost`
+   fires on the same node-selection, so the coexistence is a stage-3 migration concern, not
+   architecture-proof. 6 e2e specs (bar appears/swaps/absent-on-caret, on-screen **geometry
+   guard**, Edit-opens-field) + 5 unit tests (registry lookup + node-type parity). A rAF
+   two-phase measure (mirrors BlankPopoverHost) fixed a pre-layout mis-anchor that browser
+   verification caught but `toBeVisible` missed. This de-risks the whole arc (see §Engineering
+   review).
 1. **Gutter with input parity.** Persistent quiet dot at rest → `⋮⋮` + `+` on hover/focus/tap,
    empty otherwise. **CSS-hover-driven** (a block `::before`), not a per-block PM decoration.
    (Reconcile the existing insert line + `+` square into this one cluster.)

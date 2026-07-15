@@ -2,3 +2,10 @@ node_modules
 dist
 *.local
 .vite
+
+# Playwright interaction harness (slice-6 stage 0)
+/test-results/
+/playwright-report/
+/blob-report/
+/.playwright/
+/playwright/.cache/

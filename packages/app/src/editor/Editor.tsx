@@ -21,6 +21,7 @@ import type { SlashMenuItem } from './slashMenuItems';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
 import DefinitionPopoverHost from './components/DefinitionPopoverHost';
+import BlockCommandBarHost from './components/BlockCommandBarHost';
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -327,6 +328,14 @@ export default function Editor({
                   (mark-based rather than node-based).
                 */}
                 <DefinitionPopoverHost editor={editor} activityId={activityId} />
+                {/*
+                  BlockCommandBarHost — slice-6 stage-0 spine. Single root host
+                  watching the selection; when a block whose type has a control
+                  descriptor is NodeSelected, renders the docked command bar
+                  anchored to that block (canvas-relative, non-floating). Same
+                  single-host discipline as the popover hosts above.
+                */}
+                <BlockCommandBarHost editor={editor} canvasRef={canvasRef} />
             </div>
         </div>
     );
