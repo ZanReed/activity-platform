@@ -788,6 +788,22 @@ export default function InteractiveGraphView({
         updateAttributes({ interaction: { type: 'display', drawables } });
     };
 
+    // The prompt/caption (the block's single editable content hole). For an
+    // INTERACTIVE graph it's the question — rendered ABOVE the board (a teacher
+    // reads the question, then the graph). For a DISPLAY graph it's a caption,
+    // which by convention sits BELOW the figure. Rendered once, placed by mode.
+    const promptSection = (
+        <div style={{ marginTop: '0.5rem', marginBottom: isDisplay ? 0 : '0.5rem' }}>
+            <span
+                contentEditable={false}
+                style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#94a3b8' }}
+            >
+                {isDisplay ? 'Caption (optional)' : 'Question prompt'}
+            </span>
+            <NodeViewContent className="interactive-graph-block__prompt" />
+        </div>
+    );
+
     return (
         <NodeViewWrapper
             className={`interactive-graph-block${selected ? ' is-selected' : ''}`}
@@ -819,7 +835,12 @@ export default function InteractiveGraphView({
                         </select>
                     </label>
                 </div>
+            </div>
 
+            {/* Interactive: the question prompt sits ABOVE the board. */}
+            {!isDisplay && promptSection}
+
+            <div contentEditable={false} style={{ userSelect: 'none' }}>
                 {interaction.type === 'display' ? (
                     <>
                         <DisplayPreviewBoard
@@ -935,15 +956,8 @@ export default function InteractiveGraphView({
                 )}
             </div>
 
-            <div style={{ marginTop: '0.5rem' }}>
-                <span
-                    contentEditable={false}
-                    style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#94a3b8' }}
-                >
-                    {isDisplay ? 'Caption (optional)' : 'Question prompt'}
-                </span>
-                <NodeViewContent className="interactive-graph-block__prompt" />
-            </div>
+            {/* Display: the caption sits BELOW the figure (convention). */}
+            {isDisplay && promptSection}
 
             {(isEditable || solution.length > 0 || hasConfidenceRating) && (
                 <div contentEditable={false} style={{ marginTop: '0.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.4rem' }}>
