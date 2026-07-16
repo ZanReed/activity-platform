@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import { NodeSelection, TextSelection } from 'prosemirror-state';
 import { Trash2, Copy, Settings } from 'lucide-react';
-import { OPEN_BLOCK_SETTINGS } from '../blockControls';
+import { OPEN_BLOCK_SETTINGS, hasConfigurableControls } from '../blockControls';
 
 // ============================================================================
 // BlockQuickBarHost — the always-discoverable block affordance (slice 6).
@@ -136,6 +136,13 @@ export default function BlockQuickBarHost({
 
     if (!editor || activePos === null || !position) return null;
 
+    // The ⚙ opens settings mode, so only show it when the block has something
+    // there (a primary or any settings) — never a dead gear on a block like
+    // learning_objectives whose descriptor is empty.
+    const activeNode = editor.state.doc.nodeAt(activePos);
+    const showSettings =
+        !!activeNode && hasConfigurableControls(activeNode.type.name);
+
     const deleteBlock = () => {
         const node = editor.state.doc.nodeAt(activePos);
         if (!node) return;
@@ -204,15 +211,17 @@ export default function BlockQuickBarHost({
             >
                 <Copy size={14} aria-hidden="true" />
             </button>
-            <button
-                type="button"
-                className="block-quickbar__btn"
-                title="Block settings"
-                aria-label="Block settings"
-                onClick={openSettings}
-            >
-                <Settings size={14} aria-hidden="true" />
-            </button>
+            {showSettings && (
+                <button
+                    type="button"
+                    className="block-quickbar__btn"
+                    title="Block settings"
+                    aria-label="Block settings"
+                    onClick={openSettings}
+                >
+                    <Settings size={14} aria-hidden="true" />
+                </button>
+            )}
         </div>
     );
 }

@@ -43,7 +43,7 @@ test.beforeEach(async ({ page }) => {
     );
 });
 
-test('a caret in a block shows the mini quick-bar (Delete/Duplicate/Settings)', async ({
+test('a caret in a block shows the mini quick-bar (Delete/Duplicate)', async ({
     page,
 }) => {
     await plainBlock(page).click();
@@ -52,9 +52,11 @@ test('a caret in a block shows the mini quick-bar (Delete/Duplicate/Settings)', 
     await expect(
         page.getByRole('button', { name: 'Duplicate block' }),
     ).toBeVisible();
+    // A plain paragraph has no settings → the gear is gated out (it would open
+    // an empty settings mode). Blocks WITH settings show it (see group1-fixes).
     await expect(
         page.getByRole('button', { name: 'Block settings' }),
-    ).toBeVisible();
+    ).toHaveCount(0);
 });
 
 test('hovering a block shows the mini quick-bar', async ({ page }) => {
@@ -85,7 +87,19 @@ test('Duplicate clones the block below', async ({ page }) => {
 test('Settings (gear) selects the block → full command bar; quick-bar hides', async ({
     page,
 }) => {
-    await plainBlock(page).click();
+    // A block WITH settings (essay) — the gear only shows on those now.
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        ed.commands.insertEssay();
+        let pos: number | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.descendants((node: any, p: number) => {
+            if (pos === null && node.type.name === 'essay') pos = p;
+            return pos === null;
+        });
+        ed.commands.setTextSelection((pos ?? 0) + 1);
+    });
     await page.getByRole('button', { name: 'Block settings' }).click();
     expect(await selectionType(page)).toBe('NodeSelection');
     await expect(page.locator(BAR)).toBeVisible();

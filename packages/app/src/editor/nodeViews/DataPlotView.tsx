@@ -6,6 +6,7 @@ import {
 } from '@tiptap/react';
 import { renderDataPlotSvg, fiveNumberSummary } from '@activity/renderer';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
+import DraftNumberInput from '../components/DraftNumberInput';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
 import {
@@ -34,11 +35,6 @@ type Mode =
     | 'display:dotplot'
     | 'display:histogram'
     | 'display:boxplot';
-
-const num = (v: string, d: number): number => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : d;
-};
 
 function modeOf(interaction: DataPlotInteractionAttr): Mode {
     return interaction.type === 'display'
@@ -213,36 +209,32 @@ export default function DataPlotView({
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                                 <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                                     Min:
-                                    <input type="number" value={config.min} disabled={!isEditable} step="any" style={{ width: '4rem' }}
-                                        onChange={(e) => setConfig({ min: num(e.target.value, config.min) })}
-                                        onKeyDown={(e) => e.stopPropagation()} />
+                                    <DraftNumberInput value={config.min} disabled={!isEditable} style={{ width: '4rem' }}
+                                        onCommit={(v) => setConfig({ min: v })} ariaLabel="Axis minimum" />
                                 </label>
                                 <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                                     Max:
-                                    <input type="number" value={config.max} disabled={!isEditable} step="any" style={{ width: '4rem' }}
-                                        onChange={(e) => setConfig({ max: num(e.target.value, config.max) })}
-                                        onKeyDown={(e) => e.stopPropagation()} />
+                                    <DraftNumberInput value={config.max} disabled={!isEditable} style={{ width: '4rem' }}
+                                        onCommit={(v) => setConfig({ max: v })} ariaLabel="Axis maximum" />
                                 </label>
                                 <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                                     Tick step:
-                                    <input type="number" value={config.tickStep} min={0} disabled={!isEditable} step="any" style={{ width: '4rem' }}
-                                        onChange={(e) => setConfig({ tickStep: Math.max(0.0001, num(e.target.value, config.tickStep)) })}
-                                        onKeyDown={(e) => e.stopPropagation()} />
+                                    <DraftNumberInput value={config.tickStep} min={0.0001} disabled={!isEditable} style={{ width: '4rem' }}
+                                        onCommit={(v) => setConfig({ tickStep: v })} ariaLabel="Tick step" />
                                 </label>
                                 {chart === 'histogram' && (
                                     <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                                         Bin width:
-                                        <input type="number" value={config.binWidth ?? config.tickStep} min={0} disabled={!isEditable} step="any" style={{ width: '4rem' }}
-                                            onChange={(e) => setConfig({ binWidth: Math.max(0.0001, num(e.target.value, config.binWidth ?? config.tickStep)) })}
-                                            onKeyDown={(e) => e.stopPropagation()} />
+                                        <DraftNumberInput value={config.binWidth ?? config.tickStep} min={0.0001} disabled={!isEditable} style={{ width: '4rem' }}
+                                            onCommit={(v) => setConfig({ binWidth: v })} ariaLabel="Bin width" />
                                     </label>
                                 )}
                                 {interaction.type === 'build_boxplot' && (
                                     <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                                         Tolerance:
-                                        <input type="number" value={interaction.tolerance} min={0} disabled={!isEditable} step="any" style={{ width: '4rem' }}
-                                            onChange={(e) => updateAttributes({ interaction: { ...interaction, tolerance: Math.max(0, num(e.target.value, interaction.tolerance)) } })}
-                                            onKeyDown={(e) => e.stopPropagation()} />
+                                        {/* Blank tolerance reads as 0 (exact match). */}
+                                        <DraftNumberInput value={interaction.tolerance} min={0} onEmpty={0} disabled={!isEditable} style={{ width: '4rem' }}
+                                            onCommit={(v) => updateAttributes({ interaction: { ...interaction, tolerance: v } })} ariaLabel="Tolerance" />
                                     </label>
                                 )}
                             </div>

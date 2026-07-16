@@ -447,3 +447,19 @@ function requestImagePopover(editor: Editor, focus: ImagePopoverFocus): void {
 export function controlsFor(typeName: string): BlockControls | null {
     return blockControlsRegistry[typeName] ?? null;
 }
+
+/**
+ * Does this block have anything on the command bar beyond the universal
+ * Duplicate/Delete (a block-specific primary, or any settings)? The quick-bar's
+ * ⚙ gear gates on this — a block like learning_objectives (no primary, no
+ * settings) would otherwise show a gear that opens an empty settings mode.
+ */
+export function hasConfigurableControls(typeName: string): boolean {
+    const c = blockControlsRegistry[typeName];
+    if (!c) return false;
+    return (
+        c.primary.length > 0 ||
+        (c.simple?.length ?? 0) > 0 ||
+        (c.advanced?.length ?? 0) > 0
+    );
+}
