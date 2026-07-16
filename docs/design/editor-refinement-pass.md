@@ -55,7 +55,20 @@ eng-review items.
    "not working anymore." VERIFY in browser first (uses `mountGraphDisplay`,
    the lazy kit — likely a kit-load issue, probably NOT caused by the MC pass).
 
-## Group 2 — settings coherence (app-only)
+## Group 2 — settings coherence (app-only) — MOSTLY DONE (2026-07-16)
+
+Status: **blank popover reorg** (`0cc3893`), **data-plot → drawer** (`9b3925d`),
+**interactive-graph prompt-on-top** (`0a53e60`) all SHIPPED. Image + auto-feedback
+default-flip moved to Group 3 (see below). **One piece remains: the
+interactive-graph settings → drawer extraction** — flagged as its own pass
+because it's the largest, most interwoven refactor in the app:
+`firstModel`/`firstRay`/`firstSegment`/`firstRegion`, `setAxis`, `ToleranceRow`,
+and the mistake-feedback helpers are shared between the board/answer logic AND
+the settings, and the write-path (`updateAttributes` → `pos`-based `setNodeAttr`)
+must be converted across all 6 interaction types. Do it as a dedicated,
+well-tested commit (extract shared helpers to a module first; test every
+interaction type's settings). The auto-feedback TOGGLE moves into the drawer as
+part of that extraction; its default-flip is Group 3 (redeploy).
 
 - Migrate **interactive_graph + data_plot + image** block-level settings into
   the descriptor drawer; delete their bespoke inline "⚙ Advanced settings"
