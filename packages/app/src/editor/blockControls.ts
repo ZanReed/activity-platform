@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { renderRubricField } from './components/RubricEditor';
 import { renderSolutionField } from './components/QuestionSettings';
 import { renderDataPlotSettings } from './components/DataPlotSettings';
+import { renderGraphSettings } from './components/GraphSettings';
 import { Copy, Trash2, Image as ImageIcon, Captions } from 'lucide-react';
 import { OPEN_IMAGE_POPOVER, type ImagePopoverFocus } from './extensions/Image';
 
@@ -412,7 +413,19 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         advanced: questionAdvanced,
     },
     ordering: { primary: [], advanced: questionAdvanced },
-    interactiveGraph: { primary: [] },
+    // interactive_graph settings are interaction-dependent (per-type tolerance
+    // rows, display is axis-only) → one custom drawer field (GraphSettings).
+    interactiveGraph: {
+        primary: [],
+        advanced: [
+            {
+                group: 'Settings',
+                fields: [
+                    { kind: 'custom', label: 'Graph settings', render: renderGraphSettings },
+                ],
+            },
+        ],
+    },
     numberLine: { primary: [] },
     // data_plot settings are interaction-dependent (bin width / tolerance /
     // graded-only fields), so the whole panel is one custom drawer field.
