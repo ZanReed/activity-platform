@@ -2898,6 +2898,18 @@ img.mc-block__figure-preview {
     min-height: 1.5em; /* keeps an empty prompt clickable */
 }
 
+/* Graphing-block prompts (interactive graph / data plot / number line): their
+ * NodeViewContent sits inside a React NodeView that doesn't inherit the editor
+ * ink, so it fell back to pure black. Tokenize it + keep an empty prompt
+ * clickable, matching the free-text prompts. */
+.interactive-graph-block__prompt,
+.data-plot-block__prompt,
+.number-line-block__prompt {
+    line-height: 1.6;
+    min-height: 1.5em;
+    color: var(--ed-text);
+}
+
 .free-response-block__preview {
     display: block;
     width: 100%;
