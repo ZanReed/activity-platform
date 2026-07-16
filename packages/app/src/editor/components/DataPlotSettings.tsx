@@ -43,8 +43,6 @@ function chartOf(
     return 'dotplot';
 }
 
-const rowStyle = { display: 'flex', gap: '0.3rem', alignItems: 'center' } as const;
-
 function DataPlotSettingsPanel({
     editor,
     node,
@@ -63,93 +61,55 @@ function DataPlotSettingsPanel({
     const setConfig = (patch: Partial<DataPlotConfigAttr>): void =>
         setNodeAttr(editor, pos, 'config', { ...config, ...patch });
 
+    const axisField = (
+        label: string,
+        ariaLabel: string,
+        value: number,
+        onCommit: (v: number) => void,
+        opts?: { min?: number; onEmpty?: 0 },
+    ) => (
+        <label className="graph-settings__axis-field">
+            <span className="block-advanced-drawer__label">{label}</span>
+            <DraftNumberInput
+                value={value}
+                min={opts?.min}
+                onEmpty={opts?.onEmpty}
+                disabled={!isEditable}
+                className="block-advanced-drawer__control graph-settings__axis-num"
+                onCommit={onCommit}
+                ariaLabel={ariaLabel}
+            />
+        </label>
+    );
+
     return (
-        <div className="data-plot-settings">
-            <div className="data-plot-settings__row">
-                <label style={rowStyle}>
-                    Min:
-                    <DraftNumberInput
-                        value={config.min}
-                        disabled={!isEditable}
-                        style={{ width: '4rem' }}
-                        onCommit={(v) => setConfig({ min: v })}
-                        ariaLabel="Axis minimum"
-                    />
-                </label>
-                <label style={rowStyle}>
-                    Max:
-                    <DraftNumberInput
-                        value={config.max}
-                        disabled={!isEditable}
-                        style={{ width: '4rem' }}
-                        onCommit={(v) => setConfig({ max: v })}
-                        ariaLabel="Axis maximum"
-                    />
-                </label>
-                <label style={rowStyle}>
-                    Tick step:
-                    <DraftNumberInput
-                        value={config.tickStep}
-                        min={0.0001}
-                        disabled={!isEditable}
-                        style={{ width: '4rem' }}
-                        onCommit={(v) => setConfig({ tickStep: v })}
-                        ariaLabel="Tick step"
-                    />
-                </label>
-                {chart === 'histogram' && (
-                    <label style={rowStyle}>
-                        Bin width:
-                        <DraftNumberInput
-                            value={config.binWidth ?? config.tickStep}
-                            min={0.0001}
-                            disabled={!isEditable}
-                            style={{ width: '4rem' }}
-                            onCommit={(v) => setConfig({ binWidth: v })}
-                            ariaLabel="Bin width"
-                        />
-                    </label>
-                )}
-                {interaction.type === 'build_boxplot' && (
-                    <label style={rowStyle}>
-                        Tolerance:
-                        {/* Blank tolerance reads as 0 (exact match). */}
-                        <DraftNumberInput
-                            value={interaction.tolerance}
-                            min={0}
-                            onEmpty={0}
-                            disabled={!isEditable}
-                            style={{ width: '4rem' }}
-                            onCommit={(v) =>
-                                setNodeAttr(editor, pos, 'interaction', {
-                                    ...interaction,
-                                    tolerance: v,
-                                })
-                            }
-                            ariaLabel="Tolerance"
-                        />
-                    </label>
-                )}
+        <div className="graph-settings">
+            <div className="block-advanced-drawer__group">
+                <div className="block-advanced-drawer__group-title">Chart</div>
+                <div className="graph-settings__axis-grid">
+                    {axisField('Min', 'Axis minimum', config.min, (v) => setConfig({ min: v }))}
+                    {axisField('Max', 'Axis maximum', config.max, (v) => setConfig({ max: v }))}
+                    {axisField('Tick step', 'Tick step', config.tickStep, (v) => setConfig({ tickStep: v }), { min: 0.0001 })}
+                    {chart === 'histogram' &&
+                        axisField('Bin width', 'Bin width', config.binWidth ?? config.tickStep, (v) => setConfig({ binWidth: v }), { min: 0.0001 })}
+                    {interaction.type === 'build_boxplot' &&
+                        axisField('Tolerance', 'Tolerance', interaction.tolerance, (v) =>
+                            setNodeAttr(editor, pos, 'interaction', { ...interaction, tolerance: v }),
+                        { min: 0, onEmpty: 0 })}
+                </div>
             </div>
 
             {isGraded && (
-                <>
-                    <div className="data-plot-settings__group-title">Grading</div>
+                <div className="block-advanced-drawer__group">
+                    <div className="block-advanced-drawer__group-title">Grading</div>
                     {renderSolutionField({ editor, node, pos })}
-                    <label
-                        className="block-advanced-drawer__field block-advanced-drawer__field--toggle"
-                    >
+                    <label className="block-advanced-drawer__field block-advanced-drawer__field--toggle">
                         <input
                             type="checkbox"
                             checked={Boolean(node.attrs.hasConfidenceRating)}
                             disabled={!isEditable}
                             onChange={(e) =>
-                                setNodeAttr(
-                                    editor,
-                                    pos,
-                                    'hasConfidenceRating',
-                                    e.target.checked,
-                                )
+                                setNodeAttr(editor, pos, 'hasConfidenceRating', e.target.checked)
                             }
                         />
                         <span className="block-advanced-drawer__field-text">
@@ -158,7 +118,7 @@ function DataPlotSettingsPanel({
                             </span>
                         </span>
                     </label>
-                </>
+                </div>
             )}
         </div>
     );

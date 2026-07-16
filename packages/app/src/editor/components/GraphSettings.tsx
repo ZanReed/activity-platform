@@ -76,8 +76,8 @@ function ToleranceRow({
     max?: number;
 }) {
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ minWidth: '9rem' }}>{label}</span>
+        <div className="graph-settings__tolerance">
+            <span className="block-advanced-drawer__label">{label}</span>
             <input
                 type="range"
                 min={0}
@@ -93,7 +93,7 @@ function ToleranceRow({
                 step={0.05}
                 value={value}
                 disabled={disabled}
-                style={{ width: '4rem' }}
+                className="block-advanced-drawer__control graph-settings__tolerance-num"
                 onChange={(e) => {
                     const v = num(e.target.value, value);
                     if (v >= 0) onChange(v);
@@ -101,6 +101,44 @@ function ToleranceRow({
                 onKeyDown={(e) => e.stopPropagation()}
             />
         </div>
+    );
+}
+
+// A drawer toggle row (checkbox + label + optional help), matching the typed
+// AdvancedDrawer fields' formatting.
+function ToggleRow({
+    checked,
+    disabled,
+    onChange,
+    label,
+    help,
+    indent,
+}: {
+    checked: boolean;
+    disabled: boolean;
+    onChange: (v: boolean) => void;
+    label: string;
+    help?: string;
+    indent?: boolean;
+}) {
+    return (
+        <label
+            className="block-advanced-drawer__field block-advanced-drawer__field--toggle"
+            style={indent ? { marginLeft: '1.2rem' } : undefined}
+        >
+            <input
+                type="checkbox"
+                checked={checked}
+                disabled={disabled}
+                onChange={(e) => onChange(e.target.checked)}
+            />
+            <span className="block-advanced-drawer__field-text">
+                <span className="block-advanced-drawer__label">{label}</span>
+                {help ? (
+                    <span className="block-advanced-drawer__help">{help}</span>
+                ) : null}
+            </span>
+        </label>
     );
 }
 
@@ -179,128 +217,126 @@ function GraphSettingsPanel({
     };
 
     return (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-                fontSize: '0.8rem',
-                color: 'var(--ed-text-strong)',
-            }}
-        >
-            {/* Axis window — fields converted to DraftNumberInput (ratified D5)
-                so clearing a box to retype no longer snaps the old value back. */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto auto', gap: '0.3rem 0.6rem', alignItems: 'center' }}>
-                {(['xMin', 'xMax', 'yMin', 'yMax'] as const).map((k) => (
-                    <label key={k} style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                        {k}
-                        <DraftNumberInput
-                            value={axisConfig[k]}
-                            disabled={!isEditable}
-                            style={{ width: '3.5rem' }}
-                            onCommit={(v) => setAxis({ [k]: v })}
-                            ariaLabel={k}
-                        />
-                    </label>
-                ))}
-                {(['xGridStep', 'yGridStep'] as const).map((k) => (
-                    <label key={k} style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                        {k === 'xGridStep' ? 'x grid' : 'y grid'}
-                        <DraftNumberInput
-                            value={axisConfig[k]}
-                            min={0.1}
-                            disabled={!isEditable}
-                            style={{ width: '3.5rem' }}
-                            onCommit={(v) => setAxis({ [k]: v })}
-                            ariaLabel={k === 'xGridStep' ? 'x grid step' : 'y grid step'}
-                        />
-                    </label>
-                ))}
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                    <input type="checkbox" checked={axisConfig.showGrid} disabled={!isEditable}
-                        onChange={(e) => setAxis({ showGrid: e.target.checked })} />
-                    Show grid
-                </label>
-                <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                    <input type="checkbox" checked={axisConfig.snapToGrid} disabled={!isEditable}
-                        onChange={(e) => setAxis({ snapToGrid: e.target.checked })} />
-                    Snap to grid
-                </label>
+        <div className="graph-settings">
+            {/* Graph window — axis + grid. Fields use DraftNumberInput (D5). */}
+            <div className="block-advanced-drawer__group">
+                <div className="block-advanced-drawer__group-title">Graph window</div>
+                <div className="graph-settings__axis-grid">
+                    {(['xMin', 'xMax', 'yMin', 'yMax'] as const).map((k) => (
+                        <label key={k} className="graph-settings__axis-field">
+                            <span className="block-advanced-drawer__label">{k}</span>
+                            <DraftNumberInput
+                                value={axisConfig[k]}
+                                disabled={!isEditable}
+                                className="block-advanced-drawer__control graph-settings__axis-num"
+                                onCommit={(v) => setAxis({ [k]: v })}
+                                ariaLabel={k}
+                            />
+                        </label>
+                    ))}
+                    {(['xGridStep', 'yGridStep'] as const).map((k) => (
+                        <label key={k} className="graph-settings__axis-field">
+                            <span className="block-advanced-drawer__label">
+                                {k === 'xGridStep' ? 'x grid' : 'y grid'}
+                            </span>
+                            <DraftNumberInput
+                                value={axisConfig[k]}
+                                min={0.1}
+                                disabled={!isEditable}
+                                className="block-advanced-drawer__control graph-settings__axis-num"
+                                onCommit={(v) => setAxis({ [k]: v })}
+                                ariaLabel={k === 'xGridStep' ? 'x grid step' : 'y grid step'}
+                            />
+                        </label>
+                    ))}
+                </div>
+                <ToggleRow
+                    checked={axisConfig.showGrid}
+                    disabled={!isEditable}
+                    onChange={(v) => setAxis({ showGrid: v })}
+                    label="Show grid"
+                />
+                <ToggleRow
+                    checked={axisConfig.snapToGrid}
+                    disabled={!isEditable}
+                    onChange={(v) => setAxis({ snapToGrid: v })}
+                    label="Snap to grid"
+                />
             </div>
 
-            {/* Tolerance / strictness — differs by interaction. INV1: every
-                write spreads the current type-narrowed shape, never changes type. */}
-            {interaction.type === 'plot_point' && (
-                <ToleranceRow
-                    label="Tolerance"
-                    value={interaction.tolerance}
-                    disabled={!isEditable}
-                    onChange={(v) => setInteraction({ ...interaction, tolerance: v })}
-                />
-            )}
-            {interaction.type === 'plot_function' &&
-                Object.entries(firstModel(interaction.models))
-                    .filter(([k, v]) => k.endsWith('Tolerance') && typeof v === 'number')
-                    .map(([k, v]) => (
+            {/* Grading (non-display): tolerance + solution + the answer flags.
+                INV1: every interaction write spreads the current type-narrowed
+                shape, never changes type. */}
+            {!isDisplay && (
+                <div className="block-advanced-drawer__group">
+                    <div className="block-advanced-drawer__group-title">Grading</div>
+
+                    {interaction.type === 'plot_point' && (
                         <ToleranceRow
-                            key={k}
-                            label={
-                                k.slice(0, -'Tolerance'.length).charAt(0).toUpperCase() +
-                                k.slice(1, -'Tolerance'.length) +
-                                ' tolerance'
-                            }
-                            value={v as number}
+                            label="Tolerance"
+                            value={interaction.tolerance}
                             disabled={!isEditable}
-                            onChange={(val) =>
+                            onChange={(v) => setInteraction({ ...interaction, tolerance: v })}
+                        />
+                    )}
+                    {interaction.type === 'plot_function' &&
+                        Object.entries(firstModel(interaction.models))
+                            .filter(([k, v]) => k.endsWith('Tolerance') && typeof v === 'number')
+                            .map(([k, v]) => (
+                                <ToleranceRow
+                                    key={k}
+                                    label={
+                                        k.slice(0, -'Tolerance'.length).charAt(0).toUpperCase() +
+                                        k.slice(1, -'Tolerance'.length) +
+                                        ' tolerance'
+                                    }
+                                    value={v as number}
+                                    disabled={!isEditable}
+                                    onChange={(val) =>
+                                        setInteraction({
+                                            type: 'plot_function',
+                                            models: [{ ...firstModel(interaction.models), [k]: val } as FunctionModelAttr],
+                                        })
+                                    }
+                                />
+                            ))}
+                    {(interaction.type === 'plot_ray' || interaction.type === 'plot_segment') && (
+                        <ToleranceRow
+                            label="Endpoint tolerance"
+                            value={
+                                interaction.type === 'plot_ray'
+                                    ? firstRay(interaction.rays).tolerance
+                                    : firstSegment(interaction.segments).tolerance
+                            }
+                            disabled={!isEditable}
+                            onChange={(v) =>
+                                setInteraction(
+                                    interaction.type === 'plot_ray'
+                                        ? { type: 'plot_ray', rays: [{ ...firstRay(interaction.rays), tolerance: v }] }
+                                        : { type: 'plot_segment', segments: [{ ...firstSegment(interaction.segments), tolerance: v }] },
+                                )
+                            }
+                        />
+                    )}
+                    {interaction.type === 'shade_region' && (
+                        <ToleranceRow
+                            label="Min. overlap (IoU)"
+                            value={firstRegion(interaction.regions).minOverlap}
+                            max={1}
+                            disabled={!isEditable}
+                            onChange={(v) =>
                                 setInteraction({
-                                    type: 'plot_function',
-                                    models: [{ ...firstModel(interaction.models), [k]: val } as FunctionModelAttr],
+                                    type: 'shade_region',
+                                    regions: [
+                                        { ...firstRegion(interaction.regions), minOverlap: Math.min(1, Math.max(0, v)) },
+                                    ],
                                 })
                             }
                         />
-                    ))}
-            {(interaction.type === 'plot_ray' || interaction.type === 'plot_segment') && (
-                <ToleranceRow
-                    label="Endpoint tolerance"
-                    value={
-                        interaction.type === 'plot_ray'
-                            ? firstRay(interaction.rays).tolerance
-                            : firstSegment(interaction.segments).tolerance
-                    }
-                    disabled={!isEditable}
-                    onChange={(v) =>
-                        setInteraction(
-                            interaction.type === 'plot_ray'
-                                ? { type: 'plot_ray', rays: [{ ...firstRay(interaction.rays), tolerance: v }] }
-                                : { type: 'plot_segment', segments: [{ ...firstSegment(interaction.segments), tolerance: v }] },
-                        )
-                    }
-                />
-            )}
-            {interaction.type === 'shade_region' && (
-                <ToleranceRow
-                    label="Min. overlap (IoU)"
-                    value={firstRegion(interaction.regions).minOverlap}
-                    max={1}
-                    disabled={!isEditable}
-                    onChange={(v) =>
-                        setInteraction({
-                            type: 'shade_region',
-                            regions: [
-                                { ...firstRegion(interaction.regions), minOverlap: Math.min(1, Math.max(0, v)) },
-                            ],
-                        })
-                    }
-                />
-            )}
+                    )}
 
-            {/* A static display graph is ungraded — no solution/confidence/mistakes. */}
-            {!isDisplay && (
-                <>
-                    <div>
-                        <span style={{ display: 'block', marginBottom: '0.2rem' }}>Worked solution</span>
+                    <div className="question-solution-field">
+                        <span className="block-advanced-drawer__label">Worked solution</span>
                         <InlineRichTextEditor
                             value={solution}
                             onChange={(nodes) =>
@@ -310,86 +346,97 @@ function GraphSettingsPanel({
                         />
                     </div>
 
-                    <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                        <input type="checkbox" checked={hasConfidenceRating} disabled={!isEditable}
-                            onChange={(e) => setNodeAttr(editor, pos, 'hasConfidenceRating', e.target.checked)} />
-                        Ask for a confidence rating
-                    </label>
-
-                    <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                        <input type="checkbox" checked={Boolean(node.attrs.partialCredit)} disabled={!isEditable}
-                            onChange={(e) => setNodeAttr(editor, pos, 'partialCredit', e.target.checked)} />
-                        Partial credit (score each part separately)
-                    </label>
-
-                    <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                        <input type="checkbox" checked={Boolean(node.attrs.allowNoSolution)} disabled={!isEditable}
-                            onChange={(e) => setNodeAttr(editor, pos, 'allowNoSolution', e.target.checked)} />
-                        Offer a “cannot be graphed / no solution” choice
-                    </label>
-
+                    <ToggleRow
+                        checked={hasConfidenceRating}
+                        disabled={!isEditable}
+                        onChange={(v) => setNodeAttr(editor, pos, 'hasConfidenceRating', v)}
+                        label="Ask for a confidence rating"
+                    />
+                    <ToggleRow
+                        checked={Boolean(node.attrs.partialCredit)}
+                        disabled={!isEditable}
+                        onChange={(v) => setNodeAttr(editor, pos, 'partialCredit', v)}
+                        label="Partial credit"
+                        help="Score each part separately."
+                    />
+                    <ToggleRow
+                        checked={Boolean(node.attrs.allowNoSolution)}
+                        disabled={!isEditable}
+                        onChange={(v) => setNodeAttr(editor, pos, 'allowNoSolution', v)}
+                        label="Offer a “no solution” choice"
+                        help="A “cannot be graphed / no solution” option."
+                    />
                     {Boolean(node.attrs.allowNoSolution) && (
-                        <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', marginLeft: '1.2rem' }}>
-                            <input type="checkbox" checked={Boolean(node.attrs.noSolutionCorrect)} disabled={!isEditable}
-                                onChange={(e) => setNodeAttr(editor, pos, 'noSolutionCorrect', e.target.checked)} />
-                            “No solution” IS the correct answer (trick question)
-                        </label>
-                    )}
-
-                    {/* Mistake feedback: built-in classifier toggle (auto-feedback,
-                        stays default-on) + authored anticipated mistakes. */}
-                    <div style={{ borderTop: '1px dashed var(--ed-border)', paddingTop: '0.4rem' }}>
-                        <span style={{ display: 'block', marginBottom: '0.2rem', fontWeight: 600 }}>Mistake feedback</span>
-                        <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                            <input type="checkbox" checked={node.attrs.builtinFeedback !== false} disabled={!isEditable}
-                                onChange={(e) => setNodeAttr(editor, pos, 'builtinFeedback', e.target.checked)} />
-                            Built-in nudges for common mistakes (swapped coordinates, wrong side, …)
-                        </label>
-                        {mistakeEntries.map((entry, i) => (
-                            <div key={i} style={{ marginTop: '0.4rem', padding: '0.4rem', border: '1px solid var(--ed-border)', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                                    <span style={{ whiteSpace: 'nowrap' }}>If the answer is</span>
-                                    <input
-                                        type="text"
-                                        value={entry.match}
-                                        disabled={!isEditable}
-                                        placeholder={mistakeMatchPlaceholder}
-                                        spellCheck={false}
-                                        style={{ flex: 1, fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem' }}
-                                        onChange={(e) => setMistakeEntry(i, { ...entry, match: e.target.value })}
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                    />
-                                    <button
-                                        type="button"
-                                        disabled={!isEditable}
-                                        onClick={() => removeMistakeEntry(i)}
-                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ed-danger-2)', fontSize: '0.78rem' }}
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                                {mistakeMatchError(entry.match) && (
-                                    <p role="status" style={{ margin: 0, fontSize: '0.72rem', color: 'var(--ed-warning-text-strong)' }}>
-                                        {mistakeMatchError(entry.match)}
-                                    </p>
-                                )}
-                                <InlineRichTextEditor
-                                    value={entry.feedback}
-                                    onChange={(nodes) => setMistakeEntry(i, { ...entry, feedback: nodes })}
-                                    ariaLabel={`Feedback for anticipated mistake ${i + 1}`}
-                                />
-                            </div>
-                        ))}
-                        <button
-                            type="button"
+                        <ToggleRow
+                            checked={Boolean(node.attrs.noSolutionCorrect)}
                             disabled={!isEditable}
-                            onClick={addMistakeEntry}
-                            style={{ marginTop: '0.35rem', fontSize: '0.75rem', padding: '0.15rem 0.5rem', border: '1px solid var(--ed-border-strong)', borderRadius: 4, background: 'var(--ed-surface)', cursor: 'pointer', color: 'var(--ed-text-strong)' }}
-                        >
-                            + Anticipated mistake
-                        </button>
-                    </div>
-                </>
+                            onChange={(v) => setNodeAttr(editor, pos, 'noSolutionCorrect', v)}
+                            label="“No solution” is correct"
+                            help="Trick question — the correct answer is “no solution.”"
+                            indent
+                        />
+                    )}
+                </div>
+            )}
+
+            {/* Mistake feedback (non-display): auto-feedback toggle (stays
+                default-on) + authored anticipated mistakes. */}
+            {!isDisplay && (
+                <div className="block-advanced-drawer__group">
+                    <div className="block-advanced-drawer__group-title">Mistake feedback</div>
+                    <ToggleRow
+                        checked={node.attrs.builtinFeedback !== false}
+                        disabled={!isEditable}
+                        onChange={(v) => setNodeAttr(editor, pos, 'builtinFeedback', v)}
+                        label="Built-in nudges"
+                        help="Common-mistake hints (swapped coordinates, wrong side, …)."
+                    />
+                    {mistakeEntries.map((entry, i) => (
+                        <div key={i} className="graph-settings__mistake">
+                            <div className="graph-settings__mistake-head">
+                                <span className="block-advanced-drawer__label" style={{ whiteSpace: 'nowrap' }}>
+                                    If the answer is
+                                </span>
+                                <input
+                                    type="text"
+                                    value={entry.match}
+                                    disabled={!isEditable}
+                                    placeholder={mistakeMatchPlaceholder}
+                                    spellCheck={false}
+                                    className="graph-settings__mistake-match"
+                                    onChange={(e) => setMistakeEntry(i, { ...entry, match: e.target.value })}
+                                    onKeyDown={(e) => e.stopPropagation()}
+                                />
+                                <button
+                                    type="button"
+                                    disabled={!isEditable}
+                                    onClick={() => removeMistakeEntry(i)}
+                                    className="graph-settings__mistake-remove"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                            {mistakeMatchError(entry.match) && (
+                                <p role="status" className="graph-settings__mistake-error">
+                                    {mistakeMatchError(entry.match)}
+                                </p>
+                            )}
+                            <InlineRichTextEditor
+                                value={entry.feedback}
+                                onChange={(nodes) => setMistakeEntry(i, { ...entry, feedback: nodes })}
+                                ariaLabel={`Feedback for anticipated mistake ${i + 1}`}
+                            />
+                        </div>
+                    ))}
+                    <button
+                        type="button"
+                        disabled={!isEditable}
+                        onClick={addMistakeEntry}
+                        className="graph-settings__add"
+                    >
+                        + Anticipated mistake
+                    </button>
+                </div>
             )}
         </div>
     );

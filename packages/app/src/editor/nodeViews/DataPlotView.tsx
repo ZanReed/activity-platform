@@ -58,7 +58,7 @@ function parseData(text: string): number[] {
         .filter((n) => Number.isFinite(n));
 }
 
-const labelStyle = { fontSize: '0.8rem', color: '#475569' } as const;
+const labelStyle = { fontSize: '0.8rem', color: 'var(--ed-text-secondary)' } as const;
 
 export default function DataPlotView({
     node,
@@ -117,6 +117,21 @@ export default function DataPlotView({
         updateAttributes({ interaction: next });
     };
 
+    // The prompt/caption (the block's editable content hole). Graded = the
+    // question, ABOVE the chart (read the question, then the plot — like the
+    // interactive graph). Display = a caption, BELOW the figure (convention).
+    const promptSection = (
+        <div style={{ marginTop: '0.5rem', marginBottom: isGraded ? '0.5rem' : 0 }}>
+            <span
+                contentEditable={false}
+                style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--ed-faint)' }}
+            >
+                {isGraded ? 'Question prompt' : 'Caption (optional)'}
+            </span>
+            <NodeViewContent className="data-plot-block__prompt" />
+        </div>
+    );
+
     return (
         <NodeViewWrapper
             className={`data-plot-block${selected ? ' is-selected' : ''}`}
@@ -124,7 +139,7 @@ export default function DataPlotView({
         >
             <div contentEditable={false} style={{ userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
-                    <strong style={{ fontSize: '0.85rem', color: '#334155' }}>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--ed-text-strong)' }}>
                         {isGraded ? `${problemNumber}. ` : ''}Data plot
                     </strong>
                     <label style={labelStyle}>
@@ -144,7 +159,12 @@ export default function DataPlotView({
                         </select>
                     </label>
                 </div>
+            </div>
 
+            {/* Graded: the question prompt sits ABOVE the chart. */}
+            {isGraded && promptSection}
+
+            <div contentEditable={false} style={{ userSelect: 'none' }}>
                 <label style={{ ...labelStyle, display: 'block', marginBottom: '0.35rem' }}>
                     Data{isGraded ? ' (students plot this; the correct plot is computed from it)' : ''}:{' '}
                     <input
@@ -160,33 +180,26 @@ export default function DataPlotView({
 
                 <div
                     contentEditable={false}
-                    style={{ border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff', padding: '0.4rem', maxWidth: '34rem' }}
+                    style={{ border: '1px solid var(--ed-border)', borderRadius: 6, background: '#fff', padding: '0.4rem', maxWidth: '34rem' }}
                     dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
                 {interaction.type === 'build_boxplot' && data.length > 0 && (() => {
                     const s = fiveNumberSummary(data);
                     return (
-                        <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: '#475569' }}>
+                        <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-secondary)' }}>
                             Target (TI-84): min {s.min} · Q1 {s.q1} · median {s.median} · Q3 {s.q3} · max {s.max}
                         </p>
                     );
                 })()}
-                <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
                     {isGraded
                         ? `Students build this ${chart === 'histogram' ? 'histogram' : chart === 'boxplot' ? 'box plot' : 'dot plot'}; it is scored against the data above.`
                         : 'A static figure students read (pair it with a question block to grade).'}
                 </p>
             </div>
 
-            <div style={{ marginTop: '0.5rem' }}>
-                <span
-                    contentEditable={false}
-                    style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#94a3b8' }}
-                >
-                    {isGraded ? 'Question prompt' : 'Caption (optional)'}
-                </span>
-                <NodeViewContent className="data-plot-block__prompt" />
-            </div>
+            {/* Display: the caption sits BELOW the figure (convention). */}
+            {!isGraded && promptSection}
 
             {isGraded && (
                 <QuestionSettingsSummary
