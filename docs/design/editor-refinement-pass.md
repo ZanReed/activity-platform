@@ -99,6 +99,60 @@ express. Each block's settings panel is extracted into a single `custom`
 drawer field (the drawer kind that exists for exactly this) and the inline
 "⚙ Advanced settings" bar deleted — same gear→drawer flow as the typed blocks.
 
+## Eng review — interactive-graph settings extraction (/plan-eng-review, 2026-07-17)
+
+**Verdict: CLEARED — buildable, right-sized.** The risk (interwoven helpers) is
+smaller than first framed. Usage mapping showed the only genuinely SHARED helpers
+are 5 pure module-level accessors (`firstModel`/`firstRegion`/`firstInequality`/
+`firstRay`/`firstSegment`, each `return arr[0] ?? DEFAULT`); everything else the
+settings use (`setAxis`, `ToleranceRow`, mistake CRUD + validators) is
+**settings-only** and relocates wholesale. Write-path conversion
+(`updateAttributes({X})` → `setNodeAttr(editor,pos,'X',…)`) is mechanical and
+TS-checked under `noUncheckedIndexedAccess`.
+
+**Reactivity risk RESOLVED:** a drawer custom field reflects live edits only if the
+host feeds it a fresh node. Traced: `BlockCommandBarHost` re-reads
+`editor.state.doc.nodeAt(pos)` each render, and `Editor.tsx`'s `forceTick` re-renders
+on every transaction → fresh node cascades to the field after each `setNodeAttr`
+(the same mechanism `DataPlotSettings` already relies on).
+
+**Rulings:**
+- **D2 — shared helpers → new `graphAnswerHelpers.ts` leaf module** (first* +
+  `DEFAULT_LINEAR` + answer-attr types), imported by both the NodeView and
+  `GraphSettings.tsx`. DRY, clean import direction. NOT export-from-NodeView (awkward
+  dependency on a 1000-line module), NOT duplicate.
+- **D3 — run `/test-spec` before building.** A pure refactor's only danger is silent
+  regressions; front-load the net.
+
+**Build shape (~5 files):** `graphAnswerHelpers.ts` (new, pure) · `GraphSettings.tsx`
+(new custom drawer field, `{editor,node,pos}` → `setNodeAttr`, mirrors
+`DataPlotSettings`) · `blockControls.ts` (+1 `interactiveGraph` entry with the custom
+advanced field) · `InteractiveGraphView.tsx` (delete inline "⚙ Advanced settings"
+disclosure + settings-only helpers; import first* from the new module; add a
+display-only summary readout) · `editor.css` (panel styles). App-only, no
+wire/schema/renderer/deploy. Auto-feedback toggle relocates into the drawer, stays
+`default(true)`. Small green commits on main.
+
+**Test net (input to /test-spec):** per-interaction e2e for all 6 types (insert →
+gear → Advanced → type-appropriate tolerance row shows + writing it updates the
+`interaction` attr); inline-bar-gone; worked-solution rich field writes; confidence /
+partial-credit / allow-no-solution (+ nested no-solution-correct) toggles; mistake
+add/edit. Watch (pre-existing, don't worsen): mistake-feedback `InlineRichTextEditor`
+keyed by index.
+
+## GSTACK REVIEW REPORT
+
+| Run | Status | Findings |
+|---|---|---|
+| Scope challenge (Step 0) | ✅ | Right-sized (~5 files, 1 component + 1 leaf module); DataPlotSettings is the template; lighter-touch (gear-expands-inline) rejected — loses cross-block consistency + leaves NodeView bloated for Group 3 |
+| Architecture | ✅ | Shared surface = 5 pure accessors; settings-only helpers relocate; single-root-host discipline preserved (rendered by existing AdvancedDrawer, no per-block mounting) |
+| Reactivity | ✅ | Fresh-node cascade confirmed via Editor forceTick → host re-read; FieldFocusContext already wraps the hosts so drawer rich editors route to the toolbar |
+| Tests | ⏭️ | Deferred to /test-spec (D3): per-interaction-type e2e is the regression net |
+
+VERDICT: CLEARED. No CODEX / CROSS-MODEL run (app-only refactor, in-distribution).
+
+NO UNRESOLVED DECISIONS
+
 ## Group 3 — new interactions (some schema/redeploy)
 
 - **Image crop mode** (a button → enter crop → drag a frame). Height folds in.
