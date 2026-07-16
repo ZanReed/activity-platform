@@ -172,7 +172,16 @@ export default function DataPlotView({
                         value={dataText}
                         disabled={!isEditable}
                         placeholder="e.g. 3, 5, 5, 6, 8"
-                        style={{ width: '18rem', maxWidth: '100%' }}
+                        style={{
+                            width: '18rem',
+                            maxWidth: '100%',
+                            padding: '0.25rem 0.4375rem',
+                            border: '1px solid var(--ed-border-strong)',
+                            borderRadius: '0.3125rem',
+                            background: 'var(--ed-canvas)',
+                            color: 'var(--ed-text)',
+                            fontSize: '0.8125rem',
+                        }}
                         onChange={(e) => onDataText(e.target.value)}
                         onKeyDown={(e) => e.stopPropagation()}
                     />
