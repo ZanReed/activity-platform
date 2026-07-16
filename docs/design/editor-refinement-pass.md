@@ -73,11 +73,12 @@ part of that extraction; its default-flip is Group 3 (redeploy).
 - Migrate **interactive_graph + data_plot + image** block-level settings into
   the descriptor drawer; delete their bespoke inline "⚙ Advanced settings"
   bars (same as the four question blocks).
-- **Auto-feedback** (graph built-in nudges): move the TOGGLE into the drawer now
-  (app-only). The **default-flip to off** is deferred to Group 3 — `builtinFeedback`
-  defaults `true` across schema (`default(true)`) + factory + renderer + runtime +
-  graph-kit, so flipping it is a `bundle:renderer` + `publish-activity` redeploy,
-  not app-only. Anticipated-mistakes + the rest → advanced drawer groups.
+- **Auto-feedback** (graph built-in nudges): **default-flip DROPPED (author,
+  2026-07-16)** — it's a full-stack schema/renderer/runtime/kit change for modest
+  payoff ("won't drive people off by being default-on"). Revisit only on real
+  user pushback. The TOGGLE still moves into the drawer with the settings
+  extraction (app-only); `builtinFeedback` stays `default(true)`.
+  Anticipated-mistakes + the rest → advanced drawer groups.
 - **Prompt on top** for the interactive graph (caption stays below for display).
 - **Blank popover reorg** ([BlankEditPopover.tsx](../../packages/app/src/editor/components/BlankEditPopover.tsx)):
   Answer + numeric + acceptable/additional answers **always visible**; **hint +
