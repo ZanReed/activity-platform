@@ -69,21 +69,16 @@ export default function FormulaField({
         if (mode !== 'math') return;
         const mf = mfRef.current;
         if (!mf) return;
+        // Never auto-pop the on-screen virtual keyboard on focus ('manual'
+        // policy + no show-on-focus) — the reported annoyance. Desktop authors
+        // type with their keyboard.
         mf.mathVirtualKeyboardPolicy = 'manual';
         mf.readOnly = disabled;
-        const showKeyboard = () => window.mathVirtualKeyboard?.show();
-        const hideKeyboard = () => window.mathVirtualKeyboard?.hide();
-        mf.addEventListener('focusin', showKeyboard);
-        mf.addEventListener('focusout', hideKeyboard);
         if (document.activeElement !== mf) {
             mf.setValue(mathSeed ? formulaToLatex(mathSeed) : '', {
                 silenceNotifications: true,
             });
         }
-        return () => {
-            mf.removeEventListener('focusin', showKeyboard);
-            mf.removeEventListener('focusout', hideKeyboard);
-        };
     }, [mode, mathSeed, disabled]);
 
     const commitText = (): void => {

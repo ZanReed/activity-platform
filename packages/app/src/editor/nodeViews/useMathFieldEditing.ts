@@ -98,9 +98,12 @@ export function useMathFieldEditing<E extends HTMLElement>(
     useLayoutEffect(() => {
         if (!editing || !mathFieldRef.current) return;
         const mf = mathFieldRef.current;
+        // Never auto-pop the on-screen virtual keyboard: 'manual' policy AND no
+        // show-on-focus (we used to call mathVirtualKeyboard.show() on focusin,
+        // which meant it appeared every time a teacher clicked into math to edit
+        // — the reported annoyance). Desktop authors type with their keyboard; a
+        // touch trigger is part of the deferred input-parity pass.
         mf.mathVirtualKeyboardPolicy = 'manual';
-        const showKeyboard = () => window.mathVirtualKeyboard?.show();
-        const hideKeyboard = () => window.mathVirtualKeyboard?.hide();
         const onMoveOut = (ev: Event) => {
             const direction = (ev as CustomEvent<{ direction: string }>).detail?.direction;
             // Prevent MathLive's default (which would just no-op) and move the
@@ -108,8 +111,6 @@ export function useMathFieldEditing<E extends HTMLElement>(
             ev.preventDefault();
             exitToDoc(direction === 'backward' || direction === 'upward' ? 'before' : 'after');
         };
-        mf.addEventListener('focusin', showKeyboard);
-        mf.addEventListener('focusout', hideKeyboard);
         mf.addEventListener('move-out', onMoveOut);
 
         // Focus + place the caret one frame after mount. MathLive's focus()
@@ -135,8 +136,6 @@ export function useMathFieldEditing<E extends HTMLElement>(
 
         return () => {
             cancelAnimationFrame(raf);
-            mf.removeEventListener('focusin', showKeyboard);
-            mf.removeEventListener('focusout', hideKeyboard);
             mf.removeEventListener('move-out', onMoveOut);
         };
     }, [editing]);
