@@ -9,7 +9,7 @@ import {
     type NumberLineAuthorHandle,
     type StudentInterval,
 } from '@activity/graph-kit';
-import InlineRichTextEditor from '../components/InlineRichTextEditor';
+import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
 import {
@@ -142,7 +142,6 @@ export default function NumberLineView({
     updateAttributes,
     selected,
 }: NodeViewProps) {
-    const [settingsOpen, setSettingsOpen] = useState(false);
     // Bumped only on a typed edit (numeric field / count / type switch) to
     // remount the board so the handles jump to the typed answer; a drag never
     // bumps it.
@@ -165,10 +164,6 @@ export default function NumberLineView({
         [editor.state, getPos],
     );
 
-    const setConfig = (patch: Partial<NumberLineConfigAttr>): void => {
-        updateAttributes({ config: { ...config, ...patch } });
-        bump();
-    };
 
     // A drag on the board reports the new key — update WITHOUT bumping epoch.
     const onPointsChange = (points: number[]): void => {
@@ -404,103 +399,11 @@ export default function NumberLineView({
                 )}
             </div>
 
-            {(isEditable || solution.length > 0 || hasConfidenceRating) && (
-                <div contentEditable={false} style={{ marginTop: '0.5rem', borderTop: '1px solid var(--ed-border)', paddingTop: '0.4rem' }}>
-                    <button
-                        type="button"
-                        onClick={() => setSettingsOpen((o) => !o)}
-                        style={{ fontSize: '0.8rem', color: 'var(--ed-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                    >
-                        <span aria-hidden="true">⚙</span> Advanced settings
-                    </button>
-                    {settingsOpen && (
-                        <div style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--ed-text-strong)' }}>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                                <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                    Min:
-                                    <input
-                                        type="number"
-                                        value={config.min}
-                                        disabled={!isEditable}
-                                        step="any"
-                                        style={{ width: '4rem' }}
-                                        onChange={(e) => setConfig({ min: num(e.target.value, config.min) })}
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                    />
-                                </label>
-                                <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                    Max:
-                                    <input
-                                        type="number"
-                                        value={config.max}
-                                        disabled={!isEditable}
-                                        step="any"
-                                        style={{ width: '4rem' }}
-                                        onChange={(e) => setConfig({ max: num(e.target.value, config.max) })}
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                    />
-                                </label>
-                                <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                    Tick step:
-                                    <input
-                                        type="number"
-                                        value={config.tickStep}
-                                        min={0}
-                                        disabled={!isEditable}
-                                        step="any"
-                                        style={{ width: '4rem' }}
-                                        onChange={(e) => setConfig({ tickStep: Math.max(0.0001, num(e.target.value, config.tickStep)) })}
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                    />
-                                </label>
-                                <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                    Tolerance:
-                                    <input
-                                        type="number"
-                                        value={interaction.tolerance}
-                                        min={0}
-                                        disabled={!isEditable}
-                                        step="any"
-                                        style={{ width: '4rem' }}
-                                        onChange={(e) => updateAttributes({ interaction: { ...interaction, tolerance: Math.max(0, num(e.target.value, interaction.tolerance)) } })}
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                    />
-                                </label>
-                                <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={config.snapToTick}
-                                        disabled={!isEditable}
-                                        onChange={(e) => setConfig({ snapToTick: e.target.checked })}
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                    />
-                                    Snap to tick
-                                </label>
-                            </div>
-
-                            <div>
-                                <span style={{ display: 'block', marginBottom: '0.2rem' }}>Worked solution</span>
-                                <InlineRichTextEditor
-                                    value={solution}
-                                    onChange={(nodes) => updateAttributes({ solution: nodes.length > 0 ? nodes : null })}
-                                    ariaLabel="Worked solution"
-                                />
-                            </div>
-
-                            <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={hasConfidenceRating}
-                                    disabled={!isEditable}
-                                    onChange={(e) => updateAttributes({ hasConfidenceRating: e.target.checked })}
-                                    onKeyDown={(e) => e.stopPropagation()}
-                                />
-                                Ask for a confidence rating
-                            </label>
-                        </div>
-                    )}
-                </div>
-            )}
+            <QuestionSettingsSummary
+                hasSolution={solution.length > 0}
+                hasConfidenceRating={hasConfidenceRating}
+                workSpace={null}
+            />
         </NodeViewWrapper>
     );
 }

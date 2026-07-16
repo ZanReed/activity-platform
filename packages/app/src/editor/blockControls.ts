@@ -6,6 +6,7 @@ import { renderRubricField } from './components/RubricEditor';
 import { renderSolutionField } from './components/QuestionSettings';
 import { renderDataPlotSettings } from './components/DataPlotSettings';
 import { renderGraphSettings } from './components/GraphSettings';
+import { renderNumberLineSettings } from './components/NumberLineSettings';
 import { Copy, Trash2, Image as ImageIcon, Captions } from 'lucide-react';
 import { OPEN_IMAGE_POPOVER, type ImagePopoverFocus } from './extensions/Image';
 
@@ -426,7 +427,20 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
             },
         ],
     },
-    numberLine: { primary: [] },
+    // number_line settings (line window + tolerance + snap + solution +
+    // confidence) → one custom drawer field (NumberLineSettings), same pattern
+    // as data_plot / interactive_graph.
+    numberLine: {
+        primary: [],
+        advanced: [
+            {
+                group: 'Settings',
+                fields: [
+                    { kind: 'custom', label: 'Number line settings', render: renderNumberLineSettings },
+                ],
+            },
+        ],
+    },
     // data_plot settings are interaction-dependent (bin width / tolerance /
     // graded-only fields), so the whole panel is one custom drawer field.
     dataPlot: {

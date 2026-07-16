@@ -17,6 +17,47 @@ import type { InlineNodes } from '../../lib/serialize';
 // and that summary.
 // ============================================================================
 
+/**
+ * A drawer toggle row (checkbox + label + optional help), matching the typed
+ * AdvancedDrawer fields' formatting. Shared by the custom settings panels
+ * (GraphSettings / DataPlotSettings / NumberLineSettings).
+ */
+export function ToggleRow({
+    checked,
+    disabled,
+    onChange,
+    label,
+    help,
+    indent,
+}: {
+    checked: boolean;
+    disabled: boolean;
+    onChange: (v: boolean) => void;
+    label: string;
+    help?: string;
+    indent?: boolean;
+}) {
+    return (
+        <label
+            className="block-advanced-drawer__field block-advanced-drawer__field--toggle"
+            style={indent ? { marginLeft: '1.2rem' } : undefined}
+        >
+            <input
+                type="checkbox"
+                checked={checked}
+                disabled={disabled}
+                onChange={(e) => onChange(e.target.checked)}
+            />
+            <span className="block-advanced-drawer__field-text">
+                <span className="block-advanced-drawer__label">{label}</span>
+                {help ? (
+                    <span className="block-advanced-drawer__help">{help}</span>
+                ) : null}
+            </span>
+        </label>
+    );
+}
+
 /** The drawer's Worked-solution field (custom kind, like renderRubricField). */
 export function renderSolutionField({
     editor,

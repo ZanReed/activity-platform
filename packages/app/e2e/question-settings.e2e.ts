@@ -242,3 +242,30 @@ test('data-plot: inline settings bar gone; settings live in the drawer', async (
         min: -3,
     });
 });
+
+test('number-line: inline settings bar gone; settings live in the drawer', async ({
+    page,
+}) => {
+    await insertAndSelect(page, 'insertNumberLine', 'numberLine');
+    // The old inline "⚙ Advanced settings" disclosure is gone.
+    await expect(
+        page.getByRole('button', { name: 'Advanced settings' }),
+    ).toHaveCount(0);
+    // Gear → Advanced → the Number line panel with Min/Max/Tick + Snap toggle.
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    const drawer = page.locator(DRAWER);
+    const min = drawer.getByLabel('Line minimum');
+    await expect(min).toBeVisible();
+    await min.fill('-8');
+    await min.blur();
+    expect(await attrOfFirst(page, 'numberLine', 'config')).toMatchObject({
+        min: -8,
+    });
+    // Snap-to-tick toggle writes.
+    await drawer.getByRole('checkbox', { name: 'Snap to tick' }).uncheck();
+    expect(
+        (await attrOfFirst(page, 'numberLine', 'config') as { snapToTick: boolean })
+            .snapToTick,
+    ).toBe(false);
+});
