@@ -808,6 +808,10 @@
 }
 
 .block-advanced-drawer__field--toggle {
+    /* A toggle reads as "checkbox + its label", so the box sits directly next
+     * to the text — NOT space-between (that stranded the box on the far left,
+     * the label on the far right, with a confusing gap between). */
+    justify-content: flex-start;
     align-items: flex-start;
     cursor: pointer;
 }
