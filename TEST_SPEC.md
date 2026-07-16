@@ -3,7 +3,10 @@
 `test-spec v1 · 2026-07-17` · single source of truth for what must be proven. Tests are built
 FROM this file; amend per slice, never clobber.
 
-**Graph-extraction slice: RATIFIED 2026-07-17.** Ratified calls (see RATIFICATION_LOG.md):
+**Graph-extraction slice: RATIFIED + BUILT + GREEN 2026-07-17** (`ffa0116` + `44c7ea3`).
+13 e2e in `packages/app/e2e/graph-settings.e2e.ts` (all 5 INV1 per-type + P6/P7/S1/S3/S7/S8/E1);
+U1 covered by existing `serialize.test.ts`. Acceptance scenario green across all types. **Owed:
+the author's manual QA pass** (per D6). Ratified calls (see RATIFICATION_LOG.md):
 D4 → cover all 6 interaction types; D5 → convert axis fields to DraftNumberInput (fix the
 fight bug in-flight, +no-NaN test); D6 → skip list confirmed (drawer layout, validator error
 copy, board-render effect, index-keyed mistake editor → owner manual pass).

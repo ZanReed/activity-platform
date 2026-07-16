@@ -55,20 +55,21 @@ eng-review items.
    "not working anymore." VERIFY in browser first (uses `mountGraphDisplay`,
    the lazy kit — likely a kit-load issue, probably NOT caused by the MC pass).
 
-## Group 2 — settings coherence (app-only) — MOSTLY DONE (2026-07-16)
+## Group 2 — settings coherence (app-only) — DONE (2026-07-17)
 
-Status: **blank popover reorg** (`0cc3893`), **data-plot → drawer** (`9b3925d`),
-**interactive-graph prompt-on-top** (`0a53e60`) all SHIPPED. Image + auto-feedback
-default-flip moved to Group 3 (see below). **One piece remains: the
-interactive-graph settings → drawer extraction** — flagged as its own pass
-because it's the largest, most interwoven refactor in the app:
-`firstModel`/`firstRay`/`firstSegment`/`firstRegion`, `setAxis`, `ToleranceRow`,
-and the mistake-feedback helpers are shared between the board/answer logic AND
-the settings, and the write-path (`updateAttributes` → `pos`-based `setNodeAttr`)
-must be converted across all 6 interaction types. Do it as a dedicated,
-well-tested commit (extract shared helpers to a module first; test every
-interaction type's settings). The auto-feedback TOGGLE moves into the drawer as
-part of that extraction; its default-flip is Group 3 (redeploy).
+Status: **COMPLETE.** blank popover reorg (`0cc3893`), data-plot → drawer
+(`9b3925d`), interactive-graph prompt-on-top (`0a53e60`), and the
+**interactive-graph settings → drawer extraction** (`ffa0116` helpers +
+`44c7ea3` the migration) all SHIPPED. Image + auto-feedback default-flip moved to
+Group 3. The extraction went through /plan-eng-review (CLEARED) → /test-spec
+(RATIFIED, TEST_SPEC.md) → build in 2 green commits: `graphAnswerHelpers.ts` leaf
+module (shared first* accessors), then `GraphSettings.tsx` custom drawer field +
+delete inline bar + summary readout, axis fields converted to DraftNumberInput
+(ratified D5), auto-feedback toggle relocated (stays default-on). 13 graph e2e
+(all 5 INV1 per-type type-preservation checks + P6/P7/S1/S3/S7/S8/E1); serialize
+round-trip (U1) covered by existing tests. **OWED: the author's manual QA pass**
+(D6 skip list — drawer layout eyeball, rich editors accept input, predict-then-run
+on one type, break-it on a tolerance write).
 
 - Migrate **interactive_graph + data_plot + image** block-level settings into
   the descriptor drawer; delete their bespoke inline "⚙ Advanced settings"
