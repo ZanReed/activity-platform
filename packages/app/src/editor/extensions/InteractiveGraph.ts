@@ -194,22 +194,10 @@ export function defaultSegmentInteraction(): SegmentInteractionAttr {
 // A fresh display interaction — one point + one line so the author sees the
 // figure immediately and can add/remove/edit drawables.
 export function defaultDisplayInteraction(): DisplayInteractionAttr {
-    return {
-        type: 'display',
-        drawables: [
-            { kind: 'point', at: [2, 3] },
-            {
-                kind: 'curve',
-                model: {
-                    family: 'linear',
-                    slope: 1,
-                    intercept: 0,
-                    slopeTolerance: 0.1,
-                    interceptTolerance: 0.1,
-                },
-            },
-        ],
-    };
+    // Start blank — an empty coordinate plane. The seeded point + line read as
+    // "why is this here?"; a math teacher adds the figure they want. Add figures
+    // from the block's settings (the figure editor lives in the drawer).
+    return { type: 'display', drawables: [] };
 }
 
 // A fresh plot_function interaction (a single linear curve, y = x) — used when

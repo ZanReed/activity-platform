@@ -318,7 +318,7 @@ function GraphAuthorBoard({
                 width: '100%',
                 maxWidth: '22rem',
                 aspectRatio: '1 / 1',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--ed-border-strong)',
                 borderRadius: 6,
                 background: '#fff',
                 touchAction: 'none',
@@ -739,7 +739,7 @@ export default function InteractiveGraphView({
         <div style={{ marginTop: '0.5rem', marginBottom: isDisplay ? 0 : '0.5rem' }}>
             <span
                 contentEditable={false}
-                style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#94a3b8' }}
+                style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--ed-faint)' }}
             >
                 {isDisplay ? 'Caption (optional)' : 'Question prompt'}
             </span>
@@ -754,10 +754,10 @@ export default function InteractiveGraphView({
         >
             <div contentEditable={false} style={{ userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                    <strong style={{ fontSize: '0.85rem', color: '#334155' }}>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--ed-text-strong)' }}>
                         {isDisplay ? 'Static graph' : `${problemNumber}. Interactive graph`}
                     </strong>
-                    <label style={{ fontSize: '0.8rem', color: '#475569' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--ed-text-secondary)' }}>
                         {' '}Type:{' '}
                         <select
                             // plot_ray and plot_segment share ONE picker entry — the
@@ -799,7 +799,7 @@ export default function InteractiveGraphView({
                 ) : (
                     <>
                         {columnsCount >= 3 && (
-                            <p role="status" style={{ margin: '0 0 0.35rem', fontSize: '0.75rem', color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '0.25rem 0.5rem' }}>
+                            <p role="status" style={{ margin: '0 0 0.35rem', fontSize: '0.75rem', color: 'var(--ed-warning-text-strong)', background: 'var(--ed-warning-bg)', border: '1px solid var(--ed-warning-border)', borderRadius: 4, padding: '0.25rem 0.5rem' }}>
                                 This graph sits in a {columnsCount}-column layout — it may be cramped
                                 on paper or a Chromebook. Two columns (or full width) reads better.
                             </p>
@@ -813,7 +813,7 @@ export default function InteractiveGraphView({
                             formulaEpoch={formulaEpoch}
                         />
 
-                        <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                        <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
                             {interaction.type === 'plot_point'
                                 ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} — or type the answer below. `
                                 : interaction.type === 'shade_region'
@@ -868,7 +868,7 @@ export default function InteractiveGraphView({
                 )}
 
                 {interaction.type === 'plot_point' && (
-                    <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
+                    <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: 'var(--ed-text-secondary)' }}>
                         Points students plot:{' '}
                         <input
                             type="number"
@@ -883,7 +883,7 @@ export default function InteractiveGraphView({
                     </label>
                 )}
                 {interaction.type === 'shade_region' && (
-                    <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: '#475569' }}>
+                    <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: 'var(--ed-text-secondary)' }}>
                         Polygon vertices:{' '}
                         <input
                             type="number"
@@ -962,7 +962,7 @@ function DisplayPreviewBoard({
                 width: '100%',
                 maxWidth: '22rem',
                 aspectRatio: '1 / 1',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--ed-border-strong)',
                 borderRadius: 6,
                 background: '#fff',
             }}

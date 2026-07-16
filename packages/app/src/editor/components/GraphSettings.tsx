@@ -185,7 +185,7 @@ function GraphSettingsPanel({
                 flexDirection: 'column',
                 gap: '0.5rem',
                 fontSize: '0.8rem',
-                color: '#334155',
+                color: 'var(--ed-text-strong)',
             }}
         >
             {/* Axis window — fields converted to DraftNumberInput (ratified D5)
@@ -338,7 +338,7 @@ function GraphSettingsPanel({
 
                     {/* Mistake feedback: built-in classifier toggle (auto-feedback,
                         stays default-on) + authored anticipated mistakes. */}
-                    <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '0.4rem' }}>
+                    <div style={{ borderTop: '1px dashed var(--ed-border)', paddingTop: '0.4rem' }}>
                         <span style={{ display: 'block', marginBottom: '0.2rem', fontWeight: 600 }}>Mistake feedback</span>
                         <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                             <input type="checkbox" checked={node.attrs.builtinFeedback !== false} disabled={!isEditable}
@@ -346,7 +346,7 @@ function GraphSettingsPanel({
                             Built-in nudges for common mistakes (swapped coordinates, wrong side, …)
                         </label>
                         {mistakeEntries.map((entry, i) => (
-                            <div key={i} style={{ marginTop: '0.4rem', padding: '0.4rem', border: '1px solid #e2e8f0', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                            <div key={i} style={{ marginTop: '0.4rem', padding: '0.4rem', border: '1px solid var(--ed-border)', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                                 <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                                     <span style={{ whiteSpace: 'nowrap' }}>If the answer is</span>
                                     <input
@@ -363,13 +363,13 @@ function GraphSettingsPanel({
                                         type="button"
                                         disabled={!isEditable}
                                         onClick={() => removeMistakeEntry(i)}
-                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.78rem' }}
+                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ed-danger-2)', fontSize: '0.78rem' }}
                                     >
                                         Remove
                                     </button>
                                 </div>
                                 {mistakeMatchError(entry.match) && (
-                                    <p role="status" style={{ margin: 0, fontSize: '0.72rem', color: '#b45309' }}>
+                                    <p role="status" style={{ margin: 0, fontSize: '0.72rem', color: 'var(--ed-warning-text-strong)' }}>
                                         {mistakeMatchError(entry.match)}
                                     </p>
                                 )}
@@ -384,7 +384,7 @@ function GraphSettingsPanel({
                             type="button"
                             disabled={!isEditable}
                             onClick={addMistakeEntry}
-                            style={{ marginTop: '0.35rem', fontSize: '0.75rem', padding: '0.15rem 0.5rem', border: '1px solid #cbd5e1', borderRadius: 4, background: '#f8fafc', cursor: 'pointer', color: '#334155' }}
+                            style={{ marginTop: '0.35rem', fontSize: '0.75rem', padding: '0.15rem 0.5rem', border: '1px solid var(--ed-border-strong)', borderRadius: 4, background: 'var(--ed-surface)', cursor: 'pointer', color: 'var(--ed-text-strong)' }}
                         >
                             + Anticipated mistake
                         </button>
