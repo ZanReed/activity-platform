@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-    NodeViewWrapper,
-    NodeViewContent,
-    type NodeViewProps,
-} from '@tiptap/react';
+import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import {
     mountNumberLineAuthor,
     type NumberLineAuthorHandle,
     type StudentInterval,
 } from '@activity/graph-kit';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
+import PromptField from '../components/PromptField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
 import {
@@ -328,7 +325,11 @@ export default function NumberLineView({
                 >
                     Question prompt
                 </span>
-                <NodeViewContent className="number-line-block__prompt" />
+                <PromptField
+                    node={node}
+                    className="number-line-block__prompt"
+                    placeholder="Type the question…"
+                />
             </div>
 
             <div contentEditable={false} style={{ userSelect: 'none' }}>

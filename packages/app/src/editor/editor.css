@@ -2910,6 +2910,23 @@ img.mc-block__figure-preview {
     color: var(--ed-text);
 }
 
+/* PromptField — ghost placeholder on an empty prompt (the signifier that a
+ * bare prompt was missing). Absolutely positioned so it overlays the empty
+ * content's first line without pushing layout; vanishes once content exists. */
+.prompt-field {
+    position: relative;
+}
+.prompt-field--empty::before {
+    content: attr(data-placeholder);
+    position: absolute;
+    top: 0;
+    left: 0;
+    line-height: 1.6;
+    color: var(--ed-faint); /* slate-400 — clearly inert hint */
+    pointer-events: none;
+    user-select: none;
+}
+
 .free-response-block__preview {
     display: block;
     width: 100%;

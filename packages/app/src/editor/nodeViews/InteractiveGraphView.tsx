@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-    NodeViewWrapper,
-    NodeViewContent,
-    type NodeViewProps,
-} from '@tiptap/react';
+import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
+import PromptField from '../components/PromptField';
 import {
     mountGraphAuthor,
     mountGraphDisplay,
@@ -743,7 +740,11 @@ export default function InteractiveGraphView({
             >
                 {isDisplay ? 'Caption (optional)' : 'Question prompt'}
             </span>
-            <NodeViewContent className="interactive-graph-block__prompt" />
+            <PromptField
+                node={node}
+                className="interactive-graph-block__prompt"
+                placeholder={isDisplay ? 'Add a caption…' : 'Type the question…'}
+            />
         </div>
     );
 

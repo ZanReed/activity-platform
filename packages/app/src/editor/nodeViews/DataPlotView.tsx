@@ -1,11 +1,8 @@
 import { useMemo, useState } from 'react';
-import {
-    NodeViewWrapper,
-    NodeViewContent,
-    type NodeViewProps,
-} from '@tiptap/react';
+import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { renderDataPlotSvg, fiveNumberSummary } from '@activity/renderer';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
+import PromptField from '../components/PromptField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
 import {
@@ -128,7 +125,11 @@ export default function DataPlotView({
             >
                 {isGraded ? 'Question prompt' : 'Caption (optional)'}
             </span>
-            <NodeViewContent className="data-plot-block__prompt" />
+            <PromptField
+                node={node}
+                className="data-plot-block__prompt"
+                placeholder={isGraded ? 'Type the question…' : 'Add a caption…'}
+            />
         </div>
     );
 
