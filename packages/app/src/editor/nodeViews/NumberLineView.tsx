@@ -128,12 +128,12 @@ function NumberLineAuthorBoard({
         <div
             ref={hostRef}
             contentEditable={false}
-            style={{ position: 'relative', height: '6rem', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }}
+            style={{ position: 'relative', height: '6rem', border: '1px solid var(--ed-border)', borderRadius: 6, background: '#fff' }}
         />
     );
 }
 
-const labelStyle = { fontSize: '0.8rem', color: '#475569' } as const;
+const labelStyle = { fontSize: '0.8rem', color: 'var(--ed-text-secondary)' } as const;
 
 export default function NumberLineView({
     node,
@@ -261,10 +261,10 @@ export default function NumberLineView({
                 font: 'inherit',
                 fontSize: '0.75rem',
                 padding: '0.15rem 0.5rem',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--ed-border-strong)',
                 borderRadius: 999,
-                background: intervalShape === shape ? '#2563eb' : '#fff',
-                color: intervalShape === shape ? '#fff' : 'inherit',
+                background: intervalShape === shape ? 'var(--ed-accent-strong)' : 'var(--ed-canvas)',
+                color: intervalShape === shape ? '#fff' : 'inherit', /* white on accent */
                 cursor: isEditable ? 'pointer' : 'default',
             }}
         >
@@ -307,7 +307,7 @@ export default function NumberLineView({
         >
             <div contentEditable={false} style={{ userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                    <strong style={{ fontSize: '0.85rem', color: '#334155' }}>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--ed-text-strong)' }}>
                         {problemNumber}. Number line
                     </strong>
                     <label style={labelStyle}>
@@ -323,7 +323,20 @@ export default function NumberLineView({
                         </select>
                     </label>
                 </div>
+            </div>
 
+            {/* The question prompt sits ABOVE the board (like the graphs). */}
+            <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                <span
+                    contentEditable={false}
+                    style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--ed-faint)' }}
+                >
+                    Question prompt
+                </span>
+                <NodeViewContent className="number-line-block__prompt" />
+            </div>
+
+            <div contentEditable={false} style={{ userSelect: 'none' }}>
                 <NumberLineAuthorBoard
                     config={config}
                     interaction={interaction}
@@ -332,7 +345,7 @@ export default function NumberLineView({
                     onIntervalChange={onIntervalChange}
                 />
 
-                <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
                     {interaction.type === 'plot_point'
                         ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} — or type the ${interaction.correctPoints.length > 1 ? 'values' : 'value'} below.`
                         : 'Pick Segment / Ray → / Ray ← and drag the ends — exactly what students do. Or set the shape and bounds below.'}
@@ -391,27 +404,17 @@ export default function NumberLineView({
                 )}
             </div>
 
-            <div style={{ marginTop: '0.5rem' }}>
-                <span
-                    contentEditable={false}
-                    style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#94a3b8' }}
-                >
-                    Question prompt
-                </span>
-                <NodeViewContent className="number-line-block__prompt" />
-            </div>
-
             {(isEditable || solution.length > 0 || hasConfidenceRating) && (
-                <div contentEditable={false} style={{ marginTop: '0.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.4rem' }}>
+                <div contentEditable={false} style={{ marginTop: '0.5rem', borderTop: '1px solid var(--ed-border)', paddingTop: '0.4rem' }}>
                     <button
                         type="button"
                         onClick={() => setSettingsOpen((o) => !o)}
-                        style={{ fontSize: '0.8rem', color: '#475569', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        style={{ fontSize: '0.8rem', color: 'var(--ed-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     >
                         <span aria-hidden="true">⚙</span> Advanced settings
                     </button>
                     {settingsOpen && (
-                        <div style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem', color: '#334155' }}>
+                        <div style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--ed-text-strong)' }}>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                                 <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                                     Min:
