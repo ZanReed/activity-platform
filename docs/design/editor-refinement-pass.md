@@ -154,6 +154,39 @@ VERDICT: CLEARED. No CODEX / CROSS-MODEL run (app-only refactor, in-distribution
 
 NO UNRESOLVED DECISIONS
 
+## Graph authoring redirection (author, 2026-07-17) — REVERSES the drawer-move
+
+After the token-restyle + blank-start shipped, the author reconsidered the
+display-graph reshape. Two rulings + one reversal:
+
+- **REVERSAL: the figure/expression editor STAYS in the block body, NOT the
+  drawer.** Adding functions/points IS basic graphing, not a technical setting —
+  hiding it behind the gear fails "immediately accessible, no settings change."
+  The earlier "whole editor → drawer" call (2026-07-16 Q1) is OFF. (The token
+  restyle `abeb682` + blank start stand; only the drawer-move is reversed. The
+  caption-toggle call is unaffected but lower priority now.)
+- **Point 1 — full Desmos-style expression list (ratified).** Stop
+  differentiating "Point" vs "Curve" rows. The student/published graph just
+  digests and plots everything; the teacher authoring should match. Rebuild the
+  figure editor (`DrawableListEditor`) as ONE uniform list of text expressions
+  (type `y=x^2` or `(2,3)` per row, graphed live, no kind categories); per-kind
+  extras (point label, open dot, dashed curve) tuck behind a small per-row
+  affordance. The add box is already unified (`drawablesFromFreeform`); this
+  extends it to the rendered list. Biggest consistency win, biggest build.
+- **Point 2 — "preview as student" eye toggle on every graphing block
+  (ratified).** A small eye toggle (quick-bar / top-right) hides ALL authoring
+  (expression list + type picker + answer controls) → just the rendered graph,
+  as it appears in the activity. Per-block, session state. Apply to
+  interactive_graph, number_line, data_plot. **OPEN (confirm at build):** what
+  "student view" renders for a GRADED interactive graph — the empty plottable
+  student board (`mountGraphDisplay`-style) vs. the current author board minus
+  chrome. For DISPLAY it's unambiguous (hide list → show figure).
+
+Both are their own focused build (the Desmos rebuild is large + may touch the
+graph-kit expression-list engine). Suggested order: preview toggle first
+(app-only, contained, immediately useful), then the Desmos expression-list
+rebuild (consider /plan-eng-review — it reworks authoring + possibly the kit).
+
 ## Group 3 — new interactions (some schema/redeploy)
 
 - **Image crop mode** (a button → enter crop → drag a frame). Height folds in.
