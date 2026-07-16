@@ -28,6 +28,13 @@ import { problemNumberAt } from '../problemNumbering';
 import { formatCurveDomain } from '../../lib/graphDomain';
 import { routeCurveFormula } from './boundedCurveLogic';
 import {
+    firstInequality,
+    firstModel,
+    firstRay,
+    firstRegion,
+    firstSegment,
+} from './graphAnswerHelpers';
+import {
     defaultDisplayInteraction,
     defaultFunctionInteraction,
     defaultInequalityInteraction,
@@ -40,11 +47,7 @@ import {
     type GraphAxisConfig,
     type GraphInteraction,
     type GraphMistakeEntry,
-    type RayAnswerAttr,
-    type SegmentAnswerAttr,
     type InequalityAnswerAttr,
-    type LinearFunctionModel,
-    type RegionAnswerAttr,
 } from '../extensions/InteractiveGraph';
 
 type InteractionType = GraphInteraction['type'];
@@ -149,29 +152,8 @@ function functionStartPoints(
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
-// plot_function / shade_region carry ARRAYS of answer objects (systems); the
-// current authoring UI edits a SINGLE curve/region — models[0] / regions[0].
-// The function UI is linear-only (Drop 2); other families arrive via freeform
-// equation entry (Drop 3) with their own UI, so coerce a non-linear/absent
-// models[0] to a default linear line here.
-const DEFAULT_LINEAR: LinearFunctionModel = {
-    family: 'linear', slope: 1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1,
-};
-function firstModel(models: FunctionModelAttr[]): FunctionModelAttr {
-    return models[0] ?? DEFAULT_LINEAR;
-}
-function firstRegion(regions: RegionAnswerAttr[]): RegionAnswerAttr {
-    return regions[0] ?? { correctVertices: [], minOverlap: 0.9 };
-}
-function firstInequality(list: InequalityAnswerAttr[]): InequalityAnswerAttr {
-    return list[0] ?? { boundary: DEFAULT_LINEAR, strict: true, shadeSide: 'above' };
-}
-function firstRay(rays: RayAnswerAttr[]): RayAnswerAttr {
-    return rays[0] ?? { from: [0, 0], through: [3, 3], fromStyle: 'closed', tolerance: 0.25 };
-}
-function firstSegment(list: SegmentAnswerAttr[]): SegmentAnswerAttr {
-    return list[0] ?? { from: [-2, 0], to: [3, 2], endpoints: ['closed', 'closed'], tolerance: 0.25 };
-}
+// The "first answer, or a default" accessors live in graphAnswerHelpers (a leaf
+// module shared with GraphSettings — see its header). Imported above.
 
 // The canonical inequality string: formatModel's equation with `=` swapped for
 // the operator the side + strictness imply. Reparseable by parseGraphFormula.
