@@ -5,8 +5,7 @@ import {
     type NodeViewProps,
 } from '@tiptap/react';
 import { renderDataPlotSvg, fiveNumberSummary } from '@activity/renderer';
-import InlineRichTextEditor from '../components/InlineRichTextEditor';
-import DraftNumberInput from '../components/DraftNumberInput';
+import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
 import {
@@ -68,8 +67,6 @@ export default function DataPlotView({
     updateAttributes,
     selected,
 }: NodeViewProps) {
-    const [settingsOpen, setSettingsOpen] = useState(false);
-
     const data = node.attrs.data as number[];
     const config = node.attrs.config as DataPlotConfigAttr;
     const interaction = node.attrs.interaction as DataPlotInteractionAttr;
@@ -98,10 +95,6 @@ export default function DataPlotView({
         () => renderDataPlotSvg(config, chart, data, node.attrs.id || 'preview'),
         [config, chart, data, node.attrs.id],
     );
-
-    const setConfig = (patch: Partial<DataPlotConfigAttr>): void => {
-        updateAttributes({ config: { ...config, ...patch } });
-    };
 
     const onDataText = (text: string): void => {
         setDataText(text);
@@ -195,71 +188,12 @@ export default function DataPlotView({
                 <NodeViewContent className="data-plot-block__prompt" />
             </div>
 
-            {(isEditable || solution.length > 0 || hasConfidenceRating) && (
-                <div contentEditable={false} style={{ marginTop: '0.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.4rem' }}>
-                    <button
-                        type="button"
-                        onClick={() => setSettingsOpen((o) => !o)}
-                        style={{ fontSize: '0.8rem', color: '#475569', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                    >
-                        <span aria-hidden="true">⚙</span> Advanced settings
-                    </button>
-                    {settingsOpen && (
-                        <div style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem', color: '#334155' }}>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                                <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                    Min:
-                                    <DraftNumberInput value={config.min} disabled={!isEditable} style={{ width: '4rem' }}
-                                        onCommit={(v) => setConfig({ min: v })} ariaLabel="Axis minimum" />
-                                </label>
-                                <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                    Max:
-                                    <DraftNumberInput value={config.max} disabled={!isEditable} style={{ width: '4rem' }}
-                                        onCommit={(v) => setConfig({ max: v })} ariaLabel="Axis maximum" />
-                                </label>
-                                <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                    Tick step:
-                                    <DraftNumberInput value={config.tickStep} min={0.0001} disabled={!isEditable} style={{ width: '4rem' }}
-                                        onCommit={(v) => setConfig({ tickStep: v })} ariaLabel="Tick step" />
-                                </label>
-                                {chart === 'histogram' && (
-                                    <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                        Bin width:
-                                        <DraftNumberInput value={config.binWidth ?? config.tickStep} min={0.0001} disabled={!isEditable} style={{ width: '4rem' }}
-                                            onCommit={(v) => setConfig({ binWidth: v })} ariaLabel="Bin width" />
-                                    </label>
-                                )}
-                                {interaction.type === 'build_boxplot' && (
-                                    <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                        Tolerance:
-                                        {/* Blank tolerance reads as 0 (exact match). */}
-                                        <DraftNumberInput value={interaction.tolerance} min={0} onEmpty={0} disabled={!isEditable} style={{ width: '4rem' }}
-                                            onCommit={(v) => updateAttributes({ interaction: { ...interaction, tolerance: v } })} ariaLabel="Tolerance" />
-                                    </label>
-                                )}
-                            </div>
-
-                            {isGraded && (
-                                <>
-                                    <div>
-                                        <span style={{ display: 'block', marginBottom: '0.2rem' }}>Worked solution</span>
-                                        <InlineRichTextEditor
-                                            value={solution}
-                                            onChange={(nodes) => updateAttributes({ solution: nodes.length > 0 ? nodes : null })}
-                                            ariaLabel="Worked solution"
-                                        />
-                                    </div>
-                                    <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                        <input type="checkbox" checked={hasConfidenceRating} disabled={!isEditable}
-                                            onChange={(e) => updateAttributes({ hasConfidenceRating: e.target.checked })}
-                                            onKeyDown={(e) => e.stopPropagation()} />
-                                        Ask for a confidence rating
-                                    </label>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
+            {isGraded && (
+                <QuestionSettingsSummary
+                    hasSolution={solution.length > 0}
+                    hasConfidenceRating={hasConfidenceRating}
+                    workSpace={null}
+                />
             )}
         </NodeViewWrapper>
     );

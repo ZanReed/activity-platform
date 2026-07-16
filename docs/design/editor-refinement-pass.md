@@ -68,7 +68,19 @@ eng-review items.
   mistake feedback under an "Advanced options" disclosure**. (Partially reverses
   the 2026-07-14 "collapse acceptable answers under More options" call — but in a
   principled way: core answer config visible, pedagogical extras hidden.)
-- **Image:** caption/alt → drawer, Edit primary removed (per ruling).
+- ~~**Image:** caption/alt → drawer, Edit primary removed.~~ **MOVED to Group 3**
+  (2026-07-16): the image popover bundles source + caption + width + height, and
+  Group 3 reworks width/height into drag-handle scale + crop mode. Splitting just
+  caption→drawer now leaves a half-migrated popover; the image block is done
+  wholesale in Group 3 (caption→drawer + Edit-primary-removed + scale-drag +
+  crop) as one coherent redesign.
+
+Implementation note: data-plot and interactive-graph settings are
+interaction-dependent (bin-width for histograms only, tolerance for boxplots,
+solution/confidence when graded), which the static typed-field model can't
+express. Each block's settings panel is extracted into a single `custom`
+drawer field (the drawer kind that exists for exactly this) and the inline
+"⚙ Advanced settings" bar deleted — same gear→drawer flow as the typed blocks.
 
 ## Group 3 — new interactions (some schema/redeploy)
 

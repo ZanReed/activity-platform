@@ -221,3 +221,24 @@ test('matching gets the Reuse options simple toggle', async ({ page }) => {
     await toggle.click();
     expect(await attrOfFirst(page, 'matching', 'allowTargetReuse')).toBe(true);
 });
+
+test('data-plot: inline settings bar gone; settings live in the drawer', async ({
+    page,
+}) => {
+    await insertAndSelect(page, 'insertDataPlot', 'dataPlot');
+    // The old inline "⚙ Advanced settings" disclosure is gone.
+    await expect(
+        page.getByRole('button', { name: 'Advanced settings' }),
+    ).toHaveCount(0);
+    // Gear → Advanced → the Chart custom panel with Min/Max/Tick.
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    const drawer = page.locator(DRAWER);
+    const min = drawer.getByLabel('Axis minimum');
+    await expect(min).toBeVisible();
+    await min.fill('-3');
+    await min.blur();
+    expect(await attrOfFirst(page, 'dataPlot', 'config')).toMatchObject({
+        min: -3,
+    });
+});

@@ -4,6 +4,7 @@ import type { Node as PMNode } from '@tiptap/pm/model';
 import type { LucideIcon } from 'lucide-react';
 import { renderRubricField } from './components/RubricEditor';
 import { renderSolutionField } from './components/QuestionSettings';
+import { renderDataPlotSettings } from './components/DataPlotSettings';
 import { Copy, Trash2, Image as ImageIcon, Captions } from 'lucide-react';
 import { OPEN_IMAGE_POPOVER, type ImagePopoverFocus } from './extensions/Image';
 
@@ -413,7 +414,19 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     ordering: { primary: [], advanced: questionAdvanced },
     interactiveGraph: { primary: [] },
     numberLine: { primary: [] },
-    dataPlot: { primary: [] },
+    // data_plot settings are interaction-dependent (bin width / tolerance /
+    // graded-only fields), so the whole panel is one custom drawer field.
+    dataPlot: {
+        primary: [],
+        advanced: [
+            {
+                group: 'Chart',
+                fields: [
+                    { kind: 'custom', label: 'Chart', render: renderDataPlotSettings },
+                ],
+            },
+        ],
+    },
 
     // Batch 3 — popover-host / atom blocks. fill_in_blank is edited inline (type
     // {{blanks}}) → no primary. image DOES need one: clicking selects the atom,

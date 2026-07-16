@@ -47,6 +47,30 @@ async function insertAndCaret(page: Page, cmd: string, type: string) {
 
 const quickbar = '.block-quickbar';
 
+// Node-select the first data_plot, open its command-bar settings, then the
+// Advanced drawer (the data_plot settings moved here from the inline bar).
+async function openDataPlotDrawer(page: Page) {
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        let pos: number | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.descendants((node: any, p: number) => {
+            if (pos === null && node.type.name === 'dataPlot') pos = p;
+            return pos === null;
+        });
+        ed.commands.setNodeSelection(pos);
+    });
+    await page
+        .locator('.block-command-bar')
+        .getByRole('button', { name: 'Settings', exact: true })
+        .click();
+    await page
+        .locator('.block-command-bar')
+        .getByRole('button', { name: 'Advanced' })
+        .click();
+}
+
 test('learning objectives shows no quick-bar gear (no settings)', async ({
     page,
 }) => {
@@ -94,7 +118,7 @@ test('data-plot tick step draft: clearing then blurring restores the value', asy
         });
         return cfg as { tickStep: number };
     });
-    await page.getByRole('button', { name: 'Advanced settings' }).click();
+    await openDataPlotDrawer(page);
     const tick = page.getByLabel('Tick step');
     await tick.fill('');
     await tick.blur();
@@ -140,7 +164,7 @@ test('data-plot boxplot tolerance: a blank field commits 0', async ({ page }) =>
             })
             .run();
     });
-    await page.getByRole('button', { name: 'Advanced settings' }).click();
+    await openDataPlotDrawer(page);
     const tol = page.getByLabel('Tolerance');
     await tol.fill('');
     await tol.blur();
