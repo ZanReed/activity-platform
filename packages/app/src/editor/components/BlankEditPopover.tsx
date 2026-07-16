@@ -135,14 +135,12 @@ export default function BlankEditPopover({
         initialTolerance !== undefined ? String(initialTolerance) : '',
     );
 
-    // "More options" holds the lower-frequency answer-matching controls
-    // (acceptable answers, interchangeable grouping). Collapsed by default so
-    // the common case — type the answer, optionally flag numeric — is all the
-    // teacher sees. Auto-expands when the blank already carries those values.
-    const [moreExpanded, setMoreExpanded] = useState(false);
-
-    const [hintExpanded, setHintExpanded] = useState(false);
-    const [feedbackExpanded, setFeedbackExpanded] = useState(false);
+    // Answer-matching controls (answer, numeric, acceptable answers, group
+    // ordering) are ALL always visible — they're core answer config a teacher
+    // sets while authoring. Only the pedagogical extras (hint + mistake
+    // feedback) collapse, under one "Advanced options" disclosure. Auto-opens
+    // when the blank already carries a hint or feedback.
+    const [advancedExpanded, setAdvancedExpanded] = useState(false);
 
     const [maxHeight, setMaxHeight] = useState<number | null>(null);
 
@@ -189,12 +187,12 @@ export default function BlankEditPopover({
             setToleranceDraft(
                 initialTolerance !== undefined ? String(initialTolerance) : '',
             );
-            setMoreExpanded(
-                initialAcceptableAnswers.length > 0 || initialInterchangeable,
-            );
-            setHintExpanded(Boolean(initialHint && initialHint.length > 0));
-            setFeedbackExpanded(
-                Boolean(initialMistakeFeedback && initialMistakeFeedback.length > 0),
+            setAdvancedExpanded(
+                Boolean(initialHint && initialHint.length > 0) ||
+                    Boolean(
+                        initialMistakeFeedback &&
+                            initialMistakeFeedback.length > 0,
+                    ),
             );
             answerRef.current = initialAnswer;
             acceptableRef.current = initialAcceptableAnswers;
@@ -611,9 +609,6 @@ export default function BlankEditPopover({
                     )}
                 </div>
 
-                <div className="blank-edit-popover__field">
-                    {moreExpanded ? (
-                        <>
                             <div className="blank-edit-popover__field">
                                 <span className="blank-edit-popover__label">
                                     Acceptable answers
@@ -692,21 +687,10 @@ export default function BlankEditPopover({
                                     </div>
                                 </div>
                             )}
-                        </>
-                    ) : (
-                        <button
-                            type="button"
-                            className="blank-edit-popover__add-section"
-                            onClick={() => setMoreExpanded(true)}
-                        >
-                            + More options
-                        </button>
-                    )}
-                </div>
 
-                <div className="blank-edit-popover__field">
-                    {hintExpanded ? (
-                        <>
+                {advancedExpanded ? (
+                    <>
+                        <div className="blank-edit-popover__field">
                             <span className="blank-edit-popover__label">Hint</span>
                             <div className="blank-edit-popover__sublabel">
                                 Shown when the student clicks the ? button.
@@ -718,21 +702,9 @@ export default function BlankEditPopover({
                                 onChange={commitHintNodes}
                                 ariaLabel="Hint"
                             />
-                        </>
-                    ) : (
-                        <button
-                            type="button"
-                            className="blank-edit-popover__add-section"
-                            onClick={() => setHintExpanded(true)}
-                        >
-                            + Add hint
-                        </button>
-                    )}
-                </div>
+                        </div>
 
-                <div className="blank-edit-popover__field">
-                    {feedbackExpanded ? (
-                        <>
+                        <div className="blank-edit-popover__field">
                             <span className="blank-edit-popover__label">
                                 Mistake feedback
                             </span>
@@ -800,17 +772,19 @@ export default function BlankEditPopover({
                                     );
                                 })}
                             </div>
-                        </>
-                    ) : (
+                        </div>
+                    </>
+                ) : (
+                    <div className="blank-edit-popover__field">
                         <button
                             type="button"
                             className="blank-edit-popover__add-section"
-                            onClick={() => setFeedbackExpanded(true)}
+                            onClick={() => setAdvancedExpanded(true)}
                         >
-                            + Add mistake feedback
+                            + Advanced options (hint, mistake feedback)
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 <div className="blank-edit-popover__hint-text">
                     Press Escape or click outside to close.

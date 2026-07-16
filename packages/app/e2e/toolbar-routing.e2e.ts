@@ -128,8 +128,10 @@ test('formatting a blank-popover hint from the toolbar keeps the popover open', 
     await chip.click();
     const popover = page.locator('.blank-edit-popover');
     await expect(popover).toBeVisible();
-    // The hint field sits behind its "+ Add hint" disclosure.
-    await popover.getByRole('button', { name: '+ Add hint' }).click();
+    // The hint field sits behind the "+ Advanced options" disclosure.
+    await popover
+        .getByRole('button', { name: /Advanced options/ })
+        .click();
     const hint = popover.locator('.inline-rte__content').first();
     await hint.click();
     await page.keyboard.type('think fractions');
