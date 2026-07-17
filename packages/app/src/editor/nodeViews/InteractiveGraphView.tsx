@@ -661,6 +661,50 @@ export default function InteractiveGraphView({
         setFormulaEpoch((e) => e + 1);
     };
 
+    // ---- plot_function SYSTEM authoring (models.length > 1) --------------------
+    // Each curve authored as a typed equation row; the whole `models` array is
+    // the answer key (already N-ready). A system drops per-curve domains (bounded
+    // curves are rays/segments now); N=1 keeps the rich single field + domains.
+    const applyModelAt = (i: number, raw: string): string | null => {
+        if (interaction.type !== 'plot_function') return 'Not a function question';
+        const parsed = parseGraphFormula(raw);
+        if (parsed.kind === 'error') return parsed.message;
+        if (parsed.kind !== 'function') return 'Type an equation, like y = 2x + 1 or y = x^2 - 4';
+        if (parsed.domain) return 'A curve in a system can’t have a range — remove the "for …" clause';
+        const next = interaction.models.map((m, k) => (k === i ? (parsed.model as FunctionModelAttr) : m));
+        updateAttributes({ interaction: { type: 'plot_function', models: next } });
+        setFormulaEpoch((e) => e + 1);
+        return null;
+    };
+
+    const addModel = (): void => {
+        if (interaction.type !== 'plot_function') return;
+        // Seed a sane new curve (y = x) the teacher then edits.
+        const seed: FunctionModelAttr = {
+            family: 'linear',
+            slope: 1,
+            intercept: 0,
+            slopeTolerance: 0.1,
+            interceptTolerance: 0.1,
+        };
+        // Growing to a system drops any per-curve domain (unsupported in a system).
+        updateAttributes({
+            interaction: { type: 'plot_function', models: [...interaction.models, seed] },
+        });
+        setFormulaEpoch((e) => e + 1);
+    };
+
+    const removeModelAt = (i: number): void => {
+        if (interaction.type !== 'plot_function' || interaction.models.length <= 1) return;
+        updateAttributes({
+            interaction: {
+                type: 'plot_function',
+                models: interaction.models.filter((_, k) => k !== i),
+            },
+        });
+        setFormulaEpoch((e) => e + 1);
+    };
+
     // Mistake feedback (Drop B): authored anticipated mistakes + helpers. The
     // match string uses the same freeform syntax as the answer field; a bad one
     // gets an inline warning but is still stored (it compiles to never-matching
@@ -717,6 +761,18 @@ export default function InteractiveGraphView({
                   model: ineq.boundary,
                   style: ineq.strict ? ('dashed' as const) : ('solid' as const),
                   shade: ineq.shadeSide,
+                  color: SYSTEM_PREVIEW_COLORS[i % SYSTEM_PREVIEW_COLORS.length],
+              }))
+            : [];
+    // A functions-system (plot_function with N > 1 models) previews as N plain
+    // curves (no shade) — the Phase 2 sibling of the inequality system preview.
+    const isFunctionSystem =
+        interaction.type === 'plot_function' && interaction.models.length > 1;
+    const functionPreviewDrawables: DrawableAttr[] =
+        interaction.type === 'plot_function'
+            ? interaction.models.map((m, i) => ({
+                  kind: 'curve' as const,
+                  model: m,
                   color: SYSTEM_PREVIEW_COLORS[i % SYSTEM_PREVIEW_COLORS.length],
               }))
             : [];
@@ -972,13 +1028,14 @@ export default function InteractiveGraphView({
                                 on paper or a Chromebook. Two columns (or full width) reads better.
                             </p>
                         )}
-                        {isSystem ? (
-                            // A system authors via the typed rows below; the board
-                            // is a static preview of the N shaded half-planes (the
-                            // single-boundary interactive author board can't hold N).
+                        {isSystem || isFunctionSystem ? (
+                            // A system authors via the typed rows below; the board is
+                            // a static preview of the N objects (the single-object
+                            // interactive author board can't hold N). Inequalities
+                            // shade half-planes; functions draw N plain curves.
                             <DisplayPreviewBoard
                                 axisConfig={axisConfig}
-                                drawables={systemPreviewDrawables}
+                                drawables={isSystem ? systemPreviewDrawables : functionPreviewDrawables}
                                 sizing={sizing}
                             />
                         ) : (
@@ -1051,6 +1108,59 @@ export default function InteractiveGraphView({
                                     + Add inequality
                                 </button>
                             </div>
+                        ) : !preview && isFunctionSystem && interaction.type === 'plot_function' ? (
+                            <div style={{ marginTop: '0.35rem' }}>
+                                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
+                                    Type each curve as an equation — students graph all of them. Drag
+                                    handles on a live page; the preview shows every curve.
+                                </p>
+                                {interaction.models.map((m, i) => (
+                                    <div
+                                        key={`model-row:${i}:${interaction.models.length}`}
+                                        style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', marginTop: '0.3rem' }}
+                                    >
+                                        <span
+                                            aria-hidden
+                                            style={{
+                                                width: '0.7rem', height: '0.7rem', borderRadius: 2, flex: 'none',
+                                                marginTop: '0.5rem',
+                                                background: SYSTEM_PREVIEW_HEX[SYSTEM_PREVIEW_COLORS[i % SYSTEM_PREVIEW_COLORS.length]!],
+                                            }}
+                                        />
+                                        <div style={{ flex: 1 }}>
+                                            <FormulaField
+                                                key={`model:${i}`}
+                                                label={`Curve ${i + 1}:`}
+                                                value={formatModel(m)}
+                                                disabled={!isEditable}
+                                                placeholder="y = 2x + 1   ·   y = x^2 - 4   ·   x = 3"
+                                                onApply={(raw) => applyModelAt(i, raw)}
+                                                modeKey="answer:plot_function"
+                                                defaultMode="math"
+                                            />
+                                        </div>
+                                        {interaction.models.length > 1 && (
+                                            <button
+                                                type="button"
+                                                disabled={!isEditable}
+                                                onClick={() => removeModelAt(i)}
+                                                title="Remove this curve"
+                                                style={{ font: 'inherit', fontSize: '0.75rem', padding: '0.15rem 0.4rem', marginTop: '0.35rem', border: '1px solid var(--ed-border)', borderRadius: 4, background: 'var(--ed-surface)', color: 'var(--ed-text-secondary)', cursor: 'pointer', flex: 'none' }}
+                                            >
+                                                Remove
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    disabled={!isEditable}
+                                    onClick={addModel}
+                                    style={{ font: 'inherit', fontSize: '0.78rem', marginTop: '0.4rem', padding: '0.2rem 0.55rem', border: '1px dashed var(--ed-border)', borderRadius: 4, background: 'transparent', color: 'var(--ed-text-secondary)', cursor: 'pointer' }}
+                                >
+                                    + Add curve
+                                </button>
+                            </div>
                         ) : !preview && (<>
                         <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
                             {interaction.type === 'plot_point'
@@ -1103,6 +1213,17 @@ export default function InteractiveGraphView({
                                       : undefined
                             }
                         />
+                        {interaction.type === 'plot_function' && (
+                            <button
+                                type="button"
+                                disabled={!isEditable}
+                                onClick={addModel}
+                                title="Ask students to graph more than one curve (a system)"
+                                style={{ font: 'inherit', fontSize: '0.78rem', marginTop: '0.4rem', padding: '0.2rem 0.55rem', border: '1px dashed var(--ed-border)', borderRadius: 4, background: 'transparent', color: 'var(--ed-text-secondary)', cursor: 'pointer' }}
+                            >
+                                + Add curve (make a system)
+                            </button>
+                        )}
                         </>)}
                     </>
                 )}
