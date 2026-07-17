@@ -174,6 +174,38 @@ describe('interactive graph block', () => {
         }
     });
 
+    it('GS-M7: round-trips a 2-inequality system (graph_inequality) unchanged', () => {
+        const mk = (interaction: unknown): JSONContent => ({
+            type: 'interactiveGraph',
+            attrs: {
+                id: 'sys',
+                axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
+                interaction,
+                solution: null,
+                hasConfidenceRating: false,
+                skills: [],
+            },
+            content: [{ type: 'text', text: 'Graph the system.' }],
+        });
+        const system = {
+            type: 'graph_inequality',
+            inequalities: [
+                { boundary: { family: 'linear', slope: 2, intercept: 1, slopeTolerance: 0.1, interceptTolerance: 0.1 }, strict: false, shadeSide: 'above' },
+                { boundary: { family: 'linear', slope: -1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1 }, strict: true, shadeSide: 'below' },
+            ],
+        };
+        const out = roundTrip({ type: 'doc', content: [mk(system)] });
+        const g = out.content!.find((n) => n.type === 'interactiveGraph')!;
+        expect(g.attrs!.interaction).toEqual(system);
+        const activity = tiptapToActivity({ type: 'doc', content: [mk(system)] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+        const block = flatBlocks(activity.sections[0]!).find((b) => b.type === 'interactive_graph');
+        expect(block).toBeDefined();
+        if (block && block.type === 'interactive_graph') {
+            expect(block.interaction).toEqual(system);
+        }
+    });
+
     it('serializes to a schema-valid interactive_graph block', () => {
         const activity = tiptapToActivity(doc, META);
         const parsed = ActivityDocument.safeParse(activity);
