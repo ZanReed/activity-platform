@@ -262,19 +262,138 @@ Locked shape:
 
 ## Group 3 — new interactions (some schema/redeploy)
 
+Original five-item list, **carved by /plan-eng-review (2026-07-17)**:
+
 - **Image crop mode** (a button → enter crop → drag a frame). Height folds in.
-- **Graph + data-plot sizing** (reuse `imageSizing.ts` math + drag handles) —
-  schema field + renderer + print CSS + `publish-activity` redeploy. Print
-  footprint is the driver.
-- **Multi-part answer add** for plot-point / plot-function: an explicit
-  **+ Add** button (discoverable primary) **and** Enter-to-add-a-row
-  (accelerator).
-- **Answers open by default, collapsible** so the teacher can preview the
-  student view.
-- **Default seeds:** ray/segment defaults to a **bounded-domain equation**
-  (`y = 2x for 0 <= x <= 5` style — how math teachers think), not the
-  "ray through two points" command form; **static graph seeds empty** (no
-  example drawables).
+  → **DEFERRED to its own design+build** (below). Under-specified; net-new
+  schema/renderer/UI that *replaces* the current height→object-fit-cover path.
+- **Graph + data-plot sizing** (reuse `imageSizing.ts` math + drag handles).
+  → **THE buildable-now slice** (below), extended to `number_line` for
+  consistency.
+- ~~**Multi-part answer add** for plot-point / plot-function~~ → **REASSIGNED
+  to the Desmos expression-list rebuild** (lines 168-188): it lives in
+  `DrawableListEditor`, which that rebuild replaces wholesale — building it now
+  is throwaway.
+- ~~**Answers open by default, collapsible** to preview the student view~~ →
+  **FOLDED into the ratified "preview as student" eye toggle** (Part A, lines
+  176-183): same capability, don't ship two student-preview toggles.
+- ~~**Default seeds** (bounded-domain ray/segment; static graph seeds empty)~~
+  → **REASSIGNED to the Desmos rebuild** (same `DrawableListEditor` surface).
+
+### Sizing slice — eng review (/plan-eng-review, 2026-07-17)
+
+**Verdict: CLEARED — buildable, mostly reuse.** The sizing render path is
+already generic (`sizingClass`/`sizingAttrs` in `renderer/src/blocks/sizing.ts`
++ the generic `.block-sized` CSS in `runtime/styles.ts:978-993`), and the graph
+/data-plot/number-line fallbacks are responsive-`viewBox` SVGs that scale for
+free. The only genuinely new code is a shared drag-gesture hook and the
+interactive-board resize wiring.
+
+```
+DATA FLOW — one authored width, three consumers
+  author drags handle ──► useBlockWidthResize (NEW, shared)
+                            │ snapWidthFraction (imageSizing.ts, already shared)
+                            └─► per-block commit (updateImageAttrs / setNodeAttr)
+                                  │
+   schema  ...sizingFields ◄──────┘  width∈(0,1], align
+                                  │
+   renderer sizingClass()+sizingAttrs() ─► .block-sized + --block-width
+                                  │           (generic CSS: width + align +
+                                  │            <640px relax — all free)
+                    ┌─────────────┴──────────────┐
+             static/print SVG              live page
+             (viewBox scales — free)       .graph-canvas ─► mountGraphDisplay
+                                           board.resize() ◄─ ResizeObserver (NEW)
+```
+
+**Rulings:**
+- **D1 — extract `useBlockWidthResize`** (shared hook). The ~90-line gesture is
+  inline in `ImageView.tsx:151-233`; graph/data-plot/number-line would
+  triplicate it. Hook takes a commit callback + container-measure fn; `ImageView`
+  refactors onto it (DRY; single fix/test surface). NOT copy-per-NodeView.
+- **D2 — sizing ships FIRST; image crop is its own later design+build.** Crop's
+  schema shape (crop-rect vs `height`'s fate), renderer path, and print behavior
+  are unresolved and shouldn't block the ready-now sizing work.
+- **D3 — interactive-graph board sizing = full live re-layout** (author call,
+  long-term-robust over the mount-time-only shortcut). Cascade `--block-width`
+  to `.graph-canvas` AND wire `ResizeObserver → board.resize()` so the mounted
+  board re-measures on any container change (narrow-screen relax + future
+  responsive/print variants). Data-plot/number-line are pure SVG — unaffected.
+- **D4 — include `number_line`** in the slice (same near-free render change;
+  keeps all figure blocks resize-consistent).
+- **D5 — align + reset-to-full authoring surface IS in the slice** (author
+  reversal 2026-07-17, over the earlier test-spec "width-drag-only" call — "I'll
+  want it anyway"). Delivered as ONE shared **`BlockSizingField`** drawer control
+  (width chips + left/center/right align toggle + reset-to-full), embedded by
+  `GraphSettings` / `DataPlotSettings` / `NumberLineSettings` — the drawer-side
+  DRY twin of the shared hook, NOT three hand-built copies. **Reset-to-full
+  CLEARS `width`+`align`** (back to the unsized omit-when-default identity), not
+  `width:1` (which means "fill/upscale" and would break identity emission). The
+  image block keeps its popover chips for now (folding it onto `BlockSizingField`
+  is an easy later follow-up, out of this slice).
+
+**Build shape (~8-10 files):** `sizing`-fragment spread in
+`schema/blocks/{interactive-graph,data-plot,number-line}.ts` · `sizingClass()`
++`sizingAttrs()` in `renderer/blocks/interactive-graph.ts`, `data-plot-svg.ts`,
+`number-line-svg.ts` · NEW `app/editor/hooks/useBlockWidthResize.ts` ·
+`ImageView.tsx` refactored onto the hook · width drag-handles added to
+`InteractiveGraphView.tsx`, `DataPlotView.tsx`, `NumberLineView.tsx` · a
+`ResizeObserver→board.resize()` in the graph display sidecar (may need the kit
+to expose a resize on its mount API) · NEW shared `BlockSizingField.tsx` drawer
+control (width chips + align toggle + reset-to-full) embedded by `GraphSettings`
+/ `DataPlotSettings` / `NumberLineSettings` (D5) · `editor.css` handle + field
+styles. (~13-15 files with D5.)
+
+**Deploy order:** if `board.resize()` requires a `@activity/graph-kit` change,
+follow CLAUDE.md — **upload kit FIRST → `pnpm bundle:renderer` → redeploy
+`publish-activity`** (a plain renderer redeploy is only enough if the kit is
+untouched). Additive schema (optional `width`/`align`) → **no `schemaVersion`
+bump, no ingest redeploy** (authored display sizing, not submission wire).
+`data-block-align` + `--block-width` are additive runtime data — safe.
+
+**Test net (input to /test-spec):** renderer emission (sized → `.block-sized` +
+`--block-width` + `data-block-align`; unsized → identity round-trip) for all
+three block types; shared-hook gesture unit tests (commit-once-on-release,
+Escape/pointercancel cleanup, MIN-width clamp, Alt-fine); **regression** — keep
+`image-sizing.test.ts` green through the `ImageView` refactor; e2e for the
+board-resize path (sized interactive graph mounts at the narrowed box; viewport
+< 640px triggers `board.resize()` with no clip).
+
+**What already exists (reuse, don't rebuild):** `sizingFields` fragment
+(`schema/sizing.ts`) · `sizingClass`/`sizingAttrs`/`remLength`
+(`renderer/blocks/sizing.ts`) · generic `.block-sized` width+align+relax CSS
+(`runtime/styles.ts:978-993`) · `snapWidthFraction`/`snapHeightRem`/`pxToRem`
+(`editor/imageSizing.ts`) · the whole drag gesture (`ImageView.tsx:151-233`,
+being extracted) · responsive-`viewBox` SVGs for all three figure blocks.
+
+**NOT in scope:** image crop (own design pass — crop-rect schema, `height`'s
+fate, print) · multi-part answer add + default seeds (→ Desmos rebuild) ·
+answers-collapsible (→ eye toggle) · height-drag removal on image (rides with
+crop, not sizing) · auto-`board.resize` throttling (add only if a resize-storm
+shows in QA).
+
+**Failure modes (sizing slice):**
+- Interactive board renders at desktop width on a narrow phone → **covered** by
+  D3 (ResizeObserver→resize); needs the e2e above or it's a silent visual bug.
+- Shared hook drops a behavior in the `ImageView` refactor (centered
+  `growthFactor:2`, Alt-fine) → **covered** by keeping `image-sizing.test.ts`
+  green (regression gate). Silent if that test is weakened — don't.
+- `board.resize()` not exposed by the kit mount API → build-time TS failure, not
+  runtime; forces the kit-upload-first deploy order. Not silent.
+
+## GSTACK REVIEW REPORT — Group 3 sizing slice
+
+| Run | Status | Findings |
+|---|---|---|
+| Scope challenge (Step 0) | ✅ | Carved 5→2; 2 items reassigned to Desmos rebuild, 1 folded into eye toggle, crop deferred to own design pass |
+| Architecture | ✅ | D1 shared `useBlockWidthResize` (DRY); D3 board ResizeObserver→resize (long-term-robust); render path already generic |
+| Code quality | ✅ | D4 include `number_line`; D5 align + reset-to-full via ONE shared `BlockSizingField` drawer control (author reversal — no longer width-drag-only), reset clears attrs to identity |
+| Tests | ⏭️ | Deferred to /test-spec: renderer emission ×3 + shared-hook gesture + `image-sizing.test.ts` regression gate + board-resize e2e |
+| Performance | ✅ | No issues — SVG scaling is CSS; one ResizeObserver per interactive graph, off the hot path |
+
+VERDICT: CLEARED — buildable now. Outside voice not run (Codex not installed; Claude-subagent fallback offered, not auto-run). App+renderer+optional-kit; additive schema, no `schemaVersion`/ingest change.
+
+NO UNRESOLVED DECISIONS
 
 ## Group 4 — eng-review first, then build
 
