@@ -18,7 +18,7 @@ import {
     type GraphDisplayHandle,
 } from '@activity/graph-kit';
 import DrawableListEditor from '../components/DrawableListEditor';
-import { usePreviewToggle, PreviewEyeButton } from '../components/usePreviewToggle';
+import { usePreviewToggle } from '../components/usePreviewToggle';
 import FormulaField from '../components/FormulaField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
@@ -735,7 +735,7 @@ export default function InteractiveGraphView({
     // which by convention sits BELOW the figure. Rendered once, placed by mode.
     // Preview-as-student: hide the type picker, drawable list, helper text,
     // answer field, count inputs, and settings readout; keep the prompt + board.
-    const { preview, toggle } = usePreviewToggle();
+    const { preview } = usePreviewToggle((node.attrs.id as string) ?? '');
 
     const promptSection = (
         <div style={{ marginTop: '0.5rem', marginBottom: isDisplay ? 0 : '0.5rem' }}>
@@ -785,7 +785,6 @@ export default function InteractiveGraphView({
                             </select>
                         </label>
                     )}
-                    <PreviewEyeButton preview={preview} onToggle={toggle} />
                 </div>
             </div>
 
@@ -794,19 +793,25 @@ export default function InteractiveGraphView({
 
             <div contentEditable={false} style={{ userSelect: 'none' }}>
                 {interaction.type === 'display' ? (
-                    <>
-                        <DisplayPreviewBoard
-                            axisConfig={axisConfig}
-                            drawables={interaction.drawables}
-                        />
-                        {!preview && (
-                            <DrawableListEditor
-                                drawables={interaction.drawables}
-                                disabled={!isEditable}
-                                onChange={setDrawables}
-                            />
-                        )}
-                    </>
+                    <div className="graph-display-layout">
+                        <div className="graph-display-layout__inner">
+                            <div className="graph-display-layout__board">
+                                <DisplayPreviewBoard
+                                    axisConfig={axisConfig}
+                                    drawables={interaction.drawables}
+                                />
+                            </div>
+                            {!preview && (
+                                <div className="graph-display-layout__list">
+                                    <DrawableListEditor
+                                        drawables={interaction.drawables}
+                                        disabled={!isEditable}
+                                        onChange={setDrawables}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 ) : (
                     <>
                         {!preview && columnsCount >= 3 && (

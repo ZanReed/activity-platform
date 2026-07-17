@@ -6,7 +6,7 @@ import {
     type StudentInterval,
 } from '@activity/graph-kit';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
-import { usePreviewToggle, PreviewEyeButton } from '../components/usePreviewToggle';
+import { usePreviewToggle } from '../components/usePreviewToggle';
 import PromptField from '../components/PromptField';
 import {
     formatNumberLineInterval,
@@ -296,7 +296,7 @@ export default function NumberLineView({
 
     // Preview-as-student: hide the type picker, helper text, answer inputs, and
     // settings summary; keep the prompt + the board.
-    const { preview, toggle } = usePreviewToggle();
+    const { preview } = usePreviewToggle((node.attrs.id as string) ?? '');
 
     return (
         <NodeViewWrapper
@@ -322,7 +322,6 @@ export default function NumberLineView({
                             </select>
                         </label>
                     )}
-                    <PreviewEyeButton preview={preview} onToggle={toggle} />
                 </div>
             </div>
 

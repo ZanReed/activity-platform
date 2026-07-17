@@ -622,39 +622,12 @@
     outline-offset: -1px;
 }
 
-/* Preview-as-student eye toggle — sits at the right end of a graphing block's
- * header row (interactive_graph / number_line / data_plot). Quiet until hover,
- * accent-filled when preview mode is on. Mirrors the quick-bar button language. */
-.graph-preview-eye {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: auto; /* float to the block's top-right */
-    width: 1.5rem;
-    height: 1.5rem;
-    padding: 0;
-    border: none;
-    border-radius: 0.3125rem;
-    background: transparent;
-    color: var(--ed-text-muted);
-    cursor: pointer;
-    transition: color var(--ed-motion-fast) var(--ed-ease-out),
-        background-color var(--ed-motion-fast) var(--ed-ease-out);
-}
-
-.graph-preview-eye:hover {
-    color: var(--ed-text);
-    background: var(--ed-surface-2);
-}
-
-.graph-preview-eye.is-on {
+/* The graphing blocks' "preview as student" eye toggle lives in the quick-bar
+ * (next to delete/duplicate/settings). Accent-filled when preview mode is on. */
+.block-quickbar__btn--on,
+.block-quickbar__btn--on:hover {
     color: var(--ed-accent-strong);
     background: var(--ed-accent-bg);
-}
-
-.graph-preview-eye:focus-visible {
-    outline: 2px solid var(--ed-accent);
-    outline-offset: -1px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -888,6 +861,41 @@
     background: var(--ed-surface);
     cursor: pointer;
     color: var(--ed-text-strong);
+}
+
+/* Display graph: board + expression list. Side-by-side (board left, list right)
+ * when the BLOCK is wide enough, stacked below. A container query keys off the
+ * block's own width, so a full-width block goes side-by-side while a narrow
+ * column cell stacks. */
+.graph-display-layout {
+    container-type: inline-size;
+}
+.graph-display-layout__inner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.graph-display-layout__list {
+    min-width: 0;
+}
+@container (min-width: 560px) {
+    .graph-display-layout__inner {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+    /* Explicit basis (the board's own max width) so its width:100% child
+     * resolves — flex:0 0 auto would collapse it to zero. */
+    .graph-display-layout__board {
+        flex: 0 0 22rem;
+        max-width: 22rem;
+    }
+    .graph-display-layout__list {
+        flex: 1 1 0;
+    }
+    /* Beside the board the list has no board above it — drop its top margin. */
+    .graph-display-layout__list .drawable-list {
+        margin-top: 0;
+    }
 }
 
 /* Docked command bar (slice-6 stage 0/4). The anchor holds the canvas-relative

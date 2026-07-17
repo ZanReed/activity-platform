@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import { NodeSelection, TextSelection } from 'prosemirror-state';
-import { Trash2, Copy, Settings } from 'lucide-react';
+import { Trash2, Copy, Settings, Eye, EyeOff } from 'lucide-react';
 import { OPEN_BLOCK_SETTINGS, hasConfigurableControls } from '../blockControls';
+import { usePreviewToggle } from './usePreviewToggle';
+
+// The graphing blocks that carry a "preview as student" eye toggle.
+const GRAPH_BLOCK_TYPES = new Set(['interactiveGraph', 'numberLine', 'dataPlot']);
 
 // ============================================================================
 // BlockQuickBarHost — the always-discoverable block affordance (slice 6).
@@ -134,6 +138,16 @@ export default function BlockQuickBarHost({
         return () => cancelAnimationFrame(raf);
     }, [editor, activePos, canvasRef]);
 
+    // Preview-as-student state for the active block, keyed by its stable id.
+    // Called unconditionally (hook rule) with the current block's id, or '' when
+    // there's no active block — a graphing block's eye button toggles this, and
+    // the NodeView reads the same store to hide/show its authoring chrome.
+    const previewId =
+        editor && activePos !== null
+            ? ((editor.state.doc.nodeAt(activePos)?.attrs.id as string) ?? '')
+            : '';
+    const { preview, toggle: togglePreview } = usePreviewToggle(previewId);
+
     if (!editor || activePos === null || !position) return null;
 
     // The ⚙ opens settings mode, so only show it when the block has something
@@ -142,6 +156,9 @@ export default function BlockQuickBarHost({
     const activeNode = editor.state.doc.nodeAt(activePos);
     const showSettings =
         !!activeNode && hasConfigurableControls(activeNode.type.name);
+    // Graphing blocks get a "preview as student" eye toggle in the quick-bar.
+    const showPreviewEye =
+        !!activeNode && GRAPH_BLOCK_TYPES.has(activeNode.type.name);
 
     const deleteBlock = () => {
         const node = editor.state.doc.nodeAt(activePos);
@@ -193,6 +210,22 @@ export default function BlockQuickBarHost({
                 }, CLEAR_GRACE_MS);
             }}
         >
+            {showPreviewEye && (
+                <button
+                    type="button"
+                    className={`block-quickbar__btn${preview ? ' block-quickbar__btn--on' : ''}`}
+                    title={preview ? 'Back to editing' : 'Preview as student'}
+                    aria-label={preview ? 'Back to editing' : 'Preview as student'}
+                    aria-pressed={preview}
+                    onClick={togglePreview}
+                >
+                    {preview ? (
+                        <EyeOff size={14} aria-hidden="true" />
+                    ) : (
+                        <Eye size={14} aria-hidden="true" />
+                    )}
+                </button>
+            )}
             <button
                 type="button"
                 className="block-quickbar__btn block-quickbar__btn--danger"

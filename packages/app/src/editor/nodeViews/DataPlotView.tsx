@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { renderDataPlotSvg, fiveNumberSummary } from '@activity/renderer';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
-import { usePreviewToggle, PreviewEyeButton } from '../components/usePreviewToggle';
+import { usePreviewToggle } from '../components/usePreviewToggle';
 import PromptField from '../components/PromptField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
@@ -80,7 +80,7 @@ export default function DataPlotView({
 
     // Preview-as-student: hide all authoring chrome (type picker, data input,
     // helper text, settings summary), keep the prompt + the rendered figure.
-    const { preview, toggle } = usePreviewToggle();
+    const { preview } = usePreviewToggle((node.attrs.id as string) ?? '');
 
     const problemNumber = useMemo(
         () =>
@@ -166,7 +166,6 @@ export default function DataPlotView({
                             </select>
                         </label>
                     )}
-                    <PreviewEyeButton preview={preview} onToggle={toggle} />
                 </div>
             </div>
 

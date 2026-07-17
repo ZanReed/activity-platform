@@ -1,54 +1,55 @@
-import { useCallback, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 // ============================================================================
-// usePreviewToggle — the "preview as student" eye toggle shared by the three
-// graphing NodeViews (interactive_graph / number_line / data_plot).
+// Preview-as-student toggle — shared by the three graphing NodeViews
+// (interactive_graph / number_line / data_plot) AND the BlockQuickBarHost.
 // ----------------------------------------------------------------------------
-// Per the graph-authoring-redirection design (docs/design/editor-refinement-
-// pass.md → "Graph authoring redirection"), the toggle hides ALL authoring
-// chrome (type picker, answer inputs, helper text, settings summary) so the
-// author sees the block the way it SITS on the page — a flow/layout preview,
-// NOT a fidelity-accurate student simulation (a graded board still shows the
-// author's answer drawables; real student experience = publish the activity).
+// Per the graph-authoring-redirection design, the toggle hides ALL authoring
+// chrome so the author sees the block the way it SITS on the page — a
+// flow/layout preview, not a fidelity-accurate student simulation.
 //
-// State is NodeView-local and ephemeral by design: it lives with the React
-// component, never touches the document, never serializes, and resets if the
-// NodeView is recreated (drag-reorder / some undo paths) — exactly the
-// "per-block, session state" the design calls for. No plumbing through the
-// positional BlockQuickBarHost, which has no stable per-block identity.
+// The button lives in the block's top-right quick-bar (next to delete /
+// duplicate / settings), so the NodeView that HIDES the chrome and the quick-bar
+// that OWNS the button must share one piece of state. That state is an
+// id-keyed module store, read through useSyncExternalStore: ephemeral by design
+// (never touches the document, never serializes, resets on reload), keyed by the
+// block's stable `attrs.id` (not its shifting position). React-idiomatic, no
+// ProseMirror plugin, no cross-portal context.
 // ============================================================================
 
-export function usePreviewToggle(): { preview: boolean; toggle: () => void } {
-    const [preview, setPreview] = useState(false);
-    const toggle = useCallback(() => setPreview((p) => !p), []);
-    return { preview, toggle };
+const previewState = new Map<string, boolean>();
+const listeners = new Set<() => void>();
+
+function emit(): void {
+    for (const l of listeners) l();
 }
 
-export function PreviewEyeButton({
-    preview,
-    onToggle,
-}: {
-    preview: boolean;
-    onToggle: () => void;
-}) {
-    const label = preview ? 'Back to editing' : 'Preview as student';
-    return (
-        <button
-            type="button"
-            className={`graph-preview-eye${preview ? ' is-on' : ''}`}
-            title={label}
-            aria-label={label}
-            aria-pressed={preview}
-            // Don't steal the caret / move the selection when clicking.
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={onToggle}
-        >
-            {preview ? (
-                <EyeOff size={15} aria-hidden="true" />
-            ) : (
-                <Eye size={15} aria-hidden="true" />
-            )}
-        </button>
+function subscribe(cb: () => void): () => void {
+    listeners.add(cb);
+    return () => {
+        listeners.delete(cb);
+    };
+}
+
+/** Is the block with this id currently previewing (chrome hidden)? */
+export function isPreviewing(id: string): boolean {
+    return previewState.get(id) ?? false;
+}
+
+/** Flip the preview state for a block id (no-op on an empty id). */
+export function togglePreview(id: string): void {
+    if (!id) return;
+    previewState.set(id, !isPreviewing(id));
+    emit();
+}
+
+/** Reactive read + toggle for one block id. */
+export function usePreviewToggle(id: string): { preview: boolean; toggle: () => void } {
+    const preview = useSyncExternalStore(
+        subscribe,
+        () => isPreviewing(id),
+        () => false,
     );
+    const toggle = useCallback(() => togglePreview(id), [id]);
+    return { preview, toggle };
 }
