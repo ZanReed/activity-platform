@@ -175,6 +175,30 @@ export const SegmentResponse = z.object({
 });
 export type SegmentResponse = z.infer<typeof SegmentResponse>;
 
+// graph_inequality_system (Graph systems): the student's answer to a SYSTEM of
+// inequalities — a graph_inequality with inequalities.length > 1. `parts` is one
+// InequalityResponse per authored boundary the student plotted (each carries its
+// own boundary points + side + style, so mixed strict/inclusive boundaries are
+// per-part). `correct` is the match-all AND — every authored inequality paired,
+// order-independently, with a distinct student part; `earned`/`total` (via
+// V4Extras below) carry per-inequality partial credit (matched / N) when the
+// block's partialCredit flag is on. Like BlankResponse, `correct` is computed
+// CLIENT-SIDE in the published page's lazy kit — convenience for the teacher
+// viewer, not authoritative grading. A NEW additive member: pages that emit it
+// are published AFTER the ingest redeploy, and widening the union only ACCEPTS
+// MORE, so no submission.schemaVersion bump (the plot_ray / plot_segment
+// precedent). N=1 never emits this — the runtime keeps the plain single
+// InequalityResponse for one boundary (byte-identical to today).
+export const SystemInequalityResponse = z.object({
+  type: z.literal('graph_inequality_system'),
+  // One per boundary; at least two for a real system, but min(1) keeps the
+  // scorer/parse total (an under-count can't match every authored key → wrong).
+  parts: z.array(InequalityResponse).min(1),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type SystemInequalityResponse = z.infer<typeof SystemInequalityResponse>;
+
 export const GraphResponse = z.discriminatedUnion('type', [
   PointResponse,
   FunctionResponse,
@@ -210,6 +234,10 @@ export const GraphResponseV4 = z.discriminatedUnion('type', [
   InequalityResponse.extend(V4Extras),
   RayResponse.extend(V4Extras),
   SegmentResponse.extend(V4Extras),
+  // Graph systems: additive member. earned/total (V4Extras) carry the
+  // per-inequality partial credit; noSolution/domain ride along but are unused
+  // by a system (kept for union uniformity, like every other member).
+  SystemInequalityResponse.extend(V4Extras),
 ]);
 export type GraphResponseV4 = z.infer<typeof GraphResponseV4>;
 

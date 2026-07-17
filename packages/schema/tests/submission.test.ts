@@ -157,6 +157,85 @@ describe('SubmissionResponses (v9 — current)', () => {
   });
 });
 
+describe('graph systems — graph_inequality_system (additive member, no schemaVersion bump)', () => {
+  const inequalityPart = (side: 'above' | 'below', strict: boolean) => ({
+    type: 'graph_inequality' as const,
+    studentPoints: [[0, 1], [1, 3]] as [number, number][],
+    strict,
+    side,
+    correct: true,
+  });
+
+  it('GS-M1: parses a graph_inequality_system with parts + partial-credit earned/total + confidence', () => {
+    const graphId = crypto.randomUUID();
+    const data = {
+      schemaVersion: 9,
+      blanks: {},
+      graphResponses: {
+        [graphId]: {
+          type: 'graph_inequality_system',
+          parts: [inequalityPart('above', false), inequalityPart('below', true)],
+          correct: true,
+          earned: 2,
+          total: 2,
+          confidence: 'certain',
+        },
+      },
+    };
+    expect(SubmissionResponses.safeParse(data).success).toBe(true);
+  });
+
+  it('GS-M1: earned/total/confidence are optional (all-or-nothing block omits them)', () => {
+    const graphId = crypto.randomUUID();
+    const data = {
+      schemaVersion: 9,
+      blanks: {},
+      graphResponses: {
+        [graphId]: {
+          type: 'graph_inequality_system',
+          parts: [inequalityPart('above', false), inequalityPart('below', true)],
+          correct: false,
+        },
+      },
+    };
+    expect(SubmissionResponses.safeParse(data).success).toBe(true);
+  });
+
+  it('GS-M3: rejects a system whose part is not a valid InequalityResponse', () => {
+    const graphId = crypto.randomUUID();
+    const data = {
+      schemaVersion: 9,
+      blanks: {},
+      graphResponses: {
+        [graphId]: {
+          type: 'graph_inequality_system',
+          parts: [{ type: 'graph_inequality', studentPoints: [[0, 1]], strict: false /* missing side + correct */ }],
+          correct: true,
+        },
+      },
+    };
+    expect(SubmissionResponses.safeParse(data).success).toBe(false);
+  });
+
+  it('GS-M2: a single graph_inequality response (N=1 path) still parses unchanged alongside the new member', () => {
+    const graphId = crypto.randomUUID();
+    const data = {
+      schemaVersion: 9,
+      blanks: {},
+      graphResponses: {
+        [graphId]: {
+          type: 'graph_inequality',
+          studentPoints: [[0, 1], [1, 3]],
+          strict: false,
+          side: 'above',
+          correct: true,
+        },
+      },
+    };
+    expect(SubmissionResponses.safeParse(data).success).toBe(true);
+  });
+});
+
 describe('legacy shapes (for migration only)', () => {
   it('parses old v1 shape', () => {
     const id = crypto.randomUUID();

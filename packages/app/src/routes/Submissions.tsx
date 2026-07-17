@@ -120,6 +120,18 @@ function formatPoints(points: [number, number][]): string {
     return points.map((p) => `(${p[0]}, ${p[1]})`).join(', ');
 }
 
+// A system (graph_inequality_system) response has no single studentPoints array —
+// the answer is N boundaries. Summarize each plotted boundary with its shaded
+// side + dashed/solid style, so the teacher sees what the student graphed.
+function formatSystemParts(
+    parts: { studentPoints: [number, number][]; side: string; strict: boolean }[],
+): string {
+    if (parts.length === 0) return '—';
+    return parts
+        .map((p) => `${formatPoints(p.studentPoints)} [${p.side}, ${p.strict ? 'dashed' : 'solid'}]`)
+        .join('  ·  ');
+}
+
 function Shell({ children }: { children: ReactNode }) {
     return (
         <main className="min-h-screen bg-slate-50 p-8">
@@ -672,28 +684,34 @@ function SubmissionDetail({
                     {g.info ? g.info.answerSummary : '—'}
                     </td>
                     <td className="py-1 pr-3 font-mono text-slate-900">
-                    {formatPoints(g.resp.studentPoints)}
-                    {g.resp.type === 'plot_function' &&
-                        g.info?.functionFamily &&
-                        (() => {
-                            // The points the student placed, re-fit into the curve
-                            // they define — same engine that scored them.
-                            const eq = fitStudentEquation(
-                                g.info.functionFamily,
-                                g.resp.studentPoints,
-                            );
-                            return eq ? ` ≈ ${eq}` : '';
-                        })()}
-                    {(g.resp.type === 'plot_ray' || g.resp.type === 'plot_segment') &&
-                        g.resp.shape &&
-                        ` — drew ${
-                            g.resp.shape === 'segment'
-                                ? 'a segment'
-                                : `a ray ${rayGlyphFor(g.resp.studentPoints, g.resp.shape)}`
-                        }`}
-                    {g.resp.type === 'plot_ray' && ` (${g.resp.fromStyle} endpoint)`}
-                    {g.resp.type === 'plot_segment' &&
-                        ` (${g.resp.endpoints[0]} start, ${g.resp.endpoints[1]} end)`}
+                    {g.resp.type === 'graph_inequality_system' ? (
+                        formatSystemParts(g.resp.parts)
+                    ) : (
+                        <>
+                        {formatPoints(g.resp.studentPoints)}
+                        {g.resp.type === 'plot_function' &&
+                            g.info?.functionFamily &&
+                            (() => {
+                                // The points the student placed, re-fit into the curve
+                                // they define — same engine that scored them.
+                                const eq = fitStudentEquation(
+                                    g.info.functionFamily,
+                                    g.resp.studentPoints,
+                                );
+                                return eq ? ` ≈ ${eq}` : '';
+                            })()}
+                        {(g.resp.type === 'plot_ray' || g.resp.type === 'plot_segment') &&
+                            g.resp.shape &&
+                            ` — drew ${
+                                g.resp.shape === 'segment'
+                                    ? 'a segment'
+                                    : `a ray ${rayGlyphFor(g.resp.studentPoints, g.resp.shape)}`
+                            }`}
+                        {g.resp.type === 'plot_ray' && ` (${g.resp.fromStyle} endpoint)`}
+                        {g.resp.type === 'plot_segment' &&
+                            ` (${g.resp.endpoints[0]} start, ${g.resp.endpoints[1]} end)`}
+                        </>
+                    )}
                     </td>
                     <td className="py-1 pr-3">
                     {g.resp.correct ? (

@@ -386,6 +386,57 @@ export function scoreInequalityPartial(
   return { earned: Number(p.boundary) + Number(p.side) + Number(p.style), total: 3 };
 }
 
+// ---- graph_inequality SYSTEM: match-all over N inequalities (Graph systems) ----
+// A "system" is a graph_inequality with inequalities.length > 1 — the student
+// plots every boundary and picks each side/style, and the answer is the shaded
+// intersection. Scoring is MATCH-ALL, ORDER-INDEPENDENT: every authored
+// inequality must pair with a DISTINCT student part that scoreInequality accepts
+// (a part is a whole inequality — boundary AND side AND style — so the per-pair
+// test is the single-inequality comparison unchanged).
+//
+// We compute the MAXIMUM bipartite matching (Kuhn's augmenting-path), NOT a
+// greedy consume-once pass. Greedy — the shape scorePoints uses — can fail to
+// find a complete pairing that actually exists when two authored boundaries sit
+// within tolerance of each other and a student part matches more than one key,
+// which would false-negative a fully-correct student (the worst grading bug).
+// The augmenting search reassigns already-matched keys, so if a perfect matching
+// exists it is always found, regardless of the order the student plotted in.
+//
+// `earned` = matched inequalities; `total` = N; `correct` = all N matched.
+// Partial credit (when the block's partialCredit flag is on) is per-inequality:
+// earned / total = matched / N (an inequality counts only if fully correct),
+// mirroring scorePointsPartial / scoreFunctionsPartial / scoreRegionsPartial —
+// NOT the sub-part granularity of scoreInequalityPartial. This is a TOTAL
+// function: it never throws on a short, long, or otherwise mismatched `parts`
+// array (an under-count simply can't match every key → correct:false; extra
+// parts go unused).
+export function scoreInequalitySystem(
+  keys: InequalityAnswerKey[],
+  parts: InequalityStudentAnswer[],
+): { correct: boolean; earned: number; total: number } {
+  const total = keys.length;
+  // matchOf[partIndex] = the key index currently paired with that part, or -1.
+  const matchOf = new Array<number>(parts.length).fill(-1);
+  // Try to find an augmenting path for key k, marking visited parts in `seen`.
+  const augment = (k: number, seen: boolean[]): boolean => {
+    for (let p = 0; p < parts.length; p++) {
+      if (seen[p] || !scoreInequality(keys[k]!, parts[p]!)) continue;
+      seen[p] = true;
+      const cur = matchOf[p] ?? -1;
+      if (cur === -1 || augment(cur, seen)) {
+        matchOf[p] = k;
+        return true;
+      }
+    }
+    return false;
+  };
+  let earned = 0;
+  for (let k = 0; k < total; k++) {
+    if (augment(k, new Array<boolean>(parts.length).fill(false))) earned += 1;
+  }
+  return { correct: total > 0 && earned === total, earned, total };
+}
+
 // ---- domain endpoints (Drop 6 follow-up): rays and segments of a curve --------
 // "Graph y = 2x + 3 for x >= 0": the curve is scored by fitFunction/scoreFunction
 // as usual; the domain is scored on the student's endpoint x-positions (dragged

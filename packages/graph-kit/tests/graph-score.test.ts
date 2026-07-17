@@ -12,11 +12,14 @@ import {
   scoreRegionsPartial,
   scoreInequality,
   scoreInequalityPartial,
+  scoreInequalitySystem,
   scoreDomain,
   scoreDomainParts,
   polygonOverlap,
   type PointAnswerKey,
   type FunctionModel,
+  type InequalityAnswerKey,
+  type InequalityStudentAnswer,
 } from '../src/graph-score.js';
 
 const key = (correctPoints: [number, number][], tolerance = 0.1): PointAnswerKey => ({
@@ -352,6 +355,101 @@ describe('graph_inequality scorer (Drop 4)', () => {
     };
     expect(scoreInequality(vkey, { points: [[3, -2], [3, 4]], strict: false, side: 'right' })).toBe(true);
     expect(scoreInequality(vkey, { points: [[3, -2], [3, 4]], strict: false, side: 'left' })).toBe(false);
+  });
+});
+
+describe('graph_inequality SYSTEM scorer — match-all, order-independent (Graph systems)', () => {
+  // Two distinct authored inequalities: y >= 2x + 1 shaded above, y < -x shaded
+  // below (strict). A real system.
+  const keys: InequalityAnswerKey[] = [
+    {
+      boundary: { family: 'linear', slope: 2, intercept: 1, slopeTolerance: 0.1, interceptTolerance: 0.1 },
+      strict: false,
+      shadeSide: 'above',
+    },
+    {
+      boundary: { family: 'linear', slope: -1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1 },
+      strict: true,
+      shadeSide: 'below',
+    },
+  ];
+  const partA: InequalityStudentAnswer = { points: [[0, 1], [1, 3]], strict: false, side: 'above' }; // y = 2x+1
+  const partB: InequalityStudentAnswer = { points: [[0, 0], [1, -1]], strict: true, side: 'below' }; // y = -x
+
+  it('GS-M4: all N pairs correct → correct (earned === total)', () => {
+    expect(scoreInequalitySystem(keys, [partA, partB])).toEqual({ correct: true, earned: 2, total: 2 });
+  });
+
+  it('GS-M4: one part wrong (style) → not correct, partial OFF gate', () => {
+    const partBwrongStyle: InequalityStudentAnswer = { points: [[0, 0], [1, -1]], strict: false, side: 'below' };
+    expect(scoreInequalitySystem(keys, [partA, partBwrongStyle])).toEqual({
+      correct: false,
+      earned: 1,
+      total: 2,
+    });
+  });
+
+  it('GS-M5: order-independent — parts in reversed order score identically', () => {
+    expect(scoreInequalitySystem(keys, [partB, partA])).toEqual({ correct: true, earned: 2, total: 2 });
+  });
+
+  it('GS-M6: N=1 scores identically to scoreInequality', () => {
+    const oneKey = [keys[0]!];
+    const right: InequalityStudentAnswer = { points: [[0, 1], [1, 3]], strict: false, side: 'above' };
+    const wrongSide: InequalityStudentAnswer = { points: [[0, 1], [1, 3]], strict: false, side: 'below' };
+    expect(scoreInequalitySystem(oneKey, [right]).correct).toBe(scoreInequality(keys[0]!, right));
+    expect(scoreInequalitySystem(oneKey, [right]).correct).toBe(true);
+    expect(scoreInequalitySystem(oneKey, [wrongSide]).correct).toBe(scoreInequality(keys[0]!, wrongSide));
+    expect(scoreInequalitySystem(oneKey, [wrongSide])).toEqual({ correct: false, earned: 0, total: 1 });
+  });
+
+  it('GS-M9: finds a complete pairing that first-come greedy would miss', () => {
+    // key0 is wide (matches almost any boundary); key1 is narrow (slope ~3 only).
+    // student partP matches BOTH keys; partQ matches key0 only. Greedy in order
+    // [key0, key1] takes key0→partP first, then strands key1 (its only match,
+    // partP, is used) → a false negative. Max bipartite matching reassigns
+    // key0→partQ, freeing partP for key1 → both matched.
+    const hardKeys: InequalityAnswerKey[] = [
+      {
+        boundary: { family: 'linear', slope: 1, intercept: 0, slopeTolerance: 5, interceptTolerance: 5 },
+        strict: false,
+        shadeSide: 'above',
+      },
+      {
+        boundary: { family: 'linear', slope: 3, intercept: 0, slopeTolerance: 0.2, interceptTolerance: 0.2 },
+        strict: false,
+        shadeSide: 'above',
+      },
+    ];
+    const partP: InequalityStudentAnswer = { points: [[0, 0], [1, 3]], strict: false, side: 'above' }; // slope 3 → matches both
+    const partQ: InequalityStudentAnswer = { points: [[0, 0], [1, 1]], strict: false, side: 'above' }; // slope 1 → key0 only
+    // Sanity: the individual match relation is exactly the greedy hazard.
+    expect(scoreInequality(hardKeys[0]!, partP)).toBe(true);
+    expect(scoreInequality(hardKeys[1]!, partP)).toBe(true);
+    expect(scoreInequality(hardKeys[0]!, partQ)).toBe(true);
+    expect(scoreInequality(hardKeys[1]!, partQ)).toBe(false);
+    expect(scoreInequalitySystem(hardKeys, [partP, partQ])).toEqual({ correct: true, earned: 2, total: 2 });
+  });
+
+  it('GS-M10: partial credit is per-inequality matched/N (A full, B style-wrong → 1/2)', () => {
+    const bStyleWrong: InequalityStudentAnswer = { points: [[0, 0], [1, -1]], strict: false, side: 'below' };
+    const r = scoreInequalitySystem(keys, [partA, bStyleWrong]);
+    expect(r.earned).toBe(1);
+    expect(r.total).toBe(2); // 1/2, NOT 5/6 — a not-fully-correct inequality earns nothing
+    expect(r.correct).toBe(false);
+  });
+
+  it('GS-INV1: total function — never throws; parts.length < N → not correct; extras ignored', () => {
+    expect(() => scoreInequalitySystem(keys, [])).not.toThrow();
+    expect(scoreInequalitySystem(keys, [])).toEqual({ correct: false, earned: 0, total: 2 });
+    // Only one part for a two-inequality key → can't match both.
+    expect(scoreInequalitySystem(keys, [partA])).toEqual({ correct: false, earned: 1, total: 2 });
+    // Extra (duplicate) parts beyond N are simply unused; a correct set stays correct.
+    expect(scoreInequalitySystem(keys, [partA, partB, partA])).toEqual({
+      correct: true,
+      earned: 2,
+      total: 2,
+    });
   });
 });
 
