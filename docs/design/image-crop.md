@@ -56,8 +56,14 @@ ImageBlock.srcAspect?: number  // the SOURCE image's natural W/H ratio, captured
   bug that updated one but not the other would silently distort the image).
 - `x+w ≤ 1`, `y+h ≤ 1` (window stays inside the source). Full-image crop
   (`0,0,1,1`) is never stored — absent = uncropped (omit-when-default, like
-  `width`/`align`). `srcAspect` is stored whenever a valid `src` is set (needed
-  the moment a crop is applied); clearing `src` clears both.
+  `width`/`align`).
+- **`srcAspect` is stored ONLY alongside `crop` — both-or-neither (test-spec,
+  2026-07-17).** The editor writes `crop` + `srcAspect` together at crop-apply
+  (it has the loaded `<img>` then); uncropped images carry NEITHER, so they stay
+  byte-identical to today. Clearing `src` or resetting crop clears both. The
+  renderer reads `srcAspect` only when `crop` is present. (This preserves the
+  uncropped-identity invariant — storing `srcAspect` on every image would break
+  it.)
 - **`height` is removed** from the schema (no `.strict()` anywhere in
   packages/schema, and only renderer/image + ImageView read it — clean removal).
 
@@ -226,6 +232,22 @@ src-swap-clears-crop) are the load-bearing items; verify at the right layer
 disabled until load** (MUST); tiny crop (w/h→0) → clamp min crop size in the
 gesture; crop + width sizing on the same wrapper → compose test; broken image +
 crop → editor broken-state card (acceptable).
+
+**Fresh-context sweep additions (test-spec, 2026-07-17) — build MUSTs:**
+- **Zero/NaN `srcAspect` guard.** A viewBox-less SVG or sizeless data-URI fires
+  `load` (so "disabled until load" passes) with `naturalW/H = 0` → `srcAspect =
+  0/NaN` → broken render. **Disable crop when `naturalW/H === 0`** (SVG/data-URI
+  is an ordinary web-image case, not fringe). Spec: CR-M8.
+- **Gesture output is always in-bounds.** The crop frame clamps at the source
+  edge (`x≥0, y≥0, x+w≤1, y+h≤1`) — a total function into the valid-rect space,
+  never relying on schema-rejection (which would silently drop an edge crop).
+  Spec: CR-INV3.
+- **Gesture coordinate mapping is a tested requirement** (not just an open
+  question): dragging the frame to a region must produce the matching normalized
+  rect (resolves Open Q#2 into a MUST). Spec: CR-M7.
+- **Cropping preserves `alt`/`src`/`loading`/`decoding`** (a11y) and
+  **re-entering crop inits the frame to the existing rect** (no data loss).
+  Spec: CR-M9, CR-M10.
 
 **Perf:** none — static CSS, no runtime cost, no hot path.
 

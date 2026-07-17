@@ -16,6 +16,12 @@ align + reset-to-full authoring surface (author reversal, D5 — shared `BlockSi
 control). See the "Slice: Group 3 sizing" section below (SZ-M1..M6 MUST, SZ-J1/J2 MUST, SZ-M7/S1/S2
 SHOULD; one owner manual-QA verify act SZ-J1b). Build order + tasks: design doc "Sizing slice — eng review".
 
+**Image crop mode slice: RATIFIED 2026-07-17 (incl. fresh-context sweep) — spec only, NOT yet
+built.** See "Slice: Image crop mode" below (CR-M1..M10 + CR-INV1/INV2/INV3 MUST, CR-S1..S4
+SHOULD; one owner manual-QA verify act CR-J1b). Sweep added the gesture-coord-mapping,
+zero-srcAspect-guard, alt-retention, re-enter-crop, and in-bounds gaps. Design:
+[docs/design/image-crop.md](docs/design/image-crop.md).
+
 ---
 
 ## Slice: interactive-graph settings → descriptor-drawer extraction
@@ -244,3 +250,115 @@ broke; assert a centered drag yields `2×` the width delta. SZ-J1a must read the
 `.graph-canvas` computed width + confirm the observer callback fired, not just that the outer block
 has `--block-width`. Mutation sanity: a build that hardcodes `growthFactor:1`, or stops cascading
 width to `.graph-canvas`, must turn these red.
+
+---
+
+## Slice: Image crop mode
+
+`test-spec v1 · 2026-07-17` · RATIFIED (dialogue outcomes in RATIFICATION_LOG.md) · spec only, NOT yet built.
+
+**Under test:** the image crop feature — `crop {x,y,w,h}` + `srcAspect` (both-or-neither);
+plain-CSS wrapper + absolute-`<img>` render (`A = srcAspect·(w/h)`); `height` removed; the
+crop-mode gesture (enter → drag frame → apply/Escape); alt/caption → drawer.
+**Design reference:** [docs/design/image-crop.md](docs/design/image-crop.md) (office-hours +
+/plan-eng-review CLEARED 2026-07-17).
+**Slice boundary:** covers the crop feature end-to-end + the `height` removal. **Out of slice:**
+aspect-lock presets, `object-view-box`, absolute rem-height (dropped with `height`), re-crop
+across a src swap (crop clears on src change by design).
+**No `schemaVersion` / no `STORAGE_SCHEMA_VERSION` bump** — additive optional `crop`/`srcAspect`,
+authoring-time (baked into published HTML), not submission wire; no ingest/kit change.
+
+**Acceptance statement:** *Trusted to ship when a cropped image renders the exact `[x,y,w,h]`
+window (derived aspect, unstretched, clipped) in every browser and in print; the two invariants
+hold (crop disabled until load; replacing `src` clears crop + srcAspect); an uncropped image
+carries NEITHER `crop` nor `srcAspect` and is byte-identical to today; and a degenerate crop can
+never emit `Infinity%`.*
+
+**Where the risk concentrates:**
+1. **The render math** — the four `%` offsets + derived `aspect-ratio`; load-bearing, must be
+   right AND actually clip cross-browser (string-correct ≠ pixel-correct).
+2. **`srcAspect` lifecycle** — a stale `srcAspect` after a src swap silently distorts; storing it
+   on uncropped images breaks the identity invariant.
+
+### Must-test index
+
+| # | behavior | traces to | anchor | method | tier |
+|---|---|---|---|---|---|
+| CR-M1 | schema: crop bounds (x+w≤1, y+h≤1, w/h∈(0,1]) accepted, out-of-range rejected; srcAspect positive; a stray `height` key is ignored (not `.strict`) | design | design-anchored | unit | MUST |
+| CR-M2 | renderer: cropped → `aspect-ratio: srcAspect·(w/h)` + img width (100/w)%, height (100/h)%, left -(x/w·100)%, top -(y/h·100)%, `.is-cropped` + overflow; **uncropped → carries NEITHER crop nor srcAspect, byte-identical to today** | design | design-anchored | unit | MUST |
+| CR-M3 | serialize round-trip: `crop`+`srcAspect` travel together; uncropped omits BOTH; `height` no longer round-trips | code (serialize.ts) | code-pin | unit | MUST |
+| CR-M4 | print: a cropped image's `@media print` HTML shows the cropped window (aspect-ratio+overflow), not the full source | design | design-anchored | unit snapshot | MUST |
+| CR-M5 | crop-gesture lifecycle: enter Crop shows the frame; apply writes `crop`; Escape discards with NO commit | design | design-anchored | e2e | MUST |
+| CR-M6 | min-crop-size guard: the gesture clamps w,h > 0 AND the render never emits `Infinity%`/NaN for a degenerate crop | design (correctness, promoted) | design-anchored | unit | MUST |
+| CR-INV1 | crop-disabled-until-load: crop entry is blocked until the image has loaded (srcAspect known) | design (invariant) | design-anchored | unit/e2e | MUST |
+| CR-INV2 | src-swap-clears-crop: changing `src` clears `crop` AND `srcAspect` (both) | design (invariant) | design-anchored | unit | MUST |
+| CR-J1b | visual crop: the `[x,y,w,h]` window fills the box unstretched + clipped, cross-browser | design (render) | design-anchored | **manual-QA (owner verify act)** | MUST |
+| CR-S1 | crop + width-sizing compose on one `.block-image` wrapper (`--block-width` width + `aspect-ratio` height) | code | code-pin | unit/e2e | SHOULD |
+| CR-M7 | gesture coordinate mapping: dragging the frame to a known region produces the expected normalized `{x,y,w,h}` (pins the INPUT side, not just the render output) | design (sweep) | design-anchored | unit/e2e | MUST |
+| CR-M8 | zero/NaN srcAspect guard: `naturalW/H=0` (viewBox-less SVG, sizeless data-URI) → crop DISABLED and the render never emits a `0`/`NaN` aspect | design (sweep — reverses SVG skip) | design-anchored | unit | MUST |
+| CR-M9 | a cropped `<img>` retains `alt` / `src` / `loading` / `decoding` (no a11y regression) | design (sweep, a11y) | design-anchored | unit | MUST |
+| CR-M10 | re-entering crop mode on an already-cropped image initializes the frame to the EXISTING rect (no silent data loss) | design (sweep) | design-anchored | e2e | MUST |
+| CR-S2 | caption + crop: `<figcaption>` is not clipped by the wrapper's `overflow:hidden`, and the aspect box is intact | code (sweep) | code-pin | unit snapshot | SHOULD |
+| CR-S3 | editor-preview ↔ published-render parity: the React preview and the pure renderer agree on the same crop | design (sweep) | design-anchored | e2e | SHOULD |
+| CR-S4 | crop + width independently removable: reset-crop clears only `crop`+`srcAspect` (leaves `width`/`align`); removing width leaves crop intact | code (sweep) | code-pin | unit | SHOULD |
+
+### Invariants (property candidates)
+- **CR-INV-both (identity + pairing):** `crop` present ⟺ `srcAspect` present (never one without the
+  other); an image with neither emits markup byte-identical to today. A property test over
+  `{crop?, srcAspect?}` should reject the one-without-the-other states and confirm the uncropped
+  identity.
+- **CR-INV1 / CR-INV2** (above) — the two lifecycle invariants.
+- **CR-INV-safe:** for all valid crops (w,h ∈ [MIN, 1]) AND finite positive `srcAspect`, the
+  emitted CSS is finite (no Infinity/NaN) — the div-by-zero guard as a property. **A `0`/`NaN`
+  `srcAspect` (sizeless SVG/data-URI) is prevented upstream by CR-M8, NOT relied on here** —
+  CR-INV-safe assumes a positive srcAspect; CR-M8 is what makes that assumption hold.
+- **CR-INV3 (gesture in-bounds):** every gesture-applied crop satisfies `x≥0, y≥0, x+w≤1,
+  y+h≤1` — the crop gesture is a total function into the valid-rect space (clamps at the source
+  edge), NEVER relying on schema-rejection downstream (which would silently drop an edge crop).
+
+### Failure modes & edge cases — triaged
+- **MUST** — w or h → 0 → `100/w` = `Infinity%` → broken render. likelihood low / blast high
+  (broken figure) / cost low → CR-M6.
+- **MUST** — src swap leaves a stale crop/srcAspect → distorted image. likelihood mod / blast high
+  / cost low → CR-INV2.
+- **MUST** — crop applied before load → srcAspect unknown → crop must be disabled. likelihood mod /
+  blast mod / cost low → CR-INV1.
+- **MUST** — render math string-correct but visually broken (missing position:relative etc.) →
+  CR-J1b owner visual pass.
+- **SHOULD** — crop + width-sizing compose. *(Promoted — RATIFICATION_LOG CR-skip-compose.)*
+- **SKIP (logged):**
+  - broken/failed image + crop → the editor broken-state card already handles it; blast low.
+  - the exact tiny-crop clamp threshold VALUE → a tuning detail, not a behavior (the clamp EXISTS
+    is CR-M6; the number is not specced).
+  - ~~SVG / data-URI source with no intrinsic size~~ → **PROMOTED to CR-M8 (MUST)** by the
+    fresh-context sweep: `srcAspect=0/NaN` fires `load` (passes CR-INV1) → broken render, and
+    it's an ordinary web-image case on a paste/upload platform, not fringe.
+
+### Out of scope
+Aspect-lock presets (1:1/16:9); `object-view-box`; absolute rem-height (dropped with `height`);
+re-crop preservation across a src swap (crop clears by design); moving width/align fully to the drawer.
+
+### Verification plan
+- **Automated (design-anchored, author BLIND to the diff):** CR-M1, CR-M2, CR-M4, CR-M5, CR-M6,
+  CR-M7, CR-M8, CR-M9, CR-M10, CR-INV1, CR-INV2, CR-INV3, CR-INV-both, CR-INV-safe, CR-S3 —
+  encode the design's intended crop behavior; can honestly fail. Built from the design doc + this
+  spec, not the diff.
+- **Automated (code-anchored pins, may read the code):** CR-M3, CR-S1, CR-S2, CR-S4.
+- **Human manual-QA (owner) — CR-J1b:** on a published/preview page, crop a WIDE image down to a
+  corner region; **predict-then-run** — confirm exactly that corner shows, unstretched, clipped;
+  **break-it** — crop to a thin sliver, confirm no overflow/distortion; check one Chromium + one
+  Firefox/WebKit. Logged in RATIFICATION_LOG.
+
+### Acceptance scenario (ship gate)
+Author sets an image → enters Crop → drags the frame to a corner → applies → the block preview
+shows that region → the published page renders the exact window unstretched + clipped (CR-J1b
+owner, cross-browser) → print shows the window (CR-M4) → an uncropped image elsewhere is
+byte-identical (CR-M2, carries neither attr) → replacing the src clears crop+srcAspect (CR-INV2).
+Green automated layer + owner manual pass = shippable.
+
+### Trust check
+Load-bearing: CR-M2 (render math) + CR-M6 (div-by-zero guard) + CR-INV-both (identity/pairing).
+CR-M2 must assert the ACTUAL computed values (aspect-ratio + all four offsets), not just the
+`.is-cropped` class. Mutation sanity: a build that drops `position:relative`/`display:block`,
+emits `100/w` without clamping `w>0`, or writes `srcAspect` onto an uncropped image, must turn
+CR-M2 / CR-M6 / CR-INV-both red.
