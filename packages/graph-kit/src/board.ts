@@ -22,6 +22,7 @@ import {
   verticalArrowSpecs,
   type ArrowSpec,
 } from './display-arrows.js';
+import { resolveDrawableColor } from './drawable-palette.js';
 
 // Stage 4: what one expression-list row contributes to the board. Coordinates
 // and functions are CLOSURES over the caller's live slider scope — JSXGraph
@@ -1150,9 +1151,9 @@ export function createPointAnswerBoard(
 // blank page.
 // =============================================================================
 
-const DISPLAY_CURVE_COLOR = '#2563eb';
-const DISPLAY_POINT_COLOR = '#0f172a';
-const DISPLAY_FILL_COLOR = '#2563eb';
+// Half-plane / polygon fills use the drawable's own color at a floored opacity
+// so a pale swatch still reads over the grid (stroke gets the full color).
+const SHADE_FILL_OPACITY = 0.18;
 
 // The kit's own parallel view of a schema Drawable (the kit never imports
 // @activity/schema; the wire shape is the contract). Optional fields are read
@@ -1177,6 +1178,9 @@ export interface DisplayDrawable {
   // Continuation arrowheads on unbounded ends (curve/expression/ray + vertical).
   // undefined = true; false is the authored opt-out.
   arrows?: boolean;
+  // Authored color palette key (see drawable-palette.ts). Absent = the shared
+  // default; an unknown key falls back to it too (resolveDrawableColor).
+  color?: string;
 }
 
 export interface DisplayConfig {
@@ -1225,13 +1229,14 @@ function modelToFn(
   }
 }
 
-// Open (hollow) vs closed (filled) endpoint dot attributes.
-function dotAttrs(style: string | undefined): Record<string, unknown> {
+// Open (hollow) vs closed (filled) endpoint dot attributes, in the drawable's
+// color (open = colored rim + white fill; closed = solid colored).
+function dotAttrs(style: string | undefined, color: string): Record<string, unknown> {
   return {
     fixed: true,
     size: 3,
-    strokeColor: DISPLAY_POINT_COLOR,
-    fillColor: style === 'open' ? '#ffffff' : DISPLAY_POINT_COLOR,
+    strokeColor: color,
+    fillColor: style === 'open' ? '#ffffff' : color,
     highlight: false,
     showInfobox: false,
     withLabel: false,
@@ -1274,9 +1279,9 @@ export function createDisplayBoard(
   // Continuation arrowhead: a short overlay segment whose lastArrow marker
   // sits at the window-exit point (display-arrows.ts computes where that is —
   // most curves leave through the top/bottom, not the sides).
-  const drawArrow = (s: ArrowSpec): void => {
+  const drawArrow = (s: ArrowSpec, color: string): void => {
     board.create('segment', [s.tail, s.tip], {
-      strokeColor: DISPLAY_CURVE_COLOR,
+      strokeColor: color,
       strokeWidth: 2,
       fixed: true,
       highlight: false,
@@ -1285,11 +1290,12 @@ export function createDisplayBoard(
   };
 
   for (const d of config.drawables) {
+    const color = resolveDrawableColor(d.color);
     switch (d.kind) {
       case 'point': {
         if (!isPair(d.at)) break;
         board.create('point', d.at, {
-          ...dotAttrs(d.style),
+          ...dotAttrs(d.style, color),
           name: d.label ?? '',
           withLabel: Boolean(d.label),
         });
@@ -1297,7 +1303,7 @@ export function createDisplayBoard(
       }
       case 'curve': {
         const attrs = {
-          strokeColor: DISPLAY_CURVE_COLOR,
+          strokeColor: color,
           strokeWidth: 2,
           highlight: false,
           fixed: true,
@@ -1309,13 +1315,13 @@ export function createDisplayBoard(
           if (!Number.isFinite(k)) break;
           board.create('segment', [[k, config.yMin], [k, config.yMax]], attrs);
           if (d.arrows !== false) {
-            for (const s of verticalArrowSpecs(k, config)) drawArrow(s);
+            for (const s of verticalArrowSpecs(k, config)) drawArrow(s, color);
           }
           if (d.shade === 'left' || d.shade === 'right') {
             const { xs, ys } = halfPlaneOutline(d.shade, config, { x: k });
             board.create('curve', [xs, ys], {
               strokeWidth: 0, fixed: true, highlight: false,
-              fillColor: DISPLAY_FILL_COLOR, fillOpacity: 0.15,
+              fillColor: color, fillOpacity: SHADE_FILL_OPACITY,
             });
           }
           break;
@@ -1327,10 +1333,10 @@ export function createDisplayBoard(
         board.create('functiongraph', [fn, lo, hi], attrs);
         // Domain endpoint dots (open/closed) where a bound was authored.
         if (typeof d.domain?.min === 'number') {
-          board.create('point', [d.domain.min, fn(d.domain.min)], dotAttrs(d.domain.minStyle));
+          board.create('point', [d.domain.min, fn(d.domain.min)], dotAttrs(d.domain.minStyle, color));
         }
         if (typeof d.domain?.max === 'number') {
-          board.create('point', [d.domain.max, fn(d.domain.max)], dotAttrs(d.domain.maxStyle));
+          board.create('point', [d.domain.max, fn(d.domain.max)], dotAttrs(d.domain.maxStyle, color));
         }
         // Continuation arrows only on UNBOUNDED ends — an authored bound got
         // its dot above; dot + arrow on the same end would contradict.
@@ -1339,13 +1345,13 @@ export function createDisplayBoard(
             first: typeof d.domain?.min !== 'number',
             last: typeof d.domain?.max !== 'number',
           };
-          for (const s of curveEndArrows(fn, lo, hi, config, ends)) drawArrow(s);
+          for (const s of curveEndArrows(fn, lo, hi, config, ends)) drawArrow(s, color);
         }
         if (d.shade === 'above' || d.shade === 'below') {
           const { xs, ys } = halfPlaneOutline(d.shade, config, { fn });
           board.create('curve', [xs, ys], {
             strokeWidth: 0, fixed: true, highlight: false,
-            fillColor: DISPLAY_FILL_COLOR, fillOpacity: 0.15,
+            fillColor: color, fillOpacity: SHADE_FILL_OPACITY,
           });
         }
         break;
@@ -1356,7 +1362,7 @@ export function createDisplayBoard(
         if (!fn) break;
         const sample = (x: number): number => fn(x);
         board.create('functiongraph', [sample], {
-          strokeColor: DISPLAY_CURVE_COLOR,
+          strokeColor: color,
           strokeWidth: 2,
           highlight: false,
           fixed: true,
@@ -1367,7 +1373,7 @@ export function createDisplayBoard(
             first: true,
             last: true,
           })) {
-            drawArrow(s);
+            drawArrow(s, color);
           }
         }
         break;
@@ -1377,29 +1383,29 @@ export function createDisplayBoard(
         board.create('line', [d.from, d.through], {
           straightFirst: false,
           straightLast: true,
-          strokeColor: DISPLAY_CURVE_COLOR,
+          strokeColor: color,
           strokeWidth: 2,
           highlight: false,
           fixed: true,
         });
-        board.create('point', d.from, dotAttrs(d.fromStyle));
+        board.create('point', d.from, dotAttrs(d.fromStyle, color));
         if (d.arrows !== false) {
           const s = rayArrowSpec(d.from, d.through, config);
-          if (s) drawArrow(s);
+          if (s) drawArrow(s, color);
         }
         break;
       }
       case 'segment': {
         if (!isPair(d.from) || !isPair(d.to)) break;
         board.create('segment', [d.from, d.to], {
-          strokeColor: DISPLAY_CURVE_COLOR,
+          strokeColor: color,
           strokeWidth: 2,
           highlight: false,
           fixed: true,
         });
         if (d.endpoints) {
-          board.create('point', d.from, dotAttrs(d.endpoints[0]));
-          board.create('point', d.to, dotAttrs(d.endpoints[1]));
+          board.create('point', d.from, dotAttrs(d.endpoints[0], color));
+          board.create('point', d.to, dotAttrs(d.endpoints[1], color));
         }
         break;
       }
@@ -1407,13 +1413,13 @@ export function createDisplayBoard(
         const verts = Array.isArray(d.vertices) ? d.vertices.filter(isPair) : [];
         if (verts.length < 3) break;
         board.create('polygon', verts as unknown[], {
-          fillColor: DISPLAY_FILL_COLOR,
+          fillColor: color,
           fillOpacity: d.filled === false ? 0 : 0.2,
           hasInnerPoints: false,
           fixed: true,
           vertices: { visible: false, fixed: true },
           borders: {
-            strokeColor: DISPLAY_CURVE_COLOR,
+            strokeColor: color,
             strokeWidth: 2,
             highlight: false,
             fixed: true,

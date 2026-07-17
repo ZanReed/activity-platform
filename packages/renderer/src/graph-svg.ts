@@ -30,6 +30,10 @@ import type {
   EndpointStyle,
 } from '@activity/schema';
 import { attr, escape } from './html.js';
+// Import from the DOM-free subpath, not the barrel: the renderer's tsconfig has
+// no DOM lib, and graph-kit's index re-exports runtime.ts (which references
+// HTMLElement). drawable-palette.ts is pure data + a resolver.
+import { resolveDrawableColor } from '@activity/graph-kit/drawable-palette';
 
 // The schema doesn't re-export CurveDomain; derive it from the curve drawable
 // so this module stays renderer-only.
@@ -41,7 +45,9 @@ const SIZE = 400;
 const GRID_COLOR = '#cbd5e1';
 const AXIS_COLOR = '#64748b';
 const LABEL_COLOR = '#475569';
-const INK = '#1e293b';
+// Half-plane / polygon fills use the drawable's color at a floored opacity so a
+// pale swatch still reads over the grid (matches board.ts's SHADE_FILL_OPACITY).
+const SHADE_FILL_OPACITY = 0.18;
 const CURVE_SAMPLES = 96;
 
 interface Plane {
@@ -221,6 +227,7 @@ function arrowAt(
   tip: [number, number],
   dir: [number, number],
   markerId: string,
+  color: string,
 ): string {
   const mag = Math.hypot(dir[0], dir[1]);
   if (!Number.isFinite(mag) || mag === 0) return '';
@@ -231,7 +238,7 @@ function arrowAt(
   return (
     `<line x1="${round1(tx - ux * ARROW_SHAFT_PX)}" y1="${round1(ty - uy * ARROW_SHAFT_PX)}"` +
     ` x2="${round1(tx)}" y2="${round1(ty)}"` +
-    ` stroke="${INK}" stroke-width="2" marker-end="url(#${attr(markerId)})"/>`
+    ` stroke="${color}" stroke-width="2" marker-end="url(#${attr(markerId)})"/>`
   );
 }
 
@@ -243,6 +250,7 @@ function curveArrows(
   model: FunctionModel,
   domain: CurveDomain | undefined,
   markerId: string,
+  color: string,
 ): string {
   const { axis } = p;
   const x0 = Math.max(axis.xMin, domain?.min ?? -Infinity);
@@ -266,7 +274,7 @@ function curveArrows(
           : pt;
       // Outward direction: from the inward neighbor toward the tip.
       const inner = pts[i - neighborStep] ?? pt;
-      out += arrowAt(tip, [tip[0] - inner[0], tip[1] - inner[1]], markerId);
+      out += arrowAt(tip, [tip[0] - inner[0], tip[1] - inner[1]], markerId, color);
       return;
     }
   };
@@ -283,20 +291,25 @@ function curveArrows(
   return out;
 }
 
-function endpointDot(p: Plane, at: [number, number], style: EndpointStyle): string {
+function endpointDot(
+  p: Plane,
+  at: [number, number],
+  style: EndpointStyle,
+  color: string,
+): string {
   const open = style === 'open';
   return (
     `<circle cx="${round1(p.px(at[0]))}" cy="${round1(p.py(at[1]))}" r="4.5"` +
-    ` fill="${open ? '#fff' : INK}" stroke="${INK}" stroke-width="2"/>`
+    ` fill="${open ? '#fff' : color}" stroke="${color}" stroke-width="2"/>`
   );
 }
 
-function renderPoint(p: Plane, d: Extract<Drawable, { kind: 'point' }>): string {
-  let out = endpointDot(p, d.at, d.style ?? 'closed');
+function renderPoint(p: Plane, d: Extract<Drawable, { kind: 'point' }>, color: string): string {
+  let out = endpointDot(p, d.at, d.style ?? 'closed', color);
   if (d.label) {
     out +=
       `<text x="${round1(p.px(d.at[0]) + 7)}" y="${round1(p.py(d.at[1]) - 7)}"` +
-      ` fill="${INK}" font-size="13" font-family="inherit">${escape(d.label)}</text>`;
+      ` fill="${color}" font-size="13" font-family="inherit">${escape(d.label)}</text>`;
   }
   return out;
 }
@@ -305,6 +318,7 @@ function renderCurve(
   p: Plane,
   d: Extract<Drawable, { kind: 'curve' }>,
   markerId: string,
+  color: string,
 ): string {
   const { axis } = p;
   const dash = d.style === 'dashed' ? ' stroke-dasharray="8 6"' : '';
@@ -316,14 +330,14 @@ function renderCurve(
     // A vertical line's domain restricts y.
     const yTop = round1(p.py(Math.min(axis.yMax, d.domain?.max ?? Infinity)));
     const yBot = round1(p.py(Math.max(axis.yMin, d.domain?.min ?? -Infinity)));
-    out += `<line x1="${vx}" y1="${yTop}" x2="${vx}" y2="${yBot}" stroke="${INK}" stroke-width="2"${dash}/>`;
+    out += `<line x1="${vx}" y1="${yTop}" x2="${vx}" y2="${yBot}" stroke="${color}" stroke-width="2"${dash}/>`;
     if (d.arrows !== false && vxRaw >= 0 && vxRaw <= SIZE) {
-      if (d.domain?.max === undefined) out += arrowAt([vxRaw, 0], [0, -1], markerId);
-      if (d.domain?.min === undefined) out += arrowAt([vxRaw, SIZE], [0, 1], markerId);
+      if (d.domain?.max === undefined) out += arrowAt([vxRaw, 0], [0, -1], markerId, color);
+      if (d.domain?.min === undefined) out += arrowAt([vxRaw, SIZE], [0, 1], markerId, color);
     }
     if (d.shade === 'left' || d.shade === 'right') {
       const xEdge = d.shade === 'left' ? 0 : SIZE;
-      out += `<rect x="${Math.min(vx, xEdge)}" y="0" width="${Math.abs(xEdge - vx)}" height="${SIZE}" fill="${INK}" fill-opacity="0.12"/>`;
+      out += `<rect x="${Math.min(vx, xEdge)}" y="0" width="${Math.abs(xEdge - vx)}" height="${SIZE}" fill="${color}" fill-opacity="${SHADE_FILL_OPACITY}"/>`;
     }
   } else {
     const path = samplePath(p, d.model, d.domain);
@@ -333,11 +347,11 @@ function renderCurve(
       const edge = d.shade === 'above' ? 0 : SIZE;
       const x0 = Math.max(axis.xMin, d.domain?.min ?? -Infinity);
       const x1 = Math.min(axis.xMax, d.domain?.max ?? Infinity);
-      out += `<path d="${path}L${round1(p.px(x1))} ${edge}L${round1(p.px(x0))} ${edge}Z" fill="${INK}" fill-opacity="0.12" stroke="none"/>`;
+      out += `<path d="${path}L${round1(p.px(x1))} ${edge}L${round1(p.px(x0))} ${edge}Z" fill="${color}" fill-opacity="${SHADE_FILL_OPACITY}" stroke="none"/>`;
     }
-    out += `<path d="${path}" fill="none" stroke="${INK}" stroke-width="2"${dash}/>`;
+    out += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2"${dash}/>`;
     if (d.arrows !== false) {
-      out += curveArrows(p, d.model, d.domain, markerId);
+      out += curveArrows(p, d.model, d.domain, markerId, color);
     }
   }
 
@@ -345,26 +359,26 @@ function renderCurve(
   if (d.domain?.min !== undefined && d.model.family !== 'vertical') {
     const y = evalModel(d.model, d.domain.min);
     if (y !== null && Number.isFinite(y)) {
-      out += endpointDot(p, [d.domain.min, y], d.domain.minStyle ?? 'closed');
+      out += endpointDot(p, [d.domain.min, y], d.domain.minStyle ?? 'closed', color);
     }
   }
   if (d.domain?.max !== undefined && d.model.family !== 'vertical') {
     const y = evalModel(d.model, d.domain.max);
     if (y !== null && Number.isFinite(y)) {
-      out += endpointDot(p, [d.domain.max, y], d.domain.maxStyle ?? 'closed');
+      out += endpointDot(p, [d.domain.max, y], d.domain.maxStyle ?? 'closed', color);
     }
   }
   return out;
 }
 
-function renderSegment(p: Plane, d: Extract<Drawable, { kind: 'segment' }>): string {
+function renderSegment(p: Plane, d: Extract<Drawable, { kind: 'segment' }>, color: string): string {
   const [fromStyle, toStyle] = d.endpoints ?? ['closed', 'closed'];
   return (
     `<line x1="${round1(p.px(d.from[0]))}" y1="${round1(p.py(d.from[1]))}"` +
     ` x2="${round1(p.px(d.to[0]))}" y2="${round1(p.py(d.to[1]))}"` +
-    ` stroke="${INK}" stroke-width="2"/>` +
-    endpointDot(p, d.from, fromStyle) +
-    endpointDot(p, d.to, toStyle)
+    ` stroke="${color}" stroke-width="2"/>` +
+    endpointDot(p, d.from, fromStyle, color) +
+    endpointDot(p, d.to, toStyle, color)
   );
 }
 
@@ -372,6 +386,7 @@ function renderRay(
   p: Plane,
   d: Extract<Drawable, { kind: 'ray' }>,
   markerId: string,
+  color: string,
 ): string {
   // Extend from→through far past the window (the clip trims it). A degenerate
   // ray (from === through) draws only its endpoint dot. The arrowhead is a
@@ -389,39 +404,39 @@ function renderRay(
     out +=
       `<line x1="${round1(fx)}" y1="${round1(fy)}"` +
       ` x2="${round1(fx + dx * t)}" y2="${round1(fy + dy * t)}"` +
-      ` stroke="${INK}" stroke-width="2"/>`;
+      ` stroke="${color}" stroke-width="2"/>`;
     if (d.arrows !== false) {
       const tip = insideBox(fx, fy)
         ? clipToBox(fx, fy, fx + dx * t, fy + dy * t)
         : null;
-      if (tip) out += arrowAt(tip, [dx, dy], markerId);
+      if (tip) out += arrowAt(tip, [dx, dy], markerId, color);
     }
   }
-  return out + endpointDot(p, d.from, d.fromStyle ?? 'closed');
+  return out + endpointDot(p, d.from, d.fromStyle ?? 'closed', color);
 }
 
-function renderPolygon(p: Plane, d: Extract<Drawable, { kind: 'polygon' }>): string {
+function renderPolygon(p: Plane, d: Extract<Drawable, { kind: 'polygon' }>, color: string): string {
   const pts = d.vertices
     .map((v) => `${round1(p.px(v[0]))},${round1(p.py(v[1]))}`)
     .join(' ');
-  const fill = d.filled ? ` fill="${INK}" fill-opacity="0.15"` : ' fill="none"';
-  return `<polygon points="${pts}"${fill} stroke="${INK}" stroke-width="2"/>`;
+  const fill = d.filled ? ` fill="${color}" fill-opacity="${SHADE_FILL_OPACITY}"` : ' fill="none"';
+  return `<polygon points="${pts}"${fill} stroke="${color}" stroke-width="2"/>`;
 }
 
-function renderDrawable(p: Plane, d: Drawable, markerId: string): string {
+function renderDrawable(p: Plane, d: Drawable, markerId: string, color: string): string {
   switch (d.kind) {
     case 'point':
-      return renderPoint(p, d);
+      return renderPoint(p, d, color);
     case 'curve':
-      return renderCurve(p, d, markerId);
+      return renderCurve(p, d, markerId, color);
     case 'expression':
       return ''; // needs the kit's formula parser — see the header comment
     case 'segment':
-      return renderSegment(p, d);
+      return renderSegment(p, d, color);
     case 'ray':
-      return renderRay(p, d, markerId);
+      return renderRay(p, d, markerId, color);
     case 'polygon':
-      return renderPolygon(p, d);
+      return renderPolygon(p, d, color);
   }
 }
 
@@ -490,6 +505,10 @@ export function renderGraphSvg(
   axis: AxisConfig,
   drawables: Drawable[],
   uid: string,
+  // The color for a drawable with no authored `color`. Defaults to the shared
+  // palette default; the answer-key print passes INK so the synthesized key
+  // stays a distinct neutral layer, not the display palette (OV#6).
+  defaultColor: string = resolveDrawableColor(undefined),
 ): string {
   if (!(axis.xMax > axis.xMin) || !(axis.yMax > axis.yMin)) return '';
   const p: Plane = {
@@ -498,18 +517,37 @@ export function renderGraphSvg(
     py: (y) => ((axis.yMax - y) / (axis.yMax - axis.yMin)) * SIZE,
   };
   const clipId = 'gclip-' + uid;
-  const markerId = 'garrow-' + uid;
+  // One arrow marker PER distinct drawable color (an SVG marker's fill is fixed,
+  // so a shared marker can't recolor per curve). markerIdFor keys the marker by
+  // the resolved hex; the drawables reference their own color's marker.
+  const markerBase = 'garrow-' + uid;
+  const markerIdFor = (color: string): string => `${markerBase}-${color.replace('#', '')}`;
 
-  const content = drawables.map((d) => renderDrawable(p, d, markerId)).join('');
+  const usedMarkers = new Map<string, string>(); // markerId -> color
+  const content = drawables
+    .map((d) => {
+      const color = d.color ? resolveDrawableColor(d.color) : defaultColor;
+      const markerId = markerIdFor(color);
+      usedMarkers.set(markerId, color);
+      return renderDrawable(p, d, markerId, color);
+    })
+    .join('');
+
+  const markers = [...usedMarkers]
+    .map(
+      ([mId, color]) =>
+        `<marker id="${attr(mId)}" viewBox="0 0 10 10" refX="8" refY="5"` +
+        ` markerWidth="7" markerHeight="7" orient="auto-start-reverse">` +
+        `<path d="M0 0L10 5L0 10Z" fill="${color}"/></marker>`,
+    )
+    .join('');
 
   return (
     `<svg class="graph-paper" viewBox="0 0 ${SIZE} ${SIZE}"` +
     ' xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">' +
     '<defs>' +
     `<clipPath id="${attr(clipId)}"><rect x="0" y="0" width="${SIZE}" height="${SIZE}"/></clipPath>` +
-    `<marker id="${attr(markerId)}" viewBox="0 0 10 10" refX="8" refY="5"` +
-    ` markerWidth="7" markerHeight="7" orient="auto-start-reverse">` +
-    `<path d="M0 0L10 5L0 10Z" fill="${INK}"/></marker>` +
+    markers +
     '</defs>' +
     `<g clip-path="url(#${attr(clipId)})">` +
     renderGridAndAxes(p) +

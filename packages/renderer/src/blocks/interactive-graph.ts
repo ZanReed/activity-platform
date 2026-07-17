@@ -131,6 +131,8 @@ export function renderInteractiveGraph(
     block.axisConfig,
     ctx.showAnswers ? answerKeyDrawables(block) : [],
     block.id,
+    // The answer-key print is a distinct neutral layer, not the display palette.
+    '#1e293b',
   );
   const canvas =
     '<div class="graph-canvas"' +

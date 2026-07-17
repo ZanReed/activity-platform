@@ -65,17 +65,22 @@ describe('renderGraphSvg — plane', () => {
   });
 
   it('namespaces internal ids by uid (many graphs per document)', () => {
-    const out = renderGraphSvg(axis(), [], 'block-42');
+    // A ray emits an arrow marker, whose id is namespaced by uid AND color.
+    const out = renderGraphSvg(
+      axis(),
+      [{ kind: 'ray', from: [0, 0], through: [1, 1] }] as Drawable[],
+      'block-42',
+    );
     expect(out).toContain('id="gclip-block-42"');
     expect(out).toContain('url(#gclip-block-42)');
-    expect(out).toContain('id="garrow-block-42"');
+    expect(out).toContain('id="garrow-block-42-2563eb"');
   });
 });
 
 describe('renderGraphSvg — drawables', () => {
   it('point: closed dot by default, open when styled, label escaped', () => {
     const closed = svg(axis(), [{ kind: 'point', at: [2, 3] }]);
-    expect(closed).toContain('fill="#1e293b"');
+    expect(closed).toContain('fill="#2563eb"'); // uncolored → shared default (blue)
     const open = svg(axis(), [{ kind: 'point', at: [2, 3], style: 'open' }]);
     expect(open).toContain('fill="#fff"');
     const labeled = svg(axis(), [{ kind: 'point', at: [2, 3], label: '<A&B>' }]);
@@ -107,14 +112,14 @@ describe('renderGraphSvg — drawables', () => {
       { kind: 'curve', model: { family: 'vertical', x: 3 }, shade: 'left' },
     ] as Drawable[]);
     expect(out).toContain('<line');
-    expect(out).toContain('fill-opacity="0.12"');
+    expect(out).toContain('fill-opacity="0.18"');
   });
 
   it('above/below shading closes a half-plane polygon against the edge', () => {
     const out = svg(axis(), [
       { kind: 'curve', model: { family: 'linear', slope: 1, intercept: 0 }, shade: 'above' },
     ] as Drawable[]);
-    expect(out).toContain('fill-opacity="0.12"');
+    expect(out).toContain('fill-opacity="0.18"');
   });
 
   it('an editor-authored inequality drawable (dashed + shade + domain) composes on paper', () => {
@@ -132,7 +137,7 @@ describe('renderGraphSvg — drawables', () => {
       },
     ] as Drawable[]);
     expect(out).toContain('stroke-dasharray');
-    expect(out).toContain('fill-opacity="0.12"');
+    expect(out).toContain('fill-opacity="0.18"');
   });
 
   it('domain-restricted curve draws endpoint dots per style', () => {
@@ -151,14 +156,14 @@ describe('renderGraphSvg — drawables', () => {
       { kind: 'segment', from: [0, 0], to: [4, 4], endpoints: ['open', 'closed'] },
     ] as Drawable[]);
     expect(out).toContain('fill="#fff"');
-    expect(out).toContain('fill="#1e293b"');
+    expect(out).toContain('fill="#2563eb"'); // closed dot → shared default (blue)
   });
 
   it('ray: extended line with the arrowhead marker + endpoint dot', () => {
     const out = svg(axis(), [
       { kind: 'ray', from: [0, 0], through: [1, 1] },
     ] as Drawable[]);
-    expect(out).toContain('marker-end="url(#garrow-test-uid)"');
+    expect(out).toContain('marker-end="url(#garrow-test-uid-2563eb)"');
     const degenerate = svg(axis(), [
       { kind: 'ray', from: [0, 0], through: [0, 0] },
     ] as Drawable[]);
@@ -204,11 +209,33 @@ describe('renderGraphSvg — drawables', () => {
     const filled = svg(axis(), [
       { kind: 'polygon', vertices: [[0, 0], [4, 0], [0, 4]], filled: true },
     ] as Drawable[]);
-    expect(filled).toContain('fill-opacity="0.15"');
+    expect(filled).toContain('fill-opacity="0.18"');
     const outline = svg(axis(), [
       { kind: 'polygon', vertices: [[0, 0], [4, 0], [0, 4]], filled: false },
     ] as Drawable[]);
     expect(outline).toContain('fill="none"');
+  });
+
+  it('an authored color renders in its palette hex (stroke + per-color arrow marker)', () => {
+    const out = svg(axis(), [
+      { kind: 'ray', from: [0, 0], through: [1, 1], color: 'red' },
+    ] as Drawable[]);
+    expect(out).toContain('stroke="#dc2626"'); // ray line in red
+    expect(out).toContain('id="garrow-test-uid-dc2626"'); // its own marker
+    expect(out).not.toContain('#2563eb'); // not the default blue
+  });
+
+  it('the answer-key print stays neutral INK, not the display palette (OV#6)', () => {
+    // The showAnswers path passes INK as the default color for the synthesized
+    // key so it reads as a distinct layer, not the authored display palette.
+    const out = renderGraphSvg(
+      axis(),
+      [{ kind: 'point', at: [2, 3] }] as Drawable[],
+      'key',
+      '#1e293b',
+    );
+    expect(out).toContain('fill="#1e293b"');
+    expect(out).not.toContain('#2563eb');
   });
 
   it('expression drawables are skipped (kit-only parser)', () => {
