@@ -51,20 +51,26 @@ export function renderImage(block: ImageBlock): string {
 
   if (crop) {
     const { aspect, imgStyle } = crop;
-    // aspect-ratio rides the same style attr as the sizing vars (--block-width).
-    const figureStyleVars = ['aspect-ratio:' + aspect];
+    // The crop window (aspect-ratio + overflow:hidden) is an INNER element, not
+    // the figure, so the <figcaption> — a figure sibling of the window — is not
+    // clipped by the window's overflow (CR-S2). overflow:hidden makes the window
+    // a scroll container with min-height 0, so aspect-ratio fixes its height
+    // exactly; a caption inside it would be cut off. sizing (--block-width) stays
+    // on the figure; the window fills it at 100%.
     return (
       '<figure class="block block-image is-cropped' + sizingClass(block) + '"' +
       ' data-block-category="content"' +
       ' data-block-type="image"' +
       ' data-block-id="' + attr(block.id) + '"' +
-      sizingAttrs(block, figureStyleVars) + '>' +
+      sizingAttrs(block) + '>' +
+      '<span class="block-image-window" style="aspect-ratio:' + aspect + '">' +
       '<img src="' + attr(block.src) + '"' +
       ' alt="' + attr(block.alt) + '"' +
       ' loading="lazy"' +
       ' decoding="async"' +
       ' style="' + attr(imgStyle) + '"' +
       ' />' +
+      '</span>' +
       captionHtml +
       '</figure>'
     );

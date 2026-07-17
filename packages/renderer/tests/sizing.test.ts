@@ -101,9 +101,11 @@ describe('sizing CSS (published stylesheet)', () => {
     expect(blockStyles).toContain('.block-image.block-sized img');
   });
 
-  it('carries the crop wrapper rules (is-cropped)', async () => {
+  it('carries the crop wrapper rules (inner .block-image-window)', async () => {
     const { blockStyles } = await import('../src/runtime/styles.js');
-    expect(blockStyles).toContain('.block-image.is-cropped');
+    // The aspect/overflow live on the INNER window, not the figure, so the
+    // figcaption (a figure sibling) is never clipped (CR-S2).
+    expect(blockStyles).toContain('.block-image-window');
     expect(blockStyles).toContain('overflow: hidden');
     expect(blockStyles).toContain('max-width: none');
   });

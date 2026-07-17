@@ -9,6 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { renderBlock } from '../blocks/index.js';
+import { blockStyles } from '../runtime/styles.js';
 import { ImageBlock } from '@activity/schema';
 
 const ctx = () => ({ nextProblemNumber: () => 1 });
@@ -109,4 +110,62 @@ describe('crop safety guard (CR-M8 / CR-INV-safe)', () => {
       expect(html).not.toContain('aspect-ratio');
     });
   }
+});
+
+describe('caption + crop (CR-S2)', () => {
+  // The <figcaption> is a figure SIBLING of the crop window (the aspect/overflow
+  // box), NOT inside it — so the window's overflow:hidden never clips it. The
+  // markup order proves the structure: window closes, THEN the figcaption opens.
+  it('renders the figcaption outside the overflow-clipped window', () => {
+    const html = renderBlock(
+      image({
+        crop: { x: 0, y: 0, w: 0.5, h: 0.5 },
+        srcAspect: 2,
+        caption: 'A framed diagram',
+      }),
+      ctx(),
+    );
+    expect(html).toContain('block-image-window');
+    expect(html).toContain('<figcaption>A framed diagram</figcaption>');
+    // The figcaption comes AFTER the closing </span> of the window (a sibling),
+    // never nested inside it.
+    const windowClose = html.indexOf('</span>');
+    const figcaption = html.indexOf('<figcaption>');
+    expect(windowClose).toBeGreaterThan(-1);
+    expect(figcaption).toBeGreaterThan(windowClose);
+    // aspect-ratio + overflow ride the inner window, not the figure.
+    expect(html).toContain('<span class="block-image-window" style="aspect-ratio:2">');
+  });
+
+  it('the crop window CSS clips (overflow) but the figcaption CSS does not', () => {
+    // The stylesheet applies overflow only to the window; .block-image-caption
+    // (the caption) carries no clip. Guards the "caption survives print" claim.
+    expect(blockStyles).toContain('.block-image-window');
+    expect(blockStyles).toMatch(/\.block-image-window\s*\{[^}]*overflow:\s*hidden/);
+  });
+});
+
+describe('print keeps the cropped window (CR-M4)', () => {
+  // The renderer emits ONE media-independent HTML string; the crop (aspect-ratio
+  // + the scaled/offset img + the window's overflow) is inline/base CSS, applied
+  // in print exactly as on screen. The @media print baseline never neutralizes
+  // the crop, so a cropped image prints its window, not the full source.
+  it('the cropped markup is present and print does not reset the crop', () => {
+    const html = renderBlock(
+      image({ crop: { x: 0.25, y: 0.1, w: 0.5, h: 0.5 }, srcAspect: 2 }),
+      ctx(),
+    );
+    // The window (aspect box) + the offset/scaled img survive into print HTML.
+    expect(html).toContain('block-image-window');
+    expect(html).toContain('aspect-ratio:2');
+    expect(html).toContain('width:200%');
+    expect(html).toContain('left:-50%');
+
+    // The @media print block must not override the crop wrapper's aspect/overflow
+    // or the absolute img (which would un-crop the printed figure).
+    const printBlock = blockStyles.slice(blockStyles.indexOf('@media print'));
+    expect(printBlock).not.toMatch(/\.block-image-window[^}]*aspect-ratio\s*:\s*auto/);
+    expect(printBlock).not.toMatch(/\.block-image-window[^}]*overflow\s*:\s*visible/);
+    expect(printBlock).not.toMatch(/\.block-image-window\s*>\s*img[^}]*position\s*:\s*static/);
+  });
 });

@@ -165,16 +165,22 @@ body {
 .block-image.block-sized img {
   width: 100%;
 }
-/* Crop (reframe): the figure is a fixed-aspect window (aspect-ratio set inline
- per crop), and the <img> is scaled/offset absolutely (width/height/left/top set
- inline) so the crop rectangle fills it; overflow clips the rest. max-width:none
- lifts the base 100% cap so the scaled source (e.g. 200%) isn't clamped.
+/* Crop (reframe): an INNER window (.block-image-window) is the fixed-aspect box
+ (aspect-ratio set inline per crop) that clips the absolutely-scaled <img>
+ (width/height/left/top set inline) so the crop rectangle fills it. The window —
+ not the figure — carries overflow:hidden, so the <figcaption> (a figure sibling
+ of the window) is NOT clipped (overflow:hidden makes the window a scroll
+ container with min-height 0, which would cut off any caption inside it).
+ max-width:none lifts the base 100% cap so the scaled source (e.g. 200%) isn't
+ clamped. sizing (--block-width) stays on the figure; the window fills it.
  Design: docs/design/image-crop.md. */
-.block-image.is-cropped {
+.block-image-window {
   position: relative;
+  display: block;
   overflow: hidden;
+  width: 100%;
 }
-.block-image.is-cropped > img {
+.block-image-window > img {
   position: absolute;
   max-width: none;
   border-radius: 0;
