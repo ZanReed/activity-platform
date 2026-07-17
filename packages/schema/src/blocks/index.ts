@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { ParagraphBlock } from './paragraph.js';
 import { HeadingBlock } from './heading.js';
 import { MathBlock } from './math-block.js';
-import { ImageBlock } from './image.js';
+import { ImageBlock, CropRect } from './image.js';
 import { CalloutBlock } from './callout.js';
 import { ProblemBlock } from './problem.js';
 import { FillInBlankBlock } from './fill-in-blank.js';
@@ -64,6 +64,7 @@ export {
   HeadingBlock,
   MathBlock,
   ImageBlock,
+  CropRect,
   CalloutBlock,
   ProblemBlock,
   FillInBlankBlock,

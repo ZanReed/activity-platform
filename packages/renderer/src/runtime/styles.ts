@@ -156,12 +156,7 @@ body {
 }
 .block-image img {
   max-width: 100%;
-  /* --block-height (set inline when the author fixed a height) wins over the
-   default auto. object-fit makes a width+height box CROP (center) instead of
-   stretch when it disagrees with the natural aspect ratio; with height auto
-   it has no effect, so unsized images are untouched. */
-  height: var(--block-height, auto);
-  object-fit: cover;
+  height: auto;
   border-radius: 4px;
 }
 /* A sized image fills its authored width — the author's dial is authoritative
@@ -169,6 +164,20 @@ body {
  Unsized images keep their natural size, as before. */
 .block-image.block-sized img {
   width: 100%;
+}
+/* Crop (reframe): the figure is a fixed-aspect window (aspect-ratio set inline
+ per crop), and the <img> is scaled/offset absolutely (width/height/left/top set
+ inline) so the crop rectangle fills it; overflow clips the rest. max-width:none
+ lifts the base 100% cap so the scaled source (e.g. 200%) isn't clamped.
+ Design: docs/design/image-crop.md. */
+.block-image.is-cropped {
+  position: relative;
+  overflow: hidden;
+}
+.block-image.is-cropped > img {
+  position: absolute;
+  max-width: none;
+  border-radius: 0;
 }
 .block-image-caption {
   color: var(--color-muted);

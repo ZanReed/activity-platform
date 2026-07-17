@@ -133,22 +133,39 @@ describe('round-trips (Tiptap side, strict deep-equal)', () => {
         expect(cols?.content?.[1]?.attrs).toEqual({});
     });
 
-    it('round-trips a fixed image height (and drops non-positive ones)', () => {
-        const make = (height: unknown) =>
+    // CR-M3 — crop + srcAspect round-trip, stored BOTH-OR-NEITHER.
+    it('round-trips crop + srcAspect together; omits both when uncropped', () => {
+        const make = (attrs: Record<string, unknown>) =>
             tiptapToActivity(
                 doc({
                     type: 'image',
-                    attrs: { src: 'https://example.com/a.png', alt: '', height },
+                    attrs: { src: 'https://example.com/a.png', alt: '', ...attrs },
                 }),
                 META,
             ).sections[0]!.rows[0]!.columns[0]!.blocks[0]!;
 
-        expect(make(12)).toMatchObject({ type: 'image', height: 12 });
-        expect('height' in make(0)).toBe(false);
-        expect('height' in make(-3)).toBe(false);
-        expect('height' in make('12')).toBe(false);
+        // Valid crop + positive srcAspect → both carried.
+        expect(
+            make({ crop: { x: 0.1, y: 0.2, w: 0.5, h: 0.4 }, srcAspect: 1.5 }),
+        ).toMatchObject({
+            type: 'image',
+            crop: { x: 0.1, y: 0.2, w: 0.5, h: 0.4 },
+            srcAspect: 1.5,
+        });
 
-        // Reverse: the attr comes back out, and absent stays absent.
+        // Both-or-neither: crop without srcAspect (or vice-versa) → neither.
+        expect('crop' in make({ crop: { x: 0, y: 0, w: 0.5, h: 0.5 } })).toBe(false);
+        expect('srcAspect' in make({ srcAspect: 1.5 })).toBe(false);
+        // An out-of-bounds crop is dropped (with its srcAspect).
+        expect(
+            'crop' in make({ crop: { x: 0.8, y: 0, w: 0.5, h: 0.5 }, srcAspect: 1.5 }),
+        ).toBe(false);
+        // Uncropped image carries neither.
+        const plain = make({});
+        expect('crop' in plain).toBe(false);
+        expect('srcAspect' in plain).toBe(false);
+
+        // Reverse: crop+srcAspect come back out on the tiptap node.
         const out = activityToTiptap(
             tiptapToActivity(
                 doc({
@@ -157,13 +174,17 @@ describe('round-trips (Tiptap side, strict deep-equal)', () => {
                         src: 'https://example.com/a.png',
                         alt: '',
                         caption: '',
-                        height: 7.5,
+                        crop: { x: 0, y: 0, w: 0.5, h: 0.25 },
+                        srcAspect: 2,
                     },
                 }),
                 META,
             ),
         );
-        expect(out.content?.[0]?.attrs).toMatchObject({ height: 7.5 });
+        expect(out.content?.[0]?.attrs).toMatchObject({
+            crop: { x: 0, y: 0, w: 0.5, h: 0.25 },
+            srcAspect: 2,
+        });
     });
 
     it('round-trips image sizing through the activity document', () => {

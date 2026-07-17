@@ -53,19 +53,16 @@ describe('Per-block sizing (width/align)', () => {
   });
 });
 
-describe('ImageBlock.height (fixed display height, rem)', () => {
+// `height` was removed (folded into crop mode, image-crop.md). Zod isn't
+// .strict(), so a stray `height` on an old doc is silently stripped — not a
+// validation error (CR-M1). Crop validation lives in image-crop.test.ts.
+describe('ImageBlock.height removal', () => {
   const baseImage = () => createImageBlock('https://example.com/fig.png');
 
-  it('accepts a positive rem height, alone or with width', () => {
-    expect(ImageBlock.safeParse({ ...baseImage(), height: 12 }).success).toBe(true);
-    expect(
-      ImageBlock.safeParse({ ...baseImage(), width: 0.5, height: 7.5 }).success,
-    ).toBe(true);
-  });
-
-  it('rejects zero and negative heights', () => {
-    expect(ImageBlock.safeParse({ ...baseImage(), height: 0 }).success).toBe(false);
-    expect(ImageBlock.safeParse({ ...baseImage(), height: -4 }).success).toBe(false);
+  it('ignores a stray height key (not .strict) rather than rejecting', () => {
+    const parsed = ImageBlock.safeParse({ ...baseImage(), height: 12 });
+    expect(parsed.success).toBe(true);
+    expect((parsed as { data: Record<string, unknown> }).data.height).toBeUndefined();
   });
 });
 

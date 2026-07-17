@@ -51,7 +51,8 @@ declare module '@tiptap/core' {
                     caption: string;
                     width: number | null;
                     align: 'left' | 'right' | null;
-                    height: number | null;
+                    crop: { x: number; y: number; w: number; h: number } | null;
+                    srcAspect: number | null;
                 }>,
                 options?: { preserveSelection?: boolean },
             ) => ReturnType;
@@ -133,20 +134,44 @@ export const Image = Node.create({
                         ? { 'data-block-align': attributes.align }
                         : {},
             },
-            // Fixed display height in rem (schema ImageBlock.height); null =
-            // auto (aspect-ratio follows width). With width also set, the
-            // rendered box center-crops (object-fit: cover).
-            height: {
+            // Crop window (schema ImageBlock.crop) — the visible sub-rectangle,
+            // JSON on data-crop for clipboard round-trip; storage goes through
+            // serialize.ts. Stored with srcAspect (both-or-neither).
+            crop: {
+                default: null as { x: number; y: number; w: number; h: number } | null,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-crop');
+                    if (!raw) return null;
+                    try {
+                        const c = JSON.parse(raw) as Record<string, unknown>;
+                        return typeof c?.x === 'number' &&
+                            typeof c?.y === 'number' &&
+                            typeof c?.w === 'number' &&
+                            typeof c?.h === 'number'
+                            ? { x: c.x, y: c.y, w: c.w, h: c.h }
+                            : null;
+                    } catch {
+                        return null;
+                    }
+                },
+                renderHTML: (attributes) =>
+                    attributes.crop
+                        ? { 'data-crop': JSON.stringify(attributes.crop) }
+                        : {},
+            },
+            // The source's natural W/H ratio (schema ImageBlock.srcAspect), used
+            // by the renderer to derive the crop pixel aspect. Positive.
+            srcAspect: {
                 default: null as number | null,
                 parseHTML: (element) => {
-                    const raw = element.getAttribute('data-block-height');
+                    const raw = element.getAttribute('data-src-aspect');
                     if (raw === null) return null;
                     const n = Number(raw);
                     return Number.isFinite(n) && n > 0 ? n : null;
                 },
                 renderHTML: (attributes) =>
-                    typeof attributes.height === 'number'
-                        ? { 'data-block-height': String(attributes.height) }
+                    typeof attributes.srcAspect === 'number'
+                        ? { 'data-src-aspect': String(attributes.srcAspect) }
                         : {},
             },
         };

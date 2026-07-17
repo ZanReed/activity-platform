@@ -74,6 +74,7 @@ import type {
     EssayBlock,
 } from '@activity/schema';
 import {
+    CropRect,
     SIMPLE_MARK_TYPES,
     InlineNode as InlineNodeSchema,
     DefinitionContentInline as DefinitionContentInlineSchema,
@@ -515,11 +516,15 @@ function tiptapImageToActivity(node: JSONContent): ImageBlock | null {
 
     applySizingAttrs(block, node);
 
-    // Fixed display height (rem) — image-specific; positive numbers only,
-    // same omit-when-absent discipline as the shared sizing fragment.
-    const rawHeight = node.attrs?.height;
-    if (typeof rawHeight === 'number' && rawHeight > 0) {
-        block.height = rawHeight;
+    // Crop + srcAspect — stored BOTH-OR-NEITHER (docs/design/image-crop.md).
+    // Carry them only when the crop is a valid in-bounds rect AND srcAspect is
+    // positive; otherwise neither, so an uncropped image round-trips identically
+    // (CR-INV-both). CropRect.safeParse enforces the x+w≤1 / y+h≤1 bounds.
+    const crop = CropRect.safeParse(node.attrs?.crop);
+    const rawSrcAspect = node.attrs?.srcAspect;
+    if (crop.success && typeof rawSrcAspect === 'number' && rawSrcAspect > 0) {
+        block.crop = crop.data;
+        block.srcAspect = rawSrcAspect;
     }
 
     return block;
@@ -1271,8 +1276,10 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
                     alt: block.alt,
                     caption: block.caption ?? '',
                     ...sizingTiptapAttrs(block),
-                    ...(typeof block.height === 'number'
-                        ? { height: block.height }
+                    // crop + srcAspect ride together (both-or-neither); a schema
+                    // block only ever has both or neither, so spread as a pair.
+                    ...(block.crop && typeof block.srcAspect === 'number'
+                        ? { crop: block.crop, srcAspect: block.srcAspect }
                         : {}),
                 },
             };

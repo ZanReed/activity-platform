@@ -29,6 +29,7 @@ export {
   HeadingBlock,
   MathBlock,
   ImageBlock,
+  CropRect,
   CalloutBlock,
   ProblemBlock,
   FillInBlankBlock,

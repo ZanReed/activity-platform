@@ -10,13 +10,7 @@ import {
 import { createPortal } from 'react-dom';
 import { FocusTrap } from 'focus-trap-react';
 import { uploadImage, ALLOWED_IMAGE_TYPES } from '../../lib/uploadImage';
-import {
-    MAX_HEIGHT_REM,
-    MIN_HEIGHT_REM,
-    WIDTH_SNAP_STOPS,
-    snapHeightRem,
-    widthAttrLabel,
-} from '../imageSizing';
+import { WIDTH_SNAP_STOPS, widthAttrLabel } from '../imageSizing';
 
 // ============================================================================
 // ImageEditPopover — anchored popover for editing an image block's fields.
@@ -56,7 +50,6 @@ interface ImageEditPopoverProps {
     // while the popover is open, so the host re-renders us with fresh values.
     width: number | null;
     align: 'left' | 'right' | null;
-    height: number | null; // rem; null = auto (aspect ratio follows width)
     // Activity the image belongs to — required to upload to R2. Undefined in
     // the playground (no persisted activity), where the Upload tab is disabled.
     activityId?: string;
@@ -67,7 +60,6 @@ interface ImageEditPopoverProps {
             caption: string;
             width: number | null;
             align: 'left' | 'right' | null;
-            height: number | null;
         }>,
         options?: ChangeOptions,
     ) => void;
@@ -97,7 +89,6 @@ export default function ImageEditPopover({
     initialCaption,
     width,
     align,
-    height,
     activityId,
     onChange,
     onClose,
@@ -111,33 +102,9 @@ export default function ImageEditPopover({
     const [uploadState, setUploadState] = useState<UploadState>({ kind: 'idle' });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Popover's own max-height (from floating-ui's size middleware), not the
+    // image's — the image height mechanism was removed (crop replaces it).
     const [maxHeight, setMaxHeight] = useState<number | null>(null);
-
-    // Height input draft (rem as text). Commits on blur/Enter; re-syncs when
-    // the live prop changes (Auto chip, or the preview's bottom drag-handle).
-    const [heightDraft, setHeightDraft] = useState(
-        height === null ? '' : String(height),
-    );
-    useEffect(() => {
-        setHeightDraft(height === null ? '' : String(height));
-    }, [height]);
-
-    const commitHeight = () => {
-        const raw = heightDraft.trim();
-        if (raw === '') {
-            if (height !== null) onChange({ height: null });
-            return;
-        }
-        const n = Number(raw);
-        if (!Number.isFinite(n) || n <= 0) {
-            // Invalid entry: revert to the last good value.
-            setHeightDraft(height === null ? '' : String(height));
-            return;
-        }
-        const clamped = snapHeightRem(n, false); // clamp + fine rounding only
-        if (clamped !== height) onChange({ height: clamped });
-        setHeightDraft(String(clamped));
-    };
 
     const srcRef = useRef(initialSrc);
     const altRef = useRef(initialAlt);
@@ -535,49 +502,6 @@ export default function ImageEditPopover({
                                 </button>
                             );
                         })}
-                    </div>
-                </div>
-
-                <div className="image-edit-popover__field">
-                    <span className="image-edit-popover__label">Height</span>
-                    <div
-                        className="image-edit-popover__chips"
-                        role="group"
-                        aria-label="Image height"
-                    >
-                        <button
-                            type="button"
-                            className={`image-edit-popover__chip${
-                                height === null ? ' is-active' : ''
-                            }`}
-                            aria-pressed={height === null}
-                            onClick={() => onChange({ height: null })}
-                        >
-                            Auto
-                        </button>
-                        <input
-                            type="number"
-                            className="image-edit-popover__input image-edit-popover__input--narrow"
-                            min={MIN_HEIGHT_REM}
-                            max={MAX_HEIGHT_REM}
-                            step={0.5}
-                            value={heightDraft}
-                            placeholder="auto"
-                            aria-label="Fixed height in rem"
-                            onChange={(e) => setHeightDraft(e.target.value)}
-                            onBlur={commitHeight}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    commitHeight();
-                                }
-                            }}
-                        />
-                        <span className="image-edit-popover__unit">rem</span>
-                    </div>
-                    <div className="image-edit-popover__note">
-                        A fixed height crops the image to fit (no stretching)
-                        and scales with the print font size.
                     </div>
                 </div>
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
-import { pxToRem, snapHeightRem, widthAttrLabel } from '../imageSizing';
+import { widthAttrLabel } from '../imageSizing';
 import { useBlockWidthResize } from '../hooks/useBlockWidthResize';
 
 // ============================================================================
@@ -61,10 +61,6 @@ export default function ImageView({
         node.attrs.align === 'left' || node.attrs.align === 'right'
             ? node.attrs.align
             : null;
-    const height =
-        typeof node.attrs.height === 'number' && node.attrs.height > 0
-            ? (node.attrs.height as number)
-            : null;
 
     const hasSrc = src.length > 0;
     const fileName = fileNameFromSrc(src);
@@ -77,11 +73,9 @@ export default function ImageView({
     }, [src]);
 
     // Transient drag state (null = not dragging). Document attrs only change on
-    // release. Width rides the shared useBlockWidthResize hook (D1); height is
-    // image-only and stays inline below (folds into crop later, out of slice).
-    const [dragHeight, setDragHeight] = useState<number | null>(null);
+    // release. Width rides the shared useBlockWidthResize hook (D1). (Fixed
+    // height was removed — framing is now the crop feature, image-crop.md.)
     const wrapperRef = useRef<HTMLElement | null>(null);
-    const imgRef = useRef<HTMLImageElement | null>(null);
 
     const { dragWidth, startResize } = useBlockWidthResize({
         wrapperRef,
@@ -145,81 +139,6 @@ export default function ImageView({
         </button>
     );
 
-    // Bottom-edge handle: fixed height in rem. Same gesture contract as the
-    // width handles (live preview only, one commit on release, Escape
-    // cancels). Dragging measures from the img's current rendered height, so
-    // grabbing an auto-height image "freezes" its height before adjusting.
-    const startHeightResize = (event: React.PointerEvent<HTMLSpanElement>) => {
-        if (event.button !== 0) return;
-        event.preventDefault();
-        event.stopPropagation();
-
-        const img = imgRef.current;
-        if (!img) return;
-        const pxPerRem =
-            parseFloat(getComputedStyle(document.documentElement).fontSize) ||
-            16;
-        const startY = event.clientY;
-        const startPx = img.getBoundingClientRect().height;
-        const handle = event.currentTarget;
-
-        try {
-            handle.setPointerCapture(event.pointerId);
-        } catch {
-            /* synthetic events may have no active pointer to capture */
-        }
-
-        let latest = snapHeightRem(pxToRem(startPx, pxPerRem), true);
-        setDragHeight(latest);
-
-        const onMove = (ev: PointerEvent) => {
-            const rawRem = pxToRem(startPx + (ev.clientY - startY), pxPerRem);
-            latest = snapHeightRem(rawRem, !ev.altKey);
-            setDragHeight(latest);
-        };
-
-        const cleanup = () => {
-            handle.removeEventListener('pointermove', onMove);
-            handle.removeEventListener('pointerup', onUp);
-            handle.removeEventListener('pointercancel', onCancel);
-            window.removeEventListener('keydown', onKeyDown, true);
-            try {
-                if (handle.hasPointerCapture(event.pointerId)) {
-                    handle.releasePointerCapture(event.pointerId);
-                }
-            } catch {
-                /* mirror of the capture guard */
-            }
-            setDragHeight(null);
-        };
-
-        const onUp = () => {
-            cleanup();
-            const pos = getPos();
-            if (typeof pos !== 'number') return;
-            editor.commands.updateImageAttrs(
-                pos,
-                { height: latest },
-                { preserveSelection: true },
-            );
-        };
-
-        const onCancel = () => cleanup();
-
-        const onKeyDown = (ev: KeyboardEvent) => {
-            if (ev.key === 'Escape') {
-                ev.preventDefault();
-                ev.stopPropagation();
-                onCancel();
-            }
-        };
-
-        handle.addEventListener('pointermove', onMove);
-        handle.addEventListener('pointerup', onUp);
-        handle.addEventListener('pointercancel', onCancel);
-        window.addEventListener('keydown', onKeyDown, true);
-    };
-
     // --- Empty / broken states: the compact card. ---------------------------
     if (!hasSrc || loadError) {
         const title = !hasSrc
@@ -269,11 +188,9 @@ export default function ImageView({
 
     // --- Has-src state: live preview with a hover Edit affordance. -----------
     // Mirrors the published CSS: a sized image's wrapper takes the authored
-    // width with auto-margin centering; left/right zero one side; a fixed
-    // height sets the img's height with object-fit cover (center crop).
-    // During a drag the transient values override the stored ones.
+    // width with auto-margin centering; left/right zero one side. During a drag
+    // the transient width overrides the stored one.
     const effectiveWidth = dragWidth ?? width;
-    const effectiveHeight = dragHeight ?? height;
     const sizingStyle: CSSProperties =
         effectiveWidth !== null
             ? {
@@ -282,15 +199,7 @@ export default function ImageView({
                   marginRight: align === 'right' ? 0 : 'auto',
               }
             : {};
-    const imgStyle: CSSProperties =
-        effectiveHeight !== null
-            ? {
-                  height: `${effectiveHeight}rem`,
-                  maxHeight: 'none',
-                  objectFit: 'cover',
-              }
-            : {};
-    const isResizing = dragWidth !== null || dragHeight !== null;
+    const isResizing = dragWidth !== null;
 
     return (
         <NodeViewWrapper
@@ -303,12 +212,10 @@ export default function ImageView({
             data-drag-handle
         >
             <img
-                ref={imgRef}
                 className="image-preview__img"
                 src={src}
                 alt={alt}
                 draggable={false}
-                style={imgStyle}
                 onError={() => setLoadError(true)}
             />
             {caption ? (
@@ -332,19 +239,11 @@ export default function ImageView({
                         draggable={false}
                         onPointerDown={startResize('right')}
                     />
-                    <span
-                        className="image-resize-handle image-resize-handle--bottom"
-                        role="presentation"
-                        draggable={false}
-                        onPointerDown={startHeightResize}
-                    />
                 </>
             ) : null}
             {isResizing ? (
                 <span className="image-resize-badge" aria-hidden="true">
-                    {dragHeight !== null
-                        ? `${dragHeight}rem`
-                        : widthAttrLabel(dragWidth)}
+                    {widthAttrLabel(dragWidth)}
                 </span>
             ) : null}
         </NodeViewWrapper>
