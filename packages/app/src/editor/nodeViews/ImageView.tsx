@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
-import {
-    pxToRem,
-    snapHeightRem,
-    snapWidthFraction,
-    widthAttrLabel,
-} from '../imageSizing';
+import { pxToRem, snapHeightRem, widthAttrLabel } from '../imageSizing';
+import { useBlockWidthResize } from '../hooks/useBlockWidthResize';
 
 // ============================================================================
 // ImageView — NodeView for the image block.
@@ -45,19 +41,6 @@ function fileNameFromSrc(src: string): string {
     }
 }
 
-// The width a sizing fraction resolves against: the containing block's CONTENT
-// width (CSS percentage semantics), i.e. the parent minus its padding.
-function containerContentWidth(wrapper: HTMLElement): number {
-    const parent = wrapper.parentElement;
-    if (!parent) return 0;
-    const cs = getComputedStyle(parent);
-    return (
-        parent.clientWidth -
-        parseFloat(cs.paddingLeft || '0') -
-        parseFloat(cs.paddingRight || '0')
-    );
-}
-
 type Align = 'left' | 'right' | null; // null = center (the schema default)
 
 export default function ImageView({
@@ -93,12 +76,26 @@ export default function ImageView({
         setLoadError(false);
     }, [src]);
 
-    // Transient drag state: the fraction / rem being previewed (null = not
-    // dragging). Document attrs only change on release.
-    const [dragWidth, setDragWidth] = useState<number | null>(null);
+    // Transient drag state (null = not dragging). Document attrs only change on
+    // release. Width rides the shared useBlockWidthResize hook (D1); height is
+    // image-only and stays inline below (folds into crop later, out of slice).
     const [dragHeight, setDragHeight] = useState<number | null>(null);
     const wrapperRef = useRef<HTMLElement | null>(null);
     const imgRef = useRef<HTMLImageElement | null>(null);
+
+    const { dragWidth, startResize } = useBlockWidthResize({
+        wrapperRef,
+        align,
+        onCommit: (nextWidth) => {
+            const pos = getPos();
+            if (typeof pos !== 'number') return;
+            editor.commands.updateImageAttrs(
+                pos,
+                { width: nextWidth },
+                { preserveSelection: true },
+            );
+        },
+    });
 
     // Remove the whole image block. Stop the gesture from reaching ProseMirror
     // so the click deletes instead of selecting the node (which would open the
@@ -147,90 +144,6 @@ export default function ImageView({
             </svg>
         </button>
     );
-
-    const startResize = (side: 'left' | 'right') => (
-        event: React.PointerEvent<HTMLSpanElement>,
-    ) => {
-        if (event.button !== 0) return;
-        // Own the gesture: no block drag (the wrapper is data-drag-handle), no
-        // text selection, no PM mousedown handling.
-        event.preventDefault();
-        event.stopPropagation();
-
-        const wrapper = wrapperRef.current;
-        if (!wrapper) return;
-        const containerPx = containerContentWidth(wrapper);
-        if (containerPx <= 0) return;
-
-        const startX = event.clientX;
-        const startPx = wrapper.getBoundingClientRect().width;
-        // Outward pointer travel grows the image. A centered image grows on
-        // both sides at once, so a pixel of travel is two pixels of width.
-        const outwardSign = side === 'right' ? 1 : -1;
-        const growthFactor = align === null ? 2 : 1;
-        const handle = event.currentTarget;
-
-        try {
-            handle.setPointerCapture(event.pointerId);
-        } catch {
-            /* synthetic events may have no active pointer to capture */
-        }
-
-        let latest = snapWidthFraction(startPx / containerPx, true);
-        setDragWidth(latest);
-
-        const onMove = (ev: PointerEvent) => {
-            const outwardPx = (ev.clientX - startX) * outwardSign;
-            const rawFraction =
-                (startPx + outwardPx * growthFactor) / containerPx;
-            latest = snapWidthFraction(rawFraction, !ev.altKey);
-            setDragWidth(latest);
-        };
-
-        const cleanup = () => {
-            handle.removeEventListener('pointermove', onMove);
-            handle.removeEventListener('pointerup', onUp);
-            handle.removeEventListener('pointercancel', onCancel);
-            window.removeEventListener('keydown', onKeyDown, true);
-            try {
-                if (handle.hasPointerCapture(event.pointerId)) {
-                    handle.releasePointerCapture(event.pointerId);
-                }
-            } catch {
-                /* mirror of the capture guard */
-            }
-            setDragWidth(null);
-        };
-
-        const onUp = () => {
-            cleanup();
-            const pos = getPos();
-            if (typeof pos !== 'number') return;
-            // A drag always commits an explicit width — 1 means "fill the
-            // container" (a real value), NOT the Auto default. Auto (natural
-            // size) is reachable via the popover's Auto chip.
-            editor.commands.updateImageAttrs(
-                pos,
-                { width: latest },
-                { preserveSelection: true },
-            );
-        };
-
-        const onCancel = () => cleanup();
-
-        const onKeyDown = (ev: KeyboardEvent) => {
-            if (ev.key === 'Escape') {
-                ev.preventDefault();
-                ev.stopPropagation();
-                onCancel();
-            }
-        };
-
-        handle.addEventListener('pointermove', onMove);
-        handle.addEventListener('pointerup', onUp);
-        handle.addEventListener('pointercancel', onCancel);
-        window.addEventListener('keydown', onKeyDown, true);
-    };
 
     // Bottom-edge handle: fixed height in rem. Same gesture contract as the
     // width handles (live preview only, one commit on release, Escape

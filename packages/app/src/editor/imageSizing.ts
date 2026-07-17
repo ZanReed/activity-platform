@@ -21,6 +21,26 @@ export const MIN_WIDTH_FRACTION = 0.15;
 // How close (in fraction units) a drag must be to a stop to snap onto it.
 export const WIDTH_SNAP_TOLERANCE = 0.03;
 
+/**
+ * Raw width fraction from a drag, BEFORE snapping/clamping. Pure so the
+ * growth-factor branch is unit-testable without a live pointer (SZ-J2a).
+ *
+ * `outwardPx` is pointer travel in the grow direction (already signed by the
+ * side). `growthFactor` is 2 for a CENTERED block — it grows on both sides at
+ * once, so a pixel of travel is two pixels of width — and 1 for a left/right-
+ * aligned block that grows on one side only. A non-positive container width
+ * has no meaningful fraction, so it falls back to full (1).
+ */
+export function dragWidthFraction(
+    startPx: number,
+    outwardPx: number,
+    growthFactor: number,
+    containerPx: number,
+): number {
+    if (containerPx <= 0) return 1;
+    return (startPx + outwardPx * growthFactor) / containerPx;
+}
+
 /** Clamp a raw drag fraction into bounds, snapping to clean stops. */
 export function snapWidthFraction(fraction: number, snap: boolean): number {
     const clamped = Math.min(Math.max(fraction, MIN_WIDTH_FRACTION), 1);

@@ -11,11 +11,41 @@ import {
     MAX_HEIGHT_REM,
     MIN_HEIGHT_REM,
     MIN_WIDTH_FRACTION,
+    dragWidthFraction,
     pxToRem,
     snapHeightRem,
     snapWidthFraction,
     widthAttrLabel,
 } from '../editor/imageSizing';
+
+// SZ-J2a — the growth-factor branch is the ImageView-refactor regression risk
+// (centered images grow on both sides = 2x). Now a pure fn in the shared hook's
+// math, so the branch is unit-testable without a live pointer.
+describe('dragWidthFraction (growth-factor branch)', () => {
+    const CONTAINER = 400; // px
+    const START = 200; // px (block currently 50% of container)
+
+    it('a left/right-aligned block grows one-for-one with pointer travel', () => {
+        // growthFactor 1: +100px travel → 300/400 = 0.75.
+        expect(dragWidthFraction(START, 100, 1, CONTAINER)).toBeCloseTo(0.75);
+    });
+
+    it('a centered block grows at DOUBLE the pointer travel', () => {
+        // growthFactor 2: +100px travel → (200 + 200)/400 = 1.0. THE regression
+        // guard — a refactor that drops growthFactor:2 makes this 0.75.
+        expect(dragWidthFraction(START, 100, 2, CONTAINER)).toBeCloseTo(1.0);
+    });
+
+    it('shrinking (negative travel) also honors the growth factor', () => {
+        expect(dragWidthFraction(START, -50, 1, CONTAINER)).toBeCloseTo(0.375);
+        expect(dragWidthFraction(START, -50, 2, CONTAINER)).toBeCloseTo(0.25);
+    });
+
+    it('a non-positive container width falls back to full (1)', () => {
+        expect(dragWidthFraction(START, 100, 2, 0)).toBe(1);
+        expect(dragWidthFraction(START, 100, 2, -10)).toBe(1);
+    });
+});
 
 describe('snapWidthFraction', () => {
     it('snaps to the chip stops within tolerance', () => {
