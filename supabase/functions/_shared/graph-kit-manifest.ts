@@ -9,4 +9,4 @@
 // `pnpm upload:graph-kit`, commit this file, and redeploy publish-activity.
 // =============================================================================
 
-export const CALCULATOR_KIT_FILE = "graph-kit-GKJHYSRN.js";
+export const CALCULATOR_KIT_FILE = "graph-kit-EXAG55I5.js";
