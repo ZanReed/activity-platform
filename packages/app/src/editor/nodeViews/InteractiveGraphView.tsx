@@ -294,6 +294,19 @@ function GraphAuthorBoard({
                     interaction.type === 'plot_function'
                         ? interaction.domains?.[0] ?? undefined
                         : undefined,
+                // graph_inequality: the authored side + strictness, so the
+                // preview shades the correct half-plane. A sign flip re-applies
+                // via formulaEpoch (the board remounts); a handle drag keeps the
+                // side and the shade follows the boundary.
+                inequality:
+                    interaction.type === 'graph_inequality'
+                        ? {
+                              shadeSide: firstInequality(interaction.inequalities)
+                                  .shadeSide,
+                              strict: firstInequality(interaction.inequalities)
+                                  .strict,
+                          }
+                        : undefined,
             },
             {
                 onChange: (pts) => cbRef.current(pts),

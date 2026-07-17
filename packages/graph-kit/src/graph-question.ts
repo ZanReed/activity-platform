@@ -981,6 +981,18 @@ export interface GraphAuthorConfig {
    * — a linear/vertical bound is a ray/segment (routed before this board).
    */
   domain?: { min?: number; minStyle?: 'open' | 'closed'; max?: number; maxStyle?: 'open' | 'closed' };
+  /**
+   * graph_inequality authoring: the authored shade side + strict flag, so the
+   * author preview shades the correct half-plane and dashes a strict boundary —
+   * "what the teacher marks correct is what the teacher sees". Reuses the same
+   * shadeBoundary machinery the STUDENT board uses (setShadeSide /
+   * setBoundaryDashed); the side is driven ONLY by the typed inequality (the
+   * author board wires no onSideClick, so a stray click can't desync it).
+   */
+  inequality?: {
+    shadeSide: 'above' | 'below' | 'left' | 'right';
+    strict: boolean;
+  };
 }
 
 export interface GraphAuthorHooks {
@@ -1067,6 +1079,7 @@ export async function mountGraphAuthor(
   const { createPointAnswerBoard } = await import('./board.js');
 
   const isLinear = authorRay || authorSegment;
+  const isInequality = cfg.interactionType === 'graph_inequality';
   const board = createPointAnswerBoard(
     mount,
     {
@@ -1076,6 +1089,9 @@ export async function mountGraphAuthor(
       deriveCurve,
       lineThroughHandles,
       polygon,
+      // graph_inequality: shade the authored half-plane so the teacher SEES
+      // which side they marked correct (the student board's own machinery).
+      shadeBoundary: isInequality,
       // Ray/segment authoring uses the SAME dynamic shape mode students get —
       // the teacher chooses the figure with the same pills.
       linearShape: isLinear,
@@ -1095,6 +1111,16 @@ export async function mountGraphAuthor(
       },
     },
   );
+
+  // graph_inequality: seed the shade from the typed answer. The side is fixed by
+  // the inequality's sign (not clickable on the author board); the shade curve
+  // then tracks the boundary as the teacher drags its handles (updateDataArray
+  // re-derives from the handles on every board.update). A strict inequality
+  // dashes the boundary, matching the student view + the published render.
+  if (isInequality && cfg.inequality) {
+    board.setBoundaryDashed?.(cfg.inequality.strict);
+    board.setShadeSide?.(cfg.inequality.shadeSide);
+  }
 
   // Seed the endpoint open/closed styles, then mount the Start/End pills (the
   // SAME controls the student gets). Positions come from the handles.
