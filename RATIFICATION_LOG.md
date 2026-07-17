@@ -28,6 +28,8 @@ Reading pointers (surprised / no-opinion items): none this round.
 | SZ-align | align + reset-to-full authoring surface | predicted → **SUPERSEDED** | Originally: width-drag-only, align deferred. **Reversed same session** (author: "I'll want it anyway, might as well have it now") → see SZ-align-r1. |
 | SZ-align-r1 | align + reset-to-full BACK IN the slice (reverses SZ-align) | author-directed | Delivered as ONE shared `BlockSizingField` drawer control (D5) across GraphSettings / DataPlotSettings / NumberLineSettings — DRY twin of the shared hook. Reset-to-full CLEARS `width`+`align` to the unsized identity (not `width:1`). Spec updated: SZ-M5/M6 MUST (align write, reset-clears), SZ-M7 SHOULD (shared field renders in all 3 drawers). Two eng calls made & flagged reversible: the shared-component shape, and reset-clears-attrs semantics — neither vetoed. |
 
+| SZ-D6 | drag handles on the 3 authoring NodeViews | author-directed (build-time) | Surfaced during the build: their root wrapper is the whole authoring UI, so a width-drag crushes the editing surface. Reversed the "handles on 3 NodeViews" plan → drawer-only (BlockSizingField) for graph/data-plot/number-line; handles stay image-only. Shared hook still serves image (D1) + reserved for eye-toggle preview mode. Spec: SZ-J2b now image-only. |
+
 Reading pointers (surprised / no-opinion items):
 - **SZ-skip-column (surprised):** container-width resolution lives in the shared hook's measure fn,
   ported from `ImageView.tsx:50-59` (`containerContentWidth`, walks `parentElement` minus padding);

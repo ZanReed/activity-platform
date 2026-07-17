@@ -3,6 +3,7 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import { createInteractiveGraphBlock } from '@activity/schema';
 import InteractiveGraphView from '../nodeViews/InteractiveGraphView';
 import type { InlineNodes } from '../../lib/serialize';
+import { sizingNodeAttributes } from './sizingNodeAttributes';
 
 // ============================================================================
 // InteractiveGraph — Tiptap block node for the graded interactive-graph block
@@ -377,6 +378,8 @@ export const InteractiveGraph = Node.create({
                         ? { 'data-skills': JSON.stringify(attrs.skills) }
                         : {},
             },
+            // Variable block sizing (width/align) — shared with image/math (D5).
+            ...sizingNodeAttributes(),
         };
     },
 

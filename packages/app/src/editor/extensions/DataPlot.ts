@@ -3,6 +3,7 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import { createDataPlotBlock } from '@activity/schema';
 import DataPlotView from '../nodeViews/DataPlotView';
 import type { InlineNodes } from '../../lib/serialize';
+import { sizingNodeAttributes } from './sizingNodeAttributes';
 
 // ============================================================================
 // DataPlot — Tiptap block node for the data_plot block (statistics charts). The
@@ -159,6 +160,8 @@ export const DataPlot = Node.create({
                         ? { 'data-skills': JSON.stringify(attrs.skills) }
                         : {},
             },
+            // Variable block sizing (width/align) — shared with image/math (D5).
+            ...sizingNodeAttributes(),
         };
     },
 

@@ -3,6 +3,7 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import { createNumberLineBlock } from '@activity/schema';
 import NumberLineView from '../nodeViews/NumberLineView';
 import type { InlineNodes } from '../../lib/serialize';
+import { sizingNodeAttributes } from './sizingNodeAttributes';
 
 // ============================================================================
 // NumberLine — Tiptap block node for the graded number_line block (1-D). The
@@ -146,6 +147,8 @@ export const NumberLine = Node.create({
                         ? { 'data-skills': JSON.stringify(attrs.skills) }
                         : {},
             },
+            // Variable block sizing (width/align) — shared with image/math (D5).
+            ...sizingNodeAttributes(),
         };
     },
 

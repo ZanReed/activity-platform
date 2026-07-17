@@ -336,13 +336,22 @@ DATA FLOW — one authored width, three consumers
 `schema/blocks/{interactive-graph,data-plot,number-line}.ts` · `sizingClass()`
 +`sizingAttrs()` in `renderer/blocks/interactive-graph.ts`, `data-plot-svg.ts`,
 `number-line-svg.ts` · NEW `app/editor/hooks/useBlockWidthResize.ts` ·
-`ImageView.tsx` refactored onto the hook · width drag-handles added to
-`InteractiveGraphView.tsx`, `DataPlotView.tsx`, `NumberLineView.tsx` · a
-`ResizeObserver→board.resize()` in the graph display sidecar (may need the kit
-to expose a resize on its mount API) · NEW shared `BlockSizingField.tsx` drawer
-control (width chips + align toggle + reset-to-full) embedded by `GraphSettings`
-/ `DataPlotSettings` / `NumberLineSettings` (D5) · `editor.css` handle + field
-styles. (~13-15 files with D5.)
+`ImageView.tsx` refactored onto the hook · width/align tiptap attrs on the 3
+extensions (shared `sizingNodeAttributes()`) + serialize round-trip
+(`applySizingAttrs`/`sizingTiptapAttrs`) · a `ResizeObserver→board.resize()` in
+the graph display sidecar (may need the kit to expose a resize on its mount API)
+· NEW shared `BlockSizingField.tsx` drawer control (width chips + align toggle +
+reset-to-full) embedded by `GraphSettings` / `DataPlotSettings` /
+`NumberLineSettings` (D5) · `editor.css` field styles. (~13-15 files with D5.)
+
+**D6 (build-time reversal, author-ratified 2026-07-17) — NO edge drag-handles
+on the graph/data-plot/number-line authoring NodeViews.** Their root wrapper is
+the whole authoring UI (expression list + board + answer controls), so a
+width-drag that narrows it crushes the editing surface (unlike image, whose
+wrapper IS the figure). These three are sized via the `BlockSizingField` drawer
+only; drag handles stay image-only. The shared `useBlockWidthResize` hook still
+serves image (D1 DRY holds) and is reserved for figure-in-preview-mode with the
+future eye toggle.
 
 **Deploy order:** if `board.resize()` requires a `@activity/graph-kit` change,
 follow CLAUDE.md — **upload kit FIRST → `pnpm bundle:renderer` → redeploy

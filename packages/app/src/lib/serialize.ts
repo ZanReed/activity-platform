@@ -867,6 +867,7 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
     if (solution.length > 0) {
         block.solution = solution;
     }
+    applySizingAttrs(block, node);
     return block;
 }
 
@@ -894,6 +895,7 @@ function tiptapNumberLineToActivity(node: JSONContent): NumberLineBlock {
     if (solution.length > 0) {
         block.solution = solution;
     }
+    applySizingAttrs(block, node);
     return block;
 }
 
@@ -922,6 +924,7 @@ function tiptapDataPlotToActivity(node: JSONContent): DataPlotBlock {
     if (solution.length > 0) {
         block.solution = solution;
     }
+    applySizingAttrs(block, node);
     return block;
 }
 
@@ -1520,6 +1523,7 @@ function activityInteractiveGraphToTiptap(block: InteractiveGraphBlock): JSONCon
             solution: block.solution ?? null,
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
+            ...sizingTiptapAttrs(block),
         },
         content: activityInlineToTiptap(block.prompt),
     };
@@ -1535,6 +1539,7 @@ function activityNumberLineToTiptap(block: NumberLineBlock): JSONContent {
             solution: block.solution ?? null,
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
+            ...sizingTiptapAttrs(block),
         },
         content: activityInlineToTiptap(block.prompt),
     };
@@ -1551,6 +1556,7 @@ function activityDataPlotToTiptap(block: DataPlotBlock): JSONContent {
             solution: block.solution ?? null,
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
+            ...sizingTiptapAttrs(block),
         },
         content: activityInlineToTiptap(block.prompt),
     };

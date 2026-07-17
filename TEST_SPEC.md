@@ -168,7 +168,8 @@ with no clip (owner-confirmed).*
 | SZ-J1a | sized interactive graph gives `.graph-canvas` the narrowed width; `ResizeObserver` wired + fires | design (D3) | design-anchored | e2e | MUST |
 | SZ-J1b | mounted board visually re-fits on viewport resize, no clip/overflow | design (D3) | design-anchored | **manual-QA (owner verify act)** | MUST |
 | SZ-J2a | growth math: drag→width honors `growthFactor` 1 (aligned) vs 2 (centered) | design (behavior-preserved) + code | design-anchored | unit (pure fn) | MUST |
-| SZ-J2b | gesture lifecycle: commits ONCE on release; Escape / pointercancel abort with NO commit | design (behavior-preserved) | design-anchored | e2e | MUST |
+| SZ-J2b | gesture lifecycle: commits ONCE on release; Escape / pointercancel abort with NO commit (IMAGE only — D6: graph/data-plot/number-line are drawer-sized, no handles) | design (behavior-preserved) | design-anchored | e2e | MUST |
+| SZ-M8 | serialize round-trip: a sized+aligned graph/data-plot/number-line survives tiptap→activity→tiptap; unsized omits width/align | code (serialize.ts) | code-pin | unit | MUST |
 | SZ-J2c | `image-sizing.test.ts` stays green through the ImageView refactor | code (regression) | code-pin | unit | MUST |
 | SZ-S1 | print: sized static SVG scales to `--block-width` in `@media print` (3 blocks) | design ("print footprint is the driver") | design-anchored | unit snapshot | SHOULD |
 | SZ-S2 | sized figure nested in a column cell resolves width vs the COLUMN, not the page | code (shared container-measure fn) | code-pin | e2e | SHOULD |

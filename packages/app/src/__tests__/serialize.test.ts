@@ -2842,3 +2842,72 @@ describe('content blocks — learning_objectives + worked_example', () => {
         }
     });
 });
+
+// SZ-M8 — Group 3 sizing slice: width/align round-trip for the three figure
+// blocks. Sized+aligned survives tiptap→activity→tiptap; unsized omits both
+// (omit-when-default, so round-trip equality holds for the common case).
+describe('figure block sizing round-trip (Group 3)', () => {
+    const CONFIG = {
+        min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true,
+    };
+    const nodes = {
+        interactiveGraph: (extra: Record<string, unknown>): JSONContent => ({
+            type: 'interactiveGraph',
+            attrs: {
+                id: 'x',
+                axisConfig: {
+                    xMin: -6, xMax: 6, yMin: -6, yMax: 6,
+                    xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true,
+                },
+                interaction: { type: 'plot_point', correctPoints: [[1, 1]], tolerance: 0.1 },
+                skills: [],
+                ...extra,
+            },
+            content: [{ type: 'text', text: 'G' }],
+        }),
+        numberLine: (extra: Record<string, unknown>): JSONContent => ({
+            type: 'numberLine',
+            attrs: {
+                id: 'x',
+                config: CONFIG,
+                interaction: { type: 'plot_point', correctPoints: [3], tolerance: 0.1 },
+                skills: [],
+                ...extra,
+            },
+            content: [{ type: 'text', text: 'N' }],
+        }),
+        dataPlot: (extra: Record<string, unknown>): JSONContent => ({
+            type: 'dataPlot',
+            attrs: {
+                id: 'x',
+                data: [1, 2, 3, 4],
+                config: CONFIG,
+                interaction: { type: 'display', chart: 'dotplot' },
+                skills: [],
+                ...extra,
+            },
+            content: [{ type: 'text', text: 'D' }],
+        }),
+    } as const;
+
+    for (const [type, make] of Object.entries(nodes)) {
+        describe(type, () => {
+            it('preserves width + align through a round-trip', () => {
+                const doc: JSONContent = {
+                    type: 'doc',
+                    content: [make({ width: 0.5, align: 'left' })],
+                };
+                const out = roundTrip(doc).content!.find((n) => n.type === type)!;
+                expect(out.attrs!.width).toBe(0.5);
+                expect(out.attrs!.align).toBe('left');
+            });
+
+            it('omits width + align when unsized (identity)', () => {
+                const doc: JSONContent = { type: 'doc', content: [make({})] };
+                const out = roundTrip(doc).content!.find((n) => n.type === type)!;
+                expect(out.attrs!.width ?? null).toBeNull();
+                expect(out.attrs!.align ?? null).toBeNull();
+            });
+        });
+    }
+});
