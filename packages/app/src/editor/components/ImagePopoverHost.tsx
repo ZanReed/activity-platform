@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
 import { NodeSelection } from '@tiptap/pm/state';
 import ImageEditPopover from './ImageEditPopover';
-import { OPEN_IMAGE_POPOVER, type ImagePopoverFocus } from '../extensions/Image';
+import { OPEN_IMAGE_POPOVER } from '../extensions/Image';
 
 // ============================================================================
 // ImagePopoverHost — root-level popover orchestrator for image blocks.
@@ -13,10 +13,10 @@ import { OPEN_IMAGE_POPOVER, type ImagePopoverFocus } from '../extensions/Image'
 //
 // Slice-6 stage 3: the popover no longer AUTO-opens on selection (that would
 // double up with the block command bar, which now fires on the same image
-// NodeSelection). Instead the bar's Replace/Caption primaries dispatch an
-// OPEN_IMAGE_POPOVER transaction meta; this host reads it and opens, focused on
-// the requested field. Selecting an image just shows the command bar; the
-// popover is a deliberate second step.
+// NodeSelection). Instead the bar's Replace primary dispatches an
+// OPEN_IMAGE_POPOVER transaction meta; this host reads it and opens on the URL
+// field. Selecting an image just shows the command bar; the popover (source
+// only — alt/caption/crop live elsewhere) is a deliberate second step.
 // ============================================================================
 
 interface ImagePopoverHostProps {
@@ -30,9 +30,8 @@ interface SelectedImageState {
     pos: number;
     imageId: string;
     src: string;
-    alt: string;
-    caption: string;
-    // Sizing (null = full width / centered, the schema defaults).
+    // Sizing (null = full width / centered, the schema defaults). Width gates
+    // whether the popover's alignment chips apply.
     width: number | null;
     align: 'left' | 'right' | null;
 }
@@ -41,11 +40,10 @@ interface ChangeOptions {
     preserveSelection?: boolean;
 }
 
+// The slimmed popover only edits the source + alignment; alt/caption moved to
+// the Advanced drawer, width is a drag-handle.
 type ImageAttrPatch = Partial<{
     src: string;
-    alt: string;
-    caption: string;
-    width: number | null;
     align: 'left' | 'right' | null;
 }>;
 
@@ -57,12 +55,9 @@ export default function ImagePopoverHost({
         useState<SelectedImageState | null>(null);
     const [referenceElement, setReferenceElement] =
         useState<HTMLElement | null>(null);
-    // The popover opens only when the command bar requests it (not on plain
-    // selection). focusField names the field to land on (Replace vs Caption).
+    // The popover opens only when the command bar's Replace requests it (not on
+    // plain selection). It always focuses the URL field.
     const [requestedOpen, setRequestedOpen] = useState(false);
-    const [focusField, setFocusField] = useState<ImagePopoverFocus | undefined>(
-        undefined,
-    );
     // Identity of the last image the selection watcher saw. When it changes we
     // dismiss any bar-requested popover — but this reset is done INLINE in the
     // watcher (not a post-render effect) so that a transaction which both
@@ -98,7 +93,6 @@ export default function ImagePopoverHost({
                 if (identity !== lastIdentityRef.current) {
                     lastIdentityRef.current = identity;
                     setRequestedOpen(false);
-                    setFocusField(undefined);
                 }
             };
 
@@ -118,8 +112,6 @@ export default function ImagePopoverHost({
             const pos = selection.from;
             const imageId = (node.attrs.id as string) ?? '';
             const src = (node.attrs.src as string) ?? '';
-            const alt = (node.attrs.alt as string) ?? '';
-            const caption = (node.attrs.caption as string) ?? '';
             const width =
                 typeof node.attrs.width === 'number' && node.attrs.width > 0
                     ? (node.attrs.width as number)
@@ -137,14 +129,12 @@ export default function ImagePopoverHost({
                     prev.pos === pos &&
                     prev.imageId === imageId &&
                     prev.src === src &&
-                    prev.alt === alt &&
-                    prev.caption === caption &&
                     prev.width === width &&
                     prev.align === align
                 ) {
                     return prev;
                 }
-                return { pos, imageId, src, alt, caption, width, align };
+                return { pos, imageId, src, width, align };
             });
         };
 
@@ -156,12 +146,8 @@ export default function ImagePopoverHost({
             transaction: { getMeta: (key: string) => unknown };
         }) => {
             updateFromSelection();
-            const meta = transaction.getMeta(OPEN_IMAGE_POPOVER) as
-                | { focus?: ImagePopoverFocus }
-                | undefined;
-            if (meta) {
+            if (transaction.getMeta(OPEN_IMAGE_POPOVER)) {
                 setRequestedOpen(true);
-                setFocusField(meta.focus);
             }
         };
 
@@ -222,12 +208,9 @@ export default function ImagePopoverHost({
             isOpen={true}
             imageId={selectedImage.imageId}
             initialSrc={selectedImage.src}
-            initialAlt={selectedImage.alt}
-            initialCaption={selectedImage.caption}
             width={selectedImage.width}
             align={selectedImage.align}
             activityId={activityId}
-            initialFocus={focusField}
             onChange={handleChange}
             onClose={handleClose}
             onDelete={handleDelete}

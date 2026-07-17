@@ -2620,6 +2620,22 @@ img.mc-block__figure-preview {
     max-height: none;
 }
 
+/* Cropped preview (image-crop.md): mirror the published renderer so the editor
+ * shows the SAME window (CR-S3 parity). The crop window is a fixed-aspect box
+ * (aspect-ratio set inline per crop) that clips the absolutely-scaled <img>
+ * (width/height/left/top inline). Fills the block width, like the published
+ * figure. */
+.image-preview__crop {
+    position: relative;
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 0.375rem;
+}
+.image-preview__img--cropped {
+    border-radius: 0;
+}
+
 /* Side resize handles (variable block sizing Drop 3 — ImageView.tsx). Shown
  * while the image is selected; pill-shaped grips vertically centered on each
  * edge. The gesture lives entirely inside this NodeView. */
@@ -2783,6 +2799,146 @@ img.mc-block__figure-preview {
     opacity: 1;
     outline: 2px solid var(--ed-danger); /* red-600 */
     outline-offset: 1px;
+}
+
+/* Crop mode (image-crop.md) — the reframe gesture surface. Replaces the preview
+ * while cropping: the full source shows, everything outside the frame is dimmed
+ * (a big spread box-shadow on the frame), and a draggable/resizable frame picks
+ * the [x,y,w,h] window. The gesture lives entirely inside ImageCropEditor. */
+.image-preview.is-cropping {
+    cursor: default;
+}
+
+.image-crop {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    width: 100%;
+}
+
+.image-crop__stage {
+    position: relative;
+    line-height: 0; /* kill the inline-image descender gap */
+    /* Clip the frame's dimming shadow to the image box. */
+    overflow: hidden;
+    border-radius: 0.375rem;
+    /* A neutral backdrop behind transparent PNGs so the dim reads. */
+    background: var(--ed-faint-bg, #f1f5f9);
+}
+
+.image-crop__img {
+    display: block;
+    width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.image-crop__frame {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px solid white;
+    /* 1px dark outline for contrast on light images + a huge translucent spread
+     * to dim everything outside the window. */
+    box-shadow:
+        0 0 0 1px rgba(15, 23, 42, 0.55),
+        0 0 0 9999px rgba(15, 23, 42, 0.5);
+    cursor: move;
+    touch-action: none;
+}
+
+.image-crop__handle {
+    position: absolute;
+    width: 0.75rem;
+    height: 0.75rem;
+    background: white;
+    border: 1px solid var(--ed-accent-alt); /* indigo-500 */
+    border-radius: 2px;
+    touch-action: none;
+    z-index: 1;
+}
+
+/* Corner grips sit on the corners; edge grips center on each side. translate
+ * pulls each grip so its center lands on the frame edge/corner. */
+.image-crop__handle--nw { top: 0; left: 0; transform: translate(-50%, -50%); cursor: nwse-resize; }
+.image-crop__handle--ne { top: 0; right: 0; transform: translate(50%, -50%); cursor: nesw-resize; }
+.image-crop__handle--se { bottom: 0; right: 0; transform: translate(50%, 50%); cursor: nwse-resize; }
+.image-crop__handle--sw { bottom: 0; left: 0; transform: translate(-50%, 50%); cursor: nesw-resize; }
+.image-crop__handle--n  { top: 0; left: 50%; transform: translate(-50%, -50%); cursor: ns-resize; }
+.image-crop__handle--s  { bottom: 0; left: 50%; transform: translate(-50%, 50%); cursor: ns-resize; }
+.image-crop__handle--w  { top: 50%; left: 0; transform: translate(-50%, -50%); cursor: ew-resize; }
+.image-crop__handle--e  { top: 50%; right: 0; transform: translate(50%, -50%); cursor: ew-resize; }
+
+.image-crop__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.image-crop__hint {
+    flex: 1;
+    font-size: 0.75rem;
+    color: var(--ed-text-muted); /* slate-500 */
+}
+
+.image-crop__btn {
+    padding: 0.3125rem 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--ed-border-strong); /* slate-300 */
+    background: var(--ed-canvas);
+    color: var(--ed-text-secondary); /* slate-600 */
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.image-crop__btn:hover {
+    border-color: var(--ed-faint); /* slate-400 */
+}
+
+.image-crop__btn--apply {
+    border-color: var(--ed-accent-alt); /* indigo-500 */
+    background: var(--ed-accent-alt); /* indigo-500 */
+    color: white;
+}
+
+.image-crop__btn--apply:hover {
+    filter: brightness(0.95);
+}
+
+.image-crop__btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Reset-crop control (Advanced drawer custom field). */
+.image-reset-crop {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.image-reset-crop__button {
+    align-self: flex-start;
+    padding: 0.3125rem 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--ed-border-strong); /* slate-300 */
+    background: var(--ed-canvas);
+    color: var(--ed-text-secondary); /* slate-600 */
+    font-size: 0.8125rem;
+    cursor: pointer;
+}
+
+.image-reset-crop__button:hover:not(:disabled) {
+    border-color: var(--ed-danger-border); /* red-300 */
+    color: var(--ed-danger); /* red-600 */
+    background: var(--ed-danger-bg); /* red-50 */
+}
+
+.image-reset-crop__button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* =============================================================================

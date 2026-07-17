@@ -156,8 +156,11 @@ test('image shows Replace/Caption; the popover opens only on demand', async ({
 
     const bar = page.locator(BAR);
     await expect(bar).toHaveAttribute('data-block-type', 'image');
+    // image-crop.md: the image primaries are Crop + Replace (Caption moved to
+    // the Advanced drawer).
+    await expect(bar.getByRole('button', { name: 'Crop' })).toBeVisible();
     await expect(bar.getByRole('button', { name: 'Replace' })).toBeVisible();
-    await expect(bar.getByRole('button', { name: 'Caption' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Caption' })).toHaveCount(0);
     // Plain selection must NOT auto-open the popover (the old double-UI).
     await expect(page.locator(IMG_POPOVER)).toHaveCount(0);
 

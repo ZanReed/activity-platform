@@ -2,6 +2,9 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { widthAttrLabel } from '../imageSizing';
 import { useBlockWidthResize } from '../hooks/useBlockWidthResize';
+import { canEnterCrop, type Rect } from '../cropGeometry';
+import { useCropRequest } from '../components/cropMode';
+import ImageCropEditor from '../components/ImageCropEditor';
 
 // ============================================================================
 // ImageView — NodeView for the image block.
@@ -62,15 +65,46 @@ export default function ImageView({
             ? node.attrs.align
             : null;
 
+    const crop = (node.attrs.crop as Rect | null) ?? null;
+
     const hasSrc = src.length > 0;
     const fileName = fileNameFromSrc(src);
 
     // Track image load failures so we can fall back to an informative card
     // instead of a browser's broken-image glyph. Reset whenever src changes.
     const [loadError, setLoadError] = useState(false);
+
+    // Crop mode (image-crop.md): the "Crop" command-bar primary bumps this
+    // image's request nonce; on a bump we enter crop mode IF the source has
+    // loaded with a real intrinsic size (CR-INV1 disabled-until-load, CR-M8
+    // no 0×0 source). The natural size feeds both the entry guard and the
+    // srcAspect the crop editor commits.
+    const [cropMode, setCropMode] = useState(false);
+    const previewImgRef = useRef<HTMLImageElement | null>(null);
+    const naturalRef = useRef<{ w: number; h: number } | null>(null);
+    const cropRequest = useCropRequest(id);
+    const lastRequestRef = useRef(cropRequest);
+
+    // Swapping the source clears the stored crop (CR-INV2, enforced in the
+    // updateImageAttrs command) and invalidates the captured natural size, so
+    // leave crop mode and reset load/broken state.
     useEffect(() => {
         setLoadError(false);
+        setCropMode(false);
+        naturalRef.current = null;
     }, [src]);
+
+    useEffect(() => {
+        if (cropRequest === lastRequestRef.current) return;
+        lastRequestRef.current = cropRequest;
+        // Refresh from the live <img> in case its load fired before this effect
+        // (cached sources complete synchronously).
+        const img = previewImgRef.current;
+        if (img && img.complete && img.naturalWidth > 0) {
+            naturalRef.current = { w: img.naturalWidth, h: img.naturalHeight };
+        }
+        if (canEnterCrop(naturalRef.current)) setCropMode(true);
+    }, [cropRequest]);
 
     // Transient drag state (null = not dragging). Document attrs only change on
     // release. Width rides the shared useBlockWidthResize hook (D1). (Fixed
@@ -186,6 +220,39 @@ export default function ImageView({
         );
     }
 
+    // --- Crop mode: the full-source reframe gesture (image-crop.md). --------
+    // Replaces the preview while active; Apply commits crop{x,y,w,h}+srcAspect
+    // (or clears both when reframed to the full source), Cancel discards.
+    if (cropMode) {
+        return (
+            <NodeViewWrapper
+                className="image-preview is-cropping"
+                data-image-id={id}
+                contentEditable={false}
+            >
+                <ImageCropEditor
+                    src={src}
+                    alt={alt}
+                    initialCrop={crop}
+                    onApply={(nextCrop, srcAspect) => {
+                        const pos = getPos();
+                        if (typeof pos === 'number') {
+                            editor.commands.updateImageAttrs(
+                                pos,
+                                nextCrop
+                                    ? { crop: nextCrop, srcAspect }
+                                    : { crop: null, srcAspect: null },
+                                { preserveSelection: true },
+                            );
+                        }
+                        setCropMode(false);
+                    }}
+                    onCancel={() => setCropMode(false)}
+                />
+            </NodeViewWrapper>
+        );
+    }
+
     // --- Has-src state: live preview with a hover Edit affordance. -----------
     // Mirrors the published CSS: a sized image's wrapper takes the authored
     // width with auto-margin centering; left/right zero one side. During a drag
@@ -201,23 +268,73 @@ export default function ImageView({
             : {};
     const isResizing = dragWidth !== null;
 
+    // Crop preview: the editor must show the SAME window the published renderer
+    // does (CR-S3 parity), so mirror renderImage's math — a fixed-aspect window
+    // (aspect-ratio = srcAspect·w/h) with the <img> scaled/offset absolutely so
+    // the crop rectangle fills it. Only when both crop + a positive srcAspect
+    // are present and the rect is non-degenerate (the renderer's CR-M8 guard).
+    const srcAspect =
+        typeof node.attrs.srcAspect === 'number'
+            ? (node.attrs.srcAspect as number)
+            : null;
+    const cropPreview =
+        crop && srcAspect && srcAspect > 0 && crop.w > 0 && crop.h > 0
+            ? {
+                  window: {
+                      aspectRatio: `${srcAspect * (crop.w / crop.h)}`,
+                  } as CSSProperties,
+                  img: {
+                      position: 'absolute',
+                      width: `${100 / crop.w}%`,
+                      height: `${100 / crop.h}%`,
+                      left: `${-(crop.x / crop.w) * 100}%`,
+                      top: `${-(crop.y / crop.h) * 100}%`,
+                      maxWidth: 'none',
+                      maxHeight: 'none',
+                  } as CSSProperties,
+              }
+            : null;
+
+    const previewImg = (
+        <img
+            ref={previewImgRef}
+            className={`image-preview__img${
+                cropPreview ? ' image-preview__img--cropped' : ''
+            }`}
+            src={src}
+            alt={alt}
+            style={cropPreview ? cropPreview.img : undefined}
+            draggable={false}
+            onLoad={(e) => {
+                const img = e.currentTarget;
+                naturalRef.current = {
+                    w: img.naturalWidth,
+                    h: img.naturalHeight,
+                };
+            }}
+            onError={() => setLoadError(true)}
+        />
+    );
+
     return (
         <NodeViewWrapper
             ref={wrapperRef}
             className={`image-preview${selected ? ' is-selected' : ''}${
                 effectiveWidth !== null ? ' is-sized' : ''
-            }${isResizing ? ' is-resizing' : ''}`}
+            }${isResizing ? ' is-resizing' : ''}${
+                cropPreview ? ' is-cropped' : ''
+            }`}
             style={sizingStyle}
             data-image-id={id}
             data-drag-handle
         >
-            <img
-                className="image-preview__img"
-                src={src}
-                alt={alt}
-                draggable={false}
-                onError={() => setLoadError(true)}
-            />
+            {cropPreview ? (
+                <span className="image-preview__crop" style={cropPreview.window}>
+                    {previewImg}
+                </span>
+            ) : (
+                previewImg
+            )}
             {caption ? (
                 <span className="image-preview__caption">{caption}</span>
             ) : null}

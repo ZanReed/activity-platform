@@ -63,12 +63,12 @@ declare module '@tiptap/core' {
     }
 }
 
-// Transaction-meta signal: the command bar's Replace/Caption primaries ask
-// ImagePopoverHost to open the edit popover (it no longer auto-opens on
-// selection). The payload names which field to focus. A transient meta (read
-// in the host's transaction listener) — no persisted plugin state needed.
+// Transaction-meta signal: the command bar's Replace primary asks
+// ImagePopoverHost to open the source popover (it no longer auto-opens on
+// selection). A transient meta (read in the host's transaction listener) — no
+// persisted plugin state needed. (Alt/caption moved to the Advanced drawer, so
+// there is nothing to focus but the URL field, which the popover does itself.)
 export const OPEN_IMAGE_POPOVER = 'openImagePopover';
-export type ImagePopoverFocus = 'source' | 'caption';
 
 export const Image = Node.create({
     name: 'image',
@@ -244,7 +244,7 @@ export const Image = Node.create({
                         // A freshly inserted image has no source — open the edit
                         // popover straight onto the URL field (the host no longer
                         // auto-opens on plain selection, so the insert must ask).
-                        tr.setMeta(OPEN_IMAGE_POPOVER, { focus: 'source' });
+                        tr.setMeta(OPEN_IMAGE_POPOVER, true);
                         dispatch(tr.scrollIntoView());
                     }
                     return true;
@@ -258,6 +258,19 @@ export const Image = Node.create({
                         return false;
                     }
                     const nextAttrs = { ...node.attrs, ...attrs };
+                    // CR-INV2: replacing the source invalidates any crop (a crop
+                    // into image X is meaningless for image Y) and its captured
+                    // srcAspect. Clear BOTH whenever src changes to a different
+                    // value, unless the same patch sets crop explicitly (the
+                    // crop editor never changes src, so the two never collide).
+                    if (
+                        typeof attrs.src === 'string' &&
+                        attrs.src !== node.attrs.src &&
+                        !('crop' in attrs)
+                    ) {
+                        nextAttrs.crop = null;
+                        nextAttrs.srcAspect = null;
+                    }
                     if (dispatch) {
                         tr.setNodeMarkup(pos, undefined, nextAttrs);
                         const preserveSelection =

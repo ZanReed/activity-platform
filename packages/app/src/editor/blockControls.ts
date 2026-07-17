@@ -7,8 +7,10 @@ import { renderSolutionField } from './components/QuestionSettings';
 import { renderDataPlotSettings } from './components/DataPlotSettings';
 import { renderGraphSettings } from './components/GraphSettings';
 import { renderNumberLineSettings } from './components/NumberLineSettings';
-import { Copy, Trash2, Image as ImageIcon, Captions } from 'lucide-react';
-import { OPEN_IMAGE_POPOVER, type ImagePopoverFocus } from './extensions/Image';
+import { renderResetCrop } from './components/ImageDrawerFields';
+import { requestCropMode } from './components/cropMode';
+import { Copy, Trash2, Image as ImageIcon, Crop } from 'lucide-react';
+import { OPEN_IMAGE_POPOVER } from './extensions/Image';
 
 // ============================================================================
 // blockControls — the control-descriptor registry for the docked command bar.
@@ -325,6 +327,33 @@ const allowTargetReuseField: AdvancedField = {
     },
 };
 
+// --- Image drawer fields ---------------------------------------------------
+// Alt / caption move off the popover into the drawer (the ruling's
+// decomposition); Reset crop is a custom action control (CR-S4).
+const imageAltField: AdvancedField = {
+    kind: 'text',
+    label: 'Alt text',
+    help: 'Describe the image for screen readers. Leave blank if decorative.',
+    placeholder: 'Describe the image',
+    get: (node) => (node.attrs.alt as string) ?? '',
+    set: (editor, pos, value) => setNodeAttr(editor, pos, 'alt', value),
+};
+
+const imageCaptionField: AdvancedField = {
+    kind: 'text',
+    label: 'Caption',
+    placeholder: 'Shown beneath the image',
+    get: (node) => (node.attrs.caption as string) ?? '',
+    set: (editor, pos, value) => setNodeAttr(editor, pos, 'caption', value),
+};
+
+// Clears crop+srcAspect only, leaving width/align (CR-S4).
+const resetCropField: AdvancedField = {
+    kind: 'custom',
+    label: 'Crop',
+    render: renderResetCrop,
+};
+
 export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     paragraph: { primary: [] },
     heading: { primary: [] },
@@ -456,31 +485,43 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     },
 
     // Batch 3 — popover-host / atom blocks. fill_in_blank is edited inline (type
-    // {{blanks}}) → no primary. image DOES need one: clicking selects the atom,
-    // so Replace/Caption are the only way to open the (no-longer-auto-opening)
-    // edit popover — these request it via a transaction meta.
+    // {{blanks}}) → no primary. image DOES need primaries: clicking selects the
+    // atom (no inline editor), so Crop/Replace are the two reframe/source
+    // actions. Crop bumps the image's crop-request nonce (its NodeView owns the
+    // gesture); Replace opens the source popover via a transaction meta.
+    // Alt / Caption / Reset crop live in the Advanced drawer (image-crop.md's
+    // "caption/alt → drawer" decomposition).
     fillInBlank: { primary: [], advanced: questionAdvanced },
     image: {
         primary: [
             {
-                label: 'Replace',
-                icon: ImageIcon,
-                onActivate: (editor) => requestImagePopover(editor, 'source'),
+                label: 'Crop',
+                icon: Crop,
+                onActivate: enterCropMode,
             },
             {
-                label: 'Caption',
-                icon: Captions,
-                onActivate: (editor) => requestImagePopover(editor, 'caption'),
+                label: 'Replace',
+                icon: ImageIcon,
+                onActivate: requestImagePopover,
             },
+        ],
+        advanced: [
+            { group: 'Description', fields: [imageAltField, imageCaptionField] },
+            { group: 'Crop', fields: [resetCropField] },
         ],
     },
 };
 
-/** Ask ImagePopoverHost to open the image edit popover, focused on `focus`. */
-function requestImagePopover(editor: Editor, focus: ImagePopoverFocus): void {
-    editor.view.dispatch(
-        editor.state.tr.setMeta(OPEN_IMAGE_POPOVER, { focus }),
-    );
+/** Enter crop mode on the selected image — its NodeView owns the frame gesture
+ * and re-checks that the source has loaded (CR-INV1/CR-M8) before entering. */
+function enterCropMode(editor: Editor, pos: number): void {
+    const id = editor.state.doc.nodeAt(pos)?.attrs.id as string | undefined;
+    if (id) requestCropMode(id);
+}
+
+/** Ask ImagePopoverHost to open the image source popover. */
+function requestImagePopover(editor: Editor): void {
+    editor.view.dispatch(editor.state.tr.setMeta(OPEN_IMAGE_POPOVER, true));
 }
 
 /** The descriptor for a node type, or null when the type has no controls. */
