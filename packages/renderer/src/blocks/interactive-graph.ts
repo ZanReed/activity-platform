@@ -2,6 +2,7 @@ import type { InteractiveGraphBlock } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
 import { renderGraphSvg, answerKeyDrawables } from '../graph-svg.js';
+import { sizingClass, sizingAttrs } from './sizing.js';
 
 export interface InteractiveGraphRenderContext {
   problemNumber: number;
@@ -181,7 +182,7 @@ export function renderInteractiveGraph(
     block.builtinFeedback === false ? ' data-graph-builtin-feedback="false"' : '';
 
   return (
-    '<div class="block block-interactive-graph"' +
+    '<div class="block block-interactive-graph' + sizingClass(block) + '"' +
     ' data-block-category="question"' +
     ' data-block-type="interactive_graph"' +
     ' data-block-id="' + attr(block.id) + '"' +
@@ -198,6 +199,7 @@ export function renderInteractiveGraph(
     kitSrcAttr +
     ratingAttr +
     skillsAttr +
+    sizingAttrs(block) +
     '>' +
     '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
     '<div class="block-problem-body">' +
@@ -262,7 +264,7 @@ function renderDisplayGraph(
     '</div>';
 
   return (
-    '<div class="block block-interactive-graph block-graph-display"' +
+    '<div class="block block-interactive-graph block-graph-display' + sizingClass(block) + '"' +
     ' data-block-category="content"' +
     ' data-block-type="interactive_graph"' +
     ' data-block-id="' + attr(block.id) + '"' +
@@ -272,6 +274,7 @@ function renderDisplayGraph(
     ' data-graph-drawables="' + attr(drawablesJson) + '"' +
     kitSrcAttr +
     skillsAttr +
+    sizingAttrs(block) +
     '>' +
     '<div class="block-problem-body">' +
     captionHtml +

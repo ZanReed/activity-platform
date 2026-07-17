@@ -2,6 +2,7 @@ import type { DataPlotBlock } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
 import { renderDataPlotSvg } from '../data-plot-svg.js';
+import { sizingClass, sizingAttrs } from './sizing.js';
 
 export interface DataPlotRenderContext {
   problemNumber: number;
@@ -100,11 +101,12 @@ function renderDisplayDataPlot(block: DataPlotBlock): string {
     '</div>';
 
   return (
-    '<div class="block block-data-plot block-data-plot-display"' +
+    '<div class="block block-data-plot block-data-plot-display' + sizingClass(block) + '"' +
     ' data-block-category="content"' +
     ' data-block-type="data_plot"' +
     ' data-block-id="' + attr(block.id) + '"' +
     skillsAttr +
+    sizingAttrs(block) +
     '>' +
     '<div class="block-problem-body">' +
     captionHtml +
@@ -223,7 +225,7 @@ function renderBuildDataPlot(
     ' aria-live="polite" hidden></div>';
 
   return (
-    '<div class="block block-data-plot"' +
+    '<div class="block block-data-plot' + sizingClass(block) + '"' +
     ' data-block-category="question"' +
     ' data-block-type="data_plot"' +
     ' data-block-id="' + attr(block.id) + '"' +
@@ -235,6 +237,7 @@ function renderBuildDataPlot(
     kitSrcAttr +
     ratingAttr +
     skillsAttr +
+    sizingAttrs(block) +
     '>' +
     '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
     '<div class="block-problem-body">' +

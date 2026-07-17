@@ -2,6 +2,7 @@ import type { NumberLineBlock } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
 import { renderNumberLineSvg, answerKeyMarks } from '../number-line-svg.js';
+import { sizingClass, sizingAttrs } from './sizing.js';
 
 export interface NumberLineRenderContext {
   problemNumber: number;
@@ -128,7 +129,7 @@ export function renderNumberLine(
     ' aria-live="polite" hidden></div>';
 
   return (
-    '<div class="block block-number-line"' +
+    '<div class="block block-number-line' + sizingClass(block) + '"' +
     ' data-block-category="question"' +
     ' data-block-type="number_line"' +
     ' data-block-id="' + attr(block.id) + '"' +
@@ -139,6 +140,7 @@ export function renderNumberLine(
     kitSrcAttr +
     ratingAttr +
     skillsAttr +
+    sizingAttrs(block) +
     '>' +
     '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
     '<div class="block-problem-body">' +
