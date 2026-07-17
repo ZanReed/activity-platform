@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import DraftNumberInput from './DraftNumberInput';
+import { BlockSizingField } from './BlockSizingField';
 import { renderSolutionField } from './QuestionSettings';
 import type {
     DataPlotConfigAttr,
@@ -84,6 +85,7 @@ function DataPlotSettingsPanel({
 
     return (
         <div className="graph-settings">
+            <BlockSizingField editor={editor} node={node} pos={pos} />
             <div className="block-advanced-drawer__group">
                 <div className="block-advanced-drawer__group-title">Chart</div>
                 <div className="graph-settings__axis-grid">

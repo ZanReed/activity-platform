@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import DraftNumberInput from './DraftNumberInput';
+import { BlockSizingField } from './BlockSizingField';
 import { ToggleRow, renderSolutionField } from './QuestionSettings';
 import type {
     NumberLineConfigAttr,
@@ -51,6 +52,7 @@ function NumberLineSettingsPanel({
 
     return (
         <div className="graph-settings">
+            <BlockSizingField editor={editor} node={node} pos={pos} />
             <div className="block-advanced-drawer__group">
                 <div className="block-advanced-drawer__group-title">Number line</div>
                 <div className="graph-settings__axis-grid">

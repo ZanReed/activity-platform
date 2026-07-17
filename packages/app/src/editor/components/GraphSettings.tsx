@@ -8,6 +8,7 @@ import {
 } from '@activity/graph-kit';
 import InlineRichTextEditor from './InlineRichTextEditor';
 import DraftNumberInput from './DraftNumberInput';
+import { BlockSizingField } from './BlockSizingField';
 import { ToggleRow } from './QuestionSettings';
 import {
     firstModel,
@@ -181,6 +182,7 @@ function GraphSettingsPanel({
 
     return (
         <div className="graph-settings">
+            <BlockSizingField editor={editor} node={node} pos={pos} />
             {/* Graph window — axis + grid. Fields use DraftNumberInput (D5). */}
             <div className="block-advanced-drawer__group">
                 <div className="block-advanced-drawer__group-title">Graph window</div>

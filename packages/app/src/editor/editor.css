@@ -1100,6 +1100,42 @@
     color: var(--ed-text-muted);
 }
 
+/* Shared width/align chips (BlockSizingField) — the drawer sizing control for
+   graph / data-plot / number-line (D5). Same typographic DNA as the drawer
+   fields; the align row appears only when a width is set. */
+.block-sizing__chips,
+.block-sizing__align {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+.block-sizing__align {
+    margin-top: 0.375rem;
+}
+.block-sizing__chip {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ed-text-muted);
+    background: transparent;
+    border: 1px solid var(--ed-border);
+    border-radius: 5px;
+    cursor: pointer;
+}
+.block-sizing__chip:hover:not(:disabled) {
+    border-color: var(--ed-accent-soft);
+    color: var(--ed-text);
+}
+.block-sizing__chip.is-active {
+    color: var(--ed-accent-strong);
+    background: var(--ed-accent-bg);
+    border-color: var(--ed-accent);
+}
+.block-sizing__chip:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
 .block-advanced-drawer__field {
     display: flex;
     align-items: center;
