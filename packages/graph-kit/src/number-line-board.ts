@@ -93,6 +93,8 @@ export function createNumberLineBoard(
     axis: false,
     grid: false,
     keepAspectRatio: false,
+    // D3 — re-fit on container resize (author-set width + narrow-screen relax).
+    resize: { enabled: true, throttle: 200 },
     showCopyright: false,
     showNavigation: false,
     pan: { enabled: false, needShift: false, needTwoFingers: false },

@@ -315,10 +315,14 @@ DATA FLOW — one authored width, three consumers
   schema shape (crop-rect vs `height`'s fate), renderer path, and print behavior
   are unresolved and shouldn't block the ready-now sizing work.
 - **D3 — interactive-graph board sizing = full live re-layout** (author call,
-  long-term-robust over the mount-time-only shortcut). Cascade `--block-width`
-  to `.graph-canvas` AND wire `ResizeObserver → board.resize()` so the mounted
-  board re-measures on any container change (narrow-screen relax + future
-  responsive/print variants). Data-plot/number-line are pure SVG — unaffected.
+  long-term-robust over the mount-time-only shortcut). Built via JSXGraph's
+  **built-in** `resize: { enabled, throttle }` on `initBoard` ([Layer 1] — its
+  own container ResizeObserver, not a hand-rolled one) on all three JSXGraph
+  boards (`createBoard`, `createPointAnswerBoard`, `createDisplayBoard`) + the
+  number-line board. `--block-width` cascades to `.graph-canvas` via the generic
+  `.block-sized` CSS (canvas is `width:100%`), and JSXGraph re-fits on any
+  container change (narrow-screen relax + future responsive/print variants).
+  Data-plot is pure SVG (no JSXGraph board) — unaffected.
 - **D4 — include `number_line`** in the slice (same near-free render change;
   keeps all figure blocks resize-consistent).
 - **D5 — align + reset-to-full authoring surface IS in the slice** (author

@@ -123,6 +123,10 @@ export function createBoard(container: HTMLElement): BoardController {
     },
     grid: true,
     keepAspectRatio: false,
+    // D3 — re-fit the board when its .graph-canvas container changes size
+    // (author-set block width + the narrow-screen relax). JSXGraph's built-in
+    // container ResizeObserver; throttled so a drag-resize doesn't storm.
+    resize: { enabled: true, throttle: 200 },
     showCopyright: false,
     showNavigation: false, // no nav buttons (avoids needing JSXGraph's CSS)
     // needShift: false is load-bearing — JSXGraph's DEFAULT mouse pan requires
@@ -645,6 +649,8 @@ export function createPointAnswerBoard(
     axis: true,
     grid: config.showGrid,
     keepAspectRatio: false,
+    // D3 — re-fit on container resize (author-set width + narrow-screen relax).
+    resize: { enabled: true, throttle: 200 },
     showCopyright: false,
     showNavigation: false,
     pan: { enabled: false, needShift: false, needTwoFingers: false },
@@ -1260,6 +1266,8 @@ export function createDisplayBoard(
     axis: true,
     grid: config.showGrid,
     keepAspectRatio: false,
+    // D3 — re-fit on container resize (author-set width + narrow-screen relax).
+    resize: { enabled: true, throttle: 200 },
     showCopyright: false,
     showNavigation: false,
     pan: { enabled: false, needShift: false, needTwoFingers: false },
