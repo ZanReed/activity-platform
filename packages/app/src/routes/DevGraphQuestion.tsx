@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   mountGraphQuestion,
+  mountGraphSystemQuestion,
   mountGraphDisplay,
   type GraphQuestionHandle,
   type GraphResponseData,
@@ -21,6 +22,8 @@ interface Scenario {
   answerKey: unknown;
   /** Handle positions that satisfy the key — the "Restore to answer" seed. */
   restorePoints: [number, number][];
+  /** For the system scenario: the correct N-boundary answer to restore. */
+  restoreExtras?: Parameters<GraphQuestionHandle['restore']>[1];
   hint: string;
   /** Static display figure: mounts mountGraphDisplay with these instead. */
   displayDrawables?: unknown[];
@@ -143,6 +146,24 @@ const SCENARIOS: Record<string, Scenario> = {
     restorePoints: [[0, -4], [1, -3], [-2, 0]],
     hint: 'Place the parabola boundary, toggle dotted (strict), click/pick the side above it.',
   },
+  system: {
+    label: 'System of inequalities — y ≥ 2x+1 (above) AND y < −x (below)',
+    interactionType: 'graph_inequality',
+    answerKey: {
+      inequalities: [
+        { boundary: { family: 'linear', slope: 2, intercept: 1, slopeTolerance: 0.3, interceptTolerance: 0.3 }, strict: false, shadeSide: 'above' },
+        { boundary: { family: 'linear', slope: -1, intercept: 0, slopeTolerance: 0.3, interceptTolerance: 0.3 }, strict: true, shadeSide: 'below' },
+      ],
+    },
+    restorePoints: [],
+    restoreExtras: {
+      parts: [
+        { points: [[0, 1], [1, 3]], strict: false, side: 'above' },
+        { points: [[0, 0], [1, -1]], strict: true, side: 'below' },
+      ],
+    },
+    hint: 'TWO boundaries (violet + blue). Drag each onto its line, pick Solid/Dotted + a shade side per row; the overlap darkens = the solution region. "Restore to answer" fills the correct system — expect correct:true.',
+  },
 };
 
 export default function DevGraphQuestion() {
@@ -188,7 +209,16 @@ export default function DevGraphQuestion() {
         el.remove();
       };
     }
-    void mountGraphQuestion(
+    // Route a multi-inequality key to the SYSTEM widget, exactly as the runtime
+    // does (packages/graph-kit/src/runtime.ts routes by inequalities.length).
+    const ineqs = (scenario.answerKey as { inequalities?: unknown } | null)?.inequalities;
+    const mountFn =
+      scenario.interactionType === 'graph_inequality' &&
+      Array.isArray(ineqs) &&
+      ineqs.length > 1
+        ? mountGraphSystemQuestion
+        : mountGraphQuestion;
+    void mountFn(
       el,
       {
         interactionType: scenario.interactionType,
@@ -202,7 +232,16 @@ export default function DevGraphQuestion() {
         onChange: (r) => {
           setResp(r);
           setNarration(
-            r.studentPoints.map((p, i) => `#${i + 1} (${p[0]}, ${p[1]})`).join('  '),
+            r.parts
+              ? r.parts
+                  .map(
+                    (p, i) =>
+                      `#${i + 1} [${p.side}, ${p.strict ? 'dashed' : 'solid'}] ${p.points
+                        .map((pt) => `(${pt[0]}, ${pt[1]})`)
+                        .join(' ')}`,
+                  )
+                  .join('   ')
+              : r.studentPoints.map((p, i) => `#${i + 1} (${p[0]}, ${p[1]})`).join('  '),
           );
         },
       },
@@ -277,7 +316,10 @@ export default function DevGraphQuestion() {
         >
           {locked ? 'Unlock' : 'Lock'}
         </button>
-        <button type="button" onClick={() => handleRef.current?.restore(scenario.restorePoints)}>
+        <button
+          type="button"
+          onClick={() => handleRef.current?.restore(scenario.restorePoints, scenario.restoreExtras)}
+        >
           Restore to answer
         </button>
       </div>

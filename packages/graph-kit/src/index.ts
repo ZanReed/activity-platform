@@ -61,6 +61,7 @@ export type { DataTableHandle } from './data-table.js';
 // JSXGraph stays in its own chunk (a scientific-only page never loads it).
 export {
   mountGraphQuestion,
+  mountGraphSystemQuestion,
   mountGraphAuthor,
   mountGraphDisplay,
 } from './graph-question.js';

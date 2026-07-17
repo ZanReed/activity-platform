@@ -1142,6 +1142,322 @@ export function createPointAnswerBoard(
 }
 
 // =============================================================================
+// createSystemAnswerBoard — the graded student board for a SYSTEM of
+// inequalities (graph_inequality with inequalities.length > 1)
+// -----------------------------------------------------------------------------
+// N independent boundaries on ONE shared plane, each with its own draggable
+// handles, boundary curve/line, and translucent half-plane shade. Overlapping
+// shades DARKEN NATURALLY where the chosen half-planes agree — that stacked
+// darkening IS the running intersection (no explicit intersection geometry; the
+// same alpha-compositing trick createBoard's inequality rows use, and an empty
+// intersection simply shows no dark region). Distinct per-boundary colors let
+// the student tell the boundaries apart; keyboard nav flattens every boundary's
+// handles into one Tab cycle. Side + dotted/solid are driven by the caller's
+// per-boundary control bar (setShadeSide / setBoundaryDashed) — click-to-shade
+// is ambiguous with N boundaries, so it is deliberately omitted here.
+// =============================================================================
+
+// Per-boundary hues (violet/blue/green/amber/red), reused mod N. Distinct from
+// each other so a two- or three-inequality system reads cleanly.
+export const SYSTEM_BOUNDARY_COLORS = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626'];
+
+export interface SystemBoundarySpec {
+  count: number;
+  starts?: [number, number][];
+  deriveCurve?: (points: [number, number][]) => ((x: number) => number) | null;
+  /** vertical family: draw a straight line through the first two handles. */
+  lineThroughHandles?: boolean;
+}
+
+export interface SystemAnswerConfig {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  xGridStep: number;
+  yGridStep: number;
+  showGrid: boolean;
+  snapToGrid: boolean;
+  boundaries: SystemBoundarySpec[];
+}
+
+export interface SystemAnswerHooks {
+  /** Fired on every student move (drag or keyboard). */
+  onMove?: () => void;
+}
+
+export interface SystemAnswerController {
+  /** The current handle positions of boundary i, in graph units. */
+  getBoundaryPoints(i: number): [number, number][];
+  /** All boundaries' handle positions, boundary-indexed. */
+  getAllPoints(): [number, number][][];
+  /** The color assigned to boundary i (for the caller's control-bar labels). */
+  boundaryColor(i: number): string;
+  hasMoved(): boolean;
+  setShadeSide(i: number, side: 'above' | 'below' | 'left' | 'right' | null): void;
+  setBoundaryDashed(i: number, dashed: boolean): void;
+  setPoints(i: number, next: [number, number][]): void;
+  setInteractive(on: boolean): void;
+  destroy(): void;
+}
+
+export function createSystemAnswerBoard(
+  container: HTMLElement,
+  config: SystemAnswerConfig,
+  hooks: SystemAnswerHooks = {},
+): SystemAnswerController {
+  if (!container.id) container.id = `gk-system-${(boardSeq += 1)}`;
+
+  const callerLabel = container.getAttribute('aria-label');
+  const board = JSXGraph.initBoard(container.id, {
+    boundingbox: [config.xMin, config.yMax, config.xMax, config.yMin],
+    axis: true,
+    grid: config.showGrid,
+    keepAspectRatio: false,
+    resize: { enabled: true, throttle: 200 },
+    showCopyright: false,
+    showNavigation: false,
+    pan: { enabled: false, needShift: false, needTwoFingers: false },
+    zoom: { wheel: false, needShift: true, min: 1, max: 1 },
+    keyboard: { enabled: false },
+  } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
+
+  container.setAttribute('role', 'application');
+  container.setAttribute('tabindex', '0');
+  container.setAttribute(
+    'aria-label',
+    callerLabel ??
+      'Interactive coordinate plane with several boundaries. Tab to a boundary handle; arrow keys move it; hold Shift for fine steps.',
+  );
+
+  const clampX = (x: number): number => Math.min(Math.max(x, config.xMin), config.xMax);
+  const clampY = (y: number): number => Math.min(Math.max(y, config.yMin), config.yMax);
+  const liveBox = (): WindowBox => {
+    const [xMin, yMax, xMax, yMin] = board.getBoundingBox();
+    return { xMin, xMax, yMin, yMax };
+  };
+
+  interface Boundary {
+    spec: SystemBoundarySpec;
+    color: string;
+    points: JxgPoint[];
+    shadeSide: 'above' | 'below' | 'left' | 'right' | null;
+    curveObj: { setAttribute(a: Record<string, unknown>): void } | null;
+  }
+
+  const boundaries: Boundary[] = [];
+  // Flattened (boundaryIndex, handleIndex) pairs — one Tab cycle over every handle.
+  const flat: { b: number; h: number }[] = [];
+  let moved = false;
+  let interactive = true;
+
+  config.boundaries.forEach((spec, bi) => {
+    const color = SYSTEM_BOUNDARY_COLORS[bi % SYSTEM_BOUNDARY_COLORS.length]!;
+    const count = Math.max(1, Math.floor(spec.count));
+    // Default starts: spread x evenly; offset each boundary's y by one grid line
+    // per index so two boundaries' handles don't seed exactly on top of each other.
+    const defaultStarts = (): [number, number][] => {
+      const out: [number, number][] = [];
+      for (let i = 0; i < count; i++) {
+        const x = config.xMin + ((i + 1) * (config.xMax - config.xMin)) / (count + 1);
+        out.push([clampX(x), clampY((bi + 1) * config.yGridStep)]);
+      }
+      return out;
+    };
+    const starts =
+      spec.starts && spec.starts.length === count
+        ? spec.starts.map(([x, y]) => [clampX(x), clampY(y)] as [number, number])
+        : defaultStarts();
+
+    const points: JxgPoint[] = starts.map(
+      (s) =>
+        board.create('point', s, {
+          name: '',
+          withLabel: false,
+          size: HANDLE_SIZE,
+          strokeColor: color,
+          fillColor: color,
+          highlightStrokeColor: color,
+          highlightFillColor: color,
+          showInfobox: false,
+          snapToGrid: config.snapToGrid,
+          snapSizeX: config.xGridStep,
+          snapSizeY: config.yGridStep,
+        }) as unknown as JxgPoint,
+    );
+
+    const b: Boundary = { spec, color, points, shadeSide: null, curveObj: null };
+    const currentPoints = (): [number, number][] => points.map((p) => [p.X(), p.Y()]);
+
+    // Boundary curve (or a straight line for the vertical family) through the
+    // handles; the closure re-derives from live positions on every update.
+    if (spec.lineThroughHandles && points.length >= 2) {
+      b.curveObj = board.create('line', [points[0], points[1]], {
+        strokeColor: color,
+        strokeWidth: 2,
+        highlight: false,
+        fixed: true,
+      }) as unknown as { setAttribute(a: Record<string, unknown>): void };
+    } else if (spec.deriveCurve) {
+      const derive = spec.deriveCurve;
+      b.curveObj = board.create(
+        'functiongraph',
+        [
+          (x: number): number => {
+            const fn = derive(currentPoints());
+            return fn ? fn(x) : NaN;
+          },
+        ],
+        { strokeColor: color, strokeWidth: 2, highlight: false, fixed: true },
+      ) as unknown as { setAttribute(a: Record<string, unknown>): void };
+    }
+
+    // Translucent half-plane shade — re-derives from the live handles + the
+    // chosen side on every board.update(); stacks with the other boundaries'
+    // fills to render the intersection.
+    const fill = board.create('curve', [[], []], {
+      strokeWidth: 0,
+      highlight: false,
+      fixed: true,
+      fillColor: color,
+      fillOpacity: 0.15,
+    }) as unknown as { dataX: number[]; dataY: number[]; updateDataArray?: () => void };
+    (fill as { updateDataArray: () => void }).updateDataArray = function (this: {
+      dataX: number[];
+      dataY: number[];
+    }): void {
+      this.dataX = [];
+      this.dataY = [];
+      const side = b.shadeSide;
+      if (!side) return;
+      const pts = currentPoints();
+      if (side === 'left' || side === 'right') {
+        if (pts.length < 2) return;
+        const k = pts.reduce((s, [px]) => s + px, 0) / pts.length;
+        const { xs, ys } = halfPlaneOutline(side, liveBox(), { x: k });
+        this.dataX = xs;
+        this.dataY = ys;
+      } else {
+        const fn = spec.deriveCurve ? spec.deriveCurve(pts) : null;
+        if (!fn) return;
+        const { xs, ys } = halfPlaneOutline(side, liveBox(), { fn });
+        this.dataX = xs;
+        this.dataY = ys;
+      }
+    };
+
+    boundaries.push(b);
+    points.forEach((_, h) => flat.push({ b: bi, h }));
+  });
+
+  let activeFlat = 0;
+  const activePoint = (): JxgPoint | null => {
+    const f = flat[activeFlat];
+    return f ? (boundaries[f.b]?.points[f.h] ?? null) : null;
+  };
+  const styleActive = (): void => {
+    flat.forEach((f, i) => {
+      boundaries[f.b]?.points[f.h]?.setAttribute({
+        size: i === activeFlat ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE,
+      });
+    });
+    board.update();
+  };
+  styleActive();
+
+  const notify = (fromUser: boolean): void => {
+    if (fromUser) moved = true;
+    hooks.onMove?.();
+  };
+
+  boundaries.forEach((b, bi) => {
+    b.points.forEach((p, h) => {
+      p.on('drag', () => {
+        const idx = flat.findIndex((f) => f.b === bi && f.h === h);
+        if (idx !== -1 && idx !== activeFlat) {
+          activeFlat = idx;
+          styleActive();
+        }
+        notify(true);
+      });
+    });
+  });
+
+  container.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (!interactive) return;
+    if (e.key === 'Tab' && flat.length > 1) {
+      const next = activeFlat + (e.shiftKey ? -1 : 1);
+      if (next >= 0 && next < flat.length) {
+        e.preventDefault();
+        activeFlat = next;
+        styleActive();
+        notify(false); // focus move, not a value change
+      }
+      return;
+    }
+    const active = activePoint();
+    if (!active) return;
+    const fine = e.shiftKey;
+    const stepX = fine ? 0.1 : config.xGridStep;
+    const stepY = fine ? 0.1 : config.yGridStep;
+    let nx = active.X();
+    let ny = active.Y();
+    switch (e.key) {
+      case 'ArrowLeft': nx -= stepX; break;
+      case 'ArrowRight': nx += stepX; break;
+      case 'ArrowUp': ny += stepY; break;
+      case 'ArrowDown': ny -= stepY; break;
+      default: return;
+    }
+    e.preventDefault();
+    active.moveTo([clampX(nx), clampY(ny)]);
+    board.update();
+    notify(true);
+  });
+
+  return {
+    getBoundaryPoints(i): [number, number][] {
+      return boundaries[i]?.points.map((p) => [p.X(), p.Y()] as [number, number]) ?? [];
+    },
+    getAllPoints(): [number, number][][] {
+      return boundaries.map((b) => b.points.map((p) => [p.X(), p.Y()] as [number, number]));
+    },
+    boundaryColor(i): string {
+      return boundaries[i]?.color ?? ANSWER_COLOR;
+    },
+    hasMoved: () => moved,
+    setShadeSide(i, side): void {
+      const b = boundaries[i];
+      if (b) {
+        b.shadeSide = side;
+        board.update();
+      }
+    },
+    setBoundaryDashed(i, dashed): void {
+      boundaries[i]?.curveObj?.setAttribute({ dash: dashed ? 2 : 0 });
+      board.update();
+    },
+    setPoints(i, next): void {
+      const b = boundaries[i];
+      if (!b) return;
+      next.forEach((coords, h) => {
+        const p = b.points[h];
+        if (p) p.moveTo([clampX(coords[0]), clampY(coords[1])]);
+      });
+      board.update();
+      notify(false);
+    },
+    setInteractive(on): void {
+      interactive = on;
+      for (const b of boundaries) for (const p of b.points) p.setAttribute({ fixed: !on });
+    },
+    destroy(): void {
+      JSXGraph.freeBoard(board as unknown as Parameters<typeof JSXGraph.freeBoard>[0]);
+    },
+  };
+}
+
+// =============================================================================
 // createDisplayBoard — the STATIC (ungraded) graph, for interaction.type
 // 'display'
 // -----------------------------------------------------------------------------

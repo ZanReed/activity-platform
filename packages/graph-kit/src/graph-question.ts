@@ -20,6 +20,8 @@ import {
   scoreFunction,
   scoreRegion,
   scoreInequalityParts,
+  scoreInequality,
+  scoreInequalitySystem,
   scoreDomainParts,
   scoreRayParts,
   scoreSegmentParts,
@@ -53,6 +55,7 @@ import {
 import type {
   PointAnswerConfig,
   PointAnswerController,
+  SystemBoundarySpec,
   DisplayDrawable,
 } from './board.js';
 
@@ -386,6 +389,16 @@ export interface GraphResponseData {
   fromStyle?: 'open' | 'closed';
   /** plot_segment: per-endpoint open/closed, canonical order (lesser first). */
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
+  /** graph_inequality SYSTEM (inequalities.length > 1): one entry per plotted
+   *  boundary. Present only for a system; studentPoints stays empty (the answer
+   *  lives here). Per-part `correct` = the boundary matches ≥1 authored
+   *  inequality; the block's overall `correct` is the order-independent set-match. */
+  parts?: {
+    points: [number, number][];
+    strict: boolean;
+    side: 'above' | 'below' | 'left' | 'right';
+    correct: boolean;
+  }[];
   /** Drop B: matched authored anticipated mistake (index into the block's
    *  feedback templates). Only set when the answer is wrong. */
   mistakeIndex?: number;
@@ -403,6 +416,13 @@ export interface GraphRestoreExtras {
   shape?: LinearShape;
   fromStyle?: 'open' | 'closed';
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
+  /** graph_inequality SYSTEM: the N plotted boundaries to restore (mountGraph-
+   *  SystemQuestion reads this instead of the single points/strict/side above). */
+  parts?: {
+    points: [number, number][];
+    strict: boolean;
+    side: 'above' | 'below' | 'left' | 'right';
+  }[];
 }
 
 export interface GraphQuestionHooks {
@@ -474,6 +494,25 @@ function readInequalityKey(raw: unknown): InequalityAnswerKey {
         ? side
         : 'above',
   };
+}
+
+// Read ALL inequalities from a graph_inequality answer key — the SYSTEM path
+// (inequalities.length > 1). Each entry mirrors readInequalityKey's single read.
+function readInequalitySystemKey(raw: unknown): InequalityAnswerKey[] {
+  const arr = ((raw ?? {}) as { inequalities?: unknown }).inequalities;
+  if (!Array.isArray(arr)) return [];
+  return arr.map((entry) => {
+    const item = (entry ?? {}) as Record<string, unknown>;
+    const side = item.shadeSide;
+    return {
+      boundary: parseModel(item.boundary),
+      strict: item.strict === true,
+      shadeSide:
+        side === 'above' || side === 'below' || side === 'left' || side === 'right'
+          ? side
+          : 'above',
+    };
+  });
 }
 
 // Read the plot_ray answer key (`{ rays: [{ from, through, fromStyle,
@@ -936,6 +975,193 @@ export async function mountGraphQuestion(
       const buttons = [solidBtn, dottedBtn, sideABtn, sideBBtn, noSolBtn, minStyleBtn, maxStyleBtn];
       for (const b of buttons) if (b) b.disabled = locked;
       linear?.setDisabled(locked);
+    },
+    destroy(): void {
+      board.destroy();
+    },
+  };
+}
+
+// ---- mountGraphSystemQuestion: a SYSTEM of inequalities ----------------------
+// The STUDENT widget for a graph_inequality with inequalities.length > 1. Mounts
+// N draggable boundaries on ONE shared plane (createSystemAnswerBoard) with a
+// per-boundary control row (solid/dotted + shade side); the overlapping
+// translucent shades render the running intersection. Reports the N-boundary
+// answer as GraphResponseData.parts, scored order-independently, match-all by
+// scoreInequalitySystem, honoring the block's partialCredit flag (matched / N).
+// The single-inequality path (mountGraphQuestion) is untouched — N=1 never
+// reaches here; the runtime routes by inequalities.length.
+export async function mountGraphSystemQuestion(
+  mount: HTMLElement,
+  rawConfig: unknown,
+  hooks: GraphQuestionHooks = {},
+): Promise<GraphQuestionHandle> {
+  const cfg = (rawConfig ?? {}) as Partial<GraphQuestionConfig>;
+  const axis = readAxis(cfg.axisConfig);
+  const keys = readInequalitySystemKey(cfg.answerKey);
+
+  // Per-boundary board recipe (handle count + curve derive), from each
+  // boundary's family — the same plot_function machinery a single inequality's
+  // boundary rides.
+  const specs: SystemBoundarySpec[] = keys.map((key) => {
+    const r = recipeFor('plot_function', { models: [key.boundary] }, axis);
+    return {
+      count: r.count,
+      starts: r.starts,
+      deriveCurve: r.deriveCurve,
+      lineThroughHandles: r.lineThroughHandles,
+    };
+  });
+
+  mount.textContent = '';
+  const { createSystemAnswerBoard } = await import('./board.js');
+
+  let answered = false;
+  const stricts: boolean[] = keys.map(() => false);
+  const sides: ('above' | 'below' | 'left' | 'right' | null)[] = keys.map(() => null);
+
+  function buildBase(): GraphResponseData {
+    const allPts = board.getAllPoints();
+    const parts = keys.map((_, i) => {
+      const pts = allPts[i] ?? [];
+      const sideI = sides[i] ?? null;
+      const strictI = stricts[i] ?? false;
+      // Per-boundary signal for the dashboard: does this boundary match ANY
+      // authored inequality (with a picked side)? The block's OVERALL grade is
+      // the set-match below, not the AND of these.
+      const partCorrect =
+        sideI !== null &&
+        keys.some((k) => scoreInequality(k, { points: pts, strict: strictI, side: sideI }));
+      return {
+        points: pts,
+        strict: strictI,
+        side: sideI ?? ('above' as const),
+        correct: partCorrect,
+      };
+    });
+    // Only side-picked boundaries can match; an unpicked side is unanswered, so
+    // leaving it out of the match set keeps the system from scoring fully correct
+    // until every side is chosen.
+    const answeredParts = keys
+      .map((_, i) => ({ points: allPts[i] ?? [], strict: stricts[i] ?? false, side: sides[i] }))
+      .filter(
+        (p): p is { points: [number, number][]; strict: boolean; side: 'above' | 'below' | 'left' | 'right' } =>
+          p.side !== null,
+      );
+    const sys = scoreInequalitySystem(keys, answeredParts);
+    const resp: GraphResponseData = {
+      studentPoints: [],
+      correct: sys.correct,
+      answered,
+      parts,
+    };
+    if (cfg.partialCredit) {
+      resp.earned = sys.earned;
+      resp.total = sys.total;
+    }
+    return resp;
+  }
+
+  function report(): void {
+    hooks.onChange?.(buildBase());
+  }
+
+  const board = createSystemAnswerBoard(
+    mount,
+    { ...axis, boundaries: specs },
+    {
+      onMove: () => {
+        if (board.hasMoved()) answered = true;
+        report();
+      },
+    },
+  );
+
+  // ---- Per-boundary control bar: one row per inequality ----------------------
+  const bar = document.createElement('div');
+  bar.style.cssText =
+    'position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;' +
+    'gap:0.2rem;padding:0.3rem;background:rgba(255,255,255,0.92);' +
+    'border-top:1px solid #e2e8f0;z-index:5;max-height:55%;overflow:auto;';
+
+  const rowSyncs: (() => void)[] = [];
+  keys.forEach((key, i) => {
+    const vertical = key.boundary.family === 'vertical';
+    const sideA = vertical ? ('left' as const) : ('above' as const);
+    const sideB = vertical ? ('right' as const) : ('below' as const);
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:0.3rem;align-items:center;flex-wrap:wrap;';
+    const chip = document.createElement('span');
+    chip.style.cssText =
+      'width:0.75rem;height:0.75rem;border-radius:2px;flex:none;background:' +
+      board.boundaryColor(i) + ';';
+    const solidBtn = pill('Solid line', () => {
+      stricts[i] = false;
+      answered = true;
+      board.setBoundaryDashed(i, false);
+      sync();
+      report();
+    });
+    const dottedBtn = pill('Dotted line', () => {
+      stricts[i] = true;
+      answered = true;
+      board.setBoundaryDashed(i, true);
+      sync();
+      report();
+    });
+    const sideABtn = pill(vertical ? 'Shade left' : 'Shade above', () => {
+      sides[i] = sideA;
+      answered = true;
+      board.setShadeSide(i, sideA);
+      sync();
+      report();
+    });
+    const sideBBtn = pill(vertical ? 'Shade right' : 'Shade below', () => {
+      sides[i] = sideB;
+      answered = true;
+      board.setShadeSide(i, sideB);
+      sync();
+      report();
+    });
+    function sync(): void {
+      setPillActive(solidBtn, stricts[i] === false);
+      setPillActive(dottedBtn, stricts[i] === true);
+      setPillActive(sideABtn, sides[i] === sideA);
+      setPillActive(sideBBtn, sides[i] === sideB);
+    }
+    rowSyncs.push(sync);
+    row.append(chip, solidBtn, dottedBtn, sideABtn, sideBBtn);
+    bar.append(row);
+    sync();
+  });
+  mount.appendChild(bar);
+
+  const barButtons = (): HTMLButtonElement[] =>
+    Array.prototype.slice.call(bar.querySelectorAll('button'));
+
+  // First paint reflects the initial (unanswered) state.
+  report();
+
+  return {
+    getResponse: buildBase,
+    restore(_points: [number, number][], extras?: GraphRestoreExtras): void {
+      const parts = extras?.parts;
+      if (!parts || parts.length === 0) return;
+      answered = true;
+      parts.forEach((p, i) => {
+        if (i >= keys.length) return;
+        stricts[i] = p.strict;
+        sides[i] = p.side;
+        board.setBoundaryDashed(i, p.strict);
+        board.setShadeSide(i, p.side);
+        if (p.points.length > 0) board.setPoints(i, p.points);
+      });
+      rowSyncs.forEach((fn) => fn());
+      report();
+    },
+    setLocked(locked: boolean): void {
+      board.setInteractive(!locked);
+      for (const b of barButtons()) b.disabled = locked;
     },
     destroy(): void {
       board.destroy();

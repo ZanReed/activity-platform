@@ -25,6 +25,7 @@
 
 import {
   mountGraphQuestion,
+  mountGraphSystemQuestion,
   mountGraphDisplay,
   type GraphQuestionHandle,
   type GraphResponseData,
@@ -340,7 +341,17 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
       builtinFeedback: chrome.builtinFeedback,
     };
 
-    mountGraphQuestion(chrome.canvas, config, {
+    // A "system" is a graph_inequality whose answer key has more than one
+    // inequality — it mounts the N-boundary system widget instead of the single
+    // one. N=1 (or any other interaction) takes the unchanged single path.
+    const ineqs = (chrome.answerKey as { inequalities?: unknown } | null)?.inequalities;
+    const isSystem =
+      chrome.interactionType === 'graph_inequality' &&
+      Array.isArray(ineqs) &&
+      ineqs.length > 1;
+    const mountFn = isSystem ? mountGraphSystemQuestion : mountGraphQuestion;
+
+    mountFn(chrome.canvas, config, {
       onChange: (resp: GraphResponseData) => {
         const gs = ctx.state.graphs[blockId];
         if (!gs) return;
@@ -359,6 +370,7 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
         gs.shape = resp.shape;
         gs.fromStyle = resp.fromStyle;
         gs.endpoints = resp.endpoints;
+        gs.parts = resp.parts; // the N-boundary system answer (undefined otherwise)
         gs.mistakeIndex = resp.mistakeIndex;
         gs.mistakeText = resp.mistakeText;
         ctx.onUpdate();
@@ -370,7 +382,9 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
         // state.graphs[blockId] (answered + result), so a checked-and-reloaded
         // graph comes back scored.
         const gs = ctx.state.graphs[blockId];
-        if (gs && (gs.points.length > 0 || gs.noSolution)) {
+        if (gs && gs.parts && gs.parts.length > 0) {
+          handle.restore([], { parts: gs.parts });
+        } else if (gs && (gs.points.length > 0 || gs.noSolution)) {
           handle.restore(gs.points, {
             strict: gs.strict,
             side: gs.side,
