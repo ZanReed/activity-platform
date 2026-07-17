@@ -285,7 +285,7 @@ export default function Activities() {
                         setDeleteError(null);
                     }}
                     aria-label={`Delete ${a.title}`}
-                    className="text-sm font-medium text-slate-400 underline underline-offset-2 transition hover:text-red-600"
+                    className="text-sm font-medium text-slate-500 underline underline-offset-2 transition hover:text-red-600"
                     >
                     Delete
                     </button>
