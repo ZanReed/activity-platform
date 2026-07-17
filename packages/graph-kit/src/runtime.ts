@@ -26,6 +26,7 @@
 import {
   mountGraphQuestion,
   mountGraphSystemQuestion,
+  mountGraphFunctionSystemQuestion,
   mountGraphDisplay,
   type GraphQuestionHandle,
   type GraphResponseData,
@@ -349,7 +350,17 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
       chrome.interactionType === 'graph_inequality' &&
       Array.isArray(ineqs) &&
       ineqs.length > 1;
-    const mountFn = isSystem ? mountGraphSystemQuestion : mountGraphQuestion;
+    // A functions-system: plot_function whose answer key has more than one model.
+    const models = (chrome.answerKey as { models?: unknown } | null)?.models;
+    const isFunctionSystem =
+      chrome.interactionType === 'plot_function' &&
+      Array.isArray(models) &&
+      models.length > 1;
+    const mountFn = isSystem
+      ? mountGraphSystemQuestion
+      : isFunctionSystem
+        ? mountGraphFunctionSystemQuestion
+        : mountGraphQuestion;
 
     mountFn(chrome.canvas, config, {
       onChange: (resp: GraphResponseData) => {
@@ -370,7 +381,8 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
         gs.shape = resp.shape;
         gs.fromStyle = resp.fromStyle;
         gs.endpoints = resp.endpoints;
-        gs.parts = resp.parts; // the N-boundary system answer (undefined otherwise)
+        gs.parts = resp.parts; // the N-boundary inequality-system answer (else undefined)
+        gs.curveParts = resp.curveParts; // the N-curve function-system answer (else undefined)
         gs.mistakeIndex = resp.mistakeIndex;
         gs.mistakeText = resp.mistakeText;
         ctx.onUpdate();
@@ -382,8 +394,12 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
         // state.graphs[blockId] (answered + result), so a checked-and-reloaded
         // graph comes back scored.
         const gs = ctx.state.graphs[blockId];
-        if (gs && gs.parts && gs.parts.length > 0) {
+        // Restore ONLY a genuinely-answered prior submission (gs.answered set by
+        // applyStoredState from storage) — never the fresh-load default state.
+        if (gs && gs.answered && gs.parts && gs.parts.length > 0) {
           handle.restore([], { parts: gs.parts });
+        } else if (gs && gs.answered && gs.curveParts && gs.curveParts.length > 0) {
+          handle.restore([], { curveParts: gs.curveParts });
         } else if (gs && (gs.points.length > 0 || gs.noSolution)) {
           handle.restore(gs.points, {
             strict: gs.strict,

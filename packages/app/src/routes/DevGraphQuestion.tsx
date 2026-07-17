@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   mountGraphQuestion,
   mountGraphSystemQuestion,
+  mountGraphFunctionSystemQuestion,
   mountGraphDisplay,
   type GraphQuestionHandle,
   type GraphResponseData,
@@ -164,6 +165,24 @@ const SCENARIOS: Record<string, Scenario> = {
     },
     hint: 'TWO boundaries (violet + blue). Drag each onto its line, pick Solid/Dotted + a shade side per row; the overlap darkens = the solution region. "Restore to answer" fills the correct system — expect correct:true.',
   },
+  'function-system': {
+    label: 'System of functions — y = 2x+1 AND y = x² − 4',
+    interactionType: 'plot_function',
+    answerKey: {
+      models: [
+        { family: 'linear', slope: 2, intercept: 1, slopeTolerance: 0.3, interceptTolerance: 0.3 },
+        { family: 'quadratic', a: 1, b: 0, c: -4, aTolerance: 0.3, bTolerance: 0.3, cTolerance: 0.3 },
+      ],
+    },
+    restorePoints: [],
+    restoreExtras: {
+      curveParts: [
+        { points: [[0, 1], [1, 3]] },
+        { points: [[0, -4], [1, -3], [-2, 0]] },
+      ],
+    },
+    hint: 'TWO curves (violet line, 2 handles + blue parabola, 3 handles). Drag each onto its curve — no shade/side controls. "Restore to answer" fills the correct system — expect correct:true.',
+  },
 };
 
 export default function DevGraphQuestion() {
@@ -209,15 +228,16 @@ export default function DevGraphQuestion() {
         el.remove();
       };
     }
-    // Route a multi-inequality key to the SYSTEM widget, exactly as the runtime
-    // does (packages/graph-kit/src/runtime.ts routes by inequalities.length).
+    // Route a multi-object key to the matching SYSTEM widget, exactly as the
+    // runtime does (packages/graph-kit/src/runtime.ts routes by array length).
     const ineqs = (scenario.answerKey as { inequalities?: unknown } | null)?.inequalities;
+    const fnModels = (scenario.answerKey as { models?: unknown } | null)?.models;
     const mountFn =
-      scenario.interactionType === 'graph_inequality' &&
-      Array.isArray(ineqs) &&
-      ineqs.length > 1
+      scenario.interactionType === 'graph_inequality' && Array.isArray(ineqs) && ineqs.length > 1
         ? mountGraphSystemQuestion
-        : mountGraphQuestion;
+        : scenario.interactionType === 'plot_function' && Array.isArray(fnModels) && fnModels.length > 1
+          ? mountGraphFunctionSystemQuestion
+          : mountGraphQuestion;
     void mountFn(
       el,
       {
@@ -241,7 +261,14 @@ export default function DevGraphQuestion() {
                         .join(' ')}`,
                   )
                   .join('   ')
-              : r.studentPoints.map((p, i) => `#${i + 1} (${p[0]}, ${p[1]})`).join('  '),
+              : r.curveParts
+                ? r.curveParts
+                    .map(
+                      (p, i) =>
+                        `curve ${i + 1}: ${p.points.map((pt) => `(${pt[0]}, ${pt[1]})`).join(' ')}`,
+                    )
+                    .join('   ')
+                : r.studentPoints.map((p, i) => `#${i + 1} (${p[0]}, ${p[1]})`).join('  '),
           );
         },
       },

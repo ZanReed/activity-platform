@@ -301,6 +301,23 @@ describe('submit payload', () => {
     expect(gatherResponses(state, refs).graphResponses).toBeUndefined();
   });
 
+  it('fresh-load guard: a system with parts present but answered:false is omitted', () => {
+    // Defense in depth for the first-paint bug: even if a system widget left
+    // parts/curveParts on the state, answered:false must keep it out of the wire
+    // (an untouched system is an omission, never a scored wrong answer).
+    mount({
+      interactionType: 'graph_inequality',
+      answerKey: { inequalities: [{ boundary: { family: 'linear', slope: 2, intercept: 1 }, strict: false, shadeSide: 'above' }, { boundary: { family: 'linear', slope: -1, intercept: 0 }, strict: true, shadeSide: 'below' }] },
+    });
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    state.graphs[GRAPH_ID] = {
+      points: [], answered: false, result: null, solutionRevealed: false, confidence: null,
+      parts: [{ points: [[0, 1], [1, 3]], strict: false, side: 'above', correct: false }],
+    };
+    expect(gatherResponses(state, refs).graphResponses).toBeUndefined();
+  });
+
   it('gathers a RESTORED answer even though the kit never attached (kit-fail path)', () => {
     // The inline gather is pure state → JSON: a previously-persisted answer
     // must survive a visit where the kit fails to load.

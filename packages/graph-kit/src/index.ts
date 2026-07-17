@@ -62,6 +62,7 @@ export type { DataTableHandle } from './data-table.js';
 export {
   mountGraphQuestion,
   mountGraphSystemQuestion,
+  mountGraphFunctionSystemQuestion,
   mountGraphAuthor,
   mountGraphDisplay,
 } from './graph-question.js';

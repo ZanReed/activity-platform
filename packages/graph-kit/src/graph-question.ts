@@ -22,6 +22,7 @@ import {
   scoreInequalityParts,
   scoreInequality,
   scoreInequalitySystem,
+  scoreFunctionSystem,
   scoreDomainParts,
   scoreRayParts,
   scoreSegmentParts,
@@ -399,6 +400,14 @@ export interface GraphResponseData {
     side: 'above' | 'below' | 'left' | 'right';
     correct: boolean;
   }[];
+  /** plot_function SYSTEM (models.length > 1): one entry per plotted curve.
+   *  Present only for a functions-system; studentPoints stays empty. Per-curve
+   *  `correct` = the curve matches ≥1 authored model; the block's overall
+   *  `correct` is the order-independent set-match. */
+  curveParts?: {
+    points: [number, number][];
+    correct: boolean;
+  }[];
   /** Drop B: matched authored anticipated mistake (index into the block's
    *  feedback templates). Only set when the answer is wrong. */
   mistakeIndex?: number;
@@ -422,6 +431,11 @@ export interface GraphRestoreExtras {
     points: [number, number][];
     strict: boolean;
     side: 'above' | 'below' | 'left' | 'right';
+  }[];
+  /** plot_function SYSTEM: the N plotted curves to restore (mountGraphFunction-
+   *  SystemQuestion reads this instead of the single points above). */
+  curveParts?: {
+    points: [number, number][];
   }[];
 }
 
@@ -513,6 +527,14 @@ function readInequalitySystemKey(raw: unknown): InequalityAnswerKey[] {
           : 'above',
     };
   });
+}
+
+// Read ALL models from a plot_function answer key — the SYSTEM path
+// (models.length > 1). Each entry parsed like readModel's single read.
+function readFunctionSystemModels(raw: unknown): FunctionModel[] {
+  const models = ((raw ?? {}) as { models?: unknown }).models;
+  if (!Array.isArray(models)) return [];
+  return models.map((m) => parseModel(m));
 }
 
 // Read the plot_ray answer key (`{ rays: [{ from, through, fromStyle,
@@ -1139,8 +1161,10 @@ export async function mountGraphSystemQuestion(
   const barButtons = (): HTMLButtonElement[] =>
     Array.prototype.slice.call(bar.querySelectorAll('button'));
 
-  // First paint reflects the initial (unanswered) state.
-  report();
+  // NB: no first-paint report() — like the single-answer widget, onChange fires
+  // only on a real student action (move/side/style). Reporting at construction
+  // would persist the unanswered default state, and the runtime's restore gate
+  // would then re-apply it on a fresh load, spuriously marking the block answered.
 
   return {
     getResponse: buildBase,
@@ -1162,6 +1186,102 @@ export async function mountGraphSystemQuestion(
     setLocked(locked: boolean): void {
       board.setInteractive(!locked);
       for (const b of barButtons()) b.disabled = locked;
+    },
+    destroy(): void {
+      board.destroy();
+    },
+  };
+}
+
+// ---- mountGraphFunctionSystemQuestion: a SYSTEM of functions -----------------
+// The STUDENT widget for a plot_function with models.length > 1 ("graph both
+// lines"). Mounts N draggable curves on ONE shared plane (createSystemAnswerBoard
+// with NO shade/control bar — curves, not boundaries; the student just places
+// each curve's handles). Reports the N-curve answer as GraphResponseData.curveParts,
+// scored order-independently, match-all by scoreFunctionSystem (matched / N under
+// partialCredit). N=1 never reaches here; the runtime routes by models.length, so
+// a single curve stays the unchanged mountGraphQuestion.
+export async function mountGraphFunctionSystemQuestion(
+  mount: HTMLElement,
+  rawConfig: unknown,
+  hooks: GraphQuestionHooks = {},
+): Promise<GraphQuestionHandle> {
+  const cfg = (rawConfig ?? {}) as Partial<GraphQuestionConfig>;
+  const axis = readAxis(cfg.axisConfig);
+  const models = readFunctionSystemModels(cfg.answerKey);
+
+  // Per-curve board recipe from each model's family — same plot_function
+  // machinery a single curve rides (handle count + fit-through-handles derive).
+  const specs: SystemBoundarySpec[] = models.map((model) => ({
+    count: handlesForFamily(model.family),
+    starts: startsForFamily(model.family, axis, handlesForFamily(model.family)),
+    deriveCurve: (pts) => {
+      const f = fitFunction(model.family, pts);
+      return f && 'predict' in f ? f.predict : null;
+    },
+    lineThroughHandles: model.family === 'vertical',
+  }));
+
+  mount.textContent = '';
+  const { createSystemAnswerBoard } = await import('./board.js');
+
+  let answered = false;
+
+  function buildBase(): GraphResponseData {
+    const allPts = board.getAllPoints();
+    const curveParts = models.map((_, i) => {
+      const pts = allPts[i] ?? [];
+      // Per-curve dashboard signal: does this curve match ANY authored model?
+      // The block's OVERALL grade is the set-match below.
+      const correct = models.some((m) => scoreFunction(m, pts));
+      return { points: pts, correct };
+    });
+    const sys = scoreFunctionSystem(models, allPts);
+    const resp: GraphResponseData = {
+      studentPoints: [],
+      correct: sys.correct,
+      answered,
+      curveParts,
+    };
+    if (cfg.partialCredit) {
+      resp.earned = sys.earned;
+      resp.total = sys.total;
+    }
+    return resp;
+  }
+
+  function report(): void {
+    hooks.onChange?.(buildBase());
+  }
+
+  const board = createSystemAnswerBoard(
+    mount,
+    { ...axis, boundaries: specs },
+    {
+      onMove: () => {
+        if (board.hasMoved()) answered = true;
+        report();
+      },
+    },
+  );
+
+  // NB: no first-paint report() (see mountGraphSystemQuestion) — onChange fires
+  // only on a real student move, so a fresh load stays unanswered.
+
+  return {
+    getResponse: buildBase,
+    restore(_points: [number, number][], extras?: GraphRestoreExtras): void {
+      const curveParts = extras?.curveParts;
+      if (!curveParts || curveParts.length === 0) return;
+      answered = true;
+      curveParts.forEach((p, i) => {
+        if (i >= models.length) return;
+        if (p.points.length > 0) board.setPoints(i, p.points);
+      });
+      report();
+    },
+    setLocked(locked: boolean): void {
+      board.setInteractive(!locked);
     },
     destroy(): void {
       board.destroy();
