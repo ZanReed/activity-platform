@@ -7,6 +7,10 @@ import {
 } from '@activity/graph-kit';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import PromptField from '../components/PromptField';
+import {
+    formatNumberLineInterval,
+    parseNumberLineInterval,
+} from '../numberLineFormula';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
 import {
@@ -28,7 +32,6 @@ import {
 // ============================================================================
 
 type InteractionType = NumberLineInteractionAttr['type'];
-type IntervalShape = 'segment' | 'ray_positive' | 'ray_negative';
 
 const num = (v: string, d: number): number => {
     const n = Number(v);
@@ -132,6 +135,73 @@ function NumberLineAuthorBoard({
 
 const labelStyle = { fontSize: '0.8rem', color: 'var(--ed-text-secondary)' } as const;
 
+// The interval answer input: type an inequality (e.g. "2 < x <= 5" or "x < -3")
+// and the board previews it — mirrors the graph ray. Draft-then-commit on
+// blur/Enter; an unparseable entry shows an inline error and keeps the draft.
+function IntervalFormulaField({
+    value,
+    disabled,
+    onApply,
+}: {
+    value: string;
+    disabled: boolean;
+    onApply: (raw: string) => string | null;
+}) {
+    const [draft, setDraft] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const shown = draft ?? value;
+    const commit = (): void => {
+        if (draft === null) return;
+        const err = onApply(draft.trim());
+        if (err) {
+            setError(err);
+            return;
+        }
+        setDraft(null);
+        setError(null);
+    };
+    return (
+        <span style={{ display: 'inline-flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <input
+                type="text"
+                value={shown}
+                disabled={disabled}
+                placeholder="e.g. 2 < x <= 5  ·  x < -3  ·  x >= 0"
+                aria-label="Answer inequality"
+                spellCheck={false}
+                style={{
+                    width: '17rem',
+                    maxWidth: '100%',
+                    padding: '0.25rem 0.4375rem',
+                    border: `1px solid ${error ? 'var(--ed-danger-2)' : 'var(--ed-border-strong)'}`,
+                    borderRadius: '0.3125rem',
+                    background: 'var(--ed-canvas)',
+                    color: 'var(--ed-text)',
+                    fontSize: '0.8125rem',
+                    fontFamily: 'ui-monospace, monospace',
+                }}
+                onChange={(e) => {
+                    setDraft(e.target.value);
+                    setError(null);
+                }}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        commit();
+                    }
+                }}
+            />
+            {error && (
+                <span style={{ fontSize: '0.72rem', color: 'var(--ed-danger-2)' }}>
+                    {error}
+                </span>
+            )}
+        </span>
+    );
+}
+
 export default function NumberLineView({
     node,
     editor,
@@ -218,79 +288,10 @@ export default function NumberLineView({
         bump();
     };
 
-    // Shape derived from which bound is present: both → segment; only min → ray
-    // to +∞; only max → ray to −∞ (matches the kit widget's mapping exactly).
-    const intervalShape: IntervalShape =
-        iv.min !== undefined && iv.max !== undefined
-            ? 'segment'
-            : iv.max === undefined
-              ? 'ray_positive'
-              : 'ray_negative';
-    const setIntervalShape = (shape: IntervalShape): void => {
-        if (interaction.type !== 'plot_interval') return;
-        if (shape === 'segment') {
-            setInterval({
-                min: iv.min ?? config.min,
-                minStyle: iv.minStyle ?? 'closed',
-                max: iv.max ?? config.max,
-                maxStyle: iv.maxStyle ?? 'closed',
-            });
-        } else if (shape === 'ray_positive') {
-            setInterval({ min: iv.min ?? config.min, minStyle: iv.minStyle ?? 'closed' });
-        } else {
-            setInterval({ max: iv.max ?? config.max, maxStyle: iv.maxStyle ?? 'closed' });
-        }
-    };
-    // A pill button matching the kit widget's shape pills (active = filled blue).
-    const shapePill = (shape: IntervalShape, label: string) => (
-        <button
-            type="button"
-            disabled={!isEditable}
-            aria-pressed={intervalShape === shape}
-            onClick={() => setIntervalShape(shape)}
-            onKeyDown={(e) => e.stopPropagation()}
-            style={{
-                font: 'inherit',
-                fontSize: '0.75rem',
-                padding: '0.15rem 0.5rem',
-                border: '1px solid var(--ed-border-strong)',
-                borderRadius: 999,
-                background: intervalShape === shape ? 'var(--ed-accent-strong)' : 'var(--ed-canvas)',
-                color: intervalShape === shape ? '#fff' : 'inherit', /* white on accent */
-                cursor: isEditable ? 'pointer' : 'default',
-            }}
-        >
-            {label}
-        </button>
-    );
-    // A bounded endpoint's value + open/closed style (rendered per present side).
-    const boundRow = (side: 'min' | 'max', label: string) => {
-        const styleKey = side === 'min' ? 'minStyle' : 'maxStyle';
-        const fallback = side === 'min' ? config.min : config.max;
-        return (
-            <span key={side} style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center', ...labelStyle }}>
-                {label}:
-                <input
-                    type="number"
-                    value={iv[side] ?? fallback}
-                    disabled={!isEditable}
-                    step="any"
-                    style={{ width: '4rem' }}
-                    onChange={(e) => setInterval({ ...iv, [side]: num(e.target.value, iv[side] ?? fallback) })}
-                    onKeyDown={(e) => e.stopPropagation()}
-                />
-                <select
-                    value={iv[styleKey] ?? 'closed'}
-                    disabled={!isEditable}
-                    onChange={(e) => setInterval({ ...iv, [styleKey]: e.target.value as 'open' | 'closed' })}
-                    onKeyDown={(e) => e.stopPropagation()}
-                >
-                    <option value="closed">● closed</option>
-                    <option value="open">○ open</option>
-                </select>
-            </span>
-        );
-    };
+    // The interval shape (segment / ray) and open/closed ends are all encoded in
+    // the typed inequality now (IntervalFormulaField) — no separate shape pills
+    // or bound rows. Dragging the board's ends still updates correctInterval via
+    // onIntervalChange, and the formula field re-derives from it.
 
     return (
         <NodeViewWrapper
@@ -344,7 +345,7 @@ export default function NumberLineView({
                 <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
                     {interaction.type === 'plot_point'
                         ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} — or type the ${interaction.correctPoints.length > 1 ? 'values' : 'value'} below.`
-                        : 'Pick Segment / Ray → / Ray ← and drag the ends — exactly what students do. Or set the shape and bounds below.'}
+                        : 'Type the answer as an inequality below — the shape (segment/ray) and open/closed ends follow from it. Or drag the ends on the line.'}
                 </p>
 
                 {interaction.type === 'plot_point' && (
@@ -380,22 +381,20 @@ export default function NumberLineView({
                 )}
 
                 {interaction.type === 'plot_interval' && (
-                    <div style={{ marginTop: '0.35rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-                        <span style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center' }}>
-                            {shapePill('ray_positive', 'Ray →')}
-                            {shapePill('ray_negative', 'Ray ←')}
-                            {shapePill('segment', 'Segment')}
-                        </span>
-                        {intervalShape === 'segment' ? (
-                            <>
-                                {boundRow('min', 'Left')}
-                                {boundRow('max', 'Right')}
-                            </>
-                        ) : intervalShape === 'ray_positive' ? (
-                            boundRow('min', 'Endpoint')
-                        ) : (
-                            boundRow('max', 'Endpoint')
-                        )}
+                    <div style={{ marginTop: '0.35rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'flex-start' }}>
+                        <label style={{ ...labelStyle, paddingTop: '0.3rem' }}>Answer:</label>
+                        <IntervalFormulaField
+                            value={formatNumberLineInterval(iv)}
+                            disabled={!isEditable}
+                            onApply={(raw) => {
+                                const parsed = parseNumberLineInterval(raw);
+                                if (!parsed) {
+                                    return 'Couldn’t read that — try “2 < x <= 5”, “x < -3”, or “x >= 0”.';
+                                }
+                                setInterval(parsed);
+                                return null;
+                            }}
+                        />
                     </div>
                 )}
             </div>

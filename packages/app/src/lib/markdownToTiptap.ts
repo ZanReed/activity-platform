@@ -46,6 +46,7 @@ import type { JSONContent } from '@tiptap/react';
 import type { InlineNode } from '@activity/schema';
 import { tiptapInlineToActivity } from './serialize';
 import { toCurveDomain } from './graphDomain';
+import { parseNumberLineInterval } from '../editor/numberLineFormula';
 
 // Minimal structural view of a markdown-it token — only the fields the mapper
 // reads. Defined locally (rather than importing markdown-it's Token type) so
@@ -1816,56 +1817,8 @@ function parseNumberLineFence(src: string, ctx: Ctx): JSONContent | null {
     };
 }
 
-// Parse a single or compound 1-D inequality into a NumberLineInterval
-// ({ min?, minStyle?, max?, maxStyle? }). Returns null on anything unrecognized.
-// >= / <= are closed endpoints, > / < open. The variable is any single letter.
-function parseNumberLineInterval(
-    raw: string,
-): { min?: number; minStyle?: 'open' | 'closed'; max?: number; maxStyle?: 'open' | 'closed' } | null {
-    const value = raw.trim();
-    const style = (op: string): 'open' | 'closed' => (op === '<=' || op === '>=' ? 'closed' : 'open');
-
-    // Compound, low-on-the-left form: "-2 <= x < 5" (both operators point the
-    // same increasing direction). The left number is the lower bound, the right
-    // the upper.
-    const compound = /^(-?[\d.]+)\s*(<=|<)\s*[a-z]\s*(<=|<)\s*(-?[\d.]+)$/i.exec(value);
-    if (compound) {
-        const lo = Number(compound[1]);
-        const hi = Number(compound[4]);
-        if (!Number.isFinite(lo) || !Number.isFinite(hi) || !(lo < hi)) return null;
-        return {
-            min: lo,
-            minStyle: style(compound[2]!),
-            max: hi,
-            maxStyle: style(compound[3]!),
-        };
-    }
-
-    // Single, variable on the left: "x >= 3", "x < 5".
-    const left = /^[a-z]\s*(<=|>=|<|>)\s*(-?[\d.]+)$/i.exec(value);
-    if (left) {
-        const op = left[1]!;
-        const n = Number(left[2]);
-        if (!Number.isFinite(n)) return null;
-        return op === '>' || op === '>='
-            ? { min: n, minStyle: style(op) }
-            : { max: n, maxStyle: style(op) };
-    }
-
-    // Single, variable on the right: "3 <= x" (≡ x >= 3), "5 > x" (≡ x < 5).
-    const right = /^(-?[\d.]+)\s*(<=|>=|<|>)\s*[a-z]$/i.exec(value);
-    if (right) {
-        const op = right[2]!;
-        const n = Number(right[1]);
-        if (!Number.isFinite(n)) return null;
-        // Flip: "n < x" means x > n (a lower bound); "n > x" means x < n (upper).
-        return op === '<' || op === '<='
-            ? { min: n, minStyle: style(op) }
-            : { max: n, maxStyle: style(op) };
-    }
-
-    return null;
-}
+// parseNumberLineInterval lives in editor/numberLineFormula.ts (shared with the
+// number-line NodeView's formula authoring input), imported at the top.
 
 function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     const axis = { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true };
