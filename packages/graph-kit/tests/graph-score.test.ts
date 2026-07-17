@@ -10,6 +10,7 @@ import {
   startsForFamily,
   scoreRegion,
   scoreRegionsPartial,
+  scoreFunctionSystem,
   scoreInequality,
   scoreInequalityPartial,
   scoreInequalitySystem,
@@ -355,6 +356,61 @@ describe('graph_inequality scorer (Drop 4)', () => {
     };
     expect(scoreInequality(vkey, { points: [[3, -2], [3, 4]], strict: false, side: 'right' })).toBe(true);
     expect(scoreInequality(vkey, { points: [[3, -2], [3, 4]], strict: false, side: 'left' })).toBe(false);
+  });
+});
+
+describe('plot_function SYSTEM scorer — match-all, order-independent (Graph systems Phase 2)', () => {
+  const m1: FunctionModel = { family: 'linear', slope: 2, intercept: 1, slopeTolerance: 0.1, interceptTolerance: 0.1 };
+  const m2: FunctionModel = { family: 'linear', slope: -1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1 };
+  const c1: [number, number][] = [[0, 1], [1, 3]]; // y = 2x + 1
+  const c2: [number, number][] = [[0, 0], [1, -1]]; // y = -x
+  const wrong: [number, number][] = [[0, 0], [1, 5]]; // y = 5x — matches neither
+
+  it('FS-M4: all N curves correct → correct; one wrong → incorrect (partial OFF)', () => {
+    expect(scoreFunctionSystem([m1, m2], [c1, c2])).toEqual({ correct: true, earned: 2, total: 2 });
+    expect(scoreFunctionSystem([m1, m2], [c1, wrong])).toEqual({ correct: false, earned: 1, total: 2 });
+  });
+
+  it('FS-M5: order-independent — reversed student curves score identically', () => {
+    expect(scoreFunctionSystem([m1, m2], [c2, c1])).toEqual({ correct: true, earned: 2, total: 2 });
+  });
+
+  it('FS-M6: N=1 scores identically to scoreFunction', () => {
+    expect(scoreFunctionSystem([m1], [c1]).correct).toBe(scoreFunction(m1, c1));
+    expect(scoreFunctionSystem([m1], [c1])).toEqual({ correct: true, earned: 1, total: 1 });
+    expect(scoreFunctionSystem([m1], [wrong]).correct).toBe(scoreFunction(m1, wrong));
+    expect(scoreFunctionSystem([m1], [wrong])).toEqual({ correct: false, earned: 0, total: 1 });
+  });
+
+  it('FS-M9: finds a complete pairing that first-come greedy would miss', () => {
+    // wide model matches both curves; narrow model matches only cP. Greedy
+    // [wide→cP, narrow→stuck] fails; bipartite reassigns wide→cQ, narrow→cP.
+    const wide: FunctionModel = { family: 'linear', slope: 1, intercept: 0, slopeTolerance: 5, interceptTolerance: 5 };
+    const narrow: FunctionModel = { family: 'linear', slope: 3, intercept: 0, slopeTolerance: 0.2, interceptTolerance: 0.2 };
+    const cP: [number, number][] = [[0, 0], [1, 3]]; // slope 3 → both
+    const cQ: [number, number][] = [[0, 0], [1, 1]]; // slope 1 → wide only
+    expect(scoreFunction(narrow, cP)).toBe(true);
+    expect(scoreFunction(narrow, cQ)).toBe(false);
+    expect(scoreFunctionSystem([wide, narrow], [cP, cQ])).toEqual({ correct: true, earned: 2, total: 2 });
+  });
+
+  it('FS-M10: partial credit is per-curve matched/N (one of two → 1/2)', () => {
+    expect(scoreFunctionSystem([m1, m2], [c1, wrong])).toEqual({ correct: false, earned: 1, total: 2 });
+  });
+
+  it('FS-INV1: total function — never throws; too-few curves → not correct; extras ignored', () => {
+    expect(() => scoreFunctionSystem([m1, m2], [])).not.toThrow();
+    expect(scoreFunctionSystem([m1, m2], [])).toEqual({ correct: false, earned: 0, total: 2 });
+    expect(scoreFunctionSystem([m1, m2], [c1])).toEqual({ correct: false, earned: 1, total: 2 });
+    expect(scoreFunctionSystem([m1, m2], [c1, c2, c1])).toEqual({ correct: true, earned: 2, total: 2 });
+  });
+
+  it('FS: mixed families in one system (a line + a parabola) match order-independently', () => {
+    const line: FunctionModel = { family: 'linear', slope: 1, intercept: 0, slopeTolerance: 0.2, interceptTolerance: 0.2 };
+    const parab: FunctionModel = { family: 'quadratic', a: 1, b: 0, c: -4, aTolerance: 0.2, bTolerance: 0.2, cTolerance: 0.2 };
+    const lineCurve: [number, number][] = [[0, 0], [1, 1]];
+    const parabCurve: [number, number][] = [[0, -4], [1, -3], [-2, 0]];
+    expect(scoreFunctionSystem([line, parab], [parabCurve, lineCurve])).toEqual({ correct: true, earned: 2, total: 2 });
   });
 });
 

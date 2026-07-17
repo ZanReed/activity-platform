@@ -257,6 +257,80 @@ describe('graph systems — graph_inequality_system (additive member, no schemaV
   });
 });
 
+describe('graph systems — plot_function_system (additive member, no schemaVersion bump)', () => {
+  const curvePart = (pts: [number, number][]) => ({
+    type: 'plot_function' as const,
+    studentPoints: pts,
+    correct: true,
+  });
+
+  it('FS-M1: parses a plot_function_system with parts + partial-credit earned/total + confidence', () => {
+    const graphId = crypto.randomUUID();
+    const data = {
+      schemaVersion: 9,
+      blanks: {},
+      graphResponses: {
+        [graphId]: {
+          type: 'plot_function_system',
+          parts: [curvePart([[0, 1], [1, 3]]), curvePart([[0, 0], [1, -1]])],
+          correct: true,
+          earned: 2,
+          total: 2,
+          confidence: 'certain',
+        },
+      },
+    };
+    expect(SubmissionResponses.safeParse(data).success).toBe(true);
+  });
+
+  it('FS-M3: accepts the runtime-emitted shape (extra studentPoints:[] is stripped)', () => {
+    const graphId = crypto.randomUUID();
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 9,
+      blanks: {},
+      graphResponses: {
+        [graphId]: {
+          type: 'plot_function_system',
+          studentPoints: [], // the runtime emits this; the member has no such field
+          parts: [curvePart([[0, 1], [1, 3]]), curvePart([[0, 0], [1, -1]])],
+          correct: false,
+        },
+      },
+    });
+    expect(parsed.success).toBe(true);
+    const stored = parsed.success ? parsed.data.graphResponses![graphId] : null;
+    expect(stored && 'studentPoints' in stored).toBe(false); // stripped on parse
+  });
+
+  it('FS-M3: rejects a system whose part is not a valid FunctionResponse', () => {
+    const graphId = crypto.randomUUID();
+    const data = {
+      schemaVersion: 9,
+      blanks: {},
+      graphResponses: {
+        [graphId]: {
+          type: 'plot_function_system',
+          parts: [{ type: 'plot_function', studentPoints: [[0]] /* not a tuple */, correct: true }],
+          correct: true,
+        },
+      },
+    };
+    expect(SubmissionResponses.safeParse(data).success).toBe(false);
+  });
+
+  it('FS-M2: a single plot_function response (N=1 path) still parses unchanged alongside the new member', () => {
+    const graphId = crypto.randomUUID();
+    const data = {
+      schemaVersion: 9,
+      blanks: {},
+      graphResponses: {
+        [graphId]: { type: 'plot_function', studentPoints: [[0, 1], [1, 3]], correct: true },
+      },
+    };
+    expect(SubmissionResponses.safeParse(data).success).toBe(true);
+  });
+});
+
 describe('legacy shapes (for migration only)', () => {
   it('parses old v1 shape', () => {
     const id = crypto.randomUUID();

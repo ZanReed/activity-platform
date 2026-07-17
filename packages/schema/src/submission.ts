@@ -199,6 +199,25 @@ export const SystemInequalityResponse = z.object({
 });
 export type SystemInequalityResponse = z.infer<typeof SystemInequalityResponse>;
 
+// plot_function_system (Graph systems Phase 2): the student's answer to a SYSTEM
+// of functions — a plot_function with models.length > 1 ("graph both lines").
+// `parts` is one FunctionResponse per curve the student plotted (each carries the
+// raw points that define that curve). `correct` is the match-all AND — every
+// authored model paired, order-independently, with a distinct student curve;
+// `earned`/`total` (via V4Extras) carry per-curve partial credit (matched / N).
+// Additive member — same plot_ray / plot_segment precedent, no schemaVersion
+// bump. N=1 never emits this — the runtime keeps the plain single FunctionResponse
+// for one curve (byte-identical to today).
+export const SystemFunctionResponse = z.object({
+  type: z.literal('plot_function_system'),
+  // One per curve; min(1) keeps the parse total (an under-count can't match
+  // every authored model → wrong).
+  parts: z.array(FunctionResponse).min(1),
+  correct: z.boolean(),
+  confidence: ConfidenceLevel.optional(),
+});
+export type SystemFunctionResponse = z.infer<typeof SystemFunctionResponse>;
+
 export const GraphResponse = z.discriminatedUnion('type', [
   PointResponse,
   FunctionResponse,
@@ -234,10 +253,11 @@ export const GraphResponseV4 = z.discriminatedUnion('type', [
   InequalityResponse.extend(V4Extras),
   RayResponse.extend(V4Extras),
   SegmentResponse.extend(V4Extras),
-  // Graph systems: additive member. earned/total (V4Extras) carry the
-  // per-inequality partial credit; noSolution/domain ride along but are unused
-  // by a system (kept for union uniformity, like every other member).
+  // Graph systems: additive members. earned/total (V4Extras) carry the
+  // per-object partial credit; noSolution/domain ride along but are unused by a
+  // system (kept for union uniformity, like every other member).
   SystemInequalityResponse.extend(V4Extras),
+  SystemFunctionResponse.extend(V4Extras),
 ]);
 export type GraphResponseV4 = z.infer<typeof GraphResponseV4>;
 

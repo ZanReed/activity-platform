@@ -132,6 +132,22 @@ function formatSystemParts(
         .join('  ·  ');
 }
 
+// A functions-system (plot_function_system) response: one curve per part. Show
+// each curve's points, re-fit to its equation with the same engine that scored
+// it when the family is known (all curves in a system share one authored family).
+function formatFunctionSystemParts(
+    parts: { studentPoints: [number, number][] }[],
+    family?: string,
+): string {
+    if (parts.length === 0) return '—';
+    return parts
+        .map((p, i) => {
+            const eq = family ? fitStudentEquation(family, p.studentPoints) : null;
+            return `curve ${i + 1}: ${formatPoints(p.studentPoints)}${eq ? ` ≈ ${eq}` : ''}`;
+        })
+        .join('  ·  ');
+}
+
 function Shell({ children }: { children: ReactNode }) {
     return (
         <main className="min-h-screen bg-slate-50 p-8">
@@ -686,6 +702,8 @@ function SubmissionDetail({
                     <td className="py-1 pr-3 font-mono text-slate-900">
                     {g.resp.type === 'graph_inequality_system' ? (
                         formatSystemParts(g.resp.parts)
+                    ) : g.resp.type === 'plot_function_system' ? (
+                        formatFunctionSystemParts(g.resp.parts, g.info?.functionFamily)
                     ) : (
                         <>
                         {formatPoints(g.resp.studentPoints)}

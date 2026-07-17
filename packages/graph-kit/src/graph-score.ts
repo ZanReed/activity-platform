@@ -340,6 +340,27 @@ export function scoreFunctionsPartial(
   return { earned, total: models.length };
 }
 
+// ---- plot_function SYSTEM: match-all over N curves (Graph systems, Phase 2) ----
+// A functions-system is a plot_function with models.length > 1 ("graph both
+// lines"). Unlike scoreFunctionsPartial (index-based, order-dependent), scoring
+// is ORDER-INDEPENDENT match-all: each authored model must pair with a DISTINCT
+// student curve that scoreFunction accepts, computed as a MAXIMUM BIPARTITE
+// matching (same guarantee as the inequality system — a fully-correct student is
+// never false-negatived when two curves are near each other). `studentCurves[p]`
+// is the point set the student placed for the p-th plotted curve; `earned` =
+// matched models; `correct` = all N matched; earned/total = matched / N under
+// partialCredit. Total: never throws on a short/long/mismatched studentCurves.
+export function scoreFunctionSystem(
+  models: FunctionModel[],
+  studentCurves: [number, number][][],
+): { correct: boolean; earned: number; total: number } {
+  const total = models.length;
+  const earned = maxBipartiteMatch(total, studentCurves.length, (k, p) =>
+    scoreFunction(models[k]!, studentCurves[p]!),
+  );
+  return { correct: total > 0 && earned === total, earned, total };
+}
+
 // ---- graph_inequality: boundary + side + style (Drop 4) -----------------------
 // Three independently-graded parts: the boundary curve (same fit-and-compare as
 // plot_function), the shaded side, and the dotted/solid style (strict vs
@@ -410,17 +431,21 @@ export function scoreInequalityPartial(
 // function: it never throws on a short, long, or otherwise mismatched `parts`
 // array (an under-count simply can't match every key → correct:false; extra
 // parts go unused).
-export function scoreInequalitySystem(
-  keys: InequalityAnswerKey[],
-  parts: InequalityStudentAnswer[],
-): { correct: boolean; earned: number; total: number } {
-  const total = keys.length;
-  // matchOf[partIndex] = the key index currently paired with that part, or -1.
-  const matchOf = new Array<number>(parts.length).fill(-1);
-  // Try to find an augmenting path for key k, marking visited parts in `seen`.
+// Maximum bipartite matching (Kuhn's augmenting-path) over nKeys × nParts, where
+// `matches(k, p)` is the per-pair test. Returns the size of the maximum matching
+// — how many keys can be simultaneously paired to DISTINCT parts. Shared by the
+// inequality-system and function-system scorers so both get the same "a
+// fully-correct student is never false-negatived" guarantee (see the note above).
+// Total: no throw on any n / any matches function.
+function maxBipartiteMatch(
+  nKeys: number,
+  nParts: number,
+  matches: (k: number, p: number) => boolean,
+): number {
+  const matchOf = new Array<number>(nParts).fill(-1); // part → paired key, or -1
   const augment = (k: number, seen: boolean[]): boolean => {
-    for (let p = 0; p < parts.length; p++) {
-      if (seen[p] || !scoreInequality(keys[k]!, parts[p]!)) continue;
+    for (let p = 0; p < nParts; p++) {
+      if (seen[p] || !matches(k, p)) continue;
       seen[p] = true;
       const cur = matchOf[p] ?? -1;
       if (cur === -1 || augment(cur, seen)) {
@@ -431,9 +456,20 @@ export function scoreInequalitySystem(
     return false;
   };
   let earned = 0;
-  for (let k = 0; k < total; k++) {
-    if (augment(k, new Array<boolean>(parts.length).fill(false))) earned += 1;
+  for (let k = 0; k < nKeys; k++) {
+    if (augment(k, new Array<boolean>(nParts).fill(false))) earned += 1;
   }
+  return earned;
+}
+
+export function scoreInequalitySystem(
+  keys: InequalityAnswerKey[],
+  parts: InequalityStudentAnswer[],
+): { correct: boolean; earned: number; total: number } {
+  const total = keys.length;
+  const earned = maxBipartiteMatch(total, parts.length, (k, p) =>
+    scoreInequality(keys[k]!, parts[p]!),
+  );
   return { correct: total > 0 && earned === total, earned, total };
 }
 
