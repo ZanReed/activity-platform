@@ -6,6 +6,7 @@ import {
     type StudentInterval,
 } from '@activity/graph-kit';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
+import { usePreviewToggle, PreviewEyeButton } from '../components/usePreviewToggle';
 import PromptField from '../components/PromptField';
 import {
     formatNumberLineInterval,
@@ -293,6 +294,10 @@ export default function NumberLineView({
     // or bound rows. Dragging the board's ends still updates correctInterval via
     // onIntervalChange, and the formula field re-derives from it.
 
+    // Preview-as-student: hide the type picker, helper text, answer inputs, and
+    // settings summary; keep the prompt + the board.
+    const { preview, toggle } = usePreviewToggle();
+
     return (
         <NodeViewWrapper
             className={`number-line-block${selected ? ' is-selected' : ''}`}
@@ -303,18 +308,21 @@ export default function NumberLineView({
                     <strong style={{ fontSize: '0.85rem', color: 'var(--ed-text-strong)' }}>
                         {problemNumber}. Number line
                     </strong>
-                    <label style={labelStyle}>
-                        {' '}Type:{' '}
-                        <select
-                            value={interaction.type}
-                            disabled={!isEditable}
-                            onChange={(e) => switchType(e.target.value as InteractionType)}
-                            onKeyDown={(e) => e.stopPropagation()}
-                        >
-                            <option value="plot_point">Plot a point</option>
-                            <option value="plot_interval">Graph an interval</option>
-                        </select>
-                    </label>
+                    {!preview && (
+                        <label style={labelStyle}>
+                            {' '}Type:{' '}
+                            <select
+                                value={interaction.type}
+                                disabled={!isEditable}
+                                onChange={(e) => switchType(e.target.value as InteractionType)}
+                                onKeyDown={(e) => e.stopPropagation()}
+                            >
+                                <option value="plot_point">Plot a point</option>
+                                <option value="plot_interval">Graph an interval</option>
+                            </select>
+                        </label>
+                    )}
+                    <PreviewEyeButton preview={preview} onToggle={toggle} />
                 </div>
             </div>
 
@@ -342,13 +350,15 @@ export default function NumberLineView({
                     onIntervalChange={onIntervalChange}
                 />
 
-                <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
-                    {interaction.type === 'plot_point'
-                        ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} — or type the ${interaction.correctPoints.length > 1 ? 'values' : 'value'} below.`
-                        : 'Type the answer as an inequality below — the shape (segment/ray) and open/closed ends follow from it. Or drag the ends on the line.'}
-                </p>
+                {!preview && (
+                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
+                        {interaction.type === 'plot_point'
+                            ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} — or type the ${interaction.correctPoints.length > 1 ? 'values' : 'value'} below.`
+                            : 'Type the answer as an inequality below — the shape (segment/ray) and open/closed ends follow from it. Or drag the ends on the line.'}
+                    </p>
+                )}
 
-                {interaction.type === 'plot_point' && (
+                {!preview && interaction.type === 'plot_point' && (
                     <div style={{ marginTop: '0.35rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
                         <label style={labelStyle}>
                             Points students plot:{' '}
@@ -380,7 +390,7 @@ export default function NumberLineView({
                     </div>
                 )}
 
-                {interaction.type === 'plot_interval' && (
+                {!preview && interaction.type === 'plot_interval' && (
                     <div style={{ marginTop: '0.35rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'flex-start' }}>
                         <label style={{ ...labelStyle, paddingTop: '0.3rem' }}>Answer:</label>
                         <IntervalFormulaField
@@ -399,11 +409,13 @@ export default function NumberLineView({
                 )}
             </div>
 
-            <QuestionSettingsSummary
-                hasSolution={solution.length > 0}
-                hasConfidenceRating={hasConfidenceRating}
-                workSpace={null}
-            />
+            {!preview && (
+                <QuestionSettingsSummary
+                    hasSolution={solution.length > 0}
+                    hasConfidenceRating={hasConfidenceRating}
+                    workSpace={null}
+                />
+            )}
         </NodeViewWrapper>
     );
 }

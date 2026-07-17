@@ -187,6 +187,79 @@ graph-kit expression-list engine). Suggested order: preview toggle first
 (app-only, contained, immediately useful), then the Desmos expression-list
 rebuild (consider /plan-eng-review — it reworks authoring + possibly the kit).
 
+### Design rulings (/plan-design-review, 2026-07-17)
+
+Visual language calibrated against the `--ed-` token system (no DESIGN.md; the
+tokens ARE the design language). Mockup approved. Rulings:
+
+- **Row = a blank-chip cousin.** Uniform rows: left **kind swatch** (square for
+  curves/regions/rays, circle for points — the one cue that keeps a uniform list
+  readable) + **monospace** expression + a per-row **kebab**. Same typographic DNA
+  as `.blank-chip`; extras panel reuses `.block-advanced-drawer__field` styling.
+- **Extras are contextual to the parsed kind.** Inequality rows **drop the dashed
+  toggle** — the operator IS the source of truth (`>`/`<` → dashed boundary,
+  `>=`/`<=` → solid; `formatInequality` round-trips it losslessly). Plain
+  equation/expression rows KEEP dashed (independent line-style, no operator to
+  derive it from).
+- **Polygon = uniform row, edited in extras.** Renders as a normal row (swatch +
+  read-only `polygon (…)` summary + kebab); it's the one row whose text isn't
+  editable — the kebab opens the vertex editor (today's NumCell grid + `+ vertex`
+  + filled) inline in the extras. Created via a small `+ shape` secondary control
+  by the add-row (can't be typed).
+- **List + board = responsive side-by-side.** Side-by-side (list left, board
+  right) above a block-width breakpoint (~640px), auto-stack below. Board carries
+  the row swatch colors so row↔plot mapping is instant.
+- **SCOPE REVERSAL — authored per-drawable color.** Add optional `color` to
+  `DrawableAttr` so teachers pick each drawable's color from a **curated ~8-swatch
+  `--ed-`-derived palette** (NOT a freeform hex input — keeps every graph
+  on-theme). This REVERSES the eng-review "app-only" conclusion for Part B: now
+  needs schema + graph-kit/renderer honoring `color` + a **`publish-activity`
+  redeploy** (+ kit upload if the author board draws it). **No ingest redeploy** —
+  drawables are authored display content, not submission wire.
+- **Row affordance is touch/keyboard-safe.** The kebab is **always in the DOM at
+  `--ed-faint`**, brightening on row hover/focus (same quiet-affordance trick as
+  the gutter rest-dot); Tab-reachable, 44px touch target, screen-reader labelled
+  (e.g. "Curve options"). No hover-only controls.
+- **States:** empty/add-row is a ghosted mono placeholder + faint `+` ("type an
+  equation, point, or ray…"); inline parse error sits under the row in
+  `--ed-danger`, row unchanged; board shows a brief kit-loading state while
+  `mountGraphAuthor` resolves.
+- **Eye toggle (Part A):** outline `eye` icon at the panel header top-right, peer
+  to the quick-bar buttons; hides authoring chrome via `--ed-spring` motion.
+
+### Color — eng ruling (/plan-eng-review re-review, 2026-07-17)
+
+Authored per-drawable color, re-reviewed after the design-review scope reversal.
+Locked shape:
+
+- **`color` is a palette KEY (string), not a hex.** `z.enum(PALETTE_KEYS)` in
+  `@activity/schema` (the key list lives in schema, dependency-free) so an invalid
+  key FAILS validation instead of silently falling back. Additive/optional → no
+  `schemaVersion` reject; greenfield so no migration.
+- **One hex source: `DRAWABLE_PALETTE` (key→hex) in `packages/graph-kit`** (the
+  leaf package; renderer + app already depend on it — zero new dep edges). The
+  app picker renders THESE hexes as swatches — chosen at design time to match the
+  `--ed-` primitives, but stored as static hex (published pages can't read
+  `--ed-` CSS vars). Fold the existing `CURVE_COLOR`/`SCATTER_COLOR`/`FIT_COLOR`
+  into it — no second color list.
+- **Three draw paths honor it:** (1) `graph-kit/board.ts` live + author board
+  ALREADY takes `strokeColor: item.color` — just plumb `drawable.color →
+  item.color`; (2) `renderer/graph-svg.ts` static/print/fallback — `DRAWABLE_
+  PALETTE[d.color] ?? default` at the ~7 `INK` sites. A shared **`'default'`
+  palette key** both paths resolve kills the black→blue hydration flash.
+- **Shaded fill:** stroke takes the color; the half-plane fill uses the SAME
+  color at a FLOORED opacity (so a pale swatch still reads) — board + SVG
+  consistent.
+- **`expression` color is live-only** (graph-svg deliberately skips expression
+  drawables — same limit as today). **Answer-key drawables stay INK** (synthesized
+  from answer config; a distinct semantic layer, not display color). **Grayscale
+  print:** color is best-effort; solid/dashed style + shape + label stay the
+  print-durable differentiators (CLAUDE.md baseline).
+- **Deploy (REVERSES app-only):** kit upload FIRST → `bundle:renderer` →
+  `publish-activity` redeploy. **No ingest redeploy** (drawables are authored
+  display content, not submission wire). `data-graph-drawables` gains `color`
+  (additive runtime data-attribute — safe).
+
 ## Group 3 — new interactions (some schema/redeploy)
 
 - **Image crop mode** (a button → enter crop → drag a frame). Height folds in.

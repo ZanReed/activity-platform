@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { renderDataPlotSvg, fiveNumberSummary } from '@activity/renderer';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
+import { usePreviewToggle, PreviewEyeButton } from '../components/usePreviewToggle';
 import PromptField from '../components/PromptField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
@@ -77,6 +78,10 @@ export default function DataPlotView({
     // parse fighting them; committed to attrs.data whenever it parses non-empty.
     const [dataText, setDataText] = useState(() => data.join(', '));
 
+    // Preview-as-student: hide all authoring chrome (type picker, data input,
+    // helper text, settings summary), keep the prompt + the rendered figure.
+    const { preview, toggle } = usePreviewToggle();
+
     const problemNumber = useMemo(
         () =>
             problemNumberAt(
@@ -143,22 +148,25 @@ export default function DataPlotView({
                     <strong style={{ fontSize: '0.85rem', color: 'var(--ed-text-strong)' }}>
                         {isGraded ? `${problemNumber}. ` : ''}Data plot
                     </strong>
-                    <label style={labelStyle}>
-                        {' '}Type:{' '}
-                        <select
-                            value={modeOf(interaction)}
-                            disabled={!isEditable}
-                            onChange={(e) => switchMode(e.target.value as Mode)}
-                            onKeyDown={(e) => e.stopPropagation()}
-                        >
-                            <option value="build_dotplot">Build a dot plot (graded)</option>
-                            <option value="build_histogram">Build a histogram (graded)</option>
-                            <option value="build_boxplot">Build a box plot (graded)</option>
-                            <option value="display:dotplot">Display: dot plot</option>
-                            <option value="display:histogram">Display: histogram</option>
-                            <option value="display:boxplot">Display: box plot</option>
-                        </select>
-                    </label>
+                    {!preview && (
+                        <label style={labelStyle}>
+                            {' '}Type:{' '}
+                            <select
+                                value={modeOf(interaction)}
+                                disabled={!isEditable}
+                                onChange={(e) => switchMode(e.target.value as Mode)}
+                                onKeyDown={(e) => e.stopPropagation()}
+                            >
+                                <option value="build_dotplot">Build a dot plot (graded)</option>
+                                <option value="build_histogram">Build a histogram (graded)</option>
+                                <option value="build_boxplot">Build a box plot (graded)</option>
+                                <option value="display:dotplot">Display: dot plot</option>
+                                <option value="display:histogram">Display: histogram</option>
+                                <option value="display:boxplot">Display: box plot</option>
+                            </select>
+                        </label>
+                    )}
+                    <PreviewEyeButton preview={preview} onToggle={toggle} />
                 </div>
             </div>
 
@@ -166,34 +174,36 @@ export default function DataPlotView({
             {isGraded && promptSection}
 
             <div contentEditable={false} style={{ userSelect: 'none' }}>
-                <label style={{ ...labelStyle, display: 'block', marginBottom: '0.35rem' }}>
-                    Data{isGraded ? ' (students plot this; the correct plot is computed from it)' : ''}:{' '}
-                    <input
-                        type="text"
-                        value={dataText}
-                        disabled={!isEditable}
-                        placeholder="e.g. 3, 5, 5, 6, 8"
-                        style={{
-                            width: '18rem',
-                            maxWidth: '100%',
-                            padding: '0.25rem 0.4375rem',
-                            border: '1px solid var(--ed-border-strong)',
-                            borderRadius: '0.3125rem',
-                            background: 'var(--ed-canvas)',
-                            color: 'var(--ed-text)',
-                            fontSize: '0.8125rem',
-                        }}
-                        onChange={(e) => onDataText(e.target.value)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                    />
-                </label>
+                {!preview && (
+                    <label style={{ ...labelStyle, display: 'block', marginBottom: '0.35rem' }}>
+                        Data{isGraded ? ' (students plot this; the correct plot is computed from it)' : ''}:{' '}
+                        <input
+                            type="text"
+                            value={dataText}
+                            disabled={!isEditable}
+                            placeholder="e.g. 3, 5, 5, 6, 8"
+                            style={{
+                                width: '18rem',
+                                maxWidth: '100%',
+                                padding: '0.25rem 0.4375rem',
+                                border: '1px solid var(--ed-border-strong)',
+                                borderRadius: '0.3125rem',
+                                background: 'var(--ed-canvas)',
+                                color: 'var(--ed-text)',
+                                fontSize: '0.8125rem',
+                            }}
+                            onChange={(e) => onDataText(e.target.value)}
+                            onKeyDown={(e) => e.stopPropagation()}
+                        />
+                    </label>
+                )}
 
                 <div
                     contentEditable={false}
                     style={{ border: '1px solid var(--ed-border)', borderRadius: 6, background: '#fff', padding: '0.4rem', maxWidth: '34rem' }}
                     dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
-                {interaction.type === 'build_boxplot' && data.length > 0 && (() => {
+                {!preview && interaction.type === 'build_boxplot' && data.length > 0 && (() => {
                     const s = fiveNumberSummary(data);
                     return (
                         <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-secondary)' }}>
@@ -201,17 +211,19 @@ export default function DataPlotView({
                         </p>
                     );
                 })()}
-                <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
-                    {isGraded
-                        ? `Students build this ${chart === 'histogram' ? 'histogram' : chart === 'boxplot' ? 'box plot' : 'dot plot'}; it is scored against the data above.`
-                        : 'A static figure students read (pair it with a question block to grade).'}
-                </p>
+                {!preview && (
+                    <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
+                        {isGraded
+                            ? `Students build this ${chart === 'histogram' ? 'histogram' : chart === 'boxplot' ? 'box plot' : 'dot plot'}; it is scored against the data above.`
+                            : 'A static figure students read (pair it with a question block to grade).'}
+                    </p>
+                )}
             </div>
 
             {/* Display: the caption sits BELOW the figure (convention). */}
             {!isGraded && promptSection}
 
-            {isGraded && (
+            {isGraded && !preview && (
                 <QuestionSettingsSummary
                     hasSolution={solution.length > 0}
                     hasConfidenceRating={hasConfidenceRating}

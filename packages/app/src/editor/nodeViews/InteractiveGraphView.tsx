@@ -18,6 +18,7 @@ import {
     type GraphDisplayHandle,
 } from '@activity/graph-kit';
 import DrawableListEditor from '../components/DrawableListEditor';
+import { usePreviewToggle, PreviewEyeButton } from '../components/usePreviewToggle';
 import FormulaField from '../components/FormulaField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
@@ -732,6 +733,10 @@ export default function InteractiveGraphView({
     // INTERACTIVE graph it's the question — rendered ABOVE the board (a teacher
     // reads the question, then the graph). For a DISPLAY graph it's a caption,
     // which by convention sits BELOW the figure. Rendered once, placed by mode.
+    // Preview-as-student: hide the type picker, drawable list, helper text,
+    // answer field, count inputs, and settings readout; keep the prompt + board.
+    const { preview, toggle } = usePreviewToggle();
+
     const promptSection = (
         <div style={{ marginTop: '0.5rem', marginBottom: isDisplay ? 0 : '0.5rem' }}>
             <span
@@ -758,26 +763,29 @@ export default function InteractiveGraphView({
                     <strong style={{ fontSize: '0.85rem', color: 'var(--ed-text-strong)' }}>
                         {isDisplay ? 'Static graph' : `${problemNumber}. Interactive graph`}
                     </strong>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--ed-text-secondary)' }}>
-                        {' '}Type:{' '}
-                        <select
-                            // plot_ray and plot_segment share ONE picker entry — the
-                            // teacher chooses the actual figure with the same shape
-                            // pills students get, which silently swaps the stored
-                            // interaction type.
-                            value={interaction.type === 'plot_segment' ? 'plot_ray' : interaction.type}
-                            disabled={!isEditable}
-                            onChange={(e) => switchType(e.target.value as InteractionType)}
-                            onKeyDown={(e) => e.stopPropagation()}
-                        >
-                            <option value="plot_point">Plot a point</option>
-                            <option value="plot_function">Plot a function</option>
-                            <option value="graph_inequality">Graph an inequality</option>
-                            <option value="plot_ray">Draw a ray or segment</option>
-                            <option value="shade_region">Shade a region</option>
-                            <option value="display">Display (static graph)</option>
-                        </select>
-                    </label>
+                    {!preview && (
+                        <label style={{ fontSize: '0.8rem', color: 'var(--ed-text-secondary)' }}>
+                            {' '}Type:{' '}
+                            <select
+                                // plot_ray and plot_segment share ONE picker entry — the
+                                // teacher chooses the actual figure with the same shape
+                                // pills students get, which silently swaps the stored
+                                // interaction type.
+                                value={interaction.type === 'plot_segment' ? 'plot_ray' : interaction.type}
+                                disabled={!isEditable}
+                                onChange={(e) => switchType(e.target.value as InteractionType)}
+                                onKeyDown={(e) => e.stopPropagation()}
+                            >
+                                <option value="plot_point">Plot a point</option>
+                                <option value="plot_function">Plot a function</option>
+                                <option value="graph_inequality">Graph an inequality</option>
+                                <option value="plot_ray">Draw a ray or segment</option>
+                                <option value="shade_region">Shade a region</option>
+                                <option value="display">Display (static graph)</option>
+                            </select>
+                        </label>
+                    )}
+                    <PreviewEyeButton preview={preview} onToggle={toggle} />
                 </div>
             </div>
 
@@ -791,15 +799,17 @@ export default function InteractiveGraphView({
                             axisConfig={axisConfig}
                             drawables={interaction.drawables}
                         />
-                        <DrawableListEditor
-                            drawables={interaction.drawables}
-                            disabled={!isEditable}
-                            onChange={setDrawables}
-                        />
+                        {!preview && (
+                            <DrawableListEditor
+                                drawables={interaction.drawables}
+                                disabled={!isEditable}
+                                onChange={setDrawables}
+                            />
+                        )}
                     </>
                 ) : (
                     <>
-                        {columnsCount >= 3 && (
+                        {!preview && columnsCount >= 3 && (
                             <p role="status" style={{ margin: '0 0 0.35rem', fontSize: '0.75rem', color: 'var(--ed-warning-text-strong)', background: 'var(--ed-warning-bg)', border: '1px solid var(--ed-warning-border)', borderRadius: 4, padding: '0.25rem 0.5rem' }}>
                                 This graph sits in a {columnsCount}-column layout — it may be cramped
                                 on paper or a Chromebook. Two columns (or full width) reads better.
@@ -814,6 +824,7 @@ export default function InteractiveGraphView({
                             formulaEpoch={formulaEpoch}
                         />
 
+                        {!preview && (<>
                         <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
                             {interaction.type === 'plot_point'
                                 ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} — or type the answer below. `
@@ -865,10 +876,11 @@ export default function InteractiveGraphView({
                                       : undefined
                             }
                         />
+                        </>)}
                     </>
                 )}
 
-                {interaction.type === 'plot_point' && (
+                {!preview && interaction.type === 'plot_point' && (
                     <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: 'var(--ed-text-secondary)' }}>
                         Points students plot:{' '}
                         <input
@@ -883,7 +895,7 @@ export default function InteractiveGraphView({
                         />
                     </label>
                 )}
-                {interaction.type === 'shade_region' && (
+                {!preview && interaction.type === 'shade_region' && (
                     <label style={{ display: 'inline-block', marginTop: '0.35rem', fontSize: '0.8rem', color: 'var(--ed-text-secondary)' }}>
                         Polygon vertices:{' '}
                         <input
@@ -906,7 +918,7 @@ export default function InteractiveGraphView({
             {/* Block-level settings live in the descriptor drawer (GraphSettings,
                 reached via the quick-bar ⚙); the block keeps a display-only
                 readout of what's configured. Display graphs are ungraded. */}
-            {!isDisplay && graphSummary.length > 0 && (
+            {!isDisplay && !preview && graphSummary.length > 0 && (
                 <div className="question-settings-summary" contentEditable={false}>
                     {graphSummary.join(' · ')}
                 </div>
