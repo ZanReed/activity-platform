@@ -997,6 +997,17 @@ body {
 }
 .block-sized[data-block-align="left"]  { margin-left: 0; }
 .block-sized[data-block-align="right"] { margin-right: 0; }
+/* A sized figure block's authored width is authoritative — lift the board's
+ default max-width cap (28rem/34rem, which keeps an UNSIZED board at a sensible
+ size) so the --block-width fraction fully drives the canvas, mirroring images
+ (.block-image.block-sized img). Without this the cap silently swallows the
+ setting for any fraction that still exceeds the cap. Applies on screen AND
+ print (where footprint control is the whole point). */
+.block-sized .graph-canvas,
+.block-sized .number-line-canvas,
+.block-sized .data-plot-canvas {
+  max-width: none;
+}
 
 /* Narrow screens only: collapse to a single column so a 2-/3-column layout
  stays readable on a phone. Scoped to @media SCREEN so it never reaches paper

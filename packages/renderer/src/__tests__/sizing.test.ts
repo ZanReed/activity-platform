@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { renderBlock } from '../blocks/index.js';
+import { blockStyles } from '../runtime/styles.js';
 import {
   InteractiveGraphBlock,
   DataPlotBlock,
@@ -97,5 +98,17 @@ describe('figure-block sizing emission', () => {
       const html = renderBlock(make({ width: 0.33 }), ctx());
       expect(html).toContain('--block-width:33%');
     }
+  });
+});
+
+// SZ-CSS — a sized figure block must lift the board's max-width cap, or the
+// --block-width fraction is silently swallowed for any width above the cap
+// (the "resizing does nothing" bug). Guards the CSS rule stays present.
+describe('sized figure canvases lift their max-width cap', () => {
+  it('blockStyles removes the graph/number-line/data-plot cap when .block-sized', () => {
+    const css = blockStyles.replace(/\s+/g, ' ');
+    expect(css).toMatch(
+      /\.block-sized \.graph-canvas,\s*\.block-sized \.number-line-canvas,\s*\.block-sized \.data-plot-canvas \{ max-width: none/,
+    );
   });
 });
