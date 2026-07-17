@@ -1760,6 +1760,59 @@ img.mc-block__figure-preview {
     padding: 0;
 }
 
+/* "Done" collapses the figure editor back to its thumbnail. */
+.mc-block__figure-done-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--ed-border);
+}
+.mc-block__figure-done {
+    border: 1px solid var(--ed-accent);
+    background: var(--ed-accent);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 0.25rem 0.85rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+}
+.mc-block__figure-done:hover:not(:disabled) {
+    background: var(--ed-accent-strong);
+    border-color: var(--ed-accent-strong);
+}
+
+/* The collapsed resting state: a compact, clickable thumbnail of the figure. */
+.mc-block__figure-thumb {
+    display: inline-block;
+    padding: 0;
+    margin-top: 0.15rem;
+    border: 1px solid var(--ed-border);
+    border-radius: 0.375rem;
+    background: var(--ed-canvas);
+    cursor: pointer;
+    line-height: 0;
+    transition: border-color var(--ed-motion-fast) var(--ed-ease-out),
+        box-shadow var(--ed-motion-fast) var(--ed-ease-out);
+}
+.mc-block__figure-thumb:hover:not(:disabled) {
+    border-color: var(--ed-accent);
+    box-shadow: 0 0 0 3px var(--ed-accent-bg);
+}
+.mc-block__figure-thumb:focus-visible {
+    outline: 2px solid var(--ed-accent);
+    outline-offset: 1px;
+}
+.mc-block__figure-thumb-graph svg,
+.mc-block__figure-thumb-img {
+    display: block;
+    width: 7rem;
+    height: auto;
+    max-width: 7rem;
+    border-radius: 0.3125rem;
+}
+
 .mc-block__add-choice {
     align-self: flex-start;
     border: 1px dashed var(--ed-border-strong); /* slate-300 */

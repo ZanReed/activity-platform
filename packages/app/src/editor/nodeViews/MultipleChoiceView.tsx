@@ -90,6 +90,7 @@ export function ChoiceFigureEditor({
     disabled,
     onImage,
     onGraph,
+    onDone,
 }: {
     choice: FigureHolder;
     /** e.g. "choice B" / "item 2" — completes "Figure under …". */
@@ -97,6 +98,8 @@ export function ChoiceFigureEditor({
     disabled: boolean;
     onImage: (image: EditorMcChoice['image'] | undefined) => void;
     onGraph: (graph: EditorMcChoice['graph'] | undefined) => void;
+    /** Collapse this editor back to its thumbnail (the "Done" affordance). */
+    onDone?: () => void;
 }) {
     const { image, graph } = choice;
     // Live preview through the EXACT engine the published page uses — the
@@ -249,7 +252,71 @@ export function ChoiceFigureEditor({
                     </button>
                 </div>
             )}
+            {onDone && (
+                <div className="mc-block__figure-done-row">
+                    <button
+                        type="button"
+                        className="mc-block__figure-done"
+                        disabled={disabled}
+                        onClick={onDone}
+                    >
+                        Done
+                    </button>
+                </div>
+            )}
         </div>
+    );
+}
+
+// The collapsed resting state of a choice's figure: a compact, clickable
+// thumbnail of the built graph (or image) rendered with the SAME kit-free
+// engine the published page uses, so a teacher sees how the figure fits in the
+// activity without re-opening the editor. Exported for MatchingView.
+export function ChoiceFigureThumbnail({
+    choice,
+    label,
+    disabled,
+    onEdit,
+}: {
+    choice: FigureHolder;
+    label: string;
+    disabled: boolean;
+    onEdit: () => void;
+}) {
+    const { image, graph } = choice;
+    const svg = useMemo(
+        () =>
+            graph
+                ? renderGraphSvg(
+                      graph.axis as AxisConfig,
+                      graph.drawables as Drawable[],
+                      'mcthumb-' + choice.id,
+                  )
+                : '',
+        [graph, choice.id],
+    );
+    const hasImage = image && isValidUrl(image.src);
+    if (!graph && !hasImage) return null;
+
+    return (
+        <button
+            type="button"
+            className="mc-block__figure-thumb"
+            disabled={disabled}
+            title={`Edit the figure under ${label}`}
+            aria-label={`Edit the figure under ${label}`}
+            onClick={onEdit}
+        >
+            {graph && svg ? (
+                <span
+                    className="mc-block__figure-thumb-graph"
+                    aria-hidden="true"
+                    dangerouslySetInnerHTML={{ __html: svg }}
+                />
+            ) : hasImage ? (
+                <img className="mc-block__figure-thumb-img" src={image!.src} alt={image!.alt} />
+            ) : null}
+        </button>
     );
 }
 
@@ -474,10 +541,7 @@ export default function MultipleChoiceView({
                                                 [choice.id]: !prev[choice.id],
                                             }))
                                         }
-                                        aria-expanded={
-                                            openFigure[choice.id] ??
-                                            Boolean(choice.image || choice.graph)
-                                        }
+                                        aria-expanded={openFigure[choice.id] ?? false}
                                         aria-label={`Figure for choice ${
                                             LETTERS[index % 26]
                                         }`}
@@ -513,8 +577,7 @@ export default function MultipleChoiceView({
                                         <X size={14} aria-hidden="true" />
                                     </button>
                                 </div>
-                                {(openFigure[choice.id] ??
-                                    Boolean(choice.image || choice.graph)) && (
+                                {(openFigure[choice.id] ?? false) ? (
                                     <ChoiceFigureEditor
                                         choice={choice}
                                         label={`choice ${LETTERS[index % 26] ?? 'A'}`}
@@ -524,6 +587,24 @@ export default function MultipleChoiceView({
                                         }
                                         onGraph={(graph) =>
                                             setGraph(choice.id, graph)
+                                        }
+                                        onDone={() =>
+                                            setOpenFigure((prev) => ({
+                                                ...prev,
+                                                [choice.id]: false,
+                                            }))
+                                        }
+                                    />
+                                ) : (
+                                    <ChoiceFigureThumbnail
+                                        choice={choice}
+                                        label={`choice ${LETTERS[index % 26] ?? 'A'}`}
+                                        disabled={!isEditable}
+                                        onEdit={() =>
+                                            setOpenFigure((prev) => ({
+                                                ...prev,
+                                                [choice.id]: true,
+                                            }))
                                         }
                                     />
                                 )}

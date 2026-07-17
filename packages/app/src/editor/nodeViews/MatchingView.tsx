@@ -8,7 +8,7 @@ import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import type { EditorMatchSide } from '../extensions/Matching';
 import { Image as ImageIcon, ImagePlus, X } from 'lucide-react';
-import { ChoiceFigureEditor } from './MultipleChoiceView';
+import { ChoiceFigureEditor, ChoiceFigureThumbnail } from './MultipleChoiceView';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt } from '../problemNumbering';
 
@@ -162,7 +162,7 @@ export default function MatchingView({
             onClick={() =>
                 setOpenFigure((prev) => ({ ...prev, [side.id]: !prev[side.id] }))
             }
-            aria-expanded={openFigure[side.id] ?? Boolean(side.image || side.graph)}
+            aria-expanded={openFigure[side.id] ?? false}
             aria-label={`Figure for ${label}`}
             title={`Image or graph shown with ${label}`}
             disabled={!isEditable}
@@ -176,7 +176,7 @@ export default function MatchingView({
     );
 
     const figurePanel = (which: 'items' | 'targets', side: EditorMatchSide, label: string) =>
-        (openFigure[side.id] ?? Boolean(side.image || side.graph)) && (
+        (openFigure[side.id] ?? false) ? (
             <ChoiceFigureEditor
                 choice={side}
                 label={label}
@@ -196,6 +196,18 @@ export default function MatchingView({
                         else delete next.graph;
                         return next;
                     })
+                }
+                onDone={() =>
+                    setOpenFigure((prev) => ({ ...prev, [side.id]: false }))
+                }
+            />
+        ) : (
+            <ChoiceFigureThumbnail
+                choice={side}
+                label={label}
+                disabled={!isEditable}
+                onEdit={() =>
+                    setOpenFigure((prev) => ({ ...prev, [side.id]: true }))
                 }
             />
         );
