@@ -898,6 +898,31 @@
     }
 }
 
+/* Display-graph caption: collapsed behind a "+ Caption" button by default. The
+ * content hole stays mounted (ProseMirror needs it) but is hidden while
+ * collapsed; it expands when the author adds a caption. */
+.graph-caption.is-collapsed .prompt-field {
+    height: 0;
+    overflow: hidden;
+}
+.graph-caption__add {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    color: var(--ed-text-muted);
+    background: transparent;
+    border: 1px dashed var(--ed-border-strong);
+    border-radius: 0.3125rem;
+    padding: 0.1rem 0.5rem;
+    cursor: pointer;
+    transition: color var(--ed-motion-fast) var(--ed-ease-out),
+        border-color var(--ed-motion-fast) var(--ed-ease-out);
+}
+.graph-caption__add:hover:not(:disabled) {
+    color: var(--ed-text-secondary);
+    border-color: var(--ed-text-muted);
+}
+
 /* Docked command bar (slice-6 stage 0/4). The anchor holds the canvas-relative
  * position + right-alignment; the bar and the Advanced drawer stack inside it at
  * the block's top-right. It does NOT float or track scroll. */

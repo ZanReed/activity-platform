@@ -122,3 +122,29 @@ test('MC choice figure: build a graph, Done collapses to a thumbnail, click reop
     await expect(page.locator('.drawable-list')).toBeVisible();
     await expect(page.locator('.drawable-row__text').first()).toHaveValue(/\(2, 3\)/);
 });
+
+test('display graph caption is collapsed behind "+ Caption" and reveals + focuses on click', async ({
+    page,
+}) => {
+    await insert(page, 'insertStaticGraph');
+    // Collapsed by default — the "+ Caption" affordance, not the caption field.
+    const addCaption = page.getByRole('button', { name: '+ Caption' });
+    await expect(addCaption).toBeVisible();
+    await expect(page.locator('.graph-caption.is-collapsed')).toBeVisible();
+
+    await addCaption.click();
+    await expect(page.locator('.graph-caption.is-open')).toBeVisible();
+    await expect(page.getByRole('button', { name: '+ Caption' })).toHaveCount(0);
+
+    // The caret landed in the caption — typed text lands in the graph node.
+    await page.keyboard.type('Figure 1');
+    const caption = await page.evaluate(() => {
+        let t = '';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.state.doc.descendants((n: any) => {
+            if (n.type.name === 'interactiveGraph') t = n.textContent;
+        });
+        return t;
+    });
+    expect(caption).toBe('Figure 1');
+});

@@ -737,18 +737,59 @@ export default function InteractiveGraphView({
     // answer field, count inputs, and settings readout; keep the prompt + board.
     const { preview } = usePreviewToggle((node.attrs.id as string) ?? '');
 
+    // A DISPLAY graph's caption is optional and off by default — it collapses
+    // behind a "+ Caption" affordance so an empty caption field doesn't clutter
+    // the block. It reveals (and focuses) on click, and always shows once it
+    // has content. The content hole (NodeViewContent) stays mounted throughout;
+    // collapsed just hides it (an empty caption produces no published output, so
+    // this is pure editor declutter). Interactive graphs keep their always-on
+    // question prompt.
+    const [captionOpen, setCaptionOpen] = useState(false);
+    const captionShown = captionOpen || node.content.size > 0;
+    const openCaption = (): void => {
+        setCaptionOpen(true);
+        const pos = typeof getPos === 'function' ? getPos() : null;
+        if (pos != null) editor.chain().setTextSelection(pos + 1).focus().run();
+    };
+
     const promptSection = (
-        <div style={{ marginTop: '0.5rem', marginBottom: isDisplay ? 0 : '0.5rem' }}>
-            <span
-                contentEditable={false}
-                style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--ed-faint)' }}
-            >
-                {isDisplay ? 'Caption (optional)' : 'Question prompt'}
-            </span>
+        <div
+            className={
+                isDisplay
+                    ? `graph-caption${captionShown ? ' is-open' : ' is-collapsed'}`
+                    : undefined
+            }
+            style={{ marginTop: '0.5rem', marginBottom: isDisplay ? 0 : '0.5rem' }}
+        >
+            {isDisplay && !captionShown ? (
+                <button
+                    type="button"
+                    className="graph-caption__add"
+                    contentEditable={false}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={openCaption}
+                    disabled={!isEditable}
+                >
+                    + Caption
+                </button>
+            ) : (
+                <span
+                    contentEditable={false}
+                    style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--ed-faint)' }}
+                >
+                    {isDisplay ? 'Caption (optional)' : 'Question prompt'}
+                </span>
+            )}
             <PromptField
                 node={node}
                 className="interactive-graph-block__prompt"
-                placeholder={isDisplay ? 'Add a caption…' : 'Type the question…'}
+                placeholder={
+                    isDisplay && !captionShown
+                        ? ''
+                        : isDisplay
+                          ? 'Add a caption…'
+                          : 'Type the question…'
+                }
             />
         </div>
     );
