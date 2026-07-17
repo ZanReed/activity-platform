@@ -195,7 +195,7 @@ function BlockGrader({
                         <div>
                             <label className="text-sm text-slate-700">{c.label}</label>
                             {c.description && (
-                                <p className="text-xs text-slate-400">{c.description}</p>
+                                <p className="text-xs text-slate-600">{c.description}</p>
                             )}
                             <input
                                 type="text"

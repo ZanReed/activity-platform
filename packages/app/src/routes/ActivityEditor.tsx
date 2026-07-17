@@ -170,10 +170,10 @@ function PublishedLink({ activityId }: { activityId: string }) {
 function SaveIndicator({ status }: { status: SaveStatus }) {
     if (status === 'idle') return null;
     if (status === 'saving') {
-        return <span className="text-xs text-slate-400">Saving…</span>;
+        return <span className="text-xs text-slate-600">Saving…</span>;
     }
     if (status === 'saved') {
-        return <span className="text-xs text-slate-400">Saved</span>;
+        return <span className="text-xs text-slate-600">Saved</span>;
     }
     return (
         <span className="text-xs text-red-600">

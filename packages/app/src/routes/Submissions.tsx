@@ -400,7 +400,7 @@ function SubmissionDetail({
                 )}
                 <table className="mt-2 w-full text-sm">
                 <thead>
-                <tr className="text-left text-xs text-slate-400">
+                <tr className="text-left text-xs text-slate-600">
                 <th className="py-1 pr-3 font-medium">Answer key</th>
                 <th className="py-1 pr-3 font-medium">Student</th>
                 <th className="py-1 pr-3 font-medium">Result</th>
@@ -420,7 +420,7 @@ function SubmissionDetail({
                     </td>
                     <td className="py-1 pr-3 font-mono text-slate-900">
                     {b.row.answer || (
-                        <span className="text-slate-400">(blank)</span>
+                        <span className="text-slate-600">(blank)</span>
                     )}
                     </td>
                     <td className="py-1 pr-3">
@@ -453,7 +453,7 @@ function SubmissionDetail({
                 </p>
                 <table className="mt-2 w-full text-sm">
                 <thead>
-                <tr className="text-left text-xs text-slate-400">
+                <tr className="text-left text-xs text-slate-600">
                 <th className="py-1 pr-3 font-medium">Problem</th>
                 <th className="py-1 pr-3 font-medium">Answer key</th>
                 <th className="py-1 pr-3 font-medium">Student picked</th>
@@ -469,7 +469,7 @@ function SubmissionDetail({
                         ? `Problem ${m.info.problemNumber}`
                         : 'Question'}
                     {m.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-400">
+                        <span className="block text-xs text-slate-600">
                         {m.info.problemPrompt}
                         </span>
                     )}
@@ -515,7 +515,7 @@ function SubmissionDetail({
                 </p>
                 <table className="mt-2 w-full text-sm">
                 <thead>
-                <tr className="text-left text-xs text-slate-400">
+                <tr className="text-left text-xs text-slate-600">
                 <th className="py-1 pr-3 font-medium">Problem</th>
                 <th className="py-1 pr-3 font-medium">Student&apos;s pairs</th>
                 <th className="py-1 pr-3 font-medium">Result</th>
@@ -530,7 +530,7 @@ function SubmissionDetail({
                         ? `Problem ${m.info.problemNumber}`
                         : 'Question'}
                     {m.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-400">
+                        <span className="block text-xs text-slate-600">
                         {m.info.problemPrompt}
                         </span>
                     )}
@@ -553,7 +553,7 @@ function SubmissionDetail({
                             <span key={item.id} className="block">
                             {item.text} →{' '}
                             {pickedText ?? (
-                                <span className="text-slate-400">
+                                <span className="text-slate-600">
                                 (unmatched)
                                 </span>
                             )}{' '}
@@ -599,7 +599,7 @@ function SubmissionDetail({
                 </p>
                 <table className="mt-2 w-full text-sm">
                 <thead>
-                <tr className="text-left text-xs text-slate-400">
+                <tr className="text-left text-xs text-slate-600">
                 <th className="py-1 pr-3 font-medium">Problem</th>
                 <th className="py-1 pr-3 font-medium">Correct order</th>
                 <th className="py-1 pr-3 font-medium">Student&apos;s order</th>
@@ -615,7 +615,7 @@ function SubmissionDetail({
                         ? `Problem ${o.info.problemNumber}`
                         : 'Question'}
                     {o.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-400">
+                        <span className="block text-xs text-slate-600">
                         {o.info.problemPrompt}
                         </span>
                     )}
@@ -659,7 +659,7 @@ function SubmissionDetail({
                 </p>
                 <table className="mt-2 w-full text-sm">
                 <thead>
-                <tr className="text-left text-xs text-slate-400">
+                <tr className="text-left text-xs text-slate-600">
                 <th className="py-1 pr-3 font-medium">Problem</th>
                 <th className="py-1 pr-3 font-medium">Answer key</th>
                 <th className="py-1 pr-3 font-medium">Student plotted</th>
@@ -675,7 +675,7 @@ function SubmissionDetail({
                         ? `Problem ${g.info.problemNumber}`
                         : 'Graph'}
                     {g.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-400">
+                        <span className="block text-xs text-slate-600">
                         {g.info.problemPrompt}
                         </span>
                     )}
@@ -739,7 +739,7 @@ function SubmissionDetail({
                 </p>
                 <table className="mt-2 w-full text-sm">
                 <thead>
-                <tr className="text-left text-xs text-slate-400">
+                <tr className="text-left text-xs text-slate-600">
                 <th className="py-1 pr-3 font-medium">Problem</th>
                 <th className="py-1 pr-3 font-medium">Answer key</th>
                 <th className="py-1 pr-3 font-medium">Student answer</th>
@@ -755,7 +755,7 @@ function SubmissionDetail({
                         ? `Problem ${n.info.problemNumber}`
                         : 'Number line'}
                     {n.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-400">
+                        <span className="block text-xs text-slate-600">
                         {n.info.problemPrompt}
                         </span>
                     )}
@@ -794,7 +794,7 @@ function SubmissionDetail({
                 </p>
                 <table className="mt-2 w-full text-sm">
                 <thead>
-                <tr className="text-left text-xs text-slate-400">
+                <tr className="text-left text-xs text-slate-600">
                 <th className="py-1 pr-3 font-medium">Problem</th>
                 <th className="py-1 pr-3 font-medium">Answer key</th>
                 <th className="py-1 pr-3 font-medium">Student answer</th>
@@ -810,7 +810,7 @@ function SubmissionDetail({
                         ? `Problem ${d.info.problemNumber}`
                         : 'Data plot'}
                     {d.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-400">
+                        <span className="block text-xs text-slate-600">
                         {d.info.problemPrompt}
                         </span>
                     )}
@@ -862,7 +862,7 @@ function SubmissionDetail({
                     {FREE_TEXT_LABELS[f.info?.blockType ?? 'self_explanation']}
                     </span>
                     {f.info?.problemPrompt && (
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-slate-600">
                         {f.info.problemPrompt}
                         </p>
                     )}
@@ -899,7 +899,7 @@ function SubmissionDetail({
                     <span className="font-medium">
                     {c.result.score}/{c.result.total}
                     </span>{' '}
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-600">
                     checked {formatWhen(c.result.checkedAt)}
                     </span>
                     </li>
@@ -988,7 +988,7 @@ function AttemptRow({
         <span className="font-medium text-slate-700">
         Attempt {row.attempt_number}
         </span>
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-500">
         {formatWhen(row.submitted_at)}
         </span>
         </span>
@@ -1347,7 +1347,7 @@ export default function Submissions() {
                 <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                 <table className="w-full text-sm">
                 <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-slate-400">
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="py-2 pl-3 pr-3 font-medium">Student</th>
                 <th className="py-2 pr-3 font-medium">Latest</th>
                 <th className="py-2 pr-3 font-medium">Best</th>
@@ -1368,7 +1368,7 @@ export default function Submissions() {
                     <div key={g.key}>
                     <p className="mb-1.5 text-sm font-semibold text-slate-900">
                     {g.label}{' '}
-                    <span className="text-xs font-normal text-slate-400">
+                    <span className="text-xs font-normal text-slate-500">
                     {g.count} attempt{g.count === 1 ? '' : 's'}
                     </span>
                     </p>

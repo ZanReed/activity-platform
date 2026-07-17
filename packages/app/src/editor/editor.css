@@ -128,6 +128,25 @@
     --ed-block-selected-ring: rgb(59 130 246 / 0.12);
     --ed-gutter-affordance: var(--ed-faint);
 
+    /* Ink-surface overlay layer — translucent-white controls that sit ON the
+     * dark --ed-ink command bar (hover fills, the divider, de-emphasized text).
+     * They read as white-at-opacity so they work over the near-black bar. */
+    --ed-ink-hover: rgb(255 255 255 / 0.14);
+    --ed-ink-divider: rgb(255 255 255 / 0.16);
+    --ed-ink-text-soft: rgb(255 255 255 / 0.7);
+    /* Inset hairline drawn over arbitrary content (a color swatch over any
+     * fill) — a translucent-black edge so it darkens whatever it sits on. */
+    --ed-hairline-inset: rgb(0 0 0 / 0.08);
+    --ed-hairline-inset-strong: rgb(0 0 0 / 0.12);
+
+    /* Z-index scale (editor overlays). Docked bars sit above block content;
+     * portaled popovers above the bars; the modal above all. The sticky
+     * toolbar (z-30, set in Toolbar.tsx) sits between the bars and popovers. */
+    --ed-z-quickbar: 19;
+    --ed-z-commandbar: 20;
+    --ed-z-popover: 50;
+    --ed-z-modal: 60;
+
     /* Motion layer (springy, reduced-motion safe — see the reduced-motion
      * block below). fast: outline/selection; base: controls fade / drop
      * settle; focus: optional focus-dim. spring: pill pop-in, drop bounce. */
@@ -233,7 +252,7 @@
     padding: 0.125rem 0.375rem;
     border: 1px solid var(--ed-faint);
     border-radius: 0.25rem;
-    background-color: white;
+    background-color: var(--ed-canvas);
     min-width: 4rem;
     outline: none;
     vertical-align: middle;
@@ -250,7 +269,7 @@
     border-radius: 0.375rem;
     background-color: var(--ed-surface);
     cursor: pointer;
-    transition: background-color 0.15s;
+    transition: background-color var(--ed-motion-base);
 }
 
 .math-block-wrapper:hover {
@@ -276,7 +295,7 @@
     line-height: 1.4;
     border: 1px solid var(--ed-faint);
     border-radius: 0.25rem;
-    background-color: white;
+    background-color: var(--ed-canvas);
     outline: none;
 }
 
@@ -288,7 +307,7 @@
     width: 280px;
     max-height: 320px;
     overflow-y: auto;
-    background: white;
+    background: var(--ed-canvas);
     border: 1px solid var(--ed-border);
     border-radius: 0.5rem;
     box-shadow: var(--ed-shadow-menu);
@@ -304,7 +323,7 @@
     background: transparent;
     border: none;
     cursor: pointer;
-    transition: background-color 0.1s;
+    transition: background-color var(--ed-motion-fast);
 }
 
 .slash-menu-item.is-selected {
@@ -354,7 +373,7 @@
     background: transparent;
     color: var(--ed-faint); /* slate-400 */
     cursor: grab;
-    transition: color 0.15s ease, background-color 0.15s ease;
+    transition: color var(--ed-motion-base) ease, background-color var(--ed-motion-base) ease;
 }
 
 .drag-handle-button:hover {
@@ -399,7 +418,7 @@
     background: transparent;
     color: var(--ed-faint); /* slate-400 */
     cursor: pointer;
-    transition: color 0.15s ease, background-color 0.15s ease;
+    transition: color var(--ed-motion-base) ease, background-color var(--ed-motion-base) ease;
 }
 
 .block-gutter-add:hover {
@@ -437,7 +456,7 @@
     background: var(--ed-gutter-affordance); /* slate-400 */
     opacity: 0.5;
     pointer-events: none;
-    transition: opacity 0.12s ease;
+    transition: opacity var(--ed-motion-fast) ease;
 }
 
 .ProseMirror > *:not(.is-empty-hint):hover::before {
@@ -458,8 +477,8 @@
     background: transparent;
     color: var(--ed-text-muted); /* slate-500 */
     cursor: pointer;
-    transition: color 0.15s ease, background-color 0.15s ease,
-        border-color 0.15s ease;
+    transition: color var(--ed-motion-base) ease, background-color var(--ed-motion-base) ease,
+        border-color var(--ed-motion-base) ease;
 }
 
 .block-insert-end:hover {
@@ -508,14 +527,14 @@
     padding: 0.625rem 0.625rem 0.6875rem;
     border: 1px solid var(--ed-border); /* slate-200 */
     border-radius: 0.625rem;
-    background: white;
+    background: var(--ed-canvas);
     font-family: inherit;
     font-size: 0.8125rem;
     font-weight: 500;
     color: var(--ed-text-strong); /* slate-700 */
     text-align: center;
     cursor: pointer;
-    transition: border-color 0.15s ease, background-color 0.15s ease;
+    transition: border-color var(--ed-motion-base) ease, background-color var(--ed-motion-base) ease;
 }
 
 .start-here__card:hover {
@@ -568,7 +587,7 @@
  * the quick-bar hides the moment the block is selected). */
 .block-quickbar {
     position: absolute;
-    z-index: 19;
+    z-index: var(--ed-z-quickbar);
     display: flex;
     align-items: center;
     gap: 0.0625rem;
@@ -661,7 +680,7 @@
     width: 0.75rem;
     height: 0.75rem;
     flex: none;
-    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+    box-shadow: inset 0 0 0 1px var(--ed-hairline-inset);
 }
 
 .drawable-row__field {
@@ -813,7 +832,7 @@
     width: 1.05rem;
     height: 1.05rem;
     padding: 0;
-    border: 1px solid rgb(0 0 0 / 0.12);
+    border: 1px solid var(--ed-hairline-inset-strong);
     border-radius: 0.25rem;
     cursor: pointer;
 }
@@ -928,7 +947,7 @@
  * the block's top-right. It does NOT float or track scroll. */
 .block-command-bar-anchor {
     position: absolute;
-    z-index: 20;
+    z-index: var(--ed-z-commandbar);
     /* Right-align to the block's right edge, nudged just inside the corner. */
     transform: translate(calc(-100% - 0.25rem), 0.25rem);
     transform-origin: top right;
@@ -981,7 +1000,7 @@
 }
 
 .block-command-bar__action:hover {
-    background: rgb(255 255 255 / 0.14);
+    background: var(--ed-ink-hover);
 }
 
 /* Block-specific primary — accent fill; universal actions stay ghost. */
@@ -998,7 +1017,7 @@
     width: 1px;
     align-self: stretch;
     margin: 0.125rem 0.1875rem;
-    background: rgb(255 255 255 / 0.16);
+    background: var(--ed-ink-divider);
 }
 
 .block-command-bar__action:focus-visible,
@@ -1009,13 +1028,13 @@
 
 /* Advanced disclosure — toggles the drawer below the bar. */
 .block-command-bar__advanced {
-    color: rgb(255 255 255 / 0.7);
+    color: var(--ed-ink-text-soft);
 }
 
 .block-command-bar__advanced:hover,
 .block-command-bar__advanced--open {
     color: var(--ed-white);
-    background: rgb(255 255 255 / 0.14);
+    background: var(--ed-ink-hover);
 }
 
 .block-command-bar__advanced--open svg {
@@ -1044,7 +1063,7 @@
 
 .block-command-bar__gear {
     padding: 0.3125rem 0.375rem;
-    color: rgb(255 255 255 / 0.7);
+    color: var(--ed-ink-text-soft);
 }
 
 .block-command-bar__gear:hover,
@@ -1053,7 +1072,7 @@
 .block-command-bar__setting--on,
 .block-command-bar__setting--open {
     color: var(--ed-white);
-    background: rgb(255 255 255 / 0.14);
+    background: var(--ed-ink-hover);
 }
 
 .block-command-bar__gear:focus-visible,
@@ -1215,7 +1234,7 @@
 .block-insert-overlay {
     position: fixed;
     inset: 0;
-    z-index: 60;
+    z-index: var(--ed-z-modal);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1230,7 +1249,7 @@
     max-height: min(32rem, 100%);
     overflow: hidden;
     border-radius: 0.75rem;
-    background: white;
+    background: var(--ed-canvas);
     box-shadow: var(--ed-shadow-modal);
 }
 
@@ -1259,7 +1278,7 @@
     background: transparent;
     color: var(--ed-text-muted); /* slate-500 */
     cursor: pointer;
-    transition: color 0.15s, background-color 0.15s;
+    transition: color var(--ed-motion-base), background-color var(--ed-motion-base);
 }
 
 .block-insert-window__close:hover {
@@ -1326,7 +1345,7 @@
     color: var(--ed-text-strong); /* slate-700 */
     text-align: left;
     cursor: pointer;
-    transition: color 0.12s, background-color 0.12s;
+    transition: color var(--ed-motion-fast), background-color var(--ed-motion-fast);
 }
 
 .block-insert-rail__icon {
@@ -1339,7 +1358,7 @@
 }
 
 .block-insert-rail__item--active {
-    background: white;
+    background: var(--ed-canvas);
     color: var(--ed-accent-strong); /* blue-600 */
     box-shadow: inset 0 0 0 1px var(--ed-border);
 }
@@ -1413,7 +1432,7 @@
     background: transparent;
     text-align: left;
     cursor: pointer;
-    transition: background-color 0.12s;
+    transition: background-color var(--ed-motion-fast);
 }
 
 .block-insert-tile:hover,
@@ -1550,7 +1569,7 @@
     align-items: start;
     border-radius: 0.375rem;
     background-color: var(--ed-surface); /* slate-50 — matches math-block-wrapper resting bg */
-    transition: background-color 0.15s;
+    transition: background-color var(--ed-motion-base);
 }
 
 .fill-in-blank-block:hover {
@@ -1595,7 +1614,7 @@
     align-items: start;
     border-radius: 0.375rem;
     background-color: var(--ed-surface); /* slate-50 */
-    transition: background-color 0.15s;
+    transition: background-color var(--ed-motion-base);
 }
 .mc-block:hover {
     background-color: var(--ed-surface-2); /* slate-100 */
@@ -1649,7 +1668,7 @@
     border: 1px solid var(--ed-border-strong); /* slate-300 */
     border-radius: 0.375rem;
     padding: 0.2rem 0.3rem;
-    background: white;
+    background: var(--ed-canvas);
 }
 .mc-block__choices {
     display: flex;
@@ -1691,8 +1710,8 @@
     border-radius: 0.25rem;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.12s ease, background-color 0.12s ease,
-        color 0.12s ease;
+    transition: opacity var(--ed-motion-fast) ease, background-color var(--ed-motion-fast) ease,
+        color var(--ed-motion-fast) ease;
 }
 .mc-block__choice-row:hover .mc-block__row-btn,
 .mc-block__choice-row:focus-within .mc-block__row-btn,
@@ -1766,7 +1785,7 @@
     padding: 0.15rem 0.5rem;
     border: 1px solid var(--ed-border-strong); /* slate-300 */
     border-radius: 0.25rem;
-    background: white;
+    background: var(--ed-canvas);
     color: var(--ed-text-strong); /* slate-700 */
     cursor: pointer;
 }
@@ -1840,7 +1859,7 @@ img.mc-block__figure-preview {
 .mc-block__figure-done {
     border: 1px solid var(--ed-accent);
     background: var(--ed-accent);
-    color: #fff;
+    color: var(--ed-white);
     font-size: 0.78rem;
     font-weight: 500;
     padding: 0.25rem 0.85rem;
@@ -2051,7 +2070,7 @@ img.mc-block__figure-preview {
     color: var(--ed-text-muted); /* slate-500 */
     cursor: grab;
     opacity: 0.45;
-    transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    transition: opacity var(--ed-motion-fast) ease, color var(--ed-motion-fast) ease, border-color var(--ed-motion-fast) ease;
     z-index: 2;
 }
 
@@ -2131,7 +2150,7 @@ img.mc-block__figure-preview {
     flex-direction: column;
     border: 1px solid var(--ed-border-strong); /* slate-300 */
     border-radius: 0.25rem;
-    background: white;
+    background: var(--ed-canvas);
     overflow: hidden;
 }
 
@@ -2274,10 +2293,10 @@ img.mc-block__figure-preview {
  *  ========================================================================= */
 
  .blank-edit-popover {
-     z-index: 50;
+     z-index: var(--ed-z-popover);
      width: 320px;
      padding: 0.875rem;
-     background: white;
+     background: var(--ed-canvas);
      border: 1px solid var(--ed-border); /* slate-200 */
      border-radius: 0.5rem;
      box-shadow: var(--ed-shadow-popover);
@@ -2340,7 +2359,7 @@ img.mc-block__figure-preview {
     font-size: 0.875rem;
     line-height: 1.4;
     outline: none;
-    background: white;
+    background: var(--ed-canvas);
     color: var(--ed-text); /* slate-900 */
 }
 
@@ -2422,7 +2441,7 @@ img.mc-block__figure-preview {
     font-size: 1.125rem;
     line-height: 1;
     cursor: pointer;
-    transition: color 0.15s, background-color 0.15s;
+    transition: color var(--ed-motion-base), background-color var(--ed-motion-base);
 }
 
 .blank-edit-popover__feedback-row .blank-edit-popover__remove {
@@ -2453,7 +2472,7 @@ img.mc-block__figure-preview {
     font-family: inherit;
     font-size: 0.8125rem;
     cursor: pointer;
-    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+    transition: border-color var(--ed-motion-base), color var(--ed-motion-base), background-color var(--ed-motion-base);
 }
 
 .blank-edit-popover__add-section:hover {
@@ -2497,7 +2516,7 @@ img.mc-block__figure-preview {
     border-radius: 0.625rem;
     background: var(--ed-surface); /* slate-50 */
     cursor: pointer;
-    transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    transition: background-color var(--ed-motion-base), border-color var(--ed-motion-base), box-shadow var(--ed-motion-base);
 }
 
 .image-card:hover {
@@ -2555,7 +2574,7 @@ img.mc-block__figure-preview {
     padding: 0.25rem 0.625rem;
     border: 1px solid var(--ed-border-strong); /* slate-300 */
     border-radius: 0.375rem;
-    background: white;
+    background: var(--ed-canvas);
     font-size: 0.75rem;
     color: var(--ed-text-muted); /* slate-500 */
 }
@@ -2591,7 +2610,7 @@ img.mc-block__figure-preview {
     border: 1px solid transparent;
     border-radius: 0.625rem;
     cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition: border-color var(--ed-motion-base), box-shadow var(--ed-motion-base);
 }
 
 .image-preview:hover {
@@ -2688,7 +2707,7 @@ img.mc-block__figure-preview {
     padding: 0.125rem 0.5rem;
     border-radius: 0.375rem;
     background: var(--ed-tooltip-bg); /* slate-900 */
-    color: white;
+    color: var(--ed-white);
     font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
     pointer-events: none;
@@ -2713,7 +2732,7 @@ img.mc-block__figure-preview {
     font-size: 0.75rem;
     color: var(--ed-text-secondary); /* slate-600 */
     opacity: 0;
-    transition: opacity 0.15s;
+    transition: opacity var(--ed-motion-base);
     pointer-events: none;
 }
 
@@ -2742,8 +2761,8 @@ img.mc-block__figure-preview {
     color: var(--ed-text-secondary); /* slate-600 */
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.15s, color 0.15s, background-color 0.15s,
-        border-color 0.15s;
+    transition: opacity var(--ed-motion-base), color var(--ed-motion-base), background-color var(--ed-motion-base),
+        border-color var(--ed-motion-base);
     z-index: 3;
 }
 
@@ -2776,12 +2795,12 @@ img.mc-block__figure-preview {
     padding: 0;
     border: 1px solid var(--ed-border-strong); /* slate-300 */
     border-radius: 0.375rem;
-    background: white;
+    background: var(--ed-canvas);
     color: var(--ed-text-muted); /* slate-500 */
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.15s, color 0.15s, background-color 0.15s,
-        border-color 0.15s;
+    transition: opacity var(--ed-motion-base), color var(--ed-motion-base), background-color var(--ed-motion-base),
+        border-color var(--ed-motion-base);
 }
 
 .image-card:hover .image-card__delete,
@@ -2838,7 +2857,7 @@ img.mc-block__figure-preview {
 .image-crop__frame {
     position: absolute;
     box-sizing: border-box;
-    border: 1px solid white;
+    border: 1px solid var(--ed-white);
     /* 1px dark outline for contrast on light images + a huge translucent spread
      * to dim everything outside the window. */
     box-shadow:
@@ -2852,7 +2871,7 @@ img.mc-block__figure-preview {
     position: absolute;
     width: 0.75rem;
     height: 0.75rem;
-    background: white;
+    background: var(--ed-white);
     border: 1px solid var(--ed-accent-alt); /* indigo-500 */
     border-radius: 2px;
     touch-action: none;
@@ -2890,7 +2909,7 @@ img.mc-block__figure-preview {
     color: var(--ed-text-secondary); /* slate-600 */
     font-size: 0.8125rem;
     cursor: pointer;
-    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    transition: background-color var(--ed-motion-base), border-color var(--ed-motion-base), color var(--ed-motion-base);
 }
 
 .image-crop__btn:hover {
@@ -2900,7 +2919,7 @@ img.mc-block__figure-preview {
 .image-crop__btn--apply {
     border-color: var(--ed-accent-alt); /* indigo-500 */
     background: var(--ed-accent-alt); /* indigo-500 */
-    color: white;
+    color: var(--ed-white);
 }
 
 .image-crop__btn--apply:hover {
@@ -2946,10 +2965,10 @@ img.mc-block__figure-preview {
  *  ========================================================================= */
 
 .image-edit-popover {
-    z-index: 50;
+    z-index: var(--ed-z-popover);
     width: 320px;
     padding: 0.875rem;
-    background: white;
+    background: var(--ed-canvas);
     border: 1px solid var(--ed-border); /* slate-200 */
     border-radius: 0.5rem;
     box-shadow: var(--ed-shadow-popover);
@@ -2969,12 +2988,12 @@ img.mc-block__figure-preview {
     padding: 0.3125rem 0.625rem;
     border: 1px solid var(--ed-border); /* slate-200 */
     border-radius: 0.375rem;
-    background: white;
+    background: var(--ed-canvas);
     color: var(--ed-text-secondary); /* slate-600 */
     font-family: inherit;
     font-size: 0.75rem;
     cursor: pointer;
-    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+    transition: background-color var(--ed-motion-base), color var(--ed-motion-base), border-color var(--ed-motion-base);
 }
 
 .image-edit-popover__tab:hover {
@@ -2984,7 +3003,7 @@ img.mc-block__figure-preview {
 .image-edit-popover__tab.is-active {
     background: var(--ed-text); /* slate-900 */
     border-color: var(--ed-text);
-    color: white;
+    color: var(--ed-white);
 }
 
 .image-edit-popover__tab:focus-visible {
@@ -3015,7 +3034,7 @@ img.mc-block__figure-preview {
     font-size: 0.875rem;
     line-height: 1.4;
     outline: none;
-    background: white;
+    background: var(--ed-canvas);
     color: var(--ed-text); /* slate-900 */
 }
 
@@ -3063,7 +3082,7 @@ img.mc-block__figure-preview {
     font-weight: 500;
     color: var(--ed-text-strong); /* slate-700 */
     cursor: pointer;
-    transition: background 0.12s, border-color 0.12s;
+    transition: background var(--ed-motion-fast), border-color var(--ed-motion-fast);
 }
 
 .image-edit-popover__upload-button:hover:not(:disabled) {
@@ -3108,7 +3127,7 @@ img.mc-block__figure-preview {
     font-size: 0.8125rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.12s, border-color 0.12s;
+    transition: background-color var(--ed-motion-fast), border-color var(--ed-motion-fast);
 }
 
 .image-edit-popover__delete:hover {
@@ -3140,11 +3159,11 @@ img.mc-block__figure-preview {
     padding: 0.25rem 0.5rem;
     border: 1px solid var(--ed-border-strong); /* slate-300 */
     border-radius: 0.375rem;
-    background: white;
+    background: var(--ed-canvas);
     font-size: 0.75rem;
     color: var(--ed-text-strong); /* slate-700 */
     cursor: pointer;
-    transition: background-color 0.12s ease, border-color 0.12s ease;
+    transition: background-color var(--ed-motion-fast) ease, border-color var(--ed-motion-fast) ease;
 }
 
 .image-edit-popover__chip:hover:not(:disabled) {
@@ -3188,7 +3207,7 @@ img.mc-block__figure-preview {
     padding: 0.6rem 0.85rem;
     border-radius: 0.375rem;
     background-color: var(--ed-surface); /* slate-50 */
-    transition: background-color 0.15s;
+    transition: background-color var(--ed-motion-base);
 }
 
 /* Instructional / response block-type key: a leading type icon + a full 1px
@@ -3257,7 +3276,7 @@ img.mc-block__figure-preview {
 .worked-example-block__title:focus,
 .faded-example-block__title:focus {
     outline: 2px solid var(--ed-accent); /* blue-500 */
-    background: white;
+    background: var(--ed-canvas);
 }
 
 /* Objectives render as a marked list in the editor (published output is a
@@ -3331,7 +3350,7 @@ img.mc-block__figure-preview {
     border-radius: 0.375rem;
     border: 1px solid var(--ed-self-explain-border); /* teal-200 */
     background-color: var(--ed-self-explain-bg); /* teal-50 */
-    transition: background-color 0.15s;
+    transition: background-color var(--ed-motion-base);
 }
 
 /* Type-key header for the prompt-led blocks (self-explanation, free response),
@@ -3436,7 +3455,7 @@ img.mc-block__figure-preview {
     border-radius: 0.375rem;
     border: 1px solid var(--ed-warning-border); /* amber-200 — "you grade this" */
     background-color: var(--ed-warning-bg); /* amber-50 */
-    transition: background-color 0.15s;
+    transition: background-color var(--ed-motion-base);
 }
 
 .free-response-block__prompt {
