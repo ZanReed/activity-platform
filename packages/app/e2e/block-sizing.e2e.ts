@@ -89,6 +89,14 @@ for (const { name, insert } of BLOCKS) {
         await drawer.getByRole('button', { name: '50%', exact: true }).click();
         expect(await readAttr(page, name, 'width')).toBe(0.5);
 
+        // Editor preview (figureSizingStyle): the block's figure/board region
+        // takes width:50% + max-width:none, so the author SEES the change.
+        await expect(
+            page
+                .locator('.ProseMirror [style*="width: 50%"][style*="max-width: none"]')
+                .first(),
+        ).toBeVisible();
+
         // SZ-M5 — align row now shows; clicking Left writes `align`.
         await drawer.getByRole('button', { name: 'Left', exact: true }).click();
         expect(await readAttr(page, name, 'align')).toBe('left');

@@ -6,6 +6,7 @@ import { usePreviewToggle } from '../components/usePreviewToggle';
 import PromptField from '../components/PromptField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
+import { figureSizingStyle, readSizingAttrs } from '../figureSizingStyle';
 import {
     defaultDataPlotBuildInteraction,
     defaultDataPlotHistogramInteraction,
@@ -70,6 +71,7 @@ export default function DataPlotView({
     const interaction = node.attrs.interaction as DataPlotInteractionAttr;
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
     const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
+    const sizing = readSizingAttrs(node.attrs);
     const isEditable = editor.isEditable;
     const isGraded = interaction.type !== 'display';
     const chart = chartOf(interaction);
@@ -199,7 +201,7 @@ export default function DataPlotView({
 
                 <div
                     contentEditable={false}
-                    style={{ border: '1px solid var(--ed-border)', borderRadius: 6, background: '#fff', padding: '0.4rem', maxWidth: '34rem' }}
+                    style={{ border: '1px solid var(--ed-border)', borderRadius: 6, background: '#fff', padding: '0.4rem', maxWidth: '34rem', ...figureSizingStyle(sizing.width, sizing.align) }}
                     dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
                 {!preview && interaction.type === 'build_boxplot' && data.length > 0 && (() => {

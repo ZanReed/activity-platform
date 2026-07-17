@@ -18,6 +18,9 @@ import {
     type GraphDisplayHandle,
 } from '@activity/graph-kit';
 import DrawableListEditor from '../components/DrawableListEditor';
+import { figureSizingStyle, readSizingAttrs } from '../figureSizingStyle';
+
+type FigureSizing = { width: number | null; align: 'left' | 'right' | null };
 import { usePreviewToggle } from '../components/usePreviewToggle';
 import FormulaField from '../components/FormulaField';
 import type { InlineNodes } from '../../lib/serialize';
@@ -168,6 +171,7 @@ function GraphAuthorBoard({
     onLinearChange,
     onDomainChange,
     formulaEpoch,
+    sizing,
 }: {
     axisConfig: GraphAxisConfig;
     interaction: GraphInteraction;
@@ -188,6 +192,7 @@ function GraphAuthorBoard({
      *  the handles (and shape pills) jump to the typed answer. Drags never
      *  bump it — remounting mid-drag would yank the board from the pointer. */
     formulaEpoch?: number;
+    sizing?: FigureSizing;
 }) {
     const hostRef = useRef<HTMLDivElement>(null);
     const cbRef = useRef(onPointsChange);
@@ -320,6 +325,8 @@ function GraphAuthorBoard({
                 borderRadius: 6,
                 background: '#fff',
                 touchAction: 'none',
+                // Preview the authored width; the board re-fits via JSXGraph resize.
+                ...figureSizingStyle(sizing?.width ?? null, sizing?.align ?? null),
             }}
         />
     );
@@ -378,6 +385,7 @@ export default function InteractiveGraphView({
     const axisConfig = node.attrs.axisConfig as GraphAxisConfig;
     const interaction = node.attrs.interaction as GraphInteraction;
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
+    const sizing = readSizingAttrs(node.attrs);
     const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const isEditable = editor.isEditable;
 
@@ -840,6 +848,7 @@ export default function InteractiveGraphView({
                                 <DisplayPreviewBoard
                                     axisConfig={axisConfig}
                                     drawables={interaction.drawables}
+                                    sizing={sizing}
                                 />
                             </div>
                             {!preview && (
@@ -868,6 +877,7 @@ export default function InteractiveGraphView({
                             onLinearChange={onLinearChange}
                             onDomainChange={onDomainChange}
                             formulaEpoch={formulaEpoch}
+                            sizing={sizing}
                         />
 
                         {!preview && (<>
@@ -982,9 +992,11 @@ export default function InteractiveGraphView({
 function DisplayPreviewBoard({
     axisConfig,
     drawables,
+    sizing,
 }: {
     axisConfig: GraphAxisConfig;
     drawables: DrawableAttr[];
+    sizing?: FigureSizing;
 }) {
     const hostRef = useRef<HTMLDivElement>(null);
     const key = useMemo(
@@ -1024,6 +1036,7 @@ function DisplayPreviewBoard({
                 border: '1px solid var(--ed-border-strong)',
                 borderRadius: 6,
                 background: '#fff',
+                ...figureSizingStyle(sizing?.width ?? null, sizing?.align ?? null),
             }}
         />
     );

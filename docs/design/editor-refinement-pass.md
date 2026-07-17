@@ -357,6 +357,17 @@ only; drag handles stay image-only. The shared `useBlockWidthResize` hook still
 serves image (D1 DRY holds) and is reserved for figure-in-preview-mode with the
 future eye toggle.
 
+**D7 (author-flagged post-build) — the editor previews the sized FIGURE.** D6
+left no visual feedback (the drawer chip changed the attr, the block looked
+unchanged — reads as broken). Fix: a shared `figureSizingStyle(width, align)`
+applied to each view's board/figure region ONLY (`GraphAuthorBoard` +
+`DisplayPreviewBoard`, `NumberLineAuthorBoard`, the data-plot preview div) — the
+authoring controls stay full-width, but the board/figure renders at the authored
+proportion (centered / left / right). The live kit boards re-fit via the D3
+JSXGraph `resize`; the static data-plot SVG scales via its viewBox. `maxWidth:
+none` lifts each host's default cap so the fraction is faithful. Browser-verified
+on `/playground`: a 50% graph renders a narrower, centered, re-fit board.
+
 **Deploy order:** if `board.resize()` requires a `@activity/graph-kit` change,
 follow CLAUDE.md — **upload kit FIRST → `pnpm bundle:renderer` → redeploy
 `publish-activity`** (a plain renderer redeploy is only enough if the kit is

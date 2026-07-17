@@ -165,6 +165,7 @@ with no clip (owner-confirmed).*
 | SZ-M5 | `BlockSizingField` in each drawer: setting align left/center/right writes `align` (and center = clears/omits) → renders `data-block-align`; end-to-end on all 3 blocks | design (D5) | design-anchored | e2e | MUST |
 | SZ-M6 | reset-to-full CLEARS `width`+`align` → block returns to the unsized omit-when-default identity (NOT `width:1`) | design (D5) | design-anchored | e2e | MUST |
 | SZ-M7 | one shared `BlockSizingField` renders in all 3 drawers (DRY — not 3 divergent copies); width readout reflects the current attr | design (D5) | design-anchored | e2e | SHOULD |
+| SZ-M9 | editor preview (D7): setting a width applies `figureSizingStyle` (width:X% + max-width:none) to the block's figure/board region so the author sees the change | design (D7) | design-anchored | e2e | MUST |
 | SZ-J1a | renderer emits `.block-sized` + `--block-width` on the graph block with `.graph-canvas` inside (the CSS cascade path) | design (D3) | design-anchored | unit (via SZ-M2) | MUST |
 | SZ-J1b | mounted board visually re-fits when its container narrows (author width + viewport relax), no clip/overflow — JSXGraph built-in `resize` | design (D3) | design-anchored | **manual-QA (owner verify act)** | MUST |
 | SZ-J2a | growth math: drag→width honors `growthFactor` 1 (aligned) vs 2 (centered) | design (behavior-preserved) + code | design-anchored | unit (pure fn) | MUST |

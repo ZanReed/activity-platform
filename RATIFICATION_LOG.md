@@ -30,6 +30,8 @@ Reading pointers (surprised / no-opinion items): none this round.
 
 | SZ-D6 | drag handles on the 3 authoring NodeViews | author-directed (build-time) | Surfaced during the build: their root wrapper is the whole authoring UI, so a width-drag crushes the editing surface. Reversed the "handles on 3 NodeViews" plan → drawer-only (BlockSizingField) for graph/data-plot/number-line; handles stay image-only. Shared hook still serves image (D1) + reserved for eye-toggle preview mode. Spec: SZ-J2b now image-only. |
 
+| SZ-D7 | editor visual feedback when sizing a figure | author-directed (post-build) | Author caught that D6 (drawer-only) left NO visual change in the editor — feels broken. Added shared `figureSizingStyle` to each view's board/figure region (not the controls); the board re-fits via the D3 JSXGraph resize. Browser-verified: 50% graph renders narrower + centered. Spec: SZ-M9. |
+
 Reading pointers (surprised / no-opinion items):
 - **SZ-skip-column (surprised):** container-width resolution lives in the shared hook's measure fn,
   ported from `ImageView.tsx:50-59` (`containerContentWidth`, walks `parentElement` minus padding);

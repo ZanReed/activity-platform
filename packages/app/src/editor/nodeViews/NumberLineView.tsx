@@ -8,6 +8,7 @@ import {
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { usePreviewToggle } from '../components/usePreviewToggle';
 import PromptField from '../components/PromptField';
+import { figureSizingStyle, readSizingAttrs } from '../figureSizingStyle';
 import {
     formatNumberLineInterval,
     parseNumberLineInterval,
@@ -60,12 +61,14 @@ function NumberLineAuthorBoard({
     epoch,
     onPointsChange,
     onIntervalChange,
+    sizing,
 }: {
     config: NumberLineConfigAttr;
     interaction: NumberLineInteractionAttr;
     epoch: number;
     onPointsChange: (points: number[]) => void;
     onIntervalChange: (interval: StudentInterval) => void;
+    sizing?: { width: number | null; align: 'left' | 'right' | null };
 }) {
     const hostRef = useRef<HTMLDivElement>(null);
     const pointsCb = useRef(onPointsChange);
@@ -129,7 +132,7 @@ function NumberLineAuthorBoard({
         <div
             ref={hostRef}
             contentEditable={false}
-            style={{ position: 'relative', height: '6rem', border: '1px solid var(--ed-border)', borderRadius: 6, background: '#fff' }}
+            style={{ position: 'relative', height: '6rem', border: '1px solid var(--ed-border)', borderRadius: 6, background: '#fff', ...figureSizingStyle(sizing?.width ?? null, sizing?.align ?? null) }}
         />
     );
 }
@@ -220,6 +223,7 @@ export default function NumberLineView({
     const interaction = node.attrs.interaction as NumberLineInteractionAttr;
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
     const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
+    const sizing = readSizingAttrs(node.attrs);
     const isEditable = editor.isEditable;
 
     const problemNumber = useMemo(
@@ -347,6 +351,7 @@ export default function NumberLineView({
                     epoch={epoch}
                     onPointsChange={onPointsChange}
                     onIntervalChange={onIntervalChange}
+                    sizing={sizing}
                 />
 
                 {!preview && (
