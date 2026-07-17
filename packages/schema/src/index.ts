@@ -70,6 +70,7 @@ export {
   SegmentAnswer,
   EndpointStyle,
   Drawable,
+  DrawableColor,
   DisplayInteraction,
   GraphInteraction,
   LearningObjectivesBlock,

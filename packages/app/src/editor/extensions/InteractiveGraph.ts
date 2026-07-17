@@ -121,8 +121,21 @@ export interface SegmentInteractionAttr {
 // Static-display drawables (interaction.type === 'display'). Parallel to the
 // schema's Drawable union; the NodeView reads them by `kind`. `curve` reuses the
 // same FunctionModelAttr plot_function uses (a display curve is one curve).
+// Authored per-drawable color, stored as a palette KEY (see @activity/graph-kit
+// DRAWABLE_PALETTE + @activity/schema DrawableColor). Kind-agnostic: it rides
+// on every variant and survives a row's text edit even when the kind changes.
+export type DrawableColorKey =
+    | 'blue'
+    | 'indigo'
+    | 'teal'
+    | 'green'
+    | 'amber'
+    | 'red'
+    | 'violet'
+    | 'slate';
+
 export type DrawableAttr =
-    | { kind: 'point'; at: [number, number]; label?: string; style?: 'open' | 'closed' }
+    | { kind: 'point'; at: [number, number]; label?: string; style?: 'open' | 'closed'; color?: DrawableColorKey }
     | {
           kind: 'curve';
           model: FunctionModelAttr;
@@ -131,11 +144,12 @@ export type DrawableAttr =
           domain?: { min?: number; minStyle?: 'open' | 'closed'; max?: number; maxStyle?: 'open' | 'closed' };
           // Continuation arrowheads on unbounded ends; undefined = on.
           arrows?: boolean;
+          color?: DrawableColorKey;
       }
-    | { kind: 'expression'; expression: string; style?: 'solid' | 'dashed'; arrows?: boolean }
-    | { kind: 'segment'; from: [number, number]; to: [number, number]; endpoints?: ['open' | 'closed', 'open' | 'closed'] }
-    | { kind: 'ray'; from: [number, number]; through: [number, number]; fromStyle?: 'open' | 'closed'; arrows?: boolean }
-    | { kind: 'polygon'; vertices: [number, number][]; filled: boolean };
+    | { kind: 'expression'; expression: string; style?: 'solid' | 'dashed'; arrows?: boolean; color?: DrawableColorKey }
+    | { kind: 'segment'; from: [number, number]; to: [number, number]; endpoints?: ['open' | 'closed', 'open' | 'closed']; color?: DrawableColorKey }
+    | { kind: 'ray'; from: [number, number]; through: [number, number]; fromStyle?: 'open' | 'closed'; arrows?: boolean; color?: DrawableColorKey }
+    | { kind: 'polygon'; vertices: [number, number][]; filled: boolean; color?: DrawableColorKey };
 export interface DisplayInteractionAttr {
     type: 'display';
     drawables: DrawableAttr[];

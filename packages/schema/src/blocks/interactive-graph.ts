@@ -223,12 +223,29 @@ export type InequalityInteraction = z.infer<typeof InequalityInteraction>;
 // day quadratic/exponential/logarithmic land they light up here AND in
 // plot_function at once. A `label` text-annotation drawable is deliberately
 // deferred (point.label covers the common case) — YAGNI, additive when needed.
+// Authored per-drawable color. Stored as a palette KEY (not a hex) so colors
+// stay semantic; the key list is defined HERE (dependency-free) and the key ->
+// hex map lives in @activity/graph-kit's DRAWABLE_PALETTE. A drift guard test
+// keeps the two lists in lockstep. Optional: absent = the shared default color.
+export const DrawableColor = z.enum([
+  'blue',
+  'indigo',
+  'teal',
+  'green',
+  'amber',
+  'red',
+  'violet',
+  'slate',
+]);
+export type DrawableColorT = z.infer<typeof DrawableColor>;
+
 const PointDrawable = z.object({
   kind: z.literal('point'),
   at: z.tuple([z.number(), z.number()]),
   label: z.string().optional(),
   // open = hollow (excluded), closed = filled. Default closed.
   style: EndpointStyle.optional(),
+  color: DrawableColor.optional(),
 });
 const CurveDrawable = z.object({
   kind: z.literal('curve'),
@@ -244,6 +261,7 @@ const CurveDrawable = z.object({
   // open/closed dot instead). undefined = true — arrows are the convention,
   // this flag is the opt-out (author call 2026-07-10).
   arrows: z.boolean().optional(),
+  color: DrawableColor.optional(),
 });
 
 // Drop 5: plot ANY parseable formula (sin(x), rationals, …) by sampling — the
@@ -254,6 +272,7 @@ const ExpressionDrawable = z.object({
   style: z.enum(['solid', 'dashed']).optional(),
   // Continuation arrowheads at both window exits (see CurveDrawable.arrows).
   arrows: z.boolean().optional(),
+  color: DrawableColor.optional(),
 });
 const SegmentDrawable = z.object({
   kind: z.literal('segment'),
@@ -261,6 +280,7 @@ const SegmentDrawable = z.object({
   to: z.tuple([z.number(), z.number()]),
   // Drop 5: open/closed endpoint dots ([from, to]). Default closed.
   endpoints: z.tuple([EndpointStyle, EndpointStyle]).optional(),
+  color: DrawableColor.optional(),
 });
 
 // Drop 5: a ray — starts at `from` (open/closed), passes through `through`,
@@ -272,11 +292,13 @@ const RayDrawable = z.object({
   fromStyle: EndpointStyle.optional(),
   // Continuation arrowhead on the unbounded end (see CurveDrawable.arrows).
   arrows: z.boolean().optional(),
+  color: DrawableColor.optional(),
 });
 const PolygonDrawable = z.object({
   kind: z.literal('polygon'),
   vertices: z.array(z.tuple([z.number(), z.number()])).min(3),
   filled: z.boolean().default(true),
+  color: DrawableColor.optional(),
 });
 export const Drawable = z.discriminatedUnion('kind', [
   PointDrawable,

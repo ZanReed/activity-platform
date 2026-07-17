@@ -124,6 +124,7 @@ export {
   SegmentAnswer,
   EndpointStyle,
   Drawable,
+  DrawableColor,
   DisplayInteraction,
   GraphInteraction,
 } from './interactive-graph.js';
