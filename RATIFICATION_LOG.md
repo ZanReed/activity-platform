@@ -53,6 +53,41 @@ Sweep verdict: the spec's OUTPUT (render) was well-pinned but the INPUT (gesture
 
 Reading pointers (surprised / no-opinion items): none in the main dialogue — all five predicted; the sweep additions were author-directed (not prediction items).
 
+## Graph systems (multi-answer inequality systems) — test-spec slice (2026-07-18)
+
+Prediction-before-reveal; author predicted first each time, then I revealed my recommendation.
+
+| id | decision | outcome | note |
+|---|---|---|---|
+| GS-mech | lock the mechanical MUST set GS-M1..M8 (schema member / N=1 regression / ingest accept / set-match all-vs-one / order-independence / N=1 scoring identity / serialize round-trip / runtime emit) | predicted | Author locked all 8 in one pass. |
+| GS-J1 | set-match algorithm: greedy consume-once vs **maximum bipartite matching** | **surprised** | My lean was greedy, for parity with the shipped `scorePoints`/blank-group precedent. Author chose bipartite — blast asymmetry (a fully-correct student marked wrong is the worst grading bug) beats precedent-parity, and boolean bipartite is ~25 lines pure. I under-weighted blast vs maintenance-symmetry. Adds GS-M9 (hard-matching test), design-anchored MUST, authored blind. |
+| GS-J2 | partial-credit granularity: **per-inequality `matched/N`** vs per-sub-part `Σ/3N` | predicted | Author agreed with rec: per-inequality (design says `matched/N`; consistent with every sibling multi-object scorer). The dormant `scoreInequalityPartial` (parts/3) is NOT reused for systems. |
+| GS-J4 | dashboard render of the new member: **MUST** vs SHOULD | predicted | Author agreed with rec: MUST. An unhandled union member can crash the submissions view, hiding ALL submissions for the activity. |
+| GS-trust | board visuals → owner manual-QA (GS-J1b); logged SKIPs (intersection visual, mixed strict/inclusive, degenerate identical boundaries); acceptance = automated logic-slice + owner board pass | predicted | Confirmed as stated in one pass. |
+| GS-S1 | N-row authoring editor coverage: e2e MUST / **e2e SHOULD** / owner-manual | predicted | Author chose e2e SHOULD — GS-M7 serialize round-trip already pins the N-element shape; the add/remove interaction is lighter risk. |
+
+**Same-context completeness sweep (inline — NOT the independent cross-model reader the CR slice got; harness would not spawn a subagent without an explicit ask, flagged to author). 3 findings, all folded in (author-directed, multi-select):**
+
+| id | decision | outcome | note |
+|---|---|---|---|
+| GS-sweep-inv | add GS-INV1 (scorer robustness: never throws; `parts.length<N` → `correct:false`, extras ignored) | author-directed | The pure scorer is a public seam that can receive a malformed/partial wire even though the board mounts exactly N widgets. |
+| GS-sweep-omit | add GS-S2 (untouched system follows today's single-inequality omission/record behavior) | author-directed | Regression-consistency — a skipped system must not be silently scored wrong. |
+| GS-sweep-oos | out-of-scope clarifications: no-solution+system deferred; intersection never scored | author-directed | Documentation only — prevents someone speccing a phantom intersection-area test. |
+
+Open decision RESOLVED (build-time, per the design's UNRESOLVED note): **no `submission.schemaVersion`
+bump.** Verified the Ray/Segment precedent against the live ingest parser — `RayResponse`/`SegmentResponse`
+were added to `GraphResponseV4` with no version entry in the migration history; ingest gates on
+`schemaVersion` (stays 9) then Zod-parses `graphResponses` against `GraphResponseV4`. Adding
+`graph_inequality_system` to that union is additive; a v9 page emitting it will 422 against the LIVE ingest
+until ingest is redeployed — hence the deploy-before-republish rule — but the version constant is unchanged.
+
+Reading pointers (surprised / no-opinion items):
+- **GS-J1 (surprised):** `scorePoints` at `packages/graph-kit/src/graph-score.ts:45` is the greedy
+  consume-once precedent this scorer deliberately DEPARTS from. Read it before building GS-M9 to see the
+  exact matching shape being upgraded — the system scorer is bipartite where `scorePoints` is greedy, and
+  GS-M9 is the test that pins the difference. The blind spot to carry forward: weigh grading-blast over
+  cross-scorer maintenance-symmetry when the two conflict.
+
 ## Group 3 sizing slice — additional reading pointers
 
 Reading pointers (surprised / no-opinion items):

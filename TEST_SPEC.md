@@ -22,6 +22,17 @@ SHOULD; one owner manual-QA verify act CR-J1b). Sweep added the gesture-coord-ma
 zero-srcAspect-guard, alt-retention, re-enter-crop, and in-bounds gaps. Design:
 [docs/design/image-crop.md](docs/design/image-crop.md).
 
+**Graph systems slice (multi-answer inequality systems): RATIFIED 2026-07-18 — spec only, NOT yet
+built.** See "Slice: Graph systems" below (GS-M1..M11 + GS-INV1 MUST, GS-S1/GS-S2 SHOULD; one
+owner manual-QA verify act GS-J1b). Ratified calls (RATIFICATION_LOG.md): J1 → **maximum bipartite
+matching** for the set-match (NOT greedy — author overruled my precedent-parity lean on blast;
+adds GS-M9 hard-matching test); J2 → partial credit is **per-inequality matched/N** (not per-sub-part,
+`scoreInequalityPartial` NOT reused for systems); J4 → dashboard render pinned MUST; N-row authoring
+= e2e SHOULD. Same-context completeness sweep added GS-INV1 (scorer robustness) + GS-S2 (omission
+consistency) + out-of-scope clarifications. **Open decision resolved: NO `submission.schemaVersion`
+bump** (Ray/Segment precedent — additive `GraphResponseV4` member; ingest redeploy still required
+before republish). Design: [docs/design/graph-systems.md](docs/design/graph-systems.md).
+
 ---
 
 ## Slice: interactive-graph settings → descriptor-drawer extraction
@@ -362,3 +373,126 @@ CR-M2 must assert the ACTUAL computed values (aspect-ratio + all four offsets), 
 `.is-cropped` class. Mutation sanity: a build that drops `position:relative`/`display:block`,
 emits `100/w` without clamping `w>0`, or writes `srcAspect` onto an uncropped image, must turn
 CR-M2 / CR-M6 / CR-INV-both red.
+
+---
+
+## Slice: Graph systems — multi-answer inequality systems
+
+**Under test:** `graph_inequality` with `inequalities.length > 1` — a *system* the student answers by
+plotting N boundaries and choosing each side/style; scored **match-all, order-independent**, honoring
+the block's `partialCredit` flag. Plus the new additive `graph_inequality_system` student-response
+wire member.
+**Design reference:** [docs/design/graph-systems.md](docs/design/graph-systems.md) (office-hours +
+eng-review CLEARED 2026-07-18).
+**Slice boundary:** inequality **systems only**. Out of slice: functions-systems (fast-follow),
+rays/segments multi-answer, ordered/match-any scoring, no-solution wired to systems. **N=1 identity is
+IN** — the load-bearing regression guard.
+
+**Acceptance statement:** *Trusted to ship when a 2-inequality system can be authored (N answer rows),
+publishes, a student plots both boundaries + picks both sides/styles, submits, the wire carries a
+`graph_inequality_system` response, it is scored match-all + order-independent honoring `partialCredit`
+(per-inequality `matched/N`), the dashboard renders it — and N=1 renders/scores byte-identically to
+today.*
+
+**Where the risk concentrates:**
+1. **The set-match scorer** — order-independent match-all over N. A wrong matching false-negatives a
+   *fully-correct* student (worst grading bug). Ratified J1: **maximum bipartite matching**, not greedy.
+2. **The new union member** (`graph_inequality_system` in `GraphResponseV4`) — every consumer that
+   branches on `type` (ingest Zod parse, submissions dashboard, migration) must handle it or crash/reject.
+3. **N=1 identity** — the runtime/scorer must NOT switch to the system path at N=1; a leak silently
+   changes every existing single-inequality question in the field.
+
+### Must-test index
+
+| # | behavior | traces to | anchor | method | tier |
+|---|---|---|---|---|---|
+| GS-M1 | `graph_inequality_system` member parses: `{ type, parts: InequalityResponse[], correct, earned?, total?, confidence? }` | design (wire member) | design-anchored | unit | MUST |
+| GS-M2 | N=1 answer-key + single `graph_inequality` response shape unchanged; existing graph/other responses still parse | design (regression guard) | design-anchored | unit | MUST |
+| GS-M3 | ingest accepts the new member at `schemaVersion 9` (NO bump), still accepts existing responses, still 422s an unknown `type` | design (deploy rule) + code (ingest parser) | design-anchored | unit | MUST |
+| GS-M4 | set-match: all N pairs correct → `correct:true`; exactly one part (boundary/side/style) wrong → `correct:false` (partial OFF) | design (match-all) | design-anchored | unit | MUST |
+| GS-M5 | order-independence: student parts in reversed order score identically | design (order-independent) | design-anchored | unit | MUST |
+| GS-M6 | N=1 scores identically to `scoreInequality` (byte-identical) | design (regression guard) | design-anchored | unit | MUST |
+| GS-M7 | serialize round-trip: a 2-inequality answer-key survives tiptap→activity→tiptap unchanged | code (serialize) | code-pin | unit | MUST |
+| GS-M8 | runtime emits `graph_inequality_system` at N>1 and the plain single `graph_inequality` response at N=1 | design (system path activates only at >1) | design-anchored | unit/jsdom | MUST |
+| GS-M9 | **hard matching**: two authored boundaries within tolerance, parts arranged so first-come fails but a complete pairing exists → `correct:true` | design (order-independent match-all; J1 bipartite) | design-anchored | unit | MUST |
+| GS-M10 | partial credit ON = per-inequality `matched/N` (A full, B style-wrong → 1/2); partial OFF → any wrong → 0 | design (`partialCredit`; J2) | design-anchored | unit | MUST |
+| GS-M11 | submissions dashboard renders a `graph_inequality_system` response (parts + correct/earned) without crashing | design (e2e dashboard; J4) | design-anchored | e2e/component | MUST |
+| GS-INV1 | set-match never throws; `parts.length < N` → `correct:false`, extra parts ignored | code (public scorer seam) + sweep | design-anchored | property/unit | MUST |
+| GS-S1 | authoring: add/remove inequality rows writes `interaction.inequalities` as N elements (replaces today's single-element writes) | code (single→N write path) | code-pin | e2e | SHOULD |
+| GS-S2 | an untouched system block follows today's single-`graph_inequality` omission/record behavior | design (regression-consistency) + sweep | design-anchored | unit/jsdom | SHOULD |
+| GS-J1b | **owner manual-QA:** author+publish a real 2-ineq system → author board shades both half-planes + intersection → student plots both + picks sides/styles, running intersection renders → submit → dashboard scored; + N=1 predict-then-run unchanged | design (acceptance) | design-anchored | manual-QA | MUST |
+
+### Invariants (property candidates)
+- **GS-INV1 (load-bearing):** the set-match scorer is total — it never throws on any `parts` array. A
+  short array (`< N`) yields `correct:false`; a long array ignores extras. The public pure seam
+  (`graph-score.ts`) can receive a malformed/partial wire even though the board mounts exactly N widgets.
+- **Permutation invariance (subsumes GS-M5/GS-M9):** for any fully-correct student answer, *every*
+  permutation of `parts` scores `correct:true` — i.e. if a perfect bipartite matching exists, the scorer
+  finds it regardless of part order. This is the property GS-M9 pins at the adversarial (within-tolerance)
+  corner and GS-M5 pins at the ordinary corner.
+
+### Failure modes & edge cases — triaged
+- **MUST** — hard-matching false-negative (GS-M9). likelihood LOW (needs within-tolerance authored
+  boundaries in a system) / blast HIGH (correct student marked wrong) / cost LOW. The bipartite decision
+  exists to kill this class; prove it.
+- **MUST** — new union member unhandled by a consumer: ingest 422s a valid system, or the dashboard
+  crashes hiding ALL submissions (GS-M3, GS-M11). blast HIGH.
+- **MUST** — N=1 leaks into the system path (GS-M2/M6/M8). blast HIGH — every existing single-inequality
+  question in the field.
+- **MUST** — scorer throws on a malformed/short `parts` wire (GS-INV1).
+- **SHOULD** — an untouched system scored wrong instead of omitted (GS-S2).
+- **SKIP (logged):**
+  - Intersection shading VISUAL — overlap darkness, empty/contradictory-system "render nothing, don't
+    crash" → board render, owner eyeball (GS-J1b). No jsdom seam for JSXGraph (repo standing constraint).
+  - Mixed strict/inclusive per part → already carried by each part's own `side`+`strict` fields; GS-M4/M5
+    exercise them. No separate test.
+  - Degenerate *identical* authored boundaries → subsumed by GS-M9 (bipartite makes the matching
+    well-defined). Not a separate pin.
+
+### Out of scope
+- **Functions-systems** (multiple curves) — the fast-follow; reuses this wire + set-match scoring.
+- Rays/segments multi-answer; ordered / match-any scoring (match-all is the ruled semantics).
+- **No-solution + system** — this slice does NOT wire `allowNoSolution` to systems (deferred).
+- **The visual intersection is never scored** — correctness is per-boundary set-match only; do not spec an
+  intersection-area test.
+- The answer-key schema itself (`inequalities: array.min(1)` is already N-ready — unchanged).
+- `submission.schemaVersion` bump — resolved NOT needed (additive `GraphResponseV4` member, Ray/Segment
+  precedent); the ingest redeploy-before-republish is a deploy step, not a test item.
+
+### Verification plan
+- **Automated, design-anchored (author BLIND to the diff — fresh session, design doc + this spec only):**
+  GS-M1, M2, M3, M4, M5, M6, M8, M9, M10, M11, INV1, S2. These encode intended behavior and can honestly
+  fail. GS-M9 in particular must be authored without seeing the matching implementation.
+- **Automated, code-anchored pins (may read the code):** GS-M7 (serialize round-trip), GS-S1 (authoring
+  add/remove-row e2e).
+- **Human manual-QA pass (owner):** GS-J1b — the board visuals (student + author) that have no unit seam.
+  Logged in RATIFICATION_LOG.
+- Playwright is authoritative for app/dashboard e2e (the in-app browser pane suppresses position-measured
+  hosts). Board *plotting* is owner manual — JSXGraph doesn't run in jsdom.
+- **Deploy context (not a test):** kit upload → `deploy:ingest` (accept the new member) BEFORE
+  `deploy:publish`; `pnpm bundle:renderer` + commit after the schema change.
+
+### Acceptance scenario (ship gate)
+Two legs, both required:
+1. **Automated logic slice:** construct a `graph_inequality_system` wire for a 2-inequality system →
+   passes the schema + ingest Zod parse at `schemaVersion 9` → the set-match scorer returns the ratified
+   `correct`/`earned` (all-correct → correct; A-full/B-wrong under partial → 1/2) → the dashboard renders
+   it. Green.
+2. **Owner manual board pass (GS-J1b):** a real authored 2-ineq system, published; student plots both
+   boundaries + picks each side/style on the live board, submits; dashboard shows it scored; and an N=1
+   question is visually unchanged (predict-then-run).
+
+Both green = shippable.
+
+### Trust check
+Load-bearing: GS-M9, GS-INV1, and the N=1-identity trio (GS-M2/M6/M8). Ensure the tests actually detect
+faults:
+- **GS-M9** must be authored blind and must go RED against a naive greedy scorer (mutation sanity: swap
+  the bipartite match for first-come consume-once → GS-M9 fails). A test that only checks the ordinary
+  order-independent case (GS-M5) would pass a greedy impl and is NOT a substitute.
+- **N=1 identity** tests must read back the FULL emitted wire `type` (assert `graph_inequality`, not just
+  a field value), so a leak to `graph_inequality_system` turns GS-M8/M2 red.
+- **GS-M11** must assert the dashboard actually renders the parts (not merely "did not throw") — a
+  swallowed render error would green-light a naive test.
+- **GS-INV1** must feed genuinely malformed arrays (empty, short, over-long, wrong inner shape) and assert
+  no throw + the documented `correct:false`/ignore-extras outcome.
