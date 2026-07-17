@@ -154,6 +154,19 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
 // The "first answer, or a default" accessors live in graphAnswerHelpers (a leaf
 // module shared with GraphSettings — see its header). Imported above.
 
+// Distinct per-row colors for the system (multi-inequality) preview — DrawableColor
+// palette KEYS, mirroring the student board's per-boundary hues. Reused mod N.
+const SYSTEM_PREVIEW_COLORS = ['violet', 'blue', 'green', 'amber', 'red'] as const;
+// Approximate hexes for the authoring row chips (a label hint next to each
+// inequality row; the board itself paints the real palette color).
+const SYSTEM_PREVIEW_HEX: Record<(typeof SYSTEM_PREVIEW_COLORS)[number], string> = {
+    violet: '#7c3aed',
+    blue: '#2563eb',
+    green: '#059669',
+    amber: '#d97706',
+    red: '#dc2626',
+};
+
 // The canonical inequality string: formatModel's equation with `=` swapped for
 // the operator the side + strictness imply. Reparseable by parseGraphFormula.
 function formatInequality(a: InequalityAnswerAttr): string {
@@ -589,6 +602,65 @@ export default function InteractiveGraphView({
         updateAttributes({ interaction: { ...interaction, correctPoints: points } });
     };
 
+    // ---- graph_inequality SYSTEM authoring (inequalities.length > 1) ----------
+    // The teacher authors each boundary as a typed inequality row; the whole
+    // `inequalities` array is the answer key (already N-ready in the schema). A
+    // single inequality (N=1) behaves exactly as before — one row, no Remove.
+    const applyInequalityAt = (i: number, raw: string): string | null => {
+        if (interaction.type !== 'graph_inequality') return 'Not an inequality question';
+        const parsed = parseGraphFormula(raw);
+        if (parsed.kind === 'error') return parsed.message;
+        if (parsed.kind !== 'inequality') {
+            return 'Type an inequality, like y > 2x + 1 (use <, <=, > or >=)';
+        }
+        const next = interaction.inequalities.map((ineq, k) =>
+            k === i
+                ? {
+                      boundary: parsed.boundary as FunctionModelAttr,
+                      strict: parsed.strict,
+                      shadeSide: parsed.side,
+                  }
+                : ineq,
+        );
+        updateAttributes({ interaction: { type: 'graph_inequality', inequalities: next } });
+        setFormulaEpoch((e) => e + 1);
+        return null;
+    };
+
+    const addInequality = (): void => {
+        if (interaction.type !== 'graph_inequality') return;
+        // Seed a sane new boundary (y > x, shaded above) the teacher then edits.
+        const seed: InequalityAnswerAttr = {
+            boundary: {
+                family: 'linear',
+                slope: 1,
+                intercept: 0,
+                slopeTolerance: 0.1,
+                interceptTolerance: 0.1,
+            },
+            strict: true,
+            shadeSide: 'above',
+        };
+        updateAttributes({
+            interaction: {
+                type: 'graph_inequality',
+                inequalities: [...interaction.inequalities, seed],
+            },
+        });
+        setFormulaEpoch((e) => e + 1);
+    };
+
+    const removeInequalityAt = (i: number): void => {
+        if (interaction.type !== 'graph_inequality' || interaction.inequalities.length <= 1) return;
+        updateAttributes({
+            interaction: {
+                type: 'graph_inequality',
+                inequalities: interaction.inequalities.filter((_, k) => k !== i),
+            },
+        });
+        setFormulaEpoch((e) => e + 1);
+    };
+
     // Mistake feedback (Drop B): authored anticipated mistakes + helpers. The
     // match string uses the same freeform syntax as the answer field; a bad one
     // gets an inline warning but is still stored (it compiles to never-matching
@@ -631,6 +703,23 @@ export default function InteractiveGraphView({
                     : interaction.type === 'plot_segment'
                       ? formatSegment(firstSegment(interaction.segments))
                       : '';
+
+    // A system (graph_inequality with N > 1 inequalities) previews as N shaded
+    // half-planes on a static display board — the overlap darkens into the
+    // solution region, exactly what the student board renders. Distinct per-row
+    // colors (DrawableColor keys) match the row order below.
+    const isSystem =
+        interaction.type === 'graph_inequality' && interaction.inequalities.length > 1;
+    const systemPreviewDrawables: DrawableAttr[] =
+        interaction.type === 'graph_inequality'
+            ? interaction.inequalities.map((ineq, i) => ({
+                  kind: 'curve' as const,
+                  model: ineq.boundary,
+                  style: ineq.strict ? ('dashed' as const) : ('solid' as const),
+                  shade: ineq.shadeSide,
+                  color: SYSTEM_PREVIEW_COLORS[i % SYSTEM_PREVIEW_COLORS.length],
+              }))
+            : [];
 
     // The freeform answer field (Drop 3): type an equation/coordinates in ANY
     // format → parse → the answer + handles update. Applied on Enter or blur.
@@ -883,17 +972,86 @@ export default function InteractiveGraphView({
                                 on paper or a Chromebook. Two columns (or full width) reads better.
                             </p>
                         )}
-                        <GraphAuthorBoard
-                            axisConfig={axisConfig}
-                            interaction={interaction}
-                            onPointsChange={onPointsChange}
-                            onLinearChange={onLinearChange}
-                            onDomainChange={onDomainChange}
-                            formulaEpoch={formulaEpoch}
-                            sizing={sizing}
-                        />
+                        {isSystem ? (
+                            // A system authors via the typed rows below; the board
+                            // is a static preview of the N shaded half-planes (the
+                            // single-boundary interactive author board can't hold N).
+                            <DisplayPreviewBoard
+                                axisConfig={axisConfig}
+                                drawables={systemPreviewDrawables}
+                                sizing={sizing}
+                            />
+                        ) : (
+                            <GraphAuthorBoard
+                                axisConfig={axisConfig}
+                                interaction={interaction}
+                                onPointsChange={onPointsChange}
+                                onLinearChange={onLinearChange}
+                                onDomainChange={onDomainChange}
+                                formulaEpoch={formulaEpoch}
+                                sizing={sizing}
+                            />
+                        )}
 
-                        {!preview && (<>
+                        {!preview && interaction.type === 'graph_inequality' ? (
+                            <div style={{ marginTop: '0.35rem' }}>
+                                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
+                                    Type each inequality — the sign sets dotted/solid and the shaded
+                                    side.{' '}
+                                    {isSystem
+                                        ? 'The shaded overlap is the solution region.'
+                                        : 'Add a second inequality to make a system.'}
+                                </p>
+                                {interaction.inequalities.map((ineq, i) => (
+                                    <div
+                                        key={`ineq-row:${i}:${interaction.inequalities.length}`}
+                                        style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', marginTop: '0.3rem' }}
+                                    >
+                                        {interaction.inequalities.length > 1 && (
+                                            <span
+                                                aria-hidden
+                                                style={{
+                                                    width: '0.7rem', height: '0.7rem', borderRadius: 2, flex: 'none',
+                                                    marginTop: '0.5rem',
+                                                    background: SYSTEM_PREVIEW_HEX[SYSTEM_PREVIEW_COLORS[i % SYSTEM_PREVIEW_COLORS.length]!],
+                                                }}
+                                            />
+                                        )}
+                                        <div style={{ flex: 1 }}>
+                                            <FormulaField
+                                                key={`ineq:${i}`}
+                                                label={interaction.inequalities.length > 1 ? `Inequality ${i + 1}:` : 'Answer:'}
+                                                value={formatInequality(ineq)}
+                                                disabled={!isEditable}
+                                                placeholder="y > 2x + 1   ·   y <= x^2   ·   x >= 3"
+                                                onApply={(raw) => applyInequalityAt(i, raw)}
+                                                modeKey="answer:graph_inequality"
+                                                defaultMode="math"
+                                            />
+                                        </div>
+                                        {interaction.inequalities.length > 1 && (
+                                            <button
+                                                type="button"
+                                                disabled={!isEditable}
+                                                onClick={() => removeInequalityAt(i)}
+                                                title="Remove this inequality"
+                                                style={{ font: 'inherit', fontSize: '0.75rem', padding: '0.15rem 0.4rem', marginTop: '0.35rem', border: '1px solid var(--ed-border)', borderRadius: 4, background: 'var(--ed-surface)', color: 'var(--ed-text-secondary)', cursor: 'pointer', flex: 'none' }}
+                                            >
+                                                Remove
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    disabled={!isEditable}
+                                    onClick={addInequality}
+                                    style={{ font: 'inherit', fontSize: '0.78rem', marginTop: '0.4rem', padding: '0.2rem 0.55rem', border: '1px dashed var(--ed-border)', borderRadius: 4, background: 'transparent', color: 'var(--ed-text-secondary)', cursor: 'pointer' }}
+                                >
+                                    + Add inequality
+                                </button>
+                            </div>
+                        ) : !preview && (<>
                         <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
                             {interaction.type === 'plot_point'
                                 ? `Drag the ${interaction.correctPoints.length > 1 ? 'points' : 'point'} — or type the answer below. `
