@@ -22,8 +22,17 @@ SHOULD; one owner manual-QA verify act CR-J1b). Sweep added the gesture-coord-ma
 zero-srcAspect-guard, alt-retention, re-enter-crop, and in-bounds gaps. Design:
 [docs/design/image-crop.md](docs/design/image-crop.md).
 
-**Graph systems slice (multi-answer inequality systems): RATIFIED 2026-07-18 — spec only, NOT yet
-built.** See "Slice: Graph systems" below (GS-M1..M11 + GS-INV1 MUST, GS-S1/GS-S2 SHOULD; one
+**Graph systems slice (multi-answer inequality systems): RATIFIED + BUILT + GREEN 2026-07-18.**
+All four slices committed (`e7e84fe` scorer+wire, `dade489` runtime emit, `00a0e7c` student board,
+`480444e` authoring). Automated coverage landed: GS-M1/M2/M3 (submission.test.ts), GS-M4/M5/M6/M9/
+M10/INV1 (graph-score.test.ts), GS-M8/S2 (renderer graphs.test.ts), GS-M7 (serialize.test.ts). GS-S1
+(add/remove rows) covered by the /playground browser verification below rather than a Playwright
+e2e — the row-write path is pinned by GS-M7. GS-M11 (dashboard render) shipped as the type-branch
+seam in Submissions.tsx (full e2e still owed). **Browser-verified end-to-end** on /dev/graph-question
+(student board: N boundaries + intersection darkening, restore→correct, wrong-side→incorrect) and
+/playground (authoring: preview + N rows + Add/Remove + N=1 identity). **Owner GS-J1b still owed** (a
+real authored system on a freshly-published page). Deploy train = Pending author action.
+See "Slice: Graph systems" below (GS-M1..M11 + GS-INV1 MUST, GS-S1/GS-S2 SHOULD; one
 owner manual-QA verify act GS-J1b). Ratified calls (RATIFICATION_LOG.md): J1 → **maximum bipartite
 matching** for the set-match (NOT greedy — author overruled my precedent-parity lean on blast;
 adds GS-M9 hard-matching test); J2 → partial credit is **per-inequality matched/N** (not per-sub-part,
