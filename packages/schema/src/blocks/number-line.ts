@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
 import { EndpointStyle } from './interactive-graph.js';
+import { sizingFields } from '../sizing.js';
 
 // =============================================================================
 // number-line.ts — the number_line block (1-D graded, K-8 / early algebra)
@@ -109,5 +110,8 @@ export const NumberLineBlock = z.object({
   solution: z.array(InlineNode).optional(),
   hasConfidenceRating: z.boolean().default(false),
   skills: z.array(z.string()).default([]),
+  // Variable block sizing: optional width fraction + alignment (sizing.ts).
+  // Additive/optional — no schemaVersion bump.
+  ...sizingFields,
 });
 export type NumberLineBlock = z.infer<typeof NumberLineBlock>;

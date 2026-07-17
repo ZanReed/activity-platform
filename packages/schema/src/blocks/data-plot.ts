@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
 import { NumberLineConfig } from './number-line.js';
+import { sizingFields } from '../sizing.js';
 
 // =============================================================================
 // data-plot.ts — the data_plot block (statistics charts)
@@ -146,5 +147,8 @@ export const DataPlotBlock = z.object({
   solution: z.array(InlineNode).optional(),
   hasConfidenceRating: z.boolean().default(false),
   skills: z.array(z.string()).default([]),
+  // Variable block sizing: optional width fraction + alignment (sizing.ts).
+  // Additive/optional — no schemaVersion bump.
+  ...sizingFields,
 });
 export type DataPlotBlock = z.infer<typeof DataPlotBlock>;

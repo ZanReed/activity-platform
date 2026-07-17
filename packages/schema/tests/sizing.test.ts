@@ -12,9 +12,15 @@ import {
   ImageBlock,
   MathBlock,
   Row,
+  InteractiveGraphBlock,
+  DataPlotBlock,
+  NumberLineBlock,
   createImageBlock,
   createMathBlock,
   createRow,
+  createInteractiveGraphBlock,
+  createDataPlotBlock,
+  createNumberLineBlock,
 } from '../src/index.js';
 
 describe('Per-block sizing (width/align)', () => {
@@ -61,6 +67,41 @@ describe('ImageBlock.height (fixed display height, rem)', () => {
     expect(ImageBlock.safeParse({ ...baseImage(), height: 0 }).success).toBe(false);
     expect(ImageBlock.safeParse({ ...baseImage(), height: -4 }).success).toBe(false);
   });
+});
+
+// SZ-M1 — the Group 3 sizing slice extends the sizing fragment to the three
+// figure blocks (graph / data-plot / number-line). Same additive/optional
+// contract as ImageBlock: absent still validates, width bounds enforced, the
+// three alignments accepted. One parametrized sweep so a new figure block that
+// forgets the fragment shows up as a failing row.
+describe('Per-block sizing on figure blocks (graph / data-plot / number-line)', () => {
+  const cases = [
+    ['interactive_graph', InteractiveGraphBlock, createInteractiveGraphBlock],
+    ['data_plot', DataPlotBlock, createDataPlotBlock],
+    ['number_line', NumberLineBlock, createNumberLineBlock],
+  ] as const;
+
+  for (const [name, Schema, make] of cases) {
+    describe(name, () => {
+      it('validates without sizing fields (additive change)', () => {
+        expect(Schema.safeParse(make()).success).toBe(true);
+      });
+
+      it('accepts a width fraction in (0, 1] with each alignment', () => {
+        for (const align of ['left', 'center', 'right'] as const) {
+          expect(Schema.safeParse({ ...make(), width: 0.5, align }).success).toBe(true);
+        }
+        expect(Schema.safeParse({ ...make(), width: 1 }).success).toBe(true);
+      });
+
+      it('rejects width 0, negative width, width > 1, and an unknown align', () => {
+        expect(Schema.safeParse({ ...make(), width: 0 }).success).toBe(false);
+        expect(Schema.safeParse({ ...make(), width: -0.25 }).success).toBe(false);
+        expect(Schema.safeParse({ ...make(), width: 1.2 }).success).toBe(false);
+        expect(Schema.safeParse({ ...make(), width: 0.5, align: 'middle' }).success).toBe(false);
+      });
+    });
+  }
 });
 
 describe('Column.minHeight', () => {

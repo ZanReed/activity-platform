@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
+import { sizingFields } from '../sizing.js';
 
 // The interactive graph block (Phase 2.7, Stage 5). Unlike every other block,
 // the student's answer is GEOMETRIC — a point they plot on a coordinate plane —
@@ -421,5 +422,9 @@ export const InteractiveGraphBlock = z.object({
   solution: z.array(InlineNode).optional(),
   hasConfidenceRating: z.boolean().default(false),
   skills: z.array(z.string()).default([]),
+  // Variable block sizing: optional width fraction + alignment (sizing.ts).
+  // Author-set display footprint for the figure; renderer honors it via the
+  // shared .block-sized path. Additive/optional — no schemaVersion bump.
+  ...sizingFields,
 });
 export type InteractiveGraphBlock = z.infer<typeof InteractiveGraphBlock>;
