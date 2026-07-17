@@ -302,28 +302,50 @@ function gatherGraphResponses(
         correct += 1;
       }
     }
-    if (gs.answered && (gs.points.length > 0 || gs.noSolution)) {
-      const result: GraphResult = {
-        type: ref.interactionType,
-        studentPoints: gs.points,
-        correct: gs.result === true,
-      };
+    const isSystem = (gs.parts?.length ?? 0) > 0;
+    if (gs.answered && (gs.points.length > 0 || gs.noSolution || isSystem)) {
+      let result: GraphResult;
+      if (isSystem) {
+        // graph_inequality SYSTEM (inequalities.length > 1): the additive
+        // graph_inequality_system member. The N-boundary answer lives in
+        // `parts`; studentPoints is empty (unused for a system). N=1 never
+        // reaches here — the single path below stays byte-identical to today.
+        result = {
+          type: 'graph_inequality_system',
+          studentPoints: [],
+          parts: gs.parts!.map((p) => ({
+            type: 'graph_inequality',
+            studentPoints: p.points,
+            strict: p.strict,
+            side: p.side,
+            correct: p.correct,
+          })),
+          correct: gs.result === true,
+        };
+      } else {
+        result = {
+          type: ref.interactionType,
+          studentPoints: gs.points,
+          correct: gs.result === true,
+        };
+        // v4 fields — emitted only when present so v3-shaped consumers of point/
+        // line/region responses see the exact old shape.
+        if (ref.interactionType === 'graph_inequality') {
+          result.strict = gs.strict === true;
+          result.side = gs.side ?? 'above';
+        }
+        if (ref.interactionType === 'plot_ray' || ref.interactionType === 'plot_segment') {
+          // The chosen shape is part of the answer; styles ride per shape family
+          // (a ray records its endpoint style, a segment both).
+          if (gs.shape) result.shape = gs.shape;
+          if (ref.interactionType === 'plot_ray') result.fromStyle = gs.fromStyle ?? 'closed';
+          else result.endpoints = gs.endpoints ?? ['closed', 'closed'];
+        }
+        if (gs.noSolution) result.noSolution = true;
+        if (gs.domain) result.domain = gs.domain;
+      }
+      // Shared tail — confidence + partial-credit fraction apply to every type.
       if (gs.confidence) result.confidence = gs.confidence;
-      // v4 fields — emitted only when present so v3-shaped consumers of point/
-      // line/region responses see the exact old shape.
-      if (ref.interactionType === 'graph_inequality') {
-        result.strict = gs.strict === true;
-        result.side = gs.side ?? 'above';
-      }
-      if (ref.interactionType === 'plot_ray' || ref.interactionType === 'plot_segment') {
-        // The chosen shape is part of the answer; styles ride per shape family
-        // (a ray records its endpoint style, a segment both).
-        if (gs.shape) result.shape = gs.shape;
-        if (ref.interactionType === 'plot_ray') result.fromStyle = gs.fromStyle ?? 'closed';
-        else result.endpoints = gs.endpoints ?? ['closed', 'closed'];
-      }
-      if (gs.noSolution) result.noSolution = true;
-      if (gs.domain) result.domain = gs.domain;
       if (typeof gs.earned === 'number' && typeof gs.total === 'number') {
         result.earned = gs.earned;
         result.total = gs.total;

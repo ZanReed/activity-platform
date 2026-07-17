@@ -217,6 +217,27 @@ describe('graph systems — graph_inequality_system (additive member, no schemaV
     expect(SubmissionResponses.safeParse(data).success).toBe(false);
   });
 
+  it('GS-M3: accepts the exact runtime-emitted system object (extra studentPoints:[] is stripped)', () => {
+    const graphId = crypto.randomUUID();
+    const parsed = SubmissionResponses.safeParse({
+      schemaVersion: 9,
+      blanks: {},
+      graphResponses: {
+        [graphId]: {
+          type: 'graph_inequality_system',
+          studentPoints: [], // the runtime emits this; the member has no such field
+          parts: [inequalityPart('above', false), inequalityPart('below', true)],
+          correct: true,
+          earned: 2,
+          total: 2,
+        },
+      },
+    });
+    expect(parsed.success).toBe(true);
+    const stored = parsed.success ? parsed.data.graphResponses![graphId] : null;
+    expect(stored && 'studentPoints' in stored).toBe(false); // stripped on parse
+  });
+
   it('GS-M2: a single graph_inequality response (N=1 path) still parses unchanged alongside the new member', () => {
     const graphId = crypto.randomUUID();
     const data = {

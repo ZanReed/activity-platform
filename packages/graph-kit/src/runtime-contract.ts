@@ -38,6 +38,21 @@ export interface GraphDomainAnswer {
 }
 
 /**
+ * One boundary of a graph_inequality SYSTEM (inequalities.length > 1): the
+ * student's plotted boundary points + their side/style choice, plus whether
+ * that boundary matches at least one authored inequality (a per-boundary signal
+ * the dashboard can show; the block's OVERALL correctness is the order-
+ * independent set-match, not the AND of these). Mirrors the wire's per-part
+ * InequalityResponse minus its `type` tag (added at emit).
+ */
+export interface GraphInequalityPart {
+  points: [number, number][];
+  strict: boolean;
+  side: 'above' | 'below' | 'left' | 'right';
+  correct: boolean;
+}
+
+/**
  * Per-interactive-graph-block state. Lives in the runtime's RuntimeState (and
  * its persisted localStorage blob — see the versioning note above); written by
  * the kit-side plumbing as the student answers; read by the runtime's inline
@@ -81,6 +96,15 @@ export interface GraphBlockState {
   fromStyle?: 'open' | 'closed';
   /** plot_segment: per-endpoint style choices, canonical order. */
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
+  /**
+   * graph_inequality SYSTEM (inequalities.length > 1): one entry per authored
+   * boundary the student plotted — the N-boundary answer the single `points`/
+   * `strict`/`side` fields above cannot hold. Present ONLY for a system; a
+   * single-inequality block (N=1) leaves this undefined and keeps using
+   * points/strict/side, so N=1 state + emit + scoring stay byte-identical to
+   * today. Additive optional field — an older stored blob simply lacks it.
+   */
+  parts?: GraphInequalityPart[];
   /**
    * Mistake feedback for a WRONG answer: the matched authored entry's template
    * index, or a built-in classifier's message text. At most one is set; both

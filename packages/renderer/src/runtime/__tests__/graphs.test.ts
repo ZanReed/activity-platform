@@ -38,10 +38,19 @@ const config: RuntimeConfig = {
 
 const esc = (s: string): string => s.replace(/"/g, '&quot;');
 
-/** Renderer-shaped markup for a plot_point graph block inside a checkpoint section. */
-function mount(opts: { withSolution?: boolean; withKit?: boolean } = {}): void {
+/** Renderer-shaped markup for a graph block inside a checkpoint section. Defaults
+ *  to plot_point; pass interactionType/answerKey to mount a graph_inequality or a
+ *  system (the inline bridge never parses the key — only interactionType matters,
+ *  and the emit branches on state, so these attrs are for realism). */
+function mount(opts: {
+  withSolution?: boolean;
+  withKit?: boolean;
+  interactionType?: string;
+  answerKey?: unknown;
+} = {}): void {
+  const interactionType = opts.interactionType ?? 'plot_point';
   const config = esc(JSON.stringify({ xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true }));
-  const answerKey = esc(JSON.stringify({ correctPoints: [[3, 4]], tolerance: 0.1 }));
+  const answerKey = esc(JSON.stringify(opts.answerKey ?? { correctPoints: [[3, 4]], tolerance: 0.1 }));
   const kitAttr = opts.withKit === false ? '' : ' data-graph-kit-src="https://cdn.example.com/graph-kit-ABC.js"';
   const solution = opts.withSolution
     ? '<div class="js-solution" data-for-block="' + GRAPH_ID + '" hidden>The origin.</div>'
@@ -52,7 +61,7 @@ function mount(opts: { withSolution?: boolean; withKit?: boolean } = {}): void {
     '<div class="block block-interactive-graph" data-block-category="question"' +
     ' data-block-type="interactive_graph" data-block-id="' + GRAPH_ID + '"' +
     ' data-graph-block-id="' + GRAPH_ID + '"' +
-    ' data-graph-interaction-type="plot_point"' +
+    ' data-graph-interaction-type="' + interactionType + '"' +
     ' data-graph-config="' + config + '"' +
     ' data-graph-answer-key="' + answerKey + '"' +
     kitAttr + '>' +
@@ -166,6 +175,73 @@ describe('submit payload', () => {
     const gathered = gatherResponses(state, refs);
     expect(gathered.graphResponses).toBeUndefined();
     expect(gathered.totalScored).toBe(0);
+  });
+
+  it('GS-M8: emits graph_inequality_system when the state carries N boundary parts', () => {
+    mount({
+      interactionType: 'graph_inequality',
+      answerKey: {
+        inequalities: [
+          { boundary: { family: 'linear', slope: 2, intercept: 1 }, strict: false, shadeSide: 'above' },
+          { boundary: { family: 'linear', slope: -1, intercept: 0 }, strict: true, shadeSide: 'below' },
+        ],
+      },
+    });
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    // Simulate what the kit's onChange writes for a system: N boundary parts.
+    state.graphs[GRAPH_ID] = {
+      points: [], answered: true, result: true, solutionRevealed: false, confidence: 'think_so',
+      parts: [
+        { points: [[0, 1], [1, 3]], strict: false, side: 'above', correct: true },
+        { points: [[0, 0], [1, -1]], strict: true, side: 'below', correct: true },
+      ],
+      earned: 2, total: 2,
+    };
+    const payload = buildSubmissionPayload(config, 'Ada', gatherResponses(state, refs), undefined);
+    expect(payload.responses.graphResponses).toEqual({
+      [GRAPH_ID]: {
+        type: 'graph_inequality_system',
+        studentPoints: [],
+        parts: [
+          { type: 'graph_inequality', studentPoints: [[0, 1], [1, 3]], strict: false, side: 'above', correct: true },
+          { type: 'graph_inequality', studentPoints: [[0, 0], [1, -1]], strict: true, side: 'below', correct: true },
+        ],
+        correct: true,
+        confidence: 'think_so',
+        earned: 2, total: 2,
+      },
+    });
+  });
+
+  it('GS-M8: a single graph_inequality (no parts) still emits the plain member, not a system', () => {
+    mount({
+      interactionType: 'graph_inequality',
+      answerKey: { inequalities: [{ boundary: { family: 'linear', slope: 2, intercept: 1 }, strict: false, shadeSide: 'above' }] },
+    });
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    state.graphs[GRAPH_ID] = {
+      points: [[0, 1], [1, 3]], answered: true, result: true, solutionRevealed: false, confidence: null,
+      strict: false, side: 'above',
+    };
+    const payload = buildSubmissionPayload(config, 'Ada', gatherResponses(state, refs), undefined);
+    const resp = payload.responses.graphResponses![GRAPH_ID]!;
+    expect(resp.type).toBe('graph_inequality'); // NOT graph_inequality_system
+    expect('parts' in resp).toBe(false);
+    expect(resp).toEqual({
+      type: 'graph_inequality', studentPoints: [[0, 1], [1, 3]], strict: false, side: 'above', correct: true,
+    });
+  });
+
+  it('GS-S2: omits an untouched system (no parts, not answered) from graphResponses', () => {
+    mount({
+      interactionType: 'graph_inequality',
+      answerKey: { inequalities: [{ boundary: { family: 'linear', slope: 2, intercept: 1 }, strict: false, shadeSide: 'above' }, { boundary: { family: 'linear', slope: -1, intercept: 0 }, strict: true, shadeSide: 'below' }] },
+    });
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    expect(gatherResponses(state, refs).graphResponses).toBeUndefined();
   });
 
   it('gathers a RESTORED answer even though the kit never attached (kit-fail path)', () => {

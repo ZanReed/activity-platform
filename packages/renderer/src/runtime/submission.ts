@@ -79,6 +79,19 @@ export interface GraphResult {
   fromStyle?: 'open' | 'closed';
   /** plot_segment: per-endpoint styles, canonical order. */
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
+  /**
+   * graph_inequality_system: one InequalityResponse per plotted boundary (a
+   * system, inequalities.length > 1). Present only for the system member; the
+   * single-inequality path never sets it. `studentPoints` is empty for a system
+   * (the answer lives in `parts`).
+   */
+  parts?: {
+    type: 'graph_inequality';
+    studentPoints: [number, number][];
+    strict: boolean;
+    side: 'above' | 'below' | 'left' | 'right';
+    correct: boolean;
+  }[];
 }
 
 // Mirrors schema ChoiceResponse — one multiple_choice block's answer.

@@ -104,7 +104,11 @@ export function saveSubmissionId(activityId: string, submissionId: string): void
 // dot values, scoring, solution reveal, confidence per graded data_plot block).
 // 9 → 10 (self-explanation): the blob gained a `freeTexts` map (the raw
 // textarea value per self_explanation block — no scoring, just restore-on-load).
-const STORAGE_SCHEMA_VERSION = 10;
+// 10 → 11 (graph systems): GraphBlockState gained an optional `parts` array (the
+// N-boundary answer for a graph_inequality system, inequalities.length > 1).
+// Additive — an older blob simply lacks it — but bumped per the Drop-4 precedent
+// (strict/side) of versioning any GraphBlockState shape change.
+const STORAGE_SCHEMA_VERSION = 11;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {
