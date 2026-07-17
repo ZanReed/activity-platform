@@ -32,6 +32,19 @@ seam in Submissions.tsx (full e2e still owed). **Browser-verified end-to-end** o
 (student board: N boundaries + intersection darkening, restore→correct, wrong-side→incorrect) and
 /playground (authoring: preview + N rows + Add/Remove + N=1 identity). **Owner GS-J1b still owed** (a
 real authored system on a freshly-published page). Deploy train = Pending author action.
+
+**Phase 2 — functions-systems (plot_function, models.length > 1) — BUILT + GREEN 2026-07-18**
+(`4f6049e` wire+scorer, `9faf0fc` runtime emit, `760baa8` student board + fresh-load fix, `3841e57`
+authoring). Mirrors Phase 1 exactly (all ratified calls carry over — bipartite match-all via a
+shared `maxBipartiteMatch`, per-object matched/N, additive `plot_function_system` member, no
+schemaVersion bump). Coverage: FS-M1/M2/M3 (submission.test.ts), FS-M4/M5/M6/M9/M10/INV1 + mixed-family
+(graph-score.test.ts), FS-M8/S2 + a fresh-load-guard (renderer graphs.test.ts), FS-M7 (serialize.test.ts).
+Browser-verified on /dev/graph-question (line + parabola, restore→correct, nudge-off→incorrect,
+fresh-load answered:false) and /playground (preview + Curve rows + Add/Remove + N=1 reverts to the
+rich single-curve field with domains intact). Same owner eyeball owed (a real function system).
+The fresh-load fix (system widgets no longer report at construction; runtime restore gated on
+`gs.answered`) closed a bug that also affected Phase 1.
+
 See "Slice: Graph systems" below (GS-M1..M11 + GS-INV1 MUST, GS-S1/GS-S2 SHOULD; one
 owner manual-QA verify act GS-J1b). Ratified calls (RATIFICATION_LOG.md): J1 → **maximum bipartite
 matching** for the set-match (NOT greedy — author overruled my precedent-parity lean on blast;
