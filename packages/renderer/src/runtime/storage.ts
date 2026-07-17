@@ -108,7 +108,10 @@ export function saveSubmissionId(activityId: string, submissionId: string): void
 // N-boundary answer for a graph_inequality system, inequalities.length > 1).
 // Additive — an older blob simply lacks it — but bumped per the Drop-4 precedent
 // (strict/side) of versioning any GraphBlockState shape change.
-const STORAGE_SCHEMA_VERSION = 11;
+// 11 → 12 (functions-systems): GraphBlockState gained an optional `curveParts`
+// array (the N-curve answer for a plot_function system, models.length > 1). Same
+// additive-but-versioned discipline.
+const STORAGE_SCHEMA_VERSION = 12;
 const STORAGE_PREFIX = 'activity_state_';
 
 export interface StoredActivityState {

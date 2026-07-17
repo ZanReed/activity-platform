@@ -244,6 +244,63 @@ describe('submit payload', () => {
     expect(gatherResponses(state, refs).graphResponses).toBeUndefined();
   });
 
+  it('FS-M8: emits plot_function_system when the state carries N curve parts', () => {
+    mount({
+      interactionType: 'plot_function',
+      answerKey: { models: [{ family: 'linear', slope: 2, intercept: 1 }, { family: 'linear', slope: -1, intercept: 0 }] },
+    });
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    state.graphs[GRAPH_ID] = {
+      points: [], answered: true, result: true, solutionRevealed: false, confidence: null,
+      curveParts: [
+        { points: [[0, 1], [1, 3]], correct: true },
+        { points: [[0, 0], [1, -1]], correct: true },
+      ],
+      earned: 2, total: 2,
+    };
+    const payload = buildSubmissionPayload(config, 'Ada', gatherResponses(state, refs), undefined);
+    expect(payload.responses.graphResponses).toEqual({
+      [GRAPH_ID]: {
+        type: 'plot_function_system',
+        studentPoints: [],
+        parts: [
+          { type: 'plot_function', studentPoints: [[0, 1], [1, 3]], correct: true },
+          { type: 'plot_function', studentPoints: [[0, 0], [1, -1]], correct: true },
+        ],
+        correct: true,
+        earned: 2, total: 2,
+      },
+    });
+  });
+
+  it('FS-M8: a single plot_function (no curveParts) still emits the plain member, not a system', () => {
+    mount({
+      interactionType: 'plot_function',
+      answerKey: { models: [{ family: 'linear', slope: 2, intercept: 1 }] },
+    });
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    state.graphs[GRAPH_ID] = {
+      points: [[0, 1], [1, 3]], answered: true, result: true, solutionRevealed: false, confidence: null,
+    };
+    const resp = buildSubmissionPayload(config, 'Ada', gatherResponses(state, refs), undefined)
+      .responses.graphResponses![GRAPH_ID]!;
+    expect(resp.type).toBe('plot_function'); // NOT plot_function_system
+    expect('parts' in resp).toBe(false);
+    expect(resp).toEqual({ type: 'plot_function', studentPoints: [[0, 1], [1, 3]], correct: true });
+  });
+
+  it('FS-S2: omits an untouched functions-system (no curveParts, not answered)', () => {
+    mount({
+      interactionType: 'plot_function',
+      answerKey: { models: [{ family: 'linear', slope: 2, intercept: 1 }, { family: 'linear', slope: -1, intercept: 0 }] },
+    });
+    const refs = buildRefs(document);
+    const state = createInitialState(refs);
+    expect(gatherResponses(state, refs).graphResponses).toBeUndefined();
+  });
+
   it('gathers a RESTORED answer even though the kit never attached (kit-fail path)', () => {
     // The inline gather is pure state → JSON: a previously-persisted answer
     // must survive a visit where the kit fails to load.

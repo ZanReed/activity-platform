@@ -80,18 +80,27 @@ export interface GraphResult {
   /** plot_segment: per-endpoint styles, canonical order. */
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
   /**
-   * graph_inequality_system: one InequalityResponse per plotted boundary (a
-   * system, inequalities.length > 1). Present only for the system member; the
-   * single-inequality path never sets it. `studentPoints` is empty for a system
-   * (the answer lives in `parts`).
+   * System members: one response per plotted object (a system — inequalities or
+   * functions with length > 1). The wire key is `parts` for both, discriminated
+   * by the block's `type`; the single (N=1) path never sets it. `studentPoints`
+   * is empty for a system (the answer lives in `parts`).
+   *   graph_inequality_system → InequalityResponse parts (points + side + style)
+   *   plot_function_system     → FunctionResponse parts (points only)
    */
-  parts?: {
-    type: 'graph_inequality';
-    studentPoints: [number, number][];
-    strict: boolean;
-    side: 'above' | 'below' | 'left' | 'right';
-    correct: boolean;
-  }[];
+  parts?: (
+    | {
+        type: 'graph_inequality';
+        studentPoints: [number, number][];
+        strict: boolean;
+        side: 'above' | 'below' | 'left' | 'right';
+        correct: boolean;
+      }
+    | {
+        type: 'plot_function';
+        studentPoints: [number, number][];
+        correct: boolean;
+      }
+  )[];
 }
 
 // Mirrors schema ChoiceResponse — one multiple_choice block's answer.

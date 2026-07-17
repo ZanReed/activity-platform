@@ -303,7 +303,8 @@ function gatherGraphResponses(
       }
     }
     const isSystem = (gs.parts?.length ?? 0) > 0;
-    if (gs.answered && (gs.points.length > 0 || gs.noSolution || isSystem)) {
+    const isCurveSystem = (gs.curveParts?.length ?? 0) > 0;
+    if (gs.answered && (gs.points.length > 0 || gs.noSolution || isSystem || isCurveSystem)) {
       let result: GraphResult;
       if (isSystem) {
         // graph_inequality SYSTEM (inequalities.length > 1): the additive
@@ -318,6 +319,20 @@ function gatherGraphResponses(
             studentPoints: p.points,
             strict: p.strict,
             side: p.side,
+            correct: p.correct,
+          })),
+          correct: gs.result === true,
+        };
+      } else if (isCurveSystem) {
+        // plot_function SYSTEM (models.length > 1): the additive
+        // plot_function_system member — same `parts` wire key, FunctionResponse
+        // shape (points only). N=1 takes the single path below (byte-identical).
+        result = {
+          type: 'plot_function_system',
+          studentPoints: [],
+          parts: gs.curveParts!.map((p) => ({
+            type: 'plot_function',
+            studentPoints: p.points,
             correct: p.correct,
           })),
           correct: gs.result === true,

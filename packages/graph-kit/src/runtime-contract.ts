@@ -53,6 +53,18 @@ export interface GraphInequalityPart {
 }
 
 /**
+ * One curve of a plot_function SYSTEM (models.length > 1, "graph both lines"):
+ * the student's plotted points defining that curve, plus whether the curve
+ * matches at least one authored model (a per-curve dashboard signal; the block's
+ * OVERALL correctness is the order-independent set-match). The functions-system
+ * analogue of GraphInequalityPart — no side/style (a curve, not a boundary).
+ */
+export interface GraphCurvePart {
+  points: [number, number][];
+  correct: boolean;
+}
+
+/**
  * Per-interactive-graph-block state. Lives in the runtime's RuntimeState (and
  * its persisted localStorage blob — see the versioning note above); written by
  * the kit-side plumbing as the student answers; read by the runtime's inline
@@ -105,6 +117,13 @@ export interface GraphBlockState {
    * today. Additive optional field — an older stored blob simply lacks it.
    */
   parts?: GraphInequalityPart[];
+  /**
+   * plot_function SYSTEM (models.length > 1): one entry per curve the student
+   * plotted — the N-curve answer the single `points` field cannot hold. Present
+   * ONLY for a functions-system; a single curve (N=1) keeps using `points`, so
+   * N=1 state + emit + scoring stay byte-identical to today. Additive optional.
+   */
+  curveParts?: GraphCurvePart[];
   /**
    * Mistake feedback for a WRONG answer: the matched authored entry's template
    * index, or a built-in classifier's message text. At most one is set; both
