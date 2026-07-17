@@ -211,6 +211,16 @@ export {
 } from './formula.js';
 export type { ParsedFormula, ParsedDomain, ShadeSide, ParsedRaySegment } from './formula.js';
 
+// Authored drawable colors: a stored palette KEY resolves to a hex here, the
+// single source shared by the board, the renderer SVG, and the app picker.
+export {
+  DRAWABLE_PALETTE,
+  DRAWABLE_PALETTE_KEYS,
+  DRAWABLE_DEFAULT_COLOR,
+  resolveDrawableColor,
+} from './drawable-palette.js';
+export type { DrawableColorKey } from './drawable-palette.js';
+
 // The published-page graph plumbing (2026-07-10 bundle-budget move): the page's
 // inline runtime bridge dynamic-imports this entry and calls attachGraphRuntime
 // once, handing over the graph blocks + live state. The contract types are the
