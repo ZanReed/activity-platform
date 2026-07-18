@@ -21,10 +21,11 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type ReactNode,
 } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
 import type { Editor as TiptapEditor, JSONContent } from '@tiptap/react';
 import {
     ActivityDocument,
@@ -211,6 +212,29 @@ export default function ActivityEditor() {
     // Which config drawer section is open (null = drawer closed). One drawer,
     // one section at a time — see ActivityConfigDrawer.
     const [configOpen, setConfigOpen] = useState<ConfigKey | null>(null);
+
+    // Instant-create landing (design-review, 2026-07-18): Activities navigates
+    // here with { fresh: true } right after inserting an "Untitled activity".
+    // Focus + select the title so typing immediately replaces the placeholder
+    // name — naming stays the happy path without a blocking form. Guards:
+    // - title must still be "Untitled activity" (history.state survives
+    //   reloads; after a rename, re-selecting the title would invite an
+    //   accidental overwrite)
+    // - one-shot per mount (freshFocusDone), so later re-renders never steal
+    //   focus from the canvas.
+    const location = useLocation();
+    const fresh =
+        (location.state as { fresh?: boolean } | null)?.fresh === true;
+    const titleRef = useRef<HTMLInputElement | null>(null);
+    const freshFocusDone = useRef(false);
+    useEffect(() => {
+        if (!fresh || freshFocusDone.current) return;
+        if (loadState.status !== 'ready') return;
+        if (meta?.title !== 'Untitled activity') return;
+        freshFocusDone.current = true;
+        titleRef.current?.focus();
+        titleRef.current?.select();
+    }, [fresh, loadState.status, meta?.title]);
 
     useEffect(() => {
         if (!id || !UUID_RE.test(id)) {
@@ -546,6 +570,7 @@ export default function ActivityEditor() {
             )}
 
             <input
+            ref={titleRef}
             type="text"
             value={meta.title}
             onChange={(e) => setMeta({ ...meta, title: e.target.value })}

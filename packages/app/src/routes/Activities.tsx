@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
@@ -43,8 +43,6 @@ export default function Activities() {
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState<string | null>(null);
 
-    const [showForm, setShowForm] = useState(false);
-    const [newTitle, setNewTitle] = useState('');
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
 
@@ -82,8 +80,9 @@ export default function Activities() {
     if (!session) return null;
 
     // Inserts a new activity, retrying on a 23505 unique-violation against
-    // `unique (owner_id, slug)` with an incrementing numeric suffix. The DB
-    // constraint is the arbiter, so concurrent creates can't both claim a slug.
+    // `unique (owner_id, slug)` with a suffix (numeric, then random — see
+    // slugWithSuffix). The DB constraint is the arbiter, so concurrent creates
+    // can't both claim a slug.
     const createActivity = async (title: string): Promise<string> => {
         const base = slugify(title);
         const doc = createEmptyDocument({ title });
@@ -108,18 +107,21 @@ export default function Activities() {
             if (!data) throw new Error('Insert returned no row.');
             return data.id;
         }
-        throw new Error('Could not find a free slug. Try a different title.');
+        throw new Error('Could not create the activity. Please try again.');
     };
 
-    const handleCreate = async (e: FormEvent) => {
-        e.preventDefault();
-        const title = newTitle.trim();
-        if (!title) return;
+    // Instant-create (design-review, 2026-07-18): one click inserts an
+    // "Untitled activity" and lands in the editor with the title focused +
+    // selected (the { fresh: true } nav state drives that). No title form, no
+    // slug explanation — naming happens on the object itself, non-blocking.
+    // The slug is internal-only, so "untitled-activity-N" slugs are harmless.
+    const handleCreate = async () => {
         setCreating(true);
         setCreateError(null);
         try {
-            const id = await createActivity(title);
-            navigate(`/activity/${id}`); // success: leaving the page, no need to reset
+            const id = await createActivity('Untitled activity');
+            // success: leaving the page, no need to reset `creating`
+            navigate(`/activity/${id}`, { state: { fresh: true } });
         } catch (err) {
             setCreateError(
                 err instanceof Error ? err.message : 'Could not create activity.',
@@ -159,67 +161,20 @@ export default function Activities() {
         <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-slate-900">My activities</h1>
-        {!showForm && (
-            <button
-            type="button"
-            onClick={() => setShowForm(true)}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-            >
-            New activity
-            </button>
-        )}
+        <button
+        type="button"
+        onClick={handleCreate}
+        disabled={creating}
+        className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+        {creating ? 'Creating…' : 'New activity'}
+        </button>
         </div>
 
-        {showForm && (
-            <form
-            onSubmit={handleCreate}
-            className="mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-            >
-            <label
-            htmlFor="new-activity-title"
-            className="block text-sm font-medium text-slate-700"
-            >
-            Activity title
-            </label>
-            <p className="mt-1 text-xs text-slate-500">
-            The title sets the activity's URL slug, which is fixed after
-            creation. You can rename the activity later, but the slug won't
-            change.
+        {createError && (
+            <p className="mt-3 text-sm text-red-600">
+            Couldn't create activity: {createError}
             </p>
-            <input
-            id="new-activity-title"
-            type="text"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            autoFocus
-            placeholder="e.g. Factoring Quadratics"
-            className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-            />
-            {createError && (
-                <p className="mt-2 text-sm text-red-600">{createError}</p>
-            )}
-            <div className="mt-3 flex items-center gap-2">
-            <button
-            type="submit"
-            disabled={creating || newTitle.trim().length === 0}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-            {creating ? 'Creating…' : 'Create'}
-            </button>
-            <button
-            type="button"
-            onClick={() => {
-                setShowForm(false);
-                setNewTitle('');
-                setCreateError(null);
-            }}
-            disabled={creating}
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-            Cancel
-            </button>
-            </div>
-            </form>
         )}
 
         <div className="mt-6">
