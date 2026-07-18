@@ -63,7 +63,7 @@ export default function DevCalculator() {
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
         Calculator widget — dev harness
       </h1>
-      <p style={{ color: '#475569', marginTop: '0.25rem' }}>
+      <p style={{ color: 'var(--color-muted)', marginTop: '0.25rem' }}>
         The same <code>mountCalculator()</code> a published page lazy-loads and
         the editor preview imports. Try: <code>sin(30)</code> in DEG,{' '}
         <code>2+3×4</code>, <code>√16</code>, <code>5!</code>, <code>2π</code>.

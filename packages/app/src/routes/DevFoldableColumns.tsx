@@ -133,14 +133,14 @@ export default function DevFoldableColumns() {
   return (
     <main style={{ padding: 16, fontFamily: 'sans-serif' }}>
       <h1 style={{ fontSize: 20, fontWeight: 700 }}>Foldable × columns — dev bench</h1>
-      <p style={{ color: '#475569', margin: '4px 0 12px' }}>
+      <p style={{ color: 'var(--color-muted)', margin: '4px 0 12px' }}>
         Status: <strong data-testid="fold-status">{status}</strong>. The columns
         container should appear side-by-side (≈2:1) within a panel, never split.
       </p>
       <iframe
         title="foldable-columns-preview"
         srcDoc={html}
-        style={{ width: '100%', height: '80vh', border: '1px solid #cbd5e1' }}
+        style={{ width: '100%', height: '80vh', border: '1px solid var(--color-line-strong)' }}
       />
     </main>
   );

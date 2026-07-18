@@ -291,7 +291,7 @@ export default function DevGraphQuestion() {
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
         Interactive graph question — dev harness
       </h1>
-      <label style={{ display: 'block', margin: '0.5rem 0', color: '#475569' }}>
+      <label style={{ display: 'block', margin: '0.5rem 0', color: 'var(--color-muted)' }}>
         Scenario:{' '}
         <select
           value={scenarioKey}
@@ -302,7 +302,7 @@ export default function DevGraphQuestion() {
           ))}
         </select>
       </label>
-      <p style={{ color: '#475569', marginTop: '0.25rem' }}>{scenario.hint}</p>
+      <p style={{ color: 'var(--color-muted)', marginTop: '0.25rem' }}>{scenario.hint}</p>
 
       {/* Host is a sized container only; the inner board element (created in
           the effect) owns role=application + tabindex + the keyboard handler.
@@ -315,9 +315,9 @@ export default function DevGraphQuestion() {
           width: '100%',
           maxWidth: '28rem',
           aspectRatio: '1 / 1',
-          border: '1px solid #cbd5e1',
+          border: '1px solid var(--color-line-strong)',
           borderRadius: 6,
-          background: '#fff',
+          background: 'var(--color-canvas)',
           touchAction: 'none',
           marginTop: '1rem',
         }}
@@ -351,7 +351,7 @@ export default function DevGraphQuestion() {
         </button>
       </div>
 
-      <pre data-testid="state" style={{ marginTop: '1rem', color: '#0f172a' }}>
+      <pre data-testid="state" style={{ marginTop: '1rem', color: 'var(--color-ink)' }}>
         {JSON.stringify({ narration, resp, checked }, null, 2)}
       </pre>
     </div>

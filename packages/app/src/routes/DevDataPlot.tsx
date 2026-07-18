@@ -108,7 +108,7 @@ export default function DevDataPlot() {
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Data-plot builds — dev harness</h1>
-      <label style={{ display: 'block', margin: '0.5rem 0', color: '#475569' }}>
+      <label style={{ display: 'block', margin: '0.5rem 0', color: 'var(--color-muted)' }}>
         Scenario:{' '}
         <select
           value={scenarioKey}
@@ -121,7 +121,7 @@ export default function DevDataPlot() {
           ))}
         </select>
       </label>
-      <p style={{ color: '#475569', marginTop: '0.25rem' }}>{scenario.hint}</p>
+      <p style={{ color: 'var(--color-muted)', marginTop: '0.25rem' }}>{scenario.hint}</p>
 
       <div
         ref={mountRef}
@@ -131,9 +131,9 @@ export default function DevDataPlot() {
           width: '100%',
           maxWidth: '34rem',
           aspectRatio: '500 / 200',
-          border: '1px solid #cbd5e1',
+          border: '1px solid var(--color-line-strong)',
           borderRadius: 6,
-          background: '#fff',
+          background: 'var(--color-canvas)',
           touchAction: 'none',
           marginTop: '1rem',
         }}
@@ -158,7 +158,7 @@ export default function DevDataPlot() {
         </button>
       </div>
 
-      <pre data-testid="state" style={{ marginTop: '1rem', color: '#0f172a' }}>
+      <pre data-testid="state" style={{ marginTop: '1rem', color: 'var(--color-ink)' }}>
         {JSON.stringify({ resp, checked }, null, 2)}
       </pre>
     </div>
