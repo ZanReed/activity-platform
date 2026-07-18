@@ -151,13 +151,13 @@ describe('ConfigButtons', () => {
             />,
         );
         expect(
-            container.querySelector('[data-config-button="settings"] .bg-amber-500'),
+            container.querySelector('[data-config-button="settings"] .bg-warning-accent'),
         ).not.toBeNull();
         expect(
-            container.querySelector('[data-config-button="reference"] .bg-emerald-500'),
+            container.querySelector('[data-config-button="reference"] .bg-success-accent'),
         ).not.toBeNull();
         expect(
-            container.querySelector('[data-config-button="calculator"] .bg-emerald-500'),
+            container.querySelector('[data-config-button="calculator"] .bg-success-accent'),
         ).not.toBeNull();
     });
 });

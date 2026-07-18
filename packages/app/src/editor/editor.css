@@ -59,25 +59,29 @@
     --ed-red-600: rgb(220 38 38);
     --ed-white: rgb(255 255 255);
 
-    /* Semantic — surfaces */
-    --ed-canvas: var(--ed-white);            /* fields, buttons, popovers, raised */
-    --ed-surface: var(--ed-slate-50);        /* block resting bg, rails, panels */
-    --ed-surface-2: var(--ed-slate-100);     /* hover fill, code, dividers, feedback */
+    /* Semantic — surfaces. The shared roles alias the app-wide @theme tokens
+     * (index.css) so the editor and the chrome share ONE definition (UX-lens
+     * fix 6). Same values as before; --color-* resolve globally at :root
+     * (index.css loads via main.tsx). --ed-text-muted stays slate-500 (an
+     * editor-only tier on white; the chrome's muted is slate-600). */
+    --ed-canvas: var(--color-canvas);        /* fields, buttons, popovers, raised */
+    --ed-surface: var(--color-surface);      /* block resting bg, rails, panels */
+    --ed-surface-2: var(--color-surface-2);  /* hover fill, code, dividers, feedback */
 
     /* Semantic — text (contrast-checked) */
-    --ed-text: var(--ed-slate-900);          /* primary ink */
-    --ed-text-strong: var(--ed-slate-700);   /* labels, secondary headings */
-    --ed-text-secondary: var(--ed-slate-600);/* muted text, AA-safe on tinted bg */
-    --ed-text-muted: var(--ed-slate-500);    /* muted meta on white (AA 4.6:1) */
-    --ed-faint: var(--ed-slate-400);         /* NON-TEXT: icons, underline, inert, heavy hairline */
+    --ed-text: var(--color-ink);             /* primary ink */
+    --ed-text-strong: var(--color-strong);   /* labels, secondary headings */
+    --ed-text-secondary: var(--color-muted); /* muted text, AA-safe on tinted bg */
+    --ed-text-muted: var(--ed-slate-500);    /* muted meta on white (AA 4.6:1) — editor-only */
+    --ed-faint: var(--color-faint);          /* NON-TEXT: icons, underline, inert, heavy hairline */
 
     /* Semantic — borders */
-    --ed-border: var(--ed-slate-200);
-    --ed-border-strong: var(--ed-slate-300);
+    --ed-border: var(--color-line);
+    --ed-border-strong: var(--color-line-strong);
 
     /* Semantic — primary accent (action / selection / focus) */
-    --ed-accent: var(--ed-blue-500);
-    --ed-accent-strong: var(--ed-blue-600);
+    --ed-accent: var(--color-accent);
+    --ed-accent-strong: var(--color-accent-strong);
     --ed-accent-bg: var(--ed-blue-50);
     --ed-accent-bg-2: var(--ed-blue-100);
     --ed-accent-soft: var(--ed-blue-300);
@@ -89,21 +93,21 @@
     --ed-accent-alt-ring: var(--ed-indigo-200);
     --ed-accent-alt-strong: var(--ed-indigo-700);
 
-    /* Semantic — status */
-    --ed-warning: var(--ed-amber-600);
-    --ed-warning-accent: var(--ed-amber-500);
-    --ed-warning-text: var(--ed-amber-700);
-    --ed-warning-text-strong: var(--ed-amber-800);
-    --ed-warning-bg: var(--ed-amber-50);
-    --ed-warning-bg-2: var(--ed-amber-100);
-    --ed-warning-border: var(--ed-amber-200);
-    --ed-warning-border-2: var(--ed-amber-300);
-    --ed-correct: var(--ed-emerald-600);
+    /* Semantic — status (shared roles alias @theme; see the surfaces note) */
+    --ed-warning: var(--color-warning);
+    --ed-warning-accent: var(--color-warning-accent);
+    --ed-warning-text: var(--color-warning-text);
+    --ed-warning-text-strong: var(--color-warning-strong);
+    --ed-warning-bg: var(--color-warning-bg);
+    --ed-warning-bg-2: var(--color-warning-bg-2);
+    --ed-warning-border: var(--color-warning-border);
+    --ed-warning-border-2: var(--color-warning-border-2);
+    --ed-correct: var(--color-success);
     --ed-self-explain: var(--ed-teal-500);
     --ed-self-explain-bg: var(--ed-teal-50);
     --ed-self-explain-border: var(--ed-teal-200);
     --ed-self-explain-strong: var(--ed-teal-700);
-    --ed-danger: var(--ed-red-600);
+    --ed-danger: var(--color-danger);
     --ed-danger-2: var(--ed-red-500);
     --ed-danger-bg: var(--ed-red-50);
     --ed-danger-bg-2: var(--ed-red-100);

@@ -117,7 +117,7 @@ function panelFromEditor(
 
 function Shell({ children }: { children: ReactNode }) {
     return (
-        <main className="min-h-screen bg-slate-50 p-8">
+        <main className="min-h-screen bg-surface p-8">
         <div className="mx-auto max-w-3xl">{children}</div>
         </main>
     );
@@ -164,10 +164,10 @@ function PublishStatus({
     };
     return (
         <span className="flex items-center gap-2 text-xs">
-        <span className="flex items-center gap-1.5 font-medium text-slate-600">
+        <span className="flex items-center gap-1.5 font-medium text-muted">
         <span
         aria-hidden="true"
-        className="h-1.5 w-1.5 rounded-full bg-emerald-500"
+        className="h-1.5 w-1.5 rounded-full bg-success-accent"
         />
         {version != null ? `Published v${version}` : 'Live'}
         </span>
@@ -175,7 +175,7 @@ function PublishStatus({
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-0.5 font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline"
+        className="inline-flex items-center gap-0.5 font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
         >
         Open
         <ExternalLink size={12} aria-hidden="true" />
@@ -183,7 +183,7 @@ function PublishStatus({
         <button
         type="button"
         onClick={copy}
-        className="font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline"
+        className="font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
         >
         {copied ? 'Copied!' : 'Copy link'}
         </button>
@@ -460,7 +460,7 @@ export default function ActivityEditor() {
         if (loadState.status === 'loading') {
             return (
                 <Shell>
-                <p className="text-slate-500">Loading activity…</p>
+                <p className="text-muted">Loading activity…</p>
                 </Shell>
             );
         }
@@ -468,15 +468,15 @@ export default function ActivityEditor() {
         if (loadState.status === 'not_found') {
             return (
                 <Shell>
-                <h1 className="text-2xl font-bold text-slate-900">
+                <h1 className="text-2xl font-bold text-ink">
                 Activity not found
                 </h1>
-                <p className="mt-2 text-slate-600">
+                <p className="mt-2 text-muted">
                 It may have been deleted, or you don't have access to it.
                 </p>
                 <Link
                 to="/activities"
-                className="mt-4 inline-block text-sm font-medium text-slate-700 underline underline-offset-2 hover:text-slate-900"
+                className="mt-4 inline-block text-sm font-medium text-strong underline underline-offset-2 hover:text-ink"
                 >
                 ← Back to my activities
                 </Link>
@@ -487,13 +487,13 @@ export default function ActivityEditor() {
         if (loadState.status === 'error') {
             return (
                 <Shell>
-                <h1 className="text-2xl font-bold text-slate-900">
+                <h1 className="text-2xl font-bold text-ink">
                 Couldn't open this activity
                 </h1>
-                <p className="mt-2 text-slate-600">{loadState.message}</p>
+                <p className="mt-2 text-muted">{loadState.message}</p>
                 <Link
                 to="/activities"
-                className="mt-4 inline-block text-sm font-medium text-slate-700 underline underline-offset-2 hover:text-slate-900"
+                className="mt-4 inline-block text-sm font-medium text-strong underline underline-offset-2 hover:text-ink"
                 >
                 ← Back to my activities
                 </Link>
@@ -534,7 +534,7 @@ export default function ActivityEditor() {
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <Link
             to="/activities"
-            className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+            className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
             >
             ← All activities
             </Link>
@@ -550,7 +550,7 @@ export default function ActivityEditor() {
             />
             <span
             aria-hidden="true"
-            className="mx-1 w-px self-stretch bg-slate-200"
+            className="mx-1 w-px self-stretch bg-surface-3"
             />
             <HeaderButton
             icon={<FileText size={18} />}
@@ -590,7 +590,7 @@ export default function ActivityEditor() {
                     ? 'Saving your latest edits before publishing'
                     : 'Publish this activity as a page students can open'
             }
-            className="inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-md bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
             <Globe size={15} aria-hidden="true" />
             {status === 'saving'
@@ -617,14 +617,14 @@ export default function ActivityEditor() {
             )}
             {status === 'error' && (
                 <div className="mt-2 flex justify-end">
-                <span className="text-xs text-red-600">
+                <span className="text-xs text-danger">
                 Couldn't save — your latest edits aren't stored
                 </span>
                 </div>
             )}
             {publishState.kind === 'error' && (
                 <div className="mt-2 flex justify-end">
-                <span className="text-xs text-red-600">
+                <span className="text-xs text-danger">
                 Publish failed: {publishState.message}
                 </span>
                 </div>
@@ -637,11 +637,11 @@ export default function ActivityEditor() {
             onChange={(e) => setMeta({ ...meta, title: e.target.value })}
             placeholder="Untitled activity"
             aria-label="Activity title"
-            className="mt-4 w-full bg-transparent text-2xl font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            className="mt-4 w-full bg-transparent text-2xl font-bold text-ink placeholder:text-faint focus:outline-none"
             />
 
             {lockedWarning && (
-                <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <div className="mt-3 rounded-md border border-warning-border-2 bg-warning-bg px-3 py-2 text-xs text-warning-strong">
                 Locked mode freezes answers when a section is checked, but at
                 least one section isn't a checkpoint — students there have no
                 way to lock their work. Mark every section as a checkpoint, or

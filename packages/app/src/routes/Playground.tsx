@@ -69,20 +69,20 @@ export default function Playground() {
     });
 
     return (
-        <main className="min-h-screen bg-slate-50 p-8">
+        <main className="min-h-screen bg-surface p-8">
         <div className="mx-auto max-w-7xl">
-        <h1 className="text-3xl font-bold text-slate-900">Playground</h1>
-        <p className="mt-2 mb-4 text-slate-600">
+        <h1 className="text-3xl font-bold text-ink">Playground</h1>
+        <p className="mt-2 mb-4 text-muted">
         Tiptap editor sandbox — dev only.
         </p>
-        <div className="mb-4 flex items-center gap-4 text-sm text-slate-700">
+        <div className="mb-4 flex items-center gap-4 text-sm text-strong">
         <label className="flex items-center gap-1.5">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
         Font
         </span>
         <select
         data-playground-font
-        className="rounded-md border border-slate-300 bg-white px-2 py-1"
+        className="rounded-md border border-line-strong bg-canvas px-2 py-1"
         value={typography.font}
         onChange={(e) =>
             setTypography((t) => ({
@@ -99,7 +99,7 @@ export default function Playground() {
         </select>
         </label>
         <label className="flex items-center gap-1.5">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
         Base size
         </span>
         <input
@@ -107,7 +107,7 @@ export default function Playground() {
         type="number"
         min={12}
         max={24}
-        className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1"
+        className="w-16 rounded-md border border-line-strong bg-canvas px-2 py-1"
         value={typography.fontSize}
         onChange={(e) => {
             const n = Number(e.target.value);

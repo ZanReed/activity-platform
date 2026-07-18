@@ -20,33 +20,33 @@ export default function Home() {
     };
 
       return (
-        <main className="min-h-screen bg-slate-50 p-8">
+        <main className="min-h-screen bg-surface p-8">
         <div className="mx-auto max-w-2xl">
-        <h1 className="text-3xl font-bold text-slate-900">Activity Platform</h1>
-        <p className="mt-2 text-slate-600">
+        <h1 className="text-3xl font-bold text-ink">Activity Platform</h1>
+        <p className="mt-2 text-muted">
         Build interactive activities and share them with your students.
         </p>
 
-        <div className="mt-8 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mt-8 rounded-lg border border-line bg-canvas p-6 shadow-sm">
         {loading ? (
-          <p className="text-slate-500">Checking session…</p>
+          <p className="text-muted">Checking session…</p>
         ) : session ? (
           <div className="space-y-4">
-          <p className="text-slate-700">
+          <p className="text-strong">
           Signed in as{' '}
           <span className="font-medium">{session.user.email}</span>
           </p>
           <div className="flex items-center gap-3">
           <Link
           to="/activities"
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
           My activities
           </Link>
           <button
           type="button"
           onClick={signOut}
-          className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+          className="rounded-md border border-line-strong bg-canvas px-4 py-2 text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
           Sign out
           </button>
@@ -54,11 +54,11 @@ export default function Home() {
           </div>
         ) : (
           <div className="space-y-4">
-          <p className="text-slate-700">You're signed out.</p>
+          <p className="text-strong">You're signed out.</p>
           <button
           type="button"
           onClick={signIn}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
           Sign in with Google
           </button>

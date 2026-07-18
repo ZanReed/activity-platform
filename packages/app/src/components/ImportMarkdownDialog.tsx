@@ -34,9 +34,9 @@ Solve for x:  $2x + 3 = 11$,  x = {{4}}
 ![diagram](https://example.com/cell.png)`;
 
 const PRIMARY_BTN =
-    'rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50';
+    'rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50';
 const SECONDARY_BTN =
-    'rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100';
+    'rounded-md px-3 py-1.5 text-sm font-medium text-muted transition hover:bg-surface-2';
 
 interface ImportMarkdownDialogProps {
     onClose: () => void;
@@ -113,7 +113,7 @@ export default function ImportMarkdownDialog({
             }}
         >
             <div
-                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+                className="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 p-4"
                 onMouseDown={(e) => {
                     // Backdrop click closes; clicks inside the panel don't bubble.
                     if (e.target === e.currentTarget) onClose();
@@ -126,13 +126,13 @@ export default function ImportMarkdownDialog({
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="import-md-title"
-                    className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl"
+                    className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg bg-canvas shadow-xl"
                 >
-                    <div className="border-b border-slate-200 px-5 py-3">
+                    <div className="border-b border-line px-5 py-3">
                         <div className="flex items-start justify-between gap-3">
                             <h2
                                 id="import-md-title"
-                                className="text-base font-semibold text-slate-900"
+                                className="text-base font-semibold text-ink"
                             >
                                 Import from markdown
                             </h2>
@@ -140,26 +140,26 @@ export default function ImportMarkdownDialog({
                                 type="button"
                                 onClick={copyAiPrompt}
                                 title="Copy a prompt you can paste into ChatGPT or Claude to generate importable markdown"
-                                className="shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                                className="shrink-0 rounded-md border border-line-strong px-2 py-1 text-xs font-medium text-muted transition hover:bg-surface"
                             >
                                 {promptCopied ? 'Copied!' : 'Copy AI prompt'}
                             </button>
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-muted">
                             Paste markdown below. Use{' '}
-                            <code className="rounded bg-slate-100 px-1">
+                            <code className="rounded bg-surface-2 px-1">
                                 {'{{answer|alt}}'}
                             </code>{' '}
                             for fill-in-the-blank answers (a leading{' '}
-                            <code className="rounded bg-slate-100 px-1">
+                            <code className="rounded bg-surface-2 px-1">
                                 {'{{~answer}}'}
                             </code>{' '}
                             lets two blanks be answered in any order),{' '}
-                            <code className="rounded bg-slate-100 px-1">
+                            <code className="rounded bg-surface-2 px-1">
                                 {'{checkpoint}'}
                             </code>{' '}
                             on a heading to start a checkpoint section, and{' '}
-                            <code className="rounded bg-slate-100 px-1">$…$</code>{' '}
+                            <code className="rounded bg-surface-2 px-1">$…$</code>{' '}
                             for math. Or use <strong>Copy AI prompt</strong> to have an
                             assistant write it for you. Imported blocks are added to your
                             activity — nothing is published.
@@ -174,11 +174,11 @@ export default function ImportMarkdownDialog({
                             onChange={(e) => setText(e.target.value)}
                             placeholder={EXAMPLE}
                             spellCheck={false}
-                            className="h-64 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="h-64 w-full resize-y rounded-md border border-line-strong bg-canvas px-3 py-2 font-mono text-sm text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                         />
 
                         {result && result.warnings.length > 0 && (
-                            <ul className="mt-3 space-y-1 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            <ul className="mt-3 space-y-1 rounded-md border border-warning-border bg-warning-bg px-3 py-2 text-xs text-warning-strong">
                                 {result.warnings.map((w) => (
                                     <li key={w}>• {w}</li>
                                 ))}
@@ -186,8 +186,8 @@ export default function ImportMarkdownDialog({
                         )}
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-slate-200 px-5 py-3">
-                        <span className="text-xs text-slate-500">
+                    <div className="flex items-center justify-between border-t border-line px-5 py-3">
+                        <span className="text-xs text-muted">
                             {loadFailed
                                 ? "Couldn't load the importer — try again."
                                 : !importer

@@ -10,8 +10,8 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
     // bounced to "/". Wait for the check to finish first.
     if (loading) {
         return (
-            <main className="min-h-screen bg-slate-50 p-8">
-            <p className="text-slate-500">Checking session…</p>
+            <main className="min-h-screen bg-surface p-8">
+            <p className="text-muted">Checking session…</p>
             </main>
         );
     }

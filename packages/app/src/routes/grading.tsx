@@ -55,9 +55,9 @@ const STATUS_LABEL: Record<GradingStatus, string> = {
     full: 'Graded',
 };
 const STATUS_CLASS: Record<GradingStatus, string> = {
-    none: 'text-amber-600',
-    partial: 'text-amber-600',
-    full: 'text-green-700',
+    none: 'text-warning',
+    partial: 'text-warning',
+    full: 'text-success',
 };
 
 /** The grader for every rubric-bearing block of one submission. */
@@ -79,16 +79,16 @@ export function GradingPanel({
     return (
         <div className="mt-4">
             <div className="flex items-baseline justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                     Grading
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-muted">
                     Rubric total:{' '}
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-ink">
                         {earned} / {max}
                     </span>
                     {anyUngraded && (
-                        <span className="ml-1 text-xs italic text-amber-600">
+                        <span className="ml-1 text-xs italic text-warning">
                             (grading in progress)
                         </span>
                     )}
@@ -180,9 +180,9 @@ function BlockGrader({
     };
 
     return (
-        <div className="rounded-md border border-slate-200 bg-white p-3">
+        <div className="rounded-md border border-line bg-canvas p-3">
             <div className="flex items-baseline justify-between">
-                <p className="text-sm font-medium text-slate-700">
+                <p className="text-sm font-medium text-strong">
                     {block.info.problemPrompt || 'Written response'}
                 </p>
                 <span className={`text-xs font-medium ${STATUS_CLASS[block.status]}`}>
@@ -193,13 +193,13 @@ function BlockGrader({
                 {rubric.criteria.map((c: RubricCriterion) => (
                     <div key={c.id} className="grid grid-cols-[1fr_auto] gap-2">
                         <div>
-                            <label className="text-sm text-slate-700">{c.label}</label>
+                            <label className="text-sm text-strong">{c.label}</label>
                             {c.description && (
-                                <p className="text-xs text-slate-600">{c.description}</p>
+                                <p className="text-xs text-muted">{c.description}</p>
                             )}
                             <input
                                 type="text"
-                                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                                className="mt-1 w-full rounded border border-line-strong px-2 py-1 text-sm"
                                 placeholder="Feedback (optional)"
                                 value={feedback[c.id] ?? ''}
                                 onChange={(e) =>
@@ -207,13 +207,13 @@ function BlockGrader({
                                 }
                             />
                         </div>
-                        <div className="flex items-start gap-1 whitespace-nowrap pt-0.5 text-sm text-slate-600">
+                        <div className="flex items-start gap-1 whitespace-nowrap pt-0.5 text-sm text-muted">
                             <input
                                 type="number"
                                 min={0}
                                 max={c.maxPoints}
                                 step={0.5}
-                                className="w-16 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                                className="w-16 rounded border border-line-strong px-2 py-1 text-right text-sm"
                                 placeholder="—"
                                 value={earned[c.id] ?? ''}
                                 onChange={(e) =>
@@ -226,23 +226,23 @@ function BlockGrader({
                 ))}
             </div>
             <textarea
-                className="mt-2 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                className="mt-2 w-full rounded border border-line-strong px-2 py-1 text-sm"
                 rows={2}
                 placeholder="General feedback (optional)"
                 value={general}
                 onChange={(e) => setGeneral(e.target.value)}
             />
             <div className="mt-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-strong">
                     {liveEarned} / {max} points
                 </span>
                 <div className="flex items-center gap-3">
-                    {error && <span className="text-xs text-red-600">{error}</span>}
+                    {error && <span className="text-xs text-danger">{error}</span>}
                     <button
                         type="button"
                         onClick={save}
                         disabled={saving || !gradedBy}
-                        className="rounded bg-slate-900 px-3 py-1 text-sm font-medium text-white disabled:opacity-50"
+                        className="rounded bg-primary px-3 py-1 text-sm font-medium text-white disabled:opacity-50"
                     >
                         {saving ? 'Saving…' : 'Save grade'}
                     </button>

@@ -77,16 +77,16 @@ interface ActivityLoadRow {
 
 function Shell({ children }: { children: ReactNode }) {
     return (
-        <main className="min-h-screen bg-slate-100 p-6">
+        <main className="min-h-screen bg-surface-2 p-6">
         <div className="mx-auto max-w-5xl">{children}</div>
         </main>
     );
 }
 
 const LABEL_CLASS =
-'text-xs font-semibold uppercase tracking-wide text-slate-500';
+'text-xs font-semibold uppercase tracking-wide text-muted';
 const FIELD_CLASS =
-'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
+'w-full rounded-md border border-line-strong bg-canvas px-2 py-1.5 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
 export default function ActivityPrint() {
     const { id } = useParams();
@@ -261,19 +261,19 @@ export default function ActivityPrint() {
     if (loadState.status === 'loading') {
         return (
             <Shell>
-            <p className="text-slate-500">Loading…</p>
+            <p className="text-muted">Loading…</p>
             </Shell>
         );
     }
     if (loadState.status === 'not_found') {
         return (
             <Shell>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-2xl font-bold text-ink">
             Activity not found
             </h1>
             <Link
             to="/activities"
-            className="mt-4 inline-block text-sm font-medium text-slate-700 underline underline-offset-2 hover:text-slate-900"
+            className="mt-4 inline-block text-sm font-medium text-strong underline underline-offset-2 hover:text-ink"
             >
             ← Back to my activities
             </Link>
@@ -283,13 +283,13 @@ export default function ActivityPrint() {
     if (loadState.status === 'error') {
         return (
             <Shell>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-2xl font-bold text-ink">
             Couldn't open this activity for printing
             </h1>
-            <p className="mt-2 text-slate-600">{loadState.message}</p>
+            <p className="mt-2 text-muted">{loadState.message}</p>
             <Link
             to="/activities"
-            className="mt-4 inline-block text-sm font-medium text-slate-700 underline underline-offset-2 hover:text-slate-900"
+            className="mt-4 inline-block text-sm font-medium text-strong underline underline-offset-2 hover:text-ink"
             >
             ← Back to my activities
             </Link>
@@ -303,22 +303,22 @@ export default function ActivityPrint() {
         <div className="flex items-center justify-between">
         <Link
         to={`/activity/${id}`}
-        className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+        className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
         >
         ← Back to editor
         </Link>
-        <h1 className="truncate text-lg font-bold text-slate-900">
+        <h1 className="truncate text-lg font-bold text-ink">
         {loadState.doc.meta.title}
         </h1>
         </div>
 
         <div className="mt-4 grid gap-6 md:grid-cols-[260px_1fr]">
         {/* Controls — no-print by nature (they live in the app, not the iframe). */}
-        <aside className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4">
+        <aside className="flex flex-col gap-4 rounded-lg border border-line bg-canvas p-4">
         <button
         type="button"
         onClick={handlePrint}
-        className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+        className="rounded-md bg-accent-strong px-3 py-2 text-sm font-semibold text-white hover:bg-accent-stronger"
         >
         Print
         </button>
@@ -336,7 +336,7 @@ export default function ActivityPrint() {
         </label>
 
         {layout === 'foldable' && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
+            <div className="rounded-md border border-warning-border bg-warning-bg p-2.5 text-xs text-warning-stronger">
             <p className="font-semibold">Print double-sided to fold.</p>
             <p className="mt-1">
             In the print dialog choose <strong>two-sided</strong> and{' '}
@@ -344,10 +344,10 @@ export default function ActivityPrint() {
             middle. The blank tab glues into the journal.
             </p>
             {foldableStatus === 'building' && (
-                <p className="mt-1 text-amber-700">Laying out pages…</p>
+                <p className="mt-1 text-warning-text">Laying out pages…</p>
             )}
             {foldableStatus === 'error' && (
-                <p className="mt-1 font-medium text-red-700">
+                <p className="mt-1 font-medium text-danger-strong">
                 Couldn't lay out the foldable. Try a different paper size or
                 margin.
                 </p>
@@ -355,7 +355,7 @@ export default function ActivityPrint() {
             </div>
         )}
 
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-strong">
         <input
         type="checkbox"
         checked={showAnswers}
@@ -364,17 +364,17 @@ export default function ActivityPrint() {
         <span>Show answers (answer key)</span>
         </label>
 
-        <div className="border-t border-slate-200 pt-3">
+        <div className="border-t border-line pt-3">
         <div className="flex items-center justify-between">
         <span className={LABEL_CLASS}>Print layout</span>
         {saveStatus === 'saving' && (
-            <span className="text-xs text-slate-500">Saving…</span>
+            <span className="text-xs text-muted">Saving…</span>
         )}
         {saveStatus === 'saved' && (
-            <span className="text-xs text-slate-500">Saved</span>
+            <span className="text-xs text-muted">Saved</span>
         )}
         {saveStatus === 'error' && (
-            <span className="text-xs text-red-600">Couldn't save</span>
+            <span className="text-xs text-danger">Couldn't save</span>
         )}
         </div>
         {print && (
@@ -393,7 +393,7 @@ export default function ActivityPrint() {
         ref={iframeRef}
         title="Print preview"
         srcDoc={previewHtml}
-        className="h-[80vh] w-full rounded-lg border border-slate-300 bg-white shadow-sm"
+        className="h-[80vh] w-full rounded-lg border border-line-strong bg-canvas shadow-sm"
         />
         </div>
         </Shell>

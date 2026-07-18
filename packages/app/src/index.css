@@ -1,1 +1,70 @@
 @import "tailwindcss";
+
+/* =============================================================================
+ *  App-wide semantic design tokens (UX-lens fix 6, 2026-07-18)
+ *  -----------------------------------------------------------------------
+ *  One source of truth for the chrome's colors, exposed as Tailwind utilities
+ *  via v4's @theme (`--color-<role>` generates `bg-<role>`/`text-<role>`/…).
+ *  Each role points at a Tailwind built-in shade var, so the generated
+ *  utilities are pixel-identical to the raw `bg-slate-50` / `text-slate-600`
+ *  literals they replace across routes/ + components/ (a value-identity swap).
+ *
+ *  Two roles are deliberate, ratified shifts (eng review 2026-07-18):
+ *   - --color-success = emerald-600 (the editor's --ed-correct); the chrome's
+ *     old text-green-700 "correct" marks move to match. One success color app-wide.
+ *   - --color-muted = slate-600 (NOT slate-500): AA-safe on white AND on the
+ *     slate-50 tinted panels, so muted text can't be picked wrong. The old
+ *     text-slate-500-on-white sites darken one step.
+ *
+ *  editor.css re-points its shared --ed-* tokens at these (--ed-canvas:
+ *  var(--color-canvas), …) so the editor and chrome share one definition.
+ *  Editor-only tokens (motion, shadows, z-scale, accent-alt, self-explain,
+ *  the primitive ramp) stay in editor.css.
+ *  ========================================================================= */
+@theme {
+    /* Surfaces */
+    --color-canvas: var(--color-white); /* cards, inputs, popovers, raised */
+    --color-surface: var(--color-slate-50); /* page bg, panels, rails */
+    --color-surface-2: var(--color-slate-100); /* hover fills, dividers */
+    --color-surface-3: var(--color-slate-200); /* stronger fills */
+
+    /* Text (contrast-checked). muted is slate-600: AA on white + slate-50. */
+    --color-ink: var(--color-slate-900); /* primary text */
+    --color-strong: var(--color-slate-700); /* labels, secondary headings */
+    --color-muted: var(--color-slate-600); /* muted/meta — AA everywhere */
+    --color-faint: var(--color-slate-400); /* NON-TEXT: icons, decorative glyphs */
+    --color-disabled: var(--color-slate-300); /* disabled control text */
+
+    /* Borders */
+    --color-line: var(--color-slate-200);
+    --color-line-strong: var(--color-slate-300);
+
+    /* Primary CTA — chrome's neutral-dark action (distinct from the blue
+     * accent; New activity, Publish). */
+    --color-primary: var(--color-slate-900);
+    --color-primary-hover: var(--color-slate-800);
+
+    /* Accent — interactive blue (focus rings, the Print button). */
+    --color-accent: var(--color-blue-500);
+    --color-accent-strong: var(--color-blue-600);
+    --color-accent-stronger: var(--color-blue-700);
+
+    /* Status — success unified on the editor's emerald (ratified). */
+    --color-success: var(--color-emerald-600);
+    --color-success-strong: var(--color-emerald-700);
+    --color-success-accent: var(--color-emerald-500);
+    --color-success-bg: var(--color-green-100);
+
+    --color-warning: var(--color-amber-600);
+    --color-warning-text: var(--color-amber-700);
+    --color-warning-strong: var(--color-amber-800);
+    --color-warning-stronger: var(--color-amber-900);
+    --color-warning-accent: var(--color-amber-500);
+    --color-warning-bg: var(--color-amber-50);
+    --color-warning-bg-2: var(--color-amber-100);
+    --color-warning-border: var(--color-amber-200);
+    --color-warning-border-2: var(--color-amber-300);
+
+    --color-danger: var(--color-red-600);
+    --color-danger-strong: var(--color-red-700);
+}

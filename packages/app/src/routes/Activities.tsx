@@ -22,9 +22,9 @@ function formatEdited(iso: string): string {
 
 function StatusBadge({ status }: { status: ActivityRow['status'] }) {
     const styles: Record<ActivityRow['status'], string> = {
-        draft: 'bg-slate-100 text-slate-600',
-        published: 'bg-green-100 text-green-700',
-        archived: 'bg-amber-100 text-amber-700',
+        draft: 'bg-surface-2 text-muted',
+        published: 'bg-success-bg text-success',
+        archived: 'bg-warning-bg-2 text-warning-text',
     };
     return (
         <span
@@ -227,35 +227,35 @@ export default function Activities() {
     };
 
     return (
-        <main className="min-h-screen bg-slate-50 p-8">
+        <main className="min-h-screen bg-surface p-8">
         <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-slate-900">My activities</h1>
+        <h1 className="text-3xl font-bold text-ink">My activities</h1>
         <button
         type="button"
         onClick={handleCreate}
         disabled={creating}
-        className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50"
         >
         {creating ? 'Creating…' : 'New activity'}
         </button>
         </div>
 
         {createError && (
-            <p className="mt-3 text-sm text-red-600">
+            <p className="mt-3 text-sm text-danger">
             Couldn't create activity: {createError}
             </p>
         )}
 
         <div className="mt-6">
         {listLoading ? (
-            <p className="text-slate-500">Loading your activities…</p>
+            <p className="text-muted">Loading your activities…</p>
         ) : listError ? (
-            <p className="text-red-600">
+            <p className="text-danger">
             Couldn't load activities: {listError}
             </p>
         ) : activities.length === 0 ? (
-            <p className="text-slate-500">
+            <p className="text-muted">
             No activities yet. Create your first one to get started.
             </p>
         ) : (
@@ -263,22 +263,22 @@ export default function Activities() {
             {activities.map((a) => (
                 <li
                 key={a.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow"
+                className="flex items-center justify-between gap-3 rounded-lg border border-line bg-canvas p-4 shadow-sm transition hover:border-line-strong hover:shadow"
                 >
                 <Link
                 to={`/activity/${a.id}`}
-                className="min-w-0 flex-1 truncate font-medium text-slate-900 hover:underline"
+                className="min-w-0 flex-1 truncate font-medium text-ink hover:underline"
                 >
                 {a.title}
                 </Link>
                 <span className="flex shrink-0 items-center gap-3">
                 <StatusBadge status={a.status} />
-                <span className="hidden text-xs text-slate-500 sm:inline">
+                <span className="hidden text-xs text-muted sm:inline">
                 Edited {formatEdited(a.updated_at)}
                 </span>
                 <Link
                 to={`/activity/${a.id}/submissions`}
-                className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+                className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
                 >
                 Submissions
                 </Link>
@@ -287,7 +287,7 @@ export default function Activities() {
                 onClick={() => handleDelete(a)}
                 disabled={deletingId === a.id}
                 aria-label={`Delete ${a.title}`}
-                className="text-sm font-medium text-slate-500 underline underline-offset-2 transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
                 >
                 {deletingId === a.id ? 'Deleting…' : 'Delete'}
                 </button>
@@ -297,7 +297,7 @@ export default function Activities() {
             </ul>
         )}
         {actionError && (
-            <p className="mt-3 text-sm text-red-600">{actionError}</p>
+            <p className="mt-3 text-sm text-danger">{actionError}</p>
         )}
         </div>
         </div>
@@ -310,7 +310,7 @@ export default function Activities() {
                 <div
                 key={a.id}
                 role="status"
-                className="flex items-center gap-3 rounded-lg bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg"
+                className="flex items-center gap-3 rounded-lg bg-primary px-4 py-2.5 text-sm text-white shadow-lg"
                 >
                 <span className="max-w-[16rem] truncate">
                 Deleted <span className="font-medium">{a.title}</span>
@@ -326,7 +326,7 @@ export default function Activities() {
                 type="button"
                 onClick={() => dismissUndo(a.id)}
                 aria-label="Dismiss"
-                className="text-slate-400 transition hover:text-white"
+                className="text-faint transition hover:text-white"
                 >
                 ✕
                 </button>

@@ -42,12 +42,12 @@ export default function DevConfigDrawer() {
         );
 
     return (
-        <main className="min-h-screen bg-slate-50 p-8">
+        <main className="min-h-screen bg-surface p-8">
             <div className="mx-auto max-w-3xl">
-                <h1 className="text-2xl font-bold text-slate-900">
+                <h1 className="text-2xl font-bold text-ink">
                     Config drawer bench
                 </h1>
-                <p className="mb-6 mt-1 text-sm text-slate-500">
+                <p className="mb-6 mt-1 text-sm text-muted">
                     Dev-only — the activity-editor header cluster + settings
                     drawer with local state. The locked-mode dot appears when
                     submission mode is set to “Locked checkpoints” (this bench
@@ -56,7 +56,7 @@ export default function DevConfigDrawer() {
 
                 {/* Single row — back-link, chip toolbar, Publish. */}
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                    <span className="text-sm font-medium text-slate-500 underline underline-offset-2">
+                    <span className="text-sm font-medium text-muted underline underline-offset-2">
                         ← All activities
                     </span>
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -71,7 +71,7 @@ export default function DevConfigDrawer() {
                     />
                     <span
                         aria-hidden="true"
-                        className="mx-1 w-px self-stretch bg-slate-200"
+                        className="mx-1 w-px self-stretch bg-surface-3"
                     />
                     <HeaderButton
                         icon={<FileText size={18} />}
@@ -95,7 +95,7 @@ export default function DevConfigDrawer() {
                     <button
                         type="button"
                         title="Publish this activity as a page students can open"
-                        className="inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-md bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                        className="inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-hover"
                     >
                         <Globe size={15} aria-hidden="true" />
                         Publish

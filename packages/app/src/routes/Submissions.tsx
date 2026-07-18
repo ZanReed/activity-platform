@@ -165,7 +165,7 @@ function formatFunctionSystemParts(
 
 function Shell({ children }: { children: ReactNode }) {
     return (
-        <main className="min-h-screen bg-slate-50 p-8">
+        <main className="min-h-screen bg-surface p-8">
         <div className="mx-auto max-w-4xl">{children}</div>
         </main>
     );
@@ -213,7 +213,7 @@ interface DetailItem {
 
 function TypeBadge({ label }: { label: string }) {
     return (
-        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600">
+        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">
         {label}
         </span>
     );
@@ -223,7 +223,7 @@ function ResultMark({ good, text }: { good: boolean; text: string }) {
     return (
         <span
         className={
-            good ? 'font-medium text-green-700' : 'font-medium text-red-600'
+            good ? 'font-medium text-success' : 'font-medium text-danger'
         }
         >
         {good ? '✓' : '✗'} {text}
@@ -244,11 +244,11 @@ function KV({
 }) {
     return (
         <div className="flex gap-2 text-sm">
-        <span className="w-28 flex-none pt-0.5 text-xs text-slate-600">
+        <span className="w-28 flex-none pt-0.5 text-xs text-muted">
         {label}
         </span>
         <span
-        className={`min-w-0 font-mono ${strong ? 'text-slate-900' : 'text-slate-600'}`}
+        className={`min-w-0 font-mono ${strong ? 'text-ink' : 'text-muted'}`}
         >
         {children}
         </span>
@@ -274,7 +274,7 @@ function SubmissionDetail({
 
     if (!parsed.ok) {
         return (
-            <p className="px-4 py-3 text-sm text-red-600">
+            <p className="px-4 py-3 text-sm text-danger">
             This submission's responses couldn't be read.
             </p>
         );
@@ -361,7 +361,7 @@ function SubmissionDetail({
             body: (
                 <table className="w-full text-sm">
                 <thead>
-                <tr className="text-left text-xs text-slate-600">
+                <tr className="text-left text-xs text-muted">
                 <th className="py-1 pr-3 font-medium">Answer key</th>
                 <th className="py-1 pr-3 font-medium">Student</th>
                 <th className="py-1 pr-3 font-medium">Result</th>
@@ -372,15 +372,15 @@ function SubmissionDetail({
                 </thead>
                 <tbody>
                 {p.blanks.map((b) => (
-                    <tr key={b.row.blankId} className="border-t border-slate-200">
-                    <td className="py-1 pr-3 font-mono text-slate-600">
+                    <tr key={b.row.blankId} className="border-t border-line">
+                    <td className="py-1 pr-3 font-mono text-muted">
                     {b.groupAnswers
                         ? `${b.groupAnswers.join(' or ')} (any order)`
                         : b.canonicalAnswer ?? '—'}
                     </td>
-                    <td className="py-1 pr-3 font-mono text-slate-900">
+                    <td className="py-1 pr-3 font-mono text-ink">
                     {b.row.answer || (
-                        <span className="text-slate-600">(blank)</span>
+                        <span className="text-muted">(blank)</span>
                     )}
                     </td>
                     <td className="py-1 pr-3">
@@ -390,7 +390,7 @@ function SubmissionDetail({
                     />
                     </td>
                     {hasConfidence && (
-                        <td className="py-1 text-slate-600">
+                        <td className="py-1 text-muted">
                         {b.row.confidence
                             ? CONFIDENCE_LABELS[b.row.confidence]
                             : '—'}
@@ -453,7 +453,7 @@ function SubmissionDetail({
             },
             confidence: resp.confidence ?? null,
             body: (
-                <div className="font-mono text-sm text-slate-900">
+                <div className="font-mono text-sm text-ink">
                 {(info?.items ?? []).map((item) => {
                     const picked = resp.pairs[item.id];
                     const pickedText = picked
@@ -471,12 +471,12 @@ function SubmissionDetail({
                         <span key={item.id} className="block">
                         {item.text} →{' '}
                         {pickedText ?? (
-                            <span className="text-slate-600">(unmatched)</span>
+                            <span className="text-muted">(unmatched)</span>
                         )}{' '}
                         {pairCorrect ? (
-                            <span className="text-green-700">✓</span>
+                            <span className="text-success">✓</span>
                         ) : (
-                            <span className="text-red-600">
+                            <span className="text-danger">
                             ✗ (key: {correctText})
                             </span>
                         )}
@@ -655,7 +655,7 @@ function SubmissionDetail({
             result: null,
             confidence: null,
             body: (
-                <p className="whitespace-pre-wrap text-sm text-slate-900">
+                <p className="whitespace-pre-wrap text-sm text-ink">
                 {resp.text}
                 </p>
             ),
@@ -687,20 +687,20 @@ function SubmissionDetail({
     : [];
 
     return (
-        <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="border-t border-line bg-surface px-4 py-3">
         {items.length === 0 ? (
-            <p className="text-sm text-slate-600">No responses recorded.</p>
+            <p className="text-sm text-muted">No responses recorded.</p>
         ) : (
-            <div className="divide-y divide-slate-200">
+            <div className="divide-y divide-line">
             {items.map((item) => (
                 <div key={item.key} className="py-2.5 first:pt-0 last:pb-0">
                 <div className="flex flex-wrap items-baseline gap-2">
                 {item.docOrder === Number.POSITIVE_INFINITY ? (
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                     No longer in this activity
                     </p>
                 ) : item.problemNumber != null ? (
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                     Problem {item.problemNumber}
                     </p>
                 ) : null}
@@ -712,13 +712,13 @@ function SubmissionDetail({
                     />
                 )}
                 {hasConfidence && item.confidence && (
-                    <span className="ml-auto text-xs text-slate-600">
+                    <span className="ml-auto text-xs text-muted">
                     Confidence: {CONFIDENCE_LABELS[item.confidence]}
                     </span>
                 )}
                 </div>
                 {item.prompt && (
-                    <p className="mt-0.5 text-sm text-slate-700">
+                    <p className="mt-0.5 text-sm text-strong">
                     {item.prompt}
                     </p>
                 )}
@@ -739,10 +739,10 @@ function SubmissionDetail({
 
         {checkpoints.length > 0 && (
             <div className="mt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
             Checkpoints
             </p>
-            <ul className="mt-1 space-y-0.5 text-sm text-slate-700">
+            <ul className="mt-1 space-y-0.5 text-sm text-strong">
             {checkpoints.map((c) => (
                 <li key={c.sectionId}>
                 {c.info?.title ??
@@ -751,7 +751,7 @@ function SubmissionDetail({
                 <span className="font-medium">
                 {c.result.score}/{c.result.total}
                 </span>{' '}
-                <span className="text-xs text-slate-600">
+                <span className="text-xs text-muted">
                 checked {formatWhen(c.result.checkedAt)}
                 </span>
                 </li>
@@ -773,7 +773,7 @@ export { SubmissionDetail as SubmissionDetailForTest };
 
 function Chevron({ open }: { open: boolean }) {
     return (
-        <span className="text-xs text-slate-400">{open ? '▲' : '▼'}</span>
+        <span className="text-xs text-faint">{open ? '▲' : '▼'}</span>
     );
 }
 
@@ -791,23 +791,23 @@ function SummaryRow({
     return (
         <>
         <tr
-        className="cursor-pointer border-t border-slate-200 hover:bg-slate-50"
+        className="cursor-pointer border-t border-line hover:bg-surface"
         onClick={() => setOpen((o) => !o)}
         >
         <td className="py-2 pl-3 pr-3">
         <span className="flex items-center gap-2">
         <Chevron open={open} />
-        <span className="font-medium text-slate-900">{group.label}</span>
+        <span className="font-medium text-ink">{group.label}</span>
         </span>
         </td>
-        <td className="py-2 pr-3 font-medium text-slate-900">
+        <td className="py-2 pr-3 font-medium text-ink">
         {formatScore(group.latest.score)}
         </td>
-        <td className="py-2 pr-3 text-slate-600">
+        <td className="py-2 pr-3 text-muted">
         {formatScore(group.best.score)}
         </td>
-        <td className="py-2 pr-3 text-slate-600">{group.count}</td>
-        <td className="py-2 pr-3 text-xs text-slate-500">
+        <td className="py-2 pr-3 text-muted">{group.count}</td>
+        <td className="py-2 pr-3 text-xs text-muted">
         {formatWhen(group.latest.submitted_at)}
         </td>
         </tr>
@@ -832,23 +832,23 @@ function AttemptRow({
     const [open, setOpen] = useState(false);
     const index = resolveIndex(row.activity_version_id);
     return (
-        <div className="rounded-md border border-slate-200 bg-white">
+        <div className="rounded-md border border-line bg-canvas">
         <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
+        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-surface"
         >
         <span className="flex items-center gap-2">
         <Chevron open={open} />
-        <span className="font-medium text-slate-700">
+        <span className="font-medium text-strong">
         Attempt {row.attempt_number}
         </span>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-muted">
         {formatWhen(row.submitted_at)}
         </span>
         </span>
-        <span className="font-medium text-slate-900">
+        <span className="font-medium text-ink">
         {formatScore(row.score)}
         </span>
         </button>
@@ -1047,7 +1047,7 @@ export default function Submissions() {
     if (loadState.status === 'loading') {
         return (
             <Shell>
-            <p className="text-slate-500">Loading submissions…</p>
+            <p className="text-muted">Loading submissions…</p>
             </Shell>
         );
     }
@@ -1055,13 +1055,13 @@ export default function Submissions() {
     if (loadState.status === 'not_found') {
         return (
             <Shell>
-            <h1 className="text-2xl font-bold text-slate-900">Activity not found</h1>
-            <p className="mt-2 text-slate-600">
+            <h1 className="text-2xl font-bold text-ink">Activity not found</h1>
+            <p className="mt-2 text-muted">
             It may have been deleted, or you don't have access to it.
             </p>
             <Link
             to="/activities"
-            className="mt-4 inline-block text-sm font-medium text-slate-700 underline underline-offset-2 hover:text-slate-900"
+            className="mt-4 inline-block text-sm font-medium text-strong underline underline-offset-2 hover:text-ink"
             >
             ← Back to my activities
             </Link>
@@ -1072,13 +1072,13 @@ export default function Submissions() {
     if (loadState.status === 'error') {
         return (
             <Shell>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-2xl font-bold text-ink">
             Couldn't load submissions
             </h1>
-            <p className="mt-2 text-slate-600">{loadState.message}</p>
+            <p className="mt-2 text-muted">{loadState.message}</p>
             <Link
             to="/activities"
-            className="mt-4 inline-block text-sm font-medium text-slate-700 underline underline-offset-2 hover:text-slate-900"
+            className="mt-4 inline-block text-sm font-medium text-strong underline underline-offset-2 hover:text-ink"
             >
             ← Back to my activities
             </Link>
@@ -1124,27 +1124,27 @@ export default function Submissions() {
         <div className="flex items-center justify-between">
         <Link
         to={`/activity/${id}`}
-        className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+        className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
         >
         ← Back to editor
         </Link>
         <Link
         to="/activities"
-        className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+        className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
         >
         All activities
         </Link>
         </div>
 
-        <h1 className="mt-4 text-2xl font-bold text-slate-900">Submissions</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="mt-4 text-2xl font-bold text-ink">Submissions</h1>
+        <p className="mt-1 text-sm text-muted">
         {title} · {totalSubmissions} submission
         {totalSubmissions === 1 ? '' : 's'} from {groups.length} student
         {groups.length === 1 ? '' : 's'}
         </p>
 
         {groups.length === 0 ? (
-            <p className="mt-8 text-slate-500">
+            <p className="mt-8 text-muted">
             No submissions yet. Once students submit this activity, they'll show
             up here.
             </p>
@@ -1153,7 +1153,7 @@ export default function Submissions() {
             <div
             role="tablist"
             aria-label="Submission view"
-            className="mt-6 inline-flex rounded-md border border-slate-300 bg-white p-0.5 text-sm"
+            className="mt-6 inline-flex rounded-md border border-line-strong bg-canvas p-0.5 text-sm"
             >
             <button
             type="button"
@@ -1162,8 +1162,8 @@ export default function Submissions() {
             onClick={() => setView('summary')}
             className={`rounded px-3 py-1 font-medium transition ${
                 view === 'summary'
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-primary text-white'
+                : 'text-muted hover:text-ink'
             }`}
             >
             Summary
@@ -1175,8 +1175,8 @@ export default function Submissions() {
             onClick={() => setView('all')}
             className={`rounded px-3 py-1 font-medium transition ${
                 view === 'all'
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-primary text-white'
+                : 'text-muted hover:text-ink'
             }`}
             >
             All attempts
@@ -1184,7 +1184,7 @@ export default function Submissions() {
             </div>
 
             {hasGradableContent && (
-                <label className="ml-3 inline-flex items-center gap-1.5 text-sm text-slate-600">
+                <label className="ml-3 inline-flex items-center gap-1.5 text-sm text-muted">
                 <input
                 type="checkbox"
                 checked={needsGradingOnly}
@@ -1196,14 +1196,14 @@ export default function Submissions() {
 
             <GradingProvider value={{ grades, gradedBy, onSaved: onGradeSaved }}>
             {visibleGroups.length === 0 ? (
-                <p className="mt-6 text-sm text-slate-500">
+                <p className="mt-6 text-sm text-muted">
                 Nothing needs grading — every written response is graded.
                 </p>
             ) : view === 'summary' ? (
-                <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                <div className="mt-4 overflow-hidden rounded-lg border border-line bg-canvas shadow-sm">
                 <table className="w-full text-sm">
                 <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr className="text-left text-xs uppercase tracking-wide text-muted">
                 <th className="py-2 pl-3 pr-3 font-medium">Student</th>
                 <th className="py-2 pr-3 font-medium">Latest</th>
                 <th className="py-2 pr-3 font-medium">Best</th>
@@ -1222,9 +1222,9 @@ export default function Submissions() {
                 <div className="mt-4 space-y-5">
                 {visibleGroups.map((g) => (
                     <div key={g.key}>
-                    <p className="mb-1.5 text-sm font-semibold text-slate-900">
+                    <p className="mb-1.5 text-sm font-semibold text-ink">
                     {g.label}{' '}
-                    <span className="text-xs font-normal text-slate-500">
+                    <span className="text-xs font-normal text-muted">
                     {g.count} attempt{g.count === 1 ? '' : 's'}
                     </span>
                     </p>

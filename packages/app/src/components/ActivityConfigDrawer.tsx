@@ -46,10 +46,10 @@ const DRAWER_TITLES: Record<ConfigKey, string> = {
 };
 
 const SELECT_CLASS =
-    'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
+    'w-full rounded-md border border-line-strong bg-canvas px-2 py-1.5 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 const SETTINGS_LABEL_CLASS =
-    'text-xs font-semibold uppercase tracking-wide text-slate-500';
-const SETTINGS_HELP_CLASS = 'mt-1 text-xs text-slate-500';
+    'text-xs font-semibold uppercase tracking-wide text-muted';
+const SETTINGS_HELP_CLASS = 'mt-1 text-xs text-muted';
 
 const SUBMISSION_MODE_HELP: Record<ActivityMeta['submissionMode'], string> = {
     single: 'One submit at the end — no per-section checkpoints.',
@@ -109,12 +109,12 @@ export function HeaderButton({
         'relative flex min-w-[3.5rem] flex-col items-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-medium leading-none transition';
     let tone: string;
     if (disabled) {
-        tone = 'cursor-not-allowed border-slate-200 bg-white text-slate-300';
+        tone = 'cursor-not-allowed border-line bg-canvas text-disabled';
     } else if (active) {
-        tone = 'border-slate-900 bg-slate-900 text-white';
+        tone = 'border-ink bg-primary text-white';
     } else {
         tone =
-            'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900';
+            'border-line bg-canvas text-muted hover:border-line-strong hover:bg-surface-2 hover:text-ink';
     }
     const cls = `${base} ${tone}`;
     const body = (
@@ -127,7 +127,7 @@ export function HeaderButton({
                 <span
                     aria-hidden="true"
                     className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${
-                        dot === 'amber' ? 'bg-amber-500' : 'bg-emerald-500'
+                        dot === 'amber' ? 'bg-warning-accent' : 'bg-success-accent'
                     }`}
                 />
             ) : null}
@@ -287,12 +287,12 @@ export function ConfigDrawer({
             }}
             className={
                 active
-                    ? 'fixed inset-y-0 right-0 z-40 flex w-[26rem] max-w-[92vw] flex-col border-l border-slate-200 bg-white shadow-xl'
+                    ? 'fixed inset-y-0 right-0 z-40 flex w-[26rem] max-w-[92vw] flex-col border-l border-line bg-canvas shadow-xl'
                     : 'hidden'
             }
         >
-            <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                <h2 className="text-sm font-semibold text-slate-900">
+            <header className="flex items-center justify-between border-b border-line px-4 py-3">
+                <h2 className="text-sm font-semibold text-ink">
                     {active ? DRAWER_TITLES[active] : ''}
                 </h2>
                 <button
@@ -300,7 +300,7 @@ export function ConfigDrawer({
                     type="button"
                     onClick={onClose}
                     aria-label="Close panel"
-                    className="rounded px-2 py-1 text-sm text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                    className="rounded px-2 py-1 text-sm text-muted transition hover:bg-surface-2 hover:text-ink"
                 >
                     ✕
                 </button>
@@ -495,7 +495,7 @@ function TypographySettings({
     };
 
     return (
-        <div className="border-t border-slate-200 pt-4">
+        <div className="border-t border-line pt-4">
             <div>
                 <label className={SETTINGS_LABEL_CLASS} htmlFor="activity-font">
                     Font
@@ -551,7 +551,7 @@ function TypographySettings({
 
             <p
                 data-typography-preview
-                className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700"
+                className="mt-3 rounded-md border border-line bg-surface px-3 py-2 text-strong"
                 style={{
                     fontFamily: fontFamilyValue(typography.font) ?? undefined,
                     fontSize: `${typography.fontSize}px`,
@@ -731,7 +731,7 @@ export function PrintSettingsBody({
                     {PRINT_HEADER_FIELDS.map(({ key, label }) => (
                         <label
                             key={key}
-                            className="inline-flex items-center gap-1.5 text-sm text-slate-700"
+                            className="inline-flex items-center gap-1.5 text-sm text-strong"
                         >
                             <input
                                 type="checkbox"
@@ -772,7 +772,7 @@ export function PrintSettingsBody({
             </div>
 
             <div className="mt-4">
-                <label className="inline-flex items-center gap-1.5 text-sm text-slate-700">
+                <label className="inline-flex items-center gap-1.5 text-sm text-strong">
                     <input
                         type="checkbox"
                         checked={print.gridLines}
@@ -791,7 +791,7 @@ export function PrintSettingsBody({
             </div>
 
             <div className="mt-4">
-                <label className="inline-flex items-center gap-1.5 text-sm text-slate-700">
+                <label className="inline-flex items-center gap-1.5 text-sm text-strong">
                     <input
                         type="checkbox"
                         checked={print.printReferencePanel}
@@ -936,7 +936,7 @@ function CalculatorPreview({
                 onClick={() => handleRef.current?.toggle()}
                 aria-pressed={open}
                 data-calculator-preview-toggle
-                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                className="rounded-md border border-line-strong bg-canvas px-3 py-1.5 text-sm font-medium text-strong transition hover:border-line-strong hover:bg-surface"
             >
                 {open ? 'Hide preview' : 'Preview — what students will see'}
             </button>
@@ -983,7 +983,7 @@ function CalculatorBody({
                 thinking aid — never graded, no answer key. Restrict which
                 functions it offers below.
             </p>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2 text-sm text-strong">
                 <input
                     type="checkbox"
                     checked={enabled}
@@ -1017,7 +1017,7 @@ function CalculatorBody({
                         ~240 KB more the first time a student opens it.
                     </p>
                     <p className={SETTINGS_LABEL_CLASS}>Allowed functions</p>
-                    <label className="mt-1 flex items-center gap-2 text-sm text-slate-700">
+                    <label className="mt-1 flex items-center gap-2 text-sm text-strong">
                         <input
                             type="checkbox"
                             checked={restrictions.allowTrig}
@@ -1029,7 +1029,7 @@ function CalculatorBody({
                         />
                         <span>Trigonometry (sin, cos, tan)</span>
                     </label>
-                    <label className="mt-1 flex items-center gap-2 text-sm text-slate-700">
+                    <label className="mt-1 flex items-center gap-2 text-sm text-strong">
                         <input
                             type="checkbox"
                             checked={restrictions.allowLogExp}
@@ -1041,7 +1041,7 @@ function CalculatorBody({
                         />
                         <span>Logarithms &amp; exponentials (ln, log)</span>
                     </label>
-                    <label className="mt-1 flex items-center gap-2 text-sm text-slate-700">
+                    <label className="mt-1 flex items-center gap-2 text-sm text-strong">
                         <input
                             type="checkbox"
                             checked={restrictions.allowInequalities}
@@ -1097,7 +1097,7 @@ function CalculatorBody({
                             {REGRESSION_MODEL_OPTIONS.map(({ model, label }) => (
                                 <label
                                     key={model}
-                                    className="mt-1 flex items-center gap-2 text-sm text-slate-700"
+                                    className="mt-1 flex items-center gap-2 text-sm text-strong"
                                 >
                                     <input
                                         type="checkbox"
