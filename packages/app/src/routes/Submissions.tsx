@@ -223,7 +223,7 @@ function ResultMark({ good, text }: { good: boolean; text: string }) {
     return (
         <span
         className={
-            good ? 'font-medium text-success' : 'font-medium text-danger'
+            good ? 'font-medium text-success-strong' : 'font-medium text-danger'
         }
         >
         {good ? '✓' : '✗'} {text}
@@ -474,7 +474,7 @@ function SubmissionDetail({
                             <span className="text-muted">(unmatched)</span>
                         )}{' '}
                         {pairCorrect ? (
-                            <span className="text-success">✓</span>
+                            <span className="text-success-strong">✓</span>
                         ) : (
                             <span className="text-danger">
                             ✗ (key: {correctText})

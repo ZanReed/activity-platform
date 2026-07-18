@@ -23,8 +23,8 @@ function formatEdited(iso: string): string {
 function StatusBadge({ status }: { status: ActivityRow['status'] }) {
     const styles: Record<ActivityRow['status'], string> = {
         draft: 'bg-surface-2 text-muted',
-        published: 'bg-success-bg text-success',
-        archived: 'bg-warning-bg-2 text-warning-text',
+        published: 'bg-success-bg text-success-strong',
+        archived: 'bg-warning-bg-2 text-warning-strong',
     };
     return (
         <span

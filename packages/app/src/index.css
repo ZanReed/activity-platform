@@ -64,9 +64,13 @@
     --color-accent-stronger: light-dark(var(--color-blue-700), rgb(29 78 216)); /* blue-700 dark — button hover */
 
     /* Status — success unified on emerald (ratified). Dark: text/tint/border
-     * roles lighten (no solid white-text status buttons); -bg tokens go dark tints. */
+     * roles lighten (no solid white-text status buttons); -bg tokens go dark tints.
+     * LIGHT small text: -success (emerald-600) is the accent/brand green and is
+     * sub-AA as small text on white (3.8:1) or on -success-bg (3.4:1) — use
+     * -success-strong (emerald-700, ≥4.5:1) for TEXT, mirroring -warning-text.
+     * Keep -success / -success-accent for dots, fills, borders, and editor marks. */
     --color-success: light-dark(var(--color-emerald-600), rgb(52 211 153)); /* emerald-400 dark */
-    --color-success-strong: light-dark(var(--color-emerald-700), rgb(110 231 183)); /* emerald-300 dark */
+    --color-success-strong: light-dark(var(--color-emerald-700), rgb(110 231 183)); /* AA text; emerald-300 dark */
     --color-success-accent: light-dark(var(--color-emerald-500), rgb(52 211 153)); /* dot */
     --color-success-bg: light-dark(var(--color-green-100), rgb(2 44 34)); /* emerald-950 dark tint */
 

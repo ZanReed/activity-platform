@@ -55,9 +55,9 @@ const STATUS_LABEL: Record<GradingStatus, string> = {
     full: 'Graded',
 };
 const STATUS_CLASS: Record<GradingStatus, string> = {
-    none: 'text-warning',
-    partial: 'text-warning',
-    full: 'text-success',
+    none: 'text-warning-text',
+    partial: 'text-warning-text',
+    full: 'text-success-strong',
 };
 
 /** The grader for every rubric-bearing block of one submission. */
@@ -88,7 +88,7 @@ export function GradingPanel({
                         {earned} / {max}
                     </span>
                     {anyUngraded && (
-                        <span className="ml-1 text-xs italic text-warning">
+                        <span className="ml-1 text-xs italic text-warning-text">
                             (grading in progress)
                         </span>
                     )}

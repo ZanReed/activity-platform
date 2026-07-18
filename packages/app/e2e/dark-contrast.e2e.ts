@@ -58,7 +58,7 @@ async function readRoles(page: Page, theme: 'light' | 'dark'): Promise<Roles> {
             'canvas', 'surface', 'surface-2', 'surface-3',
             'ink', 'strong', 'muted',
             'primary', 'accent-strong', 'accent-stronger',
-            'success', 'success-bg',
+            'success', 'success-strong', 'success-bg',
             'warning-strong', 'warning-text', 'warning-bg', 'warning-bg-2',
         ];
         const out: Record<string, [number, number, number]> = {};
@@ -111,17 +111,28 @@ test('print forces light even for a dark-theme user', async ({ page }) => {
     expect(luminance(r.ink)).toBeLessThan(0.1); // dark ink
 });
 
-// Dark-only: the status TINT badges are a dark-mode-owned design (the -bg tokens
-// are hand-picked dark tints). In light the -600 status colors as small text are
-// a pre-existing sub-AA nuance, out of this slice's scope, so we assert the tint
-// pairs only where we own them.
-test('dark: status tint badges meet AA', async ({ page }) => {
-    await page.goto('/');
-    const r = await readRoles(page, 'dark');
-    // bg-success-bg text-success (Published badge)
-    expect(contrast(r.success, r['success-bg'])).toBeGreaterThanOrEqual(AA);
-    // bg-warning-bg text-warning-strong (callouts)
-    expect(contrast(r['warning-strong'], r['warning-bg'])).toBeGreaterThanOrEqual(AA);
-    // bg-warning-bg-2 text-warning-text (Archived badge)
-    expect(contrast(r['warning-text'], r['warning-bg-2'])).toBeGreaterThanOrEqual(AA);
-});
+// The status TINT badges. The -bg tokens are hand-picked tints in each theme;
+// the TEXT sits on the tint (badges) or on the canvas (inline status text).
+// Both themes must hold AA now — the light -600 status colors were sub-AA as
+// small text (success 3.8:1 / warning 3.2:1), fixed by moving TEXT onto the
+// darker -strong / -text tokens (success text → -success-strong emerald-700,
+// warning text → -warning-text amber-700), accents/dots kept on the -600 base.
+for (const theme of ['light', 'dark'] as const) {
+    test(`${theme}: status text tokens meet AA on tint and canvas`, async ({
+        page,
+    }) => {
+        await page.goto('/');
+        const r = await readRoles(page, theme);
+        // bg-success-bg text-success-strong (Published badge) + inline ✓ marks
+        // (text-success-strong on the canvas: grading/submission result text).
+        expect(contrast(r['success-strong'], r['success-bg'])).toBeGreaterThanOrEqual(AA);
+        expect(contrast(r['success-strong'], r.canvas)).toBeGreaterThanOrEqual(AA);
+        // text-warning-text on the canvas (grading status labels + "in progress").
+        expect(contrast(r['warning-text'], r.canvas)).toBeGreaterThanOrEqual(AA);
+        // bg-warning-bg-2 text-warning-strong (Archived badge — bumped off the
+        // borderline -warning-text pair to amber-800 for headroom) and
+        // bg-warning-bg text-warning-strong (callouts).
+        expect(contrast(r['warning-strong'], r['warning-bg-2'])).toBeGreaterThanOrEqual(AA);
+        expect(contrast(r['warning-strong'], r['warning-bg'])).toBeGreaterThanOrEqual(AA);
+    });
+}
