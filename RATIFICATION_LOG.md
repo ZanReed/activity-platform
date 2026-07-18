@@ -88,6 +88,13 @@ Reading pointers (surprised / no-opinion items):
   GS-M9 is the test that pins the difference. The blind spot to carry forward: weigh grading-blast over
   cross-scorer maintenance-symmetry when the two conflict.
 
+**Owner verify act — GS-J1b: CLEARED 2026-07-18.** On a freshly-published page, a real 2-inequality
+system AND a 2-curve function system were authored, answered as a student, and the submissions
+dashboard scored each correctly. This is the one gate no automated test stands in for (board visuals
++ live wire→ingest→dashboard round-trip); it passed. The graph-systems slice (both phases) is DONE.
+Follow-on: the inequality-system student-controls redesign (chip strip / tap-to-edit popover /
+click-to-shade / Flip shade) shipped + deployed on kit `VTQZCLFW`, author-directed post-ship UX.
+
 ## Group 3 sizing slice — additional reading pointers
 
 Reading pointers (surprised / no-opinion items):
