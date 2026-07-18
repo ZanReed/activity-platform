@@ -8,25 +8,37 @@
 // calls its contentWindow.print(), so the browser prints exactly the previewed
 // document with its inlined @page rules, free of the app's own chrome/Tailwind.
 //
-// Two layers of print-time control sit in a no-print sidebar:
-//   - Preference overrides (paper size, columns, margin, body size, spacing,
-//     work space). These are SESSION-ONLY — they tweak how this printout looks
-//     without touching the saved document. The saved print config (authored in
-//     the editor) is the baseline; an override shadows one field. "Reset"
-//     clears them. Header fields aren't here — those are authored in the editor.
+// The no-print sidebar carries three kinds of control:
+//   - Print layout (paper size, margin, body size, spacing, work space, header
+//     fields). This is the SAVED print config — the same PrintSettingsBody the
+//     editor used to host, moved here (2026-07-18) so you configure the print
+//     against its live preview. Edits autosave to the activity's draft (an
+//     activity with no draft yet gets one, exactly like any editor edit).
+//   - "Layout": worksheet (flat) vs the journal foldable. A view choice, not
+//     saved.
 //   - "Show answers": the answer-key variant, where every blank prints
-//     prefilled with its canonical answer.
+//     prefilled with its canonical answer. A view choice, not saved.
 //
-// All of this runs client-side: the renderer is imported directly, so this page
-// needs no Edge Function and no redeploy to work or to change.
+// The preview + layout controls run client-side (the renderer is imported
+// directly, so this page needs no Edge Function). The layout save is a plain
+// activities.update, mirroring the editor's autosave.
 // =============================================================================
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 import { Link, useParams } from 'react-router';
 import { renderActivityForPrint, FONTS_R2_PREFIX } from '@activity/renderer';
 import { ActivityDocument, type PrintConfig } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { buildFoldableDocument } from '../lib/foldable';
+import { useAutosave } from '../lib/useAutosave';
+import { PrintSettingsBody } from '../components/ActivityConfigDrawer';
 
 // Where the printed document's @font-face rules point (meta.typography fonts,
 // self-hosted on R2). Same base the published page uses — the preview iframe
@@ -49,15 +61,6 @@ type PrintLayout = 'worksheet' | 'foldable';
 
 const UUID_RE =
 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// The subset of print fields exposed as session overrides here. Header toggles
-// and custom labels are authored in the editor, not overridden per-print.
-type PrintOverrides = Partial<
-Pick<
-PrintConfig,
-'paperSize' | 'columns' | 'margin' | 'fontSize' | 'problemSpacing' | 'workSpace'
->
->;
 
 type LoadState =
 | { status: 'loading' }
@@ -82,49 +85,15 @@ function Shell({ children }: { children: ReactNode }) {
 
 const LABEL_CLASS =
 'text-xs font-semibold uppercase tracking-wide text-slate-500';
-const HELP_CLASS = 'mt-1 text-xs text-slate-500';
 const FIELD_CLASS =
 'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
-
-// A labelled number control that commits only valid, in-range input; empty or
-// out-of-range entry is ignored (keeps the last good value).
-function NumberControl({
-    label,
-    value,
-    min,
-    step,
-    onCommit,
-}: {
-    label: string;
-    value: number;
-    min: number;
-    step: number;
-    onCommit: (n: number) => void;
-}) {
-    return (
-        <label className="block">
-        <span className={LABEL_CLASS}>{label}</span>
-        <input
-        type="number"
-        min={min}
-        step={step}
-        className={`${FIELD_CLASS} mt-1`}
-        value={value}
-        onChange={(e) => {
-            const raw = e.target.value;
-            if (raw === '') return;
-            const n = Number(raw);
-            if (Number.isFinite(n) && n >= min) onCommit(n);
-        }}
-        />
-        </label>
-    );
-}
 
 export default function ActivityPrint() {
     const { id } = useParams();
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
-    const [overrides, setOverrides] = useState<PrintOverrides>({});
+    // The editable, SAVED print config. Seeded from the loaded doc's meta.print;
+    // edits autosave (see savePrint). null until the doc loads.
+    const [print, setPrint] = useState<PrintConfig | null>(null);
     const [showAnswers, setShowAnswers] = useState(false);
     const [layout, setLayout] = useState<PrintLayout>('worksheet');
     const [foldableHtml, setFoldableHtml] = useState('');
@@ -198,6 +167,7 @@ export default function ActivityPrint() {
                 return;
             }
             setLoadState({ status: 'ready', doc: parsed.data });
+            setPrint(parsed.data.meta.print);
         })();
 
         return () => {
@@ -207,16 +177,42 @@ export default function ActivityPrint() {
 
     const doc = loadState.status === 'ready' ? loadState.doc : null;
 
-    // The effective document = saved baseline with any session print overrides
-    // shadowed on top. Shared by both layouts (the worksheet renders it directly;
-    // the foldable builder measures + paginates it).
+    // The effective document = the loaded body with the (editable) print config
+    // applied. Shared by both layouts (the worksheet renders it directly; the
+    // foldable builder measures + paginates it).
     const mergedDoc = useMemo<ActivityDocument | null>(() => {
-        if (!doc) return null;
-        return {
+        if (!doc || !print) return null;
+        return { ...doc, meta: { ...doc.meta, print } };
+    }, [doc, print]);
+
+    // Persist a print-config edit to the activity's draft — mirrors the editor's
+    // save (a read-through write of draft_content). An activity with no draft
+    // yet gets one, exactly like any editor edit. useAutosave debounces; its
+    // baseline (the seeded config) never triggers a save.
+    const savePrint = useCallback(async () => {
+        if (!id || !doc || !print) return;
+        const next: ActivityDocument = {
             ...doc,
-            meta: { ...doc.meta, print: { ...doc.meta.print, ...overrides } },
+            meta: { ...doc.meta, print },
         };
-    }, [doc, overrides]);
+        const parsed = ActivityDocument.safeParse(next);
+        if (!parsed.success) {
+            throw new Error('Print settings failed validation; not saved.');
+        }
+        const { error } = await supabase
+            .from('activities')
+            .update({
+                draft_content: parsed.data,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', id);
+        if (error) throw error;
+    }, [id, doc, print]);
+
+    const { status: saveStatus } = useAutosave(
+        print ? JSON.stringify(print) : null,
+        savePrint,
+    );
 
     // Flat worksheet HTML — synchronous, memoized so the (non-trivial) document
     // string only rebuilds when the merged doc or the answer toggle changes.
@@ -302,10 +298,6 @@ export default function ActivityPrint() {
     }
 
     // status === 'ready' — doc is set.
-    const print = loadState.doc.meta.print;
-    const eff = { ...print, ...overrides };
-    const hasOverrides = Object.keys(overrides).length > 0;
-
     return (
         <Shell>
         <div className="flex items-center justify-between">
@@ -374,78 +366,25 @@ export default function ActivityPrint() {
 
         <div className="border-t border-slate-200 pt-3">
         <div className="flex items-center justify-between">
-        <span className={LABEL_CLASS}>Layout overrides</span>
-        {hasOverrides && (
-            <button
-            type="button"
-            onClick={() => setOverrides({})}
-            className="text-xs font-medium text-blue-600 hover:text-blue-700"
-            >
-            Reset
-            </button>
+        <span className={LABEL_CLASS}>Print layout</span>
+        {saveStatus === 'saving' && (
+            <span className="text-xs text-slate-500">Saving…</span>
+        )}
+        {saveStatus === 'saved' && (
+            <span className="text-xs text-slate-500">Saved</span>
+        )}
+        {saveStatus === 'error' && (
+            <span className="text-xs text-red-600">Couldn't save</span>
         )}
         </div>
-        <p className={HELP_CLASS}>
-        Tweaks this printout only — your saved settings don't change.
-        </p>
-
-        <div className="mt-3 flex flex-col gap-3">
-        <label className="block">
-        <span className={LABEL_CLASS}>Paper size</span>
-        <select
-        className={`${FIELD_CLASS} mt-1`}
-        value={eff.paperSize}
-        onChange={(e) =>
-            setOverrides((o) => ({
-                ...o,
-                paperSize: e.target.value as PrintConfig['paperSize'],
-            }))
-        }
-        >
-        <option value="letter">Letter</option>
-        <option value="a4">A4</option>
-        </select>
-        </label>
-
-        {/* The worksheet "Columns" session override (CSS column-count) was
-            retired when structural authored columns landed — authored columns
-            render consistently everywhere, so the per-mode print setting is
-            redundant. The eff.columns value still flows to the renderer (kept
-            dormant on purpose; see PrintConfig.columns in
-            packages/schema/src/document.ts), so any already-saved column count
-            still prints; there's just no longer a control to change it here. */}
-
-        <NumberControl
-        label="Margin (in)"
-        value={eff.margin}
-        min={0}
-        step={0.25}
-        onCommit={(n) => setOverrides((o) => ({ ...o, margin: n }))}
-        />
-        <NumberControl
-        label="Body text (pt)"
-        value={eff.fontSize}
-        min={1}
-        step={1}
-        onCommit={(n) => setOverrides((o) => ({ ...o, fontSize: n }))}
-        />
-        <NumberControl
-        label="Space between problems (rem)"
-        value={eff.problemSpacing}
-        min={0}
-        step={0.5}
-        onCommit={(n) =>
-            setOverrides((o) => ({ ...o, problemSpacing: n }))
-        }
-        />
-        <NumberControl
-        label="Work space per problem (rem)"
-        value={eff.workSpace}
-        min={0}
-        step={0.5}
-        onCommit={(n) => setOverrides((o) => ({ ...o, workSpace: n }))}
-        />
-        </div>
+        {print && (
+            <div className="mt-3">
+            <PrintSettingsBody
+            meta={{ ...loadState.doc.meta, print }}
+            onChange={(next) => setPrint(next.print)}
+            />
+            </div>
+        )}
         </div>
         </aside>
 

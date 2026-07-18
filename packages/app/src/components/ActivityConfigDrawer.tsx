@@ -21,7 +21,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Settings, Printer, BookOpen, Calculator as CalculatorIcon } from 'lucide-react';
+import { Settings, BookOpen, Calculator as CalculatorIcon } from 'lucide-react';
 import type { JSONContent } from '@tiptap/react';
 import {
     createCalculatorTool,
@@ -37,11 +37,10 @@ import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 import ReferencePanelEditor from '../editor/ReferencePanelEditor';
 import { ensureActivityFontLoaded } from '../lib/fonts';
 
-export type ConfigKey = 'settings' | 'print' | 'reference' | 'calculator';
+export type ConfigKey = 'settings' | 'reference' | 'calculator';
 
 const DRAWER_TITLES: Record<ConfigKey, string> = {
     settings: 'Activity settings',
-    print: 'Print & worksheet layout',
     reference: 'Reference panel',
     calculator: 'Calculator',
 };
@@ -160,7 +159,8 @@ export function HeaderButton({
 const ICON = 18;
 
 // =============================================================================
-// ConfigButtons — the four drawer-opening buttons with their state cues.
+// ConfigButtons — the drawer-opening buttons with their state cues. (Print
+// layout moved to the Print view route, so it's no longer here.)
 // =============================================================================
 
 export function ConfigButtons({
@@ -191,14 +191,6 @@ export function ConfigButtons({
                 }
                 onClick={() => onToggle('settings')}
                 dataConfigButton="settings"
-            />
-            <HeaderButton
-                icon={<Printer size={ICON} />}
-                label="Print layout"
-                active={active === 'print'}
-                title="Paper, margins, header fields, and worksheet spacing"
-                onClick={() => onToggle('print')}
-                dataConfigButton="print"
             />
             <HeaderButton
                 icon={<BookOpen size={ICON} />}
@@ -316,9 +308,6 @@ export function ConfigDrawer({
             <div className="flex-1 overflow-y-auto px-4 py-4">
                 <div className={active === 'settings' ? '' : 'hidden'}>
                     <ActivitySettingsBody meta={meta} onChange={onMetaChange} />
-                </div>
-                <div className={active === 'print' ? '' : 'hidden'}>
-                    <PrintSettingsBody meta={meta} onChange={onMetaChange} />
                 </div>
                 <div className={active === 'reference' ? '' : 'hidden'}>
                     <ReferencePanelBody
@@ -640,7 +629,7 @@ function PrintNumberField({
 // the header object toggles the printed Name/Date/… line. Per-problem work
 // space lives on each FillInBlank block (FillInBlankView), not here — this
 // workSpace is the worksheet-wide default.
-function PrintSettingsBody({
+export function PrintSettingsBody({
     meta,
     onChange,
 }: {

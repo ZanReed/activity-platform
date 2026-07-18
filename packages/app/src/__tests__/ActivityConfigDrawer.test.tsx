@@ -27,7 +27,7 @@ afterEach(cleanup);
 const meta = createEmptyDocument({ title: 'Test' }).meta;
 
 function renderDrawer(
-    active: 'settings' | 'print' | 'reference' | 'calculator' | null,
+    active: 'settings' | 'reference' | 'calculator' | null,
     onMetaChange: (next: ActivityMeta) => void = () => {},
 ) {
     return render(
@@ -55,10 +55,10 @@ function renderDrawer(
 describe('ConfigDrawer', () => {
     it('mounts every section body while closed (schema compiles; nothing conditional)', () => {
         const { container } = renderDrawer(null);
-        // Drawer chrome hidden, but all four bodies are in the DOM.
+        // Drawer chrome hidden, but every section body is in the DOM. (Print
+        // layout moved to the Print view route, so it's no longer a section.)
         expect(container.querySelector('[role="dialog"]')?.className).toBe('hidden');
         expect(container.querySelector('#submission-mode')).not.toBeNull();
-        expect(container.querySelector('#print-paper')).not.toBeNull();
         expect(container.querySelector('#reference-title')).not.toBeNull();
         // The reference panel's Tiptap editor mounted (its toolbar rendered) —
         // this line is the constrained-schema compilation guard.
@@ -68,12 +68,11 @@ describe('ConfigDrawer', () => {
     });
 
     it('shows exactly the active section', () => {
-        const { container } = renderDrawer('print');
+        const { container } = renderDrawer('reference');
         const hidden = (sel: string) =>
             container.querySelector(sel)?.closest('.hidden') !== null;
-        expect(hidden('#print-paper')).toBe(false);
+        expect(hidden('#reference-title')).toBe(false);
         expect(hidden('#submission-mode')).toBe(true);
-        expect(hidden('#reference-title')).toBe(true);
     });
 
     it('labels the drawer after the active section', () => {

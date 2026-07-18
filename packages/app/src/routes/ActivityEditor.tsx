@@ -539,21 +539,54 @@ export default function ActivityEditor() {
         return (
             <Shell>
             {/*
-              Two-tier header. Row 1 is the primary-action bar: back-link left,
-              Publish (the page's main action) as a filled button top-right next
-              to the save indicator — its own prominence, not a chip in the
-              crowd. Row 2 is the config + nav toolbar (lucide icon+label chips,
-              each with a hover title), LEFT-aligned so it flows from the margin
-              instead of jamming right and leaving a dead gap. The published
-              status sits under Publish on the right.
+              One header row, three groups (flex-wrap justify-between): the
+              back-link left, the config + nav chip toolbar in the middle, and
+              Publish (the filled primary button) + save indicator right. Now
+              that Print layout lives in the Print view route, six chips + the
+              button fit one line at the editor width. Published status sits
+              under Publish on the right.
             */}
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <Link
             to="/activities"
             className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
             >
             ← All activities
             </Link>
+            <div className="flex flex-wrap items-center gap-1.5">
+            <ConfigButtons
+            active={configOpen}
+            onToggle={(key) =>
+                setConfigOpen((cur) => (cur === key ? null : key))
+            }
+            calculatorEnabled={calculator?.enabled ?? false}
+            referenceHasContent={referenceHasContent}
+            settingsWarning={lockedWarning}
+            />
+            <span
+            aria-hidden="true"
+            className="mx-1 w-px self-stretch bg-slate-200"
+            />
+            <HeaderButton
+            icon={<FileText size={18} />}
+            label="Print view"
+            to={`/activity/${id}/print`}
+            title="Open the printable worksheet view + print layout settings"
+            />
+            <HeaderButton
+            icon={<BarChart3 size={18} />}
+            label="Submissions"
+            to={`/activity/${id}/submissions`}
+            title="Open the submissions dashboard (student results)"
+            />
+            <HeaderButton
+            icon={<ClipboardPaste size={18} />}
+            label="Import"
+            onClick={() => setImportOpen(true)}
+            disabled={!editorInstance}
+            title="Paste markdown and convert it to activity blocks"
+            />
+            </div>
             <div className="flex items-center gap-3">
             <SaveIndicator status={status} />
             <button
@@ -575,41 +608,6 @@ export default function ActivityEditor() {
                   : 'Publish'}
             </button>
             </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-            <ConfigButtons
-            active={configOpen}
-            onToggle={(key) =>
-                setConfigOpen((cur) => (cur === key ? null : key))
-            }
-            calculatorEnabled={calculator?.enabled ?? false}
-            referenceHasContent={referenceHasContent}
-            settingsWarning={lockedWarning}
-            />
-            <span
-            aria-hidden="true"
-            className="mx-1 w-px self-stretch bg-slate-200"
-            />
-            <HeaderButton
-            icon={<FileText size={18} />}
-            label="Print view"
-            to={`/activity/${id}/print`}
-            title="Open the printable worksheet view"
-            />
-            <HeaderButton
-            icon={<BarChart3 size={18} />}
-            label="Submissions"
-            to={`/activity/${id}/submissions`}
-            title="Open the submissions dashboard (student results)"
-            />
-            <HeaderButton
-            icon={<ClipboardPaste size={18} />}
-            label="Import"
-            onClick={() => setImportOpen(true)}
-            disabled={!editorInstance}
-            title="Paste markdown and convert it to activity blocks"
-            />
             </div>
 
             {(isPublished || publishState.kind === 'success') && (
