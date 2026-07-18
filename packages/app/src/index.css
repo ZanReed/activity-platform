@@ -68,3 +68,85 @@
     --color-danger: var(--color-red-600);
     --color-danger-strong: var(--color-red-700);
 }
+
+/* =============================================================================
+ *  Dark mode — slice 1 (docs/design/dark-mode.md, 2026-07-18)
+ *  -----------------------------------------------------------------------
+ *  Re-points the @theme roles under a dark selector. The generated utilities
+ *  (bg-surface / text-muted / …) read var(--color-<role>) at cascade time
+ *  (VERIFIED against a build), so overriding the ROLE here flows into all ~274
+ *  chrome sites with zero utility regeneration. Values are LITERAL rgb() (not
+ *  var(--color-slate-950) etc.) on purpose: Tailwind v4 tree-shakes unused
+ *  primitive vars, so many dark shades (slate-950, blue-400, emerald-400,
+ *  red-400 …) are never emitted to :root — referencing them would resolve to
+ *  nothing. Literals match editor.css's primitive style and are self-contained.
+ *
+ *  Trigger: prefers-color-scheme (slice 1). The `:not([data-theme="light"])`
+ *  guard makes slice 3's explicit toggle additive — `[data-theme="light"]`
+ *  will force light on a dark OS, `[data-theme="dark"]` (added in slice 3) will
+ *  force dark on a light OS. Selector specificity (0,2,0) beats the base
+ *  @theme :root (0,1,0), so the override wins when the media query matches.
+ *
+ *  Design rules (RULED D3–D5):
+ *   - ELEVATION, not inversion: page bg is DARKEST; raised surfaces get LIGHTER.
+ *     surface(page) < canvas(card) < surface-2(hover) < surface-3(fill).
+ *   - Text OFF-WHITE (slate-100), never pure #fff (halation on dark).
+ *   - Accents BRIGHTENED + slightly desaturated; status text/tint roles lighten,
+ *     but the two roles that back solid white-text buttons stay dark enough for
+ *     4.5:1: --color-primary (14 `bg-primary text-white` buttons) and
+ *     --color-accent-strong (the Print button `bg-accent-strong text-white`).
+ *  ========================================================================= */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+
+        /* Surfaces — elevation ladder (darkest page → lighter as it raises) */
+        --color-canvas: rgb(15 23 42); /* slate-900 — cards, inputs, popovers (raised) */
+        --color-surface: rgb(2 6 23); /* slate-950 — page bg, panels, rails (recessed) */
+        --color-surface-2: rgb(30 41 59); /* slate-800 — hover fills, dividers */
+        --color-surface-3: rgb(51 65 85); /* slate-700 — stronger fills */
+
+        /* Text — off-white ink; muted stays AA on canvas + surface (the two
+         * surfaces body/meta text sits on, mirroring light's white + slate-50). */
+        --color-ink: rgb(241 245 249); /* slate-100 — primary text (not #fff) */
+        --color-strong: rgb(203 213 225); /* slate-300 — labels, secondary headings */
+        --color-muted: rgb(148 163 184); /* slate-400 — muted/meta (AA on canvas+surface) */
+        --color-faint: rgb(100 116 139); /* slate-500 — NON-TEXT: icons, decorative */
+        --color-disabled: rgb(71 85 105); /* slate-600 — disabled control text */
+
+        /* Borders — subtle on dark */
+        --color-line: rgb(30 41 59); /* slate-800 */
+        --color-line-strong: rgb(51 65 85); /* slate-700 */
+
+        /* Primary CTA — neutral, stays dark enough for white text; hover lightens
+         * (slate-700 → slate-600: white 8.4:1 → 5.9:1, both AA). */
+        --color-primary: rgb(51 65 85); /* slate-700 */
+        --color-primary-hover: rgb(71 85 105); /* slate-600 */
+
+        /* Accent — blue, brightened. accent (links/focus) lightens to blue-400;
+         * accent-strong backs a white-text button so it holds at blue-500 (4.6:1). */
+        --color-accent: rgb(96 165 250); /* blue-400 */
+        --color-accent-strong: rgb(59 130 246); /* blue-500 — white-text safe */
+        --color-accent-stronger: rgb(37 99 235); /* blue-600 — button hover */
+
+        /* Status — text/tint/border roles (no solid white-text status buttons),
+         * so they lighten for readability; the -bg tokens become dark tints. */
+        --color-success: rgb(52 211 153); /* emerald-400 */
+        --color-success-strong: rgb(110 231 183); /* emerald-300 */
+        --color-success-accent: rgb(52 211 153); /* emerald-400 — dot */
+        --color-success-bg: rgb(2 44 34); /* emerald-950 — dark tint */
+
+        --color-warning: rgb(251 191 36); /* amber-400 */
+        --color-warning-text: rgb(252 211 77); /* amber-300 */
+        --color-warning-strong: rgb(253 230 138); /* amber-200 */
+        --color-warning-stronger: rgb(254 243 199); /* amber-100 */
+        --color-warning-accent: rgb(251 191 36); /* amber-400 */
+        --color-warning-bg: rgb(69 26 3); /* amber-950 — dark tint */
+        --color-warning-bg-2: rgb(120 53 15); /* amber-900 */
+        --color-warning-border: rgb(146 64 14); /* amber-800 */
+        --color-warning-border-2: rgb(180 83 9); /* amber-700 */
+
+        --color-danger: rgb(248 113 113); /* red-400 */
+        --color-danger-strong: rgb(252 165 165); /* red-300 */
+    }
+}
