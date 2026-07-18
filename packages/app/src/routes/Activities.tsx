@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
@@ -46,11 +46,34 @@ export default function Activities() {
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
 
-    // Per-row delete: confirmingId is the row showing its inline confirm;
-    // deletingId is the row whose soft-delete request is in flight.
-    const [confirmingId, setConfirmingId] = useState<string | null>(null);
+    // Delete-with-undo (design-review, 2026-07-18): deleting is optimistic —
+    // the row soft-deletes immediately and drops out of the list, and a toast
+    // offers a brief window to restore it (reversibility over confirmation).
+    // deletingId guards the button while the soft-delete request is in flight;
+    // undoStack holds the still-undoable rows (one toast each); actionError
+    // surfaces a failed delete or undo. undoTimers keys each toast's
+    // auto-dismiss timeout by activity id so Undo can cancel it.
     const [deletingId, setDeletingId] = useState<string | null>(null);
-    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [undoStack, setUndoStack] = useState<ActivityRow[]>([]);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const undoTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+        new Map(),
+    );
+
+    // How long a deleted activity stays undoable in the UI. The row is already
+    // soft-deleted server-side; after this the toast just clears (the 30-day
+    // purge_soft_deleted cron eventually hard-deletes it).
+    const UNDO_MS = 7000;
+
+    // Clear any outstanding auto-dismiss timers on unmount so they can't fire
+    // setState after the component is gone.
+    useEffect(() => {
+        const timers = undoTimers.current;
+        return () => {
+            for (const t of timers.values()) clearTimeout(t);
+            timers.clear();
+        };
+    }, []);
 
     useEffect(() => {
         // `cancelled` guards against StrictMode's double-invoke and against the
@@ -139,21 +162,68 @@ export default function Activities() {
     // SECURITY DEFINER and owner-checked (see 0008_soft_delete_activity.sql).
     // The list query and RLS still filter `deleted_at is null`, so the row
     // vanishes from view; the 30-day purge_soft_deleted cron hard-deletes it
-    // (cascading versions/submissions) later. Drop it from the list on success.
-    const handleDelete = async (id: string) => {
-        setDeletingId(id);
-        setDeleteError(null);
+    // (cascading versions/submissions) later.
+    //
+    // The delete is optimistic: on success the row leaves the list and joins
+    // undoStack (a toast). The soft-delete has already committed server-side —
+    // the toast is the window to call restore_activity (0012), not a pending
+    // confirmation. Auto-dismiss after UNDO_MS.
+    const handleDelete = async (activity: ActivityRow) => {
+        setDeletingId(activity.id);
+        setActionError(null);
         const { error } = await supabase.rpc('soft_delete_activity', {
-            p_activity_id: id,
+            p_activity_id: activity.id,
         });
+        setDeletingId(null);
         if (error) {
-            setDeleteError(error.message);
-            setDeletingId(null);
+            setActionError(`Couldn't delete "${activity.title}": ${error.message}`);
             return;
         }
-        setActivities((prev) => prev.filter((a) => a.id !== id));
-        setConfirmingId(null);
-        setDeletingId(null);
+        setActivities((prev) => prev.filter((a) => a.id !== activity.id));
+        setUndoStack((prev) => [...prev, activity]);
+        const timer = setTimeout(() => dismissUndo(activity.id), UNDO_MS);
+        undoTimers.current.set(activity.id, timer);
+    };
+
+    // Remove a toast without restoring — either its window elapsed, or the
+    // user restored it and we're clearing the entry. Never calls the server.
+    const dismissUndo = (id: string) => {
+        const timer = undoTimers.current.get(id);
+        if (timer) {
+            clearTimeout(timer);
+            undoTimers.current.delete(id);
+        }
+        setUndoStack((prev) => prev.filter((a) => a.id !== id));
+    };
+
+    // Undo a delete: cancel the auto-dismiss, clear the toast, and restore the
+    // row via the restore_activity RPC (0012). On success the row returns to
+    // the top of the list (restore bumps updated_at server-side; we mirror
+    // that so the client order matches a reload). On failure the row stays
+    // deleted — the soft-delete already stands — and we say so. If the 0012
+    // migration isn't deployed yet, this is the failure path (restore RPC
+    // 404s); the delete itself is unaffected.
+    const handleUndo = async (activity: ActivityRow) => {
+        dismissUndo(activity.id);
+        setActionError(null);
+        const { error } = await supabase.rpc('restore_activity', {
+            p_activity_id: activity.id,
+        });
+        if (error) {
+            setActionError(
+                `Couldn't undo — "${activity.title}" is still deleted.`,
+            );
+            return;
+        }
+        const restored: ActivityRow = {
+            ...activity,
+            updated_at: new Date().toISOString(),
+        };
+        setActivities((prev) =>
+            [restored, ...prev].sort((a, b) =>
+                b.updated_at.localeCompare(a.updated_at),
+            ),
+        );
     };
 
     return (
@@ -201,62 +271,69 @@ export default function Activities() {
                 >
                 {a.title}
                 </Link>
-                {confirmingId === a.id ? (
-                    <span className="flex shrink-0 items-center gap-2">
-                    <span className="text-sm text-slate-600">Delete?</span>
-                    <button
-                    type="button"
-                    onClick={() => handleDelete(a.id)}
-                    disabled={deletingId === a.id}
-                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                    {deletingId === a.id ? 'Deleting…' : 'Delete'}
-                    </button>
-                    <button
-                    type="button"
-                    onClick={() => setConfirmingId(null)}
-                    disabled={deletingId === a.id}
-                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                    Cancel
-                    </button>
-                    </span>
-                ) : (
-                    <span className="flex shrink-0 items-center gap-3">
-                    <StatusBadge status={a.status} />
-                    <span className="hidden text-xs text-slate-500 sm:inline">
-                    Edited {formatEdited(a.updated_at)}
-                    </span>
-                    <Link
-                    to={`/activity/${a.id}/submissions`}
-                    className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
-                    >
-                    Submissions
-                    </Link>
-                    <button
-                    type="button"
-                    onClick={() => {
-                        setConfirmingId(a.id);
-                        setDeleteError(null);
-                    }}
-                    aria-label={`Delete ${a.title}`}
-                    className="text-sm font-medium text-slate-500 underline underline-offset-2 transition hover:text-red-600"
-                    >
-                    Delete
-                    </button>
-                    </span>
-                )}
+                <span className="flex shrink-0 items-center gap-3">
+                <StatusBadge status={a.status} />
+                <span className="hidden text-xs text-slate-500 sm:inline">
+                Edited {formatEdited(a.updated_at)}
+                </span>
+                <Link
+                to={`/activity/${a.id}/submissions`}
+                className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+                >
+                Submissions
+                </Link>
+                <button
+                type="button"
+                onClick={() => handleDelete(a)}
+                disabled={deletingId === a.id}
+                aria-label={`Delete ${a.title}`}
+                className="text-sm font-medium text-slate-500 underline underline-offset-2 transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                {deletingId === a.id ? 'Deleting…' : 'Delete'}
+                </button>
+                </span>
                 </li>
             ))}
             </ul>
         )}
-        {deleteError && (
-            <p className="mt-3 text-sm text-red-600">
-            Couldn't delete activity: {deleteError}
-            </p>
+        {actionError && (
+            <p className="mt-3 text-sm text-red-600">{actionError}</p>
         )}
         </div>
         </div>
+
+        {/* Undo toasts — one per recently-deleted activity, bottom-left in the
+            thumb zone. The soft-delete has committed; Undo calls restore. */}
+        {undoStack.length > 0 && (
+            <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2">
+            {undoStack.map((a) => (
+                <div
+                key={a.id}
+                role="status"
+                className="flex items-center gap-3 rounded-lg bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg"
+                >
+                <span className="max-w-[16rem] truncate">
+                Deleted <span className="font-medium">{a.title}</span>
+                </span>
+                <button
+                type="button"
+                onClick={() => handleUndo(a)}
+                className="font-medium text-blue-300 underline-offset-2 hover:text-blue-200 hover:underline"
+                >
+                Undo
+                </button>
+                <button
+                type="button"
+                onClick={() => dismissUndo(a.id)}
+                aria-label="Dismiss"
+                className="text-slate-400 transition hover:text-white"
+                >
+                ✕
+                </button>
+                </div>
+            ))}
+            </div>
+        )}
         </main>
     );
 }
