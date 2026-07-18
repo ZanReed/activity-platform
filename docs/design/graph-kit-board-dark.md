@@ -5,9 +5,11 @@ The live graph-kit boards (interactive graph, point/system answer, display,
 number-line, dot/histogram/box plots) now self-theme dark in the editor and
 re-color on a live toggle; the calculator opts out (light unit); light is
 pixel-identical. Commits `6879e2a` (1) · `2a9ed9f` (2) · `b4661e7` (3) ·
-`89d7e60` (4). **KNOWN GAP:** the editor DATA-PLOT preview (`DataPlotView`) uses
-the RENDERER (`renderDataPlotSvg`), not a graph-kit board, so it stays light —
-that's the deferred renderer/published-page dark fork (see Deferred). The deferred
+`89d7e60` (4). **The editor DATA-PLOT preview** (`DataPlotView` →
+`renderDataPlotSvg`, a renderer static SVG, not a board) is now ALSO themed
+(`d5a9afb`): the SVG emits its structural colors as `var(--gk-board-*, lightHex)`
+and editor.css defines the dark values, so it themes from the cascade (published
+falls back to light until published-dark ships). The deferred
 slice flagged by [graph-kit-color.md](graph-kit-color.md)
 and [dark-mode.md](dark-mode.md): make the graph / number-line / data-plot
 **boards** render dark so they stop being light-on-dark in the editor. Builds on
