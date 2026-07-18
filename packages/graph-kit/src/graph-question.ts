@@ -1218,7 +1218,13 @@ export async function mountGraphSystemQuestion(
     const doneBtn = pill('✕', deselect);
     doneBtn.setAttribute('aria-label', 'Close controls');
     for (const b of [solidBtn, dottedBtn, sideABtn, sideBBtn, doneBtn]) b.disabled = locked;
-    popEl.append(lbl, solidBtn, dottedBtn, sideABtn, sideBBtn, doneBtn);
+    // A quiet hint for the click-to-shade gesture — shown only while a boundary is
+    // selected (the moment it's available), on its own line so it never crowds the
+    // buttons. Vertical boundaries shade left/right, so word it generically.
+    const hint = document.createElement('span');
+    hint.textContent = 'Tip: click the graph on the side you want shaded.';
+    hint.style.cssText = 'flex-basis:100%;font-size:0.7rem;color:#64748b;margin-top:0.1rem;';
+    popEl.append(lbl, solidBtn, dottedBtn, sideABtn, sideBBtn, doneBtn, hint);
   }
 
   renderStrip();
