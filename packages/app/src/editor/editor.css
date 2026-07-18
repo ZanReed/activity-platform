@@ -2846,7 +2846,7 @@ img.mc-block__figure-preview {
     overflow: hidden;
     border-radius: 0.375rem;
     /* A neutral backdrop behind transparent PNGs so the dim reads. */
-    background: var(--ed-faint-bg, #f1f5f9);
+    background: var(--ed-surface-2);
 }
 
 .image-crop__img {
