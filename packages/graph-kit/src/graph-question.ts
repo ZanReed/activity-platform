@@ -1096,70 +1096,132 @@ export async function mountGraphSystemQuestion(
         if (board.hasMoved()) answered = true;
         report();
       },
+      // Tapping a boundary line on the board selects it; clicking a half-plane
+      // while one is selected shades that side. (selectBoundary / setSide are
+      // defined below; the closures resolve them at click time.)
+      onSelect: (i) => selectBoundary(i),
+      onRegionShade: (i, side) => setSide(i, side),
     },
   );
 
-  // ---- Per-boundary control bar: one row per inequality ----------------------
+  // ---- Controls: a single-line chip strip + a contextual popover -------------
+  // At rest, ONE thin row of chips (a swatch + the shaded-side arrow per
+  // boundary) — footprint stays one line at any N. Selecting a boundary (tap its
+  // chip, tap its line on the board, or the board fires onSelect) highlights it
+  // and opens a compact controls popover ABOVE the strip for just that boundary;
+  // clicking a half-plane while it's selected shades that side. The container is
+  // pointer-events:none so board clicks pass through everywhere except the chips
+  // and the popover themselves.
+  let selectedIndex: number | null = null;
+  let locked = false;
+
+  const arrowOf = (s: 'above' | 'below' | 'left' | 'right' | null): string =>
+    s === 'above' ? '↑' : s === 'below' ? '↓' : s === 'left' ? '←' : s === 'right' ? '→' : '·';
+  const wordOf = (s: 'above' | 'below' | 'left' | 'right' | null): string =>
+    s == null ? 'tap to shade a side' : `shaded ${s}`;
+
   const bar = document.createElement('div');
   bar.style.cssText =
     'position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;' +
-    'gap:0.2rem;padding:0.3rem;background:rgba(255,255,255,0.92);' +
-    'border-top:1px solid #e2e8f0;z-index:5;max-height:55%;overflow:auto;';
-
-  const rowSyncs: (() => void)[] = [];
-  keys.forEach((key, i) => {
-    const vertical = key.boundary.family === 'vertical';
-    const sideA = vertical ? ('left' as const) : ('above' as const);
-    const sideB = vertical ? ('right' as const) : ('below' as const);
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:0.3rem;align-items:center;flex-wrap:wrap;';
-    const chip = document.createElement('span');
-    chip.style.cssText =
-      'width:0.75rem;height:0.75rem;border-radius:2px;flex:none;background:' +
-      board.boundaryColor(i) + ';';
-    const solidBtn = pill('Solid line', () => {
-      stricts[i] = false;
-      answered = true;
-      board.setBoundaryDashed(i, false);
-      sync();
-      report();
-    });
-    const dottedBtn = pill('Dotted line', () => {
-      stricts[i] = true;
-      answered = true;
-      board.setBoundaryDashed(i, true);
-      sync();
-      report();
-    });
-    const sideABtn = pill(vertical ? 'Shade left' : 'Shade above', () => {
-      sides[i] = sideA;
-      answered = true;
-      board.setShadeSide(i, sideA);
-      sync();
-      report();
-    });
-    const sideBBtn = pill(vertical ? 'Shade right' : 'Shade below', () => {
-      sides[i] = sideB;
-      answered = true;
-      board.setShadeSide(i, sideB);
-      sync();
-      report();
-    });
-    function sync(): void {
-      setPillActive(solidBtn, stricts[i] === false);
-      setPillActive(dottedBtn, stricts[i] === true);
-      setPillActive(sideABtn, sides[i] === sideA);
-      setPillActive(sideBBtn, sides[i] === sideB);
-    }
-    rowSyncs.push(sync);
-    row.append(chip, solidBtn, dottedBtn, sideABtn, sideBBtn);
-    bar.append(row);
-    sync();
-  });
+    'z-index:5;pointer-events:none;';
+  const popEl = document.createElement('div');
+  popEl.style.cssText =
+    'display:none;pointer-events:auto;margin:0 0.3rem;padding:0.3rem 0.4rem;' +
+    'background:rgba(255,255,255,0.97);border:1px solid #e2e8f0;border-radius:8px;' +
+    'box-shadow:0 1px 4px rgba(0,0,0,0.08);align-items:center;gap:0.3rem;flex-wrap:wrap;';
+  const stripEl = document.createElement('div');
+  stripEl.style.cssText =
+    'pointer-events:auto;display:flex;gap:0.3rem;padding:0.3rem;flex-wrap:wrap;' +
+    'background:rgba(255,255,255,0.9);border-top:1px solid #e2e8f0;';
+  bar.append(popEl, stripEl);
   mount.appendChild(bar);
 
-  const barButtons = (): HTMLButtonElement[] =>
-    Array.prototype.slice.call(bar.querySelectorAll('button'));
+  const setStrict = (i: number, v: boolean): void => {
+    stricts[i] = v;
+    answered = true;
+    board.setBoundaryDashed(i, v);
+    renderStrip();
+    renderPopover();
+    report();
+  };
+  const setSide = (i: number, s: 'above' | 'below' | 'left' | 'right'): void => {
+    sides[i] = s;
+    answered = true;
+    board.setShadeSide(i, s);
+    renderStrip();
+    renderPopover();
+    report();
+  };
+  const selectBoundary = (i: number): void => {
+    selectedIndex = i;
+    board.setSelected(i);
+    renderStrip();
+    renderPopover();
+  };
+  const deselect = (): void => {
+    selectedIndex = null;
+    board.setSelected(null);
+    renderStrip();
+    renderPopover();
+  };
+
+  function renderStrip(): void {
+    stripEl.innerHTML = '';
+    keys.forEach((_key, i) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.disabled = locked;
+      const on = selectedIndex === i;
+      chip.style.cssText =
+        'pointer-events:auto;font:inherit;font-size:0.75rem;display:inline-flex;' +
+        'align-items:center;gap:0.3rem;padding:0.2rem 0.5rem;border-radius:999px;' +
+        'cursor:pointer;background:#fff;border:1.5px solid ' +
+        (on ? board.boundaryColor(i) : '#cbd5e1') + ';';
+      chip.title = `Line ${i + 1}: ${stricts[i] ? 'dotted' : 'solid'}, ${wordOf(sides[i] ?? null)}`;
+      chip.setAttribute('aria-label', chip.title);
+      const sw = document.createElement('span');
+      sw.style.cssText =
+        'width:0.7rem;height:0.7rem;border-radius:2px;flex:none;background:' +
+        board.boundaryColor(i) + ';';
+      const txt = document.createElement('span');
+      txt.textContent = `${i + 1} ${arrowOf(sides[i] ?? null)}`;
+      chip.append(sw, txt);
+      chip.addEventListener('click', () => (selectedIndex === i ? deselect() : selectBoundary(i)));
+      stripEl.appendChild(chip);
+    });
+  }
+
+  function renderPopover(): void {
+    if (selectedIndex === null) {
+      popEl.style.display = 'none';
+      popEl.innerHTML = '';
+      return;
+    }
+    const i = selectedIndex;
+    const vertical = keys[i]!.boundary.family === 'vertical';
+    const sideA = vertical ? ('left' as const) : ('above' as const);
+    const sideB = vertical ? ('right' as const) : ('below' as const);
+    popEl.style.display = 'flex';
+    popEl.innerHTML = '';
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'display:inline-flex;align-items:center;gap:0.3rem;font-size:0.75rem;font-weight:600;';
+    lbl.innerHTML =
+      `<span style="width:0.7rem;height:0.7rem;border-radius:2px;background:${board.boundaryColor(i)}"></span>Line ${i + 1}`;
+    const solidBtn = pill('Solid', () => setStrict(i, false));
+    const dottedBtn = pill('Dotted', () => setStrict(i, true));
+    const sideABtn = pill(vertical ? 'Shade left' : 'Shade above', () => setSide(i, sideA));
+    const sideBBtn = pill(vertical ? 'Shade right' : 'Shade below', () => setSide(i, sideB));
+    setPillActive(solidBtn, stricts[i] === false);
+    setPillActive(dottedBtn, stricts[i] === true);
+    setPillActive(sideABtn, sides[i] === sideA);
+    setPillActive(sideBBtn, sides[i] === sideB);
+    const doneBtn = pill('✕', deselect);
+    doneBtn.setAttribute('aria-label', 'Close controls');
+    for (const b of [solidBtn, dottedBtn, sideABtn, sideBBtn, doneBtn]) b.disabled = locked;
+    popEl.append(lbl, solidBtn, dottedBtn, sideABtn, sideBBtn, doneBtn);
+  }
+
+  renderStrip();
 
   // NB: no first-paint report() — like the single-answer widget, onChange fires
   // only on a real student action (move/side/style). Reporting at construction
@@ -1180,12 +1242,14 @@ export async function mountGraphSystemQuestion(
         board.setShadeSide(i, p.side);
         if (p.points.length > 0) board.setPoints(i, p.points);
       });
-      rowSyncs.forEach((fn) => fn());
+      renderStrip();
       report();
     },
-    setLocked(locked: boolean): void {
-      board.setInteractive(!locked);
-      for (const b of barButtons()) b.disabled = locked;
+    setLocked(lock: boolean): void {
+      locked = lock;
+      board.setInteractive(!lock);
+      renderStrip();
+      renderPopover();
     },
     destroy(): void {
       board.destroy();

@@ -1184,6 +1184,11 @@ export interface SystemAnswerConfig {
 export interface SystemAnswerHooks {
   /** Fired on every student move (drag or keyboard). */
   onMove?: () => void;
+  /** The student clicked ON (near) boundary i — the caller selects it. */
+  onSelect?: (i: number) => void;
+  /** The student clicked open space while boundary i is selected — `side` is
+   *  which side of boundary i the click fell on. The caller shades it. */
+  onRegionShade?: (i: number, side: 'above' | 'below' | 'left' | 'right') => void;
 }
 
 export interface SystemAnswerController {
@@ -1196,6 +1201,9 @@ export interface SystemAnswerController {
   hasMoved(): boolean;
   setShadeSide(i: number, side: 'above' | 'below' | 'left' | 'right' | null): void;
   setBoundaryDashed(i: number, dashed: boolean): void;
+  /** Highlight boundary i (thicken its curve, thin the rest); null clears. Also
+   *  arms click-to-shade for that boundary. */
+  setSelected(i: number | null): void;
   setPoints(i: number, next: [number, number][]): void;
   setInteractive(on: boolean): void;
   destroy(): void;
@@ -1415,6 +1423,73 @@ export function createSystemAnswerBoard(
     notify(true);
   });
 
+  // ---- Selection + click-to-shade ------------------------------------------
+  // The caller drives a per-boundary control popover off `onSelect`; while a
+  // boundary is selected, clicking open space shades that boundary's side.
+  let selectedIndex: number | null = null;
+  const restyleSelection = (): void => {
+    boundaries.forEach((b, i) => {
+      b.curveObj?.setAttribute({ strokeWidth: i === selectedIndex ? 4 : 2 });
+    });
+    board.update();
+  };
+  // Boundary geometry at a click x: the curve's y (null when undefined here),
+  // or the vertical line's mean x.
+  const boundaryYAt = (b: Boundary, x: number): number | null => {
+    if (b.spec.lineThroughHandles) return null;
+    const pts = b.points.map((p) => [p.X(), p.Y()] as [number, number]);
+    const fn = b.spec.deriveCurve ? b.spec.deriveCurve(pts) : null;
+    const y = fn ? fn(x) : NaN;
+    return Number.isFinite(y) ? y : null;
+  };
+  const boundaryMeanX = (b: Boundary): number => {
+    const xs = b.points.map((p) => p.X());
+    return xs.reduce((s, x) => s + x, 0) / (xs.length || 1);
+  };
+  // Click model: near a line → select/switch to it; open space with a boundary
+  // selected → shade that boundary's side. A drag (handle move) is excluded via
+  // draggedSinceDown, matching the single-boundary board.
+  const xSpan = config.xMax - config.xMin;
+  const ySpan = config.yMax - config.yMin;
+  let downUsr: [number, number] | null = null;
+  let draggedSinceDown = false;
+  board.on('down', (e: Event) => {
+    draggedSinceDown = false;
+    downUsr = board.getUsrCoordsOfMouse(e);
+  });
+  boundaries.forEach((b) => b.points.forEach((p) => p.on('drag', () => { draggedSinceDown = true; })));
+  board.on('up', (e: Event) => {
+    if (!interactive || draggedSinceDown || !downUsr) return;
+    const [cx, cy] = board.getUsrCoordsOfMouse(e);
+    if (Math.abs(cx - downUsr[0]) > xSpan / 100 || Math.abs(cy - downUsr[1]) > ySpan / 100) return;
+    const nearThreshold = ySpan / 30;
+    let nearest = -1;
+    let nearestDist = Infinity;
+    boundaries.forEach((b, i) => {
+      const d = b.spec.lineThroughHandles
+        ? Math.abs(cx - boundaryMeanX(b))
+        : (() => { const by = boundaryYAt(b, cx); return by === null ? Infinity : Math.abs(cy - by); })();
+      if (d < nearestDist) { nearestDist = d; nearest = i; }
+    });
+    if (nearest !== -1 && nearestDist < nearThreshold) {
+      hooks.onSelect?.(nearest);
+      return;
+    }
+    if (selectedIndex !== null) {
+      const b = boundaries[selectedIndex];
+      if (!b) return;
+      let side: 'above' | 'below' | 'left' | 'right' | null = null;
+      if (b.spec.lineThroughHandles) {
+        side = cx > boundaryMeanX(b) ? 'right' : 'left';
+      } else {
+        const by = boundaryYAt(b, cx);
+        if (by === null) return;
+        side = cy > by ? 'above' : 'below';
+      }
+      hooks.onRegionShade?.(selectedIndex, side);
+    }
+  });
+
   return {
     getBoundaryPoints(i): [number, number][] {
       return boundaries[i]?.points.map((p) => [p.X(), p.Y()] as [number, number]) ?? [];
@@ -1436,6 +1511,10 @@ export function createSystemAnswerBoard(
     setBoundaryDashed(i, dashed): void {
       boundaries[i]?.curveObj?.setAttribute({ dash: dashed ? 2 : 0 });
       board.update();
+    },
+    setSelected(i): void {
+      selectedIndex = i === null ? null : (boundaries[i] ? i : null);
+      restyleSelection();
     },
     setPoints(i, next): void {
       const b = boundaries[i];
