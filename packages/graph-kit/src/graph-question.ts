@@ -1161,6 +1161,15 @@ export async function mountGraphSystemQuestion(
     renderPopover();
     report();
   };
+  // The keyboard-accessible shade path (click-to-shade is pointer only): cycle the
+  // selected boundary's side. null → sideA → sideB → sideA (never back to null —
+  // an answer needs a side). Vertical boundaries flip left/right.
+  const flipSide = (i: number): void => {
+    const vertical = keys[i]!.boundary.family === 'vertical';
+    const a = vertical ? ('left' as const) : ('above' as const);
+    const b = vertical ? ('right' as const) : ('below' as const);
+    setSide(i, sides[i] === a ? b : a);
+  };
   const selectBoundary = (i: number): void => {
     selectedIndex = i;
     board.setSelected(i);
@@ -1219,15 +1228,22 @@ export async function mountGraphSystemQuestion(
     const dottedBtn = pill('Dotted', () => setStrict(i, true));
     setPillActive(solidBtn, stricts[i] === false);
     setPillActive(dottedBtn, stricts[i] === true);
+    // The keyboard-accessible shade control — one button that flips the side
+    // (click-to-shade below is the pointer path). aria-label carries the current
+    // side so a screen-reader user knows the state before flipping.
+    const flipBtn = pill('Flip shade', () => flipSide(i));
+    flipBtn.setAttribute(
+      'aria-label',
+      `Flip shaded side (currently ${sides[i] ? `shaded ${sides[i]}` : 'not shaded'})`,
+    );
     const doneBtn = pill('✕', deselect);
     doneBtn.setAttribute('aria-label', 'Close controls');
-    for (const b of [solidBtn, dottedBtn, doneBtn]) b.disabled = locked;
-    // The primary shading instruction (click-to-shade is the only shade path now),
-    // on its own line below the style toggle.
+    for (const b of [solidBtn, dottedBtn, flipBtn, doneBtn]) b.disabled = locked;
+    // The primary (pointer) shading instruction, on its own line below the buttons.
     const hint = document.createElement('span');
-    hint.textContent = 'Click the graph on the side you want to shade.';
+    hint.textContent = 'Or click the graph on the side you want to shade.';
     hint.style.cssText = 'flex-basis:100%;font-size:0.7rem;color:#64748b;margin-top:0.1rem;';
-    popEl.append(lbl, solidBtn, dottedBtn, doneBtn, hint);
+    popEl.append(lbl, solidBtn, dottedBtn, flipBtn, doneBtn, hint);
   }
 
   renderStrip();
