@@ -23,9 +23,15 @@ const TOP_PAD = 18; // px kept clear at the top of the plot area
 const TICK = 6; // labeled-tick half-height
 const MINOR_TICK = 3;
 
-const AXIS_COLOR = '#64748b';
-const LABEL_COLOR = '#475569';
-const INK = '#1e293b';
+// Structural colors emitted as CSS custom properties with a LIGHT hex fallback,
+// so the same SVG themes itself from the cascade (docs/design/graph-kit-board-dark.md):
+// the editor defines --gk-board-* (dark) → the data-plot preview goes dark;
+// published pages leave them undefined → the light fallback → unchanged. var()
+// works only in an inline `style` (not a presentation attribute), so the emission
+// sites use style="stroke:…" / style="fill:…". Fallbacks == today's values.
+const AXIS_COLOR = 'var(--gk-board-axis,#64748b)';
+const LABEL_COLOR = 'var(--gk-board-label,#475569)';
+const INK = 'var(--gk-board-ink,#1e293b)';
 const FILL = '#93c5fd'; // bars / box fill (light blue, prints as mid-gray)
 const DOT_R = 6;
 
@@ -130,7 +136,7 @@ function renderAxisAndTicks(
 
   let out =
     `<line x1="${MARGIN - 8}" y1="${AXIS_Y}" x2="${WIDTH - MARGIN + 8}" y2="${AXIS_Y}"` +
-    ` stroke="${AXIS_COLOR}" stroke-width="1.5"/>`;
+    ` style="stroke:${AXIS_COLOR}" stroke-width="1.5"/>`;
 
   if (minors > 0) {
     let m = '';
@@ -143,7 +149,7 @@ function renderAxisAndTicks(
         m += `<line x1="${x}" y1="${AXIS_Y - MINOR_TICK}" x2="${x}" y2="${AXIS_Y + MINOR_TICK}"/>`;
       }
     }
-    if (m) out += `<g stroke="${AXIS_COLOR}" stroke-width="1">${m}</g>`;
+    if (m) out += `<g style="stroke:${AXIS_COLOR}" stroke-width="1">${m}</g>`;
   }
 
   let ticks = '';
@@ -153,9 +159,9 @@ function renderAxisAndTicks(
     ticks += `<line x1="${x}" y1="${AXIS_Y - TICK}" x2="${x}" y2="${AXIS_Y + TICK}"/>`;
     labels +=
       `<text x="${x}" y="${AXIS_Y + TICK + 14}" text-anchor="middle"` +
-      ` fill="${LABEL_COLOR}" font-size="12" font-family="inherit">${escape(fmt(v))}</text>`;
+      ` style="fill:${LABEL_COLOR}" font-size="12" font-family="inherit">${escape(fmt(v))}</text>`;
   }
-  out += `<g stroke="${AXIS_COLOR}" stroke-width="1.5">${ticks}</g>`;
+  out += `<g style="stroke:${AXIS_COLOR}" stroke-width="1.5">${ticks}</g>`;
   return out + labels;
 }
 
@@ -176,7 +182,7 @@ function renderDotplot(
     const x = px(value);
     for (let k = 0; k < count; k++) {
       const cy = AXIS_Y - DOT_R - k * spacing;
-      out += `<circle cx="${x}" cy="${cy}" r="${DOT_R}" fill="${FILL}" stroke="${INK}" stroke-width="1.5"/>`;
+      out += `<circle cx="${x}" cy="${cy}" r="${DOT_R}" fill="${FILL}" style="stroke:${INK}" stroke-width="1.5"/>`;
     }
   }
   return out;
@@ -199,7 +205,7 @@ function renderHistogram(
     const h = cap > 0 ? (count / cap) * plotH : 0;
     out +=
       `<rect x="${left}" y="${AXIS_Y - h}" width="${Math.max(0, right - left)}" height="${h}"` +
-      ` fill="${FILL}" stroke="${INK}" stroke-width="1.5"/>`;
+      ` fill="${FILL}" style="stroke:${INK}" stroke-width="1.5"/>`;
   }
   return out;
 }
@@ -216,7 +222,7 @@ function renderBoxplot(
   const xMed = px(med);
   const xQ3 = px(q3);
   const xMax = px(max);
-  const g = `stroke="${INK}" stroke-width="2"`;
+  const g = `style="stroke:${INK}" stroke-width="2"`;
   return (
     // whiskers
     `<line x1="${xMin}" y1="${cy}" x2="${xQ1}" y2="${cy}" ${g}/>` +

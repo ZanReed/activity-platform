@@ -143,6 +143,16 @@
     --ed-hairline-inset: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.12));
     --ed-hairline-inset-strong: light-dark(rgb(0 0 0 / 0.12), rgb(255 255 255 / 0.18));
 
+    /* Graph-board structural colors for the RENDERER's static SVG previews
+     * (renderDataPlotSvg — the editor data-plot preview). The SVG emits
+     * style="stroke:var(--gk-board-axis,#64748b)"; these give the editor the dark
+     * side (published pages leave them undefined → the SVG's light fallback). The
+     * --gk- namespace is graph-kit's (NOT --ed-/--color-). Dark values mirror
+     * graph-colors.ts boardColors('dark'); light == the SVG fallbacks. */
+    --gk-board-axis: light-dark(#64748b, #94a3b8);
+    --gk-board-label: light-dark(#475569, #cbd5e1);
+    --gk-board-ink: light-dark(#1e293b, #e2e8f0);
+
     /* Z-index scale (editor overlays). Docked bars sit above block content;
      * portaled popovers above the bars; the modal above all. The sticky
      * toolbar (z-30, set in Toolbar.tsx) sits between the bars and popovers. */
