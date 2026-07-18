@@ -99,3 +99,81 @@ export const GK_CHROME = {
 } as const;
 
 export type GkChromeRole = keyof typeof GK_CHROME;
+
+// ── 4. Board theming (dark mode) ─────────────────────────────────────────────
+// The boards (JSXGraph + hand-built SVG) reach published pages and can't read
+// CSS custom properties, so board dark mode is a JS resolver, not light-dark().
+// Design: docs/design/graph-kit-board-dark.md.
+//
+// A board SELF-DETECTS its theme from its container's computed color-scheme
+// (which the app's light-dark() mechanism sets on :root — system pref AND the
+// toggle). LIGHT values below match today's rendering (JSXGraph defaults / the
+// existing consts), so light stays pixel-identical; callers only apply the DARK
+// structural colors when dark is detected.
+export type BoardTheme = 'light' | 'dark';
+
+export interface BoardColors {
+    bg: string; // board background
+    grid: string; // grid lines
+    axis: string; // axis strokes
+    label: string; // tick / axis labels
+    scatter: string; // scatter points + point strokes (near-black in light)
+    ink: string; // data-plot ink
+    openFill: string; // hollow/open-point fill = the board bg, so it reads hollow
+}
+
+// Light = today's values (JSXGraph defaults for bg/grid/axis/label; the existing
+// content consts for scatter/ink/openFill). Setting these is a no-op vs default,
+// so callers skip them in light and only override in dark.
+const BOARD_LIGHT: BoardColors = {
+    bg: '#ffffff',
+    grid: '#c0c0c0', // JSXGraph default major grid
+    axis: '#666666', // JSXGraph default axis
+    label: '#666666',
+    scatter: SCATTER, // #0f172a
+    ink: INK, // #1e293b
+    openFill: OPEN_FILL, // #ffffff
+};
+
+const BOARD_DARK: BoardColors = {
+    bg: '#0f172a', // slate-900 — matches the dark editor canvas
+    grid: '#1e293b', // slate-800 — subtle grid on dark (mirrors the light subtlety)
+    axis: '#94a3b8', // slate-400 — axis reads clearly
+    label: '#cbd5e1', // slate-300 — readable tick labels
+    scatter: '#e2e8f0', // slate-200 — light points (near-black would vanish)
+    ink: '#e2e8f0', // slate-200
+    openFill: '#0f172a', // = bg, so hollow points read hollow on dark
+};
+
+export function boardColors(theme: BoardTheme): BoardColors {
+    return theme === 'dark' ? BOARD_DARK : BOARD_LIGHT;
+}
+
+/**
+ * Resolve a container's computed `color-scheme` (+ the OS preference for the
+ * ambiguous cases) to a single board theme. Pure, so it's unit-testable without
+ * a DOM.
+ *   'dark'                  -> dark
+ *   'light'                 -> light
+ *   'light dark' | 'normal' -> the OS preference (prefersDark)
+ */
+export function resolveBoardTheme(
+    colorScheme: string,
+    prefersDark: boolean,
+): BoardTheme {
+    const cs = colorScheme.trim();
+    const hasDark = cs.includes('dark');
+    const hasLight = cs.includes('light');
+    if (hasDark && !hasLight) return 'dark';
+    if (hasLight && !hasDark) return 'light';
+    return prefersDark ? 'dark' : 'light'; // 'light dark' (system) or 'normal'/''
+}
+
+/** Detect a board's theme from its container's computed color-scheme. */
+export function detectBoardTheme(el: Element | null): BoardTheme {
+    if (typeof window === 'undefined' || !el) return 'light';
+    const cs = window.getComputedStyle(el).colorScheme || 'normal';
+    const prefersDark =
+        window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    return resolveBoardTheme(cs, prefersDark);
+}

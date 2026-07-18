@@ -25,6 +25,8 @@ import {
     SYSTEM_BOUNDARY_COLORS,
     EXPRESSION_PALETTE,
     GK_CHROME,
+    resolveBoardTheme,
+    boardColors,
 } from '../src/graph-colors.js';
 
 describe('graph-colors value-identity', () => {
@@ -74,6 +76,39 @@ describe('graph-colors value-identity', () => {
             '#d97706',
             '#0891b2',
         ]);
+    });
+
+    it('board theme resolver maps color-scheme + OS pref correctly', () => {
+        // Explicit single values win regardless of OS pref.
+        expect(resolveBoardTheme('dark', false)).toBe('dark');
+        expect(resolveBoardTheme('light', true)).toBe('light');
+        // 'light dark' (system mode) defers to the OS preference.
+        expect(resolveBoardTheme('light dark', true)).toBe('dark');
+        expect(resolveBoardTheme('light dark', false)).toBe('light');
+        // 'normal' / empty also defer to the OS preference.
+        expect(resolveBoardTheme('normal', true)).toBe('dark');
+        expect(resolveBoardTheme('', false)).toBe('light');
+        // Whitespace tolerant.
+        expect(resolveBoardTheme('  dark  ', false)).toBe('dark');
+    });
+
+    it('board LIGHT colors are unchanged (value-identity); dark differs', () => {
+        // Light must match today's JSXGraph defaults / existing consts, so
+        // applying them is a no-op vs the current rendering.
+        expect(boardColors('light')).toEqual({
+            bg: '#ffffff',
+            grid: '#c0c0c0',
+            axis: '#666666',
+            label: '#666666',
+            scatter: '#0f172a',
+            ink: '#1e293b',
+            openFill: '#ffffff',
+        });
+        const dark = boardColors('dark');
+        // Dark flips every structural + near-black/white role.
+        expect(dark.bg).not.toBe('#ffffff');
+        expect(dark.openFill).toBe(dark.bg); // hollow points fill with the bg
+        expect(dark.scatter).not.toBe('#0f172a'); // near-black would vanish on dark
     });
 
     it('chrome palette matches the calculator/question literals', () => {
