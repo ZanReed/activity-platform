@@ -76,13 +76,13 @@ const ACTIVITY_TYPE_LABELS: Record<ActivityMeta['activityType'], string> = {
 };
 
 // =============================================================================
-// HeaderButton — the shared icon+label action chip for the editor header.
-// Renders a Link when `to` is given, a button otherwise. `icon` is a lucide
-// glyph (18px); `title` is the hover tooltip that spells out what the chip
-// does (icons alone are ambiguous — every chip carries one). `dot` is the
-// small state cue (emerald = configured/enabled, amber = needs attention);
-// pair it with a `title` that says what the dot means. `variant="primary"` is
-// the one filled chip (Publish) — louder than the ghost chips, still in the row.
+// HeaderButton — the shared icon+label action chip for the editor header's
+// config + nav toolbar (row 2). Renders a Link when `to` is given, a button
+// otherwise. `icon` is a lucide glyph (18px); `title` is the hover tooltip
+// that spells out what the chip does (icons alone are ambiguous — every chip
+// carries one). `dot` is the small state cue (emerald = configured/enabled,
+// amber = needs attention); pair it with a `title` that says what the dot
+// means. (Publish is NOT a chip — it's the filled primary button in row 1.)
 // =============================================================================
 
 export function HeaderButton({
@@ -92,7 +92,6 @@ export function HeaderButton({
     onClick,
     disabled,
     active,
-    variant = 'default',
     dot,
     title,
     dataConfigButton,
@@ -103,7 +102,6 @@ export function HeaderButton({
     onClick?: () => void;
     disabled?: boolean;
     active?: boolean;
-    variant?: 'default' | 'primary';
     dot?: 'emerald' | 'amber';
     title?: string;
     dataConfigButton?: string;
@@ -111,13 +109,7 @@ export function HeaderButton({
     const base =
         'relative flex min-w-[3.5rem] flex-col items-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-medium leading-none transition';
     let tone: string;
-    if (variant === 'primary') {
-        // The one filled chip. Disabled dims it rather than dropping to the
-        // ghost look, so it still reads as the primary action mid-save.
-        tone = disabled
-            ? 'cursor-not-allowed border-slate-900 bg-slate-900 text-white opacity-50'
-            : 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800';
-    } else if (disabled) {
+    if (disabled) {
         tone = 'cursor-not-allowed border-slate-200 bg-white text-slate-300';
     } else if (active) {
         tone = 'border-slate-900 bg-slate-900 text-white';

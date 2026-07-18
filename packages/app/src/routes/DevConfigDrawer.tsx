@@ -54,7 +54,23 @@ export default function DevConfigDrawer() {
                     has no sections, so the warning is always on in that mode).
                 </p>
 
-                <div className="flex flex-wrap items-center justify-end gap-2">
+                {/* Row 1 — primary-action bar (mirrors ActivityEditor). */}
+                <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-medium text-slate-500 underline underline-offset-2">
+                        ← All activities
+                    </span>
+                    <button
+                        type="button"
+                        title="Publish this activity as a page students can open"
+                        className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                    >
+                        <Globe size={15} aria-hidden="true" />
+                        Publish
+                    </button>
+                </div>
+
+                {/* Row 2 — config + nav toolbar, left-aligned. */}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                     <ConfigButtons
                         active={configOpen}
                         onToggle={(key) =>
@@ -85,16 +101,6 @@ export default function DevConfigDrawer() {
                         label="Import"
                         disabled
                         title="Paste markdown and convert it to activity blocks"
-                    />
-                    <span
-                        aria-hidden="true"
-                        className="mx-1 w-px self-stretch bg-slate-200"
-                    />
-                    <HeaderButton
-                        icon={<Globe size={18} />}
-                        label="Publish"
-                        variant="primary"
-                        title="Publish this activity as a page students can open"
                     />
                 </div>
 

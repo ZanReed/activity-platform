@@ -538,23 +538,46 @@ export default function ActivityEditor() {
 
         return (
             <Shell>
-            <div className="flex items-start justify-between gap-4">
+            {/*
+              Two-tier header. Row 1 is the primary-action bar: back-link left,
+              Publish (the page's main action) as a filled button top-right next
+              to the save indicator — its own prominence, not a chip in the
+              crowd. Row 2 is the config + nav toolbar (lucide icon+label chips,
+              each with a hover title), LEFT-aligned so it flows from the margin
+              instead of jamming right and leaving a dead gap. The published
+              status sits under Publish on the right.
+            */}
+            <div className="flex items-center justify-between gap-4">
             <Link
             to="/activities"
-            className="pt-2 text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+            className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
             >
             ← All activities
             </Link>
-            {/*
-              One header row in a single visual language (lucide icon + label
-              chips, each with a hover title): activity configuration (opens the
-              right-side drawer), navigation/actions, and Publish — the one
-              filled primary chip, set off by a divider at the end of the row.
-            */}
-            <div className="flex flex-wrap items-center justify-end gap-2">
-            <span className="mr-1">
+            <div className="flex items-center gap-3">
             <SaveIndicator status={status} />
-            </span>
+            <button
+            type="button"
+            onClick={publish}
+            disabled={publishState.kind === 'publishing' || status === 'saving'}
+            title={
+                status === 'saving'
+                    ? 'Waiting for the save to finish before publishing'
+                    : 'Publish this activity as a page students can open'
+            }
+            className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+            <Globe size={15} aria-hidden="true" />
+            {publishState.kind === 'publishing'
+                ? 'Publishing…'
+                : isPublished || publishState.kind === 'success'
+                  ? 'Republish'
+                  : 'Publish'}
+            </button>
+            </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
             <ConfigButtons
             active={configOpen}
             onToggle={(key) =>
@@ -587,29 +610,6 @@ export default function ActivityEditor() {
             disabled={!editorInstance}
             title="Paste markdown and convert it to activity blocks"
             />
-            <span
-            aria-hidden="true"
-            className="mx-1 w-px self-stretch bg-slate-200"
-            />
-            <HeaderButton
-            icon={<Globe size={18} />}
-            label={
-                publishState.kind === 'publishing'
-                    ? 'Publishing…'
-                    : isPublished || publishState.kind === 'success'
-                      ? 'Republish'
-                      : 'Publish'
-            }
-            variant="primary"
-            onClick={publish}
-            disabled={publishState.kind === 'publishing' || status === 'saving'}
-            title={
-                status === 'saving'
-                    ? 'Waiting for the save to finish before publishing'
-                    : 'Publish this activity as a page students can open'
-            }
-            />
-            </div>
             </div>
 
             {(isPublished || publishState.kind === 'success') && (
