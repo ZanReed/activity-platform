@@ -26,6 +26,7 @@ import FormulaField from '../components/FormulaField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
 import { formatCurveDomain } from '../../lib/graphDomain';
+import { useEffectiveTheme } from '../../lib/theme';
 import { routeCurveFormula } from './boundedCurveLogic';
 import {
     firstInequality,
@@ -264,13 +265,17 @@ function GraphAuthorBoard({
     const domainSig = authoredDomain
         ? `${typeof authoredDomain.min === 'number'}:${typeof authoredDomain.max === 'number'}`
         : 'none';
+    // The board self-detects its theme at mount, so a live light↔dark toggle
+    // must remount it — fold the effective theme into the remount key.
+    const themeKey = useEffectiveTheme();
     const key = useMemo(
-        () => JSON.stringify([axisConfig, typeKey, family, count, domainSig, formulaEpoch ?? 0]),
+        () => JSON.stringify([axisConfig, typeKey, family, count, domainSig, formulaEpoch ?? 0, themeKey]),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [
             axisConfig.xMin, axisConfig.xMax, axisConfig.yMin, axisConfig.yMax,
             axisConfig.xGridStep, axisConfig.yGridStep, axisConfig.showGrid,
             axisConfig.snapToGrid, typeKey, family, count, domainSig, formulaEpoch,
+            themeKey,
         ],
     );
 

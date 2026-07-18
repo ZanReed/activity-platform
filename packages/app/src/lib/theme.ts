@@ -58,3 +58,45 @@ export function useTheme(): [Theme, (theme: Theme) => void] {
     const theme = useSyncExternalStore(subscribe, read, (): Theme => 'system');
     return [theme, setTheme];
 }
+
+// The EFFECTIVE ('light'|'dark') theme, resolving 'system' against the OS. Used
+// by the graph NodeViews to remount their self-detecting boards on a live theme
+// flip (boards read color-scheme at mount, so a remount is how they re-color).
+function effectiveTheme(): 'light' | 'dark' {
+    const t = read();
+    if (t === 'dark') return 'dark';
+    if (t === 'light') return 'light';
+    try {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+    } catch {
+        return 'light';
+    }
+}
+
+// Subscribe to BOTH change sources: the explicit toggle (store listeners) and
+// the OS preference (matchMedia) — the latter matters while theme is 'system'.
+function subscribeEffective(onChange: () => void): () => void {
+    const off = subscribe(onChange);
+    let mq: MediaQueryList | null = null;
+    try {
+        mq = window.matchMedia('(prefers-color-scheme: dark)');
+        mq.addEventListener('change', onChange);
+    } catch {
+        mq = null;
+    }
+    return () => {
+        off();
+        mq?.removeEventListener('change', onChange);
+    };
+}
+
+/** The effective 'light'|'dark' theme; re-renders on toggle OR OS-pref change. */
+export function useEffectiveTheme(): 'light' | 'dark' {
+    return useSyncExternalStore(
+        subscribeEffective,
+        effectiveTheme,
+        (): 'light' | 'dark' => 'light',
+    );
+}

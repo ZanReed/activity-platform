@@ -15,6 +15,7 @@ import {
     parseNumberLineInterval,
 } from '../numberLineFormula';
 import type { InlineNodes } from '../../lib/serialize';
+import { useEffectiveTheme } from '../../lib/theme';
 import { problemNumberAt } from '../problemNumbering';
 import {
     defaultNumberLinePointInteraction,
@@ -85,10 +86,12 @@ function NumberLineAuthorBoard({
     const startRef = useRef(interaction);
     startRef.current = interaction;
 
+    // The board self-detects theme at mount, so remount on a live toggle.
+    const themeKey = useEffectiveTheme();
     const key = useMemo(
-        () => JSON.stringify([config, interaction.type, count, epoch]),
+        () => JSON.stringify([config, interaction.type, count, epoch, themeKey]),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [config.min, config.max, config.tickStep, config.minorTicksPerStep, config.snapToTick, interaction.type, count, epoch],
+        [config.min, config.max, config.tickStep, config.minorTicksPerStep, config.snapToTick, interaction.type, count, epoch, themeKey],
     );
 
     useEffect(() => {
