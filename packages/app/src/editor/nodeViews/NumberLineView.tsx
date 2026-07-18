@@ -334,6 +334,7 @@ export default function NumberLineView({
                 {!preview && interaction.type === 'plot_interval' && (
                     <FormulaField
                         label="Answer:"
+                        ariaLabel="Answer inequality"
                         value={formatNumberLineInterval(iv)}
                         disabled={!isEditable}
                         placeholder="2 < x <= 5   ·   x < -3   ·   x >= 0"

@@ -36,6 +36,7 @@ export default function FormulaField({
     modeKey,
     defaultMode = 'text',
     mathValue,
+    ariaLabel,
 }: {
     value: string;
     disabled: boolean;
@@ -43,6 +44,10 @@ export default function FormulaField({
     onApply: (raw: string) => string | null;
     // Optional leading label (e.g. "Answer:"); omitted for a bare inline field.
     label?: string;
+    // Accessible name for the field itself. The visible `label` is often terse
+    // ("Answer:"); this names what the input holds (e.g. "Answer inequality")
+    // for assistive tech and, in both modes, wins as the control's a11y name.
+    ariaLabel?: string;
     // Optional container overrides so a compact row can size the field inline.
     containerStyle?: CSSProperties;
     // Enables the math ⇄ text toggle and names the preference group it
@@ -137,6 +142,7 @@ export default function FormulaField({
                 {mode === 'math' ? (
                     <math-field
                         ref={mfRef}
+                        aria-label={ariaLabel}
                         style={{
                             flex: 1,
                             minWidth: 0,
@@ -165,6 +171,7 @@ export default function FormulaField({
                 ) : (
                     <input
                         type="text"
+                        aria-label={ariaLabel}
                         value={draft ?? value}
                         placeholder={placeholder}
                         disabled={disabled}

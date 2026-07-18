@@ -14,6 +14,14 @@ import { defineConfig, devices } from '@playwright/test';
 // the vite dev server (reusing one already running locally).
 // ============================================================================
 
+// Port is env-overridable so a parallel git worktree can drive ITS OWN dev
+// server (on a free port) instead of reusing whatever checkout already holds
+// 5173 — otherwise the reused server serves a different worktree's code and the
+// run silently tests the wrong tree. Defaults to 5173, so normal runs are
+// unchanged.
+const PORT = process.env.E2E_PORT ?? '5173';
+const BASE_URL = `http://localhost:${PORT}`;
+
 export default defineConfig({
     testDir: './e2e',
     // Named *.e2e.ts (not *.spec.ts) so vitest's default {test,spec} glob never
@@ -25,15 +33,15 @@ export default defineConfig({
     retries: process.env.CI ? 1 : 0,
     reporter: process.env.CI ? 'github' : 'list',
     use: {
-        baseURL: 'http://localhost:5173',
+        baseURL: BASE_URL,
         trace: 'on-first-retry',
     },
     projects: [
         { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     ],
     webServer: {
-        command: 'pnpm dev --port 5173 --strictPort',
-        url: 'http://localhost:5173/playground',
+        command: `pnpm dev --port ${PORT} --strictPort`,
+        url: `${BASE_URL}/playground`,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
     },

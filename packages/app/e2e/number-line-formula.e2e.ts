@@ -5,8 +5,11 @@ import { test, expect, type Page } from '@playwright/test';
 // ----------------------------------------------------------------------------
 // The interval answer is now authored by typing a 1-D inequality (mirrors the
 // graph ray): "2 < x <= 5" → open-2/closed-5 segment; "x < -3" → left ray open
-// at -3; "x >= 3" → right ray closed at 3. The shape pills + bound rows are
-// gone. An unparseable entry shows an inline error and leaves the answer as-is.
+// at -3; "x >= 3" → right ray closed at 3. This replaced NumberLineView's own
+// React numeric bound-rows; the kit board's interactive shape pills stay (the
+// author board is the same board students use). The field is the shared math-
+// first FormulaField, so the specs flip it to text mode to drive it. An
+// unparseable entry shows an inline error and leaves the answer as-is.
 // ============================================================================
 
 async function intervalNumberLine(page: Page) {
@@ -38,6 +41,14 @@ async function intervalNumberLine(page: Page) {
             })
             .run();
     });
+    // The interval answer is the shared math-first FormulaField (a MathLive
+    // <math-field> with a √x⇄abc text toggle). Flip it to TEXT mode so we can
+    // drive it with plain fill/value — the same parse path a typed entry takes.
+    // A fresh context opens in math mode, where the toggle reads "abc".
+    await page
+        .locator('.number-line-block')
+        .getByRole('button', { name: 'abc' })
+        .click();
     return page.getByLabel('Answer inequality');
 }
 
@@ -59,16 +70,21 @@ function interval(page: Page) {
     });
 }
 
-test('the interval formula input replaces the shape pills + bound rows', async ({
+test('the interval formula input replaces the React numeric bound rows', async ({
     page,
 }) => {
     const field = await intervalNumberLine(page);
     await expect(field).toBeVisible();
     // Field pre-fills the current interval as an inequality.
     await expect(field).toHaveValue('0 <= x <= 5');
-    // Old controls are gone.
-    await expect(page.getByRole('button', { name: 'Segment' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Ray →' })).toHaveCount(0);
+    // The old React authoring UI (numeric min/max "bound rows") is gone —
+    // plot_interval now authors through the formula field, so the block has no
+    // number inputs. (The kit board's shape pills — "Segment" / "Ray →" — are a
+    // DIFFERENT, deliberate control: the author board is the same board students
+    // use, so those stay; see NumberLineView + mountNumberLineAuthor.)
+    await expect(
+        page.locator('.number-line-block input[type="number"]'),
+    ).toHaveCount(0);
 });
 
 test('a compound inequality → open/closed segment', async ({ page }) => {
