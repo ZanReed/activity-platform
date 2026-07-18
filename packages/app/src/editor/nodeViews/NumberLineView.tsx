@@ -8,6 +8,7 @@ import {
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { usePreviewToggle } from '../components/usePreviewToggle';
 import PromptField from '../components/PromptField';
+import FormulaField from '../components/FormulaField';
 import { figureSizingStyle, readSizingAttrs } from '../figureSizingStyle';
 import {
     formatNumberLineInterval,
@@ -138,73 +139,6 @@ function NumberLineAuthorBoard({
 }
 
 const labelStyle = { fontSize: '0.8rem', color: 'var(--ed-text-secondary)' } as const;
-
-// The interval answer input: type an inequality (e.g. "2 < x <= 5" or "x < -3")
-// and the board previews it — mirrors the graph ray. Draft-then-commit on
-// blur/Enter; an unparseable entry shows an inline error and keeps the draft.
-function IntervalFormulaField({
-    value,
-    disabled,
-    onApply,
-}: {
-    value: string;
-    disabled: boolean;
-    onApply: (raw: string) => string | null;
-}) {
-    const [draft, setDraft] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const shown = draft ?? value;
-    const commit = (): void => {
-        if (draft === null) return;
-        const err = onApply(draft.trim());
-        if (err) {
-            setError(err);
-            return;
-        }
-        setDraft(null);
-        setError(null);
-    };
-    return (
-        <span style={{ display: 'inline-flex', flexDirection: 'column', gap: '0.2rem' }}>
-            <input
-                type="text"
-                value={shown}
-                disabled={disabled}
-                placeholder="e.g. 2 < x <= 5  ·  x < -3  ·  x >= 0"
-                aria-label="Answer inequality"
-                spellCheck={false}
-                style={{
-                    width: '17rem',
-                    maxWidth: '100%',
-                    padding: '0.25rem 0.4375rem',
-                    border: `1px solid ${error ? 'var(--ed-danger-2)' : 'var(--ed-border-strong)'}`,
-                    borderRadius: '0.3125rem',
-                    background: 'var(--ed-canvas)',
-                    color: 'var(--ed-text)',
-                    fontSize: '0.8125rem',
-                    fontFamily: 'ui-monospace, monospace',
-                }}
-                onChange={(e) => {
-                    setDraft(e.target.value);
-                    setError(null);
-                }}
-                onBlur={commit}
-                onKeyDown={(e) => {
-                    e.stopPropagation();
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        commit();
-                    }
-                }}
-            />
-            {error && (
-                <span style={{ fontSize: '0.72rem', color: 'var(--ed-danger-2)' }}>
-                    {error}
-                </span>
-            )}
-        </span>
-    );
-}
 
 export default function NumberLineView({
     node,
@@ -395,21 +329,22 @@ export default function NumberLineView({
                 )}
 
                 {!preview && interaction.type === 'plot_interval' && (
-                    <div style={{ marginTop: '0.35rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'flex-start' }}>
-                        <label style={{ ...labelStyle, paddingTop: '0.3rem' }}>Answer:</label>
-                        <IntervalFormulaField
-                            value={formatNumberLineInterval(iv)}
-                            disabled={!isEditable}
-                            onApply={(raw) => {
-                                const parsed = parseNumberLineInterval(raw);
-                                if (!parsed) {
-                                    return 'Couldn’t read that — try “2 < x <= 5”, “x < -3”, or “x >= 0”.';
-                                }
-                                setInterval(parsed);
-                                return null;
-                            }}
-                        />
-                    </div>
+                    <FormulaField
+                        label="Answer:"
+                        value={formatNumberLineInterval(iv)}
+                        disabled={!isEditable}
+                        placeholder="2 < x <= 5   ·   x < -3   ·   x >= 0"
+                        modeKey="answer:number_line_interval"
+                        defaultMode="math"
+                        onApply={(raw) => {
+                            const parsed = parseNumberLineInterval(raw);
+                            if (!parsed) {
+                                return 'Couldn’t read that — try “2 < x <= 5”, “x < -3”, or “x >= 0”.';
+                            }
+                            setInterval(parsed);
+                            return null;
+                        }}
+                    />
                 )}
             </div>
 

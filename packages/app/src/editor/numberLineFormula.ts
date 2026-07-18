@@ -22,7 +22,14 @@ const styleOf = (op: string): 'open' | 'closed' =>
 export function parseNumberLineInterval(
     raw: string,
 ): NumberLineIntervalAttr | null {
-    const value = raw.trim();
+    // Normalize the notation a MathLive field round-trips (unicode ≤/≥ and the
+    // minus sign) back to the ASCII the regexes below read, so a math-mode entry
+    // parses identically to a typed one. Mirrors graph-kit's parseGraphFormula.
+    const value = raw
+        .replace(/≥/g, '>=')
+        .replace(/≤/g, '<=')
+        .replace(/−/g, '-')
+        .trim();
 
     // Compound, low-on-the-left: "-2 <= x < 5" (both operators increasing).
     const compound = /^(-?[\d.]+)\s*(<=|<)\s*[a-z]\s*(<=|<)\s*(-?[\d.]+)$/i.exec(value);
