@@ -95,7 +95,7 @@ export default function DevConfigDrawer() {
                     <button
                         type="button"
                         title="Publish this activity as a page students can open"
-                        className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                        className="inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-md bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
                     >
                         <Globe size={15} aria-hidden="true" />
                         Publish

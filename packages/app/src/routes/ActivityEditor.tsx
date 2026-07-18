@@ -48,7 +48,7 @@ import {
     referencePanelToTiptap,
     tiptapToReferencePanel,
 } from '../lib/serialize';
-import { useAutosave, type SaveStatus } from '../lib/useAutosave';
+import { useAutosave } from '../lib/useAutosave';
 import { usePublish } from '../lib/usePublish';
 import Editor from '../editor/Editor';
 import ImportMarkdownDialog from '../components/ImportMarkdownDialog';
@@ -187,21 +187,6 @@ function PublishStatus({
         >
         {copied ? 'Copied!' : 'Copy link'}
         </button>
-        </span>
-    );
-}
-
-function SaveIndicator({ status }: { status: SaveStatus }) {
-    if (status === 'idle') return null;
-    if (status === 'saving') {
-        return <span className="text-xs text-slate-600">Saving…</span>;
-    }
-    if (status === 'saved') {
-        return <span className="text-xs text-slate-600">Saved</span>;
-    }
-    return (
-        <span className="text-xs text-red-600">
-        Couldn't save — your latest edits aren't stored
         </span>
     );
 }
@@ -587,27 +572,35 @@ export default function ActivityEditor() {
             title="Paste markdown and convert it to activity blocks"
             />
             </div>
-            <div className="flex items-center gap-3">
-            <SaveIndicator status={status} />
+            {/*
+              Save state rides ON the Publish button, not a separate text
+              element beside it — an inline "Saving…" was widening the group and
+              shoving Publish down. Autosave already disables Publish (it waits
+              for the draft to land before publishing), so "Saving…" on the
+              button is the honest label for that moment. A fixed min-width
+              keeps the label swaps from jittering. Save errors (the one state
+              that must not be silent) surface below.
+            */}
             <button
             type="button"
             onClick={publish}
             disabled={publishState.kind === 'publishing' || status === 'saving'}
             title={
                 status === 'saving'
-                    ? 'Waiting for the save to finish before publishing'
+                    ? 'Saving your latest edits before publishing'
                     : 'Publish this activity as a page students can open'
             }
-            className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-md bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
             <Globe size={15} aria-hidden="true" />
-            {publishState.kind === 'publishing'
-                ? 'Publishing…'
-                : isPublished || publishState.kind === 'success'
-                  ? 'Republish'
-                  : 'Publish'}
+            {status === 'saving'
+                ? 'Saving…'
+                : publishState.kind === 'publishing'
+                  ? 'Publishing…'
+                  : isPublished || publishState.kind === 'success'
+                    ? 'Republish'
+                    : 'Publish'}
             </button>
-            </div>
             </div>
 
             {(isPublished || publishState.kind === 'success') && (
@@ -620,6 +613,13 @@ export default function ActivityEditor() {
                         : null
                 }
                 />
+                </div>
+            )}
+            {status === 'error' && (
+                <div className="mt-2 flex justify-end">
+                <span className="text-xs text-red-600">
+                Couldn't save — your latest edits aren't stored
+                </span>
                 </div>
             )}
             {publishState.kind === 'error' && (
