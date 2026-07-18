@@ -123,14 +123,29 @@ function formatPoints(points: [number, number][]): string {
 // A system (graph_inequality_system) response has no single studentPoints array —
 // the answer is N boundaries. Summarize each plotted boundary with its shaded
 // side + dashed/solid style, so the teacher sees what the student graphed.
+// Prose, not the raw field values in brackets — "[left, dashed]" read like a
+// debug dump (ux-lens 10: name by the user's concept).
 function formatSystemParts(
     parts: { studentPoints: [number, number][]; side: string; strict: boolean }[],
 ): string {
     if (parts.length === 0) return '—';
     return parts
-        .map((p) => `${formatPoints(p.studentPoints)} [${p.side}, ${p.strict ? 'dashed' : 'solid'}]`)
-        .join('  ·  ');
+        .map(
+            (p) =>
+                `${formatPoints(p.studentPoints)} — shaded ${p.side}, ${
+                    p.strict ? 'dashed' : 'solid'
+                } boundary`,
+        )
+        .join(' · ');
 }
+
+// Endpoint-style labels for ray/segment answers. A label map (not raw field
+// interpolation) so a future enum value renders as "?" instead of leaking.
+const ENDPOINT_LABELS: Record<string, string> = {
+    open: 'open',
+    closed: 'closed',
+};
+const endpointLabel = (s: string): string => ENDPOINT_LABELS[s] ?? '?';
 
 // A functions-system (plot_function_system) response: one curve per part. Show
 // each curve's points, re-fit to its equation with the same engine that scored
@@ -157,6 +172,16 @@ function Shell({ children }: { children: ReactNode }) {
 }
 
 // ---- Per-submission drill-down ----------------------------------------------
+//
+// ONE problem-ordered list (design pass, 2026-07-18): every response type
+// interleaves by ActivityIndex docOrder — the order the student saw the
+// questions — replacing the old eight per-type tables (UI that mirrored
+// SubmissionResponses' parallel storage maps; ux-lens 1, task over schema).
+// Each item: a header line (Problem N · type badge · result · confidence),
+// the prompt, then a type-specific answer body. Confidence renders only when
+// this submission actually carries any (a schema field is not a dashboard
+// column). Blocks no longer in the activity sort last under a labeled
+// heading. GradingPanel and Checkpoints keep their places below the list.
 
 interface DetailBlankRow {
     blankId: string;
@@ -165,17 +190,70 @@ interface DetailBlankRow {
     confidence?: ConfidenceLevel;
 }
 
-interface DetailProblem {
-    problemId: string;
-    heading: string;
+interface BlankDetail {
+    canonicalAnswer: string | null; // null when no longer in the activity
+    groupAnswers: string[] | null; // set when the blank is in an any-order group
+    order: number;
+    row: DetailBlankRow;
+}
+
+// One drill-down item — a question the student answered, whatever its type.
+interface DetailItem {
+    key: string;
+    /** Reading-order sort key; Infinity = no longer in this activity. */
+    docOrder: number;
+    problemNumber: number | null;
+    typeLabel: string;
     prompt: string;
-    sortKey: number; // problemNumber, or Infinity for unknown/removed
-    blanks: Array<{
-        canonicalAnswer: string | null; // null when no longer in the activity
-        groupAnswers: string[] | null; // set when the blank is in an any-order group
-        order: number;
-        row: DetailBlankRow;
-    }>;
+    /** Header-line verdict; null for ungraded (free-text) responses. */
+    result: { good: boolean; text: string } | null;
+    confidence: ConfidenceLevel | null;
+    body: ReactNode;
+}
+
+function TypeBadge({ label }: { label: string }) {
+    return (
+        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600">
+        {label}
+        </span>
+    );
+}
+
+function ResultMark({ good, text }: { good: boolean; text: string }) {
+    return (
+        <span
+        className={
+            good ? 'font-medium text-green-700' : 'font-medium text-red-600'
+        }
+        >
+        {good ? '✓' : '✗'} {text}
+        </span>
+    );
+}
+
+// A labeled answer line ("Answer key → …" / "Student → …"). Answers keep the
+// dashboard's font-mono convention; the key reads quieter than the student's.
+function KV({
+    label,
+    strong,
+    children,
+}: {
+    label: string;
+    strong?: boolean;
+    children: ReactNode;
+}) {
+    return (
+        <div className="flex gap-2 text-sm">
+        <span className="w-28 flex-none pt-0.5 text-xs text-slate-600">
+        {label}
+        </span>
+        <span
+        className={`min-w-0 font-mono ${strong ? 'text-slate-900' : 'text-slate-600'}`}
+        >
+        {children}
+        </span>
+        </div>
+    );
 }
 
 function SubmissionDetail({
@@ -204,29 +282,46 @@ function SubmissionDetail({
 
     const responses = parsed.value;
 
-    // Group blank responses by their problem, using the activity index.
-    const byProblem = new Map<string, DetailProblem>();
-    const REMOVED = '__removed__';
+    // Does ANY response in this submission carry confidence? Gates every
+    // confidence cell/chip — an activity that never asked shows none.
+    const hasConfidence =
+        Object.values(responses.blanks).some((r) => r.confidence != null) ||
+        [
+            responses.choices,
+            responses.matches,
+            responses.orderings,
+            responses.graphResponses,
+            responses.numberLineResponses,
+            responses.dataPlotResponses,
+        ].some((map) =>
+            map
+                ? Object.values(map).some(
+                      (r) => (r as { confidence?: unknown }).confidence != null,
+                  )
+                : false,
+        );
+
+    const items: DetailItem[] = [];
+
+    // -- Fill-in-blank problems: one item per PROBLEM, blanks as sub-rows. ----
+    const byProblem = new Map<
+        string,
+        {
+            docOrder: number;
+            problemNumber: number | null;
+            prompt: string;
+            blanks: BlankDetail[];
+        }
+    >();
     for (const [blankId, resp] of Object.entries(responses.blanks)) {
         const info = index.blanks.get(blankId);
-        const problemId = info?.problemId ?? REMOVED;
+        const problemId = info?.problemId ?? '__removed__';
         let problem = byProblem.get(problemId);
         if (!problem) {
-            problem = info
-            ? {
-                problemId,
-                heading: info.problemNumber
-                ? `Problem ${info.problemNumber}`
-                : 'Problem',
-                prompt: info.problemPrompt,
-                sortKey: info.problemNumber ?? Number.POSITIVE_INFINITY,
-                blanks: [],
-            }
-            : {
-                problemId: REMOVED,
-                heading: 'No longer in this activity',
-                prompt: '',
-                sortKey: Number.POSITIVE_INFINITY,
+            problem = {
+                docOrder: info?.docOrder ?? Number.POSITIVE_INFINITY,
+                problemNumber: info?.problemNumber ?? null,
+                prompt: info?.problemPrompt ?? '',
                 blanks: [],
             };
             byProblem.set(problemId, problem);
@@ -238,18 +333,7 @@ function SubmissionDetail({
             row: { blankId, ...resp },
         });
     }
-
-    const problems = [...byProblem.values()].sort((a, b) => {
-        // The "No longer in this activity" group always sorts last, even below
-        // a real but unnumbered problem (both have sortKey Infinity, and the
-        // removed group's empty prompt would otherwise win the localeCompare).
-        const aRemoved = a.problemId === REMOVED;
-        const bRemoved = b.problemId === REMOVED;
-        if (aRemoved !== bRemoved) return aRemoved ? 1 : -1;
-        if (a.sortKey !== b.sortKey) return a.sortKey - b.sortKey;
-        return a.prompt.localeCompare(b.prompt);
-    });
-    for (const p of problems) {
+    for (const [problemId, p] of byProblem) {
         p.blanks.sort((a, b) => {
             // Break order ties (e.g. multiple orphaned blanks that all default
             // to order 0) by blankId, so the list is deterministic rather than
@@ -257,7 +341,333 @@ function SubmissionDetail({
             if (a.order !== b.order) return a.order - b.order;
             return a.row.blankId.localeCompare(b.row.blankId);
         });
+        const total = p.blanks.length;
+        const good = p.blanks.filter((b) => b.row.correct).length;
+        items.push({
+            key: `blank-${problemId}`,
+            docOrder: p.docOrder,
+            problemNumber: p.problemNumber,
+            typeLabel: 'Fill in the blank',
+            prompt: p.prompt,
+            result:
+                total === 1
+                    ? {
+                          good: good === 1,
+                          text: good === 1 ? 'correct' : 'incorrect',
+                      }
+                    : { good: good === total, text: `${good}/${total} correct` },
+            // Per-blank confidence lives in the sub-rows, not the header.
+            confidence: null,
+            body: (
+                <table className="w-full text-sm">
+                <thead>
+                <tr className="text-left text-xs text-slate-600">
+                <th className="py-1 pr-3 font-medium">Answer key</th>
+                <th className="py-1 pr-3 font-medium">Student</th>
+                <th className="py-1 pr-3 font-medium">Result</th>
+                {hasConfidence && (
+                    <th className="py-1 font-medium">Confidence</th>
+                )}
+                </tr>
+                </thead>
+                <tbody>
+                {p.blanks.map((b) => (
+                    <tr key={b.row.blankId} className="border-t border-slate-200">
+                    <td className="py-1 pr-3 font-mono text-slate-600">
+                    {b.groupAnswers
+                        ? `${b.groupAnswers.join(' or ')} (any order)`
+                        : b.canonicalAnswer ?? '—'}
+                    </td>
+                    <td className="py-1 pr-3 font-mono text-slate-900">
+                    {b.row.answer || (
+                        <span className="text-slate-600">(blank)</span>
+                    )}
+                    </td>
+                    <td className="py-1 pr-3">
+                    <ResultMark
+                        good={b.row.correct}
+                        text={b.row.correct ? 'correct' : 'incorrect'}
+                    />
+                    </td>
+                    {hasConfidence && (
+                        <td className="py-1 text-slate-600">
+                        {b.row.confidence
+                            ? CONFIDENCE_LABELS[b.row.confidence]
+                            : '—'}
+                        </td>
+                    )}
+                    </tr>
+                ))}
+                </tbody>
+                </table>
+            ),
+        });
     }
+
+    // -- Multiple choice. -----------------------------------------------------
+    for (const [blockId, resp] of Object.entries(responses.choices ?? {})) {
+        const info = index.mcs.get(blockId);
+        items.push({
+            key: `mc-${blockId}`,
+            docOrder: info?.docOrder ?? Number.POSITIVE_INFINITY,
+            problemNumber: info?.problemNumber ?? null,
+            typeLabel: 'Multiple choice',
+            prompt: info?.problemPrompt ?? '',
+            result: {
+                good: resp.correct,
+                text: resp.correct ? 'correct' : 'incorrect',
+            },
+            confidence: resp.confidence ?? null,
+            body: (
+                <>
+                <KV label="Answer key">{info ? info.answerSummary : '—'}</KV>
+                <KV label="Student picked" strong>
+                {resp.selected
+                    .map((choiceId) => {
+                        const choice = info?.choices.find(
+                            (c) => c.id === choiceId,
+                        );
+                        return choice
+                            ? `${choice.letter}. ${choice.text}`
+                            : '?';
+                    })
+                    .join(', ')}
+                </KV>
+                </>
+            ),
+        });
+    }
+
+    // -- Matching: per-pair lines, key shown beside each miss. ----------------
+    for (const [blockId, resp] of Object.entries(responses.matches ?? {})) {
+        const info = index.matchings.get(blockId);
+        items.push({
+            key: `match-${blockId}`,
+            docOrder: info?.docOrder ?? Number.POSITIVE_INFINITY,
+            problemNumber: info?.problemNumber ?? null,
+            typeLabel: 'Matching',
+            prompt: info?.problemPrompt ?? '',
+            result: {
+                good: resp.correct,
+                text: `${resp.earned}/${resp.total} pairs`,
+            },
+            confidence: resp.confidence ?? null,
+            body: (
+                <div className="font-mono text-sm text-slate-900">
+                {(info?.items ?? []).map((item) => {
+                    const picked = resp.pairs[item.id];
+                    const pickedText = picked
+                        ? info?.targets.find((t) => t.id === picked)?.text ??
+                          '?'
+                        : null;
+                    const correctId = info?.key[item.id];
+                    const pairCorrect =
+                        picked !== undefined && picked === correctId;
+                    const correctText = correctId
+                        ? info?.targets.find((t) => t.id === correctId)
+                              ?.text ?? '?'
+                        : '—';
+                    return (
+                        <span key={item.id} className="block">
+                        {item.text} →{' '}
+                        {pickedText ?? (
+                            <span className="text-slate-600">(unmatched)</span>
+                        )}{' '}
+                        {pairCorrect ? (
+                            <span className="text-green-700">✓</span>
+                        ) : (
+                            <span className="text-red-600">
+                            ✗ (key: {correctText})
+                            </span>
+                        )}
+                        </span>
+                    );
+                })}
+                {!info && '?'}
+                </div>
+            ),
+        });
+    }
+
+    // -- Ordering. ------------------------------------------------------------
+    for (const [blockId, resp] of Object.entries(responses.orderings ?? {})) {
+        const info = index.orderings.get(blockId);
+        items.push({
+            key: `order-${blockId}`,
+            docOrder: info?.docOrder ?? Number.POSITIVE_INFINITY,
+            problemNumber: info?.problemNumber ?? null,
+            typeLabel: 'Ordering',
+            prompt: info?.problemPrompt ?? '',
+            result: {
+                good: resp.correct,
+                text: resp.correct ? 'correct' : 'incorrect',
+            },
+            confidence: resp.confidence ?? null,
+            body: (
+                <>
+                <KV label="Correct order">{info?.answerSummary ?? '—'}</KV>
+                <KV label="Student's order" strong>
+                {resp.order
+                    .map((itemId, n) => {
+                        const text =
+                            info?.items.find((i) => i.id === itemId)?.text ??
+                            '?';
+                        return `${n + 1}. ${text}`;
+                    })
+                    .join('  ')}
+                </KV>
+                </>
+            ),
+        });
+    }
+
+    // -- Interactive graphs. --------------------------------------------------
+    for (const [blockId, resp] of Object.entries(
+        responses.graphResponses ?? {},
+    )) {
+        const info = index.graphs.get(blockId);
+        items.push({
+            key: `graph-${blockId}`,
+            docOrder: info?.docOrder ?? Number.POSITIVE_INFINITY,
+            problemNumber: info?.problemNumber ?? null,
+            typeLabel: 'Graph',
+            prompt: info?.problemPrompt ?? '',
+            result: {
+                good: resp.correct,
+                text: resp.correct ? 'correct' : 'incorrect',
+            },
+            confidence: resp.confidence ?? null,
+            body: (
+                <>
+                <KV label="Answer key">{info ? info.answerSummary : '—'}</KV>
+                <KV label="Student plotted" strong>
+                {resp.type === 'graph_inequality_system' ? (
+                    formatSystemParts(resp.parts)
+                ) : resp.type === 'plot_function_system' ? (
+                    formatFunctionSystemParts(resp.parts, info?.functionFamily)
+                ) : (
+                    <>
+                    {formatPoints(resp.studentPoints)}
+                    {resp.type === 'plot_function' &&
+                        info?.functionFamily &&
+                        (() => {
+                            // The points the student placed, re-fit into the curve
+                            // they define — same engine that scored them.
+                            const eq = fitStudentEquation(
+                                info.functionFamily,
+                                resp.studentPoints,
+                            );
+                            return eq ? ` ≈ ${eq}` : '';
+                        })()}
+                    {(resp.type === 'plot_ray' || resp.type === 'plot_segment') &&
+                        resp.shape &&
+                        ` — drew ${
+                            resp.shape === 'segment'
+                                ? 'a segment'
+                                : `a ray ${rayGlyphFor(resp.studentPoints, resp.shape)}`
+                        }`}
+                    {resp.type === 'plot_ray' &&
+                        ` (${endpointLabel(resp.fromStyle)} endpoint)`}
+                    {resp.type === 'plot_segment' &&
+                        ` (${endpointLabel(resp.endpoints[0])} start, ${endpointLabel(resp.endpoints[1])} end)`}
+                    </>
+                )}
+                </KV>
+                </>
+            ),
+        });
+    }
+
+    // -- Number lines. --------------------------------------------------------
+    for (const [blockId, resp] of Object.entries(
+        responses.numberLineResponses ?? {},
+    )) {
+        const info = index.numberLines.get(blockId);
+        items.push({
+            key: `nl-${blockId}`,
+            docOrder: info?.docOrder ?? Number.POSITIVE_INFINITY,
+            problemNumber: info?.problemNumber ?? null,
+            typeLabel: 'Number line',
+            prompt: info?.problemPrompt ?? '',
+            result: {
+                good: resp.correct,
+                text: resp.correct ? 'correct' : 'incorrect',
+            },
+            confidence: resp.confidence ?? null,
+            body: (
+                <>
+                <KV label="Answer key">{info ? info.answerSummary : '—'}</KV>
+                <KV label="Student answer" strong>
+                {resp.type === 'plot_point'
+                    ? resp.studentPoints.join(', ')
+                    : formatNumberLineInterval(resp)}
+                </KV>
+                </>
+            ),
+        });
+    }
+
+    // -- Data plots. ----------------------------------------------------------
+    for (const [blockId, resp] of Object.entries(
+        responses.dataPlotResponses ?? {},
+    )) {
+        const info = index.dataPlots.get(blockId);
+        items.push({
+            key: `dp-${blockId}`,
+            docOrder: info?.docOrder ?? Number.POSITIVE_INFINITY,
+            problemNumber: info?.problemNumber ?? null,
+            typeLabel: 'Data plot',
+            prompt: info?.problemPrompt ?? '',
+            result: {
+                good: resp.correct,
+                text: resp.correct ? 'correct' : 'incorrect',
+            },
+            confidence: resp.confidence ?? null,
+            body: (
+                <>
+                <KV label="Answer key">{info ? info.answerSummary : '—'}</KV>
+                <KV label="Student answer" strong>
+                {resp.type === 'build_histogram'
+                    ? formatBins(resp.studentBins)
+                    : resp.type === 'build_boxplot'
+                      ? formatFive(resp.studentFive)
+                      : resp.type === 'build_dotplot'
+                        ? formatDotValues(resp.studentValues)
+                        : '—'}
+                </KV>
+                </>
+            ),
+        });
+    }
+
+    // -- Free text (reflection / short answer / essay): ungraded here, no
+    //    result mark — rubric grading lives in GradingPanel below. -----------
+    for (const [blockId, resp] of Object.entries(
+        responses.freeResponses ?? {},
+    )) {
+        const info = index.freeText.get(blockId);
+        items.push({
+            key: `free-${blockId}`,
+            docOrder: info?.docOrder ?? Number.POSITIVE_INFINITY,
+            problemNumber: null,
+            typeLabel: FREE_TEXT_LABELS[info?.blockType ?? 'self_explanation'],
+            prompt: info?.problemPrompt ?? '',
+            result: null,
+            confidence: null,
+            body: (
+                <p className="whitespace-pre-wrap text-sm text-slate-900">
+                {resp.text}
+                </p>
+            ),
+        });
+    }
+
+    // Reading order; everything the current activity no longer contains
+    // (docOrder Infinity) sinks below the live questions, deterministically.
+    items.sort((a, b) => {
+        if (a.docOrder !== b.docOrder) return a.docOrder - b.docOrder;
+        return a.key.localeCompare(b.key);
+    });
 
     const checkpoints = responses.checkpointResults
     ? Object.entries(responses.checkpointResults)
@@ -276,660 +686,88 @@ function SubmissionDetail({
     })
     : [];
 
-    const blankCount = Object.keys(responses.blanks).length;
-
-    // Multiple-choice responses, ordered by problem number then id. Selected
-    // choice ids resolve to letters + text through the activity index; a
-    // choice id no longer in the document renders as "?".
-    const mcRows = responses.choices
-        ? Object.entries(responses.choices)
-              .map(([blockId, resp]) => ({
-                  blockId,
-                  info: index.mcs.get(blockId),
-                  resp,
-              }))
-              .sort((a, b) => {
-                  const an = a.info?.problemNumber ?? Infinity;
-                  const bn = b.info?.problemNumber ?? Infinity;
-                  if (an !== bn) return an - bn;
-                  return a.blockId.localeCompare(b.blockId);
-              })
-        : [];
-
-    // Matching responses, ordered by problem number then id. Pair ids resolve
-    // to item/target TEXT through the activity index (no letters — published
-    // letters follow the publish-time shuffle, which the dashboard doesn't
-    // re-derive); an id no longer in the document renders as "?".
-    const matchRows = responses.matches
-        ? Object.entries(responses.matches)
-              .map(([blockId, resp]) => ({
-                  blockId,
-                  info: index.matchings.get(blockId),
-                  resp,
-              }))
-              .sort((a, b) => {
-                  const an = a.info?.problemNumber ?? Infinity;
-                  const bn = b.info?.problemNumber ?? Infinity;
-                  if (an !== bn) return an - bn;
-                  return a.blockId.localeCompare(b.blockId);
-              })
-        : [];
-
-    // Ordering responses, ordered by problem number then id.
-    const orderingRows = responses.orderings
-        ? Object.entries(responses.orderings)
-              .map(([blockId, resp]) => ({
-                  blockId,
-                  info: index.orderings.get(blockId),
-                  resp,
-              }))
-              .sort((a, b) => {
-                  const an = a.info?.problemNumber ?? Infinity;
-                  const bn = b.info?.problemNumber ?? Infinity;
-                  if (an !== bn) return an - bn;
-                  return a.blockId.localeCompare(b.blockId);
-              })
-        : [];
-
-    // Interactive-graph responses (Stage 5), ordered by problem number then id.
-    const graphRows = responses.graphResponses
-        ? Object.entries(responses.graphResponses)
-              .map(([blockId, resp]) => ({
-                  blockId,
-                  info: index.graphs.get(blockId),
-                  resp,
-              }))
-              .sort((a, b) => {
-                  const an = a.info?.problemNumber ?? Infinity;
-                  const bn = b.info?.problemNumber ?? Infinity;
-                  if (an !== bn) return an - bn;
-                  return a.blockId.localeCompare(b.blockId);
-              })
-        : [];
-
-    // Number-line responses (1-D), ordered by problem number then id.
-    const numberLineRows = responses.numberLineResponses
-        ? Object.entries(responses.numberLineResponses)
-              .map(([blockId, resp]) => ({
-                  blockId,
-                  info: index.numberLines.get(blockId),
-                  resp,
-              }))
-              .sort((a, b) => {
-                  const an = a.info?.problemNumber ?? Infinity;
-                  const bn = b.info?.problemNumber ?? Infinity;
-                  if (an !== bn) return an - bn;
-                  return a.blockId.localeCompare(b.blockId);
-              })
-        : [];
-
-    // Data-plot responses (stats charts), ordered by problem number then id.
-    const dataPlotRows = responses.dataPlotResponses
-        ? Object.entries(responses.dataPlotResponses)
-              .map(([blockId, resp]) => ({
-                  blockId,
-                  info: index.dataPlots.get(blockId),
-                  resp,
-              }))
-              .sort((a, b) => {
-                  const an = a.info?.problemNumber ?? Infinity;
-                  const bn = b.info?.problemNumber ?? Infinity;
-                  if (an !== bn) return an - bn;
-                  return a.blockId.localeCompare(b.blockId);
-              })
-        : [];
-
-    // Free-text responses (self_explanation / short_answer / essay) — no answer
-    // key / result / confidence. Sorted by block id (these carry no problem
-    // number). short_answer/essay await manual grading (a later slice); for now
-    // all render as raw text with a type badge.
-    const freeRows = responses.freeResponses
-        ? Object.entries(responses.freeResponses)
-              .map(([blockId, resp]) => ({
-                  blockId,
-                  info: index.freeText.get(blockId),
-                  resp,
-              }))
-              .sort((a, b) => a.blockId.localeCompare(b.blockId))
-        : [];
-
     return (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
-        {blankCount === 0 &&
-        graphRows.length === 0 &&
-        numberLineRows.length === 0 &&
-        dataPlotRows.length === 0 &&
-        mcRows.length === 0 &&
-        matchRows.length === 0 &&
-        orderingRows.length === 0 &&
-        freeRows.length === 0 ? (
-            <p className="text-sm text-slate-500">No responses recorded.</p>
+        {items.length === 0 ? (
+            <p className="text-sm text-slate-600">No responses recorded.</p>
         ) : (
-            <div className="space-y-4">
-            {problems.map((p) => (
-                <div key={p.problemId}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {p.heading}
-                </p>
-                {p.prompt && (
-                    <p className="mt-0.5 text-sm text-slate-700">{p.prompt}</p>
+            <div className="divide-y divide-slate-200">
+            {items.map((item) => (
+                <div key={item.key} className="py-2.5 first:pt-0 last:pb-0">
+                <div className="flex flex-wrap items-baseline gap-2">
+                {item.docOrder === Number.POSITIVE_INFINITY ? (
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    No longer in this activity
+                    </p>
+                ) : item.problemNumber != null ? (
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Problem {item.problemNumber}
+                    </p>
+                ) : null}
+                <TypeBadge label={item.typeLabel} />
+                {item.result && (
+                    <ResultMark
+                        good={item.result.good}
+                        text={item.result.text}
+                    />
                 )}
-                <table className="mt-2 w-full text-sm">
-                <thead>
-                <tr className="text-left text-xs text-slate-600">
-                <th className="py-1 pr-3 font-medium">Answer key</th>
-                <th className="py-1 pr-3 font-medium">Student</th>
-                <th className="py-1 pr-3 font-medium">Result</th>
-                <th className="py-1 font-medium">Confidence</th>
-                </tr>
-                </thead>
-                <tbody>
-                {p.blanks.map((b) => (
-                    <tr
-                    key={b.row.blankId}
-                    className="border-t border-slate-200"
-                    >
-                    <td className="py-1 pr-3 font-mono text-slate-600">
-                    {b.groupAnswers
-                        ? `${b.groupAnswers.join(' or ')} (any order)`
-                        : b.canonicalAnswer ?? '—'}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-900">
-                    {b.row.answer || (
-                        <span className="text-slate-600">(blank)</span>
-                    )}
-                    </td>
-                    <td className="py-1 pr-3">
-                    {b.row.correct ? (
-                        <span className="font-medium text-green-700">
-                        ✓ correct
-                        </span>
-                    ) : (
-                        <span className="font-medium text-red-600">
-                        ✗ incorrect
-                        </span>
-                    )}
-                    </td>
-                    <td className="py-1 text-slate-600">
-                    {b.row.confidence
-                        ? CONFIDENCE_LABELS[b.row.confidence]
-                        : '—'}
-                    </td>
-                    </tr>
-                ))}
-                </tbody>
-                </table>
+                {hasConfidence && item.confidence && (
+                    <span className="ml-auto text-xs text-slate-600">
+                    Confidence: {CONFIDENCE_LABELS[item.confidence]}
+                    </span>
+                )}
+                </div>
+                {item.prompt && (
+                    <p className="mt-0.5 text-sm text-slate-700">
+                    {item.prompt}
+                    </p>
+                )}
+                <div className="mt-1.5 space-y-0.5">{item.body}</div>
                 </div>
             ))}
+            </div>
+        )}
 
-            {mcRows.length > 0 && (
-                <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Multiple choice
-                </p>
-                <table className="mt-2 w-full text-sm">
-                <thead>
-                <tr className="text-left text-xs text-slate-600">
-                <th className="py-1 pr-3 font-medium">Problem</th>
-                <th className="py-1 pr-3 font-medium">Answer key</th>
-                <th className="py-1 pr-3 font-medium">Student picked</th>
-                <th className="py-1 pr-3 font-medium">Result</th>
-                <th className="py-1 font-medium">Confidence</th>
-                </tr>
-                </thead>
-                <tbody>
-                {mcRows.map((m) => (
-                    <tr key={m.blockId} className="border-t border-slate-200">
-                    <td className="py-1 pr-3 text-slate-700">
-                    {m.info?.problemNumber != null
-                        ? `Problem ${m.info.problemNumber}`
-                        : 'Question'}
-                    {m.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-600">
-                        {m.info.problemPrompt}
-                        </span>
-                    )}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-600">
-                    {m.info ? m.info.answerSummary : '—'}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-900">
-                    {m.resp.selected
-                        .map((choiceId) => {
-                            const choice = m.info?.choices.find(
-                                (c) => c.id === choiceId,
-                            );
-                            return choice
-                                ? `${choice.letter}. ${choice.text}`
-                                : '?';
-                        })
-                        .join(', ')}
-                    </td>
-                    <td className="py-1 pr-3">
-                    {m.resp.correct ? (
-                        <span className="font-medium text-green-700">✓ correct</span>
-                    ) : (
-                        <span className="font-medium text-red-600">✗ incorrect</span>
-                    )}
-                    </td>
-                    <td className="py-1 text-slate-600">
-                    {m.resp.confidence
-                        ? CONFIDENCE_LABELS[m.resp.confidence]
-                        : '—'}
-                    </td>
-                    </tr>
-                ))}
-                </tbody>
-                </table>
-                </div>
+        <GradingPanel
+            submissionId={row.id}
+            blocks={gradableBlocks(
+                index,
+                responses,
+                grading?.grades.get(row.id),
             )}
+        />
 
-            {matchRows.length > 0 && (
-                <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Matching
-                </p>
-                <table className="mt-2 w-full text-sm">
-                <thead>
-                <tr className="text-left text-xs text-slate-600">
-                <th className="py-1 pr-3 font-medium">Problem</th>
-                <th className="py-1 pr-3 font-medium">Student&apos;s pairs</th>
-                <th className="py-1 pr-3 font-medium">Result</th>
-                <th className="py-1 font-medium">Confidence</th>
-                </tr>
-                </thead>
-                <tbody>
-                {matchRows.map((m) => (
-                    <tr key={m.blockId} className="border-t border-slate-200">
-                    <td className="py-1 pr-3 text-slate-700">
-                    {m.info?.problemNumber != null
-                        ? `Problem ${m.info.problemNumber}`
-                        : 'Question'}
-                    {m.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-600">
-                        {m.info.problemPrompt}
-                        </span>
-                    )}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-900">
-                    {(m.info?.items ?? []).map((item) => {
-                        const picked = m.resp.pairs[item.id];
-                        const pickedText = picked
-                            ? m.info?.targets.find((t) => t.id === picked)
-                                  ?.text ?? '?'
-                            : null;
-                        const correctId = m.info?.key[item.id];
-                        const pairCorrect =
-                            picked !== undefined && picked === correctId;
-                        const correctText = correctId
-                            ? m.info?.targets.find((t) => t.id === correctId)
-                                  ?.text ?? '?'
-                            : '—';
-                        return (
-                            <span key={item.id} className="block">
-                            {item.text} →{' '}
-                            {pickedText ?? (
-                                <span className="text-slate-600">
-                                (unmatched)
-                                </span>
-                            )}{' '}
-                            {pairCorrect ? (
-                                <span className="text-green-700">✓</span>
-                            ) : (
-                                <span className="text-red-600">
-                                ✗ (key: {correctText})
-                                </span>
-                            )}
-                            </span>
-                        );
-                    })}
-                    {!m.info && '?'}
-                    </td>
-                    <td className="py-1 pr-3">
-                    <span
-                        className={
-                            m.resp.correct
-                                ? 'font-medium text-green-700'
-                                : 'font-medium text-red-600'
-                        }
-                    >
-                    {m.resp.earned} / {m.resp.total} pairs
-                    </span>
-                    </td>
-                    <td className="py-1 text-slate-600">
-                    {m.resp.confidence
-                        ? CONFIDENCE_LABELS[m.resp.confidence]
-                        : '—'}
-                    </td>
-                    </tr>
-                ))}
-                </tbody>
-                </table>
-                </div>
-            )}
-
-            {orderingRows.length > 0 && (
-                <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Ordering
-                </p>
-                <table className="mt-2 w-full text-sm">
-                <thead>
-                <tr className="text-left text-xs text-slate-600">
-                <th className="py-1 pr-3 font-medium">Problem</th>
-                <th className="py-1 pr-3 font-medium">Correct order</th>
-                <th className="py-1 pr-3 font-medium">Student&apos;s order</th>
-                <th className="py-1 pr-3 font-medium">Result</th>
-                <th className="py-1 font-medium">Confidence</th>
-                </tr>
-                </thead>
-                <tbody>
-                {orderingRows.map((o) => (
-                    <tr key={o.blockId} className="border-t border-slate-200">
-                    <td className="py-1 pr-3 text-slate-700">
-                    {o.info?.problemNumber != null
-                        ? `Problem ${o.info.problemNumber}`
-                        : 'Question'}
-                    {o.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-600">
-                        {o.info.problemPrompt}
-                        </span>
-                    )}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-600">
-                    {o.info?.answerSummary ?? '—'}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-900">
-                    {o.resp.order
-                        .map((itemId, n) => {
-                            const text =
-                                o.info?.items.find((i) => i.id === itemId)
-                                    ?.text ?? '?';
-                            return `${n + 1}. ${text}`;
-                        })
-                        .join('  ')}
-                    </td>
-                    <td className="py-1 pr-3">
-                    {o.resp.correct ? (
-                        <span className="font-medium text-green-700">✓ correct</span>
-                    ) : (
-                        <span className="font-medium text-red-600">✗ incorrect</span>
-                    )}
-                    </td>
-                    <td className="py-1 text-slate-600">
-                    {o.resp.confidence
-                        ? CONFIDENCE_LABELS[o.resp.confidence]
-                        : '—'}
-                    </td>
-                    </tr>
-                ))}
-                </tbody>
-                </table>
-                </div>
-            )}
-
-            {graphRows.length > 0 && (
-                <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Graph questions
-                </p>
-                <table className="mt-2 w-full text-sm">
-                <thead>
-                <tr className="text-left text-xs text-slate-600">
-                <th className="py-1 pr-3 font-medium">Problem</th>
-                <th className="py-1 pr-3 font-medium">Answer key</th>
-                <th className="py-1 pr-3 font-medium">Student plotted</th>
-                <th className="py-1 pr-3 font-medium">Result</th>
-                <th className="py-1 font-medium">Confidence</th>
-                </tr>
-                </thead>
-                <tbody>
-                {graphRows.map((g) => (
-                    <tr key={g.blockId} className="border-t border-slate-200">
-                    <td className="py-1 pr-3 text-slate-700">
-                    {g.info?.problemNumber != null
-                        ? `Problem ${g.info.problemNumber}`
-                        : 'Graph'}
-                    {g.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-600">
-                        {g.info.problemPrompt}
-                        </span>
-                    )}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-600">
-                    {g.info ? g.info.answerSummary : '—'}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-900">
-                    {g.resp.type === 'graph_inequality_system' ? (
-                        formatSystemParts(g.resp.parts)
-                    ) : g.resp.type === 'plot_function_system' ? (
-                        formatFunctionSystemParts(g.resp.parts, g.info?.functionFamily)
-                    ) : (
-                        <>
-                        {formatPoints(g.resp.studentPoints)}
-                        {g.resp.type === 'plot_function' &&
-                            g.info?.functionFamily &&
-                            (() => {
-                                // The points the student placed, re-fit into the curve
-                                // they define — same engine that scored them.
-                                const eq = fitStudentEquation(
-                                    g.info.functionFamily,
-                                    g.resp.studentPoints,
-                                );
-                                return eq ? ` ≈ ${eq}` : '';
-                            })()}
-                        {(g.resp.type === 'plot_ray' || g.resp.type === 'plot_segment') &&
-                            g.resp.shape &&
-                            ` — drew ${
-                                g.resp.shape === 'segment'
-                                    ? 'a segment'
-                                    : `a ray ${rayGlyphFor(g.resp.studentPoints, g.resp.shape)}`
-                            }`}
-                        {g.resp.type === 'plot_ray' && ` (${g.resp.fromStyle} endpoint)`}
-                        {g.resp.type === 'plot_segment' &&
-                            ` (${g.resp.endpoints[0]} start, ${g.resp.endpoints[1]} end)`}
-                        </>
-                    )}
-                    </td>
-                    <td className="py-1 pr-3">
-                    {g.resp.correct ? (
-                        <span className="font-medium text-green-700">✓ correct</span>
-                    ) : (
-                        <span className="font-medium text-red-600">✗ incorrect</span>
-                    )}
-                    </td>
-                    <td className="py-1 text-slate-600">
-                    {g.resp.confidence
-                        ? CONFIDENCE_LABELS[g.resp.confidence]
-                        : '—'}
-                    </td>
-                    </tr>
-                ))}
-                </tbody>
-                </table>
-                </div>
-            )}
-
-            {numberLineRows.length > 0 && (
-                <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Number line
-                </p>
-                <table className="mt-2 w-full text-sm">
-                <thead>
-                <tr className="text-left text-xs text-slate-600">
-                <th className="py-1 pr-3 font-medium">Problem</th>
-                <th className="py-1 pr-3 font-medium">Answer key</th>
-                <th className="py-1 pr-3 font-medium">Student answer</th>
-                <th className="py-1 pr-3 font-medium">Result</th>
-                <th className="py-1 font-medium">Confidence</th>
-                </tr>
-                </thead>
-                <tbody>
-                {numberLineRows.map((n) => (
-                    <tr key={n.blockId} className="border-t border-slate-200">
-                    <td className="py-1 pr-3 text-slate-700">
-                    {n.info?.problemNumber != null
-                        ? `Problem ${n.info.problemNumber}`
-                        : 'Number line'}
-                    {n.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-600">
-                        {n.info.problemPrompt}
-                        </span>
-                    )}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-600">
-                    {n.info ? n.info.answerSummary : '—'}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-900">
-                    {n.resp.type === 'plot_point'
-                        ? n.resp.studentPoints.join(', ')
-                        : formatNumberLineInterval(n.resp)}
-                    </td>
-                    <td className="py-1 pr-3">
-                    {n.resp.correct ? (
-                        <span className="font-medium text-green-700">✓ correct</span>
-                    ) : (
-                        <span className="font-medium text-red-600">✗ incorrect</span>
-                    )}
-                    </td>
-                    <td className="py-1 text-slate-600">
-                    {n.resp.confidence
-                        ? CONFIDENCE_LABELS[n.resp.confidence]
-                        : '—'}
-                    </td>
-                    </tr>
-                ))}
-                </tbody>
-                </table>
-                </div>
-            )}
-
-            {dataPlotRows.length > 0 && (
-                <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Data plot
-                </p>
-                <table className="mt-2 w-full text-sm">
-                <thead>
-                <tr className="text-left text-xs text-slate-600">
-                <th className="py-1 pr-3 font-medium">Problem</th>
-                <th className="py-1 pr-3 font-medium">Answer key</th>
-                <th className="py-1 pr-3 font-medium">Student answer</th>
-                <th className="py-1 pr-3 font-medium">Result</th>
-                <th className="py-1 font-medium">Confidence</th>
-                </tr>
-                </thead>
-                <tbody>
-                {dataPlotRows.map((d) => (
-                    <tr key={d.blockId} className="border-t border-slate-200">
-                    <td className="py-1 pr-3 text-slate-700">
-                    {d.info?.problemNumber != null
-                        ? `Problem ${d.info.problemNumber}`
-                        : 'Data plot'}
-                    {d.info?.problemPrompt && (
-                        <span className="block text-xs text-slate-600">
-                        {d.info.problemPrompt}
-                        </span>
-                    )}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-600">
-                    {d.info ? d.info.answerSummary : '—'}
-                    </td>
-                    <td className="py-1 pr-3 font-mono text-slate-900">
-                    {d.resp.type === 'build_histogram'
-                        ? formatBins(d.resp.studentBins)
-                        : d.resp.type === 'build_boxplot'
-                          ? formatFive(d.resp.studentFive)
-                          : d.resp.type === 'build_dotplot'
-                            ? formatDotValues(d.resp.studentValues)
-                            : '—'}
-                    </td>
-                    <td className="py-1 pr-3">
-                    {d.resp.correct ? (
-                        <span className="font-medium text-green-700">✓ correct</span>
-                    ) : (
-                        <span className="font-medium text-red-600">✗ incorrect</span>
-                    )}
-                    </td>
-                    <td className="py-1 text-slate-600">
-                    {d.resp.confidence
-                        ? CONFIDENCE_LABELS[d.resp.confidence]
-                        : '—'}
-                    </td>
-                    </tr>
-                ))}
-                </tbody>
-                </table>
-                </div>
-            )}
-
-            {freeRows.length > 0 && (
-                <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Written responses
-                </p>
-                <div className="mt-2 space-y-2">
-                {freeRows.map((f) => (
-                    <div
-                    key={f.blockId}
-                    className="border-t border-slate-200 pt-2"
-                    >
-                    <div className="flex items-baseline gap-2">
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                    {FREE_TEXT_LABELS[f.info?.blockType ?? 'self_explanation']}
-                    </span>
-                    {f.info?.problemPrompt && (
-                        <p className="text-xs text-slate-600">
-                        {f.info.problemPrompt}
-                        </p>
-                    )}
-                    </div>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-slate-900">
-                    {f.resp.text}
-                    </p>
-                    </div>
-                ))}
-                </div>
-                </div>
-            )}
-
-            <GradingPanel
-                submissionId={row.id}
-                blocks={gradableBlocks(
-                    index,
-                    responses,
-                    grading?.grades.get(row.id),
-                )}
-            />
-
-            {checkpoints.length > 0 && (
-                <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Checkpoints
-                </p>
-                <ul className="mt-1 space-y-0.5 text-sm text-slate-700">
-                {checkpoints.map((c) => (
-                    <li key={c.sectionId}>
-                    {c.info?.title ??
-                        (c.info ? `Section ${c.info.order}` : 'Section')}
-                    {': '}
-                    <span className="font-medium">
-                    {c.result.score}/{c.result.total}
-                    </span>{' '}
-                    <span className="text-xs text-slate-600">
-                    checked {formatWhen(c.result.checkedAt)}
-                    </span>
-                    </li>
-                ))}
-                </ul>
-                </div>
-            )}
+        {checkpoints.length > 0 && (
+            <div className="mt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Checkpoints
+            </p>
+            <ul className="mt-1 space-y-0.5 text-sm text-slate-700">
+            {checkpoints.map((c) => (
+                <li key={c.sectionId}>
+                {c.info?.title ??
+                    (c.info ? `Section ${c.info.order}` : 'Section')}
+                {': '}
+                <span className="font-medium">
+                {c.result.score}/{c.result.total}
+                </span>{' '}
+                <span className="text-xs text-slate-600">
+                checked {formatWhen(c.result.checkedAt)}
+                </span>
+                </li>
+            ))}
+            </ul>
             </div>
         )}
         </div>
     );
 }
+
+// Test-only seam: the drill-down is a pure component (row + index in, DOM
+// out), so tests pin its ordering/badge/confidence contract directly without
+// the route's data loading. App code never imports this — pages reach the
+// detail through SummaryRow / AttemptRow.
+export { SubmissionDetail as SubmissionDetailForTest };
 
 // ---- Expandable rows --------------------------------------------------------
 

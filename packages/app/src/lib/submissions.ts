@@ -122,6 +122,7 @@ export interface BlankInfo {
     blankId: string;
     problemId: string;
     problemNumber: number | null; // FillInBlankBlock.number, if authored
+    docOrder: number; // problem's 1-based position among indexed blocks (see buildActivityIndex)
     problemPrompt: string; // reconstructed prompt with ____ where blanks sit
     canonicalAnswer: string; // primary answer + acceptable alternates
     blankOrder: number; // 0-based position among blanks in its problem
@@ -145,6 +146,7 @@ export interface SectionInfo {
 export interface GraphInfo {
     blockId: string;
     problemNumber: number | null;
+    docOrder: number;
     problemPrompt: string; // reconstructed from the block's prompt inline nodes
     interactionType: string; // 'plot_point' | 'plot_function'
     // Human-readable answer key next to what the student plotted — a point list
@@ -221,6 +223,7 @@ export interface McChoiceInfo {
 export interface McInfo {
     blockId: string;
     problemNumber: number | null;
+    docOrder: number;
     problemPrompt: string;
     multiSelect: boolean;
     /** Choices in document order (selected ids resolve through this). */
@@ -244,6 +247,7 @@ export interface MatchSideInfo {
 export interface MatchInfo {
     blockId: string;
     problemNumber: number | null;
+    docOrder: number;
     problemPrompt: string;
     items: MatchSideInfo[];
     targets: MatchSideInfo[];
@@ -260,6 +264,7 @@ export interface MatchInfo {
 export interface OrderingInfo {
     blockId: string;
     problemNumber: number | null;
+    docOrder: number;
     problemPrompt: string;
     /** Items in the AUTHORED (correct) order. */
     items: MatchSideInfo[];
@@ -274,6 +279,7 @@ export interface OrderingInfo {
 export interface NumberLineInfo {
     blockId: string;
     problemNumber: number | null;
+    docOrder: number;
     problemPrompt: string;
     interactionType: string; // 'plot_point' | 'plot_interval'
     // Human-readable answer key: a point list "3" / "−4, 5" for plot_point, or an
@@ -289,6 +295,7 @@ export interface NumberLineInfo {
 export interface DataPlotInfo {
     blockId: string;
     problemNumber: number | null;
+    docOrder: number;
     problemPrompt: string;
     interactionType: string; // 'build_dotplot'
     answerSummary: string; // the target dot plot as a sorted value list
@@ -303,6 +310,7 @@ export interface DataPlotInfo {
 export interface FreeTextInfo {
     blockId: string;
     blockType: 'self_explanation' | 'short_answer' | 'essay';
+    docOrder: number;
     problemPrompt: string;
     /**
      * The block's grading rubric (short_answer/essay only, when authored).
@@ -410,6 +418,15 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
     const freeText = new Map<string, FreeTextInfo>();
     const sections = new Map<string, SectionInfo>();
 
+    // Document-global reading-order counter: 1-based, bumped once per INDEXED
+    // block (display-only graphs/data-plots never consume a slot — they take
+    // the early return above the bump). This is the dashboard's sort key: the
+    // drill-down interleaves every response type in the order the student saw
+    // the questions, with problemNumber demoted to a display label. All blanks
+    // of one fill_in_blank problem share their problem's docOrder; a
+    // faded_worked_example's child problems each take their own.
+    let docOrderCounter = 0;
+
     doc.sections.forEach((section, idx) => {
         sections.set(section.id, {
             sectionId: section.id,
@@ -442,6 +459,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 freeText.set(block.id, {
                     blockId: block.id,
                     blockType: block.type,
+                    docOrder: ++docOrderCounter,
                     problemPrompt: reconstructPrompt(block.prompt),
                     rubric:
                         block.type === 'self_explanation'
@@ -517,6 +535,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 graphs.set(block.id, {
                     blockId: block.id,
                     problemNumber: block.number ?? null,
+                    docOrder: ++docOrderCounter,
                     problemPrompt: reconstructPrompt(block.prompt),
                     interactionType: block.interaction.type,
                     answerSummary,
@@ -543,6 +562,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 mcs.set(block.id, {
                     blockId: block.id,
                     problemNumber: block.number ?? null,
+                    docOrder: ++docOrderCounter,
                     problemPrompt: reconstructPrompt(block.prompt),
                     multiSelect: block.multiSelect,
                     choices,
@@ -574,6 +594,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 matchings.set(block.id, {
                     blockId: block.id,
                     problemNumber: block.number ?? null,
+                    docOrder: ++docOrderCounter,
                     problemPrompt: reconstructPrompt(block.prompt),
                     items,
                     targets,
@@ -593,6 +614,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 orderings.set(block.id, {
                     blockId: block.id,
                     problemNumber: block.number ?? null,
+                    docOrder: ++docOrderCounter,
                     problemPrompt: reconstructPrompt(block.prompt),
                     items,
                     answerSummary:
@@ -611,6 +633,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 numberLines.set(block.id, {
                     blockId: block.id,
                     problemNumber: block.number ?? null,
+                    docOrder: ++docOrderCounter,
                     problemPrompt: reconstructPrompt(block.prompt),
                     interactionType: block.interaction.type,
                     answerSummary,
@@ -636,6 +659,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 dataPlots.set(block.id, {
                     blockId: block.id,
                     problemNumber: block.number ?? null,
+                    docOrder: ++docOrderCounter,
                     problemPrompt: reconstructPrompt(block.prompt),
                     interactionType: block.interaction.type,
                     answerSummary,
@@ -681,11 +705,15 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 }
             }
 
+            // One slot for the whole problem — its blanks are sub-rows of a
+            // single drill-down item, not items of their own.
+            const problemDocOrder = ++docOrderCounter;
             blockBlanks.forEach((node, blankOrder) => {
                 blanks.set(node.id, {
                     blankId: node.id,
                     problemId: block.id,
                     problemNumber: block.number ?? null,
+                    docOrder: problemDocOrder,
                     problemPrompt: prompt,
                     canonicalAnswer: canonicalAnswer(
                         node.answer,

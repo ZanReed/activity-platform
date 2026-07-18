@@ -100,6 +100,7 @@ function info(overrides: Partial<FreeTextInfo> = {}): FreeTextInfo {
     return {
         blockId: 'b1',
         blockType: 'essay',
+        docOrder: 1,
         problemPrompt: 'Write.',
         rubric,
         sectionId: 'sec-1',

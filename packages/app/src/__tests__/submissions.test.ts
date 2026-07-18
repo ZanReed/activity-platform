@@ -741,6 +741,109 @@ describe('buildActivityIndex', () => {
     });
 });
 
+describe('buildActivityIndex docOrder', () => {
+    // A mixed two-section doc: the drill-down sorts on docOrder, so this pins
+    // the reading-order contract — one slot per indexed block, across sections
+    // and types, display-only blocks consuming nothing, all blanks of one
+    // problem sharing their problem's slot.
+    const meta = {
+        title: 'Order', course: 'Algebra I', submissionMode: 'free' as const,
+        revisionMode: 'free' as const, gradingMode: 'auto' as const,
+        activityType: 'worksheet' as const, answerFeedback: 'on_check' as const,
+        skills: [],
+    };
+    const mixedDoc: ActivityDocument = parseDoc({
+        schemaVersion: 1,
+        meta,
+        sections: [
+            {
+                id: U(150), title: 'One', isCheckpoint: true,
+                blocks: [
+                    {
+                        id: U(250), type: 'fill_in_blank', number: 1,
+                        hasConfidenceRating: false, skills: [],
+                        content: [
+                            { type: 'text', text: 'a ', marks: [] },
+                            { type: 'blank', id: U(350), answer: '1', acceptableAnswers: [] },
+                            { type: 'text', text: ' b ', marks: [] },
+                            { type: 'blank', id: U(351), answer: '2', acceptableAnswers: [] },
+                        ],
+                    },
+                    {
+                        id: U(251), type: 'short_answer',
+                        prompt: [{ type: 'text', text: 'Explain.', marks: [] }],
+                    },
+                    {
+                        // Display-only: never indexed, must NOT consume a slot.
+                        id: U(252), type: 'interactive_graph',
+                        prompt: [{ type: 'text', text: 'Look.', marks: [] }],
+                        axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+                        interaction: { type: 'display' },
+                    },
+                    {
+                        id: U(253), type: 'multiple_choice', number: 2,
+                        prompt: [{ type: 'text', text: 'Pick.', marks: [] }],
+                        multiSelect: false,
+                        choices: [
+                            {
+                                id: U(650),
+                                content: [{ type: 'text', text: 'x', marks: [] }],
+                                correct: true,
+                            },
+                            {
+                                id: U(651),
+                                content: [{ type: 'text', text: 'y', marks: [] }],
+                                correct: false,
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                id: U(151), title: 'Two', isCheckpoint: false,
+                blocks: [
+                    {
+                        id: U(254), type: 'interactive_graph', number: 3,
+                        prompt: [{ type: 'text', text: 'Plot.', marks: [] }],
+                        axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+                        interaction: {
+                            type: 'plot_point',
+                            correctPoints: [[1, 1]],
+                            tolerance: 0.1,
+                        },
+                    },
+                    {
+                        id: U(255), type: 'ordering', number: 4,
+                        prompt: [{ type: 'text', text: 'Sort.', marks: [] }],
+                        items: [
+                            { id: U(660), content: [{ type: 'text', text: 'first', marks: [] }] },
+                            { id: U(661), content: [{ type: 'text', text: 'second', marks: [] }] },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+
+    it('assigns one reading-order slot per indexed block, across sections and types', () => {
+        const idx = buildActivityIndex(mixedDoc);
+        expect(idx.blanks.get(U(350))!.docOrder).toBe(1);
+        expect(idx.freeText.get(U(251))!.docOrder).toBe(2);
+        // U(252) is display-only — skipped, no slot consumed.
+        expect(idx.mcs.get(U(253))!.docOrder).toBe(3);
+        expect(idx.graphs.get(U(254))!.docOrder).toBe(4);
+        expect(idx.orderings.get(U(255))!.docOrder).toBe(5);
+        expect(idx.graphs.has(U(252))).toBe(false);
+    });
+
+    it('all blanks of one problem share their problem\'s slot', () => {
+        const idx = buildActivityIndex(mixedDoc);
+        expect(idx.blanks.get(U(350))!.docOrder).toBe(
+            idx.blanks.get(U(351))!.docOrder,
+        );
+    });
+});
+
 describe('fitStudentEquation', () => {
     it('re-fits raw student points into the equation they define, rounded', () => {
         expect(fitStudentEquation('linear', [[0, 3], [1, 5]])).toBe('y = 2x + 3');
