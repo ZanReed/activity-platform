@@ -72,7 +72,7 @@
     --ed-text: var(--color-ink);             /* primary ink */
     --ed-text-strong: var(--color-strong);   /* labels, secondary headings */
     --ed-text-secondary: var(--color-muted); /* muted text, AA-safe on tinted bg */
-    --ed-text-muted: var(--ed-slate-500);    /* muted meta on white (AA 4.6:1) — editor-only */
+    --ed-text-muted: light-dark(var(--ed-slate-500), rgb(148 163 184));    /* muted meta on white (AA 4.6:1) — editor-only */
     --ed-faint: var(--color-faint);          /* NON-TEXT: icons, underline, inert, heavy hairline */
 
     /* Semantic — borders */
@@ -82,16 +82,16 @@
     /* Semantic — primary accent (action / selection / focus) */
     --ed-accent: var(--color-accent);
     --ed-accent-strong: var(--color-accent-strong);
-    --ed-accent-bg: var(--ed-blue-50);
-    --ed-accent-bg-2: var(--ed-blue-100);
-    --ed-accent-soft: var(--ed-blue-300);
-    --ed-focus-ring: var(--ed-blue-200);     /* 3px focus glow */
+    --ed-accent-bg: light-dark(var(--ed-blue-50), rgb(23 37 84));
+    --ed-accent-bg-2: light-dark(var(--ed-blue-100), rgb(30 58 138));
+    --ed-accent-soft: light-dark(var(--ed-blue-300), rgb(59 130 246));
+    --ed-focus-ring: light-dark(var(--ed-blue-200), rgb(96 165 250 / 0.5));     /* 3px focus glow */
 
     /* Semantic — secondary accent (indigo: media blocks + instructional) */
-    --ed-accent-alt: var(--ed-indigo-500);
-    --ed-accent-alt-bg: var(--ed-indigo-50);
-    --ed-accent-alt-ring: var(--ed-indigo-200);
-    --ed-accent-alt-strong: var(--ed-indigo-700);
+    --ed-accent-alt: light-dark(var(--ed-indigo-500), rgb(129 140 248));
+    --ed-accent-alt-bg: light-dark(var(--ed-indigo-50), rgb(30 27 75));
+    --ed-accent-alt-ring: light-dark(var(--ed-indigo-200), rgb(99 102 241 / 0.5));
+    --ed-accent-alt-strong: light-dark(var(--ed-indigo-700), rgb(165 180 252));
 
     /* Semantic — status (shared roles alias @theme; see the surfaces note) */
     --ed-warning: var(--color-warning);
@@ -103,33 +103,33 @@
     --ed-warning-border: var(--color-warning-border);
     --ed-warning-border-2: var(--color-warning-border-2);
     --ed-correct: var(--color-success);
-    --ed-self-explain: var(--ed-teal-500);
-    --ed-self-explain-bg: var(--ed-teal-50);
-    --ed-self-explain-border: var(--ed-teal-200);
-    --ed-self-explain-strong: var(--ed-teal-700);
+    --ed-self-explain: light-dark(var(--ed-teal-500), rgb(45 212 191));
+    --ed-self-explain-bg: light-dark(var(--ed-teal-50), rgb(4 47 46));
+    --ed-self-explain-border: light-dark(var(--ed-teal-200), rgb(15 118 110));
+    --ed-self-explain-strong: light-dark(var(--ed-teal-700), rgb(94 234 212));
     --ed-danger: var(--color-danger);
-    --ed-danger-2: var(--ed-red-500);
-    --ed-danger-bg: var(--ed-red-50);
-    --ed-danger-bg-2: var(--ed-red-100);
-    --ed-danger-border-soft: var(--ed-red-200);
-    --ed-danger-border: var(--ed-red-300);
+    --ed-danger-2: light-dark(var(--ed-red-500), rgb(248 113 113));
+    --ed-danger-bg: light-dark(var(--ed-red-50), rgb(69 10 10));
+    --ed-danger-bg-2: light-dark(var(--ed-red-100), rgb(127 29 29));
+    --ed-danger-border-soft: light-dark(var(--ed-red-200), rgb(153 27 27));
+    --ed-danger-border: light-dark(var(--ed-red-300), rgb(185 28 28));
 
     /* Semantic — overlays / scrims / shadows */
-    --ed-scrim: rgb(15 23 42 / 0.4);              /* modal backdrop */
+    --ed-scrim: light-dark(rgb(15 23 42 / 0.4), rgb(2 6 23 / 0.65));              /* modal backdrop */
     --ed-tooltip-bg: rgb(15 23 42 / 0.85);        /* resize badge */
     --ed-overlay-chip: rgb(255 255 255 / 0.92);   /* on-image chip bg */
-    --ed-shadow-menu: 0 4px 16px rgb(15 23 42 / 0.08);
-    --ed-shadow-popover: 0 10px 28px rgb(15 23 42 / 0.14);
-    --ed-shadow-modal: 0 20px 40px -12px rgb(15 23 42 / 0.35);
+    --ed-shadow-menu: 0 4px 16px light-dark(rgb(15 23 42 / 0.08), rgb(0 0 0 / 0.4));
+    --ed-shadow-popover: 0 10px 28px light-dark(rgb(15 23 42 / 0.14), rgb(0 0 0 / 0.5));
+    --ed-shadow-modal: 0 20px 40px -12px light-dark(rgb(15 23 42 / 0.35), rgb(0 0 0 / 0.6));
 
     /* Semantic — slice-6 editor state layer (Notion-hybrid editor).
      * Built on existing primitives, no new palette. --ed-ink is the near-black
      * surface the docked command bar sits on so it reads above any block. The
      * block-selected outline/ring is the soft accent frame around a selected
      * block. --ed-gutter-affordance is the quiet at-rest gutter dot. */
-    --ed-ink: var(--ed-slate-900);
+    --ed-ink: light-dark(var(--ed-slate-900), rgb(51 65 85));
     --ed-block-selected-outline: var(--ed-accent);
-    --ed-block-selected-ring: rgb(59 130 246 / 0.12);
+    --ed-block-selected-ring: light-dark(rgb(59 130 246 / 0.12), rgb(96 165 250 / 0.22));
     --ed-gutter-affordance: var(--ed-faint);
 
     /* Ink-surface overlay layer — translucent-white controls that sit ON the
@@ -140,8 +140,8 @@
     --ed-ink-text-soft: rgb(255 255 255 / 0.7);
     /* Inset hairline drawn over arbitrary content (a color swatch over any
      * fill) — a translucent-black edge so it darkens whatever it sits on. */
-    --ed-hairline-inset: rgb(0 0 0 / 0.08);
-    --ed-hairline-inset-strong: rgb(0 0 0 / 0.12);
+    --ed-hairline-inset: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.12));
+    --ed-hairline-inset-strong: light-dark(rgb(0 0 0 / 0.12), rgb(255 255 255 / 0.18));
 
     /* Z-index scale (editor overlays). Docked bars sit above block content;
      * portaled popovers above the bars; the modal above all. The sticky
@@ -160,76 +160,17 @@
     --ed-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
     --ed-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
-/* =============================================================================
- *  Dark mode — slice 2 (docs/design/dark-mode.md, 2026-07-18)
- *  -----------------------------------------------------------------------
- *  The SHARED --ed-* roles (canvas/surface/text/border/accent/correct/danger/
- *  warning*, block-selected-outline, gutter-affordance) alias the @theme roles,
- *  so slice 1's dark @theme block already darkened them — nothing to do here.
- *  This block covers only the EDITOR-LOCAL tokens that reference the local
- *  primitive ramp (--ed-blue/indigo/teal/red-*) or are hardcoded, plus the
- *  slice-6 command-bar surface. Same trigger + :not([data-theme="light"]) guard
- *  as slice 1 so slice 3's toggle stays additive. Literal rgb() throughout
- *  (matches the primitive style; independent of Tailwind emission).
- *
- *  Design rules (RULED D3–D5): the tinted -bg washes (blue-50, teal-50, …)
- *  become dark tints (they are NOT a shade shift); accent hues brighten
- *  (indigo/teal-500 → -400); black hairlines/scrims invert or deepen because a
- *  black edge is invisible on dark. --ed-ink (the floating command-bar surface)
- *  was near-black to pop above WHITE blocks; on dark blocks it must be LIGHTER
- *  than the page (our elevation model), so it inverts to slate-700 — the
- *  white-at-opacity --ed-ink-* overlays still read on it.
- *  ========================================================================= */
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-        /* Muted meta — lighten for AA on dark canvas (slate-500 fails at 3.7:1) */
-        --ed-text-muted: rgb(148 163 184); /* slate-400 */
-
-        /* Primary accent (blue) locals — tint washes go dark, ring brightens */
-        --ed-accent-bg: rgb(23 37 84); /* blue-950 — dark tint (was blue-50) */
-        --ed-accent-bg-2: rgb(30 58 138); /* blue-900 (was blue-100) */
-        --ed-accent-soft: rgb(59 130 246); /* blue-500 — soft accent line/border */
-        --ed-focus-ring: rgb(96 165 250 / 0.5); /* blue-400 glow (was solid blue-200) */
-
-        /* Secondary accent (indigo) — media/instructional */
-        --ed-accent-alt: rgb(129 140 248); /* indigo-400 (was indigo-500) */
-        --ed-accent-alt-bg: rgb(30 27 75); /* indigo-950 dark tint (was indigo-50) */
-        --ed-accent-alt-ring: rgb(99 102 241 / 0.5); /* indigo glow (was indigo-200) */
-        --ed-accent-alt-strong: rgb(165 180 252); /* indigo-300 text on dark tint */
-
-        /* Self-explanation (teal) */
-        --ed-self-explain: rgb(45 212 191); /* teal-400 (was teal-500) */
-        --ed-self-explain-bg: rgb(4 47 46); /* teal-950 dark tint (was teal-50) */
-        --ed-self-explain-border: rgb(15 118 110); /* teal-700 (was teal-200) */
-        --ed-self-explain-strong: rgb(94 234 212); /* teal-300 text on dark tint */
-
-        /* Danger (red) locals — tint washes go dark, borders deepen */
-        --ed-danger-2: rgb(248 113 113); /* red-400 (was red-500) */
-        --ed-danger-bg: rgb(69 10 10); /* red-950 dark tint (was red-50) */
-        --ed-danger-bg-2: rgb(127 29 29); /* red-900 (was red-100) */
-        --ed-danger-border-soft: rgb(153 27 27); /* red-800 (was red-200) */
-        --ed-danger-border: rgb(185 28 28); /* red-700 (was red-300) */
-
-        /* Overlays / scrims — deepen so they still dim/lift on dark */
-        --ed-scrim: rgb(2 6 23 / 0.65); /* stronger, slate-950-based backdrop */
-        --ed-shadow-menu: 0 4px 16px rgb(0 0 0 / 0.4);
-        --ed-shadow-popover: 0 10px 28px rgb(0 0 0 / 0.5);
-        --ed-shadow-modal: 0 20px 40px -12px rgb(0 0 0 / 0.6);
-        /* --ed-tooltip-bg (dark navy badge) and --ed-overlay-chip (white on-image
-         * chip) intentionally NOT overridden — both sit on user media, not on the
-         * editor surface, so they must stay theme-independent. */
-
-        /* Slice-6 command bar — inverts to an ELEVATED (lighter) surface so it
-         * still reads above dark blocks; white-opacity --ed-ink-* overlays hold. */
-        --ed-ink: rgb(51 65 85); /* slate-700 — floating bar, lighter than page */
-        --ed-block-selected-ring: rgb(96 165 250 / 0.22); /* brighter blue frame */
-
-        /* Inset hairlines invert: a black edge is invisible on dark, so lighten */
-        --ed-hairline-inset: rgb(255 255 255 / 0.12);
-        --ed-hairline-inset-strong: rgb(255 255 255 / 0.18);
-    }
-}
+/* Dark mode (slice 3, light-dark() refactor — supersedes slice 2's @media block).
+ * The SHARED --ed-* roles alias @theme, so they inherit light-dark() from
+ * index.css for free. The EDITOR-LOCAL tokens above now carry both themes inline
+ * as light-dark(LIGHT, DARK) — driven by the same `color-scheme` as the chrome
+ * (set in index.css; the [data-theme] toggle overrides it). Dark rules (RULED
+ * D3–D5): tinted -bg washes → dark tints (not shade shifts); accent hues brighten;
+ * black hairlines/scrims invert or deepen (a black edge is invisible on dark);
+ * --ed-ink (the floating command bar) inverts to slate-700 so it reads ABOVE dark
+ * blocks (elevation model) — the white-opacity --ed-ink-* overlays still hold.
+ * --ed-tooltip-bg + --ed-overlay-chip stay theme-independent (they sit on user
+ * media, not the editor surface). */
 /* === END EDITOR TOKENS — raw color literals below this line are a bug ===== */
 
 /* Editor content styling.

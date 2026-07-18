@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Activity Platform</title>
+    <!-- Theme FOUC guard: apply an explicit theme choice BEFORE first paint so a
+         forced light/dark (data-theme) doesn't flash the OS default first. The
+         'system' choice writes nothing here (color-scheme:light dark follows the
+         OS with no flash). Kept inline + tiny; mirrors lib/theme.ts. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme');
+          if (t === 'dark' || t === 'light')
+            document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

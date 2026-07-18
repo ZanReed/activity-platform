@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router';
 import { SessionProvider } from './lib/SessionContext';
 import RequireAuth from './components/RequireAuth';
+import ThemeToggle from './components/ThemeToggle';
 import Home from './routes/Home';
 import Activities from './routes/Activities';
 import ActivityEditor from './routes/ActivityEditor';
@@ -73,6 +74,7 @@ export default function App() {
             <Route path="/dev/config-drawer" element={<DevConfigDrawer />} />
         )}
         </Routes>
+        <ThemeToggle />
         </SessionProvider>
     );
 }

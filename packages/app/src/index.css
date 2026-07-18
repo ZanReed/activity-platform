@@ -21,132 +21,71 @@
  *  Editor-only tokens (motion, shadows, z-scale, accent-alt, self-explain,
  *  the primitive ramp) stay in editor.css.
  *  ========================================================================= */
+/* Each role = light-dark(LIGHT, DARK) — ONE definition, both themes (slice 3,
+ * light-dark() refactor; supersedes slice 1's @media block). color-scheme (set
+ * after @theme) picks the side: the OS by default, the [data-theme] toggle
+ * overrides. LIGHT values are the fix-6 primitives (value-identical, so the
+ * Home canary stays 0-diff). DARK values are LITERAL rgb() because Tailwind v4
+ * tree-shakes unused primitive shade vars (slate-950/blue-400/emerald-400/… are
+ * never emitted to :root). Dark design (RULED D3–D5): ELEVATION not inversion
+ * (page darkest → raised lighter: surface < canvas < surface-2 < surface-3),
+ * OFF-WHITE ink (not #fff), BRIGHTENED accents — except --color-primary (14
+ * `bg-primary text-white` buttons) and --color-accent-strong (the Print button)
+ * hold dark enough for 4.5:1 white text. */
 @theme {
     /* Surfaces */
-    --color-canvas: var(--color-white); /* cards, inputs, popovers, raised */
-    --color-surface: var(--color-slate-50); /* page bg, panels, rails */
-    --color-surface-2: var(--color-slate-100); /* hover fills, dividers */
-    --color-surface-3: var(--color-slate-200); /* stronger fills */
+    --color-canvas: light-dark(var(--color-white), rgb(15 23 42)); /* raised: cards/inputs/popovers */
+    --color-surface: light-dark(var(--color-slate-50), rgb(2 6 23)); /* page bg, panels, rails */
+    --color-surface-2: light-dark(var(--color-slate-100), rgb(30 41 59)); /* hover fills, dividers */
+    --color-surface-3: light-dark(var(--color-slate-200), rgb(51 65 85)); /* stronger fills */
 
-    /* Text (contrast-checked). muted is slate-600: AA on white + slate-50. */
-    --color-ink: var(--color-slate-900); /* primary text */
-    --color-strong: var(--color-slate-700); /* labels, secondary headings */
-    --color-muted: var(--color-slate-600); /* muted/meta — AA everywhere */
-    --color-faint: var(--color-slate-400); /* NON-TEXT: icons, decorative glyphs */
-    --color-disabled: var(--color-slate-300); /* disabled control text */
+    /* Text. muted is AA on canvas+surface in both themes (slate-600 / slate-400). */
+    --color-ink: light-dark(var(--color-slate-900), rgb(241 245 249)); /* primary text (not #fff) */
+    --color-strong: light-dark(var(--color-slate-700), rgb(203 213 225)); /* labels, secondary headings */
+    --color-muted: light-dark(var(--color-slate-600), rgb(148 163 184)); /* muted/meta — AA everywhere */
+    --color-faint: light-dark(var(--color-slate-400), rgb(100 116 139)); /* NON-TEXT: icons, decorative */
+    --color-disabled: light-dark(var(--color-slate-300), rgb(71 85 105)); /* disabled control text */
 
     /* Borders */
-    --color-line: var(--color-slate-200);
-    --color-line-strong: var(--color-slate-300);
+    --color-line: light-dark(var(--color-slate-200), rgb(30 41 59));
+    --color-line-strong: light-dark(var(--color-slate-300), rgb(51 65 85));
 
-    /* Primary CTA — chrome's neutral-dark action (distinct from the blue
-     * accent; New activity, Publish). */
-    --color-primary: var(--color-slate-900);
-    --color-primary-hover: var(--color-slate-800);
+    /* Primary CTA — neutral-dark action; dark side holds white-text contrast,
+     * hover lightens (slate-700 → slate-600: white 8.4:1 → 5.9:1). */
+    --color-primary: light-dark(var(--color-slate-900), rgb(51 65 85));
+    --color-primary-hover: light-dark(var(--color-slate-800), rgb(71 85 105));
 
-    /* Accent — interactive blue (focus rings, the Print button). */
-    --color-accent: var(--color-blue-500);
-    --color-accent-strong: var(--color-blue-600);
-    --color-accent-stronger: var(--color-blue-700);
+    /* Accent — interactive blue; brightens on dark, but accent-strong (white-text
+     * Print button) holds at blue-500 (4.6:1). */
+    --color-accent: light-dark(var(--color-blue-500), rgb(96 165 250)); /* blue-400 dark */
+    --color-accent-strong: light-dark(var(--color-blue-600), rgb(59 130 246)); /* blue-500 dark — white-text safe */
+    --color-accent-stronger: light-dark(var(--color-blue-700), rgb(37 99 235)); /* blue-600 dark */
 
-    /* Status — success unified on the editor's emerald (ratified). */
-    --color-success: var(--color-emerald-600);
-    --color-success-strong: var(--color-emerald-700);
-    --color-success-accent: var(--color-emerald-500);
-    --color-success-bg: var(--color-green-100);
+    /* Status — success unified on emerald (ratified). Dark: text/tint/border
+     * roles lighten (no solid white-text status buttons); -bg tokens go dark tints. */
+    --color-success: light-dark(var(--color-emerald-600), rgb(52 211 153)); /* emerald-400 dark */
+    --color-success-strong: light-dark(var(--color-emerald-700), rgb(110 231 183)); /* emerald-300 dark */
+    --color-success-accent: light-dark(var(--color-emerald-500), rgb(52 211 153)); /* dot */
+    --color-success-bg: light-dark(var(--color-green-100), rgb(2 44 34)); /* emerald-950 dark tint */
 
-    --color-warning: var(--color-amber-600);
-    --color-warning-text: var(--color-amber-700);
-    --color-warning-strong: var(--color-amber-800);
-    --color-warning-stronger: var(--color-amber-900);
-    --color-warning-accent: var(--color-amber-500);
-    --color-warning-bg: var(--color-amber-50);
-    --color-warning-bg-2: var(--color-amber-100);
-    --color-warning-border: var(--color-amber-200);
-    --color-warning-border-2: var(--color-amber-300);
+    --color-warning: light-dark(var(--color-amber-600), rgb(251 191 36)); /* amber-400 dark */
+    --color-warning-text: light-dark(var(--color-amber-700), rgb(252 211 77)); /* amber-300 dark */
+    --color-warning-strong: light-dark(var(--color-amber-800), rgb(253 230 138)); /* amber-200 dark */
+    --color-warning-stronger: light-dark(var(--color-amber-900), rgb(254 243 199)); /* amber-100 dark */
+    --color-warning-accent: light-dark(var(--color-amber-500), rgb(251 191 36)); /* amber-400 dark */
+    --color-warning-bg: light-dark(var(--color-amber-50), rgb(69 26 3)); /* amber-950 dark tint */
+    --color-warning-bg-2: light-dark(var(--color-amber-100), rgb(120 53 15)); /* amber-900 dark */
+    --color-warning-border: light-dark(var(--color-amber-200), rgb(146 64 14)); /* amber-800 dark */
+    --color-warning-border-2: light-dark(var(--color-amber-300), rgb(180 83 9)); /* amber-700 dark */
 
-    --color-danger: var(--color-red-600);
-    --color-danger-strong: var(--color-red-700);
+    --color-danger: light-dark(var(--color-red-600), rgb(248 113 113)); /* red-400 dark */
+    --color-danger-strong: light-dark(var(--color-red-700), rgb(252 165 165)); /* red-300 dark */
 }
 
-/* =============================================================================
- *  Dark mode — slice 1 (docs/design/dark-mode.md, 2026-07-18)
- *  -----------------------------------------------------------------------
- *  Re-points the @theme roles under a dark selector. The generated utilities
- *  (bg-surface / text-muted / …) read var(--color-<role>) at cascade time
- *  (VERIFIED against a build), so overriding the ROLE here flows into all ~274
- *  chrome sites with zero utility regeneration. Values are LITERAL rgb() (not
- *  var(--color-slate-950) etc.) on purpose: Tailwind v4 tree-shakes unused
- *  primitive vars, so many dark shades (slate-950, blue-400, emerald-400,
- *  red-400 …) are never emitted to :root — referencing them would resolve to
- *  nothing. Literals match editor.css's primitive style and are self-contained.
- *
- *  Trigger: prefers-color-scheme (slice 1). The `:not([data-theme="light"])`
- *  guard makes slice 3's explicit toggle additive — `[data-theme="light"]`
- *  will force light on a dark OS, `[data-theme="dark"]` (added in slice 3) will
- *  force dark on a light OS. Selector specificity (0,2,0) beats the base
- *  @theme :root (0,1,0), so the override wins when the media query matches.
- *
- *  Design rules (RULED D3–D5):
- *   - ELEVATION, not inversion: page bg is DARKEST; raised surfaces get LIGHTER.
- *     surface(page) < canvas(card) < surface-2(hover) < surface-3(fill).
- *   - Text OFF-WHITE (slate-100), never pure #fff (halation on dark).
- *   - Accents BRIGHTENED + slightly desaturated; status text/tint roles lighten,
- *     but the two roles that back solid white-text buttons stay dark enough for
- *     4.5:1: --color-primary (14 `bg-primary text-white` buttons) and
- *     --color-accent-strong (the Print button `bg-accent-strong text-white`).
- *  ========================================================================= */
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-        color-scheme: dark;
-
-        /* Surfaces — elevation ladder (darkest page → lighter as it raises) */
-        --color-canvas: rgb(15 23 42); /* slate-900 — cards, inputs, popovers (raised) */
-        --color-surface: rgb(2 6 23); /* slate-950 — page bg, panels, rails (recessed) */
-        --color-surface-2: rgb(30 41 59); /* slate-800 — hover fills, dividers */
-        --color-surface-3: rgb(51 65 85); /* slate-700 — stronger fills */
-
-        /* Text — off-white ink; muted stays AA on canvas + surface (the two
-         * surfaces body/meta text sits on, mirroring light's white + slate-50). */
-        --color-ink: rgb(241 245 249); /* slate-100 — primary text (not #fff) */
-        --color-strong: rgb(203 213 225); /* slate-300 — labels, secondary headings */
-        --color-muted: rgb(148 163 184); /* slate-400 — muted/meta (AA on canvas+surface) */
-        --color-faint: rgb(100 116 139); /* slate-500 — NON-TEXT: icons, decorative */
-        --color-disabled: rgb(71 85 105); /* slate-600 — disabled control text */
-
-        /* Borders — subtle on dark */
-        --color-line: rgb(30 41 59); /* slate-800 */
-        --color-line-strong: rgb(51 65 85); /* slate-700 */
-
-        /* Primary CTA — neutral, stays dark enough for white text; hover lightens
-         * (slate-700 → slate-600: white 8.4:1 → 5.9:1, both AA). */
-        --color-primary: rgb(51 65 85); /* slate-700 */
-        --color-primary-hover: rgb(71 85 105); /* slate-600 */
-
-        /* Accent — blue, brightened. accent (links/focus) lightens to blue-400;
-         * accent-strong backs a white-text button so it holds at blue-500 (4.6:1). */
-        --color-accent: rgb(96 165 250); /* blue-400 */
-        --color-accent-strong: rgb(59 130 246); /* blue-500 — white-text safe */
-        --color-accent-stronger: rgb(37 99 235); /* blue-600 — button hover */
-
-        /* Status — text/tint/border roles (no solid white-text status buttons),
-         * so they lighten for readability; the -bg tokens become dark tints. */
-        --color-success: rgb(52 211 153); /* emerald-400 */
-        --color-success-strong: rgb(110 231 183); /* emerald-300 */
-        --color-success-accent: rgb(52 211 153); /* emerald-400 — dot */
-        --color-success-bg: rgb(2 44 34); /* emerald-950 — dark tint */
-
-        --color-warning: rgb(251 191 36); /* amber-400 */
-        --color-warning-text: rgb(252 211 77); /* amber-300 */
-        --color-warning-strong: rgb(253 230 138); /* amber-200 */
-        --color-warning-stronger: rgb(254 243 199); /* amber-100 */
-        --color-warning-accent: rgb(251 191 36); /* amber-400 */
-        --color-warning-bg: rgb(69 26 3); /* amber-950 — dark tint */
-        --color-warning-bg-2: rgb(120 53 15); /* amber-900 */
-        --color-warning-border: rgb(146 64 14); /* amber-800 */
-        --color-warning-border-2: rgb(180 83 9); /* amber-700 */
-
-        --color-danger: rgb(248 113 113); /* red-400 */
-        --color-danger-strong: rgb(252 165 165); /* red-300 */
-    }
-}
+/* Theme trigger (slice 3). `color-scheme: light dark` makes light-dark() follow
+ * the OS by default (and flips native form controls / scrollbars to match). The
+ * toggle writes data-theme on <html> (lib/theme.ts + the pre-paint guard in
+ * index.html) to force one side regardless of OS. */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }

@@ -1,13 +1,14 @@
 # Dark mode
 
-Status: **DESIGN — eng-reviewed + decisions RULED (2026-07-18), ready to build.**
-No code yet. Built on the `@theme` design-token architecture shipped in UX-lens
-fix 6 (2026-07-18, `fd730bb`). Author rulings (see §D): **D1 = chrome + editor
-only** (published pages deferred); **D2 = both triggers, sequenced** (media query
-then toggle); **D3 = all three palette rules locked** (elevation model, off-white
-text, brightened/desaturated accents). Critical-path assumption VERIFIED against
-a real build (utilities compile to runtime `var()`). Slice 1 = the `@theme` dark
-block.
+Status: **BUILDING — slices 1–3 SHIPPED + verified (2026-07-18).** Chrome +
+editor dark mode is functionally complete: system-pref + explicit toggle both
+work. Built on the `@theme` token architecture from UX-lens fix 6 (`fd730bb`).
+Author rulings (see §D): **D1** chrome + editor only (published pages deferred);
+**D2** both triggers; **D3** palette rules locked; **D6** full editor `.tsx`
+literal sweep; **D7** `light-dark()` mechanism (one definition per role, no
+`@media` duplication). Remaining: slice 4 (dark-contrast harness) + slice 5
+(print force-light). Commits: `d1c2443` (slice 1), `5aa0a99` (slice 2), slice 3
+below.
 
 ## Problem
 
@@ -161,29 +162,30 @@ amber-50, `--color-success-bg` green-100) are the trickiest: a "-50" tint reads
 as a near-white wash on dark, not a shade — each needs a hand-picked dark
 translucent/low-lightness value, not a shade shift.
 
-## Architecture (chrome + editor slice)
+## Architecture (chrome + editor slice) — AS BUILT (`light-dark()`, D7)
 
-Two dark blocks, both re-point roles only — zero structural CSS change:
+One definition per role via `light-dark(LIGHT, DARK)`; `color-scheme` picks the
+side. No `@media` block, no duplication:
 
 ```
 index.css:
-  @theme { --color-<role>: <light> }              (unchanged; light source of truth)
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --color-<role>: <dark> }
-  }
-  :root[data-theme="dark"] { --color-<role>: <dark> }   (explicit toggle wins)
+  @theme { --color-<role>: light-dark(<light>, <dark>) }   (BOTH themes, one line)
+  :root                 { color-scheme: light dark }        (default: follow OS)
+  :root[data-theme=light]{ color-scheme: light }            (toggle: force light)
+  :root[data-theme=dark] { color-scheme: dark }             (toggle: force dark)
 
 editor.css:
-  :root { --ed-* }                                (unchanged light)
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --ed-<local>: <dark> }   (accent-bg, ramps, scrims)
-  }
-  :root[data-theme="dark"] { --ed-<local>: <dark> }
+  shared  --ed-* : var(--color-<role>)                      (inherit light-dark free)
+  local   --ed-<x>: light-dark(<light>, <dark>)             (accent-bg, ramps, scrims, --ed-ink)
+
+JS (slice 3): index.html pre-paint guard sets data-theme from localStorage;
+  lib/theme.ts store writes data-theme + localStorage; ThemeToggle = the UI.
 ```
 
-`@theme` can't itself hold a media query (it emits `:root` light values), so the
-dark override is a plain `:root` rule AFTER `@theme` that re-declares the same
-`--color-*` custom properties — the generated utilities (`bg-surface`, etc.)
+VERIFIED: Tailwind v4 accepts `light-dark()` inside `@theme`; system pref + both
+toggle directions resolve correctly on a probe element; DARK values are literal
+`rgb()` (Tailwind tree-shakes unused primitive shades). The generated utilities
+(`bg-surface`, etc.)
 read the live custom property at cascade time, so overriding the property is
 enough; no utility regeneration. **VERIFIED (2026-07-18, against a real
 `pnpm --filter @activity/app build`):** the compiled CSS emits
@@ -219,8 +221,13 @@ new checks:
    focus-ring, scrims, overlays, the `--ed-ink` command bar inverting to an
    elevated/lighter surface) **+ the D6 editor `.tsx` literal sweep** (134
    literals → semantic utilities). **DONE.** Verified on `/playground`.
-3. **Trigger**: media query (slice 1 gets this for free) + explicit toggle with
-   localStorage + pre-paint FOUC guard (if D2 = both).
+3. **Trigger** — media query (system) + explicit toggle (D2 = both). **DONE.**
+   Adopted `light-dark()` (D7): every role holds both themes in one line and
+   `color-scheme` picks the side, so system pref + toggle share ONE definition
+   (no `@media` duplication). Toggle = `lib/theme.ts` store (writes `data-theme`
+   + localStorage) + a `ThemeToggle` (System/Light/Dark, floats bottom-left) +
+   a pre-paint FOUC guard in `index.html`. Verified: system follows OS, toggle
+   forces light on a dark OS + persists across reload, no flash, 656 tests green.
 4. **Dark-contrast harness** + AA re-verification across the ladder.
 5. Print force-light guard (`@media print` neutralizes dark).
 
