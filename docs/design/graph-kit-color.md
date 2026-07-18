@@ -113,8 +113,23 @@ expected.
    shared roles; delete the duplicated local consts. graph-kit suite stays green.
 3. **Calculator `--gk-*`** — interpolate the chrome palette into a `.gk-cal`
    var block at the top of KIT_CSS; sweep the ~75 literals to `var(--gk-*)`.
-4. **Verify** — `/dev/calculator` + `/playground` graph eyeball; computed-color
-   check the calculator resolves the same colors as before; bundle re-measured.
+4. **Verify** — DONE. `/dev/calculator` renders identical (all `var(--gk-*)`
+   resolve, no console errors); `/dev/data-plot` SVG board correct; the JSXGraph
+   graph board drew the answer handle in `#7c3aed` (SVG-inspected — the blank
+   paint is the pane's 0×0 measurement quirk, not a regression); 348 unit tests
+   green; bundle 57.0 KiB min / 16.8 KiB gz (roughly neutral). **Deploy train =
+   author action (STATE Pending): `pnpm upload:graph-kit` → commit the
+   regenerated manifest → `pnpm deploy:publish`.** Value-identical, so no visual/
+   wire change; the kit re-hashes so new publishes need it, already-published
+   pages keep the old hash.
+
+## Status — slices 1–4 SHIPPED (2026-07-19)
+
+All four slices committed on `main` (unpushed): `c473bd0` (graph-colors.ts +
+pins), `09db977` (board dedup), `84bb1cc` (chrome sweep), verify above. graph-kit
+went 145 → 60 literals, all in the two source-of-truth files (graph-colors.ts 52
++ drawable-palette.ts 8). Value-identical throughout. Only the deploy train
+remains (author).
 
 ## Verification
 
