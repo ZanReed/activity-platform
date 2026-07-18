@@ -155,8 +155,11 @@ tests green, editor card renders dark on `/playground`, no console errors.
 
 ### D5 — Accent desaturation — **RULED: locked**
 **Brighten + slightly desaturate accents in dark.**
-`accent` blue-500 → ~blue-400 (`#60a5fa`); status `-600` text shades (success
-emerald-600, warning amber-600, danger red-600) are too dark to read on dark →
+`accent` blue-500 → ~blue-400 (`#60a5fa`) for links/focus. **But `accent-strong`
+/`-stronger` back solid white-text buttons, so they must NOT brighten** — they
+stay blue-600/700 for AA (blue-500 white text is only 3.7:1; the slice-4 harness
+caught this). Status `-600` text shades (success emerald-600, warning amber-600,
+danger red-600) are too dark to read on dark →
 move to `-400/-500`. The tinted `-bg` tokens (`--ed-blue-50`, `--color-warning-bg`
 amber-50, `--color-success-bg` green-100) are the trickiest: a "-50" tint reads
 as a near-white wash on dark, not a shade — each needs a hand-picked dark
@@ -228,7 +231,16 @@ new checks:
    + localStorage) + a `ThemeToggle` (System/Light/Dark, floats bottom-left) +
    a pre-paint FOUC guard in `index.html`. Verified: system follows OS, toggle
    forces light on a dark OS + persists across reload, no flash, 656 tests green.
-4. **Dark-contrast harness** + AA re-verification across the ladder.
+4. **Dark-contrast harness** + AA re-verification across the ladder. **DONE.**
+   `e2e/dark-contrast.e2e.ts` reads the real resolved role colors (CSS is the
+   source of truth, no duplicated palette) with each theme forced, and asserts
+   WCAG AA: the muted-on-canvas+surface invariant, strong/ink on both surfaces,
+   the three white-text buttons, and the dark status tint badges. **It caught a
+   real bug**: dark `accent-strong` at blue-500 gave white text only 3.7:1 —
+   fixed to blue-600 (5.2:1). 5 harness tests green. (Two PRE-EXISTING issues
+   surfaced + flagged as separate tasks, NOT dark-mode's: light `text-success`
+   is sub-AA at 3.3–3.7:1; and 4 `number-line-formula.e2e.ts` tests fail on
+   `main` — both reproduce on the base commit.)
 5. Print force-light guard (`@media print` neutralizes dark).
 
 ## Deferred: published-page dark mode (separate design)

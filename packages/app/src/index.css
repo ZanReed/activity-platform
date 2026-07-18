@@ -55,11 +55,13 @@
     --color-primary: light-dark(var(--color-slate-900), rgb(51 65 85));
     --color-primary-hover: light-dark(var(--color-slate-800), rgb(71 85 105));
 
-    /* Accent — interactive blue; brightens on dark, but accent-strong (white-text
-     * Print button) holds at blue-500 (4.6:1). */
+    /* Accent — interactive blue. accent (links/focus) brightens to blue-400 on
+     * dark; but accent-strong/-stronger back solid WHITE-TEXT buttons (Print +
+     * hover), so they hold at blue-600/700 for AA — blue-500 white is only
+     * 3.7:1 (caught by the slice-4 contrast harness). */
     --color-accent: light-dark(var(--color-blue-500), rgb(96 165 250)); /* blue-400 dark */
-    --color-accent-strong: light-dark(var(--color-blue-600), rgb(59 130 246)); /* blue-500 dark — white-text safe */
-    --color-accent-stronger: light-dark(var(--color-blue-700), rgb(37 99 235)); /* blue-600 dark */
+    --color-accent-strong: light-dark(var(--color-blue-600), rgb(37 99 235)); /* blue-600 dark — white-text AA (5.2:1) */
+    --color-accent-stronger: light-dark(var(--color-blue-700), rgb(29 78 216)); /* blue-700 dark — button hover */
 
     /* Status — success unified on emerald (ratified). Dark: text/tint/border
      * roles lighten (no solid white-text status buttons); -bg tokens go dark tints. */
