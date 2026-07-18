@@ -124,10 +124,15 @@ expected.
 - graph-kit's existing unit suite (331+) stays green.
 - Board colors render into JSXGraph/SVG (no snapshot tooling) → eyeball
   `/playground` (graphs) + `/dev/calculator` + `/dev/data-plot` + `/dev/number-line`.
-- No renderer bundle / deploy unless a board draw path changes a value (it won't
-  — value-identical). If graph-kit source changes, `pnpm bundle:renderer` +
-  `pnpm upload:graph-kit` + `publish-activity` per CLAUDE.md — flag as author
-  actions only if a published-facing value actually moves (this pass: it doesn't).
+- **Deploy (author actions, after slice 3):** value-identity means no VISUAL /
+  wire change, but wiring consumers changes the graph-kit BUNDLE BYTES, which
+  re-hashes the kit — so per CLAUDE.md the pass still needs `pnpm upload:graph-kit`
+  (new hash + committed manifest) → `publish-activity` redeploy so new publishes
+  point at it. Already-published pages keep working on the old hash (no
+  re-publish forced). NO ingest / wire / schemaVersion change. Also
+  `pnpm bundle:renderer` IF the renderer's graph-svg path starts importing
+  graph-colors (only if slice 2 touches it). Slice 1 alone (an unused module)
+  is tree-shaken → zero bundle change, no deploy.
 
 ## Deferred: published-page dark mode
 
