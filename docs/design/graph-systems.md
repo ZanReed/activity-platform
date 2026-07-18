@@ -5,6 +5,24 @@ Group-3 follow-up "multi-answer authoring." Lets a teacher author a graph
 question the student answers with **more than one** boundary — starting with a
 **system of inequalities** (graph 2+ inequalities, shade the intersection).
 
+## STATUS — BOTH PHASES BUILT + DEPLOYED (2026-07-18)
+
+- **Phase 1 (inequality systems):** SHIPPED. Commits `e7e84fe` (wire+scorer) ·
+  `dade489` (runtime emit) · `00a0e7c` (student board) · `480444e` (authoring).
+- **Phase 2 (functions-systems, the fast-follow):** SHIPPED. Commits `4f6049e` ·
+  `9faf0fc` · `760baa8` · `3841e57`. Mirrors Phase 1; all ratified calls carried
+  over unchanged (see "Phase 2" below).
+- **Test spec:** [TEST_SPEC.md](../../TEST_SPEC.md) "Slice: Graph systems"
+  (GS-\* + FS-\*), ratified in [RATIFICATION_LOG.md](../../RATIFICATION_LOG.md).
+- **Open decision RESOLVED:** NO `submission.schemaVersion` bump — additive
+  `GraphResponseV4` members, ingest stays v9 (see "Data model" + the resolved
+  decision at the end).
+- **DEPLOYED (author-run):** combined train complete — `bundle:renderer` +
+  `upload:graph-kit` (live kit **`graph-kit-PAEDPXRK.js`**, carries both systems)
+  + `deploy:ingest` (accepts both response members) + `deploy:publish` (runtime
+  emit + storage v12). Owner GS-J1b eyeball (a real authored system of each kind
+  on a freshly-published page) is the one remaining verify act.
+
 ## Problem
 
 The interactive-graph question types are single-answer: the authoring UI reads
@@ -145,22 +163,55 @@ SCORING (graph-score.ts)  match-all, order-independent:
 - **acceptance:** a real 2-inequality system authored, published, answered by a
   student, graded correctly (owner cross-check).
 
-## Deploy sequence (author-run)
+## Deploy sequence (author-run) — ✅ DONE 2026-07-18 (combined, both phases)
 
-1. `pnpm bundle:renderer` (if renderer touched) + commit.
-2. `pnpm upload:graph-kit` → new kit hash (student board + runtime changed) →
-   commit the manifest.
-3. **`pnpm deploy:ingest`** (accept the new response member) — BEFORE republishing.
-4. `pnpm deploy:publish` (publish-activity) — new pages emit the system.
-   Already-published pages keep the old kit until re-published.
+One train shipped Phase 1 + Phase 2 together (Phase 2's kit changes superseded
+the interim inequality-only kit `EXAG55I5`):
 
-## NOT in scope (this slice)
+1. ✅ `pnpm bundle:renderer` + commit (renderer/schema/runtime touched).
+2. ✅ `pnpm upload:graph-kit` → live kit **`graph-kit-PAEDPXRK.js`** (both
+   student boards + kit runtime) → manifest committed.
+3. ✅ **`pnpm deploy:ingest`** — accepts BOTH `graph_inequality_system` +
+   `plot_function_system` (before republish).
+4. ✅ `pnpm deploy:publish` — new pages emit the systems (runtime emit +
+   storage v12). Already-published pages keep the old kit until re-published.
 
-- **Functions-systems** (multiple curves) — the fast-follow; reuses the wire +
-  set-match scoring, adds a multi-curve board interaction.
-- Rays/segments multi-answer (rare).
+## Phase 2 — functions-systems (SHIPPED 2026-07-18)
+
+A functions-system is a `plot_function` with `models.length > 1` ("graph both
+lines"). Built as a faithful mirror of Phase 1 — every ratified call carried over
+(bipartite match-all, per-object `matched/N`, additive member, no `schemaVersion`
+bump):
+
+- **Wire:** additive `plot_function_system { parts: FunctionResponse[], correct,
+  earned?/total? }` member in `GraphResponseV4` (same `parts` wire key as the
+  inequality member, discriminated by `type`).
+- **Scoring:** a shared `maxBipartiteMatch` (Kuhn augmenting-path) extracted
+  behind `scoreInequalitySystem` + `scoreFunctionSystem`, so both get the "a
+  fully-correct student is never false-negatived" guarantee. Mixed families in
+  one system (a line + a parabola) match by family.
+- **Board:** the SAME `createSystemAnswerBoard` — functions mount N draggable
+  curves with **no control bar** (curves have no side/style); inequalities add
+  the per-boundary side/style bar + overlapping shades. No intersection to shade
+  for functions.
+- **Runtime:** `gs.curveParts` (parallel to `gs.parts`); routes `plot_function`
+  with `models.length > 1` to `mountGraphFunctionSystemQuestion`. Storage v11→12.
+- **Authoring:** N typed equation rows + static N-curve preview; N=1 keeps the
+  rich single-curve field (bounded-curve/domain support intact) + an "Add curve
+  (make a system)" affordance.
+- **Bug fixed in this phase (also hit Phase 1):** the system widgets reported at
+  first paint, so the runtime restore gate re-applied the default state on a
+  fresh load — spuriously marking an untouched system answered. Fixed by removing
+  the first-paint report + gating the runtime restore on `gs.answered`.
+
+## NOT in scope
+
+- Rays/segments multi-answer (rare classroom need).
 - Composing a system from separate blocks (doesn't express the intersection).
 - Ordered / match-any scoring (match-all is the ruled semantics).
+- Per-curve domain restrictions inside a functions-system (a system drops the
+  "for …" range; bounded curves stay single-curve rays/segments).
+- No-solution wired to systems (single-object only).
 
 ## GSTACK REVIEW REPORT
 
@@ -178,8 +229,17 @@ authoring (N rows) + graph-kit (N boards + runtime + set-match scoring) + schema
 (additive response member) + the deploy train (ingest before republish).
 Recommended as its own build session (multi-slice, graded student path).
 
-**UNRESOLVED DECISIONS:**
-- Whether the new response member warrants a formal `submission.schemaVersion`
-  bump (v9→v10) or rides as an additive union member without one — resolve at
-  build time by checking the Ray/Segment precedent against the current ingest
-  parser.
+**RESOLVED DECISIONS:**
+- ~~Whether the new response member warrants a `submission.schemaVersion` bump~~
+  → **RESOLVED at build: NO bump.** Verified the Ray/Segment precedent against the
+  live ingest parser — `RayResponse`/`SegmentResponse` were added to
+  `GraphResponseV4` with no version entry; ingest gates on `schemaVersion` (stays
+  **9**) then Zod-parses `graphResponses` against `GraphResponseV4`. Both new
+  members (`graph_inequality_system`, `plot_function_system`) are additive to that
+  union — a v9 page emitting one would 422 against the OLD live ingest until the
+  ingest redeploy (hence deploy-before-republish), but the version constant is
+  unchanged. Storage schema (a separate, runtime-internal version) DID bump
+  10→12 for `parts` + `curveParts` on `GraphBlockState`.
+- **Set-match algorithm** → **maximum bipartite matching** (not greedy) — ratified
+  in RATIFICATION_LOG (J1) on grading-blast: a greedy false-negative marks a
+  fully-correct student wrong.
