@@ -99,6 +99,18 @@ for (const theme of ['light', 'dark'] as const) {
     });
 }
 
+// Print always renders light (slice 5) — even for a forced-dark user. Under
+// print emulation, color-scheme:light must win, so light-dark() resolves LIGHT:
+// light paper, dark ink.
+test('print forces light even for a dark-theme user', async ({ page }) => {
+    await page.goto('/');
+    await page.emulateMedia({ media: 'print' });
+    const r = await readRoles(page, 'dark'); // data-theme=dark forced inside
+    expect(luminance(r.canvas)).toBeGreaterThan(0.8); // white-ish paper
+    expect(luminance(r.surface)).toBeGreaterThan(0.8);
+    expect(luminance(r.ink)).toBeLessThan(0.1); // dark ink
+});
+
 // Dark-only: the status TINT badges are a dark-mode-owned design (the -bg tokens
 // are hand-picked dark tints). In light the -600 status colors as small text are
 // a pre-existing sub-AA nuance, out of this slice's scope, so we assert the tint

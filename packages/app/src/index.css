@@ -91,3 +91,17 @@
 :root { color-scheme: light dark; }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
+
+/* Print always renders LIGHT — paper is white; a dark worksheet wastes ink and
+ * reads wrong (slice 5). Forcing color-scheme:light makes every light-dark()
+ * role resolve to its light value, so chrome AND editor go light in print via
+ * one rule. The [data-theme] selectors are matched so a forced-dark user still
+ * prints light (equal specificity, later in source → wins over the dark rule).
+ * The renderer's published-page print CSS is separate (published dark deferred). */
+@media print {
+    :root,
+    :root[data-theme="light"],
+    :root[data-theme="dark"] {
+        color-scheme: light;
+    }
+}

@@ -1,14 +1,15 @@
 # Dark mode
 
-Status: **BUILDING — slices 1–3 SHIPPED + verified (2026-07-18).** Chrome +
-editor dark mode is functionally complete: system-pref + explicit toggle both
-work. Built on the `@theme` token architecture from UX-lens fix 6 (`fd730bb`).
-Author rulings (see §D): **D1** chrome + editor only (published pages deferred);
-**D2** both triggers; **D3** palette rules locked; **D6** full editor `.tsx`
-literal sweep; **D7** `light-dark()` mechanism (one definition per role, no
-`@media` duplication). Remaining: slice 4 (dark-contrast harness) + slice 5
-(print force-light). Commits: `d1c2443` (slice 1), `5aa0a99` (slice 2), slice 3
-below.
+Status: **COMPLETE (chrome + editor) — all 5 slices SHIPPED + verified
+(2026-07-18).** System-pref + explicit toggle both work; editor + chrome fully
+themed; AA-verified; print forced light. Built on the `@theme` token
+architecture from UX-lens fix 6 (`fd730bb`). Author rulings (see §D): **D1**
+chrome + editor only (published pages deferred); **D2** both triggers; **D3**
+palette rules locked; **D6** full editor `.tsx` literal sweep; **D7**
+`light-dark()` mechanism (one definition per role, no `@media` duplication).
+Commits: `d1c2443` (1) · `5aa0a99` (2) · `7e33d47` (3) · `9744215` (4) · slice 5
+below. App-only throughout — no bundle, no deploy. **Deferred:** published-page
+dark mode (separate design, see bottom).
 
 ## Problem
 
@@ -241,7 +242,11 @@ new checks:
    surfaced + flagged as separate tasks, NOT dark-mode's: light `text-success`
    is sub-AA at 3.3–3.7:1; and 4 `number-line-formula.e2e.ts` tests fail on
    `main` — both reproduce on the base commit.)
-5. Print force-light guard (`@media print` neutralizes dark).
+5. Print force-light guard. **DONE.** One `@media print { :root… { color-scheme:
+   light } }` in index.css forces every `light-dark()` role to its light value
+   (chrome + editor, one rule); the `[data-theme]` selectors are matched so a
+   forced-dark user still prints light. Harness test emulates print + dark and
+   asserts light paper / dark ink. 6 harness tests green.
 
 ## Deferred: published-page dark mode (separate design)
 
