@@ -22,6 +22,7 @@ import { fitModel, type RegressionModel } from './regression.js';
 import { equationText, r2Text } from './fit-format.js';
 import { createDataTable, type DataTableHandle } from './data-table.js';
 import { createExpressionList } from './expression-list.js';
+import { GK_CHROME } from './graph-colors.js';
 // Type-only — erased at build time, so the static JSXGraph dependency in
 // board.ts stays in its own lazily-imported chunk (the lazy-split).
 import type { BoardController, PlotItem } from './board.js';
@@ -766,16 +767,45 @@ export function mountCalculator(
 // neutral card with a blue accent — deliberately not a Desmos palette clone.
 const KIT_CSS = `
 .gk-cal {
+  /* Chrome tokens — single-sourced from GK_CHROME (graph-colors.ts). Defined on
+     the widget root so the whole calculator reads var(--gk-*); a later
+     published-dark pass re-points these under .gk-cal[data-theme='dark']. */
+  --gk-bg: ${GK_CHROME.bg};
+  --gk-ink-strong: ${GK_CHROME.inkStrong};
+  --gk-ink: ${GK_CHROME.ink};
+  --gk-text-2: ${GK_CHROME.text2};
+  --gk-text-secondary: ${GK_CHROME.textSecondary};
+  --gk-muted: ${GK_CHROME.muted};
+  --gk-faint: ${GK_CHROME.faint};
+  --gk-border: ${GK_CHROME.border};
+  --gk-surface: ${GK_CHROME.surface};
+  --gk-surface-2: ${GK_CHROME.surface2};
+  --gk-hover: ${GK_CHROME.hover};
+  --gk-accent: ${GK_CHROME.accent};
+  --gk-accent-text: ${GK_CHROME.accentText};
+  --gk-accent-border: ${GK_CHROME.accentBorder};
+  --gk-accent-bg: ${GK_CHROME.accentBg};
+  --gk-accent-bg-active: ${GK_CHROME.accentBgActive};
+  --gk-accent-alt: ${GK_CHROME.accentAlt};
+  --gk-accent-alt-bg: ${GK_CHROME.accentAltBg};
+  --gk-accent-alt-bg-2: ${GK_CHROME.accentAltBg2};
+  --gk-error: ${GK_CHROME.error};
+  --gk-error-bg: ${GK_CHROME.errorBg};
+  --gk-success: ${GK_CHROME.success};
+  --gk-success-accent: ${GK_CHROME.successAccent};
+  --gk-success-bg: ${GK_CHROME.successBg};
+  --gk-overlay-chip: ${GK_CHROME.overlayChip};
+  --gk-shadow: ${GK_CHROME.shadow};
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   width: 17rem;
   padding: 0.6rem;
-  background: #ffffff;
-  color: #1e293b;
-  border: 1px solid #cbd5e1;
+  background: var(--gk-bg);
+  color: var(--gk-ink);
+  border: 1px solid var(--gk-border);
   border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 8px 28px var(--gk-shadow);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
 /* Floating window (published page): pinned to a viewport corner by default,
@@ -794,30 +824,30 @@ const KIT_CSS = `
 .gk-cal-angle {
   font: inherit; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
   cursor: pointer; padding: 0.15rem 0.5rem; border-radius: 999px;
-  border: 1px solid #2563eb; background: #eff6ff; color: #2563eb;
+  border: 1px solid var(--gk-accent); background: var(--gk-accent-bg); color: var(--gk-accent);
 }
 .gk-cal-close {
   font-size: 1.25rem; line-height: 1; cursor: pointer; border: none;
-  background: none; color: #64748b; padding: 0 0.2rem;
+  background: none; color: var(--gk-muted); padding: 0 0.2rem;
 }
-.gk-cal-close:hover { color: #1e293b; }
+.gk-cal-close:hover { color: var(--gk-ink); }
 .gk-cal-field {
   width: 100%; min-height: 2.4rem; padding: 0.3rem 0.4rem;
-  border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1.1rem;
-  background: #f8fafc;
+  border: 1px solid var(--gk-border); border-radius: 6px; font-size: 1.1rem;
+  background: var(--gk-surface);
 }
 .gk-cal-result {
   min-height: 1.4rem; text-align: right; font-size: 1.05rem;
-  font-variant-numeric: tabular-nums; padding: 0 0.2rem; color: #0f172a;
+  font-variant-numeric: tabular-nums; padding: 0 0.2rem; color: var(--gk-ink-strong);
 }
-.gk-cal-result[data-state='err'] { color: #b91c1c; font-size: 0.85rem; }
+.gk-cal-result[data-state='err'] { color: var(--gk-error); font-size: 0.85rem; }
 .gk-cal-graph {
   width: 100%; height: 200px;
   position: relative; /* anchors the on-graph nav buttons */
-  border: 1px solid #cbd5e1; border-radius: 6px; background: #fff;
+  border: 1px solid var(--gk-border); border-radius: 6px; background: var(--gk-bg);
   touch-action: none; /* JSXGraph owns touch pan/zoom */
   display: flex; align-items: center; justify-content: center;
-  color: #64748b; font-size: 0.85rem; overflow: hidden;
+  color: var(--gk-muted); font-size: 0.85rem; overflow: hidden;
 }
 .gk-board-nav {
   position: absolute; right: 0.4rem; bottom: 0.4rem; z-index: 2;
@@ -826,16 +856,16 @@ const KIT_CSS = `
 .gk-board-nav button {
   width: 1.7rem; height: 1.7rem; padding: 0;
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid #cbd5e1; border-radius: 6px;
-  background: rgba(255, 255, 255, 0.92); color: #334155;
+  border: 1px solid var(--gk-border); border-radius: 6px;
+  background: var(--gk-overlay-chip); color: var(--gk-text-2);
   font: inherit; font-size: 1rem; line-height: 1; cursor: pointer;
 }
-.gk-board-nav button:hover { background: #e2e8f0; }
+.gk-board-nav button:hover { background: var(--gk-hover); }
 .gk-board-readout {
   position: absolute; left: 0.4rem; top: 0.4rem; z-index: 2;
   padding: 0.15rem 0.4rem; border-radius: 6px;
-  background: rgba(255, 255, 255, 0.92); border: 1px solid #cbd5e1;
-  font-size: 0.8rem; color: #0f172a; font-variant-numeric: tabular-nums;
+  background: var(--gk-overlay-chip); border: 1px solid var(--gk-border);
+  font-size: 0.8rem; color: var(--gk-ink-strong); font-variant-numeric: tabular-nums;
   pointer-events: none; /* never intercept a pan/trace */
 }
 .gk-cal-keypad {
@@ -854,9 +884,9 @@ const KIT_CSS = `
 .gk-cal-left { display: flex; flex-direction: column; gap: 0.5rem; flex: 0 0 14rem; min-width: 0; min-height: 0; }
 .gk-cal-splitter {
   flex: 0 0 6px; align-self: stretch; cursor: col-resize;
-  border-radius: 3px; background: #e2e8f0; touch-action: none;
+  border-radius: 3px; background: var(--gk-hover); touch-action: none;
 }
-.gk-cal-splitter:hover { background: #cbd5e1; }
+.gk-cal-splitter:hover { background: var(--gk-border); }
 .gk-cal[data-mode='graphing'] .gk-cal-graph { height: auto; min-height: 0; flex: 1 1 auto; }
 /* Data view (Stage 3): the left column swaps list+keypad for the data section */
 .gk-cal[data-view='data'] .gk-exprlist,
@@ -868,7 +898,7 @@ const KIT_CSS = `
 .gk-exprrow-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: none; }
 .gk-exprfield {
   flex: 1 1 auto; min-width: 0; min-height: 2.5rem; padding: 0.35rem 0.4rem;
-  border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1.05rem; background: #f8fafc;
+  border: 1px solid var(--gk-border); border-radius: 6px; font-size: 1.05rem; background: var(--gk-surface);
   /* NOTE: do NOT set display:flex here — it collapses MathLive's editable area
      to the content width, so clicks land only near the caret. MathLive centers
      content vertically itself given a min-height. */
@@ -881,22 +911,22 @@ const KIT_CSS = `
 .gk-exprfield::part(virtual-keyboard-toggle),
 .gk-cal-field::part(virtual-keyboard-toggle) { display: none !important; }
 .gk-exprrow-remove {
-  border: none; background: none; color: #94a3b8; cursor: pointer;
+  border: none; background: none; color: var(--gk-faint); cursor: pointer;
   font-size: 1rem; line-height: 1; padding: 0 0.25rem; flex: none;
 }
-.gk-exprrow-remove:hover { color: #b91c1c; }
+.gk-exprrow-remove:hover { color: var(--gk-error); }
 /* A real button, not a bare glyph — bordered box + pressed state so students
    read it as "the keyboard toggle". */
 .gk-exprrow-kb {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   width: 1.9rem; height: 1.9rem; padding: 0;
-  border: 1px solid #cbd5e1; border-radius: 6px;
-  background: #f1f5f9; color: #475569; cursor: pointer;
+  border: 1px solid var(--gk-border); border-radius: 6px;
+  background: var(--gk-surface-2); color: var(--gk-text-secondary); cursor: pointer;
   font-size: 1.1rem; line-height: 1;
 }
-.gk-exprrow-kb:hover { background: #e0e7ff; border-color: #93c5fd; color: #2563eb; }
+.gk-exprrow-kb:hover { background: var(--gk-accent-alt-bg-2); border-color: var(--gk-accent-border); color: var(--gk-accent); }
 .gk-exprrow-kb[aria-pressed='true'] {
-  background: #dbeafe; border-color: #2563eb; color: #1d4ed8;
+  background: var(--gk-accent-bg-active); border-color: var(--gk-accent); color: var(--gk-accent-text);
 }
 /* MathLive renders its virtual keyboard into the panel (container = panel).
    Keep it inside the popup's rounded frame and above the board. */
@@ -933,84 +963,84 @@ const KIT_CSS = `
 }
 .gk-exprrow-note { font-size: 0.78rem; padding-left: 0.95rem; }
 .gk-exprrow-note:empty { display: none; }
-.gk-exprrow-note[data-kind='error'] { color: #b91c1c; }
+.gk-exprrow-note[data-kind='error'] { color: var(--gk-error); }
 .gk-exprrow-note[data-kind='calc'] {
-  color: #0f172a; font-size: 0.95rem; font-weight: 600;
+  color: var(--gk-ink-strong); font-size: 0.95rem; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .gk-exprrow-slider { display: flex; gap: 0.4rem; align-items: center; padding-left: 0.95rem; }
 .gk-exprrow-slider[hidden] { display: none; }
 .gk-slider-label {
-  font-size: 0.8rem; color: #334155; min-width: 3.5rem;
+  font-size: 0.8rem; color: var(--gk-text-2); min-width: 3.5rem;
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .gk-slider-range { flex: 1; min-width: 0; }
-.gk-exprlist-cap { font-size: 0.72rem; color: #64748b; }
+.gk-exprlist-cap { font-size: 0.72rem; color: var(--gk-muted); }
 .gk-cal-data-btn {
   font: inherit; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
   cursor: pointer; padding: 0.15rem 0.5rem; border-radius: 999px;
-  border: 1px solid #cbd5e1; background: #f8fafc; color: #475569;
+  border: 1px solid var(--gk-border); background: var(--gk-surface); color: var(--gk-text-secondary);
 }
 .gk-cal-data-btn[aria-pressed='true'] {
-  border-color: #16a34a; background: #f0fdf4; color: #15803d;
+  border-color: var(--gk-success-accent); background: var(--gk-success-bg); color: var(--gk-success);
 }
 .gk-cal-data { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; min-height: 0; flex: 1 1 auto; }
 .gk-cal-data[hidden] { display: none; }
 .gk-data-scroll {
   overflow-y: auto; flex: 1 1 auto; min-height: 0;
-  border: 1px solid #e2e8f0; border-radius: 6px;
+  border: 1px solid var(--gk-hover); border-radius: 6px;
 }
 .gk-data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .gk-data-table th {
   text-align: center; font-weight: 600; padding: 0.15rem;
-  background: #f8fafc; position: sticky; top: 0;
+  background: var(--gk-surface); position: sticky; top: 0;
 }
 .gk-data-table td { padding: 0.1rem; }
 .gk-data-input {
   width: 100%; font: inherit; font-size: 0.85rem; padding: 0.2rem 0.3rem;
-  border: 1px solid #e2e8f0; border-radius: 4px;
+  border: 1px solid var(--gk-hover); border-radius: 4px;
   appearance: textfield; -moz-appearance: textfield;
 }
 .gk-data-input::-webkit-outer-spin-button,
 .gk-data-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .gk-data-remove {
-  border: none; background: none; color: #94a3b8; cursor: pointer;
+  border: none; background: none; color: var(--gk-faint); cursor: pointer;
   font-size: 1rem; line-height: 1; padding: 0 0.25rem;
 }
-.gk-data-remove:hover { color: #b91c1c; }
+.gk-data-remove:hover { color: var(--gk-error); }
 .gk-fit-controls { display: flex; gap: 0.4rem; align-items: center; }
 .gk-fit-model {
   flex: 1; min-width: 0; font: inherit; font-size: 0.85rem; padding: 0.25rem;
-  border: 1px solid #cbd5e1; border-radius: 6px; background: #fff;
+  border: 1px solid var(--gk-border); border-radius: 6px; background: var(--gk-bg);
 }
 .gk-fit-view-btn {
   font: inherit; font-size: 0.72rem; font-weight: 600; cursor: pointer;
   padding: 0.25rem 0.5rem; border-radius: 6px;
-  border: 1px solid #cbd5e1; background: #f8fafc; color: #475569;
+  border: 1px solid var(--gk-border); background: var(--gk-surface); color: var(--gk-text-secondary);
   white-space: nowrap;
 }
-.gk-fit-view-btn:hover { background: #e2e8f0; }
+.gk-fit-view-btn:hover { background: var(--gk-hover); }
 .gk-cal-fit {
   min-height: 2.2rem; font-size: 0.9rem; padding: 0 0.1rem;
   font-variant-numeric: tabular-nums;
 }
-.gk-cal-fit[data-state='hint'] { color: #64748b; font-size: 0.8rem; }
-.gk-cal-fit[data-state='err'] { color: #b91c1c; font-size: 0.8rem; }
-.gk-fit-eq { font-weight: 600; color: #15803d; } /* matches the fit curve */
-.gk-fit-r2 { color: #334155; }
+.gk-cal-fit[data-state='hint'] { color: var(--gk-muted); font-size: 0.8rem; }
+.gk-cal-fit[data-state='err'] { color: var(--gk-error); font-size: 0.8rem; }
+.gk-fit-eq { font-weight: 600; color: var(--gk-success); } /* matches the fit curve */
+.gk-fit-r2 { color: var(--gk-text-2); }
 .gk-cal-key {
   font: inherit; font-size: 0.95rem; cursor: pointer; padding: 0.55rem 0;
-  border: 1px solid #e2e8f0; border-radius: 6px; background: #f1f5f9;
-  color: #1e293b; min-height: 44px;
+  border: 1px solid var(--gk-hover); border-radius: 6px; background: var(--gk-surface-2);
+  color: var(--gk-ink); min-height: 44px;
 }
-.gk-cal-key:hover:not(:disabled) { background: #e2e8f0; }
+.gk-cal-key:hover:not(:disabled) { background: var(--gk-hover); }
 .gk-cal-key:active:not(:disabled) { transform: translateY(1px); }
 .gk-cal-key:disabled { opacity: 0.4; cursor: not-allowed; }
-.gk-cal-key[data-variant='fn'] { background: #eef2ff; color: #4338ca; font-size: 0.85rem; }
-.gk-cal-key[data-variant='op'] { background: #e2e8f0; font-weight: 600; }
-.gk-cal-key[data-variant='accent'] { background: #fef2f2; color: #b91c1c; }
+.gk-cal-key[data-variant='fn'] { background: var(--gk-accent-alt-bg); color: var(--gk-accent-alt); font-size: 0.85rem; }
+.gk-cal-key[data-variant='op'] { background: var(--gk-hover); font-weight: 600; }
+.gk-cal-key[data-variant='accent'] { background: var(--gk-error-bg); color: var(--gk-error); }
 .gk-cal-key[data-variant='equals'] {
-  grid-column: 1 / -1; background: #2563eb; color: #fff; font-weight: 700;
+  grid-column: 1 / -1; background: var(--gk-accent); color: var(--gk-bg); font-weight: 700;
 }
-.gk-cal-key[data-variant='equals']:hover { background: #1d4ed8; }
+.gk-cal-key[data-variant='equals']:hover { background: var(--gk-accent-text); }
 `;

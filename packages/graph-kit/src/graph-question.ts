@@ -59,6 +59,7 @@ import type {
   SystemBoundarySpec,
   DisplayDrawable,
 } from './board.js';
+import { GK_CHROME } from './graph-colors.js';
 
 const isPointPair = (p: unknown): p is [number, number] =>
   Array.isArray(p) && p.length === 2 && typeof p[0] === 'number' && typeof p[1] === 'number';
@@ -571,14 +572,14 @@ function pill(label: string, onClick: () => void): HTMLButtonElement {
   b.type = 'button';
   b.textContent = label;
   b.style.cssText =
-    'font:inherit;font-size:0.75rem;padding:0.15rem 0.5rem;border:1px solid #cbd5e1;' +
-    'border-radius:999px;background:#fff;cursor:pointer;';
+    `font:inherit;font-size:0.75rem;padding:0.15rem 0.5rem;border:1px solid ${GK_CHROME.border};` +
+    `border-radius:999px;background:${GK_CHROME.bg};cursor:pointer;`;
   b.addEventListener('click', onClick);
   return b;
 }
 function setPillActive(b: HTMLButtonElement, on: boolean): void {
-  b.style.background = on ? '#2563eb' : '#fff';
-  b.style.color = on ? '#fff' : 'inherit';
+  b.style.background = on ? GK_CHROME.accent : GK_CHROME.bg;
+  b.style.color = on ? GK_CHROME.bg : 'inherit';
   b.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 
@@ -874,8 +875,8 @@ export async function mountGraphQuestion(
     const bar = document.createElement('div');
     bar.style.cssText =
       'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
-      'flex-wrap:wrap;padding:0.3rem;background:rgba(255,255,255,0.88);' +
-      'border-top:1px solid #e2e8f0;z-index:5;';
+      `flex-wrap:wrap;padding:0.3rem;background:${GK_CHROME.overlayBar};` +
+      `border-top:1px solid ${GK_CHROME.hover};z-index:5;`;
     if (isInequality) {
       // Plain labels only — no (≤ ≥) legend. Knowing which sign means a solid
       // vs dotted boundary is part of what an inequality question assesses;
@@ -1127,12 +1128,12 @@ export async function mountGraphSystemQuestion(
   const popEl = document.createElement('div');
   popEl.style.cssText =
     'display:none;pointer-events:auto;margin:0 0.3rem;padding:0.3rem 0.4rem;' +
-    'background:rgba(255,255,255,0.97);border:1px solid #e2e8f0;border-radius:8px;' +
-    'box-shadow:0 1px 4px rgba(0,0,0,0.08);align-items:center;gap:0.3rem;flex-wrap:wrap;';
+    `background:${GK_CHROME.overlayPanel};border:1px solid ${GK_CHROME.hover};border-radius:8px;` +
+    `box-shadow:0 1px 4px ${GK_CHROME.shadowSoft};align-items:center;gap:0.3rem;flex-wrap:wrap;`;
   const stripEl = document.createElement('div');
   stripEl.style.cssText =
     'pointer-events:auto;display:flex;gap:0.3rem;padding:0.3rem;flex-wrap:wrap;' +
-    'background:rgba(255,255,255,0.9);border-top:1px solid #e2e8f0;';
+    `background:${GK_CHROME.overlayFooter};border-top:1px solid ${GK_CHROME.hover};`;
   bar.append(popEl, stripEl);
   mount.appendChild(bar);
 
@@ -1193,8 +1194,8 @@ export async function mountGraphSystemQuestion(
       chip.style.cssText =
         'pointer-events:auto;font:inherit;font-size:0.75rem;display:inline-flex;' +
         'align-items:center;gap:0.3rem;padding:0.2rem 0.5rem;border-radius:999px;' +
-        'cursor:pointer;background:#fff;border:1.5px solid ' +
-        (on ? board.boundaryColor(i) : '#cbd5e1') + ';';
+        `cursor:pointer;background:${GK_CHROME.bg};border:1.5px solid ` +
+        (on ? board.boundaryColor(i) : GK_CHROME.border) + ';';
       chip.title = `Line ${i + 1}: ${stricts[i] ? 'dotted' : 'solid'}, ${wordOf(sides[i] ?? null)}`;
       chip.setAttribute('aria-label', chip.title);
       const sw = document.createElement('span');
@@ -1242,7 +1243,7 @@ export async function mountGraphSystemQuestion(
     // The primary (pointer) shading instruction, on its own line below the buttons.
     const hint = document.createElement('span');
     hint.textContent = 'Or click the graph on the side you want to shade.';
-    hint.style.cssText = 'flex-basis:100%;font-size:0.7rem;color:#64748b;margin-top:0.1rem;';
+    hint.style.cssText = `flex-basis:100%;font-size:0.7rem;color:${GK_CHROME.muted};margin-top:0.1rem;`;
     popEl.append(lbl, solidBtn, dottedBtn, flipBtn, doneBtn, hint);
   }
 
@@ -1564,8 +1565,8 @@ export async function mountGraphAuthor(
     const bar = document.createElement('div');
     bar.style.cssText =
       'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
-      'flex-wrap:wrap;padding:0.3rem;background:rgba(255,255,255,0.88);' +
-      'border-top:1px solid #e2e8f0;z-index:5;';
+      `flex-wrap:wrap;padding:0.3rem;background:${GK_CHROME.overlayBar};` +
+      `border-top:1px solid ${GK_CHROME.hover};z-index:5;`;
     // The pills change only the endpoint STYLE; positions are the handles, so
     // report just the style and let the NodeView merge it.
     if (hasMin) {
@@ -1606,8 +1607,8 @@ export async function mountGraphAuthor(
     const bar = document.createElement('div');
     bar.style.cssText =
       'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
-      'flex-wrap:wrap;padding:0.3rem;background:rgba(255,255,255,0.88);' +
-      'border-top:1px solid #e2e8f0;z-index:5;';
+      `flex-wrap:wrap;padding:0.3rem;background:${GK_CHROME.overlayBar};` +
+      `border-top:1px solid ${GK_CHROME.hover};z-index:5;`;
     linear.attach(bar);
     mount.appendChild(bar);
     linear.setState({

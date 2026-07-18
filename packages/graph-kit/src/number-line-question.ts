@@ -26,6 +26,7 @@ import type {
   NumberLineBoardController,
   IntervalEndState,
 } from './number-line-board.js';
+import { GK_CHROME } from './graph-colors.js';
 
 const numOr = (v: unknown, d: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -123,14 +124,14 @@ function pill(label: string, onClick: () => void): HTMLButtonElement {
   b.type = 'button';
   b.textContent = label;
   b.style.cssText =
-    'font:inherit;font-size:0.75rem;padding:0.15rem 0.5rem;border:1px solid #cbd5e1;' +
-    'border-radius:999px;background:#fff;cursor:pointer;';
+    `font:inherit;font-size:0.75rem;padding:0.15rem 0.5rem;border:1px solid ${GK_CHROME.border};` +
+    `border-radius:999px;background:${GK_CHROME.bg};cursor:pointer;`;
   b.addEventListener('click', onClick);
   return b;
 }
 function setPillActive(b: HTMLButtonElement, on: boolean): void {
-  b.style.background = on ? '#2563eb' : '#fff';
-  b.style.color = on ? '#fff' : 'inherit';
+  b.style.background = on ? GK_CHROME.accent : GK_CHROME.bg;
+  b.style.color = on ? GK_CHROME.bg : 'inherit';
   b.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 
@@ -258,8 +259,8 @@ function makeControlBar(): HTMLDivElement {
   const bar = document.createElement('div');
   bar.style.cssText =
     'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
-    'flex-wrap:wrap;padding:0.3rem;background:rgba(255,255,255,0.88);' +
-    'border-top:1px solid #e2e8f0;z-index:5;';
+    `flex-wrap:wrap;padding:0.3rem;background:${GK_CHROME.overlayBar};` +
+    `border-top:1px solid ${GK_CHROME.hover};z-index:5;`;
   return bar;
 }
 
