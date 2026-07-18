@@ -18,6 +18,16 @@
 // =============================================================================
 
 import { histogramCounts } from './data-plot-score.js';
+import {
+    AXIS as AXIS_COLOR,
+    LABEL as LABEL_COLOR,
+    INK,
+    ANSWER as ANSWER_COLOR,
+    ANSWER_FILL,
+    GRID,
+    CURSOR_BG,
+    OPEN_FILL,
+} from './graph-colors.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 
@@ -30,11 +40,8 @@ const TICK = 6;
 const MINOR_TICK = 3;
 const DOT_R = 6;
 
-const AXIS_COLOR = '#64748b';
-const LABEL_COLOR = '#475569';
-const INK = '#1e293b';
-const ANSWER_COLOR = '#7c3aed'; // student dots (kit "your answer" purple)
-const CURSOR_COLOR = '#c4b5fd';
+// AXIS_COLOR / LABEL_COLOR / INK / ANSWER_COLOR imported from graph-colors.js.
+const CURSOR_COLOR = ANSWER_FILL; // "your answer" light purple
 
 export interface DataPlotBoardConfig {
   min: number;
@@ -46,7 +53,7 @@ export interface DataPlotBoardConfig {
   binWidth?: number;
 }
 
-const FILL = '#c4b5fd'; // bar / box fill (light purple — student's answer)
+const FILL = ANSWER_FILL; // bar / box fill (light purple — student's answer)
 
 export interface DataPlotBoardHooks {
   /** Fired on every add/remove/cursor move. fromKeyboard steers narration. */
@@ -455,7 +462,7 @@ export function createHistogramBoard(
   // y gridlines + labels (0..cap) on the left margin.
   for (let f = 0; f <= cap; f++) {
     const y = AXIS_Y - f * unitH;
-    svg.appendChild(el('line', { x1: MARGIN - 4, y1: y, x2: WIDTH - MARGIN, y2: y, stroke: '#e2e8f0', 'stroke-width': f === 0 ? 0 : 1 }));
+    svg.appendChild(el('line', { x1: MARGIN - 4, y1: y, x2: WIDTH - MARGIN, y2: y, stroke: GRID, 'stroke-width': f === 0 ? 0 : 1 }));
     const t = el('text', { x: MARGIN - 8, y: y + 4, 'text-anchor': 'end', fill: LABEL_COLOR, 'font-size': 10, 'font-family': 'inherit' });
     t.textContent = String(f);
     svg.appendChild(t);
@@ -471,7 +478,7 @@ export function createHistogramBoard(
       const left = px(e.x0);
       const right = px(e.x1);
       if (interactive && i === active) {
-        cursorLayer.appendChild(el('rect', { x: left, y: TOP_PAD, width: Math.max(0, right - left), height: AXIS_Y - TOP_PAD, fill: '#f1f5f9' }));
+        cursorLayer.appendChild(el('rect', { x: left, y: TOP_PAD, width: Math.max(0, right - left), height: AXIS_Y - TOP_PAD, fill: CURSOR_BG }));
       }
       const f = bins[i]!;
       if (f > 0) {
@@ -607,7 +614,7 @@ export function createBoxplotBoard(
     h.forEach((v, i) => {
       const c = el('circle', {
         cx: px(v), cy, r: i === active ? 8 : 6,
-        fill: ANSWER_COLOR, stroke: '#fff', 'stroke-width': 2,
+        fill: ANSWER_COLOR, stroke: OPEN_FILL, 'stroke-width': 2,
       });
       boxLayer.appendChild(c);
     });

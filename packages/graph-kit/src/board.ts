@@ -23,6 +23,17 @@ import {
   type ArrowSpec,
 } from './display-arrows.js';
 import { resolveDrawableColor } from './drawable-palette.js';
+import {
+    CURVE as CURVE_COLOR,
+    SCATTER as SCATTER_COLOR,
+    FIT as FIT_COLOR,
+    ANSWER as ANSWER_COLOR,
+    SHADE_FILL_OPACITY,
+    OPEN_FILL,
+    SYSTEM_BOUNDARY_COLORS,
+} from './graph-colors.js';
+// Re-exported for board.js deep importers (public surface unchanged).
+export { SYSTEM_BOUNDARY_COLORS };
 
 // Stage 4: what one expression-list row contributes to the board. Coordinates
 // and functions are CLOSURES over the caller's live slider scope — JSXGraph
@@ -87,10 +98,6 @@ interface JxgPoint {
 }
 
 let boardSeq = 0;
-
-const CURVE_COLOR = '#2563eb';
-const SCATTER_COLOR = '#0f172a';
-const FIT_COLOR = '#16a34a';
 
 const DEFAULT_BB: [number, number, number, number] = [-10, 10, 10, -10];
 
@@ -381,7 +388,7 @@ export function createBoard(container: HTMLElement): BoardController {
     }
     if (!tracePoint) {
       tracePoint = board.create('point', [best.x, best.y], {
-        withLabel: false, fixed: true, size: 4, strokeColor: '#0f172a',
+        withLabel: false, fixed: true, size: 4, strokeColor: SCATTER_COLOR,
         fillColor: best.color, highlight: false,
       }) as unknown as JxgPoint;
     }
@@ -520,7 +527,6 @@ export function createBoard(container: HTMLElement): BoardController {
 //     caller can narrate into the block's aria-live region.
 // =============================================================================
 
-const ANSWER_COLOR = '#7c3aed';
 const HANDLE_SIZE = 6;
 const HANDLE_SIZE_ACTIVE = 9;
 
@@ -907,7 +913,7 @@ export function createPointAnswerBoard(
             : 'closed';
       (p as unknown as { setAttribute(a: Record<string, unknown>): void }).setAttribute(
         style === 'open'
-          ? { fillColor: '#ffffff', highlightFillColor: '#ffffff' }
+          ? { fillColor: OPEN_FILL, highlightFillColor: OPEN_FILL }
           : { fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR },
       );
     });
@@ -1125,7 +1131,7 @@ export function createPointAnswerBoard(
           // the keyboard active-handle cue — so styles only touch fill.)
           style === null || style === 'closed'
             ? { fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR }
-            : { fillColor: '#ffffff', highlightFillColor: '#ffffff' },
+            : { fillColor: OPEN_FILL, highlightFillColor: OPEN_FILL },
         );
       });
       board.update();
@@ -1157,9 +1163,6 @@ export function createPointAnswerBoard(
 // is ambiguous with N boundaries, so it is deliberately omitted here.
 // =============================================================================
 
-// Per-boundary hues (violet/blue/green/amber/red), reused mod N. Distinct from
-// each other so a two- or three-inequality system reads cleanly.
-export const SYSTEM_BOUNDARY_COLORS = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626'];
 
 export interface SystemBoundarySpec {
   count: number;
@@ -1554,7 +1557,7 @@ export function createSystemAnswerBoard(
 
 // Half-plane / polygon fills use the drawable's own color at a floored opacity
 // so a pale swatch still reads over the grid (stroke gets the full color).
-const SHADE_FILL_OPACITY = 0.18;
+// SHADE_FILL_OPACITY: imported from graph-colors.js.
 
 // The kit's own parallel view of a schema Drawable (the kit never imports
 // @activity/schema; the wire shape is the contract). Optional fields are read
@@ -1637,7 +1640,7 @@ function dotAttrs(style: string | undefined, color: string): Record<string, unkn
     fixed: true,
     size: 3,
     strokeColor: color,
-    fillColor: style === 'open' ? '#ffffff' : color,
+    fillColor: style === 'open' ? OPEN_FILL : color,
     highlight: false,
     showInfobox: false,
     withLabel: false,

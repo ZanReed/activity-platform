@@ -20,6 +20,7 @@ import { MathfieldElement } from 'mathlive';
 import { classifyExpression, type EvalOptions, type ExpressionRow } from './evaluate.js';
 import { solveForY, curveSide, verticalSide, inDomain, type ParsedDomain } from './solve.js';
 import type { PlotItem } from './board.js';
+import { EXPRESSION_PALETTE, CURVE } from './graph-colors.js';
 
 export interface ExpressionListDeps {
   /** Read fresh per classification — the deg/rad toggle changes it. */
@@ -45,7 +46,7 @@ export interface ExpressionListHandle {
   destroy(): void;
 }
 
-const PALETTE = ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#d97706', '#0891b2'];
+// EXPRESSION_PALETTE / CURVE imported from graph-colors.js (top of file).
 
 // MathLive's virtual keyboard is a global singleton. Minimal view of what we
 // touch (show/hide/visible); container + layouts are configured once in
@@ -274,7 +275,7 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
     const row: Row = {
       wrap: document.createElement('div'),
       field: new MathfieldElement(),
-      color: PALETTE[colorSeq++ % PALETTE.length] ?? '#2563eb',
+      color: EXPRESSION_PALETTE[colorSeq++ % EXPRESSION_PALETTE.length] ?? CURVE,
       note: document.createElement('div'),
       sliderBox: document.createElement('div'),
       lastText: null,

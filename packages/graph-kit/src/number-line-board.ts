@@ -14,9 +14,13 @@
 // =============================================================================
 
 import { JSXGraph } from 'jsxgraph';
+import {
+    ANSWER as ANSWER_COLOR,
+    AXIS as AXIS_COLOR,
+    LABEL,
+    OPEN_FILL,
+} from './graph-colors.js';
 
-const ANSWER_COLOR = '#7c3aed';
-const AXIS_COLOR = '#64748b';
 const HANDLE_SIZE = 6;
 const HANDLE_SIZE_ACTIVE = 9;
 
@@ -126,7 +130,7 @@ export function createNumberLineBoard(
       majorHeight: 14,
       minorHeight: 8,
       strokeColor: AXIS_COLOR,
-      label: { offset: [0, -14], anchorX: 'middle', fontSize: 12, strokeColor: '#475569' },
+      label: { offset: [0, -14], anchorX: 'middle', fontSize: 12, strokeColor: LABEL },
     },
     highlight: false,
     fixed: true,
@@ -217,7 +221,7 @@ export function createNumberLineBoard(
     const styleFor = (state: IntervalEndState): Record<string, unknown> => {
       if (state === 'unbounded') return { visible: false };
       return state === 'open'
-        ? { visible: true, fillColor: '#ffffff', highlightFillColor: '#ffffff' }
+        ? { visible: true, fillColor: OPEN_FILL, highlightFillColor: OPEN_FILL }
         : { visible: true, fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR };
     };
     handles[li]!.setAttribute(styleFor(leftState));
