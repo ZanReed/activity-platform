@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import {
     NodeViewWrapper,
-    NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
+import PromptField from '../components/PromptField';
 import {
     MessageSquare,
     MessageSquarePlus,
@@ -439,7 +439,11 @@ export default function MultipleChoiceView({
                 {problemNumber}.
             </div>
             <div className="mc-block__body">
-                <NodeViewContent className="mc-block__prompt" />
+                <PromptField
+                    node={node}
+                    className="mc-block__prompt"
+                    placeholder="Type the question…"
+                />
                 <div className="mc-block__controls" contentEditable={false}>
                     {noneCorrect && (
                         <div className="mc-block__warning" role="alert">

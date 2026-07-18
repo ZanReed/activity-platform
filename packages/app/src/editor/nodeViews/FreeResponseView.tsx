@@ -1,8 +1,8 @@
 import {
     NodeViewWrapper,
-    NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
+import PromptField from '../components/PromptField';
 import type { Rubric } from '@activity/schema';
 
 // ============================================================================
@@ -51,7 +51,11 @@ export default function FreeResponseView({ node, selected }: NodeViewProps) {
                     {isEssay ? 'Essay' : 'Short answer'}
                 </span>
             </div>
-            <NodeViewContent className="free-response-block__prompt" />
+            <PromptField
+                node={node}
+                className="free-response-block__prompt"
+                placeholder="Type the question…"
+            />
             <textarea
                 className="free-response-block__preview"
                 rows={isEssay ? 8 : 3}

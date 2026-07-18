@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import {
     NodeViewWrapper,
-    NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
+import PromptField from '../components/PromptField';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import type { EditorOrderItem } from '../extensions/Ordering';
@@ -87,7 +87,11 @@ export default function OrderingView({
                 {problemNumber}.
             </div>
             <div className="mc-block__body">
-                <NodeViewContent className="mc-block__prompt" />
+                <PromptField
+                    node={node}
+                    className="mc-block__prompt"
+                    placeholder="Type the question…"
+                />
                 <div className="mc-block__controls" contentEditable={false}>
                     <div className="mc-block__section-label">
                         List the items in the CORRECT order — students see them

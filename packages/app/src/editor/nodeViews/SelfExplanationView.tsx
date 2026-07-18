@@ -1,8 +1,8 @@
 import {
     NodeViewWrapper,
-    NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
+import PromptField from '../components/PromptField';
 
 // ============================================================================
 // SelfExplanationView — NodeView for the self_explanation block.
@@ -42,7 +42,11 @@ export default function SelfExplanationView({ node, selected }: NodeViewProps) {
                     Self-explanation
                 </span>
             </div>
-            <NodeViewContent className="self-explanation-block__prompt" />
+            <PromptField
+                node={node}
+                className="self-explanation-block__prompt"
+                placeholder="Type the question…"
+            />
             <textarea
                 className="self-explanation-block__preview"
                 rows={3}

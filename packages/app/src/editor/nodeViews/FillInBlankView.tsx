@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import {
     NodeViewWrapper,
-    NodeViewContent,
     type NodeViewProps,
 } from '@tiptap/react';
+import PromptField from '../components/PromptField';
 import type { InlineNodes } from '../../lib/serialize';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt, fadedStepContextAt } from '../problemNumbering';
@@ -98,7 +98,11 @@ export default function FillInBlankView({
                     {problemNumber}.
                 </div>
             )}
-            <NodeViewContent className="fill-in-blank-block__body" />
+            <PromptField
+                node={node}
+                className="fill-in-blank-block__body"
+                placeholder="Type the sentence…"
+            />
             <QuestionSettingsSummary
                 hasSolution={hasSolution}
                 hasConfidenceRating={hasConfidenceRating}
