@@ -19,8 +19,9 @@
 // view, Submissions, Import) render in the same visual language.
 // =============================================================================
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { Settings, Printer, BookOpen, Calculator as CalculatorIcon } from 'lucide-react';
 import type { JSONContent } from '@tiptap/react';
 import {
     createCalculatorTool,
@@ -76,9 +77,12 @@ const ACTIVITY_TYPE_LABELS: Record<ActivityMeta['activityType'], string> = {
 
 // =============================================================================
 // HeaderButton — the shared icon+label action chip for the editor header.
-// Renders a Link when `to` is given, a button otherwise. `dot` is the small
-// state cue (emerald = configured/enabled, amber = needs attention); pair it
-// with a `title` that says what the dot means.
+// Renders a Link when `to` is given, a button otherwise. `icon` is a lucide
+// glyph (18px); `title` is the hover tooltip that spells out what the chip
+// does (icons alone are ambiguous — every chip carries one). `dot` is the
+// small state cue (emerald = configured/enabled, amber = needs attention);
+// pair it with a `title` that says what the dot means. `variant="primary"` is
+// the one filled chip (Publish) — louder than the ghost chips, still in the row.
 // =============================================================================
 
 export function HeaderButton({
@@ -88,30 +92,43 @@ export function HeaderButton({
     onClick,
     disabled,
     active,
+    variant = 'default',
     dot,
     title,
     dataConfigButton,
 }: {
-    icon: string;
+    icon: ReactNode;
     label: string;
     to?: string;
     onClick?: () => void;
     disabled?: boolean;
     active?: boolean;
+    variant?: 'default' | 'primary';
     dot?: 'emerald' | 'amber';
     title?: string;
     dataConfigButton?: string;
 }) {
-    const cls = `relative flex min-w-[3.5rem] flex-col items-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-medium leading-none transition ${
-        active
-            ? 'border-slate-900 bg-slate-900 text-white'
-            : disabled
-              ? 'cursor-not-allowed border-slate-200 bg-white text-slate-300'
-              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900'
-    }`;
+    const base =
+        'relative flex min-w-[3.5rem] flex-col items-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-medium leading-none transition';
+    let tone: string;
+    if (variant === 'primary') {
+        // The one filled chip. Disabled dims it rather than dropping to the
+        // ghost look, so it still reads as the primary action mid-save.
+        tone = disabled
+            ? 'cursor-not-allowed border-slate-900 bg-slate-900 text-white opacity-50'
+            : 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800';
+    } else if (disabled) {
+        tone = 'cursor-not-allowed border-slate-200 bg-white text-slate-300';
+    } else if (active) {
+        tone = 'border-slate-900 bg-slate-900 text-white';
+    } else {
+        tone =
+            'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900';
+    }
+    const cls = `${base} ${tone}`;
     const body = (
         <>
-            <span aria-hidden="true" className="text-base leading-none">
+            <span aria-hidden="true" className="flex h-[18px] items-center">
                 {icon}
             </span>
             <span>{label}</span>
@@ -147,6 +164,9 @@ export function HeaderButton({
     );
 }
 
+// Shared lucide size for header chips.
+const ICON = 18;
+
 // =============================================================================
 // ConfigButtons — the four drawer-opening buttons with their state cues.
 // =============================================================================
@@ -168,7 +188,7 @@ export function ConfigButtons({
     return (
         <>
             <HeaderButton
-                icon="⚙"
+                icon={<Settings size={ICON} />}
                 label="Settings"
                 active={active === 'settings'}
                 dot={settingsWarning ? 'amber' : undefined}
@@ -181,7 +201,7 @@ export function ConfigButtons({
                 dataConfigButton="settings"
             />
             <HeaderButton
-                icon="🖨"
+                icon={<Printer size={ICON} />}
                 label="Print layout"
                 active={active === 'print'}
                 title="Paper, margins, header fields, and worksheet spacing"
@@ -189,7 +209,7 @@ export function ConfigButtons({
                 dataConfigButton="print"
             />
             <HeaderButton
-                icon="📎"
+                icon={<BookOpen size={ICON} />}
                 label="Reference"
                 active={active === 'reference'}
                 dot={referenceHasContent ? 'emerald' : undefined}
@@ -202,7 +222,7 @@ export function ConfigButtons({
                 dataConfigButton="reference"
             />
             <HeaderButton
-                icon="🧮"
+                icon={<CalculatorIcon size={ICON} />}
                 label="Calculator"
                 active={active === 'calculator'}
                 dot={calculatorEnabled ? 'emerald' : undefined}

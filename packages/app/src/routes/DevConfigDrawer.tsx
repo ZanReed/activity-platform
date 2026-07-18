@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FileText, BarChart3, ClipboardPaste, Globe } from 'lucide-react';
 import type { JSONContent } from '@tiptap/react';
 import {
     createEmptyDocument,
@@ -67,9 +68,34 @@ export default function DevConfigDrawer() {
                         aria-hidden="true"
                         className="mx-1 w-px self-stretch bg-slate-200"
                     />
-                    <HeaderButton icon="📄" label="Print view" to="#" />
-                    <HeaderButton icon="📊" label="Submissions" to="#" />
-                    <HeaderButton icon="📥" label="Import" disabled />
+                    <HeaderButton
+                        icon={<FileText size={18} />}
+                        label="Print view"
+                        to="#"
+                        title="Open the printable worksheet view"
+                    />
+                    <HeaderButton
+                        icon={<BarChart3 size={18} />}
+                        label="Submissions"
+                        to="#"
+                        title="Open the submissions dashboard (student results)"
+                    />
+                    <HeaderButton
+                        icon={<ClipboardPaste size={18} />}
+                        label="Import"
+                        disabled
+                        title="Paste markdown and convert it to activity blocks"
+                    />
+                    <span
+                        aria-hidden="true"
+                        className="mx-1 w-px self-stretch bg-slate-200"
+                    />
+                    <HeaderButton
+                        icon={<Globe size={18} />}
+                        label="Publish"
+                        variant="primary"
+                        title="Publish this activity as a page students can open"
+                    />
                 </div>
 
                 <ConfigDrawer

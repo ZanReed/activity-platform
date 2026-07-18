@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 // ============================================================================
 // uploadImage — POST an image file to the upload-image Edge Function (R2).
 // ----------------------------------------------------------------------------
-// Mirrors PublishControl's invoke pattern: attach the session token explicitly
+// Mirrors usePublish's invoke pattern: attach the session token explicitly
 // (publishable-key clients don't reliably forward the user JWT on
 // functions.invoke), send multipart/form-data, and surface the function's
 // { error, details } body as a readable message. Returns the public R2 URL.

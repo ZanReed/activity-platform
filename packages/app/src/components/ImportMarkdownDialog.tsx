@@ -1,8 +1,8 @@
 // =============================================================================
 // ImportMarkdownDialog.tsx — paste-markdown import modal
 // -----------------------------------------------------------------------------
-// An activity-level action (lives in the page header next to PublishControl,
-// per the "activity-level actions go in the header" rule), not an editor-
+// An activity-level action (lives in the page header, next to the Publish
+// chip, per the "activity-level actions go in the header" rule), not an editor-
 // toolbar control. The teacher pastes markdown; a live summary reports what
 // will import and flags anything that degrades; Import hands the converted
 // Tiptap blocks back to the parent, which inserts them into the editor.

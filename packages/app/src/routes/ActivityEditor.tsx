@@ -26,6 +26,13 @@ import {
     type ReactNode,
 } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
+import {
+    FileText,
+    BarChart3,
+    ClipboardPaste,
+    Globe,
+    ExternalLink,
+} from 'lucide-react';
 import type { Editor as TiptapEditor, JSONContent } from '@tiptap/react';
 import {
     ActivityDocument,
@@ -42,8 +49,8 @@ import {
     tiptapToReferencePanel,
 } from '../lib/serialize';
 import { useAutosave, type SaveStatus } from '../lib/useAutosave';
+import { usePublish } from '../lib/usePublish';
 import Editor from '../editor/Editor';
-import PublishControl from '../components/PublishControl';
 import ImportMarkdownDialog from '../components/ImportMarkdownDialog';
 import {
     ConfigButtons,
@@ -130,11 +137,19 @@ function publishedUrl(activityId: string): string | null {
     return PUBLISHED_BASE ? `${PUBLISHED_BASE}/${activityId}/index.html` : null;
 }
 
-// Persistent link to an already-published activity's live page. Unlike the
-// post-publish pill in PublishControl (which only exists in the session where
-// you clicked Publish), this renders on every load of a published activity so
-// the URL is always retrievable.
-function PublishedLink({ activityId }: { activityId: string }) {
+// The one published-status line, below the header (replaces the old standalone
+// PublishedLink AND PublishControl's green success pill — they were two
+// copy-link affordances for the same URL). Renders whenever the activity is
+// live: a "Live" dot + Open + Copy link, upgrading to "Published v{N}" for the
+// session that just published (version is only known then). The live-alias URL
+// is stable, so Open/Copy work whether or not this session did the publish.
+function PublishStatus({
+    activityId,
+    version,
+}: {
+    activityId: string;
+    version: number | null;
+}) {
     const url = publishedUrl(activityId);
     const [copied, setCopied] = useState(false);
     if (!url) return null;
@@ -148,19 +163,27 @@ function PublishedLink({ activityId }: { activityId: string }) {
         }
     };
     return (
-        <span className="flex items-center gap-2 text-sm">
+        <span className="flex items-center gap-2 text-xs">
+        <span className="flex items-center gap-1.5 font-medium text-slate-600">
+        <span
+        aria-hidden="true"
+        className="h-1.5 w-1.5 rounded-full bg-emerald-500"
+        />
+        {version != null ? `Published v${version}` : 'Live'}
+        </span>
         <a
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+        className="inline-flex items-center gap-0.5 font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline"
         >
-        View published page
+        Open
+        <ExternalLink size={12} aria-hidden="true" />
         </a>
         <button
         type="button"
         onClick={copy}
-        className="font-medium text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
+        className="font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline"
         >
         {copied ? 'Copied!' : 'Copy link'}
         </button>
@@ -443,6 +466,11 @@ export default function ActivityEditor() {
     };
 
         const { status, flush } = useAutosave(changeKey, save);
+        // Publish state is lifted here (out of the old PublishControl) so the
+        // header's Publish chip and the PublishStatus line share it. id can be
+        // undefined pre-route-match; publish() is never reachable until the
+        // chip renders (past the id guards), so the '' fallback is inert.
+        const { state: publishState, publish } = usePublish(id ?? '', flush);
 
         if (loadState.status === 'loading') {
             return (
@@ -518,10 +546,10 @@ export default function ActivityEditor() {
             ← All activities
             </Link>
             {/*
-              One header, two clusters in a single visual language (icon+label
-              chips): activity configuration (opens the right-side drawer) and
-              navigation/actions. Publish keeps its own primary styling —
-              it's the page's main action, not a chip.
+              One header row in a single visual language (lucide icon + label
+              chips, each with a hover title): activity configuration (opens the
+              right-side drawer), navigation/actions, and Publish — the one
+              filled primary chip, set off by a divider at the end of the row.
             */}
             <div className="flex flex-wrap items-center justify-end gap-2">
             <span className="mr-1">
@@ -541,31 +569,66 @@ export default function ActivityEditor() {
             className="mx-1 w-px self-stretch bg-slate-200"
             />
             <HeaderButton
-            icon="📄"
+            icon={<FileText size={18} />}
             label="Print view"
             to={`/activity/${id}/print`}
             title="Open the printable worksheet view"
             />
             <HeaderButton
-            icon="📊"
+            icon={<BarChart3 size={18} />}
             label="Submissions"
             to={`/activity/${id}/submissions`}
-            title="Open the submissions dashboard"
+            title="Open the submissions dashboard (student results)"
             />
             <HeaderButton
-            icon="📥"
+            icon={<ClipboardPaste size={18} />}
             label="Import"
             onClick={() => setImportOpen(true)}
             disabled={!editorInstance}
             title="Paste markdown and convert it to activity blocks"
             />
-            <PublishControl activityId={id} saveStatus={status} onBeforePublish={flush} />
+            <span
+            aria-hidden="true"
+            className="mx-1 w-px self-stretch bg-slate-200"
+            />
+            <HeaderButton
+            icon={<Globe size={18} />}
+            label={
+                publishState.kind === 'publishing'
+                    ? 'Publishing…'
+                    : isPublished || publishState.kind === 'success'
+                      ? 'Republish'
+                      : 'Publish'
+            }
+            variant="primary"
+            onClick={publish}
+            disabled={publishState.kind === 'publishing' || status === 'saving'}
+            title={
+                status === 'saving'
+                    ? 'Waiting for the save to finish before publishing'
+                    : 'Publish this activity as a page students can open'
+            }
+            />
             </div>
             </div>
 
-            {isPublished && (
+            {(isPublished || publishState.kind === 'success') && (
                 <div className="mt-2 flex justify-end">
-                <PublishedLink activityId={id} />
+                <PublishStatus
+                activityId={id}
+                version={
+                    publishState.kind === 'success'
+                        ? publishState.versionNum
+                        : null
+                }
+                />
+                </div>
+            )}
+            {publishState.kind === 'error' && (
+                <div className="mt-2 flex justify-end">
+                <span className="text-xs text-red-600">
+                Publish failed: {publishState.message}
+                </span>
                 </div>
             )}
 
