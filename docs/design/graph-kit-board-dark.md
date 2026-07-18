@@ -1,7 +1,14 @@
 # Graph-kit board dark-theming
 
-Status: **DESIGN — eng-reviewed + decisions RULED (2026-07-19), ready to build.**
-No code yet. The deferred slice flagged by [graph-kit-color.md](graph-kit-color.md)
+Status: **SHIPPED — slices 1–4 done + verified (2026-07-19), deploy queued.**
+The live graph-kit boards (interactive graph, point/system answer, display,
+number-line, dot/histogram/box plots) now self-theme dark in the editor and
+re-color on a live toggle; the calculator opts out (light unit); light is
+pixel-identical. Commits `6879e2a` (1) · `2a9ed9f` (2) · `b4661e7` (3) ·
+`89d7e60` (4). **KNOWN GAP:** the editor DATA-PLOT preview (`DataPlotView`) uses
+the RENDERER (`renderDataPlotSvg`), not a graph-kit board, so it stays light —
+that's the deferred renderer/published-page dark fork (see Deferred). The deferred
+slice flagged by [graph-kit-color.md](graph-kit-color.md)
 and [dark-mode.md](dark-mode.md): make the graph / number-line / data-plot
 **boards** render dark so they stop being light-on-dark in the editor. Builds on
 [graph-colors.ts](../../packages/graph-kit/src/graph-colors.ts) (the unified color
@@ -119,11 +126,15 @@ existing remount path). Split of responsibility keeps graph-kit param-free:
    SVG structural colors (grid/axis/label/bg).
 4. **Editor reactivity** — `useThemeEpoch()` hook; wire into InteractiveGraphView
    / NumberLineView / DataPlotView remount keys.
-5. **Verify + deploy.** Browser-check every board type in dark + light on
-   `/dev/*` + `/playground`; light pixel-identical (only dark overrides). Deploy
-   train (author): `upload:graph-kit` → `deploy:publish` — the kit re-hashes, but
-   **published rendering is unchanged** (published self-detects light). NO wire /
-   ingest / schemaVersion change.
+5. **Verify + deploy. DONE (verify) / QUEUED (deploy).** Verified: interactive
+   graph point-board self-detects `#94a3b8` axis dark / `#666666` light; display
+   board dark; number-line `#94a3b8`/`#cbd5e1` dark; live data-plot dark (`/dev`
+   screenshot); calculator stays light; a live toggle remounts + re-colors
+   (`/playground`); light pixel-identical (only dark overrides). 350 graph-kit +
+   656 app tests green. **Deploy train (AUTHOR): `pnpm upload:graph-kit` → commit
+   the regenerated manifest → `pnpm deploy:publish`.** The kit re-hashes, but
+   published interactive boards self-detect LIGHT (no dark context yet) so
+   rendering is unchanged; NO wire / ingest / schemaVersion change.
 
 ## Verification
 
@@ -142,7 +153,16 @@ existing remount path). Split of responsibility keeps graph-kit param-free:
 
 ## Deferred (still)
 
-- **Calculator dark** (chrome `--gk-*` dark re-point + its board opt back in).
-- **Published-page dark mode** (renderer runtime + styles.ts) — but board dark is
-  now *ready* for it (self-detect fires automatically once published sets a dark
-  color-scheme).
+- **Renderer static previews / published-page dark** (renderer runtime + styles.ts
+  + `data-plot-svg.ts` / `graph-svg.ts`). This is where the **editor data-plot
+  preview** lives too: `DataPlotView` renders `renderDataPlotSvg` (a pure renderer
+  string), so it can't self-detect like a mounted board. Recommended technique:
+  have the renderer SVG emit its STRUCTURAL colors as CSS custom properties with
+  light-hex fallbacks (`stroke="var(--gk-board-axis, #64748b)"`) — the SVG is real
+  DOM, so it picks up the theme from the cascade; the editor defines the dark
+  values, published falls back to light until published-dark ships. One change
+  serves the editor preview AND published pages. (The LIVE data-plot board is
+  already themed — slice 3.)
+- **Calculator dark** (chrome `--gk-*` dark re-point + its board opts back in).
+- **Published-page interactive boards** are already *ready* — self-detect fires
+  automatically once a published page sets a dark `color-scheme`.
