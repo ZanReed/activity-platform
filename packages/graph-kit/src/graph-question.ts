@@ -59,7 +59,11 @@ import type {
   SystemBoundarySpec,
   DisplayDrawable,
 } from './board.js';
-import { GK_CHROME } from './graph-colors.js';
+import {
+  chromeColors,
+  detectBoardTheme,
+  type ChromeColors,
+} from './graph-colors.js';
 
 const isPointPair = (p: unknown): p is [number, number] =>
   Array.isArray(p) && p.length === 2 && typeof p[0] === 'number' && typeof p[1] === 'number';
@@ -234,7 +238,9 @@ interface LinearControls {
 function createLinearShapeControls(
   board: PointAnswerController,
   onUserChange: () => void,
+  chrome: ChromeColors,
 ): LinearControls {
+  const { pill, setPillActive } = chromePills(chrome);
   const state: LinearControlsState = {
     shape: null,
     rayEndpointStyle: 'closed',
@@ -566,21 +572,30 @@ function readSegmentKey(raw: unknown): SegmentAnswerKey {
   };
 }
 
-// A small pill button for the widget's control bar.
-function pill(label: string, onClick: () => void): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.textContent = label;
-  b.style.cssText =
-    `font:inherit;font-size:0.75rem;padding:0.15rem 0.5rem;border:1px solid ${GK_CHROME.border};` +
-    `border-radius:999px;background:${GK_CHROME.bg};cursor:pointer;`;
-  b.addEventListener('click', onClick);
-  return b;
-}
-function setPillActive(b: HTMLButtonElement, on: boolean): void {
-  b.style.background = on ? GK_CHROME.accent : GK_CHROME.bg;
-  b.style.color = on ? GK_CHROME.bg : 'inherit';
-  b.setAttribute('aria-pressed', on ? 'true' : 'false');
+// Pill-button helpers bound to a resolved chrome theme, so the control strip
+// reads on both the light and dark board. Each mounter builds one `chromePills`
+// kit from its self-detected theme and uses the returned `pill`/`setPillActive`
+// (they shadow nothing — there are no module-level versions); light == today.
+function chromePills(chrome: ChromeColors): {
+  pill: (label: string, onClick: () => void) => HTMLButtonElement;
+  setPillActive: (b: HTMLButtonElement, on: boolean) => void;
+} {
+  const pill = (label: string, onClick: () => void): HTMLButtonElement => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.style.cssText =
+      `font:inherit;font-size:0.75rem;padding:0.15rem 0.5rem;border:1px solid ${chrome.pillBorder};` +
+      `border-radius:999px;background:${chrome.pillBg};color:${chrome.pillText};cursor:pointer;`;
+    b.addEventListener('click', onClick);
+    return b;
+  };
+  const setPillActive = (b: HTMLButtonElement, on: boolean): void => {
+    b.style.background = on ? chrome.accent : chrome.pillBg;
+    b.style.color = on ? chrome.onAccent : chrome.pillText;
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  };
+  return { pill, setPillActive };
 }
 
 export async function mountGraphQuestion(
@@ -612,6 +627,11 @@ export async function mountGraphQuestion(
   // The renderer seeds a static no-JS placeholder inside the canvas; clear it
   // before JSXGraph mounts so the two don't overlap.
   mount.textContent = '';
+
+  // The control strip self-detects theme like the board, so its pills/bars read
+  // on dark. Light == today's values.
+  const chrome = chromeColors(detectBoardTheme(mount));
+  const { pill, setPillActive } = chromePills(chrome);
 
   // Lazy-load the board layer (JSXGraph in its own chunk).
   const { createPointAnswerBoard } = await import('./board.js');
@@ -841,7 +861,7 @@ export async function mountGraphQuestion(
     linear = createLinearShapeControls(board, () => {
       answered = true;
       hooks.onChange?.(build());
-    });
+    }, chrome);
     linear.sync();
   }
 
@@ -875,8 +895,8 @@ export async function mountGraphQuestion(
     const bar = document.createElement('div');
     bar.style.cssText =
       'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
-      `flex-wrap:wrap;padding:0.3rem;background:${GK_CHROME.overlayBar};` +
-      `border-top:1px solid ${GK_CHROME.hover};z-index:5;`;
+      `flex-wrap:wrap;padding:0.3rem;background:${chrome.barBg};` +
+      `border-top:1px solid ${chrome.barBorder};z-index:5;`;
     if (isInequality) {
       // Plain labels only — no (≤ ≥) legend. Knowing which sign means a solid
       // vs dotted boundary is part of what an inequality question assesses;
@@ -1037,6 +1057,11 @@ export async function mountGraphSystemQuestion(
   });
 
   mount.textContent = '';
+
+  // The control strip self-detects theme like the board, so its pills/panel/
+  // footer/chips read on dark. Light == today's values.
+  const chrome = chromeColors(detectBoardTheme(mount));
+  const { pill, setPillActive } = chromePills(chrome);
   const { createSystemAnswerBoard } = await import('./board.js');
 
   let answered = false;
@@ -1128,12 +1153,12 @@ export async function mountGraphSystemQuestion(
   const popEl = document.createElement('div');
   popEl.style.cssText =
     'display:none;pointer-events:auto;margin:0 0.3rem;padding:0.3rem 0.4rem;' +
-    `background:${GK_CHROME.overlayPanel};border:1px solid ${GK_CHROME.hover};border-radius:8px;` +
-    `box-shadow:0 1px 4px ${GK_CHROME.shadowSoft};align-items:center;gap:0.3rem;flex-wrap:wrap;`;
+    `background:${chrome.panelBg};border:1px solid ${chrome.barBorder};border-radius:8px;` +
+    `box-shadow:0 1px 4px ${chrome.shadow};align-items:center;gap:0.3rem;flex-wrap:wrap;`;
   const stripEl = document.createElement('div');
   stripEl.style.cssText =
     'pointer-events:auto;display:flex;gap:0.3rem;padding:0.3rem;flex-wrap:wrap;' +
-    `background:${GK_CHROME.overlayFooter};border-top:1px solid ${GK_CHROME.hover};`;
+    `background:${chrome.footerBg};border-top:1px solid ${chrome.barBorder};`;
   bar.append(popEl, stripEl);
   mount.appendChild(bar);
 
@@ -1194,8 +1219,8 @@ export async function mountGraphSystemQuestion(
       chip.style.cssText =
         'pointer-events:auto;font:inherit;font-size:0.75rem;display:inline-flex;' +
         'align-items:center;gap:0.3rem;padding:0.2rem 0.5rem;border-radius:999px;' +
-        `cursor:pointer;background:${GK_CHROME.bg};border:1.5px solid ` +
-        (on ? board.boundaryColor(i) : GK_CHROME.border) + ';';
+        `cursor:pointer;background:${chrome.pillBg};color:${chrome.pillText};border:1.5px solid ` +
+        (on ? board.boundaryColor(i) : chrome.pillBorder) + ';';
       chip.title = `Line ${i + 1}: ${stricts[i] ? 'dotted' : 'solid'}, ${wordOf(sides[i] ?? null)}`;
       chip.setAttribute('aria-label', chip.title);
       const sw = document.createElement('span');
@@ -1243,7 +1268,7 @@ export async function mountGraphSystemQuestion(
     // The primary (pointer) shading instruction, on its own line below the buttons.
     const hint = document.createElement('span');
     hint.textContent = 'Or click the graph on the side you want to shade.';
-    hint.style.cssText = `flex-basis:100%;font-size:0.7rem;color:${GK_CHROME.muted};margin-top:0.1rem;`;
+    hint.style.cssText = `flex-basis:100%;font-size:0.7rem;color:${chrome.muted};margin-top:0.1rem;`;
     popEl.append(lbl, solidBtn, dottedBtn, flipBtn, doneBtn, hint);
   }
 
@@ -1512,6 +1537,11 @@ export async function mountGraphAuthor(
   let maxStyle: 'open' | 'closed' = dom?.maxStyle === 'open' ? 'open' : 'closed';
 
   mount.textContent = '';
+
+  // The control strip self-detects theme like the board, so its pills/bars read
+  // on dark. Light == today's values.
+  const chrome = chromeColors(detectBoardTheme(mount));
+  const { pill } = chromePills(chrome);
   const { createPointAnswerBoard } = await import('./board.js');
 
   const isLinear = authorRay || authorSegment;
@@ -1565,8 +1595,8 @@ export async function mountGraphAuthor(
     const bar = document.createElement('div');
     bar.style.cssText =
       'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
-      `flex-wrap:wrap;padding:0.3rem;background:${GK_CHROME.overlayBar};` +
-      `border-top:1px solid ${GK_CHROME.hover};z-index:5;`;
+      `flex-wrap:wrap;padding:0.3rem;background:${chrome.barBg};` +
+      `border-top:1px solid ${chrome.barBorder};z-index:5;`;
     // The pills change only the endpoint STYLE; positions are the handles, so
     // report just the style and let the NodeView merge it.
     if (hasMin) {
@@ -1603,12 +1633,12 @@ export async function mountGraphAuthor(
     });
   }
   if (isLinear) {
-    linear = createLinearShapeControls(board, emitLinear);
+    linear = createLinearShapeControls(board, emitLinear, chrome);
     const bar = document.createElement('div');
     bar.style.cssText =
       'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
-      `flex-wrap:wrap;padding:0.3rem;background:${GK_CHROME.overlayBar};` +
-      `border-top:1px solid ${GK_CHROME.hover};z-index:5;`;
+      `flex-wrap:wrap;padding:0.3rem;background:${chrome.barBg};` +
+      `border-top:1px solid ${chrome.barBorder};z-index:5;`;
     linear.attach(bar);
     mount.appendChild(bar);
     linear.setState({

@@ -26,7 +26,11 @@ import type {
   NumberLineBoardController,
   IntervalEndState,
 } from './number-line-board.js';
-import { GK_CHROME } from './graph-colors.js';
+import {
+    chromeColors,
+    detectBoardTheme,
+    type ChromeColors,
+} from './graph-colors.js';
 
 const numOr = (v: unknown, d: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -119,19 +123,20 @@ export interface NumberLineQuestionHandle {
 }
 
 // A small pill button for the interval control bar (matches graph-question's).
-function pill(label: string, onClick: () => void): HTMLButtonElement {
+// `chrome` is theme-resolved so the strip reads on both the light and dark board.
+function pill(label: string, onClick: () => void, chrome: ChromeColors): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
   b.textContent = label;
   b.style.cssText =
-    `font:inherit;font-size:0.75rem;padding:0.15rem 0.5rem;border:1px solid ${GK_CHROME.border};` +
-    `border-radius:999px;background:${GK_CHROME.bg};cursor:pointer;`;
+    `font:inherit;font-size:0.75rem;padding:0.15rem 0.5rem;border:1px solid ${chrome.pillBorder};` +
+    `border-radius:999px;background:${chrome.pillBg};color:${chrome.pillText};cursor:pointer;`;
   b.addEventListener('click', onClick);
   return b;
 }
-function setPillActive(b: HTMLButtonElement, on: boolean): void {
-  b.style.background = on ? GK_CHROME.accent : GK_CHROME.bg;
-  b.style.color = on ? GK_CHROME.bg : 'inherit';
+function setPillActive(b: HTMLButtonElement, on: boolean, chrome: ChromeColors): void {
+  b.style.background = on ? chrome.accent : chrome.pillBg;
+  b.style.color = on ? chrome.onAccent : chrome.pillText;
   b.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 
@@ -166,6 +171,7 @@ const toggleStyle = (s: EndpointStyle): EndpointStyle => (s === 'closed' ? 'open
 function createIntervalShapeControls(
   board: Pick<NumberLineBoardController, 'setEndState'>,
   onUserChange: () => void,
+  chrome: ChromeColors,
 ): IntervalShapeControls {
   const state = {
     shape: 'segment' as IntervalShape,
@@ -189,33 +195,33 @@ function createIntervalShapeControls(
     sync();
     onUserChange();
   };
-  const rayPosBtn = pill('Ray →', () => pickShape('ray_positive'));
-  const rayNegBtn = pill('Ray ←', () => pickShape('ray_negative'));
-  const segmentBtn = pill('Segment', () => pickShape('segment'));
+  const rayPosBtn = pill('Ray →', () => pickShape('ray_positive'), chrome);
+  const rayNegBtn = pill('Ray ←', () => pickShape('ray_negative'), chrome);
+  const segmentBtn = pill('Segment', () => pickShape('segment'), chrome);
   const rayStyleBtn = pill('Endpoint: ● closed', () => {
     state.rayStyle = toggleStyle(state.rayStyle);
     sync();
     onUserChange();
-  });
+  }, chrome);
   const segLeftBtn = pill('Left: ● closed', () => {
     state.segStyles = [toggleStyle(state.segStyles[0]), state.segStyles[1]];
     sync();
     onUserChange();
-  });
+  }, chrome);
   const segRightBtn = pill('Right: ● closed', () => {
     state.segStyles = [state.segStyles[0], toggleStyle(state.segStyles[1])];
     sync();
     onUserChange();
-  });
+  }, chrome);
   const buttons = [rayPosBtn, rayNegBtn, segmentBtn, rayStyleBtn, segLeftBtn, segRightBtn];
 
   function sync(): void {
     const [l, r] = ends();
     board.setEndState?.('left', l);
     board.setEndState?.('right', r);
-    setPillActive(rayPosBtn, state.shape === 'ray_positive');
-    setPillActive(rayNegBtn, state.shape === 'ray_negative');
-    setPillActive(segmentBtn, state.shape === 'segment');
+    setPillActive(rayPosBtn, state.shape === 'ray_positive', chrome);
+    setPillActive(rayNegBtn, state.shape === 'ray_negative', chrome);
+    setPillActive(segmentBtn, state.shape === 'segment', chrome);
     const isRay = state.shape !== 'segment';
     // Ray: one endpoint style (the bounded end; the arrow end has no style).
     rayStyleBtn.hidden = !isRay;
@@ -255,12 +261,12 @@ function createIntervalShapeControls(
 }
 
 // The control bar chrome (shared by student + author mounts).
-function makeControlBar(): HTMLDivElement {
+function makeControlBar(chrome: ChromeColors): HTMLDivElement {
   const bar = document.createElement('div');
   bar.style.cssText =
     'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
-    `flex-wrap:wrap;padding:0.3rem;background:${GK_CHROME.overlayBar};` +
-    `border-top:1px solid ${GK_CHROME.hover};z-index:5;`;
+    `flex-wrap:wrap;padding:0.3rem;background:${chrome.barBg};` +
+    `border-top:1px solid ${chrome.barBorder};z-index:5;`;
   return bar;
 }
 
@@ -293,13 +299,16 @@ export async function mountNumberLineQuestion(
     { onMove: () => handleMove() },
   );
 
+  // The strip self-detects theme like the board, so its pills read on dark.
+  const chrome = chromeColors(detectBoardTheme(mount));
+
   // Interval shape/style controls (the board mirrors them visually). Owns the
   // shape choice; endStates() derives the per-end bounded/unbounded from it.
   const controls: IntervalShapeControls | null = isInterval
     ? createIntervalShapeControls(board, () => {
         answered = true;
         hooks.onChange?.(build());
-      })
+      }, chrome)
     : null;
 
   // Build the student's interval from the two handle positions + endpoint states.
@@ -348,7 +357,7 @@ export async function mountNumberLineQuestion(
 
   // Interval control bar: the shared Ray →/Ray ←/Segment shape pills + styles.
   if (isInterval && controls) {
-    const bar = makeControlBar();
+    const bar = makeControlBar(chrome);
     controls.attach(bar);
     mount.appendChild(bar);
   }
@@ -444,10 +453,13 @@ export async function mountNumberLineAuthor(
     { onMove: () => emit() },
   );
 
+  // The strip self-detects theme like the board, so its pills read on dark.
+  const chrome = chromeColors(detectBoardTheme(mount));
+
   // Same shape controls the student sees, so the authored key is defined the
   // same way it's answered. Seeded from the stored correctInterval.
   const controls: IntervalShapeControls | null = isInterval
-    ? createIntervalShapeControls(board, () => emit())
+    ? createIntervalShapeControls(board, () => emit(), chrome)
     : null;
 
   function currentInterval(): StudentInterval {
@@ -474,7 +486,7 @@ export async function mountNumberLineAuthor(
 
   if (isInterval && controls) {
     controls.setFromInterval(cfg.correctInterval);
-    const bar = makeControlBar();
+    const bar = makeControlBar(chrome);
     controls.attach(bar);
     mount.appendChild(bar);
   }

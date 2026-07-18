@@ -149,6 +149,59 @@ export function boardColors(theme: BoardTheme): BoardColors {
     return theme === 'dark' ? BOARD_DARK : BOARD_LIGHT;
 }
 
+// ── 5. Chrome theming (dark mode) ────────────────────────────────────────────
+// The question mounters draw a control strip (shape/style pills) OVER the board
+// as plain DOM styled inline from GK_CHROME — a static LIGHT palette. Once the
+// board self-themes dark, that strip stayed light: a white bar with white-on-
+// (inherited-light) pills that vanish on the dark board. This resolves the strip
+// + pill colors the same way boards do (self-detect at mount, dark overrides
+// only). LIGHT == today's GK_CHROME values, so light is byte-identical.
+export interface ChromeColors {
+    barBg: string; // control strip background over the board
+    barBorder: string; // strip / panel / footer divider (was GK_CHROME.hover)
+    pillBg: string; // inactive pill fill
+    pillBorder: string; // pill border
+    pillText: string; // inactive pill text
+    accent: string; // active pill fill
+    onAccent: string; // active pill text
+    panelBg: string; // floating popover panel over the board
+    footerBg: string; // footer strip over the board
+    muted: string; // hint / muted meta text on the strip
+    shadow: string; // soft popover shadow
+}
+
+const CHROME_LIGHT: ChromeColors = {
+    barBg: GK_CHROME.overlayBar, // rgba(255,255,255,0.88) — today
+    barBorder: GK_CHROME.hover, // #e2e8f0 — today
+    pillBg: GK_CHROME.bg, // #ffffff — today
+    pillBorder: GK_CHROME.border, // #cbd5e1 — today
+    pillText: 'inherit', // today's inactive pill color (inherits editor ink)
+    accent: GK_CHROME.accent, // #2563eb — today
+    onAccent: GK_CHROME.bg, // #ffffff — today's active pill text
+    panelBg: GK_CHROME.overlayPanel, // rgba(255,255,255,0.97) — today
+    footerBg: GK_CHROME.overlayFooter, // rgba(255,255,255,0.9) — today
+    muted: GK_CHROME.muted, // #64748b — today
+    shadow: GK_CHROME.shadowSoft, // rgba(0,0,0,0.08) — today
+};
+
+const CHROME_DARK: ChromeColors = {
+    barBg: 'rgba(30, 41, 59, 0.92)', // slate-800 strip over the slate-900 board
+    barBorder: '#334155', // slate-700
+    pillBg: '#334155', // slate-700 — reads distinct from the strip
+    pillBorder: '#475569', // slate-600
+    pillText: '#e2e8f0', // slate-200 — readable on the dark pill
+    accent: '#2563eb', // blue reads on dark
+    onAccent: '#ffffff',
+    panelBg: 'rgba(30, 41, 59, 0.97)', // slate-800 panel
+    footerBg: 'rgba(30, 41, 59, 0.9)', // slate-800 footer
+    muted: '#94a3b8', // slate-400 — readable muted on dark
+    shadow: 'rgba(0, 0, 0, 0.5)', // deeper soft shadow on dark
+};
+
+export function chromeColors(theme: BoardTheme): ChromeColors {
+    return theme === 'dark' ? CHROME_DARK : CHROME_LIGHT;
+}
+
 /**
  * Resolve a container's computed `color-scheme` (+ the OS preference for the
  * ambiguous cases) to a single board theme. Pure, so it's unit-testable without
