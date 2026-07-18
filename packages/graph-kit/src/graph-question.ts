@@ -1136,6 +1136,15 @@ export async function mountGraphSystemQuestion(
   bar.append(popEl, stripEl);
   mount.appendChild(bar);
 
+  // The strip + popover overlay the JSXGraph board; stop their pointer events from
+  // bubbling to the board's own down/up handlers, so tapping a chip or a control
+  // button (incl. ✕) never also selects/shades the board underneath. Board clicks
+  // land only on the actual plane (click-to-shade) — never on a control.
+  for (const el of [popEl, stripEl]) {
+    el.addEventListener('pointerdown', (e) => e.stopPropagation());
+    el.addEventListener('pointerup', (e) => e.stopPropagation());
+  }
+
   const setStrict = (i: number, v: boolean): void => {
     stricts[i] = v;
     answered = true;
@@ -1198,33 +1207,27 @@ export async function mountGraphSystemQuestion(
       return;
     }
     const i = selectedIndex;
-    const vertical = keys[i]!.boundary.family === 'vertical';
-    const sideA = vertical ? ('left' as const) : ('above' as const);
-    const sideB = vertical ? ('right' as const) : ('below' as const);
     popEl.style.display = 'flex';
     popEl.innerHTML = '';
     const lbl = document.createElement('span');
     lbl.style.cssText = 'display:inline-flex;align-items:center;gap:0.3rem;font-size:0.75rem;font-weight:600;';
     lbl.innerHTML =
       `<span style="width:0.7rem;height:0.7rem;border-radius:2px;background:${board.boundaryColor(i)}"></span>Line ${i + 1}`;
+    // Only the line-STYLE toggle lives here now — the shaded side is chosen by
+    // clicking the graph (below), so Shade above/below buttons were removed.
     const solidBtn = pill('Solid', () => setStrict(i, false));
     const dottedBtn = pill('Dotted', () => setStrict(i, true));
-    const sideABtn = pill(vertical ? 'Shade left' : 'Shade above', () => setSide(i, sideA));
-    const sideBBtn = pill(vertical ? 'Shade right' : 'Shade below', () => setSide(i, sideB));
     setPillActive(solidBtn, stricts[i] === false);
     setPillActive(dottedBtn, stricts[i] === true);
-    setPillActive(sideABtn, sides[i] === sideA);
-    setPillActive(sideBBtn, sides[i] === sideB);
     const doneBtn = pill('✕', deselect);
     doneBtn.setAttribute('aria-label', 'Close controls');
-    for (const b of [solidBtn, dottedBtn, sideABtn, sideBBtn, doneBtn]) b.disabled = locked;
-    // A quiet hint for the click-to-shade gesture — shown only while a boundary is
-    // selected (the moment it's available), on its own line so it never crowds the
-    // buttons. Vertical boundaries shade left/right, so word it generically.
+    for (const b of [solidBtn, dottedBtn, doneBtn]) b.disabled = locked;
+    // The primary shading instruction (click-to-shade is the only shade path now),
+    // on its own line below the style toggle.
     const hint = document.createElement('span');
-    hint.textContent = 'Tip: click the graph on the side you want shaded.';
+    hint.textContent = 'Click the graph on the side you want to shade.';
     hint.style.cssText = 'flex-basis:100%;font-size:0.7rem;color:#64748b;margin-top:0.1rem;';
-    popEl.append(lbl, solidBtn, dottedBtn, sideABtn, sideBBtn, doneBtn, hint);
+    popEl.append(lbl, solidBtn, dottedBtn, doneBtn, hint);
   }
 
   renderStrip();
