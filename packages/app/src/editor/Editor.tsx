@@ -267,7 +267,7 @@ export default function Editor({
         // React portals, so nested fields anywhere in the doc report here.
         <FieldFocusContext.Provider value={reportFieldFocus}>
         <div
-            className="rounded-lg border border-slate-200 bg-white shadow-sm"
+            className="rounded-lg border border-line bg-canvas shadow-sm"
             style={typographyVars}
         >
             <Toolbar editor={editor} fieldEditor={fieldEditor} />

@@ -144,14 +144,14 @@ export default function DefinitionEditPopover({
         <div
             ref={refs.setFloating}
             style={floatingStyles}
-            className="z-50 w-80 rounded-lg border border-slate-200 bg-white p-3 shadow-xl"
+            className="z-50 w-80 rounded-lg border border-line bg-canvas p-3 shadow-xl"
             role="dialog"
             aria-label="Edit definition"
         >
-            <label className="mb-1 block text-xs font-medium text-slate-500">
+            <label className="mb-1 block text-xs font-medium text-muted">
                 Definition
             </label>
-            <div className="rounded border border-slate-300 px-2 py-1 text-sm focus-within:border-slate-500">
+            <div className="rounded border border-line-strong px-2 py-1 text-sm focus-within:border-muted">
                 <InlineRichTextEditor
                     value={initialContent}
                     onChange={(nodes) => {
@@ -168,7 +168,7 @@ export default function DefinitionEditPopover({
                         <img
                             src={image.src}
                             alt={image.alt}
-                            className="h-14 w-14 flex-none rounded border border-slate-200 object-cover"
+                            className="h-14 w-14 flex-none rounded border border-line object-cover"
                         />
                         <div className="min-w-0 flex-1">
                             <input
@@ -181,12 +181,12 @@ export default function DefinitionEditPopover({
                                     })
                                 }
                                 placeholder="Describe the image (alt text)"
-                                className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:outline-none"
+                                className="w-full rounded border border-line-strong px-2 py-1 text-xs focus:border-muted focus:outline-none"
                             />
                             <button
                                 type="button"
                                 onClick={() => setImageBoth(null)}
-                                className="mt-1 text-xs font-medium text-red-600 hover:text-red-700"
+                                className="mt-1 text-xs font-medium text-danger hover:text-danger-strong"
                             >
                                 Remove image
                             </button>
@@ -205,12 +205,12 @@ export default function DefinitionEditPopover({
                                 }
                             }}
                             placeholder="Image URL"
-                            className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:outline-none"
+                            className="min-w-0 flex-1 rounded border border-line-strong px-2 py-1 text-xs focus:border-muted focus:outline-none"
                         />
                         <button
                             type="button"
                             onClick={addUrl}
-                            className="flex-none rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                            className="flex-none rounded border border-line-strong px-2 py-1 text-xs font-medium text-strong hover:bg-surface-2"
                         >
                             Add
                         </button>
@@ -219,7 +219,7 @@ export default function DefinitionEditPopover({
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={uploading}
-                                className="flex-none rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                                className="flex-none rounded border border-line-strong px-2 py-1 text-xs font-medium text-strong hover:bg-surface-2 disabled:opacity-50"
                             >
                                 {uploading ? 'Uploading…' : 'Upload'}
                             </button>
@@ -238,25 +238,25 @@ export default function DefinitionEditPopover({
                     </div>
                 )}
                 {uploadError && (
-                    <p className="mt-1 text-xs text-red-600">{uploadError}</p>
+                    <p className="mt-1 text-xs text-danger">{uploadError}</p>
                 )}
             </div>
 
-            <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2">
+            <div className="mt-2 flex items-center justify-between border-t border-line pt-2">
                 <button
                     type="button"
                     onClick={() => {
                         onRemove();
                         onClose();
                     }}
-                    className="text-xs font-medium text-red-600 hover:text-red-700"
+                    className="text-xs font-medium text-danger hover:text-danger-strong"
                 >
                     Remove definition
                 </button>
                 <button
                     type="button"
                     onClick={commitAndClose}
-                    className="rounded bg-slate-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-700"
+                    className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-primary-hover"
                 >
                     Done
                 </button>

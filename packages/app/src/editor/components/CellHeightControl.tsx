@@ -67,7 +67,7 @@ export default function CellHeightControl({ editor }: CellHeightControlProps) {
                 type="button"
                 disabled
                 title="Put the cursor in a column cell to reserve work space"
-                className="min-w-[32px] cursor-not-allowed rounded bg-white px-2 py-1 text-sm font-medium text-slate-300"
+                className="min-w-[32px] cursor-not-allowed rounded bg-canvas px-2 py-1 text-sm font-medium text-disabled"
             >
                 Cell height
             </button>
@@ -102,15 +102,15 @@ export default function CellHeightControl({ editor }: CellHeightControlProps) {
                 aria-expanded={open}
                 className={`min-w-[32px] rounded px-2 py-1 text-sm font-medium transition ${
                     minHeight !== null
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-white text-slate-700 hover:bg-slate-200'
+                        ? 'bg-primary text-white'
+                        : 'bg-canvas text-strong hover:bg-surface-3'
                 }`}
             >
                 Cell: {minHeight === null ? 'auto' : `${minHeight}rem`} ▾
             </button>
 
             {open ? (
-                <div className="absolute left-0 top-full z-20 mt-1 w-48 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+                <div className="absolute left-0 top-full z-20 mt-1 w-48 rounded-md border border-line bg-canvas p-2 shadow-lg">
                     <div className="flex flex-wrap gap-1">
                         <button
                             type="button"
@@ -118,8 +118,8 @@ export default function CellHeightControl({ editor }: CellHeightControlProps) {
                             onClick={() => apply(null)}
                             className={`rounded border px-2 py-1 text-xs font-medium transition ${
                                 minHeight === null
-                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                                    ? 'border-[color:var(--ed-accent-alt)] bg-[color:var(--ed-accent-alt-bg)] text-[color:var(--ed-accent-alt-strong)]'
+                                    : 'border-line-strong bg-canvas text-strong hover:bg-surface-2'
                             }`}
                         >
                             Auto
@@ -134,8 +134,8 @@ export default function CellHeightControl({ editor }: CellHeightControlProps) {
                                     onClick={() => apply(rem)}
                                     className={`rounded border px-2 py-1 text-xs font-medium transition ${
                                         active
-                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                            : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                                            ? 'border-[color:var(--ed-accent-alt)] bg-[color:var(--ed-accent-alt-bg)] text-[color:var(--ed-accent-alt-strong)]'
+                                            : 'border-line-strong bg-canvas text-strong hover:bg-surface-2'
                                     }`}
                                 >
                                     {rem}rem
@@ -160,11 +160,11 @@ export default function CellHeightControl({ editor }: CellHeightControlProps) {
                                     commitDraft();
                                 }
                             }}
-                            className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-20 rounded-md border border-line-strong px-2 py-1 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                         />
-                        <span className="text-xs text-slate-500">rem</span>
+                        <span className="text-xs text-muted">rem</span>
                     </div>
-                    <p className="mt-2 text-[11px] leading-snug text-slate-500">
+                    <p className="mt-2 text-[11px] leading-snug text-muted">
                         Reserved write-in space on paper. The cell still grows
                         if its content is taller.
                     </p>

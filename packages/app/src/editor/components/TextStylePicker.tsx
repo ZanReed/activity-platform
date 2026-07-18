@@ -126,8 +126,8 @@ export default function TextStylePicker({
                 aria-expanded={open}
                 className={`min-w-[7.5rem] rounded px-2 py-1 text-left text-sm font-medium transition ${
                     disabled
-                        ? 'cursor-not-allowed bg-white text-slate-300'
-                        : 'bg-white text-slate-700 hover:bg-slate-200'
+                        ? 'cursor-not-allowed bg-canvas text-disabled'
+                        : 'bg-canvas text-strong hover:bg-surface-3'
                 }`}
             >
                 {current?.title ?? 'Text'} ▾
@@ -138,7 +138,7 @@ export default function TextStylePicker({
                     role="menu"
                     aria-label="Text style"
                     onKeyDown={onMenuKeyDown}
-                    className="absolute left-0 top-full z-20 mt-1 w-48 rounded-md border border-slate-200 bg-white p-1 shadow-lg"
+                    className="absolute left-0 top-full z-20 mt-1 w-48 rounded-md border border-line bg-canvas p-1 shadow-lg"
                 >
                     {styleItems.map((item, i) => {
                         const isCurrent = item === current;
@@ -154,14 +154,14 @@ export default function TextStylePicker({
                                 onClick={() => pick(item)}
                                 className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition focus:outline-none ${
                                     isCurrent
-                                        ? 'bg-slate-100 text-slate-900'
-                                        : 'text-slate-700 hover:bg-slate-50 focus:bg-slate-50'
+                                        ? 'bg-surface-2 text-ink'
+                                        : 'text-strong hover:bg-surface focus:bg-surface'
                                 }`}
                             >
                                 <StylePreview title={item.title} />
                                 <span className="flex-1">{item.title}</span>
                                 {isCurrent ? (
-                                    <span aria-hidden="true" className="text-slate-400">
+                                    <span aria-hidden="true" className="text-faint">
                                         ✓
                                     </span>
                                 ) : null}
@@ -185,10 +185,10 @@ function StylePreview({ title }: { title: string }) {
         case 'Heading 3':
             return <span aria-hidden="true" className="w-6 text-xs font-bold">H3</span>;
         case 'Bullet list':
-            return <span aria-hidden="true" className="w-6 text-slate-500">•</span>;
+            return <span aria-hidden="true" className="w-6 text-muted">•</span>;
         case 'Numbered list':
-            return <span aria-hidden="true" className="w-6 text-slate-500">1.</span>;
+            return <span aria-hidden="true" className="w-6 text-muted">1.</span>;
         default:
-            return <span aria-hidden="true" className="w-6 text-slate-500">¶</span>;
+            return <span aria-hidden="true" className="w-6 text-muted">¶</span>;
     }
 }

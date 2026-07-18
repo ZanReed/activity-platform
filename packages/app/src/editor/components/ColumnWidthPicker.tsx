@@ -86,7 +86,7 @@ export default function ColumnWidthPicker({ editor }: ColumnWidthPickerProps) {
                         ? 'This column count has a single (even) layout'
                         : 'Select a columns block to change its layout'
                 }
-                className="min-w-[32px] cursor-not-allowed rounded bg-white px-2 py-1 text-sm font-medium text-slate-300"
+                className="min-w-[32px] cursor-not-allowed rounded bg-canvas px-2 py-1 text-sm font-medium text-disabled"
             >
                 {inColumns ? `Width: ${PRESET_SHORT[info.preset]}` : 'Width'}
             </button>
@@ -111,8 +111,8 @@ export default function ColumnWidthPicker({ editor }: ColumnWidthPickerProps) {
                 aria-expanded={open}
                 className={`min-w-[32px] rounded px-2 py-1 text-sm font-medium transition ${
                     current !== 'even'
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-white text-slate-700 hover:bg-slate-200'
+                        ? 'bg-primary text-white'
+                        : 'bg-canvas text-strong hover:bg-surface-3'
                 }`}
             >
                 Width: {PRESET_SHORT[current]} ▾
@@ -121,7 +121,7 @@ export default function ColumnWidthPicker({ editor }: ColumnWidthPickerProps) {
             {open ? (
                 <div
                     role="menu"
-                    className="absolute left-0 top-full z-20 mt-1 w-44 rounded-md border border-slate-200 bg-white p-1 shadow-lg"
+                    className="absolute left-0 top-full z-20 mt-1 w-44 rounded-md border border-line bg-canvas p-1 shadow-lg"
                 >
                     {options.map((preset) => {
                         const isCurrent = preset === current;
@@ -134,8 +134,8 @@ export default function ColumnWidthPicker({ editor }: ColumnWidthPickerProps) {
                                 onClick={() => apply(preset)}
                                 className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
                                     isCurrent
-                                        ? 'bg-slate-100 text-slate-900'
-                                        : 'text-slate-700 hover:bg-slate-50'
+                                        ? 'bg-surface-2 text-ink'
+                                        : 'text-strong hover:bg-surface'
                                 }`}
                             >
                                 <PresetThumbnail count={count} preset={preset} />
@@ -143,7 +143,7 @@ export default function ColumnWidthPicker({ editor }: ColumnWidthPickerProps) {
                                     {PRESET_LABEL[preset]}
                                 </span>
                                 {isCurrent ? (
-                                    <span aria-hidden="true" className="text-slate-400">
+                                    <span aria-hidden="true" className="text-faint">
                                         ✓
                                     </span>
                                 ) : null}
@@ -179,7 +179,7 @@ function PresetThumbnail({
                         key={i}
                         style={{ flexGrow: w ?? 1 }}
                         className={`rounded-[1px] ${
-                            emphasised ? 'bg-indigo-500' : 'bg-slate-300'
+                            emphasised ? 'bg-[color:var(--ed-accent-alt)]' : 'bg-line-strong'
                         }`}
                     />
                 );

@@ -223,8 +223,8 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                 aria-expanded={open}
                 className={`min-w-[32px] rounded px-2 py-1 text-sm font-medium transition ${
                     open
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-white text-slate-700 hover:bg-slate-200'
+                        ? 'bg-primary text-white'
+                        : 'bg-canvas text-strong hover:bg-surface-3'
                 }`}
             >
                 + Insert ▾
@@ -234,14 +234,14 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                 <div
                     role="dialog"
                     aria-label="Insert a block"
-                    className="absolute left-0 top-full z-20 mt-1 w-72 rounded-md border border-slate-200 bg-white shadow-lg"
+                    className="absolute left-0 top-full z-20 mt-1 w-72 rounded-md border border-line bg-canvas shadow-lg"
                 >
                     {/* Filter field — autofocused; combobox over the list below. */}
-                    <div className="border-b border-slate-100 p-1.5">
-                        <div className="flex items-center gap-1.5 rounded bg-slate-100 px-2">
+                    <div className="border-b border-line p-1.5">
+                        <div className="flex items-center gap-1.5 rounded bg-surface-2 px-2">
                             <Search
                                 size={14}
-                                className="shrink-0 text-slate-400"
+                                className="shrink-0 text-faint"
                                 aria-hidden="true"
                             />
                             <input
@@ -258,7 +258,7 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                                         ? `insert-item-${activeIndex}`
                                         : undefined
                                 }
-                                className="w-full bg-transparent py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                                className="w-full bg-transparent py-1.5 text-sm text-strong placeholder:text-faint focus:outline-none"
                             />
                         </div>
                     </div>
@@ -270,7 +270,7 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                         className="max-h-80 overflow-y-auto p-1"
                     >
                         {flat.length === 0 ? (
-                            <div className="px-2 py-3 text-center text-sm text-slate-400">
+                            <div className="px-2 py-3 text-center text-sm text-faint">
                                 No blocks match “{query.trim()}”
                             </div>
                         ) : (
@@ -278,7 +278,7 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                                 <div key={group}>
                                     <div
                                         aria-hidden="true"
-                                        className="px-2 pb-0.5 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 first:pt-1"
+                                        className="px-2 pb-0.5 pt-2 text-[11px] font-semibold uppercase tracking-wide text-faint first:pt-1"
                                     >
                                         {group}
                                     </div>
@@ -293,7 +293,7 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                                             {key ? (
                                                 <div
                                                     aria-hidden="true"
-                                                    className="px-2 pb-0.5 pt-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-300"
+                                                    className="px-2 pb-0.5 pt-1.5 text-[10px] font-medium uppercase tracking-wide text-disabled"
                                                 >
                                                     {key}
                                                 </div>
@@ -335,10 +335,10 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                                                         }
                                                         className={`flex w-full items-start gap-2.5 rounded px-2 py-1.5 text-left transition ${
                                                             !enabled
-                                                                ? 'cursor-not-allowed text-slate-300'
+                                                                ? 'cursor-not-allowed text-disabled'
                                                                 : active
-                                                                  ? 'bg-slate-100 text-slate-700'
-                                                                  : 'text-slate-700'
+                                                                  ? 'bg-surface-2 text-strong'
+                                                                  : 'text-strong'
                                                         }`}
                                                     >
                                                         {Icon ? (
@@ -346,8 +346,8 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                                                                 size={16}
                                                                 className={`mt-0.5 shrink-0 ${
                                                                     enabled
-                                                                        ? 'text-slate-500'
-                                                                        : 'text-slate-300'
+                                                                        ? 'text-muted'
+                                                                        : 'text-disabled'
                                                                 }`}
                                                                 aria-hidden="true"
                                                             />
@@ -359,8 +359,8 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                                                             <span
                                                                 className={`block text-xs ${
                                                                     enabled
-                                                                        ? 'text-slate-500'
-                                                                        : 'text-slate-300'
+                                                                        ? 'text-muted'
+                                                                        : 'text-disabled'
                                                                 }`}
                                                             >
                                                                 {

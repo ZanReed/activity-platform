@@ -132,7 +132,7 @@ export default function ReferencePanelEditor({
     });
 
     return (
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="rounded-lg border border-line bg-canvas shadow-sm">
             <Toolbar editor={editor} variant="reference" />
             <div className="p-6">
                 <DragHandle editor={editor} nested={columnsNestedDragOptions}>

@@ -138,6 +138,20 @@ RANK, not by mechanically flipping the shade number. The token NAMES stay (the
 muted text sits across the whole elevation ladder (canvas/surface/surface-2).
 Re-verify AA for muted against each dark surface, not just one.
 
+### D6 — Editor `.tsx` literal sweep — **RULED: full sweep (slice 2)**
+Surfaced during slice-2 verification: fix 6 swept `routes/` + `components/` but
+**not `editor/`**. ~134 raw Tailwind literals (`bg-white` ×19, `border-slate-200`
+×13, `text-slate-700` ×15, …) across 9 editor `.tsx` files left the editor
+*shell* (canvas card, toolbar, popovers, insert menu, control widgets)
+theme-blind — dark page + WHITE editor card. The NodeViews were already clean
+(0 literals; they use `--ed-*`). Ruled: value-identity sweep all 134 to semantic
+utilities now (same method as fix 6). Editor-only accents with no `@theme` role
+(indigo `--ed-accent-alt`) route via arbitrary-value utilities
+(`bg-[color:var(--ed-accent-alt)]`) so slice 2's editor.css dark block drives
+them. `bg-slate-900 text-white` active buttons → `bg-primary` (white-text-safe
+in dark); the 5 `text-white` stay intentional. Verified: typecheck + 653 app
+tests green, editor card renders dark on `/playground`, no console errors.
+
 ### D5 — Accent desaturation — **RULED: locked**
 **Brighten + slightly desaturate accents in dark.**
 `accent` blue-500 → ~blue-400 (`#60a5fa`); status `-600` text shades (success
@@ -199,9 +213,12 @@ new checks:
 
 ## Slicing (chrome + editor)
 
-1. **`@theme` dark block** (shared roles) + light-regression canary green.
+1. **`@theme` dark block** (shared roles) + light-regression canary green. **DONE
+   (`d1c2443`).** Verified on Home: light 0-diff, dark roles re-point, no errors.
 2. **`editor.css` dark block** (editor-local tokens: accent-bg, indigo/teal/red,
-   focus-ring, scrims, overlays).
+   focus-ring, scrims, overlays, the `--ed-ink` command bar inverting to an
+   elevated/lighter surface) **+ the D6 editor `.tsx` literal sweep** (134
+   literals → semantic utilities). **DONE.** Verified on `/playground`.
 3. **Trigger**: media query (slice 1 gets this for free) + explicit toggle with
    localStorage + pre-paint FOUC guard (if D2 = both).
 4. **Dark-contrast harness** + AA re-verification across the ladder.

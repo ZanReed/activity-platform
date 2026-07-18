@@ -65,7 +65,7 @@ export default function Toolbar({
         // corner clipping the card's removed overflow-hidden provided.
         // `editor-toolbar` is the stable hook the popovers' outside-click
         // handlers allowlist (formatting a popover field mustn't close it).
-        <div className="editor-toolbar sticky top-0 z-30 flex flex-wrap gap-1 rounded-t-lg border-b border-slate-200 bg-slate-50 p-2">
+        <div className="editor-toolbar sticky top-0 z-30 flex flex-wrap gap-1 rounded-t-lg border-b border-line bg-surface p-2">
             {/* Block styles are main-document transforms — disabled while a
                 nested field has focus (a hint can't become a heading). */}
             <TextStylePicker editor={editor} disabled={inField} />
@@ -266,10 +266,10 @@ function ToolbarButton({
             title={title}
             className={`min-w-[32px] rounded px-2 py-1 text-sm font-medium transition ${
                 disabled
-                    ? 'cursor-not-allowed bg-white text-slate-300'
+                    ? 'cursor-not-allowed bg-canvas text-disabled'
                     : active
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-white text-slate-700 hover:bg-slate-200'
+                      ? 'bg-primary text-white'
+                      : 'bg-canvas text-strong hover:bg-surface-3'
             }`}
         >
             {children}
@@ -278,5 +278,5 @@ function ToolbarButton({
 }
 
 function Divider() {
-    return <div className="mx-1 w-px self-stretch bg-slate-300" />;
+    return <div className="mx-1 w-px self-stretch bg-line-strong" />;
 }
