@@ -133,7 +133,7 @@ function NumberLineAuthorBoard({
         <div
             ref={hostRef}
             contentEditable={false}
-            style={{ position: 'relative', height: '6rem', border: '1px solid var(--ed-border)', borderRadius: 6, background: '#fff', ...figureSizingStyle(sizing?.width ?? null, sizing?.align ?? null) }}
+            style={{ position: 'relative', height: '6rem', border: '1px solid var(--ed-border)', borderRadius: 6, background: 'var(--ed-canvas)', ...figureSizingStyle(sizing?.width ?? null, sizing?.align ?? null) }}
         />
     );
 }

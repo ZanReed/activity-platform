@@ -27,6 +27,9 @@ import {
     GRID,
     CURSOR_BG,
     OPEN_FILL,
+    boardColors,
+    detectBoardTheme,
+    type BoardTheme,
 } from './graph-colors.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -42,6 +45,40 @@ const DOT_R = 6;
 
 // AXIS_COLOR / LABEL_COLOR / INK / ANSWER_COLOR imported from graph-colors.js.
 const CURSOR_COLOR = ANSWER_FILL; // "your answer" light purple
+
+// Structural colors resolved per theme (docs/design/graph-kit-board-dark.md):
+// light keeps the graph-colors roles (today's look, value-identical); dark swaps
+// to the dark board palette. Content colors (ANSWER, CURSOR_COLOR/FILL) are
+// theme-independent. The board BACKGROUND is owned by the host surface.
+interface StructuralColors {
+  axis: string;
+  label: string;
+  ink: string;
+  grid: string;
+  cursorBg: string;
+  openFill: string;
+}
+function structuralColors(theme: BoardTheme): StructuralColors {
+  if (theme === 'dark') {
+    const d = boardColors('dark');
+    return {
+      axis: d.axis,
+      label: d.label,
+      ink: d.ink,
+      grid: d.grid,
+      cursorBg: d.grid, // a subtle dark band for the cursor highlight
+      openFill: d.openFill,
+    };
+  }
+  return {
+    axis: AXIS_COLOR,
+    label: LABEL_COLOR,
+    ink: INK,
+    grid: GRID,
+    cursorBg: CURSOR_BG,
+    openFill: OPEN_FILL,
+  };
+}
 
 export interface DataPlotBoardConfig {
   min: number;
@@ -85,6 +122,7 @@ export function createDataPlotBoard(
   config: DataPlotBoardConfig,
   hooks: DataPlotBoardHooks = {},
 ): DataPlotBoardController {
+  const sc = structuralColors(detectBoardTheme(container));
   const min = config.min;
   const max = config.max > min ? config.max : min + 10;
   const step = config.tickStep > 0 ? config.tickStep : 1;
@@ -142,7 +180,7 @@ export function createDataPlotBoard(
         y1: AXIS_Y,
         x2: WIDTH - MARGIN + 8,
         y2: AXIS_Y,
-        stroke: AXIS_COLOR,
+        stroke: sc.axis,
         'stroke-width': 1.5,
       }),
     );
@@ -159,7 +197,7 @@ export function createDataPlotBoard(
           y1: AXIS_Y - half,
           x2: x,
           y2: AXIS_Y + half,
-          stroke: AXIS_COLOR,
+          stroke: sc.axis,
           'stroke-width': isLabeled ? 1.5 : 1,
         }),
       );
@@ -168,7 +206,7 @@ export function createDataPlotBoard(
           x,
           y: AXIS_Y + TICK + 14,
           'text-anchor': 'middle',
-          fill: LABEL_COLOR,
+          fill: sc.label,
           'font-size': 12,
           'font-family': 'inherit',
         });
@@ -194,7 +232,7 @@ export function createDataPlotBoard(
             cy: AXIS_Y - DOT_R - k * spacing,
             r: DOT_R,
             fill: ANSWER_COLOR,
-            stroke: INK,
+            stroke: sc.ink,
             'stroke-width': 1.5,
           }),
         );
@@ -386,11 +424,12 @@ function drawAxis(
   svg: SVGSVGElement,
   config: { min: number; max: number; tickStep: number; minorTicksPerStep: number },
   px: (v: number) => number,
+  sc: StructuralColors,
 ): void {
   svg.appendChild(
     el('line', {
       x1: MARGIN - 8, y1: AXIS_Y, x2: WIDTH - MARGIN + 8, y2: AXIS_Y,
-      stroke: AXIS_COLOR, 'stroke-width': 1.5,
+      stroke: sc.axis, 'stroke-width': 1.5,
     }),
   );
   const step = config.tickStep > 0 ? config.tickStep : 1;
@@ -400,9 +439,9 @@ function drawAxis(
     const x = px(v);
     const labeled = Math.abs(Math.round((v - config.min) / step) * step - (v - config.min)) < 1e-9;
     const half = labeled ? TICK : MINOR_TICK;
-    svg.appendChild(el('line', { x1: x, y1: AXIS_Y - half, x2: x, y2: AXIS_Y + half, stroke: AXIS_COLOR, 'stroke-width': labeled ? 1.5 : 1 }));
+    svg.appendChild(el('line', { x1: x, y1: AXIS_Y - half, x2: x, y2: AXIS_Y + half, stroke: sc.axis, 'stroke-width': labeled ? 1.5 : 1 }));
     if (labeled) {
-      const t = el('text', { x, y: AXIS_Y + TICK + 14, 'text-anchor': 'middle', fill: LABEL_COLOR, 'font-size': 12, 'font-family': 'inherit' });
+      const t = el('text', { x, y: AXIS_Y + TICK + 14, 'text-anchor': 'middle', fill: sc.label, 'font-size': 12, 'font-family': 'inherit' });
       t.textContent = Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000);
       svg.appendChild(t);
     }
@@ -436,6 +475,7 @@ export function createHistogramBoard(
   data: number[],
   hooks: DataPlotBoardHooks = {},
 ): HistogramBoardController {
+  const sc = structuralColors(detectBoardTheme(container));
   const min = config.min;
   const max = config.max > min ? config.max : min + 10;
   const width = config.binWidth && config.binWidth > 0 ? config.binWidth : (config.tickStep > 0 ? config.tickStep : 1);
@@ -462,12 +502,12 @@ export function createHistogramBoard(
   // y gridlines + labels (0..cap) on the left margin.
   for (let f = 0; f <= cap; f++) {
     const y = AXIS_Y - f * unitH;
-    svg.appendChild(el('line', { x1: MARGIN - 4, y1: y, x2: WIDTH - MARGIN, y2: y, stroke: GRID, 'stroke-width': f === 0 ? 0 : 1 }));
-    const t = el('text', { x: MARGIN - 8, y: y + 4, 'text-anchor': 'end', fill: LABEL_COLOR, 'font-size': 10, 'font-family': 'inherit' });
+    svg.appendChild(el('line', { x1: MARGIN - 4, y1: y, x2: WIDTH - MARGIN, y2: y, stroke: sc.grid, 'stroke-width': f === 0 ? 0 : 1 }));
+    const t = el('text', { x: MARGIN - 8, y: y + 4, 'text-anchor': 'end', fill: sc.label, 'font-size': 10, 'font-family': 'inherit' });
     t.textContent = String(f);
     svg.appendChild(t);
   }
-  drawAxis(svg, config, px);
+  drawAxis(svg, config, px, sc);
   svg.appendChild(cursorLayer);
   svg.appendChild(barsLayer);
 
@@ -478,11 +518,11 @@ export function createHistogramBoard(
       const left = px(e.x0);
       const right = px(e.x1);
       if (interactive && i === active) {
-        cursorLayer.appendChild(el('rect', { x: left, y: TOP_PAD, width: Math.max(0, right - left), height: AXIS_Y - TOP_PAD, fill: CURSOR_BG }));
+        cursorLayer.appendChild(el('rect', { x: left, y: TOP_PAD, width: Math.max(0, right - left), height: AXIS_Y - TOP_PAD, fill: sc.cursorBg }));
       }
       const f = bins[i]!;
       if (f > 0) {
-        barsLayer.appendChild(el('rect', { x: left, y: AXIS_Y - f * unitH, width: Math.max(0, right - left), height: f * unitH, fill: FILL, stroke: INK, 'stroke-width': 1.5 }));
+        barsLayer.appendChild(el('rect', { x: left, y: AXIS_Y - f * unitH, width: Math.max(0, right - left), height: f * unitH, fill: FILL, stroke: sc.ink, 'stroke-width': 1.5 }));
       }
     });
   }
@@ -566,6 +606,7 @@ export function createBoxplotBoard(
   config: DataPlotBoardConfig,
   hooks: DataPlotBoardHooks = {},
 ): BoxplotBoardController {
+  const sc = structuralColors(detectBoardTheme(container));
   const min = config.min;
   const max = config.max > min ? config.max : min + 10;
   const span = max - min;
@@ -588,7 +629,7 @@ export function createBoxplotBoard(
 
   const svg = makeSvg(container);
   const boxLayer = el('g', {});
-  drawAxis(svg, config, px);
+  drawAxis(svg, config, px, sc);
   svg.appendChild(boxLayer);
 
   // Keep h[i] within its neighbors so the box is always well-formed.
@@ -602,7 +643,7 @@ export function createBoxplotBoard(
   function redraw(): void {
     boxLayer.textContent = '';
     const [x0, xq1, xmed, xq3, x4] = h.map(px) as [number, number, number, number, number];
-    const g = `stroke="${INK}" stroke-width="2"`;
+    const g = `stroke="${sc.ink}" stroke-width="2"`;
     boxLayer.innerHTML =
       `<line x1="${x0}" y1="${cy}" x2="${xq1}" y2="${cy}" ${g}/>` +
       `<line x1="${xq3}" y1="${cy}" x2="${x4}" y2="${cy}" ${g}/>` +
@@ -614,7 +655,7 @@ export function createBoxplotBoard(
     h.forEach((v, i) => {
       const c = el('circle', {
         cx: px(v), cy, r: i === active ? 8 : 6,
-        fill: ANSWER_COLOR, stroke: OPEN_FILL, 'stroke-width': 2,
+        fill: ANSWER_COLOR, stroke: sc.openFill, 'stroke-width': 2,
       });
       boxLayer.appendChild(c);
     });

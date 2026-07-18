@@ -18,7 +18,8 @@ import {
     ANSWER as ANSWER_COLOR,
     AXIS as AXIS_COLOR,
     LABEL,
-    OPEN_FILL,
+    boardColors,
+    detectBoardTheme,
 } from './graph-colors.js';
 
 const HANDLE_SIZE = 6;
@@ -88,6 +89,15 @@ export function createNumberLineBoard(
   if (!container.id) container.id = `nl-board-${(boardSeq += 1)}`;
   const callerLabel = container.getAttribute('aria-label');
 
+  // Dark mode (docs/design/graph-kit-board-dark.md): the number line's own axis
+  // + labels are graph-colors roles (not JSXGraph defaults), so swap them to the
+  // dark structural palette when dark is self-detected; light keeps the roles.
+  const theme = detectBoardTheme(container);
+  const dark = theme === 'dark';
+  const axisColor = dark ? boardColors('dark').axis : AXIS_COLOR;
+  const labelColor = dark ? boardColors('dark').label : LABEL;
+  const openFill = boardColors(theme).openFill;
+
   const span = config.max - config.min;
   const pad = span * 0.06;
   // boundingbox is [xMin, yMax, xMax, yMin]. A short band around y=0 leaves room
@@ -118,7 +128,7 @@ export function createNumberLineBoard(
   // The number-line axis at y = 0: ticks, labels, and an arrowhead each end (the
   // line continues past the window). JSXGraph's axis owns tick spacing + labels.
   const axis = board.create('axis', [[0, 0], [1, 0]], {
-    strokeColor: AXIS_COLOR,
+    strokeColor: axisColor,
     strokeWidth: 1.5,
     firstArrow: { size: 6 },
     lastArrow: { size: 6 },
@@ -129,8 +139,8 @@ export function createNumberLineBoard(
       minorTicks: config.minorTicksPerStep,
       majorHeight: 14,
       minorHeight: 8,
-      strokeColor: AXIS_COLOR,
-      label: { offset: [0, -14], anchorX: 'middle', fontSize: 12, strokeColor: LABEL },
+      strokeColor: axisColor,
+      label: { offset: [0, -14], anchorX: 'middle', fontSize: 12, strokeColor: labelColor },
     },
     highlight: false,
     fixed: true,
@@ -221,7 +231,7 @@ export function createNumberLineBoard(
     const styleFor = (state: IntervalEndState): Record<string, unknown> => {
       if (state === 'unbounded') return { visible: false };
       return state === 'open'
-        ? { visible: true, fillColor: OPEN_FILL, highlightFillColor: OPEN_FILL }
+        ? { visible: true, fillColor: openFill, highlightFillColor: openFill }
         : { visible: true, fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR };
     };
     handles[li]!.setAttribute(styleFor(leftState));

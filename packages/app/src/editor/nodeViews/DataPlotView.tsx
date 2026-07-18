@@ -201,7 +201,7 @@ export default function DataPlotView({
 
                 <div
                     contentEditable={false}
-                    style={{ border: '1px solid var(--ed-border)', borderRadius: 6, background: '#fff', padding: '0.4rem', maxWidth: '34rem', ...figureSizingStyle(sizing.width, sizing.align) }}
+                    style={{ border: '1px solid var(--ed-border)', borderRadius: 6, background: 'var(--ed-canvas)', padding: '0.4rem', maxWidth: '34rem', ...figureSizingStyle(sizing.width, sizing.align) }}
                     dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
                 {!preview && interaction.type === 'build_boxplot' && data.length > 0 && (() => {
