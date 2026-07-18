@@ -29,8 +29,10 @@ import {
     FIT as FIT_COLOR,
     ANSWER as ANSWER_COLOR,
     SHADE_FILL_OPACITY,
-    OPEN_FILL,
     SYSTEM_BOUNDARY_COLORS,
+    boardColors,
+    detectBoardTheme,
+    type BoardTheme,
 } from './graph-colors.js';
 // Re-exported for board.js deep importers (public surface unchanged).
 export { SYSTEM_BOUNDARY_COLORS };
@@ -101,7 +103,43 @@ let boardSeq = 0;
 
 const DEFAULT_BB: [number, number, number, number] = [-10, 10, 10, -10];
 
-export function createBoard(container: HTMLElement): BoardController {
+// Themeable JSXGraph handles: axes + grid elements expose setAttribute; each
+// axis carries defaultTicks whose `label.strokeColor` is the tick-number color.
+interface JxgThemeable {
+  setAttribute(attrs: Record<string, unknown>): void;
+  defaultTicks?: { setAttribute(attrs: Record<string, unknown>): void };
+}
+
+// Dark mode (docs/design/graph-kit-board-dark.md): recolor the board's
+// STRUCTURAL svg (grid, axes, tick labels) to the dark palette. Light is a
+// deliberate no-op — JSXGraph's defaults already ARE the light values, so we
+// never touch them and light stays pixel-identical. Content (curves/answers)
+// is theme-independent and stays. The board BACKGROUND is owned by the host
+// surface (the editor canvas / published .graph-canvas), not here.
+function applyBoardTheme(board: JxgBoard, theme: BoardTheme): void {
+  if (theme !== 'dark') return;
+  const c = boardColors('dark');
+  const b = board as unknown as {
+    defaultAxes?: { x?: JxgThemeable; y?: JxgThemeable };
+    grids?: JxgThemeable[];
+    update(): void;
+  };
+  for (const ax of [b.defaultAxes?.x, b.defaultAxes?.y]) {
+    if (!ax) continue;
+    ax.setAttribute({ strokeColor: c.axis });
+    ax.defaultTicks?.setAttribute({
+      strokeColor: c.axis,
+      label: { strokeColor: c.label },
+    });
+  }
+  b.grids?.forEach((g) => g.setAttribute({ strokeColor: c.grid }));
+  b.update();
+}
+
+export function createBoard(
+  container: HTMLElement,
+  forceTheme?: BoardTheme,
+): BoardController {
   // JSXGraph identifies the board by the container's id.
   if (!container.id) container.id = `gk-board-${(boardSeq += 1)}`;
 
@@ -142,6 +180,10 @@ export function createBoard(container: HTMLElement): BoardController {
     pan: { enabled: true, needShift: false, needTwoFingers: false },
     zoom: { wheel: true, needShift: false, min: 0.001, max: 1000 },
   } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
+
+  // The calculator opts out (passes 'light') so its board stays a light unit;
+  // everything else self-detects from the container's color-scheme.
+  applyBoardTheme(board, forceTheme ?? detectBoardTheme(container));
 
   // aria-live readout of the visible window, updated as the view changes.
   const live = document.createElement('div');
@@ -664,6 +706,10 @@ export function createPointAnswerBoard(
     keyboard: { enabled: false },
   } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
 
+  const theme = detectBoardTheme(container);
+  const openFill = boardColors(theme).openFill;
+  applyBoardTheme(board, theme);
+
   // Re-apply the focusable application semantics JSXGraph just overwrote. The
   // arrow keys reach our keydown handler because the container is tabbable; the
   // aria-label is the renderer's rich instruction (or a sensible default when
@@ -913,7 +959,7 @@ export function createPointAnswerBoard(
             : 'closed';
       (p as unknown as { setAttribute(a: Record<string, unknown>): void }).setAttribute(
         style === 'open'
-          ? { fillColor: OPEN_FILL, highlightFillColor: OPEN_FILL }
+          ? { fillColor: openFill, highlightFillColor: openFill }
           : { fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR },
       );
     });
@@ -1131,7 +1177,7 @@ export function createPointAnswerBoard(
           // the keyboard active-handle cue — so styles only touch fill.)
           style === null || style === 'closed'
             ? { fillColor: ANSWER_COLOR, highlightFillColor: ANSWER_COLOR }
-            : { fillColor: OPEN_FILL, highlightFillColor: OPEN_FILL },
+            : { fillColor: openFill, highlightFillColor: openFill },
         );
       });
       board.update();
@@ -1232,6 +1278,9 @@ export function createSystemAnswerBoard(
     zoom: { wheel: false, needShift: true, min: 1, max: 1 },
     keyboard: { enabled: false },
   } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
+
+  const theme = detectBoardTheme(container);
+  applyBoardTheme(board, theme);
 
   container.setAttribute('role', 'application');
   container.setAttribute('tabindex', '0');
@@ -1635,12 +1684,16 @@ function modelToFn(
 
 // Open (hollow) vs closed (filled) endpoint dot attributes, in the drawable's
 // color (open = colored rim + white fill; closed = solid colored).
-function dotAttrs(style: string | undefined, color: string): Record<string, unknown> {
+function dotAttrs(
+  style: string | undefined,
+  color: string,
+  openFill: string,
+): Record<string, unknown> {
   return {
     fixed: true,
     size: 3,
     strokeColor: color,
-    fillColor: style === 'open' ? OPEN_FILL : color,
+    fillColor: style === 'open' ? openFill : color,
     highlight: false,
     showInfobox: false,
     withLabel: false,
@@ -1673,6 +1726,10 @@ export function createDisplayBoard(
     keyboard: { enabled: false },
   } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
 
+  const theme = detectBoardTheme(container);
+  const openFill = boardColors(theme).openFill;
+  applyBoardTheme(board, theme);
+
   // A static figure: announce it as an image, not an application. (JSXGraph sets
   // role="region" on init; we override to img and drop any tabindex so it isn't
   // a focus stop with nothing to operate.)
@@ -1701,7 +1758,7 @@ export function createDisplayBoard(
       case 'point': {
         if (!isPair(d.at)) break;
         board.create('point', d.at, {
-          ...dotAttrs(d.style, color),
+          ...dotAttrs(d.style, color, openFill),
           name: d.label ?? '',
           withLabel: Boolean(d.label),
         });
@@ -1739,10 +1796,10 @@ export function createDisplayBoard(
         board.create('functiongraph', [fn, lo, hi], attrs);
         // Domain endpoint dots (open/closed) where a bound was authored.
         if (typeof d.domain?.min === 'number') {
-          board.create('point', [d.domain.min, fn(d.domain.min)], dotAttrs(d.domain.minStyle, color));
+          board.create('point', [d.domain.min, fn(d.domain.min)], dotAttrs(d.domain.minStyle, color, openFill));
         }
         if (typeof d.domain?.max === 'number') {
-          board.create('point', [d.domain.max, fn(d.domain.max)], dotAttrs(d.domain.maxStyle, color));
+          board.create('point', [d.domain.max, fn(d.domain.max)], dotAttrs(d.domain.maxStyle, color, openFill));
         }
         // Continuation arrows only on UNBOUNDED ends — an authored bound got
         // its dot above; dot + arrow on the same end would contradict.
@@ -1794,7 +1851,7 @@ export function createDisplayBoard(
           highlight: false,
           fixed: true,
         });
-        board.create('point', d.from, dotAttrs(d.fromStyle, color));
+        board.create('point', d.from, dotAttrs(d.fromStyle, color, openFill));
         if (d.arrows !== false) {
           const s = rayArrowSpec(d.from, d.through, config);
           if (s) drawArrow(s, color);
@@ -1810,8 +1867,8 @@ export function createDisplayBoard(
           fixed: true,
         });
         if (d.endpoints) {
-          board.create('point', d.from, dotAttrs(d.endpoints[0], color));
-          board.create('point', d.to, dotAttrs(d.endpoints[1], color));
+          board.create('point', d.from, dotAttrs(d.endpoints[0], color, openFill));
+          board.create('point', d.to, dotAttrs(d.endpoints[1], color, openFill));
         }
         break;
       }

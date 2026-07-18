@@ -349,7 +349,7 @@ function GraphAuthorBoard({
                 aspectRatio: '1 / 1',
                 border: '1px solid var(--ed-border-strong)',
                 borderRadius: 6,
-                background: '#fff',
+                background: 'var(--ed-canvas)',
                 touchAction: 'none',
                 // Preview the authored width; the board re-fits via JSXGraph resize.
                 ...figureSizingStyle(sizing?.width ?? null, sizing?.align ?? null),
@@ -1327,7 +1327,7 @@ function DisplayPreviewBoard({
                 aspectRatio: '1 / 1',
                 border: '1px solid var(--ed-border-strong)',
                 borderRadius: 6,
-                background: '#fff',
+                background: 'var(--ed-canvas)',
                 ...figureSizingStyle(sizing?.width ?? null, sizing?.align ?? null),
             }}
         />

@@ -693,7 +693,10 @@ export function mountCalculator(
     import('./board.js')
       .then(({ createBoard }) => {
         graphEl.textContent = '';
-        boardController = createBoard(graphEl);
+        // The calculator chrome is light-only for now (calculator-dark is a
+        // later slice), so force the board light too — a dark board in a light
+        // panel would be inconsistent.
+        boardController = createBoard(graphEl, 'light');
         if (pendingPlots) {
           boardController.setPlots(pendingPlots); // rows typed before load
           pendingPlots = null;
