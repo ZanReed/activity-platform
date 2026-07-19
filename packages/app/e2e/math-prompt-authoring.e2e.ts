@@ -115,6 +115,32 @@ test('the Answer settings popover configures the gap grading (trimmed to math)',
         ]);
 });
 
+test('the ⌘⇧B / Ctrl⇧B shortcut inserts a gap while editing', async ({
+    page,
+}) => {
+    await insertMathBlock(page, 'x = 2 + ');
+    await page.locator('.math-block-input').click(); // ensure the field is focused
+    await page.keyboard.press('ControlOrMeta+Shift+B');
+    await expect
+        .poll(async () => (await readMathBlockAttrs(page)).latex)
+        .toContain('\\placeholder');
+});
+
+test('an unanswered gap shows the incomplete signifier, cleared once answered', async ({
+    page,
+}) => {
+    await insertMathBlock(page, 'x = \\placeholder[g]{}'); // a gap with no answer
+    await expect(page.locator('.math-gap-incomplete')).toHaveText(
+        'Blank needs an answer',
+    );
+    await page.evaluate(() => {
+        const mf: any = document.querySelector('.math-block-input');
+        mf.setPromptValue('g', '2a', {});
+        mf.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await expect(page.locator('.math-gap-incomplete')).toHaveCount(0);
+});
+
 test('a plain equation stays prompt-free (byte-identity)', async ({ page }) => {
     await insertMathBlock(page, 'x = 4');
     await page.evaluate(() => {

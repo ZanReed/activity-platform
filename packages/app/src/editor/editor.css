@@ -332,8 +332,20 @@
    shown below the field while editing a math block (MA-DR1/DR2). */
 .math-edit-chrome {
     display: flex;
+    align-items: center;
     gap: 0.5rem;
     margin-top: 0.4rem;
+}
+/* Signifier (MA-DR4): a gap with no answer yet is an incomplete question. */
+.math-gap-incomplete {
+    font-size: 0.75rem;
+    color: var(--ed-accent-strong);
+}
+/* Tint MathLive's in-field placeholders so a gap reads as a distinct blank
+   (empty renders as a box, an answered gap shows the answer). */
+.math-block-input,
+.math-inline-input {
+    --placeholder-color: var(--ed-accent);
 }
 .math-insert-blank,
 .math-gap-settings {

@@ -198,6 +198,15 @@ export function useMathFieldEditing<E extends HTMLElement>(
         };
     }, [editing]);
 
+    // Insert an empty gap at the caret. Shared by the "+ Blank" button and the
+    // ⌘⇧B / Ctrl⇧B shortcut, so define it once here.
+    const insertPrompt = (): void => {
+        const mf = mathFieldRef.current;
+        if (!mf) return;
+        mf.insert('\\placeholder[' + mintPromptId() + ']{}');
+        mf.focus();
+    };
+
     return {
         latex,
         editing,
@@ -205,12 +214,7 @@ export function useMathFieldEditing<E extends HTMLElement>(
         mathFieldRef,
         prompts: (node.attrs.prompts as MathPrompt[] | undefined) ?? [],
         keepEditingRef,
-        insertPrompt: () => {
-            const mf = mathFieldRef.current;
-            if (!mf) return;
-            mf.insert('\\placeholder[' + mintPromptId() + ']{}');
-            mf.focus();
-        },
+        insertPrompt,
         onWrapperClick: () => {
             if (editing) return;
             openModeRef.current = 'end';
@@ -250,6 +254,16 @@ export function useMathFieldEditing<E extends HTMLElement>(
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     exitToDoc('after');
+                    return;
+                }
+                // ⌘⇧B / Ctrl⇧B: insert a fill-in blank at the caret (MA-DR1).
+                if (
+                    (e.metaKey || e.ctrlKey) &&
+                    e.shiftKey &&
+                    (e.key === 'b' || e.key === 'B')
+                ) {
+                    e.preventDefault();
+                    insertPrompt();
                 }
             },
         },
