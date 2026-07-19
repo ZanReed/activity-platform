@@ -423,9 +423,18 @@ NO UNRESOLVED DECISIONS
 
 Both touch multiple block types; run `/plan-eng-review` before code.
 
-1. **Blank discoverability.** A visual signifier that you can make a blank —
-   e.g. a small `+`-with-underline affordance, or trailing ghost text like
-   "type `__` to add a blank." (Author's fill_in_blank issue #1.)
+1. **Blank discoverability.** A visual signifier that you can make a blank.
+   **RESOLVED via `/plan-design-review` 2026-07-19 → HYBRID (kept lean):**
+   (1) inline ghost text via the existing fill-in-blank `PromptField`
+   ("Type the sentence…  ( `__` makes a blank )" when empty; trailing
+   "type `__` to make a blank" when there's text but no blank; fades once a
+   blank exists), plus (2) one "Insert blank" action on the existing
+   `BlockQuickBarHost` for the mouse/keyboard path. Rejected the standalone
+   `+`-underline in-text widget: its `+` collides with the gutter insert-`+`,
+   its underline mimics a real blank, and it adds a new a11y surface — off-idiom
+   for an editor whose one "what can I put here" language is faint ghost text
+   (the `/` hint, PromptField). Full spec in [math-blanks.md](math-blanks.md) T7.
+   (Author's fill_in_blank issue #1.)
 2. **Math blank inside a math expression** — a numeric blank mid-equation, esp.
    for worked examples. **Already designed** in
    [math-blanks.md](math-blanks.md) (7 decisions await kickoff); this is the
