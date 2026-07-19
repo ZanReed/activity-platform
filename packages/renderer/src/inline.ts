@@ -332,6 +332,21 @@ function renderBlank(
         ' inputmode="decimal"'
       : '';
 
+  // Math blanks (Model B) dispatch to the runtime's 'math' strategy, which calls
+  // the held sync mathEquivalent reference (populated when the lazy graph-kit
+  // loads — see the runtime's math-blank preloader). The answer key rides the
+  // same data-blank-answers list; equivalence/tolerance tune the comparison.
+  const mathAttrs =
+    node.answerType === 'math'
+      ? ' data-blank-strategy="math"' +
+        (node.equivalence
+          ? ' data-blank-equivalence="' + attr(node.equivalence) + '"'
+          : '') +
+        (node.tolerance !== undefined
+          ? ' data-blank-tolerance="' + node.tolerance + '"'
+          : '')
+      : '';
+
   return (
     '<span class="blank-wrapper">' +
     '<input type="text"' +
@@ -339,6 +354,7 @@ function renderBlank(
     ' data-blank-id="' + attr(node.id) + '"' +
     ' data-blank-answers="' + attr(acceptable) + '"' +
     numericAttrs +
+    mathAttrs +
     groupAttr +
     ' aria-label="' + attr(label) + '"' +
     ' style="--blank-width:' + width + 'ch"' +

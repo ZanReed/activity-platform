@@ -16,7 +16,12 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-import { evaluateAnswer, parseNumericValue } from '../strategies.js';
+import {
+    evaluateAnswer,
+    parseNumericValue,
+    setMathEquivalent,
+    isMathReady,
+} from '../strategies.js';
 import { computeScore } from '../submission.js';
 
 /** Build a minimal Element-like fake with the given data-* attributes. */
@@ -205,6 +210,57 @@ describe('evaluateAnswer — unknown-strategy fallback', () => {
         } finally {
             warnSpy.mockRestore();
         }
+    });
+});
+
+// Math strategy (Model B) — exercises the dispatch + attribute reading + the
+// held-reference tri-state. The ACTUAL equivalence math is graph-kit's job
+// (tested in math-equivalent.test.ts); here we inject a fake grader so the test
+// is about the runtime seam, not the sampling. The not-ready case runs FIRST
+// because the held reference is module state that setMathEquivalent then arms.
+describe('evaluateAnswer — math strategy (held sync reference)', () => {
+    it('returns null (unscored) before the kit is loaded', () => {
+        expect(isMathReady()).toBe(false);
+        const blank = fakeBlank({
+            'data-blank-strategy': 'math',
+            'data-blank-answers': '2a',
+        });
+        expect(evaluateAnswer(blank, 'a+a')).toBeNull();
+    });
+
+    it('grades via the held reference once set, honoring the equivalence mode', () => {
+        // Fake grader: value-mode treats a+a == 2a; exact-form needs a literal match.
+        setMathEquivalent((student, key, opts) => {
+            if (opts.mode === 'exact-form') return student === key;
+            const norm = (s: string) => (s === 'a+a' ? '2a' : s);
+            return norm(student) === norm(key);
+        });
+        expect(isMathReady()).toBe(true);
+
+        const valueBlank = fakeBlank({
+            'data-blank-strategy': 'math',
+            'data-blank-answers': '2a',
+        });
+        expect(evaluateAnswer(valueBlank, 'a+a')).toBe(true);
+        expect(evaluateAnswer(valueBlank, '3a')).toBe(false);
+
+        const exactBlank = fakeBlank({
+            'data-blank-strategy': 'math',
+            'data-blank-equivalence': 'exact-form',
+            'data-blank-answers': '2a',
+        });
+        expect(evaluateAnswer(exactBlank, 'a+a')).toBe(false);
+        expect(evaluateAnswer(exactBlank, '2a')).toBe(true);
+    });
+
+    it('tries each pipe-separated key expression', () => {
+        setMathEquivalent((student, key) => student === key);
+        const blank = fakeBlank({
+            'data-blank-strategy': 'math',
+            'data-blank-answers': 'x+1|1+x',
+        });
+        expect(evaluateAnswer(blank, '1+x')).toBe(true);
+        expect(evaluateAnswer(blank, 'x+2')).toBe(false);
     });
 });
 

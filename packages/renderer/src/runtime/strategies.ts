@@ -21,6 +21,51 @@
 
 type Strategy = (input: Element, typed: string) => boolean;
 
+// ---- math (Model B math blanks) — the HELD SYNC REFERENCE -------------------
+// A 'math' blank is graded by expression equivalence (2a ≡ a+a), which needs the
+// math.js engine that lives ONLY in the lazy graph-kit. We do NOT make scoring
+// async (the whole check/gather path is sync and re-scores at submit — see
+// docs/design/math-blanks.md A1). Instead the runtime eager-loads the kit and
+// hands the pure, synchronous mathEquivalent function here via setMathEquivalent.
+// Until it arrives, a math blank scores `null` (unscored) rather than guessing.
+export type MathEquivalentFn = (
+  student: string,
+  key: string,
+  opts: { mode?: 'value' | 'exact-form'; tolerance?: number },
+) => boolean;
+
+let mathEquivalentRef: MathEquivalentFn | null = null;
+
+/** Called by the math-blank preloader once the graph-kit resolves. */
+export function setMathEquivalent(fn: MathEquivalentFn): void {
+  mathEquivalentRef = fn;
+}
+
+/** Whether the kit's mathEquivalent is loaded (so 'math' blanks can be graded). */
+export function isMathReady(): boolean {
+  return mathEquivalentRef !== null;
+}
+
+// Tri-state: true/false once the kit is loaded, `null` while it isn't (unscored,
+// not wrong — the value still submits; see A2). Not part of the sync `strategies`
+// record because it needs the held reference and the null case.
+function scoreMath(input: Element, typed: string): boolean | null {
+  if (!mathEquivalentRef) return null; // kit not loaded yet — unscored
+  const mode =
+    input.getAttribute('data-blank-equivalence') === 'exact-form'
+      ? 'exact-form'
+      : 'value';
+  const tolRaw = input.getAttribute('data-blank-tolerance');
+  const tolParsed = tolRaw === null ? 0 : Number(tolRaw);
+  const tolerance = isFinite(tolParsed) && tolParsed >= 0 ? tolParsed : 0;
+  const answers = (input.getAttribute('data-blank-answers') || '').split('|');
+  for (let i = 0; i < answers.length; i++) {
+    const key = answers[i];
+    if (key && mathEquivalentRef(typed, key, { mode, tolerance })) return true;
+  }
+  return false;
+}
+
 // `list` is named separately so the fallback path can reference it directly,
 // without an index lookup into `strategies` that TypeScript (correctly, under
 // noUncheckedIndexedAccess) types as possibly undefined.
@@ -107,8 +152,13 @@ const strategies: Record<string, Strategy> = {
   numeric: numericStrategy,
 };
 
-export function evaluateAnswer(input: Element, typed: string): boolean {
+export function evaluateAnswer(input: Element, typed: string): boolean | null {
   const name = input.getAttribute('data-blank-strategy') || 'list';
+  // 'math' is tri-state (null while the kit loads); handled before the sync
+  // strategy record.
+  if (name === 'math') {
+    return scoreMath(input, typed);
+  }
   const strategy = strategies[name];
   if (strategy) {
     return strategy(input, typed);

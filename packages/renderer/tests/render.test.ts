@@ -292,6 +292,36 @@ describe('Inline rendering', () => {
     expect(body).toContain('data-blank-strategy="numeric"');
     expect(body).not.toContain('data-blank-tolerance');
   });
+
+  it('math blanks carry the math strategy + equivalence + tolerance (Model B)', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('2a');
+    blank.answerType = 'math';
+    blank.equivalence = 'exact-form';
+    blank.tolerance = 0.001;
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('data-blank-strategy="math"');
+    expect(body).toContain('data-blank-equivalence="exact-form"');
+    expect(body).toContain('data-blank-tolerance="0.001"');
+    // Math blanks are text input (not numeric) — no decimal inputmode.
+    expect(body).not.toContain('inputmode="decimal"');
+  });
+
+  it('math blanks default equivalence to absent (= value)', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('2a');
+    blank.answerType = 'math';
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
+    const body = renderBody(doc);
+    expect(body).toContain('data-blank-strategy="math"');
+    expect(body).not.toContain('data-blank-equivalence');
+    expect(body).not.toContain('data-blank-tolerance');
+  });
   it('gives each blank a positional aria-label', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const fill = createFillInBlankBlock();

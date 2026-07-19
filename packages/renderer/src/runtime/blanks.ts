@@ -38,7 +38,7 @@
 import type { AnswerFeedback } from './config.js';
 import type { BlankRef, Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
-import { evaluateAnswer } from './strategies.js';
+import { evaluateAnswer, isMathReady } from './strategies.js';
 
 /** Trim leading/trailing whitespace. Shared so the rule has one home. */
 export function trimValue(value: string): string {
@@ -54,6 +54,21 @@ export function scoreBlank(ref: BlankRef, typed: string): boolean | null {
   const trimmed = trimValue(typed);
   if (trimmed === '') return null;
   return evaluateAnswer(ref.input, trimmed);
+}
+
+/**
+ * A 'math' blank that the student HAS answered but the kit couldn't grade yet
+ * (not loaded). Its result is null despite a non-empty value. The section tally
+ * excludes these from the denominator (math-blanks.md A2) so a transient
+ * kit-load delay doesn't render as a miss. An EMPTY math blank is a normal
+ * omission (counts in the total) and is not one of these.
+ */
+export function isUnscoredMathAnswer(ref: BlankRef): boolean {
+  return (
+    !isMathReady() &&
+    ref.input.getAttribute('data-blank-strategy') === 'math' &&
+    trimValue(ref.input.value) !== ''
+  );
 }
 
 /**
@@ -162,7 +177,10 @@ export function scoreGroup(
     const value = values[vi];
     const slot = refsList[sj];
     if (!value || !slot) return false; // empty value never matches
-    return evaluateAnswer(slot.input, value);
+    // evaluateAnswer is tri-state (a 'math' slot returns null while the kit
+    // loads); a null never fills a slot. Math-in-a-group is an edge case, but
+    // this keeps the matcher total and crash-free.
+    return evaluateAnswer(slot.input, value) === true;
   };
 
   const augment = (vi: number, seen: boolean[]): boolean => {
