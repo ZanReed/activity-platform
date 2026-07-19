@@ -132,6 +132,9 @@ export interface BlankInfo {
     // this slot's answer alone (which may differ from the student's correct
     // entry). null when the blank is ungrouped.
     groupAnswers: string[] | null;
+    // The blank's answer mode ('math' → render answers as math in the dashboard).
+    // Absent (undefined) = 'text', the common case.
+    answerType?: 'text' | 'numeric' | 'math';
     sectionId: string;
     sectionTitle: string | null;
 }
@@ -721,6 +724,7 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                     ),
                     blankOrder,
                     groupAnswers: groupAnswersByIndex[blankOrder] ?? null,
+                    answerType: node.answerType,
                     sectionId: section.id,
                     sectionTitle: section.title ?? null,
                 });

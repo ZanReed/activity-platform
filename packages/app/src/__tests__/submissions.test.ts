@@ -243,6 +243,53 @@ describe('buildActivityIndex', () => {
         expect(b.problemId).toBe(U(200));
         // These two blanks are ungrouped (no interchangeableWithPrevious).
         expect(b.groupAnswers).toBeNull();
+        // Plain-text blanks carry no answerType (undefined = text).
+        expect(b.answerType).toBeUndefined();
+    });
+
+    it('carries answerType through to the index (math blanks → dashboard renders math)', () => {
+        const withMath: ActivityDocument = parseDoc({
+            schemaVersion: 1,
+            meta: {
+                title: 'Math blank',
+                course: 'Algebra II',
+                submissionMode: 'free',
+                revisionMode: 'free',
+                gradingMode: 'auto',
+                activityType: 'worksheet',
+                answerFeedback: 'on_check',
+                skills: [],
+            },
+            sections: [
+                {
+                    id: U(120),
+                    isCheckpoint: true,
+                    blocks: [
+                        {
+                            id: U(220),
+                            type: 'fill_in_blank',
+                            number: 1,
+                            hasConfidenceRating: false,
+                            skills: [],
+                            content: [
+                                { type: 'text', text: 'Denominator: ', marks: [] },
+                                {
+                                    type: 'blank',
+                                    id: U(320),
+                                    answer: '2a',
+                                    acceptableAnswers: [],
+                                    answerType: 'math',
+                                    equivalence: 'exact-form',
+                                    tolerance: 0.001,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(withMath);
+        expect(idx.blanks.get(U(320))!.answerType).toBe('math');
     });
 
     it('attaches the group answer set to order-independent blanks', () => {

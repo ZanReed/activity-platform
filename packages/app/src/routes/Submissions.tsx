@@ -52,6 +52,25 @@ import {
     type GradesBySubmission,
 } from '../lib/grades';
 import { GradingProvider, GradingPanel, useGrading } from './grading';
+import { convertLatexToMarkup } from 'mathlive';
+import { formulaToLatex } from '../lib/mathFormula';
+
+// A math-answer blank's answer (student or key) rendered as math. The stored
+// value is plain ascii-math (what the student typed / the teacher authored, e.g.
+// "2a", "a/b", "sqrt(x)"); convert ascii → LaTeX → static markup. Falls back to
+// the raw string if it doesn't parse, so a dashboard cell never breaks.
+function MathAnswer({ value }: { value: string }): ReactNode {
+    const html = useMemo(() => {
+        try {
+            const markup = convertLatexToMarkup(formulaToLatex(value));
+            return markup && markup.length > 0 ? markup : null;
+        } catch {
+            return null;
+        }
+    }, [value]);
+    if (!html) return value;
+    return <span dangerouslySetInnerHTML={{ __html: html }} />;
+}
 
 const UUID_RE =
 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -194,6 +213,7 @@ interface BlankDetail {
     canonicalAnswer: string | null; // null when no longer in the activity
     groupAnswers: string[] | null; // set when the blank is in an any-order group
     order: number;
+    isMath: boolean; // math-answer blank → render answers as rendered math
     row: DetailBlankRow;
 }
 
@@ -330,6 +350,7 @@ function SubmissionDetail({
             canonicalAnswer: info?.canonicalAnswer ?? null,
             groupAnswers: info?.groupAnswers ?? null,
             order: info?.blankOrder ?? 0,
+            isMath: info?.answerType === 'math',
             row: { blankId, ...resp },
         });
     }
@@ -376,10 +397,20 @@ function SubmissionDetail({
                     <td className="py-1 pr-3 font-mono text-muted">
                     {b.groupAnswers
                         ? `${b.groupAnswers.join(' or ')} (any order)`
-                        : b.canonicalAnswer ?? '—'}
+                        : b.canonicalAnswer
+                          ? b.isMath
+                              ? <MathAnswer value={b.canonicalAnswer} />
+                              : b.canonicalAnswer
+                          : '—'}
                     </td>
                     <td className="py-1 pr-3 font-mono text-ink">
-                    {b.row.answer || (
+                    {b.row.answer ? (
+                        b.isMath ? (
+                            <MathAnswer value={b.row.answer} />
+                        ) : (
+                            b.row.answer
+                        )
+                    ) : (
                         <span className="text-muted">(blank)</span>
                     )}
                     </td>
