@@ -21,7 +21,7 @@
 import type { RuntimeConfig } from './config.js';
 import type { Refs } from './refs.js';
 import type { RuntimeState } from './state.js';
-import { scoreBlanksInScope } from './blanks.js';
+import { scoreBlanksInScope, isUnscoredMathAnswer } from './blanks.js';
 import { scoreMcBlocks } from './mcs.js';
 import { scoreMatchBlocks } from './matches.js';
 import { scoreOrderingBlocks } from './orderings.js';
@@ -57,8 +57,19 @@ export function checkSection(
     // this scope never splits one. Then tally correct from the written results.
     scoreBlanksInScope(state, refs, sectionRef.blankIds);
     let correct = 0;
+    // Blank denominator starts at the full count; a 'math' blank the kit couldn't
+    // grade yet (answered but not loaded) is excluded from it so a transient
+    // kit-load delay doesn't render as a miss (math-blanks.md A2). An empty math
+    // blank stays a normal omission (counted, not excluded).
+    let blankTotal = sectionRef.blankIds.length;
     for (const blankId of sectionRef.blankIds) {
-        if (state.blanks[blankId]?.result === true) correct += 1;
+        const blankState = state.blanks[blankId];
+        if (blankState?.result === true) {
+            correct += 1;
+        } else if (blankState?.result === null) {
+            const ref = refs.blanks.get(blankId);
+            if (ref && isUnscoredMathAnswer(ref)) blankTotal -= 1;
+        }
     }
 
     // Multiple-choice blocks — each is one scorable unit, all-or-nothing.
@@ -108,7 +119,7 @@ export function checkSection(
     sectionState.checked = true;
     sectionState.score = correct;
     sectionState.total =
-        sectionRef.blankIds.length +
+        blankTotal +
         sectionRef.mcBlockIds.length +
         matchPairTotal +
         sectionRef.orderingBlockIds.length +

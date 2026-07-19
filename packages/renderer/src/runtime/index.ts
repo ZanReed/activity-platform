@@ -30,6 +30,7 @@ import {
   applyStoredState,
 } from './storage.js';
 import { wireBlanks, wireHints, wireMistakes, wirePopover } from './blanks.js';
+import { preloadMathBlanks } from './math-blanks.js';
 import { wireMcChoices } from './mcs.js';
 import { wireMatching } from './matches.js';
 import { wireOrdering } from './orderings.js';
@@ -80,6 +81,10 @@ function bootstrap(): void {
   };
 
   wireBlanks(config.answerFeedback, state, refs, onUpdate);
+  // Eager-load the kit that grades 'math' answer blanks (fire-and-forget), so
+  // the sync mathEquivalent reference is armed well before the student checks.
+  // No-op on a page with no math blank.
+  preloadMathBlanks();
   wireMcChoices(state, refs, onUpdate);
   wireMatching(state, refs, onUpdate);
   wireOrdering(state, refs, onUpdate);

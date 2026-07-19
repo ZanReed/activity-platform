@@ -322,6 +322,31 @@ describe('Inline rendering', () => {
     expect(body).not.toContain('data-blank-equivalence');
     expect(body).not.toContain('data-blank-tolerance');
   });
+
+  it('a block with a math blank emits data-blank-kit-src (for the runtime preloader)', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const blank = createBlankToken('2a');
+    blank.answerType = 'math';
+    const fill = createFillInBlankBlock();
+    fill.content = [blank];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
+    const kit = 'https://cdn.example/graph-kit-ABC123.js';
+    const withKit = renderBody(doc, { graphKitUrl: kit });
+    expect(withKit).toContain('data-blank-kit-src="' + kit + '"');
+    // No kit URL available (dev-without-R2 / print) → attribute omitted.
+    expect(renderBody(doc)).not.toContain('data-blank-kit-src');
+  });
+
+  it('a text/numeric-only block does NOT emit data-blank-kit-src even when a kit URL exists', () => {
+    const doc = createEmptyDocument({ title: 'T' });
+    const numeric = createBlankToken('3');
+    numeric.answerType = 'numeric';
+    const fill = createFillInBlankBlock();
+    fill.content = [createBlankToken('plain'), numeric];
+    doc.sections[0]!.rows[0]!.columns[0]!.blocks = [fill];
+    const body = renderBody(doc, { graphKitUrl: 'https://cdn.example/kit.js' });
+    expect(body).not.toContain('data-blank-kit-src');
+  });
   it('gives each blank a positional aria-label', () => {
     const doc = createEmptyDocument({ title: 'T' });
     const fill = createFillInBlankBlock();

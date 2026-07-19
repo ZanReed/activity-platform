@@ -72,6 +72,7 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
       return renderFillInBlank(block, {
         problemNumber: ctx.nextProblemNumber(),
         showAnswers: ctx.showAnswers,
+        graphKitUrl: ctx.graphKitUrl,
       });
     case 'bullet_list':
       return renderBulletList(block);

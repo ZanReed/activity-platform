@@ -14,6 +14,14 @@ export interface FillInBlankRenderContext {
    */
   fadedStep?: boolean;
   stepLabel?: string;
+  /**
+   * The shared graph-kit URL (one kit serves calculator + graphs + math blanks).
+   * When this block contains a 'math' answer blank, it's emitted as
+   * data-blank-kit-src so the runtime's math-blank preloader can lazy-load the
+   * kit and arm the sync mathEquivalent reference. Absent in dev-without-R2 and
+   * the print path — the blank then stays ungraded-but-submittable (A2).
+   */
+  graphKitUrl?: string;
 }
 
 export function renderFillInBlank(
@@ -24,6 +32,17 @@ export function renderFillInBlank(
   // renderFillInBlankContent (not a bare renderInline map) so each blank
   // token is numbered for its positional aria-label.
   const inner = renderFillInBlankContent(block.content, ctx.showAnswers ?? false);
+
+  // Math blanks (Model B) need the graph-kit's mathEquivalent to grade. Emit the
+  // kit URL so the runtime's math-blank preloader can find + lazy-load it — even
+  // on a page with no graph/calculator (which would otherwise expose no kit URL).
+  const hasMathBlank = block.content.some(
+    (n) => n.type === 'blank' && n.answerType === 'math',
+  );
+  const kitSrcAttr =
+    hasMathBlank && ctx.graphKitUrl
+      ? ' data-blank-kit-src="' + attr(ctx.graphKitUrl) + '"'
+      : '';
 
   // Stage 12 step 3: per-block feedback layers (Stage 9a schema additions).
   //
@@ -157,6 +176,7 @@ export function renderFillInBlank(
     ' data-block-id="' + attr(block.id) + '"' +
     ratingAttr +
     skillsAttr +
+    kitSrcAttr +
     workSpaceStyle +
     '>' +
     numberCell +
