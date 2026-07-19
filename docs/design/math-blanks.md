@@ -151,3 +151,96 @@ Synthesized from the findings; each derives from a locked decision. `pnpm test` 
 
 ### Parallelization
 Lane A (Model B core, sequential — shared graph-kit + runtime blank path): T1 → T2 → T3 → T4 → T5 → T6. Lane B (independent): T7 signifier. **Launch A and B in parallel; T8 deploy-prep after A lands.** Model A is a separate future arc, not a lane here.
+
+---
+
+## Model A — eng review resolution (2026-07-19, `/plan-eng-review`)
+
+Status: **DESIGN → ENG-CLEARED (Model A v1), buildable.** Ran `/plan-eng-review` + web research on the math-input tool landscape + a Claude outside-voice pass. Model B's `mathEquivalent` sampling engine is shipped and reused wholesale; this arc adds *rendering + input plumbing only*. The outside voice corrected two real holes (folded below). No code yet.
+
+### Tool research verdict — MathLive is optimal AND already vendored
+- MathLive has a **purpose-built fill-in-the-blank feature**: `<math-field readonly>` + `\placeholder[id]{}` editable regions, with a grading API (`getPrompts` / `getPromptValue` / `setPromptValue` / `getPromptState` / `setPromptState('correct'|'incorrect', locked)`) and an `input` event on gap edits. Recently rearchitected from fragile nested-mathfields into "editable regions of a read-only field" (fixes the placeholder-numerator sizing bug).
+- Every alternative is worse **for this repo**: MathQuill (unmaintained, no native multi-gap prompts), KaTeX/MathJax (render-only), Guppy/Wiris (new heavy dep). MathLive is **already in the kit** (calculator/expression-list) → choosing it is the Layer-1 / boring-by-default call; anything else *adds* a dependency and *loses* the feature. There is no tool that produces this output better.
+- Research shrank two spike costs: **mobile VK** (MathLive ships one — configure pop-on-prompt-focus, not build) and **a11y** (MathLive emits ARIA + math-to-speech + MathML — verify, not build). It surfaced one new cost: **getPromptValue returns LaTeX** but `mathEquivalent` grades **ascii-math** → a LaTeX↔ascii bridge (MathLive ships pure `convertLatexToAsciiMath` / `convertAsciiMathToLatex`; **no Compute Engine needed**).
+
+### Locked decisions
+**MA-D1 — SWAP, not overlay (the crux; corrected by outside voice).** Do NOT overlay a native input inside KaTeX (KaTeX's `renderToString` output is opaque, has no slot, and a *structural* gap — a fraction denominator, the headline `2a` case — cannot hold a positioned native input; two live renderings misalign). Instead mirror the **shipped interactive-graph precedent** ([graph-integration.ts:12-26](../../packages/renderer/src/runtime/graph-integration.ts)): the **renderer emits static KaTeX** with a `\boxed{}` gap (pretty, prints, no-kit, no-CDN); the **kit swaps in an interactive MathLive read-only-with-prompt field** on load, exactly like the static-graph-paper-SVG → JSXGraph-board swap. A **hidden mirror `<input>`** carries value/score/storage in both modes. The no-kit story is **print + load-to-answer** (NOT offline typing) — identical to graphs, and honest. The *principle* stands: capture/score/submit/restore survive kit failure; only the interactive visual needs the kit.
+
+**MA-D2 — Single-gap in v1.** Exactly one `\placeholder` per equation (covers the quadratic-denominator example). N-gap is a schema-compatible fast-follow (`prompts[]` already holds N; lift authoring + reconcile to N later). Proves the novel MathLive-as-input stack against the simplest authoring surface.
+
+**MA-D3 — ascii-math in the mirror input.** MathLive edit → `getPromptValue` (LaTeX) → `convertLatexToAsciiMath` → store **ascii** in the hidden mirror → the **existing Model B `'math'` strategy grades it byte-identically** (zero new grading code). The one conversion (ascii→LaTeX via `convertAsciiMathToLatex`) runs only on the rare hydrate/restore path. Reuses `storage.ts` `values` blob + `BlankState` unchanged.
+
+**MA-D4 — `exact-form` normalized on BOTH sides (corrected by outside voice).** Model B's `equivalence:'exact-form'` is a normalized *string* match; MathLive's ascii flavor differs from an author-typed key, so a naive round-trip false-negatives correct answers. Fix: run the **author key through `convertLatexToAsciiMath` too** (at emit time) so key and student share the exact flavor before compare. `value` equivalence (sampling) was already round-trip-safe.
+
+**MA-D5 — reveal/lock/correct sync via a bridge render-hook (folded from outside voice).** The native-input-as-truth model still needs a **state→MathLive-view** path. The kit bridge exposes `renderMathPrompts(state)` (mirroring [`renderGraphs`](../../packages/renderer/src/runtime/graph-integration.ts)): reveal → `setPromptValue`, check/lock → `setPromptState('correct'|'incorrect', locked)`. MathLive's built-in correct/incorrect rendering gives the red/green for free. Modeled as the existing graph-widget render-seam exception to "render() is the only DOM mutator" — not a loose mutation.
+
+**MA-D6 — Mount in the KIT, thin bridge inline.** Base runtime ships zero MathLive ([RUNTIME.md:955](../../packages/renderer/RUNTIME.md)): the `<math-field>` mount + prompt wiring live in `packages/graph-kit`; a new inline bridge mirrors `graph-integration.ts` (thin half: init-walk gaps, seed mirror inputs, scoring/submit/restore via mirror; heavy half in kit: mount, hydrate, event-wire, `renderMathPrompts`). Latex↔prompts drift (the `drawable-inline-edit-roundtrip-dataloss` reincarnation) resolved by a pure `mathPromptSync.ts` (**latex-as-truth reconcile**, mirroring `drawableFormulaLogic`; single-gap makes v1's reconcile near-trivial).
+
+**MA-D7 — Self-host MathLive fonts on R2.** `calculator.ts:188` points `fontsDirectory` at jsdelivr. Upload MathLive `dist/fonts` to R2 beside the kit; set `MathfieldElement.fontsDirectory` to that path (global — also hardens the calculator). `soundsDirectory` already `null` ([calculator.ts:189](../../packages/graph-kit/src/calculator.ts)).
+
+**MA-D8 — No wire / schema / storage bumps.** Additive optional `prompts[]` on the math node + `\placeholder[id]{}` in `latex` ⇒ no `ActivityDocument.schemaVersion` bump. Reuse the `blanks` map (wire **v9**, **no `ingest` redeploy**). Reuse `BlankState` + the `values` blob (**no `STORAGE_SCHEMA_VERSION` bump**).
+
+**CRITICAL regression pins (IRON RULE — no approval):**
+- A `math_block` / inline math with **zero** prompts re-serializes **byte-identical** (additive-field pin, exactly like Model B's `answerType` pin).
+- Existing text / numeric / Model-B-`math` blanks unchanged.
+
+### NOT in scope (deferred, with rationale)
+- **N-gap per equation** — schema-compatible fast-follow (MA-D2); proves the stack single-gap first.
+- **Native-input-in-KaTeX offline interactivity** — rejected (MA-D1): infeasible for structural gaps; no-kit story is print + load-to-answer per the graph precedent.
+- **Symbolic CAS grading** — Tier B, Compute Engine escape hatch; numeric sampling only (inherited from Model B).
+- **Real-browser published-page e2e for the kit swap** — kit loads from R2, unservable in CI; jsdom (kit-absent + mocked-present) + owner-manual covers it, as Model B did.
+
+### What already exists (reuse, don't rebuild)
+- `mathEquivalent` + the `'math'` strategy + held-sync-reference (`strategies.ts`) — **grading, 100% reused, zero new code.**
+- `renderMath` (KaTeX, server-side) — the static equation render.
+- Native `<input>` blank ref model + `storage.ts` `values` blob + `BlankState` + reveal/lock/confidence + section-tally — reused via the mirror input.
+- `graph-integration.ts` (bridge + static↔interactive swap + kit-absent survival + `renderGraphs` seam) — the **exact structural template** for MA-D1/D5/D6.
+- `drawableFormulaLogic` — the template for `mathPromptSync.ts` (MA-D6).
+- `calculator.ts` MathLive setup (`convertLatexToAsciiMath`/`convertAsciiMathToLatex`, `fontsDirectory`, `soundsDirectory=null`) — the converter + font plumbing.
+- Submissions KaTeX render (Model B Q7) — math-prompt answers render in the dashboard for free.
+
+### Failure modes (per new codepath)
+| Codepath | Realistic failure | Test? | Error handling? | Student sees |
+|---|---|---|---|---|
+| Kit fetch (swap) | blocked CDN / offline | jsdom kit-absent | static KaTeX stays; `\boxed{}` gap | pretty equation, printable box (not a dead field) |
+| L→A on edit | converter returns odd ascii | unit round-trip | `mathEquivalent` false, not throw | graded (possibly wrong), never blocks submit |
+| A→L on hydrate | restore of an un-round-trippable value | jsdom reload | fall back to mirror ascii in field | prior answer preserved as text |
+| `renderMathPrompts` reveal | state→field desync | jsdom reveal/lock | idempotent set from state | correct solution shown, field locked |
+| **CRITICAL:** zero-prompt re-serialize | additive field leaks bytes | unit byte-identity pin | — | (author) no diff on untouched math |
+
+No failure mode is silent-AND-untested-AND-unhandled after the pins land.
+
+### Implementation Tasks — Model A v1 (this arc, when scheduled)
+- [ ] **MA-T1 (P1)** — schema — additive optional `prompts:[{id,answer,equivalence?,tolerance?}]` on `InlineMathNode`/`MathBlock` + `\placeholder[id]{}` latex convention; **byte-identity pin (zero-prompt = identical)**. Files: `packages/schema/src/{inline,blocks/math-block}.ts`. Verify: unit CRITICAL.
+- [ ] **MA-T2 (P1)** — renderer — emit static KaTeX with `\boxed{}` gap + a hidden mirror `<input>` carrying additive `data-math-prompt-id` / `data-blank-strategy="math"` / `data-blank-answers` / `data-blank-equivalence` / `data-blank-tolerance` (additive-only, RUNTIME.md). Files: `packages/renderer/src/blocks/math-block.ts`, `inline.ts`; `pnpm bundle:renderer`. Verify: unit + byte-identity.
+- [ ] **MA-T3 (P1)** — graph-kit (pure) — `convertLatexToAsciiMath`/`convertAsciiMathToLatex` wrappers; author-key normalization for exact-form (MA-D4); `mathPromptSync.reconcile` (latex-as-truth, single-gap). Files: `packages/graph-kit/src`. Verify: unit ★★★ (frac/√/^ round-trip; exact-form key+student same flavor; reconcile marker add/remove).
+- [ ] **MA-T4 (P1)** — graph-kit (mount) — MathLive read-only+`\placeholder` mount; `input`→`getPromptValue`→L2A→mirror; hydrate mirror→A2L→`setPromptValue`; `renderMathPrompts(state)` for reveal/lock/correct (MA-D5). Files: `packages/graph-kit/src`. Verify: via bridge jsdom.
+- [ ] **MA-T5 (P1)** — runtime bridge — new thin `math-prompt-bridge` mirroring `graph-integration.ts` (init-walk gaps, seed mirrors, kit hand-off, scoring/submit/restore reuse); widen `preloadMathBlanks` detector to fire on prompt blocks. Files: `packages/renderer/src/runtime/{math-prompt-bridge,math-blanks,init,refs}.ts`. Verify: jsdom ★★★ (mount-when-kit / kit-absent-still-scores / reveal-lock sync / reload-hydrate).
+- [ ] **MA-T6 (P1)** — kit/deploy — self-host MathLive `dist/fonts` on R2; set `fontsDirectory` to R2 path (MA-D7). Files: kit + `scripts/upload-graph-kit`. Verify: kit loads fonts from R2, no jsdelivr on the page.
+- [ ] **MA-T7 (P2)** — editor — authoring affordance, **design-resolved below** (`/plan-design-review`). Insert-blank **button** in the math field's edit chrome (+ `⌘⇧B`) → MathLive insert-`\placeholder` at cursor; **answer typed directly into the gap (WYSIWYG)**; **reuse the anchored `BlankEditPopover`** (NOT a side panel) on the gap, `answerType` fixed to `math` (radio hidden), trimmed to Equivalence / Tolerance / "also accept" (no Answer field — the box IS the answer); empty-vs-answered gap signifier. Rides `mathPromptSync`. Files: `packages/app/src/editor/{nodeViews,components/BlankEditPopover.tsx,editor.css}`. Verify: e2e ★★ (insert gap, type `2a` in-equation, set equivalence, publish).
+- [ ] **MA-T8 (P2)** — e2e — author→publish→answer `2a`→Check=correct; kit-blocked print/answerability; dashboard math render (reuses Model B Q7). Verify: e2e.
+- [ ] **MA-T9 (P1, author-run)** — deploy prep — `pnpm bundle:renderer` (commit) → `pnpm upload:graph-kit` (fonts + math-prompt mount; commit manifest) **before** `pnpm deploy:publish` (kit-invariant order). NO `ingest` redeploy (wire v9); NO storage bump.
+
+### MA-T7 authoring affordance — design resolution (2026-07-19, `/plan-design-review`)
+Rated 5/10 → resolved to buildable. ~80% assembly of shipped parts (`BlankEditPopover`, `MathBlockView` MathLive field, MathLive `\placeholder`, Model B's ghost-text signifier).
+- **MA-DR1 — Insert affordance:** a button in the math field's **edit chrome** (visible only while the field is being edited), dispatching MathLive's insert-`\placeholder` at the cursor, plus a `⌘⇧B` shortcut as the power path. Obviously-clickable, no hover-to-discover; mirrors how a sentence gets a blank.
+- **MA-DR2 — Answer editor = the shipped `BlankEditPopover`, anchored to the gap** (corrects the eng task's loose "side panel" — consistency with the one blank-authoring pattern teachers know). `answerType` fixed to `math` so the Text/Numeric/Math radio is hidden. Trimmed to Equivalence + Tolerance + "also accept" alternatives.
+- **MA-DR3 — Answer-in-gap (WYSIWYG):** the teacher types the answer directly into the gap in the MathLive field, so `2a` renders as real math and the equation reads complete; the published renderer strips the value (MA-T2) so the student sees an empty box. No redundant Answer field in the popover — the box IS the answer. Mirrors the student-side WYSIWYG on the authoring side.
+- **MA-DR4 — Gap signifier:** empty gap (no answer yet) = **dashed** accent box with a faint "set answer" cue (flags an incomplete question); answered gap = **filled** accent-tinted box showing the value. A gap is always visually distinct from static math. Pure `--ed-` token + CSS on MathLive's placeholder states; no new component.
+
+### Parallelization (Model A)
+| Step | Modules | Depends on |
+|---|---|---|
+| MA-T1 schema | `packages/schema` | — |
+| MA-T2 renderer | `packages/renderer` | MA-T1 |
+| MA-T5 runtime bridge | `packages/renderer/src/runtime` | MA-T1 |
+| MA-T3 converters/sync | `packages/graph-kit` | MA-T1 |
+| MA-T4 kit mount | `packages/graph-kit` | MA-T3 |
+| MA-T6 fonts | `packages/graph-kit` + scripts | — |
+| MA-T7 editor | `packages/app` | MA-T1 |
+| MA-T8 e2e | `packages/app` | T2,T5,T7 |
+
+- **Lane A (renderer/runtime, shared):** MA-T1 → MA-T2 → MA-T5.
+- **Lane B (kit):** MA-T3 → MA-T4; MA-T6 independent.
+- **Lane C (editor):** MA-T7 (after MA-T1).
+- **Order:** MA-T1 first (unblocks all). Then **launch A + B + C in parallel**; MA-T6 anytime in B. Merge; MA-T8; MA-T9 deploy-prep last. Lanes A and B both eventually touch the bridge↔kit typed contract — keep the `runtime-contract` change in one commit to avoid a cross-lane conflict.
