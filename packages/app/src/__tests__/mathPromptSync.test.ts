@@ -14,6 +14,7 @@ import {
   placeholderEntries,
   hasPlaceholders,
   buildMathPrompts,
+  katexRenderableLatex,
 } from '../editor/mathPromptSync';
 
 describe('emptyPlaceholders', () => {
@@ -84,6 +85,30 @@ describe('hasPlaceholders', () => {
   it('detects a gap', () => {
     expect(hasPlaceholders('x=\\placeholder[g]{}')).toBe(true);
     expect(hasPlaceholders('x=4')).toBe(false);
+  });
+});
+
+describe('katexRenderableLatex (editor static render)', () => {
+  it('rewrites a placeholder to a boxed answer (KaTeX can’t render \\placeholder)', () => {
+    expect(katexRenderableLatex('x^2 + \\placeholder[g]{3}')).toBe(
+      'x^2 + \\boxed{3}',
+    );
+  });
+
+  it('rewrites an unanswered gap to an empty box', () => {
+    expect(katexRenderableLatex('\\placeholder[g]{}')).toBe(
+      '\\boxed{\\phantom{00}}',
+    );
+  });
+
+  it('handles a nested-brace answer and multiple gaps', () => {
+    expect(
+      katexRenderableLatex('\\frac{\\placeholder[n]{a+b}}{\\placeholder[d]{2a}}'),
+    ).toBe('\\frac{\\boxed{a+b}}{\\boxed{2a}}');
+  });
+
+  it('leaves plain latex unchanged', () => {
+    expect(katexRenderableLatex('x^2 + 1')).toBe('x^2 + 1');
   });
 });
 

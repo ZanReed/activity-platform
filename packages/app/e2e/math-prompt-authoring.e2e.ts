@@ -141,6 +141,24 @@ test('an unanswered gap shows the incomplete signifier, cleared once answered', 
     await expect(page.locator('.math-gap-incomplete')).toHaveCount(0);
 });
 
+test('a math gap renders as a box, not raw \\placeholder, in the static view', async ({
+    page,
+}) => {
+    await insertMathBlock(page, 'x^2 + \\placeholder[g]{}');
+    await page.evaluate(() => {
+        const mf: any = document.querySelector('.math-block-input');
+        mf.setPromptValue('g', '3', {});
+        mf.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    // Escape exits edit mode → the static KaTeX render shows (KaTeX can't render
+    // \placeholder, so before the fix it showed raw red error text).
+    await page.locator('.math-block-input').press('Escape');
+    const staticRender = page.locator('.math-block-render');
+    await expect(staticRender).toBeVisible();
+    const text = await staticRender.innerText();
+    expect(text).not.toContain('placeholder');
+});
+
 test('a plain equation stays prompt-free (byte-identity)', async ({ page }) => {
     await insertMathBlock(page, 'x = 4');
     await page.evaluate(() => {

@@ -33,6 +33,7 @@ import {
   hasPlaceholders,
   placeholderEntries,
   buildMathPrompts,
+  katexRenderableLatex,
 } from '../mathPromptSync';
 
 // A MathLive-safe unique gap id: alphanumeric only (placeholder ids can't hold
@@ -108,7 +109,10 @@ export function useMathFieldEditing<E extends HTMLElement>(
     // is stable across edit cycles.
     useLayoutEffect(() => {
         if (!renderRef.current) return;
-        katex.render(latex || '\\square', renderRef.current, {
+        // Model A: rewrite `\placeholder[id]{}` gaps to KaTeX-safe boxes — KaTeX
+        // can't render `\placeholder`, so a math block with a gap would otherwise
+        // show raw red error text in its static (non-editing) view.
+        katex.render(katexRenderableLatex(latex) || '\\square', renderRef.current, {
             displayMode,
             throwOnError: false,
         });

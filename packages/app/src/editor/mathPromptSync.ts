@@ -31,6 +31,8 @@ interface PlaceholderSpan {
   openBrace: number;
   /** index of the matching `}` that closes the value. */
   closeBrace: number;
+  /** index of the `\placeholder[` marker start. */
+  start: number;
 }
 
 // Scan latex for `\placeholder[id]{…}` spans with balanced braces. A malformed
@@ -65,6 +67,7 @@ function scanPlaceholders(latex: string): PlaceholderSpan[] {
       value: latex.slice(openBrace + 1, j),
       openBrace,
       closeBrace: j,
+      start,
     });
     i = j + 1;
   }
@@ -111,6 +114,28 @@ export function placeholderEntries(
 /** Whether the latex carries at least one `\placeholder[id]{}` gap. */
 export function hasPlaceholders(latex: string): boolean {
   return scanPlaceholders(latex).length > 0;
+}
+
+/**
+ * KaTeX can't render `\placeholder` (a MathLive command), so the editor's static
+ * (non-editing) math render would show it as a raw red error. Rewrite each
+ * `\placeholder[id]{value}` into a `\boxed{…}` gap — showing the author's answer
+ * in the box, or an empty box for an unanswered gap. Latex with no placeholders
+ * is returned unchanged.
+ */
+export function katexRenderableLatex(latex: string): string {
+  const spans = scanPlaceholders(latex);
+  if (spans.length === 0) return latex;
+  let out = '';
+  let cursor = 0;
+  for (const s of spans) {
+    out += latex.slice(cursor, s.start);
+    const inner = s.value.trim() === '' ? '\\phantom{00}' : s.value;
+    out += '\\boxed{' + inner + '}';
+    cursor = s.closeBrace + 1;
+  }
+  out += latex.slice(cursor);
+  return out;
 }
 
 /**
