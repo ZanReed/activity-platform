@@ -172,10 +172,13 @@ export interface SelectedBlankState {
   mistakeFeedback: MistakeFeedbackPair[] | undefined;
   /** The blank's order-independent grouping flag (a node attr). */
   interchangeableWithPrevious: boolean;
-  /** Answer interpretation mode (a node attr; 'text' is the default). */
-  answerType: 'text' | 'numeric';
-  /** Numeric comparison tolerance (a node attr; undefined = exact). */
+  /** Answer interpretation mode (a node attr; 'text' is the default). 'math'
+   *  grades by expression equivalence via the lazy graph-kit (Model B). */
+  answerType: 'text' | 'numeric' | 'math';
+  /** Numeric/math comparison tolerance (a node attr; undefined = exact). */
   tolerance: number | undefined;
+  /** Math equivalence mode (a node attr; only for 'math', undefined = 'value'). */
+  equivalence: 'value' | 'exact-form' | undefined;
   /**
    * Structural, NOT an attr: whether a previous blank exists in the same
    * fill_in_blank block, so the popover can offer the grouping checkbox. The
@@ -206,6 +209,7 @@ export function isSameBlankSelection(
     prev.interchangeableWithPrevious === next.interchangeableWithPrevious &&
     prev.answerType === next.answerType &&
     prev.tolerance === next.tolerance &&
+    prev.equivalence === next.equivalence &&
     prev.canGroupWithPrevious === next.canGroupWithPrevious
   );
 }

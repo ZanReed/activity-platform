@@ -93,10 +93,18 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             const interchangeableWithPrevious =
                 node.attrs.interchangeableWithPrevious === true;
             const answerType =
-                node.attrs.answerType === 'numeric' ? 'numeric' : 'text';
+                node.attrs.answerType === 'numeric'
+                    ? 'numeric'
+                    : node.attrs.answerType === 'math'
+                      ? 'math'
+                      : 'text';
             const tolerance =
                 typeof node.attrs.tolerance === 'number'
                     ? (node.attrs.tolerance as number)
+                    : undefined;
+            const equivalence =
+                node.attrs.equivalence === 'exact-form'
+                    ? 'exact-form'
                     : undefined;
 
             // Structural: can this blank group with a previous one? Only when an
@@ -124,6 +132,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                     interchangeableWithPrevious,
                     answerType,
                     tolerance,
+                    equivalence,
                     canGroupWithPrevious,
                 };
                 return isSameBlankSelection(prev, next) ? prev : next;
@@ -160,8 +169,9 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 answer: string;
                 acceptableAnswers: string[];
                 interchangeableWithPrevious: boolean;
-                answerType: 'text' | 'numeric';
+                answerType: 'text' | 'numeric' | 'math';
                 tolerance: number | undefined;
+                equivalence: 'value' | 'exact-form' | undefined;
                 hint: InlineNodes | undefined;
                 mistakeFeedback:
                     | Array<{ match: string; feedback: InlineNodes }>
@@ -196,6 +206,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             initialInterchangeable={selectedBlank.interchangeableWithPrevious}
             initialAnswerType={selectedBlank.answerType}
             initialTolerance={selectedBlank.tolerance}
+            initialEquivalence={selectedBlank.equivalence}
             canGroupWithPrevious={selectedBlank.canGroupWithPrevious}
             onChange={handleChange}
             onClose={handleClose}

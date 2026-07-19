@@ -75,8 +75,9 @@ interface BlankEditPopoverProps {
     initialHint: InlineNodes | undefined;
     initialMistakeFeedback: MistakeFeedbackPair[] | undefined;
     initialInterchangeable: boolean;
-    initialAnswerType: 'text' | 'numeric';
+    initialAnswerType: 'text' | 'numeric' | 'math';
     initialTolerance: number | undefined;
+    initialEquivalence: 'value' | 'exact-form' | undefined;
     // Whether a previous blank exists in this block; gates the grouping
     // checkbox (the first blank in a block has nothing to group with).
     canGroupWithPrevious: boolean;
@@ -85,8 +86,9 @@ interface BlankEditPopoverProps {
             answer: string;
             acceptableAnswers: string[];
             interchangeableWithPrevious: boolean;
-            answerType: 'text' | 'numeric';
+            answerType: 'text' | 'numeric' | 'math';
             tolerance: number | undefined;
+            equivalence: 'value' | 'exact-form' | undefined;
             hint: InlineNodes | undefined;
             mistakeFeedback: MistakeFeedbackPair[] | undefined;
         }>,
@@ -109,6 +111,7 @@ export default function BlankEditPopover({
     initialInterchangeable,
     initialAnswerType,
     initialTolerance,
+    initialEquivalence,
     canGroupWithPrevious,
     onChange,
     onClose,
@@ -128,9 +131,15 @@ export default function BlankEditPopover({
     // Grouping flag commits immediately on toggle (no draft/flush), like the
     // acceptable-answer remove path.
     const [interchangeable, setInterchangeable] = useState(initialInterchangeable);
-    // Numeric mode commits immediately on toggle (like grouping); tolerance is
-    // draft-then-flush (like answer) since it's typed.
-    const [isNumeric, setIsNumeric] = useState(initialAnswerType === 'numeric');
+    // Answer mode (text/numeric/math) commits immediately on change (like
+    // grouping); tolerance is draft-then-flush (like answer) since it's typed.
+    // Equivalence (math only) also commits immediately.
+    const [answerType, setAnswerType] = useState<'text' | 'numeric' | 'math'>(
+        initialAnswerType,
+    );
+    const [equivalence, setEquivalence] = useState<'value' | 'exact-form'>(
+        initialEquivalence === 'exact-form' ? 'exact-form' : 'value',
+    );
     const [toleranceDraft, setToleranceDraft] = useState(
         initialTolerance !== undefined ? String(initialTolerance) : '',
     );
@@ -149,7 +158,7 @@ export default function BlankEditPopover({
     const toleranceRef = useRef(
         initialTolerance !== undefined ? String(initialTolerance) : '',
     );
-    const isNumericRef = useRef(initialAnswerType === 'numeric');
+    const answerTypeRef = useRef<'text' | 'numeric' | 'math'>(initialAnswerType);
 
     const initialAnswerRef = useRef(initialAnswer);
     const initialAcceptableRef = useRef<string[]>(initialAcceptableAnswers);
@@ -173,8 +182,8 @@ export default function BlankEditPopover({
         toleranceRef.current = toleranceDraft;
     }, [toleranceDraft]);
     useEffect(() => {
-        isNumericRef.current = isNumeric;
-    }, [isNumeric]);
+        answerTypeRef.current = answerType;
+    }, [answerType]);
 
     useEffect(() => {
         if (isOpen) {
@@ -183,7 +192,10 @@ export default function BlankEditPopover({
             setAcceptableAnswers(initialAcceptableAnswers);
             setMistakeFeedback(initialMistakeFeedback ?? []);
             setInterchangeable(initialInterchangeable);
-            setIsNumeric(initialAnswerType === 'numeric');
+            setAnswerType(initialAnswerType);
+            setEquivalence(
+                initialEquivalence === 'exact-form' ? 'exact-form' : 'value',
+            );
             setToleranceDraft(
                 initialTolerance !== undefined ? String(initialTolerance) : '',
             );
@@ -198,7 +210,7 @@ export default function BlankEditPopover({
             acceptableRef.current = initialAcceptableAnswers;
             toleranceRef.current =
                 initialTolerance !== undefined ? String(initialTolerance) : '';
-            isNumericRef.current = initialAnswerType === 'numeric';
+            answerTypeRef.current = initialAnswerType;
             initialAnswerRef.current = initialAnswer;
             initialAcceptableRef.current = initialAcceptableAnswers;
             initialToleranceRef.current = initialTolerance;
@@ -254,14 +266,15 @@ export default function BlankEditPopover({
             initialAcceptable: initialAcceptableRef.current,
         });
         // Tolerance rides the same close-time flush (it's a typed draft like
-        // the answer field), but only while numeric mode is on — toggling
-        // numeric off already cleared the attr.
-        const tolerance = isNumericRef.current
-            ? resolveToleranceCommit(
-                  toleranceRef.current,
-                  initialToleranceRef.current,
-              )
-            : { changed: false, value: undefined };
+        // the answer field), but only while numeric OR math mode is on —
+        // switching back to text already cleared the attr.
+        const tolerance =
+            answerTypeRef.current === 'numeric' || answerTypeRef.current === 'math'
+                ? resolveToleranceCommit(
+                      toleranceRef.current,
+                      initialToleranceRef.current,
+                  )
+                : { changed: false, value: undefined };
         if (hasUpdates || tolerance.changed) {
             onChangeRef.current(
                 {
@@ -455,17 +468,39 @@ export default function BlankEditPopover({
         onChange({ interchangeableWithPrevious: checked });
     };
 
-    const handleNumericToggle = (checked: boolean) => {
-        setIsNumeric(checked);
-        if (checked) {
-            onChange({ answerType: 'numeric' });
-        } else {
-            // Turning numeric off also clears the tolerance — it's meaningless
-            // on a text blank and would silently reappear if numeric came back.
+    const handleAnswerTypeChange = (next: 'text' | 'numeric' | 'math') => {
+        if (next === answerType) return;
+        setAnswerType(next);
+        if (next === 'text') {
+            // Text clears tolerance + equivalence — both meaningless on a text
+            // blank and would silently reappear if numeric/math came back.
             setToleranceDraft('');
-            onChange({ answerType: 'text', tolerance: undefined });
+            setEquivalence('value');
+            onChange({
+                answerType: 'text',
+                tolerance: undefined,
+                equivalence: undefined,
+            });
             initialToleranceRef.current = undefined;
+        } else if (next === 'numeric') {
+            // Numeric keeps tolerance; equivalence is math-only → cleared.
+            setEquivalence('value');
+            onChange({ answerType: 'numeric', equivalence: undefined });
+        } else {
+            // Math: default equivalence to 'value' (stored as absent). Tolerance
+            // carries over (it's valid for both numeric and math).
+            setEquivalence(
+                initialEquivalence === 'exact-form' ? 'exact-form' : 'value',
+            );
+            onChange({ answerType: 'math' });
         }
+    };
+
+    const handleEquivalenceChange = (next: 'value' | 'exact-form') => {
+        setEquivalence(next);
+        // 'value' is the default → store as undefined so value-mode blanks stay
+        // attr-free (round-trip parity); 'exact-form' is stored explicitly.
+        onChange({ equivalence: next === 'exact-form' ? 'exact-form' : undefined });
     };
 
     const commitTolerance = () => {
@@ -569,25 +604,75 @@ export default function BlankEditPopover({
                 </label>
 
                 <div className="blank-edit-popover__field">
-                    <label className="blank-edit-popover__checkbox">
-                        <input
-                            type="checkbox"
-                            checked={isNumeric}
-                            onChange={(e) =>
-                                handleNumericToggle(e.target.checked)
-                            }
-                        />
-                        <span className="blank-edit-popover__label">
-                            Numeric answer
-                        </span>
-                    </label>
-                    {isNumeric && (
+                    <span className="blank-edit-popover__label">
+                        Answer type
+                    </span>
+                    <div
+                        className="blank-edit-popover__seg"
+                        role="radiogroup"
+                        aria-label="Answer type"
+                    >
+                        {(['text', 'numeric', 'math'] as const).map((t) => (
+                            <label
+                                key={t}
+                                className="blank-edit-popover__seg-option"
+                            >
+                                <input
+                                    type="radio"
+                                    name={`answer-type-${blankId}`}
+                                    checked={answerType === t}
+                                    onChange={() => handleAnswerTypeChange(t)}
+                                />
+                                <span>
+                                    {t === 'text'
+                                        ? 'Text'
+                                        : t === 'numeric'
+                                          ? 'Numeric'
+                                          : 'Math'}
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                    {answerType === 'numeric' && (
                         <div className="blank-edit-popover__sublabel">
                             Equivalent forms count as correct — 0.5, 1/2, and
                             .50 all match. Fractions and mixed numbers work.
                         </div>
                     )}
-                    {isNumeric && (
+                    {answerType === 'math' && (
+                        <div className="blank-edit-popover__sublabel">
+                            Graded as a math expression — 2a, a*2, and a+a all
+                            match. Type the answer as plain math (e.g. 2a,
+                            (a+b)/2, sqrt(x)).
+                        </div>
+                    )}
+                    {answerType === 'math' && (
+                        <label className="blank-edit-popover__field">
+                            <span className="blank-edit-popover__label">
+                                Equivalence
+                            </span>
+                            <select
+                                className="blank-edit-popover__input"
+                                value={equivalence}
+                                onChange={(e) =>
+                                    handleEquivalenceChange(
+                                        e.target.value === 'exact-form'
+                                            ? 'exact-form'
+                                            : 'value',
+                                    )
+                                }
+                                aria-label="Math equivalence mode"
+                            >
+                                <option value="value">
+                                    Any equivalent form
+                                </option>
+                                <option value="exact-form">
+                                    Exact form only
+                                </option>
+                            </select>
+                        </label>
+                    )}
+                    {(answerType === 'numeric' || answerType === 'math') && (
                         <label className="blank-edit-popover__field">
                             <span className="blank-edit-popover__label">
                                 Tolerance (±)
@@ -603,7 +688,7 @@ export default function BlankEditPopover({
                                 }
                                 onBlur={commitTolerance}
                                 onKeyDown={handleToleranceKeyDown}
-                                aria-label="Numeric tolerance"
+                                aria-label="Comparison tolerance"
                             />
                         </label>
                     )}

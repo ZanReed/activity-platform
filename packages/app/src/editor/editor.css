@@ -2373,6 +2373,34 @@ img.mc-block__figure-preview {
      font-weight: 500;
      color: var(--ed-text-strong); /* slate-700 */
  }
+ /* Answer-type segmented control (Text / Numeric / Math) — a compact radio row
+    replacing the old numeric checkbox. */
+ .blank-edit-popover__seg {
+     display: flex;
+     gap: 0.25rem;
+     margin-top: 0.25rem;
+ }
+ .blank-edit-popover__seg-option {
+     display: flex;
+     align-items: center;
+     gap: 0.3125rem;
+     padding: 0.25rem 0.5rem;
+     font-size: 0.8125rem;
+     font-weight: 500;
+     color: var(--ed-text-strong); /* slate-700 */
+     border: 1px solid var(--ed-border-strong); /* slate-300 */
+     border-radius: 0.25rem;
+     cursor: pointer;
+ }
+ .blank-edit-popover__seg-option:has(input:checked) {
+     border-color: var(--ed-accent); /* blue-500 */
+     background: var(--ed-accent-bg); /* blue-50 */
+     color: var(--ed-accent-strong);
+ }
+ .blank-edit-popover__seg-option input {
+     margin: 0;
+     flex: none;
+ }
 
  .blank-edit-popover__input,
 .blank-edit-popover__textarea {

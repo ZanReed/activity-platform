@@ -2554,6 +2554,86 @@ describe('attrs-stored inline content sanitize', () => {
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
     });
 
+    it('round-trips a math blank with equivalence + tolerance (Model B)', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'fillInBlank',
+                    content: [
+                        {
+                            type: 'blank',
+                            attrs: {
+                                id: '550e8400-e29b-41d4-a716-446655440401',
+                                answer: '2a',
+                                acceptableAnswers: [],
+                                answerType: 'math',
+                                equivalence: 'exact-form',
+                                tolerance: 0.001,
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = flatBlocks(activity.sections[0]!)[0]!;
+        if (block.type !== 'fill_in_blank') throw new Error('unreachable');
+        const blank = block.content[0]!;
+        if (blank.type !== 'blank') throw new Error('unreachable');
+        expect(blank.answerType).toBe('math');
+        expect(blank.equivalence).toBe('exact-form');
+        expect(blank.tolerance).toBe(0.001);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+
+        // Reverse direction: activity → tiptap restores the attrs.
+        const back = activityToTiptap(activity);
+        const findBlank = (n: JSONContent): JSONContent | undefined => {
+            if (n.type === 'blank') return n;
+            for (const c of n.content ?? []) {
+                const found = findBlank(c);
+                if (found) return found;
+            }
+            return undefined;
+        };
+        const backBlank = findBlank(back)?.attrs;
+        expect(backBlank?.answerType).toBe('math');
+        expect(backBlank?.equivalence).toBe('exact-form');
+        expect(backBlank?.tolerance).toBe(0.001);
+    });
+
+    it('a value-mode math blank stores no equivalence attr (default parity)', () => {
+        const activity = tiptapToActivity(
+            {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        content: [
+                            {
+                                type: 'blank',
+                                attrs: {
+                                    id: '550e8400-e29b-41d4-a716-446655440402',
+                                    answer: '2a',
+                                    acceptableAnswers: [],
+                                    answerType: 'math',
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            META,
+        );
+        const block = flatBlocks(activity.sections[0]!)[0]!;
+        if (block.type !== 'fill_in_blank') throw new Error('unreachable');
+        const blank = block.content[0]!;
+        if (blank.type !== 'blank') throw new Error('unreachable');
+        expect(blank.answerType).toBe('math');
+        expect('equivalence' in blank).toBe(false);
+        expect('tolerance' in blank).toBe(false);
+    });
+
     it('sanitizes definition mark content', () => {
         const doc: JSONContent = {
             type: 'doc',

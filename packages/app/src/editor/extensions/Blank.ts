@@ -55,8 +55,9 @@ declare module '@tiptap/core' {
                     answer: string;
                     acceptableAnswers: string[];
                     interchangeableWithPrevious: boolean;
-                    answerType: 'text' | 'numeric';
+                    answerType: 'text' | 'numeric' | 'math';
                     tolerance: number | undefined;
+                    equivalence: 'value' | 'exact-form' | undefined;
                     hint: unknown[] | undefined;
                     mistakeFeedback:
                         | Array<{ match: string; feedback: unknown[] }>
@@ -123,18 +124,32 @@ export const Blank = Node.create({
                         ? { 'data-interchangeable': 'true' }
                         : {},
             },
-            // Numeric answer mode. 'text' (the default) is exact string
-            // matching; 'numeric' makes the runtime parse + compare within
-            // `tolerance`. serialize.ts maps 'text' → omitted schema field.
+            // Answer mode. 'text' (default) = exact string; 'numeric' = parse +
+            // compare within `tolerance`; 'math' = expression equivalence via
+            // the lazy graph-kit (Model B). serialize.ts maps 'text' → omitted.
             answerType: {
-                default: 'text' as 'text' | 'numeric',
-                parseHTML: (element) =>
-                    element.getAttribute('data-answer-type') === 'numeric'
-                        ? 'numeric'
-                        : 'text',
+                default: 'text' as 'text' | 'numeric' | 'math',
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-answer-type');
+                    return raw === 'numeric' || raw === 'math' ? raw : 'text';
+                },
                 renderHTML: (attributes) =>
-                    attributes.answerType === 'numeric'
-                        ? { 'data-answer-type': 'numeric' }
+                    attributes.answerType === 'numeric' ||
+                    attributes.answerType === 'math'
+                        ? { 'data-answer-type': attributes.answerType }
+                        : {},
+            },
+            // Math equivalence mode ('value' default | 'exact-form'). Only
+            // meaningful when answerType is 'math'; undefined = 'value'.
+            equivalence: {
+                default: undefined as 'value' | 'exact-form' | undefined,
+                parseHTML: (element) =>
+                    element.getAttribute('data-equivalence') === 'exact-form'
+                        ? 'exact-form'
+                        : undefined,
+                renderHTML: (attributes) =>
+                    attributes.equivalence === 'exact-form'
+                        ? { 'data-equivalence': 'exact-form' }
                         : {},
             },
             tolerance: {

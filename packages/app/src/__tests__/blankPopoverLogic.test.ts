@@ -188,6 +188,7 @@ describe('isSameBlankSelection', () => {
     interchangeableWithPrevious: false,
     answerType: 'text',
     tolerance: undefined,
+    equivalence: undefined,
     canGroupWithPrevious: false,
     ...over,
   });
@@ -230,11 +231,20 @@ describe('isSameBlankSelection', () => {
     ).toBe(false);
   });
 
-  it('is false when numeric mode or tolerance differ', () => {
+  it('is false when answer mode, tolerance, or equivalence differ', () => {
     expect(isSameBlankSelection(make(), make({ answerType: 'numeric' }))).toBe(
       false,
     );
+    expect(isSameBlankSelection(make(), make({ answerType: 'math' }))).toBe(
+      false,
+    );
     expect(isSameBlankSelection(make(), make({ tolerance: 0.1 }))).toBe(false);
+    expect(
+      isSameBlankSelection(
+        make({ answerType: 'math' }),
+        make({ answerType: 'math', equivalence: 'exact-form' }),
+      ),
+    ).toBe(false);
   });
 });
 
