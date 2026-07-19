@@ -90,7 +90,9 @@ function bootstrap(): void {
   // kit loads. Fire-and-forget, after wireBlanks so the mirror inputs are
   // already input-wired (the bridge writes to them + dispatches `input`). No-op
   // with no math-prompt block or no kit — the static KaTeX gaps stay scorable.
-  attachMathPrompts();
+  // onUpdate re-renders once the fields mount, so any restored/checked verdict
+  // syncs into the new MathLive views (MA-D5).
+  attachMathPrompts(onUpdate);
   wireMcChoices(state, refs, onUpdate);
   wireMatching(state, refs, onUpdate);
   wireOrdering(state, refs, onUpdate);

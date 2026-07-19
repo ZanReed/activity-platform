@@ -37,6 +37,7 @@ import type {
     SectionState,
 } from './state.js';
 import { graphExt, numberLineExt, dataPlotExt } from './graph-integration.js';
+import { renderMathPrompts } from './math-prompt-bridge.js';
 
 /**
  * Render the entire activity from state. Idempotent — calling twice with
@@ -66,6 +67,10 @@ export function render(state: RuntimeState, refs: Refs): void {
     graphExt.renderGraphs(state, refs);
     numberLineExt.renderNumberLines(state, refs);
     dataPlotExt.renderDataPlots(state, refs);
+    // MA-D5: push each in-equation gap's verdict into its MathLive field (runs
+    // after the blank loop set each mirror's disabled/locked flag). No-op until
+    // the kit mounts the fields.
+    renderMathPrompts(state);
     for (const [id, ref] of refs.sections) {
         const sectionState = state.sections[id];
         if (sectionState) renderSection(sectionState, ref);

@@ -16,8 +16,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   wireMathPromptBlock,
+  renderMathPrompts,
+  __resetMathPromptMounts,
   type MathPromptMountOptions,
 } from '../math-prompt-bridge.js';
+import type { RuntimeState } from '../state.js';
 
 function blockWith(mirrors: { id: string; value?: string }[]): HTMLElement {
   const el = document.createElement('div');
@@ -42,6 +45,7 @@ function blockWith(mirrors: { id: string; value?: string }[]): HTMLElement {
 }
 
 beforeEach(() => {
+  __resetMathPromptMounts();
   document.body.innerHTML = '';
 });
 
@@ -67,6 +71,7 @@ describe('wireMathPromptBlock', () => {
     let captured: MathPromptMountOptions | null = null;
     wireMathPromptBlock(el, (_host, opts) => {
       captured = opts;
+      return undefined;
     });
     captured!.onValue('denom', 'a+a'); // student types in the (would-be) field
 
@@ -84,6 +89,7 @@ describe('wireMathPromptBlock', () => {
     let captured: MathPromptMountOptions | null = null;
     wireMathPromptBlock(el, (_host, opts) => {
       captured = opts;
+      return undefined;
     });
     captured!.onValue('denom', '2a'); // same value
     expect(inputSpy).not.toHaveBeenCalled();
@@ -100,5 +106,37 @@ describe('wireMathPromptBlock', () => {
     const mount2 = vi.fn();
     wireMathPromptBlock(noMirrors, mount2);
     expect(mount2).not.toHaveBeenCalled();
+  });
+});
+
+describe('renderMathPrompts (MA-D5 verdict sync)', () => {
+  const stateWith = (result: boolean | null): RuntimeState =>
+    ({ blanks: { denom: { result, matchedMistake: null } } }) as unknown as RuntimeState;
+
+  it('pushes each gap result + lock into the mounted field', () => {
+    const el = blockWith([{ id: 'denom', value: '2a' }]);
+    const setResult = vi.fn();
+    const handle = { setResult, reveal: vi.fn(), destroy: vi.fn() };
+    wireMathPromptBlock(el, () => handle);
+    // renderBlank sets the mirror's `disabled` from the section-locked flag; the
+    // sync reads it for the lock arg.
+    el.querySelector<HTMLInputElement>('.blank.math-prompt-blank')!.disabled = true;
+
+    renderMathPrompts(stateWith(true));
+    expect(setResult).toHaveBeenCalledWith('denom', true, true);
+  });
+
+  it('pushes a null (unscored/edited) verdict as neutral, unlocked', () => {
+    const el = blockWith([{ id: 'denom', value: '' }]);
+    const setResult = vi.fn();
+    wireMathPromptBlock(el, () => ({ setResult, reveal: vi.fn(), destroy: vi.fn() }));
+    renderMathPrompts(stateWith(null));
+    expect(setResult).toHaveBeenCalledWith('denom', null, false);
+  });
+
+  it('is a no-op before any field mounts (empty registry)', () => {
+    expect(() =>
+      renderMathPrompts({ blanks: {} } as unknown as RuntimeState),
+    ).not.toThrow();
   });
 });

@@ -23,6 +23,7 @@
 // =============================================================================
 
 import { resolveKitSrc } from './math-blanks.js';
+import type { RuntimeState } from './state.js';
 
 export interface MathPromptMountOptions {
   /** Raw latex with `\placeholder[id]{}` markers — MathLive mounts from this. */
@@ -33,18 +34,42 @@ export interface MathPromptMountOptions {
   onValue: (promptId: string, ascii: string) => void;
 }
 
-interface MathPromptKitModule {
-  mountMathPrompts(host: HTMLElement, opts: MathPromptMountOptions): unknown;
+// The kit's mount handle (MA-T4). Parallel type (the runtime imports no kit
+// code — the actual handle arrives via dynamic import). setResult pushes a gap's
+// scored verdict into the MathLive field (MA-D5: setPromptState correct/incorrect
+// + lock); reveal/destroy round out the contract.
+interface MountedMathPrompts {
+  setResult(promptId: string, correct: boolean | null, lock: boolean): void;
+  reveal(promptId: string, ascii: string): void;
+  destroy(): void;
 }
 
-type MountFn = (host: HTMLElement, opts: MathPromptMountOptions) => unknown;
+type MountFn = (
+  host: HTMLElement,
+  opts: MathPromptMountOptions,
+) => MountedMathPrompts | undefined;
+
+interface MathPromptKitModule {
+  mountMathPrompts: MountFn;
+}
+
+// Mounted fields, so render() can push each gap's verdict into its MathLive
+// view (MA-D5). One entry per equation; `gaps` maps promptId -> mirror <input>
+// (the mirror's `disabled`, set by renderBlank, is the section-locked flag).
+const mounted: { handle: MountedMathPrompts; gaps: Map<string, HTMLInputElement> }[] = [];
+
+/** Test-only: clear the mounted registry between cases. */
+export function __resetMathPromptMounts(): void {
+  mounted.length = 0;
+}
 
 /**
  * Wire one math-prompt block to the kit's mount function. Collects the block's
  * mirror inputs, seeds `initialValues` from their (possibly restored) values,
  * builds the write-back `onValue`, and calls `mount`. Pure w.r.t. the kit — the
  * mount is injected, so this is unit-testable with a stub. No-op if the block
- * has no latex attr or no mirrors.
+ * has no latex attr or no mirrors. Registers the returned handle for
+ * renderMathPrompts (MA-D5).
  */
 export function wireMathPromptBlock(el: HTMLElement, mount: MountFn): void {
   const latex = el.getAttribute('data-math-prompt-latex');
@@ -71,7 +96,25 @@ export function wireMathPromptBlock(el: HTMLElement, mount: MountFn): void {
     mirror.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
-  mount(el, { latex, initialValues, onValue });
+  const handle = mount(el, { latex, initialValues, onValue });
+  if (handle) mounted.push({ handle, gaps: mirrors });
+}
+
+/**
+ * MA-D5 state->view sync (called from render(), like graphExt.renderGraphs):
+ * push each gap's scored verdict into its MathLive field so a checked gap turns
+ * green/red and locks in-field. `result` comes from the blank state (the mirror
+ * IS the source of truth); `locked` reads the mirror's `disabled`, which
+ * renderBlank set from the section-locked flag just before this runs. No-op
+ * before the kit mounts (empty registry).
+ */
+export function renderMathPrompts(state: RuntimeState): void {
+  for (const { handle, gaps } of mounted) {
+    for (const [id, mirror] of gaps) {
+      const result = state.blanks[id]?.result ?? null;
+      handle.setResult(id, result, mirror.disabled);
+    }
+  }
 }
 
 /**
@@ -79,8 +122,10 @@ export function wireMathPromptBlock(el: HTMLElement, mount: MountFn): void {
  * URL, lazy-load the kit and upgrade every block to an interactive MathLive
  * field. No math-prompt block, or no kit (print / offline / dev-without-R2) →
  * no-op, and the static KaTeX gaps stay fully answerable + scorable (MA-T5a).
+ * `onUpdate` re-renders once the fields mount, so any already-scored verdict
+ * (e.g. a restored/checked state) syncs into the new MathLive views (MA-D5).
  */
-export function attachMathPrompts(): void {
+export function attachMathPrompts(onUpdate: () => void): void {
   const blocks = document.querySelectorAll<HTMLElement>(
     '[data-math-prompt-latex]',
   );
@@ -92,6 +137,7 @@ export function attachMathPrompts(): void {
     .then((mod: MathPromptKitModule) => {
       if (typeof mod.mountMathPrompts !== 'function') return;
       blocks.forEach((el) => wireMathPromptBlock(el, mod.mountMathPrompts));
+      onUpdate();
     })
     .catch((err) => {
       // Kit failed (offline, blocked CDN, bad URL). The static equation + its
