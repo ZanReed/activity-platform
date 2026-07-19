@@ -71,6 +71,14 @@ declare module '@tiptap/core' {
 
 const BLANK_INPUT_REGEX = /\{\{([^{}|]+)((?:\|[^{}|]+)*)\}\}$/;
 
+// Bare `__` makes an EMPTY-answer blank and opens its popover focused, so the
+// teacher types the answer straight away — matching the "type __ to make a
+// blank" signifier. Scoped to fill_in_blank context in the handler (a blank can
+// live nowhere else per schema), so it never preempts StarterKit's `__…__` bold
+// input rule in ordinary paragraphs. Inside a fill_in_blank the preemption is
+// intended: bold there is authored with `**` or the toolbar.
+const EMPTY_BLANK_INPUT_REGEX = /__$/;
+
 export const Blank = Node.create({
     name: 'blank',
     group: 'inline',
@@ -310,6 +318,49 @@ export const Blank = Node.create({
                                 answer: canonical,
                                 acceptableAnswers,
                             },
+                        })
+                        .run();
+                },
+            }),
+
+            new InputRule({
+                find: EMPTY_BLANK_INPUT_REGEX,
+                handler: ({ state, range, chain }) => {
+                    // Only fire inside a fill_in_blank block — a blank can live
+                    // nowhere else (schema), and scoping keeps `__…__` bold
+                    // working everywhere outside these blocks.
+                    const $from = state.doc.resolve(range.from);
+                    if ($from.parent.type.name !== 'fillInBlank') {
+                        return null;
+                    }
+
+                    // Replace the `__` with an empty-answer blank, then select
+                    // that blank so BlankPopoverHost opens the edit popover with
+                    // its Answer input focused (the teacher fills it in place).
+                    // The empty answer is a valid transient authoring state; the
+                    // popover's answer-blur reverts it if left empty.
+                    chain()
+                        .insertContentAt(range, {
+                            type: nodeType.name,
+                            attrs: {
+                                id: crypto.randomUUID(),
+                                answer: '',
+                                acceptableAnswers: [],
+                            },
+                        })
+                        .command(({ tr, dispatch }) => {
+                            if (dispatch) {
+                                try {
+                                    // The blank atom now sits at range.from
+                                    // (it replaced the `__` text there).
+                                    tr.setSelection(
+                                        NodeSelection.create(tr.doc, range.from),
+                                    );
+                                } catch {
+                                    /* defensive — non-fatal if it can't apply */
+                                }
+                            }
+                            return true;
                         })
                         .run();
                 },
