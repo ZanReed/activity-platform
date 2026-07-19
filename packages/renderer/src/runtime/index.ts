@@ -31,6 +31,7 @@ import {
 } from './storage.js';
 import { wireBlanks, wireHints, wireMistakes, wirePopover } from './blanks.js';
 import { preloadMathBlanks } from './math-blanks.js';
+import { attachMathPrompts } from './math-prompt-bridge.js';
 import { wireMcChoices } from './mcs.js';
 import { wireMatching } from './matches.js';
 import { wireOrdering } from './orderings.js';
@@ -85,6 +86,11 @@ function bootstrap(): void {
   // the sync mathEquivalent reference is armed well before the student checks.
   // No-op on a page with no math blank.
   preloadMathBlanks();
+  // Model A: upgrade in-equation gaps to interactive MathLive fields once the
+  // kit loads. Fire-and-forget, after wireBlanks so the mirror inputs are
+  // already input-wired (the bridge writes to them + dispatches `input`). No-op
+  // with no math-prompt block or no kit — the static KaTeX gaps stay scorable.
+  attachMathPrompts();
   wireMcChoices(state, refs, onUpdate);
   wireMatching(state, refs, onUpdate);
   wireOrdering(state, refs, onUpdate);

@@ -44,6 +44,11 @@ export type { EvalOptions, EvalResult, ExpressionRow } from './evaluate.js';
 export { mathEquivalent } from './math-equivalent.js';
 export type { EquivalenceMode, MathEquivalentOptions } from './math-equivalent.js';
 export { latexToAscii, asciiToLatex } from './math-prompt-convert.js';
+export { mountMathPrompts } from './math-prompt-mount.js';
+export type {
+  MathPromptMountOptions,
+  MountedMathPrompts,
+} from './math-prompt-mount.js';
 
 // The least-squares engine (Stage 3) — pure math, standalone, so the future
 // graded regression block scores with the SAME fits the calculator shows.

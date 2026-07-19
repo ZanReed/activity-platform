@@ -26,9 +26,15 @@ interface MathKitModule {
  * has graphs/calculator exposes the SAME kit under their attrs, so fall back to
  * those (one kit per page). No-op when there's no math blank or no kit URL.
  */
-export function preloadMathBlanks(): void {
-  if (!document.querySelector('.blank[data-blank-strategy="math"]')) return;
-  const src =
+/**
+ * The page's lazy graph-kit URL, if any. One kit per page, exposed under any of
+ * the feature attrs (blank / graph / calculator), so we take the first present.
+ * Null when there's no kit (dev-without-R2 / print) — callers stay in their
+ * no-kit fallback. Shared by the math-blank grader preloader and the Model A
+ * math-prompt mount bridge.
+ */
+export function resolveKitSrc(): string | null {
+  return (
     document
       .querySelector('[data-blank-kit-src]')
       ?.getAttribute('data-blank-kit-src') ||
@@ -37,7 +43,14 @@ export function preloadMathBlanks(): void {
       ?.getAttribute('data-graph-kit-src') ||
     document
       .querySelector('[data-calculator-kit-src]')
-      ?.getAttribute('data-calculator-kit-src');
+      ?.getAttribute('data-calculator-kit-src') ||
+    null
+  );
+}
+
+export function preloadMathBlanks(): void {
+  if (!document.querySelector('.blank[data-blank-strategy="math"]')) return;
+  const src = resolveKitSrc();
   if (!src) return; // no kit URL (dev-without-R2 / print) — stays ungraded (A2)
 
   import(/* @vite-ignore */ src)
