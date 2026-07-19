@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./runtime-contract": "./src/runtime-contract.ts",
-    "./drawable-palette": "./src/drawable-palette.ts"
+    "./drawable-palette": "./src/drawable-palette.ts",
+    "./math-equivalent": "./src/math-equivalent.ts"
   },
   "scripts": {
     "test": "vitest run",
