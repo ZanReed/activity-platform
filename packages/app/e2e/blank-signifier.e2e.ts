@@ -47,3 +47,42 @@ test('text-but-no-blank shows the make-a-blank hint; a blank fades it', async ({
     });
     await expect(page.locator('.fill-in-blank-block__make-hint')).toHaveCount(0);
 });
+
+test('an inline-math gap (Model A prompt) also fades the hint — no text blank needed', async ({
+    page,
+}) => {
+    await freshEditor(page);
+    await page.evaluate(() => {
+        const ed = (window as any).__tiptapEditor;
+        ed.chain().focus('end').insertFillInBlank().run();
+        // Text + an inline-math gap: a mathInline carrying a non-empty prompts
+        // attr IS a gap, so the hint must not nag even though there's no `blank`.
+        ed.chain()
+            .insertContent('Solve ')
+            .insertContent({
+                type: 'mathInline',
+                attrs: {
+                    latex: 'x=\\placeholder[p1]{}',
+                    prompts: [{ id: 'p1', answer: '5', acceptableAnswers: [] }],
+                },
+            })
+            .run();
+    });
+    await expect(page.locator('.fill-in-blank-block__make-hint')).toHaveCount(0);
+});
+
+test('inline math with NO prompts still shows the hint (a plain equation is not a gap)', async ({
+    page,
+}) => {
+    await freshEditor(page);
+    await page.evaluate(() => {
+        const ed = (window as any).__tiptapEditor;
+        ed.chain().focus('end').insertFillInBlank().run();
+        ed.chain()
+            .insertContent('Compute ')
+            .insertContent({ type: 'mathInline', attrs: { latex: '2+2' } })
+            .run();
+    });
+    // Plain equation, no gap → the hint should still teach the blank keystroke.
+    await expect(page.locator('.fill-in-blank-block__make-hint')).toBeVisible();
+});

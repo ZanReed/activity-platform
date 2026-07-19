@@ -63,10 +63,20 @@ export default function FillInBlankView({
     // sentence into a blank. Empty body → the placeholder teaches it; once there's
     // text but still NO blank, a trailing faint hint teaches it; the hint fades
     // the moment a blank exists (show-when-no-blank, hide-once-present).
+    //
+    // A gap can be a `blank` node OR a Model A in-equation math prompt: an inline
+    // `mathInline` child carrying a non-empty `prompts` attr is itself a gap, so
+    // it counts as a blank and silences the hint (design math-blanks.md, Model A).
     const isEmpty = node.content.size === 0;
     let hasBlank = false;
     node.content.forEach((child) => {
         if (child.type.name === 'blank') hasBlank = true;
+        if (
+            child.type.name === 'mathInline' &&
+            ((child.attrs.prompts as unknown[] | undefined)?.length ?? 0) > 0
+        ) {
+            hasBlank = true;
+        }
     });
     const showMakeBlankHint = !isEmpty && !hasBlank;
 
