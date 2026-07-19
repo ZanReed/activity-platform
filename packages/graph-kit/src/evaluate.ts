@@ -29,6 +29,7 @@ import {
   create,
   evaluateDependencies,
   compileDependencies,
+  parseDependencies,
   addDependencies,
   subtractDependencies,
   multiplyDependencies,
@@ -123,6 +124,7 @@ function spread(name: string, xs: number[]): number[] {
 const math = create({
   evaluateDependencies,
   compileDependencies,
+  parseDependencies,
   addDependencies,
   subtractDependencies,
   multiplyDependencies,
@@ -319,6 +321,38 @@ export function compileFunction(
       return NaN;
     }
   };
+}
+
+/**
+ * Free variables of an AsciiMath expression: the symbol names a caller must
+ * bind to evaluate it. Excludes function-call names (the `fn` of a FunctionNode,
+ * e.g. `sin` in `sin(x)`) and the built-in constants `pi`/`e`. Returns [] for
+ * empty or unparseable input.
+ *
+ * Used by mathEquivalent() to sample over the UNION of the key's and the
+ * student's variables — sampling only the key's vars would leave a correct but
+ * verbose answer like `a + a + 0*b` with `b` unbound (NaN) and mark it wrong.
+ */
+export function freeVariables(ascii: string): string[] {
+  const expr = normalizeAsciiMath(ascii);
+  if (!expr) return [];
+  let root: { traverse(cb: (n: unknown, path: string | null, parent: unknown) => void): void };
+  try {
+    root = math.parse(expr) as typeof root;
+  } catch {
+    return [];
+  }
+  const names = new Set<string>();
+  root.traverse((node, path, parent) => {
+    const n = node as { isSymbolNode?: boolean; name?: string };
+    const p = parent as { isFunctionNode?: boolean } | null;
+    if (!n.isSymbolNode || typeof n.name !== 'string') return;
+    // Skip the function-name symbol of a call (`sin` in `sin(x)`).
+    if (p && p.isFunctionNode && path === 'fn') return;
+    if (n.name === 'pi' || n.name === 'e') return; // constants, not free vars
+    names.add(n.name);
+  });
+  return [...names];
 }
 
 // ---- Stage 4: expression-row classification ----------------------------------

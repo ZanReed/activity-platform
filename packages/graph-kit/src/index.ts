@@ -34,9 +34,15 @@ export {
   evaluate,
   normalizeAsciiMath,
   compileFunction,
+  freeVariables,
   classifyExpression,
 } from './evaluate.js';
 export type { EvalOptions, EvalResult, ExpressionRow } from './evaluate.js';
+
+// Math-answer equivalence (Model B math blanks) — pure numeric-sampling grader,
+// the held sync reference the runtime and editor both import (math-blanks.md).
+export { mathEquivalent } from './math-equivalent.js';
+export type { EquivalenceMode, MathEquivalentOptions } from './math-equivalent.js';
 
 // The least-squares engine (Stage 3) — pure math, standalone, so the future
 // graded regression block scores with the SAME fits the calculator shows.
