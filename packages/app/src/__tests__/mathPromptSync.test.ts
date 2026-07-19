@@ -12,6 +12,7 @@ import {
   emptyPlaceholders,
   placeholderIds,
   hasPlaceholders,
+  buildMathPrompts,
 } from '../editor/mathPromptSync';
 
 describe('emptyPlaceholders', () => {
@@ -62,5 +63,44 @@ describe('hasPlaceholders', () => {
   it('detects a gap', () => {
     expect(hasPlaceholders('x=\\placeholder[g]{}')).toBe(true);
     expect(hasPlaceholders('x=4')).toBe(false);
+  });
+});
+
+describe('buildMathPrompts (reconcile core)', () => {
+  it('turns a gap answer latex into a schema prompt (answer as ascii)', () => {
+    expect(buildMathPrompts([{ id: 'd', answerLatex: '2a' }], [])).toEqual([
+      { id: 'd', answer: '2a', acceptableAnswers: [] },
+    ]);
+  });
+
+  it('drops a gap with no answer yet (an incomplete question)', () => {
+    expect(buildMathPrompts([{ id: 'd', answerLatex: '' }], [])).toEqual([]);
+  });
+
+  it('preserves an existing gap’s equivalence / tolerance / acceptable answers', () => {
+    const existing = [
+      {
+        id: 'd',
+        answer: 'old',
+        acceptableAnswers: ['a+a'],
+        equivalence: 'exact-form' as const,
+        tolerance: 0.01,
+      },
+    ];
+    expect(buildMathPrompts([{ id: 'd', answerLatex: '2a' }], existing)).toEqual([
+      {
+        id: 'd',
+        answer: '2a', // answer refreshed from the field
+        acceptableAnswers: ['a+a'], // config preserved
+        equivalence: 'exact-form',
+        tolerance: 0.01,
+      },
+    ]);
+  });
+
+  it('converts a structured answer to ascii', () => {
+    expect(
+      buildMathPrompts([{ id: 'd', answerLatex: '\\frac{1}{2}' }], [])[0]?.answer,
+    ).toBe('(1)/(2)');
   });
 });

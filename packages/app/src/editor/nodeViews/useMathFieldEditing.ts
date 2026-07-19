@@ -26,7 +26,36 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import katex from 'katex';
 import type { NodeViewProps } from '@tiptap/react';
 import type { MathfieldElement } from 'mathlive';
+import type { MathPrompt } from '@activity/schema';
+import { asciiToLatex } from '@activity/graph-kit';
 import { readOpenSignal, type MathOpenMode } from '../extensions/MathFocus';
+import {
+  emptyPlaceholders,
+  hasPlaceholders,
+  buildMathPrompts,
+} from '../mathPromptSync';
+
+// A MathLive-safe unique gap id: alphanumeric only (placeholder ids can't hold
+// uuid hyphens) — random suffix is unique enough within one equation.
+function mintPromptId(): string {
+  return 'g' + Math.random().toString(36).slice(2, 8);
+}
+
+// Model A reconcile (MA-DR3 answer-in-gap): read each gap's answer from the live
+// field and produce the EMPTIED latex for storage — the answer never lives in
+// the stored/emitted latex (leak fix), only in prompts[]. The pure half
+// (buildMathPrompts) is unit-tested; here we just do the thin MathLive reads.
+function reconcilePrompts(
+  field: MathfieldElement,
+  existing: MathPrompt[],
+): { latex: string; prompts: MathPrompt[] } {
+  const raw = field.value;
+  if (!hasPlaceholders(raw)) return { latex: raw, prompts: [] };
+  const gaps = field
+    .getPrompts()
+    .map((id) => ({ id, answerLatex: field.getPromptValue(id) }));
+  return { latex: emptyPlaceholders(raw), prompts: buildMathPrompts(gaps, existing) };
+}
 
 export interface MathFieldEditing<E extends HTMLElement> {
     latex: string;
@@ -36,6 +65,10 @@ export interface MathFieldEditing<E extends HTMLElement> {
     mathFieldRef: React.RefObject<MathfieldElement | null>;
     /** Click handler for the wrapper: enters edit mode (caret at the end). */
     onWrapperClick: () => void;
+    /** The node's current Model A gaps (drives the gap-signifier + popover). */
+    prompts: MathPrompt[];
+    /** Insert an empty `\placeholder` gap at the caret (the insert-blank button). */
+    insertPrompt: () => void;
     /** Props to spread onto the <math-field> element. */
     fieldProps: {
         onInput: (e: React.FormEvent) => void;
@@ -132,6 +165,17 @@ export function useMathFieldEditing<E extends HTMLElement>(
             else mf.executeCommand('moveToMathfieldEnd');
             // Reset to the click-default for the next entry.
             openModeRef.current = 'end';
+            // Model A: the stored latex has EMPTY placeholders (answers live in
+            // prompts[]); re-fill each gap so the author sees their answers again
+            // (MA-DR3). Runs after the field is wired so its prompts exist.
+            const stored = (node.attrs.prompts as MathPrompt[] | undefined) ?? [];
+            for (const p of stored) {
+                try {
+                    mf.setPromptValue(p.id, asciiToLatex(p.answer), {});
+                } catch {
+                    // The gap id no longer exists in the latex — skip it.
+                }
+            }
         });
 
         return () => {
@@ -145,13 +189,31 @@ export function useMathFieldEditing<E extends HTMLElement>(
         editing,
         renderRef,
         mathFieldRef,
+        prompts: (node.attrs.prompts as MathPrompt[] | undefined) ?? [],
+        insertPrompt: () => {
+            const mf = mathFieldRef.current;
+            if (!mf) return;
+            mf.insert('\\placeholder[' + mintPromptId() + ']{}');
+            mf.focus();
+        },
         onWrapperClick: () => {
             if (editing) return;
             openModeRef.current = 'end';
             setEditing(true);
         },
         fieldProps: {
-            onInput: (e) => updateAttributes({ latex: (e.currentTarget as MathfieldElement).value }),
+            onInput: (e) => {
+                const field = e.currentTarget as MathfieldElement;
+                const existing = (node.attrs.prompts as MathPrompt[] | undefined) ?? [];
+                const { latex: nextLatex, prompts } = reconcilePrompts(field, existing);
+                // Include prompts in the write only when there are (or were) any,
+                // so a plain equation's attrs stay prompt-free (byte-identity).
+                if (prompts.length > 0 || existing.length > 0) {
+                    updateAttributes({ latex: nextLatex, prompts });
+                } else {
+                    updateAttributes({ latex: nextLatex });
+                }
+            },
             onBlur: () => setEditing(false),
             onKeyDown: (e) => {
                 if (e.key === 'Escape') {

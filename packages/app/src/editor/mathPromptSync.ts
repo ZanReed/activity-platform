@@ -18,6 +18,9 @@
 // live field). See docs/design/math-blanks.md (Model A, MA-DR3 / Q5).
 // =============================================================================
 
+import { latexToAscii } from '@activity/graph-kit';
+import type { MathPrompt } from '@activity/schema';
+
 const MARKER = '\\placeholder[';
 
 interface PlaceholderSpan {
@@ -89,4 +92,33 @@ export function placeholderIds(latex: string): string[] {
 /** Whether the latex carries at least one `\placeholder[id]{}` gap. */
 export function hasPlaceholders(latex: string): boolean {
   return scanPlaceholders(latex).length > 0;
+}
+
+/**
+ * The pure core of the on-edit reconcile: turn each gap's answer LaTeX (read
+ * from the live field) into a schema MathPrompt (answer as ascii), preserving an
+ * existing gap's equivalence/tolerance/acceptableAnswers. A gap with no answer
+ * yet is dropped — it exists in the latex but isn't a scorable prompt until the
+ * author fills it (the empty-gap signifier flags it). The thin MathLive reads
+ * (getPrompts / getPromptValue) stay in the NodeView; this half is unit-tested.
+ */
+export function buildMathPrompts(
+  gaps: { id: string; answerLatex: string }[],
+  existing: MathPrompt[],
+): MathPrompt[] {
+  const byId = new Map(existing.map((p) => [p.id, p]));
+  const out: MathPrompt[] = [];
+  for (const { id, answerLatex } of gaps) {
+    const answer = latexToAscii(answerLatex);
+    if (answer === '') continue;
+    const prev = byId.get(id);
+    out.push({
+      id,
+      answer,
+      acceptableAnswers: prev?.acceptableAnswers ?? [],
+      ...(prev?.equivalence ? { equivalence: prev.equivalence } : {}),
+      ...(prev?.tolerance !== undefined ? { tolerance: prev.tolerance } : {}),
+    });
+  }
+  return out;
 }
