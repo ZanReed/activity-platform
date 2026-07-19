@@ -17,6 +17,7 @@ import type {
 } from '@activity/schema';
 import { escape, attr } from './html.js';
 import { renderMath } from './math.js';
+import { hasMathPrompts, renderMathPromptBody } from './math-prompts.js';
 
 export function renderInline(node: InlineNode): string {
   switch (node.type) {
@@ -172,6 +173,18 @@ function renderText(node: TextNode): string {
 }
 
 function renderInlineMath(node: InlineMathNode): string {
+  // Model A: inline math with in-equation gaps renders the SWAP way (static
+  // KaTeX boxed gaps + hidden mirror inputs + raw latex for the kit), wrapped in
+  // a marker span carrying data-math-prompt-latex. A prompt-free node stays a
+  // bare <span class="katex"> — the byte-identity pin.
+  if (hasMathPrompts(node.prompts)) {
+    return (
+      '<span class="math-inline has-math-prompts"' +
+      ' data-math-prompt-latex="' + attr(node.latex) + '">' +
+      renderMathPromptBody(node.latex, node.prompts, false) +
+      '</span>'
+    );
+  }
   // KaTeX produces a <span class="katex">...</span> for inline mode.
   return renderMath(node.latex, { displayMode: false });
 }

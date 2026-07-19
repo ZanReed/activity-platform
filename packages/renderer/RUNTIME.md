@@ -334,6 +334,15 @@ The `.js-blank-feedback` span carries **mistake-specific text only**:
 
 Visual correct/incorrect signal lives on the input border class (`.correct` / `.incorrect`). SR signal is `aria-invalid` on the input. The slot is reserved for actionable mistake-specific feedback; avoids clutter on a 30-blank worksheet.
 
+### Math prompts — in-equation blanks (`data-math-prompt-latex`) [Model A]
+
+A `math_block` / `math_inline` node may carry gradeable gaps *inside* the equation (schema `MathPrompt`; the LaTeX holds `\placeholder[id]{}` markers). These render the **SWAP way**, mirroring the interactive-graph static-SVG↔board split — the lazy graph-kit is a visual enhancement; capture/score/submit/restore work without it.
+
+- The node wrapper gains `class="… has-math-prompts"` and **`data-math-prompt-latex="<raw latex with \placeholder[id]{} markers>"`** — the raw LaTeX the lazy kit mounts an interactive MathLive read-only-with-prompt field from (the rendered KaTeX HTML isn't reversible to LaTeX). Additive, permanent; emitted only when the node has prompts.
+- The visible layer is **static KaTeX**: each `\placeholder[id]{}` is rewritten to a KaTeX-safe `\boxed{\phantom{…}}` gap (sized to the answer). No KaTeX `trust` needed — the static render is what prints / shows offline / shows before the kit loads.
+- Each prompt also emits a **hidden mirror `<input>`** inside `<span class="math-prompt-mirrors" hidden>`, carrying the **existing blank contract verbatim** — `class="blank"`, `data-blank-id="<prompt id>"` (= the placeholder id), `data-blank-answers` (pipe-joined), `data-blank-strategy="math"`, optional `data-blank-equivalence="exact-form"` / `data-blank-tolerance`. The mirror is the single source of value/score/storage; the kit's MathLive field writes the student's typed value (as ascii) into it, so the existing blank machinery (`buildBlankRef` / gather / restore / the `math` strategy) grades it unchanged. The runtime bridge walks `[data-math-prompt-latex]` blocks and registers these mirrors alongside `fill_in_blank` blanks.
+- A **prompt-free** math node emits none of the above — byte-identical to its pre-Model-A markup (the CRITICAL regression pin).
+
 ### Reference panel (`data-block-category="scaffold"`)
 
 Optional teacher-authored reference content (formula charts, vocab, conversion tables). Rendered OUTSIDE any `.activity-section`, so the scoring runtime's `init` walker — which scopes every query to `.activity-section` — never sees it: it contributes nothing to scoring / persistence / checkpoints. `data-block-category="scaffold"` is an analytics/CSS hook ONLY; the scoping mechanism is "outside `.activity-section`," never the category. Two presentations of the same blocks:
