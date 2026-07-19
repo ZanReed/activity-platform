@@ -227,10 +227,18 @@ export const BlankToken = z.object({
   // separators, a leading $) and compare within `tolerance` — so 0.5, 1/2,
   // and .50 all satisfy an answer of "1/2". Optional rather than defaulted so
   // documents stored before this field existed re-serialize byte-identically.
-  answerType: z.enum(['text', 'numeric']).optional(),
-  // Absolute comparison tolerance for numeric blanks (|typed - key| <= tolerance).
-  // Only meaningful when answerType is 'numeric'; absent = exact equality.
+  // 'math' (Model B math blanks) grades the typed value as a math EXPRESSION:
+  // the runtime lazy-loads the graph-kit and compares by numeric-sampling
+  // equivalence (2a ≡ a+a ≡ a*2), NOT string match. See docs/design/math-blanks.md.
+  answerType: z.enum(['text', 'numeric', 'math']).optional(),
+  // Absolute comparison tolerance. For 'numeric': |typed - key| <= tolerance.
+  // For 'math': the absolute tolerance passed to the sampling comparison.
+  // Absent = exact equality (numeric) / no extra slack (math).
   tolerance: z.number().min(0).optional(),
+  // Equivalence mode for 'math' blanks: 'value' (default, any expression that
+  // evaluates equal) or 'exact-form' (normalized-string match — "write it in
+  // this form"). Only meaningful when answerType is 'math'; absent = 'value'.
+  equivalence: z.enum(['value', 'exact-form']).optional(),
 });
 export type BlankToken = z.infer<typeof BlankToken>;
 

@@ -76,3 +76,67 @@ describe('BlankToken — numeric answer mode', () => {
     ).toThrow();
   });
 });
+
+describe('BlankToken — math answer mode (Model B)', () => {
+  it('accepts answerType math with an equivalence mode and tolerance', () => {
+    const parsed = BlankToken.parse({
+      type: 'blank',
+      id: BLANK_ID,
+      answer: '2a',
+      acceptableAnswers: [],
+      answerType: 'math',
+      equivalence: 'exact-form',
+      tolerance: 0.001,
+    });
+    expect(parsed.answerType).toBe('math');
+    expect(parsed.equivalence).toBe('exact-form');
+    expect(parsed.tolerance).toBe(0.001);
+  });
+
+  it('equivalence defaults to absent (= value) and rejects unknown modes', () => {
+    const parsed = BlankToken.parse({
+      type: 'blank',
+      id: BLANK_ID,
+      answer: '2a',
+      acceptableAnswers: [],
+      answerType: 'math',
+    });
+    expect(parsed.equivalence).toBeUndefined();
+    expect(() =>
+      BlankToken.parse({
+        type: 'blank',
+        id: BLANK_ID,
+        answer: '2a',
+        acceptableAnswers: [],
+        answerType: 'math',
+        equivalence: 'symbolic',
+      }),
+    ).toThrow();
+  });
+
+  // REGRESSION PIN (math-blanks.md A1): adding 'math' + equivalence must leave
+  // text/numeric blanks byte-identical on re-parse — the new fields stay ABSENT.
+  it('text and numeric blanks re-serialize byte-identically (no math fields leak in)', () => {
+    const textBlank = {
+      type: 'blank',
+      id: BLANK_ID,
+      answer: 'Paris',
+      acceptableAnswers: ['paris'],
+      interchangeableWithPrevious: false,
+    };
+    const numericBlank = {
+      type: 'blank',
+      id: BLANK_ID,
+      answer: '3.14',
+      acceptableAnswers: [],
+      interchangeableWithPrevious: false,
+      answerType: 'numeric' as const,
+      tolerance: 0.01,
+    };
+    for (const input of [textBlank, numericBlank]) {
+      const parsed = BlankToken.parse(input);
+      expect('equivalence' in parsed).toBe(false);
+      expect(JSON.parse(JSON.stringify(parsed))).toEqual(input);
+    }
+  });
+});
