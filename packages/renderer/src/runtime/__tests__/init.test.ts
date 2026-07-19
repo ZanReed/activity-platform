@@ -262,6 +262,62 @@ describe('buildRefs — fill-in-blank blocks', () => {
     });
 });
 
+describe('buildRefs — math prompts (Model A)', () => {
+    it('registers a math_block gap mirror as a scorable section blank', () => {
+        setupDOM(
+            configScript() +
+            '<section class="activity-section" data-section-id="sec-1">' +
+            '<div class="block block-math has-math-prompts"' +
+            ' data-block-type="math_block" data-block-id="mb-1"' +
+            ' data-math-prompt-latex="x=\\placeholder[g]{}">' +
+            '<span class="katex"></span>' +
+            '<span class="math-prompt-mirrors" hidden>' +
+            '<span class="blank-wrapper">' +
+            '<input class="blank math-prompt-blank" data-blank-id="g"' +
+            ' data-blank-answers="2a" data-blank-strategy="math" /></span>' +
+            '</span></div></section>',
+        );
+        const refs = buildRefs();
+        // The mirror is a normal blank to the runtime: registered, math strategy,
+        // attributed to the section, and counted in the section total.
+        expect(refs.blanks.has('g')).toBe(true);
+        expect(refs.blanks.get('g')?.strategy).toBe('math');
+        expect(refs.blanks.get('g')?.sectionId).toBe('sec-1');
+        expect(refs.sections.get('sec-1')?.blankIds).toContain('g');
+        // A math_block is NOT a fill-in-blank block — no fillInBlanks chrome.
+        expect(refs.fillInBlanks.has('mb-1')).toBe(false);
+    });
+
+    it('registers each blank exactly once when a gap nests inside a fill_in_blank', () => {
+        setupDOM(
+            configScript() +
+            '<section class="activity-section" data-section-id="sec-1">' +
+            '<div class="block block-fill-in-blank"' +
+            ' data-block-type="fill_in_blank" data-block-id="fib-1">' +
+            '<div class="block-problem-body">' +
+            // the fill-in-blank's own blank
+            '<span class="blank-wrapper">' +
+            '<input class="blank" data-blank-id="fibblank"' +
+            ' data-blank-answers="7" data-blank-strategy="list" /></span>' +
+            // inline math with a Model A gap nested in the prose
+            '<span class="math-inline has-math-prompts"' +
+            ' data-math-prompt-latex="\\placeholder[mg]{}">' +
+            '<span class="katex"></span>' +
+            '<span class="math-prompt-mirrors" hidden><span class="blank-wrapper">' +
+            '<input class="blank math-prompt-blank" data-blank-id="mg"' +
+            ' data-blank-answers="x" data-blank-strategy="math" /></span></span>' +
+            '</span></div></div></section>',
+        );
+        const refs = buildRefs();
+        expect(refs.blanks.has('fibblank')).toBe(true);
+        expect(refs.blanks.has('mg')).toBe(true);
+        const ids = refs.sections.get('sec-1')?.blankIds ?? [];
+        // Neither blank is double-counted (would break the section total).
+        expect(ids.filter((i) => i === 'mg').length).toBe(1);
+        expect(ids.filter((i) => i === 'fibblank').length).toBe(1);
+    });
+});
+
 describe('buildRefs — display (static) graphs', () => {
     it('collects a display graph into graphDisplays, not graphs, and never scores it', () => {
         setupDOM(

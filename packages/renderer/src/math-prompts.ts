@@ -86,7 +86,12 @@ export function renderMathPromptMirrors(prompts: MathPrompt[]): string {
       return (
         '<span class="blank-wrapper">' +
         '<input type="text"' +
-        ' class="blank"' +
+        // `math-prompt-blank` distinguishes these from ordinary fill-in-blank
+        // inputs so the init walk registers each exactly once: the fill_in_blank
+        // walk takes `.blank:not(.math-prompt-blank)`, the math-prompt walk takes
+        // `.blank.math-prompt-blank` (matters when inline math with a gap nests
+        // inside a fill_in_blank's prose).
+        ' class="blank math-prompt-blank"' +
         ' data-blank-id="' + attr(p.id) + '"' +
         ' data-blank-answers="' + attr(answers) + '"' +
         ' data-blank-strategy="math"' +

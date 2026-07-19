@@ -54,7 +54,7 @@ describe('renderMathPromptMirrors', () => {
     const html = renderMathPromptMirrors([
       prompt({ answer: '2a', acceptableAnswers: ['a+a'] }),
     ]);
-    expect(html).toContain('class="blank"');
+    expect(html).toContain('class="blank math-prompt-blank"');
     expect(html).toContain('data-blank-id="denom"');
     expect(html).toContain('data-blank-answers="2a|a+a"');
     expect(html).toContain('data-blank-strategy="math"');

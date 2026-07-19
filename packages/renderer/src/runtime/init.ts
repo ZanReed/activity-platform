@@ -97,7 +97,13 @@ export function buildRefs(doc: Document = document): Refs {
             sectionBlockIds.push(blockId);
 
             const blockBlankIds: string[] = [];
-            for (const input of $$<HTMLInputElement>('.blank', blockEl)) {
+            // `:not(.math-prompt-blank)` so a Model A in-equation gap nested in
+            // this block's prose (inline math with a prompt) isn't double-walked
+            // — it's the math-prompt walk's below.
+            for (const input of $$<HTMLInputElement>(
+                '.blank:not(.math-prompt-blank)',
+                blockEl,
+            )) {
                 const ref = buildBlankRef(input, blockId, sectionId);
                 if (!ref) continue;
                 const blankId = ref.input.dataset.blankId as string;
@@ -110,6 +116,38 @@ export function buildRefs(doc: Document = document): Refs {
                 blockId,
                 buildFillInBlankRef(blockEl, blockId, sectionId, blockBlankIds),
             );
+        }
+
+        // Math prompts (Model A) — in-equation blanks. They live inside a
+        // math_block / math_inline carrying data-math-prompt-latex (NOT a
+        // fill_in_blank block), so the walk above misses them. Register each
+        // hidden mirror input into the SAME blanks map + section blank list, so
+        // every downstream primitive — state seed (state.ts iterates refs.blanks),
+        // section score/total (checkpoints keys off blankIds), submit gather
+        // (submission.ts iterates refs.blanks), restore (applyStoredState) — treats
+        // it exactly like any other blank. This is the "capture/score/submit/
+        // restore works WITHOUT the kit" discipline: the visible KaTeX gap upgrades
+        // to an interactive MathLive field only when the lazy kit loads.
+        for (const promptEl of $$<HTMLElement>(
+            '[data-math-prompt-latex]',
+            sectionEl,
+        )) {
+            const ownerBlockId =
+                promptEl.closest<HTMLElement>('[data-block-id]')?.dataset.blockId;
+            if (!ownerBlockId) {
+                warn('Math-prompt node has no owning block id; skipping.');
+                continue;
+            }
+            for (const input of $$<HTMLInputElement>(
+                '.blank.math-prompt-blank',
+                promptEl,
+            )) {
+                const ref = buildBlankRef(input, ownerBlockId, sectionId);
+                if (!ref) continue;
+                const blankId = ref.input.dataset.blankId as string;
+                blanks.set(blankId, ref);
+                sectionBlankIds.push(blankId);
+            }
         }
 
         // Multiple-choice blocks — one scorable unit each, like graphs.
