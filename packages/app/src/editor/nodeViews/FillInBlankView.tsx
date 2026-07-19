@@ -58,6 +58,18 @@ export default function FillInBlankView({
             ? (node.attrs.workSpace as number)
             : null;
 
+    // Blank-discoverability signifier (Form A ghost text, design-review 2026-07-19).
+    // A teacher may not know that typing `__` (or `{{answer}}`) turns part of the
+    // sentence into a blank. Empty body → the placeholder teaches it; once there's
+    // text but still NO blank, a trailing faint hint teaches it; the hint fades
+    // the moment a blank exists (show-when-no-blank, hide-once-present).
+    const isEmpty = node.content.size === 0;
+    let hasBlank = false;
+    node.content.forEach((child) => {
+        if (child.type.name === 'blank') hasBlank = true;
+    });
+    const showMakeBlankHint = !isEmpty && !hasBlank;
+
     // A fill_in_blank nested directly in a faded worked example is a "faded
     // step": it drops the problem-number gutter and shows a compact inline
     // letter — the box owns the one problem number. fadedStep is null for a
@@ -101,8 +113,16 @@ export default function FillInBlankView({
             <PromptField
                 node={node}
                 className="fill-in-blank-block__body"
-                placeholder="Type the sentence…"
+                placeholder="Type the sentence…  ( __ makes a blank )"
             />
+            {showMakeBlankHint && (
+                <div
+                    className="fill-in-blank-block__make-hint"
+                    contentEditable={false}
+                >
+                    type <code>__</code> to make a blank
+                </div>
+            )}
             <QuestionSettingsSummary
                 hasSolution={hasSolution}
                 hasConfidenceRating={hasConfidenceRating}

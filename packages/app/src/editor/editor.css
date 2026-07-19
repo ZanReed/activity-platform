@@ -1627,6 +1627,26 @@
     margin: 0;
 }
 
+/* Blank-discoverability signifier (Form A ghost text): a faint one-time cue that
+   typing `__` turns part of the sentence into a blank. Aligned under the body
+   (grid column 2), shown only when there's text but no blank yet. */
+.fill-in-blank-block__make-hint {
+    grid-column: 2;
+    margin-top: 0.125rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--ed-faint); /* slate-400 — clearly inert hint */
+    user-select: none;
+}
+.fill-in-blank-block__make-hint code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em;
+    padding: 0 0.2em;
+    border: 1px dashed var(--ed-border-strong); /* slate-300 */
+    border-radius: 3px;
+    color: var(--ed-text-secondary); /* slate-600 */
+}
+
 /* Multiple-choice block — same resting/selected chrome as fill-in-blank.
  * Block-level settings live in the descriptor drawer; the block keeps only
  * the .question-settings-summary readout. */
