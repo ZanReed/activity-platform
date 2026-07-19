@@ -2,6 +2,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import MathBlockView from '../nodeViews/MathBlockView';
 import { signalOpenInsertedMath } from './MathFocus';
+import { promptsAttribute } from './mathPromptsAttribute';
 
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
@@ -24,6 +25,8 @@ export const MathBlock = Node.create({
                     parseHTML: (element) => element.getAttribute('data-latex') ?? '',
                                      renderHTML: (attributes) => ({ 'data-latex': attributes.latex }),
             },
+            // Model A: in-equation gradeable gaps (shared with mathInline).
+            ...promptsAttribute,
             // Sizing attrs (schema sizing fragment): width fraction in (0, 1]
             // (null = full width) and align ('left' | 'right'; null = center).
             // No UI sets these yet — carried so imported docs round-trip.

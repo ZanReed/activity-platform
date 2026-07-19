@@ -54,6 +54,8 @@ import type {
     Column,
     ImageBlock,
     MathBlock,
+    MathPrompt,
+    InlineMathNode,
     InteractiveGraphBlock,
     NumberLineBlock,
     DataPlotBlock,
@@ -77,6 +79,7 @@ import {
     CropRect,
     SIMPLE_MARK_TYPES,
     InlineNode as InlineNodeSchema,
+    MathPrompt as MathPromptSchema,
     DefinitionContentInline as DefinitionContentInlineSchema,
     WordCountHint,
     RubricCriterion,
@@ -134,6 +137,21 @@ function sanitizeInlineNodes(raw: unknown): InlineNode[] {
         }
     }
     return nodes;
+}
+
+// Model A: read + validate a math node's `prompts` attr (untyped Tiptap JSON)
+// into schema-valid MathPrompts, dropping malformed entries — mirrors
+// sanitizeInlineNodes. Emitted only when non-empty (the caller gates), so a
+// plain equation carries no `prompts` key (byte-identity; MA-D8).
+function readMathPrompts(node: JSONContent): MathPrompt[] {
+    const raw = node.attrs?.prompts;
+    if (!Array.isArray(raw)) return [];
+    const out: MathPrompt[] = [];
+    for (const entry of raw) {
+        const parsed = MathPromptSchema.safeParse(entry);
+        if (parsed.success) out.push(parsed.data);
+    }
+    return out;
 }
 
 // Mistake-feedback entries ({match, feedback}) for blanks and graph blocks
@@ -299,6 +317,10 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
                 type: 'math_block',
                 latex: (node.attrs?.latex as string | undefined) ?? '',
             };
+            // Model A: emit in-equation gaps only when present (optional-no-
+            // default, so a plain equation stays byte-identical). See MA-D8.
+            const prompts = readMathPrompts(node);
+            if (prompts.length > 0) block.prompts = prompts;
             applySizingAttrs(block, node);
             return block;
         }
@@ -998,11 +1020,15 @@ function tiptapInlineNodeToActivity(node: JSONContent): InlineNode | null {
                 marks: extractMarks(node.marks),
             };
 
-        case 'mathInline':
-            return {
+        case 'mathInline': {
+            const inlineMath: InlineMathNode = {
                 type: 'math_inline',
                 latex: (node.attrs?.latex as string | undefined) ?? '',
             };
+            const prompts = readMathPrompts(node);
+            if (prompts.length > 0) inlineMath.prompts = prompts;
+            return inlineMath;
+        }
 
         case 'hardBreak':
             return { type: 'hard_break' };
@@ -1228,7 +1254,15 @@ function activityBlockToTiptap(block: Block): JSONContent | null {
         case 'math_block':
             return {
                 type: 'mathBlock',
-                attrs: { latex: block.latex, ...sizingTiptapAttrs(block) },
+                attrs: {
+                    latex: block.latex,
+                    // Model A: only when present, so a plain equation's attrs are
+                    // unchanged (the attr defaults to []).
+                    ...(block.prompts && block.prompts.length > 0
+                        ? { prompts: block.prompts }
+                        : {}),
+                    ...sizingTiptapAttrs(block),
+                },
             };
 
         case 'bullet_list':
@@ -1616,7 +1650,12 @@ function activityInlineNodeToTiptap(node: InlineNode): JSONContent {
         case 'math_inline':
             return {
                 type: 'mathInline',
-                attrs: { latex: node.latex },
+                attrs: {
+                    latex: node.latex,
+                    ...(node.prompts && node.prompts.length > 0
+                        ? { prompts: node.prompts }
+                        : {}),
+                },
             };
 
         case 'hard_break':
