@@ -1,6 +1,6 @@
 # Math blanks — fill-in-the-blank *inside* an equation — design
 
-**Status:** ENG-CLEARED, buildable (2026-07-19, via `/plan-eng-review`; was DESIGN ONLY 2026-07-14). Scope: **full Model B + Model A this arc + the blank-discoverability signifier** (author-ruled at review). Seven architecture/quality/test/perf decisions locked in "Eng review resolution" at the bottom. No code yet. Prompted by the author ask: *"math blocks could contain blanks which contain math blocks."*
+**Status:** ENG-CLEARED (Model B), buildable (2026-07-19, via `/plan-eng-review` + Claude outside-voice; was DESIGN ONLY 2026-07-14). Scope: **Model B (`answerType:'math'`) + the blank-discoverability signifier this arc; Model A (in-equation MathLive prompts) DEFERRED to its own review** (re-sequenced after the outside voice caught a real grading-model hole; matches design D1). Decisions + task list in "Eng review resolution" at the bottom. No code yet. Prompted by the author ask: *"math blocks could contain blanks which contain math blocks."*
 
 ## The ask, reframed
 
@@ -92,58 +92,60 @@ Free variables are inferred from the key (e.g. `a`, `b`, `c`); domain of samplin
 
 ## Eng review resolution (2026-07-19, `/plan-eng-review`)
 
-Status upgraded: **DESIGN → ENG-CLEARED, buildable.** Scope ruled by the author at review: **full Model B + Model A this arc, plus the blank-discoverability signifier** (author chose the complete arc over B-first-defer-A). Seven decisions locked:
+Status upgraded: **DESIGN → ENG-CLEARED (Model B), buildable.** Scope was re-sequenced during review. First ruling was full B+A; after the outside-voice pass (which caught a real hole in the grading model) the author re-ruled to **Model B this arc + the blank-discoverability signifier; Model A deferred to its own review once B's sampling engine is proven on real answers** (matches the original design D1 and de-risks the irreversible Model-A surface). Decisions below; the outside-voice corrections are folded in (A1 is the corrected version).
 
-**A1 — Grading seam (the crux).** Model B math grading follows the **graph precedent** ([graph-integration.ts:429](../../packages/renderer/src/runtime/graph-integration.ts)): lazy-load the kit when a math blank first gains focus, compute equivalence **live into `BlankState.correct`**, and the **synchronous** section-check/`gatherResponses` just READ the stored result. Do NOT make `strategies.ts`/`checkBlank`/`gatherResponses` async — the sync core stays sync (this is the load-bearing call the original design underweighted; `strategies.ts:22` is a sync `(input, typed) => boolean` and D3's "load kit at check time" would have rippled async through the whole check/gather path).
+**A1 — Grading seam (the crux — CORRECTED after outside voice).** The original "compute-live/read-sync like graphs" framing was **wrong for blanks**: unlike graphs (scored by a separate read-only function), blanks are **re-scored synchronously on every check AND every submit** — `scoreBlanksInScope` ([blanks.ts:218](../../packages/renderer/src/runtime/blanks.ts)) reads `input.value` → sync `evaluateAnswer` → overwrites `state.blanks[id].result`, and it's called by BOTH `checkSection` ([checkpoints.ts:58](../../packages/renderer/src/runtime/checkpoints.ts)) AND `gatherResponses` ([submission.ts:298](../../packages/renderer/src/runtime/submission.ts)). A live-computed result would be clobbered to a string-match `false` at submit. **Corrected model:** eager-load the kit; once resolved, hold a **module-level SYNCHRONOUS `mathEquivalent` reference**; add a real `'math'` entry to `strategies.ts` that calls that held reference **synchronously** — so the existing sync re-score path works unchanged in both check and gather (no async anywhere in the check/gather path). A math blank is "unscored" **only** during the brief pre-load window (A2). Math blanks must NOT be silently dropped from `scoreBlanksInScope`; the `'math'` strategy IS the integration point, so the consume-once group core is untouched. `strategies.ts:22`'s sync `(input, typed) => boolean` signature is preserved.
 
-**A2 — Kit-load-failure fallback.** Fire the kit `import()` eagerly (fire-and-forget) at init on any page containing a math blank, so it's almost always ready by check time. If the kit still isn't loaded at check, mark that blank **UNSCORED (not wrong) but still submit the raw typed value** — the teacher sees the answer, submission never blocks. (Differs from graphs, where a failed kit means the board never renders so there's no answer to lose.)
+**A2 — Kit-load-failure fallback.** Fire the kit `import()` eagerly (fire-and-forget) at init on any page containing a math blank, so it's almost always ready by check time. If the kit still isn't loaded at check, mark that blank **UNSCORED (not wrong) but still submit the raw typed value** — the teacher sees the answer, submission never blocks. **Caveat (outside voice):** an unscored blank still counts in the section-score denominator (`total = blankIds.length`) with a null result, so it renders like a miss ("2/5"). Decide at build: either exclude unscored math blanks from the tally, or accept the transient display until the kit lands (recommend exclude-from-tally so the fallback intent survives the section aggregate).
 
-**A3 — Model A prompts per equation.** v1 supports **multiple** independent prompts per equation (fill numerator AND denominator). The on-node `prompts: [{id, answer, …}]` array (§D4) keys each gap by id into the existing `blanks` map identically whether N=1 or N>1, so N-capable now avoids a v2 migration. Model A makes MathLive an **input** surface on published pages for the first time (today it is calculator-only display).
+**A1b — Stale-result detection (new, from outside voice).** Because math blanks are graded through the held reference and a stored result is load-bearing across reloads, `BlankState` must record **the value that was graded** (not just the boolean), so a restored blank whose typed value no longer matches the graded value is re-graded rather than trusted. This widens `BlankState` → **bump `STORAGE_SCHEMA_VERSION`** (load-null-on-mismatch = fresh state, correct).
+
+**A3 — Model A prompts per equation → DEFERRED with Model A.** (When A is built: v1 supports **multiple** independent prompts per equation via the on-node `prompts: [{id, answer, …}]` array (§D4), keyed by id into the `blanks` map identically for N=1..N. Model A makes MathLive an **input** surface on published pages for the first time — its own review will size the CDN-font / mobile-VK / a11y / print costs the outside voice flagged.)
 
 **Q4 — `mathEquivalent()` (DRY).** Build it on `normalizeAsciiMath` + `compileFunction` ([evaluate.ts:289](../../packages/graph-kit/src/evaluate.ts) already compiles AsciiMath into `(x, vars?) => number` with a multi-var scope): infer free vars via math.js `parse`, sample over random assignments, compare within tolerance. One pure exported fn in `packages/graph-kit`, imported by BOTH the runtime and the editor preview (the graph-kit-leaf single-source pattern — see learning `drawable-color-palette-graphkit-leaf`). Reuses the proven evaluator; no second parser.
 
-**Q5 — Latex/prompt sync (pitfall — reincarnation of `drawable-inline-edit-roundtrip-dataloss`).** Model A keeps gap identity in two places (`\placeholder[id]{}` in `latex` + `prompts[]` on the node). Resolve with **latex-as-truth + reconcile**: parse gap ids out of the latex on every edit; `prompts[]` is a keyed side-map reconciled to match (prune removed ids, back-fill defaults for new ids, preserve existing by id), **no-op when the id set is unchanged** (no autosave churn). Pure, unit-testable `mathPromptSync.ts`, mirroring `drawableFormulaLogic`.
+**Q5 — Latex/prompt sync → DEFERRED with Model A.** (When A is built, the `\placeholder[id]{}`-in-latex + `prompts[]`-on-node duplication is the reincarnation of `drawable-inline-edit-roundtrip-dataloss`; resolve with **latex-as-truth + reconcile** in a pure `mathPromptSync.ts`, mirroring `drawableFormulaLogic`. Not needed for Model B.)
 
-**T6 — Test strategy.** Pure `mathEquivalent` + `mathPromptSync` **unit tests** in graph-kit (the batchable core); **jsdom runtime tests** mocking the kit module for compute-live/score/persist/restore (the `init.test.ts`/`free-text.test.ts` pattern); **owner manual J1b** on a real published page for the full kit-from-R2 integration (the graph-systems/crop verification pattern). No new real-browser published-page e2e harness — the kit loads from R2 and can't be served in CI, and no prior kit-graded feature built one.
+**Q6 — Grading semantics (resolved — was open q #3, sharpened by outside voice).** Sample over the **union of the key's and the student's free variables** (else a correct-but-verbose `a+a+0*b` leaves `b` unbound → NaN → wrongly wrong). Default `equivalence: 'value'`; ship `'exact-form'` (normalized-string) in v1 as a per-blank author toggle. Sampling policy: ~12 points; the domain must **include negatives where the expression is defined** so `sqrt(x^2) ≡ x` is correctly a **false** (positive-only sampling makes it a false positive); skip-and-resample on NaN/undefined/∞ (the curve-matcher's discipline); compare with the existing absolute `tolerance`. These traps are the real work in T1 and each needs a unit test.
 
-**P7 — Grading cadence.** Recompute equivalence **on blur + at check (debounced), not per-keystroke** — avoids N-point sampling per character and keeps correctness hidden until Check like every other blank (no live green/red mid-typing, no soft answer-leak).
+**Q7 — Dashboard rendering (new, from outside voice).** A math blank's answer reaches the teacher as a math string in `responses.blanks[id].answer`. Simple answers (`2a`) read fine; fractions/roots look raw. **KaTeX-render math-blank answers in the Submissions view** (the app already inlines KaTeX) so the teacher reads the equation, not the source.
 
-**CRITICAL regression pins (IRON RULE — no approval needed, go straight into the plan):**
+**T6 — Test strategy.** Pure `mathEquivalent` **unit tests** in graph-kit (the batchable core, incl. every Q6 trap); **jsdom runtime tests** for the held-reference score/persist/restore path (the `init.test.ts`/`free-text.test.ts` pattern — the mock resolves instantly, so ALSO test the pre-load "unscored" window and the A1b stale-value re-grade, which the instant mock would otherwise hide); **owner manual J1b** on a real published page. No new real-browser published-page e2e harness (the kit loads from R2, can't be served in CI; no prior kit-graded feature built one).
+
+**P7 — Grading cadence.** With the held-sync-reference model, the existing sync re-score on **check** grades correctly; additionally recompute on **blur** so a restored/edited value is fresh. **Never per-keystroke** (avoids N-point sampling per character; keeps correctness hidden until Check like every other blank — no live green/red, no soft answer-leak).
+
+**CRITICAL regression pin (IRON RULE — no approval needed):**
 - Adding `'math'` to `BlankToken.answerType` must leave existing `text`/`numeric` blanks **byte-identical** on re-serialize.
-- A math node with **zero prompts** must serialize **byte-identical** to today (additive optional field absent).
-- **Blanks-map coexistence:** a page with BOTH a `fill_in_blank` blank and a Model-A math prompt must gather/reveal both correctly with no id collision (both are uuid-keyed into the shared `blanks` map, §D6).
 
 ### NOT in scope (deferred, with rationale)
+- **Model A (in-equation MathLive prompts) — deferred to its own review** once Model B's sampling engine is proven on real answers (re-ruled after outside voice; matches design D1). Its irreversible surface (additive-only RUNTIME.md contract, MathLive-as-input, mobile-VK/a11y/print/CDN-fonts) gets sized honestly there, not front-loaded.
 - **Symbolic CAS grading** ("is it factored / fully simplified?") — Tier B, Compute Engine escape hatch; numeric sampling only.
-- **Nested prompts** (§D5) — forbidden by design; one level of gap terminates recursion.
-- **MathLive in the base runtime** — stays kit-only (lazy).
 - **Real-browser published-page e2e harness** — jsdom + owner-manual covers it (T6).
-- **`STORAGE_SCHEMA_VERSION` bump** — only if per-prompt state can't fit `BlankState`; confirm during build, bump only if the shape must widen.
-- **Wire / `ingest-submission` redeploy** — none (§D6 reuses the `blanks` map, wire stays v9).
+- **Wire / `ingest-submission` redeploy** — none (Model B reuses the `blanks` map; wire stays v9). (`STORAGE_SCHEMA_VERSION` DOES bump — A1b adds a graded-value field to `BlankState`.)
 
 ### What already exists (reuse, don't rebuild)
 - `normalizeAsciiMath` + `evaluate` + `compileFunction` (multi-var scope) — the evaluator core of `mathEquivalent`.
-- `graph-integration.ts` compute-live/read-sync/kit-fail-safe — the async-grading precedent (A1).
+- `scoreBlanksInScope` / `strategies.ts` dispatch — the sync re-score path the `'math'` strategy plugs into (A1).
 - Blank popover Text/Numeric answer-type selector + `FormulaField` — the editor surface for the Math option.
+- Submissions view KaTeX inlining — reuse for Q7 (render math answers).
 - `PlaceholderHint` / `PromptField` ghost-text patterns — the signifier's building blocks.
 - `calculator-summon.ts` / `graph-integration.ts` lazy `import(kitSrc)` — the eager-preload plumbing (A2).
 
-### Implementation Tasks
+### Implementation Tasks — Model B + signifier (this arc)
 Synthesized from the findings; each derives from a locked decision. `pnpm test` / `pnpm --filter @activity/app test:e2e` to verify.
 
-- [ ] **T1 (P1)** — graph-kit — `mathEquivalent()` pure fn on `normalizeAsciiMath`+`compileFunction`; free-var inference; sample+tolerance; `value`/`exact-form` modes. Files: `packages/graph-kit/src/`. Verify: unit ★★★ (Q4, P7).
-- [ ] **T2 (P1)** — schema — `BlankToken.answerType +'math'` + `equivalence` enum; **byte-identity regression pin** for text/numeric. Files: `packages/schema/src/inline.ts`. Verify: unit CRITICAL (A1 regression).
-- [ ] **T3 (P1)** — runtime — Model B compute-live score into `BlankState`; eager kit preload; kit-fail unscored-but-submitted; blur/check cadence. Files: `packages/renderer/src/runtime/{blanks,strategies,init}.ts`. Verify: jsdom ★★★ (A1, A2, P7).
-- [ ] **T4 (P1)** — runtime/schema — **blanks-map coexistence** regression (fill_in_blank + math prompt, no id collision). Verify: jsdom CRITICAL.
-- [ ] **T5 (P2)** — editor — blank popover Math option + FormulaField answer field. Files: blank popover. Verify: e2e ★★.
-- [ ] **T6 (P1)** — graph-kit — `mathPromptSync.ts` latex-as-truth reconcile + no-op guard. Verify: unit ★★★ (Q5).
-- [ ] **T7 (P1)** — schema/renderer — on-node `prompts[]` + `\placeholder[id]{}`; additive data-attr gap contract (RUNTIME.md, additive only); **zero-prompts byte-identity pin**. Verify: unit + bundle (A3).
-- [ ] **T8 (P1)** — runtime — Model A: `init.ts` walks math-node gaps → new ref type; MathLive read-only-with-editable-prompts field; capture/score/persist by id; reveal/lock/confidence reuse; reload-restore. Verify: jsdom ★★★ (A3).
-- [ ] **T9 (P2)** — editor — Model A authoring: insert-gap affordance in the math NodeView + per-prompt answer/equivalence/tolerance panel. Verify: e2e ★★.
-- [ ] **T10 (P2)** — editor — blank discoverability signifier (form is a design call — ghost "type `__`" vs `+`-underline). Verify: e2e ★★.
-- [ ] **T11 (P1)** — deploy prep — `pnpm upload:graph-kit` (mathEquivalent lands in the kit) BEFORE `publish-activity` redeploy; `pnpm bundle:renderer` for the Model-A renderer/runtime change, committed in-commit. No ingest redeploy (wire v9). Author-run.
+- [ ] **T1 (P1)** — graph-kit — `mathEquivalent()` pure fn on `normalizeAsciiMath`+`compileFunction`; free-var **union** inference; ~12-pt sampling with a signed domain + skip-and-resample; `value`/`exact-form` modes; tolerance. Files: `packages/graph-kit/src/`. Verify: unit ★★★ incl. every Q6 trap (`a+a≡2a`, `sqrt(x^2)≢x`, `a+a+0*b≡2a`).
+- [ ] **T2 (P1)** — schema — `BlankToken.answerType +'math'` + `equivalence` enum; **byte-identity regression pin** for text/numeric. Files: `packages/schema/src/inline.ts`. Verify: unit CRITICAL.
+- [ ] **T3 (P1)** — runtime — `'math'` strategy calling the **held sync `mathEquivalent` reference**; eager kit preload at init when a math blank is present; kit-fail → unscored-but-submitted + **exclude unscored from the section tally** (A2 caveat); blur+check cadence. Files: `packages/renderer/src/runtime/{strategies,blanks,init,checkpoints}.ts`. Verify: jsdom ★★★ (A1, A2, P7).
+- [ ] **T4 (P1)** — runtime/storage — A1b: add graded-value to `BlankState`; **bump `STORAGE_SCHEMA_VERSION`**; re-grade on restore when typed≠graded value. Files: `packages/renderer/src/runtime/storage.ts`. Verify: jsdom CRITICAL (stale-restore).
+- [ ] **T5 (P2)** — editor — blank popover Math option + FormulaField answer field + per-blank `equivalence`/`tolerance` controls. Verify: e2e ★★.
+- [ ] **T6 (P2)** — app — Q7: KaTeX-render math-blank answers in the Submissions dashboard. Files: `packages/app/src/routes/Submissions.tsx`. Verify: component ★★.
+- [ ] **T7 (P2)** — editor — blank discoverability signifier (form is a design call — ghost "type `__`" vs `+`-underline). Verify: e2e ★★.
+- [ ] **T8 (P1)** — deploy prep — `pnpm upload:graph-kit` (mathEquivalent lands in the kit) BEFORE `publish-activity` redeploy; `pnpm bundle:renderer` committed in-commit (runtime strategy + storage bump). No ingest redeploy (wire v9). Author-run.
 
-**Owed design call (not eng):** the signifier's visual form (T10) — flag to `/plan-design-review` or author taste.
+**Deferred to the Model A review:** on-node `prompts[]` + `\placeholder` renderer contract; `mathPromptSync.ts` (latex-as-truth reconcile, Q5); `init.ts` math-gap walker + MathLive read-only-with-prompts runtime field; Model A authoring UI; the MathLive-as-input cost spike (CDN fonts / mobile VK / a11y / print).
+
+**Owed design call (not eng):** the signifier's visual form (T7) — `/plan-design-review` or author taste.
 
 ### Parallelization
-Model B and Model A share `packages/graph-kit` and the runtime blank path, so they're **largely sequential** (B proves `mathEquivalent` + the compute-live seam; A builds on both). One parallel lane exists: the **signifier (T10)** is independent of both. Lane A: T1→T2→T3→T4→T5 (Model B). Lane B: T6→T7→T8→T9 (Model A, starts after T1 lands `mathEquivalent`). Lane C: T10 (signifier, fully independent). Launch A and C in parallel; B waits on T1.
+Lane A (Model B core, sequential — shared graph-kit + runtime blank path): T1 → T2 → T3 → T4 → T5 → T6. Lane B (independent): T7 signifier. **Launch A and B in parallel; T8 deploy-prep after A lands.** Model A is a separate future arc, not a lane here.
