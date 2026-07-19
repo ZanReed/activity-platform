@@ -10,6 +10,7 @@
     "build:graph-kit": "node scripts/build-graph-kit.mjs",
     "upload:graph-kit": "node --env-file-if-exists=.env.r2 scripts/build-graph-kit.mjs --upload",
     "build:fonts": "node --env-file-if-exists=.env.r2 scripts/build-fonts.mjs",
+    "build:mathlive-fonts": "node --env-file-if-exists=.env.r2 scripts/build-mathlive-fonts.mjs",
     "deploy:ingest": "supabase functions deploy ingest-submission --no-verify-jwt",
     "deploy:feedback": "supabase functions deploy get-feedback --no-verify-jwt",
     "deploy:publish": "supabase functions deploy publish-activity",

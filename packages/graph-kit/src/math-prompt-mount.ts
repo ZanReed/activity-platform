@@ -18,6 +18,7 @@
 // =============================================================================
 
 import { MathfieldElement } from 'mathlive';
+import { configureMathLive } from './mathlive-setup.js';
 import { latexToAscii, asciiToLatex } from './math-prompt-convert.js';
 
 export interface MathPromptMountOptions {
@@ -42,6 +43,10 @@ export function mountMathPrompts(
   host: HTMLElement,
   opts: MathPromptMountOptions,
 ): MountedMathPrompts {
+  // Set MathLive's fonts/sounds before the first field mounts (MA-T6). Idempotent
+  // and shared with the calculator, so a math-prompt page without a calculator
+  // still gets the self-hosted fonts.
+  configureMathLive();
   const field = new MathfieldElement();
   // Read-only: only the \placeholder prompts are editable, the equation is not.
   field.readOnly = true;
