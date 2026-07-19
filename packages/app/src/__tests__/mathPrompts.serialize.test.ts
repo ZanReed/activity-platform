@@ -39,6 +39,28 @@ describe('math_block prompts — serialize', () => {
     ]);
   });
 
+  it('EMPTIES the placeholder answers from the published latex (no answer leak)', () => {
+    // The draft stores raw answers in the latex (author-visible); serialize must
+    // strip them so the student-facing latex / data-math-prompt-latex never
+    // carries the answer.
+    const doc: JSONContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'mathBlock',
+          attrs: {
+            latex: 'x=\\frac{-b}{\\placeholder[d]{2a}}',
+            prompts: [{ id: 'd', answer: '2a', acceptableAnswers: [] }],
+          },
+        },
+      ],
+    };
+    const block = firstBlock(doc) as { latex: string; prompts?: unknown };
+    expect(block.latex).toBe('x=\\frac{-b}{\\placeholder[d]{}}'); // answer stripped
+    expect(block.latex).not.toContain('2a');
+    expect(block.prompts).toEqual([{ id: 'd', answer: '2a', acceptableAnswers: [] }]);
+  });
+
   it('emits NO prompts key on a plain equation (byte-identity)', () => {
     const doc: JSONContent = {
       type: 'doc',

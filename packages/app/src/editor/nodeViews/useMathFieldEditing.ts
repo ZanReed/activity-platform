@@ -30,8 +30,8 @@ import type { MathPrompt } from '@activity/schema';
 import { asciiToLatex } from '@activity/graph-kit';
 import { readOpenSignal, type MathOpenMode } from '../extensions/MathFocus';
 import {
-  emptyPlaceholders,
   hasPlaceholders,
+  placeholderEntries,
   buildMathPrompts,
 } from '../mathPromptSync';
 
@@ -41,20 +41,26 @@ function mintPromptId(): string {
   return 'g' + Math.random().toString(36).slice(2, 8);
 }
 
-// Model A reconcile (MA-DR3 answer-in-gap): read each gap's answer from the live
-// field and produce the EMPTIED latex for storage — the answer never lives in
-// the stored/emitted latex (leak fix), only in prompts[]. The pure half
-// (buildMathPrompts) is unit-tested; here we just do the thin MathLive reads.
+// Model A reconcile (MA-DR3 answer-in-gap): derive prompts[] from the gaps'
+// in-field answers. We store the RAW latex (answers still embedded), NOT an
+// emptied one: emptying the stored latex makes React re-render the field with
+// emptied children, which — verified live — resets MathLive and wipes the
+// just-typed answer. The draft latex is the teacher's private copy (never served
+// to students); serialize() empties the placeholders at publish, so the answer
+// never reaches the student-facing latex / data-math-prompt-latex. The pure half
+// (buildMathPrompts) is unit-tested; here we just parse the field's latex (not
+// getPromptValue, which returns '' for a programmatically-set placeholder).
 function reconcilePrompts(
   field: MathfieldElement,
   existing: MathPrompt[],
 ): { latex: string; prompts: MathPrompt[] } {
   const raw = field.value;
   if (!hasPlaceholders(raw)) return { latex: raw, prompts: [] };
-  const gaps = field
-    .getPrompts()
-    .map((id) => ({ id, answerLatex: field.getPromptValue(id) }));
-  return { latex: emptyPlaceholders(raw), prompts: buildMathPrompts(gaps, existing) };
+  const gaps = placeholderEntries(raw).map((e) => ({
+    id: e.id,
+    answerLatex: e.value,
+  }));
+  return { latex: raw, prompts: buildMathPrompts(gaps, existing) };
 }
 
 export interface MathFieldEditing<E extends HTMLElement> {

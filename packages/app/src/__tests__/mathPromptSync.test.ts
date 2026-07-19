@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import {
   emptyPlaceholders,
   placeholderIds,
+  placeholderEntries,
   hasPlaceholders,
   buildMathPrompts,
 } from '../editor/mathPromptSync';
@@ -56,6 +57,26 @@ describe('placeholderIds', () => {
 
   it('is empty for a plain equation', () => {
     expect(placeholderIds('y = x^2')).toEqual([]);
+  });
+});
+
+describe('placeholderEntries', () => {
+  it('extracts each gap id + its answer value (the reconcile source)', () => {
+    expect(placeholderEntries('x=\\placeholder[g]{2a}')).toEqual([
+      { id: 'g', value: '2a' },
+    ]);
+  });
+
+  it('extracts a nested-brace answer value intact', () => {
+    expect(placeholderEntries('\\placeholder[g]{\\frac{1}{2}}')).toEqual([
+      { id: 'g', value: '\\frac{1}{2}' },
+    ]);
+  });
+
+  it('reports an empty value for an unanswered gap', () => {
+    expect(placeholderEntries('\\placeholder[g]{}')).toEqual([
+      { id: 'g', value: '' },
+    ]);
   });
 });
 

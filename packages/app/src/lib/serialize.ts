@@ -95,6 +95,7 @@ import {
     ChoiceGraph,
 } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
+import { emptyPlaceholders } from '../editor/mathPromptSync';
 
 // Canonical inline content (rich text + inline math) as the schema models it.
 // Used for the rich popover fields — blank hint, mistake feedback, problem
@@ -312,14 +313,17 @@ function tiptapBlockToActivity(node: JSONContent): Block | null {
         }
 
         case 'mathBlock': {
+            // Model A: emit in-equation gaps only when present (optional-no-
+            // default, so a plain equation stays byte-identical). See MA-D8. The
+            // draft latex still embeds the answers (author-visible); EMPTY the
+            // placeholders here so the published/student latex never carries them.
+            const rawLatex = (node.attrs?.latex as string | undefined) ?? '';
+            const prompts = readMathPrompts(node);
             const block: MathBlock = {
                 id: crypto.randomUUID(),
                 type: 'math_block',
-                latex: (node.attrs?.latex as string | undefined) ?? '',
+                latex: prompts.length > 0 ? emptyPlaceholders(rawLatex) : rawLatex,
             };
-            // Model A: emit in-equation gaps only when present (optional-no-
-            // default, so a plain equation stays byte-identical). See MA-D8.
-            const prompts = readMathPrompts(node);
             if (prompts.length > 0) block.prompts = prompts;
             applySizingAttrs(block, node);
             return block;
@@ -1021,11 +1025,12 @@ function tiptapInlineNodeToActivity(node: JSONContent): InlineNode | null {
             };
 
         case 'mathInline': {
+            const rawLatex = (node.attrs?.latex as string | undefined) ?? '';
+            const prompts = readMathPrompts(node);
             const inlineMath: InlineMathNode = {
                 type: 'math_inline',
-                latex: (node.attrs?.latex as string | undefined) ?? '',
+                latex: prompts.length > 0 ? emptyPlaceholders(rawLatex) : rawLatex,
             };
-            const prompts = readMathPrompts(node);
             if (prompts.length > 0) inlineMath.prompts = prompts;
             return inlineMath;
         }

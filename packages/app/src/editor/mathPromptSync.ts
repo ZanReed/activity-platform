@@ -25,6 +25,8 @@ const MARKER = '\\placeholder[';
 
 interface PlaceholderSpan {
   id: string;
+  /** the answer latex between the braces (may be empty). */
+  value: string;
   /** index of the `{` that opens the value. */
   openBrace: number;
   /** index of the matching `}` that closes the value. */
@@ -58,7 +60,12 @@ function scanPlaceholders(latex: string): PlaceholderSpan[] {
       }
     }
     if (depth !== 0) break; // unbalanced — bail without throwing
-    spans.push({ id: latex.slice(idStart, idEnd), openBrace, closeBrace: j });
+    spans.push({
+      id: latex.slice(idStart, idEnd),
+      value: latex.slice(openBrace + 1, j),
+      openBrace,
+      closeBrace: j,
+    });
     i = j + 1;
   }
   return spans;
@@ -87,6 +94,18 @@ export function emptyPlaceholders(latex: string): string {
 /** The gap ids present in the latex, in document order (duplicates preserved). */
 export function placeholderIds(latex: string): string[] {
   return scanPlaceholders(latex).map((s) => s.id);
+}
+
+/**
+ * Each gap's id + its answer latex (the braces' content), parsed straight from
+ * the field's latex. Preferred over MathLive's getPromptValue, which returns ''
+ * for a placeholder whose value was set programmatically — the field's `value`
+ * is the reliable source (verified live).
+ */
+export function placeholderEntries(
+  latex: string,
+): { id: string; value: string }[] {
+  return scanPlaceholders(latex).map((s) => ({ id: s.id, value: s.value }));
 }
 
 /** Whether the latex carries at least one `\placeholder[id]{}` gap. */
