@@ -52,6 +52,33 @@ const SimpleMark = z.discriminatedUnion('type', [
   SuperscriptMark,
 ]);
 
+// ---- Math prompt (Model A: in-equation blank) -------------------------------
+// A gradeable gap INSIDE a rendered equation — the MathLive `\placeholder[id]{}`
+// feature. `id` matches the placeholder marker in the owning node's `latex`; the
+// student's typed math expression is graded exactly like a 'math' fill-in-blank
+// (numeric-sampling equivalence, 2a ≡ a+a ≡ a*2). Model A reuses the existing
+// `submissions.responses.blanks` map keyed by this id, so prompts need NO new
+// wire shape. A gap is inherently a math answer, so there is no `answerType`
+// here — `equivalence` + `tolerance` are the same grading knobs a 'math'
+// BlankToken carries, reused verbatim. See docs/design/math-blanks.md (Model A).
+export const MathPrompt = z.object({
+  // Matches the `\placeholder[id]{}` marker in the owning node's latex. NOT a
+  // uuid: MathLive placeholder ids may not contain spaces/special characters
+  // (uuid hyphens are unsafe), so the editor mints a MathLive-safe token.
+  // Document-wide uniqueness (it keys into the blanks map) is an authoring-time
+  // invariant, not a schema constraint.
+  id: z.string().min(1),
+  answer: z.string().min(1),
+  // Alternative acceptable forms ("also accept"). Empty array is the common case.
+  acceptableAnswers: z.array(z.string()).default([]),
+  // Equivalence mode: 'value' (default, any expression that evaluates equal) or
+  // 'exact-form' (normalized-string match). Absent = 'value'. Mirrors BlankToken.
+  equivalence: z.enum(['value', 'exact-form']).optional(),
+  // Absolute sampling tolerance. Absent = no extra slack. Mirrors BlankToken.
+  tolerance: z.number().min(0).optional(),
+});
+export type MathPrompt = z.infer<typeof MathPrompt>;
+
 // ---- Inline math ------------------------------------------------------------
 // LaTeX source for KaTeX. Stored verbatim; rendered at render time. The
 // renderer is tolerant of invalid LaTeX (renders an error indicator rather
@@ -59,6 +86,12 @@ const SimpleMark = z.discriminatedUnion('type', [
 export const InlineMathNode = z.object({
   type: z.literal('math_inline'),
   latex: z.string(),
+  // Model A: optional in-equation gradeable gaps (§MathPrompt). Optional with
+  // NO default so a math node authored before Model A — or one with no gaps —
+  // re-serializes BYTE-IDENTICALLY (a `.default([])` would materialize `prompts:
+  // []` on every legacy node). Same optional-no-default discipline as
+  // BlankToken.answerType/tolerance. See docs/design/math-blanks.md (Model A).
+  prompts: z.array(MathPrompt).optional(),
 });
 export type InlineMathNode = z.infer<typeof InlineMathNode>;
 

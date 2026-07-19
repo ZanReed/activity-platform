@@ -15,6 +15,7 @@ export {
   SIMPLE_MARK_TYPES,
   TextNode,
   InlineMathNode,
+  MathPrompt,
   HardBreakNode,
   BlankToken,
   InlineNode,
