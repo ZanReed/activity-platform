@@ -74,6 +74,47 @@ test('typing an answer in a gap captures it as a prompt (answer-in-gap)', async 
     expect(attrs.latex).toContain('\\placeholder[g]');
 });
 
+test('the Answer settings popover configures the gap grading (trimmed to math)', async ({
+    page,
+}) => {
+    await insertMathBlock(page, 'x = \\placeholder[g]{}');
+    await page.evaluate(() => {
+        const mf: any = document.querySelector('.math-block-input');
+        mf.setPromptValue('g', '2a', {});
+        mf.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    // Open the popover from the edit chrome.
+    await page.locator('.math-gap-settings').click();
+    const pop = page.locator('.blank-edit-popover');
+    await expect(pop).toBeVisible();
+
+    // Trimmed to the math-relevant controls; the fill-in-blank-only parts are gone.
+    await expect(pop.getByLabel('Math equivalence mode')).toBeVisible();
+    await expect(pop.getByLabel('Comparison tolerance')).toBeVisible();
+    await expect(pop.getByText('Acceptable answers')).toBeVisible();
+    await expect(pop.getByRole('radiogroup')).toHaveCount(0); // no answer-type radios
+    await expect(pop.getByText('Advanced options')).toHaveCount(0); // no hint/mistake
+
+    // Configure exact-form + a tolerance — both write onto the prompt (real
+    // change + blur, so commit-on-blur fires).
+    await pop.getByLabel('Math equivalence mode').selectOption('exact-form');
+    await pop.getByLabel('Comparison tolerance').fill('0.5');
+    await pop.getByLabel('Comparison tolerance').blur();
+
+    await expect
+        .poll(async () => (await readMathBlockAttrs(page)).prompts)
+        .toEqual([
+            {
+                id: 'g',
+                answer: '2a',
+                acceptableAnswers: [],
+                equivalence: 'exact-form',
+                tolerance: 0.5,
+            },
+        ]);
+});
+
 test('a plain equation stays prompt-free (byte-identity)', async ({ page }) => {
     await insertMathBlock(page, 'x = 4');
     await page.evaluate(() => {

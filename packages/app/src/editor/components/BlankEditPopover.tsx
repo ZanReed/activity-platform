@@ -81,6 +81,12 @@ interface BlankEditPopoverProps {
     // Whether a previous blank exists in this block; gates the grouping
     // checkbox (the first blank in a block has nothing to group with).
     canGroupWithPrevious: boolean;
+    // Model A: reuse this popover to configure an in-equation math prompt's
+    // grading. Hides the fill-in-blank-only parts (the Answer field — the answer
+    // is typed in the gap; the answer-type radios — a gap is always math; hint /
+    // mistake feedback / grouping) and keeps Equivalence / Tolerance / Acceptable
+    // answers. See docs/design/math-blanks.md (MA-DR2).
+    mathPromptMode?: boolean;
     onChange: (
         attrs: Partial<{
             answer: string;
@@ -113,6 +119,7 @@ export default function BlankEditPopover({
     initialTolerance,
     initialEquivalence,
     canGroupWithPrevious,
+    mathPromptMode = false,
     onChange,
     onClose,
 }: BlankEditPopoverProps) {
@@ -577,69 +584,73 @@ export default function BlankEditPopover({
                 role="dialog"
                 aria-label="Edit blank"
             >
-                <label className="blank-edit-popover__field">
-                    <span className="blank-edit-popover__label">Answer</span>
-                    <input
-                        ref={answerInputRef}
-                        type="text"
-                        className="blank-edit-popover__input"
-                        value={answer}
-                        onChange={(e) => setAnswer(e.target.value)}
-                        onBlur={handleAnswerBlur}
-                        onKeyDown={handleAnswerKeyDown}
-                        aria-invalid={answerError ? 'true' : undefined}
-                        aria-describedby={
-                            answerError ? 'blank-edit-answer-error' : undefined
-                        }
-                    />
-                    {answerError && (
-                        <span
-                            id="blank-edit-answer-error"
-                            className="blank-edit-popover__error"
-                            role="alert"
-                        >
-                            {answerError}
-                        </span>
-                    )}
-                </label>
+                {!mathPromptMode && (
+                    <label className="blank-edit-popover__field">
+                        <span className="blank-edit-popover__label">Answer</span>
+                        <input
+                            ref={answerInputRef}
+                            type="text"
+                            className="blank-edit-popover__input"
+                            value={answer}
+                            onChange={(e) => setAnswer(e.target.value)}
+                            onBlur={handleAnswerBlur}
+                            onKeyDown={handleAnswerKeyDown}
+                            aria-invalid={answerError ? 'true' : undefined}
+                            aria-describedby={
+                                answerError ? 'blank-edit-answer-error' : undefined
+                            }
+                        />
+                        {answerError && (
+                            <span
+                                id="blank-edit-answer-error"
+                                className="blank-edit-popover__error"
+                                role="alert"
+                            >
+                                {answerError}
+                            </span>
+                        )}
+                    </label>
+                )}
 
                 <div className="blank-edit-popover__field">
                     <span className="blank-edit-popover__label">
-                        Answer type
+                        {mathPromptMode ? 'Grading' : 'Answer type'}
                     </span>
-                    <div
-                        className="blank-edit-popover__seg"
-                        role="radiogroup"
-                        aria-label="Answer type"
-                    >
-                        {(['text', 'numeric', 'math'] as const).map((t) => (
-                            <label
-                                key={t}
-                                className="blank-edit-popover__seg-option"
-                            >
-                                <input
-                                    type="radio"
-                                    name={`answer-type-${blankId}`}
-                                    checked={answerType === t}
-                                    onChange={() => handleAnswerTypeChange(t)}
-                                />
-                                <span>
-                                    {t === 'text'
-                                        ? 'Text'
-                                        : t === 'numeric'
-                                          ? 'Numeric'
-                                          : 'Math'}
-                                </span>
-                            </label>
-                        ))}
-                    </div>
+                    {!mathPromptMode && (
+                        <div
+                            className="blank-edit-popover__seg"
+                            role="radiogroup"
+                            aria-label="Answer type"
+                        >
+                            {(['text', 'numeric', 'math'] as const).map((t) => (
+                                <label
+                                    key={t}
+                                    className="blank-edit-popover__seg-option"
+                                >
+                                    <input
+                                        type="radio"
+                                        name={`answer-type-${blankId}`}
+                                        checked={answerType === t}
+                                        onChange={() => handleAnswerTypeChange(t)}
+                                    />
+                                    <span>
+                                        {t === 'text'
+                                            ? 'Text'
+                                            : t === 'numeric'
+                                              ? 'Numeric'
+                                              : 'Math'}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
                     {answerType === 'numeric' && (
                         <div className="blank-edit-popover__sublabel">
                             Equivalent forms count as correct — 0.5, 1/2, and
                             .50 all match. Fractions and mixed numbers work.
                         </div>
                     )}
-                    {answerType === 'math' && (
+                    {answerType === 'math' && !mathPromptMode && (
                         <div className="blank-edit-popover__sublabel">
                             Graded as a math expression — 2a, a*2, and a+a all
                             match. Type the answer as plain math (e.g. 2a,
@@ -773,7 +784,7 @@ export default function BlankEditPopover({
                                 </div>
                             )}
 
-                {advancedExpanded ? (
+                {!mathPromptMode && (advancedExpanded ? (
                     <>
                         <div className="blank-edit-popover__field">
                             <span className="blank-edit-popover__label">Hint</span>
@@ -869,7 +880,7 @@ export default function BlankEditPopover({
                             + Advanced options (hint, mistake feedback)
                         </button>
                     </div>
-                )}
+                ))}
 
                 <div className="blank-edit-popover__hint-text">
                     Press Escape or click outside to close.

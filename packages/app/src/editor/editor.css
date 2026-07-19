@@ -327,6 +327,36 @@
 .math-block-input:focus {
     border-color: var(--ed-accent);
 }
+
+/* Model A: math-prompt edit chrome — the insert-blank + answer-settings buttons
+   shown below the field while editing a math block (MA-DR1/DR2). */
+.math-edit-chrome {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+.math-insert-blank,
+.math-gap-settings {
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--ed-faint);
+    border-radius: 0.25rem;
+    background: var(--ed-canvas);
+    color: var(--ed-ink);
+    cursor: pointer;
+    transition:
+        background-color 0.12s ease,
+        border-color 0.12s ease,
+        color 0.12s ease;
+}
+.math-insert-blank:hover,
+.math-gap-settings:hover,
+.math-gap-settings[aria-expanded='true'] {
+    border-color: var(--ed-accent);
+    color: var(--ed-accent-strong);
+    background: var(--ed-accent-bg);
+}
+
 /* Slash menu */
 .slash-menu {
     width: 280px;

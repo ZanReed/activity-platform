@@ -75,10 +75,15 @@ export interface MathFieldEditing<E extends HTMLElement> {
     prompts: MathPrompt[];
     /** Insert an empty `\placeholder` gap at the caret (the insert-blank button). */
     insertPrompt: () => void;
+    /** Set true while interacting with the settings popover so a field blur
+     *  doesn't tear down edit mode (unmounting the popover). MathLive blurs on
+     *  outside pointerdown and its blur relatedTarget is null across the shadow
+     *  boundary, so an explicit guard is more reliable than relatedTarget. */
+    keepEditingRef: React.MutableRefObject<boolean>;
     /** Props to spread onto the <math-field> element. */
     fieldProps: {
         onInput: (e: React.FormEvent) => void;
-        onBlur: () => void;
+        onBlur: (e: React.FocusEvent) => void;
         onKeyDown: (e: React.KeyboardEvent) => void;
     };
 }
@@ -95,6 +100,9 @@ export function useMathFieldEditing<E extends HTMLElement>(
     // Where to place the caret the next time the field is focused. A ref (not
     // state) so setting it never triggers an extra render.
     const openModeRef = useRef<MathOpenMode>('end');
+    // Guard: the NodeView sets this true while the settings popover is open, so a
+    // field blur (MathLive blurs on outside pointerdown) doesn't exit edit mode.
+    const keepEditingRef = useRef(false);
 
     // Static KaTeX render — stays mounted (hidden while editing) so renderRef
     // is stable across edit cycles.
@@ -196,6 +204,7 @@ export function useMathFieldEditing<E extends HTMLElement>(
         renderRef,
         mathFieldRef,
         prompts: (node.attrs.prompts as MathPrompt[] | undefined) ?? [],
+        keepEditingRef,
         insertPrompt: () => {
             const mf = mathFieldRef.current;
             if (!mf) return;
@@ -220,7 +229,23 @@ export function useMathFieldEditing<E extends HTMLElement>(
                     updateAttributes({ latex: nextLatex });
                 }
             },
-            onBlur: () => setEditing(false),
+            onBlur: (e) => {
+                // Model A: interacting with the edit chrome / settings popover
+                // moves focus out of the field but must NOT tear down edit mode
+                // (which would unmount the popover mid-interaction). The explicit
+                // keepEditing guard is primary (MathLive's blur relatedTarget is
+                // null across the shadow boundary); relatedTarget is a fallback.
+                if (keepEditingRef.current) return;
+                const next = e.relatedTarget as HTMLElement | null;
+                if (
+                    next &&
+                    typeof next.closest === 'function' &&
+                    next.closest('.math-edit-chrome, .blank-edit-popover')
+                ) {
+                    return;
+                }
+                setEditing(false);
+            },
             onKeyDown: (e) => {
                 if (e.key === 'Escape') {
                     e.preventDefault();
