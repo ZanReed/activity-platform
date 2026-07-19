@@ -43,6 +43,7 @@ export type { EvalOptions, EvalResult, ExpressionRow } from './evaluate.js';
 // the held sync reference the runtime and editor both import (math-blanks.md).
 export { mathEquivalent } from './math-equivalent.js';
 export type { EquivalenceMode, MathEquivalentOptions } from './math-equivalent.js';
+export { latexToAscii, asciiToLatex } from './math-prompt-convert.js';
 
 // The least-squares engine (Stage 3) — pure math, standalone, so the future
 // graded regression block scores with the SAME fits the calculator shows.
