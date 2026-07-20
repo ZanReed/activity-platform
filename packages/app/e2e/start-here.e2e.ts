@@ -56,8 +56,10 @@ test('Title + instructions drops heading + paragraph with the caret in the headi
     const doc = await page.evaluate(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const ed = (window as any).__tiptapEditor;
+        // Strict grid: the blocks live in the first row's first column.
+        const column = ed.state.doc.firstChild.firstChild;
         return {
-            children: ed.state.doc.content.content.map(
+            children: column.content.content.map(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (n: any) => n.type.name,
             ),
@@ -91,8 +93,12 @@ test('A question opens the picker at the Blanks category', async ({
         .click();
     await expect(page.getByTestId('start-here')).toHaveCount(0);
     const first = await page.evaluate(
+        // Strict grid: the inserted problem is the first block in the first
+        // row's first column.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        () => (window as any).__tiptapEditor.state.doc.firstChild.type.name,
+        () =>
+            (window as any).__tiptapEditor.state.doc.firstChild.firstChild
+                .firstChild.type.name,
     );
     expect(first).toBe('fillInBlank');
 });
@@ -131,7 +137,10 @@ test('Start here never returns within the session once content existed', async (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const ed = (window as any).__tiptapEditor;
         const d = ed.state.doc;
-        return d.childCount === 1 && d.firstChild.content.size === 0;
+        // Strict grid empty doc: one row > one column > one empty paragraph.
+        if (d.childCount !== 1 || d.firstChild.type.name !== 'row') return false;
+        const col = d.firstChild.firstChild;
+        return col.childCount === 1 && col.firstChild.content.size === 0;
     });
     expect(empty).toBe(true);
     await expect(page.getByTestId('start-here')).toHaveCount(0);

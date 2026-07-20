@@ -1,5 +1,6 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state';
+import { Fragment, Slice } from '@tiptap/pm/model';
 import type { Node as PMNode, NodeType } from '@tiptap/pm/model';
 
 // =============================================================================
@@ -28,6 +29,42 @@ import type { Node as PMNode, NodeType } from '@tiptap/pm/model';
 // =============================================================================
 
 const key = new PluginKey('strictGridNormalize');
+
+// Paste guard (T5, CRITICAL — silent data loss otherwise). The caret always
+// sits inside a `column`, so a pasted slice that carries structural nodes
+// (`row` / `sectionBreak`, e.g. copied across rows in the strict editor) can't
+// be fitted there and ProseMirror would drop or mis-split it. Flatten such a
+// slice to its column-legal leaf blocks in document order: unwrap every row to
+// its columns' blocks and drop section breaks. Slices with no structural nodes
+// (plain text, a single block's inline content, external HTML) pass through
+// untouched so normal paste behaviour is unchanged. (Preserving a pasted
+// multi-col region AS columns by splitting the host row is deferred to slice 2.)
+function flattenPastedSlice(slice: Slice): Slice {
+    let hasStructural = false;
+    slice.content.descendants((node) => {
+        if (node.type.name === 'row' || node.type.name === 'sectionBreak') {
+            hasStructural = true;
+            return false;
+        }
+        return true;
+    });
+    if (!hasStructural) return slice;
+
+    const blocks: PMNode[] = [];
+    slice.content.forEach((node) => {
+        const name = node.type.name;
+        if (name === 'sectionBreak') return; // drop — invalid in a column
+        if (name === 'row') {
+            node.forEach((col) => col.forEach((b) => blocks.push(b)));
+        } else if (name === 'column') {
+            node.forEach((b) => blocks.push(b));
+        } else {
+            blocks.push(node); // already a column-legal block
+        }
+    });
+    // openStart/openEnd 0: the flattened blocks paste as whole nodes.
+    return new Slice(Fragment.fromArray(blocks), 0, 0);
+}
 
 function isTextblock(node: PMNode): boolean {
     return node.isTextblock;
@@ -138,6 +175,11 @@ export const StrictGridNormalize = Extension.create({
         return [
             new Plugin({
                 key,
+                props: {
+                    // Flatten structural nodes out of a pasted slice so blocks
+                    // land in the target column instead of being dropped (T5).
+                    transformPasted: (slice) => flattenPastedSlice(slice),
+                },
                 appendTransaction: (transactions, _oldState, newState) => {
                     if (!transactions.some((t) => t.docChanged)) return null;
                     // Never fight history: undo/redo restores an already-valid

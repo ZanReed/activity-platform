@@ -27,7 +27,10 @@ test.beforeEach(async ({ page }) => {
 
 test('every top-level block shows a persistent rest dot', async ({ page }) => {
     const dot = await page.evaluate(() => {
-        const p = document.querySelector('.ProseMirror > p');
+        // Strict grid: blocks live in .editor-column (a 1-col stack renders
+        // flat), so the per-block rest dot is on the column's child, not a
+        // direct .ProseMirror child (which is now the row).
+        const p = document.querySelector('.editor-column > p');
         if (!p) return null;
         const cs = getComputedStyle(p, '::before');
         return { content: cs.content, opacity: cs.opacity, w: cs.width };
@@ -82,7 +85,7 @@ test('the rest dot fades while the block is hovered', async ({ page }) => {
     await expect
         .poll(() =>
             page.evaluate(() => {
-                const p = document.querySelector('.ProseMirror > p:hover');
+                const p = document.querySelector('.editor-column > p:hover');
                 if (!p) return 1;
                 return parseFloat(getComputedStyle(p, '::before').opacity);
             }),
@@ -100,18 +103,23 @@ test('the gutter "+" opens the Add-a-block window', async ({ page }) => {
 test('inserting from the gutter "+" lands the block BELOW the hovered one', async ({
     page,
 }) => {
-    // The target block's top-level index + the type of the block right after
-    // it, BEFORE inserting.
+    // The target block's index WITHIN its stack column + the type of the block
+    // right after it, BEFORE inserting (strict grid: blocks live in row >
+    // column, not at the doc top level).
     const snapshot = () =>
         page.evaluate(() => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const ed = (window as any).__tiptapEditor;
+            const column = ed.state.doc.firstChild.firstChild; // row > column
             let idx = -1;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ed.state.doc.forEach((node: any, _pos: number, i: number) => {
+            column.forEach((node: any, _pos: number, i: number) => {
                 if (node.textContent.includes('Block math example')) idx = i;
             });
-            const after = idx >= 0 ? ed.state.doc.child(idx + 1) : null;
+            const after =
+                idx >= 0 && idx + 1 < column.childCount
+                    ? column.child(idx + 1)
+                    : null;
             return { idx, nextType: after?.type.name ?? null };
         });
 

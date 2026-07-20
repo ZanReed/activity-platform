@@ -27,11 +27,22 @@ function selectionType(page: Page): Promise<string> {
     );
 }
 
+// Strict grid: blocks live inside row > column, so count the leaf blocks across
+// all columns (the top-level count is rows, not blocks).
 function blockCount(page: Page): Promise<number> {
-    return page.evaluate(
+    return page.evaluate(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        () => (window as any).__tiptapEditor.state.doc.childCount,
-    );
+        const ed = (window as any).__tiptapEditor;
+        let n = 0;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.forEach((row: any) => {
+            if (row.type.name === 'row') {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                row.forEach((col: any) => (n += col.childCount));
+            }
+        });
+        return n;
+    });
 }
 
 test.beforeEach(async ({ page }) => {

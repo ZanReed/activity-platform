@@ -56,7 +56,8 @@ test('the top toolbar bolds text inside a focused choice field', async ({
     const state = await page.evaluate(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const ed = (window as any).__tiptapEditor;
-        const mc = ed.state.doc.firstChild;
+        // Strict grid: the MC block is the first block in the first column.
+        const mc = ed.state.doc.firstChild.firstChild.firstChild;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const choice = (mc.attrs.choices as any[])[0];
         return {

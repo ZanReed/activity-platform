@@ -167,17 +167,18 @@ test('a drop-stamped move transaction settles with the move class (no fade)', as
     await page.evaluate(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const ed = (window as any).__tiptapEditor;
-        // Move the second top-level block above the first — the same
-        // delete+insert single transaction a native drop produces, with the
-        // exact uiEvent meta prosemirror-view stamps on it.
-        const doc = ed.state.doc;
-        if (doc.childCount < 2) throw new Error('playground doc too small');
-        const first = doc.child(0);
-        const second = doc.child(1);
-        const secondFrom = first.nodeSize;
+        // Strict grid: move the second block above the first WITHIN the stack
+        // column — the same delete+insert single transaction a native drop
+        // produces, with the exact uiEvent meta prosemirror-view stamps on it.
+        const column = ed.state.doc.firstChild.firstChild; // row > column
+        if (column.childCount < 2) throw new Error('playground doc too small');
+        const first = column.child(0);
+        const second = column.child(1);
+        const firstFrom = 2; // into row (+1), into column (+1)
+        const secondFrom = firstFrom + first.nodeSize;
         const tr = ed.state.tr
             .delete(secondFrom, secondFrom + second.nodeSize)
-            .insert(0, second);
+            .insert(firstFrom, second);
         tr.setMeta('uiEvent', 'drop');
         ed.view.dispatch(tr);
     });
