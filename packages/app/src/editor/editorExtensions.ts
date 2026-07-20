@@ -25,6 +25,7 @@ import { PlaceholderHint } from './extensions/PlaceholderHint';
 import { BlockReorderShortcuts } from './extensions/BlockReorderShortcuts';
 import { SelectBlock } from './extensions/SelectBlock';
 import { SettleMotion } from './extensions/SettleMotion';
+import { StrictGridNormalize } from './extensions/StrictGridNormalize';
 import { SectionBreak } from './extensions/SectionBreak';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
@@ -91,6 +92,10 @@ export function buildEditorExtensions({
         // "Snaps into place" settle on explicitly tagged placements (insert /
         // drag-drop / column-split) — slice-6 stage 6.
         SettleMotion,
+        // Strict-grid normalizer: empty-state backfill, a trailing paragraph
+        // (replacing StarterKit's disabled TrailingNode), and re-coalescing
+        // adjacent 1-col stack rows. Undo-safe (merges into the triggering edit).
+        StrictGridNormalize,
         SectionBreak,
         Subscript,
         Superscript,

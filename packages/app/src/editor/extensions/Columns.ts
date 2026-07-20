@@ -464,12 +464,22 @@ export const Columns = Node.create<ColumnsOptions>({
         const gl = (node.attrs.gridLines as GridLines) ?? 'inherit';
         const effective =
         gl === 'on' || (gl === 'inherit' && this.options.gridLinesDefault);
+        // A 1-col row is the full-width STACK (a section's default shape) — it
+        // renders flat, with no columns chrome (dashed borders, gap, grip). Only
+        // multi-col rows read as an authored side-by-side region. The
+        // `--stack` class drives that flat styling in editor.css.
+        const isStack = node.childCount <= 1;
         return [
             'div',
             mergeAttributes(
-                { 'data-columns': '', class: 'editor-columns' },
+                {
+                    'data-columns': '',
+                    class: isStack
+                        ? 'editor-columns editor-columns--stack'
+                        : 'editor-columns',
+                },
                 HTMLAttributes,
-                effective ? { 'data-grid': 'true' } : {},
+                effective && !isStack ? { 'data-grid': 'true' } : {},
             ),
         0,
         ];

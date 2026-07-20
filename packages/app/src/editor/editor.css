@@ -529,15 +529,24 @@
  * spot), so the dot fades out while the block is hovered. CSS-only (a ::before
  * on the block), never a per-block ProseMirror decoration. Empty lines show the
  * "/" placeholder hint instead (its ::before wins by specificity). */
-.ProseMirror > * {
+/* Strict grid: every top-level .ProseMirror child is a `row` (.editor-columns)
+ * or a sectionBreak; the content blocks live inside .editor-column. So the
+ * block-level anchor + rest dot target the blocks of a 1-col STACK row (which
+ * render as the normal flow) plus a multi-col row / sectionBreak as a whole —
+ * NOT a multi-col CELL block (the cell is the unit there). */
+.ProseMirror > *,
+.editor-columns--stack > .editor-column > * {
     position: relative;
 }
 
 /* :not(.is-empty-hint) — an empty line's ::before is the "/" placeholder hint,
  * not a dot. Without the exclusion, this rule's width/left/background leak into
  * that shared ::before (only the properties the hint rule doesn't set), which
- * squeezed the placeholder text into a 5px column (rendered vertically). */
-.ProseMirror > *:not(.is-empty-hint)::before {
+ * squeezed the placeholder text into a 5px column (rendered vertically). A
+ * 1-col stack row (.editor-columns--stack) shows dots on its inner blocks, not
+ * on the flat container itself. */
+.editor-columns--stack > .editor-column > *:not(.is-empty-hint)::before,
+.ProseMirror > *:not(.editor-columns--stack):not(.is-empty-hint)::before {
     content: '';
     position: absolute;
     top: 0.55em;
@@ -551,7 +560,8 @@
     transition: opacity var(--ed-motion-fast) ease;
 }
 
-.ProseMirror > *:not(.is-empty-hint):hover::before {
+.editor-columns--stack > .editor-column > *:not(.is-empty-hint):hover::before,
+.ProseMirror > *:not(.editor-columns--stack):not(.is-empty-hint):hover::before {
     opacity: 0;
 }
 
@@ -2244,6 +2254,25 @@ img.mc-block__figure-preview {
     /* Anchor for the absolutely-positioned grip (the whole-block drag handle,
      * .editor-columns-grip — wired in Columns.ts). */
     position: relative;
+}
+
+/* A 1-col STACK row (a section's default full-width shape) renders FLAT: no
+ * flex/gap/margin chrome, no cell border — its blocks flow exactly like the
+ * pre-strict-grid top-level stream. Only multi-col rows read as an authored
+ * side-by-side region (borders, gap, grip). */
+.editor-columns--stack {
+    display: block;
+    gap: 0;
+    margin: 0;
+}
+
+.editor-columns--stack > .editor-column {
+    display: block;
+    flex: none;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    min-width: 0;
 }
 
 /* Whole-block drag handle pinned to the columns block's top-left corner. The

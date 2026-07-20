@@ -23,5 +23,9 @@ import { Node } from '@tiptap/core';
 export const Doc = Node.create({
     name: 'doc',
     topNode: true,
-    content: '(sectionBreak | row)+',
+    // `row` FIRST so it is the content-match default type: when ProseMirror must
+    // fill the doc (e.g. after deleting everything), it creates a `row` (which
+    // fills to row > column > paragraph — a clean cursor home), not a bare
+    // `sectionBreak`. Order only affects the fill preference, not what's allowed.
+    content: '(row | sectionBreak)+',
 });
