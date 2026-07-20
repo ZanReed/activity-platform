@@ -362,8 +362,24 @@ verifiable on `/playground`.
    (`snap-motion.e2e.ts`: settle appear + sub-900ms animationend clear,
    transform-no-settle, column-split, drop-signature move, reduced-motion ×2,
    popover-anchor-mid-settle).
-7. **Top-toolbar diet + optional focus mode.** Remove migrated controls; ship the dim-the-rest
-   toggle (off by default).
+7. **Top-toolbar diet + optional focus mode. ✅ CLEANUP SHIPPED 2026-07-21;
+   focus mode DEFERRED** (author-ruled: cleanup-only now, focus mode its own
+   mini-arc). The toolbar was already slim (block insertion left it in the
+   2026-07-08 reorg — it's now text formatting + inline math + Define + a
+   contextual column cluster). Cleanup done: removed the last inline control
+   duplicating a settings-mode field — the faded-worked-example's inline
+   "Label steps" header toggle (the same `showStepLabels` flip lives in the
+   block's ⚙ settings mode via `blockControls.ts` `simple`; progressive
+   disclosure — technical controls hide until Select → settings). **Kept as-is
+   (author-ruled):** the block-style picker STAYS in the toolbar (it's
+   text-block formatting a teacher reaches for constantly — the design doc's
+   "move block-type controls to the docked bar" was overridden as Docs-native
+   friction); the column cluster stays contextual in the toolbar. **DEFERRED
+   to its own mini-arc:** the dim-the-rest **focus mode** — net-new UX needing
+   a caret-tracking ProseMirror plugin (CSS `:focus-within` can't identify the
+   caret's block under one contenteditable — the same wall that deferred
+   stage-1 gutter focus-parity), off-by-default/optional, deserving its own
+   design + eng pass rather than bundling here.
 
 **Moved OUT to slice 6.5** (eng review — split from this arc): **smart defaults + just-in-time
 surfacing** (the "accept equivalent forms?" inline suggestions). It's a net-new interaction

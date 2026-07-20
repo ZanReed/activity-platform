@@ -3532,18 +3532,6 @@ img.mc-block__figure-preview {
     user-select: none;
 }
 
-/* Per-box "Label steps" toggle, pushed to the right of the flex header. */
-.faded-example-block__steps-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.75rem;
-    color: var(--ed-text-muted); /* slate-500 */
-    white-space: nowrap;
-    user-select: none;
-    cursor: pointer;
-}
-
 /* A faded step drops the 2.5rem number gutter (the box owns the one problem
  * number) and becomes a plain block so its body spans the full writing width.
  * The compact (a)/(b) label runs inline in front of the body. Mirrors the

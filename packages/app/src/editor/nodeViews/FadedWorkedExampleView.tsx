@@ -13,7 +13,6 @@ import { problemNumberAt } from '../problemNumbering';
 //     <header>
 //       <span.__number>3.</span>              <- box problem number (leads)
 //       ✍ <input.__title />                    <- editable title (attr)
-//       <label> Label steps (a, b, c) </label> <- per-box showStepLabels toggle
 //     </header>
 //     <NodeViewContent />  <- shown steps + fill_in_blank (faded) steps
 //   </section>
@@ -22,7 +21,10 @@ import { problemNumberAt } from '../problemNumbering';
 // from the shared problem sequence via problemNumberAt — the same walk every
 // question NodeView uses, which treats this box as atomic. The faded
 // fill_in_blank steps render their own compact (a)/(b) labels (FillInBlankView),
-// gated by the showStepLabels attr this view toggles.
+// gated by the showStepLabels attr. That toggle now lives in the block's
+// settings mode (⚙ on the quick-bar / command bar — see blockControls.ts
+// `simple`), not an inline header control (slice-6 stage-7 toolbar diet:
+// technical controls hide until Select → settings).
 // ============================================================================
 
 export default function FadedWorkedExampleView({
@@ -68,21 +70,6 @@ export default function FadedWorkedExampleView({
                     onChange={(e) => updateAttributes({ title: e.target.value })}
                     onKeyDown={(e) => e.stopPropagation()}
                 />
-                {isEditable && (
-                    <label className="faded-example-block__steps-toggle">
-                        <input
-                            type="checkbox"
-                            checked={showStepLabels}
-                            onChange={(e) =>
-                                updateAttributes({
-                                    showStepLabels: e.target.checked,
-                                })
-                            }
-                            onKeyDown={(e) => e.stopPropagation()}
-                        />
-                        <span>Label steps (a, b, c)</span>
-                    </label>
-                )}
             </div>
             <NodeViewContent className="faded-example-block__body" />
         </NodeViewWrapper>
