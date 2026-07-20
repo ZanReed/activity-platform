@@ -15,6 +15,7 @@ import Toolbar from './Toolbar';
 import './editor.css';
 import 'mathlive';
 import { buildEditorExtensions } from './editorExtensions';
+import { armSettle } from './extensions/SettleMotion';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlockInsertModal from './components/BlockInsertModal';
 import StartHere from './components/StartHere';
@@ -137,6 +138,11 @@ export default function Editor({
             before.firstChild?.type.name === 'paragraph' &&
             before.firstChild.content.size === 0;
         editor.commands.setTextSelection(Math.min(pos, before.content.size));
+        // Settle the placed block (covers the Add-a-block window AND the
+        // Start-here starters — both funnel through here). Armed, not tagged:
+        // the item's command builds its own chain. 'Text' items are style
+        // transforms, not placements — no settle (TextStylePicker parity).
+        if (item.group !== 'Text') armSettle('insert');
         item.command({ editor });
         if (wasEmpty) {
             const first = editor.state.doc.firstChild;

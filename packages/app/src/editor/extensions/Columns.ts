@@ -8,6 +8,7 @@ import {
 } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { settleMetaKey } from './SettleMotion';
 
 // =============================================================================
 // Columns / Column — structural side-by-side container for the editor.
@@ -530,6 +531,9 @@ export const Columns = Node.create<ColumnsOptions>({
                         ...(restCols as ProseMirrorNode[]),
                     ]);
                     tr.replaceRangeWith(from, to, row);
+                    // Owns its transaction, so the settle tag goes on
+                    // directly — the new row settles into place (stage 6).
+                    tr.setMeta(settleMetaKey, 'insert');
                     // Caret into the first empty column (just past column 1).
                     const posInSecondCol = from + 1 + firstCol.nodeSize + 1;
                     tr.setSelection(

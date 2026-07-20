@@ -23,6 +23,7 @@ import { SlashMenu } from './extensions/SlashMenu';
 import { PlaceholderHint } from './extensions/PlaceholderHint';
 import { BlockReorderShortcuts } from './extensions/BlockReorderShortcuts';
 import { SelectBlock } from './extensions/SelectBlock';
+import { SettleMotion } from './extensions/SettleMotion';
 import { SectionBreak } from './extensions/SectionBreak';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
@@ -55,6 +56,14 @@ export function buildEditorExtensions({
         StarterKit.configure({
             blockquote: false,
             codeBlock: false,
+            // The drag drop-line as the accent "insert-line" (stage 6). The
+            // built-in already snaps it to the nearest valid gap — position
+            // is PM's; only the paint is ours (radius in editor.css).
+            dropcursor: {
+                color: 'var(--ed-accent)',
+                width: 3,
+                class: 'editor-dropcursor',
+            },
         }),
         MathInline,
         MathBlock,
@@ -68,6 +77,9 @@ export function buildEditorExtensions({
         // Esc lifts a text caret to a block NodeSelection (the four-state
         // model's secondary Select state; click stays edit).
         SelectBlock,
+        // "Snaps into place" settle on explicitly tagged placements (insert /
+        // drag-drop / column-split) — slice-6 stage 6.
+        SettleMotion,
         SectionBreak,
         Subscript,
         Superscript,

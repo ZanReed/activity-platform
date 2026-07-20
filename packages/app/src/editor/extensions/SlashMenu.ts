@@ -6,6 +6,7 @@ import SlashMenuPopover, {
     type SlashMenuPopoverRef,
 } from '../SlashMenuPopover';
 import { slashMenuItems, type SlashMenuItem } from '../slashMenuItems';
+import { armSettle } from './SettleMotion';
 
 export const SlashMenu = Extension.create({
     name: 'slashMenu',
@@ -36,6 +37,12 @@ export const SlashMenu = Extension.create({
                 },
 
                 command: ({ editor, range, props }) => {
+                    // The item's command builds its own chain, so the settle
+                    // tag is an arm on the next doc-changing transaction.
+                    // 'Text' items are block-style TRANSFORMS of an existing
+                    // block, not placements — they don't settle (parity with
+                    // the toolbar's TextStylePicker, which never arms).
+                    if (props.group !== 'Text') armSettle('insert');
                     props.command({ editor, range });
                 },
 

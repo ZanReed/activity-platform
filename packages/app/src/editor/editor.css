@@ -1303,9 +1303,66 @@
     border-color: var(--ed-accent);
 }
 
-/* Reduced motion: collapse the spring pop-in to a plain fade. */
+/* =============================================================================
+ *  Settle motion (slice-6 stage 6) — the "snaps into place" confirm on
+ *  explicitly tagged placements (SettleMotion decorations).
+ *  - Inserts scale-and-fade IN. `transform-origin: top` is load-bearing
+ *    (eng-review P1): popover hosts rAF-measure their anchor ONCE, and
+ *    insertBlankAndEdit opens a popover DURING the settle — pinning the top
+ *    edge keeps top-anchored bars exact and interior anchors sub-pixel.
+ *  - Moves (drag-drop) bounce WITHOUT an opacity dip: the block already
+ *    existed, so fading it at the drop point reads as a glitch (T2-2). The
+ *    overshooting --ed-spring bezier supplies the bounce on its own.
+ *  ========================================================================= */
+
+.ProseMirror .block-settle-in {
+    transform-origin: top;
+    animation: block-settle-in var(--ed-motion-base) var(--ed-spring);
+}
+
+.ProseMirror .block-settle-move {
+    transform-origin: top;
+    animation: block-settle-move var(--ed-motion-base) var(--ed-spring);
+}
+
+@keyframes block-settle-in {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes block-settle-move {
+    from {
+        transform: scale(0.97);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+/* The drag drop-line: prosemirror-dropcursor's element (color/width come from
+ * the extension config in editorExtensions.ts; the built-in snaps it to the
+ * nearest valid gap — that discrete snap IS the magnetic feel; the element is
+ * recreated per update, so it is deliberately not animated). */
+.editor-dropcursor {
+    border-radius: 2px;
+}
+
+/* Reduced motion (single consolidated block — eng-review CQ1): every
+ * transform-bearing animation collapses; the two pure-opacity fades
+ * (block-quickbar-in on .block-quickbar / .block-gutter-add--floating) are
+ * already motion-free and keep their fade. The dropcursor has no animation
+ * by construction. */
 @media (prefers-reduced-motion: reduce) {
-    .block-command-bar {
+    .block-command-bar,
+    .block-advanced-drawer,
+    .ProseMirror .block-settle-in,
+    .ProseMirror .block-settle-move {
         animation: none;
     }
 }

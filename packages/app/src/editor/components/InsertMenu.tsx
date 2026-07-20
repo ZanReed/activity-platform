@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { Search } from 'lucide-react';
+import { armSettle } from '../extensions/SettleMotion';
 import {
     slashMenuGroups,
     slashMenuItems,
@@ -155,6 +156,8 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
         if (!isEnabled(item)) return;
         setOpen(false);
         // The command chain focuses the editor itself, so no trigger refocus.
+        // Settle the placed block — armed, since the command owns its chain.
+        armSettle('insert');
         item.command({ editor });
     };
 

@@ -333,8 +333,35 @@ verifiable on `/playground`.
    activity shows it again). The `/` hint + end square stay and are gently emphasized
    (`editor-first-run` class). `/playground?empty=1` mounts a blank doc (dev/e2e hook).
    11 e2e (5 picker + 6 start-here) + 5 unit.
-6. **Snap motion pass.** Magnetic insert-line + settle for insert/reorder/columns;
-   spring-on-appear for the bar; reduced-motion.
+6. **Snap motion pass. ✅ SHIPPED 2026-07-21** (app-only; `/plan-eng-review`
+   CLEARED with an outside-voice pass that reversed one call — see below).
+   **Settle-on-place:** a placed block animates as it lands — inserts
+   scale-and-fade in (`block-settle-in`, `transform-origin: top` so popovers
+   measuring mid-settle stay anchored), moved blocks bounce with NO opacity
+   dip (`block-settle-move` — a dragged block fading at the drop point reads
+   as a glitch). Detection is **explicit meta-tagging, not step-diffing**
+   (eng-ruled T2-1: Enter's open-slice ReplaceStep and every settings-write
+   ReplaceAroundStep read as inserts at the step level — heuristics are
+   disqualified): a new `SettleMotion` extension honors a settle transaction
+   meta (`wrapInColumns` tags its own tr), an `armSettle()` request store for
+   the 3 invocation funnels (SlashMenu / runInsert / InsertMenu — 'Text'
+   transforms excluded), and PM's native `uiEvent:'drop'` meta for drag.
+   Bulk cap (>3 blocks = markdown import) settles nothing. Decorations clear
+   per-block on `animationend` (closes the NodeView-remount replay window)
+   with a destroy-safe 1.2s janitor for reduced-motion/hidden tabs.
+   **Insert-line amendment (eng-ruled A2/T2-4):** the cursor-tracking
+   magnetic insert-line is NOT built — since stage 1, `+`/`/` insert at a
+   deterministic position with no approach phase; the drag drop-line is the
+   built-in prosemirror-dropcursor styled as the accent line (its built-in
+   discrete snap-to-nearest-gap IS the magnetic feel; an animated glide is
+   descoped — the element is recreated per update, so CSS can't animate it).
+   **Reduced-motion:** one consolidated block; every transform-bearing
+   animation (command bar, drawer, both settles) collapses; the two
+   pure-opacity fades keep fading. Keyboard ⌘⇧↑/↓ reorder settle deferred
+   with a debounce design note (TODOS.md). 13 unit + 7 e2e
+   (`snap-motion.e2e.ts`: settle appear + sub-900ms animationend clear,
+   transform-no-settle, column-split, drop-signature move, reduced-motion ×2,
+   popover-anchor-mid-settle).
 7. **Top-toolbar diet + optional focus mode.** Remove migrated controls; ship the dim-the-rest
    toggle (off by default).
 
