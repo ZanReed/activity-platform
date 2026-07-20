@@ -24,6 +24,7 @@ import ImagePopoverHost from './components/ImagePopoverHost';
 import DefinitionPopoverHost from './components/DefinitionPopoverHost';
 import BlockCommandBarHost from './components/BlockCommandBarHost';
 import BlockQuickBarHost from './components/BlockQuickBarHost';
+import BlockAddButtonHost from './components/BlockAddButtonHost';
 import { FieldFocusContext } from './components/fieldFocus';
 
 interface EditorProps {
@@ -121,8 +122,9 @@ export default function Editor({
 
     // The top-level (or column-cell) block the hover gutter currently targets,
     // reported by the DragHandle's onNodeChange as the cursor moves between
-    // blocks. The gutter "+" inserts ABOVE this block (which also covers a slot
-    // above the very first block). null when the pointer is off any block.
+    // blocks. Feeds both the grip (drag) and the bottom-left "+"
+    // (BlockAddButtonHost), which inserts a new block BELOW this one. null when
+    // the pointer is off any block.
     const [gutterPos, setGutterPos] = useState<number | null>(null);
 
     // Insert a block at `pos`; if the doc was just the initial empty paragraph,
@@ -292,6 +294,10 @@ export default function Editor({
                         setGutterPos(node ? pos : null)
                     }
                 >
+                    {/* The grip alone lives in the DragHandle now (top-left,
+                        the drag trigger). The "+" is a separate host docked at
+                        the block's bottom-left (BlockAddButtonHost), where the
+                        new block actually lands. */}
                     <div className="block-gutter-cluster">
                         <button
                             type="button"
@@ -317,21 +323,6 @@ export default function Editor({
                                 <circle cx="3" cy="16" r="1.5" />
                                 <circle cx="9" cy="16" r="1.5" />
                             </svg>
-                        </button>
-                        <button
-                            type="button"
-                            className="block-gutter-add"
-                            aria-label="Insert a block above"
-                            title="Insert a block"
-                            // stopPropagation so mousedown on "+" doesn't start a
-                            // drag (the cluster is the DragHandle's trigger).
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={() => {
-                                if (gutterPos !== null)
-                                    setInsertReq({ pos: gutterPos });
-                            }}
-                        >
-                            <Plus size={14} aria-hidden="true" />
                         </button>
                     </div>
                 </DragHandle>
@@ -410,6 +401,19 @@ export default function Editor({
                     editor={editor}
                     canvasRef={canvasRef}
                     hoveredPos={gutterPos}
+                />
+                {/*
+                  BlockAddButtonHost — the "+" that opens the block picker,
+                  docked at the hovered block's bottom-left (where the new block
+                  lands: below). Split out of the DragHandle gutter cluster,
+                  which now carries only the drag grip. Same hovered-block feed
+                  and stay-alive grace as the quick-bar.
+                */}
+                <BlockAddButtonHost
+                    editor={editor}
+                    canvasRef={canvasRef}
+                    hoveredPos={gutterPos}
+                    onAdd={(pos) => setInsertReq({ pos })}
                 />
             </div>
         </div>

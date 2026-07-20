@@ -133,7 +133,15 @@ export default function BlockQuickBarHost({
             }
             const cr = canvas.getBoundingClientRect();
             const br = dom.getBoundingClientRect();
-            setPosition({ top: br.top - cr.top, left: br.right - cr.left });
+            // Dock the strip in the right gutter — the p-6 canvas margin that
+            // mirrors the left drag-grip gutter — vertically aligned to the
+            // block's top. Anchored to the canvas RIGHT EDGE (cr.width), not the
+            // block's right edge: the strip then sits in empty margin and can't
+            // overlay the block's own top-right content (the `you`-chip bug),
+            // and a column-nested block docks in the far-right gutter rather
+            // than over an adjacent column. The CSS `-100%` right-aligns it into
+            // the gutter from that edge.
+            setPosition({ top: br.top - cr.top, left: cr.width });
         });
         return () => cancelAnimationFrame(raf);
     }, [editor, activePos, canvasRef]);

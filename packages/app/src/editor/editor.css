@@ -493,6 +493,18 @@
     background: var(--ed-accent-bg); /* blue-50 */
 }
 
+/* Floating variant (BlockAddButtonHost): the "+" is no longer inside the
+ * DragHandle cluster — it's canvas-positioned at the hovered block's bottom-left
+ * corner (top/left set inline). The transform pulls it left into the gutter and
+ * straddles the bottom edge, so it reads as "add a block below here". */
+.block-gutter-add--floating {
+    position: absolute;
+    z-index: var(--ed-z-quickbar);
+    transform: translate(calc(-100% - 0.125rem), -50%);
+    transform-origin: bottom left;
+    animation: block-quickbar-in var(--ed-motion-fast) var(--ed-ease-out);
+}
+
 .block-gutter-add:focus-visible {
     outline: 2px solid var(--ed-accent); /* blue-500 */
     outline-offset: 2px;
@@ -647,24 +659,24 @@
     transition: box-shadow var(--ed-motion-fast) var(--ed-ease-out);
 }
 
-/* Block quick-bar (slice-6 discoverability): a small quiet [Delete][More]
- * control top-right of a block on hover / while editing. Deliberately lighter
- * than the dark command bar so it stays calm over text you're typing. Anchored
- * canvas-relative, right-aligned like the command bar (they never co-exist —
- * the quick-bar hides the moment the block is selected). */
+/* Block quick-bar (slice-6 discoverability): a small quiet Delete/Duplicate/
+ * Settings control shown on hover / while editing. Docks as a VERTICAL strip in
+ * the right gutter — the p-6 canvas margin that mirrors the left drag-grip
+ * gutter — so it lives in empty margin and never overlays the block's own
+ * top-right content (the covered-chip bug). Gutter-native like the drag grip:
+ * bare icons, no container chrome; each button brightens on hover. Anchored to
+ * the canvas right edge in JS, then `-100%` right-aligns it into the gutter (it
+ * never co-exists with the selected-block command bar). */
 .block-quickbar {
     position: absolute;
     z-index: var(--ed-z-quickbar);
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 0.0625rem;
-    padding: 0.125rem;
-    transform: translate(calc(-100% - 0.25rem), 0.25rem);
+    gap: 0.125rem;
+    padding: 0;
+    transform: translate(calc(-100% - 0.125rem), 0.125rem);
     transform-origin: top right;
-    border: 1px solid var(--ed-border);
-    border-radius: 0.4375rem;
-    background: var(--ed-canvas);
-    box-shadow: var(--ed-shadow-menu);
     animation: block-quickbar-in var(--ed-motion-fast) var(--ed-ease-out);
 }
 
