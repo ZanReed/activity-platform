@@ -19,10 +19,15 @@ import {
 } from '@activity/schema';
 import {
     activityToTiptap,
-    tiptapToActivity,
+    tiptapToActivity as tiptapToActivityRaw,
     referencePanelToTiptap,
     tiptapToReferencePanel,
 } from '../lib/serialize';
+import {
+    toStrict,
+    toBare,
+    tiptapToActivityBare as tiptapToActivity,
+} from '../lib/serializeTestBridge';
 
 const META = ActivityMeta.parse({
     title: 'Test Activity',
@@ -30,16 +35,20 @@ const META = ActivityMeta.parse({
 });
 
 // A section's blocks flattened across its rows/columns. Single-column content
-// lives in one 1-col row (the Option-A bridge), so for the many single-column
-// assertions this reads exactly like the old `section.blocks`. Empty sections
-// (no rows) flatten to [].
+// lives in one 1-col row, so for the many single-column assertions this reads
+// exactly like the old `section.blocks`. Empty sections (no rows) flatten to [].
 function flatBlocks(section: Section): Block[] {
     return section.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks));
 }
 
-// Round-trip from the Tiptap side.
+// The block-ATTR corpus below is written in the legacy "bare block stream"
+// representation (one block per top-level slot); `tiptapToActivity` (imported as
+// the bare-accepting `tiptapToActivityBare`) and `roundTrip` bridge it to the
+// real strict serialize. The strict-grid STRUCTURE contract is pinned separately
+// against the RAW serialize in the "strict-grid structure oracle" describe. See
+// lib/serializeTestBridge.ts.
 function roundTrip(input: JSONContent): JSONContent {
-    return activityToTiptap(tiptapToActivity(input, META));
+    return toBare(activityToTiptap(tiptapToActivity(input, META)));
 }
 
 describe('empty doc', () => {
@@ -2201,55 +2210,117 @@ describe('rows (multi-column layout)', () => {
     });
 });
 
-// Reshape pin (Option A pragmatic bridge): the editor keeps a bare block stream
-// for single-column content; serialize wraps it into a clean 1-col schema Row on
-// save and unwraps it back on load. Round-trip must be lossless.
-describe('rows-of-columns bridge (single-column ↔ bare blocks)', () => {
-    const paras = (...texts: string[]): JSONContent[] =>
-        texts.map((t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] }));
+// Strict-grid structure oracle: the editor tree IS the stored rows-of-columns
+// model. serialize is near-passthrough — NO bare-block collapse, NO 1-col
+// unwrap. Every section is a stream of `row` nodes; a 1-col stack row stays a
+// `row` node (it is not unwrapped to bare blocks). These pin the NEW contract
+// directly against the RAW serialize (no bare↔strict test adapter), so "green"
+// here certifies the reshape, not the deleted bridge. See docs/design/strict-grid-editor.md.
+describe('strict-grid structure oracle', () => {
+    const para = (text: string): JSONContent => ({
+        type: 'paragraph',
+        content: [{ type: 'text', text }],
+    });
+    const stackRow = (...blocks: JSONContent[]): JSONContent => ({
+        type: 'row',
+        attrs: { gridLines: 'inherit' },
+        content: [{ type: 'column', content: blocks }],
+    });
 
-    it('wraps consecutive bare top-level blocks into ONE full-width 1-col Row', () => {
-        const doc: JSONContent = { type: 'doc', content: paras('a', 'b', 'c') };
-        const activity = tiptapToActivity(doc, META);
+    it('round-trips a 1-col stack row as a `row` node (no unwrap)', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [stackRow(para('a'), para('b'), para('c'))],
+        };
+        const back = activityToTiptap(tiptapToActivityRaw(doc, META));
+        // Still one `row` at the top level — a stack row is NOT unwrapped to
+        // bare paragraphs the way the pragmatic bridge did.
+        expect(back.content?.map((n) => n.type)).toEqual(['row']);
+        const row = back.content![0]!;
+        expect(row.content).toHaveLength(1); // one column
+        expect(row.content![0]!.content?.map((n) => n.type)).toEqual([
+            'paragraph',
+            'paragraph',
+            'paragraph',
+        ]);
+    });
+
+    it('maps one stack row to one 1-col schema Row (no collapse)', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [stackRow(para('a'), para('b'))],
+        };
+        const activity = tiptapToActivityRaw(doc, META);
         const section = activity.sections[0]!;
         expect(section.rows).toHaveLength(1);
         expect(section.rows[0]!.columns).toHaveLength(1);
         expect(section.rows[0]!.columns[0]!.blocks.map((b) => b.type)).toEqual([
             'paragraph',
             'paragraph',
-            'paragraph',
         ]);
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
     });
 
-    it('unwraps a 1-col Row back to a bare block stream (no `row` node)', () => {
-        const activity = tiptapToActivity({ type: 'doc', content: paras('x', 'y') }, META);
-        const tiptap = activityToTiptap(activity);
-        expect(tiptap.content?.map((n) => n.type)).toEqual(['paragraph', 'paragraph']);
-    });
-
-    it('is lossless across a bare-blocks + multi-col-row round-trip', () => {
+    it('preserves N adjacent rows within a section (stack + multi-col + stack)', () => {
         const doc: JSONContent = {
             type: 'doc',
             content: [
-                ...paras('intro'),
+                stackRow(para('intro')),
                 {
                     type: 'row',
-                    attrs: { id: 'r1' },
+                    attrs: { id: 'r1', gridLines: 'inherit' },
                     content: [
-                        { type: 'column', attrs: {}, content: paras('left') },
-                        { type: 'column', attrs: {}, content: paras('right') },
+                        { type: 'column', content: [para('left')] },
+                        { type: 'column', content: [para('right')] },
                     ],
                 },
-                ...paras('outro'),
+                stackRow(para('outro')),
             ],
         };
-        const back = roundTrip(doc);
-        expect(back.content?.map((n) => n.type)).toEqual([
-            'paragraph', // intro (unwrapped 1-col row)
-            'row', // the authored multi-col region
-            'paragraph', // outro (unwrapped 1-col row)
-        ]);
+        const back = activityToTiptap(tiptapToActivityRaw(doc, META));
+        // Every row survives as a `row` node, in order — nothing is unwrapped
+        // and nothing is coalesced by serialize (the editor's normalizing
+        // appendTransaction owns re-coalescing, not the wire converter).
+        expect(back.content?.map((n) => n.type)).toEqual(['row', 'row', 'row']);
+        expect(back.content![1]!.content).toHaveLength(2); // the multi-col row
+    });
+
+    it('keeps container children row-free (worked-example body is not wrapped)', () => {
+        // The wrap lives ONLY in the top-level section-body pass. The shared
+        // child converters (worked-example / faded / reference-panel children,
+        // which are block+, not rows) must stay row-free — a leaked wrap would
+        // double-wrap them. Pinned against the raw serialize.
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                stackRow({
+                    type: 'workedExample',
+                    attrs: { id: 'we', title: 'T' },
+                    content: [para('step one'), { type: 'mathBlock', attrs: { latex: 'x=4' } }],
+                }),
+            ],
+        };
+        const back = activityToTiptap(tiptapToActivityRaw(doc, META));
+        const we = back.content![0]!.content![0]!.content![0]!; // row>col>workedExample
+        expect(we.type).toBe('workedExample');
+        expect(we.content?.map((n) => n.type)).toEqual(['paragraph', 'mathBlock']);
+    });
+
+    it('slices sections on sectionBreak, rows landing in the right section', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                stackRow(para('s1')),
+                { type: 'sectionBreak', attrs: { title: 'Part 2', isCheckpoint: false } },
+                stackRow(para('s2a')),
+                stackRow(para('s2b')),
+            ],
+        };
+        const activity = tiptapToActivityRaw(doc, META);
+        expect(activity.sections).toHaveLength(2);
+        expect(activity.sections[0]!.rows).toHaveLength(1);
+        expect(activity.sections[1]!.title).toBe('Part 2');
+        expect(activity.sections[1]!.rows).toHaveLength(2);
     });
 });
 
@@ -2819,7 +2890,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
             expect(block.wordCountHint).toEqual({ min: 200, max: 300 });
         }
         // And back to Tiptap with the targets intact.
-        const out = activityToTiptap(activity);
+        const out = toBare(activityToTiptap(activity));
         const es = out.content!.find((n) => n.type === 'essay')!;
         expect(es.attrs!.wordMin).toBe(200);
         expect(es.attrs!.wordMax).toBe(300);
@@ -2852,7 +2923,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
         if (block.type === 'short_answer') {
             expect(block.rubric).toEqual(rubric);
         }
-        const out = activityToTiptap(activity);
+        const out = toBare(activityToTiptap(activity));
         const sa = out.content!.find((n) => n.type === 'shortAnswer')!;
         expect(sa.attrs!.rubric).toEqual(rubric);
     });
@@ -2940,7 +3011,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
             expect(block.showStepLabels).toBe(true);
         }
         // And the block survives a full round-trip back to Tiptap.
-        const out = activityToTiptap(activity);
+        const out = toBare(activityToTiptap(activity));
         const fwe = out.content!.find((n) => n.type === 'fadedWorkedExample')!;
         expect(fwe.attrs!.title).toBe('Guided practice');
         expect(fwe.attrs!.showStepLabels).toBe(true);
@@ -2961,7 +3032,7 @@ describe('content blocks — learning_objectives + worked_example', () => {
         if (block.type === 'faded_worked_example') {
             expect(block.showStepLabels).toBe(false);
         }
-        const out = activityToTiptap(activity);
+        const out = toBare(activityToTiptap(activity));
         const fwe = out.content!.find((n) => n.type === 'fadedWorkedExample')!;
         expect(fwe.attrs!.showStepLabels).toBe(false);
     });

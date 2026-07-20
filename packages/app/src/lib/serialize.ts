@@ -229,16 +229,16 @@ export function tiptapToActivity(
     return doc;
 }
 
-// Bridge the editor's tree to the rows-of-columns schema. The editor keeps a
-// familiar block STREAM: sectionBreak nodes slice it into Sections, a `row` node
-// is an authored multi-column region, and every other top-level node is a bare
-// block (single-column flow). On save we normalize to the clean schema:
-// consecutive bare blocks collapse into ONE full-width 1-column Row; a `row`
-// node becomes a multi-column Row. (Row/Column construction lives HERE, at the
-// section-body level only — never in the shared block converters, which also
-// serve worked-example / faded / reference-panel children that are block+, not
-// rows.) activityToTiptap does the inverse: a 1-col Row unwraps back to bare
-// blocks, a multi-col Row emits a `row` node — so the round-trip is lossless.
+// Slice the editor's strict-grid tree into schema Sections. The editor tree IS
+// the stored rows-of-columns model now (the strict-grid migration): doc =
+// (sectionBreak | row)+, so every top-level node is either a section marker or a
+// `row`. This is near-passthrough — a `sectionBreak` opens a new Section, every
+// other node is a `row` mapped straight through by tiptapRowToActivity. (Row and
+// Column construction lives HERE, in tiptapRowToActivity/tiptapColumnToActivity,
+// which the shared block converters never touch — those also serve
+// worked-example / faded / reference-panel children that are block+, not rows.)
+// The old bare-block collapse (consecutive top-level blocks → one 1-col Row) is
+// gone: the editor already carries the rows, so there is nothing to coalesce.
 function splitTiptapRowsIntoSections(nodes: JSONContent[]): Section[] {
     const sections: Section[] = [];
     const startsWithBreak = nodes[0]?.type === 'sectionBreak';
@@ -247,35 +247,18 @@ function splitTiptapRowsIntoSections(nodes: JSONContent[]): Section[] {
     ? sectionFromBreak(nodes[0]!)
     : { id: crypto.randomUUID(), isCheckpoint: false, rows: [] };
 
-    // Bare top-level blocks accumulate here until a `row` node or sectionBreak
-    // flushes them into a single full-width 1-column Row.
-    let pending: Block[] = [];
-    const flushPending = (): void => {
-        if (pending.length === 0) return;
-        current.rows.push({
-            id: crypto.randomUUID(),
-            gridLines: 'inherit',
-            columns: [{ id: crypto.randomUUID(), blocks: pending }],
-        });
-        pending = [];
-    };
-
     for (let i = startsWithBreak ? 1 : 0; i < nodes.length; i++) {
         const node = nodes[i]!;
         if (node.type === 'sectionBreak') {
-            flushPending();
             sections.push(current);
             current = sectionFromBreak(node);
         } else if (node.type === 'row') {
-            flushPending();
             current.rows.push(tiptapRowToActivity(node));
-        } else {
-            const block = tiptapBlockToActivity(node);
-            if (block) pending.push(block);
         }
+        // Any other top-level node is impossible under the strict-grid doc
+        // schema (a leaf block only exists inside a column); ignore defensively.
     }
 
-    flushPending();
     sections.push(current);
     return sections;
 }
@@ -1279,18 +1262,11 @@ function emitSectionsAsTiptapBlocks(sections: Section[]): JSONContent[] {
             out.push(sectionBreakNode(section));
         }
         for (const row of section.rows) {
-            // A full-width 1-column Row unwraps back to a bare block stream (the
-            // editor's single-column flow); a multi-column Row becomes a `row`
-            // node. The editor's `row` node is 2..6 columns, so a 1-col row has
-            // no editor representation other than its bare blocks.
-            if (row.columns.length === 1) {
-                for (const block of row.columns[0]!.blocks) {
-                    const node = activityBlockToTiptap(block);
-                    if (node) out.push(node);
-                }
-            } else {
-                out.push(activityRowToTiptap(row));
-            }
+            // Strict grid: every Row emits a `row` node (1-col stack rows AND
+            // multi-col regions alike). The old 1-col unwrap-to-bare-blocks is
+            // gone — the editor tree carries the rows directly, so the stored
+            // shape round-trips verbatim.
+            out.push(activityRowToTiptap(row));
         }
     });
 

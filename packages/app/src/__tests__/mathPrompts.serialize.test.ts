@@ -8,7 +8,10 @@
 
 import { describe, it, expect } from 'vitest';
 import { ActivityMeta } from '@activity/schema';
-import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
+import {
+    activityToTiptapBare as activityToTiptap,
+    tiptapToActivityBare as tiptapToActivity,
+} from '../lib/serializeTestBridge';
 import type { JSONContent } from '@tiptap/react';
 
 const META = ActivityMeta.parse({ title: 'T', course: 'Algebra II' });

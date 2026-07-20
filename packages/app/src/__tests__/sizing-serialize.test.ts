@@ -9,7 +9,10 @@
 import { describe, expect, it } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
 import { ActivityMeta } from '@activity/schema';
-import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
+import {
+    activityToTiptapBare as activityToTiptap,
+    tiptapToActivityBare as tiptapToActivity,
+} from '../lib/serializeTestBridge';
 
 const META = ActivityMeta.parse({ title: 'Sizing', course: 'Geometry' });
 

@@ -15,7 +15,10 @@ import {
     getMarkdownImporter,
     type MarkdownImporter,
 } from '../lib/markdownToTiptap';
-import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
+import {
+    activityToTiptapBare as activityToTiptap,
+    tiptapToActivityBare as tiptapToActivity,
+} from '../lib/serializeTestBridge';
 
 let convert: MarkdownImporter;
 beforeAll(async () => {

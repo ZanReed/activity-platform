@@ -10,7 +10,10 @@
 import { describe, it, expect } from 'vitest';
 import type { JSONContent } from '@tiptap/core';
 import { ActivityMeta } from '@activity/schema';
-import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
+import {
+    activityToTiptapBare as activityToTiptap,
+    tiptapToActivityBare as tiptapToActivity,
+} from '../lib/serializeTestBridge';
 
 const META = ActivityMeta.parse({ title: 'T', course: 'Algebra II' });
 

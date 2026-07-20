@@ -16,6 +16,7 @@ import type { Extensions } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
+import { Doc } from './extensions/Doc';
 import { MathInline } from './extensions/MathInline';
 import { MathBlock } from './extensions/MathBlock';
 import { MathFocus } from './extensions/MathFocus';
@@ -53,7 +54,12 @@ export function buildEditorExtensions({
     gridLinesDefault = false,
 }: EditorExtensionOptions = {}): Extensions {
     return [
+        // Strict-grid top node: doc = (sectionBreak | row)+ (see Doc.ts).
+        // Replaces StarterKit's Document (content `block+`).
+        Doc,
         StarterKit.configure({
+            // Our strict-grid Doc (above) owns the top node.
+            document: false,
             blockquote: false,
             codeBlock: false,
             // The drag drop-line as the accent "insert-line" (stage 6). The

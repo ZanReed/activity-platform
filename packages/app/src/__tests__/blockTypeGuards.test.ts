@@ -48,6 +48,7 @@ import {
     Block,
 } from '@activity/schema';
 import { activityToTiptap } from '../lib/serialize';
+import { toBare } from '../lib/serializeTestBridge';
 import { buildEditorExtensions } from '../editor/editorExtensions';
 import { buildActivityIndex, type ActivityIndex } from '../lib/submissions';
 
@@ -164,14 +165,13 @@ function representativeBlock(type: string): Block {
 }
 
 // Wrap one block in a minimal valid document. The single section is untitled
-// and not a checkpoint, so activityToTiptap emits no sectionBreak node — the
-// serialized doc content is exactly the serialized block (or empty when the
-// block has no editor mapping).
+// and not a checkpoint, so activityToTiptap emits no sectionBreak node — just
+// one `row > column` holding the block (strict grid). The guard below reads the
+// block back out via toBare (a 1-col row unwraps to its blocks).
 function docWith(...blocks: Block[]): ActivityDocument {
     const doc = createEmptyDocument({ title: 'Guard' });
     // Single-column content lives in one full-width 1-col row (the schema's
-    // rows-of-columns shape). activityToTiptap unwraps it back to a bare block
-    // stream, so the editor guard still sees the block at the doc top level.
+    // rows-of-columns shape) — which is exactly what the editor emits now.
     doc.sections[0]!.rows = [
         { id: crypto.randomUUID(), gridLines: 'inherit', columns: [{ id: crypto.randomUUID(), blocks }] },
     ];
@@ -194,7 +194,9 @@ describe('editor column-cell guard', () => {
         'cell-legal block type %s is insertable in a column cell (when editor-mappable)',
         (type) => {
             const block = representativeBlock(type);
-            const serialized = activityToTiptap(docWith(block));
+            // toBare unwraps the 1-col stack row back to its blocks, so nodes[0]
+            // is the serialized block node the column must accept.
+            const serialized = toBare(activityToTiptap(docWith(block)));
             const nodes = serialized.content ?? [];
 
             if (nodes.length === 0) {

@@ -379,6 +379,11 @@ function columnsGripDecorations(state: EditorState): DecorationSet {
     const decorations: Decoration[] = [];
     state.doc.descendants((node, pos) => {
         if (node.type.name !== 'row') return true;
+        // Grip suppression (strict grid): a 1-col stack-row renders flat with no
+        // container to grab — the inner blocks carry their own drag handle. Only
+        // multi-col rows (an authored region moved as a unit) get the whole-row
+        // grip. (A `row` can't nest, so returning false either way is fine.)
+        if (node.childCount <= 1) return false;
         // Place the widget just inside the columns node (its first child slot),
         // so getPos() resolves inside the node. CSS pins it to the corner and
         // takes it out of flex flow, so it never disturbs the cells.
@@ -395,8 +400,14 @@ function columnsGripDecorations(state: EditorState): DecorationSet {
 
 export const Columns = Node.create<ColumnsOptions>({
     name: 'row',
-    group: 'block',
-    content: 'column{2,6}',
+    // Own group (NOT 'block') so a `column`'s block+ content can never nest a
+    // row — the strict-grid recursion guard (columns-universal-container.md
+    // decision 4). The doc node names `row` explicitly (see Doc.ts).
+    group: 'row',
+    // 1..6 columns: a 1-col row is the full-width stack (a section's default
+    // shape); 2..6 is an authored multi-column region. Was column{2,6} under the
+    // pragmatic bridge, where a 1-col section lived as bare top-level blocks.
+    content: 'column{1,6}',
     draggable: true,
     selectable: true,
     isolating: true,
