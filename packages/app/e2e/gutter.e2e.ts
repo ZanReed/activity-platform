@@ -4,8 +4,10 @@ import { test, expect, type Page } from '@playwright/test';
 // Hover gutter cluster — slice-6 stage-1 interaction harness.
 // ----------------------------------------------------------------------------
 // Verifies the reconciled gutter: a persistent quiet rest dot on every
-// top-level block that expands into the [grip][+] cluster on hover, and a "+"
-// that opens the "Add a block" window inserting above the hovered block.
+// top-level block that expands on hover into the top-left drag grip (the
+// .block-gutter-cluster) plus a separate bottom-left "+" (BlockAddButtonHost)
+// that opens the "Add a block" window inserting BELOW the hovered block
+// (the split landed in e5862ee — grip drags, "+" inserts below).
 // Uses REAL pointer hover (Playwright), which drives Tiptap's drag-handle
 // mousemove logic — the synthetic-event path does not.
 // ============================================================================
@@ -62,14 +64,14 @@ test('the empty-line "/" placeholder renders horizontally (not squeezed by the d
     expect(hint!.content).toContain('Type /');
 });
 
-test('hovering a block reveals the grip + insert cluster', async ({ page }) => {
+test('hovering a block reveals the grip + insert "+"', async ({ page }) => {
     const para = await firstParagraph(page);
     await para.hover();
     const cluster = page.locator('.block-gutter-cluster');
     await expect(cluster).toBeVisible();
     await expect(page.locator('.drag-handle-button')).toBeVisible();
     await expect(
-        page.getByRole('button', { name: 'Insert a block above' }),
+        page.getByRole('button', { name: 'Insert a block below' }),
     ).toBeVisible();
 });
 
@@ -91,15 +93,16 @@ test('the rest dot fades while the block is hovered', async ({ page }) => {
 test('the gutter "+" opens the Add-a-block window', async ({ page }) => {
     const para = await firstParagraph(page);
     await para.hover();
-    await page.getByRole('button', { name: 'Insert a block above' }).click();
+    await page.getByRole('button', { name: 'Insert a block below' }).click();
     await expect(page.locator('.block-insert-overlay')).toBeVisible();
 });
 
-test('inserting from the gutter "+" lands the block ABOVE the hovered one', async ({
+test('inserting from the gutter "+" lands the block BELOW the hovered one', async ({
     page,
 }) => {
-    // The target block's top-level index BEFORE inserting.
-    const targetIndexOf = () =>
+    // The target block's top-level index + the type of the block right after
+    // it, BEFORE inserting.
+    const snapshot = () =>
         page.evaluate(() => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const ed = (window as any).__tiptapEditor;
@@ -108,17 +111,18 @@ test('inserting from the gutter "+" lands the block ABOVE the hovered one', asyn
             ed.state.doc.forEach((node: any, _pos: number, i: number) => {
                 if (node.textContent.includes('Block math example')) idx = i;
             });
-            return idx;
+            const after = idx >= 0 ? ed.state.doc.child(idx + 1) : null;
+            return { idx, nextType: after?.type.name ?? null };
         });
 
-    const before = await targetIndexOf();
+    const before = await snapshot();
 
     // Scope to the editor — the JSON inspector panel echoes the same text.
     const target = page
         .locator('.ProseMirror')
         .getByText('Block math example below:');
     await target.hover();
-    await page.getByRole('button', { name: 'Insert a block above' }).click();
+    await page.getByRole('button', { name: 'Insert a block below' }).click();
     await expect(page.locator('.block-insert-overlay')).toBeVisible();
     // A real insertion item (not a Text transform, which the picker excludes).
     await page
@@ -126,7 +130,9 @@ test('inserting from the gutter "+" lands the block ABOVE the hovered one', asyn
         .fill('fill in the blank');
     await page.locator('.block-insert-tile').first().click();
 
-    // A block landed directly above the target, pushing its index up by one.
-    const after = await targetIndexOf();
-    expect(after).toBe(before + 1);
+    // The block landed directly BELOW the target: the target keeps its index,
+    // and the block right after it is now the new fill_in_blank.
+    const after = await snapshot();
+    expect(after.idx).toBe(before.idx);
+    expect(after.nextType).toBe('fillInBlank');
 });

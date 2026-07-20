@@ -103,6 +103,10 @@ test('Settings (gear) selects the block → full command bar; quick-bar hides', 
     await page.getByRole('button', { name: 'Block settings' }).click();
     expect(await selectionType(page)).toBe('NodeSelection');
     await expect(page.locator(BAR)).toBeVisible();
+    // The quick-bar holds steady WHILE the pointer rests on it (the onBar
+    // grace, so it can't vanish under your cursor). Move the pointer off it,
+    // and its mouseleave clears it — the command bar owns the selected state.
+    await page.mouse.move(0, 0);
     await expect(page.locator(QUICKBAR)).toHaveCount(0);
 });
 

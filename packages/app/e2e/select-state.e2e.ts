@@ -77,7 +77,12 @@ test('the grip is drag-only — clicking it does NOT select', async ({ page }) =
     await para.click();
     await para.hover();
     await expect(page.locator('.block-gutter-cluster')).toBeVisible();
-    await page.locator('.drag-handle-button').click();
+    // Click the TOP of the grip: the bottom-left "+" (BlockAddButtonHost)
+    // sits low in the gutter and can overlap the grip's lower half on a short
+    // block, so aim high to hit the grip itself.
+    await page
+        .locator('.drag-handle-button')
+        .click({ position: { x: 8, y: 4 } });
     expect(await selectionType(page)).not.toBe('NodeSelection');
 });
 
