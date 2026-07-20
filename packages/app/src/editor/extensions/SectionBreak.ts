@@ -1,6 +1,8 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { TextSelection } from '@tiptap/pm/state';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { SectionBreakView } from '../nodeViews/SectionBreakView';
+import { topLevelRowAt } from '../strictGrid';
 
 // =============================================================================
 // SectionBreak — Tiptap atom node that opens a new Section in the document.
@@ -28,7 +30,9 @@ declare module '@tiptap/core' {
 
 export const SectionBreak = Node.create({
     name: 'sectionBreak',
-    group: 'block',
+    // No `group` (strict grid): a sectionBreak is a top-level marker, named
+    // directly by the Doc node's content expression. It is deliberately NOT in
+    // the `block` group, so a `column`'s block+ content can never hold one.
     atom: true,        // no editable content slot; NodeView provides its own UI
     selectable: true,
     draggable: true,
@@ -68,10 +72,41 @@ export const SectionBreak = Node.create({
 
     addCommands() {
         return {
+            // Strict grid: a sectionBreak lives only at the doc top level, so it
+            // is inserted just AFTER the top-level row holding the caret (the
+            // section boundary lands at row granularity). A fresh empty stack row
+            // follows it so the new section has somewhere to type, and the caret
+            // lands there.
             insertSectionBreak:
             () =>
-            ({ commands }) =>
-            commands.insertContent({ type: this.name }),
+            ({ state, dispatch, tr }) => {
+                const breakType = state.schema.nodes.sectionBreak;
+                const rowType = state.schema.nodes.row;
+                const columnType = state.schema.nodes.column;
+                if (!breakType || !rowType || !columnType) return false;
+                const anchor = topLevelRowAt(state.selection.$from);
+                const insertPos = anchor
+                    ? anchor.pos + anchor.node.nodeSize
+                    : state.doc.content.size;
+                if (dispatch) {
+                    const emptyColumn = columnType.createAndFill();
+                    if (!emptyColumn) return false;
+                    const newRow = rowType.create({ id: crypto.randomUUID() }, [
+                        emptyColumn,
+                    ]);
+                    tr.insert(insertPos, [breakType.create(), newRow]);
+                    // Caret into the new section's empty paragraph (past the
+                    // break + into the new row/column).
+                    const caret = insertPos + breakType.create().nodeSize + 2;
+                    tr.setSelection(
+                        TextSelection.near(
+                            tr.doc.resolve(Math.min(caret, tr.doc.content.size)),
+                        ),
+                    );
+                    dispatch(tr.scrollIntoView());
+                }
+                return true;
+            },
         };
     },
 });

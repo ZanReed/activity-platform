@@ -91,6 +91,81 @@ export function isTopLevelStack($pos: ResolvedPos): boolean {
     return row.childCount === 1; // sole-column stack, not a multi-col cell
 }
 
+/** Is this an empty paragraph node (a placeholder line)? */
+function isEmptyParagraph(node: PMNode): boolean {
+    return node.type.name === 'paragraph' && node.content.size === 0;
+}
+
+/**
+ * The brand-new empty document — one 1-col stack row holding a single empty
+ * paragraph. Drives the first-run "Start here" trigger and the "was the doc
+ * blank?" check before an insert.
+ */
+export function isEmptyStackDoc(doc: PMNode): boolean {
+    if (doc.childCount !== 1) return false;
+    const row = doc.firstChild;
+    if (!row || row.type.name !== 'row' || row.childCount !== 1) return false;
+    const col = row.firstChild;
+    if (!col || col.type.name !== 'column' || col.childCount !== 1) return false;
+    return isEmptyParagraph(col.firstChild!);
+}
+
+/**
+ * After inserting into a freshly-empty doc, the seed empty paragraph lingers.
+ * Returns the range to delete so a fresh activity doesn't open with a blank line:
+ *   • a new top-level row was inserted (e.g. columns) → drop the whole empty
+ *     seed stack row;
+ *   • a block was inserted INTO the seed column → drop the leading empty
+ *     paragraph.
+ * Null when there is nothing to clean (the seed is the only content, or the doc
+ * no longer starts with an empty stack).
+ */
+export function emptySeedCleanupRange(
+    doc: PMNode,
+): { from: number; to: number } | null {
+    const firstRow = doc.firstChild;
+    if (!firstRow || firstRow.type.name !== 'row') return null;
+    const col = firstRow.firstChild;
+    if (!col || col.type.name !== 'column') return null;
+    const seedRowIsEmpty =
+        firstRow.childCount === 1 &&
+        col.childCount === 1 &&
+        isEmptyParagraph(col.firstChild!);
+    // Case B: a whole new row was added — drop the empty seed row entirely.
+    if (seedRowIsEmpty && doc.childCount > 1) {
+        return { from: 0, to: firstRow.nodeSize };
+    }
+    // Case A: content landed in the seed column — drop the leading empty line.
+    if (col.childCount > 1 && isEmptyParagraph(col.firstChild!)) {
+        const from = 2; // into row (+1), into column (+1)
+        return { from, to: from + col.firstChild!.nodeSize };
+    }
+    return null;
+}
+
+/**
+ * Position-based sibling of isTopLevelStack, for an INSERT position (where a
+ * picked block will land) rather than a caret. True at a doc-level position (the
+ * end square, a row boundary) and at a column-level position whose column is the
+ * sole column of a top-level row. Drives the "Add a block" window's
+ * `topLevelOnly` gate (section break / columns).
+ */
+export function isTopLevelStackInsertPos(doc: PMNode, pos: number): boolean {
+    const $pos = doc.resolve(Math.min(Math.max(pos, 0), doc.content.size));
+    if ($pos.depth === 0) return true; // doc-level: between rows / at the end
+    for (let d = $pos.depth; d >= 1; d--) {
+        if ($pos.node(d).type.name === 'column') {
+            const row = $pos.node(d - 1);
+            return (
+                row.type.name === 'row' &&
+                d - 1 === 1 && // the row is a direct child of the doc
+                row.childCount === 1 // a sole-column stack, not a multi-col cell
+            );
+        }
+    }
+    return false;
+}
+
 // =============================================================================
 // Empty-state shapes — the strict grid's "one empty line" is row > column >
 // paragraph, not a bare paragraph. Used by the routes' initial content and the
@@ -114,4 +189,55 @@ export function emptyRowJSON(): JSONContent {
 /** A brand-new empty document: one 1-col stack row with one empty paragraph. */
 export function emptyDocJSON(): JSONContent {
     return { type: 'doc', content: [emptyRowJSON()] };
+}
+
+/**
+ * A strict-grid doc wrapping the given blocks in one 1-col stack row — the
+ * valid-shape equivalent of the old `{ type: 'doc', content: [...blocks] }`.
+ * For seeding editor content from a bare block list (dev fixtures, tests).
+ */
+export function stackDocJSON(...blocks: JSONContent[]): JSONContent {
+    return {
+        type: 'doc',
+        content: [
+            {
+                type: 'row',
+                attrs: { gridLines: 'inherit' },
+                content: [{ type: 'column', content: blocks }],
+            },
+        ],
+    };
+}
+
+/**
+ * Wrap a bare block stream (e.g. the markdown importer's flat output) into a
+ * strict-grid doc: consecutive bare blocks collapse into 1-col stack rows,
+ * `sectionBreak` markers pass through at the top level. The bridge for content
+ * produced outside the strict editor until the importer itself emits the strict
+ * tree (slice 2 / T8, which also maps a ```columns``` fence to a multi-col row).
+ */
+export function wrapBlocksStrict(blocks: JSONContent[]): JSONContent {
+    const content: JSONContent[] = [];
+    let pending: JSONContent[] = [];
+    const flush = (): void => {
+        if (pending.length === 0) return;
+        content.push({
+            type: 'row',
+            attrs: { gridLines: 'inherit' },
+            content: [{ type: 'column', content: pending }],
+        });
+        pending = [];
+    };
+    for (const node of blocks) {
+        if (node.type === 'sectionBreak' || node.type === 'row') {
+            flush();
+            content.push(node);
+        } else {
+            pending.push(node);
+        }
+    }
+    flush();
+    // Never emit an empty doc — the schema requires ≥1 (sectionBreak | row).
+    if (content.length === 0) return emptyDocJSON();
+    return { type: 'doc', content };
 }

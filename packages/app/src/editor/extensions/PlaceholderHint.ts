@@ -32,21 +32,28 @@ export const PlaceholderHint = Extension.create({
                         const { doc, selection } = state;
                         const decorations: Decoration[] = [];
 
-                        const firstChild = doc.firstChild;
                         const selectionPos = selection.$from;
+                        // The doc's very first stack line: into row (+1), into
+                        // column (+1). Position 2 when the first child is a row.
+                        const firstLinePos =
+                            doc.firstChild?.type.name === 'row' ? 2 : -1;
 
                         doc.descendants((node, pos) => {
-                            // Only top-level paragraphs (depth 1 = a direct
-                            // child of the doc); never descend into blocks.
-                            if (node.type.name !== 'paragraph') return false;
-                            const isTopLevel =
-                                doc.resolve(pos).depth === 0;
-                            if (!isTopLevel) return false;
+                            const name = node.type.name;
+                            // Strict grid: descend through the row/column wrappers
+                            // to reach the stack paragraphs; never descend into
+                            // other blocks (lists, worked examples, …).
+                            if (name === 'row' || name === 'column') return true;
+                            if (name !== 'paragraph') return false;
+                            // Only paragraphs sitting DIRECTLY in a column stack
+                            // (the section flow) carry the "/" hint.
+                            if (doc.resolve(pos).parent.type.name !== 'column')
+                                return false;
                             if (node.childCount > 0) return false; // not empty
 
                             // Show on the doc's first line (empty-activity
                             // greeting) OR the empty line holding the caret.
-                            const isFirst = node === firstChild;
+                            const isFirst = pos === firstLinePos;
                             const holdsCaret =
                                 selectionPos.pos >= pos &&
                                 selectionPos.pos <= pos + node.nodeSize;

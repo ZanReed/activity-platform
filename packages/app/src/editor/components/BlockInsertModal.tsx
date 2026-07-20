@@ -21,6 +21,7 @@ import {
     type SlashMenuItem,
 } from '../slashMenuItems';
 import { blockThumbnails } from '../blockThumbnails';
+import { isTopLevelStackInsertPos } from '../strictGrid';
 
 // ============================================================================
 // BlockInsertModal — the centered "Add a block" window.
@@ -150,12 +151,14 @@ export default function BlockInsertModal({
         return () => document.removeEventListener('keydown', onKeyDown, true);
     }, [onClose]);
 
-    // Inside a column cell (or other container) the insert position sits below
-    // the doc top level; top-level-only structural blocks are disabled there.
-    const insideContainer =
-        editor.state.doc.resolve(
-            Math.min(insertPos, editor.state.doc.content.size),
-        ).depth > 0;
+    // Strict grid: every insert position is nested in a column, so raw depth no
+    // longer marks a container. topLevelOnly structural blocks are available in
+    // the top-level 1-col stack (and at the doc-level end square), disabled in a
+    // multi-col cell or a nested container.
+    const insideContainer = !isTopLevelStackInsertPos(
+        editor.state.doc,
+        insertPos,
+    );
 
     const itemStatus = (
         item: SlashMenuItem,

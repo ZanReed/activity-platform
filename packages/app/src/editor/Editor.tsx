@@ -20,6 +20,11 @@ import { columnsNestedDragOptions } from './dragHandleNested';
 import BlockInsertModal from './components/BlockInsertModal';
 import StartHere from './components/StartHere';
 import { slashMenuItems, type SlashMenuItem } from './slashMenuItems';
+import {
+    isEmptyStackDoc,
+    emptySeedCleanupRange,
+    stackDocJSON,
+} from './strictGrid';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
 import DefinitionPopoverHost from './components/DefinitionPopoverHost';
@@ -133,10 +138,9 @@ export default function Editor({
     const runInsert = (pos: number, item: SlashMenuItem) => {
         if (!editor) return;
         const before = editor.state.doc;
-        const wasEmpty =
-            before.childCount === 1 &&
-            before.firstChild?.type.name === 'paragraph' &&
-            before.firstChild.content.size === 0;
+        const wasEmpty = isEmptyStackDoc(before);
+        // setTextSelection snaps into the nearest valid text position (inside a
+        // column) even when pos is a doc-level boundary (the end square).
         editor.commands.setTextSelection(Math.min(pos, before.content.size));
         // Settle the placed block (covers the Add-a-block window AND the
         // Start-here starters — both funnel through here). Armed, not tagged:
@@ -145,15 +149,11 @@ export default function Editor({
         if (item.group !== 'Text') armSettle('insert');
         item.command({ editor });
         if (wasEmpty) {
-            const first = editor.state.doc.firstChild;
-            if (
-                editor.state.doc.childCount > 1 &&
-                first &&
-                first.type.name === 'paragraph' &&
-                first.content.size === 0
-            ) {
-                editor.chain().deleteRange({ from: 0, to: first.nodeSize }).run();
-            }
+            // Drop the leftover empty seed (a whole empty stack row when a new
+            // row was inserted, or the leading empty paragraph inside the seed
+            // column) so a fresh activity doesn't open with a blank line.
+            const range = emptySeedCleanupRange(editor.state.doc);
+            if (range) editor.chain().deleteRange(range).run();
         }
         setInsertReq(null);
     };
@@ -165,11 +165,7 @@ export default function Editor({
     // first-run moment, so reopening a still-empty activity shows it again,
     // but deleting everything mid-session does not bring it back).
     // ------------------------------------------------------------------------
-    const docEmpty = editor
-        ? editor.state.doc.childCount === 1 &&
-          editor.state.doc.firstChild?.type.name === 'paragraph' &&
-          editor.state.doc.firstChild.content.size === 0
-        : false;
+    const docEmpty = editor ? isEmptyStackDoc(editor.state.doc) : false;
     const hadContentRef = useRef(false);
     // Monotonic latch; safe to set during render (idempotent), and the
     // onTransaction forceTick guarantees a render per doc change.
@@ -180,31 +176,20 @@ export default function Editor({
     // heading — typing the worksheet title is the immediate next act.
     const startTitleInstructions = () => {
         if (!editor) return;
+        // Replace the empty doc with a heading + paragraph in one stack row; the
+        // caret lands in the heading (text at pos 3: into row +1, column +1,
+        // heading +1). setContent replacing the empty seed leaves no blank line.
         editor
             .chain()
+            .setContent(
+                stackDocJSON(
+                    { type: 'heading', attrs: { level: 1 } },
+                    { type: 'paragraph' },
+                ),
+            )
+            .setTextSelection(3)
             .focus()
-            .insertContentAt(0, [
-                { type: 'heading', attrs: { level: 1 } },
-                { type: 'paragraph' },
-            ])
             .run();
-        // Drop the leftover empty paragraph (it was the whole doc).
-        const last = editor.state.doc.lastChild;
-        if (
-            editor.state.doc.childCount > 2 &&
-            last &&
-            last.type.name === 'paragraph' &&
-            last.content.size === 0
-        ) {
-            editor
-                .chain()
-                .deleteRange({
-                    from: editor.state.doc.content.size - last.nodeSize,
-                    to: editor.state.doc.content.size,
-                })
-                .run();
-        }
-        editor.chain().setTextSelection(1).focus().run();
     };
 
     // Starter 2: open the picker on the question bread-and-butter (Blanks);

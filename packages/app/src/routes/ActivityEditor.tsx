@@ -48,6 +48,7 @@ import {
     referencePanelToTiptap,
     tiptapToReferencePanel,
 } from '../lib/serialize';
+import { emptyDocJSON, wrapBlocksStrict } from '../editor/strictGrid';
 import { useAutosave } from '../lib/useAutosave';
 import { usePublish } from '../lib/usePublish';
 import Editor from '../editor/Editor';
@@ -322,13 +323,14 @@ export default function ActivityEditor() {
                 doc = createEmptyDocument({ title: row.title });
             }
 
-            // ProseMirror's `doc` requires at least one block child; a brand-new
-            // activity serializes to content: [] — substitute an empty paragraph.
+            // The strict-grid doc requires at least one (sectionBreak | row); a
+            // brand-new activity serializes to content: [] — substitute the
+            // empty stack doc (row > column > empty paragraph).
             const tiptap = activityToTiptap(doc);
             const safeTiptap: JSONContent =
             Array.isArray(tiptap.content) && tiptap.content.length > 0
             ? tiptap
-            : { type: 'doc', content: [{ type: 'paragraph' }] };
+            : emptyDocJSON();
 
             // Seed the reference-panel editor with the loaded panel's blocks
             // (flat, no sections). Empty-paragraph fallback when there's no
@@ -384,15 +386,19 @@ export default function ActivityEditor() {
                 editorInstance
                     .chain()
                     .focus()
-                    .setContent({ type: 'doc', content: importedBlocks })
+                    // Strict grid: wrap the importer's bare stream into rows
+                    // (slice-1 bridge; the importer emits the strict tree in T8).
+                    .setContent(wrapBlocksStrict(importedBlocks))
                     .run();
             } else {
+                // Append the imported content as new top-level rows (strict
+                // grid: bare blocks can't sit at doc level).
                 editorInstance
                     .chain()
                     .focus('end')
                     .insertContentAt(
                         editorInstance.state.doc.content.size,
-                        importedBlocks,
+                        wrapBlocksStrict(importedBlocks).content ?? [],
                     )
                     .run();
             }

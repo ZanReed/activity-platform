@@ -7,6 +7,7 @@ import SlashMenuPopover, {
 } from '../SlashMenuPopover';
 import { slashMenuItems, type SlashMenuItem } from '../slashMenuItems';
 import { armSettle } from './SettleMotion';
+import { isTopLevelStack } from '../strictGrid';
 
 export const SlashMenu = Extension.create({
     name: 'slashMenu',
@@ -20,11 +21,14 @@ export const SlashMenu = Extension.create({
 
                 items: ({ query, editor }) => {
                     const q = query.toLowerCase();
-                    // Inside a container (column cell, list item, worked-example
-                    // body, …) the cursor sits below the doc top level, so a
-                    // top-level-only structural block would split the container.
-                    // Hide those there — same rule the "Add a block" window uses.
-                    const nested = editor.state.selection.$from.depth > 1;
+                    // Strict grid: every caret is nested in a column, so raw
+                    // depth no longer distinguishes the section flow from a real
+                    // container. `topLevelOnly` structural blocks (section break,
+                    // columns) show ONLY in the top-level 1-col stack — hidden in
+                    // a multi-col cell, a nested container (worked example, list),
+                    // or the reference panel. Same rule the "Add a block" window
+                    // uses.
+                    const nested = !isTopLevelStack(editor.state.selection.$from);
                     return slashMenuItems.filter(
                         (item) =>
                         // Contextual items (e.g. Answer blank, only valid

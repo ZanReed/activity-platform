@@ -4,54 +4,51 @@ import type { ActivityFont, Typography } from '@activity/schema';
 import { FONT_MENU, FONT_REGISTRY } from '@activity/renderer';
 import Editor from '../editor/Editor';
 import JsonInspector from '../editor/JsonInspector';
+import { emptyDocJSON, stackDocJSON } from '../editor/strictGrid';
 
-const helloDoc: JSONContent = {
-    type: 'doc',
-    content: [
-        {
-            type: 'heading',
-            attrs: { level: 1 },
-            content: [{ type: 'text', text: 'Tiptap playground' }],
-        },
-        {
-            type: 'paragraph',
-            content: [
-                { type: 'text', text: 'Inline math example: the quadratic formula is ' },
-                {
-                    type: 'mathInline',
-                    attrs: { latex: 'x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}' },
-                },
-                { type: 'text', text: '. Click the math to edit it.' },
-            ],
-        },
-        {
-            type: 'paragraph',
-            content: [{ type: 'text', text: 'Block math example below:' }],
-        },
-        {
-            type: 'mathBlock',
-            attrs: { latex: '\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}' },
-        },
-        {
-            type: 'paragraph',
-            content: [
-                { type: 'text', text: 'Toolbar: ' },
-                { type: 'text', text: 'ƒx', marks: [{ type: 'code' }] },
-                { type: 'text', text: ' for inline, ' },
-                { type: 'text', text: 'Σ', marks: [{ type: 'code' }] },
-                { type: 'text', text: ' for block.' },
-            ],
-        },
-    ],
-};
+// Strict grid: the doc is (sectionBreak | row)+, so the seed blocks live in one
+// 1-col stack row.
+const helloDoc: JSONContent = stackDocJSON(
+    {
+        type: 'heading',
+        attrs: { level: 1 },
+        content: [{ type: 'text', text: 'Tiptap playground' }],
+    },
+    {
+        type: 'paragraph',
+        content: [
+            { type: 'text', text: 'Inline math example: the quadratic formula is ' },
+            {
+                type: 'mathInline',
+                attrs: { latex: 'x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}' },
+            },
+            { type: 'text', text: '. Click the math to edit it.' },
+        ],
+    },
+    {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'Block math example below:' }],
+    },
+    {
+        type: 'mathBlock',
+        attrs: { latex: '\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}' },
+    },
+    {
+        type: 'paragraph',
+        content: [
+            { type: 'text', text: 'Toolbar: ' },
+            { type: 'text', text: 'ƒx', marks: [{ type: 'code' }] },
+            { type: 'text', text: ' for inline, ' },
+            { type: 'text', text: 'Σ', marks: [{ type: 'code' }] },
+            { type: 'text', text: ' for block.' },
+        ],
+    },
+);
 
 // `/playground?empty=1` mounts the editor on a blank doc — the first-run
 // "Start here" state only shows when the doc is empty AT MOUNT, and the
 // seeded helloDoc latches it off immediately (dev drive + e2e hook).
-const emptyDoc: JSONContent = {
-    type: 'doc',
-    content: [{ type: 'paragraph' }],
-};
+const emptyDoc: JSONContent = emptyDocJSON();
 
 export default function Playground() {
     const [initialDoc] = useState<JSONContent>(() =>

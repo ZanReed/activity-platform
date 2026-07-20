@@ -9,6 +9,7 @@ import {
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { settleMetaKey } from './SettleMotion';
+import { activeBlockAt, topLevelRowAt } from '../strictGrid';
 
 // =============================================================================
 // Columns / Column — structural side-by-side container for the editor.
@@ -478,24 +479,52 @@ export const Columns = Node.create<ColumnsOptions>({
         return {
             insertColumns:
             (count = 2) =>
-            ({ commands }) => {
+            ({ state, dispatch, tr }) => {
                 const n = Math.min(Math.max(Math.trunc(count), 2), 6);
-                return commands.insertContent({
-                    type: this.name,
-                    attrs: { id: crypto.randomUUID() },
-                    content: Array.from({ length: n }, () => ({
-                        type: 'column',
-                        content: [{ type: 'paragraph' }],
-                    })),
-                });
+                const columnType = state.schema.nodes.column;
+                const rowType = state.schema.nodes.row;
+                if (!columnType || !rowType) return false;
+                // Strict grid: a `row` lives ONLY at the doc top level, so a
+                // fresh multi-col row is inserted just AFTER the top-level row
+                // holding the caret (a new region below the current stack),
+                // never at the nested caret (which is inside a column).
+                const anchor = topLevelRowAt(state.selection.$from);
+                const insertPos = anchor
+                    ? anchor.pos + anchor.node.nodeSize
+                    : state.doc.content.size;
+                if (dispatch) {
+                    const cols = Array.from({ length: n }, () =>
+                        columnType.createAndFill(),
+                    );
+                    if (cols.some((c) => c === null)) return false;
+                    const row = rowType.create(
+                        { id: crypto.randomUUID() },
+                        cols as ProseMirrorNode[],
+                    );
+                    tr.insert(insertPos, row);
+                    tr.setMeta(settleMetaKey, 'insert');
+                    // Caret into the first column of the new row.
+                    const posInFirstCol = insertPos + 2; // into row +1, column +1
+                    tr.setSelection(
+                        TextSelection.near(
+                            tr.doc.resolve(
+                                Math.min(posInFirstCol, tr.doc.content.size),
+                            ),
+                        ),
+                    );
+                    dispatch(tr.scrollIntoView());
+                }
+                return true;
             },
 
-            // Split the current TOP-LEVEL block into a multi-column row: its
-            // content moves into column 1, the remaining columns start empty,
-            // and the caret lands in the first empty column so the author can
-            // type straight away. Returns false (and is toolbar/slash-disabled
-            // via editor.can()) when the cursor isn't on a plain top-level block
-            // — already inside a row, a section break, or nested deeper.
+            // Split the current block out of its 1-col stack row into a
+            // multi-column row: the block becomes column 1, the remaining
+            // columns start empty, and the caret lands in the first empty column.
+            // The host stack row splits into up to three rows
+            // (before | multi | after); degenerate before/after (the block is
+            // first/last in the stack) are dropped. Returns false when the caret
+            // isn't in a top-level 1-col stack block (e.g. already in a multi-col
+            // cell, a nested container, or a section-break selection).
             wrapInColumns:
             (count = 2) =>
             ({ state, dispatch, tr }) => {
@@ -504,52 +533,73 @@ export const Columns = Node.create<ColumnsOptions>({
                 const rowType = state.schema.nodes.row;
                 if (!columnType || !rowType) return false;
 
-                // Resolve the single top-level block to wrap: a text cursor
-                // inside it (depth 1) or a NodeSelection on it (depth 0).
-                const sel = state.selection;
-                let from: number;
-                let to: number;
-                let block: ProseMirrorNode | null = null;
-                if (sel instanceof NodeSelection && sel.$from.depth === 0) {
-                    from = sel.from;
-                    to = sel.to;
-                    block = sel.node;
-                } else if (sel.$from.depth === 1) {
-                    from = sel.$from.before(1);
-                    to = sel.$from.after(1);
-                    block = sel.$from.node(1);
-                } else {
-                    return false;
-                }
+                // Resolve the target block (its parent is a column) + its host
+                // top-level row.
+                const active = activeBlockAt(state);
+                if (!active) return false;
+                const anchor = topLevelRowAt(state.doc.resolve(active.pos));
+                if (!anchor || anchor.node.type.name !== 'row') return false;
+                // Only a 1-col STACK row wraps — a block already in a multi-col
+                // cell can't be re-wrapped.
+                if (anchor.node.childCount !== 1) return false;
+                const column = anchor.node.firstChild;
+                if (!column) return false;
 
-                // Never wrap a row (no nesting) or a section-break marker.
-                if (
-                    !block ||
-                    block.type.name === 'row' ||
-                    block.type.name === 'sectionBreak'
-                ) {
-                    return false;
+                // Partition the stack column's blocks around the target.
+                const before: ProseMirrorNode[] = [];
+                const after: ProseMirrorNode[] = [];
+                let target: ProseMirrorNode | null = null;
+                let walk = anchor.pos + 2; // into row +1, into column +1
+                for (let i = 0; i < column.childCount; i++) {
+                    const child = column.child(i);
+                    if (walk === active.pos) target = child;
+                    else if (target === null) before.push(child);
+                    else after.push(child);
+                    walk += child.nodeSize;
                 }
+                if (!target) return false;
 
                 if (dispatch) {
-                    const firstCol = columnType.create(null, block);
-                    const restCols = Array.from({ length: n - 1 }, () =>
+                    const emptyCols = Array.from({ length: n - 1 }, () =>
                         columnType.createAndFill(),
                     );
-                    if (restCols.some((c) => c === null)) return false;
-                    const row = rowType.create({ id: crypto.randomUUID() }, [
-                        firstCol,
-                        ...(restCols as ProseMirrorNode[]),
+                    if (emptyCols.some((c) => c === null)) return false;
+                    const multiRow = rowType.create({ id: crypto.randomUUID() }, [
+                        columnType.create(null, target),
+                        ...(emptyCols as ProseMirrorNode[]),
                     ]);
-                    tr.replaceRangeWith(from, to, row);
-                    // Owns its transaction, so the settle tag goes on
-                    // directly — the new row settles into place (stage 6).
+                    const stackRow = (blocks: ProseMirrorNode[]): ProseMirrorNode =>
+                        rowType.create({ id: crypto.randomUUID() }, [
+                            columnType.create(null, blocks),
+                        ]);
+                    const replacement: ProseMirrorNode[] = [];
+                    if (before.length > 0) replacement.push(stackRow(before));
+                    const multiRowIndex = replacement.length;
+                    replacement.push(multiRow);
+                    if (after.length > 0) replacement.push(stackRow(after));
+
+                    const rowStart = anchor.pos;
+                    tr.replaceWith(
+                        rowStart,
+                        rowStart + anchor.node.nodeSize,
+                        replacement,
+                    );
                     tr.setMeta(settleMetaKey, 'insert');
-                    // Caret into the first empty column (just past column 1).
-                    const posInSecondCol = from + 1 + firstCol.nodeSize + 1;
+                    // Caret into the first EMPTY column of the multi-col row (just
+                    // past its column 1). Compute the multi-row's start in the
+                    // new doc, then step over column 1.
+                    let multiStart = rowStart;
+                    for (let i = 0; i < multiRowIndex; i++) {
+                        multiStart += replacement[i]!.nodeSize;
+                    }
+                    const col1 = multiRow.firstChild;
+                    const posInSecondCol =
+                        multiStart + 1 + (col1 ? col1.nodeSize : 0) + 1;
                     tr.setSelection(
                         TextSelection.near(
-                            tr.doc.resolve(Math.min(posInSecondCol, tr.doc.content.size)),
+                            tr.doc.resolve(
+                                Math.min(posInSecondCol, tr.doc.content.size),
+                            ),
                         ),
                     );
                     dispatch(tr.scrollIntoView());
