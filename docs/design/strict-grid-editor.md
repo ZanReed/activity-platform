@@ -1,8 +1,8 @@
 # Strict-grid editor migration — design + plan
 
-**Status:** 🟡 PLANNED — `/plan-eng-review` CLEARED 2026-07-21 (outside-voice pass folded
-in; 3 architecture forks + 2 cross-model tensions ratified). Not yet built. Target branch
-`strict-grid`. **Supersedes** the "Option A pragmatic bridge" ruling (2026-07-15) in
+**Status:** 🟢 SLICE 1 SHIPPED to `main` 2026-07-21 (the atomic STRUCTURAL slice, T1–T6 —
+app-only, no deploy). Slice 2 (T7–T8: seam affordances + importer strict-tree) PENDING. Eng
+review CLEARED 2026-07-21. **Supersedes** the "Option A pragmatic bridge" ruling (2026-07-15) in
 [columns-universal-container.md](columns-universal-container.md) — deliberately, to kill the
 editor-vs-storage tech debt.
 
@@ -177,24 +177,36 @@ Slice 2 (caret/UX) is additive after slice 1 is green. No parallel lanes worth t
 ## Implementation Tasks
 Synthesized from this review. Checkbox as you ship (on the `strict-grid` branch).
 
-- [ ] **T1 (P1)** — schema: `doc (sectionBreak|row)+`, `row column{1,6} isolating`, new
-  `column block+ isolating selectable:false`; grip suppressed on 1-col rows.
-  - Verify: schema unit tests (node content + isolating).
-- [ ] **T2 (P1)** — serialize → near-passthrough: delete the bare-block collapse; **rewrite**
-  serialize/markdown test corpus to the new oracle; keep child converters row-free (pin).
-  - Verify: round-trip UNIT green in isolation (stack-row + multi-col + empty-doc identity).
-- [ ] **T3 (P1)** — `activeBlockAt` shared helper + migrate every migration-surface site
-  (reorder swap, SelectBlock escalation, wrapInColumns, SlashMenu depth regression,
-  blockControls nodeAt, problemNumbering recursion, PlaceholderHint, dragHandleNested, gutter
-  anchor, 3 hosts).
-  - Verify: 127 e2e driven red → green.
-- [ ] **T4 (P1)** — re-coalesce + empty-state normalizing appendTransaction (undo-safe);
-  drop degenerate empty before/after rows.
-  - Verify: split-then-dissolve leaves ONE stack-row; undo works; new coalesce e2e.
-- [ ] **T5 (P1, CRITICAL)** — paste into columns (`transformPasted`) + undo-vs-normalization.
-  - Verify: paste multi-block + multi-col clipboard e2e; undo e2e.
-- [ ] **T6 (P1)** — runtime nested-discovery pin (init.ts finds interactive blocks in
-  row>column) → confirms no ingest/storage change.
+- [x] **T1 (P1)** — schema: `doc (row|sectionBreak)+` (row-first so the default fill is a
+  clean row, not a bare sectionBreak), `row` group 'row' `column{1,6} isolating`; grip
+  decoration only on multi-col rows; sectionBreak dropped from the `block` group. Column keeps
+  its explicit leaf-block enumeration (behaviour-identical to `block+`, keeps blockTypeGuards
+  green, no horizontalRule surprise). StarterKit `document:false` + `trailingNode:false` (its
+  doc-level fallback was a stray sectionBreak). New `Doc.ts`, `StrictGridNormalize.ts`,
+  `strictGrid.ts`. **DONE 2026-07-21.**
+- [x] **T2 (P1)** — serialize is near-passthrough (deleted the bare-block collapse + the 1-col
+  unwrap). Test corpus rewritten: a shared `serializeTestBridge` (toStrict/toBare) adapts the
+  legacy bare-stream ATTR corpus; a new `strict-grid structure oracle` describe pins the reshape
+  against the RAW serialize (1-col stays a row, N adjacent rows preserved, sectionBreak slicing,
+  child converters row-free). **DONE.**
+- [x] **T3 (P1)** — `activeBlockAt`/`topLevelRowAt`/`isTopLevelStack(InsertPos)` in strictGrid.ts;
+  migrated BlockReorderShortcuts (reorder within column), wrapInColumns/insertColumns/
+  insertSectionBreak (insert at top level from a nested caret; wrapInColumns splits
+  before|multi|after), SlashMenu + BlockInsertModal topLevelOnly gate, PlaceholderHint (descend
+  row>column), Editor.tsx empty-doc/first-run + routes' seed content. SelectBlock/caretBlockPos
+  already column-aware (left as-is). **127 e2e driven red→green** (failures were flat-shape
+  assumptions in the tests). **DONE.**
+- [x] **T4 (P1)** — `StrictGridNormalize` appendTransaction: empty-state backfill, a trailing
+  paragraph (replaces the disabled TrailingNode), re-coalesce adjacent 1-col stack rows.
+  Undo-safe (merges into the triggering edit's history entry; skips history txns; idempotent).
+  1-col rows render FLAT in editor.css (`editor-columns--stack`). **DONE.**
+- [x] **T5 (P1, CRITICAL)** — `transformPasted` flattens a pasted slice carrying row/sectionBreak
+  nodes into its column-legal blocks (no silent data loss); plain slices pass through. New
+  `strict-grid.e2e.ts` (7 tests) pins paste (multi-col + section-break), undo-vs-normalization,
+  empty-state, split-into-columns, re-coalesce. **DONE.**
+- [x] **T6 (P1)** — runtime nested-discovery pin already exists + holds (init.test.ts discovers a
+  fill_in_blank in a row cell); renderer/runtime + stored shape UNCHANGED → no ingest/storage
+  bump (bundle regen = zero drift). **DONE.**
 - [ ] **T7 (P2)** — slice 2: seam affordances (add-row-below, always-visible dissolve,
   arrow-nav, select-not-noop Backspace); split degenerate + atom cases.
 - [ ] **T8 (P2)** — importer emits strict tree; ` ```columns ``` ` fence → multi-col row.
