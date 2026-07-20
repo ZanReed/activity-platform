@@ -18,6 +18,7 @@ import type {
 import { escape, attr } from './html.js';
 import { renderMath } from './math.js';
 import { hasMathPrompts, renderMathPromptBody } from './math-prompts.js';
+import { stepLetter } from './blocks/step-letter.js';
 
 export function renderInline(node: InlineNode): string {
   switch (node.type) {
@@ -72,18 +73,30 @@ function computeBlankGroups(blanks: BlankToken[]): (string | null)[] {
 export function renderFillInBlankContent(
   content: FillInBlankInline[],
   showAnswers = false,
+  // Sub-part lettering: on a NUMBERED multi-blank problem, each blank is
+  // preceded by a compact "(a)/(b)" so students and teachers can tell a
+  // problem's gaps apart (numbering/label decouple, P4). Off for single-blank
+  // problems, suppressed/custom-labeled ones, and faded steps (already lettered
+  // by their box). The caller decides; total>=2 is enforced here.
+  letterBlanks = false,
 ): string {
   const blanks = content.filter(
     (node): node is BlankToken => node.type === 'blank',
   );
   const total = blanks.length;
+  const showLetters = letterBlanks && total >= 2;
   const groupOf = computeBlankGroups(blanks);
   let index = 0;
   return content
   .map((node) => {
     if (node.type !== 'blank') return renderInline(node);
     const groupId = groupOf[index] ?? null;
-    return renderBlank(node, ++index, total, showAnswers, groupId);
+    const i = ++index;
+    const blankHtml = renderBlank(node, i, total, showAnswers, groupId);
+    return showLetters
+      ? '<span class="blank-sublabel">(' + stepLetter(i - 1) + ')</span> ' +
+        blankHtml
+      : blankHtml;
   })
   .join('');
 }

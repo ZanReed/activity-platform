@@ -385,6 +385,10 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
                 latex: prompts.length > 0 ? emptyPlaceholders(rawLatex) : rawLatex,
             };
             if (prompts.length > 0) block.prompts = prompts;
+            // Worked-solution reveal (mirrors fill_in_blank): carry only when
+            // non-empty so a plain equation round-trips byte-identically.
+            const mathSolution = sanitizeInlineNodes(node.attrs?.solution);
+            if (mathSolution.length > 0) block.solution = mathSolution;
             applySizingAttrs(block, node);
             return block;
         }
@@ -1333,6 +1337,11 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                     // unchanged (the attr defaults to []).
                     ...(block.prompts && block.prompts.length > 0
                         ? { prompts: block.prompts }
+                        : {}),
+                    // Worked solution — omit-when-absent so display equations and
+                    // untouched blocks round-trip byte-identically.
+                    ...(block.solution && block.solution.length > 0
+                        ? { solution: block.solution }
                         : {}),
                     ...sizingTiptapAttrs(block),
                 },

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { sizingFields } from '../sizing.js';
 import { labelFields } from '../label.js';
-import { MathPrompt } from '../inline.js';
+import { MathPrompt, InlineNode } from '../inline.js';
 
 // Display math (centered, full width by default). Inline math is in inline.ts
 // as InlineMathNode. They're separate node types because they render
@@ -14,6 +14,10 @@ export const MathBlock = z.object({
   // Optional with NO default so a math block authored before Model A — or one
   // with no gaps — re-serializes BYTE-IDENTICALLY. See docs/design/math-blanks.md.
   prompts: z.array(MathPrompt).optional(),
+  // Worked explanation revealed post-check, mirroring FillInBlankBlock.solution.
+  // Optional; only meaningful on a gap-bearing equation. Never leaks the gap
+  // answer directly (the sanctioned reveal, per the runtime's no-leak stance).
+  solution: z.array(InlineNode).optional(),
   // Variable block sizing: optional width fraction + alignment (sizing.ts).
   ...sizingFields,
   // Per-block display label — a gap-bearing equation is a numbered problem by

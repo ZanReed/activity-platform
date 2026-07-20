@@ -288,6 +288,32 @@ describe('buildRefs — math prompts (Model A)', () => {
         expect(refs.fillInBlanks.has('mb-1')).toBe(false);
     });
 
+    it('registers a math_block worked solution for section-check reveal', () => {
+        setupDOM(
+            configScript() +
+            '<section class="activity-section" data-section-id="sec-1">' +
+            '<div class="block block-math has-math-prompts is-numbered"' +
+            ' data-block-type="math_block" data-block-id="mb-2"' +
+            ' data-math-prompt-latex="x=\\placeholder[g2]{}">' +
+            '<span class="katex"></span>' +
+            '<span class="math-prompt-mirrors" hidden><span class="blank-wrapper">' +
+            '<input class="blank math-prompt-blank" data-blank-id="g2"' +
+            ' data-blank-answers="2a" data-blank-strategy="math" /></span></span>' +
+            '<div class="js-solution" data-for-block="mb-2" hidden>Because.</div>' +
+            '</div></section>',
+        );
+        const refs = buildRefs();
+        // The solution slot registers into the fill-in-blank reveal machinery so
+        // the section check un-hides it — but with NO blanks (the gap scores as
+        // its own blank, registered separately) so it adds nothing to the total.
+        const ref = refs.fillInBlanks.get('mb-2');
+        expect(ref).toBeDefined();
+        expect(ref?.solutionEl).not.toBeNull();
+        expect(ref?.blankIds).toEqual([]);
+        expect(refs.sections.get('sec-1')?.blockIds).toContain('mb-2');
+        expect(refs.blanks.has('g2')).toBe(true); // gap still scores
+    });
+
     it('registers each blank exactly once when a gap nests inside a fill_in_blank', () => {
         setupDOM(
             configScript() +

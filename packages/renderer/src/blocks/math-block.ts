@@ -1,5 +1,6 @@
 import type { MathBlock, PageLabel } from '@activity/schema';
 import { renderMath } from '../math.js';
+import { renderInlineNodes } from '../inline.js';
 import { attr } from '../html.js';
 import { sizingClass, sizingAttrs } from './sizing.js';
 import { renderNumberGutter } from './number-gutter.js';
@@ -33,6 +34,16 @@ export function renderMathBlock(
     const body = gutter
       ? gutter + '<div class="block-math__body">' + inner + '</div>'
       : inner;
+    // Worked-explanation slot: hidden until the section is checked (the runtime
+    // flips `hidden`), mirroring fill-in-blank. Never contains the gap answer —
+    // it's the sanctioned reveal. data-for-block keys it to the block.
+    const solution = block.solution;
+    const solutionSlot =
+      solution && solution.length > 0
+        ? '<div class="js-solution" data-for-block="' + attr(block.id) + '" hidden>' +
+          renderInlineNodes(solution) +
+          '</div>'
+        : '';
     return (
       '<div class="block block-math has-math-prompts' +
       (gutter ? ' is-numbered' : '') +
@@ -43,6 +54,7 @@ export function renderMathBlock(
       ' data-math-prompt-latex="' + attr(block.latex) + '"' +
       sizingAttrs(block) + '>' +
       body +
+      solutionSlot +
       '</div>'
     );
   }

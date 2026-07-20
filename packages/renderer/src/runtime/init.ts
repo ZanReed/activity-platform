@@ -148,6 +148,29 @@ export function buildRefs(doc: Document = document): Refs {
                 blanks.set(blankId, ref);
                 sectionBlankIds.push(blankId);
             }
+
+            // Worked-solution reveal for a gap-bearing equation: register the
+            // block's .js-solution into the SAME machinery fill_in_blank uses.
+            // `blockIds` is consumed ONLY by the section-check reveal loop, and
+            // render's fillInBlanks pass only toggles the solution slot +
+            // confidence (absent here) — so this reuse has no scoring/gather
+            // impact (the gaps already score as blanks, registered above). Gated
+            // on an authored solution so a plain gap block registers nothing.
+            const mathSolutionEl =
+                promptEl.querySelector<HTMLElement>('.js-solution');
+            if (mathSolutionEl) {
+                fillInBlanks.set(ownerBlockId, {
+                    el: promptEl,
+                    blankIds: [],
+                    solutionEl: mathSolutionEl,
+                    hasConfidenceRating: false,
+                    confidenceFieldset: null,
+                    confidenceRadios: [],
+                    skills: [],
+                    sectionId,
+                });
+                sectionBlockIds.push(ownerBlockId);
+            }
         }
 
         // Multiple-choice blocks — one scorable unit each, like graphs.

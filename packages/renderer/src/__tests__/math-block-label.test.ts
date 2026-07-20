@@ -63,4 +63,23 @@ describe('math_block numbering', () => {
     expect(html).toContain('Warm-up');
     expect(pulled()).toBe(0);
   });
+
+  it('emits a hidden .js-solution slot when a worked solution is authored', () => {
+    const html = renderBlock(
+      mathWith({
+        prompts: gapPrompt,
+        solution: [{ type: 'text', text: 'Because 2a = a + a.', marks: [] }],
+      }),
+      counterCtx().ctx,
+    );
+    expect(html).toContain('class="js-solution"');
+    expect(html).toContain('data-for-block="' + BID + '"');
+    expect(html).toContain('hidden');
+    expect(html).toContain('Because 2a = a + a.');
+  });
+
+  it('no solution slot when none authored', () => {
+    const html = renderBlock(mathWith({ prompts: gapPrompt }), counterCtx().ctx);
+    expect(html).not.toContain('js-solution');
+  });
 });

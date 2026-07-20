@@ -31,6 +31,29 @@ export const MathBlock = Node.create({
             // Per-block display label (numbering/label decouple) — a gap-bearing
             // equation is a numbered problem; custom/none opt out. Shared attr.
             ...labelNodeAttr,
+            // Worked-solution reveal (mirrors fill_in_blank): rich InlineNode[]
+            // shown post-check. null = none. Round-trips via serialize.ts.
+            solution: {
+                default: null as unknown[] | null,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-solution');
+                    if (!raw) return null;
+                    try {
+                        const parsed = JSON.parse(raw);
+                        return Array.isArray(parsed) && parsed.length > 0
+                            ? parsed
+                            : null;
+                    } catch {
+                        return null;
+                    }
+                },
+                renderHTML: (attributes) => {
+                    const v = attributes.solution as unknown[] | null;
+                    return Array.isArray(v) && v.length > 0
+                        ? { 'data-solution': JSON.stringify(v) }
+                        : {};
+                },
+            },
             // Sizing attrs (schema sizing fragment): width fraction in (0, 1]
             // (null = full width) and align ('left' | 'right'; null = center).
             // No UI sets these yet — carried so imported docs round-trip.

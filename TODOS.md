@@ -3,15 +3,18 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
-## (done 2026-07-20) Slice 2 — math_block equation-gap numbering + review
+_(No open items. The numbering/label decouple — Slices 1 & 2 — and its deferred
+follow-ups shipped 2026-07-20. See STATE.md pending-action #000.)_
 
-Shipped. Model A in-equation gaps (`math_block.prompts`) are now numbered on the page
-(a gap-bearing equation is a numbered problem; display equations stay unnumbered) and
-indexed in `buildActivityIndex`, so they appear in the teacher results view instead of
-being orphaned. `math_block` also gained the per-block `label` (auto/custom/none) for
-parity with the other question types. See STATE.md pending-action #000.
+## (done 2026-07-20) Numbering/label decouple + follow-ups
 
-_Deferred follow-ups (not blocking): N-gap-per-equation sub-part lettering (a/b) for a
-math_block with multiple prompts — currently the equation gets one number and its gaps
-share it, which matches the single-gap Model A v1; and reveal-the-answer-in-gap for
-math_block (no solution-reveal trigger)._
+- Slice 1: per-block `label` (auto/custom/none) across all numbered question types.
+- Slice 2: `math_block` equation gaps numbered on the page + indexed for teacher review.
+- Sub-part lettering: a numbered multi-blank `fill_in_blank` shows `(a)/(b)` before each gap.
+- `math_block` worked `solution`: a post-check worked-explanation reveal (never leaks the
+  gap answer), mirroring `fill_in_blank` — reuses the fill-in-blank solution-reveal machinery.
+
+_Still deferred (genuinely out of scope, low value): (a)(b) lettering for a multi-gap
+math equation (gaps live inside rendered LaTeX — hard, and equations are usually single-gap);
+answer-in-gap reveal (deliberately not built — it would leak the correct answer, which the
+runtime never does)._

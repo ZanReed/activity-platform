@@ -942,6 +942,13 @@ body {
   font-weight: 500;
   font-style: italic;
 }
+/* Sub-part letter before a gap on a numbered multi-blank problem: "(a) ___ (b) ___".
+ A compact, muted marker so it reads as a label, not part of the sentence. */
+.blank-sublabel {
+  font-weight: 600;
+  margin-right: 0.15rem;
+  white-space: nowrap;
+}
 .block-problem-body > :first-child { margin-top: 0; }
 .block-problem-body > :last-child { margin-bottom: 0; }
 

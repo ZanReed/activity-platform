@@ -38,9 +38,18 @@ export function renderFillInBlank(
   ctx: FillInBlankRenderContext,
 ): string {
   const num = block.number ?? ctx.problemNumber;
+  // Sub-part lettering (P4): a NUMBERED multi-blank problem shows "(a)/(b)"
+  // before each gap. Not for a faded step (its box already letters it) nor for
+  // a custom/none label (those are out of the numbered sequence).
+  const label = ctx.label ?? { kind: 'number' as const };
+  const letterBlanks = !ctx.fadedStep && label.kind === 'number';
   // renderFillInBlankContent (not a bare renderInline map) so each blank
   // token is numbered for its positional aria-label.
-  const inner = renderFillInBlankContent(block.content, ctx.showAnswers ?? false);
+  const inner = renderFillInBlankContent(
+    block.content,
+    ctx.showAnswers ?? false,
+    letterBlanks,
+  );
 
   // Math blanks (Model B) need the graph-kit's mathEquivalent to grade. Emit the
   // kit URL so the runtime's math-blank preloader can find + lazy-load it — even
