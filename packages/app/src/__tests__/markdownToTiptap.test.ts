@@ -9,12 +9,15 @@
 // =============================================================================
 
 import { beforeAll, describe, expect, it } from 'vitest';
+import { getSchema } from '@tiptap/core';
 import type { JSONContent } from '@tiptap/react';
 import { ActivityMeta, DataPlotBlock, NumberLineBlock } from '@activity/schema';
 import {
     getMarkdownImporter,
     type MarkdownImporter,
 } from '../lib/markdownToTiptap';
+import { wrapBlocksStrict } from '../editor/strictGrid';
+import { buildEditorExtensions } from '../editor/editorExtensions';
 import {
     activityToTiptapBare as activityToTiptap,
     tiptapToActivityBare as tiptapToActivity,
@@ -42,6 +45,34 @@ function stripIds(node: JSONContent): JSONContent {
 function blocks(md: string): JSONContent[] {
     return convert(md).blocks.map(stripIds);
 }
+
+// The real editor schema — the strict-grid doc/row/column contract the imported
+// content must satisfy once wrapped.
+const editorSchema = getSchema(buildEditorExtensions());
+
+// Strict-grid import pin (T8): the importer emits a bare block stream; the
+// import call sites wrap it with wrapBlocksStrict before setContent. This checks
+// that the WRAPPED result is a valid strict-grid document against the real
+// ProseMirror schema — so import can't silently produce an invalid tree.
+describe('strict-grid import (T8)', () => {
+    const cases: Array<[string, string]> = [
+        ['a heading + paragraph', '# Title\n\nSome intro text.'],
+        ['a section break (checkpoint heading)', '## Part 2 {checkpoint}\n\nWork below.'],
+        ['a bullet list', '- one\n- two\n- three'],
+        ['a fill-in-blank', 'The capital is {{Paris}}.'],
+        ['mixed content', '# T\n\npara\n\n## Sec {checkpoint}\n\n- a\n- b'],
+    ];
+
+    it.each(cases)('wraps %s into a schema-valid strict doc', (_label, md) => {
+        const doc = wrapBlocksStrict(convert(md).blocks);
+        // Every top-level node is a row or a sectionBreak (never a bare block).
+        for (const node of doc.content ?? []) {
+            expect(['row', 'sectionBreak']).toContain(node.type);
+        }
+        // The real editor schema accepts it (throws on any invalid nesting).
+        expect(() => editorSchema.nodeFromJSON(doc).check()).not.toThrow();
+    });
+});
 
 // Round-trip through the schema bridge: imported blocks → ActivityDocument →
 // back to Tiptap. Returns the re-emitted blocks (ids already non-deterministic,

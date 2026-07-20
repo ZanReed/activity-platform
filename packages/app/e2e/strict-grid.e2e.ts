@@ -221,6 +221,52 @@ test('split-into-columns partitions the stack into before | multi | after', asyn
     expect(await docValid(page)).toBe(true);
 });
 
+test('split-into-columns works on a node-selected atom block (image)', async ({
+    page,
+}) => {
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        const svg =
+            "data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'40'%20height%3D'20'%3E%3C%2Fsvg%3E";
+        ed.chain()
+            .setContent({
+                type: 'doc',
+                content: [
+                    {
+                        type: 'row',
+                        attrs: { gridLines: 'inherit' },
+                        content: [
+                            {
+                                type: 'column',
+                                content: [
+                                    { type: 'paragraph', content: [{ type: 'text', text: 'before' }] },
+                                    { type: 'image', attrs: { id: 'im1', src: svg, alt: 'x' } },
+                                    { type: 'paragraph', content: [{ type: 'text', text: 'after' }] },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            })
+            .run();
+        let imgPos: number | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.descendants((n: any, p: number) => {
+            if (imgPos === null && n.type.name === 'image') imgPos = p;
+            return imgPos === null;
+        });
+        ed.chain().focus().setNodeSelection(imgPos).wrapInColumns(2).run();
+    });
+    // before | [image + empty col] | after — the atom lands in column 1.
+    expect(await docShape(page)).toBe(
+        'doc[row[column[paragraph[text]]],' +
+            'row[column[image],column[paragraph]],' +
+            'row[column[paragraph[text]]]]',
+    );
+    expect(await docValid(page)).toBe(true);
+});
+
 test('adjacent 1-col stack rows re-coalesce into one', async ({ page }) => {
     await page.evaluate(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
