@@ -4,6 +4,7 @@ import ColumnWidthPicker from './components/ColumnWidthPicker';
 import CellHeightControl from './components/CellHeightControl';
 import InsertMenu from './components/InsertMenu';
 import TextStylePicker from './components/TextStylePicker';
+import { topLevelRowAt } from './strictGrid';
 
 // editor.isActive(markName) returns false when a mark is "armed" on a collapsed
 // cursor — ProseMirror's stored-marks state, applied to the next typed character.
@@ -54,7 +55,14 @@ export default function Toolbar({
     const target = field ?? editor;
     const inField = field !== null;
 
-    const inColumns = editor.isActive('row');
+    // The contextual column cluster is for AUTHORED multi-column rows only. In
+    // the strict grid every block lives in a row, so isActive('row') is true for
+    // a plain 1-col stack too — gate on the active row actually having >1 column.
+    const activeRow = topLevelRowAt(editor.state.selection.$from);
+    const inColumns =
+        activeRow != null &&
+        activeRow.node.type.name === 'row' &&
+        activeRow.node.childCount > 1;
 
     return (
         // sticky: on long documents the toolbar follows the viewport instead
@@ -231,6 +239,25 @@ export default function Toolbar({
                       docs/design/variable-block-sizing.md).
                     */}
                     <CellHeightControl editor={editor} />
+                    {/*
+                      Escape hatches (slice 2 / A3): always reachable while in a
+                      multi-col row so an author who over-shot into columns can
+                      recover. Merge → dissolveRow concatenates every column's
+                      blocks into one full-width stack; Row below → a fresh
+                      full-width row after the columns (Enter stays in a column).
+                    */}
+                    <ToolbarButton
+                        onClick={() => editor.chain().focus().dissolveRow().run()}
+                        title="Merge these columns back into one full-width column"
+                    >
+                        Merge
+                    </ToolbarButton>
+                    <ToolbarButton
+                        onClick={() => editor.chain().focus().addRowBelow().run()}
+                        title="Add a full-width row below this layout"
+                    >
+                        Row below
+                    </ToolbarButton>
                 </>
             )}
         </div>

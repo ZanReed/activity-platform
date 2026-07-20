@@ -71,6 +71,16 @@ declare module '@tiptap/core' {
             // floor — schema Column.minHeight, in rem. Values clamp to the
             // CELL_MIN_HEIGHT_* bounds. No-op outside a columns block.
             setColumnMinHeight: (minHeight: number | null) => ReturnType;
+            // Dissolve the active multi-col row back to a full-width 1-col stack
+            // row, CONCATENATING every column's block stack into one column
+            // (non-destructive merge-back — content preserved, never a cell
+            // delete). No-op on a 1-col stack row or outside a row. The
+            // recover-from-columns escape (slice 2 / A3).
+            dissolveRow: () => ReturnType;
+            // Insert a fresh full-width 1-col stack row just AFTER the active
+            // top-level row, caret landing in it. The "start a full-width row
+            // below a columned row" escape (Enter stays inside a column).
+            addRowBelow: () => ReturnType;
         };
     }
 }
@@ -743,6 +753,95 @@ export const Columns = Node.create<ColumnsOptions>({
                         minHeight: value,
                     });
                     dispatch(tr);
+                }
+                return true;
+            },
+
+            // Non-destructive merge-back: a multi-col row → a 1-col stack row,
+            // concatenating every column's blocks (column-major) into one
+            // column. Content is preserved (never a `tr.delete` of a cell). The
+            // resulting stack row re-coalesces with adjacent stack rows via the
+            // normalizer. No-op on a 1-col stack or outside a row.
+            dissolveRow:
+            () =>
+            ({ state, dispatch, tr }) => {
+                const rowType = state.schema.nodes.row;
+                const columnType = state.schema.nodes.column;
+                if (!rowType || !columnType) return false;
+                const sel = state.selection;
+                let rowNode: ProseMirrorNode;
+                let rowPos: number;
+                if (
+                    sel instanceof NodeSelection &&
+                    sel.node.type.name === 'row'
+                ) {
+                    rowNode = sel.node;
+                    rowPos = sel.from;
+                } else {
+                    const anchor = topLevelRowAt(sel.$from);
+                    if (!anchor || anchor.node.type.name !== 'row') return false;
+                    rowNode = anchor.node;
+                    rowPos = anchor.pos;
+                }
+                if (rowNode.childCount <= 1) return false; // already a stack
+                if (dispatch) {
+                    const blocks: ProseMirrorNode[] = [];
+                    rowNode.forEach((col) =>
+                        col.forEach((block) => blocks.push(block)),
+                    );
+                    const rawGl = rowNode.attrs.gridLines;
+                    const gridLines =
+                        rawGl === 'on' || rawGl === 'off' ? rawGl : 'inherit';
+                    const merged = rowType.create(
+                        { id: crypto.randomUUID(), gridLines },
+                        columnType.create(null, blocks),
+                    );
+                    tr.replaceRangeWith(rowPos, rowPos + rowNode.nodeSize, merged);
+                    // Caret into the merged column's first block.
+                    tr.setSelection(
+                        TextSelection.near(tr.doc.resolve(rowPos + 2)),
+                    );
+                    dispatch(tr.scrollIntoView());
+                }
+                return true;
+            },
+
+            // Escape-the-row: a fresh 1-col stack row just after the active
+            // top-level row, caret landing in it. (After a multi-col row this is
+            // the only way to start full-width content below it, since Enter
+            // stays inside the current column.)
+            addRowBelow:
+            () =>
+            ({ state, dispatch, tr }) => {
+                const rowType = state.schema.nodes.row;
+                const columnType = state.schema.nodes.column;
+                const paragraphType = state.schema.nodes.paragraph;
+                if (!rowType || !columnType || !paragraphType) return false;
+                const sel = state.selection;
+                const anchor =
+                    sel instanceof NodeSelection &&
+                    sel.node.type.name === 'row'
+                        ? { node: sel.node, pos: sel.from }
+                        : topLevelRowAt(sel.$from);
+                const insertPos = anchor
+                    ? anchor.pos + anchor.node.nodeSize
+                    : state.doc.content.size;
+                if (dispatch) {
+                    const para = paragraphType.createAndFill();
+                    if (!para) return false;
+                    const row = rowType.create(
+                        { id: crypto.randomUUID() },
+                        columnType.create(null, para),
+                    );
+                    tr.insert(insertPos, row);
+                    tr.setSelection(
+                        TextSelection.near(
+                            tr.doc.resolve(
+                                Math.min(insertPos + 2, tr.doc.content.size),
+                            ),
+                        ),
+                    );
+                    dispatch(tr.scrollIntoView());
                 }
                 return true;
             },

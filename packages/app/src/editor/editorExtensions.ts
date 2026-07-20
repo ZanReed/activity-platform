@@ -23,6 +23,7 @@ import { MathFocus } from './extensions/MathFocus';
 import { SlashMenu } from './extensions/SlashMenu';
 import { PlaceholderHint } from './extensions/PlaceholderHint';
 import { BlockReorderShortcuts } from './extensions/BlockReorderShortcuts';
+import { RowSeamCaret } from './extensions/RowSeamCaret';
 import { SelectBlock } from './extensions/SelectBlock';
 import { SettleMotion } from './extensions/SettleMotion';
 import { StrictGridNormalize } from './extensions/StrictGridNormalize';
@@ -86,6 +87,9 @@ export function buildEditorExtensions({
         // Grey "/" hint on empty top-level lines — the slash menu's signifier.
         PlaceholderHint,
         BlockReorderShortcuts,
+        // Strict-grid explicit seam caret (slice 2): boundary Backspace selects
+        // the seam node (never a frozen no-op); Down/Up cross the row↔row seam.
+        RowSeamCaret,
         // Esc lifts a text caret to a block NodeSelection (the four-state
         // model's secondary Select state; click stays edit).
         SelectBlock,
