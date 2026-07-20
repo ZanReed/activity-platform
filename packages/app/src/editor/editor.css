@@ -301,6 +301,17 @@
     background-color: var(--ed-surface-2);
 }
 
+/* Number badge for a gap-bearing equation (numbering/label decouple): a small
+ * label above the equation so the author sees its problem number / custom text. */
+.math-block-number {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ed-text-secondary);
+    margin-bottom: 0.25rem;
+    user-select: none;
+}
+
 .math-block-wrapper.is-selected {
     background-color: var(--ed-accent-bg);
     outline: 2px solid var(--ed-accent);

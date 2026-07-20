@@ -304,6 +304,7 @@ const LABELED_BLOCK_TYPES: ReadonlySet<string> = new Set([
     'number_line',
     'interactive_graph',
     'data_plot',
+    'math_block',
 ]);
 
 // Read a node's `label` attr into a schema BlockLabel, applying the same
@@ -333,11 +334,16 @@ function applyLabelFromNode(block: Block, node: JSONContent): void {
 }
 
 // Post-process: write the block's label onto the Tiptap node's attrs, for labeled
-// types only (null = auto, matching each node's default attr shape).
+// types only. Omit-when-absent (like the schema's optional-no-default `label`):
+// a block with no label leaves the attr off, so display equations and untouched
+// blocks round-trip byte-identically. The node's own default (null = auto) fills
+// it in when Tiptap materializes the node.
 function applyLabelToNode(block: Block, node: JSONContent): void {
     if (!LABELED_BLOCK_TYPES.has(block.type)) return;
+    const label = (block as { label?: BlockLabel }).label;
+    if (!label) return;
     if (!node.attrs) node.attrs = {};
-    node.attrs.label = (block as { label?: BlockLabel }).label ?? null;
+    node.attrs.label = label;
 }
 
 function tiptapBlockToActivity(node: JSONContent): Block | null {

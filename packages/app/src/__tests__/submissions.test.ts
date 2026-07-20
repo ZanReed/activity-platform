@@ -285,6 +285,52 @@ describe('buildActivityIndex', () => {
         expect(b.sectionTitle).toBe('Notes');
     });
 
+    // Slice 2: Model A in-equation gaps (math_block.prompts) score into the
+    // same blanks map, so they must be indexed or the dashboard drops them.
+    it('indexes math_block equation gaps by their placeholder id', () => {
+        const mathDoc = parseDoc({
+            schemaVersion: 1,
+            meta: {
+                title: 'Eq',
+                course: 'Algebra II',
+                submissionMode: 'free',
+                revisionMode: 'free',
+                gradingMode: 'auto',
+                activityType: 'worksheet',
+                answerFeedback: 'on_check',
+                skills: [],
+            },
+            sections: [
+                {
+                    id: U(120),
+                    title: 'Equations',
+                    isCheckpoint: false,
+                    blocks: [
+                        {
+                            id: U(220),
+                            type: 'math_block',
+                            latex: '3\\placeholder[gt6agws]{}+2',
+                            prompts: [
+                                {
+                                    id: 'gt6agws',
+                                    answer: 'x',
+                                    acceptableAnswers: [],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(mathDoc);
+        const gap = idx.blanks.get('gt6agws')!;
+        expect(gap).toBeDefined();
+        expect(gap.answerType).toBe('math');
+        expect(gap.canonicalAnswer).toBe('x');
+        expect(gap.problemPrompt).toContain('____'); // placeholder shown as a gap
+        expect(gap.sectionTitle).toBe('Equations');
+    });
+
     it('indexes every blank with prompt, answer, and section', () => {
         const idx = buildActivityIndex(doc);
         expect(idx.blanks.size).toBe(2);

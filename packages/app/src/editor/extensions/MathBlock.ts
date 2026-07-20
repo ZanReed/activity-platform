@@ -3,6 +3,7 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import MathBlockView from '../nodeViews/MathBlockView';
 import { signalOpenInsertedMath } from './MathFocus';
 import { promptsAttribute } from './mathPromptsAttribute';
+import { labelNodeAttr } from '../labelNodeAttr';
 
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
@@ -27,6 +28,9 @@ export const MathBlock = Node.create({
             },
             // Model A: in-equation gradeable gaps (shared with mathInline).
             ...promptsAttribute,
+            // Per-block display label (numbering/label decouple) — a gap-bearing
+            // equation is a numbered problem; custom/none opt out. Shared attr.
+            ...labelNodeAttr,
             // Sizing attrs (schema sizing fragment): width fraction in (0, 1]
             // (null = full width) and align ('left' | 'right'; null = center).
             // No UI sets these yet — carried so imported docs round-trip.

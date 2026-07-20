@@ -149,6 +149,21 @@ body {
   text-align: center;
   overflow-x: auto;
 }
+/* A gap-bearing equation is a numbered problem: the number gutter sits left of
+ the equation (numbering/label decouple). A prompt-free display equation keeps
+ the centered layout above. */
+.block-math.has-math-prompts.is-numbered {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.25rem;
+  align-items: baseline;
+  text-align: left;
+  overflow-x: visible;
+}
+.block-math__body {
+  text-align: center;
+  overflow-x: auto;
+}
 
 .block-image {
   margin: 1.5rem 0;
@@ -920,6 +935,12 @@ body {
   font-weight: 600;
   text-align: right;
   padding-right: 0.25rem;
+}
+/* A custom label ("Warm-up", "Challenge") reads as a tag, not a count. A none
+ label emits no gutter at all, so there is nothing to hide. (numbering/label decouple) */
+.block-problem-number--custom {
+  font-weight: 500;
+  font-style: italic;
 }
 .block-problem-body > :first-child { margin-top: 0; }
 .block-problem-body > :last-child { margin-bottom: 0; }

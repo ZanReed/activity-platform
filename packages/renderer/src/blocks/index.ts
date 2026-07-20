@@ -61,8 +61,15 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
       return renderParagraph(block);
     case 'heading':
       return renderHeading(block);
-    case 'math_block':
-      return renderMathBlock(block);
+    case 'math_block': {
+      // A gap-bearing equation is a numbered problem; a plain display equation
+      // resolves to 'none' and pulls no slot.
+      const label = pageLabel(block);
+      return renderMathBlock(block, {
+        label,
+        problemNumber: label.kind === 'number' ? ctx.nextProblemNumber() : 0,
+      });
+    }
     case 'image':
       return renderImage(block);
     case 'callout':

@@ -51,6 +51,16 @@ describe('isPageNumbered', () => {
     expect(isPageNumbered(displayGraph())).toBe(false);
   });
 
+  it('a math_block is numbered only when it carries in-equation gaps', () => {
+    const display = createMathBlock('x^2');
+    expect(isPageNumbered(display)).toBe(false);
+    const withGap = {
+      ...display,
+      prompts: [{ id: 'g', answer: 'x', acceptableAnswers: [] }],
+    } as Block;
+    expect(isPageNumbered(withGap)).toBe(true);
+  });
+
   it('isPageNumberedType agrees with isPageNumbered for every block', () => {
     const blocks: Block[] = [
       createParagraphBlock(),

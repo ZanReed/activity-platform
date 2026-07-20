@@ -30,6 +30,7 @@ const PM_NAME_TO_SCHEMA_TYPE: Readonly<Record<string, string>> = {
     fadedWorkedExample: 'faded_worked_example',
     interactiveGraph: 'interactive_graph',
     dataPlot: 'data_plot',
+    mathBlock: 'math_block',
 };
 
 export function problemNumberAt(editor: Editor, pos: number | undefined): number {
@@ -48,7 +49,14 @@ export function problemNumberAt(editor: Editor, pos: number | undefined): number
         const interactionType = (
             node.attrs.interaction as { type?: string } | undefined
         )?.type;
-        if (!isPageNumberedType(schemaType, interactionType)) return true;
+        // A math_block is numbered only when it carries in-equation gaps.
+        const hasPrompts =
+            schemaType === 'math_block'
+                ? Array.isArray(node.attrs.prompts) &&
+                  node.attrs.prompts.length > 0
+                : undefined;
+        if (!isPageNumberedType(schemaType, interactionType, hasPrompts))
+            return true;
         // A custom/none label is out-of-sequence: it shows text or nothing and
         // does NOT consume a problem number. Absent attr = auto = counts.
         const labelMode = (

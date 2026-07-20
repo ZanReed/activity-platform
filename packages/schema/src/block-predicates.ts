@@ -43,6 +43,7 @@ const ALWAYS_NUMBERED_TYPES: ReadonlySet<string> = new Set([
 export function isPageNumberedType(
   type: string,
   interactionType?: string,
+  hasPrompts?: boolean,
 ): boolean {
   if (ALWAYS_NUMBERED_TYPES.has(type)) return true;
   // Only a graded interaction is numbered; a display (static) chart is ungraded
@@ -50,6 +51,9 @@ export function isPageNumberedType(
   if (type === 'interactive_graph' || type === 'data_plot') {
     return interactionType !== 'display';
   }
+  // A math_block is numbered only when it carries Model A in-equation gaps; a
+  // plain display equation is ungraded content.
+  if (type === 'math_block') return hasPrompts === true;
   return false;
 }
 
@@ -63,7 +67,11 @@ export function isPageNumbered(block: Block): boolean {
     'interaction' in block
       ? (block.interaction as { type?: string } | undefined)?.type
       : undefined;
-  return isPageNumberedType(block.type, interactionType);
+  const hasPrompts =
+    block.type === 'math_block'
+      ? (block.prompts?.length ?? 0) > 0
+      : undefined;
+  return isPageNumberedType(block.type, interactionType, hasPrompts);
 }
 
 // What a block shows in its number slot on the page, and whether it consumes a

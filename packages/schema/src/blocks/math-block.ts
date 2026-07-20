@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { sizingFields } from '../sizing.js';
+import { labelFields } from '../label.js';
 import { MathPrompt } from '../inline.js';
 
 // Display math (centered, full width by default). Inline math is in inline.ts
@@ -15,5 +16,9 @@ export const MathBlock = z.object({
   prompts: z.array(MathPrompt).optional(),
   // Variable block sizing: optional width fraction + alignment (sizing.ts).
   ...sizingFields,
+  // Per-block display label — a gap-bearing equation is a numbered problem by
+  // default; custom/none opt out (numbering/label decouple). Inert on a
+  // prompt-free display equation (it's never numbered regardless). See label.ts.
+  ...labelFields,
 });
 export type MathBlock = z.infer<typeof MathBlock>;

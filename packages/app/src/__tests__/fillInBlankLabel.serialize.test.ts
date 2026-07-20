@@ -49,14 +49,14 @@ describe('fill_in_blank label round-trip', () => {
     });
 
     it('auto (null) stays absent', () => {
-        expect(labelAfterRoundTrip(null)).toBeNull();
+        expect(labelAfterRoundTrip(null)).toBeUndefined();
     });
 
     it('explicit {mode:auto} collapses to absent (default)', () => {
-        expect(labelAfterRoundTrip({ mode: 'auto' })).toBeNull();
+        expect(labelAfterRoundTrip({ mode: 'auto' })).toBeUndefined();
     });
 
     it('empty custom text degrades to auto (absent)', () => {
-        expect(labelAfterRoundTrip({ mode: 'custom', text: '   ' })).toBeNull();
+        expect(labelAfterRoundTrip({ mode: 'custom', text: '   ' })).toBeUndefined();
     });
 });

@@ -671,6 +671,38 @@ export function buildActivityIndex(doc: ActivityDocument): ActivityIndex {
                 });
                 return;
             }
+            if (block.type === 'math_block') {
+                // Model A in-equation gaps (math_block.prompts) score into the
+                // SAME submissions.responses.blanks map as fill-in-blank blanks
+                // (keyed by the placeholder id), so they must land in the same
+                // index or the dashboard labels a real answer "no-longer-present".
+                // The whole equation is one problem slot; its gaps are sub-rows.
+                if (!block.prompts || block.prompts.length === 0) return;
+                const eqPrompt = block.latex.replace(
+                    /\\placeholder\[[^\]]+\]\{[^{}]*\}/g,
+                    '____',
+                );
+                const mathDocOrder = ++docOrderCounter;
+                block.prompts.forEach((p, blankOrder) => {
+                    blanks.set(p.id, {
+                        blankId: p.id,
+                        problemId: block.id,
+                        problemNumber: null,
+                        docOrder: mathDocOrder,
+                        problemPrompt: eqPrompt,
+                        canonicalAnswer: canonicalAnswer(
+                            p.answer,
+                            p.acceptableAnswers,
+                        ),
+                        blankOrder,
+                        groupAnswers: null,
+                        answerType: 'math',
+                        sectionId: section.id,
+                        sectionTitle: section.title ?? null,
+                    });
+                });
+                return;
+            }
             if (block.type !== 'fill_in_blank') return;
             const prompt = reconstructPrompt(block.content);
 

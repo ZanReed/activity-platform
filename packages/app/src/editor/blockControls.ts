@@ -432,7 +432,9 @@ const resetCropField: AdvancedField = {
 export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     paragraph: { primary: [] },
     heading: { primary: [] },
-    mathBlock: { primary: [] },
+    // Numbering applies only to a gap-bearing equation; on a plain display
+    // equation the control is inert (it's never numbered regardless).
+    mathBlock: { primary: [], advanced: [numberingGroup] },
 
     // Batch 1 — instructional + free-text content blocks. Edited by clicking
     // into them (caret), so NO block-specific primary — an "enter edit" button
