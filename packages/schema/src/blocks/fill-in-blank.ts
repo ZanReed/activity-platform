@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { FillInBlankInline, InlineNode } from '../inline.js';
+import { labelFields } from '../label.js';
 
 // The architecturally interesting block. content is an array of inline nodes
 // that may include BlankToken — students see prose with editable blanks.
@@ -40,5 +41,8 @@ export const FillInBlankBlock = z.object({
                                          hasConfidenceRating: z.boolean().default(false),
                                          skills: z.array(z.string()).default([]),
                                          workSpace: z.number().min(0).optional(),
+                                         // Per-block display label (auto/custom/none). Absent = auto =
+                                         // today's numbered behavior. See label.ts.
+                                         ...labelFields,
 });
 export type FillInBlankBlock = z.infer<typeof FillInBlankBlock>;

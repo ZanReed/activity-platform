@@ -1,9 +1,17 @@
-import type { FillInBlankBlock } from '@activity/schema';
+import type { FillInBlankBlock, PageLabel } from '@activity/schema';
 import { renderFillInBlankContent, renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
 
 export interface FillInBlankRenderContext {
   problemNumber: number;
+  /**
+   * What to show in the number slot: a sequence number (auto), authored text
+   * (custom), or nothing (none). Absent = number (back-compat for callers that
+   * predate the label field, e.g. the faded-step path). Only affects the
+   * visible gutter — the gradeable markup is identical in every mode, so a
+   * suppressed block still scores.
+   */
+  label?: PageLabel;
   /** Answer-key print variant: prefill each blank with its answer (Drop C). */
   showAnswers?: boolean;
   /**
@@ -154,12 +162,23 @@ export function renderFillInBlank(
   '</div>'
   : '';
 
-  // Faded step: no number gutter; a compact inline "(a)" label leads the body
-  // (omitted when the box has step labels turned off). Standalone problem: the
-  // right-aligned number gutter as before.
-  const numberCell = ctx.fadedStep
-    ? ''
-    : '<div class="block-problem-number">' + escape(String(num)) + '.</div>';
+  // Number gutter. A faded step never has one (the box supplies the number).
+  // Otherwise the per-block label decides: `number` → the sequence number (or
+  // the manual `number` override), `custom` → authored text out-of-sequence,
+  // `none` → nothing (the notes keyword-blank case). Absent label = number.
+  const label = ctx.label ?? { kind: 'number' as const };
+  let numberCell: string;
+  if (ctx.fadedStep || label.kind === 'none') {
+    numberCell = '';
+  } else if (label.kind === 'custom') {
+    numberCell =
+      '<div class="block-problem-number block-problem-number--custom">' +
+      escape(label.text) +
+      '</div>';
+  } else {
+    numberCell =
+      '<div class="block-problem-number">' + escape(String(num)) + '.</div>';
+  }
   const stepLabelHtml =
     ctx.fadedStep && ctx.stepLabel
       ? '<span class="block-faded-step__label">' +

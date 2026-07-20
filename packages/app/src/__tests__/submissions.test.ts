@@ -232,6 +232,59 @@ describe('buildActivityIndex', () => {
         ],
     });
 
+    // Numbering/label decouple: an unnumbered (label:none) blank is still a
+    // gradeable response, so it MUST stay in the teacher's index — located by
+    // its surrounding text + section, with no problem number. buildActivityIndex
+    // keys off the block type, not the label, so this holds without special
+    // casing; the test pins it so a future change can't silently drop notes
+    // blanks from review.
+    it('still indexes a suppressed (label:none) fill_in_blank', () => {
+        const suppressed = parseDoc({
+            schemaVersion: 1,
+            meta: {
+                title: 'Notes',
+                course: 'Algebra II',
+                submissionMode: 'free',
+                revisionMode: 'free',
+                gradingMode: 'auto',
+                activityType: 'worksheet',
+                answerFeedback: 'on_check',
+                skills: [],
+            },
+            sections: [
+                {
+                    id: U(110),
+                    title: 'Notes',
+                    isCheckpoint: false,
+                    blocks: [
+                        {
+                            id: U(210),
+                            type: 'fill_in_blank',
+                            label: { mode: 'none' },
+                            hasConfidenceRating: false,
+                            skills: [],
+                            content: [
+                                { type: 'text', text: 'The value b is the ', marks: [] },
+                                {
+                                    type: 'blank',
+                                    id: U(330),
+                                    answer: 'base',
+                                    acceptableAnswers: [],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        const idx = buildActivityIndex(suppressed);
+        const b = idx.blanks.get(U(330))!;
+        expect(b).toBeDefined();
+        expect(b.problemNumber).toBeNull(); // no number authored
+        expect(b.problemPrompt).toContain('The value b is the');
+        expect(b.sectionTitle).toBe('Notes');
+    });
+
     it('indexes every blank with prompt, answer, and section', () => {
         const idx = buildActivityIndex(doc);
         expect(idx.blanks.size).toBe(2);

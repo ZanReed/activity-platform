@@ -58,6 +58,11 @@ export default function FillInBlankView({
         typeof node.attrs.workSpace === 'number'
             ? (node.attrs.workSpace as number)
             : null;
+    // Per-block label (numbering/label decouple). null/absent = auto.
+    const label = node.attrs.label as
+        | { mode?: string; text?: string }
+        | null;
+    const labelMode = label?.mode ?? 'auto';
 
     // Blank-discoverability chrome: while the block is being edited, a "+ Blank"
     // button (the primary maker, mirroring the math editors' in-equation button)
@@ -130,6 +135,24 @@ export default function FillInBlankView({
                 >
                     ({fadedStep.letter})
                 </span>
+            ) : labelMode === 'none' ? (
+                // Unnumbered on the published page. In the editor we still show a
+                // faint dash so the author sees it's a deliberate (still-graded)
+                // unnumbered blank, not a missing number.
+                <div
+                    className="fill-in-blank-block__number fill-in-blank-block__number--none"
+                    contentEditable={false}
+                    title="Unnumbered on the page — still graded and reviewable"
+                >
+                    —
+                </div>
+            ) : labelMode === 'custom' ? (
+                <div
+                    className="fill-in-blank-block__number fill-in-blank-block__number--custom"
+                    contentEditable={false}
+                >
+                    {label?.text}
+                </div>
             ) : (
                 <div
                     className="fill-in-blank-block__number"

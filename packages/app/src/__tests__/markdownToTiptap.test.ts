@@ -126,6 +126,7 @@ describe('blanks → fillInBlank', () => {
                     hasConfidenceRating: false,
                     skills: [],
                     workSpace: null,
+                    label: null,
                 },
                 content: [
                     { type: 'text', text: 'The capital of France is ' },

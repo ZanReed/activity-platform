@@ -249,6 +249,78 @@ const questionAdvanced: AdvancedGroup[] = [
     },
 ];
 
+// --- Numbering (fill_in_blank only, this slice) ----------------------------
+// Decouples "is this graded?" from "does it wear a problem number?". Auto = a
+// numbered problem (default). Custom = authored text, out of the number
+// sequence. None = no number (the notes keyword-blank case) — still graded and
+// still in the teacher's results view. See label.ts / block-predicates.ts.
+
+function labelModeOf(node: PMNode): string {
+    const label = node.attrs.label as { mode?: string } | null | undefined;
+    return label?.mode ?? 'auto';
+}
+
+const numberingGroup: AdvancedGroup = {
+    group: 'Numbering',
+    fields: [
+        {
+            kind: 'select',
+            label: 'Number on the page',
+            help: 'Auto = a numbered problem. Custom = show your own text. None = no number (still graded and reviewable).',
+            options: [
+                { label: 'Auto (numbered)', value: 'auto' },
+                { label: 'Custom label', value: 'custom' },
+                { label: 'None (unnumbered)', value: 'none' },
+            ],
+            get: (node) => labelModeOf(node),
+            set: (editor, pos, value) => {
+                if (value === 'none') {
+                    setNodeAttr(editor, pos, 'label', { mode: 'none' });
+                } else if (value === 'custom') {
+                    const node = editor.state.doc.nodeAt(pos);
+                    const cur = node?.attrs.label as
+                        | { mode?: string; text?: string }
+                        | null
+                        | undefined;
+                    const text =
+                        cur?.mode === 'custom' && cur.text ? cur.text : 'Label';
+                    setNodeAttr(editor, pos, 'label', { mode: 'custom', text });
+                } else {
+                    // auto = absent, so round-trip equality holds for the default.
+                    setNodeAttr(editor, pos, 'label', null);
+                }
+            },
+        },
+        {
+            kind: 'text',
+            label: 'Custom label text',
+            help: 'Shown instead of a number. Only used when Number is set to Custom.',
+            placeholder: 'e.g. Warm-up',
+            get: (node) => {
+                const label = node.attrs.label as
+                    | { mode?: string; text?: string }
+                    | null
+                    | undefined;
+                return label?.mode === 'custom' ? (label.text ?? '') : '';
+            },
+            set: (editor, pos, value) => {
+                const text = value.trim();
+                // Typing a label implies custom mode; empty falls back so the
+                // schema's min-1 text constraint is never violated.
+                setNodeAttr(editor, pos, 'label', {
+                    mode: 'custom',
+                    text: text.length > 0 ? text : 'Label',
+                });
+            },
+        },
+    ],
+};
+
+const fillInBlankAdvanced: AdvancedGroup[] = [
+    ...questionAdvanced,
+    numberingGroup,
+];
+
 /** MC's "select all that apply" — multi → single keeps only the FIRST correct
  * choice (the same collapse the old inline checkbox performed). */
 const multiSelectField: AdvancedField = {
@@ -491,7 +563,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     // gesture); Replace opens the source popover via a transaction meta.
     // Alt / Caption / Reset crop live in the Advanced drawer (image-crop.md's
     // "caption/alt → drawer" decomposition).
-    fillInBlank: { primary: [], advanced: questionAdvanced },
+    fillInBlank: { primary: [], advanced: fillInBlankAdvanced },
     image: {
         primary: [
             {

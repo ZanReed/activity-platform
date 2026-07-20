@@ -476,6 +476,10 @@ function fillInBlankNode(content: JSONContent[]): JSONContent {
             hasConfidenceRating: false,
             skills: [],
             workSpace: null,
+            // Imported problems are numbered by default (numbering/label
+            // decouple). null = auto; matches activityToTiptap's attr shape so
+            // the import round-trip stays byte-stable.
+            label: null,
         },
         content: sanitized,
     };

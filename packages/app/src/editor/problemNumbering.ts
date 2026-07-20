@@ -1,14 +1,15 @@
 import type { Editor } from '@tiptap/core';
+import { isPageNumberedType } from '@activity/schema';
 
 // ============================================================================
 // problemNumbering — the editor-side mirror of the renderer's isNumberedBlock.
 // ----------------------------------------------------------------------------
 // One shared walk so every question NodeView (fill-in-blank, multiple choice,
 // matching, ordering, number line, interactive graph) shows the same number the
-// published page will render. Counts, in document order before `pos`:
-// fillInBlank, multipleChoice, matching, ordering, numberLine, and non-display
-// interactiveGraph nodes. Keep in sync with the renderer's isNumberedBlock in
-// packages/renderer/src/blocks/index.ts.
+// published page will render. The numbering RULE (which types number, plus the
+// display-graph exception) lives ONCE in @activity/schema's isPageNumberedType;
+// this file only bridges ProseMirror's camelCase node names to the schema's
+// snake_case block types. A parity test guards that the two never drift.
 //
 // A fadedWorkedExample counts as ONE problem and is treated as ATOMIC: we add 1
 // and do not descend into it, so its fill_in_blank steps (lettered locally, see
@@ -17,33 +18,44 @@ import type { Editor } from '@tiptap/core';
 // box and letters the steps.
 // ============================================================================
 
+// ProseMirror node name (camelCase) → schema block type (snake_case), for the
+// block kinds that can carry a problem number. This map is the editor's
+// name-spelling bridge only; membership + the display-graph rule live in schema.
+const PM_NAME_TO_SCHEMA_TYPE: Readonly<Record<string, string>> = {
+    fillInBlank: 'fill_in_blank',
+    multipleChoice: 'multiple_choice',
+    matching: 'matching',
+    ordering: 'ordering',
+    numberLine: 'number_line',
+    fadedWorkedExample: 'faded_worked_example',
+    interactiveGraph: 'interactive_graph',
+    dataPlot: 'data_plot',
+};
+
 export function problemNumberAt(editor: Editor, pos: number | undefined): number {
     if (pos === undefined) return 1;
     let count = 1;
     editor.state.doc.descendants((node, nodePos) => {
         if (nodePos >= pos) return false;
-        const name = node.type.name;
-        if (name === 'fadedWorkedExample') {
+        const schemaType = PM_NAME_TO_SCHEMA_TYPE[node.type.name];
+        if (schemaType === undefined) return true; // not a numbered kind; keep descending
+        if (schemaType === 'faded_worked_example') {
             // The box is one numbered problem; its faded steps are lettered
-            // locally, so don't descend and count them.
+            // locally, so count it and don't descend into them.
             count++;
             return false;
         }
-        if (
-            name === 'fillInBlank' ||
-            name === 'multipleChoice' ||
-            name === 'matching' ||
-            name === 'ordering' ||
-            name === 'numberLine'
-        ) {
-            count++;
-        } else if (name === 'interactiveGraph' || name === 'dataPlot') {
-            // Only a graded interaction is numbered; a display chart is not.
-            const interactionType = (
-                node.attrs.interaction as { type?: string } | undefined
-            )?.type;
-            if (interactionType !== 'display') count++;
-        }
+        const interactionType = (
+            node.attrs.interaction as { type?: string } | undefined
+        )?.type;
+        if (!isPageNumberedType(schemaType, interactionType)) return true;
+        // A custom/none label is out-of-sequence: it shows text or nothing and
+        // does NOT consume a problem number. Absent attr = auto = counts.
+        const labelMode = (
+            node.attrs.label as { mode?: string } | undefined
+        )?.mode;
+        if (labelMode === 'none' || labelMode === 'custom') return true;
+        count++;
         return true;
     });
     return count;

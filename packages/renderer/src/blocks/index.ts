@@ -8,6 +8,7 @@
 // =============================================================================
 
 import type { Block } from '@activity/schema';
+import { pageLabel } from '@activity/schema';
 import { renderParagraph } from './paragraph.js';
 import { renderHeading } from './heading.js';
 import { renderMathBlock } from './math-block.js';
@@ -68,12 +69,17 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
       return renderCallout(block);
     case 'problem':
       return renderProblem(block, { problemNumber: ctx.nextProblemNumber() });
-    case 'fill_in_blank':
+    case 'fill_in_blank': {
+      const label = pageLabel(block);
+      // Only an auto (numbered) label consumes a slot of the document-wide
+      // sequence; custom and none are out-of-sequence, so they don't advance it.
       return renderFillInBlank(block, {
-        problemNumber: ctx.nextProblemNumber(),
+        label,
+        problemNumber: label.kind === 'number' ? ctx.nextProblemNumber() : 0,
         showAnswers: ctx.showAnswers,
         graphKitUrl: ctx.graphKitUrl,
       });
+    }
     case 'bullet_list':
       return renderBulletList(block);
     case 'ordered_list':
@@ -141,24 +147,8 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
 
 /**
  * True if this block participates in the auto-numbered problem sequence.
- * The graded question blocks do (problem, fill_in_blank, graded
- * interactive_graph); everything else doesn't — including a display-mode
- * interactive_graph, which is ungraded static content.
+ * Thin re-export of @activity/schema's isPageNumbered — the single source of
+ * truth shared with the editor's problemNumberAt, so the two never drift.
+ * Kept as a named renderer export for existing call sites and tests.
  */
-export function isNumberedBlock(block: Block): boolean {
-  return (
-    block.type === 'problem' ||
-    block.type === 'fill_in_blank' ||
-    block.type === 'multiple_choice' ||
-    block.type === 'matching' ||
-    block.type === 'ordering' ||
-    block.type === 'number_line' ||
-    // The faded worked-example box counts as ONE problem (its number leads the
-    // title). Its own fill_in_blank children are lettered locally and do NOT
-    // pull from the sequence — that context-dependent exception lives in
-    // renderFadedWorkedExample, not this type-level predicate.
-    block.type === 'faded_worked_example' ||
-    (block.type === 'interactive_graph' && block.interaction.type !== 'display') ||
-    (block.type === 'data_plot' && block.interaction.type !== 'display')
-  );
-}
+export { isPageNumbered as isNumberedBlock } from '@activity/schema';

@@ -1671,6 +1671,20 @@
     user-select: none;
 }
 
+/* Custom label ("Warm-up", "Challenge"): authored text in the gutter, lighter
+ * weight than a number so it reads as a tag, not a count. */
+.fill-in-blank-block__number--custom {
+    font-weight: 500;
+    font-style: italic;
+}
+
+/* None: unnumbered on the published page. In the editor a faint dash marks the
+ * deliberate (still-graded) unnumbered blank so it doesn't look like a bug. */
+.fill-in-blank-block__number--none {
+    font-weight: 400;
+    opacity: 0.4;
+}
+
 .fill-in-blank-block__body {
     line-height: 1.6;
     min-height: 1.5em; /* keeps empty block clickable */

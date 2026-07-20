@@ -132,6 +132,38 @@ export const FillInBlank = Node.create({
                                        ? { 'data-skills': JSON.stringify(attributes.skills) }
                                        : {},
                                                },
+                                               // Per-block display label (numbering/label decouple). null =
+                                               // absent = auto (a numbered problem). {mode:'custom',text} shows
+                                               // authored text; {mode:'none'} suppresses the number. Stored as
+                                               // JSON in data-label for copy-paste fidelity; the canonical
+                                               // persistence path is serialize.ts.
+                                               label: {
+                                                   default: null as
+                                                       | { mode: string; text?: string }
+                                                       | null,
+                                                       parseHTML: (element) => {
+                                                           const raw = element.getAttribute('data-label');
+                                                           if (!raw) return null;
+                                                           try {
+                                                               const parsed = JSON.parse(raw);
+                                                               return parsed &&
+                                                                   typeof parsed === 'object' &&
+                                                                   typeof parsed.mode === 'string'
+                                                                   ? parsed
+                                                                   : null;
+                                                           } catch {
+                                                               return null;
+                                                           }
+                                                       },
+                                       renderHTML: (attributes) => {
+                                           const v = attributes.label as
+                                               | { mode: string }
+                                               | null;
+                                           return v && typeof v === 'object'
+                                           ? { 'data-label': JSON.stringify(v) }
+                                           : {};
+                                       },
+                                               },
                                                // Per-problem print work space (rem). null = inherit the
                                                // activity-level print.workSpace default; a number overrides it
                                                // for this problem only. See the renderer's per-block override.

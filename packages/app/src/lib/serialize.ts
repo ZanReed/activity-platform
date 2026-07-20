@@ -657,6 +657,25 @@ function tiptapFillInBlankToActivity(node: JSONContent): FillInBlankBlock {
         block.workSpace = rawWorkSpace;
     }
 
+    // Per-block display label (numbering/label decouple). Absent / auto is the
+    // default, so only carry a meaningful mode — this keeps round-trip equality
+    // for the common numbered case. An empty custom text is dropped to auto
+    // (the schema requires min-1 text; an empty label is meaningless).
+    const rawLabel = node.attrs?.label as
+        | { mode?: unknown; text?: unknown }
+        | null
+        | undefined;
+    if (rawLabel && typeof rawLabel.mode === 'string') {
+        if (rawLabel.mode === 'none') {
+            block.label = { mode: 'none' };
+        } else if (rawLabel.mode === 'custom') {
+            const text =
+                typeof rawLabel.text === 'string' ? rawLabel.text.trim() : '';
+            if (text.length > 0) block.label = { mode: 'custom', text };
+        }
+        // mode 'auto' (or anything else) → omit, so absent === auto.
+    }
+
     return block;
 }
 
@@ -1512,6 +1531,8 @@ function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
             workSpace: block.workSpace ?? null,
+            // Absent label = auto; the NodeView + problemNumberAt treat null as auto.
+            label: block.label ?? null,
         },
         content: activityFillInBlankInlineToTiptap(block.content),
     };

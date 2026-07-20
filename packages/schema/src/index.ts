@@ -89,6 +89,18 @@ export {
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
+// Block predicates (single source of truth for "page-numbered" vs "gradeable")
+export {
+  isPageNumbered,
+  isPageNumberedType,
+  isGradeable,
+  pageLabel,
+} from './block-predicates.js';
+export type { PageLabel } from './block-predicates.js';
+
+// Per-block display label (numbering/label decouple)
+export { BlockLabel, labelFields } from './label.js';
+
 // Sizing (shared per-block width/align fragment)
 export { BlockAlign, BlockWidthFraction } from './sizing.js';
 
