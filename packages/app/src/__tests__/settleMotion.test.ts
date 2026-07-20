@@ -35,11 +35,28 @@ function para(text: string): ProseMirrorNode {
     return nodeType('paragraph').create(null, schema.text(text));
 }
 
+// Position of the first block inside the strict-grid stack (into row +1, into
+// column +1).
+const FIRST_BLOCK_POS = 2;
+
+// A strict-grid doc: one 1-col stack row holding the blocks. The settle plugin
+// tags blocks whose PARENT is a `column`, so synthetic docs must nest — bare
+// top-level paragraphs (the pre-strict-grid shape) are never tagged.
 function makeState(blocks: ProseMirrorNode[] = [para('alpha'), para('beta')]) {
     const plugin = createSettleMotionPlugin();
-    const doc = nodeType('doc').create(null, blocks);
+    const column = nodeType('column').create(null, blocks);
+    const row = nodeType('row').create({ id: 'r' }, [column]);
+    const doc = nodeType('doc').create(null, [row]);
     const state = EditorState.create({ schema, doc, plugins: [plugin] });
     return { plugin, state };
+}
+
+// The position at the end of the first (stack) column's content — where an
+// appended block lands INSIDE the column (so the plugin can tag it). Replaces
+// the pre-strict-grid `state.doc.content.size` (doc level, now a row boundary).
+function colAppendPos(state: EditorState): number {
+    const column = state.doc.firstChild!.firstChild!;
+    return FIRST_BLOCK_POS + column.content.size;
 }
 
 function decosOf(
@@ -70,19 +87,20 @@ describe('explicit-signal gating (T2-1)', () => {
 
     it('Enter (splitBlock) never settles — the open-slice false positive', () => {
         const { plugin, state } = makeState();
-        const tr = state.tr.split(3);
+        const tr = state.tr.split(5); // pos 5 = inside 'alpha' text (3..8)
         const next = state.apply(tr);
-        expect(next.doc.childCount).toBe(3); // the split really happened
+        // The split happened inside the column: it now holds three paragraphs.
+        expect(next.doc.firstChild!.firstChild!.childCount).toBe(3);
         expect(decosOf(plugin, next)).toHaveLength(0);
     });
 
     it('block-type conversion (setNodeMarkup) never settles', () => {
         const { plugin, state } = makeState();
-        const tr = state.tr.setNodeMarkup(0, nodeType('heading'), {
+        const tr = state.tr.setNodeMarkup(FIRST_BLOCK_POS, nodeType('heading'), {
             level: 1,
         });
         const next = state.apply(tr);
-        expect(next.doc.firstChild?.type.name).toBe('heading');
+        expect(next.doc.nodeAt(FIRST_BLOCK_POS)?.type.name).toBe('heading');
         expect(decosOf(plugin, next)).toHaveLength(0);
     });
 
@@ -90,7 +108,7 @@ describe('explicit-signal gating (T2-1)', () => {
         const { plugin, state } = makeState();
         armSettle('insert');
         const next = state.apply(
-            state.tr.insert(state.doc.content.size, para('new')),
+            state.tr.insert(colAppendPos(state), para('new')),
         );
         const decos = decosOf(plugin, next);
         expect(decos).toHaveLength(1);
@@ -101,11 +119,11 @@ describe('explicit-signal gating (T2-1)', () => {
         const { plugin, state } = makeState();
         armSettle('insert');
         const s1 = state.apply(
-            state.tr.insert(state.doc.content.size, para('new')),
+            state.tr.insert(colAppendPos(state), para('new')),
         );
         expect(decosOf(plugin, s1)).toHaveLength(1);
         // A later unrelated insert must not settle off the stale arm.
-        const s2 = s1.apply(s1.tr.insert(s1.doc.content.size, para('more')));
+        const s2 = s1.apply(s1.tr.insert(colAppendPos(s1), para('more')));
         expect(decosOf(plugin, s2)).toHaveLength(1); // still just the mapped one
     });
 
@@ -116,14 +134,14 @@ describe('explicit-signal gating (T2-1)', () => {
         now.mockReturnValue(1_000 + 500); // past the 200ms TTL
         const { plugin, state } = makeState();
         const next = state.apply(
-            state.tr.insert(state.doc.content.size, para('new')),
+            state.tr.insert(colAppendPos(state), para('new')),
         );
         expect(decosOf(plugin, next)).toHaveLength(0);
     });
 
     it('a direct settle meta settles (the wrapInColumns path)', () => {
         const { plugin, state } = makeState();
-        const tr = state.tr.insert(state.doc.content.size, para('new'));
+        const tr = state.tr.insert(colAppendPos(state), para('new'));
         tr.setMeta(settleMetaKey, 'insert');
         const decos = decosOf(plugin, state.apply(tr));
         expect(decos).toHaveLength(1);
@@ -132,11 +150,14 @@ describe('explicit-signal gating (T2-1)', () => {
 
     it("a native drop (uiEvent meta) settles as a move — no opacity dip class", () => {
         const { plugin, state } = makeState();
-        // A PM move: delete block 2, insert it above block 1, one transaction.
-        const second = state.doc.child(1);
+        // A PM move within the column: delete block 2, insert it above block 1,
+        // one transaction. Positions are column-relative in the strict grid.
+        const column = state.doc.firstChild!.firstChild!;
+        const second = column.child(1);
+        const secondFrom = FIRST_BLOCK_POS + column.child(0).nodeSize;
         const tr = state.tr
-            .delete(7, 7 + second.nodeSize)
-            .insert(0, second);
+            .delete(secondFrom, secondFrom + second.nodeSize)
+            .insert(FIRST_BLOCK_POS, second);
         tr.setMeta('uiEvent', 'drop');
         const decos = decosOf(plugin, state.apply(tr));
         expect(decos).toHaveLength(1);
@@ -147,9 +168,9 @@ describe('explicit-signal gating (T2-1)', () => {
         const { plugin, state } = makeState();
         armSettle('insert');
         const blocks = ['a', 'b', 'c', 'd', 'e'].map(para);
-        const frag = nodeType('doc').create(null, blocks).content;
+        const frag = nodeType('column').create(null, blocks).content;
         const next = state.apply(
-            state.tr.insert(state.doc.content.size, frag),
+            state.tr.insert(colAppendPos(state), frag),
         );
         expect(decosOf(plugin, next)).toHaveLength(0);
     });
@@ -160,7 +181,7 @@ describe('clear metas (T2-3 state side)', () => {
         const { plugin, state } = makeState();
         armSettle('insert');
         const next = state.apply(
-            state.tr.insert(state.doc.content.size, para('new')),
+            state.tr.insert(colAppendPos(state), para('new')),
         );
         expect(decosOf(plugin, next)).toHaveLength(1);
         return { plugin, state: next };
@@ -190,9 +211,11 @@ describe('clear metas (T2-3 state side)', () => {
 describe('placement geometry (pure helpers)', () => {
     it('changedRanges reports an insert and drops a pure delete', () => {
         const { state } = makeState();
-        const ins = state.tr.insert(state.doc.content.size, para('new'));
+        const ins = state.tr.insert(colAppendPos(state), para('new'));
         expect(changedRanges(ins)).toHaveLength(1);
-        const del = state.tr.delete(0, 7);
+        // A pure delete of the first block inside the column (no insert).
+        const firstSize = state.doc.firstChild!.firstChild!.child(0).nodeSize;
+        const del = state.tr.delete(FIRST_BLOCK_POS, FIRST_BLOCK_POS + firstSize);
         expect(changedRanges(del)).toHaveLength(0);
     });
 

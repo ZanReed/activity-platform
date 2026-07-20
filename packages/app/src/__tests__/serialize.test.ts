@@ -24,7 +24,6 @@ import {
     tiptapToReferencePanel,
 } from '../lib/serialize';
 import {
-    toStrict,
     toBare,
     tiptapToActivityBare as tiptapToActivity,
 } from '../lib/serializeTestBridge';
