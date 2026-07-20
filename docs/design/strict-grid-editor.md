@@ -1,8 +1,9 @@
 # Strict-grid editor migration — design + plan
 
-**Status:** 🟢 SLICE 1 SHIPPED to `main` 2026-07-21 (the atomic STRUCTURAL slice, T1–T6 —
-app-only, no deploy). Slice 2 (T7–T8: seam affordances + importer strict-tree) PENDING. Eng
-review CLEARED 2026-07-21. **Supersedes** the "Option A pragmatic bridge" ruling (2026-07-15) in
+**Status:** 🟢 SLICE 1 (T1–T6, structural) + SLICE 2 (T7 seam affordances, T8 import) BOTH
+SHIPPED to `main` 2026-07-21 — app-only, no deploy. ONE known deferral: the ` ```columns ``` `
+Markdown import fence (T8, needs author ratification). Eng review CLEARED 2026-07-21.
+**Supersedes** the "Option A pragmatic bridge" ruling (2026-07-15) in
 [columns-universal-container.md](columns-universal-container.md) — deliberately, to kill the
 editor-vs-storage tech debt.
 
@@ -207,9 +208,24 @@ Synthesized from this review. Checkbox as you ship (on the `strict-grid` branch)
 - [x] **T6 (P1)** — runtime nested-discovery pin already exists + holds (init.test.ts discovers a
   fill_in_blank in a row cell); renderer/runtime + stored shape UNCHANGED → no ingest/storage
   bump (bundle regen = zero drift). **DONE.**
-- [ ] **T7 (P2)** — slice 2: seam affordances (add-row-below, always-visible dissolve,
-  arrow-nav, select-not-noop Backspace); split degenerate + atom cases.
-- [ ] **T8 (P2)** — importer emits strict tree; ` ```columns ``` ` fence → multi-col row.
+- [x] **T7 (P2)** — slice 2 seam affordances **DONE 2026-07-21.** `dissolveRow`
+  (non-destructive merge-back: multi-col row → one full-width stack, concatenating every
+  column's blocks) + `addRowBelow` (escape-the-row) commands in Columns.ts. `RowSeamCaret`
+  keymap: boundary Backspace at a stack row's start SELECTS the seam node (never a frozen
+  no-op); ArrowDown/ArrowUp step the caret across the row seam (or select a sectionBreak seam)
+  — **all Playwright-verified** (the in-app Browser pane delivers key events unreliably, so it
+  is NOT authoritative for keys). Toolbar: the column cluster is gated to MULTI-col rows (was
+  `isActive('row')`, true for every stack now → regression fixed) + gains **Merge** / **Row
+  below** escape hatches. Split degenerate cases (drop empty before/after) done in T3;
+  atom-block split (node-selected image/graph → column 1) closed + pinned. 8 e2e in
+  strict-grid.e2e.ts.
+- [x] **T8 (P2) — import works (strict-valid); columns fence DEFERRED.** The importer emits a
+  bare stream, wrapped by `strictGrid.wrapBlocksStrict` at the two ActivityEditor import
+  call-sites; a new markdown-import pin validates the WRAPPED result against the REAL editor
+  schema across representative markdown, so import can't produce an invalid strict tree.
+  **The ` ```columns ``` ` fence is NOT built** — the import-format doc explicitly defers
+  columns from Markdown, so new import syntax needs author ratification + a
+  markdown-import-format.md / copy-paste-prompt update. Revisit with the author if wanted.
 
 ## GSTACK REVIEW REPORT
 
