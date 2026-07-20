@@ -1,11 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
 
 // ============================================================================
-// Blank-discoverability signifier (Form A ghost text, design-review 2026-07-19).
+// Blank-authoring chrome — the focus-gated "+ Blank" button (primary maker,
+// mirroring the math editors' in-equation button), the ⌘⇧B / Ctrl⇧B shortcut,
+// and the faint power-user tip about the `{{answer}}` shorthand.
 // ----------------------------------------------------------------------------
-// A teacher may not know that typing `__` turns part of the sentence into a
-// blank. Empty body → the placeholder teaches it; text-but-no-blank → a trailing
-// faint hint teaches it; the hint fades once a blank exists.
+// The chrome shows only while the block is being edited (caret inside, or a
+// just-made blank's popover open); the resting block stays clean. Both the
+// button and the shortcut insert an empty-answer blank at the caret and open
+// its popover focused so the teacher types the answer straight away.
 // ============================================================================
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -16,73 +19,120 @@ async function freshEditor(page: Page) {
     await page.waitForFunction(() => Boolean((window as any).__tiptapEditor));
 }
 
-test('empty fill-in-blank placeholder teaches the __ blank keystroke', async ({
-    page,
-}) => {
+async function freshBlock(page: Page) {
     await freshEditor(page);
     await page.evaluate(() => {
         (window as any).__tiptapEditor.chain().focus('end').insertFillInBlank().run();
     });
-    const field = page.locator('.fill-in-blank-block .prompt-field');
-    await expect(field).toHaveAttribute('data-placeholder', /makes a blank/);
-    // No trailing hint yet (body is empty — the placeholder covers it).
-    await expect(page.locator('.fill-in-blank-block__make-hint')).toHaveCount(0);
+    // Click into the block so the caret is inside and the editor is focused —
+    // that is what raises the authoring chrome.
+    await page.locator('.fill-in-blank-block .prompt-field').click();
+}
+
+function blankCount(page: Page) {
+    return page.evaluate(() => {
+        const ed = (window as any).__tiptapEditor;
+        let n = 0;
+        ed.state.doc.descendants((node: any) => {
+            if (node.type.name === 'blank') n++;
+        });
+        return n;
+    });
+}
+
+function firstBlankAnswer(page: Page) {
+    return page.evaluate(() => {
+        const ed = (window as any).__tiptapEditor;
+        let answer: string | null = null;
+        ed.state.doc.descendants((node: any) => {
+            if (answer === null && node.type.name === 'blank') {
+                answer = node.attrs.answer as string;
+            }
+            return answer === null;
+        });
+        return answer;
+    });
+}
+
+function answerInputFocused(page: Page) {
+    return page.evaluate(() => {
+        const active = document.activeElement;
+        const first = document.querySelector('.blank-edit-popover__input');
+        return Boolean(active) && active === first;
+    });
+}
+
+test('a focused (even empty) block shows the + Blank button and the {{}} tip', async ({
+    page,
+}) => {
+    await freshBlock(page);
+    await expect(page.locator('.fill-in-blank-block__add-blank')).toBeVisible();
+    await expect(page.locator('.fill-in-blank-block__tip')).toContainText(
+        '{{answer}}',
+    );
 });
 
-test('text-but-no-blank shows the make-a-blank hint; a blank fades it', async ({
+test('a resting (blurred) block hides the authoring chrome', async ({ page }) => {
+    await freshBlock(page);
+    await expect(page.locator('.fill-in-blank-block__add-blank')).toBeVisible();
+    await page.evaluate(() => (window as any).__tiptapEditor.commands.blur());
+    await expect(page.locator('.fill-in-blank-block__add-blank')).toHaveCount(0);
+});
+
+test('clicking + Blank inserts a blank and opens its popover focused', async ({
+    page,
+}) => {
+    await freshBlock(page);
+    await page.locator('.fill-in-blank-block__add-blank').click();
+
+    expect(await blankCount(page)).toBe(1);
+    await expect(page.locator('.blank-edit-popover')).toBeVisible();
+    expect(await answerInputFocused(page)).toBe(true);
+});
+
+test('⌘⇧B / Ctrl⇧B inserts a blank and opens its popover focused', async ({
+    page,
+}) => {
+    await freshBlock(page);
+    await page.keyboard.press('ControlOrMeta+Shift+b');
+
+    expect(await blankCount(page)).toBe(1);
+    await expect(page.locator('.blank-edit-popover')).toBeVisible();
+    expect(await answerInputFocused(page)).toBe(true);
+});
+
+test('typing an answer then Escape persists it on the blank', async ({ page }) => {
+    await freshBlock(page);
+    await page.locator('.fill-in-blank-block__add-blank').click();
+    await expect(page.locator('.blank-edit-popover')).toBeVisible();
+
+    // The Answer input is focused → type straight into it, then close.
+    await page.keyboard.type('Paris');
+    await page.keyboard.press('Escape');
+
+    expect(await firstBlankAnswer(page)).toBe('Paris');
+});
+
+test('⌘⇧B does nothing outside a fill_in_blank (passes through)', async ({
     page,
 }) => {
     await freshEditor(page);
+    // Caret in an ordinary paragraph — the shortcut is scoped to fill_in_blank.
     await page.evaluate(() => {
-        const ed = (window as any).__tiptapEditor;
-        ed.chain().focus('end').insertFillInBlank().run();
-        ed.chain().insertContent('The capital of France is Paris').run();
-    });
-    // Sentence has text but no blank → the trailing hint appears.
-    await expect(page.locator('.fill-in-blank-block__make-hint')).toBeVisible();
-
-    // Add a blank → the hint fades (a blank now exists).
-    await page.evaluate(() => {
-        (window as any).__tiptapEditor.chain().insertBlank({ answer: 'Paris' }).run();
-    });
-    await expect(page.locator('.fill-in-blank-block__make-hint')).toHaveCount(0);
-});
-
-test('an inline-math gap (Model A prompt) also fades the hint — no text blank needed', async ({
-    page,
-}) => {
-    await freshEditor(page);
-    await page.evaluate(() => {
-        const ed = (window as any).__tiptapEditor;
-        ed.chain().focus('end').insertFillInBlank().run();
-        // Text + an inline-math gap: a mathInline carrying a non-empty prompts
-        // attr IS a gap, so the hint must not nag even though there's no `blank`.
-        ed.chain()
-            .insertContent('Solve ')
-            .insertContent({
-                type: 'mathInline',
-                attrs: {
-                    latex: 'x=\\placeholder[p1]{}',
-                    prompts: [{ id: 'p1', answer: '5', acceptableAnswers: [] }],
-                },
-            })
+        (window as any).__tiptapEditor
+            .chain()
+            .focus('end')
+            .insertContent('A plain paragraph')
             .run();
     });
-    await expect(page.locator('.fill-in-blank-block__make-hint')).toHaveCount(0);
+    await page.locator('.ProseMirror').click();
+    await page.keyboard.press('ControlOrMeta+Shift+b');
+    expect(await blankCount(page)).toBe(0);
 });
 
-test('inline math with NO prompts still shows the hint (a plain equation is not a gap)', async ({
-    page,
-}) => {
-    await freshEditor(page);
-    await page.evaluate(() => {
-        const ed = (window as any).__tiptapEditor;
-        ed.chain().focus('end').insertFillInBlank().run();
-        ed.chain()
-            .insertContent('Compute ')
-            .insertContent({ type: 'mathInline', attrs: { latex: '2+2' } })
-            .run();
-    });
-    // Plain equation, no gap → the hint should still teach the blank keystroke.
-    await expect(page.locator('.fill-in-blank-block__make-hint')).toBeVisible();
+test('regression: {{answer}} still creates a pre-filled blank', async ({ page }) => {
+    await freshBlock(page);
+    await page.keyboard.type('{{Paris}}');
+    expect(await blankCount(page)).toBe(1);
+    expect(await firstBlankAnswer(page)).toBe('Paris');
 });

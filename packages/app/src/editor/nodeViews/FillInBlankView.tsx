@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     NodeViewWrapper,
     type NodeViewProps,
 } from '@tiptap/react';
+import { NodeSelection } from 'prosemirror-state';
 import PromptField from '../components/PromptField';
 import type { InlineNodes } from '../../lib/serialize';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
@@ -58,27 +59,44 @@ export default function FillInBlankView({
             ? (node.attrs.workSpace as number)
             : null;
 
-    // Blank-discoverability signifier (Form A ghost text, design-review 2026-07-19).
-    // A teacher may not know that typing `__` (or `{{answer}}`) turns part of the
-    // sentence into a blank. Empty body → the placeholder teaches it; once there's
-    // text but still NO blank, a trailing faint hint teaches it; the hint fades
-    // the moment a blank exists (show-when-no-blank, hide-once-present).
-    //
-    // A gap can be a `blank` node OR a Model A in-equation math prompt: an inline
-    // `mathInline` child carrying a non-empty `prompts` attr is itself a gap, so
-    // it counts as a blank and silences the hint (design math-blanks.md, Model A).
-    const isEmpty = node.content.size === 0;
-    let hasBlank = false;
-    node.content.forEach((child) => {
-        if (child.type.name === 'blank') hasBlank = true;
-        if (
-            child.type.name === 'mathInline' &&
-            ((child.attrs.prompts as unknown[] | undefined)?.length ?? 0) > 0
-        ) {
-            hasBlank = true;
-        }
-    });
-    const showMakeBlankHint = !isEmpty && !hasBlank;
+    // Blank-discoverability chrome: while the block is being edited, a "+ Blank"
+    // button (the primary maker, mirroring the math editors' in-equation button)
+    // and a faint power-user tip about the `{{answer}}` shorthand. Both live in a
+    // focus-gated footer so the resting block stays clean — the button appears the
+    // moment the caret enters the block (including a freshly inserted empty one),
+    // and stays put while a just-made blank's popover is open.
+    const [isEditing, setIsEditing] = useState(false);
+    useEffect(() => {
+        if (!editor) return;
+        const update = () => {
+            const pos = typeof getPos === 'function' ? getPos() : undefined;
+            if (typeof pos !== 'number') {
+                setIsEditing((prev) => (prev ? false : prev));
+                return;
+            }
+            const self = editor.state.doc.nodeAt(pos);
+            const end = pos + (self ? self.nodeSize : node.nodeSize);
+            const sel = editor.state.selection;
+            const within = sel.from >= pos && sel.to <= end;
+            // Editor-focused caret inside → editing. Also keep the chrome up when
+            // a blank inside is node-selected (its popover took DOM focus, so the
+            // editor is blurred but the ProseMirror selection is still in here).
+            const active =
+                within && (editor.isFocused || sel instanceof NodeSelection);
+            setIsEditing((prev) => (prev === active ? prev : active));
+        };
+        editor.on('selectionUpdate', update);
+        editor.on('transaction', update);
+        editor.on('focus', update);
+        editor.on('blur', update);
+        update();
+        return () => {
+            editor.off('selectionUpdate', update);
+            editor.off('transaction', update);
+            editor.off('focus', update);
+            editor.off('blur', update);
+        };
+    }, [editor, getPos, node.nodeSize]);
 
     // A fill_in_blank nested directly in a faded worked example is a "faded
     // step": it drops the problem-number gutter and shows a compact inline
@@ -123,14 +141,40 @@ export default function FillInBlankView({
             <PromptField
                 node={node}
                 className="fill-in-blank-block__body"
-                placeholder="Type the sentence…  ( __ makes a blank )"
+                placeholder="Type the sentence…"
             />
-            {showMakeBlankHint && (
+            {isEditing && (
                 <div
-                    className="fill-in-blank-block__make-hint"
+                    className="fill-in-blank-block__chrome"
                     contentEditable={false}
                 >
-                    type <code>__</code> to make a blank
+                    <button
+                        type="button"
+                        className="fill-in-blank-block__add-blank"
+                        // preventDefault the press so it can't move the editor
+                        // selection or blur (which would unmount this chrome
+                        // before the click). Do the insert on CLICK, after all
+                        // mouse-driven selection handling has settled, so the
+                        // NodeSelection we set to open the popover isn't clobbered
+                        // by a trailing mouseup. Append at the block's content-end
+                        // (from getPos) rather than trusting the live selection.
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                            const pos =
+                                typeof getPos === 'function' ? getPos() : undefined;
+                            if (typeof pos !== 'number') return;
+                            const self = editor.state.doc.nodeAt(pos);
+                            const end =
+                                pos + (self ? self.nodeSize : node.nodeSize) - 1;
+                            editor.commands.insertBlankAndEdit(end);
+                        }}
+                        title="Insert a fill-in blank at the cursor (⌘⇧B)"
+                    >
+                        + Blank
+                    </button>
+                    <span className="fill-in-blank-block__tip">
+                        or type <code>{'{{answer}}'}</code>
+                    </span>
                 </div>
             )}
             <QuestionSettingsSummary

@@ -348,7 +348,8 @@
     --placeholder-color: var(--ed-accent);
 }
 .math-insert-blank,
-.math-gap-settings {
+.math-gap-settings,
+.fill-in-blank-block__add-blank {
     font-size: 0.8125rem;
     padding: 0.25rem 0.6rem;
     border: 1px solid var(--ed-faint);
@@ -363,7 +364,8 @@
 }
 .math-insert-blank:hover,
 .math-gap-settings:hover,
-.math-gap-settings[aria-expanded='true'] {
+.math-gap-settings[aria-expanded='true'],
+.fill-in-blank-block__add-blank:hover {
     border-color: var(--ed-accent);
     color: var(--ed-accent-strong);
     background: var(--ed-accent-bg);
@@ -1681,18 +1683,24 @@
     margin: 0;
 }
 
-/* Blank-discoverability signifier (Form A ghost text): a faint one-time cue that
-   typing `__` turns part of the sentence into a blank. Aligned under the body
-   (grid column 2), shown only when there's text but no blank yet. */
-.fill-in-blank-block__make-hint {
+/* Blank-authoring chrome: a focus-gated footer under the body (grid column 2)
+   with the "+ Blank" button (primary maker, mirrors the math editors) and a
+   faint power-user tip about the `{{answer}}` shorthand. Shown only while the
+   block is being edited, so the resting block stays clean. */
+.fill-in-blank-block__chrome {
     grid-column: 2;
-    margin-top: 0.125rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    user-select: none;
+}
+.fill-in-blank-block__tip {
     font-size: 0.75rem;
     line-height: 1.4;
     color: var(--ed-faint); /* slate-400 — clearly inert hint */
-    user-select: none;
 }
-.fill-in-blank-block__make-hint code {
+.fill-in-blank-block__tip code {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.9em;
     padding: 0 0.2em;

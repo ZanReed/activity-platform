@@ -49,6 +49,13 @@ declare module '@tiptap/core' {
                 answer: string;
                 acceptableAnswers?: string[];
             }) => ReturnType;
+            // Insert an empty-answer blank and select it, so BlankPopoverHost
+            // opens the edit popover with the Answer input focused. Backs the
+            // "+ Blank" button and the ⌘⇧B shortcut. Inserts at `pos` when given
+            // (the button passes the block's content-end, since a mousedown on
+            // the button can move the live selection before the handler reads
+            // it); otherwise at the caret (the keyboard path).
+            insertBlankAndEdit: (pos?: number) => ReturnType;
             updateBlankAttrs: (
                 pos: number,
                 attrs: Partial<{
@@ -70,14 +77,6 @@ declare module '@tiptap/core' {
 }
 
 const BLANK_INPUT_REGEX = /\{\{([^{}|]+)((?:\|[^{}|]+)*)\}\}$/;
-
-// Bare `__` makes an EMPTY-answer blank and opens its popover focused, so the
-// teacher types the answer straight away — matching the "type __ to make a
-// blank" signifier. Scoped to fill_in_blank context in the handler (a blank can
-// live nowhere else per schema), so it never preempts StarterKit's `__…__` bold
-// input rule in ordinary paragraphs. Inside a fill_in_blank the preemption is
-// intended: bold there is authored with `**` or the toolbar.
-const EMPTY_BLANK_INPUT_REGEX = /__$/;
 
 export const Blank = Node.create({
     name: 'blank',
@@ -257,6 +256,42 @@ export const Blank = Node.create({
                         })
                         .run(),
 
+            insertBlankAndEdit:
+                (pos) =>
+                ({ chain, state }) => {
+                    // Explicit `pos` (button) or the caret. `to` (not `from`) so
+                    // a non-empty selection places the blank after it rather
+                    // than replacing it.
+                    const insertPos = pos ?? state.selection.to;
+                    return chain()
+                        .insertContentAt(insertPos, {
+                            type: this.name,
+                            attrs: {
+                                id: crypto.randomUUID(),
+                                answer: '',
+                                acceptableAnswers: [],
+                            },
+                        })
+                        .command(({ tr, dispatch }) => {
+                            // Select the just-inserted blank (it occupies
+                            // [insertPos, insertPos+1]) so the selection-driven
+                            // popover host opens it focused. Empty answer is a
+                            // valid transient authoring state — the popover
+                            // reverts it on blur.
+                            if (dispatch) {
+                                try {
+                                    tr.setSelection(
+                                        NodeSelection.create(tr.doc, insertPos),
+                                    );
+                                } catch {
+                                    /* defensive — non-fatal if it can't apply */
+                                }
+                            }
+                            return true;
+                        })
+                        .run();
+                },
+
             updateBlankAttrs:
                 (pos, attrs, options) =>
                 ({ tr, state, dispatch }) => {
@@ -322,49 +357,29 @@ export const Blank = Node.create({
                         .run();
                 },
             }),
-
-            new InputRule({
-                find: EMPTY_BLANK_INPUT_REGEX,
-                handler: ({ state, range, chain }) => {
-                    // Only fire inside a fill_in_blank block — a blank can live
-                    // nowhere else (schema), and scoping keeps `__…__` bold
-                    // working everywhere outside these blocks.
-                    const $from = state.doc.resolve(range.from);
-                    if ($from.parent.type.name !== 'fillInBlank') {
-                        return null;
-                    }
-
-                    // Replace the `__` with an empty-answer blank, then select
-                    // that blank so BlankPopoverHost opens the edit popover with
-                    // its Answer input focused (the teacher fills it in place).
-                    // The empty answer is a valid transient authoring state; the
-                    // popover's answer-blur reverts it if left empty.
-                    chain()
-                        .insertContentAt(range, {
-                            type: nodeType.name,
-                            attrs: {
-                                id: crypto.randomUUID(),
-                                answer: '',
-                                acceptableAnswers: [],
-                            },
-                        })
-                        .command(({ tr, dispatch }) => {
-                            if (dispatch) {
-                                try {
-                                    // The blank atom now sits at range.from
-                                    // (it replaced the `__` text there).
-                                    tr.setSelection(
-                                        NodeSelection.create(tr.doc, range.from),
-                                    );
-                                } catch {
-                                    /* defensive — non-fatal if it can't apply */
-                                }
-                            }
-                            return true;
-                        })
-                        .run();
-                },
-            }),
         ];
+    },
+
+    // ⌘⇧B / Ctrl⇧B: insert a blank at the caret and open its popover, mirroring
+    // the same chord in the math-field edit chrome (useMathFieldEditing.ts). The
+    // `Mod-Shift-b` binding is the normalized "insert a blank" shortcut across
+    // both blank flavours. Scoped to fill_in_blank context: a blank can live
+    // nowhere else (schema), and returning false everywhere else lets the chord
+    // pass through untouched.
+    addKeyboardShortcuts() {
+        return {
+            'Mod-Shift-b': () => {
+                const { $from } = this.editor.state.selection;
+                let inFillInBlank = false;
+                for (let d = $from.depth; d > 0; d--) {
+                    if ($from.node(d).type.name === 'fillInBlank') {
+                        inFillInBlank = true;
+                        break;
+                    }
+                }
+                if (!inFillInBlank) return false;
+                return this.editor.commands.insertBlankAndEdit();
+            },
+        };
     },
 });
