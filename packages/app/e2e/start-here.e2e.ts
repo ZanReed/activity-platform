@@ -92,14 +92,13 @@ test('A question opens the picker at the Blanks category', async ({
         .locator('.block-insert-tile', { hasText: 'Fill in the blank' })
         .click();
     await expect(page.getByTestId('start-here')).toHaveCount(0);
-    const first = await page.evaluate(
+    const first = await page.evaluate(() => {
         // Strict grid: the inserted problem is the first block in the first
         // row's first column.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        () =>
-            (window as any).__tiptapEditor.state.doc.firstChild.firstChild
-                .firstChild.type.name,
-    );
+        const ed = (window as any).__tiptapEditor;
+        return ed.state.doc.firstChild.firstChild.firstChild.type.name;
+    });
     expect(first).toBe('fillInBlank');
 });
 
