@@ -60,6 +60,11 @@ export function buildEditorExtensions({
         StarterKit.configure({
             // Our strict-grid Doc (above) owns the top node.
             document: false,
+            // TrailingNode ensures the doc ends with a paragraph — invalid at the
+            // strict-grid doc level (only sectionBreak | row), where it wrongly
+            // appends the fallback default type (a bare sectionBreak) after every
+            // edit. A doc always ends with a row, so no trailing node is needed.
+            trailingNode: false,
             blockquote: false,
             codeBlock: false,
             // The drag drop-line as the accent "insert-line" (stage 6). The
