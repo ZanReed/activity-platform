@@ -10,6 +10,7 @@ import type { EditorOrderItem } from '../extensions/Ordering';
 import { ArrowDown, ArrowUp, X } from 'lucide-react';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt } from '../problemNumbering';
+import { ProblemNumberGutter } from './problemNumberGutter';
 
 // ============================================================================
 // OrderingView — NodeView for the ordering block.
@@ -83,9 +84,10 @@ export default function OrderingView({
             className={`mc-block ordering-block${selected ? ' is-selected' : ''}`}
             data-block-id={node.attrs.id ?? ''}
         >
-            <div className="mc-block__number" contentEditable={false}>
-                {problemNumber}.
-            </div>
+            <ProblemNumberGutter
+                label={node.attrs.label as { mode?: string; text?: string } | null}
+                problemNumber={problemNumber}
+            />
             <div className="mc-block__body">
                 <PromptField
                     node={node}

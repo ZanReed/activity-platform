@@ -1,10 +1,12 @@
-import type { OrderingBlock } from '@activity/schema';
+import type { OrderingBlock, PageLabel } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
+import { renderNumberGutter } from './number-gutter.js';
 import { seededShuffle } from './shuffle.js';
 
 export interface OrderingRenderContext {
   problemNumber: number;
+  label?: PageLabel;
   /** Answer-key print variant: fill each item's number box (Drop C parity). */
   showAnswers?: boolean;
 }
@@ -127,7 +129,7 @@ export function renderOrdering(
     skillsAttr +
     workSpaceStyle +
     '>' +
-    '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
+    renderNumberGutter(ctx.label, num) +
     '<div class="block-problem-body">' +
     '<div class="order-prompt">' + renderInlineNodes(block.prompt) + '</div>' +
     '<div class="order-list" role="list" aria-label="Items to put in order">' +

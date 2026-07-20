@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
+import { labelNodeAttr } from '../labelNodeAttr';
 import MultipleChoiceView from '../nodeViews/MultipleChoiceView';
 import type { GraphAxisConfig, DrawableAttr } from './InteractiveGraph';
 
@@ -63,6 +64,7 @@ export const MultipleChoice = Node.create({
 
     addAttributes() {
         return {
+            ...labelNodeAttr,
             id: {
                 default: '',
                 parseHTML: (element) => element.getAttribute('data-block-id') ?? '',

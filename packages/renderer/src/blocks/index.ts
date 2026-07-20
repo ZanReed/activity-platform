@@ -84,45 +84,62 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
       return renderBulletList(block);
     case 'ordered_list':
       return renderOrderedList(block);
-    case 'interactive_graph':
-      // Display (static) graphs are ungraded content — they don't pull from the
-      // problem sequence. Only graded interactions consume a number.
+    case 'interactive_graph': {
+      // pageLabel returns 'none' for a display (static) graph and for an
+      // author-suppressed one, so only a numbered label pulls a slot — folding
+      // the old display special-case into the shared rule.
+      const label = pageLabel(block);
       return renderInteractiveGraph(block, {
-        problemNumber:
-          block.interaction.type === 'display' ? 0 : ctx.nextProblemNumber(),
+        label,
+        problemNumber: label.kind === 'number' ? ctx.nextProblemNumber() : 0,
         graphKitUrl: ctx.graphKitUrl,
         showAnswers: ctx.showAnswers,
       });
-    case 'multiple_choice':
+    }
+    case 'multiple_choice': {
+      const label = pageLabel(block);
       return renderMultipleChoice(block, {
-        problemNumber: ctx.nextProblemNumber(),
+        label,
+        problemNumber: label.kind === 'number' ? ctx.nextProblemNumber() : 0,
         showAnswers: ctx.showAnswers,
       });
-    case 'matching':
+    }
+    case 'matching': {
+      const label = pageLabel(block);
       return renderMatching(block, {
-        problemNumber: ctx.nextProblemNumber(),
+        label,
+        problemNumber: label.kind === 'number' ? ctx.nextProblemNumber() : 0,
         showAnswers: ctx.showAnswers,
       });
-    case 'ordering':
+    }
+    case 'ordering': {
+      const label = pageLabel(block);
       return renderOrdering(block, {
-        problemNumber: ctx.nextProblemNumber(),
+        label,
+        problemNumber: label.kind === 'number' ? ctx.nextProblemNumber() : 0,
         showAnswers: ctx.showAnswers,
       });
-    case 'number_line':
+    }
+    case 'number_line': {
+      const label = pageLabel(block);
       return renderNumberLine(block, {
-        problemNumber: ctx.nextProblemNumber(),
+        label,
+        problemNumber: label.kind === 'number' ? ctx.nextProblemNumber() : 0,
         graphKitUrl: ctx.graphKitUrl,
         showAnswers: ctx.showAnswers,
       });
-    case 'data_plot':
-      // A display (static) data plot is ungraded content — it doesn't pull from
-      // the problem sequence. Only a graded build interaction consumes a number.
+    }
+    case 'data_plot': {
+      // Same fold as interactive_graph: a display data plot resolves to a 'none'
+      // label, so it pulls no number without a bespoke branch here.
+      const label = pageLabel(block);
       return renderDataPlot(block, {
-        problemNumber:
-          block.interaction.type === 'display' ? 0 : ctx.nextProblemNumber(),
+        label,
+        problemNumber: label.kind === 'number' ? ctx.nextProblemNumber() : 0,
         graphKitUrl: ctx.graphKitUrl,
         showAnswers: ctx.showAnswers,
       });
+    }
     case 'learning_objectives':
       return renderLearningObjectives(block);
     case 'worked_example':

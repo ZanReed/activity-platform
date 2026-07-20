@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
+import { labelFields } from '../label.js';
 import { ChoiceImage, ChoiceGraph } from './multiple-choice.js';
 
 // Matching question block. Two columns: left "items" (stems, document order)
@@ -55,6 +56,7 @@ export const MatchingBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('matching'),
   number: z.number().int().positive().optional(),
+  ...labelFields,
   // The question prose (rich inline content, like a problem statement).
   prompt: z.array(InlineNode),
   // Left column, document order.

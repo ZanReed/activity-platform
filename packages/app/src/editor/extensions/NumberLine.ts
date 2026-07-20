@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
+import { labelNodeAttr } from '../labelNodeAttr';
 import { createNumberLineBlock } from '@activity/schema';
 import NumberLineView from '../nodeViews/NumberLineView';
 import type { InlineNodes } from '../../lib/serialize';
@@ -88,6 +89,7 @@ export const NumberLine = Node.create({
 
     addAttributes() {
         return {
+            ...labelNodeAttr,
             id: {
                 default: '',
                 parseHTML: (el) => el.getAttribute('data-block-id') ?? '',

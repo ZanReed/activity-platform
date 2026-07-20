@@ -25,6 +25,7 @@ import { usePreviewToggle } from '../components/usePreviewToggle';
 import FormulaField from '../components/FormulaField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
+import { labelPrefix } from './problemNumberGutter';
 import { formatCurveDomain } from '../../lib/graphDomain';
 import { useEffectiveTheme } from '../../lib/theme';
 import { routeCurveFormula } from './boundedCurveLogic';
@@ -973,7 +974,14 @@ export default function InteractiveGraphView({
             <div contentEditable={false} style={{ userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
                     <strong style={{ fontSize: '0.85rem', color: 'var(--ed-text-strong)' }}>
-                        {isDisplay ? 'Static graph' : `${problemNumber}. Interactive graph`}
+                        {isDisplay
+                            ? 'Static graph'
+                            : `${labelPrefix(
+                                  node.attrs.label as
+                                      | { mode?: string; text?: string }
+                                      | null,
+                                  problemNumber,
+                              )}Interactive graph`}
                     </strong>
                     {!preview && (
                         <label style={{ fontSize: '0.8rem', color: 'var(--ed-text-secondary)' }}>

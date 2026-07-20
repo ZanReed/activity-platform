@@ -17,6 +17,7 @@ import {
 import type { InlineNodes } from '../../lib/serialize';
 import { useEffectiveTheme } from '../../lib/theme';
 import { problemNumberAt } from '../problemNumbering';
+import { labelPrefix } from './problemNumberGutter';
 import {
     defaultNumberLinePointInteraction,
     defaultNumberLineIntervalInteraction,
@@ -247,7 +248,13 @@ export default function NumberLineView({
             <div contentEditable={false} style={{ userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
                     <strong style={{ fontSize: '0.85rem', color: 'var(--ed-text-strong)' }}>
-                        {problemNumber}. Number line
+                        {labelPrefix(
+                            node.attrs.label as
+                                | { mode?: string; text?: string }
+                                | null,
+                            problemNumber,
+                        )}
+                        Number line
                     </strong>
                     {!preview && (
                         <label style={labelStyle}>

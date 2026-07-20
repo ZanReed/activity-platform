@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
+import { labelFields } from '../label.js';
 import { EndpointStyle } from './interactive-graph.js';
 import { sizingFields } from '../sizing.js';
 
@@ -104,6 +105,7 @@ export const NumberLineBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('number_line'),
   number: z.number().int().positive().optional(),
+  ...labelFields,
   prompt: z.array(InlineNode),
   config: NumberLineConfig,
   interaction: NumberLineInteraction,

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
+import { labelFields } from '../label.js';
 import { AxisConfig, Drawable } from './interactive-graph.js';
 
 // Multiple-choice question block. One prompt, 2+ choices, radio (single) or
@@ -68,6 +69,7 @@ export const MultipleChoiceBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('multiple_choice'),
   number: z.number().int().positive().optional(),
+  ...labelFields,
   // The question prose (rich inline content, like a problem statement).
   prompt: z.array(InlineNode),
   choices: z.array(MultipleChoiceOption).min(2),

@@ -1,11 +1,13 @@
-import type { NumberLineBlock } from '@activity/schema';
+import type { NumberLineBlock, PageLabel } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
-import { attr, escape } from '../html.js';
+import { attr } from '../html.js';
+import { renderNumberGutter } from './number-gutter.js';
 import { renderNumberLineSvg, answerKeyMarks } from '../number-line-svg.js';
 import { sizingClass, sizingAttrs } from './sizing.js';
 
 export interface NumberLineRenderContext {
   problemNumber: number;
+  label?: PageLabel;
   /**
    * Absolute URL of the shared, content-hashed graph kit on R2 — the SAME kit
    * the calculator and interactive_graph use (number lines ride it too). When
@@ -142,7 +144,7 @@ export function renderNumberLine(
     skillsAttr +
     sizingAttrs(block) +
     '>' +
-    '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
+    renderNumberGutter(ctx.label, num) +
     '<div class="block-problem-body">' +
     '<div class="number-line-prompt">' + promptHtml + '</div>' +
     canvas +

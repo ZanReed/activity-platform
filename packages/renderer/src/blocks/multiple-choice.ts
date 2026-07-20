@@ -1,10 +1,12 @@
-import type { MultipleChoiceBlock, MultipleChoiceOption } from '@activity/schema';
+import type { MultipleChoiceBlock, MultipleChoiceOption, PageLabel } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
-import { attr, escape } from '../html.js';
+import { attr } from '../html.js';
+import { renderNumberGutter } from './number-gutter.js';
 import { renderGraphSvg } from '../graph-svg.js';
 
 export interface MultipleChoiceRenderContext {
   problemNumber: number;
+  label?: PageLabel;
   /** Answer-key print variant: pre-check the correct choice(s) (Drop C). */
   showAnswers?: boolean;
 }
@@ -193,7 +195,7 @@ export function renderMultipleChoice(
     skillsAttr +
     workSpaceStyle +
     '>' +
-    '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
+    renderNumberGutter(ctx.label, num) +
     '<div class="block-problem-body">' +
     '<div class="mc-prompt">' + renderInlineNodes(block.prompt) + '</div>' +
     multiHint +

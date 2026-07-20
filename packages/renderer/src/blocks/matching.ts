@@ -1,11 +1,13 @@
-import type { MatchingBlock, MatchingItem, MatchingTarget } from '@activity/schema';
+import type { MatchingBlock, MatchingItem, MatchingTarget, PageLabel } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
+import { renderNumberGutter } from './number-gutter.js';
 import { renderGraphSvg } from '../graph-svg.js';
 import { seededShuffle } from './shuffle.js';
 
 export interface MatchingRenderContext {
   problemNumber: number;
+  label?: PageLabel;
   /** Answer-key print variant: fill each item's letter line (Drop C parity). */
   showAnswers?: boolean;
 }
@@ -197,7 +199,7 @@ export function renderMatching(
     skillsAttr +
     workSpaceStyle +
     '>' +
-    '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
+    renderNumberGutter(ctx.label, num) +
     '<div class="block-problem-body">' +
     '<div class="match-prompt">' + renderInlineNodes(block.prompt) + '</div>' +
     reuseHint +

@@ -1,11 +1,13 @@
-import type { InteractiveGraphBlock } from '@activity/schema';
+import type { InteractiveGraphBlock, PageLabel } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
-import { attr, escape } from '../html.js';
+import { attr } from '../html.js';
+import { renderNumberGutter } from './number-gutter.js';
 import { renderGraphSvg, answerKeyDrawables } from '../graph-svg.js';
 import { sizingClass, sizingAttrs } from './sizing.js';
 
 export interface InteractiveGraphRenderContext {
   problemNumber: number;
+  label?: PageLabel;
   /**
    * Absolute URL of the shared, content-hashed graph kit on R2 (the SAME kit
    * the calculator uses). When absent (dev without R2, or the print path), the
@@ -201,7 +203,7 @@ export function renderInteractiveGraph(
     skillsAttr +
     sizingAttrs(block) +
     '>' +
-    '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
+    renderNumberGutter(ctx.label, num) +
     '<div class="block-problem-body">' +
     '<div class="graph-prompt">' + promptHtml + '</div>' +
     canvas +

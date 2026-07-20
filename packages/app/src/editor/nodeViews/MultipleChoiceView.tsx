@@ -22,6 +22,7 @@ import type { InlineNodes } from '../../lib/serialize';
 import type { EditorMcChoice } from '../extensions/MultipleChoice';
 import type { GraphAxisConfig } from '../extensions/InteractiveGraph';
 import { problemNumberAt } from '../problemNumbering';
+import { ProblemNumberGutter } from './problemNumberGutter';
 
 // ============================================================================
 // MultipleChoiceView — NodeView for the multiple_choice block.
@@ -435,9 +436,10 @@ export default function MultipleChoiceView({
             className={`mc-block${selected ? ' is-selected' : ''}`}
             data-block-id={node.attrs.id ?? ''}
         >
-            <div className="mc-block__number" contentEditable={false}>
-                {problemNumber}.
-            </div>
+            <ProblemNumberGutter
+                label={node.attrs.label as { mode?: string; text?: string } | null}
+                problemNumber={problemNumber}
+            />
             <div className="mc-block__body">
                 <PromptField
                     node={node}

@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
+import { labelNodeAttr } from '../labelNodeAttr';
 import { createInteractiveGraphBlock } from '@activity/schema';
 import InteractiveGraphView from '../nodeViews/InteractiveGraphView';
 import type { InlineNodes } from '../../lib/serialize';
@@ -281,6 +282,7 @@ export const InteractiveGraph = Node.create({
 
     addAttributes() {
         return {
+            ...labelNodeAttr,
             id: {
                 default: '',
                 parseHTML: (el) => el.getAttribute('data-block-id') ?? '',

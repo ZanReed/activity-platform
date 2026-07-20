@@ -11,6 +11,7 @@ import { Image as ImageIcon, ImagePlus, X } from 'lucide-react';
 import { ChoiceFigureEditor, ChoiceFigureThumbnail } from './MultipleChoiceView';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt } from '../problemNumbering';
+import { ProblemNumberGutter } from './problemNumberGutter';
 
 // ============================================================================
 // MatchingView — NodeView for the matching block.
@@ -217,9 +218,10 @@ export default function MatchingView({
             className={`mc-block match-block${selected ? ' is-selected' : ''}`}
             data-block-id={node.attrs.id ?? ''}
         >
-            <div className="mc-block__number" contentEditable={false}>
-                {problemNumber}.
-            </div>
+            <ProblemNumberGutter
+                label={node.attrs.label as { mode?: string; text?: string } | null}
+                problemNumber={problemNumber}
+            />
             <div className="mc-block__body">
                 <PromptField
                     node={node}

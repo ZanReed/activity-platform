@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
+import { labelFields } from '../label.js';
 import { NumberLineConfig } from './number-line.js';
 import { sizingFields } from '../sizing.js';
 
@@ -138,6 +139,7 @@ export const DataPlotBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('data_plot'),
   number: z.number().int().positive().optional(),
+  ...labelFields,
   prompt: z.array(InlineNode),
   // The dataset. Single source of truth: the chart is drawn from it and, in
   // build mode, the correct answer is derived from it. Non-empty.

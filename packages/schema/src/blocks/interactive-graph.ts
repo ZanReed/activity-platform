@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
+import { labelFields } from '../label.js';
 import { sizingFields } from '../sizing.js';
 
 // The interactive graph block (Phase 2.7, Stage 5). Unlike every other block,
@@ -384,6 +385,7 @@ export const InteractiveGraphBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('interactive_graph'),
   number: z.number().int().positive().optional(),
+  ...labelFields,
   prompt: z.array(InlineNode),
   axisConfig: AxisConfig,
   interaction: GraphInteraction,

@@ -249,11 +249,12 @@ const questionAdvanced: AdvancedGroup[] = [
     },
 ];
 
-// --- Numbering (fill_in_blank only, this slice) ----------------------------
+// --- Numbering (every numbered question block) -----------------------------
 // Decouples "is this graded?" from "does it wear a problem number?". Auto = a
 // numbered problem (default). Custom = authored text, out of the number
 // sequence. None = no number (the notes keyword-blank case) — still graded and
-// still in the teacher's results view. See label.ts / block-predicates.ts.
+// still in the teacher's results view. Block-type-agnostic (reads/writes the
+// shared `label` node attr). See label.ts / block-predicates.ts.
 
 function labelModeOf(node: PMNode): string {
     const label = node.attrs.label as { mode?: string } | null | undefined;
@@ -316,7 +317,9 @@ const numberingGroup: AdvancedGroup = {
     ],
 };
 
-const fillInBlankAdvanced: AdvancedGroup[] = [
+// Prompt-style question blocks (mc/matching/ordering/fill_in_blank) get the
+// shared question settings plus Numbering appended.
+const questionAdvancedWithNumbering: AdvancedGroup[] = [
     ...questionAdvanced,
     numberingGroup,
 ];
@@ -507,14 +510,14 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     multipleChoice: {
         primary: [],
         simple: [multiSelectField],
-        advanced: questionAdvanced,
+        advanced: questionAdvancedWithNumbering,
     },
     matching: {
         primary: [],
         simple: [allowTargetReuseField],
-        advanced: questionAdvanced,
+        advanced: questionAdvancedWithNumbering,
     },
-    ordering: { primary: [], advanced: questionAdvanced },
+    ordering: { primary: [], advanced: questionAdvancedWithNumbering },
     // interactive_graph settings are interaction-dependent (per-type tolerance
     // rows, display is axis-only) → one custom drawer field (GraphSettings).
     interactiveGraph: {
@@ -526,6 +529,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                     { kind: 'custom', label: 'Graph settings', render: renderGraphSettings },
                 ],
             },
+            numberingGroup,
         ],
     },
     // number_line settings (line window + tolerance + snap + solution +
@@ -540,6 +544,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                     { kind: 'custom', label: 'Number line settings', render: renderNumberLineSettings },
                 ],
             },
+            numberingGroup,
         ],
     },
     // data_plot settings are interaction-dependent (bin width / tolerance /
@@ -553,6 +558,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                     { kind: 'custom', label: 'Chart', render: renderDataPlotSettings },
                 ],
             },
+            numberingGroup,
         ],
     },
 
@@ -563,7 +569,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     // gesture); Replace opens the source popover via a transaction meta.
     // Alt / Caption / Reset crop live in the Advanced drawer (image-crop.md's
     // "caption/alt → drawer" decomposition).
-    fillInBlank: { primary: [], advanced: fillInBlankAdvanced },
+    fillInBlank: { primary: [], advanced: questionAdvancedWithNumbering },
     image: {
         primary: [
             {

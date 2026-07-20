@@ -37,6 +37,7 @@ import type {
     ReferencePanel,
     CalculatorTool,
     Block,
+    BlockLabel,
     InlineNode,
     FillInBlankInline,
     BlankToken,
@@ -292,7 +293,60 @@ function sectionFromBreak(node: JSONContent): Section {
     return section;
 }
 
+// The numbered/gradeable block types that carry a per-block `label` (numbering/
+// label decouple). Both serialize directions attach/read the label centrally for
+// exactly these, so a new block type opts in by joining this set once.
+const LABELED_BLOCK_TYPES: ReadonlySet<string> = new Set([
+    'fill_in_blank',
+    'multiple_choice',
+    'matching',
+    'ordering',
+    'number_line',
+    'interactive_graph',
+    'data_plot',
+]);
+
+// Read a node's `label` attr into a schema BlockLabel, applying the same
+// omit-when-default discipline as the block's other optional fields: auto (or an
+// empty custom text) → undefined, so absent === auto and round-trip equality
+// holds for the common numbered case.
+function readLabelAttr(node: JSONContent): BlockLabel | undefined {
+    const raw = node.attrs?.label as
+        | { mode?: unknown; text?: unknown }
+        | null
+        | undefined;
+    if (!raw || typeof raw.mode !== 'string') return undefined;
+    if (raw.mode === 'none') return { mode: 'none' };
+    if (raw.mode === 'custom') {
+        const text = typeof raw.text === 'string' ? raw.text.trim() : '';
+        if (text.length > 0) return { mode: 'custom', text };
+    }
+    return undefined; // auto / empty → omit
+}
+
+// Post-process: attach the label from the Tiptap node onto the parsed block, for
+// labeled block types only (a paragraph has no label attr, so this is a no-op).
+function applyLabelFromNode(block: Block, node: JSONContent): void {
+    if (!LABELED_BLOCK_TYPES.has(block.type)) return;
+    const label = readLabelAttr(node);
+    if (label) (block as { label?: BlockLabel }).label = label;
+}
+
+// Post-process: write the block's label onto the Tiptap node's attrs, for labeled
+// types only (null = auto, matching each node's default attr shape).
+function applyLabelToNode(block: Block, node: JSONContent): void {
+    if (!LABELED_BLOCK_TYPES.has(block.type)) return;
+    if (!node.attrs) node.attrs = {};
+    node.attrs.label = (block as { label?: BlockLabel }).label ?? null;
+}
+
 function tiptapBlockToActivity(node: JSONContent): Block | null {
+    const block = tiptapBlockToActivityRaw(node);
+    if (block) applyLabelFromNode(block, node);
+    return block;
+}
+
+function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
     switch (node.type) {
         case 'paragraph':
             return {
@@ -657,25 +711,8 @@ function tiptapFillInBlankToActivity(node: JSONContent): FillInBlankBlock {
         block.workSpace = rawWorkSpace;
     }
 
-    // Per-block display label (numbering/label decouple). Absent / auto is the
-    // default, so only carry a meaningful mode — this keeps round-trip equality
-    // for the common numbered case. An empty custom text is dropped to auto
-    // (the schema requires min-1 text; an empty label is meaningless).
-    const rawLabel = node.attrs?.label as
-        | { mode?: unknown; text?: unknown }
-        | null
-        | undefined;
-    if (rawLabel && typeof rawLabel.mode === 'string') {
-        if (rawLabel.mode === 'none') {
-            block.label = { mode: 'none' };
-        } else if (rawLabel.mode === 'custom') {
-            const text =
-                typeof rawLabel.text === 'string' ? rawLabel.text.trim() : '';
-            if (text.length > 0) block.label = { mode: 'custom', text };
-        }
-        // mode 'auto' (or anything else) → omit, so absent === auto.
-    }
-
+    // The per-block `label` is attached centrally by applyLabelFromNode (the
+    // dispatcher wrapper), shared by every labeled block type.
     return block;
 }
 
@@ -1261,6 +1298,12 @@ function sectionBreakNode(section: Section): JSONContent {
 }
 
 function activityBlockToTiptap(block: Block): JSONContent | null {
+    const node = activityBlockToTiptapRaw(block);
+    if (node) applyLabelToNode(block, node);
+    return node;
+}
+
+function activityBlockToTiptapRaw(block: Block): JSONContent | null {
     switch (block.type) {
         case 'paragraph':
             return {
@@ -1531,8 +1574,7 @@ function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
             workSpace: block.workSpace ?? null,
-            // Absent label = auto; the NodeView + problemNumberAt treat null as auto.
-            label: block.label ?? null,
+            // `label` is attached centrally by applyLabelToNode (dispatcher wrapper).
         },
         content: activityFillInBlankInlineToTiptap(block.content),
     };

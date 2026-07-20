@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
+import { labelFields } from '../label.js';
 
 // Ordering / sequencing question block. The AUTHORED order of `items` IS the
 // correct order; students see the list shuffled at publish time and drag it
@@ -30,6 +31,7 @@ export const OrderingBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('ordering'),
   number: z.number().int().positive().optional(),
+  ...labelFields,
   // The question prose (rich inline content, like a problem statement).
   prompt: z.array(InlineNode),
   // Authored order = correct order. The renderer shuffles deterministically

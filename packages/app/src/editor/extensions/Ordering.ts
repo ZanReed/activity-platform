@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
+import { labelNodeAttr } from '../labelNodeAttr';
 import OrderingView from '../nodeViews/OrderingView';
 
 // ============================================================================
@@ -48,6 +49,7 @@ export const Ordering = Node.create({
 
     addAttributes() {
         return {
+            ...labelNodeAttr,
             id: {
                 default: '',
                 parseHTML: (element) => element.getAttribute('data-block-id') ?? '',

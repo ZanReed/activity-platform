@@ -6,6 +6,7 @@ import { usePreviewToggle } from '../components/usePreviewToggle';
 import PromptField from '../components/PromptField';
 import type { InlineNodes } from '../../lib/serialize';
 import { problemNumberAt } from '../problemNumbering';
+import { labelPrefix } from './problemNumberGutter';
 import { figureSizingStyle, readSizingAttrs } from '../figureSizingStyle';
 import {
     defaultDataPlotBuildInteraction,
@@ -148,7 +149,15 @@ export default function DataPlotView({
             <div contentEditable={false} style={{ userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: '0.85rem', color: 'var(--ed-text-strong)' }}>
-                        {isGraded ? `${problemNumber}. ` : ''}Data plot
+                        {isGraded
+                            ? labelPrefix(
+                                  node.attrs.label as
+                                      | { mode?: string; text?: string }
+                                      | null,
+                                  problemNumber,
+                              )
+                            : ''}
+                        Data plot
                     </strong>
                     {!preview && (
                         <label style={labelStyle}>

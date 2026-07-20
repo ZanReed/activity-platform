@@ -1,6 +1,7 @@
 import type { FillInBlankBlock, PageLabel } from '@activity/schema';
 import { renderFillInBlankContent, renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
+import { renderNumberGutter } from './number-gutter.js';
 
 export interface FillInBlankRenderContext {
   problemNumber: number;
@@ -162,23 +163,9 @@ export function renderFillInBlank(
   '</div>'
   : '';
 
-  // Number gutter. A faded step never has one (the box supplies the number).
-  // Otherwise the per-block label decides: `number` → the sequence number (or
-  // the manual `number` override), `custom` → authored text out-of-sequence,
-  // `none` → nothing (the notes keyword-blank case). Absent label = number.
-  const label = ctx.label ?? { kind: 'number' as const };
-  let numberCell: string;
-  if (ctx.fadedStep || label.kind === 'none') {
-    numberCell = '';
-  } else if (label.kind === 'custom') {
-    numberCell =
-      '<div class="block-problem-number block-problem-number--custom">' +
-      escape(label.text) +
-      '</div>';
-  } else {
-    numberCell =
-      '<div class="block-problem-number">' + escape(String(num)) + '.</div>';
-  }
+  // Number gutter. A faded step never has one (the box supplies the number);
+  // otherwise the shared helper applies the per-block label (number/custom/none).
+  const numberCell = ctx.fadedStep ? '' : renderNumberGutter(ctx.label, num);
   const stepLabelHtml =
     ctx.fadedStep && ctx.stepLabel
       ? '<span class="block-faded-step__label">' +

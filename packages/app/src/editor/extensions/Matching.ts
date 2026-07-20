@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
+import { labelNodeAttr } from '../labelNodeAttr';
 import MatchingView from '../nodeViews/MatchingView';
 import type { GraphAxisConfig, DrawableAttr } from './InteractiveGraph';
 
@@ -83,6 +84,7 @@ export const Matching = Node.create({
 
     addAttributes() {
         return {
+            ...labelNodeAttr,
             id: {
                 default: '',
                 parseHTML: (element) => element.getAttribute('data-block-id') ?? '',

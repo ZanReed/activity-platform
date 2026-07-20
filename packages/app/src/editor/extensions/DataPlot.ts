@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
+import { labelNodeAttr } from '../labelNodeAttr';
 import { createDataPlotBlock } from '@activity/schema';
 import DataPlotView from '../nodeViews/DataPlotView';
 import type { InlineNodes } from '../../lib/serialize';
@@ -90,6 +91,7 @@ export const DataPlot = Node.create({
 
     addAttributes() {
         return {
+            ...labelNodeAttr,
             id: {
                 default: '',
                 parseHTML: (el) => el.getAttribute('data-block-id') ?? '',

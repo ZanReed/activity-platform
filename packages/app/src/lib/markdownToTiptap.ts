@@ -1680,6 +1680,9 @@ function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
             solution,
             hasConfidenceRating,
             skills: [],
+            // Imported blocks are numbered by default; null = auto, matching
+            // activityToTiptap's attr shape so the import round-trip stays stable.
+            label: null,
         },
         content: graphPromptContent(prompt, ctx),
     };
@@ -1816,6 +1819,9 @@ function parseNumberLineFence(src: string, ctx: Ctx): JSONContent | null {
             solution,
             hasConfidenceRating,
             skills: [],
+            // Imported blocks are numbered by default; null = auto, matching
+            // activityToTiptap's attr shape so the import round-trip stays stable.
+            label: null,
         },
         content: graphPromptContent(prompt, ctx),
     };
@@ -2005,6 +2011,9 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
             mistakeFeedback: mistakes,
             hasConfidenceRating: false,
             skills: [],
+            // Imported blocks are numbered by default; null = auto, matching
+            // activityToTiptap's attr shape so the import round-trip stays stable.
+            label: null,
         },
         content: graphPromptContent(prompt, ctx),
     };

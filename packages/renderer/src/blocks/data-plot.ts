@@ -1,11 +1,13 @@
-import type { DataPlotBlock } from '@activity/schema';
+import type { DataPlotBlock, PageLabel } from '@activity/schema';
 import { renderInlineNodes } from '../inline.js';
 import { attr, escape } from '../html.js';
+import { renderNumberGutter } from './number-gutter.js';
 import { renderDataPlotSvg } from '../data-plot-svg.js';
 import { sizingClass, sizingAttrs } from './sizing.js';
 
 export interface DataPlotRenderContext {
   problemNumber: number;
+  label?: PageLabel;
   /**
    * Absolute URL of the shared, content-hashed graph kit on R2 — the SAME kit
    * the calculator / interactive_graph / number_line use (data plots ride it
@@ -239,7 +241,7 @@ function renderBuildDataPlot(
     skillsAttr +
     sizingAttrs(block) +
     '>' +
-    '<div class="block-problem-number">' + escape(String(num)) + '.</div>' +
+    renderNumberGutter(ctx.label, num) +
     '<div class="block-problem-body">' +
     '<div class="data-plot-prompt">' + promptHtml + '</div>' +
     dataList +

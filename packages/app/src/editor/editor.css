@@ -1750,6 +1750,17 @@
     padding-top: 0.1rem;
     user-select: none;
 }
+/* Numbering/label decouple: custom label (authored text) reads as a tag; none
+ * (unnumbered on the page) shows a faint dash so the author sees it's a
+ * deliberate, still-graded unnumbered block. Mirrors fill-in-blank-block__number. */
+.mc-block__number--custom {
+    font-style: italic;
+    font-weight: 500;
+}
+.mc-block__number--none {
+    font-weight: 400;
+    opacity: 0.4;
+}
 .mc-block__prompt p {
     margin: 0.25rem 0;
 }
