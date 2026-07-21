@@ -372,6 +372,30 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'mc choice graph figure',
+        fragment: '(x) graph: line y = 2x',
+        md: '```mc\nprompt: Which shows y = 2x?\n(x) graph: line y = 2x\n( ) 3\n```',
+        check: (b) => {
+            const mc = b.find((n) => n.type === 'multipleChoice')!;
+            const choices = mc.attrs!.choices as Array<{
+                graph?: { drawables: Array<{ kind: string }> };
+            }>;
+            expect(choices[0]!.graph?.drawables[0]!.kind).toBe('curve');
+        },
+    },
+    {
+        name: 'matching side graph figure',
+        fragment: 'graph: line y = 2x -> slope 2',
+        md: '```match\nprompt: Match.\ngraph: line y = 2x -> slope 2\ngraph: line y = -x -> slope -1\n```',
+        check: (b) => {
+            const match = b.find((n) => n.type === 'matching')!;
+            const items = match.attrs!.items as Array<{
+                graph?: { drawables: Array<{ kind: string }> };
+            }>;
+            expect(items[0]!.graph?.drawables[0]!.kind).toBe('curve');
+        },
+    },
+    {
         name: 'matching fence with last-equals split and a distractor',
         fragment: 'y = 2x = 2',
         md: '```match\nprompt: Match each equation to its slope.\ny = 2x = 2\ny = -x = -1\n= 0\n```',

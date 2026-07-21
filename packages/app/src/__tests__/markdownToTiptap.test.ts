@@ -1497,6 +1497,66 @@ describe('```graph fence (Drop 7)', () => {
     });
 });
 
+describe('graph figures on choices (mc / matching)', () => {
+    it('an mc choice `graph: line …` becomes a ChoiceGraph figure (graph is the choice)', () => {
+        const md =
+            '```mc\nprompt: Which shows y = 2x?\n(x) graph: line y = 2x\n( ) graph: line y = -2x\n```';
+        const mc = convert(md).blocks.find((b) => b.type === 'multipleChoice')!;
+        const choices = mc.attrs!.choices as Array<{
+            correct: boolean;
+            content: unknown[];
+            graph?: { drawables: Array<{ kind: string }> };
+        }>;
+        expect(choices).toHaveLength(2);
+        expect(choices[0]!.correct).toBe(true);
+        expect(choices[0]!.graph?.drawables[0]!.kind).toBe('curve');
+        expect(choices[0]!.content).toEqual([]);
+    });
+
+    it('an "expression" graph figure is rejected with a warning (kit-free render can’t sample it)', () => {
+        const { blocks, warnings } = convert(
+            '```mc\nprompt: p\n(x) graph: expression sin(x)\n( ) 2\n```',
+        );
+        // The expression figure is rejected, leaving the choice with no content,
+        // so the whole block falls back to plain text (both warnings surfaced).
+        expect(blocks.some((b) => b.type === 'multipleChoice')).toBe(false);
+        expect(warnings.some((w) => w.includes('expression'))).toBe(true);
+    });
+
+    it('a matching side `graph: … -> option` becomes a side graph figure', () => {
+        const md =
+            '```match\nprompt: Match.\ngraph: line y = 2x -> slope 2\ngraph: line y = -x -> slope -1\n```';
+        const match = convert(md).blocks.find((b) => b.type === 'matching')!;
+        const items = match.attrs!.items as Array<{
+            content: unknown[];
+            graph?: { drawables: Array<{ kind: string }> };
+        }>;
+        expect(items).toHaveLength(2);
+        expect(items[0]!.graph?.drawables[0]!.kind).toBe('curve');
+        expect(items[0]!.content).toEqual([]);
+    });
+
+    it('an mc choice graph survives the schema round-trip', () => {
+        const md =
+            '```mc\nprompt: Which shows y = 2x?\n(x) graph: line y = 2x\n( ) 3\n```';
+        const activity = tiptapToActivity(
+            { type: 'doc', content: convert(md).blocks },
+            META,
+        );
+        const mc = activity.sections
+            .flatMap((s) => s.rows)
+            .flatMap((r) => r.columns)
+            .flatMap((c) => c.blocks)
+            .find(
+                (b): b is Extract<typeof b, { type: 'multiple_choice' }> =>
+                    b.type === 'multiple_choice',
+            )!;
+        const graphChoice = mc.choices.find((c) => c.graph !== undefined)!;
+        expect(graphChoice.graph!.drawables[0]).toMatchObject({ kind: 'curve' });
+        expect(graphChoice.graph!.axis.xMin).toBe(-10);
+    });
+});
+
 describe('inline definitions [[term :: definition]]', () => {
     const termNode = (md: string, term: string): JSONContent =>
         convert(md)

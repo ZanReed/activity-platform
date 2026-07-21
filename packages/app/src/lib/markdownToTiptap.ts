@@ -986,6 +986,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
         correct: boolean;
         feedback?: InlineNode[];
         image?: { src: string; alt: string };
+        graph?: { axis: typeof DEFAULT_CHOICE_AXIS; drawables: Record<string, unknown>[] };
     }[] = [];
 
     for (const rawLine of src.split('\n')) {
@@ -1006,33 +1007,52 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
                     feedback = schemaInlineContent(feedbackText, ctx);
                 }
             }
-            // Optional per-choice image: markdown ![alt](url) anywhere in the
-            // choice text (feedback already split off above). Extracted into
-            // the option's figure slot; a choice may be image-only. An
-            // unparseable URL stays as literal text so the author notices.
+            // A `graph: <show-spec>` choice is a static graph FIGURE (ChoiceGraph)
+            // — "which graph shows …" — instead of text/image. Reuses the ```graph
+            // show: vocabulary; default axis; the graph IS the choice.
             let image: { src: string; alt: string } | undefined;
-            body = body
-                .replace(
-                    /!\[([^\]]*)\]\(([^)]+)\)/,
-                    (whole, alt: string, src: string) => {
-                        const url = src.trim();
-                        try {
-                            new URL(url);
-                        } catch {
-                            return whole;
-                        }
-                        image = { src: url, alt: alt.trim() };
-                        return '';
-                    },
-                )
-                .trim();
-            if (!body && !image) return fail('a choice line needs answer text');
+            let graph:
+                | { axis: typeof DEFAULT_CHOICE_AXIS; drawables: Record<string, unknown>[] }
+                | undefined;
+            const graphMatch = /^graph:\s*(.+)$/i.exec(body);
+            if (graphMatch) {
+                graph =
+                    parseChoiceGraph(
+                        graphMatch[1]!.trim(),
+                        ctx,
+                        'Multiple-choice block',
+                    ) ?? undefined;
+                body = '';
+            } else {
+                // Optional per-choice image: markdown ![alt](url) anywhere in the
+                // choice text (feedback already split off above). Extracted into
+                // the option's figure slot; a choice may be image-only. An
+                // unparseable URL stays as literal text so the author notices.
+                body = body
+                    .replace(
+                        /!\[([^\]]*)\]\(([^)]+)\)/,
+                        (whole, alt: string, src: string) => {
+                            const url = src.trim();
+                            try {
+                                new URL(url);
+                            } catch {
+                                return whole;
+                            }
+                            image = { src: url, alt: alt.trim() };
+                            return '';
+                        },
+                    )
+                    .trim();
+            }
+            if (!body && !image && !graph)
+                return fail('a choice line needs answer text');
             choices.push({
                 id: crypto.randomUUID(),
                 content: schemaInlineContent(body, ctx),
                 correct,
                 ...(feedback ? { feedback } : {}),
                 ...(image ? { image } : {}),
+                ...(graph ? { graph } : {}),
             });
             continue;
         }
@@ -1137,13 +1157,28 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
         id: string;
         content: InlineNode[];
         image?: { src: string; alt: string };
+        graph?: { axis: typeof DEFAULT_CHOICE_AXIS; drawables: Record<string, unknown>[] };
     };
     const items: Side[] = [];
     const targets: Side[] = [];
     const key: Record<string, string> = {};
 
     const buildSide = (raw: string): Side | null => {
-        const { text, image } = extractSideImage(raw.replace(/\\=/g, '='));
+        const cleaned = raw.replace(/\\=/g, '=');
+        // A `graph: <show-spec>` side is a static graph FIGURE (ChoiceGraph) —
+        // "match the graph to its equation". Because a graph formula contains `=`,
+        // prefer `->` as the pair separator on a graph line (y = 2x -> slope 2).
+        const graphMatch = /^\s*graph:\s*(.+)$/i.exec(cleaned);
+        if (graphMatch) {
+            const graph = parseChoiceGraph(
+                graphMatch[1]!.trim(),
+                ctx,
+                'Matching block',
+            );
+            if (graph) return { id: crypto.randomUUID(), content: [], graph };
+            // parseChoiceGraph warned; fall through and treat as plain text.
+        }
+        const { text, image } = extractSideImage(cleaned);
         if (!text && !image) return null;
         return {
             id: crypto.randomUUID(),
@@ -1968,6 +2003,142 @@ function parseNumberLineFence(src: string, ctx: Ctx): JSONContent | null {
 // parseNumberLineInterval lives in editor/numberLineFormula.ts (shared with the
 // number-line NodeView's formula authoring input), imported at the top.
 
+// Default coordinate window for a CHOICE graph figure (MC / matching), matching
+// the ```graph fence default. Choice figures have no axis-authoring syntax
+// (the editor tunes the window after import), so they all start here.
+const DEFAULT_CHOICE_AXIS = {
+    xMin: -10,
+    xMax: 10,
+    yMin: -10,
+    yMax: 10,
+    xGridStep: 1,
+    yGridStep: 1,
+    showGrid: true,
+    snapToGrid: true,
+};
+
+// Parse ONE `show:`-style drawable spec — shared by the ```graph fence's show:
+// lines and by MC / matching choice `graph:` figures. Returns the drawable or a
+// teacher-safe error message; the caller decides how to surface a failure (the
+// graph fence fails the whole block to plain text; a choice keeps the choice and
+// warns). `point (x,y) [open|closed] ["label"]`, `line|curve <equation>
+// [dashed]`, `expression <formula>`, `segment (a,b) (c,d)`,
+// `ray (a,b) (c,d) [open]`, `region (x,y), …`.
+type ShowResult =
+    | { ok: true; drawable: Record<string, unknown> }
+    | { ok: false; message: string };
+function parseShowDrawable(value: string): ShowResult {
+    const style = /\b(dashed|dotted)\b/i.test(value) ? 'dashed' : undefined;
+    const label = /"([^"]*)"/.exec(value)?.[1];
+    const endpoint = /\bopen\b/i.test(value)
+        ? 'open'
+        : /\bclosed\b/i.test(value)
+          ? 'closed'
+          : undefined;
+    const body = value
+        .replace(/\bdashed\b|\bdotted\b|\bopen\b|\bclosed\b|"[^"]*"/gi, '')
+        .trim();
+    const kindMatch =
+        /^(point|line|curve|expression|segment|ray|region)\s+(.+)$/i.exec(body);
+    if (!kindMatch) return { ok: false, message: `unrecognized show line "${value}"` };
+    const kind = (kindMatch[1] ?? '').toLowerCase();
+    const rest = (kindMatch[2] ?? '').trim();
+    if (kind === 'point') {
+        const p = parsePointList(rest);
+        if (!p || p.length !== 1) return { ok: false, message: 'show point needs one (x, y)' };
+        return {
+            ok: true,
+            drawable: {
+                kind: 'point',
+                at: p[0],
+                ...(label ? { label } : {}),
+                ...(endpoint ? { style: endpoint } : {}),
+            },
+        };
+    }
+    if (kind === 'segment' || kind === 'ray') {
+        const p = parsePointList(rest);
+        if (!p || p.length !== 2) return { ok: false, message: `show ${kind} needs two points` };
+        return {
+            ok: true,
+            drawable:
+                kind === 'segment'
+                    ? { kind, from: p[0], to: p[1] }
+                    : {
+                          kind,
+                          from: p[0],
+                          through: p[1],
+                          ...(endpoint ? { fromStyle: endpoint } : {}),
+                      },
+        };
+    }
+    if (kind === 'region') {
+        const v = parsePointList(rest);
+        if (!v || v.length < 3) return { ok: false, message: 'show region needs at least 3 vertices' };
+        return { ok: true, drawable: { kind: 'polygon', vertices: v, filled: true } };
+    }
+    if (kind === 'expression') {
+        return {
+            ok: true,
+            drawable: { kind: 'expression', expression: rest, ...(style ? { style } : {}) },
+        };
+    }
+    // line / curve: a freeform equation or inequality (pictured).
+    const parsed = parseGraphFormula(rest);
+    if (parsed.kind === 'function') {
+        return {
+            ok: true,
+            drawable: {
+                kind: 'curve',
+                model: parsed.model,
+                ...(style ? { style } : {}),
+                ...(parsed.domain ? { domain: toCurveDomain(parsed.domain) } : {}),
+            },
+        };
+    }
+    if (parsed.kind === 'inequality') {
+        return {
+            ok: true,
+            drawable: {
+                kind: 'curve',
+                model: parsed.boundary,
+                style: parsed.strict ? 'dashed' : (style ?? 'solid'),
+                shade: parsed.side,
+                ...(parsed.domain ? { domain: toCurveDomain(parsed.domain) } : {}),
+            },
+        };
+    }
+    // Anything else plots as a sampled expression.
+    return {
+        ok: true,
+        drawable: { kind: 'expression', expression: rest, ...(style ? { style } : {}) },
+    };
+}
+
+// Build a CHOICE `graph:` figure (MC choice / matching side) from a show-spec —
+// a ChoiceGraph { axis, drawables } with the default window and ONE drawable.
+// `expression` drawables are rejected: a ChoiceGraph renders kit-free (inline
+// SVG), which can't sample expressions (see multiple-choice.ts ChoiceGraph).
+// Returns null + a warning on any failure so the caller keeps the choice/side.
+function parseChoiceGraph(
+    spec: string,
+    ctx: Ctx,
+    label: string,
+): { axis: typeof DEFAULT_CHOICE_AXIS; drawables: Record<string, unknown>[] } | null {
+    const r = parseShowDrawable(spec);
+    if (!r.ok) {
+        ctx.warnings.add(`${label}: ${r.message} — the graph was skipped.`);
+        return null;
+    }
+    if (r.drawable.kind === 'expression') {
+        ctx.warnings.add(
+            `${label}: a graph figure can’t use “expression” (it needs the calculator) — skipped.`,
+        );
+        return null;
+    }
+    return { axis: DEFAULT_CHOICE_AXIS, drawables: [r.drawable] };
+}
+
 function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     const axis = { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true };
     let interaction: Record<string, unknown> | null = null;
@@ -2077,51 +2248,13 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                 break;
             }
             case 'show': {
-                // 'dotted' is an accepted synonym for 'dashed' — it's the word
-                // the student widget uses ("Dotted line"), so teachers reach for
-                // it. Both must ALSO be stripped from the body below: an
-                // unstripped style token poisons the formula parse and silently
-                // downgrades the drawable (losing style + shade).
-                const style = /\b(dashed|dotted)\b/i.test(value) ? 'dashed' : undefined;
-                const label = /"([^"]*)"/.exec(value)?.[1];
-                const endpoint = /\bopen\b/i.test(value) ? 'open' : /\bclosed\b/i.test(value) ? 'closed' : undefined;
-                const body = value.replace(/\bdashed\b|\bdotted\b|\bopen\b|\bclosed\b|"[^"]*"/gi, '').trim();
-                const kindMatch = /^(point|line|curve|expression|segment|ray|region)\s+(.+)$/i.exec(body);
-                if (!kindMatch) return fail(`unrecognized show line "${value}"`);
-                const kind = (kindMatch[1] ?? '').toLowerCase();
-                const rest = (kindMatch[2] ?? '').trim();
-                if (kind === 'point') {
-                    const pts = pointList(rest);
-                    if (!pts || pts.length !== 1) return fail('show point needs one (x, y)');
-                    drawables.push({ kind: 'point', at: pts[0], ...(label ? { label } : {}), ...(endpoint ? { style: endpoint } : {}) });
-                } else if (kind === 'segment' || kind === 'ray') {
-                    const pts = pointList(rest);
-                    if (!pts || pts.length !== 2) return fail(`show ${kind} needs two points`);
-                    if (kind === 'segment') drawables.push({ kind, from: pts[0], to: pts[1] });
-                    else drawables.push({ kind, from: pts[0], through: pts[1], ...(endpoint ? { fromStyle: endpoint } : {}) });
-                } else if (kind === 'region') {
-                    const verts = pointList(rest);
-                    if (!verts || verts.length < 3) return fail('show region needs at least 3 vertices');
-                    drawables.push({ kind: 'polygon', vertices: verts, filled: true });
-                } else if (kind === 'expression') {
-                    drawables.push({ kind: 'expression', expression: rest, ...(style ? { style } : {}) });
-                } else {
-                    // line / curve: freeform equation or inequality (pictured).
-                    const parsed = parseGraphFormula(rest);
-                    if (parsed.kind === 'function') {
-                        drawables.push({ kind: 'curve', model: parsed.model, ...(style ? { style } : {}), ...(parsed.domain ? { domain: toCurveDomain(parsed.domain) } : {}) });
-                    } else if (parsed.kind === 'inequality') {
-                        drawables.push({
-                            kind: 'curve', model: parsed.boundary,
-                            style: parsed.strict ? 'dashed' : (style ?? 'solid'),
-                            shade: parsed.side,
-                            ...(parsed.domain ? { domain: toCurveDomain(parsed.domain) } : {}),
-                        });
-                    } else {
-                        // Anything else plots as a sampled expression.
-                        drawables.push({ kind: 'expression', expression: rest, ...(style ? { style } : {}) });
-                    }
-                }
+                // 'dotted' is an accepted synonym for 'dashed'; style/endpoint/
+                // label parsing lives in the shared parseShowDrawable (also used
+                // by MC/matching choice `graph:` figures). Same failure behaviour:
+                // a bad show line fails the whole block to plain text.
+                const r = parseShowDrawable(value);
+                if (!r.ok) return fail(r.message);
+                drawables.push(r.drawable);
                 break;
             }
         }
