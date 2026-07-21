@@ -1,6 +1,6 @@
 # Manual grading + rubrics (Phase 2.6) — design
 
-**Status:** Slice 1 (short_answer + essay blocks) SHIPPED 2026-07-13. Slices 2–5 designed 2026-07-13 (all four forks author-decided); implementation in progress.
+**Status:** ✅ SHIPPED + DEPLOYED + live-verified 2026-07-13 (all slices 1–5). Migrations 0010+0011 applied; `get-feedback` (`verify_jwt:false`) + `publish-activity` deployed; in-document rubrics, `grades` table + RLS + direct upsert, teacher grading UI, and the student feedback sidecar are all live. ` ```shortanswer ` + ` ```essay ` import fences added same day. Only a human app-level round-trip smoke test remained (see STATE.md Status-by-area). (Slices 2–5 forks were author-decided 2026-07-13.)
 
 The arc that opens the platform to subjects whose assessments aren't auto-gradable. Slice 1 shipped the student half (free-text capture into the wire-v9 `freeResponses` map — see [RUNTIME.md](../../packages/renderer/RUNTIME.md) "Free-text blocks"). This doc designs the grading half.
 

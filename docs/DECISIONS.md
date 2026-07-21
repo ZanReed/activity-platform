@@ -20,7 +20,7 @@ For the hard rules distilled from these (standing constraints, things NOT to do)
 - **Permission helpers as SQL functions** so Phase 3+ collaboration changes one function, not eight policies.
 - **Submission identity always present** — Pattern B: name field on the page, gate submit until non-empty. CHECK constraint enforces at storage layer.
 - **Responses jsonb keyed by stable `blank.id`**, not array index.
-- **`schemaVersion: 1`** on `ActivityDocument` stays at 1 — Stage 9a additions are all optional-with-defaults, so existing stored documents parse cleanly. `SubmissionResponses.schemaVersion` is at 2 with migrate-on-read for v1.
+- **`schemaVersion: 1`** on `ActivityDocument` stays at 1 — Stage 9a additions are all optional-with-defaults, so existing stored documents parse cleanly. `SubmissionResponses.schemaVersion` was at 2 with migrate-on-read for v1 at the time of this decision; **it is now at 9** (ingest accepts 3–9; source of truth is `runtime/submission.ts` + `ingest-submission/index.ts`). The additive-with-migrate-forward pattern below still holds.
 - **`attempt_number` lives on the submissions table as a column**, derived server-side via the `ingest_submission` RPC (`max + 1` over the student's identity scope, with `unique_violation` retry against partial unique indexes added in 0005). The Edge Function returns the canonical value in its HTTP response so the runtime can reconcile its optimistic guess. Client value is advisory only.
 - **Runtime answer scoring is strategy-dispatched** — `evaluateAnswer(input, typed)` reads `data-blank-strategy`, defaulting to `'list'`.
 - **Math nodes are atoms** with `attrs.latex` as the source of truth. Serialize as `<span data-math-inline data-latex="...">` / `<div data-math-block data-latex="...">`.

@@ -3,9 +3,11 @@
 **Status:** 🟢 FUNCTIONALLY COMPLETE — SLICE 1 (T1–T6, structural) + SLICE 2 (T7 seam
 affordances, T8 import incl. the ` ```columns ``` ` Markdown fence) all SHIPPED to `main`
 2026-07-21 — app-only, no deploy; 142 e2e green. Nothing is broken or blocks authoring.
-BUT a post-ship review found a handful of gaps where the shipped behaviour deviates from
-this narrative — see **"Known gaps / slice-3 candidates"** at the bottom. Those want a
-triage + design/eng pass BEFORE more code (some may be YAGNI). Eng review CLEARED 2026-07-21.
+A post-ship review found a handful of gaps where the shipped behaviour deviated from
+this narrative — see **"Known gaps / slice-3 candidates"** at the bottom. Those were
+TRIAGED + resolved 2026-07-21 (`/plan-eng-review` + `/plan-design-review`, both CLEARED):
+B1 grip click-menu BUILT, B2/B3/B4 ruled (build-nothing / consolidated / no-action); optional
+P3s parked. Nothing queued.
 **Supersedes** the "Option A pragmatic bridge" ruling (2026-07-15) in
 [columns-universal-container.md](columns-universal-container.md) — deliberately, to kill the
 editor-vs-storage tech debt.

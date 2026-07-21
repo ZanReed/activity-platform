@@ -1,6 +1,6 @@
 # Columns as the universal container — design
 
-**Status:** 🟢 **SLICES 1–4 SHIPPED + GREEN on branch `rows-refactor` (2026-07-15).** The
+**Status:** ✅ **SLICES 1–5 SHIPPED + MERGED to `main` (`94e1fb0`) + slice 5 `publish-activity` DEPLOYED (2026-07-15).** Slice 6 (Notion-hybrid editor paradigm) is a separate arc — largely BUILT, see [notion-hybrid-editor.md](notion-hybrid-editor.md). NB: the "Option A pragmatic bridge" ruling below was later SUPERSEDED by the strict-grid migration ([strict-grid-editor.md](strict-grid-editor.md), 2026-07-21) — the editor tree now IS the stored rows-of-columns model. The
 schema reshape, renderer, and editor+serialize bridge are all committed and the whole
 monorepo is green (1736 tests); browser-verified on `/playground`. Remaining: merge to
 `main` + slice 5 deploy (author-run `publish-activity` redeploy), and slice 6 (the separate

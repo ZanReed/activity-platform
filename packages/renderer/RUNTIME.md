@@ -6,7 +6,7 @@ Update at the end of each work session that touches the runtime — replace the 
 
 **Status.** This document is the architecture spec for the runtime as built through Stage 13. The runtime is feature-complete for the Phase 1 MVP student loop: scoring, mistake feedback, hints, checkpoints, solutions, locked-mode freezing, confidence capture, full state persistence, and submission with per-blank confidence + optional checkpointResults. The remaining Phase 1 work is in Stage 14 (submission flow polish — retry queue, attempt_number reconciliation, free-mode resubmit), Stage 15 (editor UI for new feature fields), and Stage 16 (submissions dashboard); none of these touches runtime code substantively. Where this doc describes Stage 14+ behavior, it's marked `[target — Stage N]` or `[target — Phase N]`.
 
-*Last reconciled against code 2026-07-12 (drift audit): storage v9, wire v8, block families through `number_line` + `data_plot`. The architecture prose below is the Stage-13 spec for the core scoring loop; per-block data-attribute contracts are kept current in "The data-attribute contract".*
+*Last reconciled against code 2026-07-21 (drift audit): storage v12, wire v9, block families through `number_line` + `data_plot` + free-text (`self_explanation`/`short_answer`/`essay`) + graph systems + math blanks. The architecture prose below is the Stage-13 spec for the core scoring loop; per-block data-attribute contracts are kept current in "The data-attribute contract".*
 
 ## What this is
 
@@ -24,7 +24,7 @@ The runtime is the JavaScript that runs in students' browsers on every published
 - Confidence rating capture (per-block fieldset; one selection per problem)
 - State persistence across page reloads (typed values + scoring state + hint reveals + solution reveals + locked state + section scores + confidence; per `activityId + versionNum` localStorage blob)
 - Student name persistence across activities (separate localStorage key)
-- Final submission to `ingest-submission` with a versioned `responses` payload (the current wire `schemaVersion` lives in `runtime/submission.ts` — 8 at last edit) including per-blank confidence and the optional `checkpointResults` / `graphResponses` / `choices` / `matches` / `orderings` / `numberLineResponses` / `dataPlotResponses` maps
+- Final submission to `ingest-submission` with a versioned `responses` payload (the current wire `schemaVersion` lives in `runtime/submission.ts` — 9 at last edit) including per-blank confidence and the optional `checkpointResults` / `graphResponses` / `choices` / `matches` / `orderings` / `numberLineResponses` / `dataPlotResponses` / `freeResponses` maps
 - Persistence cleared on submit success
 - Graceful degradation throughout — malformed config → no-op runtime; private-mode localStorage → silent skip; missing per-element attributes → warn-and-skip
 
@@ -136,9 +136,9 @@ The bootstrap in `index.ts` runs once on `DOMContentLoaded` (or immediately if t
 
 - **Name** (cross-activity): localStorage key `activity_student_name`. Plain string. Carried across all activities on the domain.
 
-- **Activity state blob** (per `activityId + versionNum`): localStorage key `activity_state_${activityId}_v${versionNum}`. JSON blob with shape `{ schemaVersion, values, blanks, blocks, mcs, matches, orderings, graphs, numberLines, dataPlots, sections }`. Versioned key auto-invalidates on republish (v1 → v2 means the v1 blob is no longer found). Schema-versioned internally (the current `STORAGE_SCHEMA_VERSION` lives in `runtime/storage.ts` — 9 at last edit) so future runtime changes can bail cleanly on shape mismatch. Save gated by `!state.submitted`. Cleared on submit success.
+- **Activity state blob** (per `activityId + versionNum`): localStorage key `activity_state_${activityId}_v${versionNum}`. JSON blob with shape `{ schemaVersion, values, blanks, blocks, mcs, matches, orderings, graphs, numberLines, dataPlots, sections }`. Versioned key auto-invalidates on republish (v1 → v2 means the v1 blob is no longer found). Schema-versioned internally (the current `STORAGE_SCHEMA_VERSION` lives in `runtime/storage.ts` — 12 at last edit) so future runtime changes can bail cleanly on shape mismatch. Save gated by `!state.submitted`. Cleared on submit success.
 
-- **Submission payload** (network): POSTed to `ingest-submission`. `responses` is the current wire shape (v8 at last edit): `{ schemaVersion, blanks: Record<uuid, BlankResult>, checkpointResults?, graphResponses?, choices?, matches?, orderings?, numberLineResponses?, dataPlotResponses? }` plus `activity_id`, `display_name`, `score` at top level. (The current wire version lives in `runtime/submission.ts`.)
+- **Submission payload** (network): POSTed to `ingest-submission`. `responses` is the current wire shape (v9 at last edit): `{ schemaVersion, blanks: Record<uuid, BlankResult>, checkpointResults?, graphResponses?, choices?, matches?, orderings?, numberLineResponses?, dataPlotResponses?, freeResponses? }` plus `activity_id`, `display_name`, `score` at top level. (The current wire version lives in `runtime/submission.ts`.)
 
 ### Specific behavior rules
 
@@ -852,7 +852,7 @@ applyStoredState(stored, refs, state): void        // mutates inputs + state in 
 
 Storage key: `activity_state_${activityId}_v${versionNum}`. Versioned key means republishing the activity (versionNum bump) auto-invalidates prior persistence.
 
-Schema versioning: `STORAGE_SCHEMA_VERSION` (9 at last edit; the live value lives in `runtime/storage.ts`). Load returns null on mismatch (fresh state). Bump when `BlankState` / `BlockState` / `McBlockState` / `MatchBlockState` / `OrderBlockState` / `GraphBlockState` / `NumberLineBlockState` / `DataPlotBlockState` / `SectionState` / blob shape changes in a way that older serialized blobs can no longer be interpreted as.
+Schema versioning: `STORAGE_SCHEMA_VERSION` (12 at last edit; the live value lives in `runtime/storage.ts`). Load returns null on mismatch (fresh state). Bump when `BlankState` / `BlockState` / `McBlockState` / `MatchBlockState` / `OrderBlockState` / `GraphBlockState` / `NumberLineBlockState` / `DataPlotBlockState` / `SectionState` / blob shape changes in a way that older serialized blobs can no longer be interpreted as.
 
 Save is gated by `!state.submitted`. Once submitted, persistence is irrelevant (`clearActivityState` fires on success) and re-writing post-submit edits would confuse the next session's restore.
 
@@ -869,7 +869,7 @@ All localStorage access is try/catch wrapped. Private-mode browsers, locked-down
     activityId: string,
     displayName: string,
     responses: {
-        schemaVersion: 8,   // current wire version; lives in runtime/submission.ts
+        schemaVersion: 9,   // current wire version; lives in runtime/submission.ts
         blanks: Record<blankId, {
             answer: string,
             correct: boolean,
@@ -916,7 +916,7 @@ On successful submit:
 
 Inlined model means `publish-activity` only uploads `index.html` to Cloudflare R2 (published HTML can't live on Supabase — see CLAUDE.md) — no separate `runtime.js` artifact.
 
-Bundle size (as of the 2026-07-12 data_plot graded-builds build): base runtime IIFE is **~37.5 KiB minified**; the graphs variant is **~44.3 KiB** (base + the graph/number-line/data-plot bridges). The graphs variant sits over the 40 KiB soft target — under the 60 KiB hard ceiling, accepted per the 2026-07-10 budget amendment (20/40 → 40/60 KiB; reasoning in `docs/DECISIONS.md` → "Runtime size budget amendment"). The number-line and data-plot WIDGETS ride the lazy kit, not these bundles — only their thin bridges (walk/seed/fold/gather) land here. Base is at ~94% of its soft target: schedule the next budget-ladder lever (per-question-type inlining variants) before the next question-type generation. Re-check with `pnpm bundle:renderer`, which prints both — treat the printed numbers as the truth, not this paragraph.
+Bundle size (as of the 2026-07-21 drift audit): base runtime IIFE is **~41.8 KiB minified**; the graphs variant is **~49.1 KiB** (base + the graph/number-line/data-plot bridges). **Both variants now sit over the 40 KiB soft target** — under the 60 KiB hard ceiling, accepted per the 2026-07-10 budget amendment (20/40 → 40/60 KiB; reasoning in `docs/DECISIONS.md` → "Runtime size budget amendment"). The number-line and data-plot WIDGETS ride the lazy kit, not these bundles — only their thin bridges (walk/seed/fold/gather) land here. **Base has crossed the soft target** (the math-blank runtime landed on it): the amendment's "scheduled, not discovered" rule now says pull the next budget-ladder lever (per-question-type inlining variants — `document.ts` already picks by body scan) before the next question-type generation. Re-check with `pnpm bundle:renderer`, which prints both — treat the printed numbers as the truth, not this paragraph.
 
 `[Phase 2.7]` The calculator-summon sidecar (step 4) is the cheap, inlined half of the graphing track; the heavy kit is a **separate content-hashed bundle on R2** — never inlined, cached after first load, served brotli. `data-calculator-kit-src` / `data-graph-kit-src` (from `RenderContext.calculatorKitUrl`) is the URL. Since 2026-07-10 the kit is THREE-way split: the entry (scorers, formula parser, widget mounts, the graph runtime plumbing, plus a statically-imported mathjs chunk) is what graph pages fetch at bootstrap; **JSXGraph** and **the calculator (MathLive)** are each their own lazy chunk behind it — so a graph-only page never downloads MathLive, and a calculator page pays one extra round trip on first open (`mountCalculator` on the entry is an async wrapper). `[target — Phase 2.9+]` adds `annotation-widget.js`. Main runtime stays small; pages without those block types pay nothing.
 
@@ -969,7 +969,7 @@ Test suite at `packages/renderer/src/runtime/__tests__/`. Files (scoring runtime
 - **Every DOM write in `render` is change-guarded.** `classList.toggle(name, condition)` is idempotent. Attribute / `hidden` / `checked` / `textContent` get explicit current-vs-target checks.
 - **All attribute reads have a fallback.** No `dataset.X` access without `?? default`. No `JSON.parse(...)` without try/catch.
 - **No JS dependencies.** Vanilla TypeScript. Adding utility libraries would blow size budget and add attack surface.
-- **Persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION` (9 at last edit; source of truth is `runtime/storage.ts`). Bump when `BlankState`, `BlockState`, `McBlockState`, `MatchBlockState`, `OrderBlockState`, `GraphBlockState`, `NumberLineBlockState`, `DataPlotBlockState`, `SectionState`, or blob shape changes incompatibly.
+- **Persistence schema bumps with shape changes.** `STORAGE_SCHEMA_VERSION` (12 at last edit; source of truth is `runtime/storage.ts`). Bump when `BlankState`, `BlockState`, `McBlockState`, `MatchBlockState`, `OrderBlockState`, `GraphBlockState`, `NumberLineBlockState`, `DataPlotBlockState`, `SectionState`, or blob shape changes incompatibly.
 - **Heavy widgets are lazy-loaded into separate bundles — the kit invariant.** Realized: interactive graphs, the calculator (MathLive), and mathjs all live in the content-hashed graph kit on R2 (see Build pipeline step 5 notes); `[target — Phase 2.9+]` annotation widgets and the future photo-submit/AI-feedback client follow the same pattern. Pages without those block types pay nothing. This — not the budget number — is what keeps a plain worksheet light; it is not renegotiable the way the number is.
 - **Naming convention discipline:**
   - TypeScript fields: `camelCase` (`attemptNumber`, `revisionMode`)

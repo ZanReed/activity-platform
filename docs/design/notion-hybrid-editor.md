@@ -1,6 +1,6 @@
 # Notion-hybrid editor — slice 6 design
 
-**Status:** 🎨 **DESIGN LOCKED + REVISED + ENG-REVIEWED (2026-07-15); not yet built.** After
+**Status:** ✅ **BUILT — stages 0–7 SHIPPED (2026-07-15 → 07-21), app-only.** Descriptor-registry spine + command bar + Playwright harness (stage 0), hover gutter (1), select-state (2), per-block descriptors (3), Advanced drawer + custom fields (4/4b), picker previews + first-run (5), snap motion (6), toolbar-diet cleanup (7). Open remainders: focus mode (deferred, needs a caret-tracking plugin), input-parity/a11y touch pass, slice-6.5 smart-defaults. The design below drove the build; where code diverged, STATE.md's slice-6 narrative is the as-built record. (Was DESIGN LOCKED + REVISED + ENG-REVIEWED 2026-07-15.) After
 the design review, `/plan-eng-review` locked the build architecture (see §Engineering review):
 a **control-descriptor registry** is the spine (single host renders per-block controls from
 per-extension descriptors — no per-block mounting, no monster switch); **smart-defaults split
