@@ -368,6 +368,17 @@ const essay = thumb(
     </>
 );
 
+const callout = thumb(
+    <>
+        <rect x={12} y={14} width={72} height={30} rx={4} fill={ACCENT_BG} stroke={ACCENT} />
+        <circle cx={23} cy={29} r={5} fill="none" stroke={ACCENT} strokeWidth={2} />
+        <circle cx={23} cy={25.5} r={0.9} fill={ACCENT} />
+        <line x1={23} y1={28} x2={23} y2={32} stroke={ACCENT} strokeWidth={2} strokeLinecap="round" />
+        {bar(34, 24, 42, 3, INK)}
+        {bar(34, 33, 34, 3, SOFT)}
+    </>
+);
+
 // Keyed by slashMenuItems title. Parity with the pickable catalogue is
 // guard-tested; a lookup miss renders a card without a preview (never throws).
 export const blockThumbnails: Record<string, ReactElement> = {
@@ -392,6 +403,7 @@ export const blockThumbnails: Record<string, ReactElement> = {
     'Self-explanation': selfExplanation,
     'Short answer': shortAnswer,
     Essay: essay,
+    Callout: callout,
 };
 
 // The first-run "Start here" starter cards (StartHere.tsx). "A question" and

@@ -45,6 +45,7 @@ import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
 import { Definition } from './extensions/Definition';
+import { Callout } from './extensions/Callout';
 
 export interface EditorExtensionOptions {
     // Activity-wide default a columns block's gridLines:'inherit' resolves to
@@ -152,6 +153,9 @@ export function buildEditorExtensions({
         // fill_in_blank steps. Scoring rides the nested fill_in_blank blocks
         // (already registered above), so no runtime wiring of its own.
         FadedWorkedExample,
+        // Callout — a tinted note box (info/warning/success/note). Pure content;
+        // the renderer already emits it, this makes the schema block authorable.
+        Callout,
         // Self-explanation — an ungraded free-text reflection prompt.
         SelfExplanation,
         // Manually-graded free text (Phase 2.6): short_answer + essay. Same

@@ -85,6 +85,8 @@ import {
     WordCountHint,
     RubricCriterion,
     type Rubric,
+    type CalloutBlock,
+    type CalloutVariant,
     createInteractiveGraphBlock,
     createNumberLineBlock,
     createDataPlotBlock,
@@ -410,6 +412,9 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
         case 'essay':
             return tiptapEssayToActivity(node);
 
+        case 'callout':
+            return tiptapCalloutToActivity(node);
+
         case 'image':
             return tiptapImageToActivity(node);
 
@@ -419,6 +424,27 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
             );
             return null;
     }
+}
+
+// Coerce an untrusted `variant` attr to the schema enum; an unknown/absent value
+// falls back to 'info' (mirrors the Callout node's own parseHTML coercion), so a
+// hand-edited or stale attr never fails the whole-document parse.
+function coerceCalloutVariant(raw: unknown): CalloutVariant {
+    return raw === 'info' ||
+        raw === 'warning' ||
+        raw === 'success' ||
+        raw === 'note'
+        ? raw
+        : 'info';
+}
+
+function tiptapCalloutToActivity(node: JSONContent): CalloutBlock {
+    return {
+        id: crypto.randomUUID(),
+        type: 'callout',
+        variant: coerceCalloutVariant(node.attrs?.variant),
+        content: tiptapInlineToActivity(node.content ?? []),
+    };
 }
 
 // The editor-mappable child block types a worked example may contain — mirrors
@@ -1411,11 +1437,17 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
             return activityOrderingToTiptap(block);
 
         case 'callout':
+            return {
+                type: 'callout',
+                attrs: { id: block.id, variant: block.variant },
+                content: activityInlineToTiptap(block.content),
+            };
+
         case 'problem':
-            // callout/problem have no editor mapping yet; they round-trip through
-            // storage but are omitted from the editor view.
+            // problem has no editor mapping yet; it round-trips through storage
+            // but is omitted from the editor view.
             console.warn(
-                `[serialize] No Tiptap mapping for ${block.type} yet; block omitted from editor view.`,
+                `[serialize] No Tiptap mapping for problem yet; block omitted from editor view.`,
             );
             return null;
 

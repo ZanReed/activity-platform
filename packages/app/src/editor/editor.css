@@ -3535,7 +3535,8 @@ img.mc-block__figure-preview {
 .learning-objectives-block.is-selected,
 .worked-example-block.is-selected,
 .self-explanation-block.is-selected,
-.free-response-block.is-selected {
+.free-response-block.is-selected,
+.callout-block.is-selected {
     outline: 2px solid var(--ed-accent); /* blue-500 */
 }
 
@@ -3627,6 +3628,73 @@ img.mc-block__figure-preview {
  *  Self-explanation block NodeView (Phase 2): an editable prompt over a
  *  disabled preview textarea + an optional sentence-starter footer.
  *  ========================================================================= */
+
+/* Callout block — a note box (info/warning/success/note). Authoring chrome only
+ * (the published page uses the renderer's own .block-callout-* classes). The
+ * variant reads from a full accent border + the highlighted switcher icon — no
+ * thick side stripe — on a neutral surface, so it works in light and dark and
+ * needs no per-variant tint tokens. Accent is a single per-variant custom
+ * property the switcher buttons also inherit. */
+.callout-block {
+    margin: 1rem 0;
+    padding: 0.55rem 0.85rem 0.6rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--callout-accent, var(--ed-slate-300));
+    background-color: var(--ed-surface-2); /* slate-100 */
+    transition: background-color var(--ed-motion-base);
+}
+.callout-block--info {
+    --callout-accent: var(--ed-blue-500);
+}
+.callout-block--warning {
+    --callout-accent: var(--ed-amber-600);
+}
+.callout-block--success {
+    --callout-accent: var(--ed-emerald-600);
+}
+.callout-block--note {
+    --callout-accent: var(--ed-slate-500);
+}
+
+.callout-block__switcher {
+    display: flex;
+    gap: 0.15rem;
+    margin-bottom: 0.4rem;
+    user-select: none;
+}
+.callout-block__variant-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    font-size: 0.9rem;
+    line-height: 1;
+    border: 1px solid transparent;
+    border-radius: 0.3rem;
+    background: transparent;
+    cursor: pointer;
+    opacity: 0.5;
+    transition:
+        opacity var(--ed-motion-base),
+        background-color var(--ed-motion-base),
+        border-color var(--ed-motion-base);
+}
+.callout-block__variant-btn:hover {
+    opacity: 0.85;
+    background-color: var(--ed-slate-100);
+}
+.callout-block__variant-btn.is-active {
+    opacity: 1;
+    border-color: var(--callout-accent, var(--ed-slate-400));
+    background-color: var(--ed-slate-100);
+}
+
+.callout-block__body {
+    line-height: 1.6;
+    min-height: 1.5em; /* keeps an empty callout clickable */
+}
 
 .self-explanation-block {
     margin: 1rem 0;

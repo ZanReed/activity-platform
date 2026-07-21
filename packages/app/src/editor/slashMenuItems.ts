@@ -21,6 +21,7 @@ import {
     ChartScatter,
     Ruler,
     BarChart3,
+    Info,
 } from 'lucide-react';
 
 // ============================================================================
@@ -262,6 +263,17 @@ export const slashMenuItems: SlashMenuItem[] = [
         icon: SquarePen,
         command: ({ editor, range }) => {
             begin(editor, range).insertFadedWorkedExample().run();
+        },
+    },
+    {
+        title: 'Callout',
+        description: 'A tinted note box — info, warning, success, or note. Switch the style in the box.',
+        keywords: ['callout', 'note', 'info', 'warning', 'success', 'tip', 'aside', 'box', 'highlight', 'admonition'],
+        group: 'Structure',
+        subgroup: 'Instructional',
+        icon: Info,
+        command: ({ editor, range }) => {
+            begin(editor, range).insertCallout().run();
         },
     },
     {

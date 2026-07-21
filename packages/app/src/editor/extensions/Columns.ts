@@ -884,7 +884,7 @@ export const Column = Node.create({
     // at doc top level. The enumerated content expression (not `block+`)
     // forbids a `columns` node nested inside a cell.
     content:
-        '(paragraph | heading | mathBlock | bulletList | orderedList | fillInBlank | image | interactiveGraph | numberLine | dataPlot | multipleChoice | matching | ordering | learningObjectives | workedExample | fadedWorkedExample | selfExplanation | shortAnswer | essay)+',
+        '(paragraph | heading | mathBlock | bulletList | orderedList | fillInBlank | image | interactiveGraph | numberLine | dataPlot | multipleChoice | matching | ordering | learningObjectives | workedExample | fadedWorkedExample | selfExplanation | shortAnswer | essay | callout)+',
     isolating: true,
     selectable: false,
 

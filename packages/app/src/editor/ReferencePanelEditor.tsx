@@ -28,6 +28,7 @@ import { FadedWorkedExample } from './extensions/FadedWorkedExample';
 import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
+import { Callout } from './extensions/Callout';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
@@ -117,6 +118,7 @@ export default function ReferencePanelEditor({
             SelfExplanation,
             ShortAnswer,
             Essay,
+            Callout,
             Image,
         ],
         content: initialContent,
