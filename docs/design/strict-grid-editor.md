@@ -1,9 +1,11 @@
 # Strict-grid editor migration — design + plan
 
-**Status:** 🟢 COMPLETE — SLICE 1 (T1–T6, structural) + SLICE 2 (T7 seam affordances, T8 import
-incl. the ` ```columns ``` ` Markdown fence) all SHIPPED to `main` 2026-07-21 — app-only, no
-deploy. All 8 tasks done; nothing deferred except the paradigm-owned transparent cross-row-merge
-caret (TENSION-1, by design). Eng review CLEARED 2026-07-21.
+**Status:** 🟢 FUNCTIONALLY COMPLETE — SLICE 1 (T1–T6, structural) + SLICE 2 (T7 seam
+affordances, T8 import incl. the ` ```columns ``` ` Markdown fence) all SHIPPED to `main`
+2026-07-21 — app-only, no deploy; 142 e2e green. Nothing is broken or blocks authoring.
+BUT a post-ship review found a handful of gaps where the shipped behaviour deviates from
+this narrative — see **"Known gaps / slice-3 candidates"** at the bottom. Those want a
+triage + design/eng pass BEFORE more code (some may be YAGNI). Eng review CLEARED 2026-07-21.
 **Supersedes** the "Option A pragmatic bridge" ruling (2026-07-15) in
 [columns-universal-container.md](columns-universal-container.md) — deliberately, to kill the
 editor-vs-storage tech debt.
@@ -248,3 +250,49 @@ Synthesized from this review. Checkbox as you ship (on the `strict-grid` branch)
   renderer/publish/wire/storage change). Decisions logged; `gstack-review-read` run.
 
 NO UNRESOLVED DECISIONS
+
+## Known gaps / slice-3 candidates (post-ship review, 2026-07-21)
+
+The migration is functionally complete and green (142 e2e), but a review comparing this
+narrative to the shipped code found deviations. **None is a bug** — everything works — but
+they are places where we shipped *less than*, or *different from*, what was specified.
+**Recommendation: triage these BEFORE building — some are likely YAGNI, and the toolbar
+buttons (below) already cover recovery, which the narrative predated.** Do NOT assume all
+of these get built; the narrative was written before the toolbar affordances existed.
+
+### 1. A3 affordances shipped CONTEXTUAL, not "always-visible" (design fork)
+A3 specified two as persistent, always-present controls; both shipped as contextual TOOLBAR
+buttons (they appear only while the caret/selection is in a multi-col row):
+- **"always-visible 'dissolve to full width' on EVERY multi-col row"** → shipped as the
+  toolbar **Merge** button. Recovery is always *reachable*, but there is no persistent per-row
+  widget (you must click into the row first).
+- **"always-present 'add full-width row below' affordance on/after a row"** → shipped as the
+  toolbar **Row below** button (multi-col rows only). No affordance after a *stack* row.
+- **Fork:** keep the toolbar buttons (cheap, working) or add a small dissolve/▾ widget next to
+  the multi-col grip? A `/plan-design-review` question more than an eng one.
+
+### 2. Drag / reorder — under-delivered vs. the narrative (the real eng-review item)
+- **`dragHandleNested.ts` was NOT reworked** (its last commit predates the migration). It works
+  (blocks inside columns stay draggable), but its `if (depth <= 1) return 0` branch is now DEAD
+  code — the design called to rework it.
+- **"Whole-stack move" undefined.** A 1-col stack row has no whole-row handle (grip suppressed on
+  stacks), so an entire section's stack can't be dragged as a unit — only block-by-block.
+- **Keyboard reorder can't cross rows.** `BlockReorderShortcuts` (⌘⇧↑/↓) moves within a column and
+  NO-OPS at the column edge; the narrative's "different across columns/rows" isn't built.
+- **No cross-section-drag e2e.** The failure-modes table wanted one, but DnD is owner-eyeball per
+  project convention (never automated) — so cross-row block drag is NOT automatically verified.
+- **This bucket is the one that genuinely needs eng thought** (isolating-boundary interaction
+  model) — AND the one most likely to be partly YAGNI. Triage first.
+
+### 3. `activeBlockAt` consolidation incomplete (cleanup, no spec needed)
+The shared helper is imported only by `Columns.ts` + `BlockReorderShortcuts.ts`. `SelectBlock`,
+`BlockQuickBarHost` (`caretBlockPos`), and `SettleMotion` still carry their OWN inline
+column-walk (all correct — they were already column-aware). Duplicated-logic tech debt, not a
+bug. **Just do it whenever those files are next touched — no review needed.**
+
+### 4. Deferred by design (NOT gaps)
+- **Transparent cross-row-merge caret** — owned by the future Notion-hybrid paradigm (TENSION-1).
+- **Rich per-column Markdown import** (lists / headings / nested question fences inside a
+  ` ```columns ``` ` fence) — editor-only; documented in `docs/markdown-import-format.md`.
+- **Cosmetic:** the `/` PlaceholderHint now also shows in empty *multi-col cells* (was
+  top-level-only) — harmless; a one-liner to tighten if desired.
