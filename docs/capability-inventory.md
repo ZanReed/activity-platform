@@ -9,14 +9,22 @@ schema and the importer/renderer disagree, it is called out inline.
 This is the source for the capability registry and the twin of the rewritten
 authoring prompt.
 
-> **Update (2026-07-21, commit `ffe7d5f`):** §4.B items 3–5 — blank **hints**,
-> blank **per-answer (mistake) feedback**, and **math-expression blanks** — are
-> now importable via the grammar in §2.1 and documented in the live prompt +
-> `docs/markdown-import-format.md`. The asymmetry this inventory named is closed
-> for those three. The rest of §4.B (graph `no-solution-correct` /
-> `no-builtin-feedback`, choice/matching graph figures, definitions, extra
-> marks, callout, activity-level settings) still stands, as does the registry
-> seam recommendation in §5 (deferred to a follow-on change).
+> **Update (2026-07-21):** several items this inventory named are now resolved:
+> - §4.B items 3–5 — blank **hints**, **per-answer (mistake) feedback**, and
+>   **math-expression blanks** — are importable via the §2.1 grammar and
+>   documented in the live prompt + `docs/markdown-import-format.md` (`ffe7d5f`).
+> - §4.B items 1–2 — the graph options **`no-solution-correct`** and
+>   **`no-builtin-feedback`** — are now documented in the prompt + doc.
+> - §5 — the **registry seam** is BUILT (the B+ variant): `importFormatRegistry.ts`
+>   + `importFormatRegistry.test.ts` bind the registry to the parser (a source
+>   scan that fails on any undocumented fence/option — it's what caught the two
+>   graph options above), the converter, and the prompt/doc.
+> - §2.11 — the **callout** block is now authorable in the editor (`b4558b4`).
+>
+> Still open: choice/matching graph figures, definition-mark *import*, extra
+> marks (underline/sub/superscript), in-equation math gaps, and activity-level
+> settings — all still editor-only or unbuilt (each touches the parser, deferred
+> so they land through the registry).
 
 ---
 
