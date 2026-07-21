@@ -686,7 +686,7 @@ function emitInline(
 
         const g = m.groups ?? {};
         if (g.blankCanon !== undefined) {
-            const blank = makeBlank(g.blankCanon, g.blankAlts ?? '');
+            const blank = makeBlank(g.blankCanon, g.blankAlts ?? '', ctx);
             out.push(blank ?? textNode(m[0], marks));
         } else if (g.mathIdx !== undefined) {
             // A display span appearing mid-text can't be a block here, so it
@@ -714,7 +714,42 @@ function emitInline(
 // when followed by a bare number at the end.
 const TOLERANCE_RE = /^(.*?)\s*(?:±|\+-)\s*(\d*\.?\d+)$/;
 
-function makeBlank(canonRaw: string, altsRaw: string): JSONContent | null {
+// The parsed shape of a blank's brace contents, BEFORE any Tiptap/inline
+// construction. Pure string work so it unit-tests without a ctx or the editor
+// schema; makeBlank turns it into a node and routes `warnings` into ctx. Null
+// canonical (empty answer) mirrors makeBlank returning null → literal text.
+interface BlankSpec {
+    canonical: string;
+    answerType: 'text' | 'numeric' | 'math';
+    tolerance?: number;
+    interchangeableWithPrevious: boolean;
+    acceptableAnswers: string[];
+    // Raw hint text (inline content is built by makeBlank via schemaInlineContent).
+    hint: string | null;
+    // Anticipated wrong answers paired with raw feedback text.
+    mistakes: { match: string; feedbackText: string }[];
+    // Human-readable notes about anything ambiguous/dropped (missing `::`,
+    // empty match/feedback, a second hint). makeBlank feeds these to ctx.warnings
+    // so a fill_in_blank surfaces authoring mistakes the way ```mc already does —
+    // parseBlankSpec stays pure by returning them instead of holding a ctx.
+    warnings: string[];
+}
+
+// Split a blank's `{{answer|…}}` contents into its parts. The first `|`-segment
+// (canonRaw) is the answer, carrying optional leading sigils; the rest (altsRaw)
+// are pipe-separated segments, each classified by its leading sigil:
+//   ~<answer>   canonical: interchangeable with the PREVIOUS blank (grouping)
+//   =<answer>   canonical: NUMERIC (0.5 = 1/2 = .50), optional "± tol"/"+- tol"
+//   ==<answer>  canonical: MATH expression equivalence (2a ≡ a+a), via graph-kit
+//   ?<text>     a HINT (one per blank; a second warns + wins)
+//   !<wrong> :: <feedback>   an anticipated-mistake pair (repeatable); the `::`
+//               delimiter matches ```mc / ```graph, so a `match` may contain `=`
+//   ??<x> / !!<x>   an ESCAPED literal alternate answer beginning "?x"/"!x"
+//   <anything else>  an alternate accepted answer
+// Segments cannot contain `| { }` (the brace grammar forbids them), so hint /
+// feedback text is plain text + $math$ only — a documented authoring limit.
+function parseBlankSpec(canonRaw: string, altsRaw: string): BlankSpec | null {
+    const warnings: string[] = [];
     let canonical = canonRaw.trim();
     // A leading ~ marks the blank as interchangeable with the PREVIOUS blank in
     // the same problem — order-independent grouping (e.g. factoring, where
@@ -726,13 +761,17 @@ function makeBlank(canonRaw: string, altsRaw: string): JSONContent | null {
         interchangeableWithPrevious = true;
         canonical = canonical.slice(1).trim();
     }
-    // A leading = marks a NUMERIC blank — scored by numeric equivalence
-    // (0.5 = 1/2 = .50) instead of exact string match. An optional trailing
-    // "± tol" / "+- tol" sets the comparison tolerance: {{=3.14 +- 0.01}}.
-    // Order with ~: the tilde comes first ({{~=3}}).
-    let answerType: 'text' | 'numeric' = 'text';
+    // Answer-type sigils. `==` (MATH) is checked BEFORE `=` (NUMERIC) so a math
+    // blank isn't mis-read as numeric. Numeric takes an optional trailing
+    // "± tol" / "+- tol" ({{=3.14 +- 0.01}}); math grades by expression
+    // equivalence with no import-time tolerance. Order with ~: tilde first
+    // ({{~=3}}, {{~==2a}}).
+    let answerType: 'text' | 'numeric' | 'math' = 'text';
     let tolerance: number | undefined;
-    if (canonical.startsWith('=')) {
+    if (canonical.startsWith('==')) {
+        answerType = 'math';
+        canonical = canonical.slice(2).trim();
+    } else if (canonical.startsWith('=')) {
         answerType = 'numeric';
         canonical = canonical.slice(1).trim();
         const tolMatch = TOLERANCE_RE.exec(canonical);
@@ -742,21 +781,99 @@ function makeBlank(canonRaw: string, altsRaw: string): JSONContent | null {
         }
     }
     if (canonical.length === 0) return null;
-    const acceptableAnswers = altsRaw
-        .split('|')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+
+    const acceptableAnswers: string[] = [];
+    let hint: string | null = null;
+    const mistakes: { match: string; feedbackText: string }[] = [];
+    for (const rawSeg of altsRaw.split('|')) {
+        const seg = rawSeg.trim();
+        if (seg.length === 0) continue;
+        // Escape FIRST: `??x` / `!!x` is a literal alternate beginning "?x"/"!x"
+        // (drop one sigil), protecting an answer that genuinely starts with the
+        // directive characters.
+        if (seg.startsWith('??') || seg.startsWith('!!')) {
+            acceptableAnswers.push(seg.slice(1));
+            continue;
+        }
+        if (seg.startsWith('?')) {
+            const text = seg.slice(1).trim();
+            if (text.length === 0) continue; // empty "?" — nothing to show
+            if (hint !== null) {
+                warnings.push(
+                    'Fill-in-the-blank: only one hint (“?…”) per blank — kept the last one.',
+                );
+            }
+            hint = text;
+            continue;
+        }
+        if (seg.startsWith('!')) {
+            const body = seg.slice(1);
+            const idx = body.indexOf('::');
+            if (idx === -1) {
+                warnings.push(
+                    `Fill-in-the-blank: a mistake hint needs “::” before its feedback (“!wrong :: message”) — “${seg}” was ignored (use “!!” for an answer that starts with “!”).`,
+                );
+                continue;
+            }
+            const match = body.slice(0, idx).trim();
+            const feedbackText = body.slice(idx + 2).trim();
+            if (match.length === 0) {
+                warnings.push(
+                    'Fill-in-the-blank: a mistake hint needs the wrong answer before “::” — skipped.',
+                );
+                continue;
+            }
+            if (feedbackText.length === 0) {
+                warnings.push(
+                    'Fill-in-the-blank: a mistake hint needs feedback after “::” — skipped.',
+                );
+                continue;
+            }
+            mistakes.push({ match, feedbackText });
+            continue;
+        }
+        acceptableAnswers.push(seg);
+    }
+
     return {
-        type: 'blank',
-        attrs: {
-            id: crypto.randomUUID(),
-            answer: canonical,
-            acceptableAnswers,
-            interchangeableWithPrevious,
-            answerType,
-            ...(tolerance !== undefined ? { tolerance } : {}),
-        },
+        canonical,
+        answerType,
+        ...(tolerance !== undefined ? { tolerance } : {}),
+        interchangeableWithPrevious,
+        acceptableAnswers,
+        hint,
+        mistakes,
+        warnings,
     };
+}
+
+// Build a `blank` inline node from its `{{…}}` contents. parseBlankSpec does the
+// pure string parse; makeBlank routes its warnings to ctx and builds the rich
+// hint / mistake-feedback inline via schemaInlineContent (the SAME canonical
+// InlineNode[] shape the MC `::` importer and the editor's blank popover write,
+// so serialize's sanitizeInlineNodes / sanitizeMistakeFeedback carry them
+// through unchanged). Null (empty answer) → the caller keeps the sentinel as
+// literal text.
+function makeBlank(canonRaw: string, altsRaw: string, ctx: Ctx): JSONContent | null {
+    const spec = parseBlankSpec(canonRaw, altsRaw);
+    if (!spec) return null;
+    for (const w of spec.warnings) ctx.warnings.add(w);
+    const attrs: Record<string, unknown> = {
+        id: crypto.randomUUID(),
+        answer: spec.canonical,
+        acceptableAnswers: spec.acceptableAnswers,
+        interchangeableWithPrevious: spec.interchangeableWithPrevious,
+        answerType: spec.answerType,
+        ...(spec.tolerance !== undefined ? { tolerance: spec.tolerance } : {}),
+    };
+    if (spec.hint) attrs.hint = inlineSchemaContent(spec.hint, ctx);
+    if (spec.mistakes.length > 0) {
+        attrs.mistakeFeedback = spec.mistakes.map((m) => ({
+            match: m.match,
+            feedback: inlineSchemaContent(m.feedbackText, ctx),
+        }));
+    }
+    return { type: 'blank', attrs };
 }
 
 function textNode(text: string, marks: string[]): JSONContent {
@@ -915,6 +1032,21 @@ function fenceBodyBlock(
 // Node content (prompts) stays Tiptap-shaped; only attrs convert here.
 function schemaInlineContent(raw: string, ctx: Ctx): InlineNode[] {
     return tiptapInlineToActivity(graphPromptContent(raw, ctx));
+}
+
+// Canonical inline content from text that has ALREADY been through the
+// document-level math pass — i.e. INLINE text carrying <index> math
+// placeholders, not raw $…$. Blank hint / mistake feedback live inline in a
+// paragraph, so their $math$ was lifted into ctx.spans with the rest of the
+// document up front; resolve those existing placeholders directly here.
+// Deliberately NOT schemaInlineContent (the FENCE path) — that re-runs extractMath
+// and re-bases the span indices, which double-counts a placeholder that was
+// already resolved (a mid-text $x$ in a hint would point at the wrong span).
+// allowBlanks is false: a blank can't nest inside another blank's feedback.
+function inlineSchemaContent(placeholdered: string, ctx: Ctx): InlineNode[] {
+    const out: JSONContent[] = [];
+    emitInline(out, placeholdered, [], false, ctx);
+    return tiptapInlineToActivity(out);
 }
 
 // ```mc fence — the multiple-choice DSL. One statement per line:

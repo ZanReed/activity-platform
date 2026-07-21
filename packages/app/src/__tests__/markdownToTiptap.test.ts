@@ -1058,6 +1058,174 @@ describe('numeric blanks ({{=…}})', () => {
     });
 });
 
+describe('math blanks ({{==…}})', () => {
+    it('a leading == makes the blank a math-expression blank (and is stripped)', () => {
+        const out = convert('simplify {{==2a}}.').blocks;
+        const blank = out[0]!.content!.find((n) => n.type === 'blank')!;
+        expect(blank.attrs).toMatchObject({ answer: '2a', answerType: 'math' });
+    });
+
+    it('== is checked before = (a math blank is not mis-read as numeric)', () => {
+        const out = convert('{{==x+1}}').blocks;
+        const blank = out[0]!.content!.find((n) => n.type === 'blank')!;
+        expect(blank.attrs!.answerType).toBe('math');
+        expect(blank.attrs!.answer).toBe('x+1');
+    });
+
+    it('combines with ~ (tilde first: {{~==2a}})', () => {
+        const out = convert('roots {{==a}} and {{~==2a}}').blocks;
+        const blanks = out[0]!.content!.filter((n) => n.type === 'blank');
+        expect(blanks[1]!.attrs).toMatchObject({
+            answer: '2a',
+            answerType: 'math',
+            interchangeableWithPrevious: true,
+        });
+    });
+
+    it('a bare {{==}} is ignored like an empty blank', () => {
+        const out = convert('nothing {{==}}').blocks;
+        expect(
+            (out[0]!.content ?? []).filter((n) => n.type === 'blank'),
+        ).toHaveLength(0);
+    });
+});
+
+describe('blank hint + mistake feedback', () => {
+    // The single blank token in a one-blank import.
+    const blankAttrs = (md: string): Record<string, any> => {
+        const b = convert(md)
+            .blocks.flatMap((n) => n.content ?? [])
+            .find((n) => n.type === 'blank');
+        return b!.attrs!;
+    };
+
+    it('a ?segment becomes the hint (rich inline)', () => {
+        const attrs = blankAttrs('The capital is {{Paris | ?It starts with P}}.');
+        expect(attrs.answer).toBe('Paris');
+        expect(attrs.acceptableAnswers).toEqual([]);
+        expect(attrs.hint).toEqual([
+            { type: 'text', text: 'It starts with P', marks: [] },
+        ]);
+    });
+
+    it('a !wrong :: feedback segment becomes a mistake pair', () => {
+        const attrs = blankAttrs(
+            "{{Paris | !Lyon :: that's the third-largest city}}",
+        );
+        expect(attrs.mistakeFeedback).toEqual([
+            {
+                match: 'Lyon',
+                feedback: [
+                    { type: 'text', text: "that's the third-largest city", marks: [] },
+                ],
+            },
+        ]);
+    });
+
+    it('collects multiple mistake segments in document order', () => {
+        const attrs = blankAttrs('{{4 | !3 :: too low | !5 :: too high}}');
+        expect(attrs.mistakeFeedback.map((m: any) => m.match)).toEqual(['3', '5']);
+    });
+
+    it('mixes alternates, a hint, and a mistake in one blank', () => {
+        const attrs = blankAttrs(
+            '{{color | colour | ?think of paint | !hue :: not a synonym here}}',
+        );
+        expect(attrs.answer).toBe('color');
+        expect(attrs.acceptableAnswers).toEqual(['colour']);
+        expect(attrs.hint).toEqual([
+            { type: 'text', text: 'think of paint', marks: [] },
+        ]);
+        expect(attrs.mistakeFeedback).toEqual([
+            {
+                match: 'hue',
+                feedback: [{ type: 'text', text: 'not a synonym here', marks: [] }],
+            },
+        ]);
+    });
+
+    it('splits a mistake on :: so the match may contain = (equation distractor)', () => {
+        const attrs = blankAttrs('{{x | !y = 2x :: that graphs a line, not a point}}');
+        expect(attrs.mistakeFeedback[0].match).toBe('y = 2x');
+    });
+
+    it('carries $math$ inside hint/feedback as inline math', () => {
+        const attrs = blankAttrs('{{2 | ?half of $4$}}');
+        expect(attrs.hint).toEqual([
+            { type: 'text', text: 'half of ', marks: [] },
+            { type: 'math_inline', latex: '4' },
+        ]);
+    });
+
+    // Backward-compat regression: an alternate that legitimately starts with ?
+    // or ! must survive via the doubled-sigil escape, never be swallowed.
+    it('?? and !! escape a literal alternate beginning with ? or !', () => {
+        const attrs = blankAttrs('{{a | ??what | !!bang}}');
+        expect(attrs.acceptableAnswers).toEqual(['?what', '!bang']);
+        expect(attrs.hint).toBeUndefined();
+        expect(attrs.mistakeFeedback).toBeUndefined();
+    });
+
+    // Author-error warnings — parity with the ```mc importer.
+    it('a !segment without :: is warned and dropped, never an accepted answer', () => {
+        const { blocks: bs, warnings } = convert('{{Paris | !Lyon}}');
+        const blank = bs
+            .flatMap((n) => n.content ?? [])
+            .find((n) => n.type === 'blank')!;
+        // Crucially NOT ['Lyon'] (would make the wrong answer correct) and NOT ['!Lyon'].
+        expect(blank.attrs!.acceptableAnswers).toEqual([]);
+        expect(blank.attrs).not.toHaveProperty('mistakeFeedback');
+        expect(warnings.some((w) => w.includes('::'))).toBe(true);
+    });
+
+    it('warns on an empty mistake match or empty feedback', () => {
+        expect(
+            convert('{{a | ! :: text}}').warnings.some((w) =>
+                w.includes('wrong answer'),
+            ),
+        ).toBe(true);
+        expect(
+            convert('{{a | !x ::}}').warnings.some((w) => w.includes('feedback')),
+        ).toBe(true);
+    });
+
+    it('keeps the last of multiple hints and warns', () => {
+        const { blocks: bs, warnings } = convert('{{a | ?first | ?second}}');
+        const blank = bs
+            .flatMap((n) => n.content ?? [])
+            .find((n) => n.type === 'blank')!;
+        expect(blank.attrs!.hint).toEqual([
+            { type: 'text', text: 'second', marks: [] },
+        ]);
+        expect(warnings.some((w) => w.includes('one hint'))).toBe(true);
+    });
+
+    it('survives the schema round-trip into a BlankToken (hint + mistakeFeedback)', () => {
+        const md =
+            'The capital is {{Paris | ?starts with P | !Lyon :: the third city}}.';
+        const activity = tiptapToActivity(
+            { type: 'doc', content: convert(md).blocks },
+            META,
+        );
+        const token = (activity.sections as any[])
+            .flatMap((s) => s.rows)
+            .flatMap((r) => r.columns)
+            .flatMap((c) => c.blocks)
+            .filter((b) => b.type === 'fill_in_blank')
+            .flatMap((b) => b.content)
+            .find((n) => n.type === 'blank');
+        expect(token.hint).toEqual([
+            { type: 'text', text: 'starts with P', marks: [] },
+        ]);
+        expect(token.mistakeFeedback).toEqual([
+            {
+                match: 'Lyon',
+                feedback: [{ type: 'text', text: 'the third city', marks: [] }],
+            },
+        ]);
+    });
+});
+
 describe('images', () => {
     it('lifts a standalone image into an image block', () => {
         expect(blocks('![a cat](https://example.com/cat.png)')).toEqual([

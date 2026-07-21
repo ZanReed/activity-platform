@@ -171,6 +171,47 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'math blank {{==expr}}',
+        fragment: '{{==2a}}',
+        md: 'simplify to {{==2a}}.',
+        check: (b) => {
+            const blank = nodesOfType(b, 'blank')[0]!;
+            expect(blank.attrs).toMatchObject({ answer: '2a', answerType: 'math' });
+        },
+    },
+    {
+        name: 'blank hint {{answer | ?hint}}',
+        fragment: '{{Paris | ?It starts with P}}',
+        md: 'The capital is {{Paris | ?It starts with P}}.',
+        check: (b) => {
+            const blank = nodesOfType(b, 'blank')[0]!;
+            expect(blank.attrs!.answer).toBe('Paris');
+            expect(blank.attrs!.hint).toEqual([
+                { type: 'text', text: 'It starts with P', marks: [] },
+            ]);
+        },
+    },
+    {
+        name: 'blank mistake feedback {{answer | !wrong :: msg}}',
+        fragment: '{{Paris | !Lyon :: That is the third-largest city, not the capital}}',
+        md: 'The capital is {{Paris | !Lyon :: That is the third-largest city, not the capital}}.',
+        check: (b) => {
+            const blank = nodesOfType(b, 'blank')[0]!;
+            const mf = blank.attrs!.mistakeFeedback as Array<{ match: string }>;
+            expect(mf).toHaveLength(1);
+            expect(mf[0]!.match).toBe('Lyon');
+        },
+    },
+    {
+        name: 'literal-sigil escape {{a | ??x}}',
+        fragment: '{{a | ??x}}',
+        md: 'answer {{a | ??x}}',
+        check: (b) => {
+            const blank = nodesOfType(b, 'blank')[0]!;
+            expect(blank.attrs!.acceptableAnswers).toEqual(['?x']);
+        },
+    },
+    {
         name: 'checkpoint section heading',
         fragment: '## Part 2 {checkpoint}',
         md: '## Part 2 {checkpoint}',

@@ -22,6 +22,9 @@ The importer is deterministic, additive, and never destructive: anything it does
 | `{{~answer}}` | a blank interchangeable with the one before it — answers count in any order |
 | `{{=answer}}` | a **numeric** blank — equivalent forms (`0.5`, `1/2`, `.50`) all count |
 | `{{=answer +- tol}}` | a numeric blank accepting answers within ± `tol` |
+| `{{==expr}}` | a **math** blank — graded by expression equivalence (`2a` ≡ `a+a` ≡ `a*2`) |
+| `{{answer \| ?hint text}}` | a blank with a **hint** the student can open when stuck |
+| `{{answer \| !wrong :: message}}` | targeted **feedback** shown when the student answers `wrong` |
 | a paragraph containing `{{…}}` | a **fill-in-the-blank problem block** |
 | a list whose items contain `{{…}}` | **one problem block per item** |
 | `## Topic {checkpoint}` | a **checkpoint section break** titled "Topic" |
@@ -48,6 +51,8 @@ The importer is deterministic, additive, and never destructive: anything it does
 - **A blank needs at least one character.** `{{}}` is treated as literal text, not a blank. Put a real answer in the braces.
 - **Order-independent blanks (`~`).** A leading tilde on a blank — `{{~3}}` — marks it interchangeable with the blank just before it in the same problem. For factoring, `(x + {{2}})(x + {{~3}})` accepts 2 and 3 in either order but rejects 2 and 2, because each correct answer can satisfy only one blank. The `~` belongs on the second (and later) blanks of a group; on a problem's first blank it has no effect.
 - **Numeric blanks (`=`).** A leading equals sign — `{{=12}}` — makes the blank numeric: the student's entry is parsed as a number and every equivalent form counts (`0.5`, `1/2`, `.50`, `1 1/2`, `1,234`, `$3.50`). An optional trailing `+- tol` (or `± tol`) accepts anything within that absolute tolerance: `{{=3.14 +- 0.01}}`. Combine with the tilde as `{{~=3}}` (tilde first). Prefer numeric blanks for any purely numeric answer — with a plain `{{0.5}}` a student typing `1/2` is marked wrong.
+- **Math blanks (`==`).** Two leading equals signs — `{{==2a}}` — grade the entry as a math *expression*: any input that is algebraically equivalent counts (`2a`, `a+a`, and `a*2` all match). Distinct from a numeric blank (which compares a single value); use `==` when several written forms should be accepted. Combine with the tilde as `{{~==2a}}`.
+- **Hints and per-answer feedback (`?` / `!`).** Inside the braces, after the answer, add extra `|`-separated segments: a segment starting `?` is a **hint** the student can open when stuck (one per blank — `{{Paris | ?It starts with P}}`); a segment written `!wrong :: message` attaches **feedback to a specific wrong answer** and is repeatable (`{{Paris | !Lyon :: that's the third-largest city}}`). The `::` delimiter matches the `mc`/`graph` fences, so a wrong answer may contain `=`. A `!` segment with no `::` is ignored with a warning (it never becomes an accepted answer). Hint and feedback text can't contain `|`, `{`, or `}` (`$math$` is fine). For an accepted answer that itself begins with `?` or `!`, double the mark: `{{a | ??x}}` accepts the literal `?x`.
 - **A list of problems flattens.** If each item of a numbered or bulleted list contains a blank, the list becomes one problem block per item (the editor re-numbers them). A list with no blanks stays an ordinary list.
 - **Display math must stand alone.** `$$…$$` becomes a block-level equation only when it is its own paragraph (blank line above and below). Inline `$…$` can appear anywhere in a line.
 - **Inline math has a guard.** A lone `$` or currency like `$5 and $10` is *not* treated as math — only a properly closed `$…$` with no space just inside the delimiters.
@@ -108,6 +113,18 @@ FILL-IN-THE-BLANK
   all count — so prefer them for any purely numeric answer. Add a tolerance
   with +- at the end:  pi is about {{=3.14 +- 0.01}}. Combine with the
   tilde as {{~=3}}.
+- For a MATH answer graded by expression equivalence (2a, a+a and a*2 all
+  count as equal), use two equals signs:  simplify to {{==2a}}. Combine with
+  the tilde as {{~==2a}}.
+- Add an optional HINT a student can open when stuck by starting a bar-segment
+  with ?:  {{Paris | ?It starts with P}}. One hint per blank.
+- Give targeted feedback for a specific wrong answer with a bar-segment written
+  !wrong :: message (repeatable):
+    {{Paris | !Lyon :: That is the third-largest city, not the capital}}
+- Inside the braces the order is: the answer, then any mix of |alternate
+  answers, one ?hint, and !wrong :: feedback pairs. Hint and feedback text
+  cannot contain |, {, or }. For an accepted answer that itself starts with
+  ? or !, double the mark:  {{a | ??x}} also accepts the literal "?x".
 - Blanks work only in normal paragraphs and list items — never inside a heading.
 - A numbered or bulleted list whose items each contain a blank becomes one
   problem per item — a clean way to write a problem set.
