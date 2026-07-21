@@ -3,6 +3,7 @@ import type { Editor } from '@tiptap/react';
 import { NodeSelection, TextSelection } from 'prosemirror-state';
 import { Trash2, Copy, Settings, Eye, EyeOff } from 'lucide-react';
 import { OPEN_BLOCK_SETTINGS, hasConfigurableControls } from '../blockControls';
+import { blockAncestor } from '../strictGrid';
 import { usePreviewToggle } from './usePreviewToggle';
 
 // The graphing blocks that carry a "preview as student" eye toggle.
@@ -43,14 +44,13 @@ interface BlockQuickBarHostProps {
     hoveredPos: number | null;
 }
 
-/** The top-level (or column-cell) block containing a caret, or null. */
+/** The column-cell block containing a caret, or null. Resolved through the
+ *  shared strict-grid identity helper (the block whose parent is a column) so
+ *  this host and the reorder/command sites all agree on "the active block". */
 function caretBlockPos(editor: Editor): number | null {
     const { selection } = editor.state;
     if (!(selection instanceof TextSelection)) return null;
-    const { $from } = selection;
-    let d = $from.depth;
-    while (d > 1 && $from.node(d - 1).type.name !== 'column') d--;
-    return d >= 1 ? $from.before(d) : null;
+    return blockAncestor(selection.$from)?.pos ?? null;
 }
 
 export default function BlockQuickBarHost({

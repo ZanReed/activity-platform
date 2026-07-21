@@ -31,6 +31,7 @@ import DefinitionPopoverHost from './components/DefinitionPopoverHost';
 import BlockCommandBarHost from './components/BlockCommandBarHost';
 import BlockQuickBarHost from './components/BlockQuickBarHost';
 import BlockAddButtonHost from './components/BlockAddButtonHost';
+import GridRowMenuHost from './components/GridRowMenuHost';
 import { FieldFocusContext } from './components/fieldFocus';
 
 interface EditorProps {
@@ -406,6 +407,13 @@ export default function Editor({
                     hoveredPos={gutterPos}
                     onAdd={(pos) => setInsertReq({ pos })}
                 />
+                {/*
+                  GridRowMenuHost — the multi-col row grip's click-menu (Merge to
+                  one column / Add row below). Body-portaled, opened by a plain
+                  click on the grip (drag still drags). Reuses dissolveRow /
+                  addRowBelow; the toolbar keeps the keyboard-accessible pair.
+                */}
+                <GridRowMenuHost editor={editor} />
             </div>
         </div>
         </FieldFocusContext.Provider>

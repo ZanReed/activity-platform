@@ -232,7 +232,7 @@ Synthesized from this review. Checkbox as you ship (on the `strict-grid` branch)
   test guards it); 9 unit tests + end-to-end render verified. Rich per-column content
   (lists/headings/nested question fences) stays editor-only.
 
-## GSTACK REVIEW REPORT
+## Eng review report — slice 1 (structural migration, archived)
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
@@ -290,9 +290,72 @@ The shared helper is imported only by `Columns.ts` + `BlockReorderShortcuts.ts`.
 column-walk (all correct — they were already column-aware). Duplicated-logic tech debt, not a
 bug. **Just do it whenever those files are next touched — no review needed.**
 
+**CORRECTION (eng review 2026-07-21):** reading the code, only ONE of the three was a real
+consolidation target. `SelectBlock` is already column-aware (no walk to fold). `SettleMotion`'s
+`settleTargets` is a DIFFERENT operation — it walks inserted step-ranges collecting fully-covered
+blocks, with `parent === 'doc' || 'column'` as a decoration-eligibility predicate (the `'doc'`
+branch is load-bearing: it settles a whole inserted `row` as one unit). It does not resolve
+selection identity, so it does not fold onto `activeBlockAt`; forcing it would be a premature
+abstraction. The lone genuine duplicate was `BlockQuickBarHost.caretBlockPos` — a verbatim inline
+copy of `blockAncestor`. **SHIPPED this review:** `caretBlockPos` now calls `blockAncestor`.
+
+### Triage outcome (eng review, 2026-07-21) — ratified
+
+Triage-first pass over the four buckets. The narrative predated the shipped toolbar
+`Merge` / `Row below` buttons, so most of it was YAGNI. Rulings (author-ratified):
+
+- **Bucket 1 (A3 persistent widgets vs. contextual toolbar buttons) → `/plan-design-review` DONE
+  2026-07-21 → BUILD the grip click-menu.** Design rated the shipped toolbar-only approach 7/10:
+  recovery works and is labeled, but the control lives in the far *sticky top* toolbar (proximity
+  break — it acts on "this row" while sitting nowhere near it) and the six-dot grip, the natural
+  "operate on this whole row" affordance, is **drag-only** (a plain grip click does nothing). The
+  design-right 10/10 is NOT a second persistent widget (rejected: fails subtraction + is the
+  "rival-to-grip" `dragHandleNested.ts` warns against) — it is to give the EXISTING grip a
+  **click-menu** (click the grip → small popover: "Merge to one column" / "Add row below"; drag
+  still drags). Reuses the one blessed container affordance, fixes proximity, matches the
+  Notion/Coda ⋮⋮-handle convention. **Ratified: build it.** Spec: a `gridRowMenu` module store +
+  single `GridRowMenuHost` at editor root (mirrors `BlockQuickBarHost`/`cropMode`), grip `click`
+  selects the row + opens the menu, actions reuse the existing `dissolveRow`/`addRowBelow`
+  commands (both already accept a row `NodeSelection`). The toolbar buttons stay (redundant
+  reachable path). App-only. **BUILT + green 2026-07-21:** `gridRowMenu.tsx` (store) +
+  `GridRowMenuHost.tsx` (body-portaled menu, ESC/outside-click close) + grip `click` handler in
+  `Columns.ts` (shares `resolveRowPos` with the drag path) + `.grid-row-menu` CSS + host mount in
+  `Editor.tsx`. 3 new e2e (open + Merge, Add row below, Escape); typecheck + 145 e2e green;
+  browser-verified (grip click selects the row + opens the menu, no console errors).
+- **Bucket 2 (drag / reorder) → BUILD NOTHING.** `dragHandleNested` is a deliberate, documented
+  rule (grip owns whole-row moves; hover owns inner-block; the `depth<=1` branch is NOT dead — it
+  keeps a top-level `sectionBreak` draggable) → reworking it reopens the handle-flip bug the
+  comment exists to prevent. Whole-stack move and cross-row keyboard reorder both cross the
+  `isolating` seam = the exact caret/interaction work TENSION-1 deferred to the Notion-hybrid
+  paradigm; building now is throwaway. Cross-row-drag e2e stays absent (DnD is owner-eyeball per
+  project convention). **Optional P3:** a 1-line comment on `dragHandleNested.ts` noting the
+  `depth<=1` branch now also covers `sectionBreak` (doc-accuracy only).
+- **Bucket 3 (`activeBlockAt` consolidation) → DONE this review** (the `caretBlockPos` fold above;
+  see the CORRECTION for why SettleMotion was not a target). No spec was needed.
+- **Bucket 4 (deferred-by-design) → NO ACTION.** Confirmed nothing needs doing. **Optional P3:**
+  tighten the cosmetic `/` PlaceholderHint so it doesn't show in empty multi-col cells (one-liner).
+
+App-only; no renderer / publish / wire / storage change. Nothing left blocks a "slice 3".
+
 ### 4. Deferred by design (NOT gaps)
 - **Transparent cross-row-merge caret** — owned by the future Notion-hybrid paradigm (TENSION-1).
 - **Rich per-column Markdown import** (lists / headings / nested question fences inside a
   ` ```columns ``` ` fence) — editor-only; documented in `docs/markdown-import-format.md`.
 - **Cosmetic:** the `/` PlaceholderHint now also shows in empty *multi-col cells* (was
   top-level-only) — harmless; a one-liner to tighten if desired.
+
+## GSTACK REVIEW REPORT
+
+Triage-first review of the "Known gaps / slice-3 candidates" section (not the whole doc).
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 4 buckets triaged: 1 flagged to design, 1 build-nothing, 1 shipped, 1 no-action |
+| Design Review | `/plan-design-review` | UI/UX gaps (bucket 1) | 1 | CLEAR → BUILT | shipped toolbar-only rated 7/10 (proximity break + drag-only grip); ratified + built the grip click-menu |
+| Outside Voice | `codex` | Independent 2nd opinion | 0 | SKIPPED | codex not installed; subagent fallback declined (no-spawn convention; low marginal value) |
+
+- **VERDICT:** ENG + DESIGN CLEARED (triage + one build). Ratified: B1 → **BUILT the grip click-menu** (Merge / Add row below on grip click; reuses `dissolveRow`/`addRowBelow`; toolbar buttons retained); B2 → build nothing (drag/reorder gaps are deliberate design or paradigm-deferred per TENSION-1); B3 → shipped (`caretBlockPos` folded onto `blockAncestor`); B4 → no action. App-only. Typecheck clean; 721 unit + **145 e2e** green (3 new grip-menu e2e).
+- **Design key finding:** the binary fork (keep toolbar buttons vs. add a persistent widget) missed the design-right third option — give the EXISTING grip a click-menu, avoiding the "rival-to-grip" a second widget would create.
+- **Eng key finding:** the doc mislabeled the B3 consolidation target — `SettleMotion` is a range-coverage operation, not a selection-identity walk; the real duplicate was `BlockQuickBarHost.caretBlockPos`. Corrected in-doc and shipped.
+
+NO UNRESOLVED DECISIONS

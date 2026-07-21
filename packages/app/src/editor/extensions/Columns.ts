@@ -10,6 +10,7 @@ import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { settleMetaKey } from './SettleMotion';
 import { activeBlockAt, topLevelRowAt } from '../strictGrid';
+import { openRowMenu } from '../components/gridRowMenu';
 
 // =============================================================================
 // Columns / Column — structural side-by-side container for the editor.
@@ -345,8 +346,8 @@ function buildColumnsGrip(
     grip.className = 'editor-columns-grip';
     grip.setAttribute('contenteditable', 'false');
     grip.setAttribute('draggable', 'true');
-    grip.setAttribute('title', 'Drag to move the whole columns block');
-    grip.setAttribute('aria-label', 'Drag to move the columns block');
+    grip.setAttribute('title', 'Drag to move, or click for layout actions');
+    grip.setAttribute('aria-label', 'Move or edit the columns block');
     // Six-dot grip glyph, matching the inner drag handle's icon.
     grip.innerHTML =
         '<svg width="12" height="20" viewBox="0 0 12 20" fill="currentColor" aria-hidden="true">' +
@@ -354,20 +355,26 @@ function buildColumnsGrip(
         '<circle cx="3" cy="10" r="1.5"/><circle cx="9" cy="10" r="1.5"/>' +
         '<circle cx="3" cy="16" r="1.5"/><circle cx="9" cy="16" r="1.5"/></svg>';
 
+    // The doc position just before the row this grip belongs to (robust to
+    // position shifts): the widget sits just inside the row; walk up to it and
+    // take its `before`. Shared by the drag gesture and the click-menu.
+    const resolveRowPos = (): number | null => {
+        const widgetPos = getPos();
+        if (typeof widgetPos !== 'number') return null;
+        const $pos = view.state.doc.resolve(widgetPos);
+        let depth = $pos.depth;
+        while (depth > 0 && $pos.node(depth).type.name !== 'row') depth -= 1;
+        if ($pos.node(depth)?.type.name !== 'row') return null;
+        return depth === 0 ? widgetPos : $pos.before(depth);
+    };
+
     grip.addEventListener('dragstart', (event) => {
         if (!event.dataTransfer) return;
         // Own the gesture: keep PM's built-in dragstart (bound on the editor
         // DOM) from also firing and re-deriving a target from coordinates.
         event.stopPropagation();
-        const widgetPos = getPos();
-        if (typeof widgetPos !== 'number') return;
-        // The widget sits just inside the columns node; walk up to the node and
-        // take its `before` position (robust to position shifts).
-        const $pos = view.state.doc.resolve(widgetPos);
-        let depth = $pos.depth;
-        while (depth > 0 && $pos.node(depth).type.name !== 'row') depth -= 1;
-        if ($pos.node(depth)?.type.name !== 'row') return;
-        const columnsPos = depth === 0 ? widgetPos : $pos.before(depth);
+        const columnsPos = resolveRowPos();
+        if (columnsPos === null) return;
         const selection = NodeSelection.create(view.state.doc, columnsPos);
         const slice = view.state.doc.slice(selection.from, selection.to);
         // Stage the drag the way PM expects; with `move` true and the columns
@@ -381,6 +388,28 @@ function buildColumnsGrip(
         if (dom instanceof HTMLElement) {
             event.dataTransfer.setDragImage(dom, 0, 0);
         }
+    });
+
+    // A plain click (a click never fires after a drag) selects the row and opens
+    // the layout menu — the grip's affordance payoff, so recovery isn't buried in
+    // the far sticky toolbar (design ruling, strict-grid-editor.md bucket 1).
+    grip.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const rowPos = resolveRowPos();
+        if (rowPos === null) return;
+        view.dispatch(
+            view.state.tr.setSelection(
+                NodeSelection.create(view.state.doc, rowPos),
+            ),
+        );
+        const rect = grip.getBoundingClientRect();
+        openRowMenu({
+            top: rect.top,
+            left: rect.left,
+            bottom: rect.bottom,
+            right: rect.right,
+        });
     });
 
     return grip;

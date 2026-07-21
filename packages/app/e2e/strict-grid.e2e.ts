@@ -472,3 +472,59 @@ test('the toolbar Merge button dissolves the multi-col row', async ({ page }) =>
     const shape = await docShape(page);
     expect(shape).not.toContain('column,column');
 });
+
+// --- the row grip's click-menu (GridRowMenuHost) --------------------------
+// A plain click on the multi-col grip opens a body-portaled menu; its items
+// reuse dissolveRow / addRowBelow. Recovery lives ON the row's own affordance,
+// not only in the far sticky toolbar (design ruling, bucket 1).
+
+test('clicking the row grip opens the layout menu; Merge dissolves the row', async ({
+    page,
+}) => {
+    await page.evaluate(() =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.chain().focus().insertColumns(2).run(),
+    );
+    const grip = page.locator('.editor-columns-grip').first();
+    await expect(grip).toBeVisible();
+    await grip.click();
+    const menu = page.locator('.grid-row-menu');
+    await expect(menu).toBeVisible();
+    await menu.getByRole('menuitem', { name: 'Merge to one column' }).click();
+    // Menu closes on action; the 2-col row is now a 1-col stack.
+    await expect(menu).toHaveCount(0);
+    expect(await docShape(page)).not.toContain('column,column');
+});
+
+test('the row grip menu Add row below inserts a full-width stack row', async ({
+    page,
+}) => {
+    await page.evaluate(() =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.chain().focus().insertColumns(2).run(),
+    );
+    await page.locator('.editor-columns-grip').first().click();
+    await page
+        .locator('.grid-row-menu')
+        .getByRole('menuitem', { name: 'Add row below' })
+        .click();
+    const shape = await docShape(page);
+    // The multi-col row survives AND a fresh full-width stack row follows it.
+    expect(shape).toContain('column[paragraph],column[paragraph]');
+    expect(shape).toContain('row[column[paragraph]]');
+});
+
+test('Escape closes the row grip menu without changing the doc', async ({
+    page,
+}) => {
+    await page.evaluate(() =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.chain().focus().insertColumns(2).run(),
+    );
+    const before = await docShape(page);
+    await page.locator('.editor-columns-grip').first().click();
+    await expect(page.locator('.grid-row-menu')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.grid-row-menu')).toHaveCount(0);
+    expect(await docShape(page)).toBe(before);
+});
