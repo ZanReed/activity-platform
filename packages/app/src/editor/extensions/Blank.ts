@@ -2,6 +2,7 @@ import { Node, mergeAttributes, InputRule } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { NodeSelection } from 'prosemirror-state';
 import BlankView from '../nodeViews/BlankView';
+import { parseBlankSpec, blankAttrsFromSpec } from '../../lib/blankSyntax';
 
 // ============================================================================
 // Blank — Tiptap inline atom node representing a fill-in-the-blank input.
@@ -328,15 +329,17 @@ export const Blank = Node.create({
             new InputRule({
                 find: BLANK_INPUT_REGEX,
                 handler: ({ range, match, chain }) => {
-                    const canonical = (match[1] ?? '').trim();
-                    const altSegment = match[2] ?? '';
-                    const acceptableAnswers = altSegment
-                        .split('|')
-                        .map((s) => s.trim())
-                        .filter((s) => s.length > 0);
-
-                    if (canonical.length === 0) {
-                        return null;
+                    // The SAME {{…}} sigil grammar the markdown importer uses
+                    // (shared blankSyntax.ts), so typing {{~3}}, {{=12}}, {{==2a}},
+                    // {{Paris | ?hint | !Lyon :: msg}}, or {{a | ??x}} produces the
+                    // same blank as pasting it — instead of storing the sigils as
+                    // literal text. blankAttrsFromSpec stores hint / mistake
+                    // feedback as PLAIN TEXT; the blank popover enriches it (adds
+                    // inline math) afterwards. A dropped `!wrong` (no `::`) never
+                    // becomes an accepted answer, matching the importer.
+                    const spec = parseBlankSpec(match[1] ?? '', match[2] ?? '');
+                    if (!spec) {
+                        return null; // empty answer → leave {{…}} as literal text
                     }
                     // Replace the matched range with the blank node.
                     // insertContentAt with a range arg is a single PM
@@ -350,8 +353,7 @@ export const Blank = Node.create({
                             type: nodeType.name,
                             attrs: {
                                 id: crypto.randomUUID(),
-                                answer: canonical,
-                                acceptableAnswers,
+                                ...blankAttrsFromSpec(spec),
                             },
                         })
                         .run();
