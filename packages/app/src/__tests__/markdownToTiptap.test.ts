@@ -1497,6 +1497,73 @@ describe('```graph fence (Drop 7)', () => {
     });
 });
 
+describe('Model A math gaps (\\gap{…})', () => {
+    it('a $$…\\gap{}…$$ display equation becomes a math_block with a gap prompt', () => {
+        const [block] = blocks('$$2x = \\gap{8}$$');
+        expect(block!.type).toBe('mathBlock');
+        // DRAFT latex keeps the answer embedded in the placeholder.
+        expect(block!.attrs!.latex).toMatch(/2x = \\placeholder\[g[0-9a-f]+\]\{8\}/);
+        const prompts = block!.attrs!.prompts as Array<{ id: string; answer: string }>;
+        expect(prompts).toHaveLength(1);
+        expect(prompts[0]!.answer.length).toBeGreaterThan(0);
+        // the prompt id matches the placeholder marker in the latex
+        expect(block!.attrs!.latex).toContain('[' + prompts[0]!.id + ']');
+    });
+
+    it('a gap works inline ($…\\gap{}…$)', () => {
+        const math = blocks('recall $x = \\gap{5}$ here')[0]!.content!.find(
+            (n) => n.type === 'mathInline',
+        )!;
+        expect((math.attrs!.prompts as unknown[]).length).toBe(1);
+    });
+
+    it('a faded worked-example step can carry an in-equation gap', () => {
+        const faded = blocks(
+            '```faded\nSubtract 3.\n$$2x = \\gap{8}$$\n$$x = \\gap{4}$$\n```',
+        )[0]!;
+        expect(faded.type).toBe('fadedWorkedExample');
+        const gapSteps = (faded.content ?? []).filter(
+            (n) =>
+                n.type === 'mathBlock' &&
+                Array.isArray(n.attrs?.prompts) &&
+                (n.attrs!.prompts as unknown[]).length > 0,
+        );
+        expect(gapSteps).toHaveLength(2);
+    });
+
+    it('survives the schema round-trip: answers move to prompts, stored latex emptied (no leak)', () => {
+        const activity = tiptapToActivity(
+            { type: 'doc', content: convert('$$2x = \\gap{8}$$').blocks },
+            META,
+        );
+        const mb = activity.sections
+            .flatMap((s) => s.rows)
+            .flatMap((r) => r.columns)
+            .flatMap((c) => c.blocks)
+            .find(
+                (b): b is Extract<typeof b, { type: 'math_block' }> =>
+                    b.type === 'math_block',
+            )!;
+        expect(mb.prompts).toHaveLength(1);
+        expect(mb.prompts![0]!.answer.length).toBeGreaterThan(0);
+        expect(mb.latex).toMatch(/\\placeholder\[[^\]]+\]\{\}/); // emptied
+        expect(mb.latex).not.toContain('{8}');
+    });
+
+    it('handles \\gap{\\frac{1}{2}} (balanced braces)', () => {
+        const [block] = blocks('$$\\gap{\\frac{1}{2}}$$');
+        const prompts = block!.attrs!.prompts as unknown[];
+        expect(prompts).toHaveLength(1);
+        expect(block!.attrs!.latex).toContain('\\frac{1}{2}');
+    });
+
+    it('gap-free math stays byte-identical (no prompts attr)', () => {
+        const [block] = blocks('$$x + 1$$');
+        expect(block!.attrs!.latex).toBe('x + 1');
+        expect(block!.attrs).not.toHaveProperty('prompts');
+    });
+});
+
 describe('graph figures on choices (mc / matching)', () => {
     it('an mc choice `graph: line …` becomes a ChoiceGraph figure (graph is the choice)', () => {
         const md =

@@ -247,6 +247,16 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'in-equation gap \\gap{answer}',
+        fragment: '\\gap{8}',
+        md: '$$2x = \\gap{8}$$',
+        check: (b) => {
+            const mb = b.find((n) => n.type === 'mathBlock')!;
+            expect(mb).toBeDefined();
+            expect((mb.attrs!.prompts as unknown[]).length).toBe(1);
+        },
+    },
+    {
         name: 'inline definition [[term :: definition]]',
         fragment: '[[mitochondria :: the powerhouse of the cell]]',
         md: 'The [[mitochondria :: the powerhouse of the cell]] makes energy.',

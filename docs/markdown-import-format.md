@@ -45,6 +45,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
 | `[[term :: definition]]` | a **vocabulary definition** — the term with a pop-up explanation |
+| `$$… \gap{answer} …$$` | a gradeable **in-equation gap** the student fills (Model A) |
 
 ## Rules that matter
 
@@ -60,6 +61,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 - **Inline math has a guard.** A lone `$` or currency like `$5 and $10` is *not* treated as math — only a properly closed `$…$` with no space just inside the delimiters.
 - **Write real LaTeX in math.** Backslash commands (`\frac`, `\sum`, `\int`, `\,`) are preserved exactly.
 - **Vocabulary definitions (`[[…::…]]`).** `[[term :: definition]]` marks the term so a student can tap it for a pop-up showing the definition (plain text + `$inline$` math). Works anywhere inline — prose, headings, prompts. The `::` splits term from definition (first one wins); neither side may contain square brackets, and a `[[bracketed phrase]]` with no `::` stays literal text. Rich formatting and an illustrative image are added in the editor's definition popover after import.
+- **In-equation gaps (`\gap{…}`, Model A).** Inside `$…$` or `$$…$$`, `\gap{answer}` becomes a gradeable gap *inside* the rendered equation — the natural "complete the step" authoring for a faded worked example or a math-completion problem (`$$2x = \gap{8}$$`). The answer is graded by math equivalence (any equivalent form counts, so `8` / `8.0` / `4+4` all pass); the stored equation empties the gap so the answer never leaks to the student. Balanced braces work (`\gap{\frac{1}{2}}`). `|`-alternates aren't parsed (a `|` is a real LaTeX token); acceptable-answer lists, exact-form matching, and tolerances are added in the editor.
 - **Image URLs must be absolute** (`https://…`). A relative or empty URL is skipped with a warning.
 - **Wrapping the model's reply in a code fence is fine — recommended, even.** Asking the model to put its whole response inside a fenced code block is how you get a **Copy** button and the *raw* (unrendered) Markdown instead of a formatted preview you can't paste. The Copy button hands you the contents *without* the ```` ``` ```` lines, so the importer never sees the fence. As a safety net, a paste that is entirely wrapped in a ```` ```markdown ```` fence is unwrapped automatically on import. (A plain ```` ``` ```` code block in the *middle* of your content is still treated as a code block and flattened — only outer fences are stripped.)
 
@@ -137,6 +139,11 @@ MATH (write real LaTeX)
 - A displayed equation on its own line, with a blank line above and below:
 
   $$\int_0^1 x\,dx = \frac{1}{2}$$
+
+- A gradeable GAP inside an equation — \gap{answer} — lets the student fill in
+  the missing part (ideal for a faded example's "complete the step"):
+    $$2x = \gap{8}$$   then   $$x = \gap{4}$$
+  The answer is graded by math equivalence, so 8, 8.0, and 4+4 all count.
 
 DEFINITIONS (a tappable vocabulary term with a pop-up explanation)
 - Wrap a term and its meaning in double square brackets, split by ::

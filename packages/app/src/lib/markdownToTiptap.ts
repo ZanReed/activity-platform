@@ -41,7 +41,12 @@
 // authored ones.
 // =============================================================================
 
-import { parseGraphFormula, parsePointList, parseRaySegment } from '@activity/graph-kit';
+import {
+    parseGraphFormula,
+    parsePointList,
+    parseRaySegment,
+    latexToAscii,
+} from '@activity/graph-kit';
 import type { JSONContent } from '@tiptap/react';
 import type { InlineNode } from '@activity/schema';
 import { tiptapInlineToActivity } from './serialize';
@@ -210,6 +215,84 @@ function extractMath(src: string): { text: string; spans: MathSpan[] } {
         },
     );
     return { text, spans };
+}
+
+// ---- Model A in-equation gaps (`\gap{answer}`) ------------------------------
+// A gradeable gap INSIDE a rendered equation — the natural authoring for a
+// "complete the derivation" step (faded worked examples, math completion
+// problems). Inside $…$ / $$…$$, `\gap{answer}` becomes a `\placeholder[id]{…}`
+// gap + a schema MathPrompt. Answer-in-gap DRAFT form (the answer stays embedded
+// in the placeholder here, exactly as the editor stores a live gap; serialize
+// empties it on save via emptyPlaceholders so the student page never leaks it).
+// The prompt's answer is ASCII (latexToAscii), matching the editor's on-edit
+// reconcile; grading defaults to 'value' equivalence, so any equivalent form
+// (8, 8.0, 4+4) is accepted — no alternates syntax needed. Balanced-brace scan,
+// so `\gap{\frac{1}{2}}` works. `|`-alternates are deliberately NOT parsed here
+// (a `|` is a real LaTeX token — |x| absolute value); richer knobs
+// (acceptableAnswers, exact-form, tolerance) are editor-only.
+const GAP_MARKER = '\\gap{';
+
+interface ImportedMathPrompt {
+    id: string;
+    answer: string;
+    acceptableAnswers: string[];
+}
+
+function resolveMathGaps(
+    latex: string,
+    ctx: Ctx,
+): { latex: string; prompts: ImportedMathPrompt[] } {
+    if (!latex.includes(GAP_MARKER)) return { latex, prompts: [] };
+    const prompts: ImportedMathPrompt[] = [];
+    let out = '';
+    let i = 0;
+    while (i < latex.length) {
+        const start = latex.indexOf(GAP_MARKER, i);
+        if (start === -1) {
+            out += latex.slice(i);
+            break;
+        }
+        out += latex.slice(i, start);
+        const open = start + GAP_MARKER.length - 1; // index of the `{`
+        let depth = 0;
+        let j = open;
+        for (; j < latex.length; j++) {
+            if (latex[j] === '{') depth++;
+            else if (latex[j] === '}') {
+                depth--;
+                if (depth === 0) break;
+            }
+        }
+        if (depth !== 0) {
+            // Unbalanced braces — leave the remainder literal (never throw).
+            out += latex.slice(start);
+            break;
+        }
+        const answerLatex = latex.slice(open + 1, j);
+        // MathLive-safe, document-unique id (uuid hyphens are unsafe in a
+        // \placeholder marker, so strip them; prefix a letter to be safe).
+        const id = 'g' + crypto.randomUUID().replace(/-/g, '');
+        out += '\\placeholder[' + id + ']{' + answerLatex + '}';
+        const answer = latexToAscii(answerLatex).trim();
+        if (answer.length > 0) {
+            prompts.push({ id, answer, acceptableAnswers: [] });
+        } else {
+            ctx.warnings.add(
+                'Math gap: a \\gap{…} needs an answer inside the braces — left as an empty gap.',
+            );
+        }
+        i = j + 1;
+    }
+    return { latex: out, prompts };
+}
+
+// The attrs for a math node (mathInline / mathBlock) built from a span's latex,
+// resolving any `\gap{…}` gaps. `prompts` is emitted only when non-empty, so a
+// gap-free equation re-serializes byte-identically (the schema's optional-no-
+// default MathPrompt discipline).
+function mathAttrs(latex: string, ctx: Ctx): Record<string, unknown> {
+    const { latex: resolved, prompts } = resolveMathGaps(latex, ctx);
+    return prompts.length > 0 ? { latex: resolved, prompts } : { latex: resolved };
 }
 
 // Named-group subpattern for the combined inline tokenizer (emitInline). The
@@ -430,7 +513,7 @@ function mapParagraphBlocks(node: TokNode, ctx: Ctx): JSONContent[] {
     const sole = SOLE_DISPLAY_RE.exec(plainText(children).trim());
     const soleSpan = sole ? ctx.spans[Number(sole[1])] : undefined;
     if (soleSpan?.display) {
-        return [{ type: 'mathBlock', attrs: { latex: soleSpan.latex } }];
+        return [{ type: 'mathBlock', attrs: mathAttrs(soleSpan.latex, ctx) }];
     }
 
     const out: JSONContent[] = [];
@@ -707,7 +790,7 @@ function emitInline(
             const span = ctx.spans[Number(g.mathIdx)];
             out.push(
                 span
-                    ? { type: 'mathInline', attrs: { latex: span.latex } }
+                    ? { type: 'mathInline', attrs: mathAttrs(span.latex, ctx) }
                     : textNode(m[0], marks),
             );
         } else if (g.defInner !== undefined) {
@@ -929,7 +1012,10 @@ function fenceBodyBlock(
 ): JSONContent {
     const mathOnly = /^\$\$([\s\S]+?)\$\$$/.exec(line);
     if (mathOnly) {
-        return { type: 'mathBlock', attrs: { latex: (mathOnly[1] ?? '').trim() } };
+        return {
+            type: 'mathBlock',
+            attrs: mathAttrs((mathOnly[1] ?? '').trim(), ctx),
+        };
     }
     return blockFromInline(fenceInline(line, ctx, allowBlanks));
 }
