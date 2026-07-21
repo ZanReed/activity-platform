@@ -247,6 +247,20 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'inline definition [[term :: definition]]',
+        fragment: '[[mitochondria :: the powerhouse of the cell]]',
+        md: 'The [[mitochondria :: the powerhouse of the cell]] makes energy.',
+        check: (b) => {
+            const term = flatten(b).find(
+                (n) => n.type === 'text' && n.text === 'mitochondria',
+            );
+            expect(term).toBeDefined();
+            expect(
+                (term!.marks ?? []).some((mk) => mk.type === 'definition'),
+            ).toBe(true);
+        },
+    },
+    {
         name: 'graph prompt inline math',
         fragment: 'prompt: Graph $y = 2x + 3$',
         md: '```graph\nprompt: Graph $y = 2x + 3$.\nanswer: y = 2x + 3\n```',

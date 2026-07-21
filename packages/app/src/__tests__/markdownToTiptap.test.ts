@@ -1497,6 +1497,86 @@ describe('```graph fence (Drop 7)', () => {
     });
 });
 
+describe('inline definitions [[term :: definition]]', () => {
+    const termNode = (md: string, term: string): JSONContent =>
+        convert(md)
+            .blocks.flatMap((n) => n.content ?? [])
+            .find((n) => n.type === 'text' && n.text === term)!;
+
+    it('marks the term with a definition carrying the definition text', () => {
+        const t = termNode(
+            'The [[mitochondria :: the powerhouse of the cell]] makes ATP.',
+            'mitochondria',
+        );
+        expect(t.marks).toEqual([
+            {
+                type: 'definition',
+                attrs: {
+                    content: [
+                        { type: 'text', text: 'the powerhouse of the cell', marks: [] },
+                    ],
+                },
+            },
+        ]);
+    });
+
+    it('carries $inline$ math in the definition content', () => {
+        const t = termNode('a [[area :: $\\frac{1}{2}bh$]] here', 'area');
+        expect(t.marks).toEqual([
+            {
+                type: 'definition',
+                attrs: { content: [{ type: 'math_inline', latex: '\\frac{1}{2}bh' }] },
+            },
+        ]);
+    });
+
+    it('combines with an active mark (a bold defined term)', () => {
+        const t = termNode('**[[cell :: the unit of life]]**', 'cell');
+        expect(t.marks).toEqual([
+            { type: 'bold' },
+            {
+                type: 'definition',
+                attrs: { content: [{ type: 'text', text: 'the unit of life', marks: [] }] },
+            },
+        ]);
+    });
+
+    it('works inside a heading', () => {
+        const t = termNode('# The [[nucleus :: the control center]]', 'nucleus');
+        expect(t.marks![0]!.type).toBe('definition');
+    });
+
+    it('a [[…]] with no :: stays literal text', () => {
+        expect(convert('see [[chapter 3]] for details').blocks[0]!.content).toEqual([
+            { type: 'text', text: 'see [[chapter 3]] for details' },
+        ]);
+    });
+
+    it('survives the schema round-trip as a definition mark', () => {
+        const md = 'The [[osmosis :: water crossing a membrane]] process.';
+        const activity = tiptapToActivity(
+            { type: 'doc', content: convert(md).blocks },
+            META,
+        );
+        const para = activity.sections
+            .flatMap((s) => s.rows)
+            .flatMap((r) => r.columns)
+            .flatMap((c) => c.blocks)
+            .find(
+                (b): b is Extract<typeof b, { type: 'paragraph' }> =>
+                    b.type === 'paragraph',
+            )!;
+        const term = para.content.find(
+            (n): n is Extract<typeof n, { type: 'text' }> =>
+                n.type === 'text' && n.text === 'osmosis',
+        )!;
+        expect(term.marks[0]).toMatchObject({
+            type: 'definition',
+            content: [{ type: 'text', text: 'water crossing a membrane', marks: [] }],
+        });
+    });
+});
+
 describe('```callout fence', () => {
     it('imports a callout with a variant and an inline body', () => {
         const [c] = blocks('```callout\nvariant: warning\nCheck your units.\n```');

@@ -44,6 +44,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
+| `[[term :: definition]]` | a **vocabulary definition** — the term with a pop-up explanation |
 
 ## Rules that matter
 
@@ -58,6 +59,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 - **Display math must stand alone.** `$$…$$` becomes a block-level equation only when it is its own paragraph (blank line above and below). Inline `$…$` can appear anywhere in a line.
 - **Inline math has a guard.** A lone `$` or currency like `$5 and $10` is *not* treated as math — only a properly closed `$…$` with no space just inside the delimiters.
 - **Write real LaTeX in math.** Backslash commands (`\frac`, `\sum`, `\int`, `\,`) are preserved exactly.
+- **Vocabulary definitions (`[[…::…]]`).** `[[term :: definition]]` marks the term so a student can tap it for a pop-up showing the definition (plain text + `$inline$` math). Works anywhere inline — prose, headings, prompts. The `::` splits term from definition (first one wins); neither side may contain square brackets, and a `[[bracketed phrase]]` with no `::` stays literal text. Rich formatting and an illustrative image are added in the editor's definition popover after import.
 - **Image URLs must be absolute** (`https://…`). A relative or empty URL is skipped with a warning.
 - **Wrapping the model's reply in a code fence is fine — recommended, even.** Asking the model to put its whole response inside a fenced code block is how you get a **Copy** button and the *raw* (unrendered) Markdown instead of a formatted preview you can't paste. The Copy button hands you the contents *without* the ```` ``` ```` lines, so the importer never sees the fence. As a safety net, a paste that is entirely wrapped in a ```` ```markdown ```` fence is unwrapped automatically on import. (A plain ```` ``` ```` code block in the *middle* of your content is still treated as a code block and flattened — only outer fences are stripped.)
 
@@ -135,6 +137,13 @@ MATH (write real LaTeX)
 - A displayed equation on its own line, with a blank line above and below:
 
   $$\int_0^1 x\,dx = \frac{1}{2}$$
+
+DEFINITIONS (a tappable vocabulary term with a pop-up explanation)
+- Wrap a term and its meaning in double square brackets, split by ::
+    The [[mitochondria :: the powerhouse of the cell]] makes energy.
+- The term stays in the sentence; the definition shows in a pop-up (it may
+  include $inline$ math). Term and definition can’t contain square brackets;
+  a [[bracketed phrase]] with no :: stays literal text.
 
 GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
 - ```graph … ``` with one statement per line:

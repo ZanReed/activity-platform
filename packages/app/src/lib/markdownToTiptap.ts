@@ -218,11 +218,17 @@ function extractMath(src: string): { text: string; spans: MathSpan[] } {
 const BLANK_SUB =
     '\\{\\{(?<blankCanon>[^{}|]+)(?<blankAlts>(?:\\|[^{}|]+)*)\\}\\}';
 const MATH_PLACEHOLDER_SUB = `${MATH_OPEN}(?<mathIdx>\\d+)${MATH_CLOSE}`;
+// `[[term :: definition]]` inline vocabulary definition. `[[`/`]]` pass through
+// markdown-it untouched (a bracket run with no `(url)`/reference is literal
+// text), so — like blanks and math — it is resolved HERE, post-tokenization.
+// The inner run forbids brackets, so definitions never nest.
+const DEFINITION_SUB = '\\[\\[(?<defInner>[^\\[\\]]+)\\]\\]';
 
 function inlineMatcher(allowBlanks: boolean): RegExp {
-    const pattern = allowBlanks
-        ? `(?:${BLANK_SUB})|(?:${MATH_PLACEHOLDER_SUB})`
-        : `(?:${MATH_PLACEHOLDER_SUB})`;
+    // Math placeholders + definitions resolve in ANY inline context; blanks only
+    // where a blank is allowed (paragraphs / list items, not headings).
+    const base = `(?:${MATH_PLACEHOLDER_SUB})|(?:${DEFINITION_SUB})`;
+    const pattern = allowBlanks ? `(?:${BLANK_SUB})|${base}` : base;
     return new RegExp(pattern, 'g');
 }
 
@@ -704,6 +710,9 @@ function emitInline(
                     ? { type: 'mathInline', attrs: { latex: span.latex } }
                     : textNode(m[0], marks),
             );
+        } else if (g.defInner !== undefined) {
+            const def = makeDefinition(g.defInner, marks, ctx);
+            out.push(def ?? textNode(m[0], marks));
         } else {
             out.push(textNode(m[0], marks));
         }
@@ -713,6 +722,32 @@ function emitInline(
     }
     const rest = text.slice(last);
     if (rest.length > 0) out.push(textNode(rest, marks));
+}
+
+// A `[[term :: definition]]` inline vocabulary definition → the TERM text run
+// carrying a `definition` mark (alongside any active bold/italic/code) whose
+// popover content is the definition text (plain text + $inline$ math via
+// inlineSchemaContent; the editor's definition popover adds rich formatting / an
+// image later). Split on the FIRST `::` (the DSL's label::detail convention).
+// No `::`, or an empty term or definition, keeps the literal `[[…]]` text.
+function makeDefinition(
+    inner: string,
+    marks: string[],
+    ctx: Ctx,
+): JSONContent | null {
+    const idx = inner.indexOf('::');
+    if (idx === -1) return null;
+    const term = inner.slice(0, idx).trim();
+    const defText = inner.slice(idx + 2).trim();
+    if (term.length === 0 || defText.length === 0) return null;
+    const content = inlineSchemaContent(defText, ctx);
+    if (content.length === 0) return null;
+    const marksList = [...new Set(marks)].map((type) => ({ type }));
+    return {
+        type: 'text',
+        text: term,
+        marks: [...marksList, { type: 'definition', attrs: { content } }],
+    };
 }
 
 // parseBlankSpec (the `{{…}}` sigil grammar) + TOLERANCE_RE moved to the shared
