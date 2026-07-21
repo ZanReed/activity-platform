@@ -1092,7 +1092,7 @@ describe('math blanks ({{==…}})', () => {
 
 describe('blank hint + mistake feedback', () => {
     // The single blank token in a one-blank import.
-    const blankAttrs = (md: string): Record<string, any> => {
+    const blankAttrs = (md: string) => {
         const b = convert(md)
             .blocks.flatMap((n) => n.content ?? [])
             .find((n) => n.type === 'blank');
@@ -1124,7 +1124,10 @@ describe('blank hint + mistake feedback', () => {
 
     it('collects multiple mistake segments in document order', () => {
         const attrs = blankAttrs('{{4 | !3 :: too low | !5 :: too high}}');
-        expect(attrs.mistakeFeedback.map((m: any) => m.match)).toEqual(['3', '5']);
+        expect(attrs.mistakeFeedback.map((m: { match: string }) => m.match)).toEqual([
+            '3',
+            '5',
+        ]);
     });
 
     it('mixes alternates, a hint, and a mistake in one blank', () => {
@@ -1207,17 +1210,21 @@ describe('blank hint + mistake feedback', () => {
             { type: 'doc', content: convert(md).blocks },
             META,
         );
-        const token = (activity.sections as any[])
+        const fib = activity.sections
             .flatMap((s) => s.rows)
             .flatMap((r) => r.columns)
             .flatMap((c) => c.blocks)
-            .filter((b) => b.type === 'fill_in_blank')
-            .flatMap((b) => b.content)
-            .find((n) => n.type === 'blank');
-        expect(token.hint).toEqual([
+            .find(
+                (b): b is Extract<typeof b, { type: 'fill_in_blank' }> =>
+                    b.type === 'fill_in_blank',
+            );
+        const token = fib?.content.find(
+            (n): n is Extract<typeof n, { type: 'blank' }> => n.type === 'blank',
+        );
+        expect(token!.hint).toEqual([
             { type: 'text', text: 'starts with P', marks: [] },
         ]);
-        expect(token.mistakeFeedback).toEqual([
+        expect(token!.mistakeFeedback).toEqual([
             {
                 match: 'Lyon',
                 feedback: [{ type: 'text', text: 'the third city', marks: [] }],
