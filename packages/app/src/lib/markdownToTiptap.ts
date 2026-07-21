@@ -353,6 +353,11 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 if (cols) return [cols];
                 return [rawTextParagraph(node.token.content)];
             }
+            if ((node.token.info ?? '').trim() === 'callout') {
+                const callout = parseCalloutFence(node.token.content, ctx);
+                if (callout) return [callout];
+                return [rawTextParagraph(node.token.content)];
+            }
             ctx.warnings.add(
                 'Code blocks aren’t supported yet — imported as plain text.',
             );
@@ -1331,6 +1336,55 @@ function parseExplainFence(src: string, ctx: Ctx): JSONContent | null {
         type: 'selfExplanation',
         attrs: { id: '', placeholder },
         content: fenceInline(promptLines.join(' '), ctx, false),
+    };
+}
+
+// ```callout fence — a tinted note box (callout block). An optional `variant:`
+// line picks info / warning / success / note (default info; `tip` → success,
+// `warn` → warning as friendly aliases); every other non-blank line joins into
+// the inline body ($math$ ok). Content is inline only (the schema's callout body
+// is InlineNode[]), so lines join with a space rather than becoming blocks.
+const CALLOUT_VARIANTS: Record<string, string> = {
+    info: 'info',
+    warning: 'warning',
+    warn: 'warning',
+    success: 'success',
+    note: 'note',
+    tip: 'success',
+};
+function parseCalloutFence(src: string, ctx: Ctx): JSONContent | null {
+    let variant = 'info';
+    const bodyLines: string[] = [];
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const v = /^variant:\s*(.*)$/i.exec(line);
+        if (v) {
+            const raw = (v[1] ?? '').trim().toLowerCase();
+            const mapped = CALLOUT_VARIANTS[raw];
+            if (mapped) variant = mapped;
+            else if (raw)
+                ctx.warnings.add(
+                    `Callout block: unknown variant “${raw}” (use info, warning, success, or note) — used info.`,
+                );
+            continue;
+        }
+        bodyLines.push(line);
+    }
+
+    if (bodyLines.length === 0) {
+        ctx.warnings.add(
+            'Callout block: needs body text — imported as plain text.',
+        );
+        return null;
+    }
+
+    return {
+        type: 'callout',
+        attrs: { id: '', variant },
+        content: fenceInline(bodyLines.join(' '), ctx, false),
     };
 }
 

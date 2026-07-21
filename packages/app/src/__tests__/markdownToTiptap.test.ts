@@ -1497,6 +1497,74 @@ describe('```graph fence (Drop 7)', () => {
     });
 });
 
+describe('```callout fence', () => {
+    it('imports a callout with a variant and an inline body', () => {
+        const [c] = blocks('```callout\nvariant: warning\nCheck your units.\n```');
+        expect(c).toMatchObject({
+            type: 'callout',
+            attrs: { variant: 'warning' },
+            content: [{ type: 'text', text: 'Check your units.' }],
+        });
+    });
+
+    it('defaults to the info variant', () => {
+        expect(blocks('```callout\nJust a note.\n```')[0]!.attrs!.variant).toBe(
+            'info',
+        );
+    });
+
+    it('accepts tip → success and warn → warning aliases', () => {
+        expect(blocks('```callout\nvariant: tip\nx\n```')[0]!.attrs!.variant).toBe(
+            'success',
+        );
+        expect(blocks('```callout\nvariant: warn\nx\n```')[0]!.attrs!.variant).toBe(
+            'warning',
+        );
+    });
+
+    it('warns on an unknown variant and falls back to info', () => {
+        const { blocks: bs, warnings } = convert('```callout\nvariant: danger\nx\n```');
+        expect(bs[0]!.attrs!.variant).toBe('info');
+        expect(warnings.some((w) => w.includes('variant'))).toBe(true);
+    });
+
+    it('joins multiple body lines into one inline run', () => {
+        expect(blocks('```callout\nfirst line\nsecond line\n```')[0]!.content).toEqual(
+            [{ type: 'text', text: 'first line second line' }],
+        );
+    });
+
+    it('carries $inline$ math in the body', () => {
+        expect(blocks('```callout\nrecall $x^2$\n```')[0]!.content).toEqual([
+            { type: 'text', text: 'recall ' },
+            { type: 'mathInline', attrs: { latex: 'x^2' } },
+        ]);
+    });
+
+    it('an empty body warns and falls back to plain text (no callout)', () => {
+        const { blocks: bs, warnings } = convert('```callout\nvariant: info\n```');
+        expect(bs.some((n) => n.type === 'callout')).toBe(false);
+        expect(warnings.some((w) => w.includes('body'))).toBe(true);
+    });
+
+    it('round-trips through the schema bridge to a callout block', () => {
+        const md = '```callout\nvariant: success\nWell done.\n```';
+        const activity = tiptapToActivity(
+            { type: 'doc', content: convert(md).blocks },
+            META,
+        );
+        const block = activity.sections
+            .flatMap((s) => s.rows)
+            .flatMap((r) => r.columns)
+            .flatMap((c) => c.blocks)
+            .find(
+                (b): b is Extract<typeof b, { type: 'callout' }> =>
+                    b.type === 'callout',
+            );
+        expect(block).toMatchObject({ type: 'callout', variant: 'success' });
+    });
+});
+
 describe('pedagogical block fences (objectives / worked / faded / explain)', () => {
     it('```objectives → a titled learning-objectives list', () => {
         const md = '```objectives\ntitle: Today\'s goals\nSolve two-step equations\n- Graph a line\n```';

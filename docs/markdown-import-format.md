@@ -40,6 +40,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```shortanswer ` fenced block | a **graded short-answer** question (rubric optional; see below) |
 | a ` ```essay ` fenced block | a **graded essay** question (word-count target + rubric optional; see below) |
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
+| a ` ```callout ` fenced block | a **tinted note box** — info / warning / success / note (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
@@ -308,14 +309,20 @@ COLUMNS (a `columns` fence lays blocks out side by side)
   line becomes a paragraph. Keep column content simple (paragraphs, math,
   blanks) — lists and headings inside a column are editor-only.
 
+CALLOUT (a `callout` fence is a tinted note box)
+- ```callout … ``` with an optional variant: line, then the note text:
+    variant: warning        (info | warning | success | note; default info)
+    Double-check your units before submitting.
+- The body is one line of text ($inline$ math ok); extra lines join together.
+
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  and ```columns — only the single outer block that wraps the whole reply and
-  those fences are allowed; anything unsupported imports as plain text.
+  ```columns, and ```callout — only the single outer block that wraps the whole
+  reply and those fences are allowed; anything unsupported imports as plain text.
 
 When I describe the activity I want, reply with only that single code block.
 ```
@@ -565,3 +572,18 @@ The blank: {{2}} is the smallest prime.
 - **Columns** — 2 to 6, separated by a `---` line on its own. Fewer than two columns imports as plain text with a warning; more than six is clamped to six (the extras are dropped, with a warning).
 - **Content** — one block per non-blank line inside each column, the same line-per-block rule as `worked`/`faded`: a line that is only `$$…$$` becomes a displayed equation, a line containing a `{{blank}}` becomes a fill-in-the-blank, and every other line becomes a paragraph (with `**bold**`, `*italic*`, `` `code` ``, and `$inline$` math). An empty column gets a single empty paragraph.
 - **Not here** — lists, headings, images, and nested question fences inside a column have no Markdown round-trip; author those in the editor after import. Column widths, grid lines, and reserved work space also default (adjust them in the editor's column toolbar).
+
+## Callout blocks (```callout fence)
+
+A fenced code block with the `callout` language tag becomes a **tinted note box** — the same block as the editor's "Callout". Use it for a tip, warning, or aside.
+
+```
+```callout
+variant: warning
+Double-check your units before submitting.
+```⠀
+```
+
+- **Variant** — an optional `variant:` line picks the style: `info` (default), `warning`, `success`, or `note`. `tip` aliases `success` and `warn` aliases `warning`; an unrecognized variant warns and falls back to `info`.
+- **Body** — every non-`variant:` line is the note text, joined into one inline run (`**bold**`, `*italic*`, `` `code` ``, and `$inline$` math). A callout with no body imports as plain text with a warning.
+- **Not here** — a callout body is a single rich-text line; multi-block content (lists, several paragraphs) inside a callout is editor-only.

@@ -140,6 +140,12 @@ export const FENCES: FenceSpec[] = [
         summary: 'a multi-column (side-by-side) row, columns divided by ---',
         example: 'left column\n---\nright column',
     },
+    {
+        tag: 'callout',
+        blockType: 'callout',
+        summary: 'a tinted note box (info / warning / success / note)',
+        example: 'variant: warning\nDouble-check your units before submitting.',
+    },
 ];
 
 // The inline fill-in-the-blank grammar (parseBlankSpec in markdownToTiptap.ts).
