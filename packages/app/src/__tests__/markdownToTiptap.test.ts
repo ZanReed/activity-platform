@@ -50,6 +50,79 @@ function blocks(md: string): JSONContent[] {
 // content must satisfy once wrapped.
 const editorSchema = getSchema(buildEditorExtensions());
 
+describe('```columns fence (T8)', () => {
+    it('imports a 2-column row, one block per non-blank line', () => {
+        const md = '```columns\nLeft top\nLeft bottom\n---\nRight only\n```';
+        const [row] = blocks(md);
+        expect(row!.type).toBe('row');
+        expect(row!.attrs?.gridLines).toBe('inherit');
+        const cols = row!.content!;
+        expect(cols.map((c) => c.type)).toEqual(['column', 'column']);
+        expect(cols[0]!.content!.map((b) => b.type)).toEqual([
+            'paragraph',
+            'paragraph',
+        ]);
+        expect(cols[1]!.content!.map((b) => b.type)).toEqual(['paragraph']);
+    });
+
+    it('supports up to 3 columns', () => {
+        const md = '```columns\nA\n---\nB\n---\nC\n```';
+        const [row] = blocks(md);
+        expect(row!.content!.map((c) => c.type)).toEqual([
+            'column',
+            'column',
+            'column',
+        ]);
+    });
+
+    it('turns a {{blank}} line into a fill-in-blank inside a column', () => {
+        const md = '```columns\nThe capital is {{Paris}}.\n---\nNote\n```';
+        const [row] = blocks(md);
+        expect(row!.content![0]!.content![0]!.type).toBe('fillInBlank');
+    });
+
+    it('turns a $$…$$ line into a math block inside a column', () => {
+        const md = '```columns\n$$x^2$$\n---\ntext\n```';
+        const [row] = blocks(md);
+        expect(row!.content![0]!.content![0]!.type).toBe('mathBlock');
+    });
+
+    it('seeds an empty paragraph for a column with no content', () => {
+        const md = '```columns\nLeft\n---\n```'; // empty right column
+        const [row] = blocks(md);
+        expect(row!.content![1]!.content!.map((b) => b.type)).toEqual([
+            'paragraph',
+        ]);
+    });
+
+    it('warns + falls back to plain text with fewer than two columns', () => {
+        const md = '```columns\njust one column\n```';
+        const result = convert('```columns\njust one column\n```');
+        expect(result.blocks[0]!.type).not.toBe('row');
+        expect([...result.warnings].some((w) => /at least two columns/.test(w))).toBe(
+            true,
+        );
+        // (md referenced so the case reads clearly)
+        expect(md).toContain('columns');
+    });
+
+    it('clamps to 6 columns and warns when more are given', () => {
+        const md = '```columns\n' + ['A', 'B', 'C', 'D', 'E', 'F', 'G'].join('\n---\n') + '\n```';
+        const result = convert(md);
+        expect(result.blocks[0]!.content).toHaveLength(6);
+        expect([...result.warnings].some((w) => /at most 6 columns/.test(w))).toBe(
+            true,
+        );
+    });
+
+    it('round-trips a columns import through the schema bridge', () => {
+        const md = '```columns\nLeft\n---\nRight\n```';
+        const back = roundTrip(md);
+        expect(back[0]!.type).toBe('row');
+        expect(back[0]!.content!.map((c) => c.type)).toEqual(['column', 'column']);
+    });
+});
+
 // Strict-grid import pin (T8): the importer emits a bare block stream; the
 // import call sites wrap it with wrapBlocksStrict before setContent. This checks
 // that the WRAPPED result is a valid strict-grid document against the real
@@ -60,6 +133,7 @@ describe('strict-grid import (T8)', () => {
         ['a section break (checkpoint heading)', '## Part 2 {checkpoint}\n\nWork below.'],
         ['a bullet list', '- one\n- two\n- three'],
         ['a fill-in-blank', 'The capital is {{Paris}}.'],
+        ['a columns fence', '```columns\nLeft\n---\nRight side\n```'],
         ['mixed content', '# T\n\npara\n\n## Sec {checkpoint}\n\n- a\n- b'],
     ];
 

@@ -347,6 +347,11 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 if (block) return [block];
                 return [rawTextParagraph(node.token.content)];
             }
+            if ((node.token.info ?? '').trim() === 'columns') {
+                const cols = parseColumnsFence(node.token.content, ctx);
+                if (cols) return [cols];
+                return [rawTextParagraph(node.token.content)];
+            }
             ctx.warnings.add(
                 'Code blocks aren’t supported yet — imported as plain text.',
             );
@@ -1386,6 +1391,59 @@ function parseFadedFence(src: string, ctx: Ctx): JSONContent | null {
         true,
         'Faded worked example block',
     );
+}
+
+// ```columns fence — an authored multi-column (side-by-side) row. Columns are
+// separated by a line that is exactly `---`; every other non-blank line in a
+// segment becomes one block via fenceBodyBlock (a paragraph, a $$…$$ math block,
+// or a {{blank}} fill-in). 2–6 columns; an empty segment seeds an empty
+// paragraph (a column needs ≥1 block). Emits a strict-grid `row` node directly —
+// wrapBlocksStrict passes it through at the top level while wrapping the bare
+// blocks around it. Line-per-block, like ```worked/```faded (rich per-column
+// content — nested lists/headings — is editor-only; the fence is for simple
+// side-by-side text).
+function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
+    // Split into column segments on a `---` divider line.
+    const segments: string[][] = [[]];
+    for (const rawLine of src.split('\n')) {
+        if (rawLine.trim() === '---') {
+            segments.push([]);
+            continue;
+        }
+        segments[segments.length - 1]!.push(rawLine);
+    }
+
+    const columns: JSONContent[] = segments.map((lines) => {
+        const blocks: JSONContent[] = [];
+        for (const rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line) continue;
+            blocks.push(fenceBodyBlock(line, ctx, true));
+        }
+        // A column's content is `block+` — seed an empty paragraph when the
+        // segment held nothing.
+        if (blocks.length === 0) blocks.push({ type: 'paragraph' });
+        return { type: 'column', content: blocks };
+    });
+
+    if (columns.length < 2) {
+        ctx.warnings.add(
+            'Columns block: needs at least two columns (divide them with a `---` line) — imported as plain text.',
+        );
+        return null;
+    }
+    if (columns.length > 6) {
+        ctx.warnings.add(
+            'Columns block: at most 6 columns — the extra columns were dropped.',
+        );
+        columns.length = 6;
+    }
+
+    return {
+        type: 'row',
+        attrs: { id: '', gridLines: 'inherit' },
+        content: columns,
+    };
 }
 
 // One rubric criterion from a `rubric:` line — `Label | points | optional note`.

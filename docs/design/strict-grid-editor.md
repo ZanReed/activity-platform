@@ -1,8 +1,9 @@
 # Strict-grid editor migration — design + plan
 
-**Status:** 🟢 SLICE 1 (T1–T6, structural) + SLICE 2 (T7 seam affordances, T8 import) BOTH
-SHIPPED to `main` 2026-07-21 — app-only, no deploy. ONE known deferral: the ` ```columns ``` `
-Markdown import fence (T8, needs author ratification). Eng review CLEARED 2026-07-21.
+**Status:** 🟢 COMPLETE — SLICE 1 (T1–T6, structural) + SLICE 2 (T7 seam affordances, T8 import
+incl. the ` ```columns ``` ` Markdown fence) all SHIPPED to `main` 2026-07-21 — app-only, no
+deploy. All 8 tasks done; nothing deferred except the paradigm-owned transparent cross-row-merge
+caret (TENSION-1, by design). Eng review CLEARED 2026-07-21.
 **Supersedes** the "Option A pragmatic bridge" ruling (2026-07-15) in
 [columns-universal-container.md](columns-universal-container.md) — deliberately, to kill the
 editor-vs-storage tech debt.
@@ -219,13 +220,15 @@ Synthesized from this review. Checkbox as you ship (on the `strict-grid` branch)
   below** escape hatches. Split degenerate cases (drop empty before/after) done in T3;
   atom-block split (node-selected image/graph → column 1) closed + pinned. 8 e2e in
   strict-grid.e2e.ts.
-- [x] **T8 (P2) — import works (strict-valid); columns fence DEFERRED.** The importer emits a
-  bare stream, wrapped by `strictGrid.wrapBlocksStrict` at the two ActivityEditor import
-  call-sites; a new markdown-import pin validates the WRAPPED result against the REAL editor
-  schema across representative markdown, so import can't produce an invalid strict tree.
-  **The ` ```columns ``` ` fence is NOT built** — the import-format doc explicitly defers
-  columns from Markdown, so new import syntax needs author ratification + a
-  markdown-import-format.md / copy-paste-prompt update. Revisit with the author if wanted.
+- [x] **T8 (P2) — DONE, incl. the columns fence.** The importer emits a bare stream, wrapped by
+  `strictGrid.wrapBlocksStrict` at the two ActivityEditor import call-sites; a markdown-import
+  pin validates the WRAPPED result against the REAL editor schema. **The ` ```columns ``` `
+  fence is built** (`parseColumnsFence`): columns divided by a `---` line, one block per line
+  per column (paragraph / `$$math$$` / `{{blank}}`, like ```worked), 2–6 columns, emits a
+  strict `row` node that wrapBlocksStrict passes through. Format doc (markdown-import-format.md)
+  + the copy-paste prompt (markdownImportPrompt.ts) updated in sync (the prompt↔doc equality
+  test guards it); 9 unit tests + end-to-end render verified. Rich per-column content
+  (lists/headings/nested question fences) stays editor-only.
 
 ## GSTACK REVIEW REPORT
 

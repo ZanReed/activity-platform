@@ -36,6 +36,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```explain ` fenced block | an **ungraded self-explanation** prompt (see below) |
 | a ` ```shortanswer ` fenced block | a **graded short-answer** question (rubric optional; see below) |
 | a ` ```essay ` fenced block | a **graded essay** question (word-count target + rubric optional; see below) |
+| a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
@@ -56,7 +57,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 
 ## Not supported (degrades to plain text, with a warning)
 
-Tables, fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. (Callouts, columns, and images-or-lists *inside* a worked/faded example have no Markdown round-trip yet — author those in the editor.)
+Tables, fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. (Callouts, and images-or-lists *inside* a worked/faded example or a column, have no Markdown round-trip yet — author those in the editor. Columns themselves import via the ` ```columns ` fence — see below.)
 
 ## Worked example
 
@@ -273,13 +274,25 @@ SHORT ANSWER / ESSAY (a `shortanswer` or `essay` fence is a graded free-text que
 - Both are teacher-graded against the rubric — there is no auto-scored key.
   Use ```explain instead when the reflection should be ungraded.
 
+COLUMNS (a `columns` fence lays blocks out side by side)
+- ```columns … ``` with columns divided by a line that is only ---, then one
+  block per line inside each column:
+    Left column, first line
+    Left column, second line
+    ---
+    Right column
+- 2 to 6 columns. Each non-blank line is its own block: a $$…$$ line becomes a
+  displayed equation, a {{blank}} line becomes a fill-in-the-blank, every other
+  line becomes a paragraph. Keep column content simple (paragraphs, math,
+  blanks) — lists and headings inside a column are editor-only.
+
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match, ```order,
-  ```objectives, ```worked, ```faded, ```explain, ```shortanswer, and
-  ```essay — only the single outer block that wraps the whole reply and
+  ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
+  and ```columns — only the single outer block that wraps the whole reply and
   those fences are allowed; anything unsupported imports as plain text.
 
 When I describe the activity I want, reply with only that single code block.
@@ -511,3 +524,22 @@ rubric: Mechanics | 2
 - `rubric:` — optional and **repeatable**; each line is one criterion, `Label | points | optional note`. The `|` splits the three parts (label required; points a positive number; the note optional). A rubric line that can't be read (no label, or non-numeric points) is skipped with a warning and the rest of the block still imports — one bad criterion never sinks the question. The rubric is teacher-side data: it's carried into the grading UI, never emitted into the student page.
 - `words:` (**essay only**) — an optional length target, `min-max`, with either side optional: `words: 200-300`, `words: 200-` (minimum only), `words: -300` (maximum only). The dash is required (a bare number is ambiguous); word counts are positive whole numbers, and an inverted `min-max` is dropped with a warning. The student sees a live word counter against the target. A `words:` line inside a `shortanswer` fence is ignored with a warning.
 - Neither block is auto-scored; both show up under "Written responses" in the submissions dashboard for grading.
+
+## Columns blocks (```columns fence)
+
+A fenced code block with the `columns` language tag becomes a **multi-column (side-by-side) row** — the same layout you get from the editor's "Split into columns" / "2 columns". Columns are divided by a line that is **only** `---`; each column then holds one block per non-blank line.
+
+```
+```columns
+Definition
+A prime has exactly two factors.
+---
+Example
+$$7 = 1 \times 7$$
+The blank: {{2}} is the smallest prime.
+```⠀
+```
+
+- **Columns** — 2 to 6, separated by a `---` line on its own. Fewer than two columns imports as plain text with a warning; more than six is clamped to six (the extras are dropped, with a warning).
+- **Content** — one block per non-blank line inside each column, the same line-per-block rule as `worked`/`faded`: a line that is only `$$…$$` becomes a displayed equation, a line containing a `{{blank}}` becomes a fill-in-the-blank, and every other line becomes a paragraph (with `**bold**`, `*italic*`, `` `code` ``, and `$inline$` math). An empty column gets a single empty paragraph.
+- **Not here** — lists, headings, images, and nested question fences inside a column have no Markdown round-trip; author those in the editor after import. Column widths, grid lines, and reserved work space also default (adjust them in the editor's column toolbar).
