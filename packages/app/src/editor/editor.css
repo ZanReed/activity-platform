@@ -541,17 +541,17 @@
     transition: opacity var(--ed-motion-fast) ease;
 }
 
-/* The "+" chip — the always-visible rest signifier. Left-aligned with the
- * content edge (FINDING-002) so the add affordance sits on the same rail as the
- * drag grip / rest dot. At REST it is a BARE glyph, no fill (FINDING-003): a
- * filled disc read as a solid dot competing with the gutter rest dots,
- * especially in dark mode. The accent disc appears only on hover — where it also
- * punches a gap in the hover targeting line. */
+/* The "+" chip — the always-visible rest signifier. CENTERED in the gap (author
+ * call: centre is where the eye expects the insert point, and reads less
+ * cluttered than a left rail shared with the grip / rest dot). At REST it is a
+ * BARE glyph, no fill (FINDING-003): a filled disc read as a solid dot competing
+ * with the gutter rest dots, especially in dark mode. The accent disc appears
+ * only on hover — where it also punches a gap in the hover targeting line. */
 .editor-insert-zone__plus {
     position: absolute;
-    left: -0.15rem;
+    left: 50%;
     top: 0;
-    transform: translateY(-50%);
+    transform: translate(-50%, -50%);
     display: flex;
     align-items: center;
     justify-content: center;
