@@ -29,3 +29,30 @@ chord commands) + the SettleMotion plugin's meta contract. The move keyframe
 **Context:** surfaced by /plan-eng-review's outside-voice pass on 2026-07-21 while
 reviewing the stage-6 snap-motion plan (finding 4: the reorder chord has the same
 transaction signature as a drag move).
+
+## Doc-level seam zones between multi-column rows
+
+**What:** A second insert-zone kind at the DOC level covering the horizontal gap between
+two adjacent multi-column rows (or a multi-col row and a sectionBreak), inserting a fresh
+1-col row at that position.
+
+**Why:** The shipped insert-zones seam model (eng-review ruling 2A, 2026-07-23) is
+column-interior only — a strip above every block inside a column plus one at each column's
+end. That covers every gap EXCEPT multi-col-row ↔ multi-col-row adjacency, which stays
+grip-menu-only ("Add row below"). Deliberate: one zone kind keeps the mental model pure
+("this strip = a block lands here, into this column"); doc-level zones would put a
+second, different landing semantic (new row) behind an identical-looking strip.
+
+**Pros:** closes the last insert-affordance coverage hole. **Cons:** dual semantics in
+one UI — the exact ambiguity 2A was chosen to avoid; needs a visual differentiator.
+
+**Depends on:** the v1 insert zones shipping first; real dogfooding or teacher feedback
+actually hitting the gap (rare layout).
+
+**Where to start:** the InsertZones extension's `insertZonePositions` helper
+(`packages/app/src/editor/strictGrid.ts`) — doc-level positions are the ones it
+deliberately does not emit; `StrictGridNormalize` re-coalesce rules decide what a
+doc-level insert normalizes into.
+
+**Context:** surfaced by /plan-eng-review on 2026-07-23 while reviewing the persistent
+insert-zones feature (issue 2 / ruling 2A).

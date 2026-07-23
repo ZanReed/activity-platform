@@ -7,6 +7,8 @@ import {
     type Editor as TiptapEditor,
     type JSONContent,
 } from '@tiptap/react';
+import { TextSelection, Selection } from '@tiptap/pm/state';
+import { GapCursor } from '@tiptap/pm/gapcursor';
 import type { Typography } from '@activity/schema';
 import { fontFamilyValue } from '@activity/renderer';
 import { ensureActivityFontLoaded } from '../lib/fonts';
@@ -30,7 +32,6 @@ import ImagePopoverHost from './components/ImagePopoverHost';
 import DefinitionPopoverHost from './components/DefinitionPopoverHost';
 import BlockCommandBarHost from './components/BlockCommandBarHost';
 import BlockQuickBarHost from './components/BlockQuickBarHost';
-import BlockAddButtonHost from './components/BlockAddButtonHost';
 import GridRowMenuHost from './components/GridRowMenuHost';
 import { FieldFocusContext } from './components/fieldFocus';
 
@@ -57,6 +58,31 @@ interface EditorProps {
     // app-side fontsource path (lib/fonts.ts) so authoring is WYSIWYG without
     // an R2 round trip. Undefined = the default look (playground, old docs).
     typography?: Typography;
+}
+
+// Place the insert cursor exactly at a block seam for the insert-zone path.
+// `setTextSelection` forces a TextSelection, which snaps FORWARD past a leaf
+// atom (image/graph/matching) — so a `before` zone above an atom would land the
+// new block BELOW it. A zone position always sits at a block boundary inside a
+// column ($pos.parent is the column, not a textblock), where a GapCursor sits
+// EXACTLY at the seam, so inserting there lands precisely at `pos` regardless of
+// whether the neighbouring block is an atom. The TextSelection branch is a
+// safety fallback for any reused non-boundary position (bias picks the side).
+function placeInsertCursor(
+    editor: TiptapEditor,
+    pos: number,
+    bias: 1 | -1,
+): void {
+    editor.commands.command(({ tr, dispatch }) => {
+        const clamped = Math.min(Math.max(pos, 0), tr.doc.content.size);
+        const $pos = tr.doc.resolve(clamped);
+        const selection: Selection = $pos.parent.isTextblock
+            ? TextSelection.near($pos, bias)
+            : new GapCursor($pos);
+        if (dispatch) dispatch(tr.setSelection(selection).scrollIntoView());
+        return true;
+    });
+    editor.commands.focus();
 }
 
 export default function Editor({
@@ -125,24 +151,35 @@ export default function Editor({
     const [insertReq, setInsertReq] = useState<{
         pos: number;
         category?: string;
+        // Set on the insert-zone path: which way to bias the insert anchor at a
+        // seam (`1` = a `before` zone, insert above the block at pos; `-1` = an
+        // `append` zone, insert at the end of the column). Absent on the end
+        // square / starter path, which keeps the old text-snap behaviour.
+        seamBias?: 1 | -1;
     } | null>(null);
 
     // The top-level (or column-cell) block the hover gutter currently targets,
     // reported by the DragHandle's onNodeChange as the cursor moves between
-    // blocks. Feeds both the grip (drag) and the bottom-left "+"
-    // (BlockAddButtonHost), which inserts a new block BELOW this one. null when
-    // the pointer is off any block.
+    // blocks. Feeds the grip (drag) and the quick-bar (BlockQuickBarHost). null
+    // when the pointer is off any block. (Inserting a block is now the
+    // persistent InsertZones strips, not a hover affordance.)
     const [gutterPos, setGutterPos] = useState<number | null>(null);
 
     // Insert a block at `pos`; if the doc was just the initial empty paragraph,
-    // drop that leftover empty line so a fresh activity starts clean.
-    const runInsert = (pos: number, item: SlashMenuItem) => {
+    // drop that leftover empty line so a fresh activity starts clean. `seamBias`
+    // (insert-zone path only) anchors the insert exactly at a block seam instead
+    // of snapping to the nearest text — see placeInsertCursor.
+    const runInsert = (pos: number, item: SlashMenuItem, seamBias?: 1 | -1) => {
         if (!editor) return;
         const before = editor.state.doc;
         const wasEmpty = isEmptyStackDoc(before);
-        // setTextSelection snaps into the nearest valid text position (inside a
-        // column) even when pos is a doc-level boundary (the end square).
-        editor.commands.setTextSelection(Math.min(pos, before.content.size));
+        if (seamBias === undefined) {
+            // End square / starters: snap into the nearest valid text position
+            // (inside a column) even when pos is a doc-level boundary.
+            editor.commands.setTextSelection(Math.min(pos, before.content.size));
+        } else {
+            placeInsertCursor(editor, pos, seamBias);
+        }
         // Settle the placed block (covers the Add-a-block window AND the
         // Start-here starters — both funnel through here). Armed, not tagged:
         // the item's command builds its own chain. 'Text' items are style
@@ -210,6 +247,29 @@ export default function Editor({
         const item = slashMenuItems.find((i) => i.title === '2 columns');
         if (item) runInsert(editor.state.doc.content.size, item);
     };
+
+    // Wire the persistent insert-zone strips (InsertZones extension) back into
+    // React: a strip click opens the block picker at that seam. The extension
+    // reads this off storage at click time, so a fresh setInsertReq closure is
+    // always used (no stale capture). before → bias +1, append → bias -1.
+    useEffect(() => {
+        if (!editor) return;
+        const storage = (
+            editor.storage as {
+                insertZones?: {
+                    onZoneClick:
+                        | ((pos: number, kind: 'before' | 'append') => void)
+                        | null;
+                };
+            }
+        ).insertZones;
+        if (!storage) return;
+        storage.onZoneClick = (pos, kind) =>
+            setInsertReq({ pos, seamBias: kind === 'append' ? -1 : 1 });
+        return () => {
+            storage.onZoneClick = null;
+        };
+    }, [editor]);
 
     // Dev-only escape hatch: expose the live editor so scripted browser
     // checks (and quick console experiments) can set content / inspect state.
@@ -287,9 +347,8 @@ export default function Editor({
                     }
                 >
                     {/* The grip alone lives in the DragHandle now (top-left,
-                        the drag trigger). The "+" is a separate host docked at
-                        the block's bottom-left (BlockAddButtonHost), where the
-                        new block actually lands. */}
+                        the drag trigger). Inserting a block is the persistent
+                        InsertZones strips in the content, not a gutter "+". */}
                     <div className="block-gutter-cluster">
                         <button
                             type="button"
@@ -348,7 +407,9 @@ export default function Editor({
                         editor={editor}
                         insertPos={insertReq.pos}
                         initialCategory={insertReq.category}
-                        onInsert={(item) => runInsert(insertReq.pos, item)}
+                        onInsert={(item) =>
+                            runInsert(insertReq.pos, item, insertReq.seamBias)
+                        }
                         onClose={() => setInsertReq(null)}
                     />
                 ) : null}
@@ -395,18 +456,12 @@ export default function Editor({
                     hoveredPos={gutterPos}
                 />
                 {/*
-                  BlockAddButtonHost — the "+" that opens the block picker,
-                  docked at the hovered block's bottom-left (where the new block
-                  lands: below). Split out of the DragHandle gutter cluster,
-                  which now carries only the drag grip. Same hovered-block feed
-                  and stay-alive grace as the quick-bar.
+                  The "insert a block" affordance is now the persistent
+                  InsertZones strips (a widget-decoration layer inside the
+                  editor content, wired via storage.onZoneClick above) — they
+                  superseded the old hover "+" host. gutterPos still feeds the
+                  drag grip + quick-bar.
                 */}
-                <BlockAddButtonHost
-                    editor={editor}
-                    canvasRef={canvasRef}
-                    hoveredPos={gutterPos}
-                    onAdd={(pos) => setInsertReq({ pos })}
-                />
                 {/*
                   GridRowMenuHost — the multi-col row grip's click-menu (Merge to
                   one column / Add row below). Body-portaled, opened by a plain

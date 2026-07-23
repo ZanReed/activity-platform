@@ -27,6 +27,7 @@ import { RowSeamCaret } from './extensions/RowSeamCaret';
 import { SelectBlock } from './extensions/SelectBlock';
 import { SettleMotion } from './extensions/SettleMotion';
 import { StrictGridNormalize } from './extensions/StrictGridNormalize';
+import { InsertZones } from './extensions/InsertZones';
 import { SectionBreak } from './extensions/SectionBreak';
 import { FillInBlank } from './extensions/FillInBlank';
 import { Blank } from './extensions/Blank';
@@ -101,6 +102,10 @@ export function buildEditorExtensions({
         // (replacing StarterKit's disabled TrailingNode), and re-coalescing
         // adjacent 1-col stack rows. Undo-safe (merges into the triggering edit).
         StrictGridNormalize,
+        // Persistent inter-block insert zones — a faint always-visible "+" strip
+        // in every column gap + at each column's end. Widget decorations; the
+        // click is wired into React by Editor.tsx (storage.onZoneClick).
+        InsertZones,
         SectionBreak,
         Subscript,
         Superscript,

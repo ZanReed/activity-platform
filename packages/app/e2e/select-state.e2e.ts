@@ -77,9 +77,8 @@ test('the grip is drag-only — clicking it does NOT select', async ({ page }) =
     await para.click();
     await para.hover();
     await expect(page.locator('.block-gutter-cluster')).toBeVisible();
-    // Click the TOP of the grip: the bottom-left "+" (BlockAddButtonHost)
-    // sits low in the gutter and can overlap the grip's lower half on a short
-    // block, so aim high to hit the grip itself.
+    // Click the grip itself (the old gutter "+" that could overlap its lower
+    // half is gone — inserting is the InsertZones strips now).
     await page
         .locator('.drag-handle-button')
         .click({ position: { x: 8, y: 4 } });

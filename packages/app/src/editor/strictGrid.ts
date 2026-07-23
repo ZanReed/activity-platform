@@ -209,6 +209,71 @@ export function stackDocJSON(...blocks: JSONContent[]): JSONContent {
     };
 }
 
+// =============================================================================
+// Insert-zone seam positions — the persistent inter-block "+" strips
+// (InsertZones extension). Column-interior only: a `before` zone at the doc
+// position of every direct child block of every `column`, plus one `append`
+// zone at each column's content end. sectionBreaks and nested-container inner
+// blocks get NO zones (only direct children of a column count — nested content
+// is never a column child). Suppressed on the empty seed doc and for the
+// trailing auto-paragraph the normalizer keeps at the doc end (the end square
+// already covers that gap, so its before-zone AND the last stack column's
+// append zone are dropped to avoid a redundant "+" stack above the square).
+// =============================================================================
+
+export interface InsertZone {
+    /** The doc position a pick lands at (inside the column). */
+    pos: number;
+    /** `before` a block, or `append` at the column's end. */
+    kind: 'before' | 'append';
+}
+
+export function insertZonePositions(doc: PMNode): InsertZone[] {
+    if (isEmptyStackDoc(doc)) return [];
+    const zones: InsertZone[] = [];
+
+    // The trailing line the end square already covers: the last child of the
+    // last top-level row, WHEN that row is a 1-col stack. Skip that column's
+    // append zone always; skip the trailing block's before-zone too when it is
+    // the empty auto-paragraph.
+    let trailingColPos = -1;
+    let trailingEmptyBeforePos = -1;
+    const lastRow = doc.lastChild;
+    if (lastRow && lastRow.type.name === 'row' && lastRow.childCount === 1) {
+        const colPos = doc.content.size - lastRow.nodeSize + 1; // rowBefore + into row
+        trailingColPos = colPos;
+        const col = lastRow.firstChild!;
+        const lastChild = col.lastChild;
+        if (
+            lastChild &&
+            lastChild.type.name === 'paragraph' &&
+            lastChild.content.size === 0
+        ) {
+            trailingEmptyBeforePos =
+                colPos + 1 + (col.content.size - lastChild.nodeSize);
+        }
+    }
+
+    doc.descendants((node, pos) => {
+        if (node.type.name !== 'column') return true; // descend rows to reach columns
+        const contentStart = pos + 1;
+        node.forEach((_child, offset) => {
+            const beforePos = contentStart + offset;
+            if (beforePos !== trailingEmptyBeforePos) {
+                zones.push({ pos: beforePos, kind: 'before' });
+            }
+        });
+        // Append zone at the column's content end — unless this is the trailing
+        // stack column (the end square covers it).
+        if (pos !== trailingColPos) {
+            zones.push({ pos: contentStart + node.content.size, kind: 'append' });
+        }
+        return false; // columns never nest — children handled here
+    });
+
+    return zones;
+}
+
 /**
  * Wrap a bare block stream (e.g. the markdown importer's flat output) into a
  * strict-grid doc: consecutive bare blocks collapse into 1-col stack rows,
