@@ -21,7 +21,7 @@ pick another name). No feature code touched.
 6. **Tighten CORS** *(do last, after the app loads + a login works — §4/§6c)*: set project-wide secret `ALLOWED_ORIGINS = https://pub-4675df837c14420c8a996a41027154b1.r2.dev,http://localhost:5173,https://activity-platform.pages.dev` (union — MUST include the R2 origin or every published page's student submissions break). Takes effect without redeploy; **if** you redeploy any function, ingest/get-feedback go via `pnpm deploy:ingest` / `pnpm deploy:feedback` (`--no-verify-jwt`).
 7. **Push** `main` (Claude committed the runbook + this STATE locally; Pages builds on push).
 
-Then ping Claude to run verification §6a (origin loads + deep-link SPA routing up to the OAuth wall); author does §6b (non-author login) + §6c (CORS regression: publish/upload from the hosted app AND a live R2 page still submits).
+**§6a VERIFIED by Claude 2026-07-24** — `https://activity-platform.pages.dev` live; root renders, deep-link `/activities` returns HTTP 200 via SPA fallback (not a 404), console clean, build env vars correct. Remaining: author runs **§6b** (non-author login end-to-end as Kia/Felice or a test allowlisted account) + **§6c** (CORS regression — publish/upload from the hosted app AND a live R2 page still submits; only meaningful once §6 `ALLOWED_ORIGINS` is set).
 
 _Prior queue cleared:_ all deploy trains through 07-21 are author-run + done ([HISTORY.md](docs/HISTORY.md)). Live state: `ingest-submission` wire **v9**, storage **v12**, kit `graph-kit-XB5CUURV.js` (source of truth `supabase/functions/_shared/graph-kit-manifest.ts`). Standing reminder: any `ingest-submission` / `get-feedback` redeploy needs `--no-verify-jwt` ([CLAUDE.md](CLAUDE.md)).
 
