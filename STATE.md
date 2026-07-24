@@ -21,7 +21,11 @@ pick another name). No feature code touched.
 6. **Tighten CORS** *(do last, after the app loads + a login works — §4/§6c)*: set project-wide secret `ALLOWED_ORIGINS = https://pub-4675df837c14420c8a996a41027154b1.r2.dev,http://localhost:5173,https://activity-platform.pages.dev` (union — MUST include the R2 origin or every published page's student submissions break). Takes effect without redeploy; **if** you redeploy any function, ingest/get-feedback go via `pnpm deploy:ingest` / `pnpm deploy:feedback` (`--no-verify-jwt`).
 7. **Push** `main` (Claude committed the runbook + this STATE locally; Pages builds on push).
 
-**§6a VERIFIED by Claude 2026-07-24** — `https://activity-platform.pages.dev` live; root renders, deep-link `/activities` returns HTTP 200 via SPA fallback (not a 404), console clean, build env vars correct. Remaining: author runs **§6b** (non-author login end-to-end as Kia/Felice or a test allowlisted account) + **§6c** (CORS regression — publish/upload from the hosted app AND a live R2 page still submits; only meaningful once §6 `ALLOWED_ORIGINS` is set).
+**§6a VERIFIED by Claude 2026-07-24** — `https://activity-platform.pages.dev` live; root renders, deep-link `/activities` returns HTTP 200 via SPA fallback (not a 404), console clean, build env vars correct.
+
+**⏳ WAITING ON AUTHOR (deferred 2026-07-24, author will do later) — Drop 0 not fully signed off until these pass:**
+- **§6b** — non-author login end-to-end (sign in as Kia/Felice or a test allowlisted account; confirm allowlist trigger admits them + dashboard loads).
+- **§6c** — CORS regression check: publish + upload from the hosted app succeed AND an already-published R2 page still submits (200) + feedback loads. Only meaningful once §6 `ALLOWED_ORIGINS` is set — **open item: confirm whether the author set `ALLOWED_ORIGINS` (step 6); if not, CORS is still `'*'` and the tighten + §6c remain to do.**
 
 _Prior queue cleared:_ all deploy trains through 07-21 are author-run + done ([HISTORY.md](docs/HISTORY.md)). Live state: `ingest-submission` wire **v9**, storage **v12**, kit `graph-kit-XB5CUURV.js` (source of truth `supabase/functions/_shared/graph-kit-manifest.ts`). Standing reminder: any `ingest-submission` / `get-feedback` redeploy needs `--no-verify-jwt` ([CLAUDE.md](CLAUDE.md)).
 
