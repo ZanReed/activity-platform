@@ -56,3 +56,45 @@ doc-level insert normalizes into.
 
 **Context:** surfaced by /plan-eng-review on 2026-07-23 while reviewing the persistent
 insert-zones feature (issue 2 / ruling 2A).
+
+## Batched staleness-status RPC (`get_branch_source_statuses(uuid[])`)
+
+**What:** A batch variant of Drop 2′'s `get_branch_source_status(branch_id)` so the
+Activities/library view resolves every branched card's staleness in one round-trip.
+
+**Why:** v1 ships the per-card RPC — a deliberate N+1 accepted because branch counts are
+single-digit (eng-review ruling D10, 2026-07-24). The batch variant is additive (no surface
+break) and only earns its keep at scale.
+
+**Trigger:** any user's branch count passes ~15, or library render is measurably slow.
+
+**Where to start:** the `get_branch_source_status` definer RPC in the Drop 2′ migration —
+same owner-only gating, `= any(p_ids)` + per-row degradation instead of a single lookup.
+
+**Context:** surfaced by /plan-eng-review on 2026-07-24 (Activity Bank arc, performance
+review finding 4-1).
+
+## Anonymous assignment-link validation at page load
+
+**What:** A tiny anonymous endpoint (get-feedback's `--no-verify-jwt` pattern, or a new
+action on it) that a published page calls at bootstrap when `?a=` is present, so a dead
+assignment link surfaces BEFORE the student starts working, not at submit.
+
+**Why:** The scoping train's ruling D14 (2026-07-24) made token death non-destructive —
+on 401 the work is preserved in the pending blob and retries with a fresh link — so the
+remaining harm is only "student learns late." That downgraded the preflight check from
+requirement to polish, and it was deferred because it adds a real anonymous surface
+(deploy flag, CORS, enumeration thinking — tokens are ~72-bit so enumeration is cold, but
+it's still a new no-JWT function to maintain).
+
+**Trigger:** the September observation (Kia/Felice classes) shows students actually
+hitting dead links.
+
+**Pros:** dead link discovered in second 1, not minute 40. **Cons:** one more anonymous
+Edge Function surface to secure and redeploy correctly (`--no-verify-jwt` footgun applies).
+
+**Where to start:** `supabase/functions/get-feedback` (the anonymous-endpoint precedent);
+the runtime bootstrap in `packages/renderer/src/runtime/init.ts` for the call site.
+
+**Context:** surfaced by the outside-voice pass of /plan-eng-review on 2026-07-24
+(finding OV-4, option B content, deferred by ruling D14/D19).
