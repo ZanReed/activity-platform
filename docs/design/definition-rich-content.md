@@ -1,8 +1,8 @@
 # Definition rich content — block-level definitions
 
-**Status:** Slices 1–2 BUILT 2026-07-27 (schema + renderer + styles, browser-verified).
-Slices 3–5 (print appendix, editor dialog, import fence) not started. Decisions D1–D7 below are
-author-ruled. §9 records what the build changed about this design.
+**Status:** COMPLETE 2026-07-27 — all five slices built and browser-verified. Decisions D1–D7
+below are author-ruled. §9 records what the build changed about this design. **Waiting on a
+`publish-activity` redeploy** before rich definitions reach published pages.
 
 Extends the shipped inline vocabulary-definition feature
 ([vocabulary-definitions.md](vocabulary-definitions.md)) so a definition can carry the same
@@ -323,3 +323,56 @@ plain-text fallback flattens prose while skipping math and figures. Console clea
 
 The definitions sidecar is **unchanged at 1.9 KiB** and the base runtime **unchanged at 41.8 KiB** —
 the `<template>` seam means block content costs the runtime nothing, as predicted in §1.
+
+### 9.6 Slice 3 (print) — the appendix collects by a structural walk
+
+The design said "a pure walk over the document." The build made that concrete and chose a
+STRUCTURAL walk over the plain data rather than a typed per-block visitor, because a definition
+mark rides any text node and text nodes live in far more places than the block list suggests:
+blank hints, per-answer mistake feedback, MC prompts/choices/feedback/solutions, matching and
+ordering sides, list items at any depth, callouts, worked and faded examples, math-block solutions,
+graph prompts, and the reference panel. An exhaustive typed walker would be long AND would silently
+miss the next block type somebody adds; the structural walk cannot, and costs nothing per new type.
+
+Dedup is by term, case-insensitive, first occurrence wins — so two senses of one word collapse on
+paper. That is what the reserved `glossaryKey` is for at Phase 4, and it beats printing "factor"
+twice with no way to tell the entries apart. Order is alphabetical: an appendix is looked up, not
+read through.
+
+### 9.7 Slice 4 (editor) — the gate is `definitionShape.ts`
+
+"Simple" is defined as an optional leading paragraph plus an optional trailing image — exactly what
+the popover represents losslessly, and exactly what the legacy upgrades produce, so **no existing
+definition turns read-only**. Order matters: an image BEFORE a paragraph is rejected, because
+accepting it would silently reorder the author's content on the next save.
+
+The popover keeps its one-image control as D7 promised, reading and writing that trailing block.
+`DefinitionPopoverHost` mounts exactly ONE surface at a time, so there is never a second live
+draft. The dialog does not register the `Definition` mark, which enforces non-recursion at the
+editor level too.
+
+A new `definitionSafe` slash-item flag drives the Insert menu. It is orthogonal to
+`referenceSafe`/`referenceOnly`, and had to be: `graph_figure` is `referenceOnly` yet belongs in a
+definition, while columns and callout are `referenceSafe` yet do not (D2/D3).
+
+### 9.8 Slice 5 (import) — the fence is a third kind of side channel
+
+`parseContentLines` is the shared grammar, extracted behaviour-preservingly from
+`parseReferenceFence`. Two-pass resolution is done by pre-scanning markdown-it's **token list**
+(not a second fence regex over the raw source) inside `tokensToBlocks`, so fence detection is
+exactly what the real parse does.
+
+The registry needed a new concept: `reference` routes blocks to `ImportResult.referencePanel`, but
+`definitions` contributes blocks **nowhere** — its content reaches the document only inside a mark.
+Hence `FenceSpec.definitions` + `probeTerm`, and a guard branch that appends a `[[term]]` reference
+and looks for the blockType inside the resulting mark's content. The guard behaved as designed: it
+failed the build until the prompt and the format doc taught the fence.
+
+### 9.9 Still open
+
+- **`publish-activity` redeploy** is required before a rich definition reaches a published page
+  (renderer bundle changed). Queued in STATE.md.
+- **Import cannot author a definition's image sizing or crop.** The fence accepts
+  `![alt](url)`; width/align/crop stay editor-only, like everywhere else in the importer.
+- **A term split across adjacent text nodes** (different marks on parts of it) yields one glossary
+  entry per fragment. Niche; noted rather than solved.
