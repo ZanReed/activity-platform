@@ -43,8 +43,7 @@ import type {
     BlankToken,
     Mark,
     DefinitionMark,
-    DefinitionContentInline,
-    DefinitionImage,
+    DefinitionBlock,
     SimpleMarkType,
     Section,
     BulletListBlock,
@@ -82,7 +81,8 @@ import {
     SIMPLE_MARK_TYPES,
     InlineNode as InlineNodeSchema,
     MathPrompt as MathPromptSchema,
-    DefinitionContentInline as DefinitionContentInlineSchema,
+    DefinitionBlock as DefinitionBlockSchema,
+    upgradeDefinitionMark,
     WordCountHint,
     RubricCriterion,
     type Rubric,
@@ -178,22 +178,40 @@ function sanitizeMistakeFeedback(
     });
 }
 
-// Same posture for definition-mark popover content, which uses the narrower
-// DefinitionContentInline union (SimpleMark only — no nested definitions).
-function sanitizeDefinitionContent(raw: unknown): DefinitionContentInline[] {
-    if (!Array.isArray(raw)) return [];
-    const nodes: DefinitionContentInline[] = [];
-    for (const node of raw) {
-        const parsed = DefinitionContentInlineSchema.safeParse(node);
-        if (parsed.success) nodes.push(parsed.data);
+// Same posture for definition-mark popover content, which is a DefinitionBlock
+// sequence (docs/design/definition-rich-content.md) — the reference panel's
+// content blocks minus columns, callout, and anything gradeable.
+//
+// `raw` is normalized through the SCHEMA's upgrade helper first, so a Tiptap
+// attr still carrying the pre-block shape (an inline array, and/or the old
+// separate `image` attr) is interpreted exactly as a stored document would be.
+// That matters during an editor session opened before the migration, and it
+// means there is one definition of what an old mark means, not two.
+function sanitizeDefinitionContent(
+    raw: unknown,
+    rawImage: unknown,
+): DefinitionBlock[] {
+    const upgraded = upgradeDefinitionMark({
+        type: 'definition',
+        content: raw,
+        ...(rawImage === undefined || rawImage === null
+            ? {}
+            : { image: rawImage }),
+    });
+    const blocks = (upgraded as { content?: unknown }).content;
+    if (!Array.isArray(blocks)) return [];
+    const out: DefinitionBlock[] = [];
+    for (const block of blocks) {
+        const parsed = DefinitionBlockSchema.safeParse(block);
+        if (parsed.success) out.push(parsed.data);
         else {
             console.warn(
-                '[serialize] Dropping malformed definition content node:',
-                JSON.stringify(node),
+                '[serialize] Dropping malformed definition content block:',
+                JSON.stringify(block),
             );
         }
     }
-    return nodes;
+    return out;
 }
 
 // =============================================================================
@@ -1250,30 +1268,19 @@ function extractMarks(
     const out: Mark[] = [];
     for (const m of marks) {
         if (m.type === 'definition') {
-            // Attribute-carrying mark. `content` is canonical
-            // DefinitionContentInline[] (the nested mini-editor writes it that
-            // way, like blank hints); sanitize rather than pass through.
-            // `image` is an optional {src, alt}. Keep the mark only if it
-            // carries content or an image. glossaryKey is reserved for
-            // Phase 4 and carried through if set.
-            const content = sanitizeDefinitionContent(m.attrs?.content);
-            const rawImage = m.attrs?.image;
-            let image: DefinitionImage | undefined;
-            if (
-                rawImage &&
-                typeof rawImage === 'object' &&
-                typeof (rawImage as { src?: unknown }).src === 'string' &&
-                (rawImage as { src: string }).src.length > 0
-            ) {
-                const alt = (rawImage as { alt?: unknown }).alt;
-                image = {
-                    src: (rawImage as { src: string }).src,
-                    alt: typeof alt === 'string' ? alt : '',
-                };
-            }
-            if (content.length === 0 && !image) continue;
+            // Attribute-carrying mark. `content` is a canonical
+            // DefinitionBlock[] (the definition dialog writes it that way);
+            // sanitize rather than pass through. A pre-migration attr shape —
+            // inline content and/or a separate `image` — is normalized by the
+            // same schema helper stored documents go through (D7: the image
+            // became a trailing image block). Keep the mark only if it carries
+            // content. glossaryKey is reserved for Phase 4, carried if set.
+            const content = sanitizeDefinitionContent(
+                m.attrs?.content,
+                m.attrs?.image,
+            );
+            if (content.length === 0) continue;
             const mark: DefinitionMark = { type: 'definition', content };
-            if (image) mark.image = image;
             const glossaryKey = m.attrs?.glossaryKey;
             if (typeof glossaryKey === 'string' && glossaryKey.length > 0) {
                 mark.glossaryKey = glossaryKey;
@@ -1758,7 +1765,6 @@ function activityInlineNodeToTiptap(node: InlineNode): JSONContent {
                               type: 'definition',
                               attrs: {
                                   content: m.content,
-                                  ...(m.image ? { image: m.image } : {}),
                                   ...(m.glossaryKey
                                       ? { glossaryKey: m.glossaryKey }
                                       : {}),

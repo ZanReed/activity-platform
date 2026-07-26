@@ -11,7 +11,14 @@ export {
   Mark,
   DefinitionMark,
   DefinitionContentInline,
-  DefinitionImage,
+  // DefinitionImage is GONE (design doc D7): a definition's illustrative image
+  // is now a member of DefinitionBlock, so there is one way to express it. The
+  // Mark preprocess upgrades the old `image` attr into a trailing image block.
+  DefinitionBlock,
+  upgradeDefinitionMark,
+  DefinitionListItem,
+  DefinitionBulletListBlock,
+  DefinitionOrderedListBlock,
   SIMPLE_MARK_TYPES,
   TextNode,
   InlineMathNode,
@@ -21,7 +28,16 @@ export {
   InlineNode,
   FillInBlankInline,
 } from './inline.js';
-export type { MarkType, SimpleMarkType } from './inline.js';
+export type {
+  MarkType,
+  SimpleMarkType,
+  // The definition-content block shapes. Renderers accept these alongside their
+  // blocks/ siblings so definition markup and body markup share one source.
+  DefinitionParagraphBlock,
+  DefinitionHeadingBlock,
+  DefinitionMathBlock,
+  DefinitionImageBlock,
+} from './inline.js';
 
 // Blocks
 export {

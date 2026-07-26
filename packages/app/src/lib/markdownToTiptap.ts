@@ -835,9 +835,14 @@ function emitInline(
 // A `[[term :: definition]]` inline vocabulary definition → the TERM text run
 // carrying a `definition` mark (alongside any active bold/italic/code) whose
 // popover content is the definition text (plain text + $inline$ math via
-// inlineSchemaContent; the editor's definition popover adds rich formatting / an
-// image later). Split on the FIRST `::` (the DSL's label::detail convention).
-// No `::`, or an empty term or definition, keeps the literal `[[…]]` text.
+// inlineSchemaContent; the editor's definition dialog adds richer blocks later).
+// Split on the FIRST `::` (the DSL's label::detail convention). No `::`, or an
+// empty term or definition, keeps the literal `[[…]]` text.
+//
+// A definition's content is a BLOCK array (schema: DefinitionBlock), so the
+// inline run is wrapped in one paragraph here. The serializer would normalize an
+// un-wrapped array the same way, but emitting the canonical shape directly keeps
+// the importer's output identical to what the editor writes.
 function makeDefinition(
     inner: string,
     marks: string[],
@@ -854,7 +859,13 @@ function makeDefinition(
     return {
         type: 'text',
         text: term,
-        marks: [...marksList, { type: 'definition', attrs: { content } }],
+        marks: [
+            ...marksList,
+            {
+                type: 'definition',
+                attrs: { content: [{ type: 'paragraph', content }] },
+            },
+        ],
     };
 }
 

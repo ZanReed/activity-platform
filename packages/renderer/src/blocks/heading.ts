@@ -1,15 +1,18 @@
-import type { HeadingBlock } from '@activity/schema';
+import type { HeadingBlock, DefinitionHeadingBlock } from '@activity/schema';
 import { renderInline } from '../inline.js';
-import { attr } from '../html.js';
+import { blockIdAttr } from '../html.js';
 
-export function renderHeading(block: HeadingBlock): string {
+// Also serves definition-content headings — see renderParagraph.
+export function renderHeading(
+  block: HeadingBlock | DefinitionHeadingBlock,
+): string {
   const inner = block.content.map(renderInline).join('');
   const tag = 'h' + block.level;
   return (
     '<' + tag + ' class="block block-heading block-heading-' + block.level + '"' +
     ' data-block-category="content"' +
     ' data-block-type="heading"' +
-    ' data-block-id="' + attr(block.id) + '">' +
+    blockIdAttr(block.id) + '>' +
     inner +
     '</' + tag + '>'
   );

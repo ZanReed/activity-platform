@@ -11,6 +11,14 @@
 // =============================================================================
 
 import { z } from 'zod';
+// Both imports are LEAF-SAFE — neither module imports inline.ts, so neither
+// creates a cycle. sizing.js and blocks/image.js's CropRect are zod-only;
+// blocks/graph-figure.js reaches its axis/drawable primitives via the leaf
+// graph-primitives.ts precisely so that this import is possible. Do not swap
+// either for a blocks/ module that carries InlineNode.
+import { sizingFields, type BlockAlign } from './sizing.js';
+import { CropRect } from './blocks/image.js';
+import { GraphFigureBlock } from './blocks/graph-figure.js';
 
 // ---- Marks ------------------------------------------------------------------
 // Marks are formatting applied to a run of text — not nested elements (no
@@ -122,49 +130,285 @@ export const DefinitionContentInline = z.discriminatedUnion('type', [
 ]);
 export type DefinitionContentInline = z.infer<typeof DefinitionContentInline>;
 
-// Optional illustrative image for a definition ("a picture worth a thousand
-// words"). src is a URL (R2 upload or pasted); alt defaults to empty.
-export const DefinitionImage = z.object({
+// ---- Definition blocks ------------------------------------------------------
+// A definition's content is a BLOCK sequence, so a vocabulary popover can hold
+// what a reference sheet holds: a display equation, a short property list, a
+// figure. See docs/design/definition-rich-content.md.
+//
+// The union is a curated subset of the reference panel's content blocks, and
+// every text-bearing member is defined LOCALLY over DefinitionContentInline
+// rather than reusing its blocks/ sibling. That is what keeps the schema
+// NON-RECURSIVE: blocks/paragraph.ts and friends carry InlineNode, whose
+// TextNode carries Mark, which includes DefinitionMark — so reusing them would
+// close the cycle DefinitionMark -> block -> text -> mark -> DefinitionMark and
+// admit definitions nested inside definitions at arbitrary depth. It would also
+// land on the same tsc declaration-serialization limit (TS7056) that already
+// forced the hand-written `interface ActivityDocument` in document.ts.
+//
+// Excluded on purpose (author rulings, design doc D2/D3): columns (unreadable
+// in a ~28rem popover — a definition that needs two-column layout IS the
+// reference panel), callout (a note box inside a note box), and every
+// question/interactive block (a definition is never gradeable).
+//
+// `id` is OPTIONAL on the locally-defined members, unlike every blocks/ sibling
+// where it is a required uuid. Two reasons: nothing addresses a definition block
+// (it is never scored, never a submission key, never a runtime ref — only the
+// editor wants it, and the editor always mints one), and the legacy upgrades in
+// the Mark preprocess below must be DETERMINISTIC. A required uuid would force
+// crypto.randomUUID() at parse time, so parsing one stored document twice would
+// yield different ids and break re-serialization byte-identity.
+
+// Every schema below carries an EXPLICIT interface + `z.ZodType<…>` annotation
+// rather than relying on z.infer. This is not style: without it, adding a
+// 7-member block union inside a mark that every block's inline content can
+// reach overflows tsc's declaration-serialization limit and fails the build with
+// TS7056 in five downstream files (blocks/index.ts's Block, document.ts,
+// layout.ts). Naming the types stops the structural expansion at this boundary —
+// the same remedy `interface ActivityDocument` already applies in document.ts.
+// The annotations are checked against the object schemas, so nothing here loses
+// type safety, and the runtime objects are untouched (a discriminatedUnion still
+// parses as a discriminatedUnion).
+
+const DefinitionBlockId = z.string().uuid().optional();
+
+// Shared sizing fragment, spelled out for the interfaces above.
+interface DefinitionSizing {
+  width?: number;
+  align?: BlockAlign;
+}
+
+export interface DefinitionParagraphBlock {
+  id?: string;
+  type: 'paragraph';
+  content: DefinitionContentInline[];
+}
+export interface DefinitionHeadingBlock {
+  id?: string;
+  type: 'heading';
+  level: 1 | 2 | 3;
+  content: DefinitionContentInline[];
+}
+export interface DefinitionMathBlock extends DefinitionSizing {
+  id?: string;
+  type: 'math_block';
+  latex: string;
+}
+export interface DefinitionImageBlock extends DefinitionSizing {
+  id?: string;
+  type: 'image';
+  src: string;
+  alt: string;
+  crop?: CropRect;
+  srcAspect?: number;
+}
+
+const DefinitionParagraphBlock = z.object({
+  id: DefinitionBlockId,
+  type: z.literal('paragraph'),
+  content: z.array(DefinitionContentInline).default([]),
+});
+
+// Same three-level cap as HeadingBlock. The popover stylesheet scopes these
+// down so a panel-scale h1 reads correctly at popover scale.
+const DefinitionHeadingBlock = z.object({
+  id: DefinitionBlockId,
+  type: z.literal('heading'),
+  level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  content: z.array(DefinitionContentInline).default([]),
+});
+
+// Display math. A definition-local shape rather than blocks/math-block.ts's
+// MathBlock, which carries `prompts` (in-equation gradeable gaps) and
+// `solution: InlineNode[]` — the first is meaningless here (a definition is
+// never gradeable, the same posture the reference panel already takes) and the
+// second is exactly the recursive edge described above. Sizing rides along;
+// labelFields do not (a definition block is never numbered).
+const DefinitionMathBlock = z.object({
+  id: DefinitionBlockId,
+  type: z.literal('math_block'),
+  latex: z.string(),
+  ...sizingFields,
+});
+
+// Illustrative image. Definition-local for the optional-id reason above, but it
+// reuses the shared sizing + crop vocabulary verbatim, so reframing a textbook
+// figure down to the relevant corner works exactly as it does in the body.
+// `caption` is deliberately absent (YAGNI — alt covers accessibility, and a
+// captioned figure in a popover is the reference panel's job); additive later.
+const DefinitionImageBlock = z.object({
+  id: DefinitionBlockId,
+  type: z.literal('image'),
   src: z.string(),
   alt: z.string().default(''),
+  ...sizingFields,
+  crop: CropRect.optional(),
+  srcAspect: z.number().positive().optional(),
 });
-export type DefinitionImage = z.infer<typeof DefinitionImage>;
+
+// Nested lists, mirroring blocks/list.ts's shape so Tab-to-indent in the
+// definition dialog round-trips. Same recursion mechanic: only the cyclic edge
+// (item -> list -> item) is z.lazy(), leaving the list blocks as plain
+// z.objects so they stay usable as discriminatedUnion members below.
+export interface DefinitionListItem {
+  id?: string;
+  content: DefinitionContentInline[];
+  children?: Array<DefinitionBulletListBlock | DefinitionOrderedListBlock>;
+}
+export interface DefinitionBulletListBlock {
+  id?: string;
+  type: 'bullet_list';
+  items: DefinitionListItem[];
+}
+export interface DefinitionOrderedListBlock {
+  id?: string;
+  type: 'ordered_list';
+  items: DefinitionListItem[];
+}
+
+export const DefinitionListItem: z.ZodType<
+  DefinitionListItem,
+  z.ZodTypeDef,
+  unknown
+> = z.lazy(() =>
+  z.object({
+    id: DefinitionBlockId,
+    content: z.array(DefinitionContentInline).default([]),
+    children: z
+      .array(z.union([DefinitionBulletListBlock, DefinitionOrderedListBlock]))
+      .optional(),
+  }),
+);
+
+export const DefinitionBulletListBlock = z.object({
+  id: DefinitionBlockId,
+  type: z.literal('bullet_list'),
+  items: z.array(DefinitionListItem).default([]),
+});
+
+export const DefinitionOrderedListBlock = z.object({
+  id: DefinitionBlockId,
+  type: z.literal('ordered_list'),
+  items: z.array(DefinitionListItem).default([]),
+});
+
+// GraphFigureBlock is the ONE member reused verbatim: it is already inline-free
+// (axis + drawables only), so it introduces no cycle, and it has no legacy
+// upgrade path that would need to mint its required uuid. Importing it is safe
+// only because its own graph primitives now come from the leaf
+// graph-primitives.ts rather than through blocks/interactive-graph.ts — see the
+// header comment there.
+export type DefinitionBlock =
+  | DefinitionParagraphBlock
+  | DefinitionHeadingBlock
+  | DefinitionMathBlock
+  | DefinitionImageBlock
+  | DefinitionBulletListBlock
+  | DefinitionOrderedListBlock
+  | GraphFigureBlock;
+
+export const DefinitionBlock: z.ZodType<
+  DefinitionBlock,
+  z.ZodTypeDef,
+  unknown
+> = z.discriminatedUnion('type', [
+  DefinitionParagraphBlock,
+  DefinitionHeadingBlock,
+  DefinitionMathBlock,
+  DefinitionImageBlock,
+  DefinitionBulletListBlock,
+  DefinitionOrderedListBlock,
+  GraphFigureBlock,
+]);
 
 // DefinitionMark — inline vocabulary definition (Phase 2). `content` is the
-// rich definition shown in the published-page popover (formatted text + math);
-// `image` is an optional illustrative picture. `glossaryKey` is reserved for
-// the Phase 4 tenant glossary store (resolved at publish) and is unused in
-// Phase 2. The renderer emits `<span class="definition" …>` plus a hidden
-// <template> carrying the rendered content; see RUNTIME.md and
-// docs/design/vocabulary-definitions.md.
+// rich definition shown in the published-page popover, now a block sequence
+// (see DefinitionBlock above). `glossaryKey` is reserved for the Phase 4 tenant
+// glossary store (resolved at publish) and is unused in Phase 2. The renderer
+// emits `<span class="definition" …>` plus a hidden <template> carrying the
+// rendered content; see RUNTIME.md, docs/design/vocabulary-definitions.md, and
+// docs/design/definition-rich-content.md.
+// NOT annotated as z.ZodType, unlike DefinitionBlock above: this schema is a
+// member of the `Mark` discriminatedUnion below, and z.discriminatedUnion needs
+// real ZodObjects to introspect the `type` discriminator. The named
+// DefinitionBlock alias is what keeps the inferred type here small enough — the
+// same reason list.ts keeps its list blocks as plain z.objects and puts the
+// z.lazy() only on the cyclic edge.
 export const DefinitionMark = z.object({
   type: z.literal('definition'),
-  content: z.array(DefinitionContentInline).default([]),
-  image: DefinitionImage.optional(),
+  content: z.array(DefinitionBlock).default([]),
   glossaryKey: z.string().optional(),
 });
 export type DefinitionMark = z.infer<typeof DefinitionMark>;
+
+// A definition's content is a block array today, but two older shapes are still
+// out there in stored documents. Both upgrades below are pure, deterministic
+// read-time rewrites — they mint no ids and no randomness, so parsing the same
+// stored document twice yields identical output.
+//
+// They COMPOSE, oldest first, because a document can carry the oldest shape:
+//   v1  { definition: 'a string' }                    (pre-rich-content)
+//   v2  { content: [inline…], image?: {src, alt} }    (Phase 2 rich inline)
+//   v3  { content: [block…] }                         (current)
+// so v1 → v2 → v3 must run in sequence on a single mark.
+// Exported because the app's serializer needs the IDENTICAL normalization when
+// it reads a definition mark's Tiptap attrs — an editor session opened before
+// the block migration still carries the v2 attr shape. One implementation, so
+// the schema and the serializer cannot drift apart on what an old mark means.
+export function upgradeDefinitionMark(m: Record<string, unknown>): unknown {
+  let content = m.content;
+  const rest = { ...m };
+
+  // v1 → v2: a plain `definition` string becomes a single inline text run.
+  if (typeof rest.definition === 'string' && content === undefined) {
+    const text = rest.definition;
+    content = text ? [{ type: 'text', text }] : [];
+  }
+  delete rest.definition;
+
+  // v2 → v3: an INLINE content array becomes one paragraph block. Detected by
+  // shape, not by a version field — an inline node is a text / math_inline /
+  // hard_break, none of which is a block `type`, so the first element
+  // discriminates unambiguously. An empty array is already valid at both
+  // versions and is left alone.
+  const INLINE_TYPES = ['text', 'math_inline', 'hard_break'];
+  if (Array.isArray(content) && content.length > 0) {
+    const first = content[0] as { type?: unknown } | undefined;
+    if (typeof first?.type === 'string' && INLINE_TYPES.includes(first.type)) {
+      content = [{ type: 'paragraph', content }];
+    }
+  }
+
+  // v2 → v3 (D7): the separate `image` attr becomes a trailing image block, so
+  // there is exactly one way to express an image in a definition. Appended
+  // AFTER the text, matching where the old popover rendered it.
+  const image = rest.image;
+  delete rest.image;
+  if (image !== null && typeof image === 'object') {
+    const { src, alt } = image as { src?: unknown; alt?: unknown };
+    if (typeof src === 'string' && src) {
+      const blocks = Array.isArray(content) ? [...content] : [];
+      blocks.push({
+        type: 'image',
+        src,
+        alt: typeof alt === 'string' ? alt : '',
+      });
+      content = blocks;
+    }
+  }
+
+  return { ...rest, content: content ?? [] };
+}
 
 export const Mark = z.preprocess(
   (m) => {
     // Legacy: marks were bare strings ('bold').
     if (typeof m === 'string') return { type: m };
-    // Legacy: a definition mark stored a plain `definition` string before rich
-    // content landed — upgrade it to a single-text-run `content`.
     if (
       m !== null &&
       typeof m === 'object' &&
-      (m as { type?: unknown }).type === 'definition' &&
-      typeof (m as { definition?: unknown }).definition === 'string' &&
-      (m as { content?: unknown }).content === undefined
+      (m as { type?: unknown }).type === 'definition'
     ) {
-      const { definition, ...rest } = m as {
-        definition: string;
-      } & Record<string, unknown>;
-      return {
-        ...rest,
-        content: definition ? [{ type: 'text', text: definition }] : [],
-      };
+      return upgradeDefinitionMark(m as Record<string, unknown>);
     }
     return m;
   },

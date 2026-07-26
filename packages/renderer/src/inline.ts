@@ -13,12 +13,15 @@ import type {
   TextNode,
   InlineMathNode,
   BlankToken,
-  DefinitionContentInline,
 } from '@activity/schema';
 import { escape, attr } from './html.js';
 import { renderMath } from './math.js';
 import { hasMathPrompts, renderMathPromptBody } from './math-prompts.js';
 import { stepLetter } from './blocks/step-letter.js';
+import {
+  renderDefinitionBlocks,
+  definitionPlainText,
+} from './definition-content.js';
 
 export function renderInline(node: InlineNode): string {
   switch (node.type) {
@@ -101,19 +104,6 @@ export function renderFillInBlankContent(
   .join('');
 }
 
-// Plain-text flattening of a definition's content — the data-definition
-// fallback (no-JS / accessibility), NOT the display form (the rich content
-// lives in the adjacent <template>). Inline math is skipped (no plain-text
-// form); hard breaks become spaces.
-function definitionPlainText(content: DefinitionContentInline[]): string {
-  let out = '';
-  for (const node of content) {
-    if (node.type === 'text') out += node.text;
-    else if (node.type === 'hard_break') out += ' ';
-  }
-  return out.trim();
-}
-
 function renderText(node: TextNode): string {
   let html = escape(node.text);
   // Marks are applied outermost-last so the visual nesting matches the
@@ -143,21 +133,15 @@ function renderText(node: TextNode): string {
       case 'definition': {
         // Inline vocabulary definition. The published-page runtime attaches a
         // popover (click/tap/keyboard) and fills it from the adjacent hidden
-        // <template> — rich text + inline math + an optional image, all
-        // pre-rendered here (KaTeX runs server-side, so the runtime only
-        // clones the inert template, never re-renders). data-definition is a
-        // plain-text fallback (accessibility / no-JS); data-glossary-key is
-        // reserved (Phase 4) and emitted only when present. See RUNTIME.md's
-        // data-attribute contract.
-        const contentHtml = renderInlineNodes(mark.content);
-        const imageHtml = mark.image
-          ? '<img class="definition-image" src="' +
-            attr(mark.image.src) +
-            '" alt="' +
-            attr(mark.image.alt) +
-            '" />'
-          : '';
-        const hasRich = mark.content.length > 0 || mark.image !== undefined;
+        // <template> — a BLOCK sequence (formatted text, display math, lists,
+        // images, static graph figures), all pre-rendered here (KaTeX and the
+        // graph SVG engine run server-side, so the runtime only clones the inert
+        // template, never re-renders). data-definition is a plain-text fallback
+        // (accessibility / no-JS); data-glossary-key is reserved (Phase 4) and
+        // emitted only when present. See RUNTIME.md's data-attribute contract
+        // and docs/design/definition-rich-content.md.
+        const contentHtml = renderDefinitionBlocks(mark.content);
+        const hasRich = mark.content.length > 0;
         html =
           '<span class="definition" data-definition="' +
           attr(definitionPlainText(mark.content)) +
@@ -171,7 +155,6 @@ function renderText(node: TextNode): string {
           (hasRich
             ? '<template class="js-definition-content">' +
               contentHtml +
-              imageHtml +
               '</template>'
             : '');
         break;

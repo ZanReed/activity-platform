@@ -30,6 +30,18 @@ export function attr(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Render the ` data-block-id="…"` attribute, or nothing when the block has no
+ * id. Every block in a section carries a required uuid, so this is a no-op
+ * there and output stays byte-identical. Definition-content blocks
+ * (schema: DefinitionBlock) carry an OPTIONAL id — nothing addresses them and
+ * the legacy upgrades must stay deterministic, so they mint none — and an empty
+ * `data-block-id=""` would be noise inside the definition <template>.
+ */
+export function blockIdAttr(id: string | undefined): string {
+  return id === undefined ? '' : ' data-block-id="' + attr(id) + '"';
+}
+
 /** Escape a string for safe embedding in a JSON-encoded JS string literal. */
 export function js(s: string): string {
   // JSON.stringify handles all the edge cases (control chars, surrogates, etc.)

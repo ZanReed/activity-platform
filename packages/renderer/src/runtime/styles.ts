@@ -1281,8 +1281,12 @@ body {
 .definition-popover {
   position: fixed;
   z-index: 1000;
-  width: min(20rem, calc(100vw - 2rem));
-  max-height: 50vh;
+  /* Wider than the original one-line popover: a definition now carries BLOCK
+   content (display equations, lists, figures — see
+   docs/design/definition-rich-content.md), and a centered equation reads badly
+   at 20rem. Still viewport-clamped, and the body owns the scroll. */
+  width: min(28rem, calc(100vw - 2rem));
+  max-height: 60vh;
   overflow-y: auto;
   background: white;
   border: 1px solid var(--color-border);
@@ -1298,14 +1302,53 @@ body {
   line-height: 1.5;
   color: var(--color-text);
 }
-/* Optional illustrative image inside a definition popover — capped to the
- popover width, never stretched. */
-.definition-popover-body .definition-image {
-  display: block;
+
+/* Definition content renders through the SAME block renderers the body uses, so
+ the markup carries page-scale spacing and heading sizes. These rules re-scale
+ that content for a popover; they are scoped to .definition-popover-body, so
+ nothing here can affect the page. */
+.definition-popover-body .block {
+  margin: 0.5rem 0;
+}
+.definition-popover-body .block:first-child {
+  margin-top: 0;
+}
+.definition-popover-body .block:last-child {
+  margin-bottom: 0;
+}
+/* A popover is not a document: a definition's headings are labels within one
+ card, so the page's h1/h2/h3 scale would shout. Flatten toward the body size
+ while keeping the three levels distinguishable. */
+.definition-popover-body .block-heading-1 { font-size: 1.15em; margin: 0.75rem 0 0.25rem; }
+.definition-popover-body .block-heading-2 { font-size: 1.05em; margin: 0.75rem 0 0.25rem; }
+.definition-popover-body .block-heading-3 { font-size: 1em;    margin: 0.75rem 0 0.25rem; }
+/* Display math can overflow a narrow card; let it scroll on its own axis
+ rather than widening the popover or clipping. */
+.definition-popover-body .block-math {
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+/* Figures and images cap to the card, never stretch. */
+.definition-popover-body .block-image img,
+.definition-popover-body .block-graph-figure svg {
   max-width: 100%;
   height: auto;
-  margin-top: 0.5rem;
-  border-radius: 4px;
+}
+.definition-popover-body .block-image {
+  margin: 0.5rem 0;
+}
+/* A graph figure is capped at 16rem (see .block-graph-figure), narrower than
+ the card, so center the BLOCK with auto margins rather than leaving it hanging
+ on the left. Centering inside it would do nothing — the box is already the
+ figure's width. */
+.definition-popover-body .block-graph-figure {
+  margin-left: auto;
+  margin-right: auto;
+}
+.definition-popover-body .block-bullet-list,
+.definition-popover-body .block-ordered-list {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
 }
 
 /* Confidence rating fieldset (Stage 12 step 3). One per fill-in-blank

@@ -1640,7 +1640,12 @@ describe('inline definitions [[term :: definition]]', () => {
                 type: 'definition',
                 attrs: {
                     content: [
-                        { type: 'text', text: 'the powerhouse of the cell', marks: [] },
+                        {
+                            type: 'paragraph',
+                            content: [
+                                { type: 'text', text: 'the powerhouse of the cell', marks: [] },
+                            ],
+                        },
                     ],
                 },
             },
@@ -1652,7 +1657,14 @@ describe('inline definitions [[term :: definition]]', () => {
         expect(t.marks).toEqual([
             {
                 type: 'definition',
-                attrs: { content: [{ type: 'math_inline', latex: '\\frac{1}{2}bh' }] },
+                attrs: {
+                    content: [
+                        {
+                            type: 'paragraph',
+                            content: [{ type: 'math_inline', latex: '\\frac{1}{2}bh' }],
+                        },
+                    ],
+                },
             },
         ]);
     });
@@ -1663,7 +1675,14 @@ describe('inline definitions [[term :: definition]]', () => {
             { type: 'bold' },
             {
                 type: 'definition',
-                attrs: { content: [{ type: 'text', text: 'the unit of life', marks: [] }] },
+                attrs: {
+                    content: [
+                        {
+                            type: 'paragraph',
+                            content: [{ type: 'text', text: 'the unit of life', marks: [] }],
+                        },
+                    ],
+                },
             },
         ]);
     });
@@ -1697,9 +1716,18 @@ describe('inline definitions [[term :: definition]]', () => {
             (n): n is Extract<typeof n, { type: 'text' }> =>
                 n.type === 'text' && n.text === 'osmosis',
         )!;
+        // The importer emits the canonical BLOCK shape — one paragraph — which
+        // is what the definition dialog writes too.
         expect(term.marks[0]).toMatchObject({
             type: 'definition',
-            content: [{ type: 'text', text: 'water crossing a membrane', marks: [] }],
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        { type: 'text', text: 'water crossing a membrane', marks: [] },
+                    ],
+                },
+            ],
         });
     });
 });

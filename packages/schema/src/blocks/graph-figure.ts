@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { AxisConfig, Drawable } from './interactive-graph.js';
+// From the leaf primitives module, NOT from ./interactive-graph.js — that file
+// imports inline.ts, and inline.ts imports THIS one (a definition may contain a
+// graph figure), so routing through it would close a fatal module cycle. See
+// ../graph-primitives.ts.
+import { AxisConfig, Drawable } from '../graph-primitives.js';
 
 // =============================================================================
 // GraphFigureBlock — a static coordinate-plane picture (never interactive).

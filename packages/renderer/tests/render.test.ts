@@ -1000,7 +1000,7 @@ describe('Problem numbering', () => {
           id: '22222222-2222-2222-2222-222222222222',
           type: 'paragraph',
           content: [
-            { type: 'text', text: 'factor', marks: [{ type: 'definition', content: [{ type: 'text', text: 'a number that "divides" exactly', marks: [] }] }] },
+            { type: 'text', text: 'factor', marks: [{ type: 'definition', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a number that "divides" exactly', marks: [] }] }] }] },
           ],
         }] }] }],
       }],
@@ -1011,11 +1011,15 @@ describe('Problem numbering', () => {
       '<span class="definition" data-definition="a number that &quot;divides&quot; exactly" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false">factor</span>',
     );
     // ...and the rich content lives in an adjacent hidden template.
-    expect(body).toContain('<template class="js-definition-content">a number that "divides" exactly</template>');
+    expect(body).toContain(
+      '<template class="js-definition-content">' +
+      '<p class="block block-paragraph" data-block-category="content" data-block-type="paragraph">' +
+      'a number that "divides" exactly</p></template>',
+    );
     // No glossaryKey attribute unless the mark carries one.
     expect(body).not.toContain('data-glossary-key');
   });
-  it('renders math and an optional image into the content template', () => {
+  it('renders block content — math, a display equation, a list and an image — into the template', () => {
     const doc: ActivityDocument = {
       schemaVersion: 2,
       meta: { title: 'T', course: 'Algebra II', submissionMode: 'free', revisionMode: 'free', gradingMode: 'auto', activityType: 'worksheet', skills: [] },
@@ -1026,14 +1030,26 @@ describe('Problem numbering', () => {
           id: '22222222-2222-2222-2222-222222222222',
           type: 'paragraph',
           content: [
-            { type: 'text', text: 'hypotenuse', marks: [{ type: 'definition', content: [{ type: 'text', text: 'the longest side ', marks: [] }, { type: 'math_inline', latex: 'c' }], image: { src: 'https://example.com/triangle.png', alt: 'a right triangle' } }] },
+            { type: 'text', text: 'hypotenuse', marks: [{ type: 'definition', content: [
+              { type: 'paragraph', content: [{ type: 'text', text: 'the longest side ', marks: [] }, { type: 'math_inline', latex: 'c' }] },
+              { type: 'math_block', latex: 'a^2 + b^2 = c^2' },
+              { type: 'bullet_list', items: [{ content: [{ type: 'text', text: 'opposite the right angle', marks: [] }] }] },
+              { type: 'image', src: 'https://example.com/triangle.png', alt: 'a right triangle' },
+            ] }] },
           ],
         }] }] }],
       }],
     };
     const body = renderBody(doc);
     expect(body).toContain('<template class="js-definition-content">');
-    expect(body).toContain('<img class="definition-image" src="https://example.com/triangle.png" alt="a right triangle" />');
+    // Block content reuses the BODY renderers, so the markup cannot drift.
+    expect(body).toContain('<div class="block block-math" data-block-category="content" data-block-type="math_block">');
+    expect(body).toContain('<ul class="block block-bullet-list" data-block-category="content" data-block-type="bullet_list">');
+    expect(body).toContain('<figure class="block block-image" data-block-category="content" data-block-type="image">');
+    expect(body).toContain('<img src="https://example.com/triangle.png" alt="a right triangle"');
+    // No data-block-id inside a definition: those blocks carry no id.
+    expect(body.split('<template class="js-definition-content">')[1]?.split('</template>')[0])
+      .not.toContain('data-block-id');
     // Math is pre-rendered (KaTeX) inside the template.
     expect(body).toContain('class="katex"');
   });

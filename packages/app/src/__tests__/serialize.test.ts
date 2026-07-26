@@ -760,7 +760,7 @@ describe('paragraphs', () => {
                         {
                             type: 'text',
                             text: 'factor',
-                            marks: [{ type: 'definition', attrs: { content: [{ type: 'text', text: 'a number that divides another exactly', marks: [] }] } }],
+                            marks: [{ type: 'definition', attrs: { content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a number that divides another exactly', marks: [] }] }] } }],
                         },
                     ],
                 },
@@ -769,7 +769,7 @@ describe('paragraphs', () => {
         expect(roundTrip(doc)).toEqual(doc);
     });
 
-    it('preserves a definition mark image + glossaryKey', () => {
+    it('preserves definition block content + glossaryKey', () => {
         const doc: JSONContent = {
             type: 'doc',
             content: [
@@ -779,13 +779,46 @@ describe('paragraphs', () => {
                         {
                             type: 'text',
                             text: 'hypotenuse',
-                            marks: [{ type: 'definition', attrs: { content: [{ type: 'text', text: 'the longest side', marks: [] }], image: { src: 'https://example.com/triangle.png', alt: 'a right triangle' }, glossaryKey: 'factor-noun' } }],
+                            marks: [{ type: 'definition', attrs: { content: [
+                                { type: 'paragraph', content: [{ type: 'text', text: 'the longest side', marks: [] }] },
+                                { type: 'math_block', latex: 'a^2 + b^2 = c^2' },
+                                { type: 'image', src: 'https://example.com/triangle.png', alt: 'a right triangle' },
+                            ], glossaryKey: 'factor-noun' } }],
                         },
                     ],
                 },
             ],
         };
         expect(roundTrip(doc)).toEqual(doc);
+    });
+
+    it('upgrades a pre-migration definition mark (inline content + image attr)', () => {
+        // D7: the separate `image` attr became a trailing image block, and an
+        // inline content array became one paragraph. An editor session opened
+        // before the migration still carries the old attrs, so the serializer
+        // must normalize them exactly as a stored document would be.
+        const stale: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'hypotenuse',
+                            marks: [{ type: 'definition', attrs: { content: [{ type: 'text', text: 'the longest side', marks: [] }], image: { src: 'https://example.com/triangle.png', alt: 'a right triangle' } } }],
+                        },
+                    ],
+                },
+            ],
+        };
+        const marks = (roundTrip(stale).content?.[0]?.content?.[0] as { marks?: unknown[] })?.marks;
+        expect(marks).toEqual([
+            { type: 'definition', attrs: { content: [
+                { type: 'paragraph', content: [{ type: 'text', text: 'the longest side', marks: [] }] },
+                { type: 'image', src: 'https://example.com/triangle.png', alt: 'a right triangle' },
+            ] } },
+        ]);
     });
 
     it('drops an empty definition mark (no content and no image)', () => {
@@ -808,14 +841,14 @@ describe('paragraphs', () => {
         expect(text.marks).toEqual([]);
     });
 
-    it('keeps a definition mark that has only an image (no text)', () => {
+    it('keeps a definition mark that is only an image block (no text)', () => {
         const doc: JSONContent = {
             type: 'doc',
             content: [
                 {
                     type: 'paragraph',
                     content: [
-                        { type: 'text', text: 'parabola', marks: [{ type: 'definition', attrs: { content: [], image: { src: 'https://example.com/parabola.png', alt: 'a U-shaped curve' } } }] },
+                        { type: 'text', text: 'parabola', marks: [{ type: 'definition', attrs: { content: [{ type: 'image', src: 'https://example.com/parabola.png', alt: 'a U-shaped curve' }] } }] },
                     ],
                 },
             ],
@@ -2704,7 +2737,13 @@ describe('attrs-stored inline content sanitize', () => {
         expect('tolerance' in blank).toBe(false);
     });
 
-    it('sanitizes definition mark content', () => {
+    // A definition's content is now a BLOCK array, so its sanitizer validates
+    // whole blocks. Granularity is therefore per-block, not per-inline-node: a
+    // block containing one malformed inline node drops entirely rather than
+    // shedding that node. Safe (nothing malformed reaches output) and only
+    // reachable via hand-corrupted attrs — the definition dialog cannot author
+    // these shapes. Pinned by the two tests below.
+    it('sanitizes definition mark content (per-block granularity)', () => {
         const doc: JSONContent = {
             type: 'doc',
             content: [
@@ -2742,20 +2781,65 @@ describe('attrs-stored inline content sanitize', () => {
         if (block.type !== 'paragraph') throw new Error('unreachable');
         const [vertex, slope] = block.content;
         if (vertex?.type !== 'text') throw new Error('unreachable');
-        expect(vertex.marks).toEqual([
-            { type: 'definition', content: sanitized },
-        ]);
+        // The stale inline array upgrades to one paragraph block; that block
+        // carries malformed nodes, so the block — and with it the whole mark —
+        // drops. `sanitized` is what the old per-node sanitizer would have kept.
+        expect(sanitized).toHaveLength(2);
+        expect(vertex.marks).toEqual([]);
         if (slope?.type !== 'text') throw new Error('unreachable');
         expect(slope.marks).toEqual([]);
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
     });
 
+    it('keeps well-formed definition blocks and drops only the malformed ones', () => {
+        const doc: JSONContent = {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'vertex',
+                            marks: [
+                                {
+                                    type: 'definition',
+                                    attrs: { content: [
+                                        { type: 'paragraph', content: [{ type: 'text', text: 'the turning point', marks: [] }] },
+                                        { type: 'callout', variant: 'info', content: [] },
+                                        { type: 'math_block', latex: 'x = -b/2a' },
+                                    ] },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+        const activity = tiptapToActivity(doc, META);
+        const block = flatBlocks(activity.sections[0]!)[0]!;
+        if (block.type !== 'paragraph') throw new Error('unreachable');
+        const [vertex] = block.content;
+        if (vertex?.type !== 'text') throw new Error('unreachable');
+        expect(vertex.marks).toEqual([
+            {
+                type: 'definition',
+                content: [
+                    { type: 'paragraph', content: [{ type: 'text', text: 'the turning point', marks: [] }] },
+                    { type: 'math_block', latex: 'x = -b/2a' },
+                ],
+            },
+        ]);
+        expect(() => ActivityDocument.parse(activity)).not.toThrow();
+    });
+
     it('definition content rejects what InlineNode allows (no nested definitions)', () => {
-        // Pins the narrowness of sanitizeDefinitionContent: a text node
-        // carrying a nested definition mark is valid InlineNode content but
-        // NOT valid DefinitionContentInline (SimpleMark only), so it drops
-        // from a popover while plain text beside it survives. Guards against
-        // accidentally swapping in the wider InlineNode schema.
+        // Pins the non-recursion invariant: a text node carrying a nested
+        // definition mark is valid InlineNode content but NOT valid
+        // DefinitionContentInline (SimpleMark only). Its containing block fails
+        // to parse, so the whole mark drops. Guards against accidentally
+        // swapping in the wider InlineNode schema — which would reopen the
+        // definitions-inside-definitions cycle.
         const nested = [
             { type: 'text', text: 'plain survives', marks: [] },
             {
@@ -2786,12 +2870,7 @@ describe('attrs-stored inline content sanitize', () => {
         if (block.type !== 'paragraph') throw new Error('unreachable');
         const [radius] = block.content;
         if (radius?.type !== 'text') throw new Error('unreachable');
-        expect(radius.marks).toEqual([
-            {
-                type: 'definition',
-                content: [{ type: 'text', text: 'plain survives', marks: [] }],
-            },
-        ]);
+        expect(radius.marks).toEqual([]);
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
     });
 });

@@ -1,5 +1,5 @@
-import type { ImageBlock } from '@activity/schema';
-import { attr, escape } from '../html.js';
+import type { ImageBlock, DefinitionImageBlock } from '@activity/schema';
+import { attr, escape, blockIdAttr } from '../html.js';
 import { sizingClass, sizingAttrs } from './sizing.js';
 
 // Trim float artifacts (0.6666·100 → 66.66666 → "66.6667") while keeping useful
@@ -37,8 +37,12 @@ function cropStyle(
   };
 }
 
-export function renderImage(block: ImageBlock): string {
-  const captionHtml = block.caption
+// Also renders a definition-content image, so the crop/sizing math has ONE
+// implementation — see renderParagraph. A DefinitionImageBlock has an optional
+// id (blockIdAttr) and no caption field, which reads as undefined here; a body
+// image always has its uuid, so its output stays byte-identical.
+export function renderImage(block: ImageBlock | DefinitionImageBlock): string {
+  const captionHtml = 'caption' in block && block.caption
     ? '<figcaption>' + escape(block.caption) + '</figcaption>'
     : '';
 
@@ -61,7 +65,7 @@ export function renderImage(block: ImageBlock): string {
       '<figure class="block block-image is-cropped' + sizingClass(block) + '"' +
       ' data-block-category="content"' +
       ' data-block-type="image"' +
-      ' data-block-id="' + attr(block.id) + '"' +
+      blockIdAttr(block.id) +
       sizingAttrs(block) + '>' +
       '<span class="block-image-window" style="aspect-ratio:' + aspect + '">' +
       '<img src="' + attr(block.src) + '"' +
@@ -81,7 +85,7 @@ export function renderImage(block: ImageBlock): string {
     '<figure class="block block-image' + sizingClass(block) + '"' +
     ' data-block-category="content"' +
     ' data-block-type="image"' +
-    ' data-block-id="' + attr(block.id) + '"' +
+    blockIdAttr(block.id) +
     sizingAttrs(block) + '>' +
     '<img src="' + attr(block.src) + '"' +
     ' alt="' + attr(block.alt) + '"' +
