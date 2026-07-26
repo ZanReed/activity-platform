@@ -64,6 +64,11 @@ export interface SlashMenuItem {
     // Available in the constrained reference-panel editor (which registers no
     // SectionBreak / graph extensions and hides question authoring).
     referenceSafe?: boolean;
+    // Offered ONLY in the reference-panel editor's pickers. The main editor
+    // registers the node for representability but never offers inserting it
+    // (e.g. graphFigure: the body's static-graph story is the
+    // interactive_graph display mode). Implies referenceSafe.
+    referenceOnly?: boolean;
     // Excluded from the "+ Insert" dropdown (still in the slash menu) — used
     // for inline inserts that already have a flat toolbar button (ƒx).
     insertMenu?: false;
@@ -85,7 +90,14 @@ export interface SlashMenuItem {
 // from the block picker. Shared with the thumbnail parity guard
 // (blockThumbnails.test.tsx) so the two catalogues can't drift.
 export function isPickableBlock(item: SlashMenuItem): boolean {
-    return item.group !== 'Text' && item.insertMenu !== false;
+    // referenceOnly items live solely in the reference-panel editor's Insert
+    // dropdown — the main editor's pickers must not offer a node it doesn't
+    // register.
+    return (
+        item.group !== 'Text' &&
+        item.insertMenu !== false &&
+        item.referenceOnly !== true
+    );
 }
 
 // Focused chain, with the slash menu's typed "/query" deleted when present.
@@ -286,6 +298,19 @@ export const slashMenuItems: SlashMenuItem[] = [
         referenceSafe: true,
         command: ({ editor, range }) => {
             begin(editor, range).insertImage().run();
+        },
+    },
+    {
+        title: 'Graph figure',
+        description: 'A static coordinate-plane picture for the reference panel. Never interactive.',
+        keywords: ['graph', 'figure', 'coordinate', 'plane', 'grid', 'line', 'plot', 'picture', 'reference'],
+        group: 'Structure',
+        subgroup: 'Media & figures',
+        icon: LineChart,
+        referenceSafe: true,
+        referenceOnly: true,
+        command: ({ editor, range }) => {
+            begin(editor, range).insertGraphFigure().run();
         },
     },
     {

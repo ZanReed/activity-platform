@@ -41,6 +41,7 @@ import {
     createLearningObjectivesBlock,
     createWorkedExampleBlock,
     createFadedWorkedExampleBlock,
+    createGraphFigureBlock,
     createSelfExplanationBlock,
     createShortAnswerBlock,
     createEssayBlock,
@@ -135,6 +136,13 @@ function representativeBlock(type: string): Block {
                 },
                 faded,
             ];
+            return block;
+        }
+        case 'graph_figure': {
+            // A static figure with one drawable (content block — contributes
+            // nothing to the dashboard index, same as worked_example).
+            const block = createGraphFigureBlock();
+            block.drawables = [{ kind: 'point', at: [1, 2] }];
             return block;
         }
         case 'self_explanation': {

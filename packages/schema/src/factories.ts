@@ -44,6 +44,7 @@ import type {
   SelfExplanationBlock,
   ShortAnswerBlock,
   EssayBlock,
+  GraphFigureBlock,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
@@ -99,6 +100,15 @@ export function createFadedWorkedExampleBlock(): FadedWorkedExampleBlock {
     title: 'Guided practice',
     content: [],
     showStepLabels: true,
+  };
+}
+
+export function createGraphFigureBlock(): GraphFigureBlock {
+  return {
+    id: uuid(),
+    type: 'graph_figure',
+    axis: AxisConfig.parse({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
+    drawables: [],
   };
 }
 

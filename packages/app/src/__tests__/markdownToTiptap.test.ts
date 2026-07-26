@@ -1942,3 +1942,150 @@ describe('graded free-text fences (```shortanswer / ```essay)', () => {
         expect(res.warnings.length).toBeGreaterThan(0);
     });
 });
+
+describe('reference fence (```reference → the reference panel)', () => {
+    it('routes content to referencePanel and contributes no body blocks', () => {
+        const res = convert(
+            '```reference\ntitle: Formula sheet\nSlope-intercept form: $y = mx + b$\n```',
+        );
+        expect(res.blocks).toEqual([]);
+        expect(res.referencePanel?.title).toBe('Formula sheet');
+        expect(res.referencePanel?.blocks.map((b) => b.type)).toEqual([
+            'paragraph',
+        ]);
+        expect(res.warnings).toEqual([]);
+    });
+
+    it('omits referencePanel entirely when there is no reference fence', () => {
+        const res = convert('Just a paragraph.');
+        expect(res.referencePanel).toBeUndefined();
+    });
+
+    it('a sole $$…$$ line becomes a mathBlock; lists group by run', () => {
+        const res = convert(
+            '```reference\n$$a^2 + b^2 = c^2$$\n- first\n- second\n1. one\n2. two\n```',
+        );
+        const types = res.referencePanel?.blocks.map((b) => b.type);
+        expect(types).toEqual(['mathBlock', 'bulletList', 'orderedList']);
+        const bullets = res.referencePanel?.blocks[1];
+        expect(bullets?.content).toHaveLength(2);
+        expect(bullets?.content?.[0]?.type).toBe('listItem');
+    });
+
+    it('headings and images parse from their line forms', () => {
+        const res = convert(
+            '```reference\n## Formulas\n![a triangle](https://example.com/tri.png)\n```',
+        );
+        const blocks = res.referencePanel?.blocks ?? [];
+        expect(blocks.map((b) => b.type)).toEqual(['heading', 'image']);
+        expect(blocks[0]?.attrs?.level).toBe(2);
+        expect(blocks[1]?.attrs).toMatchObject({
+            src: 'https://example.com/tri.png',
+            alt: 'a triangle',
+        });
+    });
+
+    it('consecutive graph: lines merge onto ONE shared grid', () => {
+        const res = convert(
+            '```reference\nParallel lines:\ngraph: line y = 2x + 1\ngraph: line y = 2x - 3\n```',
+        );
+        const blocks = res.referencePanel?.blocks ?? [];
+        expect(blocks.map((b) => b.type)).toEqual(['paragraph', 'graphFigure']);
+        expect(blocks[1]?.attrs?.drawables).toHaveLength(2);
+        expect(res.warnings).toEqual([]);
+    });
+
+    it('a non-graph line splits figure runs into separate figures', () => {
+        const res = convert(
+            '```reference\ngraph: line y = 2x\nPerpendicular:\ngraph: line y = -0.5x dashed\n```',
+        );
+        const blocks = res.referencePanel?.blocks ?? [];
+        expect(blocks.map((b) => b.type)).toEqual([
+            'graphFigure',
+            'paragraph',
+            'graphFigure',
+        ]);
+        expect(blocks[0]?.attrs?.drawables).toHaveLength(1);
+        expect(blocks[2]?.attrs?.drawables).toHaveLength(1);
+    });
+
+    it('axes: sets the NEXT figure window; later figures revert to ±10', () => {
+        const res = convert(
+            '```reference\naxes: -5..5, 0..25\ngraph: curve y = x^2\n\ngraph: line y = x\n```',
+        );
+        const figures = (res.referencePanel?.blocks ?? []).filter(
+            (b) => b.type === 'graphFigure',
+        );
+        expect(figures).toHaveLength(2);
+        expect(figures[0]?.attrs?.axis).toMatchObject({
+            xMin: -5,
+            xMax: 5,
+            yMin: 0,
+            yMax: 25,
+        });
+        expect(figures[1]?.attrs?.axis).toMatchObject({
+            xMin: -10,
+            xMax: 10,
+        });
+    });
+
+    it('a malformed axes: line warns and is skipped (figure keeps the default)', () => {
+        const res = convert(
+            '```reference\naxes: sideways\ngraph: line y = x\n```',
+        );
+        const fig = res.referencePanel?.blocks.find(
+            (b) => b.type === 'graphFigure',
+        );
+        expect(fig?.attrs?.axis).toMatchObject({ xMin: -10, xMax: 10 });
+        expect(res.warnings.some((w) => /axes/i.test(w))).toBe(true);
+    });
+
+    it('an expression graph line is skipped with a warning, keeping the rest', () => {
+        const res = convert(
+            '```reference\ngraph: expression sin(x)\ngraph: line y = x\n```',
+        );
+        const fig = res.referencePanel?.blocks.find(
+            (b) => b.type === 'graphFigure',
+        );
+        expect(fig?.attrs?.drawables).toHaveLength(1);
+        expect(res.warnings.some((w) => /expression/i.test(w))).toBe(true);
+    });
+
+    it('{{…}} stays literal — panel content is never gradeable', () => {
+        const res = convert('```reference\nThe answer is {{42}}.\n```');
+        const para = res.referencePanel?.blocks[0];
+        expect(para?.type).toBe('paragraph');
+        const text = (para?.content ?? [])
+            .map((n) => n.text ?? '')
+            .join('');
+        expect(text).toContain('{{42}}');
+        expect(
+            (para?.content ?? []).every((n) => n.type !== 'blank'),
+        ).toBe(true);
+    });
+
+    it('two reference fences append to one sheet; first title wins', () => {
+        const res = convert(
+            '```reference\ntitle: First\nLine one\n```\n\nBody paragraph.\n\n```reference\ntitle: Second\nLine two\n```',
+        );
+        expect(res.referencePanel?.title).toBe('First');
+        expect(res.referencePanel?.blocks).toHaveLength(2);
+        // The body content between the fences still imports normally.
+        expect(res.blocks.length).toBeGreaterThan(0);
+    });
+
+    it('an empty reference fence degrades to plain text with a warning', () => {
+        const res = convert('```reference\ntitle: Only a title\n```');
+        expect(res.referencePanel).toBeUndefined();
+        expect(res.blocks.length).toBeGreaterThan(0);
+        expect(res.warnings.some((w) => /reference sheet/i.test(w))).toBe(true);
+    });
+
+    it('$inline$ math inside a panel paragraph resolves to a mathInline node', () => {
+        const res = convert('```reference\nArea: $\\frac{1}{2}bh$\n```');
+        const para = res.referencePanel?.blocks[0];
+        expect(
+            (para?.content ?? []).some((n) => n.type === 'mathInline'),
+        ).toBe(true);
+    });
+});

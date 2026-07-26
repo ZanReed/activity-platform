@@ -75,6 +75,7 @@ import type {
     SelfExplanationBlock,
     ShortAnswerBlock,
     EssayBlock,
+    GraphFigureBlock,
 } from '@activity/schema';
 import {
     CropRect,
@@ -88,6 +89,7 @@ import {
     type CalloutBlock,
     type CalloutVariant,
     createInteractiveGraphBlock,
+    createGraphFigureBlock,
     createNumberLineBlock,
     createDataPlotBlock,
     createMultipleChoiceOption,
@@ -403,6 +405,8 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
             return tiptapLearningObjectivesToActivity(node);
         case 'workedExample':
             return tiptapWorkedExampleToActivity(node);
+        case 'graphFigure':
+            return tiptapGraphFigureToActivity(node);
         case 'fadedWorkedExample':
             return tiptapFadedWorkedExampleToActivity(node);
         case 'selfExplanation':
@@ -977,6 +981,23 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
     return block;
 }
 
+// Static graph figure (reference-panel content). Axis + drawables ride as
+// structured attrs, factory fallback for hand-crafted payloads that dropped
+// them — the schema Zod-validates on the save boundary, same posture as
+// interactive_graph.
+function tiptapGraphFigureToActivity(node: JSONContent): GraphFigureBlock {
+    const attrs = node.attrs ?? {};
+    const fresh = createGraphFigureBlock();
+    return {
+        id: crypto.randomUUID(),
+        type: 'graph_figure',
+        axis: (attrs.axis as GraphFigureBlock['axis']) ?? fresh.axis,
+        drawables: Array.isArray(attrs.drawables)
+            ? (attrs.drawables as GraphFigureBlock['drawables'])
+            : [],
+    };
+}
+
 function tiptapNumberLineToActivity(node: JSONContent): NumberLineBlock {
     const attrs = node.attrs ?? {};
     const fresh = createNumberLineBlock();
@@ -1363,6 +1384,16 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
 
         case 'worked_example':
             return activityWorkedExampleToTiptap(block);
+
+        case 'graph_figure':
+            return {
+                type: 'graphFigure',
+                attrs: {
+                    id: block.id,
+                    axis: block.axis,
+                    drawables: block.drawables,
+                },
+            };
 
         case 'faded_worked_example':
             return activityFadedWorkedExampleToTiptap(block);

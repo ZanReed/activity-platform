@@ -86,6 +86,7 @@ export {
   WordCountHint,
   Rubric,
   RubricCriterion,
+  GraphFigureBlock,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
@@ -186,6 +187,7 @@ export {
   createLearningObjectivesBlock,
   createWorkedExampleBlock,
   createFadedWorkedExampleBlock,
+  createGraphFigureBlock,
   createSelfExplanationBlock,
   createShortAnswerBlock,
   createEssayBlock,

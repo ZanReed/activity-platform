@@ -68,6 +68,9 @@ const CONTAINER = new Set<string>([
   // runtime reads no type-specific attributes off the frame itself (like
   // `problem`), so no RUNTIME.md contract section is required.
   'faded_worked_example',
+  // Static coordinate-plane picture (reference-panel content): server-rendered
+  // SVG, never interactive, the runtime reads nothing off it.
+  'graph_figure',
 ]);
 
 // Discriminator literals of the Block discriminated union, read at runtime.

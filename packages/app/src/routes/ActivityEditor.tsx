@@ -204,6 +204,16 @@ export default function ActivityEditor() {
     // panelFromEditor reconstitutes the ReferencePanel at save time.
     const [panelTitle, setPanelTitle] = useState('');
     const [panelJson, setPanelJson] = useState<JSONContent | null>(null);
+    // Markdown-imported reference-panel content. The panel editor consumes
+    // initialContent only at mount, so an import that appends panel blocks
+    // re-seeds it: `content` becomes the new initialContent and `version`
+    // salts the editor key to force the remount. The remounted editor's
+    // onCreate reports the merged doc through handlePanelUpdate, so changeKey
+    // moves and the autosave picks the import up like any other edit.
+    const [panelImport, setPanelImport] = useState<{
+        content: JSONContent;
+        version: number;
+    } | null>(null);
     const [tiptapJson, setTiptapJson] = useState<JSONContent | null>(null);
     // Activity-level calculator config (scaffold sibling to the panel). Undefined
     // when the activity has no calculator; folded into changeKey + the save.
@@ -349,6 +359,7 @@ export default function ActivityEditor() {
             setMeta(doc.meta);
             setCalculator(doc.calculator);
             setPanelTitle(loadedPanel?.title ?? '');
+            setPanelImport(null);
             setLoadState({
                 status: 'ready',
                 tiptap: safeTiptap,
@@ -379,31 +390,64 @@ export default function ActivityEditor() {
     // paragraph) is replaced outright so there's no leading blank; an activity
     // with existing content gets the blocks appended at the end. The resulting
     // transaction flows through onUpdate → autosave like any other edit.
+    // ```reference fence content arrives separately and is APPENDED to the
+    // reference panel (author-ruled: append, never replace — re-imports must
+    // not clobber hand-authored panel content).
     const handleImportMarkdown = useCallback(
-        (importedBlocks: JSONContent[]) => {
-            if (!editorInstance || importedBlocks.length === 0) return;
-            if (editorInstance.isEmpty) {
-                editorInstance
-                    .chain()
-                    .focus()
-                    // Strict grid: wrap the importer's bare stream into rows
-                    // (slice-1 bridge; the importer emits the strict tree in T8).
-                    .setContent(wrapBlocksStrict(importedBlocks))
-                    .run();
-            } else {
-                // Append the imported content as new top-level rows (strict
-                // grid: bare blocks can't sit at doc level).
-                editorInstance
-                    .chain()
-                    .focus('end')
-                    .insertContentAt(
-                        editorInstance.state.doc.content.size,
-                        wrapBlocksStrict(importedBlocks).content ?? [],
-                    )
-                    .run();
+        (
+            importedBlocks: JSONContent[],
+            referencePanel?: { title?: string; blocks: JSONContent[] },
+        ) => {
+            if (editorInstance && importedBlocks.length > 0) {
+                if (editorInstance.isEmpty) {
+                    editorInstance
+                        .chain()
+                        .focus()
+                        // Strict grid: wrap the importer's bare stream into rows
+                        // (slice-1 bridge; the importer emits the strict tree in T8).
+                        .setContent(wrapBlocksStrict(importedBlocks))
+                        .run();
+                } else {
+                    // Append the imported content as new top-level rows (strict
+                    // grid: bare blocks can't sit at doc level).
+                    editorInstance
+                        .chain()
+                        .focus('end')
+                        .insertContentAt(
+                            editorInstance.state.doc.content.size,
+                            wrapBlocksStrict(importedBlocks).content ?? [],
+                        )
+                        .run();
+                }
+            }
+            if (referencePanel && referencePanel.blocks.length > 0) {
+                // Append to the LIVE panel doc (panelJson carries unsaved
+                // edits; the loaded seed would drop them). An untouched panel
+                // is a single empty paragraph — replace that instead of
+                // leaving a blank line above the sheet.
+                const existing = panelJson?.content ?? [];
+                const isPlaceholder =
+                    existing.length === 1 &&
+                    existing[0]?.type === 'paragraph' &&
+                    !existing[0]?.content?.length;
+                setPanelImport((prev) => ({
+                    content: {
+                        type: 'doc',
+                        content: [
+                            ...(isPlaceholder ? [] : existing),
+                            ...referencePanel.blocks,
+                        ],
+                    },
+                    version: (prev?.version ?? 0) + 1,
+                }));
+                // The fence's title fills an untitled panel; a teacher's
+                // existing title is never clobbered (append semantics).
+                if (referencePanel.title && panelTitle.trim() === '') {
+                    setPanelTitle(referencePanel.title);
+                }
             }
         },
-        [editorInstance],
+        [editorInstance, panelJson, panelTitle],
     );
 
     // Stable fingerprint of the whole document (body + meta). Null until the
@@ -679,8 +723,8 @@ export default function ActivityEditor() {
             onClose={() => setConfigOpen(null)}
             meta={meta}
             onMetaChange={setMeta}
-            panelEditorKey={id}
-            panelInitialContent={loadState.referenceTiptap}
+            panelEditorKey={panelImport ? `${id}:import-${panelImport.version}` : id}
+            panelInitialContent={panelImport?.content ?? loadState.referenceTiptap}
             panelTitle={panelTitle}
             onPanelTitleChange={setPanelTitle}
             onPanelEditorUpdate={handlePanelUpdate}

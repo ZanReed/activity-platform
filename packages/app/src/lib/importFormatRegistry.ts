@@ -36,6 +36,10 @@ export interface FenceSpec {
     // `options:`-line keywords this fence accepts. The guard checks each is (a)
     // accepted by the parser and (b) named in the prompt.
     options?: string[];
+    // True when the fence's blocks land in ImportResult.referencePanel (the
+    // reference-panel side channel) instead of the body — the guard probes
+    // that field for blockType.
+    panel?: boolean;
 }
 
 // An inline fill-in-the-blank modifier — the `{{…}}` grammar.
@@ -47,9 +51,10 @@ export interface BlankModifierSpec {
     example: string;
 }
 
-// The 13 fenced block DSLs. `example` bodies are intentionally minimal — enough
-// to import to `blockType` without a fallback/warning. Options mirror the
-// `options:` switch in each parse*Fence (markdownToTiptap.ts).
+// The fenced block DSLs (one entry per tag the parser dispatches — the source
+// scan below keeps the count honest). `example` bodies are intentionally
+// minimal — enough to import to `blockType` without a fallback/warning.
+// Options mirror the `options:` switch in each parse*Fence (markdownToTiptap.ts).
 export const FENCES: FenceSpec[] = [
     {
         tag: 'graph',
@@ -145,6 +150,14 @@ export const FENCES: FenceSpec[] = [
         blockType: 'callout',
         summary: 'a tinted note box (info / warning / success / note)',
         example: 'variant: warning\nDouble-check your units before submitting.',
+    },
+    {
+        tag: 'reference',
+        blockType: 'graphFigure',
+        summary:
+            'the reference panel (a summonable formula sheet, optionally with static graph figures) — content routes to the panel, not the body',
+        example: 'title: Formulas\nSlope-intercept form: $y = mx + b$\ngraph: line y = 2x + 1',
+        panel: true,
     },
 ];
 

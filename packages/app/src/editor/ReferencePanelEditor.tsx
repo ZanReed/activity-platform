@@ -25,6 +25,7 @@ import { Ordering } from './extensions/Ordering';
 import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
 import { FadedWorkedExample } from './extensions/FadedWorkedExample';
+import { GraphFigure } from './extensions/GraphFigure';
 import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
@@ -120,6 +121,13 @@ export default function ReferencePanelEditor({
             Essay,
             Callout,
             Image,
+            // GraphFigure is genuinely AUTHORABLE here (unlike the registered-
+            // only-for-the-schema question blocks above): a static coordinate-
+            // plane picture is exactly reference-panel content ("these two
+            // lines are parallel" on a formula sheet). The main editor
+            // registers the node too (representability only); its Insert item
+            // is referenceOnly, so THIS is the one surface that offers it.
+            GraphFigure,
         ],
         content: initialContent,
         onCreate: ({ editor }) => {

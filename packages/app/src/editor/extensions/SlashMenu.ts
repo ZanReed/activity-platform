@@ -31,6 +31,10 @@ export const SlashMenu = Extension.create({
                     const nested = !isTopLevelStack(editor.state.selection.$from);
                     return slashMenuItems.filter(
                         (item) =>
+                        // Reference-panel-only items (graphFigure) — the main
+                        // editor doesn't register the node, so inserting one
+                        // here would throw.
+                        !item.referenceOnly &&
                         // Contextual items (e.g. Answer blank, only valid
                         // inside a problem) are hidden where they can't apply.
                         (item.isEnabled?.(editor) ?? true) &&

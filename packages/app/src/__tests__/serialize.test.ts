@@ -3125,3 +3125,67 @@ describe('figure block sizing round-trip (Group 3)', () => {
         });
     }
 });
+
+describe('graph figure ⇄ tiptap (reference-panel content)', () => {
+    const axis = {
+        xMin: -5, xMax: 5, yMin: -5, yMax: 5,
+        xGridStep: 1, yGridStep: 1,
+        showGrid: true, snapToGrid: true,
+    };
+    const drawables = [
+        {
+            kind: 'curve',
+            model: {
+                family: 'linear', slope: 2, intercept: 1,
+                slopeTolerance: 0.1, interceptTolerance: 0.1,
+            },
+        },
+        { kind: 'point', at: [0, 1], label: 'b' },
+    ];
+    const tiptap: JSONContent = {
+        type: 'doc',
+        content: [
+            {
+                type: 'graphFigure',
+                attrs: { id: 'not-a-uuid-on-purpose', axis, drawables },
+            },
+        ],
+    };
+
+    it('round-trips axis + drawables through the panel bridge (fresh id)', () => {
+        const panel = tiptapToReferencePanel(tiptap);
+        expect(panel.blocks).toHaveLength(1);
+        const block = panel.blocks[0]!;
+        expect(block.type).toBe('graph_figure');
+        if (block.type !== 'graph_figure') return;
+        expect(block.axis).toEqual(axis);
+        expect(block.drawables).toEqual(drawables);
+        // IDs are minted fresh on serialize (structural identity, like every
+        // other block).
+        expect(block.id).not.toBe('not-a-uuid-on-purpose');
+
+        const back = referencePanelToTiptap(panel);
+        const node = back.content?.[0];
+        expect(node?.type).toBe('graphFigure');
+        expect(node?.attrs?.axis).toEqual(axis);
+        expect(node?.attrs?.drawables).toEqual(drawables);
+    });
+
+    it('produces a schema-valid ReferencePanel', () => {
+        const panel = tiptapToReferencePanel(tiptap, 'Formulas');
+        expect(ReferencePanel.safeParse(panel).success).toBe(true);
+    });
+
+    it('falls back to the factory axis when a hand-crafted payload drops it', () => {
+        const bare = tiptapToReferencePanel({
+            type: 'doc',
+            content: [{ type: 'graphFigure', attrs: { id: '', drawables: [] } }],
+        });
+        const block = bare.blocks[0]!;
+        expect(block.type).toBe('graph_figure');
+        if (block.type !== 'graph_figure') return;
+        expect(block.axis.xMin).toBe(-10);
+        expect(block.axis.xMax).toBe(10);
+        expect(ReferencePanel.safeParse(bare).success).toBe(true);
+    });
+});

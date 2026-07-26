@@ -280,6 +280,22 @@ body {
 .block-worked-example__body > .block:first-child { margin-top: 0; }
 .block-worked-example__body > .block:last-child { margin-bottom: 0; }
 
+/* Graph figure — a static coordinate-plane picture (reference-panel content;
+   the standalone sibling of .mc-choice-figure). Kit-free inline SVG from
+   graph-svg.ts, so it prints in grayscale as-is. Wider cap than a choice
+   figure (16rem vs 11rem): here the figure is the content, not an annotation
+   on a choice row. */
+.block-graph-figure {
+  margin: 0.75rem 0;
+  max-width: 16rem;
+}
+.block-graph-figure .graph-paper {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
 /* Faded worked example — a scaffold: shown steps + fill-in-blank (faded) steps
    the student completes. A dashed frame distinguishes it from the solid
    worked-example box (study vs. do), and survives grayscale print. */

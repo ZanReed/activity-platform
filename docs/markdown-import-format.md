@@ -41,6 +41,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```essay ` fenced block | a **graded essay** question (word-count target + rubric optional; see below) |
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
 | a ` ```callout ` fenced block | a **tinted note box** — info / warning / success / note (see below) |
+| a ` ```reference ` fenced block | the activity's **reference panel** (formula sheet students summon; prints at the top) — not a body block (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
@@ -335,14 +336,41 @@ CALLOUT (a `callout` fence is a tinted note box)
     Double-check your units before submitting.
 - The body is one line of text ($inline$ math ok); extra lines join together.
 
+REFERENCE SHEET (a `reference` fence fills the activity's reference panel)
+- Content in this fence does NOT appear in the worksheet body: it becomes
+  the reference panel — a formula sheet / vocab list students open from a
+  button while working (it also prints as a box at the top of the page).
+  Purely something to read: it can never contain questions or blanks.
+- ```reference … ``` with an optional title: line, then one block per line:
+    title: Linear equations cheat sheet
+    Slope-intercept form: $y = mx + b$
+    $$m = \frac{y_2 - y_1}{x_2 - x_1}$$
+    - $m$ — the slope (rise over run)
+    - $b$ — the y-intercept
+- Line rules: a sole $$…$$ line is a displayed equation; consecutive lines
+  starting with - (or 1.) group into one list; # / ## / ### make headings;
+  ![alt](https://…) on its own line is an image; anything else is a
+  paragraph ($inline$ math ok).
+- A GRAPH on the sheet: graph: lines using the same forms as show:
+  (point/line/curve/segment/ray/region). Back-to-back graph: lines draw on
+  ONE shared grid — perfect for comparison pictures — and any other line
+  ends the figure:
+    Parallel lines have the same slope:
+    graph: line y = 2x + 1
+    graph: line y = 2x - 3
+- axes: -5..5, -5..5 before a figure sets its window (default -10..10).
+- Use at most one reference fence per activity; a second one adds onto the
+  same sheet.
+
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  ```columns, and ```callout — only the single outer block that wraps the whole
-  reply and those fences are allowed; anything unsupported imports as plain text.
+  ```columns, ```callout, and ```reference — only the single outer block that
+  wraps the whole reply and those fences are allowed; anything unsupported
+  imports as plain text.
 
 When I describe the activity I want, reply with only that single code block.
 ```
@@ -607,3 +635,29 @@ Double-check your units before submitting.
 - **Variant** — an optional `variant:` line picks the style: `info` (default), `warning`, `success`, or `note`. `tip` aliases `success` and `warn` aliases `warning`; an unrecognized variant warns and falls back to `info`.
 - **Body** — every non-`variant:` line is the note text, joined into one inline run (`**bold**`, `*italic*`, `` `code` ``, and `$inline$` math). A callout with no body imports as plain text with a warning.
 - **Not here** — a callout body is a single rich-text line; multi-block content (lists, several paragraphs) inside a callout is editor-only.
+
+## Reference sheet (```reference fence)
+
+A fenced code block with the `reference` language tag fills the activity's **reference panel** — the summonable formula-sheet / vocab window students open from a button while working (it also prints as a box at the top of the worksheet). Unlike every other fence, its content does **not** land in the worksheet body: it is routed to the panel (the same content the editor's ⚙ → Reference panel surface authors). Panel content is purely something to *read* — it can never contain questions or blanks (a `{{…}}` stays literal text).
+
+```
+```reference
+title: Linear equations cheat sheet
+Slope-intercept form: $y = mx + b$
+$$m = \frac{y_2 - y_1}{x_2 - x_1}$$
+- $m$ — the slope (rise over run)
+- $b$ — the y-intercept
+
+Parallel lines have the same slope:
+axes: -5..5, -5..5
+graph: line y = 2x + 1
+graph: line y = 2x - 3
+```⠀
+```
+
+- **Title** — an optional `title:` line names the panel (the button students see). On import it fills an *untitled* panel; an existing panel title is never overwritten.
+- **Line rules** — one block per non-blank line: a sole `$$…$$` line is a displayed equation; consecutive `-`/`*` (or `1.`) lines group into one bullet (or numbered) list; `#` / `##` / `###` make headings; `![alt](https://…)` on its own line is an image; every other line is a paragraph (`**bold**`, `*italic*`, `` `code` ``, `$inline$` math).
+- **Graphs** — `graph:` lines add a **static graph figure** (a kit-free SVG picture, never interactive), using the same drawable forms as the `graph` fence's `show:` lines: `point (x, y) [open|closed] ["label"]`, `line`/`curve <equation or inequality> [dashed]`, `segment (a,b) (c,d)`, `ray (a,b) (c,d) [open]`, `region (x,y), …`. **Back-to-back `graph:` lines draw on one shared grid** ("these two lines are parallel" needs both on the same figure); any other line — including a blank one — ends the figure, and a later `graph:` run starts a new one. `expression` is not available here (it needs the calculator kit; the line is skipped with a warning).
+- **Axes** — an `axes: -5..5, -5..5` line sets the window for the **next** figure (default −10..10, grid step 1). Fine-tune grid steps in the editor.
+- **Append semantics** — importing adds to the end of whatever the panel already holds; it never replaces hand-authored panel content. A second `reference` fence in the same paste continues the same sheet.
+- **Not here** — columns inside the panel, per-figure grid steps, and definition-mark popovers are editor-only after import.

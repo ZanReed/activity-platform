@@ -79,6 +79,13 @@ export interface ImportResult {
     // Block-level Tiptap nodes, ready to hand to editor.insertContent(). Empty
     // when the input has no importable content.
     blocks: JSONContent[];
+    // Content authored via ```reference fences, destined for the activity's
+    // REFERENCE PANEL (the summonable resources window + print-top box), not
+    // the body. Flat block-level Tiptap nodes in the reference-panel editor's
+    // alphabet; the caller appends them to the panel's Tiptap doc. Absent when
+    // the paste had no reference fence. Multiple fences accumulate; the first
+    // authored title wins (the caller only applies it to an untitled panel).
+    referencePanel?: { title?: string; blocks: JSONContent[] };
     // Deduplicated, human-readable notes about anything that degraded (a code
     // fence flattened to text, a link's URL dropped, etc.). The dialog surfaces
     // these so the teacher knows what to fix by hand.
@@ -332,12 +339,23 @@ interface Ctx {
     // Math spans lifted from the raw source (see extractMath), indexed by the
     // placeholder number the mapper re-expands.
     spans: MathSpan[];
+    // Reference-panel content accumulated from ```reference fences (a side
+    // channel — the fence contributes NO body blocks). Blocks append across
+    // fences; the first authored title sticks.
+    refPanelBlocks: JSONContent[];
+    refPanelTitle?: string;
 }
 
 function tokensToBlocks(tokens: MdToken[], spans: MathSpan[]): ImportResult {
-    const ctx: Ctx = { warnings: new Set(), spans };
+    const ctx: Ctx = { warnings: new Set(), spans, refPanelBlocks: [] };
     const blocks = mapBlocks(nest(tokens), ctx);
-    return { blocks, warnings: [...ctx.warnings] };
+    const result: ImportResult = { blocks, warnings: [...ctx.warnings] };
+    if (ctx.refPanelBlocks.length > 0) {
+        result.referencePanel = ctx.refPanelTitle
+            ? { title: ctx.refPanelTitle, blocks: ctx.refPanelBlocks }
+            : { blocks: ctx.refPanelBlocks };
+    }
+    return result;
 }
 
 // A single token node can expand to zero, one, or several blocks (a blockquote
@@ -445,6 +463,13 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
             if ((node.token.info ?? '').trim() === 'callout') {
                 const callout = parseCalloutFence(node.token.content, ctx);
                 if (callout) return [callout];
+                return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'reference') {
+                // Side channel: the fence's blocks land in ctx.refPanelBlocks
+                // (the activity's reference panel), NOT the body — so a
+                // successful parse contributes zero body blocks here.
+                if (parseReferenceFence(node.token.content, ctx)) return [];
                 return [rawTextParagraph(node.token.content)];
             }
             ctx.warnings.add(
@@ -1655,6 +1680,192 @@ function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
         attrs: { id: '', gridLines: 'inherit' },
         content: columns,
     };
+}
+
+// ```reference fence — content for the activity's REFERENCE PANEL (the
+// summonable resources window students consult while working + the print-top
+// box). A side channel: blocks accumulate on ctx.refPanelBlocks and the fence
+// contributes nothing to the body. Line grammar:
+//   title: Formula sheet          panel title (first authored title sticks)
+//   $$…$$                         a displayed equation
+//   - item  /  1. item            consecutive lines group into one list
+//   # / ## / ### Heading          a heading (three levels)
+//   ![alt](https://…)             an image
+//   axes: -5..5, -5..5            window for the NEXT figure (default ±10)
+//   graph: <show-spec>            a drawable, in the shared show:/choice
+//                                 grammar (point/line/curve/segment/ray/region)
+//   anything else                 a paragraph ($inline$ math ok; {{…}} stays
+//                                 literal — panel content is never gradeable)
+//
+// CONSECUTIVE graph: lines draw on ONE shared grid (option B, author-ruled):
+// "these two lines are parallel" needs both lines on the same figure. Any
+// other line ends the figure; a later graph: run starts a new one. Same
+// "lines that touch merge" spirit as the paragraph rule.
+//
+// Returns false (→ the whole fence degrades to plain text) only when NOTHING
+// in it parsed to a block; a bad graph:/axes: line warns and is skipped so one
+// typo never sinks a whole formula sheet.
+function parseReferenceFence(src: string, ctx: Ctx): boolean {
+    const blocks: JSONContent[] = [];
+    let title: string | undefined;
+
+    // Pending run state. A list run and a figure run are mutually exclusive
+    // (any line that isn't part of the run flushes it).
+    let list: { type: 'bulletList' | 'orderedList'; items: JSONContent[][] } | null = null;
+    let figure: { drawables: Record<string, unknown>[] } | null = null;
+    // Window for the NEXT figure, set by an axes: line; consumed by the run it
+    // precedes, then back to the default.
+    let pendingAxis: typeof DEFAULT_CHOICE_AXIS | null = null;
+
+    const flushList = (): void => {
+        if (!list) return;
+        blocks.push({
+            type: list.type,
+            content: list.items.map((content) => ({
+                type: 'listItem',
+                content: [{ type: 'paragraph', content }],
+            })),
+        });
+        list = null;
+    };
+    const flushFigure = (): void => {
+        if (!figure) return;
+        if (figure.drawables.length > 0) {
+            blocks.push({
+                type: 'graphFigure',
+                attrs: {
+                    id: crypto.randomUUID(),
+                    axis: pendingAxis ?? DEFAULT_CHOICE_AXIS,
+                    drawables: figure.drawables,
+                },
+            });
+        }
+        figure = null;
+        pendingAxis = null;
+    };
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) {
+            flushList();
+            flushFigure();
+            continue;
+        }
+
+        const t = /^title:\s*(.*)$/i.exec(line);
+        if (t) {
+            flushList();
+            flushFigure();
+            const v = (t[1] ?? '').trim();
+            if (v && title === undefined) title = v;
+            continue;
+        }
+
+        const axes = /^axes:\s*(.*)$/i.exec(line);
+        if (axes) {
+            flushList();
+            flushFigure();
+            const a = /^(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)$/.exec(
+                (axes[1] ?? '').trim(),
+            );
+            if (!a) {
+                ctx.warnings.add(
+                    'Reference sheet: axes must look like "-5..5, -5..5" — the line was skipped.',
+                );
+                continue;
+            }
+            pendingAxis = {
+                ...DEFAULT_CHOICE_AXIS,
+                xMin: Number(a[1]),
+                xMax: Number(a[2]),
+                yMin: Number(a[3]),
+                yMax: Number(a[4]),
+            };
+            continue;
+        }
+
+        const graph = /^graph:\s*(.*)$/i.exec(line);
+        if (graph) {
+            flushList();
+            const r = parseShowDrawable((graph[1] ?? '').trim());
+            if (!r.ok) {
+                ctx.warnings.add(
+                    `Reference sheet: ${r.message} — the graph line was skipped.`,
+                );
+                continue;
+            }
+            if (r.drawable.kind === 'expression') {
+                ctx.warnings.add(
+                    'Reference sheet: a graph figure can’t use “expression” (it needs the calculator) — the line was skipped.',
+                );
+                continue;
+            }
+            figure = figure ?? { drawables: [] };
+            figure.drawables.push(r.drawable);
+            continue;
+        }
+
+        // Anything below is a non-figure block line.
+        flushFigure();
+
+        const bullet = /^[-*]\s+(.+)$/.exec(line);
+        const ordered = bullet ? null : /^\d+[.)]\s+(.+)$/.exec(line);
+        if (bullet || ordered) {
+            const type = bullet ? 'bulletList' : 'orderedList';
+            const text = (bullet?.[1] ?? ordered?.[1] ?? '').trim();
+            if (!list || list.type !== type) {
+                flushList();
+                list = { type, items: [] };
+            }
+            list.items.push(fenceInline(text, ctx, false));
+            continue;
+        }
+        flushList();
+
+        const heading = /^(#{1,3})\s+(.+)$/.exec(line);
+        if (heading) {
+            blocks.push({
+                type: 'heading',
+                attrs: { level: (heading[1] ?? '#').length },
+                content: fenceInline((heading[2] ?? '').trim(), ctx, false),
+            });
+            continue;
+        }
+
+        const image = /^!\[([^\]]*)\]\((\S+)\)$/.exec(line);
+        if (image) {
+            const src2 = (image[2] ?? '').trim();
+            if (!src2) {
+                ctx.warnings.add('An image with no URL was skipped.');
+                continue;
+            }
+            blocks.push({
+                type: 'image',
+                attrs: {
+                    id: crypto.randomUUID(),
+                    src: src2,
+                    alt: image[1] ?? '',
+                    caption: '',
+                },
+            });
+            continue;
+        }
+
+        blocks.push(fenceBodyBlock(line, ctx, false));
+    }
+    flushList();
+    flushFigure();
+
+    if (blocks.length === 0) {
+        ctx.warnings.add(
+            'Reference sheet: needs at least one content line — imported as plain text.',
+        );
+        return false;
+    }
+
+    ctx.refPanelBlocks.push(...blocks);
+    if (title && ctx.refPanelTitle === undefined) ctx.refPanelTitle = title;
+    return true;
 }
 
 // One rubric criterion from a `rubric:` line — `Label | points | optional note`.

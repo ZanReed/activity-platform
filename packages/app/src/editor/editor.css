@@ -2190,6 +2190,83 @@ img.mc-block__figure-preview {
     border-radius: 0.3125rem;
 }
 
+/* Graph figure (reference-panel static picture) — the standalone sibling of
+   the MC choice-figure panel: same preview + axis grid + drawable list, no
+   choice-row indent. The preview cap matches the published .block-graph-figure
+   (16rem). */
+.graph-figure-view {
+    margin: 0.75rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.graph-figure-view__preview {
+    max-width: 16rem;
+}
+.graph-figure-view__preview svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid var(--ed-border); /* slate-200 */
+}
+.graph-figure-view__actions {
+    display: flex;
+    gap: 0.4rem;
+}
+.graph-figure-view__actions button {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid var(--ed-border-strong); /* slate-300 */
+    border-radius: 0.25rem;
+    background: var(--ed-canvas);
+    color: var(--ed-text-strong); /* slate-700 */
+    cursor: pointer;
+}
+.graph-figure-view__editor {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--ed-border); /* slate-200 hairline */
+    background: var(--ed-surface); /* slate-50 */
+    border-radius: 0.375rem;
+}
+.graph-figure-view__axis {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: 0.25rem 0.6rem;
+    justify-content: start;
+    font-size: 0.75rem;
+    color: var(--ed-text-secondary); /* slate-600 */
+}
+.graph-figure-view__axis label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.graph-figure-view__done-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--ed-border);
+}
+.graph-figure-view__done-row button {
+    border: 1px solid var(--ed-accent);
+    background: var(--ed-accent);
+    color: var(--ed-white);
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 0.25rem 0.85rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+}
+.graph-figure-view__done-row button:hover:not(:disabled) {
+    background: var(--ed-accent-strong);
+    border-color: var(--ed-accent-strong);
+}
+
 .mc-block__add-choice {
     align-self: flex-start;
     border: 1px dashed var(--ed-border-strong); /* slate-300 */

@@ -40,7 +40,10 @@ const SECONDARY_BTN =
 
 interface ImportMarkdownDialogProps {
     onClose: () => void;
-    onImport: (blocks: JSONContent[]) => void;
+    onImport: (
+        blocks: JSONContent[],
+        referencePanel?: ImportResult['referencePanel'],
+    ) => void;
 }
 
 export default function ImportMarkdownDialog({
@@ -85,11 +88,14 @@ export default function ImportMarkdownDialog({
     const blockCount = result?.blocks.length ?? 0;
     const problemCount =
         result?.blocks.filter((b) => b.type === 'fillInBlank').length ?? 0;
-    const canImport = blockCount > 0;
+    // ```reference fence content — panel blocks, not body blocks. A paste can
+    // be panel-only (a formula sheet by itself), so it counts toward import.
+    const referenceCount = result?.referencePanel?.blocks.length ?? 0;
+    const canImport = blockCount > 0 || referenceCount > 0;
 
     const handleImport = () => {
-        if (!result || result.blocks.length === 0) return;
-        onImport(result.blocks);
+        if (!result || !canImport) return;
+        onImport(result.blocks, result.referencePanel);
         onClose();
     };
 
@@ -192,11 +198,16 @@ export default function ImportMarkdownDialog({
                                 ? "Couldn't load the importer — try again."
                                 : !importer
                                   ? 'Loading…'
-                                  : blockCount === 0
+                                  : !canImport
                                     ? 'Nothing to import yet.'
-                                    : `Will import ${blockCount} block${blockCount === 1 ? '' : 's'}` +
+                                    : (blockCount > 0
+                                          ? `Will import ${blockCount} block${blockCount === 1 ? '' : 's'}`
+                                          : 'Will import') +
                                       (problemCount > 0
                                           ? ` · ${problemCount} problem${problemCount === 1 ? '' : 's'}`
+                                          : '') +
+                                      (referenceCount > 0
+                                          ? `${blockCount > 0 ? ' · ' : ' '}${referenceCount} reference-sheet block${referenceCount === 1 ? '' : 's'}`
                                           : '')}
                         </span>
                         <div className="flex items-center gap-2">

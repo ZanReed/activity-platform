@@ -42,6 +42,7 @@ import { Ordering } from './extensions/Ordering';
 import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
 import { FadedWorkedExample } from './extensions/FadedWorkedExample';
+import { GraphFigure } from './extensions/GraphFigure';
 import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
@@ -167,5 +168,12 @@ export function buildEditorExtensions({
         // capture as self-explanation; graded later against a rubric.
         ShortAnswer,
         Essay,
+        // Graph figure — a static coordinate-plane picture, authored FOR the
+        // reference panel. Registered here so the main editor can REPRESENT
+        // one (schema-legal anywhere; pasted or column-nested content must not
+        // crash), but never offered for insert — its slash-menu item is
+        // referenceOnly, since the body's static-graph story is the
+        // interactive_graph display mode.
+        GraphFigure,
     ];
 }

@@ -25,6 +25,7 @@ import { renderNumberLine } from './number-line.js';
 import { renderDataPlot } from './data-plot.js';
 import { renderLearningObjectives } from './learning-objectives.js';
 import { renderWorkedExample } from './worked-example.js';
+import { renderGraphFigure } from './graph-figure.js';
 import { renderFadedWorkedExample } from './faded-worked-example.js';
 import { renderSelfExplanation } from './self-explanation.js';
 import { renderShortAnswer, renderEssay } from './free-response.js';
@@ -151,6 +152,8 @@ export function renderBlock(block: Block, ctx: BlockRenderContext): string {
       return renderLearningObjectives(block);
     case 'worked_example':
       return renderWorkedExample(block, ctx);
+    case 'graph_figure':
+      return renderGraphFigure(block);
     case 'faded_worked_example':
       return renderFadedWorkedExample(block, ctx);
     case 'self_explanation':

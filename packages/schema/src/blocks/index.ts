@@ -25,6 +25,7 @@ import { NumberLineBlock } from './number-line.js';
 import { DataPlotBlock } from './data-plot.js';
 import { LearningObjectivesBlock } from './learning-objectives.js';
 import { WorkedExampleBlock } from './worked-example.js';
+import { GraphFigureBlock } from './graph-figure.js';
 import { FadedWorkedExampleBlock } from './faded-worked-example.js';
 import { SelfExplanationBlock } from './self-explanation.js';
 import { ShortAnswerBlock, EssayBlock } from './free-response.js';
@@ -51,6 +52,7 @@ export const Block = z.discriminatedUnion('type', [
   SelfExplanationBlock,
   ShortAnswerBlock,
   EssayBlock,
+  GraphFigureBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -101,6 +103,7 @@ export {
 } from './data-plot.js';
 export { LearningObjectivesBlock } from './learning-objectives.js';
 export { WorkedExampleBlock, WorkedExampleChild } from './worked-example.js';
+export { GraphFigureBlock } from './graph-figure.js';
 export {
   FadedWorkedExampleBlock,
   FadedWorkedExampleChild,

@@ -111,12 +111,18 @@ describe('registry ↔ converter (behavioral)', () => {
     it.each(FENCES)(
         '$tag: the example imports to $blockType with no warnings',
         (f) => {
-            const { blocks, warnings } = convert(fence(f.tag, f.example));
+            const result = convert(fence(f.tag, f.example));
+            // A panel fence routes its blocks to the referencePanel side
+            // channel (and contributes nothing to the body).
+            const blocks = f.panel
+                ? (result.referencePanel?.blocks ?? [])
+                : result.blocks;
+            if (f.panel) expect(result.blocks).toEqual([]);
             expect(
                 hasType(blocks, f.blockType),
                 `${f.tag} example did not produce ${f.blockType}`,
             ).toBe(true);
-            expect(warnings).toEqual([]);
+            expect(result.warnings).toEqual([]);
         },
     );
 

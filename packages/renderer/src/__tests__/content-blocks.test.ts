@@ -13,6 +13,7 @@ import { renderWorkedExample } from '../blocks/worked-example.js';
 import { renderFadedWorkedExample } from '../blocks/faded-worked-example.js';
 import { renderSelfExplanation } from '../blocks/self-explanation.js';
 import { renderShortAnswer, renderEssay } from '../blocks/free-response.js';
+import { renderGraphFigure } from '../blocks/graph-figure.js';
 import type { BlockRenderContext } from '../blocks/index.js';
 import {
   LearningObjectivesBlock,
@@ -21,6 +22,7 @@ import {
   SelfExplanationBlock,
   ShortAnswerBlock,
   EssayBlock,
+  GraphFigureBlock,
 } from '@activity/schema';
 
 const OID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
@@ -238,5 +240,42 @@ describe('renderShortAnswer + renderEssay (manually-graded free text)', () => {
     expect(html).toContain('free-text-wordcount'); // counter still present
     expect(html).not.toContain('data-word-min');
     expect(html).not.toContain('data-word-max');
+  });
+});
+
+describe('renderGraphFigure', () => {
+  const GID = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const block = GraphFigureBlock.parse({
+    id: GID,
+    type: 'graph_figure',
+    axis: { xMin: -5, xMax: 5, yMin: -5, yMax: 5 },
+    drawables: [
+      {
+        kind: 'curve',
+        model: {
+          family: 'linear', slope: 2, intercept: 1,
+          slopeTolerance: 0.1, interceptTolerance: 0.1,
+        },
+      },
+      { kind: 'point', at: [0, 1], label: 'b' },
+    ],
+  });
+  const html = renderGraphFigure(block);
+
+  it('is tagged as content (never scored/indexed, never numbered)', () => {
+    expect(html).toContain('data-block-category="content"');
+    expect(html).toContain('data-block-type="graph_figure"');
+    expect(html).toContain('data-block-id="' + GID + '"');
+  });
+
+  it('renders the kit-free SVG figure with its drawables', () => {
+    expect(html).toContain('<svg');
+    expect(html).toContain('graph-paper');
+    // The point's label text lands in the SVG.
+    expect(html).toContain('>b<');
+  });
+
+  it('namespaces SVG ids by block id (two figures can share a page)', () => {
+    expect(html).toContain(GID);
   });
 });

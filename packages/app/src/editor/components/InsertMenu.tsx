@@ -64,7 +64,9 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                 (item) =>
                     item.group !== 'Text' &&
                     item.insertMenu !== false &&
-                    (variant === 'activity' || item.referenceSafe),
+                    (variant === 'activity'
+                        ? !item.referenceOnly
+                        : item.referenceSafe),
             ),
         [variant],
     );
