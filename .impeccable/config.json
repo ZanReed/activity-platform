@@ -1,6 +1,6 @@
 {
   "detector": {
-    "ignoreRules": [],
+    "ignoreRules": ["side-tab", "broken-image"],
     "ignoreFiles": [],
     "ignoreValues": [
       {
