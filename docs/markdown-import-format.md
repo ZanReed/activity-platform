@@ -46,6 +46,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
 | `[[term :: definition]]` | a **vocabulary definition** — the term with a pop-up explanation |
+| `[[term]]` + a ```definitions fence | a **rich vocabulary definition** — one that needs an equation, a list, or a figure |
 | `$$… \gap{answer} …$$` | a gradeable **in-equation gap** the student fills (Model A) |
 
 ## Rules that matter
@@ -61,7 +62,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 - **Display math must stand alone.** `$$…$$` becomes a block-level equation only when it is its own paragraph (blank line above and below). Inline `$…$` can appear anywhere in a line.
 - **Inline math has a guard.** A lone `$` or currency like `$5 and $10` is *not* treated as math — only a properly closed `$…$` with no space just inside the delimiters.
 - **Write real LaTeX in math.** Backslash commands (`\frac`, `\sum`, `\int`, `\,`) are preserved exactly.
-- **Vocabulary definitions (`[[…::…]]`).** `[[term :: definition]]` marks the term so a student can tap it for a pop-up showing the definition (plain text + `$inline$` math). Works anywhere inline — prose, headings, prompts. The `::` splits term from definition (first one wins); neither side may contain square brackets, and a `[[bracketed phrase]]` with no `::` stays literal text. Rich formatting and an illustrative image are added in the editor's definition popover after import.
+- **Vocabulary definitions (`[[…::…]]`).** `[[term :: definition]]` marks the term so a student can tap it for a pop-up showing the definition (plain text + `$inline$` math). Works anywhere inline — prose, headings, prompts. The `::` splits term from definition (first one wins); neither side may contain square brackets, and a `[[bracketed phrase]]` with no `::` stays literal text. For anything richer than a sentence — a displayed equation, a list, a figure — use the [```definitions fence](#rich-definitions-definitions-fence) and reference it with `[[term]]`.
 - **In-equation gaps (`\gap{…}`, Model A).** Inside `$…$` or `$$…$$`, `\gap{answer}` becomes a gradeable gap *inside* the rendered equation — the natural "complete the step" authoring for a faded worked example or a math-completion problem (`$$2x = \gap{8}$$`). The answer is graded by math equivalence (any equivalent form counts, so `8` / `8.0` / `4+4` all pass); the stored equation empties the gap so the answer never leaks to the student. Balanced braces work (`\gap{\frac{1}{2}}`). `|`-alternates aren't parsed (a `|` is a real LaTeX token); acceptable-answer lists, exact-form matching, and tolerances are added in the editor.
 - **Image URLs must be absolute** (`https://…`). A relative or empty URL is skipped with a warning.
 - **Wrapping the model's reply in a code fence is fine — recommended, even.** Asking the model to put its whole response inside a fenced code block is how you get a **Copy** button and the *raw* (unrendered) Markdown instead of a formatted preview you can't paste. The Copy button hands you the contents *without* the ```` ``` ```` lines, so the importer never sees the fence. As a safety net, a paste that is entirely wrapped in a ```` ```markdown ```` fence is unwrapped automatically on import. (A plain ```` ``` ```` code block in the *middle* of your content is still treated as a code block and flattened — only outer fences are stripped.)
@@ -150,8 +151,25 @@ DEFINITIONS (a tappable vocabulary term with a pop-up explanation)
 - Wrap a term and its meaning in double square brackets, split by ::
     The [[mitochondria :: the powerhouse of the cell]] makes energy.
 - The term stays in the sentence; the definition shows in a pop-up (it may
-  include $inline$ math). Term and definition can’t contain square brackets;
-  a [[bracketed phrase]] with no :: stays literal text.
+  include $inline$ math). Term and definition can’t contain square brackets.
+- For a RICHER definition — a displayed equation, a list, a picture — put it
+  in a ```definitions fence and reference it from the text with [[term]]
+  (no ::). Entries are separated by --- and headed by a term: line:
+    ```definitions
+    term: Slope
+    Steepness of a line — rise over run.
+    $$m = \frac{y_2 - y_1}{x_2 - x_1}$$
+    graph: line y = 2x
+    ---
+    term: Intercept
+    Where the line crosses an axis.
+    ```
+    Find the [[Slope]] of the line, then its [[intercept]].
+- Entry bodies use the SAME line rules as the reference sheet below ($$…$$,
+  - / 1. lists, # headings, ![alt](url) images, graph: / axes: figures).
+- Matching is case-insensitive, and the fence can sit anywhere in the
+  document. Define each term once; a [[bracketed phrase]] that is neither
+  a :: definition nor a fence entry stays literal text.
 
 GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
 - ```graph … ``` with one statement per line:
@@ -635,6 +653,35 @@ Double-check your units before submitting.
 - **Variant** — an optional `variant:` line picks the style: `info` (default), `warning`, `success`, or `note`. `tip` aliases `success` and `warn` aliases `warning`; an unrecognized variant warns and falls back to `info`.
 - **Body** — every non-`variant:` line is the note text, joined into one inline run (`**bold**`, `*italic*`, `` `code` ``, and `$inline$` math). A callout with no body imports as plain text with a warning.
 - **Not here** — a callout body is a single rich-text line; multi-block content (lists, several paragraphs) inside a callout is editor-only.
+
+## Rich definitions (```definitions fence)
+
+`[[term :: definition]]` covers a one-line gloss. When a definition needs a **displayed equation, a list, an image, or a coordinate-plane figure**, put it in a fenced block with the `definitions` language tag and reference it from the text with `[[term]]` — no `::`.
+
+```
+```definitions
+term: Slope
+Steepness of a line — rise over run.
+$$m = \frac{y_2 - y_1}{x_2 - x_1}$$
+### Watch for
+- A horizontal line has slope $0$
+- A vertical line has no slope
+graph: line y = 2x
+---
+term: Intercept
+Where the line crosses an axis.
+```⠀
+
+Find the **[[Slope]]** of the line, then check its [[intercept]].
+```
+
+- **Entries** — separated by a line containing only `---`, each headed by a `term:` line. Everything after it is that term's definition.
+- **Entry bodies use the same line rules as the [reference sheet](#reference-sheet-reference-fence)** — `$$…$$` displayed equations, `-`/`1.` list runs, `#`–`###` headings, `![alt](url)` images, `graph:` runs sharing one grid, and `axes:` windows. It is one shared grammar, not two.
+- **Referencing** — `[[term]]` with no `::` looks the term up, **case-insensitively**. The fence may sit anywhere in the document (top or bottom); references resolve either way. A `[[bracketed phrase]]` that is neither a `::` definition nor a fence entry stays literal text.
+- **Side channel** — like `reference`, this fence contributes **nothing** to the worksheet body; its content travels inside the marks that reference it. A term defined but never referenced simply goes unused.
+- **One entry per term** — a duplicate `term:` warns and keeps the first.
+- **Not here** — columns and callouts are not valid definition content, and a definition can never contain another definition or a question (`{{…}}` stays literal). Blocks outside the allowed set are dropped with a warning.
+- **Printing** — definition pop-ups don't exist on paper. Turn on **⚙ → Print → "Include a glossary of defined words when printing"** to add every defined term as a glossary at the end of the worksheet.
 
 ## Reference sheet (```reference fence)
 

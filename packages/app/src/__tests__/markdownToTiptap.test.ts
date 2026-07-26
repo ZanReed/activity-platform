@@ -2117,3 +2117,191 @@ describe('reference fence (```reference → the reference panel)', () => {
         ).toBe(true);
     });
 });
+
+// =============================================================================
+// ```definitions fence + [[term]] references
+// -----------------------------------------------------------------------------
+// The block-capable half of the definition import story (design doc §6). The
+// fence is a SIDE CHANNEL: it emits no blocks of its own, so every assertion
+// here goes through a [[term]] reference in the body.
+// =============================================================================
+describe('```definitions fence', () => {
+    // The definition mark on the first text node that carries one.
+    const defMark = (
+        blocks: JSONContent[],
+    ): { attrs?: Record<string, unknown> } | undefined => {
+        const walk = (nodes: JSONContent[]): { attrs?: Record<string, unknown> } | undefined => {
+            for (const n of nodes) {
+                for (const m of (n.marks ?? []) as {
+                    type?: string;
+                    attrs?: Record<string, unknown>;
+                }[]) {
+                    if (m.type === 'definition') return m;
+                }
+                const inner = walk((n.content ?? []) as JSONContent[]);
+                if (inner) return inner;
+            }
+            return undefined;
+        };
+        return walk(blocks);
+    };
+    const contentOf = (md: string): JSONContent[] =>
+        (defMark(convert(md).blocks)?.attrs?.content ?? []) as JSONContent[];
+
+    const FENCE = [
+        '```definitions',
+        'term: Slope',
+        'Steepness of a line — rise over run.',
+        '$$m = \\frac{y_2 - y_1}{x_2 - x_1}$$',
+        '---',
+        'term: Intercept',
+        'Where the line crosses an axis.',
+        '```',
+    ].join('\n');
+
+    it('contributes no body blocks of its own (side channel)', () => {
+        expect(convert(FENCE).blocks).toEqual([]);
+    });
+
+    it('resolves a [[term]] reference to the fence entry', () => {
+        const content = contentOf(FENCE + '\n\nFind the [[Slope]].');
+        expect(content.map((b) => b.type)).toEqual(['paragraph', 'math_block']);
+        expect(content[1]).toMatchObject({
+            type: 'math_block',
+            latex: 'm = \\frac{y_2 - y_1}{x_2 - x_1}',
+        });
+    });
+
+    it('matches the term case-insensitively', () => {
+        expect(contentOf(FENCE + '\n\nThe [[intercept]] matters.')).toHaveLength(
+            1,
+        );
+        expect(contentOf(FENCE + '\n\nThe [[INTERCEPT]] matters.')).toHaveLength(
+            1,
+        );
+    });
+
+    it('resolves a reference that appears BEFORE the fence (two-pass)', () => {
+        const md = 'Find the [[Slope]].\n\n' + FENCE;
+        expect(contentOf(md).map((b) => b.type)).toEqual([
+            'paragraph',
+            'math_block',
+        ]);
+    });
+
+    it('keeps the term text in the sentence', () => {
+        const mark = defMark(convert(FENCE + '\n\nFind the [[Slope]].').blocks);
+        expect(mark).toBeDefined();
+        const para = convert(FENCE + '\n\nFind the [[Slope]].').blocks[0]!;
+        const text = (para.content ?? []).map((n) => n.text).join('');
+        expect(text).toBe('Find the Slope.');
+    });
+
+    it('accepts the full shared line grammar — heading, list, graph figure', () => {
+        const md = [
+            '```definitions',
+            'term: Slope',
+            'Rise over run.',
+            '### Watch for',
+            '- horizontal is $0$',
+            '- vertical has none',
+            'axes: -5..5, -5..5',
+            'graph: line y = 2x',
+            '```',
+            '',
+            'The [[Slope]] here.',
+        ].join('\n');
+        const content = contentOf(md);
+        expect(content.map((b) => b.type)).toEqual([
+            'paragraph',
+            'heading',
+            'bullet_list',
+            'graph_figure',
+        ]);
+        expect(content[3]).toMatchObject({
+            axis: { xMin: -5, xMax: 5, yMin: -5, yMax: 5 },
+        });
+    });
+
+    it('leaves an unresolved [[term]] as literal text, with a warning', () => {
+        const res = convert(FENCE + '\n\nThe [[Asymptote]] here.');
+        const text = (res.blocks[0]!.content ?? []).map((n) => n.text).join('');
+        expect(text).toBe('The [[Asymptote]] here.');
+        expect(res.warnings.some((w) => /Asymptote/.test(w))).toBe(true);
+    });
+
+    it('still supports the inline [[term :: definition]] form alongside', () => {
+        const content = contentOf(
+            FENCE + '\n\nA [[cell :: the unit of life]] here.',
+        );
+        expect(content).toEqual([
+            {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'the unit of life', marks: [] }],
+            },
+        ]);
+    });
+
+    it('warns and skips an entry with no term: line', () => {
+        const res = convert(
+            '```definitions\nNo term here.\n```\n\nBody.',
+        );
+        expect(res.warnings.some((w) => /no "term:" line/.test(w))).toBe(true);
+    });
+
+    it('warns and keeps the FIRST of a duplicated term', () => {
+        const md = [
+            '```definitions',
+            'term: Slope',
+            'first',
+            '---',
+            'term: slope',
+            'second',
+            '```',
+            '',
+            'The [[Slope]] here.',
+        ].join('\n');
+        const res = convert(md);
+        expect(res.warnings.some((w) => /defined more than once/.test(w))).toBe(
+            true,
+        );
+        const content = (defMark(res.blocks)?.attrs?.content ??
+            []) as JSONContent[];
+        expect(JSON.stringify(content)).toContain('first');
+    });
+
+    it('drops content a definition cannot hold, warning rather than smuggling it', () => {
+        // {{…}} stays literal (a definition is never gradeable), and the
+        // converter's DefinitionBlock validation is the backstop.
+        const content = contentOf(
+            '```definitions\nterm: Slope\nRise over {{run}}.\n```\n\nThe [[Slope]] here.',
+        );
+        expect(JSON.stringify(content)).toContain('{{run}}');
+        expect(JSON.stringify(content)).not.toContain('"blank"');
+    });
+
+    it('survives the schema round trip as a definition mark', () => {
+        const activity = tiptapToActivity(
+            { type: 'doc', content: convert(FENCE + '\n\nFind the [[Slope]].').blocks },
+            META,
+        );
+        const para = activity.sections
+            .flatMap((s) => s.rows)
+            .flatMap((r) => r.columns)
+            .flatMap((c) => c.blocks)
+            .find(
+                (b): b is Extract<typeof b, { type: 'paragraph' }> =>
+                    b.type === 'paragraph',
+            )!;
+        const term = para.content.find(
+            (n): n is Extract<typeof n, { type: 'text' }> =>
+                n.type === 'text' && n.text === 'Slope',
+        )!;
+        expect(term.marks[0]).toMatchObject({ type: 'definition' });
+        const mark = term.marks[0] as { content: { type: string }[] };
+        expect(mark.content.map((b) => b.type)).toEqual([
+            'paragraph',
+            'math_block',
+        ]);
+    });
+});

@@ -40,6 +40,12 @@ export interface FenceSpec {
     // reference-panel side channel) instead of the body — the guard probes
     // that field for blockType.
     panel?: boolean;
+    // True for the ```definitions fence, a THIRD kind of side channel: it
+    // contributes no blocks anywhere. Its content reaches the document only
+    // through a [[term]] mark in the body, so the guard appends a reference to
+    // `probeTerm` and looks for blockType inside that mark's content.
+    definitions?: boolean;
+    probeTerm?: string;
 }
 
 // An inline fill-in-the-blank modifier — the `{{…}}` grammar.
@@ -158,6 +164,16 @@ export const FENCES: FenceSpec[] = [
             'the reference panel (a summonable formula sheet, optionally with static graph figures) — content routes to the panel, not the body',
         example: 'title: Formulas\nSlope-intercept form: $y = mx + b$\ngraph: line y = 2x + 1',
         panel: true,
+    },
+    {
+        tag: 'definitions',
+        blockType: 'math_block',
+        summary:
+            'rich vocabulary definitions referenced from the body by [[term]] — entries split by ---, each headed by "term:"; use this when a definition needs an equation, a list, or a figure ([[term :: text]] still covers one-liners)',
+        example:
+            'term: Slope\nSteepness of a line — rise over run.\n$$m = \\frac{y_2 - y_1}{x_2 - x_1}$$',
+        definitions: true,
+        probeTerm: 'Slope',
     },
 ];
 

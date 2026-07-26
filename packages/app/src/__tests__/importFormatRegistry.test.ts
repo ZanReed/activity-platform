@@ -60,6 +60,22 @@ function flatten(blocks: JSONContent[]): JSONContent[] {
 const hasType = (blocks: JSONContent[], type: string): boolean =>
     flatten(blocks).some((n) => n.type === type);
 
+// The first `definition` mark anywhere in the imported blocks. The ```definitions
+// fence is proved through this — it emits no blocks of its own.
+const findDefinitionMark = (
+    blocks: JSONContent[],
+): { attrs?: Record<string, unknown> } | null => {
+    for (const node of flatten(blocks)) {
+        for (const mark of (node.marks ?? []) as {
+            type?: string;
+            attrs?: Record<string, unknown>;
+        }[]) {
+            if (mark.type === 'definition') return mark;
+        }
+    }
+    return null;
+};
+
 const fence = (tag: string, body: string): string =>
     '```' + tag + '\n' + body + '\n```';
 
@@ -111,6 +127,28 @@ describe('registry ↔ converter (behavioral)', () => {
     it.each(FENCES)(
         '$tag: the example imports to $blockType with no warnings',
         (f) => {
+            // The definitions fence contributes NO blocks anywhere — its
+            // content reaches the document only through a [[term]] mark, so
+            // probe it by referencing the term from a body paragraph.
+            if (f.definitions) {
+                const result = convert(
+                    fence(f.tag, f.example) + `\n\nThe [[${f.probeTerm}]] here.`,
+                );
+                const mark = findDefinitionMark(result.blocks);
+                expect(
+                    mark,
+                    `${f.tag} example did not produce a resolvable [[${f.probeTerm}]] mark`,
+                ).not.toBeNull();
+                expect(
+                    hasType(
+                        (mark?.attrs?.content ?? []) as JSONContent[],
+                        f.blockType,
+                    ),
+                    `${f.tag} definition content did not include ${f.blockType}`,
+                ).toBe(true);
+                expect(result.warnings).toEqual([]);
+                return;
+            }
             const result = convert(fence(f.tag, f.example));
             // A panel fence routes its blocks to the referencePanel side
             // channel (and contributes nothing to the body).

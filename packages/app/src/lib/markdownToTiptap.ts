@@ -48,8 +48,11 @@ import {
     latexToAscii,
 } from '@activity/graph-kit';
 import type { JSONContent } from '@tiptap/react';
-import type { InlineNode } from '@activity/schema';
-import { tiptapInlineToActivity } from './serialize';
+import type { DefinitionBlock, InlineNode } from '@activity/schema';
+import {
+    tiptapInlineToActivity,
+    tiptapToDefinitionContent,
+} from './serialize';
 import { toCurveDomain } from './graphDomain';
 import { parseNumberLineInterval } from '../editor/numberLineFormula';
 import { parseBlankSpec } from './blankSyntax';
@@ -344,10 +347,29 @@ interface Ctx {
     // fences; the first authored title sticks.
     refPanelBlocks: JSONContent[];
     refPanelTitle?: string;
+    // Vocabulary definitions collected from ```definitions fences, keyed by the
+    // lower-cased term. Filled in a PRE-PASS over the token list so a [[term]]
+    // reference in the body resolves regardless of whether the fence sits above
+    // or below it. See parseDefinitionsFence.
+    definitions: Map<string, DefinitionBlock[]>;
 }
 
 function tokensToBlocks(tokens: MdToken[], spans: MathSpan[]): ImportResult {
-    const ctx: Ctx = { warnings: new Set(), spans, refPanelBlocks: [] };
+    const ctx: Ctx = {
+        warnings: new Set(),
+        spans,
+        refPanelBlocks: [],
+        definitions: new Map(),
+    };
+    // Pre-pass: collect every ```definitions fence before mapping any body
+    // block, so [[term]] resolves in either direction. Scanning markdown-it's
+    // TOKENS (not the raw source) means fence detection is exactly what the
+    // real parse will do — no second, divergent fence regex.
+    for (const token of tokens) {
+        if (token.type === 'fence' && (token.info ?? '').trim() === 'definitions') {
+            parseDefinitionsFence(token.content, ctx);
+        }
+    }
     const blocks = mapBlocks(nest(tokens), ctx);
     const result: ImportResult = { blocks, warnings: [...ctx.warnings] };
     if (ctx.refPanelBlocks.length > 0) {
@@ -464,6 +486,15 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 const callout = parseCalloutFence(node.token.content, ctx);
                 if (callout) return [callout];
                 return [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'definitions') {
+                // Already consumed by the pre-pass in tokensToBlocks. Like
+                // ```reference this is a SIDE CHANNEL — it contributes no body
+                // blocks. Degrade to plain text only if nothing parsed at all,
+                // so a malformed fence is still visible to the teacher.
+                return ctx.definitions.size > 0
+                    ? []
+                    : [rawTextParagraph(node.token.content)];
             }
             if ((node.token.info ?? '').trim() === 'reference') {
                 // Side channel: the fence's blocks land in ctx.refPanelBlocks
@@ -836,8 +867,10 @@ function emitInline(
 // carrying a `definition` mark (alongside any active bold/italic/code) whose
 // popover content is the definition text (plain text + $inline$ math via
 // inlineSchemaContent; the editor's definition dialog adds richer blocks later).
-// Split on the FIRST `::` (the DSL's label::detail convention). No `::`, or an
-// empty term or definition, keeps the literal `[[…]]` text.
+// Split on the FIRST `::` (the DSL's label::detail convention). WITHOUT `::` the
+// brackets are a REFERENCE to a ```definitions fence entry (see
+// parseDefinitionsFence) — that is the path that carries block content. An empty
+// term or definition, or an unresolved reference, keeps the literal `[[…]]`.
 //
 // A definition's content is a BLOCK array (schema: DefinitionBlock), so the
 // inline run is wrapped in one paragraph here. The serializer would normalize an
@@ -848,14 +881,37 @@ function makeDefinition(
     marks: string[],
     ctx: Ctx,
 ): JSONContent | null {
+    const marksList = [...new Set(marks)].map((type) => ({ type }));
     const idx = inner.indexOf('::');
-    if (idx === -1) return null;
+
+    // No `::` — a REFERENCE to a ```definitions fence entry, matched
+    // case-insensitively. This is the block-capable path: the fence holds
+    // headings, display math, lists, figures, which an inline `::` cannot.
+    // Marking stays teacher-explicit (they typed [[…]]), so the design's
+    // never-auto-define guardrail holds.
+    if (idx === -1) {
+        const term = inner.trim();
+        const content = ctx.definitions.get(term.toLowerCase());
+        if (!content) {
+            if (term.length > 0 && ctx.definitions.size > 0) {
+                ctx.warnings.add(
+                    `“${term}” isn’t in a \`\`\`definitions fence — the [[…]] was left as plain text.`,
+                );
+            }
+            return null;
+        }
+        return {
+            type: 'text',
+            text: term,
+            marks: [...marksList, { type: 'definition', attrs: { content } }],
+        };
+    }
+
     const term = inner.slice(0, idx).trim();
     const defText = inner.slice(idx + 2).trim();
     if (term.length === 0 || defText.length === 0) return null;
     const content = inlineSchemaContent(defText, ctx);
     if (content.length === 0) return null;
-    const marksList = [...new Set(marks)].map((type) => ({ type }));
     return {
         type: 'text',
         text: term,
@@ -1716,7 +1772,18 @@ function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
 // Returns false (→ the whole fence degrades to plain text) only when NOTHING
 // in it parsed to a block; a bad graph:/axes: line warns and is skipped so one
 // typo never sinks a whole formula sheet.
-function parseReferenceFence(src: string, ctx: Ctx): boolean {
+// The shared LINE GRAMMAR behind the ```reference and ```definitions fences.
+// One implementation, not two: a formula sheet and a rich definition accept the
+// same vocabulary ($$…$$, list runs, #-headings, images, graph: runs, axes:),
+// so a teacher — or an AI writing to the format doc — learns it once.
+//
+// `surface` prefixes the warnings ("Reference sheet: …" / "Definition: …") so a
+// message still says which fence it came from.
+function parseContentLines(
+    src: string,
+    ctx: Ctx,
+    surface: string,
+): { blocks: JSONContent[]; title: string | undefined } {
     const blocks: JSONContent[] = [];
     let title: string | undefined;
 
@@ -1781,7 +1848,7 @@ function parseReferenceFence(src: string, ctx: Ctx): boolean {
             );
             if (!a) {
                 ctx.warnings.add(
-                    'Reference sheet: axes must look like "-5..5, -5..5" — the line was skipped.',
+                    `${surface}: axes must look like "-5..5, -5..5" — the line was skipped.`,
                 );
                 continue;
             }
@@ -1801,13 +1868,13 @@ function parseReferenceFence(src: string, ctx: Ctx): boolean {
             const r = parseShowDrawable((graph[1] ?? '').trim());
             if (!r.ok) {
                 ctx.warnings.add(
-                    `Reference sheet: ${r.message} — the graph line was skipped.`,
+                    `${surface}: ${r.message} — the graph line was skipped.`,
                 );
                 continue;
             }
             if (r.drawable.kind === 'expression') {
                 ctx.warnings.add(
-                    'Reference sheet: a graph figure can’t use “expression” (it needs the calculator) — the line was skipped.',
+                    `${surface}: a graph figure can’t use “expression” (it needs the calculator) — the line was skipped.`,
                 );
                 continue;
             }
@@ -1866,17 +1933,100 @@ function parseReferenceFence(src: string, ctx: Ctx): boolean {
     }
     flushList();
     flushFigure();
+    return { blocks, title };
+}
 
+function parseReferenceFence(src: string, ctx: Ctx): boolean {
+    const { blocks, title } = parseContentLines(src, ctx, 'Reference sheet');
     if (blocks.length === 0) {
         ctx.warnings.add(
             'Reference sheet: needs at least one content line — imported as plain text.',
         );
         return false;
     }
-
     ctx.refPanelBlocks.push(...blocks);
     if (title && ctx.refPanelTitle === undefined) ctx.refPanelTitle = title;
     return true;
+}
+
+// The ```definitions fence — rich vocabulary definitions, referenced from the
+// body by [[term]]. Entries are separated by a `---` line and headed by
+// `term: <word>`; the rest of each entry is the shared line grammar above.
+//
+// This is the block-capable half of the definition import story; the inline
+// `[[term :: definition]]` form is unchanged and still right for a one-liner.
+// See docs/design/definition-rich-content.md §6.
+//
+// Parsed in a PRE-PASS over the token list (collectDefinitionFences), before any
+// body block is mapped, so a [[term]] reference resolves no matter whether it
+// appears above or below the fence.
+function parseDefinitionsFence(src: string, ctx: Ctx): void {
+    // Split on a line that is exactly `---`. (markdown-it never sees these —
+    // they are inside a fence — so there is no thematic-break ambiguity.)
+    const entries: string[] = [];
+    let current: string[] = [];
+    for (const rawLine of src.split('\n')) {
+        if (/^\s*---\s*$/.test(rawLine)) {
+            entries.push(current.join('\n'));
+            current = [];
+            continue;
+        }
+        current.push(rawLine);
+    }
+    entries.push(current.join('\n'));
+
+    for (const entry of entries) {
+        if (!entry.trim()) continue;
+        // The term: line heads the entry; everything else is content.
+        let term: string | undefined;
+        const bodyLines: string[] = [];
+        for (const rawLine of entry.split('\n')) {
+            const m = /^\s*term:\s*(.*)$/i.exec(rawLine);
+            if (m && term === undefined) {
+                term = (m[1] ?? '').trim();
+                continue;
+            }
+            bodyLines.push(rawLine);
+        }
+        if (!term) {
+            ctx.warnings.add(
+                'Definitions: an entry with no "term:" line was skipped.',
+            );
+            continue;
+        }
+        const { blocks } = parseContentLines(
+            bodyLines.join('\n'),
+            ctx,
+            'Definition',
+        );
+        if (blocks.length === 0) {
+            ctx.warnings.add(
+                `Definitions: “${term}” has no definition text — the entry was skipped.`,
+            );
+            continue;
+        }
+        // Tiptap-shaped blocks become canonical DefinitionBlock[] through the
+        // SAME validated converter the dialog uses, so a block outside the
+        // definition subset (a callout, a question) cannot slip in here either.
+        const content = tiptapToDefinitionContent({
+            type: 'doc',
+            content: blocks,
+        });
+        if (content.length === 0) {
+            ctx.warnings.add(
+                `Definitions: “${term}” had no content a definition can hold — the entry was skipped.`,
+            );
+            continue;
+        }
+        const key = term.toLowerCase();
+        if (ctx.definitions.has(key)) {
+            ctx.warnings.add(
+                `Definitions: “${term}” is defined more than once — the first entry was kept.`,
+            );
+            continue;
+        }
+        ctx.definitions.set(key, content);
+    }
 }
 
 // One rubric criterion from a `rubric:` line — `Label | points | optional note`.
