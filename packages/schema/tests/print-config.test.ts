@@ -39,6 +39,7 @@ const DEFAULT_PRINT = {
   margin: 0.5,
   gridLines: false,
   printReferencePanel: true,
+  printDefinitionGlossary: false,
   header: DEFAULT_HEADER,
 };
 

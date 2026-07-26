@@ -151,6 +151,15 @@ export type PrintHeader = z.infer<typeof PrintHeader>;
 //                    unaffected — this gates print alone. Read by the renderer
 //                    to decide whether to emit the print box; not a container
 //                    CSS var.
+//   printDefinitionGlossary — whether inline vocabulary definitions print as a
+//                    glossary appendix at the END of the worksheet. OFF by
+//                    default, unlike printReferencePanel: on screen a definition
+//                    is a popover a student opens on demand, and most are a
+//                    short gloss that would only pad the printout. A teacher who
+//                    has put a formula or a diagram in a definition turns this
+//                    on so it survives on paper (definition popovers are
+//                    display:none in print). Read by the renderer to decide
+//                    whether to emit the appendix; not a container CSS var.
 //   header         — see PrintHeader.
 //
 // columns/workSpace/fontSize/problemSpacing ride as --print-* CSS vars on the
@@ -166,6 +175,7 @@ export const PrintConfig = z.object({
                                      margin: z.number().min(0).default(0.5),
                                      gridLines: z.boolean().default(false),
                                      printReferencePanel: z.boolean().default(true),
+                                     printDefinitionGlossary: z.boolean().default(false),
                                      header: PrintHeader.default({}),
 });
 export type PrintConfig = z.infer<typeof PrintConfig>;

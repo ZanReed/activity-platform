@@ -1558,6 +1558,13 @@ body {
  tool cluster). */
 .reference-print { display: none; }
 
+/* Definition glossary appendix — the PAPER surface for inline vocabulary
+ definitions, whose popovers are display:none in print. Hidden on screen for the
+ mirror-image reason: on screen the popover IS the surface, and repeating every
+ definition at the foot of the page would be noise. @media print reveals it.
+ Emitted only when meta.print.printDefinitionGlossary is on. */
+.definition-glossary { display: none; }
+
 /* =============================================================================
  Tool corner (scaffolds). ONE fixed bottom-right cluster holding the summon
  buttons for the reference panel and the calculator, so both tools coexist
@@ -1734,6 +1741,60 @@ body {
   .reference-print-title {
     font-weight: 700;
     margin-bottom: 0.4rem;
+  }
+
+  /* Glossary appendix at the END of the worksheet. Starts on its own page-break
+   opportunity so it reads as an appendix rather than trailing the last problem,
+   and each entry stays whole. The definition popover stays hidden in print (see
+   the interactive-element hide below) — this is its paper replacement. */
+  .definition-glossary {
+    display: block;
+    break-before: auto;
+    margin-top: 1.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid black;
+  }
+  .definition-glossary-title {
+    font-size: 1.1em;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+  }
+  .definition-glossary-list {
+    margin: 0;
+  }
+  .definition-glossary-term {
+    font-weight: 700;
+    break-after: avoid;
+  }
+  .definition-glossary-body {
+    margin: 0 0 0.6rem;
+    padding-left: 1rem;
+    break-inside: avoid;
+  }
+  /* Entries carry the same block markup the popover does; re-scale it for a
+   paper appendix (the popover rules are scoped to .definition-popover-body and
+   never apply here). */
+  .definition-glossary-body .block {
+    margin: 0.3rem 0;
+  }
+  .definition-glossary-body .block-heading-1,
+  .definition-glossary-body .block-heading-2,
+  .definition-glossary-body .block-heading-3 {
+    font-size: 1em;
+    margin: 0.4rem 0 0.2rem;
+  }
+  .definition-glossary-body .block-graph-figure {
+    margin-left: 0;
+  }
+  /* Display math is page-centered by default, which in a glossary entry throws
+   the equation to the middle of the sheet, visually detached from the term it
+   belongs to. Left-align it so it reads as part of the entry. KaTeX re-centers
+   twice on its own — on .katex-display AND, more specifically, on
+   .katex-display > .katex — so all three need naming to win. */
+  .definition-glossary-body .block-math,
+  .definition-glossary-body .block-math .katex-display,
+  .definition-glossary-body .block-math .katex-display > .katex {
+    text-align: left;
   }
 
   /* Hide interactive elements. The js-* selectors are documented in

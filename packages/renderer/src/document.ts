@@ -46,6 +46,7 @@ import { typographyStyleTag } from './typography.js';
 import { runtimeJs } from './runtime/generated/runtime-bundle.js';
 import { runtimeGraphsJs } from './runtime/generated/runtime-graphs-bundle.js';
 import { referencePanelJs } from './runtime/generated/reference-panel-bundle.js';
+import { renderDefinitionGlossary } from './definition-glossary.js';
 import { definitionsJs } from './runtime/generated/definitions-bundle.js';
 import { calculatorSummonJs } from './runtime/generated/calculator-summon-bundle.js';
 import { feedbackJs } from './runtime/generated/feedback-bundle.js';
@@ -160,6 +161,14 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
         })
       : '';
 
+  // Definition glossary (scaffold) — the PAPER surface for inline vocabulary
+  // definitions, whose popovers are display:none in print. Appended at the end
+  // of the worksheet and hidden on screen (the popover is the screen surface),
+  // gated by printDefinitionGlossary. See definition-glossary.ts.
+  const definitionGlossaryHtml = print.printDefinitionGlossary
+    ? renderDefinitionGlossary(doc)
+    : '';
+
   // Calculator tool (scaffold). A summonable, lazy-loaded calculator, gated on
   // the activity opting in AND a kit URL being available (the heavy widget lives
   // on R2; with no URL there's nothing to summon, so we emit nothing). Rendered
@@ -250,6 +259,11 @@ export function renderActivity(doc: ActivityDocument, ctx: RenderContext): strin
 
   // Body
   body +
+
+  // Glossary appendix (print-only; '' unless printDefinitionGlossary is on).
+  // After the body so it reads as an appendix, before the submit area so the
+  // screen-only submit chrome stays last in the flow.
+  definitionGlossaryHtml +
 
   // Submit area
   '<div class="submit-area">' +
@@ -418,6 +432,9 @@ export function renderActivityForPrint(
     ? renderReferenceBox(doc.referencePanel, { gridLinesDefault: print.gridLines })
     : '') +
   body +
+  // Glossary appendix at the end of the worksheet (see definition-glossary.ts).
+  // This document is print-only, so it needs no screen-hiding rule.
+  (print.printDefinitionGlossary ? renderDefinitionGlossary(doc) : '') +
   '</main>' +
   '</body>' +
   '</html>'

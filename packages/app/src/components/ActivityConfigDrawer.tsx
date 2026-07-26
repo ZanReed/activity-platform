@@ -808,6 +808,28 @@ export function PrintSettingsBody({
                     toolbar is unaffected.
                 </p>
             </div>
+
+            <div className="mt-4">
+                <label className="inline-flex items-center gap-1.5 text-sm text-strong">
+                    <input
+                        type="checkbox"
+                        checked={print.printDefinitionGlossary}
+                        onChange={(e) =>
+                            setPrint({
+                                printDefinitionGlossary: e.target.checked,
+                            })
+                        }
+                    />
+                    <span>Include a glossary of defined words when printing</span>
+                </label>
+                <p className={SETTINGS_HELP_CLASS}>
+                    Add every defined word and its definition as a glossary at
+                    the end of the worksheet. On screen a student taps a word to
+                    open its definition, but paper has no popovers — turn this on
+                    when a definition carries something students need, like a
+                    formula or a diagram.
+                </p>
+            </div>
         </div>
     );
 }
