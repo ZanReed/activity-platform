@@ -4,29 +4,71 @@ import { createPortal } from 'react-dom';
 import InlineRichTextEditor from './InlineRichTextEditor';
 import { uploadImage } from '../../lib/uploadImage';
 import type { InlineNodes } from '../../lib/serialize';
-import type { DefinitionImageAttr } from '../extensions/Definition';
+import type { DefinitionBlock, DefinitionImageBlock } from '@activity/schema';
+import {
+    simpleDefinitionParts,
+    partsToDefinitionContent,
+} from './definitionShape';
 
 // ============================================================================
-// DefinitionEditPopover — edit popover for a definition mark.
+// DefinitionEditPopover — inline edit popover for a SIMPLE definition mark.
 // ----------------------------------------------------------------------------
-// Rich content (formatted text + inline math) authored via the shared
-// InlineRichTextEditor — the same control blank hints use — plus one optional
-// illustrative image (URL paste or upload). Nothing is committed to the
-// document until an exit path (Done, Escape, outside-click), which commits the
-// draft via onChange — or removes the mark via onRemove when the definition is
-// empty (no text/math AND no image), so an abandoned "Define" leaves nothing
-// behind. Anchored to the marked span via floating-ui; portaled to <body>.
+// The fast path (design doc D5): one line of formatted text + inline math via
+// the shared InlineRichTextEditor (the control blank hints use), plus one
+// optional illustrative image. Nothing is committed until an exit path (Done,
+// Escape, outside-click), which commits the draft via onChange — or removes the
+// mark via onRemove when the definition is empty, so an abandoned "Define"
+// leaves nothing behind. Anchored to the marked span via floating-ui; portaled
+// to <body>.
+//
+// This popover is only ever mounted in EDITABLE mode for content
+// isSimpleDefinition accepts — an optional paragraph plus an optional trailing
+// image (definitionShape.ts). That is a data-loss guard, not a preference:
+// commitAndClose writes the draft over the mark's WHOLE content on every exit
+// path, so an inline-only editor opened on a multi-block definition would
+// silently drop every block after the first on a stray Escape. Richer content
+// gets `readOnly`, which renders a summary and an Edit button and mounts no
+// editable field at all — no commit path, nothing to lose.
+//
+// `onExpand` opens DefinitionEditDialog, the surface that can hold every block.
+// It is offered unconditionally so a simple definition can be promoted at will.
 // ============================================================================
 
 interface DefinitionEditPopoverProps {
     referenceElement: HTMLElement | null;
-    initialContent: InlineNodes;
-    initialImage: DefinitionImageAttr | null;
+    initialContent: DefinitionBlock[];
     // For uploads; undefined in the playground (URL paste only).
     activityId?: string;
-    onChange: (content: InlineNodes, image: DefinitionImageAttr | null) => void;
+    onChange: (content: DefinitionBlock[]) => void;
     onRemove: () => void; // remove the mark entirely
     onClose: () => void; // release selection / dismiss
+    onExpand: () => void; // hand off to the full dialog
+}
+
+// A one-line summary of a rich definition, for the read-only branch. Names what
+// is in there rather than trying to render it — the popover is not the surface
+// for that, and the point is to get the author into the dialog.
+function describeBlocks(blocks: DefinitionBlock[]): string {
+    const LABELS: Record<string, [string, string]> = {
+        paragraph: ['paragraph', 'paragraphs'],
+        heading: ['heading', 'headings'],
+        math_block: ['equation', 'equations'],
+        image: ['image', 'images'],
+        graph_figure: ['graph', 'graphs'],
+        bullet_list: ['list', 'lists'],
+        ordered_list: ['list', 'lists'],
+    };
+    const counts = new Map<string, number>();
+    for (const block of blocks) {
+        const label = LABELS[block.type];
+        if (!label) continue;
+        counts.set(label[0], (counts.get(label[0]) ?? 0) + 1);
+    }
+    const parts = [...counts.entries()].map(([singular, n]) => {
+        const entry = Object.values(LABELS).find((l) => l[0] === singular);
+        return `${n} ${n === 1 ? singular : (entry?.[1] ?? singular)}`;
+    });
+    return parts.length > 0 ? parts.join(', ') : 'Empty';
 }
 
 function contentIsEmpty(nodes: InlineNodes): boolean {
@@ -40,19 +82,24 @@ function contentIsEmpty(nodes: InlineNodes): boolean {
 export default function DefinitionEditPopover({
     referenceElement,
     initialContent,
-    initialImage,
     activityId,
     onChange,
     onRemove,
     onClose,
+    onExpand,
 }: DefinitionEditPopoverProps) {
+    // null => richer than this popover can edit; render read-only (see header).
+    const parts = simpleDefinitionParts(initialContent);
+    const readOnly = parts === null;
+    const initialInline = (parts?.paragraph?.content ?? []) as InlineNodes;
+    const initialImage = parts?.image ?? null;
     // Content draft lives in a ref (InlineRichTextEditor is uncontrolled and
     // commits on every transaction) — committed once on close, not per keystroke
     // (a per-keystroke mark update would churn extendMarkRange + the undo stack).
-    const contentRef = useRef<InlineNodes>(initialContent);
-    const [image, setImage] = useState<DefinitionImageAttr | null>(initialImage);
-    const imageRef = useRef<DefinitionImageAttr | null>(initialImage);
-    const setImageBoth = (next: DefinitionImageAttr | null) => {
+    const contentRef = useRef<InlineNodes>(initialInline);
+    const [image, setImage] = useState<DefinitionImageBlock | null>(initialImage);
+    const imageRef = useRef<DefinitionImageBlock | null>(initialImage);
+    const setImageBoth = (next: DefinitionImageBlock | null) => {
         imageRef.current = next;
         setImage(next);
     };
@@ -72,14 +119,28 @@ export default function DefinitionEditPopover({
         refs.setReference(referenceElement);
     }, [referenceElement, refs]);
 
-    // Commit the draft (or remove the mark when empty), then release.
+    // Commit the draft (or remove the mark when empty), then release. In
+    // read-only mode there IS no draft — dismissing must leave the stored
+    // content exactly as it was, which is the whole point of the gate.
     const commitAndClose = () => {
-        const content = contentRef.current;
+        if (readOnly) {
+            onClose();
+            return;
+        }
+        const inline = contentRef.current;
         const img = imageRef.current;
-        if (contentIsEmpty(content) && !img) {
+        if (contentIsEmpty(inline) && !img) {
             onRemove();
         } else {
-            onChange(content, img);
+            onChange(
+                partsToDefinitionContent({
+                    paragraph:
+                        inline.length > 0
+                            ? { type: 'paragraph', content: inline as never }
+                            : null,
+                    image: img,
+                }),
+            );
         }
         onClose();
     };
@@ -121,7 +182,7 @@ export default function DefinitionEditPopover({
     const addUrl = () => {
         const src = urlInput.trim();
         if (!src) return;
-        setImageBoth({ src, alt: imageRef.current?.alt ?? '' });
+        setImageBoth({ type: 'image', src, alt: imageRef.current?.alt ?? '' });
         setUrlInput('');
         setUploadError(null);
     };
@@ -132,13 +193,58 @@ export default function DefinitionEditPopover({
         setUploadError(null);
         try {
             const url = await uploadImage(activityId, file);
-            setImageBoth({ src: url, alt: imageRef.current?.alt ?? '' });
+            setImageBoth({
+                type: 'image',
+                src: url,
+                alt: imageRef.current?.alt ?? '',
+            });
         } catch (err) {
             setUploadError(err instanceof Error ? err.message : 'Upload failed');
         } finally {
             setUploading(false);
         }
     };
+
+    // Read-only branch: a definition richer than the two fields below can hold.
+    // Deliberately mounts NO editable control — there is no draft, so no exit
+    // path can overwrite the stored blocks. Summarizes what is in there and
+    // hands off to the dialog.
+    if (readOnly) {
+        return createPortal(
+            <div
+                ref={refs.setFloating}
+                style={floatingStyles}
+                className="z-50 w-80 rounded-lg border border-line bg-canvas p-3 shadow-xl"
+                role="dialog"
+                aria-label="Definition"
+            >
+                <p className="text-xs font-medium text-muted">Definition</p>
+                <p className="mt-1 text-sm text-strong">
+                    {describeBlocks(initialContent)}
+                </p>
+                <div className="mt-2 flex items-center justify-between border-t border-line pt-2">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            onRemove();
+                            onClose();
+                        }}
+                        className="text-xs font-medium text-danger hover:text-danger-strong"
+                    >
+                        Remove definition
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onExpand}
+                        className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-primary-hover"
+                    >
+                        Edit…
+                    </button>
+                </div>
+            </div>,
+            document.body,
+        );
+    }
 
     return createPortal(
         <div
@@ -153,7 +259,7 @@ export default function DefinitionEditPopover({
             </label>
             <div className="rounded border border-line-strong px-2 py-1 text-sm focus-within:border-muted">
                 <InlineRichTextEditor
-                    value={initialContent}
+                    value={initialInline}
                     onChange={(nodes) => {
                         contentRef.current = nodes;
                     }}
@@ -176,7 +282,7 @@ export default function DefinitionEditPopover({
                                 value={image.alt}
                                 onChange={(e) =>
                                     setImageBoth({
-                                        src: image.src,
+                                        ...image,
                                         alt: e.target.value,
                                     })
                                 }
@@ -253,13 +359,39 @@ export default function DefinitionEditPopover({
                 >
                     Remove definition
                 </button>
-                <button
-                    type="button"
-                    onClick={commitAndClose}
-                    className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-primary-hover"
-                >
-                    Done
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Promote to the full dialog — headings, lists, display
+                        math, a graph figure. Commits the current draft first so
+                        the dialog opens on what the author can see. */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            onChange(
+                                partsToDefinitionContent({
+                                    paragraph:
+                                        contentRef.current.length > 0
+                                            ? {
+                                                  type: 'paragraph',
+                                                  content: contentRef.current as never,
+                                              }
+                                            : null,
+                                    image: imageRef.current,
+                                }),
+                            );
+                            onExpand();
+                        }}
+                        className="rounded border border-line-strong px-2.5 py-1 text-xs font-medium text-strong hover:bg-surface-2"
+                    >
+                        Add more…
+                    </button>
+                    <button
+                        type="button"
+                        onClick={commitAndClose}
+                        className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-primary-hover"
+                    >
+                        Done
+                    </button>
+                </div>
             </div>
         </div>,
         document.body,

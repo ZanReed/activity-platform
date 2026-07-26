@@ -32,7 +32,7 @@ import {
 
 interface InsertMenuProps {
     editor: Editor;
-    variant: 'activity' | 'reference';
+    variant: 'activity' | 'reference' | 'definition';
 }
 
 // Same match the slash menu applies (title substring OR any keyword substring).
@@ -66,7 +66,9 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
                     item.insertMenu !== false &&
                     (variant === 'activity'
                         ? !item.referenceOnly
-                        : item.referenceSafe),
+                        : variant === 'definition'
+                          ? item.definitionSafe
+                          : item.referenceSafe),
             ),
         [variant],
     );

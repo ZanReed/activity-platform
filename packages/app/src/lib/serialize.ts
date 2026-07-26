@@ -1852,6 +1852,60 @@ function activityBlankToTiptap(node: BlankToken): JSONContent {
 // and omitted when blank — matching the schema's optional title and keeping
 // round-trip equality for untitled panels.
 
+// =============================================================================
+// Definition content <-> Tiptap
+// -----------------------------------------------------------------------------
+// A definition's content is a DefinitionBlock[] — a curated subset of Block
+// (docs/design/definition-rich-content.md) — authored in the definition dialog,
+// which is a Tiptap editor like the reference panel's. These two functions are
+// the bridge, and they reuse the SAME per-block converters the body and panel
+// use, so a paragraph means the same thing everywhere.
+//
+// Two shape differences from Block are handled here rather than in the shared
+// converters:
+//   - DefinitionBlock ids are OPTIONAL (nothing addresses them, and the schema's
+//     legacy upgrades must mint nothing). activityBlockToTiptap wants an id, so
+//     one is minted on the way IN — at edit time, which is not a determinism
+//     path — and whatever comes back out is kept.
+//   - The union is narrower. Every block coming back is validated against
+//     DefinitionBlock and dropped if it does not belong, so a paste of, say, a
+//     callout cannot smuggle an unsupported block into a definition.
+export function definitionContentToTiptap(
+    content: DefinitionBlock[],
+): JSONContent {
+    return {
+        type: 'doc',
+        content: content
+            .map((block) =>
+                activityBlockToTiptap(
+                    (block.id === undefined
+                        ? { ...block, id: crypto.randomUUID() }
+                        : block) as Block,
+                ),
+            )
+            .filter((n): n is JSONContent => n !== null),
+    };
+}
+
+export function tiptapToDefinitionContent(
+    tiptap: JSONContent,
+): DefinitionBlock[] {
+    const out: DefinitionBlock[] = [];
+    for (const node of tiptap.content ?? []) {
+        const block = tiptapBlockToActivity(node);
+        if (block === null) continue;
+        const parsed = DefinitionBlockSchema.safeParse(block);
+        if (parsed.success) out.push(parsed.data);
+        else {
+            console.warn(
+                '[serialize] Dropping a block that is not valid definition content:',
+                block.type,
+            );
+        }
+    }
+    return out;
+}
+
 export function referencePanelToTiptap(panel: ReferencePanel): JSONContent {
     return {
         type: 'doc',

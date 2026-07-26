@@ -1,32 +1,34 @@
 import { Mark, mergeAttributes } from '@tiptap/core';
-import type { InlineNodes } from '../../lib/serialize';
+import type { DefinitionBlock } from '@activity/schema';
 
 // ============================================================================
 // Definition — Tiptap inline mark mirroring the schema's DefinitionMark.
 // ----------------------------------------------------------------------------
 // A mark (not a node): the defined text is still text — it wraps, can layer
 // other marks, and is authored "select text → Define" rather than inserted.
-// Carries rich `content` (formatted text + inline math, the same alphabet the
-// blank hint uses — authored via InlineRichTextEditor), an optional `image`,
-// and a reserved `glossaryKey` (Phase 4 tenant glossary; no UI sets it). The
-// published-page runtime shows the content + image in a popover; see
-// packages/renderer/RUNTIME.md and docs/design/vocabulary-definitions.md.
+// Carries `content` — a canonical DefinitionBlock[] (paragraphs, headings,
+// lists, display math, images, static graph figures) — and a reserved
+// `glossaryKey` (Phase 4 tenant glossary; no UI sets it). The published-page
+// runtime shows the content in a popover; see packages/renderer/RUNTIME.md,
+// docs/design/vocabulary-definitions.md, and
+// docs/design/definition-rich-content.md.
 //
-// content + image are JSON-encoded into data-content / data-image so editor
-// copy-paste round-trips them; serialize reads the canonical values off the
-// Tiptap JSON attrs (not the HTML). Editing UX: a single root-level
-// DefinitionPopoverHost (mirrors BlankPopoverHost / ImagePopoverHost) — never a
-// per-mark mounted popover, per the standing reconciliation constraint.
+// The former separate `image` attr is GONE (design doc D7): an image is now a
+// member of DefinitionBlock, so there is one way to express one. The schema's
+// Mark preprocess upgrades old marks, and the serializer runs the same helper
+// over stale Tiptap attrs, so an editor session opened before the migration
+// still saves correctly.
+//
+// content is JSON-encoded into data-content so editor copy-paste round-trips
+// it; serialize reads the canonical value off the Tiptap JSON attrs (not the
+// HTML). Editing UX: a single root-level DefinitionPopoverHost (mirrors
+// BlankPopoverHost / ImagePopoverHost) — never a per-mark mounted popover, per
+// the standing reconciliation constraint. The host opens the inline popover for
+// a simple definition and a full dialog for a rich one (D5).
 // ============================================================================
 
-export interface DefinitionImageAttr {
-    src: string;
-    alt: string;
-}
-
 interface DefinitionAttrs {
-    content?: InlineNodes;
-    image?: DefinitionImageAttr | null;
+    content?: DefinitionBlock[];
     glossaryKey?: string | null;
 }
 
@@ -53,54 +55,27 @@ export const Definition = Mark.create({
 
     addAttributes() {
         return {
-            // Rich definition content (canonical InlineNode[]). JSON-encoded
-            // into data-content for clipboard round-trips; serialize reads the
-            // attr value directly.
+            // Rich definition content (canonical DefinitionBlock[]).
+            // JSON-encoded into data-content for clipboard round-trips;
+            // serialize reads the attr value directly.
             content: {
-                default: [] as InlineNodes,
-                parseHTML: (element): InlineNodes => {
+                default: [] as DefinitionBlock[],
+                parseHTML: (element): DefinitionBlock[] => {
                     const raw = element.getAttribute('data-content');
                     if (!raw) return [];
                     try {
                         const parsed = JSON.parse(raw);
-                        return Array.isArray(parsed) ? (parsed as InlineNodes) : [];
+                        return Array.isArray(parsed)
+                            ? (parsed as DefinitionBlock[])
+                            : [];
                     } catch {
                         return [];
                     }
                 },
                 renderHTML: (attributes) => {
-                    const content = attributes.content as InlineNodes;
+                    const content = attributes.content as DefinitionBlock[];
                     return Array.isArray(content) && content.length > 0
                         ? { 'data-content': JSON.stringify(content) }
-                        : {};
-                },
-            },
-            image: {
-                default: null as DefinitionImageAttr | null,
-                parseHTML: (element): DefinitionImageAttr | null => {
-                    const raw = element.getAttribute('data-image');
-                    if (!raw) return null;
-                    try {
-                        const parsed = JSON.parse(raw);
-                        return parsed &&
-                            typeof parsed === 'object' &&
-                            typeof parsed.src === 'string'
-                            ? {
-                                  src: parsed.src,
-                                  alt:
-                                      typeof parsed.alt === 'string'
-                                          ? parsed.alt
-                                          : '',
-                              }
-                            : null;
-                    } catch {
-                        return null;
-                    }
-                },
-                renderHTML: (attributes) => {
-                    const image = attributes.image as DefinitionImageAttr | null;
-                    return image && image.src
-                        ? { 'data-image': JSON.stringify(image) }
                         : {};
                 },
             },
@@ -139,7 +114,6 @@ export const Definition = Mark.create({
                     chain()
                         .setMark(this.name, {
                             content: attrs.content ?? [],
-                            image: attrs.image ?? null,
                             glossaryKey: attrs.glossaryKey ?? null,
                         })
                         .run(),

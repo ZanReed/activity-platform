@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { Editor } from '@tiptap/react';
 import { getMarkRange } from '@tiptap/core';
+import type { DefinitionBlock } from '@activity/schema';
 import DefinitionEditPopover from './DefinitionEditPopover';
-import type { InlineNodes } from '../../lib/serialize';
-import type { DefinitionImageAttr } from '../extensions/Definition';
+import DefinitionEditDialog from './DefinitionEditDialog';
 
 // ============================================================================
 // DefinitionPopoverHost — root-level edit popover for the `definition` mark.
@@ -17,8 +17,15 @@ import type { DefinitionImageAttr } from '../extensions/Definition';
 // cursor. The range's start keys the popover. `active` is set ONLY when the
 // target range changes — not on every transaction — so committing the
 // definition's own content (which fires a transaction) never resets the
-// popover's in-progress draft. Editing content/image changes only the mark's
-// attrs, never the document text, so [from, to) is stable for the session.
+// popover's in-progress draft. Editing content changes only the mark's attrs,
+// never the document text, so [from, to) is stable for the session.
+//
+// Two surfaces (design doc D5): the anchored popover for a simple definition,
+// and DefinitionEditDialog for a rich one. This host owns the choice — the
+// popover decides internally whether to render editable or read-only
+// (definitionShape.ts), and asks to be replaced by the dialog via onExpand.
+// While the dialog is open the popover is unmounted, so only one surface can
+// ever hold a draft.
 // ============================================================================
 
 interface DefinitionPopoverHostProps {
@@ -31,8 +38,10 @@ interface DefinitionPopoverHostProps {
 interface ActiveDefinition {
     from: number;
     to: number;
-    content: InlineNodes;
-    image: DefinitionImageAttr | null;
+    content: DefinitionBlock[];
+    // The defined word itself — the dialog's title, so an author editing a rich
+    // definition in an unanchored modal still knows which term it belongs to.
+    term: string;
 }
 
 export default function DefinitionPopoverHost({
@@ -42,6 +51,9 @@ export default function DefinitionPopoverHost({
     const [active, setActive] = useState<ActiveDefinition | null>(null);
     const [referenceElement, setReferenceElement] =
         useState<HTMLElement | null>(null);
+    // Which surface is showing. Reset whenever the target range changes, so
+    // moving to another term never reopens the dialog on the new one.
+    const [expanded, setExpanded] = useState(false);
 
     useEffect(() => {
         if (!editor) return;
@@ -67,9 +79,10 @@ export default function DefinitionPopoverHost({
                     return prev;
                 }
                 const attrs = editor.getAttributes('definition');
-                const content = (attrs.content as InlineNodes) ?? [];
-                const image = (attrs.image as DefinitionImageAttr | null) ?? null;
-                return { from: range.from, to: range.to, content, image };
+                const content = (attrs.content as DefinitionBlock[]) ?? [];
+                const term = editor.state.doc.textBetween(range.from, range.to);
+                setExpanded(false);
+                return { from: range.from, to: range.to, content, term };
             });
         };
 
@@ -107,9 +120,12 @@ export default function DefinitionPopoverHost({
     }, [editor, active]);
 
     const handleChange = useCallback(
-        (content: InlineNodes, image: DefinitionImageAttr | null) => {
+        (content: DefinitionBlock[]) => {
             if (!editor) return;
-            editor.commands.updateDefinition({ content, image });
+            editor.commands.updateDefinition({ content });
+            // Keep the host's copy in step so a follow-on Expand opens the
+            // dialog on what was just committed, not the stale snapshot.
+            setActive((prev) => (prev ? { ...prev, content } : prev));
         },
         [editor],
     );
@@ -128,16 +144,38 @@ export default function DefinitionPopoverHost({
 
     if (!editor || !active) return null;
 
+    // Only ONE surface is mounted at a time: the dialog replaces the popover
+    // rather than layering over it, so there is never a second live draft.
+    if (expanded) {
+        return (
+            <DefinitionEditDialog
+                key={`dialog-${active.from}`}
+                term={active.term}
+                initialContent={active.content}
+                activityId={activityId}
+                onSave={(content) => {
+                    handleChange(content);
+                    setExpanded(false);
+                    handleClose();
+                }}
+                onCancel={() => {
+                    setExpanded(false);
+                    handleClose();
+                }}
+            />
+        );
+    }
+
     return (
         <DefinitionEditPopover
             key={active.from}
             referenceElement={referenceElement}
             initialContent={active.content}
-            initialImage={active.image}
             activityId={activityId}
             onChange={handleChange}
             onRemove={handleRemove}
             onClose={handleClose}
+            onExpand={() => setExpanded(true)}
         />
     );
 }

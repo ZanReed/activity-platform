@@ -28,7 +28,11 @@ interface ToolbarProps {
     // controls, but the "+ Insert" dropdown only offers the reference-safe
     // items (no Section, questions, or graphs — a panel has neither questions
     // nor sections). Additive — the main editor passes nothing.
-    variant?: 'activity' | 'reference';
+    // 'definition' is the constrained set for the definition dialog: selection
+    // formatting + an Insert dropdown limited to the definitionSafe items
+    // (block math, image, graph figure). No Define button — definitions do not
+    // nest — and no column controls.
+    variant?: 'activity' | 'reference' | 'definition';
 }
 
 // Three tiers (editor toolbar reorganization, 2026-07-08):
@@ -125,6 +129,7 @@ export default function Toolbar({
               never clobbers the existing definition text. Main-document only —
               nested fields have no definition mark.
             */}
+            {variant !== 'definition' && (
             <ToolbarButton
                 onClick={() => {
                     if (editor.isActive('definition')) return;
@@ -140,6 +145,7 @@ export default function Toolbar({
             >
                 Define
             </ToolbarButton>
+            )}
 
             <Divider />
 
@@ -165,7 +171,7 @@ export default function Toolbar({
                 the "/" slash menu, so no toolbar insert button here. The
                 constrained REFERENCE panel keeps its dropdown — it has no
                 in-canvas affordances of its own. */}
-            {variant === 'reference' && (
+            {(variant === 'reference' || variant === 'definition') && (
                 <>
                     <Divider />
                     <InsertMenu editor={editor} variant={variant} />

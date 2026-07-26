@@ -69,6 +69,12 @@ export interface SlashMenuItem {
     // (e.g. graphFigure: the body's static-graph story is the
     // interactive_graph display mode). Implies referenceSafe.
     referenceOnly?: boolean;
+    // Available in the constrained DEFINITION dialog (docs/design/
+    // definition-rich-content.md), which registers paragraph/heading/list +
+    // math_block + image + graph_figure and nothing else. Orthogonal to
+    // referenceSafe/referenceOnly: graph_figure is referenceOnly yet belongs
+    // here, and columns/callout are referenceSafe yet do not (D2/D3).
+    definitionSafe?: boolean;
     // Excluded from the "+ Insert" dropdown (still in the slash menu) — used
     // for inline inserts that already have a flat toolbar button (ƒx).
     insertMenu?: false;
@@ -189,6 +195,7 @@ export const slashMenuItems: SlashMenuItem[] = [
         group: 'Math',
         icon: Sigma,
         referenceSafe: true,
+        definitionSafe: true,
         command: ({ editor, range }) => {
             begin(editor, range).insertMathBlock('\\sum_{i=1}^{n} i').run();
         },
@@ -296,19 +303,21 @@ export const slashMenuItems: SlashMenuItem[] = [
         subgroup: 'Media & figures',
         icon: ImageIcon,
         referenceSafe: true,
+        definitionSafe: true,
         command: ({ editor, range }) => {
             begin(editor, range).insertImage().run();
         },
     },
     {
         title: 'Graph figure',
-        description: 'A static coordinate-plane picture for the reference panel. Never interactive.',
+        description: 'A static coordinate-plane picture. Never interactive.',
         keywords: ['graph', 'figure', 'coordinate', 'plane', 'grid', 'line', 'plot', 'picture', 'reference'],
         group: 'Structure',
         subgroup: 'Media & figures',
         icon: LineChart,
         referenceSafe: true,
         referenceOnly: true,
+        definitionSafe: true,
         command: ({ editor, range }) => {
             begin(editor, range).insertGraphFigure().run();
         },
