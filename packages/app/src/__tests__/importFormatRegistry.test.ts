@@ -186,11 +186,86 @@ describe('registry ↔ converter (behavioral)', () => {
 // registry ↔ prompt + doc (documented)
 // =============================================================================
 
+// Region slices. A whole-document `toContain` is satisfied by ANY single
+// mention, so it cannot see a fence that is taught in its own section while a
+// LIST elsewhere still describes the world before it existed — which is exactly
+// how ```definitions drifted: the DEFINITIONS section taught it, and the OTHER
+// section's allowlist simultaneously forbade it. Scoping each assertion to the
+// region that has to stay complete is what makes that class of contradiction
+// visible.
+//
+// Each slice asserts it actually found its region, so rewording an anchor fails
+// loudly instead of silently turning the guard vacuous (the same failure mode).
+function slice(src: string, startMark: string, endMark: string, label: string): string {
+    const start = src.indexOf(startMark);
+    const end = src.indexOf(endMark, start + startMark.length);
+    if (start === -1 || end === -1) {
+        throw new Error(
+            `Could not locate the ${label} region (anchors: "${startMark}" … "${endMark}"). ` +
+                'If the wording moved, re-point this slice — do not delete the assertion.',
+        );
+    }
+    return src.slice(start, end);
+}
+
+// The prompt's OTHER section: "…any code block inside the activity other than
+// ```a, ```b, … — only the single outer block … are allowed". This is phrased as
+// a PROHIBITION, so a model follows it over a permissive section elsewhere. It
+// must name every fence the parser accepts.
+const PROMPT_FENCE_ALLOWLIST = slice(
+    MARKDOWN_IMPORT_AI_PROMPT,
+    'other than ```',
+    'are allowed',
+    "prompt's allowed-fences list",
+);
+
+// The doc's quick-reference table — the "what can I write?" index a teacher
+// scans. A fence missing here is invisible to anyone who doesn't read to the end.
+const DOC_QUICK_REFERENCE = slice(
+    DOC,
+    '## Quick reference',
+    '## Rules that matter',
+    "doc's quick-reference table",
+);
+
 describe('registry ↔ prompt + doc (documented)', () => {
     it.each(FENCES)('$tag fence is taught in the prompt and the doc', (f) => {
         const fenced = '```' + f.tag;
         expect(MARKDOWN_IMPORT_AI_PROMPT).toContain(fenced);
         expect(DOC).toContain(fenced);
+    });
+
+    // The three region-scoped bindings. Each would have caught the
+    // ```definitions drift that the whole-document assertions above could not.
+    it.each(FENCES)(
+        "$tag is named in the prompt's allowed-fences list",
+        (f) => {
+            expect(
+                PROMPT_FENCE_ALLOWLIST,
+                `the prompt teaches \`\`\`${f.tag} somewhere but its allowed-fences list omits it — ` +
+                    'the two instructions contradict, and the list is the one phrased as a prohibition',
+            ).toContain('```' + f.tag);
+        },
+    );
+
+    it.each(FENCES)('$tag has a row in the doc quick-reference table', (f) => {
+        expect(
+            DOC_QUICK_REFERENCE,
+            `\`\`\`${f.tag} is missing from the quick-reference table`,
+        ).toContain('```' + f.tag);
+    });
+
+    it.each(FENCES)('$tag has its own section heading in the doc', (f) => {
+        // Headings read "## Callout blocks (```callout fence)" — shortanswer and
+        // essay share one ("(```shortanswer / ```essay fences)"), so match the
+        // tag inside a heading line rather than a fixed suffix.
+        const headings = DOC.split('\n').filter(
+            (l) => l.startsWith('## ') && l.includes('fence'),
+        );
+        expect(
+            headings.some((h) => h.includes('```' + f.tag)),
+            `no "## … (\`\`\`${f.tag} fence)" section in the doc`,
+        ).toBe(true);
     });
 
     const optionCases = FENCES.flatMap((f) =>

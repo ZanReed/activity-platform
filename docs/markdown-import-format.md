@@ -28,6 +28,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a paragraph containing `{{…}}` | a **fill-in-the-blank problem block** |
 | a list whose items contain `{{…}}` | **one problem block per item** |
 | `## Topic {checkpoint}` | a **checkpoint section break** titled "Topic" |
+| a ` ```graph ` fenced block | a **coordinate-plane question** — plot a point, graph a line or inequality, shade a region (see below) |
 | a ` ```numberline ` fenced block | a **1-D number-line question** — plot points, or graph an inequality (see below) |
 | a ` ```dataplot ` fenced block | a **statistics-chart question** — dot plot, histogram, box plot (see below) |
 | a ` ```mc ` fenced block | a **multiple-choice question** (see below) |
@@ -69,7 +70,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 
 ## Not supported (degrades to plain text, with a warning)
 
-Tables, fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. (Callouts, and images-or-lists *inside* a worked/faded example or a column, have no Markdown round-trip yet — author those in the editor. Columns themselves import via the ` ```columns ` fence — see below.)
+Tables, fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. (Images-or-lists *inside* a worked/faded example or a column have no Markdown round-trip yet — author those in the editor. Callouts import via the ` ```callout ` fence and columns via ` ```columns ` — see below.)
 
 ## Worked example
 
@@ -386,9 +387,9 @@ OTHER
 - Don't use tables, blockquotes, links, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  ```columns, ```callout, and ```reference — only the single outer block that
-  wraps the whole reply and those fences are allowed; anything unsupported
-  imports as plain text.
+  ```columns, ```callout, ```definitions, and ```reference — only the single
+  outer block that wraps the whole reply and those fences are allowed;
+  anything unsupported imports as plain text.
 
 When I describe the activity I want, reply with only that single code block.
 ```
@@ -707,4 +708,4 @@ graph: line y = 2x - 3
 - **Graphs** — `graph:` lines add a **static graph figure** (a kit-free SVG picture, never interactive), using the same drawable forms as the `graph` fence's `show:` lines: `point (x, y) [open|closed] ["label"]`, `line`/`curve <equation or inequality> [dashed]`, `segment (a,b) (c,d)`, `ray (a,b) (c,d) [open]`, `region (x,y), …`. **Back-to-back `graph:` lines draw on one shared grid** ("these two lines are parallel" needs both on the same figure); any other line — including a blank one — ends the figure, and a later `graph:` run starts a new one. `expression` is not available here (it needs the calculator kit; the line is skipped with a warning).
 - **Axes** — an `axes: -5..5, -5..5` line sets the window for the **next** figure (default −10..10, grid step 1). Fine-tune grid steps in the editor.
 - **Append semantics** — importing adds to the end of whatever the panel already holds; it never replaces hand-authored panel content. A second `reference` fence in the same paste continues the same sheet.
-- **Not here** — columns inside the panel, per-figure grid steps, and definition-mark popovers are editor-only after import.
+- **Not here** — columns inside the panel and per-figure grid steps are editor-only after import. **Vocabulary definitions are not** in that list: `[[term :: text]]` and `[[term]]` (against a [```definitions fence](#rich-definitions-definitions-fence)) both resolve inside panel lines, so a formula sheet can carry tappable terms.

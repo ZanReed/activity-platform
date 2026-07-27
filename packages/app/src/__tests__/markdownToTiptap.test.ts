@@ -2280,6 +2280,47 @@ describe('```definitions fence', () => {
         expect(JSON.stringify(content)).not.toContain('"blank"');
     });
 
+    it('resolves inside a ```reference fence, so a formula sheet can carry terms', () => {
+        // Pins the claim in docs/markdown-import-format.md's reference-sheet
+        // "Not here" bullet. Panel lines run through fenceInline → emitInline,
+        // the same path body prose takes, so BOTH definition forms work there.
+        const md = [
+            FENCE,
+            '',
+            '```reference',
+            'title: Sheet',
+            'The [[Slope]] matters.',
+            'Also [[cell :: the unit of life]].',
+            '```',
+        ].join('\n');
+        const res = convert(md);
+        const marks: { text?: string; blocks: string[] }[] = [];
+        const walk = (nodes: JSONContent[]): void => {
+            for (const n of nodes) {
+                for (const m of (n.marks ?? []) as {
+                    type?: string;
+                    attrs?: Record<string, unknown>;
+                }[]) {
+                    if (m.type === 'definition') {
+                        marks.push({
+                            text: n.text,
+                            blocks: (
+                                (m.attrs?.content ?? []) as { type: string }[]
+                            ).map((b) => b.type),
+                        });
+                    }
+                }
+                walk((n.content ?? []) as JSONContent[]);
+            }
+        };
+        walk(res.referencePanel?.blocks ?? []);
+        expect(marks).toEqual([
+            { text: 'Slope', blocks: ['paragraph', 'math_block'] },
+            { text: 'cell', blocks: ['paragraph'] },
+        ]);
+        expect(res.warnings).toEqual([]);
+    });
+
     it('survives the schema round trip as a definition mark', () => {
         const activity = tiptapToActivity(
             { type: 'doc', content: convert(FENCE + '\n\nFind the [[Slope]].').blocks },

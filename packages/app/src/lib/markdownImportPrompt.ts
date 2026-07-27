@@ -303,9 +303,9 @@ export const MARKDOWN_IMPORT_AI_PROMPT = [
     '- Don\'t use tables, blockquotes, links, or any code block inside the activity',
     '  other than ```graph, ```numberline, ```dataplot, ```mc, ```match, ```order,',
     '  ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,',
-    '  ```columns, ```callout, and ```reference — only the single outer block that',
-    '  wraps the whole reply and those fences are allowed; anything unsupported',
-    '  imports as plain text.',
+    '  ```columns, ```callout, ```definitions, and ```reference — only the single',
+    '  outer block that wraps the whole reply and those fences are allowed;',
+    '  anything unsupported imports as plain text.',
     '',
     'When I describe the activity I want, reply with only that single code block.',
 ].join('\n');
