@@ -4,10 +4,12 @@ import RequireAuth from './components/RequireAuth';
 import ThemeToggle from './components/ThemeToggle';
 import Home from './routes/Home';
 import Activities from './routes/Activities';
+import Classes from './routes/Classes';
 import ActivityEditor from './routes/ActivityEditor';
 import ActivityPrint from './routes/ActivityPrint';
 import Submissions from './routes/Submissions';
 import Playground from './routes/Playground';
+import Privacy from './routes/Privacy';
 import DevFoldableColumns from './routes/DevFoldableColumns';
 import DevCalculator from './routes/DevCalculator';
 import DevGraphQuestion from './routes/DevGraphQuestion';
@@ -20,11 +22,21 @@ export default function App() {
         <SessionProvider>
         <Routes>
         <Route path="/" element={<Home />} />
+        {/* Public by design (D7): auth screens and student fineprint link here. */}
+        <Route path="/privacy" element={<Privacy />} />
         <Route
         path="/activities"
         element={
             <RequireAuth>
             <Activities />
+            </RequireAuth>
+        }
+        />
+        <Route
+        path="/classes"
+        element={
+            <RequireAuth>
+            <Classes />
             </RequireAuth>
         }
         />

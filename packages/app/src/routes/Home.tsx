@@ -43,6 +43,12 @@ export default function Home() {
           >
           My activities
           </Link>
+          <Link
+          to="/classes"
+          className="rounded-md border border-line-strong bg-canvas px-4 py-2 text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+          My classes
+          </Link>
           <button
           type="button"
           onClick={signOut}
