@@ -92,26 +92,49 @@ const UUID_RE =
 // ---- Meta-branch rate limiting (per isolate — MEASURED AS NEARLY INERT) ----
 // A sliding one-minute window per client IP.
 //
+// READ THIS BEFORE CHANGING THE THRESHOLD OR GIVING THIS SHARED STATE.
+//
+// ** A CLASSROOM IS ONE IP. ** Every student in a school sits behind the same
+// NAT, so "open this link now" produces one meta request per student — 30+
+// within seconds, hundreds per minute at a bell change across a campus — all
+// from a SINGLE address. A per-person threshold is therefore off by ~2 orders
+// of magnitude against the real topology, and this endpoint serves the PRE-AUTH
+// interstitial: a 429 here is the first screen a student ever sees, before they
+// can even sign in. The failure would present as "some students can't open the
+// activity, others can, apparently at random" — miserable to diagnose mid-class.
+// The ceiling below is deliberately generous for that reason. RAISING it is
+// safe; LOWERING it toward a per-person number is the bug.
+//
+// This constraint is not specific to this function: per-IP limiting is the
+// wrong primitive anywhere in this product, because our users arrive thirty-at-
+// a-time from one address. See DECISIONS.md → "Read API S2" (rate-limit
+// finding) before reaching for IP-based throttling elsewhere.
+//
 // MEASURED 2026-07-28 on the live deployment: 95 sequential anonymous requests
 // from ONE IP produced ZERO 429s. Supabase's Edge Runtime recycles isolates
 // aggressively, so this module-level Map is empty on most requests — the
-// effective limit is far looser than the constants below imply, and on a
-// distributed burst it is no limit at all. The original "cold starts reset it"
-// caveat understated this: on this platform, nearly EVERY request is a fresh
-// isolate.
+// effective limit is far looser than the constants imply, and on a distributed
+// burst it is no limit at all. (Mechanism inferred from the zero-429 result +
+// cold-boot-shaped latencies; a module-scope BOOT_ID logged per request would
+// confirm it definitively.) So this is opportunistic throttling of a single hot
+// isolate, NOT a guarantee — do not describe it as one.
 //
-// Deliberately kept anyway (author decision pending a hardening call): it costs
-// nothing, it does throttle a single hot isolate, and what it guards is the
-// title + teacher name of a PUBLISHED activity to someone who already holds its
-// UUID — data every published page shows publicly today, and UUID enumeration
-// is infeasible. If this ever needs to be a real limit (e.g. the meta endpoint
-// starts returning anything richer), it must move to shared state — a small
-// DB counter table — because no in-memory scheme can work here.
+// Kept rather than deleted because it costs nothing and does blunt a runaway
+// client. What it guards is the title + teacher display name of a PUBLISHED
+// activity, to a caller who already holds its UUID — data every published page
+// shows publicly today, with UUID enumeration infeasible.
+//
+// If a REAL limit is ever needed (trigger: this response starts returning
+// anything richer than those two fields), it must move to shared state — a
+// small DB counter table — because no in-memory scheme can work here. Port the
+// SCHOOL-SAFE ceiling with it; do not reintroduce a per-person number.
 //
 // The authed branches are NOT rate-limited here; the JWT is their gate.
 
 const META_WINDOW_MS = 60_000;
-const META_MAX_PER_WINDOW = 30;
+/** School-safe ceiling: sized for a whole campus behind one NAT at a bell
+ * change, not for one person. See the topology note above. */
+const META_MAX_PER_WINDOW = 600;
 const metaHits = new Map<string, number[]>();
 
 function metaRateLimited(ip: string): boolean {
