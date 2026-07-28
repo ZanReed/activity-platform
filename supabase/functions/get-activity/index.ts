@@ -89,11 +89,26 @@ const API_VERSION = 1;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// ---- Meta-branch rate limiting (best-effort, per isolate) -------------------
-// A sliding one-minute window per client IP. Honest best-effort: cold starts
-// reset it and isolates don't share state — proportionate to what it guards
-// (title + teacher name, data already public on every published page). The
-// authed branches are NOT rate-limited here; the JWT is their gate.
+// ---- Meta-branch rate limiting (per isolate — MEASURED AS NEARLY INERT) ----
+// A sliding one-minute window per client IP.
+//
+// MEASURED 2026-07-28 on the live deployment: 95 sequential anonymous requests
+// from ONE IP produced ZERO 429s. Supabase's Edge Runtime recycles isolates
+// aggressively, so this module-level Map is empty on most requests — the
+// effective limit is far looser than the constants below imply, and on a
+// distributed burst it is no limit at all. The original "cold starts reset it"
+// caveat understated this: on this platform, nearly EVERY request is a fresh
+// isolate.
+//
+// Deliberately kept anyway (author decision pending a hardening call): it costs
+// nothing, it does throttle a single hot isolate, and what it guards is the
+// title + teacher name of a PUBLISHED activity to someone who already holds its
+// UUID — data every published page shows publicly today, and UUID enumeration
+// is infeasible. If this ever needs to be a real limit (e.g. the meta endpoint
+// starts returning anything richer), it must move to shared state — a small
+// DB counter table — because no in-memory scheme can work here.
+//
+// The authed branches are NOT rate-limited here; the JWT is their gate.
 
 const META_WINDOW_MS = 60_000;
 const META_MAX_PER_WINDOW = 30;
