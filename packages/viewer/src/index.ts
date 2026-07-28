@@ -40,3 +40,31 @@ export {
   stateNames,
 } from './tokens/tokens.js';
 export type { ColorToken, StaticToken, DesignToken, StateName } from './tokens/tokens.js';
+
+// S2 — the answer-key sanitizer + serve-time shuffles (server-side; bundled
+// into the get-activity Edge Function via src/server/index.ts).
+export {
+  SANITIZER_ALGO_REV,
+  SANITIZER_REV,
+  sanitizeActivityDocument,
+  sanitizeBlock,
+} from './sanitize/sanitize.js';
+export { applyServeShuffles, seededShuffle } from './sanitize/shuffle.js';
+export type {
+  BlankSecretField,
+  MathPromptSecretField,
+  SanitizedBlankToken,
+  SanitizedMathPrompt,
+  SanitizedInlineMathNode,
+  SanitizedInlineNode,
+  SanitizedFillInBlankInline,
+  SanitizedGraphInteraction,
+  SanitizedNumberLineInteraction,
+  SanitizedDataPlotInteraction,
+  SanitizeBlockType,
+  SanitizedBlock,
+  SanitizedColumn,
+  SanitizedRow,
+  SanitizedSection,
+  SanitizedActivityDocument,
+} from './sanitize/sanitized-types.js';

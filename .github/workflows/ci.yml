@@ -54,3 +54,15 @@ jobs:
             echo "::error::Committed renderer bundle is stale. Run 'pnpm bundle:renderer' and commit the result.";
             exit 1;
           }
+
+      # Same discipline for the read-API server bundle (S2): regenerate and
+      # fail if the committed file drifts from schema/viewer sanitize source.
+      - name: Viewer server bundle is up to date
+        run: |
+          pnpm bundle:viewer-server
+          git diff --exit-code -- \
+            supabase/functions/_shared/viewer-server.bundle.js \
+          || {
+            echo "::error::Committed viewer server bundle is stale. Run 'pnpm bundle:viewer-server' and commit the result.";
+            exit 1;
+          }

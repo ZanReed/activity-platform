@@ -41,11 +41,16 @@ export const BLANK_SECRET_FIELDS = [
   'equivalence',
 ] as const;
 
-/** MathPrompt fields stripped from math_block.prompts. The gap markers in the
- * latex are the gaps themselves (already served empty today — serialize.ts
- * precedent); the prompt's answer/grading config is the secret. */
+/** MathPrompt fields stripped wherever a prompts array appears (math_block
+ * blocks AND math_inline nodes). The gap markers in the latex are the gaps
+ * themselves (already served empty today — serialize.ts precedent); the
+ * prompt's answer/grading config is the secret. `acceptableAnswers` was
+ * MISSING from the S0 declaration ("also accept" alternative answers — a real
+ * key leak) — caught by S2's cross-check against the MathPrompt schema and
+ * added before the first sanitized byte was served. */
 export const MATH_PROMPT_SECRET_FIELDS = [
   'answer',
+  'acceptableAnswers',
   'equivalence',
   'tolerance',
 ] as const;

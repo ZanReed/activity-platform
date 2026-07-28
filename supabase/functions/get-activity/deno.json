@@ -1,0 +1,16 @@
+{
+  "imports": {
+    "@/shared/": "../_shared/"
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "fmt": {
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "semiColons": true,
+    "singleQuote": true
+  }
+}

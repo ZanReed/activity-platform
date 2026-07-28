@@ -83,8 +83,12 @@ export interface SanitizeSpec {
   readonly strip: readonly string[];
   /** This block's inline content carries in-band secrets: BlankToken fields
    * (BLANK_SECRET_FIELDS) in `content`, and MathPrompt fields
-   * (MATH_PROMPT_SECRET_FIELDS) in `prompts`. The sanitizer walks inline
-   * arrays only when this is set. */
+   * (MATH_PROMPT_SECRET_FIELDS) in `prompts`. DECLARATIVE, not load-bearing:
+   * the S2 sanitizer strips in-band secrets by a deep walk over EVERY block
+   * regardless of this flag (defense in depth — the schema admits a prompted
+   * math_inline in any content array, not just where declared), so a missing
+   * flag can never leak. The flag remains the documented expectation and the
+   * type-projection signal (which blocks get sanitized inline unions). */
   readonly inlineBlankSecrets?: boolean;
   /** Arrays whose AUTHORED ORDER is the answer key (ordering.items). The
    * sanitizer must re-shuffle them per serve (deterministically per version +

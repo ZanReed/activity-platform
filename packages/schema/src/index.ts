@@ -139,6 +139,14 @@ export {
   Typography,
 } from './document.js';
 
+// Upgrade-on-read (components-as-data ruling 4A; chain empty at schemaVersion 2)
+export {
+  ACTIVITY_SCHEMA_VERSION,
+  UpgradeError,
+  upgradeActivityDocument,
+} from './upgrade.js';
+export type { UpgradeResult } from './upgrade.js';
+
 // Submissions
 export {
   BlankResponse,
