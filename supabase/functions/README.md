@@ -9,6 +9,7 @@ Phase 1 Edge Functions for the activity platform.
 | `publish-activity` | Take a draft, atomically snapshot a version, render to HTML, upload to Cloudflare R2, return URLs. | ✅ Deployed |
 | `ingest-submission` | Receive student submissions from published HTML, validate, write to `submissions`. **Must be deployed with `--no-verify-jwt`** (see Build + deploy). | ✅ Deployed |
 | `upload-image` | Editor image uploads: validate MIME/size, check edit rights, PUT to R2 `uploads/{activityId}/`, return the public URL. | ✅ Deployed |
+| `get-activity` | The viewer read API (S2): anonymous title/teacher meta (rate-limited), authenticated resolve of the current version, and the upgraded+sanitized content served from the durable per-version cache with immutable headers. **Must be deployed with `--no-verify-jwt`** (the anonymous meta branch; see Build + deploy). Needs migration 0017. | ⏳ Awaiting first deploy |
 
 ## Shared code
 
@@ -16,6 +17,7 @@ Phase 1 Edge Functions for the activity platform.
 
 - **`cors.ts`** — CORS helper (preflight handling, JSON response builder, error response builder). Hand-written, edit freely.
 - **`renderer.bundle.js`** — **Auto-generated.** Do NOT edit by hand. Produced by `pnpm bundle:renderer` from `packages/renderer`. Re-run after any change to schema or renderer.
+- **`viewer-server.bundle.js`** — **Auto-generated.** Do NOT edit by hand. Produced by `pnpm bundle:viewer-server` from `packages/viewer/src/server/` (upgrade-on-read + the answer-key sanitizer + serve shuffles + `SANITIZER_REV`). Re-run after any change to schema or the viewer's sanitize/registry source. Kept separate from the renderer bundle so `get-activity` never loads the renderer + KaTeX.
 
 ## One-time setup
 
@@ -74,9 +76,9 @@ supabase functions deploy ingest-submission --no-verify-jwt
 supabase functions deploy upload-image
 ```
 
-The root `package.json` wraps these so the flags can't be forgotten: `pnpm deploy:publish`, `pnpm deploy:ingest` (bakes in `--no-verify-jwt`), `pnpm deploy:upload-image`. For a multi-part deploy, `pnpm deploy:train` walks the whole ordering below interactively.
+The root `package.json` wraps these so the flags can't be forgotten: `pnpm deploy:publish`, `pnpm deploy:ingest` (bakes in `--no-verify-jwt`), `pnpm deploy:upload-image`, `pnpm deploy:get-activity` (bakes in `--no-verify-jwt`; run `pnpm bundle:viewer-server` first). For a multi-part deploy, `pnpm deploy:train` walks the whole ordering below interactively.
 
-**`ingest-submission` must always be deployed with `--no-verify-jwt`.** Students submit anonymously (no auth header); with JWT verification on, the platform gateway 401s every submission before the function runs. There is no `config.toml`, so the flag lives only on the Supabase platform — a plain redeploy silently re-enables verification. The function self-authenticates with the service role and validates in its body.
+**`ingest-submission`, `get-feedback`, and `get-activity` must always be deployed with `--no-verify-jwt`.** The first two are called anonymously from published pages (no auth header); `get-activity`'s anonymous branch is the 3.2A pre-auth meta endpoint. With JWT verification on, the platform gateway 401s those requests before the function runs. There is no `config.toml`, so the flag lives only on the Supabase platform — a plain redeploy silently re-enables verification. Each function self-authenticates in its body (service role / user-scoped RPC).
 
 **On any submission wire-format (`schemaVersion`) bump, redeploy `ingest-submission` BEFORE republishing any activity.** A page publishing the new wire POSTs a version the live ingest rejects (400) until ingest is redeployed. Ingest keeps accepting older wire versions (it migrates them on write), so redeploying it first never breaks already-published pages.
 

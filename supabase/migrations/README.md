@@ -1,6 +1,6 @@
 # Supabase migrations
 
-Phase 1 schema for the activity platform. Nine core migrations plus an optional dev seed. `0001`–`0009` are all applied to the live project (`0009` applied + fully verified 2026-07-11 — see STATE.md "Status by area").
+Schema for the activity platform. `0001`–`0016` are all applied to the live project; `0017` is queued (see STATE.md "Pending author actions").
 
 ## Files
 
@@ -15,6 +15,12 @@ Phase 1 schema for the activity platform. Nine core migrations plus an optional 
 | `0007_submission_version.sql` | Pins each submission to the `activity_versions` row it was made against, so the dashboard reads the answer key the student actually saw. |
 | `0008_soft_delete_activity.sql` | `SECURITY DEFINER` RPC `soft_delete_activity` — a client-side soft-delete UPDATE is rejected under the `deleted_at is null` SELECT policy (the post-update row becomes invisible to SELECT). See DECISIONS.md → "Activity deletion". |
 | `0009_security_housekeeping.sql` | Advisor-driven security + performance pass (2026-07-11 run): `activity_aggregate_stats` → `security_invoker` (was leaking cross-teacher aggregates to any signed-in user); EXECUTE revoked from PUBLIC/anon/authenticated on the SECURITY DEFINER RPCs, re-granted only to verified call sites (`publish_activity` + `soft_delete_activity` keep `authenticated`); pinned `search_path` on the three RLS helpers; `auth.uid()` → `(select auth.uid())` initplan rewrite across 9 policies; covering indexes for 5 unindexed FKs. Verification queries (with expected results) are commented at the bottom of the file. Intentional non-fixes documented in DECISIONS.md → "Supabase security/performance housekeeping (0009)". |
+| `0010_grades.sql` + `0011_grades_security.sql` | Phase 2.6 manual grading: the `grades` table (per-block rubric scores + feedback, upserted by the teacher grading UI) and its RLS/grant hardening. |
+| `0012_restore_activity.sql` | `restore_activity` RPC (un-soft-delete; the delete flow's undo). Its missing revoke stanza was closed by `0015`. |
+| `0013_student_identity.sql` | S1 identity, part 1: `student` role, `student_domain` gate, `handle_new_auth_user` rewrite (allowlist wins ties), `current_user_is_teacher()` guards on the five authoring policies. |
+| `0014_classes.sql` | S1 identity, part 2: `classes` (NOT-NULL 13+ assertion record) + `class_members`, `join_class`/`list_class_members`/`soft_delete_class` RPCs, `submissions.student_id` third identity branch + account attempt-race index. |
+| `0015_rpc_grant_housekeeping.sql` + `0016_helper_grant_lockdown.sql` | Advisor + ACL follow-ups: anon EXECUTE revoked on `restore_activity`, `generate_join_code` pinned, the four INVOKER RLS helpers locked to `authenticated`/`service_role`. After 0016, every function in `public` has an explicit revoke/grant stanza. |
+| `0017_read_api.sql` | S2 read API: `activity_version_reads` durable per-version cache (service-role only), `get_published_activity` (authenticated resolve of the current published version), `get_activity_public_meta` (the deliberate anon exception — title + teacher name for the pre-auth interstitial). Verification: `scripts/verify-0017.sql`. |
 
 Run order is the file order. Each builds on the previous. `0004` is the dev seed and only matters on a dev project; the schema migrations `0005`+ come after it numerically and run after it.
 
@@ -178,7 +184,7 @@ The schema does not include:
 - Purchase/entitlement table (Phase 5).
 - Organization/team tables (Phase 4 — multi-tenancy).
 - Comments, ratings, reviews (Phase 5+).
-- A `students` table — we don't store student accounts. Ever.
+- A separate `students` table — student accounts (added 2026-07-28, migrations 0013/0014) live in `users` with `role='student'`; a parallel table would fork every join and the signup trigger (DECISIONS.md → "Student identity S1").
 - Messaging or notifications.
 
 These are intentional omissions. Phase 1 is the smallest possible schema that supports the auth → create → edit → publish → submit → review loop.
