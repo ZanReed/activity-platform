@@ -1,0 +1,339 @@
+/* =============================================================================
+ * tokens.css — the viewer design-token layer (S0, ruling 5.1A)
+ * -----------------------------------------------------------------------------
+ * ONE vocabulary for every student-facing surface. Components consume tokens
+ * only — no literal colors, sizes, or shadows in component CSS. The values are
+ * extracted from the published-page stylesheet
+ * (packages/renderer/src/runtime/styles.ts), consolidated where that CSS had
+ * drifted into near-duplicate literals; every consolidation is documented in
+ * DESIGN.md alongside this file.
+ *
+ * Dark mode: the classic override pattern (light on :root, dark re-declared
+ * under prefers-color-scheme + [data-theme]) rather than the app's light-dark()
+ * refactor, DELIBERATELY — the viewer's support floor is school-managed
+ * Chromebooks, where Chrome can predate light-dark() (123). Old browsers
+ * degrade to light, which is also print's rendering. The dark values follow the
+ * app's ratified dark design (index.css, RULED D3–D5): elevation not inversion,
+ * off-white ink (never #fff), brightened accents — except roles that back
+ * solid white-text controls, which hold dark enough for 4.5:1.
+ *
+ * The guard tests (tests/tokens.test.ts) parse this file: the dark blocks must
+ * re-declare exactly the color roles the light block declares, and the token
+ * names exported in tokens.ts must match. Add a token → add it in all three
+ * places or the suite fails.
+ * ========================================================================= */
+
+:root {
+  /* ---- Surfaces ----------------------------------------------------------
+   * page: behind the worksheet (the app-chrome field the paper card sits on —
+   *       the wireframe's paper-on-desk look; app --color-surface precedent).
+   * paper: the worksheet card itself — the published page's white.
+   * raised: inputs and controls sitting on paper (blank bg #fafafa).
+   * overlay: floating cards (popovers, panels) — white on light, and on dark
+   *          one elevation step ABOVE paper, per the elevation rule. */
+  --color-page: #f8fafc;
+  --color-paper: #ffffff;
+  --color-raised: #fafafa;
+  --color-overlay: #ffffff;
+  --color-hover: #f1f5f9;      /* row hover fill (mc choices) */
+
+  /* ---- Ink ---------------------------------------------------------------
+   * muted consolidates the published page's #6b6b6b and #64748b (one step
+   * apart, both "meta text") onto slate-500 — AA on white paper; on tinted
+   * surfaces use --color-ink. faint is NON-TEXT (grips, ghosts, decorations). */
+  --color-ink: #1a1a1a;
+  --color-ink-muted: #64748b;
+  --color-ink-faint: #94a3b8;
+
+  /* ---- Hairlines ---------------------------------------------------------
+   * line: the default border (#e5e5e5). line-strong: card/canvas borders
+   * (#cbd5e1). line-faint: figure borders (#e2e8f0). */
+  --color-line: #e5e5e5;
+  --color-line-strong: #cbd5e1;
+  --color-line-faint: #e2e8f0;
+
+  /* ---- Accent (interactive blue) ----------------------------------------
+   * accent: links, focus rings, primary buttons (#2563eb, blue-600 — white
+   * text AA 5.2:1). accent-strong: hover (#1d4ed8). accent-wash: drag-over /
+   * selection tint (#eff6ff). */
+  --color-accent: #2563eb;
+  --color-accent-strong: #1d4ed8;
+  --color-accent-wash: #eff6ff;
+
+  /* ---- State vocabulary (rulings 7.2A / 2.1A / TV3-A) --------------------
+   * ONE trio + recorded, reused everywhere a state pill, blank, row, or
+   * banner appears:
+   *   correct   — auto-graded right       (✓ green)
+   *   incorrect — auto-graded wrong       (✗ red)
+   *   pending   — queued/unchecked/offline (○ amber)
+   *   recorded  — captured, not auto-graded ("Recorded ✓", neutral — never
+   *               reads as a verdict)
+   * -ink is AA text on paper AND on its own -surface; -border is the strong
+   * outline (inputs, pills); -surface is the fill. */
+  --state-correct-ink: #15803d;
+  --state-correct-border: #22c55e;
+  --state-correct-surface: #dcfce7;
+  --state-correct-surface-soft: #ecfdf5; /* row-level tint (mc/match/order) */
+
+  --state-incorrect-ink: #b91c1c;
+  --state-incorrect-border: #ef4444;
+  --state-incorrect-surface: #fee2e2;
+  --state-incorrect-surface-soft: #fef2f2;
+
+  /* pending is a NEW state (queued checks / offline — no published-page
+   * precedent constrains it): amber-800 ink, not the callout's amber-700 —
+   * amber-700 on the amber surface is 4.51:1, a razor-thin AA. */
+  --state-pending-ink: #92400e;
+  --state-pending-border: #f59e0b;
+  --state-pending-surface: #fef3c7;
+
+  /* recorded-ink is slate-600, NOT slate-500 like --color-ink-muted: it renders
+   * ON --state-recorded-surface (slate-100), where slate-500 is 4.36:1 — sub-AA.
+   * Same one-step-darker rule the app ratified for muted-on-tinted (index.css).
+   * The tokens guard test checks every state ink at AA on paper AND its own
+   * surface, both themes. */
+  --state-recorded-ink: #475569;
+  --state-recorded-border: #cbd5e1;
+  --state-recorded-surface: #f1f5f9;
+
+  /* ---- Callout variants (info / warning / success / note) ----------------
+   * Color pairs from the published page; the print border STYLE per variant
+   * is part of the vocabulary (grayscale safety — standing constraint). */
+  --callout-info-ink: #0369a1;
+  --callout-info-surface: #e0f2fe;
+  --callout-info-print-border: solid;
+  --callout-warning-ink: #b45309;
+  --callout-warning-surface: #fef3c7;
+  --callout-warning-print-border: dashed;
+  --callout-success-ink: #15803d;
+  --callout-success-surface: #dcfce7;
+  --callout-success-print-border: double;
+  --callout-note-ink: #6b7280;
+  --callout-note-surface: #f3f4f6;
+  --callout-note-print-border: dotted;
+
+  /* ---- Typography --------------------------------------------------------
+   * Worksheet content inherits meta.typography via --activity-font-family /
+   * --activity-font-size exactly as published pages do (ruling 4.1A) — these
+   * are the FALLBACKS. --font-chrome is the viewer chrome's ONE typeface;
+   * its concrete face is a T6 design decision (4.1A), seamed here so naming
+   * it is a one-line change. */
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-chrome: var(--font-body);
+  --font-math: "Latin Modern Math", "Cambria Math", serif;
+  --leading: 1.6;
+
+  /* Type scale — em-relative so it rides --activity-font-size on screen and
+   * --print-font-size on paper (published-page convention). */
+  --type-title: 1.75em;   /* activity title */
+  --type-h1: 1.5em;
+  --type-h2: 1.25em;      /* also section titles */
+  --type-h3: 1.1em;
+  --type-body: 1em;
+  --type-small: 0.95em;   /* prompts, feedback panels, buttons */
+  --type-meta: 0.875em;   /* captions, meta rows, counters */
+  --type-fine: 0.8em;     /* fallback cues, fine print */
+
+  /* ---- Rhythm & layout ---------------------------------------------------
+   * The published page's spacing steps, named. measure = the worksheet
+   * column's reading width. gutters = the problem-number columns. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --measure: 760px;
+  --gutter-problem: 2.5rem;
+  --gutter-equation: 2rem;
+  --touch-target: 44px;   /* 6.1A floor for tap targets */
+
+  /* ---- Radii -------------------------------------------------------------*/
+  --radius-sm: 3px;       /* blanks */
+  --radius-md: 4px;       /* images, small chips */
+  --radius-lg: 6px;       /* cards, callouts, buttons, canvases */
+  --radius-xl: 8px;       /* popovers */
+  --radius-window: 10px;  /* floating tool windows */
+  --radius-pill: 999px;
+
+  /* ---- Focus (6.1A: visible focus everywhere) ----------------------------*/
+  --focus-ring: 2px solid var(--color-accent);
+  --focus-offset: 2px;
+
+  /* ---- Shadows ----------------------------------------------------------*/
+  --shadow-popover: 0 10px 40px rgba(0, 0, 0, 0.25);
+  --shadow-window: 0 8px 28px rgba(0, 0, 0, 0.22);
+  --shadow-drag: 0 4px 12px rgba(15, 23, 42, 0.25);
+
+  /* ---- Z scale (published-page ladder, room left for viewer chrome) ------*/
+  --z-tools: 110;
+  --z-reference: 115;
+  --z-calculator: 120;
+  --z-topbar: 200;
+  --z-banner: 300;
+  --z-popover: 1000;
+}
+
+/* =============================================================================
+ * Dark values — elevation not inversion (page darkest → paper → overlay
+ * lighter), off-white ink, brightened accents; -surface roles become dark
+ * tints (the app's *-950 pattern). Non-color tokens never re-declare.
+ * ========================================================================= */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-page: #020617;
+    --color-paper: #0f172a;
+    --color-raised: #1e293b;
+    --color-overlay: #1e293b;
+    --color-hover: #1e293b;
+
+    --color-ink: #f1f5f9;
+    --color-ink-muted: #94a3b8;
+    --color-ink-faint: #64748b;
+
+    --color-line: #1e293b;
+    --color-line-strong: #334155;
+    --color-line-faint: #334155;
+
+    --color-accent: #60a5fa;
+    --color-accent-strong: #93c5fd;
+    --color-accent-wash: #172554;
+
+    --state-correct-ink: #34d399;
+    --state-correct-border: #34d399;
+    --state-correct-surface: #022c22;
+    --state-correct-surface-soft: #022c22;
+
+    --state-incorrect-ink: #f87171;
+    --state-incorrect-border: #f87171;
+    --state-incorrect-surface: #450a0a;
+    --state-incorrect-surface-soft: #450a0a;
+
+    --state-pending-ink: #fbbf24;
+    --state-pending-border: #fbbf24;
+    --state-pending-surface: #451a03;
+
+    --state-recorded-ink: #94a3b8;
+    --state-recorded-border: #334155;
+    --state-recorded-surface: #1e293b;
+
+    --callout-info-ink: #38bdf8;
+    --callout-info-surface: #082f49;
+    --callout-warning-ink: #fbbf24;
+    --callout-warning-surface: #451a03;
+    --callout-success-ink: #34d399;
+    --callout-success-surface: #022c22;
+    --callout-note-ink: #94a3b8;
+    --callout-note-surface: #1e293b;
+  }
+}
+
+/* Forced dark via the theme toggle — same values, OS-independent. Kept as a
+ * literal duplicate of the media block (the guard test enforces the two stay
+ * identical) because CSS has no non-preprocessed way to share the block while
+ * still beating the :root defaults in both trigger paths. */
+:root[data-theme="dark"] {
+  --color-page: #020617;
+  --color-paper: #0f172a;
+  --color-raised: #1e293b;
+  --color-overlay: #1e293b;
+  --color-hover: #1e293b;
+
+  --color-ink: #f1f5f9;
+  --color-ink-muted: #94a3b8;
+  --color-ink-faint: #64748b;
+
+  --color-line: #1e293b;
+  --color-line-strong: #334155;
+  --color-line-faint: #334155;
+
+  --color-accent: #60a5fa;
+  --color-accent-strong: #93c5fd;
+  --color-accent-wash: #172554;
+
+  --state-correct-ink: #34d399;
+  --state-correct-border: #34d399;
+  --state-correct-surface: #022c22;
+  --state-correct-surface-soft: #022c22;
+
+  --state-incorrect-ink: #f87171;
+  --state-incorrect-border: #f87171;
+  --state-incorrect-surface: #450a0a;
+  --state-incorrect-surface-soft: #450a0a;
+
+  --state-pending-ink: #fbbf24;
+  --state-pending-border: #fbbf24;
+  --state-pending-surface: #451a03;
+
+  --state-recorded-ink: #94a3b8;
+  --state-recorded-border: #334155;
+  --state-recorded-surface: #1e293b;
+
+  --callout-info-ink: #38bdf8;
+  --callout-info-surface: #082f49;
+  --callout-warning-ink: #fbbf24;
+  --callout-warning-surface: #451a03;
+  --callout-success-ink: #34d399;
+  --callout-success-surface: #022c22;
+  --callout-note-ink: #94a3b8;
+  --callout-note-surface: #1e293b;
+}
+
+/* Print always renders LIGHT — paper is white; a dark worksheet wastes ink
+ * (app slice-5 precedent). Highest-specificity match so a forced-dark student
+ * still prints light. */
+@media print {
+  :root,
+  :root[data-theme="dark"] {
+    --color-page: #ffffff;
+    --color-paper: #ffffff;
+    --color-raised: #ffffff;
+    --color-overlay: #ffffff;
+    --color-hover: transparent;
+
+    --color-ink: #000000;
+    --color-ink-muted: #000000;
+    --color-ink-faint: #000000;
+
+    --color-line: #000000;
+    --color-line-strong: #000000;
+    --color-line-faint: #000000;
+
+    --color-accent: #000000;
+    --color-accent-strong: #000000;
+    --color-accent-wash: transparent;
+
+    /* A printed worksheet is the BLANK version — scored state is neutralized
+     * (standing print constraint), so the state roles flatten to ink/paper. */
+    --state-correct-ink: #000000;
+    --state-correct-border: #000000;
+    --state-correct-surface: transparent;
+    --state-correct-surface-soft: transparent;
+
+    --state-incorrect-ink: #000000;
+    --state-incorrect-border: #000000;
+    --state-incorrect-surface: transparent;
+    --state-incorrect-surface-soft: transparent;
+
+    --state-pending-ink: #000000;
+    --state-pending-border: #000000;
+    --state-pending-surface: transparent;
+
+    --state-recorded-ink: #000000;
+    --state-recorded-border: #000000;
+    --state-recorded-surface: transparent;
+
+    /* Callout meaning moves to border STYLE (the --callout-*-print-border
+     * tokens); their colors flatten. */
+    --callout-info-ink: #000000;
+    --callout-info-surface: transparent;
+    --callout-warning-ink: #000000;
+    --callout-warning-surface: transparent;
+    --callout-success-ink: #000000;
+    --callout-success-surface: transparent;
+    --callout-note-ink: #000000;
+    --callout-note-surface: transparent;
+  }
+}

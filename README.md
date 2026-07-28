@@ -1,11 +1,12 @@
 # activity-platform
 
-The monorepo for the activity platform. Four packages:
+The monorepo for the activity platform. Five packages:
 
 - **`@activity/schema`** — TypeScript types and Zod validators for the document tree and submission responses. The bottom of the dependency graph; depends on nothing but Zod. No DOM, no React, no I/O.
-- **`@activity/renderer`** — Pure function that converts a validated `ActivityDocument` into a complete HTML page. Depends on `@activity/schema` and KaTeX. No DOM, no React, no I/O. Same code runs in Node tests, Deno Edge Functions, or anywhere else.
+- **`@activity/renderer`** — Pure function that converts a validated `ActivityDocument` into a complete HTML page. Depends on `@activity/schema` and KaTeX. No DOM, no React, no I/O. Same code runs in Node tests, Deno Edge Functions, or anywhere else. **Retiring from the student path** (components-as-data re-architecture, 2026-07-28) behind two parity gates; stays for editor preview/print until then.
 - **`@activity/graph-kit`** — The shared graphing kit (Phase 2.7): expression evaluation (math.js), MathLive input, JSXGraph board, regression. Consumed two ways from one implementation: published pages lazy-`import()` the content-hashed bundle from R2; the editor preview imports it directly. DOM TypeScript, but no React and no Supabase.
 - **`@activity/app`** — The React + Vite + Tiptap editor and dashboard. Depends on `@activity/schema` and `@activity/graph-kit` (editor preview); talks to Supabase.
+- **`@activity/viewer`** — The student viewer (components-as-data arc, building). S0 today: the single block registry (per-type metadata: checked-state family, sanitize spec, numbering, print, analytics key, a11y story — guard-enforced against the schema union) and the design-token layer (`tokens.css` + `DESIGN.md`). The React container shell and block components land in later slices. Depends on `@activity/schema`; React types only so far.
 
 For where the build *is* and what's in flight, see `STATE.md`; for where it's going, see `ROADMAP.md`. This README is durable orientation only — it deliberately does not track build status, so it can't drift out of date the way a status list does.
 
@@ -22,12 +23,13 @@ pnpm install
 pnpm test
 ```
 
-`pnpm test` runs the suites for all four packages. Exact test counts drift as the suite grows, so they aren't pinned here — what matters is that every package's suite passes. Test locations follow a fixed convention:
+`pnpm test` runs the suites for all five packages. Exact test counts drift as the suite grows, so they aren't pinned here — what matters is that every package's suite passes. Test locations follow a fixed convention:
 
 - `@activity/schema` — `tests/` (public-API tests) and `src/__tests__/` (unit tests)
 - `@activity/renderer` — `tests/`
 - `@activity/graph-kit` — `tests/`
 - `@activity/app` — `src/__tests__/`
+- `@activity/viewer` — `tests/` (the registry + token guard suites)
 
 ### Running the app
 
