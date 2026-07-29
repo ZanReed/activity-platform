@@ -1,6 +1,6 @@
 # Supabase migrations
 
-Schema for the activity platform. `0001`–`0016` are all applied to the live project; `0017` is queued (see STATE.md "Pending author actions").
+Schema for the activity platform. `0001`–`0018` are all applied to the live project (see STATE.md for per-migration verification records).
 
 ## Files
 
@@ -21,6 +21,24 @@ Schema for the activity platform. `0001`–`0016` are all applied to the live pr
 | `0014_classes.sql` | S1 identity, part 2: `classes` (NOT-NULL 13+ assertion record) + `class_members`, `join_class`/`list_class_members`/`soft_delete_class` RPCs, `submissions.student_id` third identity branch + account attempt-race index. |
 | `0015_rpc_grant_housekeeping.sql` + `0016_helper_grant_lockdown.sql` | Advisor + ACL follow-ups: anon EXECUTE revoked on `restore_activity`, `generate_join_code` pinned, the four INVOKER RLS helpers locked to `authenticated`/`service_role`. After 0016, every function in `public` has an explicit revoke/grant stanza. |
 | `0017_read_api.sql` | S2 read API: `activity_version_reads` durable per-version cache (service-role only), `get_published_activity` (authenticated resolve of the current published version), `get_activity_public_meta` (the deliberate anon exception — title + teacher name for the pre-auth interstitial). Verification: `scripts/verify-0017.sql`. |
+| `0018_users_policy_recursion.sql` | Closes the `42P17 infinite recursion` on the `users` SELECT policy: policy rewritten to `(id = auth.uid()) OR current_user_is_admin()` with a DEFINER `current_user_is_admin()` helper (`search_path=public`; granted `authenticated`/`postgres`/`service_role`, never anon). Fully idempotent, safe to re-run. |
+
+## Regression re-runs (the DB has no CI harness)
+
+Nothing in CI exercises Postgres — triggers, RLS, and grants are only verified by the
+`scripts/verify-*.sql` walkthroughs, run by hand. So a later migration can silently regress an
+earlier one, and the only defense is re-running the earlier scripts. **After applying any migration
+that touches auth, identity, RLS policies, or function grants, re-run:**
+
+- `scripts/verify-0013-0014.sql` sections A–D (identity: role enum, domain gate, trigger, classes
+  RLS, authoring guards) — section E (live signup) only if the trigger itself changed.
+- `scripts/verify-0017.sql` (read API: cache-table RLS, DEFINER functions, the exact grant/ACL
+  matrix — its completeness query catches ANY function newly executable by anon/PUBLIC, which is
+  how the 0009-era grant drift was found).
+
+Each query states its expected result; anything else = stop and report. This is the standing
+mitigation for S1's known gap (no automated DB tests), recorded in the 2026-07-29 S0–S2 test-setup
+review.
 
 Run order is the file order. Each builds on the previous. `0004` is the dev seed and only matters on a dev project; the schema migrations `0005`+ come after it numerically and run after it.
 

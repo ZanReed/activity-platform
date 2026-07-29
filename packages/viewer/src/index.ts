@@ -50,6 +50,25 @@ export {
   sanitizeBlock,
 } from './sanitize/sanitize.js';
 export { applyServeShuffles, seededShuffle } from './sanitize/shuffle.js';
+
+// S2 — the get-activity request handler (extracted from the Edge Function so
+// its branching is unit-testable; the function is now thin wiring).
+export {
+  API_VERSION,
+  META_MAX_PER_WINDOW,
+  META_WINDOW_MS,
+  createGetActivityHandler,
+  createMetaRateLimiter,
+  jwtSub,
+} from './server/get-activity-handler.js';
+export type {
+  CorsKit,
+  DbResult,
+  GetActivityDb,
+  GetActivityHandlerDeps,
+  PublishedActivityRow,
+} from './server/get-activity-handler.js';
+
 export type {
   BlankSecretField,
   MathPromptSecretField,

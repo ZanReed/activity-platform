@@ -29,3 +29,19 @@ export type {
   SanitizedActivityDocument,
   SanitizedBlock,
 } from '../sanitize/sanitized-types.js';
+
+export {
+  API_VERSION,
+  META_MAX_PER_WINDOW,
+  META_WINDOW_MS,
+  createGetActivityHandler,
+  createMetaRateLimiter,
+  jwtSub,
+} from './get-activity-handler.js';
+export type {
+  CorsKit,
+  DbResult,
+  GetActivityDb,
+  GetActivityHandlerDeps,
+  PublishedActivityRow,
+} from './get-activity-handler.js';
