@@ -272,6 +272,38 @@ export const CheckpointResult = z.object({
 });
 export type CheckpointResult = z.infer<typeof CheckpointResult>;
 
+// ---- Blank-map key ----------------------------------------------------------
+// The `blanks` map is keyed by BLANK id — but two different id shapes legitimately
+// land in it, because Model A (in-equation math gaps) deliberately reuses this map
+// rather than adding a wire shape:
+//
+//   1. BlankToken.id      — a uuid.
+//   2. MathPrompt.id      — 'g' + a hyphen-stripped uuid ("gcab62b…f00e0a").
+//                           NOT a uuid, and cannot be: the id is embedded in a
+//                           `\placeholder[id]{}` marker, and MathLive rejects
+//                           hyphens there (see MathPrompt in inline.ts, and the
+//                           minting site in app/lib/markdownToTiptap.ts).
+//
+// The runtime registers both into the SAME refs.blanks map on purpose (see
+// runtime/init.ts "Math prompts (Model A)"), so submit gathers them together.
+//
+// REGRESSION THIS FIXES (found 2026-07-29 by submitting a real published page):
+// this key was `z.string().uuid()`, so EVERY submission from an activity
+// containing a math gap was rejected by ingest-submission with
+// `responses failed schema validation / Invalid uuid`. Model A shipped
+// 2026-07-22 and was never submittable — its unit tests covered the document
+// schema and the capture bridge, but nothing constructed a SubmissionResponses,
+// so the two correct halves never met. Widening the KEY is the whole fix; the
+// value shape is untouched.
+const BLANK_ID_KEY = z
+  .string()
+  .refine(
+    (s) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ||
+      /^g[0-9a-f]{32}$/i.test(s),
+    { message: 'Blank id must be a uuid or a math-gap id (g + 32 hex)' },
+  );
+
 // ---- v1 (legacy) shape ------------------------------------------------------
 // Pre-Stage-9a submissions. Kept so we can read old rows from the database
 // and migrate them forward on read. Never written by new code.
@@ -547,8 +579,11 @@ export type SubmissionResponsesV8 = z.infer<typeof SubmissionResponsesV8>;
 // v1–v9 uniformly.
 export const SubmissionResponses = z.object({
   schemaVersion: z.literal(9),
-  // Keyed by blank.id (uuid).
-  blanks: z.record(z.string().uuid(), BlankResponse),
+  // Keyed by blank.id — a uuid, OR a math-gap id (Model A). See BLANK_ID_KEY.
+  // Only the CURRENT version is widened: gaps postdate v9 and shipped without a
+  // wire bump, so every gap-bearing page sends v9. The frozen v1–v8 shapes stay
+  // uuid-only, which is what they could ever have contained.
+  blanks: z.record(BLANK_ID_KEY, BlankResponse),
   // Keyed by section.id. Only present in locked/free submission modes for
   // sections that were actually checkpoint-checked. Absent in single mode
   // and absent for non-checkpoint sections.

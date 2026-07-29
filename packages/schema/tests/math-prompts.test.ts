@@ -17,6 +17,7 @@ import {
   MathBlock,
   MathPrompt,
   InlineNode,
+  SubmissionResponses,
 } from '../src/index.js';
 
 const uuid = () => crypto.randomUUID();
@@ -111,5 +112,67 @@ describe('math_block prompts (Model A)', () => {
     const parsed = MathBlock.parse(legacy);
     expect('prompts' in parsed).toBe(false);
     expect(JSON.stringify(parsed)).toBe(JSON.stringify(legacy));
+  });
+});
+
+// =============================================================================
+// THE SEAM (regression, 2026-07-29)
+// -----------------------------------------------------------------------------
+// The tests above prove a math_block accepts a non-uuid prompt id. Elsewhere,
+// runtime tests prove the capture bridge writes gap answers into the shared
+// blanks map. Both passed for a week while Model A was completely unsubmittable:
+// SubmissionResponses.blanks keyed on z.string().uuid(), so ingest-submission
+// rejected every gap-bearing submission with "Invalid uuid". Nothing constructed
+// a SubmissionResponses containing a gap id — the two correct halves were never
+// tested together. These pin the join.
+// =============================================================================
+
+describe('math gap ids on the submission wire (the seam)', () => {
+  const gapId = 'g' + uuid().replace(/-/g, '');
+  const base = {
+    schemaVersion: 9 as const,
+    blanks: {} as Record<string, unknown>,
+  };
+  const answer = { answer: '5', correct: true };
+
+  it('CRITICAL: a gap id is accepted as a blanks key', () => {
+    const parsed = SubmissionResponses.safeParse({
+      ...base,
+      blanks: { [gapId]: answer },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('the id shape the importer actually mints round-trips', () => {
+    // Mirrors app/lib/markdownToTiptap.ts: 'g' + hyphen-stripped uuid.
+    expect(gapId).toMatch(/^g[0-9a-f]{32}$/);
+    expect(
+      SubmissionResponses.safeParse({ ...base, blanks: { [gapId]: answer } })
+        .success,
+    ).toBe(true);
+  });
+
+  it('uuid blank ids still work, and both can share one map', () => {
+    const blankId = uuid();
+    const parsed = SubmissionResponses.safeParse({
+      ...base,
+      blanks: { [blankId]: answer, [gapId]: answer },
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(Object.keys(parsed.data.blanks).sort()).toEqual(
+        [blankId, gapId].sort(),
+      );
+    }
+  });
+
+  it('still REJECTS a genuinely malformed key — this is a widening, not an opening', () => {
+    for (const bad of ['', 'not-an-id', 'g123', 'gZZZZ', '../etc/passwd', gapId + 'f']) {
+      expect(
+        SubmissionResponses.safeParse({ ...base, blanks: { [bad]: answer } })
+          .success,
+        `expected ${JSON.stringify(bad)} to be rejected`,
+      ).toBe(false);
+    }
   });
 });
