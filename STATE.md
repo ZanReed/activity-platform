@@ -12,6 +12,16 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **Also verified live:** resolve `200`/`no-cache` with a real user JWT; content `200` with `private, max-age=31536000, immutable` exact; durable cache row written (`sanitizer_rev 1-5dbcb651`, `schema_version 2` — upgrade-on-read ran); stale `version_id` → `404 "Not the current version"`. Anonymous/error surface verified earlier: meta reaches our handler (proving `--no-verify-jwt`), missing-auth `401`, bad UUID `400`, `POST` `405`, CORS preflight `204` echoing the Pages origin. Ignore step-5 cache timings (1024–1281 ms) — Edge cold starts run 3–4 s, so the clock is noise; the cache ROW is the evidence.
 
+**QUEUED 2026-07-29 — redeploy `ingest-submission` (fixes a LIVE breakage).**
+
+```bash
+pnpm deploy:ingest
+```
+
+Math-gap (Model A) submissions have **never worked** — every submission from an activity containing a `\gap{}` was rejected with `responses failed schema validation / Invalid uuid`, because `SubmissionResponses.blanks` keyed on `z.string().uuid()` while gap ids are deliberately `g`+32-hex (MathLive rejects hyphens in `\placeholder[id]`). Found by submitting a real published page in §6c. Fixed in `d7d6f59` by widening the key; **server-only — no republish, no `schemaVersion` bump.** The published HTML already sends the right payload, so this one deploy repairs every already-published gap-bearing page. Full reasoning in [DECISIONS.md](docs/DECISIONS.md) → "Math-gap submissions were never possible".
+
+**Still open from the same session (both cosmetic, neither blocking):** (1) the faded step `So $x = ${{4}}` rendered its `$…$` literally — likely the importer's currency guard reacting to my fixture's ambiguous `${{` syntax, unconfirmed; (2) **problem numbers render far-right instead of in the left gutter on canvas-style numbered blocks** — confirmed for `number_line` (there is no `is-numbered` gutter rule for it at all; only `.block-math.has-math-prompts.is-numbered` exists) and observed on the gap-bearing `math_block` despite its rule, so `interactive_graph` / `data_plot` are likely affected too. Cosmetic, but it hits every graph/number-line question — the blocks an Algebra I course leans on hardest. Both want a browser pass, not screenshot guesswork.
+
 **QUEUED 2026-07-29 — apply `0018_users_policy_recursion.sql` (found during §6b).** A direct authenticated `SELECT` on `users` raises **`42P17: infinite recursion detected in policy for relation "users"`**. Cause: `users_select_self` (0002, initplan-rewritten by 0009) evaluates its admin branch with `exists (select 1 from users u …)` — a query against `users` from inside `users`' own SELECT policy. The statement fails outright, including a plain self-read that would have matched the first disjunct.
 
 **Zero impact today, by accident twice over:** the app never selects `users` directly (grep: 0 `from('users')` call sites — display names come via `list_class_members`, a DEFINER RPC, exactly as S1 designed), and every server-side read runs inside a DEFINER function owned by postgres, which is superuser and bypasses RLS. Verified both halves: `current_user_is_teacher()` returns true for a live teacher while a direct authenticated SELECT on that same row raises 42P17.
