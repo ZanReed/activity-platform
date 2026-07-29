@@ -69,6 +69,42 @@ export type {
   PublishedActivityRow,
 } from './server/get-activity-handler.js';
 
+// S3 — the check wire contract (the frozen S4 seam), its scriptable mock, and
+// the viewer store seam with the persisted-state version gate.
+export {
+  CHECK_WIRE_VERSION,
+  emptySectionResponses,
+} from './check/wire.js';
+export type {
+  CheckItemResult,
+  CheckRequest,
+  CheckService,
+  ItemVerdict,
+  ReleasedBlockFeedback,
+  ReleasedFeedbackResult,
+  SectionCheckResult,
+  SectionResponses,
+} from './check/wire.js';
+export { createMockCheckService } from './check/mock.js';
+export type { MockCheckScript, MockCheckService } from './check/mock.js';
+export {
+  VIEWER_STORE_SCHEMA_VERSION,
+  emptyPersistedState,
+  hydrateViewerState,
+  serializeViewerState,
+} from './store/persistence.js';
+export type {
+  PersistedViewerState,
+  SectionStatus,
+} from './store/persistence.js';
+export { createViewerStore } from './store/store.js';
+export type {
+  SectionItemIds,
+  ViewerStore,
+  ViewerStoreOptions,
+  ViewerStoreState,
+} from './store/store.js';
+
 export type {
   BlankSecretField,
   MathPromptSecretField,
