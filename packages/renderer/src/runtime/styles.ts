@@ -154,11 +154,29 @@ body {
  the centered layout above. */
 .block-math.has-math-prompts.is-numbered {
   display: grid;
-  grid-template-columns: 2rem 1fr;
-  gap: 0.25rem;
+  /* 2.5rem + 0.5rem gap matches every other problem grid, so problem numbers
+   line up in ONE vertical rule down the page. At 2rem/0.25rem this block's
+   number sat 8px left of its neighbours' — measured, not eyeballed. */
+  grid-template-columns: 2.5rem 1fr;
+  gap: 0.5rem;
   align-items: baseline;
   text-align: left;
   overflow-x: visible;
+}
+/* A prompt-free display equation stays centered (see .block-math__body), but a
+ NUMBERED one is a problem: it must read left-aligned right after its number,
+ not float in the middle of the column half a page away from it.
+ BOTH selectors are required — KaTeX's own .katex-display rule (text-align:
+ center, inlined from the katex package via generated/katex-css.ts) overrides
+ the body rule, so aligning only .block-math__body leaves the equation visually
+ centered while MEASURING as left-aligned. Verified in-browser: the body
+ computed text-align:left while .katex-display still computed center.
+ (NB: this whole stylesheet is a TS template literal — no backticks in
+ comments, they terminate the string.) */
+.block-math.has-math-prompts.is-numbered .block-math__body,
+.block-math.has-math-prompts.is-numbered .katex-display,
+.block-math.has-math-prompts.is-numbered .katex-display > .katex {
+  text-align: left;
 }
 .block-math__body {
   text-align: center;
@@ -429,7 +447,18 @@ body {
  (number gutter + body). The canvas is a square, focusable coordinate plane the
  lazy-loaded graph kit mounts JSXGraph into; touch-action:none hands drag
  gestures to the kit rather than scrolling the page. */
-.block-interactive-graph {
+/* The three canvas question blocks share one problem grid. number-line and
+ data-plot were MISSING this until 2026-07-29: without it the block stayed
+ display:block, so its .block-problem-number — a block-level div with
+ text-align:right — rendered as a full-width line with the number flung to the
+ right margin, on its own row above the canvas. Browser-measured before the fix:
+ the number div was 760px wide (the whole content column) instead of 40px, and
+ sat on a different line from the prompt. Any new numbered block type must join
+ this list (or the fill-in-blank grid) — emitting the gutter div without a grid
+ to put it in is the failure mode. */
+.block-interactive-graph,
+.block-number-line,
+.block-data-plot {
   display: grid;
   grid-template-columns: 2.5rem 1fr;
   gap: 0.5rem;
