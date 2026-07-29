@@ -32,7 +32,7 @@ pnpm deploy:get-activity
 
 **DONE 2026-07-28 — S1 identity migrations applied + verified by the author.** 0013 (student role/domain gate/trigger rewrite/authoring guards) + 0014 (classes, 13+ assertion record, `join_class`, `submissions.student_id`) are live; `list_migrations` confirms both recorded; verification script sections A–E all passed, including E1 (teacher sign-in survived the `handle_new_auth_user` rewrite). `main` pushed. **CLI note for next time:** applying a migration in the SQL editor doesn't record it in the CLI history, so `supabase db push` re-runs it and fails on the already-exists error — `supabase migration repair --status applied <version>` reconciles, then push. No `student_domain` seed yet (none needed until a real district domain exists: `insert into student_domain (domain) values ('<district.org>')`).
 
-**QUEUED — Drop 0 hosting (Activity-Bank arc, first/standalone step).** Full runbook with all
+**DONE 2026-07-29 — Drop 0 hosting (Activity-Bank arc). All seven steps run + §6a/§6b/§6c verified; kept below for reference only.** Full runbook with all
 reasoning + exact values: [docs/drop0-hosting-runbook.md](docs/drop0-hosting-runbook.md). Claude
 prepared everything (verified the build + SPA fallback + CORS map); the author runs the dashboard/
 OAuth/secrets/SQL steps below **in order**, then Claude verifies the origin (§6a). Recommended
