@@ -35,13 +35,21 @@
   const wire = await r2.text();
   console.log('2. CONTENT', r2.status, '|', r2.headers.get('cache-control'), '|', wire.length, 'bytes');
 
-  // 3. LEAK SCAN — every probe must be false
+  // 3. LEAK SCAN — every probe must be false.
+  //
+  // Probes carry a TRAILING COLON on purpose. In JSON a key is always followed
+  // by ':' while a string value never is, so `"solution":` matches the FIELD
+  // and `"solution"` would also match the WORD sitting in a text node. Without
+  // the colon this scan reports a leak whenever an activity's prose happens to
+  // contain a schema field name — which is ordinary teacher content ("show your
+  // solution", "within tolerance"), not a leak. Fixture 2 kept a deliberate
+  // prose mention as a precision control; see 3c.
   console.log('3. LEAK SCAN (all must be false):');
   const probes = [
-    '"answer"', '"acceptableAnswers"', '"correct"', '"solution"', '"rubric"',
-    '"key"', 'mistakeFeedback', 'noSolutionCorrect', 'correctPoints',
-    'correctInterval', '"models"', '"domains"', '"regions"', '"inequalities"',
-    '"rays"', '"segments"', '"tolerance"', 'partialCredit', 'builtinFeedback',
+    '"answer":', '"acceptableAnswers":', '"correct":', '"solution":', '"rubric":',
+    '"key":', '"mistakeFeedback":', '"noSolutionCorrect":', '"correctPoints":',
+    '"correctInterval":', '"models":', '"domains":', '"regions":', '"inequalities":',
+    '"rays":', '"segments":', '"tolerance":', '"partialCredit":', '"builtinFeedback":',
   ];
   const leaked = probes.filter((p) => wire.includes(p));
   for (const p of probes) console.log('   ', wire.includes(p) ? '❌' : '✅', p);
@@ -50,7 +58,17 @@
   // 3b. POSITIVE CONTROL — allowNoSolution MUST survive (registry says so).
   //     If this is false, the sanitizer is over-stripping, which a leak scan
   //     alone would never catch.
-  console.log('3b. allowNoSolution present (must be TRUE):', wire.includes('allowNoSolution'));
+  console.log('3b. allowNoSolution present (must be TRUE):', wire.includes('"allowNoSolution":'));
+
+  // 3c. PRECISION CONTROL — fixture 2 deliberately puts the WORDS "solution"
+  //     and "tolerance" in prose. Both must appear as text (proving the fixture
+  //     imported) while neither appears as a field above (proving the probe
+  //     distinguishes key from value). This is the regression pin for the
+  //     false-positive that the colon-less probes produced.
+  const prose = wire.includes('"solution"') || wire.includes('"tolerance"');
+  console.log('3c. probe precision — field names present as PROSE:', prose,
+    '| flagged as leaks above:', ['"solution":', '"tolerance":'].some((p) => wire.includes(p)),
+    prose ? '(want true / false)' : '(prose control missing — using fixture 1?)');
 
   // 4. STALE VERSION
   const r4 = await get(`${BASE}?activity_id=${id}&version_id=11111111-1111-4111-8111-111111111111`);

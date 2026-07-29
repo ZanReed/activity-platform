@@ -9,10 +9,18 @@ the per-student serve-shuffle can be checked from the wire.
 Import via the app's markdown import, publish, then run verify-content-path.js
 against it.
 
-Secret fields this fixture puts on the wire path (none may survive):
-`correctPoints` · `tolerance` · `models` · `domains` · `regions` ·
-`inequalities` · `rays` · `segments` · `noSolutionCorrect` · `solution` ·
-`mistakeFeedback` · `partialCredit` · `builtinFeedback`
+**Do not list schema field names in this file's body prose.** An earlier draft
+documented its own probe list in backticked prose; the importer turned each
+backtick span into a text node whose value was exactly that field name, and the
+substring probes then reported 13 "leaks" that were the fixture quoting itself.
+The probes now match `"field":` (a JSON key is followed by a colon; a string
+value is not), and the two words kept below are the deliberate control proving
+that distinction still holds.
+
+PRECISION CONTROL — the next line must stay exactly as written. It puts the
+words in prose, where they must NOT be flagged:
+
+Show your full solution, and keep every measurement within tolerance.
 
 ## Graph — plot a point {checkpoint}
 
