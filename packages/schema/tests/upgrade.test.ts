@@ -6,6 +6,14 @@
 // cannot serve fails LOUDLY with UpgradeError (never a white-screen null, never
 // a guessed migration). The v1 rejection pins the documented greenfield
 // hard-cut (document.ts header: deliberately NO migrate(1→2)).
+//
+// OWED WHEN THE FIRST REAL MIGRATION LANDS (schemaVersion 3+): a golden
+// fixture PER historical version — a frozen stored-shape document for each
+// old version, asserted to upgrade to a frozen expected current-shape result.
+// The failure-modes table promises "golden fixtures per historical
+// schemaVersion"; that promise is vacuously met today and becomes real work
+// the moment migrate(2→3) exists. Add the fixture in the same commit as the
+// migration step.
 // =============================================================================
 
 import { describe, expect, it } from 'vitest';
