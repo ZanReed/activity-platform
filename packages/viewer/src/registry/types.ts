@@ -103,6 +103,24 @@ export interface SanitizeSpec {
   /** Nested Block[] fields the sanitizer recurses into (worked examples).
    * Children are sanitized by their OWN registry entries. */
   readonly childBlocks?: readonly string[];
+  /**
+   * Attach a derived `questionShape` to the served block (the ONE place the
+   * sanitizer adds rather than removes).
+   *
+   * Why it must exist: the graph widgets take their handle count and curve
+   * family from the answer key, which the viewer never receives — so without
+   * this, a served graph question cannot be laid out at all (found building
+   * V9; see the graph-kit ungraded-mode ruling).
+   *
+   * Why it is not a leak: what it emits is question SHAPE, already visible to
+   * any student looking at the widget — how many handles there are, and which
+   * family's curve follows their drags. The coordinates, tolerances, and
+   * coefficients stay stripped. The derivation is whitelisted to small integer
+   * counts and a closed family enum (sanitize.ts), so it CANNOT carry a
+   * coordinate even if a future edit tried to put one there, and the sentinel
+   * leak suite scans the derived output like everything else.
+   */
+  readonly deriveQuestionShape?: boolean;
 }
 
 /** Named paper treatments — the print vocabulary T8 builds against (ported

@@ -197,6 +197,9 @@ export const blockRegistry: BlockRegistry = {
       'display',
     ],
     sanitize: {
+      // The widget needs handle count / family, which live in the key the
+      // viewer never gets. Derived + whitelisted; see SanitizeSpec.
+      deriveQuestionShape: true,
       // Variant-scoped keys: paths that don't exist on an instance's
       // interaction simply don't match. `allowNoSolution` SURVIVES (it renders
       // the "no solution" control); `noSolutionCorrect` is the answer.
@@ -296,6 +299,9 @@ export const blockRegistry: BlockRegistry = {
     analyticsKey: 'number_line',
     variants: ['plot_point', 'plot_interval'],
     sanitize: {
+      // The widget needs handle count / family, which live in the key the
+      // viewer never gets. Derived + whitelisted; see SanitizeSpec.
+      deriveQuestionShape: true,
       strip: [
         'interaction.correctPoints',
         'interaction.tolerance',
@@ -321,6 +327,9 @@ export const blockRegistry: BlockRegistry = {
     analyticsKey: 'data_plot',
     variants: ['display', 'build_dotplot', 'build_histogram', 'build_boxplot'],
     sanitize: {
+      // The widget needs handle count / family, which live in the key the
+      // viewer never gets. Derived + whitelisted; see SanitizeSpec.
+      deriveQuestionShape: true,
       strip: ['solution', 'interaction.tolerance'],
       derivableFromServed:
         'The data set is the working material the student builds the chart ' +

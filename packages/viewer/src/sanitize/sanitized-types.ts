@@ -124,6 +124,16 @@ export type SanitizedDataPlotInteraction = DistributiveOmit<
  * nested unions (WorkedExampleChild, FadedWorkedExampleChild) project through
  * the same rules as top-level blocks — a child fill_in_blank loses its
  * solution exactly like a top-level one. */
+/** The one field the sanitizer ADDS (SanitizeSpec.deriveQuestionShape): the
+ * question's layout shape, derived from the answer key and whitelisted to
+ * counts + a closed family enum. Optional because a display-mode instance
+ * takes no input and gets none. */
+export interface SanitizedQuestionShape {
+  handleCount?: number;
+  family?: string;
+  vertexCount?: number;
+}
+
 export type SanitizeBlockType<B> = B extends { type: 'math_block' }
   ? Omit<DeepSanitizeInline<B>, 'solution'>
   : B extends { type: 'problem' }
@@ -139,7 +149,10 @@ export type SanitizeBlockType<B> = B extends { type: 'math_block' }
             | 'noSolutionCorrect'
             | 'partialCredit'
             | 'builtinFeedback'
-          > & { interaction: SanitizedGraphInteraction }
+          > & {
+            interaction: SanitizedGraphInteraction;
+            questionShape?: SanitizedQuestionShape;
+          }
         : B extends { type: 'multiple_choice'; choices: readonly (infer C)[] }
           ? Omit<DeepSanitizeInline<B>, 'solution' | 'choices'> & {
               choices: Omit<DeepSanitizeInline<C>, 'correct' | 'feedback'>[];
@@ -151,10 +164,12 @@ export type SanitizeBlockType<B> = B extends { type: 'math_block' }
               : B extends { type: 'number_line' }
                 ? Omit<DeepSanitizeInline<B>, 'solution' | 'interaction'> & {
                     interaction: SanitizedNumberLineInteraction;
+                    questionShape?: SanitizedQuestionShape;
                   }
                 : B extends { type: 'data_plot' }
                   ? Omit<DeepSanitizeInline<B>, 'solution' | 'interaction'> & {
                       interaction: SanitizedDataPlotInteraction;
+                      questionShape?: SanitizedQuestionShape;
                     }
                   : B extends { type: 'short_answer' }
                     ? Omit<DeepSanitizeInline<B>, 'rubric'>

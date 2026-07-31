@@ -43,6 +43,8 @@ export type { ColorToken, StaticToken, DesignToken, StateName } from './tokens/t
 
 // S2 — the answer-key sanitizer + serve-time shuffles (server-side; bundled
 // into the get-activity Edge Function via src/server/index.ts).
+export { deriveQuestionShape } from './sanitize/sanitize.js';
+export type { QuestionShape } from './sanitize/sanitize.js';
 export {
   SANITIZER_ALGO_REV,
   SANITIZER_REV,
@@ -136,6 +138,7 @@ export type {
   SanitizedRow,
   SanitizedSection,
   SanitizedActivityDocument,
+  SanitizedQuestionShape,
 } from './sanitize/sanitized-types.js';
 
 // S3 V5 — the inline content renderer (every block inherits it), the lazy

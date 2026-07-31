@@ -152,6 +152,121 @@ function stripInBandSecrets(value: unknown): void {
 // -----------------------------------------------------------------------------
 
 /** Mutating core — operates on an already-cloned block. */
+
+// ---- Derived question shape (the one ADDITIVE step) -------------------------
+// The sanitizer's job is removal; this is the single exception, and it is
+// fenced accordingly.
+//
+// Why it exists: the graph widgets take their handle count and curve family
+// from the answer key. The viewer never receives a key, so without this a
+// served graph question cannot be laid out — there is no way to know whether
+// to draw one handle or three.
+//
+// Why it is safe: what leaves here is question SHAPE, which the student can
+// already see (how many handles; which family's curve follows their drags),
+// never the coordinates, tolerances, or coefficients that make an answer. The
+// guarantee is STRUCTURAL rather than a promise about this code: every value
+// passes a whitelist on the way out — small positive integers, or a family
+// name from a closed set — so a coordinate cannot travel this path even if a
+// future edit tried to send one. Anything failing the whitelist is dropped,
+// not passed through (fail closed, like the unknown-block-type throw).
+
+/** Upper bound on a handle count. Far above any real question; exists so a
+ * corrupt or hostile length can't become an absurd allocation downstream. */
+const MAX_HANDLES = 24;
+
+/** Curve families the widget lays out. Closed set: an unrecognized family is
+ * dropped and the widget falls back to its own default. */
+const KNOWN_FAMILIES: ReadonlySet<string> = new Set([
+  'linear',
+  'quadratic',
+  'exponential',
+  'logarithmic',
+  'vertical',
+  'absolute',
+  'sqrt',
+  'cubic',
+]);
+
+export interface QuestionShape {
+  handleCount?: number;
+  family?: string;
+  vertexCount?: number;
+}
+
+/** A count survives only as a small positive integer. */
+function safeCount(value: unknown): number | undefined {
+  return typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value > 0 &&
+    value <= MAX_HANDLES
+    ? value
+    : undefined;
+}
+
+/** A family survives only if it is a known name. */
+function safeFamily(value: unknown): string | undefined {
+  return typeof value === 'string' && KNOWN_FAMILIES.has(value)
+    ? value
+    : undefined;
+}
+
+/**
+ * Derive the served question shape from an UNSANITIZED block (it reads the
+ * answer key, so it must run before the strips). Returns undefined when there
+ * is nothing to say — a display-mode graph takes no input and gets no shape.
+ */
+export function deriveQuestionShape(
+  block: Record<string, unknown>,
+): QuestionShape | undefined {
+  const interaction = block.interaction as Record<string, unknown> | undefined;
+  const kind = typeof interaction?.type === 'string' ? interaction.type : null;
+  if (!kind || kind === 'display') return undefined;
+
+  const shape: QuestionShape = {};
+
+  // Point-style interactions: one handle per authored target. This mirrors
+  // exactly what the graded widget already does with the key
+  // (count = correctPoints.length), so a student sees the same widget either
+  // way — the number of handles is not the secret, their positions are.
+  const points = interaction?.correctPoints;
+  if (Array.isArray(points)) {
+    const count = safeCount(points.length);
+    if (count !== undefined) shape.handleCount = count;
+  }
+
+  // Curve families: the shape of the curve that follows the student's drags.
+  const models = interaction?.models;
+  if (Array.isArray(models) && models.length > 0) {
+    const family = safeFamily(
+      (models[0] as Record<string, unknown> | null)?.family,
+    );
+    if (family !== undefined) shape.family = family;
+  }
+
+  // An inequality's boundary rides the same family machinery.
+  const inequalities = interaction?.inequalities;
+  if (Array.isArray(inequalities) && inequalities.length > 0) {
+    const boundary = (inequalities[0] as Record<string, unknown> | null)
+      ?.boundary as Record<string, unknown> | undefined;
+    const family = safeFamily(boundary?.family);
+    if (family !== undefined) shape.family = family;
+  }
+
+  // Polygon vertex count for shade_region.
+  const regions = interaction?.regions;
+  if (Array.isArray(regions) && regions.length > 0) {
+    const vertices = (regions[0] as Record<string, unknown> | null)
+      ?.correctVertices;
+    if (Array.isArray(vertices)) {
+      const count = safeCount(vertices.length);
+      if (count !== undefined) shape.vertexCount = count;
+    }
+  }
+
+  return Object.keys(shape).length > 0 ? shape : undefined;
+}
+
 function sanitizeBlockMut(block: Record<string, unknown>): void {
   const type = block.type;
   const entry =
@@ -165,7 +280,15 @@ function sanitizeBlockMut(block: Record<string, unknown>): void {
     throw new Error(`sanitize: unknown block type ${String(type)}`);
   }
 
+  // Derived shape is computed BEFORE the strips (it reads the answer key) and
+  // attached after, so the served block carries only the whitelisted result.
+  const shape = entry.sanitize.deriveQuestionShape
+    ? deriveQuestionShape(block)
+    : undefined;
+
   for (const path of entry.sanitize.strip) applyStripPath(block, path);
+
+  if (shape) block.questionShape = shape;
 
   for (const field of entry.sanitize.childBlocks ?? []) {
     const children = block[field];
