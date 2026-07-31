@@ -105,6 +105,18 @@ export type {
   ViewerStoreState,
 } from './store/store.js';
 
+// S3 V4 — the container shell: document indexing, the per-block error
+// boundary, and the worksheet renderer that owns section checking.
+export { indexDocument } from './container/blockIndex.js';
+export type { DocumentIndex, SectionIndex } from './container/blockIndex.js';
+export { BlockBoundary } from './container/BlockBoundary.js';
+export type { BlockCrash, BlockBoundaryProps } from './container/BlockBoundary.js';
+export { ViewerContainer } from './container/ViewerContainer.js';
+export type {
+  CheckShortfall,
+  ViewerContainerProps,
+} from './container/ViewerContainer.js';
+
 export type {
   BlankSecretField,
   MathPromptSecretField,
