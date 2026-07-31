@@ -161,7 +161,7 @@ function readDomainKey(raw: unknown): DomainAnswerKey | null {
 
 // The board recipe (handle count, curve/polygon to draw, scorer) for one
 // interaction type.
-interface Recipe {
+export interface Recipe {
   count: number;
   scorer: (points: [number, number][]) => boolean;
   deriveCurve?: PointAnswerConfig['deriveCurve'];
@@ -170,14 +170,41 @@ interface Recipe {
   starts?: [number, number][];
 }
 
-function recipeFor(
+/**
+ * The handle-layout + scoring decision for one question. Pure and exported so
+ * the graded/ungraded fork is unit-testable: the widget mount itself needs
+ * JSXGraph and stays browser-verified (see tests/runtime.test.ts header), but
+ * THIS is where "how many handles, and is anything scored" is decided.
+ */
+export function questionRecipe(
   interactionType: string,
   answerKey: unknown,
   axis: SeedWindow,
+  shape?: GraphQuestionConfig['questionShape'],
 ): Recipe {
+  // Ungraded input mode (no answer key): handle layout comes from the declared
+  // question shape and nothing is scored. `never` rather than `false` would be
+  // a lie of a different kind — the caller reads `scored` to know.
+  const ungraded = answerKey === undefined || answerKey === null;
+
   if (interactionType === 'plot_function') {
+    const family = ungraded
+      ? (shape?.family ?? 'linear')
+      : readModel(answerKey).family;
+    const count = shape?.handleCount ?? handlesForFamily(family);
+    if (ungraded) {
+      return {
+        count,
+        starts: startsForFamily(family, axis, count),
+        scorer: () => false,
+        deriveCurve: (pts) => {
+          const f = fitFunction(family, pts);
+          return f && 'predict' in f ? f.predict : null;
+        },
+        lineThroughHandles: family === 'vertical',
+      };
+    }
     const model = readModel(answerKey);
-    const family = model.family;
     return {
       count: handlesForFamily(family),
       starts: startsForFamily(family, axis, handlesForFamily(family)),
@@ -191,11 +218,24 @@ function recipeFor(
     };
   }
   if (interactionType === 'shade_region') {
+    if (ungraded) {
+      return {
+        count: Math.max(3, shape?.vertexCount ?? shape?.handleCount ?? 3),
+        scorer: () => false,
+        polygon: true,
+      };
+    }
     const key = readRegionKey(answerKey);
     return {
       count: Math.max(3, key.correctVertices.length),
       scorer: (pts) => scoreRegion(key, pts),
       polygon: true,
+    };
+  }
+  if (ungraded) {
+    return {
+      count: Math.max(1, shape?.handleCount ?? 1),
+      scorer: () => false,
     };
   }
   const key = readAnswerKey(answerKey);
@@ -356,7 +396,40 @@ function createLinearShapeControls(
 export interface GraphQuestionConfig {
   interactionType: string;
   axisConfig: PointAnswerConfig;
-  answerKey: PointAnswerKey;
+  /**
+   * The answer key. OPTIONAL since the server-authoritative viewer
+   * (components-as-data arc, ruling Q2B): that client never receives a key —
+   * the read API's sanitizer strips `correctPoints` / `tolerance` / `models` /
+   * `regions` / `inequalities` before a document leaves the server — so it
+   * mounts this widget purely as an INPUT surface and the server grades.
+   *
+   * Absent ⇒ ungraded input mode: no scoring, no mistake classification, and
+   * `correct` is reported `false` with `scored: false` alongside so a consumer
+   * can tell "not scored here" from "wrong". Published pages and the editor
+   * preview keep passing a key and are unaffected.
+   *
+   * When absent, pass `questionShape` — the widget still needs to know how
+   * many handles to draw, which it otherwise derives FROM the key.
+   */
+  answerKey?: PointAnswerKey;
+  /**
+   * Question SHAPE, for ungraded mode: how many handles, and (for
+   * plot_function / graph_inequality) which family's handle layout to use.
+   *
+   * This is not answer data. The handle count and the curve family are
+   * visible to any student looking at the widget — "plot two points", "drag
+   * three handles for a parabola" is the question, while the coefficients and
+   * target coordinates are the answer. Graded mode ignores this and keeps
+   * deriving shape from the key, so the two paths can't disagree.
+   */
+  questionShape?: {
+    /** Handles to place. Defaults to 1 (or the family's count when given). */
+    handleCount?: number;
+    /** plot_function / graph_inequality boundary family. Defaults to linear. */
+    family?: FunctionModel['family'];
+    /** shade_region polygon vertices. Defaults to 3. */
+    vertexCount?: number;
+  };
   /** Per-part fractional scoring (Drop 4). earned/total ride the response. */
   partialCredit?: boolean;
   /** Offer a "cannot be graphed / no solution" choice (Drop 4). */
@@ -376,7 +449,13 @@ export interface GraphQuestionConfig {
 // student chose "cannot be graphed", earned/total under partialCredit.
 export interface GraphResponseData {
   studentPoints: [number, number][];
+  /** In ungraded mode this is always false and MEANINGLESS — read `scored`
+   * before believing it. */
   correct: boolean;
+  /** False when the widget mounted without an answer key (ungraded input
+   * mode); absent/true means `correct` was actually computed. Additive: every
+   * existing consumer that ignores it keeps its current behavior. */
+  scored?: boolean;
   answered: boolean;
   strict?: boolean;
   side?: 'above' | 'below' | 'left' | 'right';
@@ -610,19 +689,26 @@ export async function mountGraphQuestion(
   const isInequality = interactionType === 'graph_inequality';
   const isRay = interactionType === 'plot_ray';
   const isSegment = interactionType === 'plot_segment';
-  const ineqKey = isInequality ? readInequalityKey(cfg.answerKey) : null;
-  const rayKey = isRay ? readRayKey(cfg.answerKey) : null;
-  const segmentKey = isSegment ? readSegmentKey(cfg.answerKey) : null;
+  // Ungraded input mode: no key, so nothing here scores or classifies. See
+  // GraphQuestionConfig.answerKey.
+  const ungraded = cfg.answerKey === undefined || cfg.answerKey === null;
+  const ineqKey = isInequality && !ungraded ? readInequalityKey(cfg.answerKey) : null;
+  const rayKey = isRay && !ungraded ? readRayKey(cfg.answerKey) : null;
+  const segmentKey = isSegment && !ungraded ? readSegmentKey(cfg.answerKey) : null;
   const domainKey =
-    interactionType === 'plot_function' ? readDomainKey(cfg.answerKey) : null;
+    interactionType === 'plot_function' && !ungraded
+      ? readDomainKey(cfg.answerKey)
+      : null;
   const recipe: Recipe = isInequality
     ? // Boundary rides the plot_function machinery for its family.
-      recipeFor('plot_function', { models: [ineqKey!.boundary] }, axis)
+      ungraded
+      ? questionRecipe('plot_function', undefined, axis, cfg.questionShape)
+      : questionRecipe('plot_function', { models: [ineqKey!.boundary] }, axis)
     : isRay || isSegment
       ? // Two endpoint handles; scoring is parts-based in build() (styles ride
         // alongside points), so the recipe scorer is a stub.
         { count: 2, scorer: () => false }
-      : recipeFor(interactionType, cfg.answerKey, axis);
+      : questionRecipe(interactionType, cfg.answerKey, axis, cfg.questionShape);
 
   // The renderer seeds a static no-JS placeholder inside the canvas; clear it
   // before JSXGraph mounts so the two don't overlap.
@@ -654,24 +740,30 @@ export async function mountGraphQuestion(
 
   // Drop B: authored anticipated-mistake matchers, parsed once at mount with
   // the kit's own freeform parser + the block's scoring tolerances.
-  const mistakeMatchers = compileMistakeMatchers(cfg.mistakes ?? [], {
-    interactionType,
-    pointTolerance:
-      interactionType === 'plot_point'
-        ? readAnswerKey(cfg.answerKey).tolerance
-        : undefined,
-    keyModel:
-      interactionType === 'plot_function'
-        ? readModel(cfg.answerKey)
-        : isInequality
-          ? ineqKey!.boundary
-          : undefined,
-  });
+  // Ungraded mode has no key to match against, and the server owns feedback
+  // selection there (ruling 2.1A) — so compile nothing.
+  const mistakeMatchers = ungraded
+    ? compileMistakeMatchers([], { interactionType })
+    : compileMistakeMatchers(cfg.mistakes ?? [], {
+        interactionType,
+        pointTolerance:
+          interactionType === 'plot_point'
+            ? readAnswerKey(cfg.answerKey).tolerance
+            : undefined,
+        keyModel:
+          interactionType === 'plot_function'
+            ? readModel(cfg.answerKey)
+            : isInequality
+              ? ineqKey!.boundary
+              : undefined,
+      });
 
   // Annotate a WRONG answer with mistake feedback: first authored match wins;
   // built-in classifiers (unless disabled) are the fallback. Correct/unanswered
   // /no-solution responses carry nothing — feedback only ever nudges a miss.
   function annotateMistake(resp: GraphResponseData): GraphResponseData {
+    // Ungraded: the client has no key and no opinion; the server annotates.
+    if (ungraded) return resp;
     if (!resp.answered || resp.correct || resp.noSolution) return resp;
     const ans: StudentGraphAnswer = {
       points: resp.studentPoints,
@@ -708,7 +800,19 @@ export async function mountGraphQuestion(
   }
 
   function build(): GraphResponseData {
-    return annotateMistake(buildBase());
+    const resp = annotateMistake(buildBase());
+    if (ungraded) {
+      // The single place ungraded truth is stamped: `correct` is forced to a
+      // meaningless false and flagged as unscored, so no consumer can read a
+      // verdict out of a widget that never had a key.
+      resp.correct = false;
+      resp.scored = false;
+      delete resp.earned;
+      delete resp.total;
+      delete resp.mistakeIndex;
+      delete resp.mistakeText;
+    }
+    return resp;
   }
 
   function buildBase(): GraphResponseData {
@@ -1047,7 +1151,7 @@ export async function mountGraphSystemQuestion(
   // boundary's family — the same plot_function machinery a single inequality's
   // boundary rides.
   const specs: SystemBoundarySpec[] = keys.map((key) => {
-    const r = recipeFor('plot_function', { models: [key.boundary] }, axis);
+    const r = questionRecipe('plot_function', { models: [key.boundary] }, axis);
     return {
       count: r.count,
       starts: r.starts,

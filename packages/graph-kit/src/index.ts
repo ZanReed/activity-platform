@@ -45,6 +45,9 @@ export { mathEquivalent } from './math-equivalent.js';
 export type { EquivalenceMode, MathEquivalentOptions } from './math-equivalent.js';
 export { latexToAscii, asciiToLatex } from './math-prompt-convert.js';
 export { mountMathPrompts } from './math-prompt-mount.js';
+// The pure graded/ungraded handle-layout decision (viewer ungraded input mode).
+export { questionRecipe } from './graph-question.js';
+export type { Recipe } from './graph-question.js';
 export type {
   MathPromptMountOptions,
   MountedMathPrompts,
