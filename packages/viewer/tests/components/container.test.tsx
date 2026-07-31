@@ -109,19 +109,23 @@ describe('rendering the served document', () => {
   it('renders every section, row, and block slot in document order', () => {
     const { container } = setup(fullDoc);
     const index = indexDocument(fullDoc);
-    // Scope to SLOT wrappers: bound components also carry data-block-id on
-    // their own root, so an unscoped query counts each bound block twice.
-    expect(container.querySelectorAll('.viewer-block[data-block-id]')).toHaveLength(
-      fullDoc.sections[0]!.rows.length,
-    );
+    // Top-level slots only: bound components carry data-block-id on their own
+    // root, and containers render NESTED .viewer-block wrappers for children.
+    expect(
+      container.querySelectorAll('.viewer-block[data-block-id]:not(.viewer-block--nested)'),
+    ).toHaveLength(fullDoc.sections[0]!.rows.length);
     expect(index.sections).toHaveLength(1);
     expect(container.querySelector('[data-section-id="ffffffff-ffff-4fff-8fff-000000000001"]')).not.toBeNull();
   });
 
-  it('renders an honest placeholder for types with no component binding yet', () => {
-    // `heading` is deliberately unbound until its own component lands — the
-    // placeholder is what an unbuilt block looks like, not an error.
-    const { container } = setup(docOf(blocksOf('heading')[0]));
+  it('renders an honest placeholder for a type with no component binding', () => {
+    // Every registry type is bound now, so the unbound path is driven through
+    // the resolver seam rather than by finding an unbuilt fixture. It still
+    // matters: it is what a NEW block type looks like on the day its schema
+    // lands and its component has not.
+    const { container } = setup(docOf(blocksOf('heading')[0]), {
+      resolveComponent: () => null,
+    });
     expect(container.querySelector('[data-unbound="true"]')).toHaveTextContent(
       'heading',
     );

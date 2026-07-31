@@ -24,6 +24,21 @@ import type { BlockComponentBinding, BlockType } from './types.js';
 import Paragraph from '../blocks/Paragraph.js';
 import MultipleChoice from '../blocks/MultipleChoice.js';
 import ShortAnswer from '../blocks/ShortAnswer.js';
+import Heading from '../blocks/Heading.js';
+import Callout from '../blocks/Callout.js';
+import BulletList from '../blocks/BulletList.js';
+import OrderedList from '../blocks/OrderedList.js';
+import LearningObjectives from '../blocks/LearningObjectives.js';
+import Image from '../blocks/Image.js';
+import GraphFigure from '../blocks/GraphFigure.js';
+import Problem from '../blocks/Problem.js';
+import SelfExplanation from '../blocks/SelfExplanation.js';
+import Essay from '../blocks/Essay.js';
+import FillInBlank from '../blocks/FillInBlank.js';
+import Ordering from '../blocks/Ordering.js';
+import Matching from '../blocks/Matching.js';
+import WorkedExample from '../blocks/WorkedExample.js';
+import FadedWorkedExample from '../blocks/FadedWorkedExample.js';
 
 /**
  * How each built block reaches the page. Unlisted types have no component yet
@@ -35,9 +50,25 @@ import ShortAnswer from '../blocks/ShortAnswer.js';
 export const blockBindings: Partial<
   Record<BlockType, BlockComponentBinding<BlockType>>
 > = {
+  // Eager: light, near-universal, no heavy dependency behind them.
   paragraph: { loading: 'eager', component: Paragraph as never },
+  heading: { loading: 'eager', component: Heading as never },
+  callout: { loading: 'eager', component: Callout as never },
+  bullet_list: { loading: 'eager', component: BulletList as never },
+  ordered_list: { loading: 'eager', component: OrderedList as never },
+  learning_objectives: { loading: 'eager', component: LearningObjectives as never },
+  image: { loading: 'eager', component: Image as never },
+  graph_figure: { loading: 'eager', component: GraphFigure as never },
+  problem: { loading: 'eager', component: Problem as never },
   multiple_choice: { loading: 'eager', component: MultipleChoice as never },
+  fill_in_blank: { loading: 'eager', component: FillInBlank as never },
+  matching: { loading: 'eager', component: Matching as never },
+  ordering: { loading: 'eager', component: Ordering as never },
   short_answer: { loading: 'eager', component: ShortAnswer as never },
+  self_explanation: { loading: 'eager', component: SelfExplanation as never },
+  essay: { loading: 'eager', component: Essay as never },
+  worked_example: { loading: 'eager', component: WorkedExample as never },
+  faded_worked_example: { loading: 'eager', component: FadedWorkedExample as never },
   // The lazy tier: every canvas block pulls graph-kit (and JSXGraph) behind
   // it, which is exactly the weight that tier exists for.
   interactive_graph: {
@@ -51,6 +82,14 @@ export const blockBindings: Partial<
   data_plot: {
     loading: 'lazy',
     load: () => import('../blocks/DataPlot.js') as never,
+  },
+  // math_block is lazy for a different reason than the canvas blocks: a
+  // GAP-BEARING equation mounts MathLive, the heaviest dependency in the
+  // product. A promptless one renders with KaTeX and never reaches that path,
+  // but the binding is per TYPE, so the type takes the cautious tier.
+  math_block: {
+    loading: 'lazy',
+    load: () => import('../blocks/MathBlock.js') as never,
   },
 };
 

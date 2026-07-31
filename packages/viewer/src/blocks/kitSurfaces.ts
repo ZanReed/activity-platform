@@ -275,3 +275,41 @@ function readPlotValues(resp: Record<string, unknown>): number[] {
   }
   return [];
 }
+
+
+// ---- Math prompts (Model A gaps) --------------------------------------------
+// The heaviest lazy chunk: MathLive. A math_block with no gaps is static
+// content that KaTeX already renders, so this seam is reached ONLY by a
+// gap-bearing block — which is why math_block is a lazy binding and why
+// CLAUDE.md's rule that MathLive never joins the base page weight still holds.
+
+export interface MathPromptsSurfaceHandle {
+  destroy(): void;
+}
+
+export interface MathPromptsSurface {
+  (
+    host: HTMLElement,
+    opts: {
+      latex: string;
+      initialValues: Record<string, string>;
+      onValue: (promptId: string, ascii: string) => void;
+    },
+  ): Promise<MathPromptsSurfaceHandle>;
+}
+
+let mathPromptsOverride: MathPromptsSurface | null = null;
+
+export function setMathPromptsSurface(surface: MathPromptsSurface | null): void {
+  mathPromptsOverride = surface;
+}
+
+export function mathPromptsSurface(): MathPromptsSurface {
+  return mathPromptsOverride ?? kitMathPromptsSurface;
+}
+
+const kitMathPromptsSurface: MathPromptsSurface = async (host, opts) => {
+  const kit = await import('@activity/graph-kit');
+  const mounted = kit.mountMathPrompts(host, opts);
+  return { destroy: () => mounted.destroy() };
+};
