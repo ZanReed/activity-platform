@@ -248,6 +248,9 @@ importers:
       '@activity/schema':
         specifier: workspace:*
         version: link:../schema
+      katex:
+        specifier: ^0.16.10
+        version: 0.16.45
     devDependencies:
       '@eslint/js':
         specifier: ^9.17.0
@@ -261,6 +264,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@types/katex':
+        specifier: ^0.16.7
+        version: 0.16.8
       '@types/react':
         specifier: ^19.1.8
         version: 19.2.14

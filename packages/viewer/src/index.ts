@@ -111,6 +111,8 @@ export { indexDocument } from './container/blockIndex.js';
 export type { DocumentIndex, SectionIndex } from './container/blockIndex.js';
 export { BlockBoundary } from './container/BlockBoundary.js';
 export type { BlockCrash, BlockBoundaryProps } from './container/BlockBoundary.js';
+export { ViewerProvider, useViewer } from './container/context.js';
+export type { BlockPhase, ViewerContextValue } from './container/context.js';
 export { ViewerContainer } from './container/ViewerContainer.js';
 export type {
   CheckShortfall,
@@ -135,3 +137,17 @@ export type {
   SanitizedSection,
   SanitizedActivityDocument,
 } from './sanitize/sanitized-types.js';
+
+// S3 V5 — the inline content renderer (every block inherits it), the lazy
+// KaTeX seam, and the shared state-chrome pill.
+export { InlineContent, InlineMath } from './inline/InlineContent.js';
+export type { InlineContentProps } from './inline/InlineContent.js';
+export {
+  loadMathRenderer,
+  residentMathRenderer,
+  setMathRenderer,
+} from './inline/math.js';
+export type { MathRenderer } from './inline/math.js';
+export { StatePill } from './blocks/StatePill.js';
+export type { PillState, StatePillProps } from './blocks/StatePill.js';
+export type { BlockComponentBinding } from './registry/types.js';

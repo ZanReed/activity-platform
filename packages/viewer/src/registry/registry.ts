@@ -26,6 +26,9 @@ import type {
   BlockType,
   CheckedStateFamily,
 } from './types.js';
+import Paragraph from '../blocks/Paragraph.js';
+import MultipleChoice from '../blocks/MultipleChoice.js';
+import ShortAnswer from '../blocks/ShortAnswer.js';
 
 /** BlankToken fields stripped from inline content wherever
  * SanitizeSpec.inlineBlankSecrets is set. `hint` deliberately survives — it is
@@ -65,6 +68,7 @@ export const blockRegistry: BlockRegistry = {
     analyticsKey: 'paragraph',
     sanitize: { strip: [] },
     print: { breakInside: 'auto', treatment: 'prose' },
+    binding: { loading: 'eager', component: Paragraph },
   },
 
   heading: {
@@ -240,6 +244,7 @@ export const blockRegistry: BlockRegistry = {
         'fieldset whose legend is the prompt; full label click targets. ' +
         'Standard arrow-key radio behavior; verdicts announce via aria-live.',
     },
+    binding: { loading: 'eager', component: MultipleChoice },
   },
 
   matching: {
@@ -404,6 +409,7 @@ export const blockRegistry: BlockRegistry = {
         'aria-live; teacher feedback, once released, renders as a labeled ' +
         'region announced on arrival.',
     },
+    binding: { loading: 'eager', component: ShortAnswer },
   },
 
   essay: {

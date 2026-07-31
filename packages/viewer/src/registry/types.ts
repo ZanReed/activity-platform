@@ -149,12 +149,40 @@ export interface BlockComponentProps<B extends Block = Block> {
   readonly mode: 'screen' | 'print';
 }
 
-/** Lazy component binding — the dynamic import IS the per-block chunk (P1A).
- * Unset in S0 (no components exist yet); T6 fills every entry, at which point
- * the guard flips to required. */
+/** Lazy component binding — the dynamic import IS the per-block chunk (P1A). */
 export type LazyBlockComponent = () => Promise<{
   default: ComponentType<BlockComponentProps>;
 }>;
+
+/** How a block's component reaches the page (ruling D16, amending P1A as
+ * applied). Lazy-loading EVERY block was over-broad: paragraph/heading/lists
+ * appear on ~100% of worksheets, so chunking them buys ~1 KiB at the cost of a
+ * request waterfall and a Suspense boundary in every test. The split:
+ *
+ *  - 'eager' — statically imported into the shell. Light, near-universal
+ *    blocks. Renders on first paint, no fallback flash, sync in tests.
+ *  - 'lazy'  — the dynamic import IS the chunk. Reserved for blocks that drag
+ *    real weight behind them (the graph-kit family; anything pulling MathLive).
+ *    Inline math is separately lazy (inline/math.ts), so carrying math does not
+ *    by itself make a block lazy.
+ *
+ * S8's perf budget measures and corrects; this declaration is what it measures.
+ * Unset in S0 (no components existed); V5 binds the exemplars. */
+/** Parameterized by block type so a component may be written against its OWN
+ * block (`BlockComponentProps<ParagraphBlock>`) instead of the whole union —
+ * a component that had to accept every block would need a discriminant switch
+ * it can never hit. The container casts once at the resolution seam. */
+export type BlockComponentBinding<T extends BlockType = BlockType> =
+  | {
+      readonly loading: 'eager';
+      readonly component: ComponentType<BlockComponentProps<Extract<Block, { type: T }>>>;
+    }
+  | {
+      readonly loading: 'lazy';
+      readonly load: () => Promise<{
+        default: ComponentType<BlockComponentProps<Extract<Block, { type: T }>>>;
+      }>;
+    };
 
 export interface BlockRegistryEntry<T extends BlockType = BlockType> {
   readonly type: T;
@@ -173,7 +201,9 @@ export interface BlockRegistryEntry<T extends BlockType = BlockType> {
   readonly print: PrintSpec;
   /** Required when interactivity === 'interactive' (guard-enforced). */
   readonly a11y?: A11ySpec;
-  readonly component?: LazyBlockComponent;
+  /** How this block's component loads. Unset = not yet built (the container
+   * renders an honest placeholder). */
+  readonly binding?: BlockComponentBinding<T>;
 }
 
 export type BlockRegistry = { readonly [T in BlockType]: BlockRegistryEntry<T> };

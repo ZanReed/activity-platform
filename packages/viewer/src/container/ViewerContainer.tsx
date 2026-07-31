@@ -25,10 +25,21 @@
 // the eager-vs-lazy split (statics eager, heavies lazy) at this seam.
 // =============================================================================
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type { ComponentType } from 'react';
 import { blockRegistry, familyOf } from '../registry/registry.js';
-import type { BlockComponentProps, BlockType } from '../registry/types.js';
+import type {
+  BlockComponentBinding,
+  BlockComponentProps,
+  BlockType,
+} from '../registry/types.js';
 import type {
   SanitizedActivityDocument,
   SanitizedBlock,
@@ -36,6 +47,7 @@ import type {
 import type { ViewerStore } from '../store/store.js';
 import type { SectionStatus } from '../store/persistence.js';
 import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
+import { ViewerProvider } from './context.js';
 import { indexDocument, type SectionIndex } from './blockIndex.js';
 
 /** What a section check could not cover — never silently empty. */
@@ -60,10 +72,30 @@ export interface ViewerContainerProps {
   mode?: 'screen' | 'print';
 }
 
-function defaultResolve(): ComponentType<BlockComponentProps> | null {
-  // Registry bindings are lazy imports (P1A chunks); V5 introduces the
-  // eager/lazy resolver. Until an entry is bound there is nothing to render.
-  return null;
+/** Memo so a lazy binding produces ONE React.lazy per type, not one per
+ * render (a fresh lazy() each render remounts the subtree and loses state). */
+const lazyCache = new Map<BlockType, ComponentType<BlockComponentProps>>();
+
+/** Registry-driven resolution honoring the D16 eager/lazy split. Unbound types
+ * return null and render the placeholder. */
+function defaultResolve(
+  type: BlockType,
+): ComponentType<BlockComponentProps> | null {
+  // The one cast: bindings are typed against their OWN block, the slot renders
+  // the union. The registry guard proves each binding sits on its own entry.
+  const binding = blockRegistry[type].binding as
+    | BlockComponentBinding
+    | undefined;
+  if (!binding) return null;
+  if (binding.loading === 'eager') {
+    return binding.component as ComponentType<BlockComponentProps>;
+  }
+  let component = lazyCache.get(type);
+  if (!component) {
+    component = lazy(binding.load) as unknown as ComponentType<BlockComponentProps>;
+    lazyCache.set(type, component);
+  }
+  return component;
 }
 
 function statusLabel(status: SectionStatus | undefined): string {
@@ -127,7 +159,18 @@ export function ViewerContainer({
     [shortfallFor, store, onCheckShortfall],
   );
 
+  // blockId → sectionId, so a component can find its own section's phase
+  // without knowing the document shape.
+  const sectionByBlock = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const section of index.sections) {
+      for (const blockId of section.blockIds) map[blockId] = section.sectionId;
+    }
+    return map;
+  }, [index]);
+
   return (
+    <ViewerProvider store={store} sectionByBlock={sectionByBlock}>
     <div className="viewer" data-viewer-mode={mode}>
       {doc.sections.map((section) => {
         const sectionIndex = index.bySection[section.id];
@@ -204,6 +247,7 @@ export function ViewerContainer({
         );
       })}
     </div>
+    </ViewerProvider>
   );
 }
 
@@ -246,7 +290,13 @@ function BlockSlot({
         data-block-family={familyOf(block as never)}
       >
         {Component ? (
-          <Component block={block as never} mode={mode} />
+          // Suspense only matters for lazy bindings; eager ones never suspend,
+          // which is exactly why D16 keeps the common blocks eager.
+          <Suspense
+            fallback={<span className="viewer-block__loading" aria-hidden="true" />}
+          >
+            <Component block={block as never} mode={mode} />
+          </Suspense>
         ) : (
           <p className="viewer-block__unbound" data-unbound="true">
             {type}

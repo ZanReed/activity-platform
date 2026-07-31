@@ -109,9 +109,9 @@ describe('rendering the served document', () => {
   it('renders every section, row, and block slot in document order', () => {
     const { container } = setup(fullDoc);
     const index = indexDocument(fullDoc);
-    expect(container.querySelectorAll('[data-block-id]')).toHaveLength(
-      // Container children render their own slots only at the top level; the
-      // index counts nested blocks too, so compare against top-level rows.
+    // Scope to SLOT wrappers: bound components also carry data-block-id on
+    // their own root, so an unscoped query counts each bound block twice.
+    expect(container.querySelectorAll('.viewer-block[data-block-id]')).toHaveLength(
       fullDoc.sections[0]!.rows.length,
     );
     expect(index.sections).toHaveLength(1);
@@ -119,10 +119,17 @@ describe('rendering the served document', () => {
   });
 
   it('renders an honest placeholder for types with no component binding yet', () => {
-    const { container } = setup(docOf(blocksOf('paragraph')[0]));
+    // `heading` is deliberately unbound until its own component lands — the
+    // placeholder is what an unbuilt block looks like, not an error.
+    const { container } = setup(docOf(blocksOf('heading')[0]));
     expect(container.querySelector('[data-unbound="true"]')).toHaveTextContent(
-      'paragraph',
+      'heading',
     );
+  });
+
+  it('renders BOUND exemplars from the registry with no explicit resolver', () => {
+    setup(docOf(blocksOf('paragraph')[0]));
+    expect(screen.getByText(/slope-intercept form is written/)).toBeInTheDocument();
   });
 
   it('renders bound components and tags each slot with its type, category, and family', () => {
