@@ -17,6 +17,7 @@ import DevNumberLine from './routes/DevNumberLine';
 import DevDataPlot from './routes/DevDataPlot';
 import DevConfigDrawer from './routes/DevConfigDrawer';
 import DevViewer from './routes/DevViewer';
+import StudentViewer from './routes/StudentViewer';
 
 export default function App() {
     return (
@@ -25,6 +26,10 @@ export default function App() {
         <Route path="/" element={<Home />} />
         {/* Public by design (D7): auth screens and student fineprint link here. */}
         <Route path="/privacy" element={<Privacy />} />
+        {/* Student-facing viewer. Deliberately NOT wrapped in RequireAuth: the
+            route itself shows the pre-auth screen (ruling 3.2A) so a signed-out
+            student sees WHAT they were sent before being asked who they are. */}
+        <Route path="/a/:activityId" element={<StudentViewer />} />
         <Route
         path="/activities"
         element={

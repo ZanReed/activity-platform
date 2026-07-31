@@ -581,6 +581,88 @@
   padding: var(--space-1) var(--space-2);
 }
 
+/* ---- Route chrome: gate, skeleton, top bar ---------------------------------
+   The screens a student meets before (and instead of) the worksheet. */
+
+.viewer-centered {
+  align-items: center;
+  background: var(--color-page);
+  color: var(--color-ink);
+  display: flex;
+  font-family: var(--font-chrome);
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-4);
+}
+
+.viewer-gate {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  max-width: 32rem;
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.viewer-gate__eyebrow {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta);
+  margin: 0 0 var(--space-1);
+}
+
+.viewer-gate__title {
+  font-size: var(--type-h1);
+  margin: 0 0 var(--space-3);
+}
+
+.viewer-gate__body {
+  color: var(--color-ink-muted);
+  margin: 0 0 var(--space-5);
+}
+
+.viewer-gate__detail {
+  color: var(--color-ink-faint);
+  font-size: var(--type-fine);
+  margin: var(--space-5) 0 0;
+}
+
+.viewer-topbar {
+  background: var(--color-paper);
+  border-bottom: 1px solid var(--color-line);
+  padding: var(--space-3) var(--space-4);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-topbar);
+}
+
+.viewer-topbar h1 {
+  font-family: var(--font-chrome);
+  font-size: var(--type-h3);
+  margin: 0 auto;
+  max-width: var(--measure);
+}
+
+/* Skeleton rows: shimmer under the paper card while content loads. The
+   reduced-motion block below stops the animation, leaving a static
+   placeholder — which still communicates "not loaded yet". */
+.viewer-skeleton__row {
+  animation: viewer-shimmer 1.4s ease-in-out infinite;
+  background: var(--color-line-faint);
+  border-radius: var(--radius-sm);
+  height: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.viewer-skeleton__row[data-skeleton-row='1'] { width: 92%; }
+.viewer-skeleton__row[data-skeleton-row='2'] { width: 74%; }
+.viewer-skeleton__row[data-skeleton-row='3'] { width: 85%; }
+.viewer-skeleton__row[data-skeleton-row='4'] { width: 60%; }
+
+@keyframes viewer-shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 /* ---- Accessibility floors (6.1A) ------------------------------------------- */
 
 .viewer :focus-visible {

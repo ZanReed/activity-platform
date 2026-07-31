@@ -180,3 +180,15 @@ export type {
 export { StatePill } from './blocks/StatePill.js';
 export type { PillState, StatePillProps } from './blocks/StatePill.js';
 export type { BlockComponentBinding } from './registry/types.js';
+
+// S3 route — the viewer's data source and the real grading client.
+export { createReadClient, ViewerLoadError } from './client/readClient.js';
+export type {
+  ActivityMeta,
+  ReadClientOptions,
+  ServedActivity,
+  ViewerErrorKind,
+  ViewerReadClient,
+} from './client/readClient.js';
+export { createHttpCheckService } from './client/httpCheckService.js';
+export type { HttpCheckServiceOptions } from './client/httpCheckService.js';
