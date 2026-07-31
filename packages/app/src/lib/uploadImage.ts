@@ -1,16 +1,21 @@
 import { supabase } from './supabase';
 
 // ============================================================================
-// uploadImage — POST an image file to the upload-image Edge Function (R2).
+// uploadImage — POST an image file to the upload-image Edge Function.
 // ----------------------------------------------------------------------------
 // Mirrors usePublish's invoke pattern: attach the session token explicitly
 // (publishable-key clients don't reliably forward the user JWT on
 // functions.invoke), send multipart/form-data, and surface the function's
-// { error, details } body as a readable message. Returns the public R2 URL.
+// { error, details } body as a readable message. Returns the uploaded image's
+// public URL — Supabase Storage since the 2026-07-31 Cloudflare-exit ruling,
+// Cloudflare R2 before it. The origin is NOT this client's business: the
+// function returns an absolute URL and the editor stores it verbatim, which is
+// why the retarget needed no change here.
 // ============================================================================
 
-// Client-side guard mirroring the Edge Function's allowlist so we fail fast
-// with a friendly message instead of a 415 round-trip.
+// Client-side guard mirroring the Edge Function's allowlist (and the bucket's
+// own allowed_mime_types, migration 0019) so we fail fast with a friendly
+// message instead of a 415 round-trip.
 export const ALLOWED_IMAGE_TYPES = [
     'image/png',
     'image/jpeg',

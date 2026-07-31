@@ -1,5 +1,5 @@
 // =============================================================================
-// upload-image/index.ts — Edge Function: upload an author's image to R2
+// upload-image/index.ts — Edge Function: upload an author's image to Storage
 // -----------------------------------------------------------------------------
 // Flow:
 //   1. Receive POST multipart/form-data { activity_id, file } with the user's
@@ -7,27 +7,31 @@
 //   2. Verify the user may edit the activity (can_edit_activity RPC, run as the
 //      user so auth.uid() reflects the caller). Reject otherwise.
 //   3. Validate the file: allowed image MIME type + size cap.
-//   4. PUT the bytes to Cloudflare R2 at uploads/{activityId}/{uuid}.{ext}
-//      (immutable — the uuid name never collides, so cache forever).
-//   5. Return the public R2 URL; the editor stores it as the image block's src.
+//   4. Upload the bytes to the public `activity-images` Supabase Storage bucket
+//      at {activityId}/{uuid}.{ext} (the uuid name never collides, so the
+//      object is immutable in practice and cached for a year).
+//   5. Return the public Storage URL; the editor stores it as the block's src.
 //
-// Hosting note mirrors publish-activity: assets live on Cloudflare R2 (served
-// with the correct Content-Type, zero egress), signed via aws4fetch's SigV4
-// (the @aws-sdk PutObject hangs on Supabase Edge / Deno).
+// Hosting note — RETARGETED off Cloudflare R2 2026-07-31 (the Cloudflare-exit
+// ruling, STATE.md → Current focus). Images can live on Supabase Storage where
+// published HTML still cannot: the free-tier anti-abuse rewrite that forced R2
+// on us (`text/html` → `text/plain`, CLAUDE.md) applies to HTML only, and
+// `image/*` is served with its true Content-Type. Bucket + posture are created
+// in migration 0019_image_storage.sql.
 //
-// Environment variables required (same R2 secrets as publish-activity):
+// Security model is UNCHANGED by the retarget: the bucket is public-read with
+// ZERO write policies, so only service_role can write, which means only this
+// function can — and this function still refuses before writing a byte unless
+// `can_edit_activity` says yes for the CALLER. The gate is here, not in policy.
+//
+// Environment variables required (NO R2 secrets — all auto-injected):
 //   SUPABASE_URL              — auto-injected
-//   SUPABASE_ANON_KEY         — auto-injected
-//   R2_ACCOUNT_ID             — Cloudflare account ID
-//   R2_ACCESS_KEY_ID          — R2 API token access key ID
-//   R2_SECRET_ACCESS_KEY      — R2 API token secret access key
-//   R2_BUCKET_NAME            — R2 bucket name
-//   R2_PUBLIC_URL_BASE        — Public r2.dev URL or custom domain (no trailing slash)
+//   SUPABASE_ANON_KEY         — auto-injected (user-scoped client, for the RPC)
+//   SUPABASE_SERVICE_ROLE_KEY — auto-injected (admin client, for the write)
 //   ALLOWED_ORIGINS           — optional, defaults to '*' (set in prod)
 // =============================================================================
 
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 import {
   handlePreflight,
   jsonResponse,
@@ -36,44 +40,30 @@ import {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-const R2_ACCOUNT_ID = Deno.env.get('R2_ACCOUNT_ID') ?? '';
-const R2_ACCESS_KEY_ID = Deno.env.get('R2_ACCESS_KEY_ID') ?? '';
-const R2_SECRET_ACCESS_KEY = Deno.env.get('R2_SECRET_ACCESS_KEY') ?? '';
-const R2_BUCKET_NAME = Deno.env.get('R2_BUCKET_NAME') ?? '';
-const R2_PUBLIC_URL_BASE = Deno.env.get('R2_PUBLIC_URL_BASE') ?? '';
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error('Missing required Supabase environment variables (SUPABASE_URL, SUPABASE_ANON_KEY)');
-}
-if (
-  !R2_ACCOUNT_ID ||
-  !R2_ACCESS_KEY_ID ||
-  !R2_SECRET_ACCESS_KEY ||
-  !R2_BUCKET_NAME ||
-  !R2_PUBLIC_URL_BASE
-) {
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error(
-    'Missing required R2 environment variables ' +
-    '(R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL_BASE)'
+    'Missing required Supabase environment variables ' +
+    '(SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY)'
   );
 }
 
-const PUBLIC_URL_BASE = R2_PUBLIC_URL_BASE.replace(/\/+$/, '');
+// Created by migration 0019_image_storage.sql: public read, no write policies,
+// with mime + size limits mirroring the two constants below.
+const IMAGE_BUCKET = 'activity-images';
 
-// One AwsClient per cold start (see publish-activity for why aws4fetch, not @aws-sdk).
-const r2Client = new AwsClient({
-  accessKeyId: R2_ACCESS_KEY_ID,
-  secretAccessKey: R2_SECRET_ACCESS_KEY,
-  service: 's3',
-  region: 'auto',
+// One admin client per cold start. Service role bypasses RLS — which is the
+// ONLY way to write this bucket — so it is used for the upload and nothing
+// else. Authorization is decided above it, by can_edit_activity as the caller.
+const admin: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
 });
-
-const R2_ENDPOINT = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
 
 // Allowed raster image types → file extension. SVG is deliberately excluded:
 // it can carry scripts, and serving it inline (even cross-origin) is an
 // avoidable XSS surface. Authors who need vector art can rasterize first.
+// Keep in sync with 0019's allowed_mime_types and the client's fail-fast list.
 const MIME_TO_EXT: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -82,28 +72,13 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/avif': 'avif',
 };
 
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_BYTES = 10 * 1024 * 1024; // 10 MB — mirrors 0019's file_size_limit
 
-// Sign + PUT one object to R2. Throws on any non-2xx so callers map it to a
-// clean errorResponse.
-async function putToR2(
-  key: string,
-  body: Uint8Array,
-  contentType: string,
-): Promise<void> {
-  const res = await r2Client.fetch(`${R2_ENDPOINT}/${R2_BUCKET_NAME}/${key}`, {
-    method: 'PUT',
-    body,
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=31536000, immutable',
-    },
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`R2 PUT ${key} failed: ${res.status} ${res.statusText} ${detail}`.trim());
-  }
-}
+// A year, in seconds — becomes the object's stored cache-control. There is no
+// way to append `immutable` the way the raw R2 PUT header did. Harmless delta:
+// the uuid key means an object's bytes never change, so a revalidation at worst
+// costs one conditional request that 304s.
+const CACHE_SECONDS = '31536000';
 
 interface UploadResponse {
   url: string;
@@ -173,18 +148,39 @@ Deno.serve(async (req: Request) => {
     return errorResponse(req, 403, 'Not authorized to upload to this activity');
   }
 
-  // ---- Upload to R2 -----------------------------------------------------
-  const key = `uploads/${activityId}/${crypto.randomUUID()}.${ext}`;
+  // ---- Upload to Storage ------------------------------------------------
+  // Key layout puts the activity id at foldername index 1 with no dead prefix
+  // above it — the bucket name already says "images", and 0019's follow-on
+  // (direct-to-Storage upload under a can_edit_activity policy) would parse
+  // exactly that segment.
+  const key = `${activityId}/${crypto.randomUUID()}.${ext}`;
+
+  // Pass BYTES, not the File — deliberate, do not "simplify". supabase-js sends
+  // a Blob/File as multipart and lets the server infer the type, but sends a
+  // byte array as a raw body with `content-type` set from options. Only the
+  // second path guarantees the object is stored under the MIME type we just
+  // validated, and serving an image under the wrong Content-Type is the exact
+  // failure class that drove this project off Supabase Storage once already.
   const bytes = new Uint8Array(await file.arrayBuffer());
-  try {
-    await putToR2(key, bytes, file.type);
-  } catch (err) {
-    console.error('[upload-image] R2 upload failed:', err);
+
+  // upsert:false — a uuid key cannot collide, so a collision would mean
+  // something is wrong; surface it rather than silently overwriting.
+  const { error: uploadError } = await admin.storage.from(IMAGE_BUCKET).upload(key, bytes, {
+    contentType: file.type,
+    cacheControl: CACHE_SECONDS,
+    upsert: false,
+  });
+  if (uploadError) {
+    console.error('[upload-image] Storage upload failed:', uploadError);
     return errorResponse(req, 500, 'Failed to upload image', {
-      message: err instanceof Error ? err.message : String(err),
+      message: uploadError.message,
     });
   }
 
-  const response: UploadResponse = { url: `${PUBLIC_URL_BASE}/${key}` };
+  const {
+    data: { publicUrl },
+  } = admin.storage.from(IMAGE_BUCKET).getPublicUrl(key);
+
+  const response: UploadResponse = { url: publicUrl };
   return jsonResponse(req, response, { status: 200 });
 });
