@@ -56,6 +56,28 @@ read a design doc to get a passing test.
 
 ---
 
+## Styling
+
+Import `@activity/viewer/viewer.css` alongside `tokens.css`. Your component
+gets its look from **class names + tokens**, never from inline styles or local
+colours:
+
+```tsx
+<div className="viewer-mc" data-block-type="multiple_choice">
+```
+
+**A literal colour, shadow, or named colour in `src/styles/viewer.css` fails
+`tests/styles.test.ts`.** Use the token layer ([DESIGN.md](DESIGN.md)) — and if
+you need a value it doesn't have, add the token rather than the literal. The
+same suite pins the floors the design rulings set: 44px tap targets, a visible
+focus ring, reduced-motion, a phone breakpoint, and print rendering as a blank
+worksheet.
+
+Inline styles are used in exactly two places, both because the property must
+not depend on a stylesheet having loaded: the visually-hidden narration region
+(`canvasChrome.ts`) and the canvas host sizing (a zero-height container makes
+JSXGraph draw nothing).
+
 ## The three families (the one rule that matters)
 
 Every block belongs to exactly one **checked-state family**, declared in the
