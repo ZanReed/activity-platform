@@ -67,8 +67,23 @@ export default function InteractiveGraph({
     let cancelled = false;
     const mount = graphSurface();
 
+    // Each mount gets its OWN child container instead of the shared canvas
+    // div. React dev-mode (StrictMode) runs mount → cleanup → mount, and both
+    // async mounts overlap; the kit begins with `mount.textContent = ''`, so
+    // on a shared element whichever mount cleared LAST wiped the other's
+    // freshly built board — a live board object with empty DOM, which is
+    // exactly what /dev/viewer showed (JXG.boards held 6 boards, 4 of them
+    // with empty containers, a different 4 each run). A per-mount host makes
+    // the two lifetimes disjoint: this mount clears and draws only in its own
+    // child, and cleanup removes that child synchronously.
+    const host = document.createElement('div');
+    host.dataset.graphBoardHost = 'true';
+    host.style.width = '100%';
+    host.style.height = '100%';
+    el.appendChild(host);
+
     void mount(
-      el,
+      host,
       {
         interactionType,
         axisConfig: block.axisConfig,
@@ -136,6 +151,10 @@ export default function InteractiveGraph({
       cancelled = true;
       handleRef.current?.destroy();
       handleRef.current = null;
+      // Synchronous, even though the board may still be mid-mount: a
+      // late-resolving board builds into this now-detached div (invisible)
+      // and is freed by the cancelled → destroy path above.
+      host.remove();
     };
     // block.id keys the widget; the rest is read once at mount by design.
     // eslint-disable-next-line react-hooks/exhaustive-deps
