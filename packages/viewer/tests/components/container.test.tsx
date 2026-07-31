@@ -256,19 +256,23 @@ describe('section checking (ruling P2A + the D12 shortfall rule)', () => {
     expect(screen.queryByText(/couldn’t be checked/)).toBeNull();
   });
 
-  it('graph-family blocks report as unsupported shortfall (wire v1 has no category)', async () => {
+  it('graph-family blocks check normally at wire v2 — no shortfall', async () => {
     const graph = blocksOf('interactive_graph').find(
       (b) => (b as { interaction?: { type?: string } }).interaction?.type === 'plot_point',
     ) as { id: string };
     const shortfalls: CheckShortfall[] = [];
-    setup(docOf(graph), {
+    const { service, store } = setup(docOf(graph), {
       resolveComponent: () => Fine,
       onCheckShortfall: (s) => shortfalls.push(s),
     });
+    store.setGraphWork(graph.id, { interaction: 'plot_point', points: [[0, -1]] });
 
     fireEvent.click(screen.getByRole('button', { name: 'Check' }));
-    await waitFor(() => expect(shortfalls).toHaveLength(1));
-    expect(shortfalls[0]!.unsupportedBlockIds).toEqual([graph.id]);
+    await waitFor(() => expect(service.calls).toHaveLength(1));
+    expect(service.calls[0]!.responses.graphs).toEqual({
+      [graph.id]: { interaction: 'plot_point', points: [[0, -1]] },
+    });
+    expect(shortfalls).toHaveLength(0);
   });
 
   it('re-check stays available after a first check (parity bundle 7.1A)', async () => {

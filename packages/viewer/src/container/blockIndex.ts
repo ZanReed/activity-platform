@@ -18,13 +18,12 @@
 //     edit — the failure mode this avoids is a student's answer silently never
 //     reaching the grader.
 //
-//  2. UNSUPPORTED IS RECORDED, NEVER DROPPED. The graph family
-//     (interactive_graph / number_line / data_plot) has no CHECK_WIRE_VERSION 1
-//     response category — its payload shape is designed WITH the kit-backed
-//     exemplar (build order V9), not invented ahead of it. Gradable instances
-//     of those types land in `unsupported` so the container can say so out
-//     loud. A silent omission here would read as "all checked" while a
-//     student's graph work went ungraded.
+//  2. UNSUPPORTED IS RECORDED, NEVER DROPPED. Wire v2 (V9) gave the graph
+//     family its `graphs` category, so `unsupported` is empty today — but the
+//     mechanism stays. It is the honest answer whenever a gradable block has
+//     no way to reach the grader (a future block type ahead of its wire
+//     bump). A silent omission would read as "all checked" while a student's
+//     work went ungraded, which is the failure this exists to prevent.
 // =============================================================================
 
 import { familyOf } from '../registry/registry.js';
@@ -161,7 +160,11 @@ function visit(block: SanitizedBlock, index: SectionIndex): void {
         index.items.freeText = [...(index.items.freeText ?? []), id];
         break;
       default:
-        if (GRAPH_FAMILY.has(type)) index.unsupported.push(id);
+        // Wire v2 carries geometric work for the whole graph family; the
+        // server dispatches on the served interaction type.
+        if (GRAPH_FAMILY.has(type)) {
+          index.items.graphs = [...(index.items.graphs ?? []), id];
+        }
         break;
     }
   }

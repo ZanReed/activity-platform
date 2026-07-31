@@ -27,12 +27,14 @@
 //     free-text answer). Released teacher feedback arrives via
 //     `fetchReleasedFeedback` (the get-feedback precedent), NOT via check.
 //
-// v1 SCOPE (CHECK_WIRE_VERSION below): the DOM-family categories — blanks
-// (incl. math-gap ids), choices, matching, ordering, free text. The graph
-// family's state payloads (interactive_graph / number_line / data_plot) are
-// deliberately NOT typed yet: their wire shape gets designed WITH the
-// kit-backed exemplar (build-order V9), not invented ahead of it. Adding them
-// bumps CHECK_WIRE_VERSION.
+// v2 (V9) adds `graphs`, the geometric-input category shared by
+// interactive_graph / number_line / data_plot. Designed WITH the kit-backed
+// exemplar rather than ahead of it, and deliberately NOT a copy of the old
+// submission wire's GraphResponse: that shape carries `correct` (and
+// `earned`/`total`), computed client-side in the published page because the
+// answer key was baked into the HTML. Under Q2B the client has no answer key
+// and no opinion about correctness, so the student→server direction carries
+// WORK ONLY. Verdicts travel the other way, in CheckItemResult.
 // =============================================================================
 
 import type { SanitizedInlineNode } from '../sanitize/sanitized-types.js';
@@ -40,7 +42,7 @@ import type { SanitizedInlineNode } from '../sanitize/sanitized-types.js';
 /** Bump on any incompatible change to the request/result shapes. S4's RPC
  * must accept the version it was built against — the mock and the store stamp
  * it into every request. */
-export const CHECK_WIRE_VERSION = 1;
+export const CHECK_WIRE_VERSION = 2;
 
 // ---- Responses (student → server) ------------------------------------------
 
@@ -60,10 +62,51 @@ export interface SectionResponses {
   orderings: Record<string, string[]>;
   /** free-text block id (self_explanation / short_answer / essay) → text. */
   freeText: Record<string, string>;
+  /** graph-family block id → the student's geometric work (wire v2). */
+  graphs: Record<string, GraphWork>;
+}
+
+/** What a student built on a graphing surface. Mirrors the geometry the old
+ * submission wire stored, MINUS every grading field — see the v2 note above.
+ * One shape across the three graph-family blocks (a number line is a 1-D graph
+ * and a data plot is a categorical one), because the server dispatches on the
+ * served block's interaction type, which it already knows. */
+export interface GraphWork {
+  /** The served interaction type ('plot_point', 'build_histogram', …) — lets
+   * the grader validate that the work matches the question it was served. */
+  interaction: string;
+  /** Every point/handle the student placed, in graph units. 1-D surfaces use
+   * [x, 0]; categorical plots use [binIndex, height]. */
+  points: [number, number][];
+  /** The student chose "cannot be graphed" (blocks with allowNoSolution).
+   * `points` may legitimately be empty when this is true. */
+  noSolution?: boolean;
+  /** Domain-restricted curves (rays, segments, intervals): endpoint positions
+   * and their open/closed styles. */
+  domain?: {
+    minX?: number;
+    minStyle?: 'open' | 'closed';
+    maxX?: number;
+    maxStyle?: 'open' | 'closed';
+  };
+  /** Per-object work for multi-object questions (inequality systems, "graph
+   * both lines"). Absent for single-object questions. */
+  parts?: Array<{
+    points?: [number, number][];
+    strict?: boolean;
+    side?: string;
+  }>;
 }
 
 export function emptySectionResponses(): SectionResponses {
-  return { blanks: {}, choices: {}, matches: {}, orderings: {}, freeText: {} };
+  return {
+    blanks: {},
+    choices: {},
+    matches: {},
+    orderings: {},
+    freeText: {},
+    graphs: {},
+  };
 }
 
 export interface CheckRequest {

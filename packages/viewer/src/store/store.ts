@@ -25,6 +25,7 @@ import {
   emptySectionResponses,
   type CheckRequest,
   type CheckService,
+  type GraphWork,
   type SectionResponses,
 } from '../check/wire.js';
 import {
@@ -44,6 +45,7 @@ export interface SectionItemIds {
   matches?: string[];
   orderings?: string[];
   freeText?: string[];
+  graphs?: string[];
 }
 
 export interface ViewerStoreState {
@@ -62,6 +64,9 @@ export interface ViewerStore {
   setMatch(blockId: string, itemId: string, targetId: string | null): void;
   setOrdering(blockId: string, itemIds: string[]): void;
   setFreeText(blockId: string, text: string): void;
+  /** Replace a graph-family block's work (wire v2). The component owns the
+   * geometry; the store just holds it. */
+  setGraphWork(blockId: string, work: GraphWork): void;
 
   /** One batched check for the section's CURRENT values (2.2A). Resolves when
    * the status transition has landed; never throws — failures surface as the
@@ -149,6 +154,11 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         r.freeText[blockId] = text;
       });
     },
+    setGraphWork(blockId, work) {
+      setResponse((r) => {
+        r.graphs[blockId] = structuredClone(work);
+      });
+    },
 
     async checkSection(sectionId, items) {
       // Fire-time snapshot (2.2A): built synchronously from CURRENT values.
@@ -163,6 +173,7 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
           matches: pick(state.responses.matches, items.matches),
           orderings: pick(state.responses.orderings, items.orderings),
           freeText: pick(state.responses.freeText, items.freeText),
+          graphs: pick(state.responses.graphs, items.graphs),
         },
       };
       commit({

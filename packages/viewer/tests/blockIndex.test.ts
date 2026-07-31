@@ -12,7 +12,9 @@
 //     to the nested block, not the container;
 //   - math gaps count as blanks wherever they appear;
 //   - display-mode instances contribute nothing (they take no input);
-//   - graph-family gradables land in `unsupported` rather than vanishing.
+//   - graph-family gradables route into the `graphs` category (wire v2), and
+//     the `unsupported` escape hatch stays empty-but-live for the next block
+//     type that lands ahead of its wire bump.
 // =============================================================================
 
 import { describe, expect, it } from 'vitest';
@@ -145,24 +147,32 @@ describe('non-input and unsupported instances', () => {
     }
   });
 
-  it('gradable graph-family blocks are RECORDED as unsupported, never dropped', () => {
+  it('gradable graph-family blocks route into the graphs category (wire v2)', () => {
     const gradableGraph = blockOf('interactive_graph').find(
       (b) =>
         (b as { interaction?: { type?: string } }).interaction?.type === 'plot_point',
     ) as { id: string };
     const isolated = indexDocument(docWith(gradableGraph));
-    expect(isolated.sections[0]!.unsupported).toEqual([gradableGraph.id]);
-    expect(isolated.sections[0]!.items).toEqual({});
+    expect(isolated.sections[0]!.items.graphs).toEqual([gradableGraph.id]);
+    expect(isolated.sections[0]!.unsupported).toEqual([]);
   });
 
-  it('the document roster lists every gradable graph-family block', () => {
+  it('every gradable graph-family block reaches the grader', () => {
     const expected = registeredBlockTypes
       .filter((t) => ['interactive_graph', 'number_line', 'data_plot'].includes(t))
       .flatMap((t) => blockOf(t))
       .filter((b) => familyOf(b as never) !== 'static')
       .map((b) => (b as { id: string }).id);
-    expect([...index.unsupported].sort()).toEqual([...expected].sort());
-    expect(index.unsupported.length).toBeGreaterThan(0);
+    expect([...(only.items.graphs ?? [])].sort()).toEqual([...expected].sort());
+    expect(expected.length).toBeGreaterThan(0);
+  });
+
+  it('the unsupported roster is EMPTY at wire v2 — and that is a claim, not an omission', () => {
+    // Every gradable type now has a wire category. The mechanism stays for the
+    // next block type that lands ahead of its wire bump; if this ever goes
+    // non-empty, some student's work has no way to reach the grader and the
+    // container is required to say so.
+    expect(index.unsupported).toEqual([]);
   });
 
   it('purely static content contributes no ids at all', () => {
