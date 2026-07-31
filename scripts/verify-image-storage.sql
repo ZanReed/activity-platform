@@ -188,8 +188,12 @@ $$;
 rollback;
 
 -- =============================================================================
--- Live E2E checklist (the API layer this script cannot reach) — run once after
--- the SPA change deploys; ~5 minutes:
+-- Live E2E — AUTOMATED: paste scripts/verify-image-storage-e2e.js into the
+-- browser console at https://activity-platform.pages.dev while signed in as a
+-- teacher. It runs T1–T8 below (session-JWT reach, tokenless public read,
+-- duplicate refusal, upsert/overwrite denial, bucket mime + size limits,
+-- non-owned activity denial, malformed-key clean denial) and prints PASS/FAIL.
+-- The manual equivalent, for reference:
 --
 --   1. FIRST (proves storage-js forwards the session JWT — the class of
 --      assumption that already failed once for functions.invoke, see the old
