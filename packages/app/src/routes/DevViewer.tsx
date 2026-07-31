@@ -32,6 +32,7 @@ import {
   servedFixtureDocument,
 } from '@activity/viewer/fixtures';
 import '@activity/viewer/tokens.css';
+import '@activity/viewer/viewer.css';
 
 type Verdict = 'correct' | 'incorrect' | 'recorded';
 

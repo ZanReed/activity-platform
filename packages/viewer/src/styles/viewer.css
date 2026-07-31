@@ -1,0 +1,735 @@
+/* =============================================================================
+   viewer.css — the student worksheet's appearance (S3)
+   -----------------------------------------------------------------------------
+   Consumes tokens.css and NOTHING else. A literal colour, size, or shadow in
+   this file is a review-blocker (DESIGN.md), and tests/styles.test.ts enforces
+   it rather than trusting review — the same posture as every other invariant in
+   this package.
+
+   The direction is the ruled one: a paper-like worksheet, the digital sibling
+   of the printed page. A paper card sits on a page field; everything on the
+   paper is faithful to what teachers and students already see on published
+   pages. Chrome (check controls, status, state pills) is the only new
+   vocabulary, and it stays quiet enough that the worksheet reads as the
+   document rather than as an app.
+
+   Ordering: shell → rhythm → state vocabulary → per-block → a11y floors →
+   responsive → print. Print comes last because it overrides, and because the
+   token layer has already flattened colour by then; what remains here is
+   LAYOUT — which is exactly the split DESIGN.md describes.
+   ============================================================================= */
+
+/* ---- Shell ---------------------------------------------------------------- */
+
+.viewer {
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--activity-font-family, var(--font-body));
+  font-size: var(--activity-font-size, var(--type-body));
+  line-height: var(--leading);
+  min-height: 100%;
+  padding: var(--space-6) var(--space-4);
+}
+
+.viewer-section {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  margin: 0 auto var(--space-6);
+  max-width: var(--measure);
+  padding: var(--space-8);
+}
+
+.viewer-section__title {
+  border-bottom: 1px solid var(--color-line);
+  font-size: var(--type-h2);
+  margin: 0 0 var(--space-6);
+  padding-bottom: var(--space-3);
+}
+
+/* ---- Rhythm ---------------------------------------------------------------
+   One vertical rhythm for every block, so a worksheet reads evenly no matter
+   which block types an author happened to combine. */
+
+.viewer-row + .viewer-row {
+  margin-top: var(--space-5);
+}
+
+.viewer-column > .viewer-block + .viewer-block {
+  margin-top: var(--space-5);
+}
+
+.viewer-row {
+  display: flex;
+  gap: var(--space-5);
+}
+
+.viewer-column {
+  flex: 1 1 0;
+  min-width: 0; /* let long content shrink instead of overflowing the row */
+}
+
+/* ---- Section footer: the check control ------------------------------------ */
+
+.viewer-section__footer {
+  align-items: center;
+  border-top: 1px solid var(--color-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+}
+
+.viewer-section__check {
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-lg);
+  color: var(--color-paper);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--type-small);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-6);
+}
+
+.viewer-section__check:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+  border-color: var(--color-accent-strong);
+}
+
+.viewer-section__check:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.viewer-section__status,
+.viewer-section__shortfall {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta);
+  margin: 0;
+}
+
+/* A shortfall is a warning, not a verdict — pending ink, no state surface. */
+.viewer-section__shortfall {
+  color: var(--state-pending-ink);
+}
+
+/* ---- State vocabulary ------------------------------------------------------
+   One pill component, four states, each an ink/border/surface trio. Nothing
+   else in this file may set a state colour. */
+
+.viewer-state-pill {
+  align-items: center;
+  border: 1px solid;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  font-size: var(--type-meta);
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  vertical-align: middle;
+}
+
+.viewer-state-pill--correct {
+  background: var(--state-correct-surface);
+  border-color: var(--state-correct-border);
+  color: var(--state-correct-ink);
+}
+
+.viewer-state-pill--incorrect {
+  background: var(--state-incorrect-surface);
+  border-color: var(--state-incorrect-border);
+  color: var(--state-incorrect-ink);
+}
+
+.viewer-state-pill--pending {
+  background: var(--state-pending-surface);
+  border-color: var(--state-pending-border);
+  color: var(--state-pending-ink);
+}
+
+.viewer-state-pill--recorded {
+  background: var(--state-recorded-surface);
+  border-color: var(--state-recorded-border);
+  color: var(--state-recorded-ink);
+}
+
+.viewer-state-pill__glyph {
+  font-weight: 700;
+}
+
+/* Server feedback sits under the mark it explains. */
+[data-feedback='server'] {
+  color: var(--color-ink-muted);
+  font-size: var(--type-small);
+  margin: var(--space-2) 0 0;
+}
+
+/* ---- Solutions (7.4A) ------------------------------------------------------
+   Callout language, collapsed by default, capped so a long worked solution
+   cannot push the rest of the worksheet off screen. */
+
+.viewer-solution {
+  background: var(--color-raised);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+}
+
+.viewer-solution > summary {
+  color: var(--color-accent);
+  cursor: pointer;
+  font-size: var(--type-small);
+  min-height: var(--touch-target);
+  display: flex;
+  align-items: center;
+}
+
+.viewer-solution__body {
+  border-top: 1px solid var(--color-line);
+  margin-top: var(--space-2);
+  max-height: 24rem;
+  overflow-y: auto;
+  padding-top: var(--space-3);
+}
+
+/* ---- Error + unbound placeholders ------------------------------------------
+   Deliberately NOT state-coloured: a crash is not a verdict on the student's
+   work (BlockBoundary's header). Quiet neutral treatment. */
+
+.viewer-block-error,
+.viewer-block__unbound {
+  background: var(--color-raised);
+  border: 1px dashed var(--color-line-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink-muted);
+  font-size: var(--type-small);
+  padding: var(--space-3) var(--space-4);
+}
+
+.viewer-block-error__message,
+.viewer-block-error__detail {
+  margin: 0;
+}
+
+.viewer-block-error__detail {
+  margin-top: var(--space-1);
+}
+
+/* ---- Content blocks -------------------------------------------------------- */
+
+.viewer-paragraph {
+  margin: 0;
+}
+
+.viewer-heading {
+  font-size: var(--type-h3);
+  margin: 0;
+}
+
+.viewer-heading[data-level='1'] {
+  font-size: var(--type-h1);
+}
+
+.viewer-heading[data-level='2'] {
+  font-size: var(--type-h2);
+}
+
+/* list-style is set EXPLICITLY, not inherited from the host page's defaults:
+   the app's CSS reset strips markers from ul/ol, and a worksheet whose list
+   items lost their bullets reads as loose sentences. The viewer must look the
+   same wherever it is mounted, so it never relies on the absence of a reset. */
+.viewer-list {
+  margin: 0;
+  padding-left: var(--space-6);
+}
+
+.viewer-list--bullet {
+  list-style: disc outside;
+}
+
+.viewer-list--ordered {
+  list-style: decimal outside;
+}
+
+.viewer-list__item + .viewer-list__item {
+  margin-top: var(--space-1);
+}
+
+.viewer-callout {
+  border-left: 3px solid;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+}
+
+.viewer-callout--info {
+  background: var(--callout-info-surface);
+  border-color: var(--callout-info-ink);
+  color: var(--callout-info-ink);
+}
+
+.viewer-callout--warning {
+  background: var(--callout-warning-surface);
+  border-color: var(--callout-warning-ink);
+  color: var(--callout-warning-ink);
+}
+
+.viewer-callout--success {
+  background: var(--callout-success-surface);
+  border-color: var(--callout-success-ink);
+  color: var(--callout-success-ink);
+}
+
+.viewer-callout--note {
+  background: var(--callout-note-surface);
+  border-color: var(--callout-note-ink);
+  color: var(--callout-note-ink);
+}
+
+.viewer-image {
+  margin: 0;
+}
+
+.viewer-image__img {
+  border-radius: var(--radius-md);
+  display: block;
+  max-width: 100%;
+}
+
+.viewer-image__caption {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta);
+  margin-top: var(--space-2);
+}
+
+.viewer-figure {
+  margin: 0;
+}
+
+.viewer-figure__svg {
+  color: var(--color-ink);
+  display: block;
+}
+
+.viewer-objectives,
+.viewer-worked-example,
+.viewer-faded-example {
+  background: var(--color-raised);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+}
+
+.viewer-objectives__title,
+.viewer-worked-example__title,
+.viewer-faded-example__title {
+  font-size: var(--type-h3);
+  margin: 0 0 var(--space-3);
+}
+
+.viewer-objectives__list,
+.viewer-faded-example__steps {
+  margin: 0;
+  padding-left: var(--space-6);
+}
+
+.viewer-objectives__list {
+  list-style: disc outside;
+}
+
+.viewer-faded-example__steps {
+  list-style: decimal outside;
+}
+
+.viewer-faded-example__step + .viewer-faded-example__step,
+.viewer-objectives__item + .viewer-objectives__item {
+  margin-top: var(--space-2);
+}
+
+.viewer-block--nested + .viewer-block--nested {
+  margin-top: var(--space-3);
+}
+
+/* ---- Question blocks ------------------------------------------------------- */
+
+.viewer-problem__body,
+.viewer-blanks__body,
+.viewer-mc__prompt,
+.viewer-matching__prompt,
+.viewer-ordering__prompt,
+.viewer-graph__prompt,
+.viewer-number-line__prompt,
+.viewer-data-plot__prompt {
+  margin: 0 0 var(--space-3);
+}
+
+/* Inline blanks: an underlined field that reads as part of the sentence. */
+.viewer-blank__input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-ink);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: inherit;
+  font: inherit;
+  min-width: 4ch;
+  padding: 0 var(--space-1);
+  text-align: center;
+}
+
+.viewer-blank__input[data-verdict='correct'] {
+  background: var(--state-correct-surface-soft);
+  border-bottom-color: var(--state-correct-border);
+}
+
+.viewer-blank__input[data-verdict='incorrect'] {
+  background: var(--state-incorrect-surface-soft);
+  border-bottom-color: var(--state-incorrect-border);
+}
+
+.viewer-blank__feedback {
+  color: var(--color-ink-muted);
+  display: block;
+  font-size: var(--type-meta);
+}
+
+/* Multiple choice: full-row targets, so the whole option is tappable. */
+.viewer-mc__fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.viewer-mc__prompt {
+  padding: 0;
+}
+
+.viewer-mc__choices,
+.viewer-matching__items,
+.viewer-matching__bank,
+.viewer-ordering__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.viewer-mc__label {
+  align-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+}
+
+.viewer-mc__label:hover {
+  background: var(--color-hover);
+}
+
+.viewer-mc__choice + .viewer-mc__choice {
+  margin-top: var(--space-2);
+}
+
+/* Matching: a lettered bank above, one select per item. */
+.viewer-matching__target,
+.viewer-matching__item {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.viewer-matching__item {
+  border-top: 1px solid var(--color-line-faint);
+  justify-content: space-between;
+  min-height: var(--touch-target);
+}
+
+.viewer-matching__letter {
+  color: var(--color-ink-muted);
+  font-weight: 700;
+}
+
+.viewer-matching__bank {
+  background: var(--color-raised);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.viewer-matching__select,
+.viewer-mc__label input,
+.viewer-ordering__controls button {
+  font: inherit;
+}
+
+.viewer-matching__select {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
+  color: inherit;
+  min-height: var(--touch-target);
+  padding: var(--space-1) var(--space-2);
+}
+
+/* Ordering: numbered rows with move controls. */
+.viewer-ordering__item {
+  align-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+}
+
+.viewer-ordering__item + .viewer-ordering__item {
+  margin-top: var(--space-2);
+}
+
+.viewer-ordering__controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-1);
+}
+
+.viewer-ordering__controls button {
+  background: var(--color-raised);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
+  color: inherit;
+  cursor: pointer;
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+}
+
+.viewer-ordering__controls button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+/* Free text */
+.viewer-short-answer__input,
+.viewer-self-explanation__input,
+.viewer-essay__input {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-lg);
+  color: inherit;
+  display: block;
+  font: inherit;
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+  width: 100%;
+}
+
+.viewer-short-answer__prompt,
+.viewer-self-explanation__prompt,
+.viewer-essay__prompt {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.viewer-essay__count {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta);
+  margin: var(--space-1) 0 0;
+}
+
+/* Canvas blocks */
+.viewer-graph__canvas,
+.viewer-number-line__canvas,
+.viewer-data-plot__canvas {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.viewer-graph__unavailable {
+  color: var(--state-pending-ink);
+  font-size: var(--type-small);
+  margin: var(--space-2) 0 0;
+}
+
+.viewer-math-block__render {
+  overflow-x: auto;
+  padding: var(--space-2) 0;
+}
+
+/* Vocabulary definitions: a disclosure, styled as a hinted term. */
+.viewer-definition__term {
+  background: none;
+  border: none;
+  border-bottom: 1px dotted var(--color-accent);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.viewer-definition__body {
+  background: var(--color-accent-wash);
+  border-radius: var(--radius-md);
+  display: inline-block;
+  font-size: var(--type-small);
+  margin-left: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+
+/* ---- Accessibility floors (6.1A) ------------------------------------------- */
+
+.viewer :focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/* The canvases are focusable containers; make that visible too. */
+[data-graph-canvas='true']:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewer *,
+  .viewer *::before,
+  .viewer *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Phone (6.2A) ----------------------------------------------------------
+   Chromebook stays design-primary; this is the deliberate small-screen shape:
+   edge-to-edge paper, stacked columns, full-width controls. */
+
+@media (max-width: 480px) {
+  .viewer {
+    padding: var(--space-3) 0;
+  }
+
+  .viewer-section {
+    border-left: none;
+    border-radius: 0;
+    border-right: none;
+    padding: var(--space-5) var(--space-4);
+  }
+
+  /* Columns are a print/desktop layout idea; on a phone they stack. */
+  .viewer-row {
+    display: block;
+  }
+
+  .viewer-column + .viewer-column {
+    margin-top: var(--space-5);
+  }
+
+  .viewer-section__check {
+    width: 100%;
+  }
+
+  .viewer-matching__item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .viewer-matching__select {
+    width: 100%;
+  }
+}
+
+/* ---- Print -----------------------------------------------------------------
+   The token layer has already flattened COLOUR (DESIGN.md); what is left here
+   is layout and the baseline print constraints: a printed worksheet is the
+   BLANK version — chrome gone, blanks as writing lines, problems unbroken. */
+
+@media print {
+  @page {
+    margin: 0.5in;
+  }
+
+  .viewer {
+    background: none;
+    padding: 0;
+  }
+
+  .viewer-section {
+    border: none;
+    break-before: auto;
+    margin: 0;
+    max-width: none;
+    padding: 0;
+  }
+
+  /* Interactive chrome never prints. */
+  .viewer-section__footer,
+  .viewer-state-pill,
+  .viewer-ordering__controls,
+  [data-feedback='server'],
+  .viewer-solution,
+  .viewer-essay__count {
+    display: none !important;
+  }
+
+  /* A question should not straddle a page break. */
+  .viewer-block,
+  .viewer-mc__choice,
+  .viewer-ordering__item,
+  .viewer-matching__item {
+    break-inside: avoid;
+  }
+
+  .viewer-heading,
+  .viewer-objectives__title,
+  .viewer-worked-example__title,
+  .viewer-faded-example__title {
+    break-after: avoid;
+  }
+
+  /* Blanks neutralize to bare writing lines. */
+  .viewer-blank__input {
+    background: none !important;
+    border-bottom: 1px solid var(--color-ink) !important;
+    min-width: 8ch;
+  }
+
+  /* Free text becomes a writing box with room to write in. */
+  .viewer-short-answer__input,
+  .viewer-self-explanation__input,
+  .viewer-essay__input {
+    min-height: 6em;
+  }
+
+  .viewer-essay__input {
+    min-height: 12em;
+  }
+
+  /* Callout identity survives grayscale via BORDER STYLE, not colour. */
+  .viewer-callout {
+    border: 1px solid var(--color-ink);
+    border-left-width: 3px;
+  }
+
+  .viewer-callout--info {
+    border-style: var(--callout-info-print-border);
+  }
+
+  .viewer-callout--warning {
+    border-style: var(--callout-warning-print-border);
+  }
+
+  .viewer-callout--success {
+    border-style: var(--callout-success-print-border);
+  }
+
+  .viewer-callout--note {
+    border-style: var(--callout-note-print-border);
+  }
+}
