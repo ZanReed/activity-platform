@@ -16,6 +16,7 @@
     "@activity/graph-kit": "workspace:*",
     "@activity/renderer": "workspace:*",
     "@activity/schema": "workspace:*",
+    "@activity/viewer": "workspace:*",
     "@floating-ui/react": "^0.27.19",
     "@fontsource/andika": "^5.2.10",
     "@fontsource/atkinson-hyperlegible": "^5.2.8",

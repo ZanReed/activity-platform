@@ -6,7 +6,7 @@ import {
     type ReactNode,
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { supabase, supabaseConfigured } from './supabase';
 
 interface SessionContextValue {
     session: Session | null;
@@ -20,6 +20,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // No Supabase env configured: stay signed-out instead of taking the
+        // whole app down at mount. This is the clean-clone case — `pnpm dev`
+        // with no .env.local — where the Supabase-free dev routes (notably
+        // /dev/viewer, the S3 component harness) must still boot (ruling D10).
+        // Any real auth action still throws the loud, instructive error from
+        // lib/supabase.ts; what this avoids is a blank page for routes that
+        // never needed auth at all.
+        if (!supabaseConfigured) {
+            setLoading(false);
+            return;
+        }
+
         // getSession() covers two cases: a normal reload while signed in (reads
         // the persisted session), and the OAuth callback (Supabase parses the URL
         // fragment and stores the session before getSession() resolves).

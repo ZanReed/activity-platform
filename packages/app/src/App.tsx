@@ -16,6 +16,7 @@ import DevGraphQuestion from './routes/DevGraphQuestion';
 import DevNumberLine from './routes/DevNumberLine';
 import DevDataPlot from './routes/DevDataPlot';
 import DevConfigDrawer from './routes/DevConfigDrawer';
+import DevViewer from './routes/DevViewer';
 
 export default function App() {
     return (
@@ -84,6 +85,9 @@ export default function App() {
         )}
         {import.meta.env.DEV && (
             <Route path="/dev/config-drawer" element={<DevConfigDrawer />} />
+        )}
+        {import.meta.env.DEV && (
+            <Route path="/dev/viewer" element={<DevViewer />} />
         )}
         </Routes>
         <ThemeToggle />
