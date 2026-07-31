@@ -44,9 +44,10 @@ interface EditorProps {
     // the published output is always authoritative. Defaults to false (the
     // playground passes nothing).
     gridLinesDefault?: boolean;
-    // Activity being edited — forwarded to the image popover's Upload tab so it
-    // can POST to the upload-image Edge Function. Undefined in the playground,
-    // where uploads are disabled (URL paste only).
+    // Activity being edited — forwarded to the image popover's Upload tab; it
+    // becomes the first segment of the Storage key, which 0019's INSERT policy
+    // authorizes against. Undefined in the playground, where uploads are
+    // disabled (URL paste only).
     activityId?: string;
     // Surfaces the live editor instance to the parent (null until mounted) so
     // activity-level header actions — e.g. markdown import — can drive editor

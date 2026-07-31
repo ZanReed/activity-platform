@@ -1,55 +1,72 @@
 -- =============================================================================
--- 0019_image_storage.sql — the author-image bucket (Cloudflare-exit ruling)
+-- 0019_image_storage.sql — direct-to-Storage author images (Cloudflare exit)
 -- -----------------------------------------------------------------------------
--- Per the 2026-07-31 Cloudflare-exit ruling (STATE.md → Current focus): every
--- asset moves off R2 except static hosting of the SPA. Images are the one
--- asset class that MUST move deliberately rather than dying with the rewrite —
--- published HTML and the graph kit simply stop existing at S9, but author
--- images are real content the editor keeps producing.
+-- Per the 2026-07-31 Cloudflare-exit ruling (STATE.md → Current focus) and the
+-- same-day eng review (decision record in DECISIONS.md → "Direct-to-Storage
+-- image upload"): author images move off R2 onto Supabase Storage, and the
+-- upload-image Edge Function is DELETED — the editor uploads straight to the
+-- bucket, and this migration's INSERT policy is the authorization gate.
 --
 -- Images are safe on Supabase Storage where HTML never was: the free-tier
 -- anti-abuse rewrite (`text/html` → `text/plain` + sandbox CSP, the reason R2
 -- exists at all — CLAUDE.md) targets HTML only. `image/*` is served with its
--- true Content-Type. That asymmetry is the whole reason this migration can
--- exist while published pages still can't come home.
+-- true Content-Type.
 --
--- Posture — a PUBLIC bucket with ZERO write policies, which mirrors R2 exactly:
+-- Posture:
 --
 --   * public = true       → reads bypass RLS via /storage/v1/object/public/…,
 --                           so a plain <img src> works cross-origin with no
---                           token, on published pages, the viewer, and print.
---                           Same reachability the r2.dev bucket had; images
---                           were never secret (they render to any student).
---   * no policies         → storage.objects has RLS on by default, so writing
---                           is deny-by-default for anon AND authenticated.
---                           Only service_role (which bypasses RLS) can write,
---                           i.e. ONLY the upload-image Edge Function. The
---                           allowlist/audit_log/activity_version_reads posture:
---                           absence of policy IS the access control.
+--                           token. Same reachability the r2.dev bucket had;
+--                           images were never secret (they render to any
+--                           student). No SELECT policy needed or wanted.
+--   * ONE INSERT policy   → authenticated users may insert ONLY under a key
+--                           whose first (and only) folder is the id of an
+--                           activity they can edit — the policy calls
+--                           public.can_edit_activity, the SAME helper every
+--                           other write path trusts (CLAUDE.md: never inline
+--                           ownership checks in policies; call the helpers).
+--                           When Phase 3+ grows the helper to recognize
+--                           editor-role collaborators, the bucket follows
+--                           automatically.
+--   * NO update/delete    → objects are immutable-by-absence: an upsert or
+--                           overwrite finds no UPDATE policy and dies, so an
+--                           author can never clobber another's object (uuid
+--                           keys make collisions vanishing, the policy makes
+--                           them impossible). No delete path — orphans are an
+--                           accepted residue (TODOS.md: post-S9 GC).
 --
--- The authorization decision therefore stays exactly where it already was —
--- upload-image calls `can_edit_activity` as the CALLER before it writes a byte.
--- The bucket is not the gate; the function is. This deliberately preserves the
--- shipped security model rather than re-deriving it in policy SQL (see the
--- follow-on note at the foot of this file for the direct-upload variant, which
--- WOULD move the gate into policy and is a separate design decision).
+-- file_size_limit + allowed_mime_types are now LOAD-BEARING, not
+-- belt-and-braces: with the Edge Function gone they are the only server-side
+-- mime/size enforcement. Keep the two limits in sync with the client's
+-- fail-fast guard (packages/app/src/lib/uploadImage.ts — which exists for
+-- friendly messages, not for security).
 --
--- file_size_limit + allowed_mime_types are belt-and-braces: the function
--- already validates both (and returns friendlier 413/415s than Storage does),
--- but R2 enforced NOTHING server-side, so a bug in the function was the only
--- thing between a caller and an arbitrary object. Now the bucket refuses too.
--- Keep the three limits in sync: this file, upload-image/index.ts (MAX_BYTES /
--- MIME_TO_EXT), and packages/app/src/lib/uploadImage.ts (the fail-fast guard).
+-- Predicate notes (eng review D1/D5, 2026-07-31):
+--   * The uuid cast is wrapped in CASE because Postgres does NOT guarantee
+--     left-to-right AND evaluation — a bare regex guard beside the cast can be
+--     reordered away, letting `garbage/x.png` abort the insert with a cast
+--     ERROR instead of a clean policy denial. CASE is the guaranteed guard.
+--   * The regex is case-insensitive (~*): activities.id and randomUUID() both
+--     emit lowercase today, but an uppercase-normalized id from any future
+--     code path must not become a silent deny.
+--   * Text-comparison (a.id::text = segment) was considered and rejected: it
+--     would inline the ownership check the helper rule exists to centralize.
+--
+-- Apply note: CREATE POLICY on storage.objects requires privileges on a table
+-- Supabase owns. Probe-verified 2026-07-31 that `postgres` (the role both
+-- `db push` and the MCP run as) CAN create policies there on this project.
+-- If a future platform change breaks that ("must be owner of table objects"),
+-- the recovery is: run this file's DDL verbatim in the dashboard SQL editor,
+-- then `supabase migration repair --status applied 0019`.
 -- =============================================================================
 
--- Idempotent: re-running (or a `db push` that replays this file) reconciles the
--- limits instead of erroring on the existing bucket.
+-- Idempotent: re-running reconciles the limits instead of erroring.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'activity-images',
   'activity-images',
   true,
-  10485760, -- 10 MB — MAX_BYTES in upload-image/index.ts
+  10485760, -- 10 MB — MAX_IMAGE_BYTES in packages/app/src/lib/uploadImage.ts
   array[
     'image/png',
     'image/jpeg',
@@ -63,15 +80,41 @@ on conflict (id) do update set
   file_size_limit    = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
--- No policies on storage.objects for this bucket, on purpose. See the header:
--- public read is granted by `public = true`, and every write path that is not
--- service_role is denied by RLS having no matching policy. Adding an INSERT
--- policy for `authenticated` here would silently widen writes to every signed-in
--- user (students included) — do not add one without replacing the function's
--- can_edit_activity gate with an equivalent policy predicate.
+-- The gate. Key layout is `{activityId}/{uuid}.{ext}`:
+--   storage.foldername(name) = the folder segments, excluding the filename —
+--   exactly one segment allowed, and it must be the id of an activity the
+--   caller can edit. Root-level keys (foldername = {}, so array_length is
+--   NULL) and nested keys (length 2+) both fail the depth check; a non-uuid
+--   segment falls to CASE's ELSE false without ever reaching the cast.
+drop policy if exists activity_images_insert_editors on storage.objects;
+create policy activity_images_insert_editors
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'activity-images'
+  and array_length(storage.foldername(name), 1) = 1
+  and case
+        when (storage.foldername(name))[1]
+             ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          then public.can_edit_activity(((storage.foldername(name))[1])::uuid)
+        else false
+      end
+);
+
+-- Deliberately ABSENT (do not add without a design pass):
+--   * INSERT policy without the can_edit_activity call — would open the bucket
+--     to every signed-in user, students included.
+--   * UPDATE policy — would enable overwrites (and is the prerequisite for
+--     TUS/resumable upload progress; see TODOS.md before adding).
+--   * SELECT/DELETE policies — reads ride the public-URL route; deletion is
+--     the post-S9 GC's job, service-role side.
 
 -- =============================================================================
--- Verification (run after applying; each EXPECT is the pass condition)
+-- Verification (run after applying; each EXPECT is the pass condition).
+-- The full behavioral matrix — allow/deny per role, the cast-error pin, the
+-- overwrite denial — lives in scripts/verify-image-storage.sql (re-run it
+-- after ANY future auth/RLS/grant migration, per migrations/README.md).
 -- =============================================================================
 --
 -- -- 1. Bucket exists, is public, and carries both limits.
@@ -79,39 +122,35 @@ on conflict (id) do update set
 -- select id, public, file_size_limit, allowed_mime_types
 -- from storage.buckets where id = 'activity-images';
 --
--- -- 2. NO policies reference this bucket. EXPECT: 0 rows.
--- --    (Policies on storage.objects are global; this greps their bodies for
--- --     the bucket name, since a policy could name it in USING/WITH CHECK.)
--- select policyname, cmd, qual, with_check
+-- -- 2. EXACTLY the one INSERT policy references this bucket — no UPDATE,
+-- --    DELETE, or SELECT policy does. EXPECT: 1 row, cmd = 'INSERT',
+-- --    policyname = 'activity_images_insert_editors'.
+-- select policyname, cmd
 -- from pg_policies
 -- where schemaname = 'storage' and tablename = 'objects'
 --   and coalesce(qual, '') || coalesce(with_check, '') like '%activity-images%';
 --
--- -- 3. RLS is on for storage.objects (Supabase default; assert it anyway —
--- --    deny-by-default is doing the access control here).
+-- -- 3. The policy's WITH CHECK calls can_edit_activity (the helper rule) and
+-- --    contains the CASE guard. EXPECT: 1 row, both flags true.
+-- select policyname,
+--        with_check like '%can_edit_activity%' as calls_helper,
+--        with_check ilike '%case%'             as case_guarded
+-- from pg_policies
+-- where schemaname = 'storage' and tablename = 'objects'
+--   and policyname = 'activity_images_insert_editors';
+--
+-- -- 4. RLS is on for storage.objects (Supabase default; assert it anyway).
 -- --    EXPECT: relrowsecurity = t.
 -- select relrowsecurity from pg_class c
 -- join pg_namespace n on n.oid = c.relnamespace
 -- where n.nspname = 'storage' and c.relname = 'objects';
 --
--- -- 4. Negative check, from the app (not SQL): signed in as a teacher, a direct
--- --    supabase.storage.from('activity-images').upload(...) must FAIL with a
--- --    row-level-security error. If it SUCCEEDS, a policy leaked in and every
--- --    authenticated user can write to the bucket — fix before deploying.
---
--- =============================================================================
--- Follow-on, NOT taken here (deliberate): direct-to-Storage upload.
--- -----------------------------------------------------------------------------
--- With Storage as the backend, the Edge Function is no longer load-bearing for
--- transport — the client could upload straight to the bucket under an INSERT
--- policy like
---   (storage.foldername(name))[1]::uuid  -- the activity id path segment
--- fed to can_edit_activity, with the bucket's own mime/size limits doing the
--- validation the function does today. That deletes a function, a multipart
--- round-trip through Deno, and the service-role write path, and it makes upload
--- progress reportable. It also moves the authorization gate from function code
--- into policy SQL, which is a real architecture decision (and needs its own
--- verification pass), so it is scoped OUT of this retarget. The key layout here
--- is already shaped for it: `{activityId}/{uuid}.{ext}` puts the activity id at
--- foldername index 1 with no dead prefix above it.
--- =============================================================================
+-- -- 5. can_edit_activity's grant posture is unchanged by this migration.
+-- --    EXPECT: exactly {authenticated, service_role} (+postgres), no anon,
+-- --    no PUBLIC — the 0016 lockdown intact.
+-- select coalesce(g.rolname, 'PUBLIC') as grantee
+-- from pg_proc p
+-- cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+-- left join pg_roles g on g.oid = a.grantee
+-- where p.proname = 'can_edit_activity'
+-- order by 1;

@@ -98,3 +98,40 @@ the runtime bootstrap in `packages/renderer/src/runtime/init.ts` for the call si
 
 **Context:** surfaced by the outside-voice pass of /plan-eng-review on 2026-07-24
 (finding OV-4, option B content, deferred by ruling D14/D19).
+
+## Orphaned-image garbage collection (activity-images bucket)
+
+**What:** A cleanup job that diffs `activity-images` Storage objects against the image `src`s
+actually referenced in activity documents and deletes the unreferenced ones.
+
+**Why:** The bucket has no DELETE path by design (0019: INSERT-only policy), so every replaced or
+abandoned upload lives in a public bucket forever. Same residue the R2 era had — but Storage
+counts against Supabase's 1GB free-tier quota, which R2's 10GB never made anyone think about.
+A slow clock, but a real one.
+
+**Cons / why not now:** Needs real design — image refs live inside JSONB in BOTH
+`activities.draft_content` AND `activity_versions.content`, and until the S9 cutover, old
+published R2 pages also reference uploads. A naive GC deletes images that published pages still
+show.
+
+**Depends on:** S9 cutover (single source of truth for references). Service-role side (the only
+role that can delete).
+
+**Context:** surfaced by /plan-eng-review 2026-07-31 (direct-to-Storage upload review, TODO ask 1).
+
+## Upload progress indicator (blocked on a policy-design amendment)
+
+**What:** A progress bar during image upload in the editor popovers (ImageEditPopover,
+DefinitionEditPopover).
+
+**Why:** Visible-state UX for large images (repo UX priority: visible state indicators). The
+10MB cap keeps uploads short on school networks, so this is polish, not pain.
+
+**⚠️ The trap this entry exists to disarm:** this is NOT a UI-only task. supabase-js's standard
+`upload()` has no progress callback; progress requires the TUS resumable protocol, and TUS needs
+UPDATE (and possibly SELECT) policies on `activity-images` that 0019 deliberately omits — the
+absence of an UPDATE policy is what makes objects overwrite-proof today (DECISIONS.md →
+"Direct-to-Storage image upload"). Whoever picks this up is amending the bucket's security
+posture first and adding a progress bar second.
+
+**Context:** surfaced by /plan-eng-review 2026-07-31 (outside-voice finding 7, TODO ask 2).

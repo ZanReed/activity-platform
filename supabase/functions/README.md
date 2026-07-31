@@ -8,7 +8,7 @@ Phase 1 Edge Functions for the activity platform.
 |---|---|---|
 | `publish-activity` | Take a draft, atomically snapshot a version, render to HTML, upload to Cloudflare R2, return URLs. | ✅ Deployed |
 | `ingest-submission` | Receive student submissions from published HTML, validate, write to `submissions`. **Must be deployed with `--no-verify-jwt`** (see Build + deploy). | ✅ Deployed |
-| `upload-image` | Editor image uploads: validate MIME/size, check edit rights, write to the public `activity-images` Storage bucket at `{activityId}/`, return the public URL. Needs migration 0019. | ⏳ Retargeted off R2 — awaiting redeploy |
+| ~~`upload-image`~~ | **Deleted 2026-07-31** (eng review; DECISIONS.md → "Direct-to-Storage image upload"). The editor uploads straight to the public `activity-images` bucket; migration 0019's RLS INSERT policy calls `can_edit_activity` as the caller. The deployed instance is removed with `supabase functions delete upload-image` — see STATE.md for the ordering. | 🗑 Removed |
 | `get-activity` | The viewer read API (S2): anonymous title/teacher meta (rate-limited), authenticated resolve of the current version, and the upgraded+sanitized content served from the durable per-version cache with immutable headers. **Must be deployed with `--no-verify-jwt`** (the anonymous meta branch; see Build + deploy). Needs migration 0017. | ⏳ Awaiting first deploy |
 
 ## Shared code
@@ -25,7 +25,7 @@ Phase 1 Edge Functions for the activity platform.
 
 Published **HTML** lives on Cloudflare R2, **not** Supabase Storage (Supabase free tier rewrites HTML responses to `text/plain` — see STATE.md / ROADMAP "Hosting platform"). Only `publish-activity` still talks to R2 via the S3 API and needs these secrets:
 
-> **Uploaded images no longer do.** Per the 2026-07-31 Cloudflare-exit ruling (STATE.md → Current focus), `upload-image` writes to the public `activity-images` Supabase Storage bucket (migration `0019_image_storage.sql`) using the auto-injected service-role key — **no secrets to set**. Images were always safe on Storage; the anti-abuse rewrite that forced R2 applies to `text/html` only. R2 retires entirely at the S9 cutover, when published HTML stops existing.
+> **Uploaded images no longer involve R2 — or any function.** Per the 2026-07-31 Cloudflare-exit ruling and the same-day eng review, the editor uploads straight to the public `activity-images` Supabase Storage bucket; migration `0019_image_storage.sql`'s RLS INSERT policy (calling `can_edit_activity` as the caller) is the gate, and the bucket's mime/size limits are the validation. **No secrets, no function.** Images were always safe on Storage; the anti-abuse rewrite that forced R2 applies to `text/html` only. R2 retires entirely at the S9 cutover, when published HTML stops existing.
 
 ```bash
 supabase secrets set R2_ACCOUNT_ID="..."
@@ -75,10 +75,9 @@ pnpm bundle:renderer          # produces supabase/functions/_shared/renderer.bun
 
 supabase functions deploy publish-activity
 supabase functions deploy ingest-submission --no-verify-jwt
-supabase functions deploy upload-image
 ```
 
-The root `package.json` wraps these so the flags can't be forgotten: `pnpm deploy:publish`, `pnpm deploy:ingest` (bakes in `--no-verify-jwt`), `pnpm deploy:upload-image`, `pnpm deploy:get-activity` (bakes in `--no-verify-jwt`; run `pnpm bundle:viewer-server` first). For a multi-part deploy, `pnpm deploy:train` walks the whole ordering below interactively.
+The root `package.json` wraps these so the flags can't be forgotten: `pnpm deploy:publish`, `pnpm deploy:ingest` (bakes in `--no-verify-jwt`), `pnpm deploy:get-activity` (bakes in `--no-verify-jwt`; run `pnpm bundle:viewer-server` first). For a multi-part deploy, `pnpm deploy:train` walks the whole ordering below interactively.
 
 **`ingest-submission`, `get-feedback`, and `get-activity` must always be deployed with `--no-verify-jwt`.** The first two are called anonymously from published pages (no auth header); `get-activity`'s anonymous branch is the 3.2A pre-auth meta endpoint. With JWT verification on, the platform gateway 401s those requests before the function runs. There is no `config.toml`, so the flag lives only on the Supabase platform — a plain redeploy silently re-enables verification. Each function self-authenticates in its body (service role / user-scoped RPC).
 
@@ -120,7 +119,7 @@ After any change to `packages/graph-kit`: run `pnpm upload:graph-kit`, **commit 
 Each function calls a `SECURITY DEFINER` RPC, and migration `0009` locked EXECUTE on those RPCs down to exactly the caller each function uses — so the grants below are now load-bearing, not incidental:
 
 - **`publish-activity`** builds a Supabase client with the **user's JWT** (anon key + the request's `Authorization` header → the `authenticated` role) and calls `publish_activity`. It is NOT service-role. `publish_activity` is granted to `authenticated`; its internal `can_edit_activity` check is the real authorization.
-- **`upload-image`** decides authorization the same way (user JWT → `can_edit_activity` directly), then performs the write with a **service-role** client. That split is deliberate and is the whole security model of the image bucket: `activity-images` is public-read with **zero write policies**, so service_role is the only role that can write it, and this function is the only holder of that key — but it refuses before writing a byte unless `can_edit_activity` returns true for the caller. The gate is function code, not policy SQL. Do **not** add an `authenticated` INSERT policy to that bucket: it would let any signed-in user (students included) write images directly, bypassing the check. Migration `0019_image_storage.sql` documents the posture and the direct-upload variant that would move the gate into policy.
+- **Image uploads have no function at all** (deleted 2026-07-31): the browser writes to the `activity-images` bucket directly, and 0019's RLS INSERT policy calls `can_edit_activity` **as the caller** — same helper, same grants, the gate just lives in policy SQL now. The policy is deliberately the ONLY write path (no UPDATE/DELETE policies; overwrites are impossible), and the bucket's `allowed_mime_types`/`file_size_limit` are the server-side validation. Behavioral proof: `scripts/verify-image-storage.sql`.
 - **`ingest-submission`** uses the **service role** and calls `ingest_submission`, which after 0009 is granted to `service_role` **only** — `anon`/`authenticated` can no longer reach it via `/rest/v1/rpc/ingest_submission`, so a student can't bypass this function's Zod validation and IP-hashing by POSTing to PostgREST directly.
 
 Implication for changes: if you ever recreate one of these RPCs or add a new one, Supabase's default privileges re-grant EXECUTE to `PUBLIC`/`anon`/`authenticated`, so a new migration must re-apply the revoke/grant stanza (see `0009_security_housekeeping.sql` and DECISIONS.md → "Supabase security/performance housekeeping (0009)"). Redeploying a function does **not** change grants — those live in the database.

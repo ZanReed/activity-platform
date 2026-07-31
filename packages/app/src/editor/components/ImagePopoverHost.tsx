@@ -21,8 +21,8 @@ import { OPEN_IMAGE_POPOVER } from '../extensions/Image';
 
 interface ImagePopoverHostProps {
     editor: Editor | null;
-    // Forwarded to the popover's Upload tab so it can POST to upload-image.
-    // Undefined in the playground.
+    // Forwarded to the popover's Upload tab — it keys the Storage upload path
+    // (uploadImage.ts). Undefined in the playground.
     activityId?: string;
 }
 

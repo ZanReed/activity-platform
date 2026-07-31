@@ -1,21 +1,29 @@
 import { supabase } from './supabase';
 
 // ============================================================================
-// uploadImage — POST an image file to the upload-image Edge Function.
+// uploadImage — upload an author's image straight to Supabase Storage.
 // ----------------------------------------------------------------------------
-// Mirrors usePublish's invoke pattern: attach the session token explicitly
-// (publishable-key clients don't reliably forward the user JWT on
-// functions.invoke), send multipart/form-data, and surface the function's
-// { error, details } body as a readable message. Returns the uploaded image's
-// public URL — Supabase Storage since the 2026-07-31 Cloudflare-exit ruling,
-// Cloudflare R2 before it. The origin is NOT this client's business: the
-// function returns an absolute URL and the editor stores it verbatim, which is
-// why the retarget needed no change here.
+// Direct-to-Storage since the 2026-07-31 eng review (DECISIONS.md →
+// "Direct-to-Storage image upload"); the upload-image Edge Function is gone.
+// Authorization is NOT this file's job: the `activity-images` bucket carries
+// an INSERT policy that parses the activity id out of the object key and asks
+// can_edit_activity as the caller (migration 0019). The checks below exist for
+// friendly, instant error messages — the bucket's own mime/size limits and the
+// policy are the enforcement, so bypassing this file gains an attacker
+// nothing.
+//
+// Key layout `{activityId}/{uuid}.{ext}` is load-bearing: the policy reads
+// storage.foldername(name)[1] as the activity id and requires exactly one
+// folder segment. Change the layout and every upload 403s.
+//
+// Returns the public URL; the editor stores it verbatim as the image block's
+// src (absolute URL, origin-agnostic — R2-era images keep working beside
+// Storage-era ones).
 // ============================================================================
 
-// Client-side guard mirroring the Edge Function's allowlist (and the bucket's
-// own allowed_mime_types, migration 0019) so we fail fast with a friendly
-// message instead of a 415 round-trip.
+// Mirrors the bucket's allowed_mime_types (0019) so we fail fast with a
+// friendly message instead of a server round-trip. SVG stays excluded: it can
+// carry scripts, and serving it inline is an avoidable XSS surface.
 export const ALLOWED_IMAGE_TYPES = [
     'image/png',
     'image/jpeg',
@@ -24,7 +32,41 @@ export const ALLOWED_IMAGE_TYPES = [
     'image/avif',
 ] as const;
 
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // keep in sync with the function
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // mirrors 0019 file_size_limit
+
+const IMAGE_BUCKET = 'activity-images';
+
+// Extension is derived from the VALIDATED mime type, never from the client
+// filename — the key stays honest even when the file is named "photo".
+const MIME_TO_EXT: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/avif': 'avif',
+};
+
+// Storage errors keyed on status code, not message text — storage-js message
+// strings shift across versions; the codes are the API contract. 403 is the
+// RLS denial (the policy said no); 413/415 are the bucket's own size/mime
+// limits firing on a request that bypassed the fail-fast checks above.
+function friendlyStorageError(error: {
+    message: string;
+    status?: number;
+    statusCode?: string | number;
+}): string {
+    const code = Number(error.statusCode ?? error.status);
+    switch (code) {
+        case 403:
+            return 'Not authorized to upload to this activity.';
+        case 413:
+            return `Image too large (max ${MAX_IMAGE_BYTES / (1024 * 1024)} MB).`;
+        case 415:
+            return 'Unsupported image type. Use PNG, JPEG, GIF, WebP, or AVIF.';
+        default:
+            return error.message || 'Upload failed';
+    }
+}
 
 export async function uploadImage(
     activityId: string,
@@ -37,6 +79,9 @@ export async function uploadImage(
         throw new Error(`Image too large (max ${MAX_IMAGE_BYTES / (1024 * 1024)} MB).`);
     }
 
+    // The session guard stays even though Storage would reject an anonymous
+    // insert anyway — a signed-out author should read "Not signed in", not an
+    // RLS-flavored mystery.
     const {
         data: { session },
     } = await supabase.auth.getSession();
@@ -44,36 +89,30 @@ export async function uploadImage(
         throw new Error('Not signed in.');
     }
 
-    const form = new FormData();
-    form.append('activity_id', activityId);
-    form.append('file', file);
+    // ext is guaranteed by the allowlist check above; the fallback only
+    // satisfies noUncheckedIndexedAccess.
+    const ext = MIME_TO_EXT[file.type] ?? 'bin';
+    const key = `${activityId}/${crypto.randomUUID()}.${ext}`;
 
-    const { data, error } = await supabase.functions.invoke<{ url: string }>(
-        'upload-image',
-        {
-            body: form,
-            headers: { Authorization: `Bearer ${session.access_token}` },
-        },
-    );
-
+    // upsert:false — a uuid key cannot collide, so a collision would mean
+    // something is wrong; surface it rather than overwrite. (Overwrites are
+    // also policy-impossible: the bucket has no UPDATE policy.)
+    const { error } = await supabase.storage
+        .from(IMAGE_BUCKET)
+        .upload(key, file, {
+            contentType: file.type,
+            cacheControl: '31536000',
+            upsert: false,
+        });
     if (error) {
-        // FunctionsHttpError carries the raw Response on .context; the function's
-        // errorResponse helper returns { error, details? }. Surface the real cause.
-        let message = error.message || 'Upload failed';
-        const ctx = (error as { context?: Response }).context;
-        if (ctx && typeof ctx.json === 'function') {
-            try {
-                const body = (await ctx.json()) as { error?: unknown };
-                if (typeof body?.error === 'string') message = body.error;
-            } catch {
-                /* keep generic message */
-            }
-        }
-        throw new Error(message);
+        throw new Error(friendlyStorageError(error));
     }
 
-    if (!data?.url) {
+    const {
+        data: { publicUrl },
+    } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(key);
+    if (!publicUrl) {
         throw new Error('Upload returned no URL.');
     }
-    return data.url;
+    return publicUrl;
 }

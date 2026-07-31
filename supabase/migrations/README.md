@@ -22,7 +22,7 @@ Schema for the activity platform. `0001`–`0018` are all applied to the live pr
 | `0015_rpc_grant_housekeeping.sql` + `0016_helper_grant_lockdown.sql` | Advisor + ACL follow-ups: anon EXECUTE revoked on `restore_activity`, `generate_join_code` pinned, the four INVOKER RLS helpers locked to `authenticated`/`service_role`. After 0016, every function in `public` has an explicit revoke/grant stanza. |
 | `0017_read_api.sql` | S2 read API: `activity_version_reads` durable per-version cache (service-role only), `get_published_activity` (authenticated resolve of the current published version), `get_activity_public_meta` (the deliberate anon exception — title + teacher name for the pre-auth interstitial). Verification: `scripts/verify-0017.sql`. |
 | `0018_users_policy_recursion.sql` | Closes the `42P17 infinite recursion` on the `users` SELECT policy: policy rewritten to `(id = auth.uid()) OR current_user_is_admin()` with a DEFINER `current_user_is_admin()` helper (`search_path=public`; granted `authenticated`/`postgres`/`service_role`, never anon). Fully idempotent, safe to re-run. |
-| `0019_image_storage.sql` | Cloudflare-exit ruling: the `activity-images` Storage bucket that `upload-image` retargets onto (public read for cross-origin `<img>`, **zero write policies** so only service_role — i.e. only that function — can write, plus bucket-level mime/size limits mirroring the function's). Authorization stays in the function (`can_edit_activity`), NOT in policy. Verification queries commented at the bottom of the file; note check 4 is an app-level negative test. Idempotent, safe to re-run. |
+| `0019_image_storage.sql` | Cloudflare-exit + direct-upload eng review (2026-07-31): the `activity-images` Storage bucket (public read for cross-origin `<img>`; bucket-level mime/size limits are the server-side validation) plus the ONE RLS INSERT policy that is the write gate — the editor uploads directly, no Edge Function. The policy parses the activity id out of the object key (`{activityId}/{uuid}.{ext}`, CASE-guarded uuid cast so a malformed key gets a clean denial, never a cast error) and calls `can_edit_activity` as the caller. Deliberately NO update/delete/select policies. Quick checks commented at the bottom of the file; the full behavioral matrix is `scripts/verify-image-storage.sql`. Idempotent, safe to re-run. |
 
 ## Regression re-runs (the DB has no CI harness)
 
@@ -36,6 +36,10 @@ that touches auth, identity, RLS policies, or function grants, re-run:**
 - `scripts/verify-0017.sql` (read API: cache-table RLS, DEFINER functions, the exact grant/ACL
   matrix — its completeness query catches ANY function newly executable by anon/PUBLIC, which is
   how the 0009-era grant drift was found).
+- `scripts/verify-image-storage.sql` (the image bucket's write gate: 8-case impersonated INSERT
+  matrix on 0019's policy, incl. the non-uuid-key clean-denial pin and the no-UPDATE-policy
+  overwrite check — this policy rides `can_edit_activity`, so any migration touching that helper
+  or its grants can regress it).
 
 Each query states its expected result; anything else = stop and report. This is the standing
 mitigation for S1's known gap (no automated DB tests), recorded in the 2026-07-29 S0–S2 test-setup
