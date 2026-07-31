@@ -15,11 +15,13 @@ pnpm deploy:publish        # only after the upload prints its Uploaded: lines
 
 `packages/graph-kit` gained ungraded input mode (author ruling A, 2026-07-31) — `answerKey` is now optional so the server-authoritative viewer can mount a graph question as a pure input surface. **Nothing is broken meanwhile:** the change is additive, graded behavior is unchanged (half the new tests exist to prove that), already-published pages keep pointing at their existing kit hash, and no shipped code uses ungraded mode yet. The upload matters when the viewer's graph components land. Order is the standing CLAUDE.md rule — **kit upload FIRST, then the function deploy** (deploying first points at a hash that isn't on R2 yet and 404s the summon button), and the regenerated manifest must be committed or a future deploy from a clean checkout silently reverts to the stale hash.
 
-**QUEUED (low urgency, behavior-preserving) — redeploy `get-activity` when convenient:**
+**QUEUED — redeploy `get-activity` (now carries a real change, not just the refactor):**
 
 ```bash
 pnpm deploy:get-activity
 ```
+
+**Two changes ride this deploy.** (1) **NEW 2026-07-31 — the sanitizer's derive step.** Served graph blocks now carry a derived `questionShape` (handle count + curve family), without which the viewer cannot lay out a graph question at all; the answer key stays stripped, and the derived values are whitelisted to counts + a closed family enum so a coordinate cannot travel that path. `SANITIZER_REV` moved **1-5dbcb651 → 1-f8328527**, so the moment the new function is live the stale read-cache rows orphan themselves and the next read recomputes — no manual cache clear, by design. Nothing regresses meanwhile: the deployed v5 keeps serving the old rev happily. (2) The handler extraction below.
 
 The 2026-07-29 test-setup review found the function's 374-line handler had zero automated coverage (the one S2 code gap). The handler logic now lives in the tested viewer-server bundle (`packages/viewer/src/server/get-activity-handler.ts`, 29 new branch-pin tests incl. the stale-version 404, error→status mapping, cache-fallback non-fatality, rate-limiter ceiling, and the shuffle-seed glue proven through a full request); the Deno file is thin wiring over `GetActivityDb`/`CorsKit` ports. Deployed **v5 still runs the old inline handler — identical behavior**, so nothing is broken or urgent; redeploying just aligns the live function with the repo (the pnpm script bakes in `--no-verify-jwt`). After deploy, a quick `scripts/verify-content-path.js` run re-confirms the content branch.
 
