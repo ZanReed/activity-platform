@@ -118,6 +118,11 @@ function mount(block: SanitizedBlock, script: MockCheckScript = {}) {
 const pills = () => Array.from(document.querySelectorAll('[data-state]'));
 const statesShown = () => pills().map((el) => el.getAttribute('data-state'));
 
+/** Failure messages point at the RULE, not just the assertion — a conformance
+ * failure should teach the contract to whoever just broke it (ruling D8). */
+const SPEC = 'docs/design/checked-state-families.md';
+const because = (rule: string) => `${rule}\n  → the rule lives in ${SPEC}`;
+
 /**
  * Register the family conformance suite for one block type. Called for every
  * bound registry entry by conformance.test.tsx — no manual list to forget.
@@ -143,8 +148,13 @@ export function registerFamilyConformance(type: BlockType): void {
         const section = answerEverything(store, block);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(store.getState().sections[SECTION]?.phase).toBe('checked'));
-        // family spec: "static → Never: any pill, tint, or mark".
-        expect(statesShown()).toEqual([]);
+        expect(
+          statesShown(),
+          because(
+            `${type} is STATIC: it must never render state chrome, but it ` +
+              `rendered ${JSON.stringify(statesShown())} after a check.`,
+          ),
+        ).toEqual([]);
       });
     }
 
@@ -154,7 +164,13 @@ export function registerFamilyConformance(type: BlockType): void {
         const section = answerEverything(store, block);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(statesShown()).toContain('correct'));
-        expect(statesShown()).not.toContain('incorrect');
+        expect(
+          statesShown(),
+          because(
+            `${type} showed an incorrect mark for a CORRECT server verdict. ` +
+              'Verdicts come only from the check result.',
+          ),
+        ).not.toContain('incorrect');
       });
 
       it('shows ✗ from a server INCORRECT verdict, and never invents feedback', async () => {
@@ -164,7 +180,13 @@ export function registerFamilyConformance(type: BlockType): void {
         await waitFor(() => expect(statesShown()).toContain('incorrect'));
         // Hintless ✗ is mark-only (ruling 2.1A) — no feedback element unless
         // the server sent one.
-        expect(document.querySelector('[data-feedback="server"]')).toBeNull();
+        expect(
+          document.querySelector('[data-feedback="server"]'),
+          because(
+            `${type} rendered feedback the server did not send. A hintless ` +
+              'wrong answer is mark-only (ruling 2.1A) — never invent copy.',
+          ),
+        ).toBeNull();
       });
 
       it('the mark never molests the work — responses survive an incorrect verdict', async () => {
@@ -173,7 +195,13 @@ export function registerFamilyConformance(type: BlockType): void {
         const before = JSON.stringify(store.getState().responses);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(statesShown()).toContain('incorrect'));
-        expect(JSON.stringify(store.getState().responses)).toBe(before);
+        expect(
+          JSON.stringify(store.getState().responses),
+          because(
+            `${type} changed the student's responses when it was marked ` +
+              'incorrect. The mark never molests the work.',
+          ),
+        ).toBe(before);
       });
 
       it('announces its verdict transition through aria-live (6.1A)', async () => {
@@ -195,8 +223,17 @@ export function registerFamilyConformance(type: BlockType): void {
         const section = answerEverything(store, block);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(statesShown()).toContain('recorded'));
-        expect(statesShown()).not.toContain('correct');
-        expect(statesShown()).not.toContain('incorrect');
+        const judged = statesShown().filter(
+          (s) => s === 'correct' || s === 'incorrect',
+        );
+        expect(
+          judged,
+          because(
+            `${type} is RECORDED: free text captured for the teacher must ` +
+              'never show a verdict glyph, score, or anything a student ' +
+              'could read as auto-grading.',
+          ),
+        ).toEqual([]);
       });
 
       it('never renders a score or points', async () => {
