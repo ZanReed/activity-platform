@@ -23,15 +23,22 @@ read a design doc to get a passing test.
    | Auto-graded question | `src/blocks/MultipleChoice.tsx` | verdicts, feedback, solution |
    | Free text for the teacher | `src/blocks/ShortAnswer.tsx` | recorded receipt, never a verdict |
 
-2. **Bind it in the registry** (`src/registry/registry.ts`), on your block's entry:
+2. **Bind it in `src/registry/bindings.ts`** (NOT registry.ts — see below):
 
    ```ts
-   binding: { loading: 'eager', component: MyBlock },
+   my_block: { loading: 'eager', component: MyBlock as never },
    ```
 
    Use `'eager'` unless your component drags real weight behind it (graph-kit,
-   MathLive) — then use `{ loading: 'lazy', load: () => import('../blocks/MyBlock.js') }`.
+   MathLive) — then use `{ loading: 'lazy', load: () => import('../blocks/MyBlock.js') as never }`.
    Inline math does **not** make a block lazy; it loads its own chunk.
+
+   > **Why a separate file:** the read API imports `registry.ts` for its
+   > sanitize specs. When bindings lived on registry entries, the Edge Function
+   > absorbed the whole component tree — 888 KiB → 21 MB once a graph binding
+   > pulled in JSXGraph. `registry.ts` is pure data; only client code imports
+   > `bindings.ts`. `pnpm bundle:viewer-server` has a size ceiling that fails
+   > the build if that ever regresses.
 
 3. **Run the tests.**
 
@@ -116,7 +123,8 @@ src/
   store/        the viewer store + the persisted-state version gate.
   container/    the worksheet shell, per-block error boundary, document indexing.
   inline/       inline content rendering + the lazy KaTeX seam.
-  blocks/       block components (the three exemplars so far).
+  styles/       viewer.css — the one component stylesheet (tokens only).
+  blocks/       all 22 block components + the kit seams and shared chrome.
   fixtures/     generated fixtures — see below.
 tests/
   components/   jsdom + Testing Library suites (everything else runs in node).
@@ -154,6 +162,17 @@ fails on drift, so a stale bundle cannot reach a deploy.
 
 ## What is not here yet
 
-The remaining ~19 block components, print mode, the offline/failure-state layer,
-and the real grading client (the store talks to a `CheckService` port; today only
-the mock implements it).
+All 22 block components are built, styled, and conformance-covered. Still to
+come:
+
+- **Print mode (S5)** — the components carry print CSS and registry print
+  treatments, but the per-block print-parity snapshots that gate the renderer's
+  retirement are not written.
+- **The offline / failure-state layer (S6)** — the local-first buffer, queued
+  checks, and service-worker shell. The store already pins
+  `VIEWER_STORE_SCHEMA_VERSION` for the buffer to build on.
+- **The real grading client (S4)** — the store talks to a `CheckService` port
+  and only the mock implements it. `src/check/wire.ts` is the frozen contract
+  the RPC must import.
+- **The viewer ROUTE** — components render in `/dev/viewer` against fixtures;
+  nothing yet fetches a real activity and mounts it for a student.
