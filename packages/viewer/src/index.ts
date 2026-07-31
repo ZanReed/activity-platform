@@ -23,6 +23,7 @@ export type {
   BlockRegistry,
 } from './registry/types.js';
 
+export { blockBindings, bindingFor, boundBlockTypes } from './registry/bindings.js';
 export {
   blockRegistry,
   registeredBlockTypes,
@@ -144,13 +145,23 @@ export type {
 // S3 V5 — the inline content renderer (every block inherits it), the lazy
 // KaTeX seam, and the shared state-chrome pill.
 export { InlineContent, InlineMath } from './inline/InlineContent.js';
-export type { InlineContentProps } from './inline/InlineContent.js';
+export type {
+  InlineContentProps,
+  RenderableInlineNode,
+} from './inline/InlineContent.js';
 export {
   loadMathRenderer,
   residentMathRenderer,
   setMathRenderer,
 } from './inline/math.js';
 export type { MathRenderer } from './inline/math.js';
+export { setGraphSurface, graphSurface } from './blocks/graphSurface.js';
+export type {
+  GraphSurface,
+  GraphSurfaceConfig,
+  GraphSurfaceHandle,
+  GraphSurfaceResponse,
+} from './blocks/graphSurface.js';
 export { StatePill } from './blocks/StatePill.js';
 export type { PillState, StatePillProps } from './blocks/StatePill.js';
 export type { BlockComponentBinding } from './registry/types.js';

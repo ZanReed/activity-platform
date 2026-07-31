@@ -248,6 +248,9 @@ importers:
 
   packages/viewer:
     dependencies:
+      '@activity/graph-kit':
+        specifier: workspace:*
+        version: link:../graph-kit
       '@activity/schema':
         specifier: workspace:*
         version: link:../schema

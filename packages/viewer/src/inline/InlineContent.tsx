@@ -30,10 +30,6 @@
 
 import { useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
-import type {
-  SanitizedFillInBlankInline,
-  SanitizedInlineNode,
-} from '../sanitize/sanitized-types.js';
 import { loadMathRenderer, residentMathRenderer } from './math.js';
 
 /** Fixed nesting order, outermost first — see decision 1. */
@@ -49,8 +45,23 @@ const MARK_ORDER = [
 
 type MarkLike = { type: string; [key: string]: unknown };
 
+/**
+ * What this renderer accepts: anything tagged with a `type`. Deliberately
+ * structural rather than the SanitizedInlineNode union — the sanitized
+ * projection produces slightly different node types per BLOCK (a
+ * fill_in_blank's content admits blank tokens, a paragraph's does not, and
+ * DeepSanitizeInline rewrites math nodes in place), and every one of them is
+ * dispatched here the same way: at runtime, on `type`. Naming one union would
+ * force a cast at nearly every call site, which is worse than saying plainly
+ * that this function switches on a tag.
+ */
+export interface RenderableInlineNode {
+  readonly type?: string;
+  readonly [key: string]: unknown;
+}
+
 export interface InlineContentProps {
-  nodes: readonly (SanitizedInlineNode | SanitizedFillInBlankInline)[];
+  nodes: readonly RenderableInlineNode[];
   /** Renders a blank token — supplied by fill_in_blank; static blocks omit it
    * and any stray blank renders as its bare underline placeholder. */
   renderBlank?: (blank: { id: string; width?: number }) => ReactNode;

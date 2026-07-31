@@ -26,6 +26,7 @@
 
 import type { ComponentType } from 'react';
 import type { Block } from '@activity/schema';
+import type { SanitizeBlockType } from '../sanitize/sanitized-types.js';
 
 /** Every schema block type, derived from the union so a new block type is a
  * compile error here before it is a missing registry entry. */
@@ -163,7 +164,18 @@ export interface A11ySpec {
  * absent at runtime per the entry's SanitizeSpec (the type-level sanitized
  * projection is S2's deliverable). */
 export interface BlockComponentProps<B extends Block = Block> {
-  readonly block: B;
+  /**
+   * The block AS SERVED — the sanitized projection of `B`, not the authored
+   * schema type. A component therefore cannot even NAME a field the server
+   * strips: reading `block.solution` or `interaction.correctPoints` is a
+   * compile error, not a runtime surprise. That makes the answer-key guarantee
+   * structural on the client too, alongside the wire-level leak suite that
+   * proves it on the server.
+   *
+   * It also surfaces what the sanitizer ADDS — `questionShape` on the graph
+   * family — which is otherwise invisible on the authored type.
+   */
+  readonly block: SanitizeBlockType<B>;
   readonly mode: 'screen' | 'print';
 }
 
@@ -219,9 +231,6 @@ export interface BlockRegistryEntry<T extends BlockType = BlockType> {
   readonly print: PrintSpec;
   /** Required when interactivity === 'interactive' (guard-enforced). */
   readonly a11y?: A11ySpec;
-  /** How this block's component loads. Unset = not yet built (the container
-   * renders an honest placeholder). */
-  readonly binding?: BlockComponentBinding<T>;
 }
 
 export type BlockRegistry = { readonly [T in BlockType]: BlockRegistryEntry<T> };

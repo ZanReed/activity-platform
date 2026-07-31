@@ -23,9 +23,10 @@ describe('conformance roster', () => {
   it('runs against every registry entry that has a component binding', () => {
     // Not a fixed list: this asserts the roster IS the bound set, so a new
     // binding is covered automatically and an unbound one is not demanded.
-    const expected = registeredBlockTypes.filter(
-      (type) => blockRegistry[type].binding !== undefined,
-    );
+    // Every bound type is a REAL registry type (the bindings map is keyed
+    // separately now, so this is also the guard that it cannot drift).
+    const expected = registeredBlockTypes.filter((type) => bound.includes(type));
+    expect(bound.every((type) => registeredBlockTypes.includes(type))).toBe(true);
     expect([...bound].sort()).toEqual([...expected].sort());
     expect(bound.length).toBeGreaterThan(0);
   });

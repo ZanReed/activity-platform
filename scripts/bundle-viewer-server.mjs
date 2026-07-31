@@ -61,9 +61,40 @@ const bytes = Object.values(result.metafile.outputs).reduce(
   0,
 );
 
+// ---- Client-code leak guard -------------------------------------------------
+// The read API imports the registry for its sanitize specs. When component
+// BINDINGS lived on those registry entries, this bundle silently absorbed the
+// entire component tree: 888 KiB → 2.8 MB once the exemplars were bound, then
+// 21 MB once the graph binding pulled in JSXGraph and MathLive. A read API that
+// renders nothing was about to ship with a graphing engine inside it.
+//
+// Components now bind in registry/bindings.ts, which only client code imports.
+// SIZE is the guard, deliberately: substring-matching for 'react' or 'mathlive'
+// false-positives on the comments this deliberately-unminified bundle keeps,
+// while every real leak is enormous — the two above were 3x and 23x the
+// ceiling. Raise this only alongside a deliberate, explained growth in what the
+// read path legitimately needs.
+const MAX_KIB = 1500;
+const actualKiB = bytes / 1024;
+if (actualKiB > MAX_KIB) {
+  console.error('');
+  console.error(
+    'ERROR: viewer server bundle is ' +
+      actualKiB.toFixed(1) +
+      ' KiB, over the ' +
+      MAX_KIB +
+      ' KiB ceiling.',
+  );
+  console.error('');
+  console.error('The read API must not carry rendering code. Most likely');
+  console.error('something the server imports now reaches a block component —');
+  console.error('components must be imported ONLY from registry/bindings.ts.');
+  process.exit(1);
+}
+
 console.log('');
 console.log('Viewer server bundle: ' + outFile);
-console.log('          ' + (bytes / 1024).toFixed(1) + ' KiB');
+console.log('          ' + actualKiB.toFixed(1) + ' KiB');
 console.log('');
 console.log(
   'Re-run after any change to packages/schema or packages/viewer sanitize/registry.',

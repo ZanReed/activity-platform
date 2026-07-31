@@ -35,11 +35,8 @@ import {
 } from 'react';
 import type { ComponentType } from 'react';
 import { blockRegistry, familyOf } from '../registry/registry.js';
-import type {
-  BlockComponentBinding,
-  BlockComponentProps,
-  BlockType,
-} from '../registry/types.js';
+import { bindingFor } from '../registry/bindings.js';
+import type { BlockComponentProps, BlockType } from '../registry/types.js';
 import type {
   SanitizedActivityDocument,
   SanitizedBlock,
@@ -83,9 +80,7 @@ function defaultResolve(
 ): ComponentType<BlockComponentProps> | null {
   // The one cast: bindings are typed against their OWN block, the slot renders
   // the union. The registry guard proves each binding sits on its own entry.
-  const binding = blockRegistry[type].binding as
-    | BlockComponentBinding
-    | undefined;
+  const binding = bindingFor(type);
   if (!binding) return null;
   if (binding.loading === 'eager') {
     return binding.component as ComponentType<BlockComponentProps>;

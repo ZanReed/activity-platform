@@ -21,7 +21,7 @@
 import { useMemo, useState } from 'react';
 import {
   ViewerContainer,
-  blockRegistry,
+  boundBlockTypes,
   createMockCheckService,
   createViewerStore,
   registeredBlockTypes,
@@ -82,9 +82,7 @@ export default function DevViewer() {
   }, [type, verdict, failing]);
 
   const variants = type === 'ALL' ? [] : sanitizedVariantFixtures(type);
-  const boundTypes = registeredBlockTypes.filter(
-    (t) => blockRegistry[t].binding !== undefined,
-  );
+  const boundTypes = boundBlockTypes();
 
   return (
     <div style={{ padding: '1rem', display: 'grid', gap: '1rem' }}>
@@ -109,7 +107,7 @@ export default function DevViewer() {
               {registeredBlockTypes.map((t) => (
                 <option key={t} value={t}>
                   {t}
-                  {blockRegistry[t].binding ? '' : ' (unbound)'}
+                  {boundTypes.includes(t) ? '' : ' (unbound)'}
                 </option>
               ))}
             </select>

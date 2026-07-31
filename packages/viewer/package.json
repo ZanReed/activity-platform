@@ -19,6 +19,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@activity/graph-kit": "workspace:*",
     "@activity/schema": "workspace:*",
     "katex": "^0.16.10"
   },

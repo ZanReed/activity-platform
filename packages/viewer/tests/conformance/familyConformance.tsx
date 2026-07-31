@@ -19,15 +19,17 @@
 // Everything below is DOM-observable behavior.
 // =============================================================================
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import {
   ViewerProvider,
+  bindingFor,
   blockRegistry,
   createMockCheckService,
   createViewerStore,
   familyOf,
   indexDocument,
+  setGraphSurface,
   setMathRenderer,
 } from '../../src/index.js';
 import type {
@@ -83,6 +85,13 @@ function answerEverything(store: ViewerStore, block: SanitizedBlock) {
     const items = raw.items as Array<{ id: string }> | undefined;
     if (items) store.setOrdering(id, items.map((i) => i.id));
   }
+  for (const id of section.items.graphs ?? []) {
+    const interaction = (raw.interaction as { type?: string } | undefined)?.type;
+    store.setGraphWork(id, {
+      interaction: interaction ?? 'plot_point',
+      points: [[1, 1]],
+    });
+  }
   for (const id of section.items.matches ?? []) {
     const items = raw.items as Array<{ id: string }> | undefined;
     const targets = raw.targets as Array<{ id: string }> | undefined;
@@ -91,16 +100,27 @@ function answerEverything(store: ViewerStore, block: SanitizedBlock) {
   return section;
 }
 
-function mount(block: SanitizedBlock, script: MockCheckScript = {}) {
-  const type = (block as { type: string }).type as BlockType;
-  const binding = blockRegistry[type].binding;
-  if (!binding || binding.loading !== 'eager') {
-    throw new Error(`conformance currently drives eager bindings; ${type} is not one`);
-  }
-  const Component = binding.component as React.ComponentType<{
-    block: unknown;
-    mode: 'screen' | 'print';
-  }>;
+type AnyBlockComponent = React.ComponentType<{
+  block: unknown;
+  mode: 'screen' | 'print';
+}>;
+
+/** Resolve either binding tier to a component. Lazy bindings (the graph
+ * family) are awaited once in beforeAll — the factory covers BOTH tiers, so a
+ * block cannot dodge its family contract by being expensive. */
+async function resolveBinding(type: BlockType): Promise<AnyBlockComponent> {
+  const binding = bindingFor(type);
+  if (!binding) throw new Error(`${type} has no component binding`);
+  if (binding.loading === 'eager') return binding.component as AnyBlockComponent;
+  const mod = await binding.load();
+  return mod.default as AnyBlockComponent;
+}
+
+function mount(
+  Component: AnyBlockComponent,
+  block: SanitizedBlock,
+  script: MockCheckScript = {},
+) {
   const service = createMockCheckService(script);
   const store = createViewerStore({
     activityId: ACTIVITY,
@@ -133,18 +153,33 @@ export function registerFamilyConformance(type: BlockType): void {
   const family = familyOf(block as never);
 
   describe(`${type} — ${family} conformance (docs/design/checked-state-families.md)`, () => {
+    let Component: AnyBlockComponent;
+
+    beforeAll(async () => {
+      Component = await resolveBinding(type);
+      // Kit-backed blocks mount an imperative widget that needs a real
+      // browser. The conformance suite is about FAMILY behavior, not the
+      // board, so it installs an inert surface; the board itself is verified
+      // in /dev/viewer. Harmless for every other block (nothing calls it).
+      setGraphSurface(async () => ({
+        getResponse: () => ({ points: [], answered: false }),
+        restore: () => {},
+        setLocked: () => {},
+        destroy: () => {},
+      }));
+    });
     it('renders its fixture without throwing', () => {
-      expect(() => mount(block)).not.toThrow();
+      expect(() => mount(Component, block)).not.toThrow();
     });
 
     it('shows no state chrome before any check', () => {
-      mount(block);
+      mount(Component, block);
       expect(statesShown()).toEqual([]);
     });
 
     if (family === 'static') {
       it('NEVER shows state chrome, even after its section is checked', async () => {
-        const { store } = mount(block);
+        const { store } = mount(Component, block);
         const section = answerEverything(store, block);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(store.getState().sections[SECTION]?.phase).toBe('checked'));
@@ -160,7 +195,7 @@ export function registerFamilyConformance(type: BlockType): void {
 
     if (family === 'auto_gradable') {
       it('shows ✓ only from a server CORRECT verdict', async () => {
-        const { store } = mount(block, { defaultVerdict: 'correct' });
+        const { store } = mount(Component, block, { defaultVerdict: 'correct' });
         const section = answerEverything(store, block);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(statesShown()).toContain('correct'));
@@ -174,7 +209,7 @@ export function registerFamilyConformance(type: BlockType): void {
       });
 
       it('shows ✗ from a server INCORRECT verdict, and never invents feedback', async () => {
-        const { store } = mount(block, { defaultVerdict: 'incorrect' });
+        const { store } = mount(Component, block, { defaultVerdict: 'incorrect' });
         const section = answerEverything(store, block);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(statesShown()).toContain('incorrect'));
@@ -190,7 +225,7 @@ export function registerFamilyConformance(type: BlockType): void {
       });
 
       it('the mark never molests the work — responses survive an incorrect verdict', async () => {
-        const { store } = mount(block, { defaultVerdict: 'incorrect' });
+        const { store } = mount(Component, block, { defaultVerdict: 'incorrect' });
         const section = answerEverything(store, block);
         const before = JSON.stringify(store.getState().responses);
         await store.checkSection(SECTION, section.items);
@@ -205,7 +240,7 @@ export function registerFamilyConformance(type: BlockType): void {
       });
 
       it('announces its verdict transition through aria-live (6.1A)', async () => {
-        const { store } = mount(block, { defaultVerdict: 'correct' });
+        const { store } = mount(Component, block, { defaultVerdict: 'correct' });
         const section = answerEverything(store, block);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(pills().length).toBeGreaterThan(0));
@@ -219,7 +254,7 @@ export function registerFamilyConformance(type: BlockType): void {
       it('shows the recorded receipt after a check — and NEVER a verdict', async () => {
         // Scripted judgment: proves the component refuses it, not just that
         // the mock withholds it.
-        const { store } = mount(block, { defaultVerdict: 'incorrect' });
+        const { store } = mount(Component, block, { defaultVerdict: 'incorrect' });
         const section = answerEverything(store, block);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(statesShown()).toContain('recorded'));
@@ -237,7 +272,7 @@ export function registerFamilyConformance(type: BlockType): void {
       });
 
       it('never renders a score or points', async () => {
-        const { container, store } = mount(block, { defaultVerdict: 'correct' });
+        const { container, store } = mount(Component, block, { defaultVerdict: 'correct' });
         const section = answerEverything(store, block);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(statesShown()).toContain('recorded'));
@@ -247,7 +282,7 @@ export function registerFamilyConformance(type: BlockType): void {
 
     if (entry.interactivity === 'interactive') {
       it('exposes a focusable control in tab order (its a11y story)', () => {
-        const { container } = mount(block);
+        const { container } = mount(Component, block);
         const focusable = container.querySelectorAll(
           'input:not([disabled]), textarea:not([disabled]), select, button, [tabindex]:not([tabindex="-1"])',
         );
@@ -255,7 +290,7 @@ export function registerFamilyConformance(type: BlockType): void {
       });
 
       it('every control has an accessible name', () => {
-        mount(block);
+        mount(Component, block);
         for (const role of ['radio', 'checkbox', 'textbox'] as const) {
           for (const el of screen.queryAllByRole(role)) {
             expect(el).toHaveAccessibleName();
@@ -264,7 +299,7 @@ export function registerFamilyConformance(type: BlockType): void {
       });
 
       it('accepts input without a check having happened', () => {
-        const { store } = mount(block);
+        const { store } = mount(Component, block);
         const section = answerEverything(store, block);
         const responses = store.getState().responses;
         const recorded =
@@ -272,7 +307,8 @@ export function registerFamilyConformance(type: BlockType): void {
           Object.keys(responses.choices).length +
           Object.keys(responses.matches).length +
           Object.keys(responses.orderings).length +
-          Object.keys(responses.freeText).length;
+          Object.keys(responses.freeText).length +
+          Object.keys(responses.graphs).length;
         expect(recorded, `${type} owns no response slot`).toBeGreaterThan(0);
         expect(section.items).not.toEqual({});
       });
@@ -280,7 +316,7 @@ export function registerFamilyConformance(type: BlockType): void {
 
     if (entry.interactivity !== 'interactive') {
       it('takes no input (nothing to record)', () => {
-        const { store } = mount(block);
+        const { store } = mount(Component, block);
         answerEverything(store, block);
         const responses = store.getState().responses;
         const recorded =
@@ -288,19 +324,14 @@ export function registerFamilyConformance(type: BlockType): void {
           Object.keys(responses.choices).length +
           Object.keys(responses.matches).length +
           Object.keys(responses.orderings).length +
-          Object.keys(responses.freeText).length;
+          Object.keys(responses.freeText).length +
+          Object.keys(responses.graphs).length;
         expect(recorded).toBe(0);
       });
     }
 
     it('renders in print mode without check chrome', () => {
       setMathRenderer((latex) => `<span>${latex}</span>`);
-      const binding = entry.binding;
-      if (binding?.loading !== 'eager') throw new Error('eager binding expected');
-      const Component = binding.component as React.ComponentType<{
-        block: unknown;
-        mode: 'screen' | 'print';
-      }>;
       const service = createMockCheckService();
       const store = createViewerStore({
         activityId: ACTIVITY,
@@ -319,12 +350,7 @@ export function registerFamilyConformance(type: BlockType): void {
   });
 }
 
-/** Types with a component binding — the conformance roster. */
-export function boundBlockTypes(): BlockType[] {
-  return (Object.keys(blockRegistry) as BlockType[]).filter(
-    (type) => blockRegistry[type].binding !== undefined,
-  );
-}
+export { boundBlockTypes } from '../../src/index.js';
 
 // Keep fireEvent imported for driver use in future non-store-driven blocks.
 void fireEvent;
