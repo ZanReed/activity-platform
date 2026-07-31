@@ -88,7 +88,22 @@ function readIntervalKey(raw: unknown): {
 export interface NumberLineQuestionConfig {
   interactionType: 'plot_point' | 'plot_interval' | string;
   config: unknown; // NumberLineConfig
-  answerKey: unknown; // { correctPoints, tolerance } | { correctInterval, tolerance }
+  /**
+   * The answer key. OPTIONAL for the same reason as graph-question's: the
+   * server-authoritative viewer never receives one (the read API strips
+   * correctPoints / correctInterval / tolerance), so it mounts this widget as
+   * a pure INPUT surface and the server grades.
+   *
+   * Absent ⇒ ungraded input mode: nothing scores, and `correct` is reported
+   * false with `scored: false` alongside so a consumer can tell "not scored
+   * here" from "wrong". Pass `questionShape` when absent — the handle count
+   * otherwise comes FROM the key.
+   */
+  answerKey?: unknown; // { correctPoints, tolerance } | { correctInterval, tolerance }
+  /** Question shape for ungraded mode: how many point handles to place.
+   * Interval mode is always two. Not answer data — the student sees the
+   * handles either way; their positions are the secret. */
+  questionShape?: { handleCount?: number };
 }
 
 // What the widget reports on every change and at gather time. Shaped to the
@@ -97,7 +112,11 @@ export interface NumberLineQuestionConfig {
 export interface NumberLineResponseData {
   interactionType: 'plot_point' | 'plot_interval';
   answered: boolean;
+  /** In ungraded mode this is always false and MEANINGLESS — read `scored`. */
   correct: boolean;
+  /** False when mounted without an answer key (ungraded input mode). Additive:
+   * consumers that ignore it keep their current behavior. */
+  scored?: boolean;
   studentPoints?: number[];
   interval?: StudentInterval;
 }
@@ -280,8 +299,10 @@ export async function mountNumberLineQuestion(
   const interactionType = cfg.interactionType === 'plot_interval' ? 'plot_interval' : 'plot_point';
   const isInterval = interactionType === 'plot_interval';
 
-  const pointKey = !isInterval ? readPointKey(cfg.answerKey) : null;
-  const intervalKey = isInterval ? readIntervalKey(cfg.answerKey) : null;
+  // Ungraded input mode: no key, so nothing here scores.
+  const ungraded = cfg.answerKey === undefined || cfg.answerKey === null;
+  const pointKey = !isInterval && !ungraded ? readPointKey(cfg.answerKey) : null;
+  const intervalKey = isInterval && !ungraded ? readIntervalKey(cfg.answerKey) : null;
 
   // Clear the renderer's static SVG placeholder before JSXGraph mounts.
   mount.textContent = '';
@@ -294,7 +315,12 @@ export async function mountNumberLineQuestion(
     {
       ...line,
       mode: isInterval ? 'interval' : 'points',
-      count: isInterval ? 2 : Math.max(1, pointKey!.correctPoints.length),
+      count: isInterval
+        ? 2
+        : Math.max(
+            1,
+            pointKey?.correctPoints.length ?? cfg.questionShape?.handleCount ?? 1,
+          ),
     },
     { onMove: () => handleMove() },
   );
@@ -337,7 +363,10 @@ export async function mountNumberLineQuestion(
       return {
         interactionType: 'plot_interval',
         answered,
-        correct: answered && scoreNumberLineInterval(intervalKey!, interval),
+        correct: intervalKey
+          ? answered && scoreNumberLineInterval(intervalKey, interval)
+          : false,
+        ...(ungraded ? { scored: false } : {}),
         interval,
       };
     }
@@ -345,7 +374,8 @@ export async function mountNumberLineQuestion(
     return {
       interactionType: 'plot_point',
       answered,
-      correct: answered && scoreNumberLinePoints(pointKey!, studentPoints),
+      correct: pointKey ? answered && scoreNumberLinePoints(pointKey, studentPoints) : false,
+      ...(ungraded ? { scored: false } : {}),
       studentPoints,
     };
   }

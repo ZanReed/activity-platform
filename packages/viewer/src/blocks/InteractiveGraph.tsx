@@ -35,7 +35,8 @@ import { InlineContent } from '../inline/InlineContent.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
-import { graphSurface, type GraphSurfaceHandle } from './graphSurface.js';
+import { graphSurface, type GraphSurfaceHandle } from './kitSurfaces.js';
+import { CANVAS_HOST_STYLE, VISUALLY_HIDDEN } from './canvasChrome.js';
 
 export default function InteractiveGraph({
   block,
@@ -78,8 +79,7 @@ export default function InteractiveGraph({
     // child, and cleanup removes that child synchronously.
     const host = document.createElement('div');
     host.dataset.graphBoardHost = 'true';
-    host.style.width = '100%';
-    host.style.height = '100%';
+    Object.assign(host.style, CANVAS_HOST_STYLE);
     el.appendChild(host);
 
     void mount(
@@ -239,23 +239,6 @@ export default function InteractiveGraph({
 
 /** Minimum viable board box; the styling pass refines it via the class. */
 const CANVAS_SIZE = { width: '100%', aspectRatio: '1 / 1', minHeight: '18rem' } as const;
-
-/** Inlined rather than left to a stylesheet: this region must reach screen
- * readers and NOT the screen, and a missing class would silently invert that.
- * The standard clip-rect recipe — `display: none` would hide it from assistive
- * tech too, which is the opposite of the point. */
-const VISUALLY_HIDDEN = {
-  position: 'absolute',
-  width: '1px',
-  height: '1px',
-  margin: '-1px',
-  padding: 0,
-  overflow: 'hidden',
-  clip: 'rect(0 0 0 0)',
-  clipPath: 'inset(50%)',
-  whiteSpace: 'nowrap',
-  border: 0,
-} as const;
 
 /** Narration text for the live region. Says WHERE the handles are, which the
  * student could read off the grid themselves — never whether it is right. */

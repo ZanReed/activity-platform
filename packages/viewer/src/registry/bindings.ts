@@ -38,11 +38,19 @@ export const blockBindings: Partial<
   paragraph: { loading: 'eager', component: Paragraph as never },
   multiple_choice: { loading: 'eager', component: MultipleChoice as never },
   short_answer: { loading: 'eager', component: ShortAnswer as never },
-  // The one lazy binding: graph-kit drags JSXGraph behind it, which is exactly
-  // the weight the lazy tier exists for.
+  // The lazy tier: every canvas block pulls graph-kit (and JSXGraph) behind
+  // it, which is exactly the weight that tier exists for.
   interactive_graph: {
     loading: 'lazy',
     load: () => import('../blocks/InteractiveGraph.js') as never,
+  },
+  number_line: {
+    loading: 'lazy',
+    load: () => import('../blocks/NumberLine.js') as never,
+  },
+  data_plot: {
+    loading: 'lazy',
+    load: () => import('../blocks/DataPlot.js') as never,
   },
 };
 

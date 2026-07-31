@@ -155,13 +155,28 @@ export {
   setMathRenderer,
 } from './inline/math.js';
 export type { MathRenderer } from './inline/math.js';
-export { setGraphSurface, graphSurface } from './blocks/graphSurface.js';
+export {
+  setGraphSurface,
+  graphSurface,
+  setNumberLineSurface,
+  numberLineSurface,
+  setDataPlotSurface,
+  dataPlotSurface,
+} from './blocks/kitSurfaces.js';
 export type {
   GraphSurface,
   GraphSurfaceConfig,
   GraphSurfaceHandle,
   GraphSurfaceResponse,
-} from './blocks/graphSurface.js';
+  NumberLineSurface,
+  NumberLineSurfaceConfig,
+  NumberLineSurfaceHandle,
+  NumberLineSurfaceResponse,
+  DataPlotSurface,
+  DataPlotSurfaceConfig,
+  DataPlotSurfaceHandle,
+  DataPlotSurfaceResponse,
+} from './blocks/kitSurfaces.js';
 export { StatePill } from './blocks/StatePill.js';
 export type { PillState, StatePillProps } from './blocks/StatePill.js';
 export type { BlockComponentBinding } from './registry/types.js';
