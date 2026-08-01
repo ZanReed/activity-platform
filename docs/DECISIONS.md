@@ -411,3 +411,87 @@ deltas isolate server round-trip from browser overhead. The script prints its
 own `WARM TIMING` line as the client-side view; expect it to read slightly
 higher. Both are in the same place, which is why the ruling did not need to pick
 between them.
+
+## Print parity — the artifact, and why it is not a pixel diff (2026-08-01/02, S5, closes finding R4)
+
+Finding R4 said the renderer-retirement print gate was **unfalsifiable**: "per-block
+print-parity snapshots" compared a string-rendered HTML page against a React tree, and
+no comparable artifact was defined. It proposed cross-surface pixel-diff within a ruled
+threshold. **That half was rejected and replaced.**
+
+**Why cross-surface pixel-diff cannot work here.** The two surfaces are deliberately
+different renderings — different DOM, different container layout, different font
+pipelines (@fontsource in the viewer, R2 `@font-face` on published pages), different
+KaTeX asset versions. A threshold loose enough to tolerate those legitimate differences
+is too loose to catch a missing blank underline; one tight enough to catch a missing
+underline is permanently red. Either way the gate stops meaning anything, and a
+permanently-red gate is worse than none because people learn to ignore it.
+
+**What replaced it (ruling S5-6), in three parts:**
+
+1. **Rules parity — the falsifiable core.** `printExpectations(type, ctx)` states what
+   must be true of a printed block; the gate asserts it on BOTH surfaces via computed
+   styles and DOM. Parity means "every ruled rule holds on both", which is a claim that
+   can fail.
+2. **Viewer-only screenshot baselines.** Pixels catch what the rules do not NAME (a
+   collapsed margin, an overlapping figure). Compared viewer-against-viewer, where the
+   only variable is our own code — the threshold problem does not arise.
+3. **One recorded human sign-off** on a generated side-by-side contact sheet. "Does this
+   read as well on paper" is not automatable; making it an explicit, dated, one-time
+   read is more honest than a threshold pretending to encode taste.
+
+**Consequences worth knowing.**
+
+- **The gate is SPEC-referenced, not output-referenced.** It asserts the registry's
+  `PrintSpec`, not the renderer's current output. That is what makes an improvement
+  expressible: S5-OV6 fixed three long-standing break-inside oddities (a numbered
+  equation, a chart, and a free-text prompt could each split across a page) on the viewer
+  while published pages keep their behaviour until they retire. Improved rules are marked
+  viewer-only **by name, with the reason**, so the exemption is auditable rather than a
+  silently weakened assertion.
+- **Three fixture classes, not one.** A roster keyed to the block registry is structurally
+  blind to layout (rows/columns/footprint) and to the document print layer
+  (header/reference box/glossary/paper size/spacing) — none of which is a block. Those
+  became their own guarded rosters (S5-OV1/OV2).
+- **Print emulation never paginates.** `emulateMedia({media:'print'})` applies print CSS
+  in one continuous viewport, so every break rule checked there is a computed VALUE, not
+  a fact about layout. `page.pdf()` is the only thing that runs Chromium's paged-media
+  layout, so a separate suite covers it. Per-block "did not straddle" is deliberately NOT
+  automated: Chromium's PDF text is in compressed streams, and the contact sheet shows a
+  human the same property directly.
+- **The gate must not depend on infrastructure the cutover deletes.** It runs with all
+  external requests blocked, so it survives R2's removal at S9. A retirement gate that
+  dies with the thing it retires is no gate.
+
+**What the first runs found**, before it guarded anything: seven real defects (a check
+reading the wrong element, improved rules asserted on the wrong surface, border STYLE
+measured where Tailwind's preflight makes WIDTH the signal, a lazy-component wait
+satisfied by other blocks' wrappers, callout having ONE fixture when the rule is that
+four variants stay distinguishable, variant checks running against the wrong instance,
+and two more viewer-only improvements). Then red-green testing found an eighth: the
+"solutions never print" rule passed **vacuously**, because pills, feedback, and solutions
+only exist after a check — the rule was asserted about elements never on the page. Fixed
+by checking a section first. Both classes of finding are the reason a gate gets red-green
+tested before it is trusted.
+
+## Static SVG lives in graph-kit, not in the renderer (2026-08-02, S5-T2)
+
+Both surfaces must print IDENTICAL static graphs, and the viewer cannot import the
+renderer (it dies at S5.5) any more than the renderer should import the viewer. So
+`graph-svg` / `number-line-svg` / `data-plot-svg` moved wholesale into
+**`@activity/graph-kit/static-svg`** — a pure subpath with no DOM, no JSXGraph, no
+MathLive, the same discipline as `/scorers` and for the same bundle-leak reason.
+graph-kit is the package both surfaces already depend on and the one that outlives
+cutover, so it is the only home that adds no dependency edge and leaves nothing dangling.
+The renderer re-exports; its 724 tests passing unchanged is the proof the move was
+behaviour-preserving.
+
+Both surfaces now emit `data-drawables` from that ONE renderer, which is what makes the
+gate's count assertion mean something: they cannot disagree about what they drew.
+
+**The rule the count encodes (S5-1 as amended by OV4):** a QUESTION prints empty axes —
+the student's plotted work is an answer, and a printed worksheet is the blank version. A
+DISPLAY figure prints its AUTHORED drawables, because that is the content the block exists
+to show. The original "empty axes everywhere" ruling would have silently deleted what was
+being taught, and no treatment-level rule would have noticed. It is enforced by narrowing
+on the interaction type, so only the display variant even HAS a drawables field.
