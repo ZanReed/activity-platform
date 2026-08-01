@@ -8,6 +8,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Manual trigger for generating the print baselines on Linux, which is the
+  # only platform whose images are authoritative (S5-7). Run it, download the
+  # artifact, commit the .png files.
+  workflow_dispatch:
+    inputs:
+      update_print_baselines:
+        description: 'Generate print screenshot baselines (download + commit the artifact)'
+        type: boolean
+        default: false
 
 jobs:
   check:
@@ -83,3 +92,83 @@ jobs:
             echo "::error::Committed grading server bundle is stale. Run 'pnpm bundle:grading-server' and commit the result.";
             exit 1;
           }
+
+  # ---------------------------------------------------------------------------
+  # The print-parity gate (S5). This is one of the two gates that let the string
+  # renderer retire from the student path, so it has to run where PRs merge —
+  # a gate that only runs when someone remembers to run it is not a gate.
+  #
+  # Its own job rather than a step in `check`: it needs a browser and a dev
+  # server, which the fast typecheck/lint/test job should not have to wait for,
+  # and a browser-shaped failure should read as "print parity broke" rather than
+  # as a mystery inside a job called `test`.
+  #
+  # Scoped to print-parity deliberately. The editor's 145-case e2e suite is
+  # still local-only; bringing it into CI is a separate decision with its own
+  # runtime cost, and quietly folding it in here would make this job's failures
+  # ambiguous.
+  # ---------------------------------------------------------------------------
+  print-parity:
+    name: print parity gate (renderer retirement)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Chromium only — the gate asserts CSS the print engine applies, not
+      # cross-browser behaviour, and every extra browser is install time on
+      # every run.
+      - name: Install Chromium
+        run: pnpm --filter @activity/app exec playwright install --with-deps chromium
+
+      - name: Print parity
+        run: pnpm --filter @activity/app exec playwright test print-parity
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: print-parity-traces
+          path: packages/app/test-results/
+          retention-days: 7
+
+  # Generates the Linux print baselines on demand. Not part of the normal run:
+  # a job that rewrites its own expectations on every push would make the
+  # baselines meaningless. The images come back as an artifact for a human to
+  # inspect and commit — CI never commits its own snapshots.
+  print-baselines:
+    name: generate print baselines (manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.update_print_baselines
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter @activity/app exec playwright install --with-deps chromium
+
+      - name: Generate baselines
+        env:
+          PRINT_BASELINES: '1'
+        run: pnpm --filter @activity/app exec playwright test print-baselines --update-snapshots
+
+      - name: Upload baselines
+        uses: actions/upload-artifact@v4
+        with:
+          name: print-baselines
+          path: packages/app/e2e/**/*.png
+          retention-days: 14
