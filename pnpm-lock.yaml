@@ -233,6 +233,9 @@ importers:
       '@activity/graph-kit':
         specifier: workspace:*
         version: link:../graph-kit
+      '@activity/viewer':
+        specifier: workspace:*
+        version: link:../viewer
       '@types/katex':
         specifier: ^0.16.7
         version: 0.16.8

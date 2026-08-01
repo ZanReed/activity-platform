@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./fixtures": "./src/fixtures/index.ts",
+    "./grading-corpus": "./src/server/grading/corpus.ts",
     "./tokens.css": "./src/tokens/tokens.css",
     "./viewer.css": "./src/styles/viewer.css"
   },

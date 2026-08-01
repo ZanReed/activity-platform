@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@activity/graph-kit": "workspace:*",
+    "@activity/viewer": "workspace:*",
     "@types/katex": "^0.16.7",
     "jsdom": "^29.1.1"
   }

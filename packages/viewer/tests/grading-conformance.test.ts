@@ -180,11 +180,12 @@ describe('the one deliberate difference, pinned rather than discovered', () => {
     const blankId = inv.blankGroupsByBlock[0]!.keys[0]!.id;
     responses.blanks[blankId] = '   '; // whitespace: an omission
 
-    const [{ result: mockResult }, { result: realResult }] =
-      await bothImplementations(responses);
+    const both = await bothImplementations(responses);
+    const mockResult = both[0]!.result;
+    const realResult = both[1]!.result;
 
-    expect(mockResult!.items[blankId]).toBeDefined();
-    expect(realResult!.items[blankId]).toBeUndefined();
+    expect(mockResult.items[blankId]).toBeDefined();
+    expect(realResult.items[blankId]).toBeUndefined();
   });
 
   it('agrees exactly once every submitted answer is real', async () => {
@@ -192,11 +193,9 @@ describe('the one deliberate difference, pinned rather than discovered', () => {
     // makes the difference above precisely "omission", and not a second,
     // unnoticed divergence hiding behind it.
     const responses = fullSubmission();
-    const [{ result: mockResult }, { result: realResult }] =
-      await bothImplementations(responses);
-
-    const mockIds = new Set(Object.keys(mockResult!.items));
-    const realIds = new Set(Object.keys(realResult!.items));
+    const both = await bothImplementations(responses);
+    const mockIds = new Set(Object.keys(both[0]!.result.items));
+    const realIds = new Set(Object.keys(both[1]!.result.items));
     expect([...realIds].sort()).toEqual([...mockIds].sort());
   });
 });
