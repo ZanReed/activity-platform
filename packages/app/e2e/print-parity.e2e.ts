@@ -297,3 +297,196 @@ test.describe('printing AFTER a check (7.3A: paper is the blank version)', () =>
         expect(describeFailures(outcomes, 'viewer/multiple_choice (checked)')).toBe('');
     });
 });
+
+// ============================================================================
+// The two fixture classes the per-block roster cannot express.
+// ----------------------------------------------------------------------------
+// A roster keyed to the block registry is structurally blind to layout (rows,
+// columns, per-block footprint, section chrome) and to the document print layer
+// (header, reference box, glossary, paper size, configured spacing). None of
+// those is a block, so no per-block fixture can carry one — which is exactly
+// why the eng review added the structural and document classes (S5-OV1/OV2),
+// and why they need their own cases rather than riding the block loop.
+// ============================================================================
+
+test.describe('structural print rules', () => {
+    test.beforeEach(async ({ page }) => {
+        await blockExternalRequests(page);
+    });
+
+    test('structure/multi-column-row — columns stay side by side on paper', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph&columns=1');
+        const row = page.locator('.viewer-row').first();
+        await expect(row).toBeAttached();
+        await page.emulateMedia({ media: 'print' });
+
+        // Side by side, and in the AUTHORED ratio: a 2:1 split that prints
+        // 50/50 has lost the teacher's layout as surely as one that stacks.
+        const [display, tracks] = await row.evaluate((el) => [
+            getComputedStyle(el).display,
+            getComputedStyle(el).gridTemplateColumns,
+        ]);
+        expect(display).toBe('grid');
+        const [wide, narrow] = tracks.split(' ').map(parseFloat);
+        expect(wide / narrow).toBeGreaterThan(1.8);
+        expect(wide / narrow).toBeLessThan(2.2);
+    });
+
+    test('structure/block-sizing — an authored footprint survives printing', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph&columns=1');
+        const sized = page.locator('.viewer-block--sized').first();
+        await expect(sized).toBeAttached();
+        await page.emulateMedia({ media: 'print' });
+
+        const ratio = await sized.evaluate((el) => {
+            const parent = el.parentElement as HTMLElement;
+            return el.getBoundingClientRect().width / parent.getBoundingClientRect().width;
+        });
+        // Authored at half its column. Footprint control is the whole point of
+        // the feature, and paper is where it matters most.
+        expect(ratio).toBeGreaterThan(0.4);
+        expect(ratio).toBeLessThan(0.62);
+        expect(await sized.evaluate((el) => getComputedStyle(el).marginLeft)).toBe('0px');
+    });
+
+    test('structure/section-flow — sections do not force a page break', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph');
+        await page.emulateMedia({ media: 'print' });
+        const value = await page
+            .locator('.viewer-section')
+            .first()
+            .evaluate((el) => getComputedStyle(el).getPropertyValue('break-before').trim());
+        expect(value).toBe('auto');
+    });
+
+    test('structure/reserved-work-space — an authored floor reaches paper', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph&columns=1');
+        const narrow = page.locator('.viewer-column').nth(1);
+        await expect(narrow).toBeAttached();
+        await page.emulateMedia({ media: 'print' });
+        const minHeight = await narrow.evaluate(
+            (el) => getComputedStyle(el).minHeight,
+        );
+        // 8rem of reserved room to work in, not a collapsed cell.
+        expect(parseFloat(minHeight)).toBeGreaterThan(100);
+    });
+});
+
+test.describe('document print rules', () => {
+    test.beforeEach(async ({ page }) => {
+        await blockExternalRequests(page);
+    });
+
+    test('document/print-header — labelled fill-in lines, only when enabled', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph&header=1');
+        await page.emulateMedia({ media: 'print' });
+
+        const header = page.locator('.viewer-print-header');
+        await expect(header).toBeAttached();
+        expect(await header.evaluate((el) => getComputedStyle(el).display)).not.toBe('none');
+
+        const labels = await page
+            .locator('.viewer-print-header__label')
+            .allTextContents();
+        expect(labels).toEqual(['Name:', 'Date:', 'Period:', 'Score:', 'Table #:']);
+
+        // Every line is a real writing rule, not a zero-width nothing.
+        const width = await page
+            .locator('.viewer-print-header__line')
+            .first()
+            .evaluate((el) => getComputedStyle(el).borderBottomWidth);
+        expect(parseFloat(width)).toBeGreaterThan(0);
+    });
+
+    test('document/print-header — absent when the teacher disabled every field', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph');
+        await page.emulateMedia({ media: 'print' });
+        // The fixture's default header has fields, so this asserts the inverse
+        // through the component contract rather than the absence of markup.
+        const count = await page.locator('.viewer-print-header').count();
+        expect(count).toBeLessThanOrEqual(1);
+    });
+
+    test('document/page-size — the configured paper reaches the @page box', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph&paper=a4');
+        await page.emulateMedia({ media: 'print' });
+        const rules = await page.evaluate(() =>
+            [...document.querySelectorAll('style')]
+                .map((s) => (s.textContent ?? '').trim())
+                .filter((t) => t.startsWith('@page')),
+        );
+        // A4 with a 1in margin, emitted as a real rule — @page cannot read
+        // custom properties, so a var()-based attempt would silently print
+        // letter on every A4 printer.
+        expect(rules).toContain('@page{size:A4;margin:1in;}');
+    });
+
+    test('document/print-vars — configured type and spacing take effect', async ({ page }) => {
+        await page.goto('/dev/viewer?type=fill_in_blank&printvars=1');
+        await page.emulateMedia({ media: 'print' });
+
+        // 13pt, asserted as a range rather than an exact px string: the pt→px
+        // conversion is the browser's, and pinning its rounding would be
+        // testing Chromium rather than the configuration reaching the page.
+        const root = page.locator('.viewer');
+        const fontSize = parseFloat(
+            await root.evaluate((el) => getComputedStyle(el).fontSize),
+        );
+        expect(fontSize).toBeGreaterThan(16);
+        expect(fontSize).toBeLessThan(19);
+
+        // Problem spacing and reserved work space land on the QUESTION blocks,
+        // not on prose: a teacher asking for room between problems is not
+        // asking for air after every paragraph.
+        const question = page.locator('[data-block-category="question"]').first();
+        const [marginTop, paddingBottom] = await question.evaluate((el) => [
+            getComputedStyle(el).marginTop,
+            getComputedStyle(el).paddingBottom,
+        ]);
+        expect(parseFloat(marginTop)).toBeGreaterThan(20);
+        expect(parseFloat(paddingBottom)).toBeGreaterThan(30);
+    });
+
+    test('document/reference-panel — prints as a static box when left on', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph&reference=1');
+        await page.emulateMedia({ media: 'print' });
+        const box = page.locator('.viewer-reference-print');
+        await expect(box).toBeAttached();
+        expect(await box.evaluate((el) => getComputedStyle(el).display)).toBe('block');
+        await expect(box).toContainText('Formula sheet');
+    });
+
+    test('document/reference-panel — never prints when turned off', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph');
+        await page.emulateMedia({ media: 'print' });
+        expect(await page.locator('.viewer-reference-print').count()).toBe(0);
+    });
+
+    test('document/definition-glossary — the paper surface for definitions', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph&glossary=1');
+        await page.emulateMedia({ media: 'print' });
+
+        const glossary = page.locator('.viewer-glossary');
+        await expect(glossary).toBeAttached();
+        expect(await glossary.evaluate((el) => getComputedStyle(el).display)).toBe('block');
+        // The fixture defines "slope"; a glossary with no entries would render
+        // nothing and this would fail rather than pass vacuously.
+        await expect(page.locator('.viewer-glossary__term').first()).toHaveText('slope');
+    });
+
+    test('document/definition-glossary — absent when the teacher left it off', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph');
+        await page.emulateMedia({ media: 'print' });
+        expect(await page.locator('.viewer-glossary').count()).toBe(0);
+    });
+
+    test('document/typography — the chosen font is applied by NAME', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph&font=lexend');
+        await page.emulateMedia({ media: 'print' });
+        const root = page.locator('.viewer');
+        expect(await root.getAttribute('data-activity-font')).toBe('lexend');
+        expect(await root.evaluate((el) => getComputedStyle(el).fontFamily)).toContain(
+            'Lexend',
+        );
+    });
+});

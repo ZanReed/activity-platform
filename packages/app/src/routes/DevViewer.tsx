@@ -124,12 +124,73 @@ export default function DevViewer() {
     };
   }, [type, verdict, failing]);
 
+  /**
+   * Document- and structure-level print features, driven by query params so the
+   * print-parity gate can exercise them. These are NOT block features — they
+   * are the layer the per-block fixture roster is structurally blind to
+   * (rulings S5-OV1 and S5-OV2), so without a way to turn them on the gate's
+   * document and structural rosters would have nothing to assert against.
+   */
   const docWithFont = useMemo(() => {
-    if (font === 'default') return doc;
     const next = structuredClone(doc) as unknown as {
-      meta: Record<string, unknown>;
+      meta: Record<string, unknown> & { print: Record<string, unknown> };
+      sections: {
+        rows: { id: string; columns: { id: string; blocks: unknown[] }[] }[];
+      }[];
+      referencePanel?: unknown;
     };
-    next.meta.typography = { font, fontSize: 16 };
+
+    if (font !== 'default') next.meta.typography = { font, fontSize: 16 };
+
+    if (params.get('header') === '1') {
+      next.meta.print = {
+        ...next.meta.print,
+        header: { name: true, date: true, period: true, class: false, score: true, custom: ['Table #'] },
+      };
+    }
+    if (params.get('paper') === 'a4') {
+      next.meta.print = { ...next.meta.print, paperSize: 'a4', margin: 1 };
+    }
+    if (params.get('printvars') === '1') {
+      next.meta.print = {
+        ...next.meta.print,
+        fontSize: 13,
+        problemSpacing: 2,
+        workSpace: 3,
+      };
+    }
+    if (params.get('glossary') === '1') {
+      next.meta.print = { ...next.meta.print, printDefinitionGlossary: true };
+    }
+    if (params.get('reference') === '1') {
+      next.meta.print = { ...next.meta.print, printReferencePanel: true };
+      next.referencePanel = {
+        title: 'Formula sheet',
+        blocks: [structuredClone(next.sections[0]?.rows[0]?.columns[0]?.blocks[0])],
+      };
+    }
+
+    // A two-column row with authored WEIGHTS, plus a sized block — the layout
+    // facts no per-block fixture can express.
+    if (params.get('columns') === '1') {
+      const allBlocks = next.sections.flatMap((sec) =>
+        sec.rows.flatMap((row) => row.columns.flatMap((col) => col.blocks)),
+      );
+      const left = structuredClone(allBlocks[0]) as Record<string, unknown>;
+      const right = structuredClone(allBlocks[1] ?? allBlocks[0]) as Record<string, unknown>;
+      left.width = 0.5;
+      left.align = 'left';
+      next.sections[0]!.rows = [
+        {
+          id: 'row-structural',
+          columns: [
+            { id: 'col-wide', width: 2, blocks: [left] } as never,
+            { id: 'col-narrow', width: 1, minHeight: 8, blocks: [right] } as never,
+          ],
+        },
+      ];
+    }
+
     return next as unknown as SanitizedActivityDocument;
   }, [doc, font]);
 
