@@ -27,6 +27,8 @@ import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { dataPlotSurface, type DataPlotSurfaceHandle } from './kitSurfaces.js';
+import { renderDataPlotSvg } from '@activity/graph-kit/static-svg';
+import { PrintTwin } from './printTwin.js';
 import { CANVAS_HOST_STYLE, VISUALLY_HIDDEN } from './canvasChrome.js';
 
 export default function DataPlot({
@@ -121,6 +123,19 @@ export default function DataPlot({
           <InlineContent nodes={block.prompt} />
         </p>
       ) : null}
+
+      {/* A display chart prints the data it exists to show; a build-the-chart
+          question prints an EMPTY frame, because plotting the data is the
+          task. Narrowed on the interaction so the type system holds that
+          apart rather than a boolean. */}
+      <PrintTwin
+        svg={renderDataPlotSvg(
+          block.config,
+          block.interaction?.type === 'display' ? block.interaction.chart : 'dotplot',
+          block.interaction?.type === 'display' ? block.data : [],
+          block.id,
+        )}
+      />
 
       <div
         ref={mountRef}

@@ -12,23 +12,17 @@
 // used for the auto-generated runtime, never for arbitrary user content.
 // =============================================================================
 
-/** Escape a string for use as text content between HTML tags. */
-export function escape(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
+// escape/attr moved to @activity/graph-kit/static-svg with the SVG renderers
+// that needed them; imported and re-exported here so every existing import
+// path in this package keeps working and there is only ONE implementation of
+// what counts as escaped.
+//
+// IMPORTED, not `export … from`: the helpers below call attr() themselves, and
+// a bare re-export creates no local binding — which fails at runtime, not at
+// compile time, and only on the code paths that use it.
+import { escape, attr } from '@activity/graph-kit/static-svg';
 
-/** Escape a string for use as an HTML attribute value (double-quoted). */
-export function attr(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+export { escape, attr };
 
 /**
  * Render the ` data-block-id="…"` attribute, or nothing when the block has no

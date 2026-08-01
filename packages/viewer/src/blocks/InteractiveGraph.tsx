@@ -37,6 +37,8 @@ import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { graphSurface, type GraphSurfaceHandle } from './kitSurfaces.js';
 import { CANVAS_HOST_STYLE, VISUALLY_HIDDEN } from './canvasChrome.js';
+import { renderGraphSvg } from '@activity/graph-kit/static-svg';
+import { PrintTwin } from './printTwin.js';
 
 export default function InteractiveGraph({
   block,
@@ -180,6 +182,28 @@ export default function InteractiveGraph({
           <InlineContent nodes={block.prompt} />
         </p>
       ) : null}
+
+      {/* What actually prints (S5-1/OV4): empty axes for a question the
+          student plots onto, the authored drawables for a display figure. */}
+      <PrintTwin
+        svg={renderGraphSvg(
+          block.axisConfig,
+          // Narrowed on the interaction itself rather than the isDisplay
+          // boolean: only the display variant HAS drawables, and the type
+          // system is what proves a question's twin cannot accidentally carry
+          // any (which would print the answer).
+          //
+          // The cast recovers tuple-ness, not correctness: the sanitized
+          // projection maps [number, number] to number[] (it rebuilds object
+          // types structurally and tuples do not survive that), so the values
+          // are already exactly what the renderer wants and only the type has
+          // widened. Confined to this one argument.
+          block.interaction?.type === 'display'
+            ? (block.interaction.drawables as Parameters<typeof renderGraphSvg>[1])
+            : [],
+          block.id,
+        )}
+      />
 
       <div
         ref={mountRef}

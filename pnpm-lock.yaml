@@ -207,6 +207,9 @@ importers:
 
   packages/graph-kit:
     dependencies:
+      '@activity/schema':
+        specifier: workspace:*
+        version: link:../schema
       jsxgraph:
         specifier: ^1.12.2
         version: 1.12.2
@@ -223,6 +226,9 @@ importers:
 
   packages/renderer:
     dependencies:
+      '@activity/graph-kit':
+        specifier: workspace:*
+        version: link:../graph-kit
       '@activity/schema':
         specifier: workspace:*
         version: link:../schema
@@ -230,9 +236,6 @@ importers:
         specifier: ^0.16.10
         version: 0.16.45
     devDependencies:
-      '@activity/graph-kit':
-        specifier: workspace:*
-        version: link:../graph-kit
       '@activity/viewer':
         specifier: workspace:*
         version: link:../viewer

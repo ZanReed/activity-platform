@@ -16,11 +16,11 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@activity/graph-kit": "workspace:*",
     "@activity/schema": "workspace:*",
     "katex": "^0.16.10"
   },
   "devDependencies": {
-    "@activity/graph-kit": "workspace:*",
     "@activity/viewer": "workspace:*",
     "@types/katex": "^0.16.7",
     "jsdom": "^29.1.1"

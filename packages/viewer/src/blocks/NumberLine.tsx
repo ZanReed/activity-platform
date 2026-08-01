@@ -27,6 +27,8 @@ import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { numberLineSurface, type NumberLineSurfaceHandle } from './kitSurfaces.js';
+import { renderNumberLineSvg } from '@activity/graph-kit/static-svg';
+import { PrintTwin } from './printTwin.js';
 import { CANVAS_HOST_STYLE, VISUALLY_HIDDEN } from './canvasChrome.js';
 
 export default function NumberLine({
@@ -136,6 +138,11 @@ export default function NumberLine({
           <InlineContent nodes={block.prompt} />
         </p>
       ) : null}
+
+      {/* Both number-line variants are QUESTIONS (there is no display
+          variant), so the printed line is always blank: the marks are the
+          answer. */}
+      <PrintTwin svg={renderNumberLineSvg(block.config, [], block.id)} />
 
       <div
         ref={mountRef}

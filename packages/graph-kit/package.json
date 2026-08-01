@@ -10,7 +10,8 @@
     "./runtime-contract": "./src/runtime-contract.ts",
     "./drawable-palette": "./src/drawable-palette.ts",
     "./math-equivalent": "./src/math-equivalent.ts",
-    "./scorers": "./src/scorers.ts"
+    "./scorers": "./src/scorers.ts",
+    "./static-svg": "./src/static-svg.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -19,6 +20,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@activity/schema": "workspace:*",
     "jsxgraph": "^1.12.2",
     "mathjs": "^15.2.0",
     "mathlive": "^0.109.2"
