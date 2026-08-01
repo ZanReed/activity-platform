@@ -128,8 +128,11 @@ jobs:
       - name: Install Chromium
         run: pnpm --filter @activity/app exec playwright install --with-deps chromium
 
+      # Both print suites: the rules gate (print-parity) and the paginated
+      # layer it cannot reach (print-pagination). The baseline suite matches
+      # this pattern too and skips itself until its Linux images exist.
       - name: Print parity
-        run: pnpm --filter @activity/app exec playwright test print-parity
+        run: pnpm --filter @activity/app exec playwright test print-
 
       - name: Upload failure traces
         if: failure()
