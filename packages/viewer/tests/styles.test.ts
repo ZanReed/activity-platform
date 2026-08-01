@@ -71,6 +71,41 @@ describe('token-only component CSS', () => {
     }
     expect(colorish.length).toBeGreaterThan(10);
   });
+
+  it('uses only custom properties that tokens.css actually declares', () => {
+    // WIDER THAN THE COLOUR CHECK ABOVE, and it exists because the narrower one
+    // let a real mistake through: the stale-version banner shipped with
+    // `var(--font-size-sm)`, a name from no token family we have (the type
+    // scale is `--type-*`). Nothing failed — an undeclared custom property
+    // just resolves to nothing, so the rule silently did not apply. That is the
+    // same silent-failure mode the colour check was written for, and there was
+    // no reason to guard one family and not the rest.
+    //
+    // Scoped to OUR namespaces on purpose: `--activity-*` and `--print-*` come
+    // from the published-page pipeline at render time and are legitimately
+    // absent from tokens.css.
+    const tokensCss = readFileSync(
+      new URL('../src/tokens/tokens.css', import.meta.url),
+      'utf8',
+    );
+    const declaredNames = new Set(
+      [...tokensCss.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]),
+    );
+    const referenced = new Set(
+      [...code.matchAll(/var\(\s*(--[a-z0-9-]+)/g)].map((m) => m[1]),
+    );
+    const ours = [...referenced].filter(
+      (name) => !/^--(?:activity|print)-/.test(name ?? ''),
+    );
+    for (const name of ours) {
+      expect(
+        declaredNames.has(name ?? ''),
+        `${name} is used in viewer.css but declared nowhere in tokens.css — ` +
+          `it will silently resolve to nothing`,
+      ).toBe(true);
+    }
+    expect(ours.length).toBeGreaterThan(20);
+  });
 });
 
 describe('the floors the design rulings set', () => {

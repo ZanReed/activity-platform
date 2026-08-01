@@ -20,6 +20,7 @@ import {
   type SectionResponses,
 } from '../check/wire.js';
 import type { SectionCheckResult } from '../check/wire.js';
+import type { CheckErrorKind } from '../client/httpCheckService.js';
 
 /** Bump on ANY incompatible persisted-shape change. Load returns null on
  * mismatch → fresh state, which is the correct behavior. */
@@ -29,7 +30,15 @@ export type SectionStatus =
   | { phase: 'unchecked' }
   | { phase: 'checking' }
   | { phase: 'checked'; result: SectionCheckResult }
-  | { phase: 'error'; message: string };
+  | {
+      phase: 'error';
+      message: string;
+      /** Which failure this was (S4 T8). The UI needs it to decide whether to
+       * offer Retry at all: a stale tab and an offline blip both fail a check,
+       * but only one of them can be fixed by pressing the same button again. */
+      kind?: CheckErrorKind;
+      retryable?: boolean;
+    };
 
 export interface PersistedViewerState {
   schemaVersion: number;

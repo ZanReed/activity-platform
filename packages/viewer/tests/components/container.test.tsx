@@ -14,9 +14,10 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import {
+  CHECK_WIRE_VERSION,
   ViewerContainer,
   createMockCheckService,
   createViewerStore,
@@ -26,8 +27,10 @@ import type {
   BlockComponentProps,
   BlockCrash,
   BlockType,
+  CheckService,
   CheckShortfall,
   SanitizedActivityDocument,
+  SectionCheckResult,
 } from '../../src/index.js';
 import { sanitizedFixtureDocument } from '../../src/fixtures/index.js';
 
@@ -335,5 +338,101 @@ describe('print mode', () => {
     expect(screen.getByText('rendered multiple_choice')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Check' })).toBeNull();
     expect(container.querySelector('[data-viewer-mode="print"]')).not.toBeNull();
+  });
+});
+
+describe('the stale-version banner (ruling S4-T5)', () => {
+  /** A check service that reports the student's version has been superseded. */
+  function supersedingService(): CheckService {
+    return {
+      async checkSection(request) {
+        return {
+          wireVersion: CHECK_WIRE_VERSION,
+          sectionId: request.sectionId,
+          items: {},
+          solutions: {},
+          currentVersionId: 'a-newer-version',
+        } as SectionCheckResult;
+      },
+      async fetchReleasedFeedback() {
+        return { graded: false, blocks: {} };
+      },
+    };
+  }
+
+  it('shows nothing while the student is on the current version', () => {
+    const { container } = setup(sanitizedFixtureDocument());
+    expect(container.querySelector('[data-banner="stale-version"]')).toBeNull();
+  });
+
+  it('appears after a check reveals a newer version, WITHOUT failing the check', async () => {
+    // The teacher fixed a typo mid-period. The student's check still worked —
+    // this is an offer, not an interruption.
+    const doc = sanitizedFixtureDocument();
+    const store = createViewerStore({
+      activityId: ACTIVITY,
+      versionId: VERSION,
+      checkService: supersedingService(),
+    });
+    const { container } = render(
+      <ViewerContainer document={doc} store={store} versionId={VERSION} />,
+    );
+
+    const sectionId = doc.sections[0]!.id;
+    await act(async () => {
+      await store.checkSection(sectionId, {});
+    });
+
+    await waitFor(() => {
+      expect(
+        container.querySelector('[data-banner="stale-version"]'),
+      ).not.toBeNull();
+    });
+    expect(store.getState().sections[sectionId]?.phase).toBe('checked');
+  });
+
+  it('announces itself politely rather than grabbing focus', async () => {
+    // role=status is an aria-live=polite region: it must not interrupt a
+    // student mid-answer, which is the whole reason this is a banner and not a
+    // modal.
+    const doc = sanitizedFixtureDocument();
+    const store = createViewerStore({
+      activityId: ACTIVITY,
+      versionId: VERSION,
+      checkService: supersedingService(),
+    });
+    const { container } = render(
+      <ViewerContainer document={doc} store={store} versionId={VERSION} />,
+    );
+    await act(async () => {
+      await store.checkSection(doc.sections[0]!.id, {});
+    });
+
+    await waitFor(() => {
+      const banner = container.querySelector('[data-banner="stale-version"]');
+      expect(banner?.getAttribute('role')).toBe('status');
+    });
+  });
+
+  it('offers a reload the student chooses, never an automatic one', async () => {
+    // Auto-reloading would discard in-flight work — the opposite of helpful.
+    const doc = sanitizedFixtureDocument();
+    const store = createViewerStore({
+      activityId: ACTIVITY,
+      versionId: VERSION,
+      checkService: supersedingService(),
+    });
+    const { container } = render(
+      <ViewerContainer document={doc} store={store} versionId={VERSION} />,
+    );
+    await act(async () => {
+      await store.checkSection(doc.sections[0]!.id, {});
+    });
+
+    await waitFor(() => {
+      const action = container.querySelector('.viewer-banner-action');
+      expect(action?.tagName).toBe('BUTTON');
+      expect(action?.textContent).toMatch(/reload/i);
+    });
   });
 });

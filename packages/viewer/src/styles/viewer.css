@@ -732,6 +732,49 @@
    is layout and the baseline print constraints: a printed worksheet is the
    BLANK version — chrome gone, blanks as writing lines, problems unbroken. */
 
+/* ---- Stale-version banner (ruling S4-T5) ---------------------------------
+   A passive notice, styled as information rather than as an error: nothing has
+   gone wrong and nothing is blocked — the student's checks keep working
+   against the version they were served. It sits above the paper rather than
+   inside it, because it is chrome about the activity, not part of it. Hidden
+   in print for the same reason. */
+
+.viewer-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-accent-wash);
+  color: var(--color-ink);
+  font-size: var(--type-small);
+}
+
+.viewer-banner-action {
+  /* 44px target, same floor the styles suite pins for every control. */
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-paper);
+  color: var(--color-accent-strong);
+  font: inherit;
+  cursor: pointer;
+}
+
+.viewer-banner-action:hover {
+  background: var(--color-hover);
+}
+
+@media print {
+  .viewer-banner {
+    display: none;
+  }
+}
+
 @media print {
   @page {
     margin: 0.5in;

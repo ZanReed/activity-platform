@@ -100,7 +100,22 @@ function statusLabel(status: SectionStatus | undefined): string {
     case 'checked':
       return 'Checked.';
     case 'error':
-      return 'Couldn’t check — try again.';
+      // The failure KIND decides the sentence (S4 T8). "Try again" is the right
+      // words only when trying again could work; telling a student to retry
+      // against a stale tab or an expired session sends them into a loop that
+      // cannot end, which is worse than a blunt instruction that does.
+      switch (status.kind) {
+        case 'stale_client':
+          return 'This page is out of date — reload to keep checking.';
+        case 'unauthenticated':
+          return 'Your sign-in expired. Sign in again — your work is saved.';
+        case 'rate_limited':
+          return 'Checking too quickly — wait a moment and try again.';
+        case 'offline':
+          return 'You’re offline — we’ll check when you reconnect.';
+        default:
+          return 'Couldn’t check — try again.';
+      }
     default:
       return '';
   }
@@ -167,6 +182,24 @@ export function ViewerContainer({
   return (
     <ViewerProvider store={store} sectionByBlock={sectionByBlock}>
     <div className="viewer" data-viewer-mode={mode}>
+      {/* Passive stale-version notice (ruling S4-T5). Deliberately NOT a modal
+          and deliberately not an auto-reload: the student's checks still work
+          against the version they were served, and reloading for them would
+          discard in-flight work. It matters most when a teacher republished to
+          FIX a wrong answer key — without this the student would keep being
+          graded by the broken one with no way to know. */}
+      {state.newerVersionId ? (
+        <div className="viewer-banner" role="status" data-banner="stale-version">
+          <span>Your teacher updated this activity.</span>
+          <button
+            type="button"
+            className="viewer-banner-action"
+            onClick={() => globalThis.location?.reload()}
+          >
+            Reload to get the new version
+          </button>
+        </div>
+      ) : null}
       {doc.sections.map((section) => {
         const sectionIndex = index.bySection[section.id];
         const status = state.sections[section.id];

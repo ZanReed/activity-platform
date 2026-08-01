@@ -28,6 +28,7 @@ import {
   type GraphWork,
   type SectionResponses,
 } from '../check/wire.js';
+import type { CheckErrorKind } from '../client/httpCheckService.js';
 import {
   emptyPersistedState,
   hydrateViewerState,
@@ -53,6 +54,15 @@ export interface ViewerStoreState {
   versionId: string;
   responses: SectionResponses;
   sections: Record<string, SectionStatus>;
+  /**
+   * Set once the server tells us a newer version of this activity exists
+   * (ruling S4-T5). The check STILL SUCCEEDED — the student keeps working and
+   * checking against the version they were served, because a mid-period
+   * republish must never break a check in progress. This only drives a passive
+   * banner offering a reload; nothing here reloads on its own, which would
+   * throw away in-flight work.
+   */
+  newerVersionId?: string;
 }
 
 export interface ViewerStore {
@@ -83,6 +93,9 @@ export interface ViewerStoreOptions {
   activityId: string;
   versionId: string;
   checkService: CheckService;
+  /** Mints idempotency keys. Injected so tests are deterministic and so the
+   * store never reaches for a global (crypto is absent in some runtimes). */
+  newCheckId?: () => string;
 }
 
 function pick<T>(
@@ -99,6 +112,23 @@ function pick<T>(
 
 export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
   const { checkService } = options;
+  // Deliberately NOT persisted and NOT part of ViewerStoreState: an
+  // idempotency key is only meaningful for a check that is in flight right now.
+  // Rehydrating one from storage would let a reload replay an attempt from a
+  // previous session, which is the opposite of what it is for.
+  const pendingCheckIds: Record<string, string> = {};
+  let counter = 0;
+  const newCheckId =
+    options.newCheckId ??
+    (() => {
+      counter += 1;
+      // Enough entropy to be unique per student per section without depending
+      // on crypto being present (the store runs in tests and SSR too); the
+      // uniqueness that matters is scoped to one student's own rows.
+      return `${Date.now().toString(36)}-${counter}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+    });
   let state: ViewerStoreState = {
     activityId: options.activityId,
     versionId: options.versionId,
@@ -161,12 +191,26 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
     },
 
     async checkSection(sectionId, items) {
+      // IDEMPOTENCY KEY LIFECYCLE (S4-B2). A key is minted when a check first
+      // fires and KEPT until that check succeeds, so a retry after a lost
+      // response replays the recorded attempt instead of minting a second one.
+      // Once a check succeeds the key is cleared, so a deliberate RE-check gets
+      // a fresh key — which is correct: re-checking is meant to create a new
+      // attempt, and only the failed-and-retried case should collapse.
+      //
+      // Without this, the 3-4 s cold start measured on Edge is enough for a
+      // student to give up and press Check again, and the teacher would see two
+      // attempts for one piece of work.
+      const idempotencyKey = pendingCheckIds[sectionId] ?? newCheckId();
+      pendingCheckIds[sectionId] = idempotencyKey;
+
       // Fire-time snapshot (2.2A): built synchronously from CURRENT values.
       const request: CheckRequest = {
         wireVersion: CHECK_WIRE_VERSION,
         activityId: state.activityId,
         versionId: state.versionId,
         sectionId,
+        idempotencyKey,
         responses: {
           blanks: pick(state.responses.blanks, items.blanks),
           choices: pick(state.responses.choices, items.choices),
@@ -182,8 +226,16 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
       });
       try {
         const result = await checkService.checkSection(request);
+        delete pendingCheckIds[sectionId];
+        // The stale-version advisory rides the successful response; it never
+        // turns a good check into a failure.
+        const advisory = (result as { currentVersionId?: string })
+          .currentVersionId;
         commit({
           ...state,
+          ...(advisory && advisory !== state.versionId
+            ? { newerVersionId: advisory }
+            : {}),
           sections: {
             ...state.sections,
             [sectionId]: { phase: 'checked', result },
@@ -191,7 +243,19 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         });
       } catch (err) {
         // Responses are untouched — only the section status records the
-        // failure (2.1A "Couldn't check — try again", non-blaming).
+        // failure (2.1A "Couldn't check — try again", non-blaming). The key is
+        // deliberately NOT cleared: the next attempt is a retry of this check.
+        const kind = (err as { kind?: CheckErrorKind }).kind;
+        const retryable = (err as { retryable?: boolean }).retryable;
+        if (!kind) {
+          // An untyped failure is not a check outcome — it is a BUG in the
+          // service or the store, and this catch is about to dress it up as a
+          // friendly "couldn't check". Log it so it stays findable; without
+          // this, a TypeError in the client is indistinguishable from the
+          // server being down. (Learned the hard way: a missing import in a
+          // test surfaced only as "the banner didn't render".)
+          console.error('[viewer] check failed with an untyped error', err);
+        }
         commit({
           ...state,
           sections: {
@@ -199,6 +263,8 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
             [sectionId]: {
               phase: 'error',
               message: err instanceof Error ? err.message : 'Check failed',
+              ...(kind ? { kind } : {}),
+              ...(retryable !== undefined ? { retryable } : {}),
             },
           },
         });

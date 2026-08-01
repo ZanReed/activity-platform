@@ -135,6 +135,19 @@ export interface CheckRequest {
   versionId: string;
   sectionId: string;
   responses: SectionResponses;
+  /**
+   * Client-minted idempotency key (S4). ADDITIVE and optional, so no version
+   * bump: a client that omits it simply gets no replay protection.
+   *
+   * The store mints one when a check first fires and reuses it while that check
+   * is being retried, so a response lost in transit replays the recorded
+   * attempt instead of minting a second one. Edge cold starts were measured at
+   * 3-4 s — long enough for a student to give up and press Check again, which
+   * would otherwise show their teacher two attempts for one piece of work. A
+   * deliberate RE-check gets a fresh key, because that genuinely is a new
+   * attempt.
+   */
+  idempotencyKey?: string;
 }
 
 // ---- Results (server → student) --------------------------------------------
