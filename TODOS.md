@@ -207,3 +207,28 @@ natural place to observe real growth rates).
 
 **Context:** surfaced by /plan-eng-review 2026-08-01 (S4 review, outside-voice finding 2, TODO
 ask 2).
+
+## Eager-load KaTeX if S8 measures it cheap (closes the browser-menu print race)
+
+**What:** When S8's perf-budget CI produces real chunk-cost numbers on Chromebook-class
+throttling, decide whether math-bearing pages should eager-load the KaTeX chunk instead of
+lazy-loading it (a deliberate amendment to DX ruling D16's eager-statics/lazy-heavies split).
+
+**Why:** S5 ruling S5-2 put a readiness barrier on the viewer's own Print action, but the
+browser's File→Print / Ctrl+P flow cannot be awaited — a student printing in the first
+moments after load can get the readable-LaTeX fallback on paper instead of rendered math.
+Accepted as a residual because the fallback is legible and the window is sub-second; eager
+loading would erase it entirely if the chunk turns out to be cheap.
+
+**Pros:** kills the last print race for free if the measurement supports it.
+**Cons:** grows first-load on math-bearing pages; amends D16, which exists to protect
+Chromebook TTI — hence measure-first, never a print-slice side effect.
+
+**Depends on:** S8 (perf-budget CI) landing its measurements.
+
+**Where to start:** the D16 chunk-policy declaration in the viewer registry
+(`packages/viewer/src/registry/` binding eager/lazy axis) + S8's numbers; the residual is
+recorded in the S5 eng-review section of the components-as-data design doc (ruling S5-2).
+
+**Context:** surfaced by /plan-eng-review 2026-08-01 (S5 review, Issue 2 + outside-voice
+finding 6; TODO ask approved).
