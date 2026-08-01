@@ -22,6 +22,10 @@
   },
   "dependencies": {
     "@activity/graph-kit": "workspace:*",
+    "@fontsource/andika": "^5.2.10",
+    "@fontsource/atkinson-hyperlegible": "^5.2.8",
+    "@fontsource/comic-neue": "^5.2.7",
+    "@fontsource/lexend": "^5.2.11",
     "@activity/schema": "workspace:*",
     "katex": "^0.16.10"
   },

@@ -35,6 +35,15 @@ export {
   MATH_PROMPT_SECRET_FIELDS,
 } from './registry/registry.js';
 
+// S5 — the teacher's chosen worksheet font (the app's editor consumes this
+// too, so there is one loader rather than two that drift).
+export {
+  activityFontFamily,
+  ensureActivityFontLoaded,
+  typographyVars,
+  resetLoadedFonts,
+} from './typography/fonts.js';
+
 // S5 — the student's print action and the readiness barrier behind it.
 export { PrintButton } from './print/PrintButton.js';
 export type { PrintButtonProps } from './print/PrintButton.js';

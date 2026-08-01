@@ -27,6 +27,15 @@ import {
   registeredBlockTypes,
 } from '@activity/viewer';
 import { PrintButton } from '@activity/viewer';
+import type { ActivityFont } from '@activity/schema';
+
+const FONT_IDS: ActivityFont[] = [
+  'default',
+  'lexend',
+  'atkinson-hyperlegible',
+  'andika',
+  'comic-neue',
+];
 import type { BlockType, SanitizedActivityDocument } from '@activity/viewer';
 import {
   sanitizedVariantFixtures,
@@ -46,6 +55,11 @@ export default function DevViewer() {
   const [verdict, setVerdict] = useState<Verdict>('correct');
   const [mode, setMode] = useState<'screen' | 'print'>('screen');
   const [failing, setFailing] = useState(false);
+  // Typography is a DOCUMENT-level print/render case (documentPrintRoster's
+  // `document/typography`), so the harness needs a way to exercise it — the
+  // shared fixture stays default-font on purpose, because the T8 visual
+  // baselines are taken against it.
+  const [font, setFont] = useState<ActivityFont>('default');
 
   // A fresh store+service per configuration: flipping the scripted verdict
   // should show the new verdict, not a stale checked state.
@@ -82,6 +96,15 @@ export default function DevViewer() {
       }),
     };
   }, [type, verdict, failing]);
+
+  const docWithFont = useMemo(() => {
+    if (font === 'default') return doc;
+    const next = structuredClone(doc) as unknown as {
+      meta: Record<string, unknown>;
+    };
+    next.meta.typography = { font, fontSize: 16 };
+    return next as unknown as SanitizedActivityDocument;
+  }, [doc, font]);
 
   const variants = type === 'ALL' ? [] : sanitizedVariantFixtures(type);
   const boundTypes = boundBlockTypes();
@@ -160,6 +183,20 @@ export default function DevViewer() {
             simulate check failure
           </label>
 
+          <label>
+            font{' '}
+            <select
+              value={font}
+              onChange={(e) => setFont(e.target.value as ActivityFont)}
+            >
+              {FONT_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+          </label>
+
           {/* The real print action, so the harness can exercise the readiness
               barrier without auth — and so T7's parity gate has something to
               drive. Same component the student route mounts. */}
@@ -175,7 +212,7 @@ export default function DevViewer() {
 
       <main style={{ borderTop: '1px solid #8884', paddingTop: '1rem' }}>
         <ViewerContainer
-          document={doc}
+          document={docWithFont}
           store={store}
           versionId={VERSION_ID}
           mode={mode}

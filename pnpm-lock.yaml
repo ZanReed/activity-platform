@@ -260,6 +260,18 @@ importers:
       '@activity/schema':
         specifier: workspace:*
         version: link:../schema
+      '@fontsource/andika':
+        specifier: ^5.2.10
+        version: 5.2.10
+      '@fontsource/atkinson-hyperlegible':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/comic-neue':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/lexend':
+        specifier: ^5.2.11
+        version: 5.2.11
       katex:
         specifier: ^0.16.10
         version: 0.16.45

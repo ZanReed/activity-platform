@@ -29,6 +29,7 @@ import {
   lazy,
   Suspense,
   useCallback,
+  useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -47,6 +48,10 @@ import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
 import { ViewerProvider } from './context.js';
 import { indexDocument, type SectionIndex } from './blockIndex.js';
 import { DefinitionGlossary } from '../print/DefinitionGlossary.js';
+import {
+  ensureActivityFontLoaded,
+  typographyVars,
+} from '../typography/fonts.js';
 import { collectDefinitions } from '../print/definitions.js';
 import {
   PrintPageRule,
@@ -156,6 +161,15 @@ export function ViewerContainer({
   // and branching here would make the memo dependent on a setting that can
   // change without the document changing.
   const glossaryEntries = useMemo(() => collectDefinitions(doc), [doc]);
+
+  // The teacher's chosen worksheet font. Both halves are needed: naming the
+  // family does nothing if the files were never fetched, it just falls back
+  // silently. The font choice is usually an accessibility decision made for a
+  // specific student, so dropping it is not cosmetic.
+  const typography = doc.meta.typography;
+  useEffect(() => {
+    if (typography) void ensureActivityFontLoaded(typography.font);
+  }, [typography]);
   const [crashed, setCrashed] = useState<Record<string, BlockCrash>>({});
 
   const handleCrash = useCallback(
@@ -205,7 +219,12 @@ export function ViewerContainer({
 
   return (
     <ViewerProvider store={store} sectionByBlock={sectionByBlock}>
-    <div className="viewer" data-viewer-mode={mode} style={printVars(print)}>
+    <div
+      className="viewer"
+      data-viewer-mode={mode}
+      data-activity-font={typography?.font ?? 'default'}
+      style={{ ...printVars(print), ...typographyVars(typography) }}
+    >
       {/* Document-level print surface (S5-OV1). Every piece of this already
           reaches students today through Ctrl+P on a published page, so leaving
           it out would have been a silent feature loss at cutover — and an
