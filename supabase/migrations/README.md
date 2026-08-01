@@ -1,6 +1,6 @@
 # Supabase migrations
 
-Schema for the activity platform. `0001`–`0018` are all applied to the live project (see STATE.md for per-migration verification records).
+Schema for the activity platform. `0001`–`0019` are applied to the live project; `0020` is prepared and probe-verified but NOT yet applied (see STATE.md for per-migration verification records).
 
 ## Files
 
@@ -23,6 +23,7 @@ Schema for the activity platform. `0001`–`0018` are all applied to the live pr
 | `0017_read_api.sql` | S2 read API: `activity_version_reads` durable per-version cache (service-role only), `get_published_activity` (authenticated resolve of the current published version), `get_activity_public_meta` (the deliberate anon exception — title + teacher name for the pre-auth interstitial). Verification: `scripts/verify-0017.sql`. |
 | `0018_users_policy_recursion.sql` | Closes the `42P17 infinite recursion` on the `users` SELECT policy: policy rewritten to `(id = auth.uid()) OR current_user_is_admin()` with a DEFINER `current_user_is_admin()` helper (`search_path=public`; granted `authenticated`/`postgres`/`service_role`, never anon). Fully idempotent, safe to re-run. |
 | `0019_image_storage.sql` | Cloudflare-exit + direct-upload eng review (2026-07-31): the `activity-images` Storage bucket (public read for cross-origin `<img>`; bucket-level mime/size limits are the server-side validation) plus the ONE RLS INSERT policy that is the write gate — the editor uploads directly, no Edge Function. The policy parses the activity id out of the object key (`{activityId}/{uuid}.{ext}`, CASE-guarded uuid cast so a malformed key gets a clean denial, never a cast error) and calls `can_edit_activity` as the caller. Deliberately NO update/delete/select policies. Quick checks commented at the bottom of the file; the full behavioral matrix is `scripts/verify-image-storage.sql`. Idempotent, safe to re-run. |
+| `0020_section_checks.sql` | S4 grading slice: `section_checks` (the durable record of every section check — responses AND the verdicts/feedback the student was shown; version-pinned `on delete restrict` because publishing mints fresh block ids, so a check's item ids are meaningful only against its own version), `get_activity_version_for_check` (the caller-scoped authorization chain — authenticated ∧ published ∧ **version belongs to activity**; returns metadata ONLY, never content, since it is callable by every authenticated user and `activity_versions.content` is the RAW document), and `record_check` (**service-role only** — it takes verdicts as an argument, so a student able to call it could forge them; carries the per-student rate ceiling, idempotent replay, and the 0005-style attempt race backstop). Two SELECT policies, deliberately NO write policy — writes go through the RPC. Deliberately does NOT widen `grades`: binding teacher grading to checks lands with the UI that decides attempts-vs-latest (TODOS.md). Full matrix: `scripts/verify-0020.sql`. |
 
 ## Regression re-runs (the DB has no CI harness)
 
@@ -40,6 +41,14 @@ that touches auth, identity, RLS policies, or function grants, re-run:**
   matrix on 0019's policy, incl. the non-uuid-key clean-denial pin and the no-UPDATE-policy
   overwrite check — this policy rides `can_edit_activity`, so any migration touching that helper
   or its grants can regress it).
+- `scripts/verify-0020.sql` (the section-check surface: 22-case matrix over the authorization
+  chain, `record_check`, and `section_checks` RLS). Two of its cases are security boundaries
+  rather than conveniences, and a regression in either is silent: **A2** — a version belonging to
+  a DIFFERENT activity must be refused, because without the parentage join an empty-responses
+  check request would return a foreign activity's whole solution set; **B1** — `authenticated`
+  must never be able to call `record_check`, which takes verdicts as an argument and would let a
+  student write themselves a row of `correct`. The teacher-read policy rides `can_read_activity`,
+  so this shares 0019's exposure to helper changes.
 
 Each query states its expected result; anything else = stop and report. This is the standing
 mitigation for S1's known gap (no automated DB tests), recorded in the 2026-07-29 S0–S2 test-setup
