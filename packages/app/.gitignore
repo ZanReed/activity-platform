@@ -9,3 +9,4 @@ dist
 /blob-report/
 /.playwright/
 /playwright/.cache/
+print-contact-sheet/
