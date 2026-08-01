@@ -19,14 +19,13 @@
 // =============================================================================
 
 import { describe, expect, it } from 'vitest';
+
 import {
-  ActivityDocument,
   Block,
   DataPlotInteraction,
   GraphInteraction,
   MultipleChoiceOption,
   NumberLineInteraction,
-  createEmptyDocument,
 } from '@activity/schema';
 import {
   SANITIZER_REV,
@@ -39,362 +38,19 @@ import {
 } from '../src/index.js';
 import type { BlockType, SanitizedActivityDocument } from '../src/index.js';
 
-const uuid = () => crypto.randomUUID();
+// The fully-loaded secret-bearing fixture now lives in a shared helper: S4's
+// check-response leak suite scans the SAME document, so a new secret field is
+// declared once and both channels inherit it.
+import {
+  NUM,
+  RELEASABLE,
+  STR,
+  fixturesByType,
+  fullyLoadedDocument,
+  uuid,
+  wireOf,
+} from './helpers/leakFixture.js';
 
-// Unique sentinels. STR for string-valued secrets, NUM for numeric ones (both
-// chosen to be un-collidable with any legitimate fixture value; NUM serializes
-// as a unique substring).
-const STR = 'LEAK_SECRET_7f3a';
-const NUM = 133742.4217;
-
-const text = (t: string) => ({ type: 'text' as const, text: t });
-const sentinelInline = () => [text(STR)];
-
-// ---- Fully-loaded fixtures --------------------------------------------------
-// One instance per block type — plus one per interaction variant for the three
-// variant-carrying blocks — with EVERY secret field populated. Kept parse-valid
-// (the assembled document goes through ActivityDocument.parse below), so the
-// strip-path guard is checking real shapes, not convenient ones.
-
-const linearModel = {
-  family: 'linear' as const,
-  slope: NUM,
-  intercept: NUM,
-};
-
-function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
-  const m = new Map<BlockType, Record<string, unknown>[]>();
-  const put = (type: BlockType, ...blocks: Record<string, unknown>[]) =>
-    m.set(type, blocks);
-
-  put('paragraph', {
-    id: uuid(),
-    type: 'paragraph',
-    // The defense-in-depth case: a prompted math_inline OUTSIDE the two
-    // blocks that declare inlineBlankSecrets. Must still be stripped.
-    content: [
-      text('see '),
-      {
-        type: 'math_inline',
-        latex: 'x + \\placeholder[g0]{}',
-        prompts: [
-          { id: 'g0', answer: STR, acceptableAnswers: [STR], tolerance: NUM },
-        ],
-      },
-    ],
-  });
-  put('heading', { id: uuid(), type: 'heading', level: 2, content: [text('H')] });
-  put('math_block', {
-    id: uuid(),
-    type: 'math_block',
-    latex: 'y = \\placeholder[g1]{}',
-    prompts: [
-      {
-        id: 'g1',
-        answer: STR,
-        acceptableAnswers: [STR],
-        equivalence: 'value',
-        tolerance: NUM,
-      },
-    ],
-    solution: sentinelInline(),
-  });
-  put('image', { id: uuid(), type: 'image', src: 'https://x.test/i.png', alt: 'a' });
-  put('callout', { id: uuid(), type: 'callout', variant: 'info', content: [text('c')] });
-  put('problem', {
-    id: uuid(),
-    type: 'problem',
-    content: [text('p')],
-    solution: sentinelInline(),
-  });
-  put('fill_in_blank', {
-    id: uuid(),
-    type: 'fill_in_blank',
-    content: [
-      text('answer: '),
-      {
-        type: 'blank',
-        id: uuid(),
-        answer: STR,
-        acceptableAnswers: [STR],
-        width: 8,
-        hint: [text('HINT_SURVIVES')],
-        mistakeFeedback: [{ match: STR, feedback: sentinelInline() }],
-        answerType: 'math',
-        tolerance: NUM,
-        equivalence: 'exact-form',
-      },
-    ],
-    solution: sentinelInline(),
-  });
-  put('bullet_list', {
-    id: uuid(),
-    type: 'bullet_list',
-    items: [{ id: uuid(), content: [text('li')] }],
-  });
-  put('ordered_list', {
-    id: uuid(),
-    type: 'ordered_list',
-    items: [{ id: uuid(), content: [text('li')] }],
-  });
-
-  const graphBase = () => ({
-    id: uuid(),
-    type: 'interactive_graph',
-    prompt: [text('graph it')],
-    axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
-    allowNoSolution: true,
-    noSolutionCorrect: true,
-    partialCredit: true,
-    builtinFeedback: true,
-    mistakeFeedback: [{ match: `y = ${STR}`, feedback: sentinelInline() }],
-    solution: sentinelInline(),
-  });
-  put(
-    'interactive_graph',
-    {
-      ...graphBase(),
-      interaction: { type: 'plot_point', correctPoints: [[NUM, NUM]], tolerance: NUM },
-    },
-    {
-      ...graphBase(),
-      interaction: {
-        type: 'plot_function',
-        models: [linearModel],
-        domains: [{ min: NUM, max: NUM }],
-      },
-    },
-    {
-      ...graphBase(),
-      interaction: {
-        type: 'shade_region',
-        regions: [
-          {
-            correctVertices: [
-              [NUM, NUM],
-              [NUM, 0],
-              [0, NUM],
-            ],
-          },
-        ],
-      },
-    },
-    {
-      ...graphBase(),
-      interaction: {
-        type: 'graph_inequality',
-        inequalities: [{ boundary: linearModel, strict: true, shadeSide: 'above' }],
-      },
-    },
-    {
-      ...graphBase(),
-      interaction: {
-        type: 'plot_ray',
-        rays: [{ from: [NUM, NUM], through: [NUM, 0], tolerance: NUM }],
-      },
-    },
-    {
-      ...graphBase(),
-      interaction: {
-        type: 'plot_segment',
-        segments: [{ from: [NUM, NUM], to: [NUM, 0], tolerance: NUM }],
-      },
-    },
-    {
-      ...graphBase(),
-      interaction: {
-        type: 'display',
-        drawables: [{ kind: 'point', at: [1, 2] }],
-      },
-    },
-  );
-
-  put('multiple_choice', {
-    id: uuid(),
-    type: 'multiple_choice',
-    prompt: [text('pick')],
-    choices: [
-      {
-        id: uuid(),
-        content: [text('right')],
-        correct: true,
-        feedback: sentinelInline(),
-      },
-      { id: uuid(), content: [text('wrong')], correct: false },
-    ],
-    solution: sentinelInline(),
-  });
-
-  const itemA = uuid();
-  const itemB = uuid();
-  const targetA = uuid();
-  const targetB = uuid();
-  put('matching', {
-    id: uuid(),
-    type: 'matching',
-    prompt: [text('match')],
-    items: [
-      { id: itemA, content: [text('1')] },
-      { id: itemB, content: [text('2')] },
-    ],
-    targets: [
-      { id: targetA, content: [text('a')] },
-      { id: targetB, content: [text('b')] },
-    ],
-    key: { [itemA]: targetA, [itemB]: targetB },
-    solution: sentinelInline(),
-  });
-
-  put('ordering', {
-    id: uuid(),
-    type: 'ordering',
-    prompt: [text('order')],
-    items: [
-      { id: uuid(), content: [text('first')] },
-      { id: uuid(), content: [text('second')] },
-      { id: uuid(), content: [text('third')] },
-      { id: uuid(), content: [text('fourth')] },
-      { id: uuid(), content: [text('fifth')] },
-      { id: uuid(), content: [text('sixth')] },
-    ],
-    solution: sentinelInline(),
-  });
-
-  const nlBase = () => ({
-    id: uuid(),
-    type: 'number_line',
-    prompt: [text('plot')],
-    config: { min: 0, max: 10 },
-    solution: sentinelInline(),
-  });
-  put(
-    'number_line',
-    {
-      ...nlBase(),
-      interaction: { type: 'plot_point', correctPoints: [NUM], tolerance: NUM },
-    },
-    {
-      ...nlBase(),
-      interaction: {
-        type: 'plot_interval',
-        correctInterval: { min: NUM, max: NUM },
-        tolerance: NUM,
-      },
-    },
-  );
-
-  const dpBase = () => ({
-    id: uuid(),
-    type: 'data_plot',
-    prompt: [text('chart')],
-    data: [3, 5, 5, 6, 8],
-    config: { min: 0, max: 10 },
-    solution: sentinelInline(),
-  });
-  put(
-    'data_plot',
-    { ...dpBase(), interaction: { type: 'display', chart: 'dotplot' } },
-    { ...dpBase(), interaction: { type: 'build_dotplot' } },
-    { ...dpBase(), interaction: { type: 'build_histogram' } },
-    { ...dpBase(), interaction: { type: 'build_boxplot', tolerance: NUM } },
-  );
-
-  put('learning_objectives', {
-    id: uuid(),
-    type: 'learning_objectives',
-    title: 'Objectives',
-    items: [[text('obj')]],
-  });
-  put('worked_example', {
-    id: uuid(),
-    type: 'worked_example',
-    title: 'Worked example',
-    // The childBlocks recursion case: a nested math_block whose solution and
-    // prompt secrets must be stripped by ITS OWN registry entry.
-    content: [
-      { id: uuid(), type: 'paragraph', content: [text('step')] },
-      {
-        id: uuid(),
-        type: 'math_block',
-        latex: 'z = \\placeholder[g2]{}',
-        prompts: [{ id: 'g2', answer: STR }],
-        solution: sentinelInline(),
-      },
-    ],
-  });
-  put('faded_worked_example', {
-    id: uuid(),
-    type: 'faded_worked_example',
-    title: 'Guided practice',
-    content: [
-      {
-        id: uuid(),
-        type: 'fill_in_blank',
-        content: [
-          text('faded: '),
-          {
-            type: 'blank',
-            id: uuid(),
-            answer: STR,
-            acceptableAnswers: [STR],
-            mistakeFeedback: [{ match: STR, feedback: sentinelInline() }],
-          },
-        ],
-        solution: sentinelInline(),
-      },
-    ],
-  });
-  put('self_explanation', {
-    id: uuid(),
-    type: 'self_explanation',
-    prompt: [text('why?')],
-  });
-  put('short_answer', {
-    id: uuid(),
-    type: 'short_answer',
-    prompt: [text('answer briefly')],
-    rubric: { criteria: [{ id: uuid(), label: STR, maxPoints: 3, description: STR }] },
-  });
-  put('essay', {
-    id: uuid(),
-    type: 'essay',
-    prompt: [text('discuss')],
-    rubric: { criteria: [{ id: uuid(), label: STR, maxPoints: 5 }] },
-  });
-  put('graph_figure', {
-    id: uuid(),
-    type: 'graph_figure',
-    axis: { xMin: -5, xMax: 5, yMin: -5, yMax: 5 },
-    drawables: [{ kind: 'point', at: [1, 1] }],
-  });
-
-  return m;
-}
-
-/** Assemble every fixture into one parse-valid document (one block per row). */
-function fullyLoadedDocument() {
-  const doc = createEmptyDocument({ title: 'Leak fixture' });
-  const blocks = [...fixturesByType().values()].flat();
-  const raw = {
-    ...JSON.parse(JSON.stringify(doc)),
-    sections: [
-      {
-        id: uuid(),
-        isCheckpoint: false,
-        rows: blocks.map((block) => ({
-          id: uuid(),
-          gridLines: 'inherit',
-          columns: [{ id: uuid(), blocks: [block] }],
-        })),
-      },
-    ],
-  };
-  // Parse so the fixtures are REAL (defaults filled, shapes verified) — a
-  // fixture that drifted from the schema fails here, loudly, not downstream.
-  return ActivityDocument.parse(raw);
-}
-
-const wireOf = (value: unknown) => JSON.stringify(value);
 
 // -----------------------------------------------------------------------------
 // The leak test
@@ -408,11 +64,18 @@ describe('wire-level leak tests (TV4-A)', () => {
   it('the fixture actually contains every sentinel before sanitizing', () => {
     const before = wireOf(doc);
     expect(before).toContain(STR);
+    expect(before).toContain(RELEASABLE);
     expect(before).toContain(String(NUM));
   });
 
   it('no string sentinel survives to the wire', () => {
     expect(wire).not.toContain(STR);
+  });
+
+  it('no RELEASABLE content survives either — the read path releases nothing', () => {
+    // Solution and mistakeFeedback bodies are released only by the CHECK
+    // response, after a check. On this path they are as secret as the answer.
+    expect(wire).not.toContain(RELEASABLE);
   });
 
   it('no numeric sentinel survives to the wire', () => {
