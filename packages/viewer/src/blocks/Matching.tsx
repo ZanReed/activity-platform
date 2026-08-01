@@ -18,11 +18,15 @@
 import { useId } from 'react';
 import type { MatchingBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
+import { choiceLetter } from './paperAffordances.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+// Position letters come from the shared paper-affordance helper (choiceLetter)
+// rather than a local alphabet: the renderer, multiple choice, and matching all
+// label positions the same way, and three copies of one convention is how
+// "choice B" starts meaning different things on different surfaces.
 
 export default function Matching({
   block,
@@ -49,8 +53,8 @@ export default function Matching({
       {/* The lettered bank, so prose and print can refer to "B". */}
       <ul className="viewer-matching__bank">
         {block.targets.map((target, i) => (
-          <li key={target.id} className="viewer-matching__target" data-letter={LETTERS[i]}>
-            <span className="viewer-matching__letter">{LETTERS[i] ?? '?'}.</span>{' '}
+          <li key={target.id} className="viewer-matching__target" data-letter={choiceLetter(i)}>
+            <span className="viewer-matching__letter">{choiceLetter(i)}.</span>{' '}
             <InlineContent nodes={target.content} />
           </li>
         ))}
@@ -64,6 +68,11 @@ export default function Matching({
               <label htmlFor={selectId} className="viewer-matching__item-label">
                 <InlineContent nodes={item.content} />
               </label>
+              {/* The paper convention: a blank line to write the target's
+                  letter on. The <select> beside it is the screen answer and is
+                  hidden in print; this is hidden on screen. Both are always in
+                  the DOM because printing cannot wait on a render. */}
+              <span className="viewer-matching__letter-line" aria-hidden="true" />
               <select
                 id={selectId}
                 className="viewer-matching__select"
@@ -76,7 +85,7 @@ export default function Matching({
                 <option value="">— choose —</option>
                 {block.targets.map((target, i) => (
                   <option key={target.id} value={target.id}>
-                    {LETTERS[i] ?? '?'}
+                    {choiceLetter(i)}
                   </option>
                 ))}
               </select>

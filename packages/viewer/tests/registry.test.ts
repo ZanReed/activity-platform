@@ -273,14 +273,19 @@ describe('print declarations (faithful to the baseline print layer)', () => {
     // WAS pinned to the baseline print CSS including its gaps — math_block,
     // data_plot and self_explanation were absent because the renderer's rule
     // omits them, and the registry recorded what IS so that improving it would
-    // be a ruling rather than a silent side effect. S5 ruled it (S5-OV6): all
-    // three now avoid. The three additions below are that ruling; the parity
-    // gate asserts this spec on both surfaces rather than diffing against
-    // renderer output, which is what makes the improvement expressible without
-    // touching published pages.
+    // be a ruling rather than a silent side effect. S5 ruled it (S5-OV6), and
+    // the author extended the ruling to short_answer and essay, which share
+    // self_explanation's writing-box structure and its defect but were not
+    // named in the original finding. The parity gate asserts this spec on both
+    // surfaces rather than diffing against renderer output, which is what
+    // makes the improvement expressible without touching published pages.
+    //
+    // Every FREE-TEXT type now avoids, which is the invariant worth reading
+    // off this list: no prompt is ever separated from the space to answer it.
     expect(avoid.sort()).toEqual(
       [
         'data_plot',
+        'essay',
         'faded_worked_example',
         'fill_in_blank',
         'interactive_graph',
@@ -292,8 +297,25 @@ describe('print declarations (faithful to the baseline print layer)', () => {
         'ordering',
         'problem',
         'self_explanation',
+        'short_answer',
         'worked_example',
       ].sort(),
     );
+  });
+
+  it('keeps the whole writing-box family whole on the page (no prompt stranded from its answer space)', () => {
+    // The rule behind the list above, stated as a rule rather than a roster:
+    // if a future free-text type ships with break-inside auto, this fails even
+    // though the roster test was updated to match it.
+    const writingBox = registeredBlockTypes.filter(
+      (type) => blockRegistry[type].print.treatment === 'writing-box',
+    );
+    expect(writingBox.length).toBeGreaterThan(0);
+    for (const type of writingBox) {
+      expect(
+        blockRegistry[type].print.breakInside,
+        `${type} can separate its prompt from its writing box on paper`,
+      ).toBe('avoid');
+    }
   });
 });

@@ -25,6 +25,7 @@
 import { useId } from 'react';
 import type { MultipleChoiceBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
+import { choiceLetter } from './paperAffordances.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
@@ -66,7 +67,7 @@ export default function MultipleChoice({
         </legend>
 
         <ul className="viewer-mc__choices">
-          {block.choices.map((choice) => {
+          {block.choices.map((choice, index) => {
             const isSelected = selected.includes(choice.id);
             return (
               <li key={choice.id} className="viewer-mc__choice">
@@ -79,6 +80,18 @@ export default function MultipleChoice({
                     disabled={disabled}
                     onChange={() => toggle(choice.id)}
                   />
+                  {/* The paper marker. On screen the native control carries the
+                      choice, but on paper there is no control — the letter is
+                      what a student circles, so it is what has to be there.
+                      Rendered always and revealed by @media print: the browser's
+                      own print command gives no hook to prepare in, so anything
+                      not already in the DOM is missing from the page.
+                      aria-hidden because the visible label already names the
+                      choice; a screen reader announcing "A" before every option
+                      is noise, not information. */}
+                  <span className="viewer-mc__letter" aria-hidden="true">
+                    {choiceLetter(index)}
+                  </span>
                   <span className="viewer-mc__choice-content">
                     <InlineContent nodes={choice.content} />
                   </span>

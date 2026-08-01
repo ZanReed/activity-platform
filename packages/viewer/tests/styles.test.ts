@@ -17,7 +17,12 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { colorTokens, staticTokens } from '../src/index.js';
+import {
+  colorTokens,
+  staticTokens,
+  blockRegistry,
+  registeredBlockTypes,
+} from '../src/index.js';
 
 const css = readFileSync(
   new URL('../src/styles/viewer.css', import.meta.url),
@@ -139,6 +144,117 @@ describe('the floors the design rulings set', () => {
     const print = code.slice(code.indexOf('@media print'));
     for (const variant of ['info', 'warning', 'success', 'note']) {
       expect(print).toContain(`var(--callout-${variant}-print-border)`);
+    }
+  });
+});
+
+describe('the print stylesheet agrees with the registry it mirrors', () => {
+  // CSS cannot import the registry, so the break-inside list in viewer.css is
+  // kept by hand — and a hand-kept list drifts the moment somebody adds a block
+  // type or changes a PrintSpec. This parses the list back out and compares it
+  // to the registry, which is the declared contract the parity gate asserts. It
+  // is the cheap half of that gate: no browser needed to catch a stylesheet
+  // that has stopped matching its own spec.
+  const print = code.slice(code.indexOf('@media print'));
+
+  /** The `[data-block-type='x']` selectors in the rule that sets avoid. */
+  const declaredAvoid = (): Set<string> => {
+    const found = new Set<string>();
+    // Each block of selectors ending in a break-inside: avoid declaration.
+    for (const rule of print.split('}')) {
+      if (!/break-inside:\s*avoid/.test(rule)) continue;
+      for (const match of rule.matchAll(/\[data-block-type='([a-z_]+)'\]/g)) {
+        if (match[1]) found.add(match[1]);
+      }
+    }
+    return found;
+  };
+
+  it('gives break-inside:avoid to exactly the types whose PrintSpec declares it', () => {
+    const fromRegistry = new Set(
+      registeredBlockTypes.filter(
+        (type) => blockRegistry[type].print.breakInside === 'avoid',
+      ),
+    );
+    expect([...declaredAvoid()].sort()).toEqual([...fromRegistry].sort());
+  });
+
+  it('does not pin any type that declares auto (the old blanket rule did)', () => {
+    // The stylesheet used to apply avoid to `.viewer-block` wholesale, which
+    // silently contradicted the registry for the seven types that declare auto
+    // — paragraphs and lists were being held whole across page breaks, which is
+    // wrong for long prose and wastes paper.
+    const autoTypes = registeredBlockTypes.filter(
+      (type) => blockRegistry[type].print.breakInside === 'auto',
+    );
+    const avoid = declaredAvoid();
+    for (const type of autoTypes) {
+      expect(avoid.has(type), `${type} declares auto but the CSS pins avoid`).toBe(false);
+    }
+    expect(print).not.toMatch(/\.viewer-block\s*,[^{]*\{[^}]*break-inside:\s*avoid/);
+  });
+
+  it('hides the live kit board so only the static twin prints (S5-1)', () => {
+    expect(print).toContain('.viewer-graph__canvas');
+    expect(print).toContain('.viewer-number-line__canvas');
+    expect(print).toContain('.viewer-data-plot__canvas');
+    expect(print).toContain('[data-print-svg]');
+  });
+
+  it('forces every colour it prints with to a light value (S5-9)', () => {
+    // Paper is white regardless of the screen theme, and viewer print rules
+    // resolve their colours from theme tokens — so a dark-mode student would
+    // print near-white ink on white paper. Measured, not hypothesised:
+    // --color-ink is #f1f5f9 in dark mode.
+    //
+    // tokens.css already flattens the palette inside its own @media print
+    // block, so the defence exists; what was missing is this pin. Without it,
+    // the next print rule that reaches for a colour token nobody remembered to
+    // flatten fails silently and invisibly — the failure only shows up on
+    // paper, in someone else's classroom.
+    //
+    // The callout print-border tokens are exempt BY KIND: they carry border
+    // STYLES (solid/dashed/double/dotted), which is precisely why the variant
+    // survives grayscale, and they are declared once with no dark override.
+    const tokensCss = readFileSync(
+      new URL('../src/tokens/tokens.css', import.meta.url),
+      'utf8',
+    );
+    const tokensPrintBlock = tokensCss.slice(tokensCss.indexOf('@media print'));
+    const forcedInPrint = new Set(
+      [...tokensPrintBlock.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]),
+    );
+
+    const colourTokensUsedInPrint = [
+      ...new Set([...print.matchAll(/var\(\s*(--[a-z0-9-]+)/g)].map((m) => m[1])),
+    ].filter(
+      (name) =>
+        /^--(?:color|state|callout)-/.test(name ?? '') &&
+        !/-print-border$/.test(name ?? ''),
+    );
+
+    expect(colourTokensUsedInPrint.length).toBeGreaterThan(0);
+    for (const name of colourTokensUsedInPrint) {
+      expect(
+        forcedInPrint.has(name ?? ''),
+        `${name} is printed with but never flattened to a light value in ` +
+          `tokens.css @media print — a dark-mode student prints it on white paper`,
+      ).toBe(true);
+    }
+  });
+
+  it('keeps the print-only paper affordances out of the screen view', () => {
+    // They live in the DOM permanently (printing cannot wait on a render), so
+    // the screen rule hiding them is what stops a worksheet showing circle-me
+    // letters and empty number boxes to a student working online.
+    const screen = code.slice(0, code.indexOf('@media print'));
+    for (const selector of [
+      '.viewer-mc__letter',
+      '.viewer-matching__letter-line',
+      '.viewer-ordering__number-box',
+      '[data-print-svg]',
+    ]) {
+      expect(screen, `${selector} is not hidden on screen`).toContain(selector);
     }
   });
 });

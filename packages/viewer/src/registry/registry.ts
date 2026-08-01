@@ -14,7 +14,9 @@
 // registry side effect. S5 (the print slice) IS that decision point, and it
 // ruled (S5-OV6): math_block, data_plot, and self_explanation now declare
 // break-inside: avoid — a numbered equation, a chart, or a prompt separated
-// from its writing box is a print bug on any surface. The parity gate asserts
+// from its writing box is a print bug on any surface — and the author extended
+// it to short_answer and essay, the two unnamed siblings that share
+// self_explanation's writing-box structure. The parity gate asserts
 // THIS spec on both surfaces rather than diffing against renderer output
 // (printExpectations.ts), which is exactly what makes the improvement
 // expressible; published pages keep their current behavior until they retire.
@@ -415,7 +417,13 @@ export const blockRegistry: BlockRegistry = {
     // Rubrics are teacher-side data — already correctly withheld from student
     // HTML today; the registry makes that a declared invariant.
     sanitize: { strip: ['rubric'] },
-    print: { breakInside: 'auto', treatment: 'writing-box' },
+    // Same former oddity as self_explanation, and fixed with it: the baseline
+    // avoid rides the textarea, not the block, so a prompt could print on one
+    // page with its answer space on the next. S5-OV6 named only the three
+    // types its comments flagged; the author extended the ruling to the two
+    // unnamed siblings of the same family rather than leave the defect in
+    // place for them (the plot_ray/plot_segment lesson: audit the family).
+    print: { breakInside: 'avoid', treatment: 'writing-box' },
     a11y: {
       story:
         'A labeled textarea in tab order. Recorded state announces via ' +
@@ -432,7 +440,8 @@ export const blockRegistry: BlockRegistry = {
     numbered: 'never',
     analyticsKey: 'essay',
     sanitize: { strip: ['rubric'] },
-    print: { breakInside: 'auto', treatment: 'writing-box' },
+    // Extended with short_answer + self_explanation — see the note there.
+    print: { breakInside: 'avoid', treatment: 'writing-box' },
     a11y: {
       story:
         'A labeled textarea in tab order. The live word counter is ' +

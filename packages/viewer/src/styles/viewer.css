@@ -769,14 +769,43 @@
   background: var(--color-hover);
 }
 
-@media print {
-  .viewer-banner {
-    display: none;
-  }
+/* ---- Print-only affordances, hidden on screen -----------------------------
+   The paper conventions (a circle-me letter, a write-the-letter line, a
+   number-the-steps box, the kit-free static SVG twin) are rendered into the
+   DOM always and revealed by @media print. They are built eagerly rather than
+   conditionally because printing must never wait on a render: the browser's
+   own File > Print gives us no hook to prepare in, so anything that is not
+   already in the document when the dialog opens is simply missing from the
+   page. */
+
+.viewer-mc__letter,
+.viewer-matching__letter-line,
+.viewer-ordering__number-box,
+[data-print-svg] {
+  display: none;
 }
+
+
+/* =============================================================================
+   PRINT — the clean worksheet (ruling 7.3A; the S5 print slice)
+   -----------------------------------------------------------------------------
+   What a student prints is the BLANK version of the worksheet: no check chrome,
+   no marks, no revealed solutions, blanks neutralized to writing lines. The
+   parity gate (packages/app/e2e/print-parity.e2e.ts) asserts these rules on
+   this surface AND on the retiring renderer's published page, driven by
+   registry/printExpectations.ts — so this block and that table are two
+   expressions of one contract, and the gate fails if they disagree.
+
+   Colour is not a channel here. A worksheet is photocopied, faxed, and printed
+   on a school laser printer with a dying toner cartridge, so every distinction
+   that matters is carried by border STYLE, letters, or boxes — never by hue.
+   ============================================================================= */
 
 @media print {
   @page {
+    /* Default. A document that configures meta.print.paperSize / margin gets a
+       per-document @page rule injected at runtime: @page cannot read custom
+       properties, which is the same constraint the renderer documents. */
     margin: 0.5in;
   }
 
@@ -785,76 +814,257 @@
     padding: 0;
   }
 
+  .viewer-banner {
+    display: none;
+  }
+
   .viewer-section {
     border: none;
-    break-before: auto;
+    break-before: auto; /* explicit: flow naturally, never force a page */
     margin: 0;
     max-width: none;
     padding: 0;
   }
 
-  /* Interactive chrome never prints. */
+  /* ---- Interactive chrome never prints ------------------------------------ */
+
   .viewer-section__footer,
+  .viewer-section__status,
+  .viewer-section__shortfall,
   .viewer-state-pill,
   .viewer-ordering__controls,
+  .viewer-blank__feedback,
+  .viewer-matching__select,
+  .viewer-graph__unavailable,
   [data-feedback='server'],
   .viewer-solution,
   .viewer-essay__count {
     display: none !important;
   }
 
-  /* A question should not straddle a page break. */
-  .viewer-block,
+  /* ---- Page-break integrity ------------------------------------------------
+     MIRRORS the registry's PrintSpec.breakInside, which is the declared
+     contract (registry.ts). Every type listed here declares 'avoid'; the types
+     absent from it declare 'auto' and take the browser default. A unit guard
+     (tests/styles.test.ts) parses this list and fails if it drifts from the
+     registry, because CSS cannot import the registry and a hand-kept list
+     drifts the moment somebody adds a block type.
+
+     Three of these were fixed here rather than inherited: math_block,
+     data_plot and the free-text family used to declare 'auto' because the
+     renderer's baseline rule omitted them, which let a numbered equation, a
+     chart, or a prompt separated from its writing box split across a page
+     (ruling S5-OV6 + the author's extension to short_answer/essay). */
+  [data-block-type='data_plot'],
+  [data-block-type='essay'],
+  [data-block-type='faded_worked_example'],
+  [data-block-type='fill_in_blank'],
+  [data-block-type='interactive_graph'],
+  [data-block-type='learning_objectives'],
+  [data-block-type='matching'],
+  [data-block-type='math_block'],
+  [data-block-type='multiple_choice'],
+  [data-block-type='number_line'],
+  [data-block-type='ordering'],
+  [data-block-type='problem'],
+  [data-block-type='self_explanation'],
+  [data-block-type='short_answer'],
+  [data-block-type='worked_example'] {
+    break-inside: avoid;
+  }
+
+  /* Sub-elements that should not split even inside a block that may. */
   .viewer-mc__choice,
   .viewer-ordering__item,
   .viewer-matching__item {
     break-inside: avoid;
   }
 
+  /* Headings are never stranded at a page bottom (PrintSpec.keepWithNext). */
   .viewer-heading,
+  .viewer-section__title,
   .viewer-objectives__title,
   .viewer-worked-example__title,
   .viewer-faded-example__title {
     break-after: avoid;
   }
 
-  /* Blanks neutralize to bare writing lines. */
-  .viewer-blank__input {
+  /* ---- Treatment: underline-blanks ---------------------------------------- */
+
+  /* Blanks neutralize to bare writing lines. Verdict fills are dropped: a
+     printed worksheet is the copy handed out BEFORE the lesson, so it carries
+     no scored state. */
+  .viewer-blank__input,
+  .viewer-blank__input[data-state='correct'],
+  .viewer-blank__input[data-state='incorrect'] {
     background: none !important;
+    border: none !important;
     border-bottom: 1px solid var(--color-ink) !important;
+    border-radius: 0;
     min-width: 8ch;
   }
 
-  /* Free text becomes a writing box with room to write in. */
+  /* ---- Treatment: choice-letters ------------------------------------------
+     The native control is meaningless on paper; the LETTER is what a student
+     circles. Same convention the published page uses. */
+
+  .viewer-mc__choice input {
+    display: none;
+  }
+
+  .viewer-mc__letter {
+    display: inline-block;
+    min-width: 1.6em;
+    font-weight: 600;
+  }
+
+  .viewer-mc__choice,
+  .viewer-mc__choice[data-state='correct'],
+  .viewer-mc__choice[data-state='incorrect'] {
+    background: none;
+  }
+
+  /* ---- Treatment: letter-bank ---------------------------------------------
+     Matching on paper is the century-old convention: a lettered bank, and a
+     write-the-letter line on each item. */
+
+  .viewer-matching__letter-line {
+    display: inline-block;
+    min-width: 2.5rem;
+    border-bottom: 1px solid var(--color-ink);
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .viewer-matching__bank {
+    break-inside: avoid;
+  }
+
+  .viewer-matching__item,
+  .viewer-matching__item[data-state='correct'],
+  .viewer-matching__item[data-state='incorrect'] {
+    background: none;
+    border-color: var(--color-ink);
+  }
+
+  /* ---- Treatment: number-boxes -------------------------------------------- */
+
+  .viewer-ordering__number-box {
+    display: inline-block;
+    min-width: 1.6rem;
+    min-height: 1.4rem;
+    border: 1px solid var(--color-ink);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .viewer-ordering__item,
+  .viewer-ordering__item[data-state='correct'],
+  .viewer-ordering__item[data-state='incorrect'] {
+    background: none;
+    border-color: var(--color-ink);
+  }
+
+  /* ---- Treatment: writing-box ---------------------------------------------
+     Free text prints as a bordered area with room to answer by hand. The essay
+     gets more room than a short answer: the affordance should match the
+     expected length, or the paper lies about how much is wanted. */
+
   .viewer-short-answer__input,
   .viewer-self-explanation__input,
   .viewer-essay__input {
+    border: 1px solid var(--color-ink) !important;
+    background: none !important;
     min-height: 6em;
+    resize: none;
   }
 
   .viewer-essay__input {
     min-height: 12em;
   }
 
-  /* Callout identity survives grayscale via BORDER STYLE, not colour. */
+  /* ---- Treatment: figure --------------------------------------------------- */
+
+  .viewer-image__img,
+  .viewer-figure__svg {
+    max-width: 100%;
+  }
+
+  /* ---- Treatment: bordered-box --------------------------------------------
+     Scaffold cards print as plain boxes. The faded example keeps a DASHED
+     border so it stays distinguishable from the solid worked-example box when
+     the colour is gone. */
+
+  .viewer-objectives,
+  .viewer-worked-example {
+    background: none;
+    border: 1px solid var(--color-ink);
+  }
+
+  .viewer-faded-example {
+    background: none;
+    border: 1px dashed var(--color-ink);
+  }
+
+  .viewer-worked-example__title,
+  .viewer-faded-example__title,
+  .viewer-objectives__title {
+    color: var(--color-ink);
+  }
+
+  /* ---- Treatment: variant-border-box ---------------------------------------
+     Callout identity survives grayscale via BORDER STYLE, not colour. */
+
   .viewer-callout {
     border: 1px solid var(--color-ink);
     border-left-width: 3px;
+    background: none;
   }
 
   .viewer-callout--info {
-    border-style: var(--callout-info-print-border);
+    border-left-style: var(--callout-info-print-border);
   }
 
   .viewer-callout--warning {
-    border-style: var(--callout-warning-print-border);
+    border-left-style: var(--callout-warning-print-border);
   }
 
   .viewer-callout--success {
-    border-style: var(--callout-success-print-border);
+    border-left-style: var(--callout-success-print-border);
   }
 
   .viewer-callout--note {
-    border-style: var(--callout-note-print-border);
+    border-left-style: var(--callout-note-print-border);
+  }
+
+  /* ---- Treatment: static-svg ----------------------------------------------
+     The live JSXGraph board never prints (ruling S5-1): it would put the
+     student's in-progress work onto a worksheet the clean-print default exists
+     to strip, and it depends on a lazily-loaded kit having mounted before the
+     print dialog opened. A kit-free static twin prints in its place — empty
+     axes for a question, the authored drawables for a display figure. The twin
+     itself is rendered by the components (T2); these rules place it. */
+
+  .viewer-graph__canvas,
+  .viewer-number-line__canvas,
+  .viewer-data-plot__canvas {
+    display: none;
+  }
+
+  [data-print-svg] {
+    display: block;
+  }
+
+  [data-block-type='interactive_graph'] [data-print-svg],
+  [data-block-type='data_plot'] [data-print-svg] {
+    /* Hand-plottable paper size — the grid is the working area. */
+    max-width: 3.5in;
+  }
+
+  [data-block-type='number_line'] [data-print-svg] {
+    /* Wider than a grid: a number line is one-dimensional, so the width is
+       all working room. */
+    max-width: 5in;
   }
 }

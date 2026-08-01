@@ -70,6 +70,11 @@ export default function Ordering({
           if (!item) return null;
           return (
             <li key={id} className="viewer-ordering__item" data-item-id={id}>
+              {/* The paper convention: "number the steps 1 to N" in a box. The
+                  reorder buttons are the screen answer and are hidden in print;
+                  this is hidden on screen. Both are always in the DOM because
+                  the browser's print command gives no chance to build one. */}
+              <span className="viewer-ordering__number-box" aria-hidden="true" />
               <span className="viewer-ordering__content">
                 <InlineContent nodes={item.content} />
               </span>
