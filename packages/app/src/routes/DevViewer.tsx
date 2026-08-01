@@ -50,8 +50,16 @@ const ACTIVITY_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 const VERSION_ID = 'bbbbbbbb-0000-4000-8000-000000000001';
 
 export default function DevViewer() {
-  const [type, setType] = useState<BlockType | 'ALL'>('multiple_choice');
-  const [variant, setVariant] = useState(0);
+  // Deep-linkable so the print-parity gate can drive ONE fixture at a time:
+  // /dev/viewer?type=multiple_choice&variant=1&font=lexend. Read once as the
+  // initial state — the controls still work normally afterwards.
+  const params = new URLSearchParams(
+    typeof window === 'undefined' ? '' : window.location.search,
+  );
+  const [type, setType] = useState<BlockType | 'ALL'>(
+    (params.get('type') as BlockType | 'ALL' | null) ?? 'multiple_choice',
+  );
+  const [variant, setVariant] = useState(Number(params.get('variant') ?? 0));
   const [verdict, setVerdict] = useState<Verdict>('correct');
   const [mode, setMode] = useState<'screen' | 'print'>('screen');
   const [failing, setFailing] = useState(false);
@@ -59,7 +67,9 @@ export default function DevViewer() {
   // `document/typography`), so the harness needs a way to exercise it — the
   // shared fixture stays default-font on purpose, because the T8 visual
   // baselines are taken against it.
-  const [font, setFont] = useState<ActivityFont>('default');
+  const [font, setFont] = useState<ActivityFont>(
+    (params.get('font') as ActivityFont | null) ?? 'default',
+  );
 
   // A fresh store+service per configuration: flipping the scripted verdict
   // should show the new verdict, not a stale checked state.
@@ -83,8 +93,25 @@ export default function DevViewer() {
             ],
           } as unknown as SanitizedActivityDocument);
 
+    // Every gradable block gets a scripted SOLUTION, so a checked worksheet in
+    // the harness carries the full post-check state: verdict pills, feedback,
+    // and released solutions. Without solutions here, the print gate's
+    // "solutions never print" rule passes vacuously — the element it asserts
+    // about is simply never on the page.
+    const solutions = Object.fromEntries(
+      document.sections
+        .flatMap((section) => section.rows)
+        .flatMap((row) => row.columns)
+        .flatMap((column) => column.blocks)
+        .map((block) => [
+          (block as { id: string }).id,
+          [{ type: 'text', text: 'Worked solution for this problem.' }],
+        ]),
+    );
+
     const service = createMockCheckService({
       defaultVerdict: verdict === 'recorded' ? 'correct' : verdict,
+      solutions: solutions as never,
       ...(failing ? { failWith: new Error('Simulated check failure') } : {}),
     });
     return {

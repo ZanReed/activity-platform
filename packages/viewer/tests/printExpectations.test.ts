@@ -21,6 +21,7 @@ import {
   blockRegistry,
   registeredBlockTypes,
   printExpectations,
+  suppressedChecksFor,
   targetFor,
   blockPrintRoster,
   variantPrintRoster,
@@ -182,6 +183,35 @@ describe('printExpectations — the surface map cannot silently skip a surface',
   });
 });
 
+describe('printExpectations — exemptions are declared, not silent', () => {
+  it('justifies every suppressed check', () => {
+    // A treatment describes the usual shape of a paper affordance; a type can
+    // realise it differently (math gaps are rendered MATH, not inputs). When
+    // that happens the rule is dropped by NAME with a reason, so the gate
+    // cannot quietly lose a rule and look complete.
+    for (const type of registeredBlockTypes) {
+      for (const [id, reason] of Object.entries(suppressedChecksFor(type))) {
+        expect(reason.length, `${type}/${id} is suppressed without a reason`).toBeGreaterThan(
+          30,
+        );
+        // And the suppressed check must be one this type would otherwise run,
+        // or the exemption is stale and hiding nothing.
+        expect(
+          printExpectations(type).some((c) => c.id === id),
+          `${type} suppresses ${id}, which it never emits`,
+        ).toBe(false);
+      }
+    }
+  });
+
+  it('leaves every type with something still asserted', () => {
+    // Suppression must never empty a block out.
+    for (const type of registeredBlockTypes) {
+      expect(printExpectations(type).length).toBeGreaterThan(2);
+    }
+  });
+});
+
 describe('printExpectations — the clean-worksheet floor (7.3A)', () => {
   const universalIds = ['chrome/state-pill', 'chrome/server-feedback', 'chrome/solutions'];
 
@@ -338,21 +368,31 @@ describe('printExpectations — treatment coverage', () => {
     // stated reason, that block would pass the gate on break-inside alone.
     const declared = new Set(registeredBlockTypes.map((t) => blockRegistry[t].print.treatment));
     for (const treatment of declared) {
-      const type = registeredBlockTypes.find(
-        (t) => blockRegistry[t].print.treatment === treatment,
-      ) as BlockType;
-      const nonUniversal = allChecksFor(type).filter(
-        (c) => !c.id.startsWith('chrome/') && !c.id.startsWith('ink/') && !c.id.startsWith('spec/'),
-      );
       const excuse = TREATMENTS_WITHOUT_OWN_RULES[treatment];
       if (excuse !== undefined) {
         expect(excuse.length).toBeGreaterThan(20);
         continue;
       }
+      // Checked across EVERY type declaring the treatment, not just the first
+      // one: a type may justifiably suppress the treatment's checks (math gaps
+      // are rendered math, not inputs), and picking the first type alphabetically
+      // would then report the whole treatment as uncovered when it is fully
+      // covered elsewhere.
+      const types = registeredBlockTypes.filter(
+        (t) => blockRegistry[t].print.treatment === treatment,
+      );
+      const exercised = types.some((t) =>
+        allChecksFor(t).some(
+          (c) =>
+            !c.id.startsWith('chrome/') &&
+            !c.id.startsWith('ink/') &&
+            !c.id.startsWith('spec/'),
+        ),
+      );
       expect(
-        nonUniversal.length,
-        `treatment "${treatment}" has no rules of its own (${type} would pass on break-inside alone). Add checks, or excuse it by name in TREATMENTS_WITHOUT_OWN_RULES with a reason.`,
-      ).toBeGreaterThan(0);
+        exercised,
+        `treatment "${treatment}" has no rules of its own on ANY of ${types.join(', ')}. Add checks, or excuse it by name in TREATMENTS_WITHOUT_OWN_RULES with a reason.`,
+      ).toBe(true);
     }
   });
 

@@ -58,6 +58,7 @@ export type { GlossaryEntry } from './print/definitions.js';
 // server/index.ts: the get-activity bundle must not carry it (V9 lesson).
 export {
   printExpectations,
+  suppressedChecksFor,
   targetFor,
   blockPrintRoster,
   variantPrintRoster,

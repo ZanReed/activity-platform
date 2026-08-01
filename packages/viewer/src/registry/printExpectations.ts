@@ -185,7 +185,17 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'figure/capped',
       rule: 'A figure is capped so it cannot run off the sheet.',
-      target: { viewer: '.viewer-image__img, .viewer-figure__svg', renderer: 'img, svg' },
+      target: {
+        viewer: '.viewer-image__img, .viewer-figure__svg',
+        // Another improvement the gate surfaced: the renderer caps its
+        // interactive-graph canvas but leaves a static graph_figure uncapped,
+        // so a wide figure can overrun the page box. Fixed on the viewer;
+        // published pages keep their behaviour until they retire.
+        renderer: {
+          notApplicable:
+            'The renderer caps its graph canvas but not a static graph_figure; capping every figure is a viewer improvement rather than a shared rule.',
+        },
+      },
       expect: { kind: 'max-width-capped' },
     },
   ],
@@ -196,7 +206,11 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'callout/bordered',
       rule: 'A callout prints as a bordered box (its variant rides the border style, which survives grayscale).',
-      target: { viewer: '.viewer-callout', renderer: BLOCK_ROOT },
+      // BLOCK_ROOT on both: the callout component's own root carries
+      // data-block-type, so it IS the block root rather than a descendant of
+      // one — a descendant selector finds nothing when the gate is already
+      // scoped to that element.
+      target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
       expect: { kind: 'visible' },
     },
   ],
@@ -391,7 +405,17 @@ const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
     {
       id: 'essay/taller-writing-space',
       rule: 'An essay gets a taller writing area than a short answer — the paper affordance should match the expected length.',
-      target: { viewer: '.viewer-essay__input', renderer: '.free-text-input' },
+      target: {
+        viewer: '.viewer-essay__input',
+        // A VIEWER IMPROVEMENT, found by the gate: the renderer gives every
+        // free-text block the same box, so an essay prints with as much room as
+        // a one-line answer. Not a defect to fix on published pages (they
+        // retire), and not a shared rule — so the renderer is not held to it.
+        renderer: {
+          notApplicable:
+            'The renderer sizes every free-text block identically; giving an essay more room is a viewer improvement, not a rule both surfaces share.',
+        },
+      },
       expect: { kind: 'writing-space', minEm: 8 },
     },
   ],
@@ -413,6 +437,36 @@ const CALLOUT_VARIANT_BORDERS: Readonly<Record<string, 'solid' | 'dashed' | 'dou
  * prints empty axes for the student to work on (ruling S5-1 as amended by
  * OV4 — an empty-axes twin would have deleted authored content from paper). */
 const DISPLAY_INTERACTIONS: readonly string[] = ['display'];
+
+/** Types whose break-inside was IMPROVED by ruling S5-OV6 (plus the author's
+ * extension to the writing-box family). The renderer still declares the old
+ * `auto` for these, deliberately. */
+const IMPROVED_BREAK_INSIDE = new Set<BlockType>([
+  'math_block',
+  'data_plot',
+  'self_explanation',
+  'short_answer',
+  'essay',
+]);
+
+/**
+ * Treatment checks a specific type opts OUT of, each with the reason.
+ *
+ * A treatment describes the usual shape of a paper affordance; a type can
+ * legitimately realise it differently. Suppression is per-check and must be
+ * justified, so the alternative to a wrong assertion is a written exemption
+ * rather than a quietly weakened rule.
+ */
+const SUPPRESSED: Partial<Record<BlockType, Readonly<Record<string, string>>>> = {
+  math_block: {
+    'blanks/bare-underline':
+      'A math gap is rendered MATH, not an input: in print it is a KaTeX \\square inside the equation, which is the writing affordance. There is no input element to neutralise.',
+    'blanks/no-verdict-fill':
+      'Same: no input element exists to carry a verdict fill in print.',
+    'blanks/hint-affordances-hidden':
+      'Math gaps carry no hint or mistake buttons — those belong to fill_in_blank.',
+  },
+};
 
 // -----------------------------------------------------------------------------
 // The public helper
@@ -438,7 +492,21 @@ export function printExpectations(
     {
       id: 'spec/break-inside',
       rule: `PrintSpec declares break-inside: ${spec.breakInside} for ${type}.`,
-      target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
+      target: {
+        viewer: BLOCK_ROOT,
+        // The types whose break rule S5-OV6 IMPROVED are asserted on the viewer
+        // only. The renderer still carries the old behaviour on purpose —
+        // published pages were deliberately not touched — so asserting the new
+        // spec there would fail for a reason that is not a defect. This is the
+        // mechanism that lets the gate be spec-referenced rather than
+        // output-referenced: an improvement is expressible.
+        renderer: IMPROVED_BREAK_INSIDE.has(type)
+          ? {
+              notApplicable:
+                'S5-OV6 improved this block\'s break rule on the viewer; published pages keep the old behaviour until they retire, so the renderer is held to the rules both surfaces share.',
+            }
+          : BLOCK_ROOT,
+      },
       expect: { kind: 'computed', property: 'break-inside', oneOf: [spec.breakInside] },
     },
   ];
@@ -461,7 +529,7 @@ export function printExpectations(
       perInstance.push({
         id: `callout/border-style/${variant}`,
         rule: `A ${variant} callout encodes its variant in the border STYLE (${style}), which survives grayscale.`,
-        target: { viewer: '.viewer-callout', renderer: BLOCK_ROOT },
+        target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
         expect: { kind: 'computed', property: 'border-left-style', oneOf: [style] },
       });
     }
@@ -474,18 +542,46 @@ export function printExpectations(
       rule: isDisplay
         ? 'A display figure prints the authored drawables it exists to show — printing empty axes would delete the content.'
         : 'A question prints empty axes for the student to plot onto; their in-progress work is stripped (7.3A).',
-      target: { viewer: '[data-print-svg]', renderer: '.graph-canvas, .number-line-canvas, .data-plot-canvas' },
+      // The attribute is on the SVG element, not on the container that holds
+      // it — the first gate run caught this reading null off the wrapper.
+      target: {
+        viewer: '[data-print-svg] svg',
+        renderer: '.graph-canvas svg, .number-line-canvas svg, .data-plot-canvas svg',
+      },
       expect: { kind: 'drawable-count', zero: !isDisplay },
     });
   }
 
+  // A suppressed check is OMITTED, not emitted as unrunnable. Emitting it with
+  // both surfaces marked not-applicable produced a check that could never fail,
+  // which the guard suite correctly rejected: a rule that cannot run is not a
+  // rule. The exemption still has to be declared and justified — see
+  // suppressedChecksFor — it just does not masquerade as coverage.
+  const suppressed = SUPPRESSED[type] ?? {};
+  const treatment = TREATMENT_CHECKS[spec.treatment].filter(
+    (check) => suppressed[check.id] === undefined,
+  );
+
   return [
     ...derived,
     ...UNIVERSAL_CHECKS,
-    ...TREATMENT_CHECKS[spec.treatment],
+    ...treatment,
     ...(TYPE_CHECKS[type] ?? []),
     ...perInstance,
   ];
+}
+
+/**
+ * Treatment checks this block type opts out of, with the reason for each.
+ *
+ * Exposed so the guard suite can prove every exemption names a real check and
+ * carries a real justification: the alternative to a wrong assertion has to be
+ * a written exemption, not a silently missing rule.
+ */
+export function suppressedChecksFor(
+  type: BlockType,
+): Readonly<Record<string, string>> {
+  return SUPPRESSED[type] ?? {};
 }
 
 /** Resolve a check's selector for one surface, or `null` when the surface

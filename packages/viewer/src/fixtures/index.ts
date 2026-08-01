@@ -124,12 +124,37 @@ function authoredRawByType(
     src: 'https://fixtures.invalid/graph-of-line.png',
     alt: 'A line crossing the y-axis at 4',
   });
-  put('callout', {
-    id: fid(),
-    type: 'callout',
-    variant: 'info',
-    content: [text('Slope is rise over run — watch the sign.')],
-  });
+  // All FOUR variants, because the print rule that matters about callouts is
+  // that they stay distinguishable in grayscale — which cannot be checked with
+  // one of them. (The gate caught this: warning/success/note had no fixture and
+  // the checks were silently running against the info callout.)
+  put(
+    'callout',
+    {
+      id: fid(),
+      type: 'callout',
+      variant: 'info',
+      content: [text('Slope is rise over run — watch the sign.')],
+    },
+    {
+      id: fid(),
+      type: 'callout',
+      variant: 'warning',
+      content: [text('A negative slope falls from left to right.')],
+    },
+    {
+      id: fid(),
+      type: 'callout',
+      variant: 'success',
+      content: [text('Nicely done — that is the y-intercept.')],
+    },
+    {
+      id: fid(),
+      type: 'callout',
+      variant: 'note',
+      content: [text('Vertical lines have no slope at all.')],
+    },
+  );
   put('problem', {
     id: fid(),
     type: 'problem',
