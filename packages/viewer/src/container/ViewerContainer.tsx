@@ -46,6 +46,14 @@ import type { SectionStatus } from '../store/persistence.js';
 import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
 import { ViewerProvider } from './context.js';
 import { indexDocument, type SectionIndex } from './blockIndex.js';
+import {
+  rowStyle,
+  columnStyle,
+  blockStyle,
+  blockAlign,
+  isSized,
+  type BlockLayout,
+} from './layoutStyles.js';
 
 /** What a section check could not cover — never silently empty. */
 export interface CheckShortfall {
@@ -222,12 +230,19 @@ export function ViewerContainer({
             ) : null}
 
             {section.rows.map((row) => (
-              <div key={row.id} className="viewer-row" data-row-id={row.id}>
+              <div
+                key={row.id}
+                className="viewer-row"
+                data-row-id={row.id}
+                data-column-count={row.columns.length}
+                style={rowStyle(row.columns)}
+              >
                 {row.columns.map((column) => (
                   <div
                     key={column.id}
                     className="viewer-column"
                     data-column-id={column.id}
+                    style={columnStyle(column)}
                   >
                     {column.blocks.map((block) => (
                       <BlockSlot
@@ -298,6 +313,9 @@ function BlockSlot({
   const id = (block as { id: string }).id;
   const entry = blockRegistry[type];
   const Component = resolveComponent(type);
+  // Authored footprint (width fraction + align). Structural, not block-type
+  // specific — every block type carries the sizing fragment.
+  const layout = block as BlockLayout;
   // familyOf resolves display-mode instances to static — a display graph is
   // not gradable, so a crash there is not a grading shortfall.
   const gradable = familyOf(block as never) !== 'static';
@@ -311,11 +329,15 @@ function BlockSlot({
       onCrash={onCrash}
     >
       <div
-        className="viewer-block"
+        className={
+          isSized(layout) ? 'viewer-block viewer-block--sized' : 'viewer-block'
+        }
         data-block-id={id}
         data-block-type={type}
         data-block-category={entry.category}
         data-block-family={familyOf(block as never)}
+        data-block-align={blockAlign(layout)}
+        style={blockStyle(layout)}
       >
         {Component ? (
           // Suspense only matters for lazy bindings; eager ones never suspend,

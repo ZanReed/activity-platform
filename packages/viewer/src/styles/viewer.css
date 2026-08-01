@@ -59,14 +59,48 @@
   margin-top: var(--space-5);
 }
 
+/* Rows-of-columns. Grid rather than flex so authored width WEIGHTS work: a
+   column with weight 2 beside one with weight 1 takes two thirds, which flex's
+   `1 1 0` cannot express without translating weights into flex-grow and hoping
+   content sizes agree. The track list arrives inline as --activity-columns-
+   template (layoutStyles.ts) from the columns' own weights; the fallback keeps
+   a template-less context sane.
+
+   Deliberately NOT scoped to screen: columns lay out side by side everywhere,
+   print included, which is the renderer's rule too. Only the phone breakpoint
+   below collapses them, and it can, because a custom property loses to a later
+   rule where an inline width would not. */
 .viewer-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--activity-columns-template, 1fr);
   gap: var(--space-5);
+  align-items: start;
 }
 
 .viewer-column {
-  flex: 1 1 0;
-  min-width: 0; /* let long content shrink instead of overflowing the row */
+  min-width: 0; /* let long content shrink instead of overflowing the track */
+  /* Reserved work space (Column.minHeight) — a FLOOR, not a fixed height: the
+     cell still grows with its content. Unauthored cells stay content-sized
+     because the property is only emitted when a teacher asked for it. */
+  min-height: var(--activity-cell-min-height, 0);
+}
+
+/* Per-block footprint (width fraction + align). Consuming a custom property
+   instead of declaring a width lets the phone breakpoint relax it; auto margins
+   centre by default, and the align attribute zeroes one side. Only horizontal
+   margins are touched, so each block keeps its own vertical rhythm. */
+.viewer-block--sized {
+  width: var(--activity-block-width, 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.viewer-block--sized[data-block-align='left'] {
+  margin-left: 0;
+}
+
+.viewer-block--sized[data-block-align='right'] {
+  margin-right: 0;
 }
 
 /* ---- Section footer: the check control ------------------------------------ */
@@ -703,9 +737,17 @@
     padding: var(--space-5) var(--space-4);
   }
 
-  /* Columns are a print/desktop layout idea; on a phone they stack. */
+  /* Columns are a print/desktop layout idea; on a phone they stack. `display:
+     block` beats the grid, and the authored track template goes with it — which
+     is exactly why the template is a custom property rather than an inline
+     width (an inline width would follow the student onto a 375px screen). A
+     sized block relaxes to full width for the same reason. */
   .viewer-row {
     display: block;
+  }
+
+  .viewer-block--sized {
+    width: 100%;
   }
 
   .viewer-column + .viewer-column {
