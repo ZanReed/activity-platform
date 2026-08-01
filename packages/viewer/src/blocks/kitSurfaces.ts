@@ -39,6 +39,13 @@ export interface GraphSurfaceResponse {
     maxX?: number;
     maxStyle?: 'open' | 'closed';
   };
+  /** plot_ray / plot_segment: the chosen shape and the endpoint open/closed
+   * choices. These are ANSWER CONTENT ("2 ≤ x < 7" ≠ "2 < x < 7"), not
+   * presentation — they were being dropped here, which left the two
+   * linear-piece interactions ungradable server-side. Work-only still holds:
+   * a shape is what the student drew, not whether it was right. */
+  shape?: 'ray_positive' | 'ray_negative' | 'segment';
+  endpointStyles?: Array<'open' | 'closed'>;
 }
 
 export interface GraphSurfaceConfig {
@@ -113,7 +120,15 @@ function toSurfaceResponse(resp: {
   strict?: boolean;
   side?: string;
   domain?: GraphSurfaceResponse['domain'];
+  shape?: 'ray_positive' | 'ray_negative' | 'segment';
+  fromStyle?: 'open' | 'closed';
+  endpoints?: ['open' | 'closed', 'open' | 'closed'];
 }): GraphSurfaceResponse {
+  // The kit reports a ray's single endpoint style as `fromStyle` and a
+  // segment's pair as `endpoints`; the wire carries one ordered array for
+  // both, matching the kit scorer's own `endpointStyles` parameter.
+  const endpointStyles =
+    resp.endpoints ?? (resp.fromStyle !== undefined ? [resp.fromStyle] : undefined);
   return {
     points: resp.studentPoints,
     answered: resp.answered,
@@ -121,6 +136,8 @@ function toSurfaceResponse(resp: {
     ...(resp.strict !== undefined ? { strict: resp.strict } : {}),
     ...(resp.side !== undefined ? { side: resp.side } : {}),
     ...(resp.domain !== undefined ? { domain: resp.domain } : {}),
+    ...(resp.shape !== undefined ? { shape: resp.shape } : {}),
+    ...(endpointStyles !== undefined ? { endpointStyles } : {}),
   };
 }
 

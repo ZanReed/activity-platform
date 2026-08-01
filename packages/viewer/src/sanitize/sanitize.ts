@@ -304,6 +304,31 @@ function sanitizeBlockMut(block: Record<string, unknown>): void {
   stripInBandSecrets(block);
 }
 
+/**
+ * Sanitize a loose INLINE-CONTENT array pulled out of the raw document (pure).
+ *
+ * S4's grading RPC is a second server→client channel: it returns authored
+ * `feedback` and `solution` content that the read API deliberately stripped and
+ * the server releases only after a check. Those are `InlineNode[]`, and an
+ * inline array can carry in-band secrets — a prompted `math_inline` sitting
+ * inside a solution paragraph, or a pasted blank token — so it must go through
+ * the SAME unconditional deep walk the served document does. Without this, an
+ * authored solution containing a blank would hand every checking student that
+ * blank's answers, silently.
+ *
+ * Reusing `stripInBandSecrets` rather than reimplementing it is the point: the
+ * secret-field lists live in the registry, and a future addition to them has to
+ * protect both channels automatically or it protects neither.
+ *
+ * Returns a clone; the caller's array is never mutated (it belongs to the
+ * cached raw document).
+ */
+export function sanitizeInlineContent<T>(nodes: T[]): T[] {
+  const clone = structuredClone(nodes);
+  stripInBandSecrets(clone);
+  return clone;
+}
+
 /** Sanitize ONE block (pure). Exposed for tests and per-block tooling; the
  * document-level entry point below is what the read API uses. */
 export function sanitizeBlock(block: Block): SanitizedBlock {

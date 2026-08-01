@@ -96,6 +96,26 @@ export interface GraphWork {
     strict?: boolean;
     side?: string;
   }>;
+  /** plot_ray / plot_segment: the shape the student chose. ADDITIVE (S4) —
+   * added when server-side grading revealed that the two linear-piece
+   * interactions were sending geometry the grader could not score. The kit has
+   * always produced it (`GraphResponseData.shape`); the check wire simply
+   * dropped it, because the wire was designed against the point/curve
+   * interactions where it doesn't exist.
+   *
+   * Absent means NOT CHOSEN, which the grader must treat as unanswered rather
+   * than defaulting — "the student didn't pick a direction" and "the student
+   * picked the wrong direction" are different marks. */
+  shape?: 'ray_positive' | 'ray_negative' | 'segment';
+  /** plot_ray / plot_segment: open/closed choices for the endpoints the chosen
+   * shape actually shows — `[endpointStyle]` for a ray, `[lesserStyle,
+   * greaterStyle]` for a segment, absent/empty when no shape is chosen.
+   *
+   * These are ANSWER CONTENT, not presentation: "2 ≤ x < 7" and "2 < x < 7"
+   * are different answers to the same question, exactly as they are for
+   * number_line's plot_interval (which is why that one already carries its
+   * styles in `domain`). */
+  endpointStyles?: Array<'open' | 'closed'>;
 }
 
 export function emptySectionResponses(): SectionResponses {

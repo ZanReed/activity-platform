@@ -103,6 +103,13 @@ export default function InteractiveGraph({
               ? { noSolution: response.noSolution }
               : {}),
             ...(response.domain !== undefined ? { domain: response.domain } : {}),
+            // plot_ray / plot_segment: the chosen shape + endpoint styles are
+            // part of the answer, not decoration — without them the grader
+            // cannot tell "2 ≤ x < 7" from "2 < x < 7".
+            ...(response.shape !== undefined ? { shape: response.shape } : {}),
+            ...(response.endpointStyles !== undefined
+              ? { endpointStyles: response.endpointStyles }
+              : {}),
             ...(response.strict !== undefined || response.side !== undefined
               ? {
                   parts: [

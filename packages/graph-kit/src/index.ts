@@ -166,12 +166,26 @@ export type { ArrowSpec, ArrowWindow } from './display-arrows.js';
 // family to the student's points and compares its parameters; fitFunction +
 // handlesForFamily are the shared points↔curve helpers the editor authoring
 // uses too.
+// The system + inequality scorers joined this list in S4: they were written
+// and tested but never re-exported, because the published-page runtime reaches
+// them through the widget rather than directly. Server-side grading calls them
+// by name, and an unexported scorer would have meant reimplementing inequality
+// and multi-curve marking — the exact duplication the shared-kit design exists
+// to prevent. Pure re-export: no behavior change, and published pages stay
+// pinned to their existing kit hash regardless.
 export {
   scorePoints,
   scorePointsPartial,
   isPointCorrect,
   scoreFunction,
   scoreFunctionsPartial,
+  scoreFunctionSystem,
+  scoreInequality,
+  scoreInequalityParts,
+  scoreInequalityPartial,
+  scoreInequalitySystem,
+  scoreDomain,
+  scoreDomainParts,
   fitFunction,
   handlesForFamily,
   startsForFamily,
@@ -198,6 +212,11 @@ export type {
   SegmentAnswerKey,
   LinearShape,
   LinearPieceStudentAnswer,
+  InequalityAnswerKey,
+  InequalityStudentAnswer,
+  InequalitySide,
+  DomainAnswerKey,
+  DomainStudentAnswer,
 } from './graph-score.js';
 
 // Mistake feedback (Drop B): authored anticipated-mistake matching + built-in
