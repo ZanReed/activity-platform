@@ -163,7 +163,14 @@ republish mints all-new block ids (the same premise that made S4 grade the serve
 Feedback graded against version N is unrenderable by a client viewing version N+1. The
 version-pinning insight was applied to grading and not yet to readback.
 
-**Depends on:** S4 shipping `section_checks` (migration 0020).
+**Depends on:** S4 shipping `section_checks` (migration 0020) — DONE 2026-08-01, so this is unblocked.
+
+**⏸ Deliberately parked (author, 2026-08-01): NOT pressing, because there are no
+teachers using the system yet.** That is the whole reason it can wait — the
+captured free text is accumulating safely in `section_checks.responses` and
+nothing is being lost. What changes the urgency is the first real teacher: at
+that moment "Recorded ✓ — your teacher will review" becomes a promise the
+product cannot keep, and this slice is what keeps it.
 
 **Where to start:** `supabase/migrations/0010_grades.sql` (the `submission_id`-keyed table +
 `can_grade_submission` helper + the dual-path RLS precedent already written for the assignment
