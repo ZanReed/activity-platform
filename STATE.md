@@ -263,7 +263,7 @@ activity-platform/
 
 **S4 REVIEWED 2026-08-01 (`/plan-eng-review`, FULL).** 17 decisions ruled; outside voice raised 13 findings, **3 of which AMENDED rulings made earlier in the same review**: the rate limiter (the read path's isolate limiter is documented in-repo as nearly inert → DB-backed per-student instead), the grades widening (freezing `unique(check_id, block_id)` before the teacher UI that decides attempts-vs-latest → **cut from S4**), and the previously-unruled empty-check solution reveal (→ parity kept, property recorded). The **authorization chain was the plan's one security hole** and is now a required branch pin. Full rulings + build order: the "S4 eng review" section of the gstack design doc. Test plan artifact: `user-main-eng-review-test-plan-20260801-120000.md`.
 
-**S4 BUILD — ALL 10 TASKS DONE, LIVE-VERIFIED, NOTHING OUTSTANDING** (committed on `main`, **unpushed**; viewer 432 → 716, renderer 676 → 724).
+**S4 BUILD — ALL 10 TASKS DONE, LIVE-VERIFIED, NOTHING OUTSTANDING** (21 commits on `main`; viewer 432 → 716, renderer 676 → 724).
 - **T1 migration 0020** — `section_checks` + `get_activity_version_for_check` (the authorization chain) + `record_check` (service-role only, per-student rate ceiling, idempotent replay, 0005-style attempt race backstop). Probe-verified 22/22; queued above.
 - **T2 grading engine** (`packages/viewer/src/server/grading/`) — blanks incl. consume-once interchangeable groups, MC, matching, ordering, the full graph family dispatched to graph-kit's pure scorers, the raw-document walk, and `gradeSection`. Outbound sanitize reuses S2's deep walk via a new `sanitizeInlineContent` export.
 - **T7 expression guards** — bounds before the math engine compiles student input (new server-side threat class).
