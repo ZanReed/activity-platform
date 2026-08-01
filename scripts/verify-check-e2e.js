@@ -89,26 +89,60 @@
 
   const content = await fetch(`${READ}?activity_id=${ACT}&version_id=${VERSION}`, { headers: H() })
     .then((r) => r.json());
-  const doc = content.document ?? content.content ?? content;
-  const section = doc?.sections?.[0];
-  if (!section) return console.error('Served document has no sections:', content);
+  // The served document lives under `activity` — the same key readClient reads
+  // (`data.activity`), not `document`/`content`. Guessing this wrong is a
+  // silent no-op that looks like "the activity has no sections", so the error
+  // below prints the keys we actually got.
+  const doc = content.activity;
+  if (!doc?.sections?.length) {
+    return console.error(
+      `Served response has no sections. Top-level keys: [${Object.keys(content).join(', ')}]`,
+      content,
+    );
+  }
+
+  /** Collect response ids from a served section, the way the viewer's
+   *  blockIndex does — deep, because a blank can sit inside a container. */
+  const idsOf = (node, acc = { blanks: [], choices: [], freeText: [], choicePick: {} }) => {
+    const walk = (n) => {
+      if (Array.isArray(n)) return n.forEach(walk);
+      if (!n || typeof n !== 'object') return;
+      if (n.type === 'blank' && n.id) acc.blanks.push(n.id);
+      if (n.type === 'multiple_choice' && n.id) {
+        acc.choices.push(n.id);
+        // Capture a selectable option so the MC actually gets ANSWERED — the
+        // served block carries choice ids (only the `correct` flag is
+        // stripped), so picking the first is enough to exercise grading.
+        const first = Array.isArray(n.choices) ? n.choices[0]?.id : undefined;
+        if (first) acc.choicePick[n.id] = [first];
+      }
+      if (['short_answer', 'essay', 'self_explanation'].includes(n.type) && n.id) {
+        acc.freeText.push(n.id);
+      }
+      Object.values(n).forEach(walk);
+    };
+    walk(node);
+    return acc;
+  };
+
+  // Pick the RICHEST section rather than the first. A leading section is often
+  // just a heading, and grading one with no responses would fail B4 for a
+  // reason that has nothing to do with the grader.
+  let section = null;
+  let ids = { blanks: [], choices: [], freeText: [], choicePick: {} };
+  let best = -1;
+  for (const s of doc.sections) {
+    const got = idsOf(s);
+    const n = got.blanks.length + got.choices.length + got.freeText.length;
+    if (n > best) { best = n; section = s; ids = got; }
+  }
   const SECTION = section.id;
   console.log(`fixture: activity ${ACT} · version ${VERSION} · section ${SECTION}`);
-
-  /** Collect response ids from the SERVED document, the way the viewer does. */
-  const ids = { blanks: [], choices: [], freeText: [] };
-  const walk = (node) => {
-    if (Array.isArray(node)) return node.forEach(walk);
-    if (!node || typeof node !== 'object') return;
-    if (node.type === 'blank' && node.id) ids.blanks.push(node.id);
-    if (node.type === 'multiple_choice' && node.id) ids.choices.push(node.id);
-    if (['short_answer', 'essay', 'self_explanation'].includes(node.type) && node.id) {
-      ids.freeText.push(node.id);
-    }
-    Object.values(node).forEach(walk);
-  };
-  walk(section);
-  info(`section offers ${ids.blanks.length} blanks, ${ids.choices.length} MC, ${ids.freeText.length} free-text`);
+  info(`chose the richest of ${doc.sections.length} section(s): ${ids.blanks.length} blanks, ${ids.choices.length} MC, ${ids.freeText.length} free-text`);
+  if (best === 0) {
+    console.warn('⚠ No response-bearing blocks found in ANY section — B4 will fail.');
+    console.warn('  Use an activity with at least one blank, MC, or free-text block.');
+  }
 
   const baseBody = (over = {}) => ({
     wireVersion: 2,
@@ -117,6 +151,7 @@
     sectionId: SECTION,
     responses: {
       blanks: Object.fromEntries(ids.blanks.map((id) => [id, 'e2e-probe-answer'])),
+      choices: ids.choicePick,
       freeText: Object.fromEntries(ids.freeText.map((id) => [id, 'e2e probe text'])),
     },
     ...over,
