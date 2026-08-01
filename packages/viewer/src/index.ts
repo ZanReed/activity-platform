@@ -35,6 +35,28 @@ export {
   MATH_PROMPT_SECRET_FIELDS,
 } from './registry/registry.js';
 
+// S5 — the print contract the parity gate asserts on BOTH surfaces. Imports
+// FROM the registry, never into it, and is deliberately absent from
+// server/index.ts: the get-activity bundle must not carry it (V9 lesson).
+export {
+  printExpectations,
+  targetFor,
+  blockPrintRoster,
+  variantPrintRoster,
+  structuralPrintRoster,
+  documentPrintRoster,
+  BLOCK_ROOT,
+  PAPER_COLOURS,
+} from './registry/printExpectations.js';
+export type {
+  PrintSurface,
+  SurfaceTarget,
+  SurfaceSelectors,
+  PrintExpectation,
+  PrintCheck,
+  PrintInstanceContext,
+} from './registry/printExpectations.js';
+
 export {
   colorTokens,
   staticTokens,

@@ -266,23 +266,32 @@ describe('print declarations (faithful to the baseline print layer)', () => {
     );
   });
 
-  it('break-inside:avoid matches the baseline print rule (incl. its two gaps)', () => {
+  it('break-inside:avoid covers every block that must stay whole on a page', () => {
     const avoid = registeredBlockTypes.filter(
       (type) => blockRegistry[type].print.breakInside === 'avoid',
     );
-    // math_block and data_plot are DELIBERATELY absent — the current print CSS
-    // omits them (registry records what is; T8 decides whether to fix).
+    // WAS pinned to the baseline print CSS including its gaps — math_block,
+    // data_plot and self_explanation were absent because the renderer's rule
+    // omits them, and the registry recorded what IS so that improving it would
+    // be a ruling rather than a silent side effect. S5 ruled it (S5-OV6): all
+    // three now avoid. The three additions below are that ruling; the parity
+    // gate asserts this spec on both surfaces rather than diffing against
+    // renderer output, which is what makes the improvement expressible without
+    // touching published pages.
     expect(avoid.sort()).toEqual(
       [
+        'data_plot',
         'faded_worked_example',
         'fill_in_blank',
         'interactive_graph',
         'learning_objectives',
         'matching',
+        'math_block',
         'multiple_choice',
         'number_line',
         'ordering',
         'problem',
+        'self_explanation',
         'worked_example',
       ].sort(),
     );

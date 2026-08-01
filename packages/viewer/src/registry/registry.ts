@@ -8,11 +8,16 @@
 // carries an a11y story. Add a block type to the schema and this file fails to
 // compile (BlockRegistry is keyed by the union) — that is the point.
 //
-// Print declarations are FAITHFUL to the current baseline print layer
-// (renderer/src/runtime/styles.ts @media print), including its two known
-// oddities (math_block and data_plot missing from the break-inside list) —
-// T8's parity snapshots compare against current output, so improvements are
-// deliberate later decisions, never silent registry side effects.
+// Print declarations started FAITHFUL to the baseline print layer
+// (renderer/src/runtime/styles.ts @media print), including its known oddities,
+// so that improving them would be a deliberate decision rather than a silent
+// registry side effect. S5 (the print slice) IS that decision point, and it
+// ruled (S5-OV6): math_block, data_plot, and self_explanation now declare
+// break-inside: avoid — a numbered equation, a chart, or a prompt separated
+// from its writing box is a print bug on any surface. The parity gate asserts
+// THIS spec on both surfaces rather than diffing against renderer output
+// (printExpectations.ts), which is exactly what makes the improvement
+// expressible; published pages keep their current behavior until they retire.
 // =============================================================================
 
 import {
@@ -88,10 +93,11 @@ export const blockRegistry: BlockRegistry = {
     numbered: 'when_gradable',
     analyticsKey: 'math_block',
     sanitize: { strip: ['solution'], inlineBlankSecrets: true },
-    // Faithful oddity: NOT in the current break-inside:avoid list, and not in
-    // the showAnswers set — a numbered math problem can split across pages
-    // today. T8 decides whether to fix; the registry records what is.
-    print: { breakInside: 'auto', treatment: 'underline-blanks' },
+    // WAS a faithful oddity (absent from the baseline break-inside:avoid list,
+    // so a numbered display equation could split across a page). FIXED by
+    // ruling S5-OV6 — still not in the showAnswers set, which is the separate
+    // answer-key-variant question S5.5 owns.
+    print: { breakInside: 'avoid', treatment: 'underline-blanks' },
     a11y: {
       story:
         'Each in-equation gap is a text input in tab order, labeled with its ' +
@@ -332,9 +338,10 @@ export const blockRegistry: BlockRegistry = {
         'data would remove the task. Server-authoritative grading still gates ' +
         'verdicts; the leak tests whitelist `data` for this block explicitly.',
     },
-    // Faithful oddity: NOT in the current break-inside:avoid list (unlike the
-    // graph and number-line canvases). T8 decides; registry records what is.
-    print: { breakInside: 'auto', treatment: 'static-svg', answerKeyVariant: true },
+    // WAS a faithful oddity (absent from the baseline break-inside:avoid list,
+    // unlike the graph and number-line canvases). FIXED by ruling S5-OV6 — a
+    // chart split across a page boundary is unreadable.
+    print: { breakInside: 'avoid', treatment: 'static-svg', answerKeyVariant: true },
     a11y: {
       story:
         'Chart-building controls are focusable; dots/bars/box handles adjust ' +
@@ -386,9 +393,11 @@ export const blockRegistry: BlockRegistry = {
     numbered: 'never',
     analyticsKey: 'self_explanation',
     sanitize: { strip: [] },
-    // The current avoid rides the textarea, not the block — a long prompt can
-    // split from its writing box today. Faithful; T8 decides.
-    print: { breakInside: 'auto', treatment: 'writing-box' },
+    // WAS a faithful oddity: the baseline avoid rides the textarea, not the
+    // block, so a long prompt could separate from its writing box. FIXED by
+    // ruling S5-OV6 — a prompt on one page and its answer space on the next is
+    // the same defect class as a split equation.
+    print: { breakInside: 'avoid', treatment: 'writing-box' },
     a11y: {
       story:
         'A labeled textarea in tab order. On check the block announces ' +
