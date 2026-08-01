@@ -363,3 +363,51 @@ The meaningful run used a purpose-built fixture (`scripts/leak-test-fixture.md`,
 - **Verification is two-layer by design:** `verify-image-storage.sql` proves the predicate (8 impersonated cases, rolled back); the live E2E checklist at its foot proves the Storage API layer the SQL can't reach (JWT forwarding, bucket limits firing, upsert header). The JWT-forwarding check runs FIRST — "the client library forwards the session token" is the exact assumption class that already failed once on this project (functions.invoke, see the pre-rewrite uploadImage.ts header in git history).
 
 **Image cache-control on the free tier (verified 2026-07-31, post-ship).** `uploadImage.ts` sets `cacheControl: '31536000'` and it IS stored correctly (`storage.objects.metadata.cacheControl = "max-age=31536000"` on a real editor upload — which also settles the Blob-vs-byte-array question: supabase-js's multipart branch honors the option, so passing the `File` directly is fine and no code change is warranted). **The public endpoint nonetheless serves `cache-control: no-cache`**, because passing the stored value through to browsers is Supabase's Smart CDN behavior and Smart CDN is **Pro plan and above**; the free tier answers with `sb-gateway-mode: direct`. **This is not fixable in our code** — we already set the only value we control. **Impact was measured rather than assumed:** the response carries a strong `etag`, and a conditional request returns `304` with a zero-byte body, so the cost is one revalidation round-trip per image per page load, never a re-download of the bytes. Accepted. Two things to remember: this is a genuine (minor) regression from the R2 era, where a raw signed PUT set `public, max-age=31536000, immutable` on the object directly and no gateway rewrote it; and it converts into a free improvement the day the project moves to Pro, so it belongs on the list of things a plan upgrade would buy.
+
+## Check-RPC latency — cold-start mitigation RULED (2026-08-01, closes finding R2)
+
+**The ruling R2 deferred is now made on data.** R2 named cold start as T5's open
+risk (Edge cold starts measured 3–4 s in S2) and deliberately refused to
+pre-build a fix: *"measure the batched RPC first; if p95 misses, options are a
+warm-ping cron or accepting with explicit Checking… UI. Don't pre-build
+either."* The measurement exists, so the decision is made.
+
+**Measured on the deployed function** (`scripts/verify-check-e2e.js`, 2026-08-01,
+activity `6a84c8cb`, a real 11-item section: 8 blanks + 1 MC + 2 free-text).
+n=42 sequential awaited checks, derived from `section_checks.created_at` deltas
+— each gap is one full round trip including the grade and the durable write:
+
+| min | p50 | p90 | **p95** | max | mean |
+|---|---|---|---|---|---|
+| 598 ms | 855 ms | 1474 ms | **1503 ms** | 4183 ms | 1084 ms |
+
+Client-side wall clock corroborates: the two first-calls measured 1515 ms and
+1124 ms in the browser.
+
+**RULED: accept the latency. No warm-ping cron.** Reasoning, in the order it
+actually mattered:
+
+1. **Warm p95 of 1.5 s is fine for this interaction.** Check is explicit,
+   user-initiated, and already renders a pending state (2.1A). This is not a
+   keystroke path or a page load.
+2. **The ~4 s outlier is one cold start, and it lands on one student per
+   period.** Everyone who checks after them is warm.
+3. **The classroom pattern self-mitigates.** Thirty students checking within a
+   few minutes keeps the isolate alive; the shape of the load is the fix.
+4. **A cron is a bad trade at this size:** a permanently scheduled job, running
+   against the free tier around the clock, to save one student roughly three
+   seconds once a day.
+
+**What would reopen this:** a p95 that drifts past ~2.5 s warm, or a report of
+checking feeling slow mid-lesson. Re-run the E2E's timing section first — the
+number, not the impression, is what should move it. If it does reopen, the cron
+is still the cheaper option than restructuring the RPC, because the grade itself
+is not the cost: the floor here (598 ms) is dominated by transit and the durable
+write, not by grading work.
+
+**Methodology note for whoever re-measures:** the table above is derived from DB
+timestamps rather than the script's own client-side numbers, because the row
+deltas isolate server round-trip from browser overhead. The script prints its
+own `WARM TIMING` line as the client-side view; expect it to read slightly
+higher. Both are in the same place, which is why the ruling did not need to pick
+between them.
