@@ -48,8 +48,20 @@ const cors: CorsKit = {
   handlePreflight: (req) => (req.method === 'OPTIONS' ? new Response(null, { status: 204 }) : null),
   jsonResponse: (_req, body, init) =>
     new Response(JSON.stringify(body), { status: 200, ...init }),
+  // MIRRORS supabase/functions/_shared/cors.ts EXACTLY:
+  //   { error: message, details?: <details> }
+  // It used to spread `details` at the top level, which is not what the real
+  // helper does — and that divergence hid a live bug: the client read
+  // `body.code`, the server nested it at `body.details.code`, so the
+  // stale-client mapping could never fire in production. Both sides passed
+  // their own tests because both were written against the same wrong
+  // assumption. A double that does not match the real thing is worse than no
+  // double at all.
   errorResponse: (_req, status, message, details) =>
-    new Response(JSON.stringify({ message, ...(details ?? {}) }), { status }),
+    new Response(
+      JSON.stringify({ error: message, ...(details ? { details } : {}) }),
+      { status },
+    ),
 };
 
 interface Harness {
@@ -204,7 +216,7 @@ describe('the authorization chain (ruling S4-B1)', () => {
       });
       const res = await h.handler(post(validBody()));
       expect(res.status).toBe(404);
-      expect(await res.json()).toMatchObject({ message: 'Not available' });
+      expect(await res.json()).toMatchObject({ error: 'Not available' });
     }
   });
 
@@ -317,7 +329,7 @@ describe('grading failures', () => {
     const h = harness();
     const res = await h.handler(post(validBody({ sectionId: 'no-such-section' })));
     expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ code: 'unknown_section' });
+    expect(await res.json()).toMatchObject({ details: { code: 'unknown_section' } });
   });
 
   it('fails the WHOLE check and records nothing when grading throws', async () => {
@@ -365,7 +377,7 @@ describe('recording', () => {
     });
     const res = await h.handler(post(validBody()));
     expect(res.status).toBe(429);
-    expect(await res.json()).toMatchObject({ code: 'rate_limited' });
+    expect(await res.json()).toMatchObject({ details: { code: 'rate_limited' } });
   });
 
   it('refuses to return verdicts it failed to record', async () => {
@@ -377,7 +389,7 @@ describe('recording', () => {
     });
     const res = await h.handler(post(validBody()));
     expect(res.status).toBe(500);
-    expect(await res.json()).toMatchObject({ code: 'record_failed' });
+    expect(await res.json()).toMatchObject({ details: { code: 'record_failed' } });
     spy.mockRestore();
   });
 

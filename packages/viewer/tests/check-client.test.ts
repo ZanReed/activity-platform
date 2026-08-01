@@ -44,14 +44,31 @@ function okResult(over: Partial<SectionCheckResult> = {}): SectionCheckResult {
 // ---- the error taxonomy ------------------------------------------------------
 
 describe('check failures are distinguishable', () => {
-  it('maps a wire-version mismatch to a STALE TAB, not a generic failure', () => {
-    // The server reports this as a 400 like any bad payload, so only the code
-    // separates "your tab is old" from "your client is broken". Retrying is
-    // futile here; reloading is the only fix.
-    const err = checkErrorFor(400, { code: 'wire_version_mismatch' });
+  it('reads the code from the REAL server body shape (details.code)', () => {
+    // REGRESSION PIN. `_shared/cors.ts` errorResponse emits
+    //   { error: "…", details: { code: "…" } }
+    // and this mapping used to read `body.code` — top level. The result was a
+    // stale tab falling through to the generic un-retryable 'unknown', so a
+    // student saw a dead end instead of "reload". Both the client and the
+    // handler unit tests passed, because both were written against the same
+    // wrong assumption; only the live E2E saw the real bytes.
+    const err = checkErrorFor(400, {
+      error: 'Unsupported wire version 99; expected 2',
+      details: { code: 'wire_version_mismatch' },
+    });
     expect(err.kind).toBe('stale_client');
     expect(err.retryable).toBe(false);
     expect(err.message).toMatch(/reload/i);
+  });
+
+  it('surfaces the server message from `error`, the key the helper uses', () => {
+    const err = checkErrorFor(422, { error: 'responses.blanks must map id → string' });
+    expect(err.message).toContain('responses.blanks');
+  });
+
+  it('still honours a top-level code, so a helper change cannot silently re-break it', () => {
+    const err = checkErrorFor(400, { code: 'wire_version_mismatch' });
+    expect(err.kind).toBe('stale_client');
   });
 
   it.each([

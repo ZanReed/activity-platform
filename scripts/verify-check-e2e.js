@@ -205,15 +205,22 @@
   rec('C3 an unknown version → 404 with the same message (no oracle)',
     badVersion.status === 404, String(badVersion.status));
 
+  // The machine code is nested: _shared/cors.ts emits
+  // { error, details: { code } }. The first live run read it top-level and
+  // reported `undefined` — which turned out to be a REAL client bug, not a
+  // script bug: httpCheckService read the same wrong path, so the stale-tab
+  // mapping could never fire in production.
+  const codeOf = (r) => r.json?.details?.code ?? r.json?.code;
+
   const staleWire = await postCheck(baseBody({ wireVersion: 99 }));
   rec('C4 a stale wire version → 400 code wire_version_mismatch',
-    staleWire.status === 400 && staleWire.json.code === 'wire_version_mismatch',
-    `${staleWire.status} ${staleWire.json.code}`);
+    staleWire.status === 400 && codeOf(staleWire) === 'wire_version_mismatch',
+    `${staleWire.status} ${codeOf(staleWire)}`);
 
   const badSection = await postCheck(baseBody({ sectionId: 'no-such-section' }));
   rec('C5 an unknown section → 400 unknown_section, not 500',
-    badSection.status === 400 && badSection.json.code === 'unknown_section',
-    `${badSection.status} ${badSection.json.code}`);
+    badSection.status === 400 && codeOf(badSection) === 'unknown_section',
+    `${badSection.status} ${codeOf(badSection)}`);
 
   // ================= D. Leak scan on the LIVE wire ==========================
   // The unit suite scans a locally-graded response. This scans the bytes the

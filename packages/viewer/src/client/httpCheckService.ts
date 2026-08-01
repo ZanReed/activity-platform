@@ -82,16 +82,31 @@ export interface HttpCheckServiceOptions {
   fetchImpl?: typeof fetch;
 }
 
+/**
+ * The shape `_shared/cors.ts` `errorResponse` actually produces:
+ *
+ *   { error: "human message", details?: { code: "machine_code" } }
+ *
+ * The code is NESTED under `details`, not top-level. This read used to be
+ * `body.code`, which meant `wire_version_mismatch` never matched and a stale
+ * tab fell through to the generic un-retryable 'unknown' — the student got a
+ * dead end instead of "reload". Unit tests on both sides passed, because both
+ * were written against the same wrong assumption about this shape; only the
+ * live E2E saw the real bytes. The top-level fallbacks below are tolerated so a
+ * future helper change cannot silently re-break the mapping.
+ */
 interface ErrorBody {
+  error?: string;
   message?: string;
   code?: string;
+  details?: { code?: string };
 }
 
 /** Map an HTTP failure onto the taxonomy. The server's `code` is authoritative
  * where it exists — status alone cannot separate "stale tab" from "bad
  * payload", since both are 400. */
 export function checkErrorFor(status: number, body: ErrorBody): CheckError {
-  const code = body.code ?? '';
+  const code = body.details?.code ?? body.code ?? '';
   if (code === 'wire_version_mismatch') {
     return new CheckError(
       'stale_client',
@@ -113,7 +128,11 @@ export function checkErrorFor(status: number, body: ErrorBody): CheckError {
   }
   // Remaining 4xx: a malformed request. A student cannot fix it and retrying
   // will not help, so it is deliberately NOT retryable — it is our bug.
-  return new CheckError('unknown', body.message ?? `Check failed (${status})`, status);
+  return new CheckError(
+    'unknown',
+    body.error ?? body.message ?? `Check failed (${status})`,
+    status,
+  );
 }
 
 export function createHttpCheckService(
