@@ -76,7 +76,32 @@ function authoredRawByType(
     content: [
       text('A line in slope-intercept form is written '),
       { type: 'math_inline', latex: 'y = mx + b' },
-      text(', where m is the slope and b is the y-intercept.'),
+      text(', where m is the '),
+      // A DEFINED TERM lives in the fixture set on purpose. Definitions are an
+      // inline MARK, not a block, so no per-block fixture can carry one — and
+      // without one here, the print glossary appendix would have nothing to
+      // render and the gate's document/definition-glossary case would pass
+      // vacuously (the empty-activity trap this repo has hit before: a leak
+      // scan against a document with no secrets in it).
+      {
+        type: 'text',
+        text: 'slope',
+        marks: [
+          {
+            type: 'definition',
+            content: [
+              {
+                id: fid(),
+                type: 'paragraph',
+                content: [
+                  { type: 'text', text: 'How steep the line is: rise over run.' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      text(' and b is the y-intercept.'),
     ],
   });
   put('math_block', {

@@ -46,6 +46,8 @@ import type { SectionStatus } from '../store/persistence.js';
 import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
 import { ViewerProvider } from './context.js';
 import { indexDocument, type SectionIndex } from './blockIndex.js';
+import { DefinitionGlossary } from '../print/DefinitionGlossary.js';
+import { collectDefinitions } from '../print/definitions.js';
 import {
   PrintPageRule,
   PrintHeaderRow,
@@ -148,6 +150,12 @@ export function ViewerContainer({
   // meta.print survives sanitization untouched (it carries no answer key), so
   // the served document is a complete description of how it should print.
   const print = doc.meta.print;
+  // Collected once per document, not per render: the walk visits every node in
+  // the activity, and it only changes when the document does. Computed even
+  // when the setting is off — the cost is one walk of data already in memory,
+  // and branching here would make the memo dependent on a setting that can
+  // change without the document changing.
+  const glossaryEntries = useMemo(() => collectDefinitions(doc), [doc]);
   const [crashed, setCrashed] = useState<Record<string, BlockCrash>>({});
 
   const handleCrash = useCallback(
@@ -331,6 +339,17 @@ export function ViewerContainer({
           </section>
         );
       })}
+
+      {/* The paper surface for inline vocabulary definitions. On screen a
+          definition is a disclosure opened over the word; on paper there is no
+          opening, so without this the content simply would not exist — which
+          was tolerable when a definition was a short gloss and stopped being
+          tolerable once one could carry a display equation, a list, and a
+          figure. Gated by the teacher's setting, appended at the very end, and
+          hidden on screen (the disclosure is the screen surface). */}
+      {print.printDefinitionGlossary ? (
+        <DefinitionGlossary entries={glossaryEntries} />
+      ) : null}
     </div>
     </ViewerProvider>
   );

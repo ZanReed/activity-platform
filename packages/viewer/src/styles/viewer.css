@@ -830,8 +830,12 @@
 
 /* The reference box is the PAPER form of the reference panel. On screen the
    panel is a tool a student summons, so the box would be a duplicate of
-   material already available — it appears only when printing. */
-.viewer-reference-print {
+   material already available — it appears only when printing. Likewise the
+   glossary: on screen each definition is a disclosure opened over its own
+   word, which is a better affordance than an appendix; the appendix exists
+   because paper has no disclosures. */
+.viewer-reference-print,
+.viewer-glossary {
   display: none;
 }
 
@@ -957,6 +961,83 @@
   .viewer-reference-print__title {
     font-weight: 700;
     margin: 0 0 0.4rem;
+  }
+
+  /* ---- Glossary appendix --------------------------------------------------
+     At the END of the worksheet, ruled off so it reads as an appendix rather
+     than as a trailing problem. Each entry stays whole across a page break: a
+     term on one page with its definition on the next is the same defect as a
+     prompt separated from its writing box. */
+
+  .viewer-glossary {
+    display: block;
+    margin-top: 1.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-ink);
+  }
+
+  .viewer-glossary__title {
+    font-size: 1.1em;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    break-after: avoid;
+  }
+
+  .viewer-glossary__list-root {
+    margin: 0;
+  }
+
+  .viewer-glossary__entry {
+    break-inside: avoid;
+  }
+
+  .viewer-glossary__term {
+    font-weight: 700;
+    break-after: avoid;
+  }
+
+  .viewer-glossary__body {
+    margin: 0 0 0.6rem;
+    padding-left: 1rem;
+  }
+
+  .viewer-glossary__paragraph {
+    margin: 0.3rem 0;
+  }
+
+  /* An authored heading inside an entry is a SUB-heading of a glossary item;
+     it must not outrank the appendix's own title. */
+  .viewer-glossary__heading {
+    font-size: 1em;
+    font-weight: 700;
+    margin: 0.4rem 0 0.2rem;
+  }
+
+  .viewer-glossary__list {
+    margin: 0.3rem 0;
+    padding-left: 1.2rem;
+  }
+
+  .viewer-glossary__list--bullet {
+    list-style: disc outside;
+  }
+
+  .viewer-glossary__list--ordered {
+    list-style: decimal outside;
+  }
+
+  .viewer-glossary__image {
+    max-width: 100%;
+  }
+
+  /* Display math is page-centred by default, which inside a glossary entry
+     throws the equation to the middle of the sheet, visually detached from the
+     term it belongs to. KaTeX re-centres twice on its own, so all three
+     selectors are needed to win. */
+  .viewer-glossary__math,
+  .viewer-glossary__math .katex-display,
+  .viewer-glossary__math .katex-display > .katex {
+    text-align: left;
   }
 
   /* ---- Interactive chrome never prints ------------------------------------ */
