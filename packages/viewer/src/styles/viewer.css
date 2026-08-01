@@ -669,6 +669,40 @@
   z-index: var(--z-topbar);
 }
 
+/* The print action sits beside the title in the top bar. Quiet by default:
+   it is a utility, not the primary action on the page — that is checking
+   work — so it reads as a secondary control rather than competing with the
+   section check buttons below it. */
+.viewer-print-action {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--type-small);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-4);
+}
+
+.viewer-print-action:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+
+.viewer-print-action:disabled {
+  color: var(--color-ink-muted);
+  cursor: default;
+}
+
+.viewer-topbar__row {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: var(--measure);
+}
+
 .viewer-topbar h1 {
   font-family: var(--font-chrome);
   font-size: var(--type-h3);

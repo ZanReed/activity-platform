@@ -35,6 +35,15 @@ export {
   MATH_PROMPT_SECRET_FIELDS,
 } from './registry/registry.js';
 
+// S5 — the student's print action and the readiness barrier behind it.
+export { PrintButton } from './print/PrintButton.js';
+export type { PrintButtonProps } from './print/PrintButton.js';
+export { awaitPrintReady } from './print/printReadiness.js';
+export type { PrintReadyReport, PrintReadyOptions } from './print/printReadiness.js';
+export { DefinitionGlossary } from './print/DefinitionGlossary.js';
+export { collectDefinitions } from './print/definitions.js';
+export type { GlossaryEntry } from './print/definitions.js';
+
 // S5 — the print contract the parity gate asserts on BOTH surfaces. Imports
 // FROM the registry, never into it, and is deliberately absent from
 // server/index.ts: the get-activity bundle must not carry it (V9 lesson).

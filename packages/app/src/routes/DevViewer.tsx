@@ -26,6 +26,7 @@ import {
   createViewerStore,
   registeredBlockTypes,
 } from '@activity/viewer';
+import { PrintButton } from '@activity/viewer';
 import type { BlockType, SanitizedActivityDocument } from '@activity/viewer';
 import {
   sanitizedVariantFixtures,
@@ -158,6 +159,17 @@ export default function DevViewer() {
             />{' '}
             simulate check failure
           </label>
+
+          {/* The real print action, so the harness can exercise the readiness
+              barrier without auth — and so T7's parity gate has something to
+              drive. Same component the student route mounts. */}
+          <PrintButton
+            onReady={(report) => {
+              // Surfaced rather than swallowed: the harness is where you find
+              // out that printing routinely runs past its budget.
+              console.info('[dev] print ready', report);
+            }}
+          />
         </div>
       </header>
 

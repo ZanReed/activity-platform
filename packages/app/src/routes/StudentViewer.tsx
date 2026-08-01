@@ -26,6 +26,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import {
+  PrintButton,
   ViewerContainer,
   ViewerLoadError,
   createHttpCheckService,
@@ -162,6 +163,10 @@ export default function StudentViewer() {
     <>
       <header className="viewer-topbar">
         <h1>{state.served.title}</h1>
+        {/* Ruling 7.3A wants this in the completion panel and the chip menu;
+            neither exists yet, so it lives in the bar that does (S5-3). The
+            action is the same one those will call. */}
+        <PrintButton />
       </header>
       <ViewerContainer
         document={state.served.document}
