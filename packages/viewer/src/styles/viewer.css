@@ -823,7 +823,15 @@
 .viewer-mc__letter,
 .viewer-matching__letter-line,
 .viewer-ordering__number-box,
+.viewer-print-header,
 [data-print-svg] {
+  display: none;
+}
+
+/* The reference box is the PAPER form of the reference panel. On screen the
+   panel is a tool a student summons, so the box would be a duplicate of
+   material already available — it appears only when printing. */
+.viewer-reference-print {
   display: none;
 }
 
@@ -866,6 +874,89 @@
     margin: 0;
     max-width: none;
     padding: 0;
+  }
+
+  /* ---- Configured print layout (meta.print) --------------------------------
+     The --print-* properties are set on the worksheet root from the served
+     document and read only here, so they cost a student nothing until they
+     print. The fallbacks keep a config-less document sane.
+
+     --print-columns is DORMANT plumbing carried over from the renderer: the
+     author-facing control was retired when structural authored columns landed,
+     but activities saved with columns:2 still print multi-column, and honoring
+     it costs one declaration. */
+  .viewer {
+    font-size: var(--print-font-size, 11pt);
+    column-count: var(--print-columns, 1);
+    column-gap: 2rem;
+  }
+
+  /* Problem spacing and reserved work space, per the teacher's configuration.
+     Scoped to the QUESTION category so prose keeps its own rhythm — spacing
+     between problems is what a teacher is asking for, not air after every
+     paragraph. A single problem can override the work space with its own
+     value; that is ordinary custom-property inheritance, not a special case. */
+  [data-block-category='question'] {
+    margin-top: var(--print-problem-spacing, 1.25rem);
+    margin-bottom: var(--print-problem-spacing, 1.25rem);
+    padding-bottom: var(--print-work-space, 0);
+  }
+
+  /* ---- Print header: a row of labeled lines to fill in by hand ------------- */
+
+  .viewer-print-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-ink);
+    break-inside: avoid;
+    break-after: avoid; /* never strand the header on a page of its own */
+  }
+
+  .viewer-print-header__field {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+
+  .viewer-print-header__label {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .viewer-print-header__line {
+    display: inline-block;
+    min-width: 8ch;
+    border-bottom: 1px solid var(--color-ink);
+  }
+
+  /* A name and a free-form field need room to write; a score does not. */
+  .viewer-print-header__field--name .viewer-print-header__line,
+  .viewer-print-header__field--custom .viewer-print-header__line {
+    min-width: 14ch;
+  }
+
+  .viewer-print-header__field--score .viewer-print-header__line {
+    min-width: 6ch;
+  }
+
+  /* ---- Reference box: the paper form of the reference panel ---------------- */
+
+  .viewer-reference-print {
+    display: block;
+    break-inside: avoid;
+    border: 1px solid var(--color-ink);
+    border-radius: var(--radius-md);
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .viewer-reference-print__title {
+    font-weight: 700;
+    margin: 0 0 0.4rem;
   }
 
   /* ---- Interactive chrome never prints ------------------------------------ */

@@ -47,6 +47,11 @@ import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
 import { ViewerProvider } from './context.js';
 import { indexDocument, type SectionIndex } from './blockIndex.js';
 import {
+  PrintPageRule,
+  PrintHeaderRow,
+  printVars,
+} from './PrintDocumentLayer.js';
+import {
   rowStyle,
   columnStyle,
   blockStyle,
@@ -140,6 +145,9 @@ export function ViewerContainer({
 }: ViewerContainerProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
   const index = useMemo(() => indexDocument(doc), [doc]);
+  // meta.print survives sanitization untouched (it carries no answer key), so
+  // the served document is a complete description of how it should print.
+  const print = doc.meta.print;
   const [crashed, setCrashed] = useState<Record<string, BlockCrash>>({});
 
   const handleCrash = useCallback(
@@ -189,7 +197,41 @@ export function ViewerContainer({
 
   return (
     <ViewerProvider store={store} sectionByBlock={sectionByBlock}>
-    <div className="viewer" data-viewer-mode={mode}>
+    <div className="viewer" data-viewer-mode={mode} style={printVars(print)}>
+      {/* Document-level print surface (S5-OV1). Every piece of this already
+          reaches students today through Ctrl+P on a published page, so leaving
+          it out would have been a silent feature loss at cutover — and an
+          invisible one, since none of it is a block and the per-block fixture
+          roster could not have noticed. */}
+      <PrintPageRule print={print} />
+      <PrintHeaderRow header={print.header} />
+
+      {/* The teacher's reference material as a static box at the top of the
+          sheet. On screen the panel is a summoned tool; on paper there is
+          nothing to summon, so it prints inline — but only when the teacher
+          left it on, because a reference sheet reprinted on every worksheet is
+          wasted paper. Scaffold: never scored, outside every section, so the
+          check path never sees it. */}
+      {doc.referencePanel && print.printReferencePanel ? (
+        <aside className="viewer-reference-print" data-block-category="scaffold">
+          {doc.referencePanel.title ? (
+            <h2 className="viewer-reference-print__title">
+              {doc.referencePanel.title}
+            </h2>
+          ) : null}
+          {doc.referencePanel.blocks.map((block) => (
+            <BlockSlot
+              key={(block as { id: string }).id}
+              block={block as SanitizedBlock}
+              mode={mode}
+              {...(versionId === undefined ? {} : { resetKey: versionId })}
+              resolveComponent={resolveComponent}
+              onCrash={handleCrash}
+            />
+          ))}
+        </aside>
+      ) : null}
+
       {/* Passive stale-version notice (ruling S4-T5). Deliberately NOT a modal
           and deliberately not an auto-reload: the student's checks still work
           against the version they were served, and reloading for them would
