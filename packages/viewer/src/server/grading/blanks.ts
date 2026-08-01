@@ -31,6 +31,7 @@
 // =============================================================================
 
 import { mathEquivalent } from '@activity/graph-kit';
+import { checkExpressionSafety } from './guards.js';
 import {
   prepareKeyValue,
   prepareStudentValue,
@@ -92,6 +93,14 @@ function scoreNumeric(student: string, key: BlankKey): boolean {
 }
 
 function scoreMath(student: string, key: BlankKey): boolean {
+  // Bound the student's expression before the engine compiles and samples it
+  // ~56 times (ruling S4-B3). Server-side this is shared compute, and the
+  // dangerous inputs are tiny — a size cap on the REQUEST cannot catch
+  // `9^9^9^9`. A rejected expression scores wrong rather than raising: a
+  // student who trips a bound gets an ordinary incorrect mark, not a failed
+  // check for their whole section.
+  if (!checkExpressionSafety(student).ok) return false;
+
   const tolerance = coerceTolerance(key.tolerance);
   const mode = key.equivalence === 'exact-form' ? 'exact-form' : 'value';
   for (const entry of key.answers) {

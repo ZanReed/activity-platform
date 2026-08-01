@@ -37,6 +37,7 @@ import {
   scoreOrdering,
   selectChoiceFeedback,
 } from '../src/server/grading/choices.js';
+import { checkExpressionSafety } from '../src/server/grading/guards.js';
 
 /** A text blank accepting the given answers, with everything else at its
  * schema default. Mirrors what the raw document actually looks like. */
@@ -468,5 +469,51 @@ describe('ordering', () => {
 
   it('rejects a submission of the wrong length', () => {
     expect(scoreOrdering(['a', 'b'], authored, served)).toBe(false);
+  });
+});
+
+describe('expression guards (ruling S4-B3)', () => {
+  const math = (answers: string[]) =>
+    blank(answers, { answerType: 'math' });
+
+  it('accepts an ordinary algebra answer', () => {
+    expect(checkExpressionSafety('2x + 3(x - 1)^2').ok).toBe(true);
+  });
+
+  it('accepts a long-but-legitimate polynomial', () => {
+    const poly = Array.from({ length: 20 }, (_, i) => `${i}x^2`).join(' + ');
+    expect(checkExpressionSafety(poly).ok).toBe(true);
+  });
+
+  it('refuses an exponent tower — the cheapest tiny compute bomb', () => {
+    // 30 bytes, astronomically expensive. A request SIZE cap cannot catch it.
+    const check = checkExpressionSafety('9^9^9^9^9^9');
+    expect(check.ok).toBe(false);
+    expect(check.ok === false && check.reason).toBe('exponent_tower');
+  });
+
+  it('refuses an over-long expression', () => {
+    const check = checkExpressionSafety('1+'.repeat(200));
+    expect(check.ok).toBe(false);
+  });
+
+  it('refuses deep nesting', () => {
+    const check = checkExpressionSafety('('.repeat(40) + '1' + ')'.repeat(40));
+    expect(check.ok).toBe(false);
+  });
+
+  it('refuses unbalanced brackets without letting the parser find out 56 times', () => {
+    expect(checkExpressionSafety('(1+2').ok).toBe(false);
+    expect(checkExpressionSafety('1+2)').ok).toBe(false);
+  });
+
+  it('scores a rejected expression WRONG rather than failing the section', () => {
+    // The student gets an ordinary incorrect mark. Raising here would take
+    // down the check for every other question in their section too.
+    expect(scoreBlank('9^9^9^9^9^9', math(['2a']))).toBe(false);
+  });
+
+  it('still grades a legitimate answer that merely looks big', () => {
+    expect(scoreBlank('2^10', math(['1024']))).toBe(true);
   });
 });
