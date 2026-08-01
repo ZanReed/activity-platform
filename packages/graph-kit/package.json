@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./runtime-contract": "./src/runtime-contract.ts",
     "./drawable-palette": "./src/drawable-palette.ts",
-    "./math-equivalent": "./src/math-equivalent.ts"
+    "./math-equivalent": "./src/math-equivalent.ts",
+    "./scorers": "./src/scorers.ts"
   },
   "scripts": {
     "test": "vitest run",

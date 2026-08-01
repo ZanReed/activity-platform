@@ -30,7 +30,7 @@
 //      change marks on activities that are already live.
 // =============================================================================
 
-import { mathEquivalent } from '@activity/graph-kit';
+import { mathEquivalent } from '@activity/graph-kit/scorers';
 import { checkExpressionSafety } from './guards.js';
 import {
   prepareKeyValue,

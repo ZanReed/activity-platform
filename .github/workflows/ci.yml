@@ -66,3 +66,20 @@ jobs:
             echo "::error::Committed viewer server bundle is stale. Run 'pnpm bundle:viewer-server' and commit the result.";
             exit 1;
           }
+
+      # And for the grading bundle (S4). This step also enforces the bundle's
+      # SIZE CEILING, which is not cosmetic: importing the graph scorers through
+      # the graph-kit barrel instead of its pure `/scorers` entry once pulled
+      # 1 MB of MathLive into this function — the server needs no LaTeX at all
+      # (the graded form is already ascii). The bundle script exits non-zero
+      # over the ceiling, so that regression fails the build rather than
+      # quietly tripling a student's cold start.
+      - name: Grading server bundle is up to date
+        run: |
+          pnpm bundle:grading-server
+          git diff --exit-code -- \
+            supabase/functions/_shared/grading-server.bundle.js \
+          || {
+            echo "::error::Committed grading server bundle is stale. Run 'pnpm bundle:grading-server' and commit the result.";
+            exit 1;
+          }

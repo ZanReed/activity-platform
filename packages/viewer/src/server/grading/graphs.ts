@@ -37,7 +37,7 @@ import {
   scoreRay,
   scoreRegion,
   scoreSegment,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/scorers';
 import type { GraphWork } from '../../check/wire.js';
 import type { ItemVerdict } from './choices.js';
 
