@@ -78,6 +78,53 @@ export function installStaleChunkRecovery(
   };
 }
 
+/**
+ * Put the assets THIS page actually used into the runtime cache.
+ *
+ * Without this, offline reopen does not work until a student's THIRD visit,
+ * and the reason is subtle enough to be worth stating: the worker installs
+ * during the first visit, so that visit's own asset requests were already in
+ * flight and never passed through it. Nothing gets cached. The second visit
+ * finally routes through the worker and populates the cache; only the third
+ * can survive going offline. A student who opens an activity once in class and
+ * reopens it at home with no signal would get a blank page — which is exactly
+ * what the first run of the offline e2e showed.
+ *
+ * `performance.getEntriesByType('resource')` is the honest source for "what
+ * did this page need": no manifest to keep in sync, and it naturally covers
+ * lazily-loaded chunks the moment a student opens the surface that needs them.
+ * The re-fetch is nearly free — these files are content-hashed and immutable,
+ * so the browser's own HTTP cache answers.
+ */
+export function warmAssetCache(cacheName: string): void {
+  if (typeof caches === 'undefined') return;
+  const warm = () => {
+    void (async () => {
+      try {
+        const urls = performance
+          .getEntriesByType('resource')
+          .map((entry) => entry.name)
+          .filter((name) => name.startsWith(`${location.origin}/assets/`));
+        if (urls.length === 0) return;
+        const cache = await caches.open(cacheName);
+        await Promise.all(
+          urls.map(async (url) => {
+            // Skip what is already there so a revisit costs nothing.
+            if (await cache.match(url)) return;
+            await cache.add(url).catch(() => {
+              // One asset failing to cache is not worth failing the page.
+            });
+          }),
+        );
+      } catch {
+        // No storage, or a quota refusal. Online still works.
+      }
+    })();
+  };
+  if (document.readyState === 'complete') warm();
+  else window.addEventListener('load', warm);
+}
+
 export async function registerServiceWorker(): Promise<void> {
   // Dev serves modules unbundled and the generated worker does not exist, so
   // registering there would be registering something else entirely.

@@ -280,3 +280,35 @@ CI), which is where a regression guard for it would live — pair it with the
 precache-manifest budget row already queued above.
 
 **Context:** surfaced by /plan-eng-review's S6 build, V8 (2026-08-02).
+
+## Prove offline reopen against the built service worker (S6 V9 gap)
+
+**What:** Get the two parked rows in `packages/app/e2e/sw/service-worker.e2e.ts`
+(`offline reopen`, currently `test.fixme`) running green, or establish that the
+worker genuinely cannot serve a navigation offline and fix the worker.
+
+**Why:** Offline reopen is ruling TV2-A's user-visible promise — a student who
+opened an activity in class can open it again at home with no signal. Everything
+around it is verified: the worker installs, claims the page, and handles both the
+navigation and subresources online (`workerStart` non-zero for the entry chunk),
+the precache holds index.html, assets land in `activity-viewer:cache:shell`, and
+V6's per-user document cache holds the content. The promise itself is the one
+part still unproven.
+
+**What was already ruled out:** Playwright request routing (fails identically
+with no interception at all), and the runtime route not matching (it matches
+online). Under `context.setOffline(true)` the navigation returns 200 and the page
+stays controlled, but parse-time subresource requests die with `net::ERR_FAILED`
+while a `fetch()` for the same URL from page script resolves 200 moments later.
+Aborting every route instead of emulating offline behaves the same.
+
+**Where to start:** try stopping the preview server instead of emulating offline
+(a real unreachable origin rather than an emulated one) — the emulation is the
+prime suspect. If that reproduces the failure, the worker is at fault and
+`packages/app/vite.config.ts`'s runtimeCaching is where to look; if it passes,
+the harness needs the server-stop approach and the rows can be un-parked.
+
+**Depends on:** nothing. Should land **before S9 cutover**, which is when
+students actually meet this path.
+
+**Context:** surfaced by /plan-eng-review's S6 build, V9 (2026-08-02).

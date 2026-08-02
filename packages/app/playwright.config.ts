@@ -36,6 +36,18 @@ const STUDENT_PORT = String(Number(PORT) + 1);
 const STUDENT_BASE_URL = `http://localhost:${STUDENT_PORT}`;
 const STUDENT_SUPABASE_URL = 'http://127.0.0.1:54321';
 
+// The service-worker lane (S6 V9) runs against a PRODUCTION BUILD served by
+// `vite preview`, because the worker only exists there. vite-plugin-pwa's own
+// guidance is that a dev-mode worker diverges from the generated one, so specs
+// passing against dev would say nothing about what students receive — and a
+// stuck-stale shell is precisely the failure that survives to production
+// because nobody reopens the app offline during review.
+//
+// It costs a build per run, which is why it is its own project rather than
+// something the other 200+ specs pay for.
+const SW_PORT = String(Number(PORT) + 2);
+const SW_BASE_URL = `http://localhost:${SW_PORT}`;
+
 export default defineConfig({
     testDir: './e2e',
     // Named *.e2e.ts (not *.spec.ts) so vitest's default {test,spec} glob never
@@ -54,14 +66,27 @@ export default defineConfig({
         {
             name: 'chromium',
             use: { ...devices['Desktop Chrome'] },
-            // The student lane has its own project + server; keep it out of
-            // the editor lane rather than pointing it at the wrong baseURL.
-            testIgnore: '**/student/**',
+            // The student and service-worker lanes have their own projects and
+            // servers; keep them out of the editor lane rather than pointing
+            // them at the wrong baseURL. (Omitting the sw entry here ran those
+            // specs twice — once correctly, once against the dev server that
+            // has no worker at all.)
+            testIgnore: ['**/student/**', '**/sw/**'],
         },
         {
             name: 'student',
             testMatch: '**/student/**/*.e2e.ts',
             use: { ...devices['Desktop Chrome'], baseURL: STUDENT_BASE_URL },
+        },
+        {
+            name: 'sw',
+            testMatch: '**/sw/**/*.e2e.ts',
+            use: { ...devices['Desktop Chrome'], baseURL: SW_BASE_URL },
+            // A service worker outlives a page, so these specs must not share
+            // a browser context: one spec's registration would control the
+            // next spec's first navigation and make failures unattributable.
+            fullyParallel: false,
+            workers: 1,
         },
     ],
     webServer: [
@@ -70,6 +95,17 @@ export default defineConfig({
             url: `${BASE_URL}/playground`,
             reuseExistingServer: !process.env.CI,
             timeout: 120_000,
+        },
+        {
+            command: `pnpm build && pnpm preview --port ${SW_PORT} --strictPort`,
+            url: `${SW_BASE_URL}/`,
+            reuseExistingServer: false,
+            // Builds the whole app first — slower than the dev lanes by design.
+            timeout: 300_000,
+            env: {
+                VITE_SUPABASE_URL: STUDENT_SUPABASE_URL,
+                VITE_SUPABASE_ANON_KEY: 'e2e-anon-key',
+            },
         },
         {
             command: `pnpm dev --port ${STUDENT_PORT} --strictPort`,
