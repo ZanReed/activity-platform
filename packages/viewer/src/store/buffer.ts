@@ -52,6 +52,36 @@ export const VIEWER_STORAGE_PREFIX = 'activity-viewer:';
  * other viewer-namespaced keys. */
 export const BUFFER_KEY_PREFIX = `${VIEWER_STORAGE_PREFIX}buffer:`;
 
+/**
+ * Per-device data the viewer scopes by (user, activity, version). `buffer` is
+ * the student's work; `doc` is the served document their work belongs to
+ * (documentCache.ts). Both share one key grammar so ONE sweep covers them —
+ * a second store with its own naming would need its own guard, and the guard
+ * that gets forgotten is the one that leaks.
+ */
+export type ScopedKind = 'buffer' | 'doc';
+
+export function scopedKey(kind: ScopedKind, parts: BufferKeyParts): string {
+  return `${VIEWER_STORAGE_PREFIX}${kind}:${parts.userId}:${parts.activityId}:${parts.versionId}`;
+}
+
+export interface ScopedKeyParts extends BufferKeyParts {
+  kind: ScopedKind;
+}
+
+/** null when the key is not viewer-scoped data OR is malformed. Malformed is
+ * unattributable rather than guessed at: the sweeps delete what they cannot
+ * attribute, which is the safe direction for keys holding student work. */
+export function parseScopedKey(key: string): ScopedKeyParts | null {
+  if (!key.startsWith(VIEWER_STORAGE_PREFIX)) return null;
+  const segments = key.slice(VIEWER_STORAGE_PREFIX.length).split(':');
+  if (segments.length !== 4) return null;
+  const [kind, userId, activityId, versionId] = segments;
+  if (kind !== 'buffer' && kind !== 'doc') return null;
+  if (!userId || !activityId || !versionId) return null;
+  return { kind, userId, activityId, versionId };
+}
+
 export const DEFAULT_BUFFER_DEBOUNCE_MS = 300;
 
 /** The subset of `Storage` this module uses — injectable so suites run in node
@@ -71,37 +101,65 @@ export interface BufferKeyParts {
 }
 
 export function bufferKey(parts: BufferKeyParts): string {
-  return `${BUFFER_KEY_PREFIX}${parts.userId}:${parts.activityId}:${parts.versionId}`;
+  return scopedKey('buffer', parts);
 }
 
-/**
- * null when `key` is not a buffer key OR is malformed. Malformed is treated as
- * unattributable rather than guessed at: the sweeps delete what they cannot
- * attribute, which is the safe direction for a key holding student work.
- */
+/** As `parseScopedKey`, narrowed to buffers. */
 export function parseBufferKey(key: string): BufferKeyParts | null {
-  if (!key.startsWith(BUFFER_KEY_PREFIX)) return null;
-  const segments = key.slice(BUFFER_KEY_PREFIX.length).split(':');
-  if (segments.length !== 3) return null;
-  const [userId, activityId, versionId] = segments;
-  if (!userId || !activityId || !versionId) return null;
-  return { userId, activityId, versionId };
+  const parts = parseScopedKey(key);
+  if (parts?.kind !== 'buffer') return null;
+  return {
+    userId: parts.userId,
+    activityId: parts.activityId,
+    versionId: parts.versionId,
+  };
 }
 
-/** Every buffer key currently in storage. Collected before any removal —
+/** Every viewer-scoped key currently in storage. Collected before any removal —
  * removing while iterating shifts `key(i)` indices. */
-function bufferKeys(storage: StorageLike): string[] {
+function scopedKeys(storage: StorageLike): string[] {
   const keys: string[] = [];
   for (let i = 0; i < storage.length; i++) {
     const key = storage.key(i);
-    if (key !== null && key.startsWith(BUFFER_KEY_PREFIX)) keys.push(key);
+    if (key === null) continue;
+    // Anything under the prefix, including malformed keys — the sweeps decide
+    // what to do with those, and they must be able to SEE them first.
+    if (key.startsWith(VIEWER_STORAGE_PREFIX)) keys.push(key);
   }
   return keys;
 }
 
 /**
- * BOOT SWEEP (ruling S6-6). Remove every buffer that is not the signed-in
- * user's, plus any buffer key too malformed to attribute.
+ * Does this buffer hold anything the student has not yet had graded? Drives
+ * the one exception in the orphan GC (ruling S6-9): a buffer for a superseded
+ * version is disposable UNLESS it still carries work or a queued check.
+ */
+export function bufferHasUnsentWork(raw: string | null): boolean {
+  if (!raw) return false;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+  if (typeof parsed !== 'object' || parsed === null) return false;
+  const blob = parsed as {
+    responses?: Record<string, Record<string, unknown>>;
+    pending?: Record<string, unknown>;
+  };
+  if (blob.pending && Object.keys(blob.pending).length > 0) return true;
+  for (const category of Object.values(blob.responses ?? {})) {
+    if (category && Object.keys(category).length > 0) return true;
+  }
+  return false;
+}
+
+/**
+ * BOOT SWEEP (ruling S6-6). Remove every piece of viewer-scoped data that is
+ * not the signed-in user's — buffers and cached documents alike — plus
+ * anything under the prefix too malformed to attribute to anyone. Sign-out
+ * already deletes the whole prefix, so sparing an unattributable key here
+ * would be the one inconsistency between the two paths that clean a device.
  *
  * Sign-out is not the only way a student leaves a shared Chromebook — lids
  * close, tabs crash, batteries die. Without this, the only thing standing
@@ -109,14 +167,14 @@ function bufferKeys(storage: StorageLike): string[] {
  * A's work would still be sitting on the disk. Returns the removed keys so the
  * caller can log or assert on them.
  */
-export function sweepForeignBuffers(
+export function sweepForeignStorage(
   storage: StorageLike,
   currentUserId: string,
 ): string[] {
   const removed: string[] = [];
   try {
-    for (const key of bufferKeys(storage)) {
-      const parts = parseBufferKey(key);
+    for (const key of scopedKeys(storage)) {
+      const parts = parseScopedKey(key);
       if (parts === null || parts.userId !== currentUserId) {
         storage.removeItem(key);
         removed.push(key);
@@ -147,22 +205,63 @@ export function sweepOrphanVersions(
 ): string[] {
   const removed: string[] = [];
   try {
-    for (const key of bufferKeys(storage)) {
-      const parts = parseBufferKey(key);
-      if (parts === null) continue; // sweepForeignBuffers owns malformed keys
+    for (const key of scopedKeys(storage)) {
+      const parts = parseScopedKey(key);
+      if (parts === null) continue; // sweepForeignStorage owns malformed keys
       if (
-        parts.userId === keep.userId &&
-        parts.activityId === keep.activityId &&
-        parts.versionId !== keep.versionId
+        parts.userId !== keep.userId ||
+        parts.activityId !== keep.activityId ||
+        parts.versionId === keep.versionId
       ) {
-        storage.removeItem(key);
-        removed.push(key);
+        continue;
       }
+      // THE ONE EXCEPTION (ruling S6-9). A superseded version's buffer is
+      // disposable only if it is spent. If the student still has answers there
+      // or a check waiting to fire, this GC would be silent data loss — a
+      // teacher republishing overnight would delete the work of every student
+      // who left something unsent, and nobody would ever know it had existed.
+      // The boot path decides what to do with it; the GC just must not eat it.
+      if (parts.kind === 'buffer' && bufferHasUnsentWork(storage.getItem(key))) {
+        continue;
+      }
+      storage.removeItem(key);
+      removed.push(key);
     }
   } catch {
     // Storage unavailable — nothing to collect.
   }
   return removed;
+}
+
+/**
+ * The superseded version this student still has unsent work on, if any
+ * (ruling S6-9). Returns the version id and its raw blob so the boot path can
+ * decide between rendering it pinned and preserving it with a notice.
+ */
+export function findUnsentWork(
+  storage: StorageLike,
+  current: BufferKeyParts,
+): { versionId: string; raw: string } | null {
+  try {
+    for (const key of scopedKeys(storage)) {
+      const parts = parseScopedKey(key);
+      if (
+        parts?.kind !== 'buffer' ||
+        parts.userId !== current.userId ||
+        parts.activityId !== current.activityId ||
+        parts.versionId === current.versionId
+      ) {
+        continue;
+      }
+      const raw = storage.getItem(key);
+      if (bufferHasUnsentWork(raw) && raw !== null) {
+        return { versionId: parts.versionId, raw };
+      }
+    }
+  } catch {
+    // Storage unavailable.
+  }
+  return null;
 }
 
 export type BufferStatus =

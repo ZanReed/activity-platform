@@ -34,7 +34,7 @@ import {
   hydrateViewerState,
   parseBufferKey,
   serializeViewerState,
-  sweepForeignBuffers,
+  sweepForeignStorage,
   sweepOrphanVersions,
   type CheckService,
   type Clock,
@@ -234,7 +234,7 @@ describe('boot sweep (crash-then-next-student path)', () => {
     storage.setItem(theirs, 'theirs');
     storage.setItem(theirOtherActivity, 'theirs too');
 
-    const removed = sweepForeignBuffers(storage, TEST_USER_ID);
+    const removed = sweepForeignStorage(storage, TEST_USER_ID);
 
     expect(removed).toHaveLength(2);
     expect(storage.getItem(mine)).toBe('mine');
@@ -242,19 +242,25 @@ describe('boot sweep (crash-then-next-student path)', () => {
     expect(storage.getItem(theirOtherActivity)).toBeNull();
   });
 
-  it('removes unattributable buffer keys and leaves non-buffer viewer keys alone', () => {
+  it('removes anything viewer-namespaced it cannot attribute, and nothing else', () => {
     const storage = new FakeStorage();
     const malformed = `${BUFFER_KEY_PREFIX}garbage`;
-    const otherViewerKey = `${VIEWER_STORAGE_PREFIX}ui-prefs`;
+    const unscopedViewerKey = `${VIEWER_STORAGE_PREFIX}ui-prefs`;
+    const otherApp = 'theme';
     storage.setItem(malformed, 'x');
-    storage.setItem(otherViewerKey, 'y');
+    storage.setItem(unscopedViewerKey, 'y');
+    storage.setItem(otherApp, 'dark');
 
-    sweepForeignBuffers(storage, TEST_USER_ID);
+    sweepForeignStorage(storage, TEST_USER_ID);
 
-    // Unattributable work is deleted (safe direction), but the sweep must not
-    // reach outside its own sub-namespace.
+    // A key under our prefix that names no user cannot be shown to belong to
+    // THIS student, and sign-out already deletes the whole prefix — so leaving
+    // it for the next student would be the one inconsistency between the two
+    // paths that clean a shared device.
     expect(storage.getItem(malformed)).toBeNull();
-    expect(storage.getItem(otherViewerKey)).toBe('y');
+    expect(storage.getItem(unscopedViewerKey)).toBeNull();
+    // Outside the prefix is somebody else's business.
+    expect(storage.getItem(otherApp)).toBe('dark');
   });
 
   it('survives a storage that throws (locked-down profile)', () => {
@@ -267,7 +273,7 @@ describe('boot sweep (crash-then-next-student path)', () => {
       setItem: () => {},
       removeItem: () => {},
     };
-    expect(() => sweepForeignBuffers(hostile, TEST_USER_ID)).not.toThrow();
+    expect(() => sweepForeignStorage(hostile, TEST_USER_ID)).not.toThrow();
   });
 });
 

@@ -36,8 +36,12 @@ import {
   createTabLock,
   createViewerBuffer,
   createViewerStore,
+  findUnsentWork,
   indexDocument,
-  sweepForeignBuffers,
+  loadAnyCachedDocument,
+  loadCachedDocument,
+  saveCachedDocument,
+  sweepForeignStorage,
   sweepOrphanVersions,
 } from '@activity/viewer';
 import type {
@@ -51,12 +55,49 @@ import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
 
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+
+/**
+ * The one sign-in call, shared by the pre-auth gate and the expired-session
+ * banner. `redirectTo` is the current URL so a student lands back on the
+ * activity they were doing, not on a dashboard.
+ */
+function signInWithGoogle(): Promise<unknown> {
+  return supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href },
+  });
+}
+
+/** localStorage, or null in a profile that forbids it. Every on-device feature
+ * here is an enhancement: none of them may take the worksheet down with them. */
+function safeStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 /** How long before we admit the load is slow (ruling 1.2A). */
 const SLOW_LOAD_MS = 8000;
 
 type LoadState =
   | { phase: 'loading' }
-  | { phase: 'ready'; served: ServedActivity }
+  | {
+      phase: 'ready';
+      served: ServedActivity;
+      /**
+       * How we got this document, which is the only thing distinguishing three
+       * screens that otherwise look identical (S6-5 / S6-9):
+       *   'network' — normal.
+       *   'offline' — served from the on-device copy because the network was
+       *      unreachable. The worksheet is real; the banner says why it is not
+       *      being refreshed.
+       *   'pinned'  — a SUPERSEDED version, rendered on purpose because the
+       *      student's unsent work belongs to it. A teacher republished; we do
+       *      not throw that work away to show them the newer text.
+       */
+      source: 'network' | 'offline' | 'pinned';
+    }
   | { phase: 'error'; kind: ViewerErrorKind; message: string };
 
 export default function StudentViewer() {
@@ -66,6 +107,10 @@ export default function StudentViewer() {
   const [meta, setMeta] = useState<ActivityMeta | null>(null);
   const [slow, setSlow] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  /** Their unsent work belongs to a version this device no longer has. */
+  const [strandedNotice, setStrandedNotice] = useState(false);
+  /** The session died while they were working (2.3A). Passive, never a modal. */
+  const [authExpired, setAuthExpired] = useState(false);
 
   const getAccessToken = useCallback(
     () => session?.access_token ?? null,
@@ -111,15 +156,91 @@ export default function StudentViewer() {
       if (!cancelled) setSlow(true);
     }, SLOW_LOAD_MS);
 
+    const userId = session.user.id;
+
     void readClient
       .load(activityId)
       .then((served) => {
-        if (!cancelled) setState({ phase: 'ready', served });
+        if (cancelled) return;
+        const storage = safeStorage();
+
+        // Keep the document we were just served. This is what makes the
+        // offline branch below and the republish branch here possible at all.
+        if (storage) saveCachedDocument(storage, userId, served);
+
+        // THE REPUBLISH PATH (ruling S6-9). The student has unsent work — or a
+        // queued check — on a version the teacher has since replaced. Its block
+        // ids do not exist in the new version, so "just load the new one"
+        // silently strands that work.
+        const stranded = storage
+          ? findUnsentWork(storage, {
+              userId,
+              activityId,
+              versionId: served.versionId,
+            })
+          : null;
+        if (stranded && storage) {
+          const pinned = loadCachedDocument(
+            storage,
+            userId,
+            activityId,
+            stranded.versionId,
+          );
+          if (pinned) {
+            // We still have their version. Render it, let the queue fire
+            // against it (the grader accepts non-current versions by design),
+            // and let the stale banner offer the move on THEIR terms.
+            setState({
+              phase: 'ready',
+              source: 'pinned',
+              served: {
+                activityId,
+                versionId: pinned.versionId,
+                versionNum: pinned.versionNum,
+                title: pinned.title,
+                document: pinned.document as ServedActivity['document'],
+              },
+            });
+            return;
+          }
+          // Their version is gone from this device, so it cannot be rendered.
+          // Say so plainly and keep the blob — deleting it here would be the
+          // silent loss this whole branch exists to prevent.
+          setStrandedNotice(true);
+        }
+
+        setState({ phase: 'ready', source: 'network', served });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         const kind =
           err instanceof ViewerLoadError ? err.kind : ('unknown' as ViewerErrorKind);
+
+        // OFFLINE BOOT (ruling S6-5). The network is unreachable but this
+        // device may still hold the document. A student who reopens on a dead
+        // network should see their worksheet and their work, not an error
+        // screen telling them something they already know.
+        if (kind === 'offline') {
+          const storage = safeStorage();
+          const cached = storage
+            ? loadAnyCachedDocument(storage, session.user.id, activityId)
+            : null;
+          if (cached) {
+            setState({
+              phase: 'ready',
+              source: 'offline',
+              served: {
+                activityId,
+                versionId: cached.versionId,
+                versionNum: cached.versionNum,
+                title: cached.title,
+                document: cached.document as ServedActivity['document'],
+              },
+            });
+            return;
+          }
+        }
+
         setState({
           phase: 'error',
           kind,
@@ -184,15 +305,14 @@ export default function StudentViewer() {
   useEffect(() => {
     if (!store || !userId || !versionId || !servedDocument) return;
 
-    let storage: Storage;
-    try {
-      storage = window.localStorage;
-    } catch {
-      return; // locked-down profile: run without a buffer rather than crash
-    }
+    const storage = safeStorage();
+    if (!storage) return; // locked-down profile: run without a buffer
 
     // The crash-without-signout path, and the republish accumulation path.
-    sweepForeignBuffers(storage, userId);
+    // The GC deliberately spares a superseded version that still holds unsent
+    // work (S6-9) — the load effect above has already decided what to do with
+    // it, and collecting it here would undo that decision.
+    sweepForeignStorage(storage, userId);
     sweepOrphanVersions(storage, { userId, activityId, versionId });
 
     // Scoped per (student, activity): a second tab on a DIFFERENT activity is
@@ -231,11 +351,18 @@ export default function StudentViewer() {
       ensureSession: async () => {
         try {
           const { data } = await supabase.auth.getSession();
-          return data.session !== null;
+          const ok = data.session !== null;
+          // A recovered session takes the banner down without the student
+          // having to do anything — the common case after a laptop wakes up.
+          if (ok) setAuthExpired(false);
+          return ok;
         } catch {
           return false;
         }
       },
+      // 2.3A: passive banner, never a blocking modal. Their work keeps saving
+      // locally the whole time; only the CHECK is waiting on a session.
+      onAuthRequired: () => setAuthExpired(true),
     });
     queue.start();
 
@@ -273,6 +400,47 @@ export default function StudentViewer() {
             action is the same one those will call. */}
         <PrintButton />
       </header>
+      {/* BANNER ORDER IS THE DEDUP RULE (outside-voice finding 13). At most
+          ONE of these shows at a time, most-actionable first: a dead session
+          blocks checking entirely, a stranded version needs a decision, and
+          "you're offline" is merely context. Stacking all three would turn
+          three sentences a student can act on into a wall they skip. The
+          per-section pill remains the persistent state; these are transitions. */}
+      {authExpired ? (
+        <div className="viewer-banner" role="status" data-banner="session-expired">
+          <span>Your sign-in expired. Your work is saved on this device.</span>
+          <button
+            type="button"
+            className="viewer-banner-action"
+            onClick={() => {
+              void signInWithGoogle();
+            }}
+          >
+            Sign in again
+          </button>
+        </div>
+      ) : strandedNotice ? (
+        <div className="viewer-banner" role="status" data-banner="work-stranded">
+          <span>
+            Your teacher updated this activity, so an earlier check couldn’t
+            run. Your answers are still saved.
+          </span>
+        </div>
+      ) : state.source === 'offline' ? (
+        <div className="viewer-banner" role="status" data-banner="offline-copy">
+          <span>
+            You’re offline — this is the copy saved on this device. Your work is
+            being saved here too.
+          </span>
+        </div>
+      ) : state.source === 'pinned' ? (
+        <div className="viewer-banner" role="status" data-banner="pinned-version">
+          <span>
+            Your teacher updated this activity. You’re still on your version so
+            your unsent work isn’t lost.
+          </span>
+        </div>
+      ) : null}
       <ViewerContainer
         document={state.served.document}
         store={store}
@@ -337,10 +505,7 @@ function PreAuth({ meta }: { meta: ActivityMeta | null }) {
           type="button"
           className="viewer-section__check"
           onClick={() => {
-            void supabase.auth.signInWithOAuth({
-              provider: 'google',
-              options: { redirectTo: window.location.href },
-            });
+            void signInWithGoogle();
           }}
         >
           Sign in with Google

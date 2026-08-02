@@ -151,19 +151,35 @@ export {
   BUFFER_KEY_PREFIX,
   DEFAULT_BUFFER_DEBOUNCE_MS,
   VIEWER_STORAGE_PREFIX,
+  bufferHasUnsentWork,
   bufferKey,
   createViewerBuffer,
+  findUnsentWork,
   parseBufferKey,
-  sweepForeignBuffers,
+  parseScopedKey,
+  scopedKey,
+  sweepForeignStorage,
   sweepOrphanVersions,
 } from './store/buffer.js';
 export type {
   BufferKeyParts,
   BufferStatus,
+  ScopedKeyParts,
+  ScopedKind,
   StorageLike,
   ViewerBuffer,
   ViewerBufferOptions,
 } from './store/buffer.js';
+
+// S6 V6 — the served document kept on-device, for offline boot and for the
+// republish path that must render the version a student's work belongs to.
+export {
+  documentKey,
+  loadAnyCachedDocument,
+  loadCachedDocument,
+  saveCachedDocument,
+} from './store/documentCache.js';
+export type { CachedDocument } from './store/documentCache.js';
 export {
   alwaysOnlineConnectivity,
   createBrowserConnectivity,

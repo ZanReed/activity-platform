@@ -258,3 +258,118 @@ describe('local-first mount (S6 V1+V2)', () => {
         expect(fresh).toHaveValue('');
     });
 });
+
+describe('boot paths (S6 V6)', () => {
+    const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
+
+    function servedActivity(versionId = 'v1') {
+        return {
+            activityId: ACTIVITY,
+            versionId,
+            versionNum: 1,
+            title: 'Linear Systems',
+            document: servedFixtureDocument(),
+        };
+    }
+
+    /** A buffer for `versionId` holding work the student never got graded. */
+    function seedUnsentWork(versionId: string) {
+        window.localStorage.setItem(
+            `activity-viewer:buffer:${STUDENT_ID}:${ACTIVITY}:${versionId}`,
+            JSON.stringify({
+                schemaVersion: 1,
+                userId: STUDENT_ID,
+                activityId: ACTIVITY,
+                versionId,
+                responses: { blanks: { 'blank-1': '42' }, choices: {}, matches: {}, orderings: {}, freeText: {}, graphs: {} },
+                checked: {},
+                pending: { 'sec-1': { fingerprint: 'fp' } },
+                inFlight: {},
+            }),
+        );
+    }
+
+    function seedCachedDocument(versionId: string) {
+        window.localStorage.setItem(
+            `activity-viewer:doc:${STUDENT_ID}:${ACTIVITY}:${versionId}`,
+            JSON.stringify({ ...servedActivity(versionId), document: servedFixtureDocument() }),
+        );
+    }
+
+    afterEach(() => window.localStorage.clear());
+
+    it('offline with a cached copy shows the worksheet, not an error screen', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        seedCachedDocument('v1');
+        h.load.current = new ViewerLoadError('offline', 'no network');
+
+        const { container } = renderRoute(ACTIVITY);
+
+        // The student already knows they are offline; what they need is their
+        // worksheet and their work.
+        await waitFor(() =>
+            expect(container.querySelector('[data-banner="offline-copy"]')).not.toBeNull(),
+        );
+        expect(container.querySelector('[data-failure="offline"]')).toBeNull();
+        expect(await screen.findAllByRole('textbox')).not.toHaveLength(0);
+    });
+
+    it('offline with NOTHING cached still fails honestly', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = new ViewerLoadError('offline', 'no network');
+
+        const { container } = renderRoute(ACTIVITY);
+
+        // No copy means no worksheet — inventing one would be worse.
+        await waitFor(() =>
+            expect(container.querySelector('[data-failure="offline"]')).not.toBeNull(),
+        );
+    });
+
+    it('a republish keeps the student on THEIR version when we still have it', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        seedUnsentWork('v1');
+        seedCachedDocument('v1');
+        h.load.current = servedActivity('v2'); // the teacher republished
+
+        const { container } = renderRoute(ACTIVITY);
+
+        await waitFor(() =>
+            expect(container.querySelector('[data-banner="pinned-version"]')).not.toBeNull(),
+        );
+        // Their work is still on this device, not collected by the GC.
+        expect(
+            window.localStorage.getItem(
+                `activity-viewer:buffer:${STUDENT_ID}:${ACTIVITY}:v1`,
+            ),
+        ).not.toBeNull();
+    });
+
+    it('a republish says so honestly when their version is gone', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        seedUnsentWork('v1'); // work, but no cached v1 document to render
+        h.load.current = servedActivity('v2');
+
+        const { container } = renderRoute(ACTIVITY);
+
+        await waitFor(() =>
+            expect(container.querySelector('[data-banner="work-stranded"]')).not.toBeNull(),
+        );
+        // Preserved, not deleted: this is the case the GC exception protects.
+        expect(
+            window.localStorage.getItem(
+                `activity-viewer:buffer:${STUDENT_ID}:${ACTIVITY}:v1`,
+            ),
+        ).not.toBeNull();
+    });
+
+    it('a normal load shows no banner at all', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = servedActivity('v1');
+
+        const { container } = renderRoute(ACTIVITY);
+        await screen.findAllByRole('textbox');
+
+        expect(container.querySelector('[data-banner]')).toBeNull();
+    });
+});
