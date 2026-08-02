@@ -49,7 +49,7 @@ function lockBroker() {
                 token,
                 reject: () => reject(new Error('AbortError')),
               });
-              void callback().then(() => {
+              void callback({}).then(() => {
                 // Release ONLY if we are still the holder. If we were stolen
                 // from, the lock belongs to someone else now and finishing our
                 // callback must not evict them.
@@ -73,6 +73,14 @@ function lockBroker() {
 
             if (!holders.has(name)) {
               run();
+              return;
+            }
+
+            // ifAvailable: do not queue, tell the caller it is taken. The
+            // spec hands the callback null; the harness must too, or the
+            // read-only signal cannot be tested at this level at all.
+            if (options.ifAvailable) {
+              void callback(null).then(() => resolve());
               return;
             }
 
@@ -266,10 +274,57 @@ describe('abandoned claims', () => {
     b.dispose();
     await flush();
 
-    expect(changes).toEqual([true, false]);
+    // false (created while A holds — the losing-tab signal), true (takeover),
+    // false (dispose). Without the generation guard a FOURTH pair follows, as
+    // the abandoned queued request is granted and released after this tab is
+    // already gone.
+    expect(changes).toEqual([false, true, false]);
     expect(b.isHeld()).toBe(false);
     // ...and the lock still lands where it should.
     expect(a.isHeld()).toBe(true);
     a.dispose();
+  });
+});
+
+describe('the losing tab is TOLD it lost (regression: found by the two-tab e2e)', () => {
+  it('announces not-held even though it never held it', async () => {
+    const broker = lockBroker();
+    const a = createTabLock({ name: NAME, locks: broker.manager() });
+    await flush();
+
+    const announced: boolean[] = [];
+    const b = createTabLock({
+      name: NAME,
+      locks: broker.manager(),
+      onChange: (held) => announced.push(held),
+    });
+    await flush();
+
+    // A plain queued request is SILENT when the lock is taken — it simply
+    // never resolves — so "will never be granted" looks identical to "not
+    // granted yet". The route starts optimistic (a read-only flash on every
+    // single-tab load is a worse trade than a brief editable flash on a rare
+    // second tab), so with no signal the second tab stayed editable and could
+    // clobber the first. jsdom could not see this: with no navigator.locks
+    // every jsdom test took the single-tab branch. Real chromium found it.
+    expect(announced).toEqual([false]);
+    expect(b.isHeld()).toBe(false);
+
+    a.dispose();
+    b.dispose();
+  });
+
+  it('still gets the lock when the holder leaves', async () => {
+    const broker = lockBroker();
+    const a = createTabLock({ name: NAME, locks: broker.manager() });
+    await flush();
+    const b = createTabLock({ name: NAME, locks: broker.manager() });
+    await flush();
+
+    // The probe must not cost it its place in line.
+    a.dispose();
+    await flush();
+    expect(b.isHeld()).toBe(true);
+    b.dispose();
   });
 });

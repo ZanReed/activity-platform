@@ -32,15 +32,21 @@ export interface LockRequestOptions {
   mode?: 'exclusive' | 'shared';
   /** Take the lock from the current holder, rejecting their request promise. */
   steal?: boolean;
+  /** Do not queue: invoke the callback with null if it is already taken. */
+  ifAvailable?: boolean;
 }
 
 /** The slice of `navigator.locks` this module uses — injectable so the
- * two-tab cases are real tests instead of a browser-only hope. */
+ * two-tab cases are real tests instead of a browser-only hope.
+ *
+ * The callback receives the granted lock, or `null` for an `ifAvailable`
+ * request that found the lock taken — the only way to learn "someone else has
+ * this" without waiting forever for a turn that may never come. */
 export interface LockManagerLike {
   request(
     name: string,
     options: LockRequestOptions,
-    callback: () => Promise<void>,
+    callback: (lock: unknown) => Promise<void>,
   ): Promise<void>;
 }
 
@@ -83,11 +89,58 @@ export function createTabLock(options: TabLockOptions): TabLock {
   let generation = 0;
   const listeners = new Set<(held: boolean) => void>();
 
+  /** Whether consumers have been told anything yet. They start optimistic, so
+   * the FIRST determination always has to be delivered even when it agrees
+   * with `held`'s initial value. */
+  let hasReported = false;
+
   function setHeld(next: boolean): void {
-    if (held === next) return;
+    if (held === next && hasReported) return;
     held = next;
+    hasReported = true;
     onChange?.(next);
     for (const listener of listeners) listener(next);
+  }
+
+  /**
+   * Announce "this tab does NOT hold the lock" even though `held` was already
+   * false. The transition-only guard above is right for every other case, but
+   * a tab that never acquires the lock has no transition to report — and the
+   * route starts optimistic (a read-only flash on every single-tab load would
+   * be a worse trade than a brief editable flash on the rare second tab), so
+   * without this it would stay editable and clobber the live tab.
+   */
+  function notifyNotHeld(): void {
+    // Only the first determination. A tab that was already told it lost does
+    // not need telling again every time it re-probes on its way back into the
+    // queue — that would be a stream of identical falses for one fact.
+    if (hasReported) return;
+    hasReported = true;
+    onChange?.(false);
+    for (const listener of listeners) listener(false);
+  }
+
+  /** Wait our turn behind the current holder, without the availability probe. */
+  function queueForLock(gen: number): void {
+    if (!active) return;
+    let release!: () => void;
+    const holding = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    releaseCurrent = release;
+    void locks!
+      .request(name, { mode: 'exclusive' }, async (lock) => {
+        if (gen !== generation || lock === null) return;
+        setHeld(true);
+        await holding;
+        setHeld(false);
+      })
+      .catch(() => {
+        if (gen !== generation) return;
+        setHeld(false);
+        release();
+        if (active) claim(false);
+      });
   }
 
   // NO WEB LOCKS (older browser, non-DOM context): assume this tab is the only
@@ -120,14 +173,33 @@ export function createTabLock(options: TabLockOptions): TabLock {
     releaseCurrent = release;
 
     void locks!
-      .request(name, { mode: 'exclusive', steal }, async () => {
-        if (gen !== generation) return; // abandoned claim: release at once
-        setHeld(true);
-        // Holding the lock IS keeping this promise pending. It resolves when
-        // we release deliberately, or when a steal knocks us off below.
-        await holding;
-        setHeld(false);
-      })
+      .request(
+        name,
+        // `ifAvailable` on the FIRST try is what makes a losing tab knowable.
+        // A plain queued request is silent when someone else holds the lock —
+        // it just never resolves — so a tab that will never be granted looks
+        // exactly like one that has not been granted YET, and the UI cannot
+        // tell a student their tab is read-only. Found by the two-tab e2e:
+        // jsdom has no Web Locks, so every jsdom test took the no-locks branch
+        // and this was invisible at that level.
+        { mode: 'exclusive', steal, ...(steal ? {} : { ifAvailable: true }) },
+        async (lock) => {
+          if (gen !== generation) return; // abandoned claim: release at once
+          if (lock === null) {
+            // Taken. Say so — this is the read-only signal — and then get in
+            // line properly, so closing the other tab hands it over.
+            setHeld(false);
+            notifyNotHeld();
+            queueForLock(gen);
+            return;
+          }
+          setHeld(true);
+          // Holding the lock IS keeping this promise pending. It resolves when
+          // we release deliberately, or when a steal knocks us off below.
+          await holding;
+          setHeld(false);
+        },
+      )
       .catch(() => {
         if (gen !== generation) return;
         // Someone called takeOver() in another tab. Stop holding, go

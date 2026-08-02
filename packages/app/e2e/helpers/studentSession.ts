@@ -118,6 +118,55 @@ export interface ActivityApiOptions {
   check?: CheckOutcome;
 }
 
+/** Buffer + document keys this student has on the device, newest scan. */
+export async function viewerKeys(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    Object.keys(window.localStorage).filter((k) =>
+      k.startsWith('activity-viewer:'),
+    ),
+  );
+}
+
+/** Seed a previous student's work, the way a crash without sign-out leaves it. */
+export async function seedForeignWork(
+  page: Page,
+  options: {
+    userId?: string;
+    activityId?: string;
+    versionId?: string;
+  } = {},
+): Promise<string> {
+  const userId = options.userId ?? E2E_OTHER_STUDENT_ID;
+  const activityId = options.activityId ?? E2E_ACTIVITY_ID;
+  const versionId = options.versionId ?? E2E_VERSION_ID;
+  const key = `activity-viewer:buffer:${userId}:${activityId}:${versionId}`;
+  const blob = JSON.stringify({
+    schemaVersion: 1,
+    userId,
+    activityId,
+    versionId,
+    responses: {
+      blanks: { 'blank-1': 'THEIR ANSWER' },
+      choices: {},
+      matches: {},
+      orderings: {},
+      freeText: {},
+      graphs: {},
+    },
+    checked: {},
+    // A queued check, so this also covers "never fires under another session".
+    pending: { 'sec-1': { fingerprint: 'theirs' } },
+    inFlight: {},
+  });
+  await page.addInitScript(
+    ([k, v]) => {
+      window.localStorage.setItem(k as string, v as string);
+    },
+    [key, blob] as const,
+  );
+  return key;
+}
+
 /**
  * Server control surface for one spec. Everything the viewer talks to goes
  * through here, so a spec can make the network fail exactly where it wants —

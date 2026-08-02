@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { supabase } from '../lib/supabase';
+import { signOutEverything } from '../lib/studentAuth';
 import { useSession } from '../lib/SessionContext';
 
 export default function Home() {
@@ -14,9 +15,18 @@ export default function Home() {
     if (error) console.error('Sign-in failed:', error);
   };
 
+    // signOutEverything, not supabase.auth.signOut: this is the ONLY sign-out
+    // control in the app today, so it is also the only place the shared-device
+    // guarantees can be honored. The raw call left viewer-namespaced work on
+    // the device and — worse — left the session itself alive whenever the
+    // network call failed, because auth-js returns early without clearing it
+    // (ruling S6-6). Every sign-out control added later must call this one too.
     const signOut = async () => {
-      const { error } = await supabase.auth.signOut();
-      if (error) console.error('Sign-out failed:', error);
+      try {
+        await signOutEverything();
+      } catch (error) {
+        console.error('Sign-out failed:', error);
+      }
     };
 
       return (

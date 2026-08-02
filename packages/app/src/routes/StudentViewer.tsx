@@ -364,6 +364,18 @@ export default function StudentViewer() {
       // locally the whole time; only the CHECK is waiting on a session.
       onAuthRequired: () => setAuthExpired(true),
     });
+
+    // The OTHER way a session dies: a check the student pressed themselves
+    // comes back 401. That is the same event as the queue's — "you are signed
+    // out" — and 2.3A says a student meets it as one passive banner, not as a
+    // per-section error in one case and a banner in the other. Watching the
+    // store here is what makes the two paths converge.
+    const unwatchAuth = store.subscribe(() => {
+      const expired = Object.values(store.getState().sections).some(
+        (status) => status.phase === 'error' && status.kind === 'unauthenticated',
+      );
+      if (expired) setAuthExpired(true);
+    });
     queue.start();
 
     setTakeOver(() => () => lock.takeOver());
@@ -371,6 +383,7 @@ export default function StudentViewer() {
     return () => {
       queue.stop();
       unsubscribe();
+      unwatchAuth();
       buffer.dispose(); // flushes whatever the debounce still owed
       lock.dispose();
       setTakeOver(null);
