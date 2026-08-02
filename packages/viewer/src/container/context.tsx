@@ -25,7 +25,19 @@ import type { SanitizedInlineNode } from '../sanitize/sanitized-types.js';
 import type { SectionStatus } from '../store/persistence.js';
 import type { ViewerStore, ViewerStoreState } from '../store/store.js';
 
-export type BlockPhase = 'unchecked' | 'checking' | 'checked' | 'error';
+/**
+ * 'pending' is a queued check waiting on the network (S6). It joins the phase
+ * vocabulary rather than collapsing into 'checking' because the two mean
+ * different things to a student: 'checking' is "wait a moment", 'pending' is
+ * "put this down and come back". StatePill has carried the pending copy since
+ * S3; this is the phase that finally produces it.
+ */
+export type BlockPhase =
+  | 'unchecked'
+  | 'checking'
+  | 'pending'
+  | 'checked'
+  | 'error';
 
 export interface ViewerContextValue {
   store: ViewerStore;

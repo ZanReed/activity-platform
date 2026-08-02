@@ -39,7 +39,27 @@ export const VIEWER_STORE_SCHEMA_VERSION = 1;
 export type SectionStatus =
   | { phase: 'unchecked' }
   | { phase: 'checking' }
-  | { phase: 'checked'; result: SectionCheckResult }
+  /**
+   * The student pressed Check with no way to reach the server (TV3-A). DERIVED
+   * from `pending` — never written on its own — so there is exactly one answer
+   * to "is this section queued?" even after a reload rebuilds the UI.
+   */
+  | { phase: 'pending' }
+  | {
+      phase: 'checked';
+      result: SectionCheckResult;
+      /**
+       * This check was queued, and the answers changed between queueing and
+       * firing (ruling 2.2A). Drives "Checked your latest answers" so a student
+       * who kept working during the outage isn't left wondering which version
+       * of their work got graded.
+       *
+       * Deliberately NOT persisted: it explains a transition the student just
+       * lived through, and a reload is a new context where it would read as
+       * noise. Only `result` survives into the buffer.
+       */
+      answersChangedWhileQueued?: boolean;
+    }
   | {
       phase: 'error';
       message: string;
