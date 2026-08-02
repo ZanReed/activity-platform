@@ -22,6 +22,20 @@ import { defineConfig, devices } from '@playwright/test';
 const PORT = process.env.E2E_PORT ?? '5173';
 const BASE_URL = `http://localhost:${PORT}`;
 
+// The signed-in student lane (S6 V5) runs on its OWN dev server, one port up,
+// for one reason: its Supabase env must be PINNED. The harness writes a
+// session into the storage key supabase-js derives from the configured URL, so
+// that URL has to be a known value — and a reused dev server carrying the
+// author's real .env.local would derive a different key and silently land
+// every student spec on the sign-in screen. Vite gives process env precedence
+// over .env files, so passing it here wins.
+//
+// The editor lane keeps reusing whatever server is already up, so normal local
+// iteration on the 200+ existing specs is unchanged.
+const STUDENT_PORT = String(Number(PORT) + 1);
+const STUDENT_BASE_URL = `http://localhost:${STUDENT_PORT}`;
+const STUDENT_SUPABASE_URL = 'http://127.0.0.1:54321';
+
 export default defineConfig({
     testDir: './e2e',
     // Named *.e2e.ts (not *.spec.ts) so vitest's default {test,spec} glob never
@@ -37,12 +51,37 @@ export default defineConfig({
         trace: 'on-first-retry',
     },
     projects: [
-        { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+        {
+            name: 'chromium',
+            use: { ...devices['Desktop Chrome'] },
+            // The student lane has its own project + server; keep it out of
+            // the editor lane rather than pointing it at the wrong baseURL.
+            testIgnore: '**/student/**',
+        },
+        {
+            name: 'student',
+            testMatch: '**/student/**/*.e2e.ts',
+            use: { ...devices['Desktop Chrome'], baseURL: STUDENT_BASE_URL },
+        },
     ],
-    webServer: {
-        command: `pnpm dev --port ${PORT} --strictPort`,
-        url: `${BASE_URL}/playground`,
-        reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
-    },
+    webServer: [
+        {
+            command: `pnpm dev --port ${PORT} --strictPort`,
+            url: `${BASE_URL}/playground`,
+            reuseExistingServer: !process.env.CI,
+            timeout: 120_000,
+        },
+        {
+            command: `pnpm dev --port ${STUDENT_PORT} --strictPort`,
+            url: `${STUDENT_BASE_URL}/`,
+            // NEVER reused: the pinned env below is the whole point, and a
+            // server someone else started would not have it.
+            reuseExistingServer: false,
+            timeout: 120_000,
+            env: {
+                VITE_SUPABASE_URL: STUDENT_SUPABASE_URL,
+                VITE_SUPABASE_ANON_KEY: 'e2e-anon-key',
+            },
+        },
+    ],
 });
