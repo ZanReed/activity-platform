@@ -54,6 +54,54 @@ export const nullHideSignal: HideSignal = {
   subscribe: () => () => {},
 };
 
+/**
+ * "Can we reach the server, and did that just change?"
+ *
+ * `navigator.onLine` is famously optimistic — it reports true for a laptop
+ * joined to a captive-portal Wi-Fi that routes nowhere. It is used here as a
+ * TRIGGER, never as proof: the queue's real test of connectivity is sending
+ * the check and seeing what happens. A false positive costs one failed request
+ * that lands back in the queue; a missed transition would strand a student's
+ * queued check until they touched something, which is the worse failure.
+ *
+ * `visibilitychange` is a trigger too, and matters more than it looks: a
+ * Chromebook lid that opens on a working network often produces a visibility
+ * event and no `online` event at all, because the tab never observed the
+ * offline→online edge while it was frozen.
+ */
+export interface ConnectivitySignal {
+  isOnline(): boolean;
+  /** Fires on any event that means "worth trying again". */
+  subscribe(listener: () => void): () => void;
+}
+
+/** Always-online signal for tests and non-DOM contexts. */
+export const alwaysOnlineConnectivity: ConnectivitySignal = {
+  isOnline: () => true,
+  subscribe: () => () => {},
+};
+
+export function createBrowserConnectivity(): ConnectivitySignal {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return alwaysOnlineConnectivity;
+  }
+  return {
+    isOnline: () => navigator.onLine,
+    subscribe(listener) {
+      const onOnline = () => listener();
+      const onVisible = () => {
+        if (document.visibilityState === 'visible') listener();
+      };
+      window.addEventListener('online', onOnline);
+      document.addEventListener('visibilitychange', onVisible);
+      return () => {
+        window.removeEventListener('online', onOnline);
+        document.removeEventListener('visibilitychange', onVisible);
+      };
+    },
+  };
+}
+
 export function createDocumentHideSignal(): HideSignal {
   if (typeof document === 'undefined' || typeof window === 'undefined') {
     return nullHideSignal;

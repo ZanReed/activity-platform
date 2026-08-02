@@ -18,10 +18,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 // Per-file, matching this package's convention (ImportMarkdownDialog.test.tsx):
 // registers the jest-dom matchers on vitest's expect and augments its types.
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 
 const STUDENT_ID = 'dddddddd-0000-4000-8000-000000000001';
+const OTHER_STUDENT_ID = 'dddddddd-0000-4000-8000-000000000002';
 
 const h = vi.hoisted(() => ({
     // Shaped like a real Supabase Session: `user` is NOT optional there, and a
@@ -40,7 +41,14 @@ vi.mock('../lib/SessionContext', () => ({
     useSession: () => ({ session: h.session.current, loading: false }),
 }));
 vi.mock('../lib/supabase', () => ({
-    supabase: { auth: { signInWithOAuth: vi.fn() } },
+    supabase: {
+        auth: {
+            signInWithOAuth: vi.fn(),
+            // The queue's ensureSession port calls this. Omitting it would send
+            // every run down the catch branch and quietly park the queue.
+            getSession: async () => ({ data: { session: h.session.current } }),
+        },
+    },
     supabaseConfigured: true,
 }));
 vi.mock('@activity/viewer', async (importOriginal) => {
@@ -68,6 +76,7 @@ vi.mock('@activity/viewer', async (importOriginal) => {
 
 import StudentViewer from '../routes/StudentViewer';
 import { ViewerLoadError } from '@activity/viewer';
+import { servedFixtureDocument } from '@activity/viewer/fixtures';
 
 function renderRoute(id = 'aaaaaaaa-0000-4000-8000-000000000001') {
     return render(
@@ -141,5 +150,97 @@ describe('failure screens (Q3A)', () => {
         renderRoute();
         const heading = await screen.findByRole('heading');
         expect(heading.textContent).not.toMatch(/\d{3}/);
+    });
+});
+
+describe('local-first mount (S6 V1+V2)', () => {
+    const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
+
+    function servedActivity() {
+        return {
+            activityId: ACTIVITY,
+            versionId: 'v1',
+            versionNum: 1,
+            title: 'Linear Systems',
+            document: servedFixtureDocument(),
+        };
+    }
+
+    /** The key the route must write under — restated from the student's side
+     * so a change to the scheme has to be deliberate on both ends. */
+    function bufferKeys() {
+        return Object.keys(window.localStorage).filter((k) =>
+            k.startsWith('activity-viewer:buffer:'),
+        );
+    }
+
+    afterEach(() => window.localStorage.clear());
+
+    /** The fixture document carries many inputs; the first one in document
+     * order is stable because the fixture and its shuffle seed are fixed. */
+    async function firstBlank(): Promise<HTMLElement> {
+        const inputs = await screen.findAllByRole('textbox');
+        return inputs[0]!;
+    }
+
+    it('persists the student’s work under their own key', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = servedActivity();
+        renderRoute();
+
+        const input = await firstBlank();
+        fireEvent.change(input, { target: { value: '42' } });
+
+        // The debounce is real time here; the flush on unmount is what makes
+        // this deterministic — and it is the same path a closing lid takes.
+        cleanup();
+
+        const keys = bufferKeys();
+        expect(keys).toHaveLength(1);
+        expect(keys[0]).toContain(STUDENT_ID);
+        expect(window.localStorage.getItem(keys[0]!)).toContain('42');
+    });
+
+    it('restores that work when the student comes back', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = servedActivity();
+        renderRoute();
+        const input = await firstBlank();
+        fireEvent.change(input, { target: { value: '42' } });
+        cleanup();
+
+        renderRoute();
+        const restored = await firstBlank();
+        expect(restored).toHaveValue('42');
+    });
+
+    it('sweeps the previous student’s work off a shared machine', async () => {
+        // Student A never signed out — their blob is still sitting here.
+        const foreign = `activity-viewer:buffer:${OTHER_STUDENT_ID}:${ACTIVITY}:v1`;
+        window.localStorage.setItem(foreign, '{"schemaVersion":1}');
+
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = servedActivity();
+        renderRoute();
+        await firstBlank();
+
+        // Seeded first, then swept — an unseeded version of this test would
+        // pass against an empty store and prove nothing.
+        expect(window.localStorage.getItem(foreign)).toBeNull();
+    });
+
+    it('does not restore the previous student’s answers into this session', async () => {
+        h.session.current = { access_token: 'tok', user: { id: OTHER_STUDENT_ID } };
+        h.load.current = servedActivity();
+        renderRoute();
+        const input = await firstBlank();
+        fireEvent.change(input, { target: { value: 'their answer' } });
+        cleanup();
+
+        // Student B sits down at the same Chromebook.
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        renderRoute();
+        const fresh = await firstBlank();
+        expect(fresh).toHaveValue('');
     });
 });

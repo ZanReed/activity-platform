@@ -118,8 +118,18 @@ function statusLabel(status: SectionStatus | undefined): string {
   switch (status?.phase) {
     case 'checking':
       return 'Checking…';
+    case 'pending':
+      // Not an error and not a request to do anything — a promise the queue
+      // keeps on its own (TV3-A). Same words as the block-level pill so the
+      // student meets one vocabulary, not two.
+      return 'Will check when you’re back online.';
     case 'checked':
-      return 'Checked.';
+      // Only when the answers moved during the outage: silence here would let
+      // a student wonder whether the verdict covers what they typed after
+      // pressing Check (ruling 2.2A).
+      return status.answersChangedWhileQueued
+        ? 'Checked your latest answers.'
+        : 'Checked.';
     case 'error':
       // The failure KIND decides the sentence (S4 T8). "Try again" is the right
       // words only when trying again could work; telling a student to retry

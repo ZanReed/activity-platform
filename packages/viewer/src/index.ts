@@ -165,11 +165,22 @@ export type {
   ViewerBufferOptions,
 } from './store/buffer.js';
 export {
+  alwaysOnlineConnectivity,
+  createBrowserConnectivity,
   createDocumentHideSignal,
   nullHideSignal,
   systemClock,
 } from './store/ports.js';
-export type { Clock, HideSignal, TimerHandle } from './store/ports.js';
+export type {
+  Clock,
+  ConnectivitySignal,
+  HideSignal,
+  TimerHandle,
+} from './store/ports.js';
+
+// S6 V2 — the queued-check executor. Owns no queue: the store does.
+export { createCheckQueue } from './store/queue.js';
+export type { CheckQueue, CheckQueueOptions } from './store/queue.js';
 export { createViewerStore } from './store/store.js';
 export type {
   SectionItemIds,

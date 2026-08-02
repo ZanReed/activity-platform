@@ -29,9 +29,15 @@ import {
   PrintButton,
   ViewerContainer,
   ViewerLoadError,
+  createBrowserConnectivity,
+  createCheckQueue,
   createHttpCheckService,
   createReadClient,
+  createViewerBuffer,
   createViewerStore,
+  indexDocument,
+  sweepForeignBuffers,
+  sweepOrphanVersions,
 } from '@activity/viewer';
 import type {
   ActivityMeta,
@@ -152,6 +158,73 @@ export default function StudentViewer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activityId, versionId, userId, getAccessToken]);
 
+  const servedDocument = state.phase === 'ready' ? state.served.document : null;
+
+  /**
+   * LOCAL-FIRST MOUNT (S6 V1 + V2). Everything on-device hangs off this one
+   * effect so its lifetime is exactly the store's: a new student, or a new
+   * version, tears the whole thing down and builds a fresh one.
+   *
+   *   boot sweeps ──► hydrate ──► subscribe(save) ──► queue.start()
+   *
+   * Order matters. The sweeps run BEFORE the buffer is read: if the previous
+   * student's blob is still on this Chromebook, it has to be gone before
+   * anything tries to load work for this activity. Hydrate then runs before
+   * the save subscription, so restoring state can't immediately re-persist a
+   * copy of what it just read.
+   */
+  useEffect(() => {
+    if (!store || !userId || !versionId || !servedDocument) return;
+
+    let storage: Storage;
+    try {
+      storage = window.localStorage;
+    } catch {
+      return; // locked-down profile: run without a buffer rather than crash
+    }
+
+    // The crash-without-signout path, and the republish accumulation path.
+    sweepForeignBuffers(storage, userId);
+    sweepOrphanVersions(storage, { userId, activityId, versionId });
+
+    const buffer = createViewerBuffer({
+      storage,
+      userId,
+      activityId,
+      versionId,
+      serialize: () => store.serialize(),
+    });
+    const restored = buffer.load();
+    if (restored) store.hydrate(restored);
+
+    const unsubscribe = store.subscribe(() => buffer.save());
+
+    const index = indexDocument(servedDocument);
+    const queue = createCheckQueue({
+      store,
+      resolveItems: (sectionId) => index.bySection[sectionId]?.items ?? null,
+      connectivity: createBrowserConnectivity(),
+      // Refresh before firing, never after a 401 (outside-voice #8). getSession
+      // renews an expired token when a refresh token is still valid; a false
+      // here parks the queue instead of burning the attempt.
+      ensureSession: async () => {
+        try {
+          const { data } = await supabase.auth.getSession();
+          return data.session !== null;
+        } catch {
+          return false;
+        }
+      },
+    });
+    queue.start();
+
+    return () => {
+      queue.stop();
+      unsubscribe();
+      buffer.dispose(); // flushes whatever the debounce still owed
+    };
+  }, [store, userId, activityId, versionId, servedDocument]);
+
   if (sessionLoading) return <Centered>Loading…</Centered>;
   if (!activityId) return <Centered>No activity in this link.</Centered>;
 
@@ -164,6 +237,7 @@ export default function StudentViewer() {
   }
 
   if (!store) return <Skeleton slow={false} onRetry={() => setAttempt((n) => n + 1)} />;
+
 
   return (
     <>

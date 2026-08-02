@@ -107,6 +107,14 @@ export interface ViewerStore {
    * section's 'error' status. */
   checkSection(sectionId: string, items: SectionItemIds): Promise<void>;
 
+  /**
+   * Forget a queued check without running it. The one caller today is the
+   * queue executor, when the served document no longer contains the section
+   * (a republish removed it) — firing blind would grade ids that don't exist.
+   * V6's republish boot path is the other expected user.
+   */
+  dropPendingCheck(sectionId: string): void;
+
   /** Persistence bridge (D9). hydrate() ignores payloads for a different
    * activity/version and version-mismatched blobs (null path). */
   serialize(): string;
@@ -268,10 +276,20 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
           },
         },
       });
+      // Was this section waiting in the queue? If so, compare what we are
+      // about to send against what the student had when they pressed Check —
+      // that difference is the whole basis of the 2.2A notice.
+      const queued = state.pending[sectionId];
+      const answersChangedWhileQueued =
+        queued !== undefined &&
+        queued.fingerprint !== fingerprintResponses(firedResponses);
+
       try {
         const result = await checkService.checkSection(request);
         const remainingInFlight = { ...state.inFlight };
         delete remainingInFlight[sectionId];
+        const remainingPending = { ...state.pending };
+        delete remainingPending[sectionId];
         // The stale-version advisory rides the successful response; it never
         // turns a good check into a failure.
         const advisory = (result as { currentVersionId?: string })
@@ -283,11 +301,19 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
             : {}),
           sections: {
             ...state.sections,
-            [sectionId]: { phase: 'checked', result },
+            [sectionId]: {
+              phase: 'checked',
+              result,
+              ...(answersChangedWhileQueued
+                ? { answersChangedWhileQueued: true }
+                : {}),
+            },
           },
           // Success clears the key: the next Check is a NEW attempt, which is
           // what re-checking means. Only the failed-and-retried case collapses.
           inFlight: remainingInFlight,
+          // ...and it leaves the queue: this check happened.
+          pending: remainingPending,
         });
       } catch (err) {
         // Responses are untouched — only the section status records the
@@ -304,6 +330,30 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
           // test surfaced only as "the banner didn't render".)
           console.error('[viewer] check failed with an untyped error', err);
         }
+
+        // OFFLINE IS NOT A FAILURE, IT IS A DELAY (TV3-A). The request never
+        // reached the server, so there is nothing to report and nothing for
+        // the student to fix — the check joins the queue and fires on its own
+        // when the network returns. Every other failure IS a failure the
+        // student should see, with the 2.1A retry affordance.
+        //
+        // The fingerprint recorded here is what they had WHEN THEY PRESSED
+        // CHECK. It is not re-taken later: the whole point is to notice that
+        // the answers moved between then and the eventual fire.
+        if (kind === 'offline') {
+          commit({
+            ...state,
+            sections: { ...state.sections, [sectionId]: { phase: 'pending' } },
+            pending: {
+              ...state.pending,
+              [sectionId]:
+                state.pending[sectionId] ??
+                { fingerprint: fingerprintResponses(firedResponses) },
+            },
+          });
+          return;
+        }
+
         commit({
           ...state,
           sections: {
@@ -315,8 +365,28 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
               ...(retryable !== undefined ? { retryable } : {}),
             },
           },
+          // A reachable-but-failing server means this check is NOT queued:
+          // retrying forever against a 500 would spin, and 2.1A gives the
+          // student an explicit Retry instead. Dropping the queue entry is how
+          // a section stops claiming it will check itself later.
+          pending: (() => {
+            const next = { ...state.pending };
+            delete next[sectionId];
+            return next;
+          })(),
         });
       }
+    },
+
+    dropPendingCheck(sectionId) {
+      if (state.pending[sectionId] === undefined) return;
+      const pending = { ...state.pending };
+      delete pending[sectionId];
+      const sections = { ...state.sections };
+      // The derived phase goes with it — a section that is no longer queued
+      // must stop saying it will check itself later.
+      if (sections[sectionId]?.phase === 'pending') delete sections[sectionId];
+      commit({ ...state, pending, sections });
     },
 
     serialize() {
@@ -351,15 +421,23 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
       ) {
         return false;
       }
+      // The 'pending' phase is DERIVED, so it has to be rebuilt here rather
+      // than persisted as its own field. Order matters: a section that was
+      // queued outranks a stale 'checked' result from an earlier check,
+      // because the queued fire is the one the student is still waiting on.
+      const sections: Record<string, SectionStatus> = Object.fromEntries(
+        Object.entries(persisted.checked).map(([id, result]) => [
+          id,
+          { phase: 'checked', result } as SectionStatus,
+        ]),
+      );
+      for (const sectionId of Object.keys(persisted.pending)) {
+        sections[sectionId] = { phase: 'pending' };
+      }
       commit({
         ...state,
         responses: structuredClone(persisted.responses),
-        sections: Object.fromEntries(
-          Object.entries(persisted.checked).map(([id, result]) => [
-            id,
-            { phase: 'checked', result } as SectionStatus,
-          ]),
-        ),
+        sections,
         pending: structuredClone(persisted.pending),
         inFlight: structuredClone(persisted.inFlight),
       });
