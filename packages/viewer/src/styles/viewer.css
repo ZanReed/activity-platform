@@ -868,6 +868,33 @@
   background: var(--vw-color-hover);
 }
 
+/* ---- Read-only tab (ruling 2.3A / S6-4) ----------------------------------
+   The worksheet lives inside a fieldset so `disabled` does the work for every
+   form control at once, including ones a future block type adds. A fieldset
+   carries its own default box and, more importantly, a `min-inline-size: auto`
+   that quietly breaks flex/grid children — so it is reset to a plain container
+   here and contributes nothing visually. */
+.viewer-worksheet {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Canvas surfaces (graphs, number lines, data plots) are not form controls, so
+   `disabled` does not reach them. Without this, a stale tab could still drag a
+   point — the drag would update the store and then be refused by the buffer's
+   write gate, leaving the screen showing work that is not being saved. */
+.viewer-worksheet:disabled [data-graph-canvas] {
+  pointer-events: none;
+}
+
+/* Dim just enough to read as inactive while staying legible: the student's
+   own work is still on this page and they may well be reading it. */
+.viewer-worksheet:disabled {
+  opacity: 0.7;
+}
+
 /* ---- Print-only affordances, hidden on screen -----------------------------
    The paper conventions (a circle-me letter, a write-the-letter line, a
    number-the-steps box, the kit-free static SVG twin) are rendered into the

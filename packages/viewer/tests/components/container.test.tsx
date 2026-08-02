@@ -72,6 +72,8 @@ function setup(
     resolveComponent?: (type: BlockType) => ComponentType<BlockComponentProps> | null;
     onCheckShortfall?: (s: CheckShortfall) => void;
     onCrash?: (crash: BlockCrash) => void;
+    readOnly?: boolean;
+    onTakeOver?: () => void;
   } = {},
 ) {
   const service = createMockCheckService();
@@ -441,5 +443,53 @@ describe('the stale-version banner (ruling S4-T5)', () => {
       expect(action?.tagName).toBe('BUTTON');
       expect(action?.textContent).toMatch(/reload/i);
     });
+  });
+});
+
+describe('read-only tab (ruling 2.3A / S6-4)', () => {
+  it('renders the other-tab notice with an explicit takeover', () => {
+    const { container } = setup(docOf(blocksOf('paragraph')[0]), { readOnly: true });
+
+    const banner = container.querySelector('[data-banner="other-tab"]');
+    expect(banner).not.toBeNull();
+    expect(banner?.textContent).toContain('open in another tab');
+  });
+
+  it('says nothing when this tab is the live one', () => {
+    const { container } = setup(docOf(blocksOf('paragraph')[0]));
+    expect(container.querySelector('[data-banner="other-tab"]')).toBeNull();
+  });
+
+  it('disables every control in one move, via the worksheet fieldset', () => {
+    const { container } = setup(docOf(blocksOf('paragraph')[0]), { readOnly: true });
+
+    // The point of the fieldset: a block type added years from now inherits
+    // this without knowing the rule exists.
+    const worksheet = container.querySelector('fieldset.viewer-worksheet');
+    expect(worksheet).not.toBeNull();
+    expect((worksheet as HTMLFieldSetElement).disabled).toBe(true);
+    // The Check button lives inside it, so the browser disables it for us.
+    const check = screen.getByRole('button', { name: 'Check' });
+    expect(check).toBeDisabled();
+  });
+
+  it('leaves the worksheet enabled for the live tab', () => {
+    const { container } = setup(docOf(blocksOf('paragraph')[0]));
+    const worksheet = container.querySelector('fieldset.viewer-worksheet');
+    expect((worksheet as HTMLFieldSetElement).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Check' })).toBeEnabled();
+  });
+
+  it('"Use it here" calls back exactly once', () => {
+    const onTakeOver = vi.fn();
+    setup(docOf(blocksOf('paragraph')[0]), { readOnly: true, onTakeOver });
+
+    fireEvent.click(screen.getByRole('button', { name: /use it here/i }));
+    expect(onTakeOver).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the takeover button when no handler is wired', () => {
+    setup(docOf(blocksOf('paragraph')[0]), { readOnly: true });
+    expect(screen.queryByRole('button', { name: /use it here/i })).toBeNull();
   });
 });

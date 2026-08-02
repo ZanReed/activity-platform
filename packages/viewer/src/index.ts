@@ -181,6 +181,15 @@ export type {
 // S6 V2 — the queued-check executor. Owns no queue: the store does.
 export { createCheckQueue } from './store/queue.js';
 export type { CheckQueue, CheckQueueOptions } from './store/queue.js';
+
+// S6 V3 — one editable tab per student per activity.
+export { createTabLock } from './store/tabLock.js';
+export type {
+  LockManagerLike,
+  LockRequestOptions,
+  TabLock,
+  TabLockOptions,
+} from './store/tabLock.js';
 export { createViewerStore } from './store/store.js';
 export type {
   SectionItemIds,
