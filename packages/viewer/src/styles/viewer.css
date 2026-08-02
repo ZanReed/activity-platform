@@ -303,7 +303,21 @@
 .viewer-callout {
   border-left: 3px solid;
   border-radius: var(--radius-lg);
+  display: flex;
+  gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
+}
+
+/* The icon sits on the first text line, not centred against the whole box: a
+   three-line callout with a vertically-centred marker reads as a bullet for
+   the middle sentence. flex-shrink keeps it from squashing on a phone. */
+.viewer-callout__icon {
+  flex: 0 0 auto;
+  margin-top: 0.15em;
+}
+
+.viewer-callout__body {
+  min-width: 0;
 }
 
 .viewer-callout--info {
@@ -1295,6 +1309,13 @@
     border: 1px solid var(--color-ink);
     border-left-width: 3px;
     background: none;
+  }
+
+  /* The icon PRINTS. It is the second of the two grayscale-safe channels (the
+     other is the border style), drawn in currentColor so it comes out as ink
+     rather than as a colour glyph the photocopier turns to mush. */
+  .viewer-callout__icon {
+    color: var(--color-ink);
   }
 
   .viewer-callout--info {
