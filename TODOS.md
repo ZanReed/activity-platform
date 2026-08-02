@@ -254,3 +254,29 @@ the suite this joins (D16's chunk-regression budgets).
 
 **Context:** surfaced by /plan-eng-review's S6 pass, 2026-08-02 (performance finding 10 +
 TODO ruling D19).
+
+## Split the 3 MB app entry chunk before students meet it
+
+**What:** Code-split `packages/app` so the student viewer route does not download
+the teacher editor. Today the entry chunk is ~3 MB (plus a 149 KB entry CSS) and
+`dist/assets` totals 7.2 MB across 170 files.
+
+**Why:** Measured during S6 V8 while sizing the service-worker precache. A student
+on school Wi-Fi currently pays for Tiptap, the editor UI, and every authoring
+surface to answer a worksheet. The SW makes the SECOND visit cheap, which is
+exactly why the first visit's weight is now the thing that matters — and S9's
+cutover puts every student on this bundle. It is also what forced V8's precache
+down to the navigation document alone: a "shell" glob is not meaningful while the
+shell is the whole app.
+
+**Where to start:** `packages/app/src/App.tsx` — the route table eagerly imports
+both `StudentViewer` and the editor routes, so nothing can tree-shake them apart.
+`React.lazy` per route group is the obvious first cut; measure with
+`vite build` + `dist/assets` sizes before and after. Registry-driven block chunks
+(D16 eager-statics/lazy-heavies) are already lazy and are NOT the problem here.
+
+**Depends on:** nothing technically. Naturally belongs with **S8** (perf-budget
+CI), which is where a regression guard for it would live — pair it with the
+precache-manifest budget row already queued above.
+
+**Context:** surfaced by /plan-eng-review's S6 build, V8 (2026-08-02).

@@ -219,24 +219,36 @@ test.describe('two tabs', () => {
     await stubActivityApi(page);
     await signInAs(page);
     await openWorksheet(page);
-    await firstBlank(page).fill('live tab work');
 
-    const stale = await context.newPage();
-    await stubActivityApi(stale);
-    await stale.goto(activityUrl());
-    await firstBlank(stale).waitFor();
-    // Whichever tab ended up read-only is the one whose close could clobber;
-    // make sure the live one is the tab that holds the work under test.
+    const second = await context.newPage();
+    await stubActivityApi(second);
+    await second.goto(activityUrl());
+    await firstBlank(second).waitFor();
+
+    // WAIT FOR THE RACE TO SETTLE, THEN FOLLOW IT — do not assume it. The
+    // first version of this test typed into `page` and then required `page` to
+    // be the live tab; under StrictMode's remount either tab can win, so it
+    // failed four runs in five in isolation while passing in the full lane,
+    // where different timing hid it. The guarantee under test is about the
+    // read-only tab not clobbering the live one, whichever is which.
     await expect
-      .poll(async () => (await firstBlank(page).isDisabled()) === false)
-      .toBe(true);
+      .poll(async () =>
+        [await firstBlank(page).isDisabled(), await firstBlank(second).isDisabled()]
+          .filter((disabled) => !disabled).length,
+      )
+      .toBe(1);
+
+    const live = (await firstBlank(page).isDisabled()) ? second : page;
+    const stale = live === page ? second : page;
+
+    await firstBlank(live).fill('live tab work');
+    await expect.poll(async () => bufferValue(live)).toContain('live tab work');
 
     // Closing the stale tab flushes its buffer — the clobber this guards.
     await stale.close();
-    await page.waitForTimeout(300);
+    await live.waitForTimeout(300);
 
-    const buffered = await bufferValue(page);
-    expect(buffered).toContain('live tab work');
+    expect(await bufferValue(live)).toContain('live tab work');
   });
 });
 
