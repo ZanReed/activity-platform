@@ -136,23 +136,34 @@ function authoredRawByType(
       variant: 'info',
       content: [text('Slope is rise over run — watch the sign.')],
     },
+    // Every one of these has to read as something a teacher AUTHORED onto a
+    // blank worksheet, because that is what a callout is: static content, no
+    // input, printed before the lesson. The first draft of the `success` one
+    // said "Nicely done — that is the y-intercept", which is check FEEDBACK —
+    // it congratulates a student for an answer they have not given yet, and it
+    // would print that way on thirty photocopies. `success` on a worksheet is a
+    // self-check the student can apply while working, not a verdict.
     {
       id: fid(),
       type: 'callout',
       variant: 'warning',
-      content: [text('A negative slope falls from left to right.')],
+      content: [
+        text('Common mistake: reading the y-intercept as the slope. Check which number multiplies x.'),
+      ],
     },
     {
       id: fid(),
       type: 'callout',
       variant: 'success',
-      content: [text('Nicely done — that is the y-intercept.')],
+      content: [
+        text('Check yourself: if your line rises 3 for every 1 across, your slope is right.'),
+      ],
     },
     {
       id: fid(),
       type: 'callout',
       variant: 'note',
-      content: [text('Vertical lines have no slope at all.')],
+      content: [text('Vertical lines have no slope at all — the run is zero.')],
     },
   );
   put('problem', {
