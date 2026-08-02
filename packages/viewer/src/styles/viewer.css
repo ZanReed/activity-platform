@@ -1253,6 +1253,13 @@
   .viewer-ordering__item[data-state='incorrect'] {
     background: none;
     border-color: var(--color-ink);
+    /* The screen row is `space-between` so the reorder controls sit at the far
+       edge. In print those controls are gone, and space-between then strands
+       the step text against the right margin, a whole column away from the box
+       it belongs to — the eye has to travel the width of the page to pair them.
+       Left-packed on paper, which is also what the published page does. */
+    justify-content: flex-start;
+    gap: var(--space-3);
   }
 
   /* ---- Treatment: writing-box ---------------------------------------------

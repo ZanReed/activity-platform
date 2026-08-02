@@ -121,7 +121,15 @@ function authoredRawByType(
   put('image', {
     id: fid(),
     type: 'image',
-    src: 'https://fixtures.invalid/graph-of-line.png',
+    // An inline data URI rather than a URL. The previous fixture pointed at
+    // `fixtures.invalid` — a reserved TLD that can never resolve — which kept
+    // fixtures off the network but meant every capture of this block showed a
+    // broken-image icon instead of an image. A data URI keeps the
+    // no-network property AND renders, so the contact sheet shows how a figure
+    // actually prints. (A genuinely broken image in production still shows the
+    // browser's placeholder; nothing here hides that.)
+    src:
+      'data:image/svg+xml;utf8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 160 120%27 width=%27160%27 height=%27120%27%3E%3Crect width=%27160%27 height=%27120%27 fill=%27white%27 stroke=%27%23334155%27/%3E%3Cpath d=%27M20 100H150M30 10V110%27 stroke=%27%2394a3b8%27/%3E%3Cpath d=%27M30 70L140 20%27 stroke=%27%231e293b%27 stroke-width=%272%27/%3E%3Ctext x=%276%27 y=%2774%27 font-family=%27sans-serif%27 font-size=%2710%27 fill=%27%23334155%27%3E4%3C/text%3E%3C/svg%3E',
     alt: 'A line crossing the y-axis at 4',
   });
   // All FOUR variants, because the print rule that matters about callouts is
