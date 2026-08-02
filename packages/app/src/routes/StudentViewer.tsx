@@ -131,9 +131,14 @@ export default function StudentViewer() {
   // content, and carrying a store across that would attach answers to blocks
   // that may no longer exist.
   const versionId = state.phase === 'ready' ? state.served.versionId : null;
+  // Identity is part of the store (S6-1): it keys the local-first buffer and
+  // is re-checked when a persisted blob comes back in, so one student can
+  // never resume another's work on a shared Chromebook.
+  const userId = session?.user.id ?? null;
   const store = useMemo(() => {
-    if (!versionId || state.phase !== 'ready') return null;
+    if (!versionId || state.phase !== 'ready' || !userId) return null;
     return createViewerStore({
+      userId,
       activityId,
       versionId,
       checkService: createHttpCheckService({
@@ -142,9 +147,10 @@ export default function StudentViewer() {
         getAccessToken,
       }),
     });
-    // state.phase is read above; versionId is the identity that matters.
+    // state.phase is read above; versionId + userId are the identities that
+    // matter (a different student on the same tab must get a different store).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activityId, versionId, getAccessToken]);
+  }, [activityId, versionId, userId, getAccessToken]);
 
   if (sessionLoading) return <Centered>Loading…</Centered>;
   if (!activityId) return <Centered>No activity in this link.</Centered>;

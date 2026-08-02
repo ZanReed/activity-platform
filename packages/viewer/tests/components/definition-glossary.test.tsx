@@ -25,6 +25,7 @@ import {
 } from '../../src/fixtures/index.js';
 import { ViewerContainer } from '../../src/container/ViewerContainer.js';
 import { createViewerStore, createMockCheckService } from '../../src/index.js';
+import { TEST_USER_ID } from '../helpers/ids.js';
 
 /** A text node carrying a definition mark. */
 const defined = (term: string, content: unknown[]) => ({
@@ -290,6 +291,7 @@ describe('the container gates the appendix on the teacher’s setting', () => {
     };
     doc.meta.print = { ...doc.meta.print, printDefinitionGlossary };
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: 'aaaaaaaa-0000-4000-8000-000000000001',
       versionId: 'bbbbbbbb-0000-4000-8000-000000000001',
       checkService: createMockCheckService({}),

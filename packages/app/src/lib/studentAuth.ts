@@ -7,12 +7,15 @@
 // panel sign-out, ~30-min idle prompt banner) lands with the viewer (T6/T7).
 // =============================================================================
 
+import { VIEWER_STORAGE_PREFIX } from '@activity/viewer';
 import { supabase } from './supabase';
 
-// Namespace prefix for everything the viewer persists on-device (T7's
-// local-first buffer + last-activity cache index adopt this prefix — it is
-// the contract that makes signOutEverything's purge complete).
-export const VIEWER_STORAGE_PREFIX = 'activity-viewer:';
+// Namespace prefix for everything the viewer persists on-device. IMPORTED, not
+// restated: the viewer owns the key scheme (it writes the keys), and this
+// purge is only complete if both sides mean the same string. A second literal
+// here would let the two drift silently — a buffer written under a prefix
+// sign-out doesn't scan is work left on a shared machine.
+export { VIEWER_STORAGE_PREFIX };
 
 // Ruling 2.4A: prompt after ~30 minutes of inactivity.
 export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;

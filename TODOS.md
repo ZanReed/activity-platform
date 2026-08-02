@@ -232,3 +232,25 @@ recorded in the S5 eng-review section of the components-as-data design doc (ruli
 
 **Context:** surfaced by /plan-eng-review 2026-08-01 (S5 review, Issue 2 + outside-voice
 finding 6; TODO ask approved).
+
+## SW precache-manifest budget row in S8's perf-budget CI
+
+**What:** When S8 (perf-budget CI) lands, add a row asserting the vite-plugin-pwa
+generated precache manifest stays within a byte budget and an entry-count budget.
+
+**Why:** The S6 eng review (2026-08-02, ruling 10A) restricted the service worker's
+precache to the core shell only — lazy heavies (KaTeX, graph-kit, editor chunks) are
+runtime-cached on first use, preserving the D16 eager-statics/lazy-heavies chunk policy.
+Nothing *enforces* that ruling: one careless `globPatterns` edit silently re-inflates
+every student's first visit to multi-MB over school Wi-Fi, and nobody notices until a
+classroom complains. Same silent-regression class the bundle-size ceilings already guard.
+
+**Where to start:** `.github/workflows/ci.yml` next to the bundle-drift guards; read the
+generated `dist/` precache manifest (generateSW embeds it in the built worker; vite-plugin-pwa
+also exposes it at build time) and compare against the two budgets.
+
+**Depends on:** S6's SW drop landing first (the manifest must exist to measure). S8 owns
+the suite this joins (D16's chunk-regression budgets).
+
+**Context:** surfaced by /plan-eng-review's S6 pass, 2026-08-02 (performance finding 10 +
+TODO ruling D19).

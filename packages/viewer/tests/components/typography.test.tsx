@@ -24,6 +24,7 @@ import { ViewerContainer } from '../../src/container/ViewerContainer.js';
 import { createViewerStore, createMockCheckService } from '../../src/index.js';
 import type { SanitizedActivityDocument } from '../../src/index.js';
 import { sanitizedFixtureDocument } from '../../src/fixtures/index.js';
+import { TEST_USER_ID } from '../helpers/ids.js';
 
 describe('activityFontFamily — the name, and the stack behind it', () => {
   it('names each family the fontsource packages actually declare', () => {
@@ -79,6 +80,7 @@ describe('the worksheet applies it', () => {
     if (typography === undefined) delete doc.meta.typography;
     else doc.meta.typography = typography;
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: 'aaaaaaaa-0000-4000-8000-000000000001',
       versionId: 'bbbbbbbb-0000-4000-8000-000000000001',
       checkService: createMockCheckService({}),

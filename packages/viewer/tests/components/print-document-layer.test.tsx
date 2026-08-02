@@ -25,6 +25,7 @@ import {
   sanitizedFixtureDocument,
   sanitizedBlockFixture,
 } from '../../src/fixtures/index.js';
+import { TEST_USER_ID } from '../helpers/ids.js';
 
 /** Schema defaults, so the tests exercise what a real document carries. */
 const config = (overrides: Record<string, unknown> = {}) =>
@@ -158,6 +159,7 @@ describe('the reference box on the printed page', () => {
 
   const renderDoc = (doc: SanitizedActivityDocument) => {
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: 'aaaaaaaa-0000-4000-8000-000000000001',
       versionId: 'bbbbbbbb-0000-4000-8000-000000000001',
       checkService: createMockCheckService({}),
@@ -207,6 +209,7 @@ describe('the worksheet says what it is on paper', () => {
             meta: Record<string, unknown>;
         };
         const store = createViewerStore({
+          userId: TEST_USER_ID,
             activityId: 'aaaaaaaa-0000-4000-8000-000000000001',
             versionId: 'bbbbbbbb-0000-4000-8000-000000000001',
             checkService: createMockCheckService({}),

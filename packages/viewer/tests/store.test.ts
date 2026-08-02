@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHECK_WIRE_VERSION,
+  CheckError,
   VIEWER_STORE_SCHEMA_VERSION,
   createMockCheckService,
   createViewerStore,
@@ -18,6 +19,7 @@ import {
   serializeViewerState,
   emptyPersistedState,
 } from '../src/index.js';
+import { TEST_USER_ID } from './helpers/ids.js';
 
 const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
 const VERSION = 'bbbbbbbb-0000-4000-8000-000000000001';
@@ -25,6 +27,7 @@ const VERSION = 'bbbbbbbb-0000-4000-8000-000000000001';
 function makeStore(script: Parameters<typeof createMockCheckService>[0] = {}) {
   const service = createMockCheckService(script);
   const store = createViewerStore({
+    userId: TEST_USER_ID,
     activityId: ACTIVITY,
     versionId: VERSION,
     checkService: service,
@@ -137,13 +140,21 @@ describe('checkSection (one batched call, ruling P2A)', () => {
   });
 
   it('a failed check surfaces as section error and loses NO responses', async () => {
-    const { store } = makeStore({ failWith: new Error('RPC down') });
+    // A real CheckError, matching what the production client throws — the
+    // store branches on `kind`/`retryable`, and the queue executor (S6) decides
+    // whether to enqueue from them, so a bare Error here would test a path no
+    // deployed code takes.
+    const { store } = makeStore({
+      failWith: new CheckError('server_error', 'RPC down'),
+    });
     store.setBlank('blank-1', '3');
     await store.checkSection('sec-1', { blanks: ['blank-1'] });
 
     expect(store.getState().sections['sec-1']).toEqual({
       phase: 'error',
       message: 'RPC down',
+      kind: 'server_error',
+      retryable: true,
     });
     expect(store.getState().responses.blanks['blank-1']).toBe('3');
   });
@@ -188,7 +199,7 @@ describe('persistence gate (VIEWER_STORE_SCHEMA_VERSION, ruling D9)', () => {
 
   it('a version-mismatched blob hydrates to nothing (fresh state is correct)', () => {
     const stale = JSON.parse(
-      serializeViewerState(emptyPersistedState(ACTIVITY, VERSION)),
+      serializeViewerState(emptyPersistedState(TEST_USER_ID, ACTIVITY, VERSION)),
     ) as Record<string, unknown>;
     stale.schemaVersion = VIEWER_STORE_SCHEMA_VERSION + 1;
     expect(hydrateViewerState(JSON.stringify(stale))).toBeNull();
@@ -204,13 +215,19 @@ describe('persistence gate (VIEWER_STORE_SCHEMA_VERSION, ruling D9)', () => {
 
     const { store } = makeStore();
     const foreign = serializeViewerState(
-      emptyPersistedState('cccccccc-0000-4000-8000-000000000001', VERSION),
+      emptyPersistedState(
+        TEST_USER_ID,
+        'cccccccc-0000-4000-8000-000000000001',
+        VERSION,
+      ),
     );
     expect(store.hydrate(foreign)).toBe(false);
   });
 
   it('transitional states never persist — an error section serializes as unchecked', async () => {
-    const { store } = makeStore({ failWith: new Error('down') });
+    const { store } = makeStore({
+      failWith: new CheckError('server_error', 'down'),
+    });
     store.setBlank('blank-1', '3');
     await store.checkSection('sec-1', { blanks: ['blank-1'] });
 

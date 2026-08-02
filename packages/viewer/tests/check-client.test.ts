@@ -27,6 +27,7 @@ import {
   type CheckService,
   type SectionCheckResult,
 } from '../src/check/wire.js';
+import { TEST_USER_ID } from './helpers/ids.js';
 
 const ACTIVITY = 'a1';
 const VERSION = 'v1';
@@ -182,6 +183,7 @@ describe('a retry must not cost a student an extra attempt', () => {
     // attempts for one piece of work.
     const service = scriptedService();
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: service,
@@ -201,6 +203,7 @@ describe('a retry must not cost a student an extra attempt', () => {
     // it into the previous one would lose the student's revision history.
     const service = scriptedService();
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: service,
@@ -217,6 +220,7 @@ describe('a retry must not cost a student an extra attempt', () => {
   it('keys are per section, so two sections never share an attempt', async () => {
     const service = scriptedService();
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: service,
@@ -231,6 +235,7 @@ describe('a retry must not cost a student an extra attempt', () => {
   it('generates unique keys without depending on crypto being present', async () => {
     const service = scriptedService();
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: service,
@@ -247,6 +252,7 @@ describe('the store records WHICH failure happened', () => {
   it('carries the kind and retryability into section status', async () => {
     const service = scriptedService();
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: service,
@@ -264,6 +270,7 @@ describe('the store records WHICH failure happened', () => {
   it('keeps every response intact when a check fails', async () => {
     const service = scriptedService();
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: service,
@@ -292,6 +299,7 @@ describe('a mid-period republish never breaks a check (ruling S4-T5)', () => {
       },
     };
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: service,
@@ -318,6 +326,7 @@ describe('a mid-period republish never breaks a check (ruling S4-T5)', () => {
       },
     };
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: service,
@@ -329,6 +338,7 @@ describe('a mid-period republish never breaks a check (ruling S4-T5)', () => {
   it('stays silent when the server sends no advisory', async () => {
     const service = scriptedService();
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: service,

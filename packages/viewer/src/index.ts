@@ -134,13 +134,42 @@ export type { MockCheckScript, MockCheckService } from './check/mock.js';
 export {
   VIEWER_STORE_SCHEMA_VERSION,
   emptyPersistedState,
+  fingerprintResponses,
   hydrateViewerState,
   serializeViewerState,
 } from './store/persistence.js';
 export type {
+  InFlightCheck,
+  PendingCheck,
   PersistedViewerState,
   SectionStatus,
 } from './store/persistence.js';
+
+// S6 V1 — the local-first buffer: the key scheme that makes the shared-device
+// purge complete, the write policy, and the two sweeps.
+export {
+  BUFFER_KEY_PREFIX,
+  DEFAULT_BUFFER_DEBOUNCE_MS,
+  VIEWER_STORAGE_PREFIX,
+  bufferKey,
+  createViewerBuffer,
+  parseBufferKey,
+  sweepForeignBuffers,
+  sweepOrphanVersions,
+} from './store/buffer.js';
+export type {
+  BufferKeyParts,
+  BufferStatus,
+  StorageLike,
+  ViewerBuffer,
+  ViewerBufferOptions,
+} from './store/buffer.js';
+export {
+  createDocumentHideSignal,
+  nullHideSignal,
+  systemClock,
+} from './store/ports.js';
+export type { Clock, HideSignal, TimerHandle } from './store/ports.js';
 export { createViewerStore } from './store/store.js';
 export type {
   SectionItemIds,
@@ -231,5 +260,8 @@ export type {
   ViewerErrorKind,
   ViewerReadClient,
 } from './client/readClient.js';
-export { createHttpCheckService } from './client/httpCheckService.js';
-export type { HttpCheckServiceOptions } from './client/httpCheckService.js';
+export { CheckError, createHttpCheckService } from './client/httpCheckService.js';
+export type {
+  CheckErrorKind,
+  HttpCheckServiceOptions,
+} from './client/httpCheckService.js';

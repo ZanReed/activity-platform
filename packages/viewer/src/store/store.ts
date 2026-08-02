@@ -18,6 +18,12 @@
 //     bundle, ruling 7.1A).
 //   - serialize()/hydrate() go through persistence.ts and its
 //     VIEWER_STORE_SCHEMA_VERSION gate (ruling D9).
+//   - S6: the store is the SINGLE authority for idempotency keys and the
+//     single source of truth for queued checks (rulings S6-3 / S6-8). The
+//     buffer persists what serialize() emits; the queue executor (V2) reads
+//     and clears `pending` here rather than keeping a list of its own — two
+//     authorities over one fact is how a section ends up showing "pending" in
+//     one place and "checked" in another.
 // =============================================================================
 
 import {
@@ -31,8 +37,11 @@ import {
 import type { CheckErrorKind } from '../client/httpCheckService.js';
 import {
   emptyPersistedState,
+  fingerprintResponses,
   hydrateViewerState,
   serializeViewerState,
+  type InFlightCheck,
+  type PendingCheck,
   type PersistedViewerState,
   type SectionStatus,
 } from './persistence.js';
@@ -50,10 +59,25 @@ export interface SectionItemIds {
 }
 
 export interface ViewerStoreState {
+  /** Whose work this is (S6-1). Written into every persisted blob and checked
+   * on the way back in — the shared-Chromebook guard's in-state half. */
+  userId: string;
   activityId: string;
   versionId: string;
   responses: SectionResponses;
   sections: Record<string, SectionStatus>;
+  /**
+   * Section id → queued check intent (S6-2/S6-8). Populated when a check can't
+   * be sent and drained by the queue executor (V2); the derived 'pending' UI
+   * phase reads it. Persisted, so a queued check survives a closed lid.
+   */
+  pending: Record<string, PendingCheck>;
+  /**
+   * Section id → the idempotency key of a check already sent (S6-3). Persisted
+   * on purpose: see the InFlightCheck doc comment for why the earlier
+   * in-memory-only rule was overturned.
+   */
+  inFlight: Record<string, InFlightCheck>;
   /**
    * Set once the server tells us a newer version of this activity exists
    * (ruling S4-T5). The check STILL SUCCEEDED — the student keeps working and
@@ -90,6 +114,9 @@ export interface ViewerStore {
 }
 
 export interface ViewerStoreOptions {
+  /** The signed-in student. Required: a store that doesn't know whose work it
+   * holds cannot enforce the shared-device guard. */
+  userId: string;
   activityId: string;
   versionId: string;
   checkService: CheckService;
@@ -112,11 +139,15 @@ function pick<T>(
 
 export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
   const { checkService } = options;
-  // Deliberately NOT persisted and NOT part of ViewerStoreState: an
-  // idempotency key is only meaningful for a check that is in flight right now.
-  // Rehydrating one from storage would let a reload replay an attempt from a
-  // previous session, which is the opposite of what it is for.
-  const pendingCheckIds: Record<string, string> = {};
+  // OVERTURNED 2026-08-02 (ruling S6-3). This used to be a module-local map,
+  // documented as "deliberately NOT persisted" on the reasoning that a key
+  // only matters while a request is in flight in this tab. That reasoning
+  // missed the dominant Chromebook failure: request sent → Wi-Fi drops →
+  // response lost → lid closes. With an in-memory key, reopening mints a fresh
+  // one and the retry records a SECOND attempt for one piece of work. The key
+  // now lives in state and therefore in the buffer, so that retry is a replay
+  // against S4-B2's idempotency index. Cleared on success, so a deliberate
+  // re-check still creates a new attempt.
   let counter = 0;
   const newCheckId =
     options.newCheckId ??
@@ -130,10 +161,13 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         .slice(2, 10)}`;
     });
   let state: ViewerStoreState = {
+    userId: options.userId,
     activityId: options.activityId,
     versionId: options.versionId,
     responses: emptySectionResponses(),
     sections: {},
+    pending: {},
+    inFlight: {},
   };
   const listeners = new Set<() => void>();
 
@@ -201,32 +235,43 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
       // Without this, the 3-4 s cold start measured on Edge is enough for a
       // student to give up and press Check again, and the teacher would see two
       // attempts for one piece of work.
-      const idempotencyKey = pendingCheckIds[sectionId] ?? newCheckId();
-      pendingCheckIds[sectionId] = idempotencyKey;
+      const idempotencyKey = state.inFlight[sectionId]?.checkId ?? newCheckId();
 
       // Fire-time snapshot (2.2A): built synchronously from CURRENT values.
+      const firedResponses: SectionResponses = {
+        blanks: pick(state.responses.blanks, items.blanks),
+        choices: pick(state.responses.choices, items.choices),
+        matches: pick(state.responses.matches, items.matches),
+        orderings: pick(state.responses.orderings, items.orderings),
+        freeText: pick(state.responses.freeText, items.freeText),
+        graphs: pick(state.responses.graphs, items.graphs),
+      };
       const request: CheckRequest = {
         wireVersion: CHECK_WIRE_VERSION,
         activityId: state.activityId,
         versionId: state.versionId,
         sectionId,
         idempotencyKey,
-        responses: {
-          blanks: pick(state.responses.blanks, items.blanks),
-          choices: pick(state.responses.choices, items.choices),
-          matches: pick(state.responses.matches, items.matches),
-          orderings: pick(state.responses.orderings, items.orderings),
-          freeText: pick(state.responses.freeText, items.freeText),
-          graphs: pick(state.responses.graphs, items.graphs),
-        },
+        responses: firedResponses,
       };
+      // The key and what it was fired against are recorded BEFORE the await:
+      // if the tab dies mid-request, the buffer already holds enough to make
+      // the next attempt a replay rather than a second attempt.
       commit({
         ...state,
         sections: { ...state.sections, [sectionId]: { phase: 'checking' } },
+        inFlight: {
+          ...state.inFlight,
+          [sectionId]: {
+            checkId: idempotencyKey,
+            fingerprint: fingerprintResponses(firedResponses),
+          },
+        },
       });
       try {
         const result = await checkService.checkSection(request);
-        delete pendingCheckIds[sectionId];
+        const remainingInFlight = { ...state.inFlight };
+        delete remainingInFlight[sectionId];
         // The stale-version advisory rides the successful response; it never
         // turns a good check into a failure.
         const advisory = (result as { currentVersionId?: string })
@@ -240,6 +285,9 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
             ...state.sections,
             [sectionId]: { phase: 'checked', result },
           },
+          // Success clears the key: the next Check is a NEW attempt, which is
+          // what re-checking means. Only the failed-and-retried case collapses.
+          inFlight: remainingInFlight,
         });
       } catch (err) {
         // Responses are untouched — only the section status records the
@@ -273,22 +321,30 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
 
     serialize() {
       const persisted: PersistedViewerState = {
-        ...emptyPersistedState(state.activityId, state.versionId),
+        ...emptyPersistedState(state.userId, state.activityId, state.versionId),
         responses: structuredClone(state.responses),
         checked: Object.fromEntries(
           Object.entries(state.sections).flatMap(([id, status]) =>
             status.phase === 'checked' ? [[id, status.result]] : [],
           ),
         ),
+        pending: structuredClone(state.pending),
+        inFlight: structuredClone(state.inFlight),
       };
       return serializeViewerState(persisted);
     },
 
     hydrate(raw) {
-      const persisted = hydrateViewerState(raw);
+      // The user check happens inside hydrateViewerState — passing the id here
+      // means a foreign blob is refused even if it somehow arrived under this
+      // user's key (the key scheme is the other, independent layer).
+      const persisted = hydrateViewerState(raw, state.userId);
       if (!persisted) return false;
       // A blob from another activity or version never hydrates — a republish
-      // means fresh state (the version-keyed content changed under it).
+      // means fresh state (the version-keyed content changed under it). The
+      // queue's boot path (V6) handles the republish case deliberately, by
+      // deciding which version to RENDER; it never smuggles old responses into
+      // a new version's store, where the block ids wouldn't match anyway.
       if (
         persisted.activityId !== state.activityId ||
         persisted.versionId !== state.versionId
@@ -304,6 +360,8 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
             { phase: 'checked', result } as SectionStatus,
           ]),
         ),
+        pending: structuredClone(persisted.pending),
+        inFlight: structuredClone(persisted.inFlight),
       });
       return true;
     },

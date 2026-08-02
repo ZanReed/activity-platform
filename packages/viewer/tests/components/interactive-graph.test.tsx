@@ -20,6 +20,7 @@ import {
 import type { GraphSurfaceResponse, MockCheckScript } from '../../src/index.js';
 import InteractiveGraph from '../../src/blocks/InteractiveGraph.js';
 import { sanitizedVariantFixtures } from '../../src/fixtures/index.js';
+import { TEST_USER_ID } from '../helpers/ids.js';
 
 const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
 const VERSION = 'bbbbbbbb-0000-4000-8000-000000000001';
@@ -79,6 +80,7 @@ function mount(
 ) {
   const service = createMockCheckService(opts.script ?? {});
   const store = createViewerStore({
+    userId: TEST_USER_ID,
     activityId: ACTIVITY,
     versionId: VERSION,
     checkService: service,

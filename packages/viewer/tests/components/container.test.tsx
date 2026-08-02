@@ -33,6 +33,7 @@ import type {
   SectionCheckResult,
 } from '../../src/index.js';
 import { sanitizedFixtureDocument } from '../../src/fixtures/index.js';
+import { TEST_USER_ID } from '../helpers/ids.js';
 
 const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
 const VERSION = 'bbbbbbbb-0000-4000-8000-000000000001';
@@ -75,6 +76,7 @@ function setup(
 ) {
   const service = createMockCheckService();
   const store = createViewerStore({
+    userId: TEST_USER_ID,
     activityId: ACTIVITY,
     versionId: VERSION,
     checkService: service,
@@ -298,6 +300,7 @@ describe('section checking (ruling P2A + the D12 shortfall rule)', () => {
   it('shows the non-blaming failure state when the check cannot run (ruling 2.1A)', async () => {
     const failing = createMockCheckService({ failWith: new Error('offline') });
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: failing,
@@ -327,6 +330,7 @@ describe('print mode', () => {
       <ViewerContainer
         document={docOf(blocksOf('multiple_choice')[0])}
         store={createViewerStore({
+          userId: TEST_USER_ID,
           activityId: ACTIVITY,
           versionId: VERSION,
           checkService: createMockCheckService(),
@@ -370,6 +374,7 @@ describe('the stale-version banner (ruling S4-T5)', () => {
     // this is an offer, not an interruption.
     const doc = sanitizedFixtureDocument();
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: supersedingService(),
@@ -397,6 +402,7 @@ describe('the stale-version banner (ruling S4-T5)', () => {
     // modal.
     const doc = sanitizedFixtureDocument();
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: supersedingService(),
@@ -418,6 +424,7 @@ describe('the stale-version banner (ruling S4-T5)', () => {
     // Auto-reloading would discard in-flight work — the opposite of helpful.
     const doc = sanitizedFixtureDocument();
     const store = createViewerStore({
+      userId: TEST_USER_ID,
       activityId: ACTIVITY,
       versionId: VERSION,
       checkService: supersedingService(),

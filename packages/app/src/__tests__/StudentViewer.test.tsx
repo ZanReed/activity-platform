@@ -21,8 +21,17 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 
+const STUDENT_ID = 'dddddddd-0000-4000-8000-000000000001';
+
 const h = vi.hoisted(() => ({
-    session: { current: null as { access_token: string } | null },
+    // Shaped like a real Supabase Session: `user` is NOT optional there, and a
+    // double that omits it lets the route read `session.user.id` in tests that
+    // would crash against the real thing.
+    session: {
+      current: null as
+        | { access_token: string; user: { id: string } }
+        | null,
+    },
     meta: { current: { title: 'Linear Systems', teacherName: 'Kia Jafari' } as unknown },
     load: { current: null as unknown },
 }));
@@ -113,7 +122,7 @@ describe('failure screens (Q3A)', () => {
 
     for (const [kind, heading, retryable] of cases) {
         it(`${kind}: says what happened, ${retryable ? 'offers' : 'does NOT offer'} retry`, async () => {
-            h.session.current = { access_token: 'tok' };
+            h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
             h.load.current = new ViewerLoadError(kind, 'boom');
             const { container } = renderRoute();
 
@@ -127,7 +136,7 @@ describe('failure screens (Q3A)', () => {
     }
 
     it('never shows a raw status code as the headline', async () => {
-        h.session.current = { access_token: 'tok' };
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
         h.load.current = new ViewerLoadError('unknown', 'Request failed (503)');
         renderRoute();
         const heading = await screen.findByRole('heading');

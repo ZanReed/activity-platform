@@ -48,6 +48,10 @@ type Verdict = 'correct' | 'incorrect' | 'recorded';
 
 const ACTIVITY_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 const VERSION_ID = 'bbbbbbbb-0000-4000-8000-000000000001';
+// The harness route boots env-less and unauthenticated (ruling D10), so there
+// is no session to take an id from — a fixed one keeps the store's identity
+// requirement honest without pretending a student is signed in.
+const DEV_USER_ID = 'dddddddd-0000-4000-8000-00000000dev0';
 
 export default function DevViewer() {
   // Deep-linkable so the print-parity gate can drive ONE fixture at a time:
@@ -117,6 +121,7 @@ export default function DevViewer() {
     return {
       document,
       store: createViewerStore({
+        userId: DEV_USER_ID,
         activityId: ACTIVITY_ID,
         versionId: VERSION_ID,
         checkService: service,

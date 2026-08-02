@@ -33,9 +33,11 @@ import InteractiveGraph from '../../src/blocks/InteractiveGraph.js';
 import NumberLine from '../../src/blocks/NumberLine.js';
 import DataPlot from '../../src/blocks/DataPlot.js';
 import { sanitizedVariantFixtures } from '../../src/fixtures/index.js';
+import { TEST_USER_ID } from '../helpers/ids.js';
 
 function harness(ui: ReactElement) {
   const store = createViewerStore({
+    userId: TEST_USER_ID,
     activityId: 'aaaaaaaa-0000-4000-8000-000000000001',
     versionId: 'bbbbbbbb-0000-4000-8000-000000000001',
     checkService: createMockCheckService({}),

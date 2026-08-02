@@ -27,6 +27,7 @@ import {
 import NumberLine from '../../src/blocks/NumberLine.js';
 import DataPlot from '../../src/blocks/DataPlot.js';
 import { sanitizedVariantFixtures } from '../../src/fixtures/index.js';
+import { TEST_USER_ID } from '../helpers/ids.js';
 
 const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
 const VERSION = 'bbbbbbbb-0000-4000-8000-000000000001';
@@ -69,6 +70,7 @@ function mount(
   seed?: [number, number][],
 ) {
   const store = createViewerStore({
+    userId: TEST_USER_ID,
     activityId: ACTIVITY,
     versionId: VERSION,
     checkService: createMockCheckService(),
