@@ -15,6 +15,7 @@ import { PrintConfig, PrintHeader } from '@activity/schema';
 import {
   PrintPageRule,
   PrintHeaderRow,
+  PrintWorksheetHeading,
   printVars,
 } from '../../src/container/PrintDocumentLayer.js';
 import { ViewerContainer } from '../../src/container/ViewerContainer.js';
@@ -198,4 +199,71 @@ describe('the reference box on the printed page', () => {
     expect(root.style.getPropertyValue('--print-font-size')).toBe('11pt');
     expect(root.style.getPropertyValue('--print-problem-spacing')).toBe('1rem');
   });
+});
+
+describe('the worksheet says what it is on paper', () => {
+    const renderDoc = () => {
+        const doc = structuredClone(sanitizedFixtureDocument()) as never as {
+            meta: Record<string, unknown>;
+        };
+        const store = createViewerStore({
+            activityId: 'aaaaaaaa-0000-4000-8000-000000000001',
+            versionId: 'bbbbbbbb-0000-4000-8000-000000000001',
+            checkService: createMockCheckService({}),
+        });
+        return render(<ViewerContainer document={doc as never} store={store} />);
+    };
+
+    it('prints the activity title', () => {
+        // On screen the top bar carries this and it is hidden in print, so
+        // without a heading of its own a printed worksheet has no title at all
+        // — a stack of photocopies nobody can file.
+        const { container } = renderDoc();
+        expect(
+            container.querySelector('.viewer-print-heading__title')?.textContent,
+        ).toBe('Fixture worksheet');
+    });
+
+    it('prints the course line the published page prints', () => {
+        const { container } = renderDoc();
+        expect(
+            container.querySelector('.viewer-print-heading__meta')?.textContent,
+        ).toContain('Algebra II');
+    });
+
+    it('joins course and unit with the renderer’s separator', () => {
+        // A teacher printing from either surface should get the same line.
+        const { container } = render(
+            <PrintWorksheetHeading title="Quiz 3" course="Algebra II" unit="Unit 4" />,
+        );
+        expect(
+            container.querySelector('.viewer-print-heading__meta')?.textContent,
+        ).toBe('Algebra II · Unit 4');
+    });
+
+    it('omits the meta line when there is nothing to say', () => {
+        const { container } = render(<PrintWorksheetHeading title="Quiz 3" />);
+        expect(container.querySelector('.viewer-print-heading__meta')).toBeNull();
+        expect(container.querySelector('.viewer-print-heading__title')?.textContent).toBe(
+            'Quiz 3',
+        );
+    });
+
+    it('places the heading AFTER the fill-in lines and BEFORE the work', () => {
+        // The published page's order, and the one that reads correctly: you
+        // write your name at the top, then find out what you are doing.
+        const { container } = renderDoc();
+        const header = container.querySelector('.viewer-print-header');
+        const heading = container.querySelector('.viewer-print-heading');
+        const firstSection = container.querySelector('.viewer-section');
+        expect(header).not.toBeNull();
+        expect(heading).not.toBeNull();
+        expect(
+            header!.compareDocumentPosition(heading!) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(
+            heading!.compareDocumentPosition(firstSection!) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+    });
 });

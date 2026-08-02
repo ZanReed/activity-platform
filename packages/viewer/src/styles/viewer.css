@@ -881,6 +881,7 @@
 .viewer-matching__letter-line,
 .viewer-ordering__number-box,
 .viewer-print-header,
+.viewer-print-heading,
 [data-print-svg] {
   display: none;
 }
@@ -925,8 +926,36 @@
     padding: 0;
   }
 
-  .viewer-banner {
+  /* App chrome never prints. The top bar is sticky page furniture — it carries
+     the Print control that opened this dialog, and its title would duplicate
+     the worksheet heading below. Its screen job ends at the dialog. */
+  .viewer-banner,
+  .viewer-topbar {
     display: none;
+  }
+
+  /* ---- The worksheet's own heading ----------------------------------------
+     Title and course, between the fill-in lines and the work — the published
+     page's order. A stack of untitled photocopies is a stack nobody can file. */
+
+  .viewer-print-heading {
+    display: block;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-line-strong);
+    break-after: avoid; /* never strand the title on a page of its own */
+  }
+
+  .viewer-print-heading__title {
+    font-size: 1.5em;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .viewer-print-heading__meta {
+    color: var(--color-ink-muted);
+    font-size: 0.9em;
+    margin: 0.15rem 0 0;
   }
 
   .viewer-section {

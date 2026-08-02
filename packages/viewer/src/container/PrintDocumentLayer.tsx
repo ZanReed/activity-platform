@@ -62,6 +62,40 @@ export function printVars(print: PrintConfig): CSSProperties {
   } as CSSProperties;
 }
 
+/**
+ * The worksheet's own heading: what it IS, and what course it belongs to.
+ *
+ * On screen this lives in the top bar, which is app chrome — sticky, beside a
+ * Print button, and hidden in print along with the rest of the chrome. On paper
+ * a worksheet still has to say what it is: a stack of photocopies with no title
+ * is a stack nobody can file, and the course line is how a student with four
+ * subjects knows which folder it goes in. The published page has always printed
+ * both, so this is parity, not invention.
+ *
+ * `course · unit` mirrors the renderer's separator exactly, so a teacher who
+ * prints from either surface gets the same line.
+ */
+export function PrintWorksheetHeading({
+  title,
+  course,
+  unit,
+}: {
+  readonly title: string;
+  readonly course?: string | undefined;
+  readonly unit?: string | undefined;
+}): ReactElement | null {
+  const meta = [course, unit].filter((part): part is string => Boolean(part));
+  if (!title && meta.length === 0) return null;
+  return (
+    <header className="viewer-print-heading">
+      <h1 className="viewer-print-heading__title">{title}</h1>
+      {meta.length > 0 ? (
+        <p className="viewer-print-heading__meta">{meta.join(' · ')}</p>
+      ) : null}
+    </header>
+  );
+}
+
 /** The header fields, in the order they print. */
 function headerFields(header: PrintHeader): { key: string; label: string }[] {
   const fields: { key: string; label: string }[] = [];

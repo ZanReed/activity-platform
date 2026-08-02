@@ -56,6 +56,7 @@ import { collectDefinitions } from '../print/definitions.js';
 import {
   PrintPageRule,
   PrintHeaderRow,
+  PrintWorksheetHeading,
   printVars,
 } from './PrintDocumentLayer.js';
 import {
@@ -232,6 +233,14 @@ export function ViewerContainer({
           roster could not have noticed. */}
       <PrintPageRule print={print} />
       <PrintHeaderRow header={print.header} />
+      {/* Below the fill-in lines and above the work, matching the published
+          page's order. On screen the top bar carries this; on paper the top
+          bar is chrome and does not print. */}
+      <PrintWorksheetHeading
+        title={doc.meta.title}
+        course={doc.meta.course}
+        unit={doc.meta.unit}
+      />
 
       {/* The teacher's reference material as a static box at the top of the
           sheet. On screen the panel is a summoned tool; on paper there is

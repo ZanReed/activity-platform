@@ -696,6 +696,10 @@ export const documentPrintRoster: readonly {
     rule: 'Configured font size, problem spacing, and work space take effect on paper.',
   },
   {
+    id: 'document/worksheet-heading',
+    rule: 'The worksheet prints its own title and course line: on screen the top bar carries them, and the top bar is chrome that does not print.',
+  },
+  {
     id: 'document/typography',
     rule: 'A teacher-chosen worksheet font is applied by NAME on both surfaces (never pixel-compared — the font pipelines differ by design).',
   },

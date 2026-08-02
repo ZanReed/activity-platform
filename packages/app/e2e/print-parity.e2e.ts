@@ -480,6 +480,36 @@ test.describe('document print rules', () => {
         expect(await page.locator('.viewer-glossary').count()).toBe(0);
     });
 
+    test('document/worksheet-heading — the sheet says what it is', async ({ page }) => {
+        await page.goto('/dev/viewer?type=paragraph');
+        await page.emulateMedia({ media: 'print' });
+
+        const heading = page.locator('.viewer-print-heading');
+        await expect(heading).toBeAttached();
+        expect(await heading.evaluate((el) => getComputedStyle(el).display)).toBe('block');
+        await expect(page.locator('.viewer-print-heading__title')).toHaveText(
+            'Fixture worksheet',
+        );
+        await expect(page.locator('.viewer-print-heading__meta')).toContainText(
+            'Algebra II',
+        );
+    });
+
+    test('document/worksheet-heading — app chrome does NOT print', async ({ page }) => {
+        // The top bar is sticky page furniture carrying the very Print control
+        // that opened the dialog. Printing it would put an app toolbar — and a
+        // duplicate title — on a student's worksheet.
+        await page.goto('/dev/viewer?type=paragraph');
+        await page.emulateMedia({ media: 'print' });
+        const bars = page.locator('.viewer-topbar');
+        const count = await bars.count();
+        for (let i = 0; i < count; i++) {
+            expect(await bars.nth(i).evaluate((el) => getComputedStyle(el).display)).toBe(
+                'none',
+            );
+        }
+    });
+
     test('document/typography — the chosen font is applied by NAME', async ({ page }) => {
         await page.goto('/dev/viewer?type=paragraph&font=lexend');
         await page.emulateMedia({ media: 'print' });
