@@ -39,6 +39,24 @@ interface SheetRow {
 
 const rows: SheetRow[] = [];
 
+/**
+ * Component roots for the lazily-loaded blocks (the D16 eager/lazy split).
+ *
+ * The container stamps data-block-type on its wrapper IMMEDIATELY, so waiting
+ * on that alone captures the page before a lazy component has mounted — which
+ * is exactly what the first contact sheet did: math_block, interactive_graph,
+ * number_line and data_plot all photographed as blank panels, and the sheet
+ * reported a viewer that renders nothing where in fact it had not been given
+ * time to render at all. A contact sheet that lies is worse than none, because
+ * its whole job is to be believed.
+ */
+const LAZY_ROOTS: Partial<Record<string, string>> = {
+    interactive_graph: '.viewer-graph',
+    number_line: '.viewer-number-line',
+    data_plot: '.viewer-data-plot',
+    math_block: '.viewer-math-block',
+};
+
 function rendererPageFor(type: BlockType): string {
     const doc = authoredFixtureDocument();
     const blocks = doc.sections
@@ -70,6 +88,15 @@ test.describe('print contact sheet', () => {
             // Viewer, in print media.
             await page.goto(`/dev/viewer?type=${type}`);
             await expect(page.locator(`[data-block-type="${type}"]`).first()).toBeAttached();
+            const lazyRoot = LAZY_ROOTS[type];
+            if (lazyRoot) {
+                await expect(page.locator(lazyRoot).first()).toBeAttached({
+                    timeout: 15_000,
+                });
+                // The kit paints after mount; a screenshot on the same tick
+                // catches an empty board.
+                await page.waitForTimeout(600);
+            }
             await page.evaluate(() => document.fonts.ready);
             await page.emulateMedia({ media: 'print' });
             const viewerFile = `${type}-viewer.png`;

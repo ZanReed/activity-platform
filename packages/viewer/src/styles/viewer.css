@@ -43,6 +43,7 @@
 .viewer-section__title {
   border-bottom: 1px solid var(--color-line);
   font-size: var(--type-h2);
+  font-weight: 700;
   margin: 0 0 var(--space-6);
   padding-bottom: var(--space-3);
 }
@@ -258,8 +259,15 @@
   margin: 0;
 }
 
+/* font-weight is set EXPLICITLY for the same reason list-style is below: the
+   app's CSS reset (Tailwind's preflight) sets `font-weight: inherit` on every
+   heading element, so an <h2> in the viewer rendered at body weight — no
+   hierarchy at all, on screen and on paper. Found by the print contact sheet,
+   where a worksheet heading was indistinguishable from the sentence under it.
+   The viewer must never depend on the ABSENCE of a host reset. */
 .viewer-heading {
   font-size: var(--type-h3);
+  font-weight: 700;
   margin: 0;
 }
 
@@ -360,6 +368,7 @@
 .viewer-worked-example__title,
 .viewer-faded-example__title {
   font-size: var(--type-h3);
+  font-weight: 700;
   margin: 0 0 var(--space-3);
 }
 
@@ -1152,6 +1161,16 @@
     min-width: 8ch;
   }
 
+  /* MathLive renders its own controls inside a shadow root — a virtual-keyboard
+     toggle and a menu button. They are screen affordances for entering an
+     answer, and on paper they are two blue icons sitting in the middle of an
+     equation. Hidden via ::part, which is the only handle the shadow DOM
+     offers. */
+  math-field::part(virtual-keyboard-toggle),
+  math-field::part(menu-toggle) {
+    display: none;
+  }
+
   /* ---- Treatment: choice-letters ------------------------------------------
      The native control is meaningless on paper; the LETTER is what a student
      circles. Same convention the published page uses. */
@@ -1182,6 +1201,14 @@
     border-bottom: 1px solid var(--color-ink);
     text-align: center;
     font-weight: 600;
+    /* Sits on the ROW's bottom edge, level with the text it answers.
+       `align-self: baseline` does not work here and is worth recording: this
+       span is EMPTY, so its baseline is its own bottom margin edge, and
+       aligning that to the row's text baseline pushes the rule up above the
+       words instead of under them. Giving it the row's floor is both simpler
+       and correct for an element whose whole job is to be a writing line. */
+    align-self: flex-end;
+    margin-bottom: 0.15em;
   }
 
   .viewer-matching__bank {

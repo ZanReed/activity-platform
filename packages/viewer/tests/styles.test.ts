@@ -148,6 +148,37 @@ describe('the floors the design rulings set', () => {
   });
 });
 
+describe('the viewer never depends on the absence of a host reset', () => {
+  // This has now bitten twice. First list markers: the app's CSS reset strips
+  // ul/ol bullets, so worksheet lists rendered as loose sentences until
+  // list-style was made explicit. Then heading weight: the same reset sets
+  // `font-weight: inherit` on every heading element, so an <h2> rendered at
+  // body weight — no hierarchy at all, on screen or on paper, until the print
+  // contact sheet showed a worksheet heading indistinguishable from the
+  // sentence under it.
+  //
+  // The rule generalises: anything the viewer relies on a UA default for is
+  // one host stylesheet away from vanishing silently. These pin the properties
+  // that have actually been lost.
+  it('states heading weight explicitly (a reset would otherwise flatten it)', () => {
+    for (const selector of [
+      '.viewer-heading',
+      '.viewer-section__title',
+    ]) {
+      const rule = code.slice(code.indexOf(`${selector} {`));
+      const block = rule.slice(0, rule.indexOf('}'));
+      expect(block, `${selector} inherits its weight from the host`).toMatch(
+        /font-weight:\s*\d00/,
+      );
+    }
+  });
+
+  it('states list markers explicitly', () => {
+    expect(code).toMatch(/\.viewer-list--bullet\s*\{[^}]*list-style/);
+    expect(code).toMatch(/\.viewer-list--ordered\s*\{[^}]*list-style/);
+  });
+});
+
 describe('the print stylesheet agrees with the registry it mirrors', () => {
   // CSS cannot import the registry, so the break-inside list in viewer.css is
   // kept by hand — and a hand-kept list drifts the moment somebody adds a block
