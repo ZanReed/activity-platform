@@ -236,7 +236,7 @@ describe('the print stylesheet agrees with the registry it mirrors', () => {
     // Paper is white regardless of the screen theme, and viewer print rules
     // resolve their colours from theme tokens — so a dark-mode student would
     // print near-white ink on white paper. Measured, not hypothesised:
-    // --color-ink is #f1f5f9 in dark mode.
+    // --vw-color-ink is #f1f5f9 in dark mode.
     //
     // tokens.css already flattens the palette inside its own @media print
     // block, so the defence exists; what was missing is this pin. Without it,
@@ -260,7 +260,7 @@ describe('the print stylesheet agrees with the registry it mirrors', () => {
       ...new Set([...print.matchAll(/var\(\s*(--[a-z0-9-]+)/g)].map((m) => m[1])),
     ].filter(
       (name) =>
-        /^--(?:color|state|callout)-/.test(name ?? '') &&
+        /^--(?:vw-color|state|callout)-/.test(name ?? '') &&
         !/-print-border$/.test(name ?? ''),
     );
 

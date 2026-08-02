@@ -21,6 +21,28 @@
  * re-declare exactly the color roles the light block declares, and the token
  * names exported in tokens.ts must match. Add a token → add it in all three
  * places or the suite fails.
+ *
+ * NAMING RULE — every token here is prefixed `--vw-`, and NO token may be
+ * declared in a namespace Tailwind's `@theme` owns (`--color-*`, `--radius-*`,
+ * `--font-*`, `--shadow-*`, `--text-*`, `--leading-*`, `--ease-*`, …). This file
+ * is imported by the APP (routes/StudentViewer + routes/DevViewer, both eagerly
+ * reached from App.tsx), so it loads on EVERY route and declares onto the shared
+ * document `:root`. It is also UNLAYERED, while the app's `@theme` compiles into
+ * `@layer theme` — and unlayered always beats layered, whatever the source
+ * order. Any name shared with the app is therefore silently won by this file,
+ * app-wide, with no test to catch it.
+ *
+ * That is not hypothetical: this layer used to declare plain `--color-*` and
+ * `--radius-*`, and quietly overrode SEVEN of the app's roles. The one that
+ * drew blood was `--color-accent-strong`, where the two layers mean OPPOSITE
+ * things — here it is accent's HOVER partner, so dark brightens it to #93c5fd
+ * with dark ink on top; in the app it backs a solid WHITE-text button, so dark
+ * must stay dark. The app's Print button inherited #93c5fd and rendered white
+ * text at 1.80:1 (dark-contrast.e2e.ts caught it; `--radius-md/lg` had been
+ * silently retuning every `rounded-md`/`rounded-lg` in the chrome too).
+ * Namespacing is what keeps the two vocabularies independent — do not
+ * un-prefix a token to "match" an app role. If the two should genuinely share
+ * a value, alias it explicitly: `--vw-color-x: var(--color-x)`.
  * ========================================================================= */
 
 :root {
@@ -31,34 +53,34 @@
    * raised: inputs and controls sitting on paper (blank bg #fafafa).
    * overlay: floating cards (popovers, panels) — white on light, and on dark
    *          one elevation step ABOVE paper, per the elevation rule. */
-  --color-page: #f8fafc;
-  --color-paper: #ffffff;
-  --color-raised: #fafafa;
-  --color-overlay: #ffffff;
-  --color-hover: #f1f5f9;      /* row hover fill (mc choices) */
+  --vw-color-page: #f8fafc;
+  --vw-color-paper: #ffffff;
+  --vw-color-raised: #fafafa;
+  --vw-color-overlay: #ffffff;
+  --vw-color-hover: #f1f5f9;      /* row hover fill (mc choices) */
 
   /* ---- Ink ---------------------------------------------------------------
    * muted consolidates the published page's #6b6b6b and #64748b (one step
    * apart, both "meta text") onto slate-500 — AA on white paper; on tinted
-   * surfaces use --color-ink. faint is NON-TEXT (grips, ghosts, decorations). */
-  --color-ink: #1a1a1a;
-  --color-ink-muted: #64748b;
-  --color-ink-faint: #94a3b8;
+   * surfaces use --vw-color-ink. faint is NON-TEXT (grips, ghosts, decorations). */
+  --vw-color-ink: #1a1a1a;
+  --vw-color-ink-muted: #64748b;
+  --vw-color-ink-faint: #94a3b8;
 
   /* ---- Hairlines ---------------------------------------------------------
    * line: the default border (#e5e5e5). line-strong: card/canvas borders
    * (#cbd5e1). line-faint: figure borders (#e2e8f0). */
-  --color-line: #e5e5e5;
-  --color-line-strong: #cbd5e1;
-  --color-line-faint: #e2e8f0;
+  --vw-color-line: #e5e5e5;
+  --vw-color-line-strong: #cbd5e1;
+  --vw-color-line-faint: #e2e8f0;
 
   /* ---- Accent (interactive blue) ----------------------------------------
    * accent: links, focus rings, primary buttons (#2563eb, blue-600 — white
    * text AA 5.2:1). accent-strong: hover (#1d4ed8). accent-wash: drag-over /
    * selection tint (#eff6ff). */
-  --color-accent: #2563eb;
-  --color-accent-strong: #1d4ed8;
-  --color-accent-wash: #eff6ff;
+  --vw-color-accent: #2563eb;
+  --vw-color-accent-strong: #1d4ed8;
+  --vw-color-accent-wash: #eff6ff;
 
   /* ---- State vocabulary (rulings 7.2A / 2.1A / TV3-A) --------------------
    * ONE trio + recorded, reused everywhere a state pill, blank, row, or
@@ -87,7 +109,7 @@
   --state-pending-border: #f59e0b;
   --state-pending-surface: #fef3c7;
 
-  /* recorded-ink is slate-600, NOT slate-500 like --color-ink-muted: it renders
+  /* recorded-ink is slate-600, NOT slate-500 like --vw-color-ink-muted: it renders
    * ON --state-recorded-surface (slate-100), where slate-500 is 4.36:1 — sub-AA.
    * Same one-step-darker rule the app ratified for muted-on-tinted (index.css).
    * The tokens guard test checks every state ink at AA on paper AND its own
@@ -115,12 +137,12 @@
   /* ---- Typography --------------------------------------------------------
    * Worksheet content inherits meta.typography via --activity-font-family /
    * --activity-font-size exactly as published pages do (ruling 4.1A) — these
-   * are the FALLBACKS. --font-chrome is the viewer chrome's ONE typeface;
+   * are the FALLBACKS. --vw-font-chrome is the viewer chrome's ONE typeface;
    * its concrete face is a T6 design decision (4.1A), seamed here so naming
    * it is a one-line change. */
-  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-chrome: var(--font-body);
-  --font-math: "Latin Modern Math", "Cambria Math", serif;
+  --vw-font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --vw-font-chrome: var(--vw-font-body);
+  --vw-font-math: "Latin Modern Math", "Cambria Math", serif;
   --leading: 1.6;
 
   /* Type scale — em-relative so it rides --activity-font-size on screen and
@@ -151,21 +173,21 @@
   --touch-target: 44px;   /* 6.1A floor for tap targets */
 
   /* ---- Radii -------------------------------------------------------------*/
-  --radius-sm: 3px;       /* blanks */
-  --radius-md: 4px;       /* images, small chips */
-  --radius-lg: 6px;       /* cards, callouts, buttons, canvases */
-  --radius-xl: 8px;       /* popovers */
-  --radius-window: 10px;  /* floating tool windows */
-  --radius-pill: 999px;
+  --vw-radius-sm: 3px;       /* blanks */
+  --vw-radius-md: 4px;       /* images, small chips */
+  --vw-radius-lg: 6px;       /* cards, callouts, buttons, canvases */
+  --vw-radius-xl: 8px;       /* popovers */
+  --vw-radius-window: 10px;  /* floating tool windows */
+  --vw-radius-pill: 999px;
 
   /* ---- Focus (6.1A: visible focus everywhere) ----------------------------*/
-  --focus-ring: 2px solid var(--color-accent);
+  --focus-ring: 2px solid var(--vw-color-accent);
   --focus-offset: 2px;
 
   /* ---- Shadows ----------------------------------------------------------*/
-  --shadow-popover: 0 10px 40px rgba(0, 0, 0, 0.25);
-  --shadow-window: 0 8px 28px rgba(0, 0, 0, 0.22);
-  --shadow-drag: 0 4px 12px rgba(15, 23, 42, 0.25);
+  --vw-shadow-popover: 0 10px 40px rgba(0, 0, 0, 0.25);
+  --vw-shadow-window: 0 8px 28px rgba(0, 0, 0, 0.22);
+  --vw-shadow-drag: 0 4px 12px rgba(15, 23, 42, 0.25);
 
   /* ---- Z scale (published-page ladder, room left for viewer chrome) ------*/
   --z-tools: 110;
@@ -183,23 +205,23 @@
  * ========================================================================= */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-page: #020617;
-    --color-paper: #0f172a;
-    --color-raised: #1e293b;
-    --color-overlay: #1e293b;
-    --color-hover: #1e293b;
+    --vw-color-page: #020617;
+    --vw-color-paper: #0f172a;
+    --vw-color-raised: #1e293b;
+    --vw-color-overlay: #1e293b;
+    --vw-color-hover: #1e293b;
 
-    --color-ink: #f1f5f9;
-    --color-ink-muted: #94a3b8;
-    --color-ink-faint: #64748b;
+    --vw-color-ink: #f1f5f9;
+    --vw-color-ink-muted: #94a3b8;
+    --vw-color-ink-faint: #64748b;
 
-    --color-line: #1e293b;
-    --color-line-strong: #334155;
-    --color-line-faint: #334155;
+    --vw-color-line: #1e293b;
+    --vw-color-line-strong: #334155;
+    --vw-color-line-faint: #334155;
 
-    --color-accent: #60a5fa;
-    --color-accent-strong: #93c5fd;
-    --color-accent-wash: #172554;
+    --vw-color-accent: #60a5fa;
+    --vw-color-accent-strong: #93c5fd;
+    --vw-color-accent-wash: #172554;
 
     --state-correct-ink: #34d399;
     --state-correct-border: #34d399;
@@ -235,23 +257,23 @@
  * identical) because CSS has no non-preprocessed way to share the block while
  * still beating the :root defaults in both trigger paths. */
 :root[data-theme="dark"] {
-  --color-page: #020617;
-  --color-paper: #0f172a;
-  --color-raised: #1e293b;
-  --color-overlay: #1e293b;
-  --color-hover: #1e293b;
+  --vw-color-page: #020617;
+  --vw-color-paper: #0f172a;
+  --vw-color-raised: #1e293b;
+  --vw-color-overlay: #1e293b;
+  --vw-color-hover: #1e293b;
 
-  --color-ink: #f1f5f9;
-  --color-ink-muted: #94a3b8;
-  --color-ink-faint: #64748b;
+  --vw-color-ink: #f1f5f9;
+  --vw-color-ink-muted: #94a3b8;
+  --vw-color-ink-faint: #64748b;
 
-  --color-line: #1e293b;
-  --color-line-strong: #334155;
-  --color-line-faint: #334155;
+  --vw-color-line: #1e293b;
+  --vw-color-line-strong: #334155;
+  --vw-color-line-faint: #334155;
 
-  --color-accent: #60a5fa;
-  --color-accent-strong: #93c5fd;
-  --color-accent-wash: #172554;
+  --vw-color-accent: #60a5fa;
+  --vw-color-accent-strong: #93c5fd;
+  --vw-color-accent-wash: #172554;
 
   --state-correct-ink: #34d399;
   --state-correct-border: #34d399;
@@ -287,23 +309,23 @@
 @media print {
   :root,
   :root[data-theme="dark"] {
-    --color-page: #ffffff;
-    --color-paper: #ffffff;
-    --color-raised: #ffffff;
-    --color-overlay: #ffffff;
-    --color-hover: transparent;
+    --vw-color-page: #ffffff;
+    --vw-color-paper: #ffffff;
+    --vw-color-raised: #ffffff;
+    --vw-color-overlay: #ffffff;
+    --vw-color-hover: transparent;
 
-    --color-ink: #000000;
-    --color-ink-muted: #000000;
-    --color-ink-faint: #000000;
+    --vw-color-ink: #000000;
+    --vw-color-ink-muted: #000000;
+    --vw-color-ink-faint: #000000;
 
-    --color-line: #000000;
-    --color-line-strong: #000000;
-    --color-line-faint: #000000;
+    --vw-color-line: #000000;
+    --vw-color-line-strong: #000000;
+    --vw-color-line-faint: #000000;
 
-    --color-accent: #000000;
-    --color-accent-strong: #000000;
-    --color-accent-wash: transparent;
+    --vw-color-accent: #000000;
+    --vw-color-accent-strong: #000000;
+    --vw-color-accent-wash: transparent;
 
     /* A printed worksheet is the BLANK version — scored state is neutralized
      * (standing print constraint), so the state roles flatten to ink/paper. */

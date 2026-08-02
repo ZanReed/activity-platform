@@ -22,9 +22,9 @@
 /* ---- Shell ---------------------------------------------------------------- */
 
 .viewer {
-  background: var(--color-page);
-  color: var(--color-ink);
-  font-family: var(--activity-font-family, var(--font-body));
+  background: var(--vw-color-page);
+  color: var(--vw-color-ink);
+  font-family: var(--activity-font-family, var(--vw-font-body));
   font-size: var(--activity-font-size, var(--type-body));
   line-height: var(--leading);
   min-height: 100%;
@@ -32,16 +32,16 @@
 }
 
 .viewer-section {
-  background: var(--color-paper);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
   margin: 0 auto var(--space-6);
   max-width: var(--measure);
   padding: var(--space-8);
 }
 
 .viewer-section__title {
-  border-bottom: 1px solid var(--color-line);
+  border-bottom: 1px solid var(--vw-color-line);
   font-size: var(--type-h2);
   font-weight: 700;
   margin: 0 0 var(--space-6);
@@ -108,7 +108,7 @@
 
 .viewer-section__footer {
   align-items: center;
-  border-top: 1px solid var(--color-line);
+  border-top: 1px solid var(--vw-color-line);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
@@ -117,10 +117,10 @@
 }
 
 .viewer-section__check {
-  background: var(--color-accent);
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-lg);
-  color: var(--color-paper);
+  background: var(--vw-color-accent);
+  border: 1px solid var(--vw-color-accent);
+  border-radius: var(--vw-radius-lg);
+  color: var(--vw-color-paper);
   cursor: pointer;
   font: inherit;
   font-size: var(--type-small);
@@ -129,8 +129,8 @@
 }
 
 .viewer-section__check:hover:not(:disabled) {
-  background: var(--color-accent-strong);
-  border-color: var(--color-accent-strong);
+  background: var(--vw-color-accent-strong);
+  border-color: var(--vw-color-accent-strong);
 }
 
 .viewer-section__check:disabled {
@@ -140,7 +140,7 @@
 
 .viewer-section__status,
 .viewer-section__shortfall {
-  color: var(--color-ink-muted);
+  color: var(--vw-color-ink-muted);
   font-size: var(--type-meta);
   margin: 0;
 }
@@ -157,7 +157,7 @@
 .viewer-state-pill {
   align-items: center;
   border: 1px solid;
-  border-radius: var(--radius-pill);
+  border-radius: var(--vw-radius-pill);
   display: inline-flex;
   font-size: var(--type-meta);
   gap: var(--space-1);
@@ -196,7 +196,7 @@
 
 /* Server feedback sits under the mark it explains. */
 [data-feedback='server'] {
-  color: var(--color-ink-muted);
+  color: var(--vw-color-ink-muted);
   font-size: var(--type-small);
   margin: var(--space-2) 0 0;
 }
@@ -206,15 +206,15 @@
    cannot push the rest of the worksheet off screen. */
 
 .viewer-solution {
-  background: var(--color-raised);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
+  background: var(--vw-color-raised);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
   margin-top: var(--space-3);
   padding: var(--space-2) var(--space-4);
 }
 
 .viewer-solution > summary {
-  color: var(--color-accent);
+  color: var(--vw-color-accent);
   cursor: pointer;
   font-size: var(--type-small);
   min-height: var(--touch-target);
@@ -223,7 +223,7 @@
 }
 
 .viewer-solution__body {
-  border-top: 1px solid var(--color-line);
+  border-top: 1px solid var(--vw-color-line);
   margin-top: var(--space-2);
   max-height: 24rem;
   overflow-y: auto;
@@ -236,10 +236,10 @@
 
 .viewer-block-error,
 .viewer-block__unbound {
-  background: var(--color-raised);
-  border: 1px dashed var(--color-line-strong);
-  border-radius: var(--radius-lg);
-  color: var(--color-ink-muted);
+  background: var(--vw-color-raised);
+  border: 1px dashed var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-lg);
+  color: var(--vw-color-ink-muted);
   font-size: var(--type-small);
   padding: var(--space-3) var(--space-4);
 }
@@ -302,7 +302,7 @@
 
 .viewer-callout {
   border-left: 3px solid;
-  border-radius: var(--radius-lg);
+  border-radius: var(--vw-radius-lg);
   display: flex;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
@@ -349,13 +349,13 @@
 }
 
 .viewer-image__img {
-  border-radius: var(--radius-md);
+  border-radius: var(--vw-radius-md);
   display: block;
   max-width: 100%;
 }
 
 .viewer-image__caption {
-  color: var(--color-ink-muted);
+  color: var(--vw-color-ink-muted);
   font-size: var(--type-meta);
   margin-top: var(--space-2);
 }
@@ -365,16 +365,16 @@
 }
 
 .viewer-figure__svg {
-  color: var(--color-ink);
+  color: var(--vw-color-ink);
   display: block;
 }
 
 .viewer-objectives,
 .viewer-worked-example,
 .viewer-faded-example {
-  background: var(--color-raised);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
+  background: var(--vw-color-raised);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
   padding: var(--space-4) var(--space-5);
 }
 
@@ -426,8 +426,8 @@
 .viewer-blank__input {
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--color-ink);
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-bottom: 1px solid var(--vw-color-ink);
+  border-radius: var(--vw-radius-sm) var(--vw-radius-sm) 0 0;
   color: inherit;
   font: inherit;
   min-width: 4ch;
@@ -446,7 +446,7 @@
 }
 
 .viewer-blank__feedback {
-  color: var(--color-ink-muted);
+  color: var(--vw-color-ink-muted);
   display: block;
   font-size: var(--type-meta);
 }
@@ -473,8 +473,8 @@
 
 .viewer-mc__label {
   align-items: center;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
   cursor: pointer;
   display: flex;
   gap: var(--space-3);
@@ -483,7 +483,7 @@
 }
 
 .viewer-mc__label:hover {
-  background: var(--color-hover);
+  background: var(--vw-color-hover);
 }
 
 .viewer-mc__choice + .viewer-mc__choice {
@@ -500,20 +500,20 @@
 }
 
 .viewer-matching__item {
-  border-top: 1px solid var(--color-line-faint);
+  border-top: 1px solid var(--vw-color-line-faint);
   justify-content: space-between;
   min-height: var(--touch-target);
 }
 
 .viewer-matching__letter {
-  color: var(--color-ink-muted);
+  color: var(--vw-color-ink-muted);
   font-weight: 700;
 }
 
 .viewer-matching__bank {
-  background: var(--color-raised);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
+  background: var(--vw-color-raised);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
   margin-bottom: var(--space-4);
   padding: var(--space-3) var(--space-4);
 }
@@ -525,9 +525,9 @@
 }
 
 .viewer-matching__select {
-  background: var(--color-paper);
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-md);
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-md);
   color: inherit;
   min-height: var(--touch-target);
   padding: var(--space-1) var(--space-2);
@@ -536,8 +536,8 @@
 /* Ordering: numbered rows with move controls. */
 .viewer-ordering__item {
   align-items: center;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
   display: flex;
   gap: var(--space-3);
   justify-content: space-between;
@@ -556,9 +556,9 @@
 }
 
 .viewer-ordering__controls button {
-  background: var(--color-raised);
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-md);
+  background: var(--vw-color-raised);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-md);
   color: inherit;
   cursor: pointer;
   min-height: var(--touch-target);
@@ -574,9 +574,9 @@
 .viewer-short-answer__input,
 .viewer-self-explanation__input,
 .viewer-essay__input {
-  background: var(--color-paper);
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-lg);
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-lg);
   color: inherit;
   display: block;
   font: inherit;
@@ -593,7 +593,7 @@
 }
 
 .viewer-essay__count {
-  color: var(--color-ink-muted);
+  color: var(--vw-color-ink-muted);
   font-size: var(--type-meta);
   margin: var(--space-1) 0 0;
 }
@@ -602,9 +602,9 @@
 .viewer-graph__canvas,
 .viewer-number-line__canvas,
 .viewer-data-plot__canvas {
-  background: var(--color-paper);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
 }
 
 .viewer-graph__unavailable {
@@ -622,7 +622,7 @@
 .viewer-definition__term {
   background: none;
   border: none;
-  border-bottom: 1px dotted var(--color-accent);
+  border-bottom: 1px dotted var(--vw-color-accent);
   color: inherit;
   cursor: pointer;
   font: inherit;
@@ -630,8 +630,8 @@
 }
 
 .viewer-definition__body {
-  background: var(--color-accent-wash);
-  border-radius: var(--radius-md);
+  background: var(--vw-color-accent-wash);
+  border-radius: var(--vw-radius-md);
   display: inline-block;
   font-size: var(--type-small);
   margin-left: var(--space-2);
@@ -643,26 +643,26 @@
 
 .viewer-centered {
   align-items: center;
-  background: var(--color-page);
-  color: var(--color-ink);
+  background: var(--vw-color-page);
+  color: var(--vw-color-ink);
   display: flex;
-  font-family: var(--font-chrome);
+  font-family: var(--vw-font-chrome);
   justify-content: center;
   min-height: 100vh;
   padding: var(--space-6) var(--space-4);
 }
 
 .viewer-gate {
-  background: var(--color-paper);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
   max-width: 32rem;
   padding: var(--space-8);
   text-align: center;
 }
 
 .viewer-gate__eyebrow {
-  color: var(--color-ink-muted);
+  color: var(--vw-color-ink-muted);
   font-size: var(--type-meta);
   margin: 0 0 var(--space-1);
 }
@@ -673,19 +673,19 @@
 }
 
 .viewer-gate__body {
-  color: var(--color-ink-muted);
+  color: var(--vw-color-ink-muted);
   margin: 0 0 var(--space-5);
 }
 
 .viewer-gate__detail {
-  color: var(--color-ink-faint);
+  color: var(--vw-color-ink-faint);
   font-size: var(--type-fine);
   margin: var(--space-5) 0 0;
 }
 
 .viewer-topbar {
-  background: var(--color-paper);
-  border-bottom: 1px solid var(--color-line);
+  background: var(--vw-color-paper);
+  border-bottom: 1px solid var(--vw-color-line);
   padding: var(--space-3) var(--space-4);
   position: sticky;
   top: 0;
@@ -697,10 +697,10 @@
    work — so it reads as a secondary control rather than competing with the
    section check buttons below it. */
 .viewer-print-action {
-  background: var(--color-paper);
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-md);
-  color: var(--color-ink);
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-md);
+  color: var(--vw-color-ink);
   cursor: pointer;
   font: inherit;
   font-size: var(--type-small);
@@ -709,11 +709,11 @@
 }
 
 .viewer-print-action:hover:not(:disabled) {
-  background: var(--color-hover);
+  background: var(--vw-color-hover);
 }
 
 .viewer-print-action:disabled {
-  color: var(--color-ink-muted);
+  color: var(--vw-color-ink-muted);
   cursor: default;
 }
 
@@ -727,7 +727,7 @@
 }
 
 .viewer-topbar h1 {
-  font-family: var(--font-chrome);
+  font-family: var(--vw-font-chrome);
   font-size: var(--type-h3);
   margin: 0 auto;
   max-width: var(--measure);
@@ -738,8 +738,8 @@
    placeholder — which still communicates "not loaded yet". */
 .viewer-skeleton__row {
   animation: viewer-shimmer 1.4s ease-in-out infinite;
-  background: var(--color-line-faint);
-  border-radius: var(--radius-sm);
+  background: var(--vw-color-line-faint);
+  border-radius: var(--vw-radius-sm);
   height: var(--space-4);
   margin-bottom: var(--space-3);
 }
@@ -845,10 +845,10 @@
   gap: var(--space-3);
   margin-bottom: var(--space-4);
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-lg);
-  background: var(--color-accent-wash);
-  color: var(--color-ink);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-lg);
+  background: var(--vw-color-accent-wash);
+  color: var(--vw-color-ink);
   font-size: var(--type-small);
 }
 
@@ -856,16 +856,16 @@
   /* 44px target, same floor the styles suite pins for every control. */
   min-height: 44px;
   padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-md);
-  background: var(--color-paper);
-  color: var(--color-accent-strong);
+  border: 1px solid var(--vw-color-accent);
+  border-radius: var(--vw-radius-md);
+  background: var(--vw-color-paper);
+  color: var(--vw-color-accent-strong);
   font: inherit;
   cursor: pointer;
 }
 
 .viewer-banner-action:hover {
-  background: var(--color-hover);
+  background: var(--vw-color-hover);
 }
 
 /* ---- Print-only affordances, hidden on screen -----------------------------
@@ -942,7 +942,7 @@
     display: block;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--color-line-strong);
+    border-bottom: 1px solid var(--vw-color-line-strong);
     break-after: avoid; /* never strand the title on a page of its own */
   }
 
@@ -953,7 +953,7 @@
   }
 
   .viewer-print-heading__meta {
-    color: var(--color-ink-muted);
+    color: var(--vw-color-ink-muted);
     font-size: 0.9em;
     margin: 0.15rem 0 0;
   }
@@ -1001,7 +1001,7 @@
     gap: 0.4rem 1.5rem;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--color-ink);
+    border-bottom: 1px solid var(--vw-color-ink);
     break-inside: avoid;
     break-after: avoid; /* never strand the header on a page of its own */
   }
@@ -1020,7 +1020,7 @@
   .viewer-print-header__line {
     display: inline-block;
     min-width: 8ch;
-    border-bottom: 1px solid var(--color-ink);
+    border-bottom: 1px solid var(--vw-color-ink);
   }
 
   /* A name and a free-form field need room to write; a score does not. */
@@ -1038,8 +1038,8 @@
   .viewer-reference-print {
     display: block;
     break-inside: avoid;
-    border: 1px solid var(--color-ink);
-    border-radius: var(--radius-md);
+    border: 1px solid var(--vw-color-ink);
+    border-radius: var(--vw-radius-md);
     padding: 0.6rem 0.9rem;
     margin-bottom: 1.5rem;
   }
@@ -1059,7 +1059,7 @@
     display: block;
     margin-top: 1.5rem;
     padding-top: 0.75rem;
-    border-top: 1px solid var(--color-ink);
+    border-top: 1px solid var(--vw-color-ink);
   }
 
   .viewer-glossary__title {
@@ -1199,7 +1199,7 @@
   .viewer-blank__input[data-state='incorrect'] {
     background: none !important;
     border: none !important;
-    border-bottom: 1px solid var(--color-ink) !important;
+    border-bottom: 1px solid var(--vw-color-ink) !important;
     border-radius: 0;
     min-width: 8ch;
   }
@@ -1241,7 +1241,7 @@
   .viewer-matching__letter-line {
     display: inline-block;
     min-width: 2.5rem;
-    border-bottom: 1px solid var(--color-ink);
+    border-bottom: 1px solid var(--vw-color-ink);
     text-align: center;
     font-weight: 600;
     /* Sits on the ROW's bottom edge, level with the text it answers.
@@ -1262,7 +1262,7 @@
   .viewer-matching__item[data-state='correct'],
   .viewer-matching__item[data-state='incorrect'] {
     background: none;
-    border-color: var(--color-ink);
+    border-color: var(--vw-color-ink);
   }
 
   /* ---- Treatment: number-boxes -------------------------------------------- */
@@ -1271,8 +1271,8 @@
     display: inline-block;
     min-width: 1.6rem;
     min-height: 1.4rem;
-    border: 1px solid var(--color-ink);
-    border-radius: var(--radius-sm);
+    border: 1px solid var(--vw-color-ink);
+    border-radius: var(--vw-radius-sm);
     text-align: center;
     font-weight: 600;
   }
@@ -1281,7 +1281,7 @@
   .viewer-ordering__item[data-state='correct'],
   .viewer-ordering__item[data-state='incorrect'] {
     background: none;
-    border-color: var(--color-ink);
+    border-color: var(--vw-color-ink);
     /* The screen row is `space-between` so the reorder controls sit at the far
        edge. In print those controls are gone, and space-between then strands
        the step text against the right margin, a whole column away from the box
@@ -1299,7 +1299,7 @@
   .viewer-short-answer__input,
   .viewer-self-explanation__input,
   .viewer-essay__input {
-    border: 1px solid var(--color-ink) !important;
+    border: 1px solid var(--vw-color-ink) !important;
     background: none !important;
     min-height: 6em;
     resize: none;
@@ -1324,25 +1324,25 @@
   .viewer-objectives,
   .viewer-worked-example {
     background: none;
-    border: 1px solid var(--color-ink);
+    border: 1px solid var(--vw-color-ink);
   }
 
   .viewer-faded-example {
     background: none;
-    border: 1px dashed var(--color-ink);
+    border: 1px dashed var(--vw-color-ink);
   }
 
   .viewer-worked-example__title,
   .viewer-faded-example__title,
   .viewer-objectives__title {
-    color: var(--color-ink);
+    color: var(--vw-color-ink);
   }
 
   /* ---- Treatment: variant-border-box ---------------------------------------
      Callout identity survives grayscale via BORDER STYLE, not colour. */
 
   .viewer-callout {
-    border: 1px solid var(--color-ink);
+    border: 1px solid var(--vw-color-ink);
     border-left-width: 3px;
     background: none;
   }
@@ -1351,7 +1351,7 @@
      other is the border style), drawn in currentColor so it comes out as ink
      rather than as a colour glyph the photocopier turns to mush. */
   .viewer-callout__icon {
-    color: var(--color-ink);
+    color: var(--vw-color-ink);
   }
 
   .viewer-callout--info {

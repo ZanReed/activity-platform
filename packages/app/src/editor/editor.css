@@ -79,9 +79,18 @@
     --ed-border: var(--color-line);
     --ed-border-strong: var(--color-line-strong);
 
-    /* Semantic — primary accent (action / selection / focus) */
-    --ed-accent: var(--color-accent);
-    --ed-accent-strong: var(--color-accent-strong);
+    /* Semantic — primary accent (action / selection / focus).
+     * FOUR roles, split by CONTRAST DUTY — the split is load-bearing in dark,
+     * where "emphasis" pulls in opposite directions depending on what sits on
+     * the color. -text must LIGHTEN (it is ink on a dark tint); -strong must
+     * stay DARK (it is a fill under white ink). One token cannot do both, and
+     * the editor previously asked -strong to, which is why dark rendered white
+     * text at 1.80:1 on the command bar while blue-600 body text sat at 2.15:1
+     * on --ed-accent-bg. Mirrors --ed-accent-alt-strong's light-dark flip. */
+    --ed-accent: var(--color-accent);                    /* NON-TEXT ONLY: focus rings, outlines, hairlines */
+    --ed-accent-text: light-dark(var(--ed-blue-600), var(--ed-blue-300)); /* accent TEXT/icons on canvas or --ed-accent-bg */
+    --ed-accent-strong: var(--color-accent-strong);      /* solid fill UNDER WHITE text (blue-600 both themes) */
+    --ed-accent-stronger: var(--color-accent-stronger);  /* that fill's hover (blue-700 both themes) */
     --ed-accent-bg: light-dark(var(--ed-blue-50), rgb(23 37 84));
     --ed-accent-bg-2: light-dark(var(--ed-blue-100), rgb(30 58 138));
     --ed-accent-soft: light-dark(var(--ed-blue-300), rgb(59 130 246));
@@ -344,7 +353,7 @@
 /* Signifier (MA-DR4): a gap with no answer yet is an incomplete question. */
 .math-gap-incomplete {
     font-size: 0.75rem;
-    color: var(--ed-accent-strong);
+    color: var(--ed-accent-text);
 }
 /* Tint MathLive's in-field placeholders so a gap reads as a distinct blank
    (empty renders as a box, an answered gap shows the answer). */
@@ -372,7 +381,7 @@
 .math-gap-settings[aria-expanded='true'],
 .fill-in-blank-block__add-blank:hover {
     border-color: var(--ed-accent);
-    color: var(--ed-accent-strong);
+    color: var(--ed-accent-text);
     background: var(--ed-accent-bg);
 }
 
@@ -658,7 +667,7 @@
 
 .block-insert-end:hover {
     border-color: var(--ed-accent); /* blue-500 */
-    color: var(--ed-accent-strong); /* blue-600 */
+    color: var(--ed-accent-text); /* blue-600 */
     background: var(--ed-accent-bg); /* blue-50 */
 }
 
@@ -739,7 +748,7 @@
 
 .editor-first-run .block-insert-end {
     border-color: var(--ed-accent); /* blue-500 */
-    color: var(--ed-accent-strong); /* blue-600 */
+    color: var(--ed-accent-text); /* blue-600 */
 }
 
 /* Block Select state (slice-6 stage 2). ProseMirror adds .ProseMirror-selectednode
@@ -820,7 +829,7 @@
  * (next to delete/duplicate/settings). Accent-filled when preview mode is on. */
 .block-quickbar__btn--on,
 .block-quickbar__btn--on:hover {
-    color: var(--ed-accent-strong);
+    color: var(--ed-accent-text);
     background: var(--ed-accent-bg);
 }
 
@@ -1178,13 +1187,15 @@
     background: var(--ed-ink-hover);
 }
 
-/* Block-specific primary — accent fill; universal actions stay ghost. */
+/* Block-specific primary — accent fill; universal actions stay ghost. The fill
+   carries --ed-white, so it rides -strong/-stronger (AA in both themes), not
+   -accent: blue-500 under white is 3.7:1 and dark's blue-400 only 2.4:1. */
 .block-command-bar__action--primary {
-    background: var(--ed-accent);
+    background: var(--ed-accent-strong);
 }
 
 .block-command-bar__action--primary:hover {
-    background: var(--ed-accent-strong);
+    background: var(--ed-accent-stronger);
 }
 
 /* Separates the block-specific primaries from the universal actions. */
@@ -1321,7 +1332,7 @@
     color: var(--ed-text);
 }
 .block-sizing__chip.is-active {
-    color: var(--ed-accent-strong);
+    color: var(--ed-accent-text);
     background: var(--ed-accent-bg);
     border-color: var(--ed-accent);
 }
@@ -1591,12 +1602,12 @@
 
 .block-insert-rail__item--active {
     background: var(--ed-canvas);
-    color: var(--ed-accent-strong); /* blue-600 */
+    color: var(--ed-accent-text); /* blue-600 */
     box-shadow: inset 0 0 0 1px var(--ed-border);
 }
 
 .block-insert-rail__item--active .block-insert-rail__icon {
-    color: var(--ed-accent-strong);
+    color: var(--ed-accent-text);
 }
 
 .block-insert-rail__item:focus-visible {
@@ -2006,7 +2017,7 @@
     color: var(--ed-text-strong); /* slate-700 */
 }
 .mc-block__row-btn--on {
-    color: var(--ed-accent-strong); /* blue-600 — "this row has one" */
+    color: var(--ed-accent-text); /* blue-600 — "this row has one" */
 }
 .mc-block__row-btn:focus-visible {
     opacity: 1;
@@ -2140,8 +2151,8 @@ img.mc-block__figure-preview {
     border-top: 1px solid var(--ed-border);
 }
 .mc-block__figure-done {
-    border: 1px solid var(--ed-accent);
-    background: var(--ed-accent);
+    border: 1px solid var(--ed-accent-strong);
+    background: var(--ed-accent-strong);
     color: var(--ed-white);
     font-size: 0.78rem;
     font-weight: 500;
@@ -2150,8 +2161,8 @@ img.mc-block__figure-preview {
     cursor: pointer;
 }
 .mc-block__figure-done:hover:not(:disabled) {
-    background: var(--ed-accent-strong);
-    border-color: var(--ed-accent-strong);
+    background: var(--ed-accent-stronger);
+    border-color: var(--ed-accent-stronger);
 }
 
 /* The collapsed resting state: a compact, clickable thumbnail of the figure. */
@@ -2247,8 +2258,8 @@ img.mc-block__figure-preview {
     border-top: 1px solid var(--ed-border);
 }
 .graph-figure-view__done-row button {
-    border: 1px solid var(--ed-accent);
-    background: var(--ed-accent);
+    border: 1px solid var(--ed-accent-strong);
+    background: var(--ed-accent-strong);
     color: var(--ed-white);
     font-size: 0.78rem;
     font-weight: 500;
@@ -2257,8 +2268,8 @@ img.mc-block__figure-preview {
     cursor: pointer;
 }
 .graph-figure-view__done-row button:hover:not(:disabled) {
-    background: var(--ed-accent-strong);
-    border-color: var(--ed-accent-strong);
+    background: var(--ed-accent-stronger);
+    border-color: var(--ed-accent-stronger);
 }
 
 .mc-block__add-choice {
@@ -2665,7 +2676,7 @@ img.mc-block__figure-preview {
     top: 0;
     font-size: 0.7em;
     line-height: 1.5;
-    color: var(--ed-accent-strong); /* blue-600 */
+    color: var(--ed-accent-text); /* blue-600 */
     pointer-events: none;
 }
 .blank-chip.is-grouped .blank-chip__answer {
@@ -2801,7 +2812,7 @@ img.mc-block__figure-preview {
  .blank-edit-popover__seg-option:has(input:checked) {
      border-color: var(--ed-accent); /* blue-500 */
      background: var(--ed-accent-bg); /* blue-50 */
-     color: var(--ed-accent-strong);
+     color: var(--ed-accent-text);
  }
  .blank-edit-popover__seg-option input {
      margin: 0;
@@ -2936,7 +2947,7 @@ img.mc-block__figure-preview {
 
 .blank-edit-popover__add-section:hover {
     border-color: var(--ed-accent); /* blue-500 */
-    color: var(--ed-accent-strong); /* blue-600 */
+    color: var(--ed-accent-text); /* blue-600 */
     background: var(--ed-accent-bg); /* blue-50 */
 }
 
@@ -3520,7 +3531,7 @@ img.mc-block__figure-preview {
     padding: 0;
     border: none;
     background: none;
-    color: var(--ed-accent-strong); /* blue-600 */
+    color: var(--ed-accent-text); /* blue-600 */
     font: inherit;
     cursor: pointer;
     text-decoration: underline;

@@ -14,7 +14,7 @@
 //     --state-* trios for correct / incorrect / pending / recorded, and calls a
 //     component inventing a fifth state a review-blocker. A crash is not a
 //     verdict on the student's work, so the fallback draws from the NEUTRAL
-//     palette (--color-line / --color-ink-muted) and says nothing about
+//     palette (--vw-color-line / --vw-color-ink-muted) and says nothing about
 //     correctness. It is deliberately quiet: the student did nothing wrong, and
 //     alarming them mid-worksheet helps no one.
 //

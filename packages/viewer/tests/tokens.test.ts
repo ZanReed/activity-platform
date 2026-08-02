@@ -47,6 +47,47 @@ const print = declarations(segments.print);
 
 const sortedColorTokens = [...colorTokens].sort();
 
+// ---- Namespace isolation from the host app ---------------------------------
+// tokens.css is imported by the APP (routes/StudentViewer + routes/DevViewer,
+// both eagerly reached from App.tsx), so it loads on EVERY route and declares
+// onto the shared document :root — UNLAYERED, while the app's Tailwind @theme
+// compiles into @layer theme. Unlayered beats layered regardless of source
+// order, so any name this file shares with the app is silently won HERE,
+// app-wide, and no app test would see it.
+//
+// It happened: this layer declared plain --color-* / --radius-* and overrode
+// seven app roles. --color-accent-strong was the sharp one — the two layers
+// mean OPPOSITE things (here: accent's hover, so dark BRIGHTENS to #93c5fd
+// under dark ink; app: a fill under WHITE ink, so dark must stay dark), and the
+// app's Print button rendered white text at 1.80:1.
+//
+// So: no token here may sit in a namespace Tailwind's @theme owns. This is the
+// cheap unit-level pin for it — a collision is otherwise only observable in a
+// running browser, which is a slow and easily-skipped place to find out.
+const TAILWIND_THEME_NAMESPACES = [
+  'color', 'radius', 'font', 'shadow', 'inset-shadow', 'drop-shadow',
+  'text-shadow', 'text', 'font-weight', 'tracking', 'leading', 'breakpoint',
+  'container', 'spacing', 'blur', 'perspective', 'aspect', 'ease', 'animate',
+];
+
+describe('namespace isolation (the viewer must not squat Tailwind @theme keys)', () => {
+  it.each(TAILWIND_THEME_NAMESPACES)(
+    'declares no token in the --%s-* namespace',
+    (namespace) => {
+      const squatters = [...root.keys()].filter((name) =>
+        name.startsWith(`--${namespace}-`),
+      );
+      expect(
+        squatters,
+        `${squatters.join(', ')} collide with Tailwind's --${namespace}-* theme ` +
+          `namespace, so they silently override the app's role of the same name ` +
+          `on every route. Prefix with --vw- (alias explicitly if a value really ` +
+          `should be shared: --vw-color-x: var(--color-x)).`,
+      ).toEqual([]);
+    },
+  );
+});
+
 describe('vocabulary sync (tokens.css ↔ tokens.ts)', () => {
   it(':root declares exactly the color + static tokens', () => {
     expect([...root.keys()].sort()).toEqual(
@@ -108,19 +149,19 @@ describe.each(themes)('WCAG AA — $name theme', ({ decls }) => {
 
   it.each([...stateNames])('state "%s" ink is AA on paper and on its surface', (state) => {
     const ink = value(`--state-${state}-ink`);
-    expect(contrast(ink, value('--color-paper'))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(ink, value('--vw-color-paper'))).toBeGreaterThanOrEqual(4.5);
     expect(contrast(ink, value(`--state-${state}-surface`))).toBeGreaterThanOrEqual(4.5);
   });
 
   it('body ink and muted ink are AA on paper', () => {
-    expect(contrast(value('--color-ink'), value('--color-paper'))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(value('--vw-color-ink'), value('--vw-color-paper'))).toBeGreaterThanOrEqual(4.5);
     expect(
-      contrast(value('--color-ink-muted'), value('--color-paper')),
+      contrast(value('--vw-color-ink-muted'), value('--vw-color-paper')),
     ).toBeGreaterThanOrEqual(4.5);
   });
 
   it('accent is AA on paper (links, focus rings carry meaning)', () => {
-    expect(contrast(value('--color-accent'), value('--color-paper'))).toBeGreaterThanOrEqual(
+    expect(contrast(value('--vw-color-accent'), value('--vw-color-paper'))).toBeGreaterThanOrEqual(
       4.5,
     );
   });
