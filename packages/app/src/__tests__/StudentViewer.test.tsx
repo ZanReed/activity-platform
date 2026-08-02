@@ -18,7 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 // Per-file, matching this package's convention (ImportMarkdownDialog.test.tsx):
 // registers the jest-dom matchers on vitest's expect and augments its types.
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 
 const STUDENT_ID = 'dddddddd-0000-4000-8000-000000000001';
@@ -177,9 +177,23 @@ describe('local-first mount (S6 V1+V2)', () => {
     afterEach(() => window.localStorage.clear());
 
     /** The fixture document carries many inputs; the first one in document
-     * order is stable because the fixture and its shuffle seed are fixed. */
+     * order is stable because the fixture and its shuffle seed are fixed.
+     *
+     * The `act` flush is load-bearing, not ceremony. `findAllByRole` resolves
+     * the moment the input is in the DOM — that is the COMMIT, not the passive
+     * effect. The effect is where the route wires the local-first buffer
+     * (`store.subscribe(() => buffer.save())`, StudentViewer.tsx), and the
+     * served-activity fetch resolves OUTSIDE act, so the commit and that effect
+     * are separate tasks — waitFor's MutationObserver can and does land between
+     * them. Typing in that window updates a store nobody is subscribed to yet:
+     * `save()` never runs, so `dirty` stays false, so `buffer.dispose()`'s
+     * flush writes nothing (`write()` bails on `if (!dirty) return`) and the
+     * assertion sees []. Invisible in a quiet suite; ~1 run in 4 under full
+     * `pnpm test` load, which is where it surfaced. "Ready" therefore has to
+     * mean mounted AND wired, not merely painted. */
     async function firstBlank(): Promise<HTMLElement> {
         const inputs = await screen.findAllByRole('textbox');
+        await act(async () => {});
         return inputs[0]!;
     }
 
