@@ -120,7 +120,14 @@ src/
   sanitize/     answer-key stripping + serve-time shuffles (runs server-side).
   server/       what the get-activity Edge Function imports, incl. its handler.
   check/        the check wire contract (the frozen S4 seam) + a scriptable mock.
-  store/        the viewer store + the persisted-state version gate.
+  store/        the viewer store + everything the device remembers:
+                persistence.ts  the persisted shape + version gate + identity
+                buffer.ts       the local-first buffer, key scheme, and sweeps
+                documentCache.ts the served document, for offline + republish
+                queue.ts        queued checks (owns no queue; the store does)
+                tabLock.ts      one editable tab per (student, activity)
+                caches.ts       SW cache-name contract (no producer today)
+                ports.ts        Clock / HideSignal / ConnectivitySignal seams
   container/    the worksheet shell, per-block error boundary, document indexing.
   inline/       inline content rendering + the lazy KaTeX seam.
   styles/       viewer.css — the one component stylesheet (tokens only).
@@ -162,15 +169,13 @@ fails on drift, so a stale bundle cannot reach a deploy.
 
 ## What is not here yet
 
-All 22 block components are built, styled, and conformance-covered. Still to
-come:
+All 22 block components are built, styled, and conformance-covered, and the S6
+offline layer (buffer, queued checks, tab lock, boot paths) is built and
+browser-verified. Still to come:
 
 - **Print mode (S5)** — the components carry print CSS and registry print
   treatments, but the per-block print-parity snapshots that gate the renderer's
   retirement are not written.
-- **The offline / failure-state layer (S6)** — the local-first buffer, queued
-  checks, and service-worker shell. The store already pins
-  `VIEWER_STORE_SCHEMA_VERSION` for the buffer to build on.
 - **The real grading client (S4)** — the store talks to a `CheckService` port
   and only the mock implements it. `src/check/wire.ts` is the frozen contract
   the RPC must import.

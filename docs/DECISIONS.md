@@ -495,3 +495,150 @@ DISPLAY figure prints its AUTHORED drawables, because that is the content the bl
 to show. The original "empty axes everywhere" ruling would have silently deleted what was
 being taught, and no treatment-level rule would have noticed. It is enforced by narrowing
 on the interaction type, so only the display variant even HAS a drawables field.
+
+## Sign-out is only correct if it works offline (2026-08-02, S6-6)
+
+`supabase.auth.signOut()` **returns early on a network failure without clearing the
+local session** — verified against the installed `@supabase/auth-js`, not assumed. So a
+student tapping Sign out on dying school Wi-Fi saw an error, walked away, and left the
+next student signed in as them. Every per-user guard downstream — buffer keys, cache
+names, queued checks — was correct and irrelevant, because the session itself named the
+wrong person, and nothing anywhere reported a problem.
+
+`signOutEverything` now falls back to `signOut({ scope: 'local' })` when the network call
+fails, and still throws afterward so the caller can say "couldn't reach the server" — by
+which point the device is already clean, which is the part that matters to whoever sits
+down next. Purge runs FIRST either way: the on-device work is ours to remove, and a failed
+network call must never be what decides whether it survives.
+
+**The standing rule this produces: every sign-out control calls `signOutEverything`.** It
+had ZERO callers when the hardening landed — `Home.tsx`, the app's only sign-out button,
+called the raw client method — so the purge never ran and the hole stayed open for the one
+user type who can actually sign out today. A control that ends a session without calling
+this one is a shared-device leak by construction.
+
+The idle prompt (2.4A) escalates to a local sign-out after an unanswered grace period.
+A prompt alone assumes somebody is still there to read it, which is exactly the assumption
+that fails on a shared cart at the end of a period.
+
+## One idempotency key, and it persists (2026-08-02, S6-3, overturns an S3 rule)
+
+The store used to keep check idempotency keys in a module-local map, documented as
+"deliberately NOT persisted" on the reasoning that a key only matters while a request is
+in flight in this tab. That reasoning missed the dominant Chromebook failure: request
+sent → Wi-Fi drops → response lost → lid closes. On reopen the in-memory key is gone, the
+retry mints a new one, and the server records a SECOND attempt for one piece of student
+work — at exactly the moment the network is worst.
+
+The key now lives in store state and therefore in the buffer, so that retry is a replay
+against S4-B2's idempotency index. It is cleared on success, so a deliberate re-check
+still creates a new attempt; only the failed-and-retried case collapses. The old comment
+is replaced in place with the reasoning that superseded it, so the next reader sees why it
+changed rather than re-deriving the original argument.
+
+**Corollary:** the queue mints nothing. Two authorities over one key is two attempts for
+one piece of work, and the second one is invisible until a teacher wonders why a student
+checked twice.
+
+## What the service worker may cache — and what it must not (2026-08-02, S6-5/S6-11; supersedes the user-scoped-runtime-cache design)
+
+**The API is never cached by the worker.** The Cache API keys by URL and ignores the
+Authorization header, and this platform serves a per-student SHUFFLED document from one
+URL — so a cached response is another student's paper, graded against the wrong shuffle.
+That is silent grading corruption, not staleness. The earlier plan was to scope runtime
+cache names per user; retiring the mechanism is stronger than scoping it, and the document
+a student needs offline is already kept per-user by the store's `documentCache` (a
+localStorage record under the `activity-viewer:` prefix, where the sign-out purge and the
+boot sweep already reach it). `caches.ts` remains as the naming contract and guard rail
+for any future per-user cache; today it has no producer.
+
+**Precache is the navigation document alone** — one entry. "Shell-only globPatterns" reads
+well until you measure the shell: the entry chunk is ~3 MB because the editor and viewer
+still share one bundle, and a glob wide enough to catch it also catches sibling chunks no
+route needs. Every asset filename is content-hashed and immutable, so runtime CacheFirst
+reaches the same offline result while downloading only what the student actually opened —
+which is what the budget ruling was protecting; the glob was only ever the means.
+
+**The worker installs during the first visit, so that visit's own requests never pass
+through it.** Nothing is cached, and offline would not work until a student's THIRD visit.
+`warmAssetCache` seeds the runtime cache from `performance.getEntriesByType('resource')` —
+exactly what the page used, no manifest to keep in sync, and nearly free because the
+assets are immutable and already in the HTTP cache.
+
+**The shell is NOT purged at sign-out** (refining R5, which asked for the caches holding
+student WORK). The shell is application code, identical for every user, holding no student
+data; wiping it would make the next student re-download the app over school Wi-Fi and
+would defeat the offline capability precisely on the shared devices that need it most.
+
+## One editable tab: Web Locks, the availability probe, and no BroadcastChannel (2026-08-02, S6-4)
+
+Two tabs on one activity both flush the same buffer key, so the last writer wins and the
+student loses half their work with nothing on screen to explain it. The guard is
+`navigator.locks`, not the hand-rolled heartbeat the design sketched: a heartbeat forces a
+staleness guess, and Chromebooks make that guess wrong in both directions — background
+tabs are throttled hard (alive looks dead) and an OS-killed tab keeps its timestamp (dead
+looks alive). Web Locks release when the holder's context goes away, which deletes the
+question instead of tuning it.
+
+**No BroadcastChannel.** When a tab steals the lock, the displaced tab's own request
+promise rejects — the steal IS the notification. A second channel carrying the same fact
+is a second thing that can disagree with the first.
+
+**The `ifAvailable` probe is load-bearing, and its absence was a real bug.** A plain queued
+request is SILENT when the lock is taken: it simply never resolves, so "will never be
+granted" is indistinguishable from "not granted yet". With the route starting optimistic
+(a read-only flash on every single-tab load is a worse trade than a brief editable flash
+on a rare second tab), the losing tab stayed editable and could clobber the winner. jsdom
+has no `navigator.locks`, so every unit test had been taking the single-tab branch; only
+a real browser could find it.
+
+**Read-only means the tab stops WRITING, not just stops typing** — including the
+flush-on-hide. Otherwise closing a stale tab hours later overwrites the live tab's newer
+work. It is implemented as one `disabled` fieldset around the worksheet rather than a prop
+threaded through 22 block components, so a block type added years from now inherits it
+without knowing the rule exists; canvas surfaces are not form controls and get a companion
+`pointer-events` rule.
+
+**Testing principle this produced:** assert the GUARANTEE (exactly one tab editable, and
+takeover decides which), never which tab wins. React StrictMode remounts the effect in dev,
+releasing and re-requesting the lock, so the initial winner is genuinely either tab. Two
+tests were written asserting an ordering the lock never promised; both were flaky, and the
+second one passed at lane level while failing four runs in five in isolation.
+
+## The orphan GC must never eat unsent work (2026-08-02, S6-9)
+
+Version-keyed buffers accumulate across republishes, so a GC collects superseded ones on
+load. Shipped unconditionally, that GC **deleted the buffer of every student who had left
+work or a queued check unsent** whenever a teacher republished overnight — no error, no
+trace, and the student's only symptom is that their work is gone. The slice that built the
+buffer introduced the thing that destroyed it.
+
+The GC now has exactly one exception: a superseded buffer survives if it still holds
+responses or a pending check. Tested from both sides, because a GC that stops collecting
+spent buffers brings back the quota ceiling it was written for.
+
+What happens to that work is the boot path's decision, not the GC's: render the student's
+own version PINNED when the device still holds its document (the grader accepts
+non-current versions by design, so the queued check can still fire), and otherwise
+preserve the blob behind an honest notice. Never auto-discard in-flight work to show
+someone a newer document.
+
+## Three e2e lanes, and why they are separate (2026-08-02, S6-12)
+
+The editor lane keeps reusing whatever dev server is up, so local iteration on 200+ specs
+is unchanged. The **student** lane runs on its own server with PINNED Supabase env, because
+the harness fakes a sign-in by writing the storage key supabase-js derives from the
+configured URL — a reused server carrying a real `.env.local` derives a different key and
+lands every student spec on the sign-in screen, a failure that looks like anything but its
+cause. The **sw** lane runs against a production build, non-parallel with one worker,
+because the worker only exists in a build and outlives a page: one spec's registration
+would otherwise control the next spec's first navigation.
+
+The harness changes no shipped code — no dev-only session backdoor to keep out of
+production builds. The one supabase-js internal it leans on is pinned by a unit test that
+writes a session under the derived key and asserts a real client reads it back.
+
+**Offline in a spec means two switches, not one.** Playwright's `route` handlers bypass
+`context.setOffline`, so a stubbed endpoint keeps answering happily while the browser
+believes it is offline — a test written with only one of them silently verifies a normal
+online load.
