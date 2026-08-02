@@ -182,6 +182,18 @@ export type {
 export { createCheckQueue } from './store/queue.js';
 export type { CheckQueue, CheckQueueOptions } from './store/queue.js';
 
+// S6 V4 — the SW cache naming contract (V8's worker conforms to it) plus the
+// sweep/purge that make a shared device clean.
+export {
+  VIEWER_CACHE_PREFIX,
+  VIEWER_SHELL_CACHE,
+  contentCacheUser,
+  purgeStudentCaches,
+  sweepForeignCaches,
+  viewerContentCacheName,
+} from './store/caches.js';
+export type { CacheStorageLike } from './store/caches.js';
+
 // S6 V3 — one editable tab per student per activity.
 export { createTabLock } from './store/tabLock.js';
 export type {
