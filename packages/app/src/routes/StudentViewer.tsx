@@ -33,6 +33,7 @@ import {
   createCheckQueue,
   createHttpCheckService,
   createReadClient,
+  createTabLock,
   createViewerBuffer,
   createViewerStore,
   indexDocument,
@@ -160,6 +161,13 @@ export default function StudentViewer() {
 
   const servedDocument = state.phase === 'ready' ? state.served.document : null;
 
+  // Whether THIS tab is the editable one. Starts true so the first paint is
+  // the normal worksheet: the lock resolves within a frame in the common
+  // single-tab case, and flashing a read-only banner at every student to
+  // cover the rare second tab would be the wrong trade.
+  const [tabHeld, setTabHeld] = useState(true);
+  const [takeOver, setTakeOver] = useState<(() => void) | null>(null);
+
   /**
    * LOCAL-FIRST MOUNT (S6 V1 + V2). Everything on-device hangs off this one
    * effect so its lifetime is exactly the store's: a new student, or a new
@@ -187,12 +195,25 @@ export default function StudentViewer() {
     sweepForeignBuffers(storage, userId);
     sweepOrphanVersions(storage, { userId, activityId, versionId });
 
+    // Scoped per (student, activity): a second tab on a DIFFERENT activity is
+    // not a conflict, and two students on one machine must not block each
+    // other. Version is deliberately out — two tabs on two versions of the
+    // same activity still write buffers that would fight.
+    const lock = createTabLock({
+      name: `activity-viewer:lock:${userId}:${activityId}`,
+      onChange: setTabHeld,
+    });
+
     const buffer = createViewerBuffer({
       storage,
       userId,
       activityId,
       versionId,
       serialize: () => store.serialize(),
+      // The write gate (outside-voice #7). A tab that lost the lock stops
+      // WRITING, not just typing — otherwise closing it hours later would
+      // flush its stale state over whatever the live tab has since done.
+      canWrite: () => lock.isHeld(),
     });
     const restored = buffer.load();
     if (restored) store.hydrate(restored);
@@ -218,10 +239,14 @@ export default function StudentViewer() {
     });
     queue.start();
 
+    setTakeOver(() => () => lock.takeOver());
+
     return () => {
       queue.stop();
       unsubscribe();
       buffer.dispose(); // flushes whatever the debounce still owed
+      lock.dispose();
+      setTakeOver(null);
     };
   }, [store, userId, activityId, versionId, servedDocument]);
 
@@ -252,6 +277,8 @@ export default function StudentViewer() {
         document={state.served.document}
         store={store}
         versionId={state.served.versionId}
+        readOnly={!tabHeld}
+        {...(takeOver ? { onTakeOver: takeOver } : {})}
       />
     </>
   );

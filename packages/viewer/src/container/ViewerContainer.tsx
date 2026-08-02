@@ -88,6 +88,14 @@ export interface ViewerContainerProps {
   /** Fires after every check whose coverage was incomplete. */
   onCheckShortfall?: (shortfall: CheckShortfall) => void;
   mode?: 'screen' | 'print';
+  /**
+   * This activity is open and editable in another tab (ruling 2.3A/S6-4).
+   * The worksheet still RENDERS — the student can read their work — but
+   * nothing here accepts input until they take over.
+   */
+  readOnly?: boolean;
+  /** The "Use it here" action. Absent ⇒ the takeover affordance is hidden. */
+  onTakeOver?: () => void;
 }
 
 /** Memo so a lazy binding produces ONE React.lazy per type, not one per
@@ -160,6 +168,8 @@ export function ViewerContainer({
   onCrash,
   onCheckShortfall,
   mode = 'screen',
+  readOnly = false,
+  onTakeOver,
 }: ViewerContainerProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
   const index = useMemo(() => indexDocument(doc), [doc]);
@@ -296,6 +306,32 @@ export function ViewerContainer({
           </button>
         </div>
       ) : null}
+      {/* The other-tab notice (2.3A). Passive and non-blocking, like every
+          other banner here: the student can still READ their work, which is
+          the common reason a second tab exists at all. Taking over is an
+          explicit choice, never automatic — two tabs silently trading the
+          lock back and forth would be worse than either one being stale. */}
+      {readOnly && mode === 'screen' ? (
+        <div className="viewer-banner" role="status" data-banner="other-tab">
+          <span>This activity is open in another tab.</span>
+          {onTakeOver ? (
+            <button
+              type="button"
+              className="viewer-banner-action"
+              onClick={onTakeOver}
+            >
+              Use it here
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {/* ONE `disabled` fieldset rather than a readOnly prop threaded through
+          every block component: the browser already disables every form
+          control inside a disabled fieldset, including ones added later by a
+          block type that does not exist yet. Blocks cannot forget to honor it.
+          Canvas-based surfaces (graphs) are not form controls, so the CSS
+          companion rule handles those. */}
+      <fieldset className="viewer-worksheet" disabled={readOnly}>
       {doc.sections.map((section) => {
         const sectionIndex = index.bySection[section.id];
         const status = state.sections[section.id];
@@ -377,6 +413,7 @@ export function ViewerContainer({
           </section>
         );
       })}
+      </fieldset>
 
       {/* The paper surface for inline vocabulary definitions. On screen a
           definition is a disclosure opened over the word; on paper there is no
