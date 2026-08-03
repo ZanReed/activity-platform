@@ -642,3 +642,41 @@ writes a session under the derived key and asserts a real client reads it back.
 `context.setOffline`, so a stubbed endpoint keeps answering happily while the browser
 believes it is offline — a test written with only one of them silently verifies a normal
 online load.
+
+## The teacher answer key travels beside the document, never inside it (2026-08-03, S5.5 D3A)
+
+**Decision.** Components stay typed against `SanitizedActivityDocument` — the shape whose defining property is that answers were removed — and the teacher print route supplies answers through a second channel: a React context carrying a flat block-id-keyed map extracted from the AUTHORED document.
+
+**Why not a `showAnswers` prop.** Widening the components to accept raw documents would have made the sanitized-type projection and the "a component cannot read an answer" property into conventions rather than facts. With the context, the guarantee is structural: a subtree with no provider has nothing to read, and the student route never imports the module. "Can this surface reveal answers?" becomes a question about the import graph, which a test can answer.
+
+**The key is position-free, and that is the load-bearing part.** It names answers by choice id, target id, item id — never "B" or "third". Printed versions shuffle presentation, so a stored letter would be correct for Version 1 and silently wrong for every version after it, which is a teacher marking thirty sheets against a key that disagrees with them. Components derive the letter or number from the order they are rendering, so one canonical key stays correct for every variant.
+
+**Two channels, one walk.** In-band answers (blank tokens, math gaps) are found by a deep structural walk at any depth — the same posture the S2 sanitizer and S3's `blockIndex` already take, because the schema admits a prompted `math_inline` in any content array. Out-of-band answers (which choice is correct, which target pairs with which item) need per-type extractors, and `ANSWER_KEY_COVERAGE` forces every `auto_gradable` type into a justified bucket with a non-vacuity test proving each claim.
+
+**A viewer-only improvement, recorded rather than hidden.** The renderer never filled math gaps at all (`renderMathBlock` is called without `showAnswers`), so a gap-bearing equation — a graded question — printed a key with nothing in it. The viewer fills them, and the parity gate names this as viewer-only instead of requiring the viewer to reproduce a hole.
+
+**What would reopen it.** A component that genuinely needs an answer to lay itself out (as the graph widgets needed the key for handle count, solved by the sanitizer's derive step). That is a sanitize-spec question, not a reason to widen the component types.
+
+## Print shuffles are declared apart from serve shuffles (2026-08-03, S5.5 D15A/D17A)
+
+**Decision.** Arrays that must not print in authored order are declared on the registry's `PrintSpec` (`shuffled`), never in `sanitize.serveShuffled`, and a per-block `shuffleLockedBy` field lets an instance opt out.
+
+**Why the separation is load-bearing in both directions.** Adding a field to `serveShuffled` changes what the server sends every student (a wire change) and moves `SANITIZER_REV`, orphaning the read cache and forcing a `get-activity` redeploy. Print needs neither. A test pins `SANITIZER_REV` at its deployed value so the placement cannot drift back.
+
+**The defect this closed.** The teacher print path sanitizes without the per-student serve shuffle, so an ordering question — whose authored sequence IS the answer — would have printed the answer as the worksheet, for a whole class. The renderer had always shuffled on print; the viewer would have stopped, and the parity gate could not have noticed because no rule named the property. Found by the eng review's outside voice AFTER the answer-channel design had been ruled.
+
+**The generalised guard is the better half:** every serve-shuffled field must ALSO be print-shuffled. A field is serve-shuffled for exactly one reason — its authored order is secret — so any such field the print path does not shuffle puts that secret on paper. The next block type cannot repeat it.
+
+**A shuffle must never deal the identity.** The viewer's `seededShuffle` could return the authored order; the renderer's has always guaranteed it cannot. A fair shuffle lands there 1/n! of the time, which is negligible at six items and one student in two for a two-item ordering block. Now matched. S4's grading guard for the served-equals-authored case stays, because it also covers documents served unshuffled.
+
+**The opt-out is declared, not special-cased.** "May this block be rearranged?" is per-type knowledge (`multiple_choice.print.shuffleLockedBy = 'lockChoiceOrder'`), so the transform stays a generic walk. No heuristic decides it: "all of the above" is guessable from text, "both A and B" is not, so the teacher who wrote the question says so once in the editor.
+
+## The foldable clones the app's stylesheets rather than inlining them (2026-08-03, S5.5 D7A as spiked)
+
+**Decision.** The foldable's measure iframe and printed document reproduce the app's CSS by cloning its live `<style>`/`<link>` elements, not by importing CSS as strings.
+
+**Why the ruled approach was wrong, and how we found out.** D7A planned to inline CSS (`?inline`) and hand-build an `@fontsource` tag. Spiking it first showed KaTeX's stylesheet references its fonts RELATIVELY (`url(fonts/KaTeX_Main-Regular.woff2)`), which in a `srcdoc` frame resolve against the app's page URL — so every glyph would fall back and every equation would measure at the wrong height, mis-paginating panels. The renderer had sidestepped this by rewriting those URLs to a CDN, a network dependency the viewer should not inherit.
+
+**Why cloning works.** Stylesheets the app has already loaded carry absolute URLs, because the bundler resolved them when it injected them. Cloning gets correct fonts in dev and production, plus any `@fontsource` family lazily loaded for the activity's typography, with no build-time rewriting and nothing to keep in sync.
+
+**Two things a panel is not.** A panel is not a PHONE: the viewer collapses multi-column rows below 480px, and a panel is a quarter of a landscape sheet, so the breakpoint fired and flattened authored column ratios on paper. A panel is not a SCREEN: panels render in screen media, so `@media print` never fires in them — sheets came out dark on a dark-mode machine with the section card's border drawn around every panel. Both are countered in the panel stylesheet, and both were found by driving a browser, not by any test.
