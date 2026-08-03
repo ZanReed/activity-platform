@@ -128,9 +128,12 @@ jobs:
       - name: Install Chromium
         run: pnpm --filter @activity/app exec playwright install --with-deps chromium
 
-      # Both print suites: the rules gate (print-parity) and the paginated
-      # layer it cannot reach (print-pagination). The baseline suite matches
-      # this pattern too and skips itself until its Linux images exist.
+      # Every print suite, matched by prefix: the rules gate (print-parity), the
+      # paginated layer it cannot reach (print-pagination), and the answer-key
+      # gate (print-answer-key, S5.5 D12A — the cross-surface half of which MUST
+      # be green before the renderer is evicted, because it cannot be run at all
+      # afterwards). The baseline suite matches too and skips itself until its
+      # Linux images exist; the contact sheet self-skips without its env var.
       - name: Print parity
         run: pnpm --filter @activity/app exec playwright test print-
 
