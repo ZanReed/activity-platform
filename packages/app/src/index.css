@@ -108,4 +108,40 @@
     :root[data-theme="dark"] {
         color-scheme: light;
     }
+
+    /* The teacher print route prints THIS page rather than an iframe (S5.5
+     * D4A), so the app around the worksheet has to take itself off the paper.
+     *
+     * Two rules, because the page has two kinds of non-worksheet content and
+     * only one of them is inside the route's own markup:
+     *
+     *  1. Route chrome — the back link, the header, the settings sidebar —
+     *     marked with a class so the whole aside disappears in one place
+     *     rather than every control remembering to hide itself.
+     *
+     *  2. Anything PORTALLED to document.body. Toasts, popovers and dialogs
+     *     render outside the route's subtree by design, so no selector inside
+     *     it can reach them; a toast that happens to be open when a teacher
+     *     hits Print would otherwise land in the middle of a worksheet. The
+     *     rule is written as "hide the body's direct children except the app
+     *     root", which covers portals nobody has written yet — the failure
+     *     mode being avoided is a new overlay silently becoming printable.
+     */
+    .activity-print__chrome {
+        display: none !important;
+    }
+
+    body > *:not(#root) {
+        display: none !important;
+    }
+
+    /* The sheet is the page: no card, no border, no shadow, no padding — those
+     * are screen affordances that would print as a box drawn around the
+     * worksheet. */
+    .activity-print__sheet {
+        border: 0;
+        padding: 0;
+        box-shadow: none;
+        background: none;
+    }
 }

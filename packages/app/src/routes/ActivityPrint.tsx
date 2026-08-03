@@ -1,50 +1,71 @@
 // =============================================================================
-// ActivityPrint.tsx — the /activity/:id/print route
+// ActivityPrint.tsx — the /activity/:id/print route (S5.5 T4)
 // -----------------------------------------------------------------------------
-// A teacher-facing print page. Loads the activity's current working copy (same
-// draft > published-version priority as the editor), renders it through the
-// renderer's print document (renderActivityForPrint), and shows it in an
-// isolated <iframe srcDoc>. The iframe IS the print source — the Print button
-// calls its contentWindow.print(), so the browser prints exactly the previewed
-// document with its inlined @page rules, free of the app's own chrome/Tailwind.
+// A teacher-facing print page, rebuilt onto the viewer tree. It loads the
+// activity's current working copy (same draft > published-version priority as
+// the editor) and renders it through the SAME components a student gets, in
+// print mode, in this page — not in an iframe.
 //
-// The no-print sidebar carries three kinds of control:
-//   - Print layout (paper size, margin, body size, spacing, work space, header
-//     fields). This is the SAVED print config — the same PrintSettingsBody the
-//     editor used to host, moved here (2026-07-18) so you configure the print
-//     against its live preview. Edits autosave to the activity's draft (an
-//     activity with no draft yet gets one, exactly like any editor edit).
-//   - "Layout": worksheet (flat) vs the journal foldable. A view choice, not
-//     saved.
-//   - "Show answers": the answer-key variant, where every blank prints
-//     prefilled with its canonical answer. A view choice, not saved.
+// WHY THE IFRAME IS GONE (ruling D4A). The old page rendered the renderer's
+// print document into an <iframe srcDoc> and printed the frame. That isolation
+// existed because the renderer emits a whole HTML document with its own styles,
+// which had to escape the app's Tailwind reset. The viewer needs none of it: it
+// is a React tree whose print CSS already lives in this app, and the student
+// route already prints in place — which is precisely the path S5's 51-case
+// parity gate certifies. Keeping a second, serialized pipeline here would mean
+// the teacher surface drifted on code the gate never runs.
 //
-// The preview + layout controls run client-side (the renderer is imported
-// directly, so this page needs no Edge Function). The layout save is a plain
-// activities.update, mirroring the editor's autosave.
+// WHAT THE TEACHER SEES, AND WHAT THEY DO NOT. The preview mirrors the printed
+// page's show/hide decisions (D24-C, viewer.css): the write-the-letter lines,
+// number boxes and static figure twins are all visible here, and the live
+// boards, selects and check chrome are not. Paper GEOMETRY — page size, margin,
+// pagination — is not previewable on a screen and appears only once the browser
+// print dialog opens. That is a smaller lie than a half-faithful facsimile.
+//
+// THE THREE DOCUMENTS ON THIS PAGE, and why there are three:
+//
+//   authored   the raw ActivityDocument, answers and all. Never rendered.
+//   served     authored → REAL sanitizer → print shuffle. This is what the
+//              components render, so they see exactly the shape they were
+//              built for and cannot read an answer even by accident.
+//   answerKey  extracted from the AUTHORED document, id-keyed, supplied
+//              through a context this route mounts only when asked.
+//
+// The foldable still renders through @activity/renderer in its own iframe; T5
+// re-points it. Until then this route legitimately holds both surfaces.
 // =============================================================================
 
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
-import { renderActivityForPrint, FONTS_R2_PREFIX } from '@activity/renderer';
-import { ActivityDocument, type PrintConfig } from '@activity/schema';
+// The renderer survives here for ONE consumer: the journal foldable, which is
+// still its own document in its own iframe until T5 re-points it. The worksheet
+// no longer touches it, which is most of the way to the slice's exit criterion.
+import { FONTS_R2_PREFIX } from '@activity/renderer';
+import {
+  ActivityDocument,
+  upgradeActivityDocument,
+  type PrintConfig,
+} from '@activity/schema';
+import {
+  AnswerKeyProvider,
+  PrintButton,
+  ViewerContainer,
+  applyPrintShuffles,
+  createViewerStore,
+  extractAnswerKey,
+  printSeed,
+  sanitizeActivityDocument,
+} from '@activity/viewer';
+import '@activity/viewer/tokens.css';
+import '@activity/viewer/viewer.css';
 import { supabase } from '../lib/supabase';
 import { buildFoldableDocument } from '../lib/foldable';
 import { useAutosave } from '../lib/useAutosave';
 import { PrintSettingsBody } from '../components/ActivityConfigDrawer';
 
-// Where the printed document's @font-face rules point (meta.typography fonts,
-// self-hosted on R2). Same base the published page uses — the preview iframe
-// is its own document, so app-side fontsource CSS can't reach it. Empty when
-// VITE_PUBLISHED_URL_BASE is unset (dev without R2): the print preview then
-// falls back to the default stack, exactly like a published page would.
+// Where the FOLDABLE's iframe font-face rules point. The worksheet no longer
+// needs this — it renders in this document, where the app's own @fontsource CSS
+// already applies — but the foldable is still its own document until T5.
 const PUBLISHED_BASE = (import.meta.env.VITE_PUBLISHED_URL_BASE ?? '').replace(
     /\/+$/,
     '',
@@ -53,10 +74,6 @@ const FONTS_BASE_URL = PUBLISHED_BASE
     ? `${PUBLISHED_BASE}/${FONTS_R2_PREFIX}`
     : undefined;
 
-// The two print layouts this route offers. 'worksheet' is the flat, full-page
-// document (renderActivityForPrint, synchronous). 'foldable' is the journal
-// foldable (Drop D): a DOM-measured, paginated, duplex-imposed landscape booklet
-// built client-side — async, because it measures real layout.
 type PrintLayout = 'worksheet' | 'foldable';
 
 const UUID_RE =
@@ -100,7 +117,6 @@ export default function ActivityPrint() {
     const [foldableStatus, setFoldableStatus] = useState<
     'idle' | 'building' | 'error'
     >('idle');
-    const iframeRef = useRef<HTMLIFrameElement>(null);
 
     useEffect(() => {
         if (!id || !UUID_RE.test(id)) {
@@ -122,6 +138,9 @@ export default function ActivityPrint() {
                 return;
             }
             if (!data) {
+                // Also the not-my-activity case: RLS filters rows this teacher
+                // cannot read, so a foreign id is indistinguishable from a
+                // missing one — which is the correct thing to tell them.
                 setLoadState({ status: 'not_found' });
                 return;
             }
@@ -158,16 +177,21 @@ export default function ActivityPrint() {
                 return;
             }
 
-            const parsed = ActivityDocument.safeParse(raw);
-            if (!parsed.success) {
+            // Through the upgrade seam BEFORE validating (ruling D23C). A no-op
+            // today — there are zero schema migrations — but the day the first
+            // one lands, an old draft would otherwise fail this parse and the
+            // teacher would be told their content "could not be read" with no
+            // hint that it is simply older than this build.
+            try {
+                const { doc } = upgradeActivityDocument(raw);
+                setLoadState({ status: 'ready', doc });
+                setPrint(doc.meta.print);
+            } catch {
                 setLoadState({
                     status: 'error',
                     message: "This activity's content could not be read.",
                 });
-                return;
             }
-            setLoadState({ status: 'ready', doc: parsed.data });
-            setPrint(parsed.data.meta.print);
         })();
 
         return () => {
@@ -177,32 +201,97 @@ export default function ActivityPrint() {
 
     const doc = loadState.status === 'ready' ? loadState.doc : null;
 
-    // The effective document = the loaded body with the (editable) print config
-    // applied. Shared by both layouts (the worksheet renders it directly; the
-    // foldable builder measures + paginates it).
-    const mergedDoc = useMemo<ActivityDocument | null>(() => {
+    // The AUTHORED document with the (editable) print config applied. Answers
+    // still in it; never rendered directly.
+    const authoredDoc = useMemo<ActivityDocument | null>(() => {
         if (!doc || !print) return null;
         return { ...doc, meta: { ...doc.meta, print } };
     }, [doc, print]);
 
-    // Persist a print-config edit to the activity's draft — mirrors the editor's
-    // save (a read-through write of draft_content). An activity with no draft
-    // yet gets one, exactly like any editor edit. useAutosave debounces; its
-    // baseline (the seeded config) never triggers a save.
+    // What the components actually render: the REAL sanitizer, then the print
+    // shuffle. The sanitizer is what lets every component keep its
+    // SanitizedActivityDocument typing here; the shuffle is D15A — an ordering
+    // question printed in authored order is a printed answer key.
+    const servedDoc = useMemo(() => {
+        if (!authoredDoc || !id) return null;
+        return applyPrintShuffles(
+            sanitizeActivityDocument(authoredDoc),
+            printSeed(id),
+        );
+    }, [authoredDoc, id]);
+
+    // The teacher's answers, extracted from the AUTHORED document and carried
+    // beside the served one. Only mounted while Show answers is on.
+    const answerKey = useMemo(
+        () => (authoredDoc ? extractAnswerKey(authoredDoc) : null),
+        [authoredDoc],
+    );
+
+    // An INERT store (finding F3). ViewerContainer needs one, but nothing on
+    // this page checks work or belongs to a student: the check service throws
+    // if anything ever reaches it, which is louder than silently pretending to
+    // grade, and the ids are placeholders because no work is persisted from
+    // here. Built once — a new store per render would reset block state.
+    const store = useMemo(
+        () =>
+            createViewerStore({
+                userId: 'teacher-print-preview',
+                activityId: id ?? 'preview',
+                versionId: 'preview',
+                checkService: {
+                    checkSection: () =>
+                        Promise.reject(
+                            new Error(
+                                'the print preview never checks work (ActivityPrint is inert)',
+                            ),
+                        ),
+                    fetchReleasedFeedback: () =>
+                        Promise.reject(
+                            new Error(
+                                'the print preview never fetches feedback (ActivityPrint is inert)',
+                            ),
+                        ),
+                },
+            }),
+        [id],
+    );
+
+    // Persist a print-config edit to the activity's draft.
+    //
+    // RE-FETCH, THEN MERGE ONLY meta.print (ruling D20A). The previous version
+    // wrote back the whole document this tab loaded, so a teacher with the
+    // editor open in another tab could lose editor work by nudging a margin
+    // here — silently, with no error and no trace. Print settings are the only
+    // thing this page owns, so they are the only thing it writes.
     const savePrint = useCallback(async () => {
-        if (!id || !doc || !print) return;
-        const next: ActivityDocument = {
-            ...doc,
-            meta: { ...doc.meta, print },
-        };
-        const parsed = ActivityDocument.safeParse(next);
+        if (!id || !print) return;
+        const { data, error: readErr } = await supabase
+            .from('activities')
+            .select('draft_content, current_version_id')
+            .eq('id', id)
+            .is('deleted_at', null)
+            .maybeSingle();
+        if (readErr) throw readErr;
+        if (!data) throw new Error('This activity is no longer available.');
+
+        const current = (data as { draft_content: unknown }).draft_content;
+        // No draft yet (published, never edited): fall back to the document we
+        // loaded, which came from the published version. Creating the draft is
+        // correct — it mirrors what any editor edit does.
+        const base = current ?? doc;
+        const parsed = ActivityDocument.safeParse(base);
         if (!parsed.success) {
             throw new Error('Print settings failed validation; not saved.');
         }
+        const next: ActivityDocument = {
+            ...parsed.data,
+            meta: { ...parsed.data.meta, print },
+        };
+
         const { error } = await supabase
             .from('activities')
             .update({
-                draft_content: parsed.data,
+                draft_content: next,
                 updated_at: new Date().toISOString(),
             })
             .eq('id', id);
@@ -214,27 +303,16 @@ export default function ActivityPrint() {
         savePrint,
     );
 
-    // Flat worksheet HTML — synchronous, memoized so the (non-trivial) document
-    // string only rebuilds when the merged doc or the answer toggle changes.
-    const worksheetHtml = useMemo(
-        () =>
-            mergedDoc
-                ? renderActivityForPrint(mergedDoc, {
-                      showAnswers,
-                      fontsBaseUrl: FONTS_BASE_URL,
-                  })
-                : '',
-        [mergedDoc, showAnswers],
-    );
-
-    // Journal foldable HTML — async (DOM-measured). Rebuilt whenever the merged
-    // doc or answer toggle changes while the foldable layout is active. The
-    // cancelled guard drops a stale build if inputs change mid-flight.
+    // Journal foldable — still the renderer's own document in its own iframe
+    // until T5 re-points it. Rebuilt whenever its inputs change while active.
     useEffect(() => {
-        if (layout !== 'foldable' || !mergedDoc) return;
+        if (layout !== 'foldable' || !authoredDoc) return;
         let cancelled = false;
         setFoldableStatus('building');
-        buildFoldableDocument(mergedDoc, { showAnswers, fontsBaseUrl: FONTS_BASE_URL })
+        buildFoldableDocument(authoredDoc, {
+            showAnswers,
+            fontsBaseUrl: FONTS_BASE_URL,
+        })
         .then((built) => {
             if (cancelled) return;
             setFoldableHtml(built);
@@ -246,17 +324,7 @@ export default function ActivityPrint() {
         return () => {
             cancelled = true;
         };
-    }, [layout, mergedDoc, showAnswers]);
-
-    const previewHtml = layout === 'foldable' ? foldableHtml : worksheetHtml;
-
-    const handlePrint = () => {
-        const win = iframeRef.current?.contentWindow;
-        if (win) {
-            win.focus();
-            win.print();
-        }
-    };
+    }, [layout, authoredDoc, showAnswers]);
 
     if (loadState.status === 'loading') {
         return (
@@ -297,10 +365,20 @@ export default function ActivityPrint() {
         );
     }
 
+    const worksheet =
+        servedDoc && showAnswers && answerKey ? (
+            <AnswerKeyProvider answers={answerKey}>
+            <ViewerContainer document={servedDoc} store={store} mode="print" />
+            </AnswerKeyProvider>
+        ) : servedDoc ? (
+            <ViewerContainer document={servedDoc} store={store} mode="print" />
+        ) : null;
+
     // status === 'ready' — doc is set.
     return (
-        <Shell>
-        <div className="flex items-center justify-between">
+        <main className="activity-print min-h-screen bg-surface-2 p-6">
+        <div className="mx-auto max-w-5xl">
+        <div className="activity-print__chrome flex items-center justify-between">
         <Link
         to={`/activity/${id}`}
         className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
@@ -313,15 +391,31 @@ export default function ActivityPrint() {
         </div>
 
         <div className="mt-4 grid gap-6 md:grid-cols-[260px_1fr]">
-        {/* Controls — no-print by nature (they live in the app, not the iframe). */}
-        <aside className="flex flex-col gap-4 rounded-lg border border-line bg-canvas p-4">
-        <button
-        type="button"
-        onClick={handlePrint}
-        className="rounded-md bg-accent-strong px-3 py-2 text-sm font-semibold text-white hover:bg-accent-stronger"
-        >
-        Print
-        </button>
+        {/* Controls. Marked as route chrome so the print rule in index.css
+            can take the whole sidebar off the page in one place, rather than
+            each control remembering to hide itself. */}
+        <aside className="activity-print__chrome flex flex-col gap-4 rounded-lg border border-line bg-canvas p-4">
+        {layout === 'worksheet' ? (
+            // The viewer's own Print action: it waits for pending math, fonts
+            // and images to settle before opening the dialog, bounded, and
+            // prints anyway on expiry (S5-2). A student who cannot print is
+            // worse off than one missing a figure, and the same is true here.
+            <PrintButton />
+        ) : (
+            <button
+            type="button"
+            onClick={() => {
+                const frame = document.querySelector<HTMLIFrameElement>(
+                    '.activity-print__foldable',
+                );
+                frame?.contentWindow?.focus();
+                frame?.contentWindow?.print();
+            }}
+            className="rounded-md bg-accent-strong px-3 py-2 text-sm font-semibold text-white hover:bg-accent-stronger"
+            >
+            Print
+            </button>
+        )}
 
         <label className="block">
         <span className={LABEL_CLASS}>Layout</span>
@@ -388,14 +482,21 @@ export default function ActivityPrint() {
         </div>
         </aside>
 
-        {/* Preview = print source. White page on a grey mat. */}
-        <iframe
-        ref={iframeRef}
-        title="Print preview"
-        srcDoc={previewHtml}
-        className="h-[80vh] w-full rounded-lg border border-line-strong bg-canvas shadow-sm"
-        />
+        {/* The preview IS the print source for the worksheet: what prints is
+            this subtree, so there is nothing to keep in sync. */}
+        <div className="activity-print__sheet rounded-lg border border-line-strong bg-canvas p-6 shadow-sm">
+        {layout === 'foldable' ? (
+            <iframe
+            title="Foldable preview"
+            srcDoc={foldableHtml}
+            className="activity-print__foldable h-[80vh] w-full"
+            />
+        ) : (
+            worksheet
+        )}
         </div>
-        </Shell>
+        </div>
+        </div>
+        </main>
     );
 }
