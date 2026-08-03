@@ -76,6 +76,19 @@ export type {
   PrintInstanceContext,
 } from './registry/printExpectations.js';
 
+// S5.5 — the teacher answer key (ruling D3A). Extracted from the AUTHORED
+// document and carried BESIDE the sanitized one, so components stay typed
+// against a shape with no answers in it. Like printExpectations above, this
+// imports FROM the registry and is deliberately absent from server/index.ts:
+// the get-activity bundle must never carry answer-reading code (V9 lesson).
+export { extractAnswerKey, extractBlockAnswerKey } from './answer-key/extract.js';
+export { ANSWER_KEY_COVERAGE, ANSWER_KEY_INK } from './answer-key/types.js';
+export type {
+  AnswerKeyMap,
+  BlockAnswerKey,
+  AnswerKeyCoverage,
+} from './answer-key/types.js';
+
 export {
   colorTokens,
   staticTokens,

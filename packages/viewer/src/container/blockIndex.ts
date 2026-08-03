@@ -97,8 +97,12 @@ function collectInBandIds(
 /** A value is a child-block array if it looks like Block[] (objects carrying a
  * `type` the registry knows AND an `id`). Structural rather than
  * registry-declared so a container that forgets its childBlocks declaration
- * still can't get its children's ids mis-attributed. */
-function looksLikeBlockArray(value: unknown): boolean {
+ * still can't get its children's ids mis-attributed.
+ *
+ * Exported because the answer-key extraction walks the AUTHORED document with
+ * the same question to answer ("is this a nested block, or content of this
+ * one?"). Two copies of a subtle heuristic drift; this one is the source. */
+export function looksLikeBlockArray(value: unknown): boolean {
   return (
     Array.isArray(value) &&
     value.length > 0 &&
@@ -118,10 +122,13 @@ function looksLikeBlockArray(value: unknown): boolean {
   );
 }
 
-function childBlocksOf(block: SanitizedBlock): SanitizedBlock[] {
-  const out: SanitizedBlock[] = [];
+/** Nested blocks, found structurally (see looksLikeBlockArray). Generic over the
+ * block shape so the served-document walk here and the authored-document walk in
+ * the answer-key extraction share ONE definition of "child block". */
+export function childBlocksOf<T extends object>(block: T): T[] {
+  const out: T[] = [];
   for (const value of Object.values(block as Record<string, unknown>)) {
-    if (looksLikeBlockArray(value)) out.push(...(value as SanitizedBlock[]));
+    if (looksLikeBlockArray(value)) out.push(...(value as T[]));
   }
   return out;
 }
