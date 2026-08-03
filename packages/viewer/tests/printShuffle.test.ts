@@ -94,17 +94,19 @@ describe('the authored order does not reach paper', () => {
   });
 
   it('touches only what the registry declares', () => {
-    // multiple_choice declares no print shuffle yet (that lands with the
-    // version coda, behind its lockChoiceOrder flag), so its choices must come
-    // through in the order they were served.
+    // matching's BANK is shuffled by the component (D21C), not by this
+    // transform, so the registry declares no print shuffle for it and the data
+    // must come through untouched. If that ever changes the bank would be
+    // shuffled twice — harmless in output, but a second mechanism nobody
+    // reading one declaration would predict.
     const doc = sanitizedFixtureDocument();
-    const choiceIds = (d: SanitizedActivityDocument) =>
-      blocksOfType(d, 'multiple_choice').map((block) =>
-        (block.choices as Array<{ id: string }>).map((c) => c.id),
+    const targetIds = (d: SanitizedActivityDocument) =>
+      blocksOfType(d, 'matching').map((block) =>
+        (block.targets as Array<{ id: string }>).map((t) => t.id),
       );
 
-    expect(choiceIds(applyPrintShuffles(doc, printSeed(ACTIVITY)))).toEqual(
-      choiceIds(doc),
+    expect(targetIds(applyPrintShuffles(doc, printSeed(ACTIVITY)))).toEqual(
+      targetIds(doc),
     );
   });
 });
@@ -166,6 +168,66 @@ describe('seeding', () => {
     const [a, b] = blocksOfType(shuffled, 'ordering');
 
     expect(itemIds(a!)).not.toEqual(itemIds(b!));
+  });
+});
+
+describe('print versions (S5.5 T9/T10)', () => {
+  const choiceIds = (doc: SanitizedActivityDocument) =>
+    blocksOfType(doc, 'multiple_choice').map((block) =>
+      (block.choices as Array<{ id: string }>).map((c) => c.id),
+    );
+
+  it('a version rearranges MC choices; version 1 already differs from authored', () => {
+    const doc = sanitizedFixtureDocument();
+    const v1 = applyPrintShuffles(doc, printSeed(ACTIVITY, 1));
+    const v2 = applyPrintShuffles(doc, printSeed(ACTIVITY, 2));
+
+    // Every printed sheet shuffles — including the default one. A teacher who
+    // never opens the version selector still should not hand out two identical
+    // sheets to neighbours.
+    expect(choiceIds(v1)).not.toEqual(choiceIds(doc));
+    expect(choiceIds(v2)).not.toEqual(choiceIds(v1));
+  });
+
+  it('lockChoiceOrder keeps a question in its authored order (D17A)', () => {
+    // The question this exists for: "all of the above" has to stay last, and no
+    // heuristic can read "both A and B" reliably enough to decide for a teacher.
+    const doc = sanitizedFixtureDocument();
+    const locked = structuredClone(doc);
+    for (const block of blocksOfType(locked, 'multiple_choice')) {
+      block.lockChoiceOrder = true;
+    }
+
+    const printed = applyPrintShuffles(locked, printSeed(ACTIVITY, 3));
+    expect(choiceIds(printed)).toEqual(choiceIds(doc));
+
+    // …and it is genuinely the flag doing it, not the seed happening to agree.
+    expect(choiceIds(applyPrintShuffles(doc, printSeed(ACTIVITY, 3)))).not.toEqual(
+      choiceIds(doc),
+    );
+  });
+
+  it('the lock is per BLOCK, not per document', () => {
+    const doc = sanitizedFixtureDocument();
+    const mixed = structuredClone(doc);
+    const blocks = blocksOfType(mixed, 'multiple_choice');
+    const first = blocks[0];
+    expect(first, 'fixture has no multiple_choice block').toBeDefined();
+    first!.lockChoiceOrder = true;
+
+    const printed = applyPrintShuffles(mixed, printSeed(ACTIVITY, 2));
+    const printedBlocks = blocksOfType(printed, 'multiple_choice');
+    const authoredBlocks = blocksOfType(doc, 'multiple_choice');
+
+    const ids = (b: Record<string, unknown>) =>
+      (b.choices as Array<{ id: string }>).map((c) => c.id);
+
+    // The locked one held its order; ordering questions around it still moved,
+    // so one question opting out cannot quietly disable the whole sheet.
+    expect(ids(printedBlocks[0]!)).toEqual(ids(authoredBlocks[0]!));
+    expect(
+      blocksOfType(printed, 'ordering').map(itemIds),
+    ).not.toEqual(blocksOfType(doc, 'ordering').map(itemIds));
   });
 });
 

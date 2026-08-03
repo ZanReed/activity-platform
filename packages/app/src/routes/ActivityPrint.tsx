@@ -100,6 +100,10 @@ export default function ActivityPrint() {
     // edits autosave (see savePrint). null until the doc loads.
     const [print, setPrint] = useState<PrintConfig | null>(null);
     const [showAnswers, setShowAnswers] = useState(false);
+    // Which arrangement to print. 1 is the default sheet; picking another
+    // reshuffles everything the registry marks shufflable, deterministically,
+    // so the same choice reprints the same paper.
+    const [version, setVersion] = useState(1);
     const [layout, setLayout] = useState<PrintLayout>('worksheet');
     const [foldableHtml, setFoldableHtml] = useState('');
     const [foldableStatus, setFoldableStatus] = useState<
@@ -204,9 +208,9 @@ export default function ActivityPrint() {
         if (!authoredDoc || !id) return null;
         return applyPrintShuffles(
             sanitizeActivityDocument(authoredDoc),
-            printSeed(id),
+            printSeed(id, version),
         );
-    }, [authoredDoc, id]);
+    }, [authoredDoc, id, version]);
 
     // The teacher's answers, extracted from the AUTHORED document and carried
     // beside the served one. Only mounted while Show answers is on.
@@ -304,6 +308,7 @@ export default function ActivityPrint() {
             setFoldableStatus('building');
             buildFoldableDocument(authoredDoc, {
                 showAnswers,
+                version,
                 ...(id ? { activityId: id } : {}),
             })
             .then((built) => {
@@ -319,7 +324,7 @@ export default function ActivityPrint() {
             cancelled = true;
             clearTimeout(timer);
         };
-    }, [layout, authoredDoc, showAnswers, id]);
+    }, [layout, authoredDoc, showAnswers, id, version]);
 
     if (loadState.status === 'loading') {
         return (
@@ -363,10 +368,20 @@ export default function ActivityPrint() {
     const worksheet =
         servedDoc && showAnswers && answerKey ? (
             <AnswerKeyProvider answers={answerKey}>
-            <ViewerContainer document={servedDoc} store={store} mode="print" />
+            <ViewerContainer
+            document={servedDoc}
+            store={store}
+            mode="print"
+            {...(version > 1 ? { printVersion: version } : {})}
+            />
             </AnswerKeyProvider>
         ) : servedDoc ? (
-            <ViewerContainer document={servedDoc} store={store} mode="print" />
+            <ViewerContainer
+            document={servedDoc}
+            store={store}
+            mode="print"
+            {...(version > 1 ? { printVersion: version } : {})}
+            />
         ) : null;
 
     // status === 'ready' — doc is set.
@@ -442,6 +457,30 @@ export default function ActivityPrint() {
                 </p>
             )}
             </div>
+        )}
+
+        <label className="block">
+        <span className={LABEL_CLASS}>Version</span>
+        <select
+        className={`${FIELD_CLASS} mt-1`}
+        value={version}
+        onChange={(e) => setVersion(Number(e.target.value))}
+        >
+        {[1, 2, 3, 4].map((n) => (
+            <option key={n} value={n}>
+            {n === 1 ? 'A (default)' : `${String.fromCharCode(64 + n)}`}
+            </option>
+        ))}
+        </select>
+        </label>
+
+        {version > 1 && (
+            <p className="text-xs text-muted">
+            Version {String.fromCharCode(64 + version)} shuffles the questions
+            that can be shuffled. Print its answer key from this same version —
+            and reprint keys after editing the activity, since a change to the
+            questions changes the arrangement.
+            </p>
         )}
 
         <label className="flex items-center gap-2 text-sm text-strong">

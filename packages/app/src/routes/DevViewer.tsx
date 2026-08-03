@@ -74,6 +74,9 @@ export default function DevViewer() {
   // print route will: a provider wrapped around the container, extracted from
   // the AUTHORED fixtures while the container still renders the SERVED ones.
   const [showAnswers, setShowAnswers] = useState(params.get('answers') === '1');
+  // Printed version (S5.5 T9). Deep-linkable so the gate can assert the sheet
+  // carries a label a teacher can match to its answer key.
+  const printVersion = Number(params.get('version') ?? '1');
   const answerKey = useMemo(() => extractAnswerKey(authoredFixtureDocument()), []);
   const [failing, setFailing] = useState(false);
   // Typography is a DOCUMENT-level print/render case (documentPrintRoster's
@@ -329,6 +332,7 @@ export default function DevViewer() {
               store={store}
               versionId={VERSION_ID}
               mode={mode}
+              {...(printVersion > 1 ? { printVersion } : {})}
             />
           </AnswerKeyProvider>
         ) : (
@@ -337,6 +341,7 @@ export default function DevViewer() {
             store={store}
             versionId={VERSION_ID}
             mode={mode}
+            {...(printVersion > 1 ? { printVersion } : {})}
           />
         )}
       </main>

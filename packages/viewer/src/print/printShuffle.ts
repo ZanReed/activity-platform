@@ -57,6 +57,12 @@ export function applyPrintShuffles(
         : undefined;
     if (!entry) return; // sanitize already failed closed on unknown types
 
+    // A per-block opt-out (D17A): the authored order carries meaning here, so
+    // rearranging it would print a question that contradicts itself.
+    if (entry.print.shuffleLockedBy && block[entry.print.shuffleLockedBy] === true) {
+      return;
+    }
+
     for (const field of entry.print.shuffled ?? []) {
       const value = block[field];
       if (Array.isArray(value)) {

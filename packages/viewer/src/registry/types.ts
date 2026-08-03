@@ -166,6 +166,13 @@ export interface PrintSpec {
    * from the FIRST version rather than only when a teacher asks for variants.
    */
   readonly shuffled?: readonly string[];
+  /**
+   * A boolean field on the BLOCK that suppresses `shuffled` for that instance
+   * (S5.5 D17A). Declared rather than special-cased in the transform: the
+   * question "may this block be rearranged?" is per-type knowledge, and the
+   * transform should stay a generic walk rather than grow a switch.
+   */
+  readonly shuffleLockedBy?: string;
 }
 
 /** Per-block a11y story (ruling 6.1A). REQUIRED for every interactive type —

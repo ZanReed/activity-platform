@@ -808,6 +808,9 @@ function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock 
         prompt: tiptapInlineToActivity(node.content ?? []),
         choices,
         multiSelect: attrs.multiSelect === true,
+        // Omitted when off, so a question that never touched this setting
+        // serializes exactly as it did before the flag existed (D17A).
+        ...(attrs.lockChoiceOrder === true ? { lockChoiceOrder: true } : {}),
         hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter(
@@ -1650,6 +1653,7 @@ function activityMultipleChoiceToTiptap(block: MultipleChoiceBlock): JSONContent
             // edits it in place).
             choices: block.choices,
             multiSelect: block.multiSelect,
+            lockChoiceOrder: block.lockChoiceOrder === true,
             solution: block.solution ?? null,
             hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,

@@ -244,7 +244,17 @@ export const blockRegistry: BlockRegistry = {
       // Per-choice feedback returns via the check RPC (2.1A), like blanks'.
       strip: ['choices[].correct', 'choices[].feedback', 'solution'],
     },
-    print: { breakInside: 'avoid', treatment: 'choice-letters', answerKeyVariant: true },
+    print: {
+      breakInside: 'avoid',
+      treatment: 'choice-letters',
+      answerKeyVariant: true,
+      // Printed versions rearrange the choices; a question that says "all of
+      // the above" opts out per-block (D17A). NOT serveShuffled: the student
+      // screen keeps the authored order, because the answer is the choice id
+      // and rearranging it there buys nothing.
+      shuffled: ['choices'],
+      shuffleLockedBy: 'lockChoiceOrder',
+    },
     a11y: {
       story:
         'Native radio (single) / checkbox (multi) inputs grouped in a ' +

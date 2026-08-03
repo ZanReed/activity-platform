@@ -97,6 +97,18 @@ export const MultipleChoice = Node.create({
                 renderHTML: (attributes) =>
                     attributes.multiSelect ? { 'data-multi-select': 'true' } : {},
             },
+            // S5.5 D17A — keep the authored choice order on printed versions.
+            // Absent rather than false when off, so a document written before
+            // this attribute existed re-serializes byte-identically.
+            lockChoiceOrder: {
+                default: false,
+                parseHTML: (element) =>
+                    element.getAttribute('data-lock-choice-order') === 'true',
+                renderHTML: (attributes) =>
+                    attributes.lockChoiceOrder
+                        ? { 'data-lock-choice-order': 'true' }
+                        : {},
+            },
             solution: {
                 default: null as unknown[] | null,
                 parseHTML: (element) => {

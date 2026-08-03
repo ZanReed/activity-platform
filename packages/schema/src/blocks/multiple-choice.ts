@@ -76,6 +76,13 @@ export const MultipleChoiceBlock = z.object({
   // false = single answer (radios, exactly one selectable); true = "select
   // all that apply" (checkboxes). Scoring is set equality either way.
   multiSelect: z.boolean().default(false),
+  // Keep the authored choice order on paper (S5.5 D17A). Printed VERSIONS
+  // shuffle choices to discourage copying, which is wrong for a question whose
+  // order carries meaning — "all of the above" has to stay last, and "both A
+  // and B" names positions outright. Optional with no default so a document
+  // written before this re-serializes byte-identically; absent means shuffle,
+  // which is the right default for the overwhelming majority of questions.
+  lockChoiceOrder: z.boolean().optional(),
   // Worked explanation for the whole problem, revealed post-check regardless
   // of correctness (same contract as FillInBlankBlock.solution).
   solution: z.array(InlineNode).optional(),

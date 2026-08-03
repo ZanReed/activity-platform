@@ -89,6 +89,13 @@ export interface ViewerContainerProps {
   onCheckShortfall?: (shortfall: CheckShortfall) => void;
   mode?: 'screen' | 'print';
   /**
+   * Which printed arrangement this is (1-based), when a teacher asked for more
+   * than one to discourage copying. Renders a label on the sheet so a stack can
+   * be matched to its answer key later; absent means the single default sheet
+   * and nothing is labelled.
+   */
+  printVersion?: number;
+  /**
    * This activity is open and editable in another tab (ruling 2.3A/S6-4).
    * The worksheet still RENDERS — the student can read their work — but
    * nothing here accepts input until they take over.
@@ -168,6 +175,7 @@ export function ViewerContainer({
   onCrash,
   onCheckShortfall,
   mode = 'screen',
+  printVersion,
   readOnly = false,
   onTakeOver,
 }: ViewerContainerProps) {
@@ -260,6 +268,7 @@ export function ViewerContainer({
         title={doc.meta.title}
         course={doc.meta.course}
         unit={doc.meta.unit}
+        version={printVersion}
       />
 
       {/* The teacher's reference material as a static box at the top of the

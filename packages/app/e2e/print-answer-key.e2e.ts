@@ -254,6 +254,28 @@ test.describe('answer key — viewer-only, named with a reason', () => {
     });
 });
 
+test.describe('printed versions carry a label (S5.5 T9)', () => {
+    test('a version says which sheet it is; the default sheet stays unlabelled', async ({
+        page,
+    }) => {
+        // Printing several arrangements only helps if a teacher can tell them
+        // apart afterwards. An unlabelled stack of shuffled worksheets cannot be
+        // matched to its answer key, which makes the feature worse than not
+        // having it.
+        await page.goto('/dev/viewer?type=ALL&version=2');
+        await page.emulateMedia({ media: 'print' });
+        const label = page.locator('.viewer-print-heading__version');
+        await expect(label).toHaveText('Version B');
+        await expect(label).toHaveAttribute('data-print-version', '2');
+
+        // Version 1 is the ordinary sheet — labelling it would put "Version A"
+        // on every worksheet a teacher ever prints.
+        await page.goto('/dev/viewer?type=ALL');
+        await page.emulateMedia({ media: 'print' });
+        await expect(page.locator('.viewer-print-heading__version')).toHaveCount(0);
+    });
+});
+
 test.describe('answer key — the negative direction', () => {
     test('no key requested, nothing marked anywhere', async ({ page }) => {
         // The half that ships broken. Every surface above is asserted with the

@@ -324,6 +324,26 @@ const questionAdvancedWithNumbering: AdvancedGroup[] = [
     numberingGroup,
 ];
 
+/** Keep this question's choices in the order they were written (S5.5 D17A).
+ *
+ * Printed VERSIONS rearrange choices to discourage copying, which is right
+ * almost always and wrong for the questions where position IS meaning: "all of
+ * the above" has to stay last, and "both A and B" names positions outright.
+ * Default off, because the questions that need it are the minority — but a
+ * teacher who writes one has to be able to say so, and no heuristic can read
+ * "both A and B" reliably enough to decide for them. */
+const lockChoiceOrderField: AdvancedField = {
+    kind: 'toggle',
+    label: 'Keep choice order',
+    help:
+        'Printed versions shuffle the choices. Turn this on for questions ' +
+        'where the order matters, like “all of the above”.',
+    get: (node) => Boolean(node.attrs.lockChoiceOrder),
+    set: (editor, pos, value) => {
+        setNodeAttr(editor, pos, 'lockChoiceOrder', value);
+    },
+};
+
 /** MC's "select all that apply" — multi → single keeps only the FIRST correct
  * choice (the same collapse the old inline checkbox performed). */
 const multiSelectField: AdvancedField = {
@@ -527,7 +547,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     // (tolerance, axis config …) remain deferred per-block work.
     multipleChoice: {
         primary: [],
-        simple: [multiSelectField],
+        simple: [multiSelectField, lockChoiceOrderField],
         advanced: questionAdvancedWithNumbering,
     },
     matching: {

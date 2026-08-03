@@ -79,21 +79,41 @@ export function PrintWorksheetHeading({
   title,
   course,
   unit,
+  version,
 }: {
   readonly title: string;
   readonly course?: string | undefined;
   readonly unit?: string | undefined;
+  /** 1-based print version, when a teacher printed more than one arrangement. */
+  readonly version?: number | undefined;
 }): ReactElement | null {
   const meta = [course, unit].filter((part): part is string => Boolean(part));
-  if (!title && meta.length === 0) return null;
+  if (!title && meta.length === 0 && version === undefined) return null;
   return (
     <header className="viewer-print-heading">
       <h1 className="viewer-print-heading__title">{title}</h1>
       {meta.length > 0 ? (
         <p className="viewer-print-heading__meta">{meta.join(' · ')}</p>
       ) : null}
+      {/* WHICH SHEET IS THIS (S5.5 T9). Printing several arrangements to stop
+          copying is only useful if a teacher can tell them apart afterwards —
+          a stack of shuffled worksheets with no label cannot be matched to its
+          answer key, which makes the feature worse than not having it.
+          Lettered, because "Version B" is what a class period already calls it
+          (the seed underneath is the number). Not aria-hidden: unlike the
+          fill-in rules, this is information rather than furniture. */}
+      {version === undefined ? null : (
+        <p className="viewer-print-heading__version" data-print-version={version}>
+          Version {versionLabel(version)}
+        </p>
+      )}
     </header>
   );
+}
+
+/** 1 → A, 2 → B, … wrapping past 26 (no worksheet has 27 versions). */
+export function versionLabel(version: number): string {
+  return String.fromCharCode(65 + ((version - 1) % 26));
 }
 
 /** The header fields, in the order they print. */
