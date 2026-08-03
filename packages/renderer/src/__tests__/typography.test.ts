@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { renderActivity, renderActivityForPrint } from '../document.js';
 import type { RenderContext } from '../document.js';
 import {
+  FONT_FILES,
   FONT_REGISTRY,
   FONT_MENU,
   fontFamilyValue,
@@ -149,7 +150,7 @@ describe('typography helpers', () => {
     for (const font of ActivityFont.options) {
       const spec = FONT_REGISTRY[font];
       expect(spec.label.length).toBeGreaterThan(0);
-      for (const f of spec.files) {
+      for (const f of FONT_FILES[font]) {
         // scripts/build-fonts.mjs derives its upload list from these names —
         // the pattern is the contract that keeps the two aligned.
         expect(f.file).toMatch(new RegExp(`^${font}-latin-[467]00-(normal|italic)\\.woff2$`));

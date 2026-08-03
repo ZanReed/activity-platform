@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
-import { renderDataPlotSvg, fiveNumberSummary } from '@activity/renderer';
+import { renderDataPlotSvg, fiveNumberSummary } from '@activity/graph-kit/static-svg';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { usePreviewToggle } from '../components/usePreviewToggle';
 import PromptField from '../components/PromptField';

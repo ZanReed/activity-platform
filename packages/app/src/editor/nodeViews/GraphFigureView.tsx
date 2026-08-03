@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
-import { renderGraphSvg, type AxisConfig, type Drawable } from '@activity/renderer';
+import { renderGraphSvg } from '@activity/graph-kit/static-svg';
+import type { AxisConfig, Drawable } from '@activity/schema';
 import DrawableListEditor, {
     ALL_DRAWABLE_KINDS,
     NumCell,

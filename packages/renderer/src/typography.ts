@@ -39,17 +39,28 @@
 // shipping), bump the `v1` in FONTS_R2_PREFIX — the files are cached immutable.
 // =============================================================================
 
-import type { ActivityFont, Typography } from '@activity/schema';
+import {
+  DEFAULT_FONT_STACK,
+  FONT_REGISTRY,
+  fontFamilyValue as sharedFontFamilyValue,
+  type ActivityFont,
+  type Typography,
+} from '@activity/schema';
+
+// Re-exported so this package's public API is unchanged by the S5.5 move: the
+// published-page code and this package's tests keep importing them from here,
+// while the app and viewer now take them from @activity/schema directly (a lint
+// rule enforces that they do).
+export { FONT_REGISTRY, FONT_MENU } from '@activity/schema';
+export type { ActivityFontSpec as FontSpec } from '@activity/schema';
 
 /** Bucket-relative R2 prefix the font files live under (see file header). */
 export const FONTS_R2_PREFIX = 'shared/fonts/v1';
 
-// The default body stack — must match --font-body in runtime/styles.ts. Also
-// used as the fallback tail behind each downloadable family so a page whose
-// fonts haven't loaded (or a dev environment with no R2 base URL) degrades to
-// exactly the default look.
-const DEFAULT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+// The default body stack — must match --font-body in runtime/styles.ts. Shared
+// with every other surface via @activity/schema (S5.5 D18A), which is also
+// where the labels and family names now live.
+const DEFAULT_STACK = DEFAULT_FONT_STACK;
 
 interface FontFile {
   file: string;
@@ -57,78 +68,46 @@ interface FontFile {
   style: 'normal' | 'italic';
 }
 
-export interface FontSpec {
-  /** Menu label shown in the config drawer. */
-  label: string;
-  /**
-   * The @font-face / font-family name, or null for 'default' (no download,
-   * no family override — the --font-body stack applies).
-   */
-  cssFamily: string | null;
-  /** WOFF2 files to embed as @font-face rules (empty for 'default'). */
-  files: FontFile[];
-}
-
-// v1 menu (author-approved 2026-07-08, all SIL OFL). Weights cover what the
-// editor can author: 400 body, 700 bold (the em-relative headings inherit
-// these), plus real italics where the family has them — Lexend ships none, so
-// browsers synthesize its italic. Lexend also gets 600 (headings-3 / UI
-// semibold) since the family provides it.
-export const FONT_REGISTRY: Record<ActivityFont, FontSpec> = {
-  default: {
-    label: 'Default (system)',
-    cssFamily: null,
-    files: [],
-  },
-  lexend: {
-    label: 'Lexend',
-    cssFamily: 'Lexend',
-    files: [
-      { file: 'lexend-latin-400-normal.woff2', weight: 400, style: 'normal' },
-      { file: 'lexend-latin-600-normal.woff2', weight: 600, style: 'normal' },
-      { file: 'lexend-latin-700-normal.woff2', weight: 700, style: 'normal' },
-    ],
-  },
-  'atkinson-hyperlegible': {
-    label: 'Atkinson Hyperlegible',
-    cssFamily: 'Atkinson Hyperlegible',
-    files: [
-      { file: 'atkinson-hyperlegible-latin-400-normal.woff2', weight: 400, style: 'normal' },
-      { file: 'atkinson-hyperlegible-latin-400-italic.woff2', weight: 400, style: 'italic' },
-      { file: 'atkinson-hyperlegible-latin-700-normal.woff2', weight: 700, style: 'normal' },
-      { file: 'atkinson-hyperlegible-latin-700-italic.woff2', weight: 700, style: 'italic' },
-    ],
-  },
-  andika: {
-    label: 'Andika',
-    cssFamily: 'Andika',
-    files: [
-      { file: 'andika-latin-400-normal.woff2', weight: 400, style: 'normal' },
-      { file: 'andika-latin-400-italic.woff2', weight: 400, style: 'italic' },
-      { file: 'andika-latin-700-normal.woff2', weight: 700, style: 'normal' },
-      { file: 'andika-latin-700-italic.woff2', weight: 700, style: 'italic' },
-    ],
-  },
-  'comic-neue': {
-    label: 'Comic Neue',
-    cssFamily: 'Comic Neue',
-    files: [
-      { file: 'comic-neue-latin-400-normal.woff2', weight: 400, style: 'normal' },
-      { file: 'comic-neue-latin-400-italic.woff2', weight: 400, style: 'italic' },
-      { file: 'comic-neue-latin-700-normal.woff2', weight: 700, style: 'normal' },
-      { file: 'comic-neue-latin-700-italic.woff2', weight: 700, style: 'italic' },
-    ],
-  },
+// WHICH FILES EACH FAMILY SHIPS, and where they are hosted, is the one part of
+// the font story that stays here: it is an R2 concern, only fontFaceCss below
+// consumes it, and it dies with published pages at S9. The labels and family
+// NAMES moved to @activity/schema so the app and viewer can read them without
+// importing this package (S5.5 D18A).
+//
+// Weights cover what the editor can author: 400 body, 700 bold (the em-relative
+// headings inherit these), plus real italics where the family has them — Lexend
+// ships none, so browsers synthesize its italic. Lexend also gets 600
+// (headings-3 / UI semibold) since the family provides it.
+// Exported for this package's own tests (the file-name pattern is the contract
+// scripts/build-fonts.mjs derives its upload list from), but deliberately NOT
+// re-exported by index.ts: nothing outside the renderer has any business
+// knowing where the WOFF2 files live.
+export const FONT_FILES: Record<ActivityFont, FontFile[]> = {
+  default: [],
+  lexend: [
+    { file: 'lexend-latin-400-normal.woff2', weight: 400, style: 'normal' },
+    { file: 'lexend-latin-600-normal.woff2', weight: 600, style: 'normal' },
+    { file: 'lexend-latin-700-normal.woff2', weight: 700, style: 'normal' },
+  ],
+  'atkinson-hyperlegible': [
+    { file: 'atkinson-hyperlegible-latin-400-normal.woff2', weight: 400, style: 'normal' },
+    { file: 'atkinson-hyperlegible-latin-400-italic.woff2', weight: 400, style: 'italic' },
+    { file: 'atkinson-hyperlegible-latin-700-normal.woff2', weight: 700, style: 'normal' },
+    { file: 'atkinson-hyperlegible-latin-700-italic.woff2', weight: 700, style: 'italic' },
+  ],
+  andika: [
+    { file: 'andika-latin-400-normal.woff2', weight: 400, style: 'normal' },
+    { file: 'andika-latin-400-italic.woff2', weight: 400, style: 'italic' },
+    { file: 'andika-latin-700-normal.woff2', weight: 700, style: 'normal' },
+    { file: 'andika-latin-700-italic.woff2', weight: 700, style: 'italic' },
+  ],
+  'comic-neue': [
+    { file: 'comic-neue-latin-400-normal.woff2', weight: 400, style: 'normal' },
+    { file: 'comic-neue-latin-400-italic.woff2', weight: 400, style: 'italic' },
+    { file: 'comic-neue-latin-700-normal.woff2', weight: 700, style: 'normal' },
+    { file: 'comic-neue-latin-700-italic.woff2', weight: 700, style: 'italic' },
+  ],
 };
-
-// Menu order for the config drawer (default first, then alphabetical).
-export const FONT_MENU: ActivityFont[] = [
-  'default',
-  'andika',
-  'atkinson-hyperlegible',
-  'comic-neue',
-  'lexend',
-];
 
 /**
  * The font-family VALUE for a given font id — the registry family quoted,
@@ -137,9 +116,7 @@ export const FONT_MENU: ActivityFont[] = [
  * Returns null for 'default' (no override; --font-body applies).
  */
 export function fontFamilyValue(font: ActivityFont): string | null {
-  const spec = FONT_REGISTRY[font];
-  if (!spec.cssFamily) return null;
-  return `"${spec.cssFamily}", ${DEFAULT_STACK}`;
+  return sharedFontFamilyValue(font, DEFAULT_STACK);
 }
 
 /**
@@ -164,7 +141,7 @@ export function fontFaceCss(
     seen.add(font);
     const spec = FONT_REGISTRY[font];
     if (!spec.cssFamily) continue;
-    for (const f of spec.files) {
+    for (const f of FONT_FILES[font]) {
       css +=
         '@font-face{' +
         `font-family:"${spec.cssFamily}";` +

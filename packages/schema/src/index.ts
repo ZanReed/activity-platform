@@ -220,3 +220,14 @@ export {
   createEmptyDocument,
   createCalculatorTool,
 } from './factories.js';
+
+// S5.5 D18A — the activity font menu. Shared here because both the renderer
+// (published pages, until S9) and the viewer need it and must not import each
+// other; each surface supplies its own fallback stack.
+export {
+  FONT_REGISTRY,
+  FONT_MENU,
+  DEFAULT_FONT_STACK,
+  fontFamilyValue,
+} from './fonts.js';
+export type { ActivityFontSpec } from './fonts.js';

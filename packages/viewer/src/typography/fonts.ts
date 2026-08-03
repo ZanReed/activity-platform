@@ -28,22 +28,17 @@
 // an activity actually asks for it; the shell does not carry four families.
 // =============================================================================
 
-import type { ActivityFont } from '@activity/schema';
+import { fontFamilyValue, type ActivityFont } from '@activity/schema';
 
-/**
- * The CSS family name each id resolves to, and the stack behind it.
- *
- * `default` is null on purpose rather than a stack: a document that chose
- * nothing must inherit the viewer's own body token, not pin a family. The
- * caller distinguishes the two by the null.
- */
-const CSS_FAMILY: Readonly<Record<ActivityFont, string | null>> = {
-  default: null,
-  lexend: 'Lexend',
-  'atkinson-hyperlegible': 'Atkinson Hyperlegible',
-  andika: 'Andika',
-  'comic-neue': 'Comic Neue',
-};
+// The id → family map used to be duplicated here. It now comes from
+// @activity/schema (S5.5 D18A), which is where the renderer reads it too — the
+// two copies had no way of staying in step, and a font added to one and not the
+// other is a menu entry that silently renders as the default.
+//
+// The fallback STACK below stays local on purpose: the two surfaces resolve
+// fonts through different pipelines and reasonably differ about what to fall
+// back to, which is why the print parity gate asserts the font by NAME rather
+// than by computed family string.
 
 /** The fallback chain behind whatever the teacher chose. */
 const FALLBACK_STACK =
@@ -57,8 +52,7 @@ const FALLBACK_STACK =
  * token and quietly make `default` mean something different from "our font".
  */
 export function activityFontFamily(font: ActivityFont): string | null {
-  const family = CSS_FAMILY[font];
-  return family === null ? null : `"${family}", ${FALLBACK_STACK}`;
+  return fontFamilyValue(font, FALLBACK_STACK);
 }
 
 const loaded = new Set<ActivityFont>();

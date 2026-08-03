@@ -10,7 +10,7 @@ import {
 import { TextSelection, Selection } from '@tiptap/pm/state';
 import { GapCursor } from '@tiptap/pm/gapcursor';
 import type { Typography } from '@activity/schema';
-import { fontFamilyValue } from '@activity/renderer';
+import { fontFamilyValue } from '@activity/schema';
 import { ensureActivityFontLoaded } from '../lib/fonts';
 import DragHandle from '@tiptap/extension-drag-handle-react';
 import Toolbar from './Toolbar';

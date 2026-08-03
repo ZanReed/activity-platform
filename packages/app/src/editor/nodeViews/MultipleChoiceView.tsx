@@ -11,7 +11,8 @@ import {
     ImagePlus,
     X,
 } from 'lucide-react';
-import { renderGraphSvg, type AxisConfig, type Drawable } from '@activity/renderer';
+import { renderGraphSvg } from '@activity/graph-kit/static-svg';
+import type { AxisConfig, Drawable } from '@activity/schema';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import DrawableListEditor, {

@@ -22,4 +22,41 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+
+  // ---------------------------------------------------------------------------
+  // S5.5 T8 — the renderer is evicted from product code (ruling D10A).
+  //
+  // The slice's exit criterion is that no shipped code imports
+  // @activity/renderer. The package itself lives on until S9 because
+  // publish-activity still serves published pages from it — which is exactly
+  // why this guard exists: nothing stops autocomplete offering the barrel
+  // again, and a re-import would go unnoticed until S9 deletes the package and
+  // the app breaks for reasons nobody connects to this change.
+  //
+  // SCOPED TO SOURCE, DELIBERATELY. packages/app/e2e is exempt: the print
+  // parity gate, the answer-key gate and the contact-sheet generator import the
+  // renderer ON PURPOSE, because comparing the two surfaces is the whole point
+  // of them. They retire with the renderer, not before it.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@activity/renderer',
+              message:
+                'The renderer is retired from product code (S5.5 T8). Use ' +
+                '@activity/viewer for rendering, ' +
+                '@activity/graph-kit/static-svg for static figures, and ' +
+                '@activity/schema for the font registry and graph types. ' +
+                'Test harnesses that compare the two surfaces live in e2e/.',
+            },
+          ],
+          patterns: ['@activity/renderer/*'],
+        },
+      ],
+    },
+  },
 );

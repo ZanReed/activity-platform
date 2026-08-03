@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { JSONContent } from '@tiptap/react';
 import type { ActivityFont, Typography } from '@activity/schema';
-import { FONT_MENU, FONT_REGISTRY } from '@activity/renderer';
+import { FONT_MENU, FONT_REGISTRY } from '@activity/schema';
 import Editor from '../editor/Editor';
 import JsonInspector from '../editor/JsonInspector';
 import { emptyDocJSON, stackDocJSON } from '../editor/strictGrid';

@@ -27,7 +27,7 @@ import type {
     Rubric,
 } from '@activity/schema';
 import { fitFunction } from '@activity/graph-kit';
-import { histogramBins, fiveNumberSummary } from '@activity/renderer';
+import { histogramBins, fiveNumberSummary } from '@activity/graph-kit/static-svg';
 
 // ---- Raw row shape (mirrors the columns the dashboard selects) --------------
 

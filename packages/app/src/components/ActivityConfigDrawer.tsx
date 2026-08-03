@@ -32,7 +32,7 @@ import {
     type CalculatorTool,
     type RegressionModel,
 } from '@activity/schema';
-import { FONT_MENU, FONT_REGISTRY, fontFamilyValue } from '@activity/renderer';
+import { FONT_MENU, FONT_REGISTRY, fontFamilyValue } from '@activity/schema';
 import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 import ReferencePanelEditor from '../editor/ReferencePanelEditor';
 import { ensureActivityFontLoaded } from '../lib/fonts';

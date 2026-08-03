@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@activity/graph-kit": "workspace:*",
-    "@activity/renderer": "workspace:*",
     "@activity/schema": "workspace:*",
     "@activity/viewer": "workspace:*",
     "@floating-ui/react": "^0.27.19",
@@ -45,6 +44,7 @@
     "tippy.js": "^6.3.7"
   },
   "devDependencies": {
+    "@activity/renderer": "workspace:*",
     "@eslint/js": "^9.17.0",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.0.0",
