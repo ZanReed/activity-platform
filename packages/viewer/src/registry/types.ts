@@ -149,6 +149,23 @@ export interface PrintSpec {
   /** Participates in the answer-key print variant (showAnswers today; the T8
    * teacher answer-key variant later). */
   readonly answerKeyVariant?: boolean;
+  /**
+   * Array fields this block must NOT print in its authored order (S5.5 D15A).
+   *
+   * DELIBERATELY SEPARATE FROM `sanitize.serveShuffled`, and the separation is
+   * load-bearing in two directions. Declaring a field there would change what
+   * the SERVER sends every student — a wire change this slice is not making —
+   * and it would move SANITIZER_REV, orphaning the read cache and requiring a
+   * get-activity redeploy. This declaration is read only by the print-side
+   * transform, so it moves neither. (It does still ride the viewer-server
+   * bundle, since the registry is inlined there: rebundle, do not redeploy.)
+   *
+   * The rule it exists for: where a block's AUTHORED ORDER is the answer —
+   * ordering's items most obviously — printing that order hands the student the
+   * key. The renderer always shuffled these on print; the viewer must too, and
+   * from the FIRST version rather than only when a teacher asks for variants.
+   */
+  readonly shuffled?: readonly string[];
 }
 
 /** Per-block a11y story (ruling 6.1A). REQUIRED for every interactive type —

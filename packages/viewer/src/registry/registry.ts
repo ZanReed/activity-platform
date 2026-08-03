@@ -284,7 +284,16 @@ export const blockRegistry: BlockRegistry = {
       // (stable per version + student so reloads don't reshuffle).
       serveShuffled: ['items'],
     },
-    print: { breakInside: 'avoid', treatment: 'number-boxes', answerKeyVariant: true },
+    print: {
+      breakInside: 'avoid',
+      treatment: 'number-boxes',
+      answerKeyVariant: true,
+      // The authored order is the answer, so paper must never show it. The
+      // server already shuffles for students (serveShuffled above); teacher
+      // print gets its own, because that path deliberately does not run the
+      // per-student serve shuffle.
+      shuffled: ['items'],
+    },
     a11y: {
       story:
         'Rows are focusable and reorder via the shared lift grammar: ' +

@@ -50,7 +50,23 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/** Fisher–Yates with a seeded PRNG (pure — returns a new array). */
+/**
+ * Fisher–Yates with a seeded PRNG (pure — returns a new array).
+ *
+ * NEVER RETURNS THE IDENTITY for 2+ items; it rotates by one if the deal lands
+ * there. This is not tidiness — it is the whole point of shuffling these
+ * fields. The arrays that reach here are the ones whose AUTHORED ORDER IS THE
+ * ANSWER, so an identity deal serves the student a pre-solved question. A fair
+ * shuffle lands on it 1/n! of the time, which sounds negligible until you
+ * notice that ordering blocks are allowed as few as two items — one class in
+ * two, for that question. The renderer has always guaranteed this
+ * (renderer/src/blocks/shuffle.ts) and the viewer must not regress it at
+ * cutover.
+ *
+ * S4's grading keeps its own defensive guard for the served-order-equals-
+ * authored-order case (grading/choices.ts) and should keep it: it also covers
+ * documents served unshuffled, which this cannot speak for.
+ */
 export function seededShuffle<T>(items: readonly T[], seedKey: string): T[] {
   const out = [...items];
   const next = mulberry32(seedFrom(seedKey));
@@ -59,6 +75,9 @@ export function seededShuffle<T>(items: readonly T[], seedKey: string): T[] {
     const a = out[i]!;
     out[i] = out[j]!;
     out[j] = a;
+  }
+  if (out.length > 1 && out.every((value, i) => value === items[i])) {
+    out.push(out.shift() as T);
   }
   return out;
 }

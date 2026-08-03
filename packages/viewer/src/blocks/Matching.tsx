@@ -19,6 +19,7 @@ import { useId } from 'react';
 import type { MatchingBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
 import { choiceLetter } from './paperAffordances.js';
+import { seededShuffle } from '../sanitize/shuffle.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
@@ -40,12 +41,26 @@ export default function Matching({
   const solution = solutionFor(block.id);
   const placed = state.responses.matches[block.id] ?? {};
 
+  // THE BANK IS SHUFFLED, NEVER SHOWN IN AUTHORED ORDER (S5.5 D21C).
+  //
+  // Matching pairs are authored in order — item 1 pairs with target 1 — so a
+  // bank rendered as authored makes the n-th option the answer to the n-th
+  // item, which a student can read straight off the page without doing the
+  // task. The published page has always shuffled here (renderer matching.ts);
+  // the viewer had not, and no test named the property.
+  //
+  // Seeded by BLOCK ID, so it is stable across reloads and re-renders (a bank
+  // that reshuffles under a student mid-question would be its own bug) and
+  // needs no server, wire, or schema change. A print version composes its own
+  // seed on top of this one.
+  const targets = seededShuffle(block.targets, block.id);
+
   // The key pairs item id → TARGET ID. The letter a teacher writes is a fact
-  // about the order the bank is being rendered in, which print shuffles per
-  // version — so it is derived here, from this render, rather than stored.
+  // about the order the bank is being rendered in — which the shuffle above
+  // has just decided — so it is derived here rather than stored.
   const answerKey = useBlockAnswerKey(block.id);
   const letterByTargetId = new Map(
-    block.targets.map((target, i) => [target.id, choiceLetter(i)]),
+    targets.map((target, i) => [target.id, choiceLetter(i)]),
   );
 
   return (
@@ -61,7 +76,7 @@ export default function Matching({
 
       {/* The lettered bank, so prose and print can refer to "B". */}
       <ul className="viewer-matching__bank">
-        {block.targets.map((target, i) => (
+        {targets.map((target, i) => (
           <li key={target.id} className="viewer-matching__target" data-letter={choiceLetter(i)}>
             <span className="viewer-matching__letter">{choiceLetter(i)}.</span>{' '}
             <InlineContent nodes={target.content} />
@@ -106,7 +121,7 @@ export default function Matching({
                 }
               >
                 <option value="">— choose —</option>
-                {block.targets.map((target, i) => (
+                {targets.map((target, i) => (
                   <option key={target.id} value={target.id}>
                     {choiceLetter(i)}
                   </option>

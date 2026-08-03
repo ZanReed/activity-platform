@@ -83,6 +83,10 @@ export type {
 // the get-activity bundle must never carry answer-reading code (V9 lesson).
 export { extractAnswerKey, extractBlockAnswerKey } from './answer-key/extract.js';
 export { AnswerKeyProvider, useBlockAnswerKey } from './answer-key/context.js';
+// S5.5 D15A — print-side shuffles, declared on the PrintSpec and applied here.
+// Separate from the serve shuffle on purpose: this moves no wire and no
+// SANITIZER_REV (see printShuffle.ts).
+export { applyPrintShuffles, printSeed } from './print/printShuffle.js';
 export type { AnswerKeyProviderProps } from './answer-key/context.js';
 export { ANSWER_KEY_COVERAGE, ANSWER_KEY_INK } from './answer-key/types.js';
 export type {

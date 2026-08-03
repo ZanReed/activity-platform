@@ -28,9 +28,11 @@ import { render } from '@testing-library/react';
 import {
   AnswerKeyProvider,
   ViewerProvider,
+  applyPrintShuffles,
   createMockCheckService,
   createViewerStore,
   extractBlockAnswerKey,
+  printSeed,
 } from '../../src/index.js';
 import type { AnswerKeyMap } from '../../src/index.js';
 import FillInBlank from '../../src/blocks/FillInBlank.js';
@@ -40,6 +42,7 @@ import Ordering from '../../src/blocks/Ordering.js';
 import {
   authoredBlockFixture,
   sanitizedBlockFixture,
+  sanitizedFixtureDocument,
 } from '../../src/fixtures/index.js';
 import { TEST_USER_ID } from '../helpers/ids.js';
 
@@ -177,6 +180,140 @@ describe('with an answer key', () => {
     // Every position appears exactly once — a permutation of 1..N however the
     // items were served.
     expect([...numbers].sort()).toEqual([...expected].sort());
+  });
+});
+
+describe('the key survives the print shuffle (D15A × D3A)', () => {
+  // The property the whole slice rests on. Paper never shows the authored order
+  // (D15A), and the key is stored position-free (D3A) — so the two must still
+  // agree after the sheet has been rearranged. If they ever stop agreeing, a
+  // teacher marks a class set against letters that are silently wrong, and
+  // nothing in the UI would say so.
+
+  const shuffledBlock = (type: 'ordering' | 'matching') => {
+    const doc = applyPrintShuffles(sanitizedFixtureDocument(), printSeed(ACTIVITY));
+    for (const section of doc.sections) {
+      for (const row of section.rows) {
+        for (const column of row.columns) {
+          for (const block of column.blocks) {
+            if ((block as { type: string }).type === type) return block;
+          }
+        }
+      }
+    }
+    throw new Error(`no ${type} block in the fixture document`);
+  };
+
+  it('ordering: each item still prints its own authored position', () => {
+    const block = shuffledBlock('ordering') as unknown as { id: string };
+    const answers = {
+      [block.id]: extractBlockAnswerKey(authoredBlockFixture('ordering')),
+    } as AnswerKeyMap;
+    const positions = Object.values(answers)[0]!.positionByItemId ?? {};
+
+    const { container } = harness(
+      <Ordering block={block as never} mode="print" />,
+      answers,
+    );
+
+    const rows = Array.from(
+      container.querySelectorAll('.viewer-ordering__item'),
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const itemId = row.getAttribute('data-item-id') ?? '';
+      const printed = row.querySelector('.viewer-ordering__number-box')?.textContent;
+      expect(printed).toBe(String(positions[itemId]));
+    }
+  });
+
+  it('matching: each item still prints the letter of ITS target', () => {
+    const block = shuffledBlock('matching') as unknown as { id: string };
+    const answers = {
+      [block.id]: extractBlockAnswerKey(authoredBlockFixture('matching')),
+    } as AnswerKeyMap;
+    const pairs = Object.values(answers)[0]!.targetIdByItemId ?? {};
+
+    const { container } = harness(
+      <Matching block={block as never} mode="print" />,
+      answers,
+    );
+
+    // The bank as this render drew it: letter ← target id.
+    const letterOfTarget = new Map(
+      Array.from(container.querySelectorAll('.viewer-matching__target')).map(
+        (li, i) => [i, li.getAttribute('data-letter')],
+      ),
+    );
+    const bankIds = Array.from(
+      container.querySelectorAll('.viewer-matching__bank option, .viewer-matching__target'),
+    );
+    expect(bankIds.length).toBeGreaterThan(0);
+
+    for (const row of Array.from(
+      container.querySelectorAll('.viewer-matching__item'),
+    )) {
+      const itemId = row.getAttribute('data-item-id') ?? '';
+      const written = row.querySelector('.viewer-matching__letter-line')?.textContent;
+      const targetId = pairs[itemId];
+      if (!targetId) continue;
+
+      // Resolve the written letter back to a target through the RENDERED bank,
+      // and it must be the target the key names.
+      const index = Array.from(
+        container.querySelectorAll('.viewer-matching__target'),
+      ).findIndex((li) => li.getAttribute('data-letter') === written);
+      expect(index).toBeGreaterThanOrEqual(0);
+      expect(letterOfTarget.get(index)).toBe(written);
+
+      const select = row.querySelector('select');
+      const optionAtIndex = select?.querySelectorAll('option')[index + 1];
+      expect(optionAtIndex?.getAttribute('value')).toBe(targetId);
+    }
+  });
+});
+
+describe('the matching bank is never shown in authored order (D21C)', () => {
+  it('shuffles the bank, stably, with no answer channel involved', () => {
+    // A student-surface fix, not a print one: authored pairs are written in
+    // order, so an unshuffled bank makes the n-th option the answer to the n-th
+    // item — readable straight off the screen without doing the task.
+    const served = sanitizedBlockFixture('matching') as never as {
+      id: string;
+      targets: { id: string }[];
+    };
+
+    // The bank CONTENT only. The <li> also carries its position letter, and
+    // including that made an earlier version of this test vacuous: "A. 5" never
+    // equals "5", so the not-authored assertion could not fail even with the
+    // shuffle removed. Caught by mutating the source and watching it stay green.
+    const rendered = () =>
+      Array.from(
+        harness(
+          <Matching block={served as never} mode="screen" />,
+        ).container.querySelectorAll('.viewer-matching__target'),
+      ).map((li) => li.textContent?.replace(/^[A-Z]\.\s*/, '').trim());
+
+    const first = rendered();
+    const second = rendered();
+
+    // Stable across renders — a bank that reshuffled under a student mid-
+    // question would be its own bug.
+    expect(second).toEqual(first);
+    expect(first.length).toBe(served.targets.length);
+
+    // And ACTUALLY shuffled. Without this the test passes with no shuffle at
+    // all, which is precisely the leak D21C exists to close: the fixture's
+    // targets are authored in pair order, so an unshuffled bank answers its own
+    // question. (The never-identity guarantee in seededShuffle is what makes
+    // this assertion safe on a two-target bank rather than a coin flip.)
+    const authored = served.targets.map((target) =>
+      (target as unknown as { content: { text?: string }[] }).content
+        .map((node) => node.text ?? '')
+        .join('')
+        .trim(),
+    );
+    expect(first).not.toEqual(authored);
   });
 });
 
