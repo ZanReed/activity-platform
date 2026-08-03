@@ -20,7 +20,7 @@ import { blockPrintRoster, type BlockType } from '@activity/viewer';
 // LINUX/CI IS AUTHORITATIVE (ruling S5-7). Font rasterisation differs between
 // macOS and the Linux runners, so a baseline taken on a laptop fails in CI and
 // vice versa — for no reason a human would call a defect. CI owns the images;
-// local runs get the structural gate (print-parity.e2e.ts), which is
+// local runs get the structural gate (print-rules.e2e.ts), which is
 // platform-independent and catches most regressions anyway.
 //
 // GENERATING OR UPDATING THE IMAGES (a deliberate act, not a side effect):

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 // ============================================================================
 // print-pagination.e2e.ts — what paper actually does (S5 T9, finding OV3)
 // ----------------------------------------------------------------------------
-// Every print assertion in print-parity.e2e.ts runs under
+// Every print assertion in print-rules.e2e.ts runs under
 // `emulateMedia({ media: 'print' })`, which applies the print stylesheet in ONE
 // CONTINUOUS VIEWPORT. It never paginates. So `break-inside: avoid` is checked
 // there as a computed VALUE — the rule is written down — and not as a fact

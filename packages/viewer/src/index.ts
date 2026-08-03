@@ -68,9 +68,6 @@ export {
   PAPER_COLOURS,
 } from './registry/printExpectations.js';
 export type {
-  PrintSurface,
-  SurfaceTarget,
-  SurfaceSelectors,
   PrintExpectation,
   PrintCheck,
   PrintInstanceContext,

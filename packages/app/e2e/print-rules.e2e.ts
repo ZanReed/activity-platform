@@ -7,34 +7,36 @@ import {
     type PrintInstanceContext,
 } from '@activity/viewer';
 import { authoredFixtureDocument } from '@activity/viewer/fixtures';
-import { renderActivityForPrint } from '@activity/renderer';
-import { runPrintChecks, describeFailures } from './helpers/printParity';
+import { runPrintChecks, describeFailures } from './helpers/printChecks';
 
 // ============================================================================
-// print-parity.e2e.ts — THE RENDERER-RETIREMENT GATE (S5, ruling S5-6)
+// print-rules.e2e.ts — THE STANDING PRINT GATE
 // ----------------------------------------------------------------------------
-// The second of the two gates that let the string renderer retire from the
-// student path (the first, the golden grading corpus, landed in S4). It asks
-// one question per block: does every ruled print rule hold — on the retiring
-// renderer's published page AND on the viewer's print mode?
+// One question per block: does every ruled print rule hold on the printed page?
+// The rules come from the registry's PrintSpec via printExpectations, so this
+// asserts a declared CONTRACT rather than the output of any particular render —
+// which is what lets an improvement be expressed as a ruling instead of showing
+// up as a diff nobody ordered.
 //
-// WHAT IT IS NOT. It does not diff the two surfaces pixel by pixel. They are
-// deliberately different renderings with different DOM, different font
-// pipelines, and different container layout, so any threshold loose enough to
-// tolerate the legitimate differences is too loose to catch a missing blank
-// underline, and any threshold tight enough to catch one is permanently red.
-// That is why finding R4's original proposal was amended: parity you can
-// falsify is "every ruled RULE holds on both", asserted from the registry's
-// PrintSpec via printExpectations. Pixels are compared viewer-against-viewer
-// only (T8 baselines), and the subjective half is one recorded human read of a
-// generated contact sheet (T10).
+// WHAT THIS USED TO BE, because the git history will look like a deletion.
+// Through S5 and S5.5 this was the renderer-RETIREMENT gate (ruling S5-6): the
+// second of the two gates that let the string renderer leave the student path,
+// running every rule against BOTH the retiring renderer's published page and
+// the viewer's print mode. It never diffed them pixel by pixel — two
+// deliberately different DOM and font pipelines make any threshold either
+// permanently red or vacuously loose — it held both to the same declared rules.
+//
+// That job is finished. The rules ran green on both surfaces, the answer-key
+// gate compared their semantics, and the author signed off the contact sheet
+// (2026-08-03). With the proof complete the renderer half retired as designed
+// (S5-abs), leaving this. It could not have been deferred: the comparison
+// needed the renderer reachable, and it is not any more.
 //
 // NETWORK IS BLOCKED. The gate must not depend on R2, which is deleted at
-// cutover — a retirement gate that dies with the thing it retires is no gate.
-// Everything either surface needs is local: the renderer inlines its KaTeX CSS,
-// and the viewer's fonts come from the app bundle.
+// cutover — a print gate that dies with the hosting it was written against is
+// no gate. Everything the page needs is local: fonts come from the app bundle.
 //
-// Run with: pnpm --filter @activity/app test:e2e print-parity
+// Run with: pnpm --filter @activity/app test:e2e print-rules
 // ============================================================================
 
 /** Every external origin is refused, so the gate proves the pages print
@@ -54,38 +56,6 @@ async function blockExternalRequests(page: Page): Promise<string[]> {
         return route.abort();
     });
     return blocked;
-}
-
-/**
- * The renderer surface for one block: the real published-print document,
- * loaded directly rather than served. setContent avoids standing up a second
- * static server for markup that is already a complete self-contained page.
- */
-function rendererPageFor(type: BlockType, index: number): string {
-    const doc = authoredFixtureDocument();
-    // One block per page keeps a failure attributable: with the whole worksheet
-    // loaded, "some blank somewhere is not underlined" is a hunt.
-    const blocks = doc.sections
-        .flatMap((s) => s.rows)
-        .flatMap((r) => r.columns)
-        .flatMap((c) => c.blocks)
-        .filter((b) => b.type === type);
-    const block = blocks[Math.min(index, blocks.length - 1)];
-    if (!block) throw new Error(`no authored fixture block of type ${type}`);
-
-    const single = structuredClone(doc);
-    single.sections = [
-        {
-            ...single.sections[0]!,
-            rows: [
-                {
-                    id: 'row-1',
-                    columns: [{ id: 'col-1', blocks: [structuredClone(block)] }],
-                },
-            ],
-        },
-    ];
-    return renderActivityForPrint(single);
 }
 
 /**
@@ -147,18 +117,7 @@ async function loadViewerSurface(
     await page.emulateMedia({ media: 'print' });
 }
 
-/** Load the renderer surface for one block, in print media. */
-async function loadRendererSurface(
-    page: Page,
-    type: BlockType,
-    ctx: PrintInstanceContext,
-): Promise<void> {
-    const html = rendererPageFor(type, variantIndexFor(type, ctx));
-    await page.setContent(html, { waitUntil: 'domcontentloaded' });
-    await page.emulateMedia({ media: 'print' });
-}
-
-test.describe('print parity — every block, both surfaces', () => {
+test.describe('print rules — every block', () => {
     test.beforeEach(async ({ page }) => {
         await blockExternalRequests(page);
     });
@@ -166,25 +125,17 @@ test.describe('print parity — every block, both surfaces', () => {
     for (const type of blockPrintRoster) {
         test(`${type} prints to contract`, async ({ page }) => {
             await loadViewerSurface(page, type, {});
-            const viewer = await runPrintChecks({ page, surface: 'viewer', type });
-            const viewerReport = describeFailures(viewer, `viewer/${type}`);
-
-            await loadRendererSurface(page, type, {});
-            const renderer = await runPrintChecks({ page, surface: 'renderer', type });
-            const rendererReport = describeFailures(renderer, `renderer/${type}`);
-
-            // Both surfaces reported together: fixing one at a time doubles the
-            // number of runs it takes to get a block green.
-            expect([viewerReport, rendererReport].filter(Boolean).join('\n\n')).toBe('');
+            const outcomes = await runPrintChecks({ page, type });
+            expect(describeFailures(outcomes, type)).toBe('');
 
             // A block whose every check was skipped would pass vacuously.
-            const asserted = viewer.filter((o) => o.status === 'pass').length;
-            expect(asserted, `${type} asserted nothing on the viewer`).toBeGreaterThan(0);
+            const asserted = outcomes.filter((o) => o.status === 'pass').length;
+            expect(asserted, `${type} asserted nothing`).toBeGreaterThan(0);
         });
     }
 });
 
-test.describe('print parity — variants that change a printed rule', () => {
+test.describe('print rules — variants that change a printed rule', () => {
     test.beforeEach(async ({ page }) => {
         await blockExternalRequests(page);
     });
@@ -205,8 +156,7 @@ test.describe('print parity — variants that change a printed rule', () => {
                   : undefined;
             const viewer = await runPrintChecks({
                 page,
-                surface: 'viewer',
-                type: entry.type,
+                                type: entry.type,
                 ctx: entry.ctx,
                 ...(rootSelector ? { rootSelector } : {}),
             });
@@ -246,8 +196,7 @@ test.describe('printing from dark mode (S5-9)', () => {
 
         const outcomes = await runPrintChecks({
             page,
-            surface: 'viewer',
-            type: 'fill_in_blank',
+                        type: 'fill_in_blank',
         });
         expect(describeFailures(outcomes, 'viewer/fill_in_blank (dark)')).toBe('');
     });
@@ -291,8 +240,7 @@ test.describe('printing AFTER a check (7.3A: paper is the blank version)', () =>
         // And the rule set still passes with all that state present.
         const outcomes = await runPrintChecks({
             page,
-            surface: 'viewer',
-            type: 'multiple_choice',
+                        type: 'multiple_choice',
         });
         expect(describeFailures(outcomes, 'viewer/multiple_choice (checked)')).toBe('');
     });

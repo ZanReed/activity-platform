@@ -132,9 +132,6 @@ importers:
         specifier: ^6.3.7
         version: 6.3.7
     devDependencies:
-      '@activity/renderer':
-        specifier: workspace:*
-        version: link:../renderer
       '@eslint/js':
         specifier: ^9.17.0
         version: 9.39.4

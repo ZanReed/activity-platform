@@ -1,66 +1,27 @@
 // =============================================================================
-// print-answer-key.e2e.ts — the answer key, on both surfaces (S5.5 D12A)
+// print-answer-key.e2e.ts — what a teacher's answer key contains
 // -----------------------------------------------------------------------------
-// The renderer's `showAnswers` print variant is the only executable definition
-// of what a teacher's answer key contains: the canonical value on a blank line,
-// a mark against the correct choice, a letter beside each matching item, a
-// number in each ordering box. S5.5 reimplements all of it in the viewer and
-// then deletes the original. This file is the one chance to prove the port
-// preserved the semantics — after eviction the comparison is impossible
-// forever, which is why it must run green BEFORE that commit.
+// The standing answer-key gate: every gradable type puts its answer on the page
+// where a teacher expects to read it, and NOTHING is marked when no key was
+// asked for.
 //
-// COMPARE MEANING, NEVER POSITION (finding F7, and it is the whole design of
-// this file). The two surfaces deliberately arrange the page differently: the
-// renderer shuffles matching targets and ordering items seeded by block id, the
-// viewer shuffles by a print seed, and neither is wrong. So "choice B is
-// correct on both" is a false assertion — it would be permanently red, and the
-// obvious way to make it pass would be to loosen it into vacuity. What must
-// agree is which CONTENT is the answer: the same item pairs with the same
-// target, the same step gets the same number, the same choice is marked.
-// Positions are resolved through each surface's OWN rendering before comparing.
+// WHAT THIS USED TO BE. Through S5.5 the first half of this file compared the
+// viewer against the retiring renderer, whose `showAnswers` variant was the only
+// executable definition of what an answer key contains. It compared MEANING and
+// never position — each surface's written letter resolved back through its own
+// bank first, because the two shuffle differently by design and comparing
+// letters would have asserted they shuffle identically.
 //
-// After the renderer goes, the cross-surface half of this file retires by
-// design (S5-abs), and the viewer-only assertions plus the registry roster stay
-// as the standing answer-key gate.
+// That comparison ran green, the contact sheet was signed off (2026-08-03), and
+// the renderer half retired with it (S5-abs). The assertions it proved are kept
+// here as viewer-only pins with explicit expected values — the coverage does not
+// leave with the comparison, only the second surface does.
 // =============================================================================
 
 import { expect, test, type Page } from '@playwright/test';
-import { renderActivityForPrint } from '@activity/renderer';
-import { authoredFixtureDocument } from '@activity/viewer/fixtures';
-import { ANSWER_KEY_COVERAGE } from '@activity/viewer';
+import { ANSWER_KEY_COVERAGE, extractBlockAnswerKey } from '@activity/viewer';
+import { authoredBlockFixture } from '@activity/viewer/fixtures';
 import type { BlockType } from '@activity/viewer';
-
-/** One authored block of a type, as its own single-block print document. */
-function rendererKeyPageFor(type: BlockType): string {
-    const doc = authoredFixtureDocument();
-    const block = doc.sections
-        .flatMap((s) => s.rows)
-        .flatMap((r) => r.columns)
-        .flatMap((c) => c.blocks)
-        .find((b) => b.type === type);
-    if (!block) throw new Error(`no authored fixture block of type ${type}`);
-
-    const single = structuredClone(doc);
-    single.sections = [
-        {
-            ...single.sections[0]!,
-            rows: [
-                {
-                    id: 'row-1',
-                    columns: [{ id: 'col-1', blocks: [structuredClone(block)] }],
-                },
-            ],
-        },
-    ];
-    return renderActivityForPrint(single, { showAnswers: true });
-}
-
-async function loadRendererKey(page: Page, type: BlockType): Promise<void> {
-    await page.setContent(rendererKeyPageFor(type), {
-        waitUntil: 'domcontentloaded',
-    });
-    await page.emulateMedia({ media: 'print' });
-}
 
 async function loadViewerKey(page: Page, type: BlockType): Promise<void> {
     await page.goto(`/dev/viewer?type=${type}&answers=1`);
@@ -74,45 +35,32 @@ async function loadViewerKey(page: Page, type: BlockType): Promise<void> {
     await page.emulateMedia({ media: 'print' });
 }
 
-const norm = (s: string | null | undefined) =>
-    (s ?? '').replace(/\s+/g, ' ').trim();
+/** The key the route would supply, from the same authored fixture the harness
+ *  renders. The oracle for "did the component put the right answer on the
+ *  page" — extraction itself is pinned in the viewer's unit suite. */
+function keyFor(type: BlockType) {
+    return extractBlockAnswerKey(authoredBlockFixture(type));
+}
 
-test.describe('answer key — the same answers on both surfaces', () => {
+test.describe('answer key — every gradable type puts its answer on the page', () => {
     test('fill_in_blank: the canonical answer is on the line', async ({ page }) => {
-        await loadRendererKey(page, 'fill_in_blank');
-        const rendererValues = await page
-            .locator('.blank-wrapper input, input.blank')
-            .evaluateAll((els) =>
-                els.map((el) => (el as HTMLInputElement).value).filter(Boolean),
-            );
-
         await loadViewerKey(page, 'fill_in_blank');
-        const viewerValues = await page
+        const values = await page
             .locator('.viewer-blank__input')
             .evaluateAll((els) =>
                 els.map((el) => (el as HTMLInputElement).value).filter(Boolean),
             );
 
-        // Same answers, in the same order — a blank's position in prose is not
-        // shuffled by either surface, so here order IS meaning.
-        expect(viewerValues.length).toBeGreaterThan(0);
-        expect(viewerValues).toEqual(rendererValues);
+        // The canonical answer, not an acceptable alternate: the fixture blank
+        // is '3' with '3.0' also accepted, and a key wants one value on the line.
+        expect(values).toEqual(Object.values(keyFor('fill_in_blank').blanks ?? {}));
+        expect(values.length).toBeGreaterThan(0);
+        expect(values).not.toContain('3.0');
     });
 
-    test('multiple_choice: the same CHOICE is marked', async ({ page }) => {
-        await loadRendererKey(page, 'multiple_choice');
-        const rendererCorrect = await page
-            .locator('.mc-choice.mc-key-correct')
-            .evaluateAll((els) =>
-                els.map((el) => {
-                    const clone = el.cloneNode(true) as Element;
-                    clone.querySelectorAll('.mc-choice-letter').forEach((n) => n.remove());
-                    return clone.textContent ?? '';
-                }),
-            );
-
+    test('multiple_choice: exactly the correct choice is marked', async ({ page }) => {
         await loadViewerKey(page, 'multiple_choice');
-        const viewerCorrect = await page
+        const marked = await page
             .locator('.viewer-mc__choice[data-answer-key]')
             .evaluateAll((els) =>
                 els.map(
@@ -121,109 +69,59 @@ test.describe('answer key — the same answers on both surfaces', () => {
                 ),
             );
 
-        expect(viewerCorrect.length).toBeGreaterThan(0);
-        // Content, not letter: the letter is a fact about each surface's own
-        // ordering, and comparing letters would assert the two surfaces shuffle
-        // identically, which they deliberately do not.
-        expect(viewerCorrect.map(norm).sort()).toEqual(
-            rendererCorrect.map(norm).sort(),
-        );
+        expect(marked).toHaveLength(keyFor('multiple_choice').correctChoiceIds?.length ?? 0);
+        expect(marked.length).toBeGreaterThan(0);
+        // The mark rides the LETTER, which is what survives onto paper — the
+        // native control is hidden in print, so marking it would print nothing.
+        await expect(
+            page.locator('.viewer-mc__choice[data-answer-key] .viewer-mc__letter').first(),
+        ).toBeAttached();
     });
 
-    test('matching: each item pairs with the same TARGET', async ({ page }) => {
-        // Resolve each surface's written letter back through its own bank, so
-        // what is compared is item-content → target-content.
-        await loadRendererKey(page, 'matching');
-        const rendererPairs = await page.evaluate(() => {
-            const strip = (el: Element, sel: string) => {
-                const clone = el.cloneNode(true) as Element;
-                clone.querySelectorAll(sel).forEach((n) => n.remove());
-                return (clone.textContent ?? '').replace(/\s+/g, ' ').trim();
-            };
-            const bank = new Map<string, string>();
-            document.querySelectorAll('.match-target').forEach((el) => {
-                const letter = (el.querySelector('.match-target-letter')?.textContent ?? '')
-                    .replace(/\W/g, '');
-                bank.set(letter, strip(el, '.match-target-letter'));
-            });
-            const out: Record<string, string> = {};
-            document.querySelectorAll('.match-item').forEach((el) => {
-                const written = (el.querySelector('.match-letter-line')?.textContent ?? '').trim();
-                if (written) {
-                    out[strip(el, '.match-letter-line, .match-target-letter')] =
-                        bank.get(written) ?? `?${written}`;
-                }
-            });
-            return out;
-        });
-
+    test('matching: each item gets the letter of ITS target', async ({ page }) => {
         await loadViewerKey(page, 'matching');
-        const viewerPairs = await page.evaluate(() => {
-            const strip = (el: Element, sel: string) => {
-                const clone = el.cloneNode(true) as Element;
-                clone.querySelectorAll(sel).forEach((n) => n.remove());
-                return (clone.textContent ?? '').replace(/\s+/g, ' ').trim();
-            };
+        const pairs = await page.evaluate(() => {
             const bank = new Map<string, string>();
             document.querySelectorAll('.viewer-matching__target').forEach((el) => {
-                const letter = el.getAttribute('data-letter') ?? '';
-                bank.set(letter, strip(el, '.viewer-matching__letter'));
+                bank.set(el.getAttribute('data-letter') ?? '', el.getAttribute('data-target-id') ?? '');
             });
             const out: Record<string, string> = {};
             document.querySelectorAll('.viewer-matching__item').forEach((el) => {
                 const written = (
                     el.querySelector('.viewer-matching__letter-line')?.textContent ?? ''
                 ).trim();
-                if (written) {
-                    out[el.querySelector('.viewer-matching__item-label')?.textContent ?? ''] =
-                        bank.get(written) ?? `?${written}`;
-                }
+                if (written) out[el.getAttribute('data-item-id') ?? ''] = written;
             });
-            return out;
+            return { bank: Object.fromEntries(bank), written: out };
         });
 
-        const strip = (pairs: Record<string, string>) =>
-            Object.entries(pairs)
-                .map(([item, target]) => `${norm(item)} => ${norm(target)}`)
-                .sort();
-
-        expect(Object.keys(viewerPairs).length).toBeGreaterThan(0);
-        expect(strip(viewerPairs)).toEqual(strip(rendererPairs));
+        const key = keyFor('matching').targetIdByItemId ?? {};
+        expect(Object.keys(pairs.written).length).toBeGreaterThan(0);
+        for (const [itemId, letter] of Object.entries(pairs.written)) {
+            expect(letter).toMatch(/^[A-Z]$/);
+            // The letter must resolve, through the bank AS RENDERED, to the
+            // target the key names — which is the property that survives the
+            // print shuffle rearranging the bank.
+            expect(pairs.bank[letter]).toBe(key[itemId]);
+        }
     });
 
-    test('ordering: each step gets the same NUMBER', async ({ page }) => {
-        await loadRendererKey(page, 'ordering');
-        const rendererNumbers = await page.evaluate(() => {
-            const out: Record<string, string> = {};
-            document.querySelectorAll('.order-item').forEach((el) => {
-                const box = el.querySelector('.order-number-box')?.textContent ?? '';
-                const content = el.querySelector('.order-item-content')?.textContent
-                    ?? el.textContent ?? '';
-                if (box.trim()) out[content] = box.trim();
-            });
-            return out;
-        });
-
+    test('ordering: each step carries its authored position', async ({ page }) => {
         await loadViewerKey(page, 'ordering');
-        const viewerNumbers = await page.evaluate(() => {
+        const printed = await page.evaluate(() => {
             const out: Record<string, string> = {};
             document.querySelectorAll('.viewer-ordering__item').forEach((el) => {
                 const box = el.querySelector('.viewer-ordering__number-box')?.textContent ?? '';
-                const content = el.querySelector('.viewer-ordering__content')?.textContent ?? '';
-                if (box.trim()) out[content] = box.trim();
+                if (box.trim()) out[el.getAttribute('data-item-id') ?? ''] = box.trim();
             });
             return out;
         });
 
-        const strip = (m: Record<string, string>) =>
-            Object.entries(m)
-                .map(([content, n]) => `${norm(content).replace(/^\d+\s*/, '')} = ${n}`)
-                .sort();
-
-        expect(Object.keys(viewerNumbers).length).toBeGreaterThan(0);
-        // The two surfaces print these steps in different orders on purpose;
-        // what must match is which step carries which number.
-        expect(strip(viewerNumbers)).toEqual(strip(rendererNumbers));
+        const key = keyFor('ordering').positionByItemId ?? {};
+        expect(Object.keys(printed).length).toBeGreaterThan(0);
+        for (const [itemId, number] of Object.entries(printed)) {
+            expect(number).toBe(String(key[itemId]));
+        }
     });
 });
 

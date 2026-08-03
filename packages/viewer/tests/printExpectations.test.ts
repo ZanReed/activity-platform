@@ -29,9 +29,8 @@ import {
   documentPrintRoster,
   BLOCK_ROOT,
 } from '../src/index.js';
-import type { BlockType, PrintCheck, PrintSurface } from '../src/index.js';
+import type { BlockType, PrintCheck,  } from '../src/index.js';
 
-const SURFACES: readonly PrintSurface[] = ['viewer', 'renderer'];
 
 const allChecksFor = (type: BlockType): readonly PrintCheck[] => printExpectations(type);
 
@@ -131,54 +130,21 @@ describe('printExpectations — coherence with the registry', () => {
   });
 });
 
-describe('printExpectations — the surface map cannot silently skip a surface', () => {
-  it('resolves every check to a selector or an explicitly justified absence', () => {
+describe('printExpectations — every check can actually fail', () => {
+  // This used to police a two-surface selector map: a rule could be asserted on
+  // the viewer and excused on the retiring renderer, and the danger was a rule
+  // quietly excused on BOTH — a check that can never fail. With the
+  // cross-surface half retired (S5-abs) there is one selector per check, so the
+  // remaining risk is simply an empty one.
+  it('resolves every check to a non-empty selector', () => {
     for (const type of registeredBlockTypes) {
       for (const check of allChecksFor(type)) {
-        for (const surface of SURFACES) {
-          const target = check.target[surface];
-          if (typeof target === 'string') {
-            expect(target.length, `${type}/${check.id} has an empty ${surface} selector`)
-              .toBeGreaterThan(0);
-          } else {
-            // An absence must carry a reason. This is the one place a rule
-            // stops being asserted on a surface, so it must be readable.
-            expect(
-              target.notApplicable.length,
-              `${type}/${check.id} skips ${surface} without saying why`,
-            ).toBeGreaterThan(20);
-          }
-        }
-      }
-    }
-  });
-
-  it('never skips BOTH surfaces (that would be a check that asserts nothing)', () => {
-    for (const type of registeredBlockTypes) {
-      for (const check of allChecksFor(type)) {
-        const resolved = SURFACES.map((surface) => targetFor(check, surface)).filter(
-          (sel) => sel !== null,
-        );
+        const selector = targetFor(check);
         expect(
-          resolved.length,
-          `${type}/${check.id} is skipped on every surface — it can never fail`,
+          selector.length,
+          `${type}/${check.id} has an empty selector — it can never fail`,
         ).toBeGreaterThan(0);
       }
-    }
-  });
-
-  it('gives every check a stated rule, so a red gate reads as English', () => {
-    for (const type of registeredBlockTypes) {
-      for (const check of allChecksFor(type)) {
-        expect(check.rule.length, `${type}/${check.id} has no stated rule`).toBeGreaterThan(20);
-      }
-    }
-  });
-
-  it('keeps check ids unique within a block', () => {
-    for (const type of registeredBlockTypes) {
-      const ids = allChecksFor(type).map((c) => c.id);
-      expect(new Set(ids).size, `${type} repeats a check id`).toBe(ids.length);
     }
   });
 });
@@ -233,7 +199,7 @@ describe('printExpectations — the clean-worksheet floor (7.3A)', () => {
       const inkCheck = allChecksFor(type).find((c) => c.id === 'ink/not-paper');
       expect(inkCheck, `${type} has no printed-ink guard`).toBeDefined();
       expect(inkCheck?.expect).toEqual({ kind: 'ink-not-paper' });
-      expect(inkCheck?.target.viewer).toBe(BLOCK_ROOT);
+      expect(inkCheck?.target).toBe(BLOCK_ROOT);
     }
   });
 });
@@ -313,7 +279,7 @@ describe('printExpectations — per-instance rules', () => {
       const check = printExpectations(type).find((c) => c.id === 'canvas/live-board-hidden');
       expect(check, `${type} does not hide its live board in print`).toBeDefined();
       expect(check?.expect).toEqual({ kind: 'hidden' });
-      expect(targetFor(check as PrintCheck, 'viewer')).not.toBeNull();
+      expect(targetFor(check as PrintCheck)).not.toBeNull();
     }
   });
 

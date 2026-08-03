@@ -44,7 +44,6 @@
     "tippy.js": "^6.3.7"
   },
   "devDependencies": {
-    "@activity/renderer": "workspace:*",
     "@eslint/js": "^9.17.0",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.0.0",

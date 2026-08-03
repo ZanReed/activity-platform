@@ -77,7 +77,15 @@ export default function Matching({
       {/* The lettered bank, so prose and print can refer to "B". */}
       <ul className="viewer-matching__bank">
         {targets.map((target, i) => (
-          <li key={target.id} className="viewer-matching__target" data-letter={choiceLetter(i)}>
+          <li
+            key={target.id}
+            className="viewer-matching__target"
+            data-letter={choiceLetter(i)}
+            // The bank as RENDERED, machine-readable: a print version shuffles
+            // it, so a checker has to resolve a written letter back to a target
+            // rather than assume position.
+            data-target-id={target.id}
+          >
             <span className="viewer-matching__letter">{choiceLetter(i)}.</span>{' '}
             <InlineContent nodes={target.content} />
           </li>

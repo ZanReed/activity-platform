@@ -94,22 +94,24 @@ jobs:
           }
 
   # ---------------------------------------------------------------------------
-  # The print-parity gate (S5). This is one of the two gates that let the string
-  # renderer retire from the student path, so it has to run where PRs merge —
-  # a gate that only runs when someone remembers to run it is not a gate.
+  # The print gates. Built in S5 as the renderer-RETIREMENT gate (one of the two
+  # that let the string renderer leave the student path); since S5.5 proved the
+  # port and the contact sheet was signed off, they are the STANDING print gates
+  # for the viewer. They run where PRs merge — a gate that only runs when
+  # someone remembers to run it is not a gate.
   #
-  # Its own job rather than a step in `check`: it needs a browser and a dev
-  # server, which the fast typecheck/lint/test job should not have to wait for,
-  # and a browser-shaped failure should read as "print parity broke" rather than
-  # as a mystery inside a job called `test`.
+  # Their own job rather than a step in `check`: they need a browser and a dev
+  # server, which the fast typecheck/lint/test job should not wait for, and a
+  # browser-shaped failure should read as "print broke" rather than as a mystery
+  # inside a job called `test`.
   #
-  # Scoped to print-parity deliberately. The editor's 145-case e2e suite is
+  # Scoped to the print suites deliberately. The editor's 145-case e2e suite is
   # still local-only; bringing it into CI is a separate decision with its own
   # runtime cost, and quietly folding it in here would make this job's failures
   # ambiguous.
   # ---------------------------------------------------------------------------
-  print-parity:
-    name: print parity gate (renderer retirement)
+  print-gates:
+    name: print gates (rules · pagination · answer key)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -128,20 +130,20 @@ jobs:
       - name: Install Chromium
         run: pnpm --filter @activity/app exec playwright install --with-deps chromium
 
-      # Every print suite, matched by prefix: the rules gate (print-parity), the
+      # Every print suite, matched by prefix: the rules gate (print-rules), the
       # paginated layer it cannot reach (print-pagination), and the answer-key
-      # gate (print-answer-key, S5.5 D12A — the cross-surface half of which MUST
-      # be green before the renderer is evicted, because it cannot be run at all
-      # afterwards). The baseline suite matches too and skips itself until its
-      # Linux images exist; the contact sheet self-skips without its env var.
-      - name: Print parity
+      # gate (print-answer-key). All three are viewer-only: the cross-surface
+      # halves that compared against the retiring renderer retired once the port
+      # was proven and the contact sheet signed off (S5-abs). The baseline suite
+      # matches too and skips itself until its Linux images exist.
+      - name: Print gates
         run: pnpm --filter @activity/app exec playwright test print-
 
       - name: Upload failure traces
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: print-parity-traces
+          name: print-gate-traces
           path: packages/app/test-results/
           retention-days: 7
 

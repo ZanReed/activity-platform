@@ -33,12 +33,12 @@ export default tseslint.config(
   // again, and a re-import would go unnoticed until S9 deletes the package and
   // the app breaks for reasons nobody connects to this change.
   //
-  // SCOPED TO SOURCE, DELIBERATELY. packages/app/e2e is exempt: the print
-  // parity gate, the answer-key gate and the contact-sheet generator import the
-  // renderer ON PURPOSE, because comparing the two surfaces is the whole point
-  // of them. They retire with the renderer, not before it.
+  // NOW WHOLE-PACKAGE. It was scoped to src/ while the cross-surface gates
+  // legitimately imported the renderer to compare the two surfaces; those
+  // retired once the comparison was proven and signed off (S5-abs), so nothing
+  // in this package may import it any more — including e2e.
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -47,11 +47,11 @@ export default tseslint.config(
             {
               name: '@activity/renderer',
               message:
-                'The renderer is retired from product code (S5.5 T8). Use ' +
-                '@activity/viewer for rendering, ' +
-                '@activity/graph-kit/static-svg for static figures, and ' +
-                '@activity/schema for the font registry and graph types. ' +
-                'Test harnesses that compare the two surfaces live in e2e/.',
+                'The renderer is retired (S5.5). Use @activity/viewer for ' +
+                'rendering, @activity/graph-kit/static-svg for static figures, ' +
+                'and @activity/schema for the font registry and graph types. ' +
+                'The cross-surface harnesses that used to import it retired ' +
+                'with it once the port was proven and signed off (S5-abs).',
             },
           ],
           patterns: ['@activity/renderer/*'],

@@ -1,21 +1,24 @@
 // ============================================================================
-// printParity.ts — running the print contract against a real page (S5 T7)
+// printChecks.ts — running the print contract against a real page (S5 T7)
 // ----------------------------------------------------------------------------
 // The gate's executor. `printExpectations(type, ctx)` in @activity/viewer says
 // WHAT must be true of a printed block; this says HOW to check it in a browser,
-// once per expectation kind, for either surface.
+// once per expectation kind.
 //
-// The two surfaces are the retiring renderer's published page and the viewer's
-// print mode. They are deliberately different renderings — different DOM,
-// different font pipelines, different container layout — which is exactly why
-// the gate compares them against a shared CONTRACT rather than against each
-// other (ruling S5-6). A cross-surface pixel diff between them would be either
-// permanently red or vacuously loose; "every ruled rule holds on both" is
-// falsifiable.
+// IT WAS A PARITY GATE, AND IS NOT ONE ANY MORE (S5-abs). Through S5 and S5.5
+// this ran every rule against TWO surfaces — the retiring renderer's published
+// page and the viewer's print mode — because the viewer was replacing the
+// renderer and "the port kept the semantics" needed proving. Both surfaces were
+// held to a shared CONTRACT rather than to each other's output (ruling S5-6): a
+// cross-surface pixel diff between two deliberately different DOM and font
+// pipelines would have been permanently red or vacuously loose.
 //
-// A skipped check is reported, never silent: `targetFor` returns null only
-// where the registry gives a written reason, and those show up in the result so
-// a surface quietly dropping out of the gate is visible.
+// That proof is complete: the rules gate ran green on both, the answer-key gate
+// compared their semantics, and the author signed off the contact sheet on
+// 2026-08-03. So the renderer half retired as designed, and what remains is the
+// standing print gate — one surface, the same declared rules. The comparison
+// cannot be rebuilt later (it needed the renderer reachable), which is why it
+// had to be finished before the eviction rather than after.
 // ============================================================================
 
 import type { Page, Locator } from '@playwright/test';
@@ -25,7 +28,6 @@ import {
     BLOCK_ROOT,
     PAPER_COLOURS,
     type PrintCheck,
-    type PrintSurface,
     type PrintInstanceContext,
 } from '@activity/viewer';
 import type { BlockType } from '@activity/viewer';
@@ -51,18 +53,8 @@ const computed = (el: Locator, property: string) =>
 async function runCheck(
     roots: Locator,
     check: PrintCheck,
-    surface: PrintSurface,
 ): Promise<CheckOutcome> {
-    const selector = targetFor(check, surface);
-    if (selector === null) {
-        const target = check.target[surface];
-        return {
-            id: check.id,
-            rule: check.rule,
-            status: 'skipped',
-            detail: typeof target === 'string' ? undefined : target.notApplicable,
-        };
-    }
+    const selector = targetFor(check);
 
     // BLOCK_ROOT is ambiguous by construction: the container wraps every block
     // in an element carrying data-block-type, and most components repeat the
@@ -232,17 +224,15 @@ async function evaluateOn(
 
 export interface SurfaceRunOptions {
     readonly page: Page;
-    readonly surface: PrintSurface;
     readonly type: BlockType;
     readonly ctx?: PrintInstanceContext;
     /** Scope for the block root; defaults to the type's data attribute. */
     readonly rootSelector?: string;
 }
 
-/** Every expectation for one block on one surface. */
+/** Every expectation for one block. */
 export async function runPrintChecks({
     page,
-    surface,
     type,
     ctx = {},
     rootSelector,
@@ -251,7 +241,7 @@ export async function runPrintChecks({
     const checks = printExpectations(type, ctx);
     const outcomes: CheckOutcome[] = [];
     for (const check of checks) {
-        outcomes.push(await runCheck(roots, check, surface));
+        outcomes.push(await runCheck(roots, check));
     }
     return outcomes;
 }

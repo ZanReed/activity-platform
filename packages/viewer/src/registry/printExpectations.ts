@@ -1,9 +1,11 @@
 // =============================================================================
-// registry/printExpectations.ts — the print rules the parity gate asserts (S5/T6)
+// registry/printExpectations.ts — the print rules the gate asserts (S5/T6)
 // -----------------------------------------------------------------------------
-// ONE location for the per-block print contract, consumed by the S5 parity gate
-// (packages/app/e2e/print-parity.e2e.ts) on BOTH surfaces: the retiring
-// renderer's published page and the viewer's print mode.
+// ONE location for the per-block print contract, consumed by the print gate
+// (packages/app/e2e/print-rules.e2e.ts). Written for TWO surfaces originally —
+// the retiring renderer's published page and the viewer's print mode — and
+// reduced to one when the cross-surface half retired (S5-abs); the rules
+// themselves did not change, only the number of pages they run against.
 //
 // HONEST NAMING (ruling S5-5, conceding outside-voice finding #4): this is NOT
 // "derived from PrintSpec so it cannot drift". Two parts genuinely derive from
@@ -11,9 +13,8 @@
 // and the roster comes off `registeredBlockTypes` — but the rest is a written
 // table, because the real rules are per-BLOCK, not per-treatment (a graph
 // canvas caps at 3.5in while a number line caps at 5in, both `static-svg`), and
-// because the two surfaces use different DOM vocabularies and need a selector
-// map. The guarantee this file offers is SINGLE LOCATION + ROSTER GUARDS, not
-// derivation. That distinction matters: S4 shipped a test double that diverged
+// and because it needs a selector per rule. The guarantee this file offers is
+// SINGLE LOCATION + ROSTER GUARDS, not derivation. That distinction matters: S4 shipped a test double that diverged
 // from the helper it stood in for, and both sides passed their own tests
 // (learning `test-double-divergence-hides-integration-bugs`). A table that
 // claims to be derived invites exactly that under-assertion.
@@ -49,22 +50,17 @@ import type { BlockType, PrintTreatment } from './types.js';
 // Vocabulary
 // -----------------------------------------------------------------------------
 
-export type PrintSurface = 'viewer' | 'renderer';
-
 /** Sentinel target meaning "the block root element itself" rather than a
  * descendant query. The harness resolves it to the element it scoped to
- * (`[data-block-type="…"]`), which both surfaces emit on every block. */
+ * (`[data-block-type="…"]`), which every block emits. */
 export const BLOCK_ROOT = ':block-root';
 
-/** A selector on one surface, or an explicit, justified absence. An absence
- * must say WHY — a silent `undefined` would let a rule quietly stop being
- * checked on one surface, which is how a gate goes vacuous. */
-export type SurfaceTarget = string | { readonly notApplicable: string };
-
-export interface SurfaceSelectors {
-  readonly viewer: SurfaceTarget;
-  readonly renderer: SurfaceTarget;
-}
+// NOTE (S5.5, cross-surface retirement): `target` used to be a per-surface map
+// with an explicit `notApplicable` escape, because a rule could apply to the
+// viewer and not to the retiring renderer. With one surface left there is
+// nothing to except a rule FROM — a rule a block should not be held to is
+// declared in `suppressedChecksFor`, which already carries a reason — so the
+// target is simply the selector.
 
 /**
  * The closed set of things the gate knows how to assert. Closed on purpose:
@@ -112,7 +108,7 @@ export interface PrintCheck {
   /** The rule in one human sentence. Failure messages quote it, so a red gate
    * reads as "blanks must print as bare writing lines", not a selector dump. */
   readonly rule: string;
-  readonly target: SurfaceSelectors;
+  readonly target: string;
   readonly expect: PrintExpectation;
 }
 
@@ -134,33 +130,25 @@ const UNIVERSAL_CHECKS: readonly PrintCheck[] = [
   {
     id: 'chrome/state-pill',
     rule: 'Check-state chrome never prints — a printed worksheet is the blank version.',
-    target: {
-      viewer: '.viewer-state-pill',
-      // The renderer's equivalent is the runtime's section score / checkpoint
-      // controls, hidden by the same baseline rule.
-      renderer: '.js-section-score, .js-checkpoint-btn',
-    },
+    target: '.viewer-state-pill',
     expect: { kind: 'hidden' },
   },
   {
     id: 'chrome/server-feedback',
     rule: 'Server feedback is an online-only affordance and never prints.',
-    target: {
-      viewer: '[data-feedback="server"]',
-      renderer: '.free-text-feedback, .js-graph-feedback, .js-numberline-feedback',
-    },
+    target: '[data-feedback="server"]',
     expect: { kind: 'hidden' },
   },
   {
     id: 'chrome/solutions',
     rule: 'Solutions are excluded from the default print (ruling 7.4A).',
-    target: { viewer: '.viewer-solution', renderer: '.js-solution' },
+    target: '.viewer-solution',
     expect: { kind: 'hidden' },
   },
   {
     id: 'ink/not-paper',
     rule: 'Printed text is ink-coloured regardless of the screen theme — a dark-mode student must not print white on white (S5-9).',
-    target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
+    target: BLOCK_ROOT,
     expect: { kind: 'ink-not-paper' },
   },
 ];
@@ -185,17 +173,10 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'figure/capped',
       rule: 'A figure is capped so it cannot run off the sheet.',
-      target: {
-        viewer: '.viewer-image__img, .viewer-figure__svg',
-        // Another improvement the gate surfaced: the renderer caps its
-        // interactive-graph canvas but leaves a static graph_figure uncapped,
-        // so a wide figure can overrun the page box. Fixed on the viewer;
-        // published pages keep their behaviour until they retire.
-        renderer: {
-          notApplicable:
-            'The renderer caps its graph canvas but not a static graph_figure; capping every figure is a viewer improvement rather than a shared rule.',
-        },
-      },
+      // Capping EVERY figure (not just an interactive canvas) was one of the
+      // improvements the cross-surface gate surfaced before it retired: a wide
+      // static graph_figure could otherwise overrun the page box.
+      target: '.viewer-image__img, .viewer-figure__svg',
       expect: { kind: 'max-width-capped' },
     },
   ],
@@ -210,7 +191,7 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
       // data-block-type, so it IS the block root rather than a descendant of
       // one — a descendant selector finds nothing when the gate is already
       // scoped to that element.
-      target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
+      target: BLOCK_ROOT,
       expect: { kind: 'visible' },
     },
   ],
@@ -219,7 +200,7 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'scaffold/box-visible',
       rule: 'A scaffold card prints as a plain bordered box — colour carries no meaning in black and white, the border and label do.',
-      target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
+      target: BLOCK_ROOT,
       expect: { kind: 'visible' },
     },
   ],
@@ -228,13 +209,13 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'blanks/bare-underline',
       rule: 'Blanks neutralize to bare writing lines.',
-      target: { viewer: '.viewer-blank__input', renderer: '.blank' },
+      target: '.viewer-blank__input',
       expect: { kind: 'bare-underline' },
     },
     {
       id: 'blanks/no-verdict-fill',
       rule: 'Correct/incorrect fills are neutralized — a printed worksheet has no scored state to convey.',
-      target: { viewer: '.viewer-blank__input', renderer: '.blank' },
+      target: '.viewer-blank__input',
       expect: {
         kind: 'computed',
         property: 'background-color',
@@ -244,10 +225,7 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'blanks/hint-affordances-hidden',
       rule: 'Hint and mistake buttons are screen affordances and never print.',
-      target: {
-        viewer: '.viewer-blank__feedback',
-        renderer: '.js-blank-hint, .js-blank-mistake',
-      },
+      target: '.viewer-blank__feedback',
       expect: { kind: 'hidden' },
     },
   ],
@@ -256,19 +234,19 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'mc/inputs-hidden',
       rule: 'Native radio/checkbox controls never print — the choice letters are the circle-me markers.',
-      target: { viewer: '.viewer-mc__choice input', renderer: '.mc-choice input' },
+      target: '.viewer-mc__choice input',
       expect: { kind: 'hidden' },
     },
     {
       id: 'mc/letter-visible',
       rule: 'Each choice prints its letter, which is what the student circles.',
-      target: { viewer: '.viewer-mc__letter', renderer: '.mc-choice-letter' },
+      target: '.viewer-mc__letter',
       expect: { kind: 'visible' },
     },
     {
       id: 'mc/no-verdict-fill',
       rule: 'Post-check choice highlighting is neutralized on paper.',
-      target: { viewer: '.viewer-mc__choice', renderer: '.mc-choice' },
+      target: '.viewer-mc__choice',
       expect: {
         kind: 'computed',
         property: 'background-color',
@@ -281,19 +259,19 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'matching/interactive-hidden',
       rule: 'The interactive dock and its controls never print.',
-      target: { viewer: '.viewer-matching__select', renderer: '.match-slot, .match-slot-ghost' },
+      target: '.viewer-matching__select',
       expect: { kind: 'hidden' },
     },
     {
       id: 'matching/letter-line',
       rule: 'Each item prints a write-the-letter line — the century-old paper convention.',
-      target: { viewer: '.viewer-matching__letter-line', renderer: '.match-letter-line' },
+      target: '.viewer-matching__letter-line',
       expect: { kind: 'bare-underline' },
     },
     {
       id: 'matching/bank-visible',
       rule: 'The lettered bank prints so the student can read the options.',
-      target: { viewer: '.viewer-matching__bank', renderer: '.match-target' },
+      target: '.viewer-matching__bank',
       expect: { kind: 'visible' },
     },
   ],
@@ -302,13 +280,13 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'ordering/controls-hidden',
       rule: 'Reorder controls and grips never print.',
-      target: { viewer: '.viewer-ordering__controls', renderer: '.order-item-grip' },
+      target: '.viewer-ordering__controls',
       expect: { kind: 'hidden' },
     },
     {
       id: 'ordering/number-box',
       rule: 'Each row prints a write-in box — "number the steps 1 to N".',
-      target: { viewer: '.viewer-ordering__number-box', renderer: '.order-number-box' },
+      target: '.viewer-ordering__number-box',
       expect: { kind: 'boxed', style: 'solid' },
     },
   ],
@@ -317,21 +295,13 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'canvas/live-board-hidden',
       rule: 'The interactive board never prints — it would print the student’s in-progress work onto a clean worksheet, and it depends on a lazily-loaded kit (S5-1).',
-      target: {
-        viewer: '.viewer-graph__canvas, .viewer-number-line__canvas, .viewer-data-plot__canvas',
-        // On paper the renderer never ran JSXGraph in the first place: the
-        // static fallback IS what its canvas element contains.
-        renderer: { notApplicable: 'Published pages print the static fallback SVG directly; no live board exists in the print context.' },
-      },
+      target: '.viewer-graph__canvas, .viewer-number-line__canvas, .viewer-data-plot__canvas',
       expect: { kind: 'hidden' },
     },
     {
       id: 'canvas/print-svg-visible',
       rule: 'A kit-free static SVG prints in the board’s place — a real grid the student works on by hand.',
-      target: {
-        viewer: '[data-print-svg]',
-        renderer: '.graph-canvas svg, .number-line-canvas svg, .data-plot-canvas svg',
-      },
+      target: '[data-print-svg]',
       expect: { kind: 'visible' },
     },
   ],
@@ -340,16 +310,13 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'freetext/writing-area',
       rule: 'Free text prints as a bordered area with room to write by hand.',
-      target: {
-        viewer: '.viewer-short-answer__input, .viewer-self-explanation__input, .viewer-essay__input',
-        renderer: '.free-text-input',
-      },
+      target: '.viewer-short-answer__input, .viewer-self-explanation__input, .viewer-essay__input',
       expect: { kind: 'writing-space', minEm: 4 },
     },
     {
       id: 'freetext/wordcount-hidden',
       rule: 'The live word counter is a screen affordance and never prints.',
-      target: { viewer: '.viewer-essay__count', renderer: '.free-text-wordcount' },
+      target: '.viewer-essay__count',
       expect: { kind: 'hidden' },
     },
   ],
@@ -365,7 +332,7 @@ const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
     {
       id: 'graph/hand-plottable-cap',
       rule: 'The grid caps at a hand-plottable paper size (3.5in today).',
-      target: { viewer: '[data-print-svg]', renderer: '.graph-canvas' },
+      target: '[data-print-svg]',
       expect: { kind: 'max-width-capped' },
     },
   ],
@@ -373,7 +340,7 @@ const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
     {
       id: 'number-line/hand-markable-cap',
       rule: 'The line caps at a hand-markable width (5in today) — wider than a graph grid, because a number line is one-dimensional.',
-      target: { viewer: '[data-print-svg]', renderer: '.number-line-canvas' },
+      target: '[data-print-svg]',
       expect: { kind: 'max-width-capped' },
     },
   ],
@@ -381,7 +348,7 @@ const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
     {
       id: 'faded-example/dashed-border',
       rule: 'The faded example keeps a DASHED border so it stays distinct from the solid worked-example box in grayscale.',
-      target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
+      target: BLOCK_ROOT,
       expect: { kind: 'boxed', style: 'dashed' },
     },
   ],
@@ -389,7 +356,7 @@ const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
     {
       id: 'worked-example/solid-border',
       rule: 'The worked example prints as a solid bordered box.',
-      target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
+      target: BLOCK_ROOT,
       expect: { kind: 'boxed', style: 'solid' },
     },
   ],
@@ -397,7 +364,7 @@ const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
     {
       id: 'objectives/solid-border',
       rule: 'The objectives card prints as a solid bordered box.',
-      target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
+      target: BLOCK_ROOT,
       expect: { kind: 'boxed', style: 'solid' },
     },
   ],
@@ -405,17 +372,10 @@ const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
     {
       id: 'essay/taller-writing-space',
       rule: 'An essay gets a taller writing area than a short answer — the paper affordance should match the expected length.',
-      target: {
-        viewer: '.viewer-essay__input',
-        // A VIEWER IMPROVEMENT, found by the gate: the renderer gives every
-        // free-text block the same box, so an essay prints with as much room as
-        // a one-line answer. Not a defect to fix on published pages (they
-        // retire), and not a shared rule — so the renderer is not held to it.
-        renderer: {
-          notApplicable:
-            'The renderer sizes every free-text block identically; giving an essay more room is a viewer improvement, not a rule both surfaces share.',
-        },
-      },
+      // An essay gets more room than a one-line answer — an improvement the
+      // cross-surface gate surfaced (the page it replaced gave every free-text
+      // block the same box).
+      target: '.viewer-essay__input',
       expect: { kind: 'writing-space', minEm: 8 },
     },
   ],
@@ -437,17 +397,6 @@ const CALLOUT_VARIANT_BORDERS: Readonly<Record<string, 'solid' | 'dashed' | 'dou
  * prints empty axes for the student to work on (ruling S5-1 as amended by
  * OV4 — an empty-axes twin would have deleted authored content from paper). */
 const DISPLAY_INTERACTIONS: readonly string[] = ['display'];
-
-/** Types whose break-inside was IMPROVED by ruling S5-OV6 (plus the author's
- * extension to the writing-box family). The renderer still declares the old
- * `auto` for these, deliberately. */
-const IMPROVED_BREAK_INSIDE = new Set<BlockType>([
-  'math_block',
-  'data_plot',
-  'self_explanation',
-  'short_answer',
-  'essay',
-]);
 
 /**
  * Treatment checks a specific type opts OUT of, each with the reason.
@@ -492,21 +441,7 @@ export function printExpectations(
     {
       id: 'spec/break-inside',
       rule: `PrintSpec declares break-inside: ${spec.breakInside} for ${type}.`,
-      target: {
-        viewer: BLOCK_ROOT,
-        // The types whose break rule S5-OV6 IMPROVED are asserted on the viewer
-        // only. The renderer still carries the old behaviour on purpose —
-        // published pages were deliberately not touched — so asserting the new
-        // spec there would fail for a reason that is not a defect. This is the
-        // mechanism that lets the gate be spec-referenced rather than
-        // output-referenced: an improvement is expressible.
-        renderer: IMPROVED_BREAK_INSIDE.has(type)
-          ? {
-              notApplicable:
-                'S5-OV6 improved this block\'s break rule on the viewer; published pages keep the old behaviour until they retire, so the renderer is held to the rules both surfaces share.',
-            }
-          : BLOCK_ROOT,
-      },
+      target: BLOCK_ROOT,
       expect: { kind: 'computed', property: 'break-inside', oneOf: [spec.breakInside] },
     },
   ];
@@ -515,7 +450,7 @@ export function printExpectations(
     derived.push({
       id: 'spec/keep-with-next',
       rule: `${type} must never be stranded at a page bottom, away from what it introduces.`,
-      target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
+      target: BLOCK_ROOT,
       expect: { kind: 'computed', property: 'break-after', oneOf: ['avoid'] },
     });
   }
@@ -529,7 +464,7 @@ export function printExpectations(
       perInstance.push({
         id: `callout/border-style/${variant}`,
         rule: `A ${variant} callout encodes its variant in the border STYLE (${style}), which survives grayscale.`,
-        target: { viewer: BLOCK_ROOT, renderer: BLOCK_ROOT },
+        target: BLOCK_ROOT,
         expect: { kind: 'computed', property: 'border-left-style', oneOf: [style] },
       });
     }
@@ -544,10 +479,7 @@ export function printExpectations(
         : 'A question prints empty axes for the student to plot onto; their in-progress work is stripped (7.3A).',
       // The attribute is on the SVG element, not on the container that holds
       // it — the first gate run caught this reading null off the wrapper.
-      target: {
-        viewer: '[data-print-svg] svg',
-        renderer: '.graph-canvas svg, .number-line-canvas svg, .data-plot-canvas svg',
-      },
+      target: '[data-print-svg] svg',
       expect: { kind: 'drawable-count', zero: !isDisplay },
     });
   }
@@ -584,12 +516,10 @@ export function suppressedChecksFor(
   return SUPPRESSED[type] ?? {};
 }
 
-/** Resolve a check's selector for one surface, or `null` when the surface
- * justifiably has no such element (the harness SKIPS those and reports them,
- * so a skip is visible rather than silent). */
-export function targetFor(check: PrintCheck, surface: PrintSurface): string | null {
-  const target = check.target[surface];
-  return typeof target === 'string' ? target : null;
+/** A check's selector. Kept as a function rather than a field read because the
+ * harness resolves BLOCK_ROOT through it. */
+export function targetFor(check: PrintCheck): string {
+  return check.target;
 }
 
 // -----------------------------------------------------------------------------
