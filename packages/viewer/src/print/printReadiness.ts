@@ -125,6 +125,26 @@ export async function awaitPrintReady(
     }
   }
 
+  // ---- Lazy block components (S5.5 F4) ---------------------------------------
+  // Heavy blocks (graphs, charts, number lines, math fields) are lazy by D16, so
+  // between mount and arrival they render a Suspense fallback. On the STUDENT
+  // print path that is survivable — the browser prints what is on screen and a
+  // spinner is a bad figure. It is not survivable for the foldable, which
+  // CAPTURES this DOM and paginates the result: a captured fallback becomes a
+  // spinner permanently baked into a printed booklet, sized like a spinner
+  // rather than like the figure it was standing in for.
+  //
+  // An unbound placeholder is deliberately NOT waited on: no component is
+  // coming, so waiting would spend the whole budget to change nothing.
+  const chunksPending = () =>
+    root.querySelectorAll('.viewer-block__loading').length > 0;
+  if (chunksPending()) {
+    waited.push('blocks');
+    if (!(await until(() => !chunksPending(), deadline, now, sleep))) {
+      timedOut.push('blocks');
+    }
+  }
+
   // ---- Fonts ----------------------------------------------------------------
   // A worksheet in fallback type is not wrong, but it is not what the teacher
   // chose, and a font swapping in after layout also moves where the page breaks

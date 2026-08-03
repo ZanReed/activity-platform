@@ -87,6 +87,11 @@ export { AnswerKeyProvider, useBlockAnswerKey } from './answer-key/context.js';
 // Separate from the serve shuffle on purpose: this moves no wire and no
 // SANITIZER_REV (see printShuffle.ts).
 export { applyPrintShuffles, printSeed } from './print/printShuffle.js';
+// The document-level print custom properties. Exported because the foldable
+// measures captured blocks in a SEPARATE document (T5) and has to rebuild the
+// `.viewer` wrapper they were laid out inside — without these vars every
+// measured height is wrong, and wrong heights are mis-paginated panels.
+export { printVars } from './container/PrintDocumentLayer.js';
 export type { AnswerKeyProviderProps } from './answer-key/context.js';
 export { ANSWER_KEY_COVERAGE, ANSWER_KEY_INK } from './answer-key/types.js';
 export type {

@@ -2,85 +2,70 @@
 // measure.ts — offscreen DOM measurement of flow-item heights
 // -----------------------------------------------------------------------------
 // The one part of the foldable engine that needs a live browser: to know how
-// tall each block renders at the panel's exact width (text wrapping, math,
-// images all depend on it), we lay the rendered body out in a hidden iframe and
-// read each block's box height. The iframe uses the SAME stylesheet the printed
-// document will (styles.ts + the renderer's blockStyles/katexCss), so the
-// heights we measure are the heights that print.
+// tall each flow item renders at the panel's exact width (text wrapping, maths,
+// images all depend on it), we lay the captured items out in a hidden iframe
+// and read each box's height.
 //
-// Why an iframe and not a detached div: the panel stylesheet sets body/html and
-// resets that we don't want leaking into the app, and a same-document container
-// would inherit the app's Tailwind reset. An iframe is a clean document.
+// Why an iframe and not a detached div: the panel stylesheet sets body/html
+// rules and resets we don't want leaking into the app, and a same-document
+// container would inherit the app's own reset. An iframe is a clean document.
 //
-// We flatten the body: blocks are emitted by the renderer inside <section>
-// wrappers, but the foldable flows blocks across panels regardless of section,
-// so we extract each section's element children in document order. Interactive-
-// only controls (checkpoint button, etc.) are hidden by the stylesheet and so
-// measure as zero height — we drop those.
+// WHAT THE IFRAME HAS TO REPRODUCE (S5.5 F5), and why getting this wrong is
+// silent rather than loud. The viewer's blocks are laid out inside a
+// `.viewer[data-viewer-mode="print"]` root that carries the print spacing and
+// typography as INLINE custom properties. Measure them without that wrapper and
+// nothing errors — every `var(--print-…)` simply resolves to nothing, the
+// blocks lay out at default spacing, and the numbers that come back are
+// plausible, wrong, and mis-paginate every panel. So the wrapper, its inline
+// vars, and the app's own stylesheets are all rebuilt here.
+//
+// The stylesheets are CLONED from the app document rather than imported as
+// strings — see capture.ts's cloneDocumentStyles for the reasoning (KaTeX's
+// font URLs are relative and would break in a srcdoc frame).
 // =============================================================================
 
-import { blockStyles, katexCss } from '@activity/renderer';
 import type { PrintConfig } from '@activity/schema';
+import { awaitPrintReady } from '@activity/viewer';
 import type { SheetGeometry } from './geometry';
 import { foldableStyles } from './styles';
 import type { FlowItem } from './paginate';
 
-// Wait for every <img> in the document to settle (loaded or errored) so an
-// image block measures its real height, not zero. Resolves immediately when
-// there are no images.
-function waitForImages(doc: Document): Promise<void> {
-  const imgs = Array.from(doc.images);
-  const pending = imgs.filter((img) => !img.complete);
-  if (pending.length === 0) return Promise.resolve();
-  return Promise.all(
-    pending.map(
-      (img) =>
-        new Promise<void>((resolve) => {
-          img.addEventListener('load', () => resolve(), { once: true });
-          img.addEventListener('error', () => resolve(), { once: true });
-        }),
-    ),
-  ).then(() => undefined);
+/** Everything the measurer needs about the captured worksheet. */
+export interface MeasureSource {
+  /** Captured per-flow-item outerHTML, in document order. */
+  readonly blocks: readonly string[];
+  /** `<style>`/`<link>` tags reproducing the app's CSS. */
+  readonly styleTags: string;
+  /** Inline custom properties for the rebuilt `.viewer` root. */
+  readonly rootStyle: string;
 }
 
 /**
- * Flatten renderer `renderBody` output into the ordered list of top-level flow
- * blocks. The renderer wraps blocks in `<section class="activity-section">`, but
- * the foldable flows blocks across panels regardless of section, so we extract
- * each section's element children in document order. A structural container
- * (e.g. a `columns` block) is a single `.activity-section > *` child, so it
- * comes back as ONE element — its cells are never flattened into separate flow
- * items, which is what lets paginate pack and (never) split it whole.
- *
- * Pure parse-and-select: needs DOM parsing (innerHTML + querySelectorAll) but
- * not layout, so it runs anywhere a Document exists (the measuring iframe in
- * production, jsdom in tests). The caller supplies the parse document so the
- * returned elements belong to the context that will measure them.
+ * Build the wrapper the captured items were laid out inside. Exported because
+ * the final printed document has to reproduce it identically — measuring under
+ * one set of rules and printing under another is precisely the divergence that
+ * produces panels which overflow only on paper.
  */
-export function extractFlowBlocks(
-  bodyHtml: string,
-  parseDoc: Document,
-): HTMLElement[] {
-  const parsed = parseDoc.createElement('div');
-  parsed.innerHTML = bodyHtml;
-  return Array.from(parsed.querySelectorAll<HTMLElement>('.activity-section > *'));
+export function viewerWrapperOpen(rootStyle: string): string {
+  return (
+    '<div class="viewer" data-viewer-mode="print" style="' +
+    rootStyle.replace(/"/g, '&quot;') +
+    '"><section class="viewer-section">'
+  );
 }
 
+export const VIEWER_WRAPPER_CLOSE = '</section></div>';
+
 /**
- * Render `bodyHtml` (renderer renderBody output) in a hidden iframe at panel
- * width and return one FlowItem per visible top-level block, in document order,
- * carrying its outerHTML and measured px height. Cleans up the iframe before
- * resolving. Browser-only (touches document/iframe).
+ * Lay the captured items out in a hidden iframe at panel width and return one
+ * FlowItem per visible item, in document order, carrying its outerHTML and
+ * measured px height. Cleans up the iframe before resolving. Browser-only.
  */
 export async function measureFlowItems(
-  bodyHtml: string,
+  source: MeasureSource,
   geom: SheetGeometry,
   print: PrintConfig,
-  // Activity-wide typography <style> tag ('' when the activity has none).
-  // MUST match what renderFoldableDocument embeds: the family changes text
-  // metrics, and fonts.ready below waits for it — measuring in the fallback
-  // font but printing in the real one would mis-paginate panels.
-  typographyTag = '',
+  timeoutMs?: number,
 ): Promise<FlowItem[]> {
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
@@ -94,43 +79,43 @@ export async function measureFlowItems(
 
     idoc.open();
     idoc.write(
-      '<!doctype html><html><head>' +
-        '<meta charset="utf-8" />' +
-        '<style>' + katexCss + '</style>' +
-        '<style>' + blockStyles + '</style>' +
+      // data-theme="light": a foldable panel is PAPER, in every medium. The
+      // tokens default to dark when the OS asks for it, and the print flatten
+      // that would correct it lives behind @media print — invisible to this
+      // on-screen measuring pass and to the preview a teacher looks at. Pinning
+      // light here is the S5-9 rule applied where the medium is never a screen.
+      '<!doctype html><html data-theme="light"><head><meta charset="utf-8" />' +
+        source.styleTags +
         '<style>' + foldableStyles(geom, print) + '</style>' +
-        typographyTag +
-        '</head><body><div class="foldable-panel-content" id="measure-root"></div></body></html>',
+        '</head><body><div class="foldable-panel-content" id="measure-root">' +
+        viewerWrapperOpen(source.rootStyle) +
+        source.blocks.join('') +
+        VIEWER_WRAPPER_CLOSE +
+        '</div></body></html>',
     );
     idoc.close();
 
     const root = idoc.getElementById('measure-root');
     if (!root) throw new Error('foldable measure: no measure root');
 
-    // Extract each section's element children in document order (see
-    // extractFlowBlocks — a columns container comes back as one element).
-    const sourceItems = extractFlowBlocks(bodyHtml, idoc);
-
-    // Place clones into the measuring container so they stack exactly as they
-    // will in a panel (shared stylesheet → shared metrics).
-    const placed: HTMLElement[] = [];
-    for (const el of sourceItems) {
-      const clone = el.cloneNode(true) as HTMLElement;
-      root.appendChild(clone);
-      placed.push(clone);
-    }
-
-    // Let images and web fonts settle before reading geometry — both change
-    // block heights (katex uses CDN fonts; image blocks have intrinsic size).
-    await waitForImages(idoc);
-    if (idoc.fonts && idoc.fonts.ready) {
-      await idoc.fonts.ready;
-    }
+    // BOUNDED (ruling D11A). The previous implementation waited on every image
+    // with no deadline, so one URL that neither loaded nor errored — a stalled
+    // request, not an exotic case on a school network — left the teacher
+    // watching "Laying out pages…" forever with no way out. Sharing the print
+    // barrier means one settling implementation for the whole slice, and the
+    // fix that lands in it lands everywhere.
+    await awaitPrintReady({
+      root: idoc,
+      ...(timeoutMs === undefined ? {} : { timeoutMs }),
+    });
 
     const items: FlowItem[] = [];
-    for (const el of placed) {
+    for (const el of Array.from(
+      root.querySelectorAll<HTMLElement>('.viewer-section > *'),
+    )) {
       const height = el.getBoundingClientRect().height;
-      // Drop interactive-only controls the stylesheet hides (zero height).
+      // Drop what print gives no height: the section footer's check chrome,
+      // and anything else the stylesheet takes off the page.
       if (height > 0.5) {
         items.push({ html: el.outerHTML, height });
       }

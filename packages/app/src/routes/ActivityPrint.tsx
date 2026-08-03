@@ -31,16 +31,15 @@
 //   answerKey  extracted from the AUTHORED document, id-keyed, supplied
 //              through a context this route mounts only when asked.
 //
-// The foldable still renders through @activity/renderer in its own iframe; T5
-// re-points it. Until then this route legitimately holds both surfaces.
+// The foldable is a SECOND surface on this page, and stays one: it is a duplex
+// booklet whose panels are measured and imposed, which a flowing page cannot
+// express. Since T5 it builds from the same viewer tree as the worksheet —
+// rendered offscreen and captured — so the two surfaces no longer disagree
+// about what a block looks like, they only disagree about the paper.
 // =============================================================================
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
-// The renderer survives here for ONE consumer: the journal foldable, which is
-// still its own document in its own iframe until T5 re-points it. The worksheet
-// no longer touches it, which is most of the way to the slice's exit criterion.
-import { FONTS_R2_PREFIX } from '@activity/renderer';
 import {
   ActivityDocument,
   upgradeActivityDocument,
@@ -62,17 +61,6 @@ import { supabase } from '../lib/supabase';
 import { buildFoldableDocument } from '../lib/foldable';
 import { useAutosave } from '../lib/useAutosave';
 import { PrintSettingsBody } from '../components/ActivityConfigDrawer';
-
-// Where the FOLDABLE's iframe font-face rules point. The worksheet no longer
-// needs this — it renders in this document, where the app's own @fontsource CSS
-// already applies — but the foldable is still its own document until T5.
-const PUBLISHED_BASE = (import.meta.env.VITE_PUBLISHED_URL_BASE ?? '').replace(
-    /\/+$/,
-    '',
-);
-const FONTS_BASE_URL = PUBLISHED_BASE
-    ? `${PUBLISHED_BASE}/${FONTS_R2_PREFIX}`
-    : undefined;
 
 type PrintLayout = 'worksheet' | 'foldable';
 
@@ -308,23 +296,30 @@ export default function ActivityPrint() {
     useEffect(() => {
         if (layout !== 'foldable' || !authoredDoc) return;
         let cancelled = false;
-        setFoldableStatus('building');
-        buildFoldableDocument(authoredDoc, {
-            showAnswers,
-            fontsBaseUrl: FONTS_BASE_URL,
-        })
-        .then((built) => {
-            if (cancelled) return;
-            setFoldableHtml(built);
-            setFoldableStatus('idle');
-        })
-        .catch(() => {
-            if (!cancelled) setFoldableStatus('error');
-        });
+        // DEBOUNCED (ruling D14A). A build is now a full offscreen React render
+        // plus a readiness wait plus an iframe measure, and dragging a spacing
+        // control fires one per keystroke. The cancelled guard already threw
+        // stale RESULTS away; this stops the work from starting.
+        const timer = setTimeout(() => {
+            setFoldableStatus('building');
+            buildFoldableDocument(authoredDoc, {
+                showAnswers,
+                ...(id ? { activityId: id } : {}),
+            })
+            .then((built) => {
+                if (cancelled) return;
+                setFoldableHtml(built);
+                setFoldableStatus('idle');
+            })
+            .catch(() => {
+                if (!cancelled) setFoldableStatus('error');
+            });
+        }, 300);
         return () => {
             cancelled = true;
+            clearTimeout(timer);
         };
-    }, [layout, authoredDoc, showAnswers]);
+    }, [layout, authoredDoc, showAnswers, id]);
 
     if (loadState.status === 'loading') {
         return (

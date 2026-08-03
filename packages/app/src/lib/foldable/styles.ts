@@ -49,6 +49,43 @@ body { margin: 0; padding: 0; background: #fff; }
 .foldable-panel-content > * { margin: 0; }
 .foldable-panel-content > * + * { margin-top: ${print.problemSpacing}rem; }
 
+/* A PANEL IS NOT A PHONE (S5.5 T5).
+   The viewer's stylesheet collapses multi-column rows to a stack below 480px,
+   because on a phone that is right — columns are a print/desktop idea and the
+   authored track template is a custom property precisely so a narrow screen can
+   drop it. A foldable panel is also narrow (a quarter of a landscape sheet),
+   so that rule fires here too and silently flattens a teacher's authored 2:1
+   split to a stack. On paper. On every copy.
+   Caught by driving the dev bench in a browser: the tracks computed correctly
+   as 2fr 1fr while the row computed display:block, so the ratio was right and
+   the layout was gone. These re-assert the desktop behaviour at higher
+   specificity, which beats the breakpoint regardless of viewport. */
+.foldable-panel-content .viewer-row {
+  display: grid;
+  grid-template-columns: var(--activity-columns-template, 1fr);
+}
+.foldable-panel-content .viewer-column + .viewer-column { margin-top: 0; }
+.foldable-panel-content .viewer-block--sized { width: var(--activity-block-width, 100%); }
+
+/* A PANEL IS ALSO NOT A SCREEN.
+   The worksheet's on-screen chrome — the section card's border, background and
+   padding — is a screen affordance; @media print already strips it, but a
+   foldable panel renders in SCREEN media (it is measured on screen and previewed
+   on screen) so those rules never fire. Left alone they print a box drawn
+   around the content of every panel. Mirrors the viewer's own print block for
+   these two containers; the column-count there is deliberately NOT mirrored,
+   because a panel is already a column. */
+.foldable-panel-content .viewer {
+  background: none;
+  padding: 0;
+}
+.foldable-panel-content .viewer-section {
+  border: none;
+  margin: 0;
+  max-width: none;
+  padding: 0;
+}
+
 /* Promote the renderer's @media-print element visibility to UNCONDITIONAL, so
    the offscreen measuring pass sees the same elements the printer will. These
    mirror the renderer styles.ts @media print hide/show lists exactly. */

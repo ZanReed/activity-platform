@@ -15,8 +15,8 @@
 // drop-shadowed sheets) without touching the printed output.
 // =============================================================================
 
-import { blockStyles, katexCss } from '@activity/renderer';
 import { escape } from './html';
+import { VIEWER_WRAPPER_CLOSE, viewerWrapperOpen } from './measure';
 import type { PrintConfig } from '@activity/schema';
 import type { SheetGeometry } from './geometry';
 import type { Foldable, PanelSlot } from './compose';
@@ -30,13 +30,15 @@ export interface RenderFoldableInput {
   contentPanels: string[];
   foldables: Foldable[];
   /**
-   * Activity-wide typography <style> tag ('' when the activity has none).
-   * Must be the SAME tag the measure iframe used — see measureFlowItems. Only
-   * the font FAMILY takes effect here (blockStyles reads it on body); the
-   * screen base size rides .activity-container, which foldable panels don't
-   * have — panel text sizing stays owned by the print layer, as on any paper.
+   * `<style>`/`<link>` tags cloned from the app document — the SAME set the
+   * measure iframe used. Identical CSS in both places is what makes the
+   * measurement predictive: measure under one stylesheet and print under
+   * another and the panels overflow only on paper, where nobody sees it until
+   * a class set has been run off.
    */
-  typographyTag: string;
+  styleTags: string;
+  /** Inline custom properties for the rebuilt `.viewer` root, as measured. */
+  rootStyle: string;
 }
 
 // Sheet-geometry CSS: landscape @page, one full-page sheet per face, two panels
@@ -107,6 +109,7 @@ function renderPanel(
   slot: PanelSlot,
   contentPanels: string[],
   foldableIndex: number,
+  rootStyle: string,
 ): string {
   if (slot.kind === 'glue') {
     return (
@@ -122,10 +125,16 @@ function renderPanel(
     return '<div class="foldable-panel"></div>';
   }
   const content = contentPanels[slot.panelIndex] ?? '';
+  // Each panel rebuilds the `.viewer` wrapper the blocks were MEASURED inside
+  // (F5). Per panel rather than once around the document, because every panel
+  // is its own layout context and the custom properties have to reach the
+  // blocks in all of them.
   return (
     '<div class="foldable-panel">' +
     '<div class="foldable-panel-content">' +
+    viewerWrapperOpen(rootStyle) +
     content +
+    VIEWER_WRAPPER_CLOSE +
     '</div>' +
     '</div>'
   );
@@ -135,39 +144,42 @@ function renderFace(
   panels: [PanelSlot, PanelSlot],
   contentPanels: string[],
   foldableIndex: number,
+  rootStyle: string,
 ): string {
   return (
     '<div class="foldable-sheet">' +
-    renderPanel(panels[0], contentPanels, foldableIndex) +
-    renderPanel(panels[1], contentPanels, foldableIndex) +
+    renderPanel(panels[0], contentPanels, foldableIndex, rootStyle) +
+    renderPanel(panels[1], contentPanels, foldableIndex, rootStyle) +
     '</div>'
   );
 }
 
 export function renderFoldableDocument(input: RenderFoldableInput): string {
-  const { title, geom, print, contentPanels, foldables, typographyTag } = input;
+  const { title, geom, print, contentPanels, foldables, styleTags, rootStyle } =
+    input;
 
   // Each foldable → outside face, then inside face (duplex print order).
   const sheets = foldables
     .map(
       (f) =>
-        renderFace(f.outside, contentPanels, f.index) +
-        renderFace(f.inside, contentPanels, f.index),
+        renderFace(f.outside, contentPanels, f.index, rootStyle) +
+        renderFace(f.inside, contentPanels, f.index, rootStyle),
     )
     .join('');
 
   return (
     '<!DOCTYPE html>' +
-    '<html lang="en">' +
+    // data-theme="light" for the same reason the measure iframe does it: the
+    // sheet is paper, so it must not follow the reader's OS into dark mode —
+    // on screen it would preview wrong, and on paper light-on-white vanishes.
+    '<html lang="en" data-theme="light">' +
     '<head>' +
     '<meta charset="utf-8" />' +
     '<meta name="viewport" content="width=device-width, initial-scale=1" />' +
     '<title>' + escape(title) + '</title>' +
-    '<style>' + katexCss + '</style>' +
-    '<style>' + blockStyles + '</style>' +
+    styleTags +
     '<style>' + foldableStyles(geom, print) + '</style>' +
     '<style>' + printLayoutStyles(geom) + '</style>' +
-    typographyTag +
     '</head>' +
     '<body>' +
     sheets +
