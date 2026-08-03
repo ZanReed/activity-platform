@@ -913,6 +913,56 @@
   display: none;
 }
 
+/* ---- The teacher answer key (S5.5) ----------------------------------------
+   An exception to the rule immediately above, and the distinction is worth
+   stating: a letter LINE is a paper affordance — somewhere for a student to
+   write — but the letter written ON it is an ANSWER, which is content the
+   teacher explicitly asked to see. So a marked affordance stays visible on
+   screen, because the teacher checks the key in the preview before committing
+   it to thirty photocopies, and a toggle whose effect only appears in the print
+   dialog reads as a toggle that does nothing.
+
+   None of this can reach a student: the marks exist only where the answer-key
+   context supplied a value, and the student route never mounts that provider. */
+.viewer-matching__letter-line[data-answer-key],
+.viewer-ordering__number-box[data-answer-key],
+.viewer-mc__choice[data-answer-key] .viewer-mc__letter {
+  display: inline-block;
+  font-weight: 700;
+}
+
+/* Grayscale-safe by construction: weight and a rule/box carry the mark, never
+   colour alone. A photocopied answer key is still an answer key. */
+.viewer-matching__letter-line[data-answer-key] {
+  min-width: 2.5rem;
+  border-bottom: 1px solid var(--vw-color-ink);
+  text-align: center;
+}
+
+.viewer-ordering__number-box[data-answer-key] {
+  min-width: 1.6rem;
+  min-height: 1.4rem;
+  border: 1px solid var(--vw-color-ink);
+  border-radius: var(--vw-radius-sm);
+  text-align: center;
+}
+
+.viewer-mc__choice[data-answer-key] .viewer-mc__letter {
+  min-width: 1.6em;
+  border: 1px solid var(--vw-color-ink);
+  border-radius: var(--vw-radius-sm);
+  text-align: center;
+}
+
+/* A filled blank reads as the key rather than as a student's typing. */
+.viewer-blank__input[data-answer-key] {
+  font-weight: 700;
+}
+
+.viewer-graph__answer-note {
+  font-weight: 700;
+}
+
 /* The reference box is the PAPER form of the reference panel. On screen the
    panel is a tool a student summons, so the box would be a duplicate of
    material already available — it appears only when printing. Likewise the

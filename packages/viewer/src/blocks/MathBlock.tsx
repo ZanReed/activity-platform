@@ -22,6 +22,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MathBlock as MathBlockType } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
+import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { loadMathRenderer, residentMathRenderer } from '../inline/math.js';
@@ -47,9 +48,21 @@ export default function MathBlock({
   // fallback must be a READABLE equation with empty boxes, since its whole job
   // is to be what a student sees when MathLive never arrives (and what they
   // answer on paper). Swap the markers for \square before rendering.
+  //
+  // With a teacher answer key, each marker takes its ANSWER instead — boxed, so
+  // the key shows both the value and where the gap was. This is a deliberate
+  // VIEWER-ONLY improvement (recorded in ANSWER_KEY_COVERAGE): the renderer
+  // never passed showAnswers down to a math block at all, so a gap-bearing
+  // equation — a graded question — printed a key with nothing in it. The stored
+  // answer is ascii by MA-D3, which is why it can go straight into KaTeX.
+  const answerKey = useBlockAnswerKey(block.id);
+  const gapAnswers = answerKey?.mathGaps;
   const fallbackLatex = block.latex.replace(
-    /\\placeholder\[[^\]]*\]\{[^}]*\}/g,
-    '\\square',
+    /\\placeholder\[([^\]]*)\]\{[^}]*\}/g,
+    (_marker, promptId: string) => {
+      const answer = gapAnswers?.[promptId];
+      return answer ? `\\boxed{${answer}}` : '\\square';
+    },
   );
   const [html, setHtml] = useState<string | null>(() => {
     const resident = residentMathRenderer();
@@ -74,7 +87,10 @@ export default function MathBlock({
   );
 
   useEffect(() => {
-    if (!hasGaps || mode === 'print') return;
+    // gapAnswers: an answered equation must keep its static render. Mounting
+    // the editable field over it would hide the answers behind empty gaps —
+    // the key would look blank for the one block type that needed it most.
+    if (!hasGaps || mode === 'print' || gapAnswers) return;
     const el = hostRef.current;
     if (!el) return;
 
@@ -120,7 +136,7 @@ export default function MathBlock({
       setPromptsMounted(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [block.id, hasGaps, mode]);
+  }, [block.id, hasGaps, mode, gapAnswers]);
 
   return (
     <div

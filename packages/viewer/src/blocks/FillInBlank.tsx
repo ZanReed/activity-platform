@@ -23,6 +23,7 @@
 
 import type { FillInBlankBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
+import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
@@ -34,6 +35,9 @@ export default function FillInBlank({
   const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
   const phase = phaseOf(block.id);
   const solution = solutionFor(block.id);
+  // Teacher answer key, when this surface has one at all (S5.5 D3A). Undefined
+  // on every student render — there is no provider there.
+  const answerKey = useBlockAnswerKey(block.id);
 
   // Position numbering for accessible names, in document order.
   const blankIds = block.content
@@ -51,7 +55,13 @@ export default function FillInBlank({
         <InlineContent
           nodes={block.content}
           renderBlank={(blank) => {
-            const value = state.responses.blanks[blank.id] ?? '';
+            // The answer key prefills the line with the CANONICAL answer — one
+            // definitive value, never the acceptable alternates (the renderer's
+            // same call). It replaces the response rather than merging with it:
+            // a key is printed from a blank worksheet, and if a value somehow
+            // existed, the answer is what the teacher asked to see.
+            const keyAnswer = answerKey?.blanks?.[blank.id];
+            const value = keyAnswer ?? state.responses.blanks[blank.id] ?? '';
             const result = resultFor(block.id, blank.id);
             const index = blankIds.indexOf(blank.id);
             const label =
@@ -64,8 +74,11 @@ export default function FillInBlank({
                   type="text"
                   className="viewer-blank__input"
                   value={value}
-                  readOnly={mode === 'print'}
+                  // A keyed value is never editable: typing over it would leave
+                  // the printed key silently disagreeing with itself.
+                  readOnly={mode === 'print' || keyAnswer !== undefined}
                   aria-label={label}
+                  {...(keyAnswer !== undefined ? { 'data-answer-key': 'filled' } : {})}
                   {...(blank.width ? { size: blank.width } : {})}
                   {...(result
                     ? { 'data-verdict': result.verdict, 'aria-invalid': result.verdict === 'incorrect' }

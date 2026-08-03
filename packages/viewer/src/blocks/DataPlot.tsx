@@ -30,12 +30,26 @@ import { dataPlotSurface, type DataPlotSurfaceHandle } from './kitSurfaces.js';
 import { renderDataPlotSvg } from '@activity/graph-kit/static-svg';
 import { PrintTwin } from './printTwin.js';
 import { CANVAS_HOST_STYLE, VISUALLY_HIDDEN } from './canvasChrome.js';
+import { useBlockAnswerKey } from '../answer-key/context.js';
+
+/** The chart a build-the-chart question is asking the student to produce. Only
+ * consulted for the answer key: a student's frame is empty, so its chart type
+ * never mattered before, but a key drawn as the wrong chart type is worse than
+ * no key at all. */
+function chartForBuild(
+  interaction: 'build_dotplot' | 'build_histogram' | 'build_boxplot',
+): 'dotplot' | 'histogram' | 'boxplot' {
+  if (interaction === 'build_histogram') return 'histogram';
+  if (interaction === 'build_boxplot') return 'boxplot';
+  return 'dotplot';
+}
 
 export default function DataPlot({
   block,
   mode = 'screen',
 }: BlockComponentProps<DataPlotBlock>) {
   const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const answerValues = useBlockAnswerKey(block.id)?.dataPlotValues;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<DataPlotSurfaceHandle | null>(null);
   const [narration, setNarration] = useState('');
@@ -127,12 +141,21 @@ export default function DataPlot({
       {/* A display chart prints the data it exists to show; a build-the-chart
           question prints an EMPTY frame, because plotting the data is the
           task. Narrowed on the interaction so the type system holds that
-          apart rather than a boolean. */}
+          apart rather than a boolean.
+          A teacher answer key is the third case: the chart the question is
+          asking for, drawn from the dataset, in the chart type that question
+          builds — reaching this component through the answer channel. */}
       <PrintTwin
         svg={renderDataPlotSvg(
           block.config,
-          block.interaction?.type === 'display' ? block.interaction.chart : 'dotplot',
-          block.interaction?.type === 'display' ? block.data : [],
+          block.interaction?.type === 'display'
+            ? block.interaction.chart
+            : chartForBuild(block.interaction?.type ?? 'build_dotplot'),
+          block.interaction?.type === 'display'
+            ? block.data
+            : answerValues
+              ? [...answerValues]
+              : [],
           block.id,
         )}
       />

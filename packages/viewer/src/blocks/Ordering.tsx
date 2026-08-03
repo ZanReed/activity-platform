@@ -22,6 +22,7 @@
 import { useState } from 'react';
 import type { OrderingBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
+import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
@@ -42,6 +43,11 @@ export default function Ordering({
   const servedIds = block.items.map((item) => item.id);
   const order = state.responses.orderings[block.id] ?? servedIds;
   const byId = new Map(block.items.map((item) => [item.id, item]));
+
+  // The key holds each item's position in the AUTHORED order. Printed beside
+  // the item wherever the served shuffle happens to have placed it, which is
+  // exactly what "number the steps 1 to N" asks a student to work out.
+  const answerKey = useBlockAnswerKey(block.id);
 
   const move = (from: number, to: number) => {
     if (to < 0 || to >= order.length) return;
@@ -68,13 +74,26 @@ export default function Ordering({
         {order.map((id, index) => {
           const item = byId.get(id);
           if (!item) return null;
+          const keyPosition = answerKey?.positionByItemId?.[id];
           return (
             <li key={id} className="viewer-ordering__item" data-item-id={id}>
               {/* The paper convention: "number the steps 1 to N" in a box. The
                   reorder buttons are the screen answer and are hidden in print;
                   this is hidden on screen. Both are always in the DOM because
                   the browser's print command gives no chance to build one. */}
-              <span className="viewer-ordering__number-box" aria-hidden="true" />
+              <span
+                className={
+                  keyPosition === undefined
+                    ? 'viewer-ordering__number-box'
+                    : 'viewer-ordering__number-box viewer-ordering__number-box--key'
+                }
+                aria-hidden="true"
+                {...(keyPosition === undefined
+                  ? {}
+                  : { 'data-answer-key': String(keyPosition) })}
+              >
+                {keyPosition ?? ''}
+              </span>
               <span className="viewer-ordering__content">
                 <InlineContent nodes={item.content} />
               </span>

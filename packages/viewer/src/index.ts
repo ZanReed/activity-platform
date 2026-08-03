@@ -82,6 +82,8 @@ export type {
 // imports FROM the registry and is deliberately absent from server/index.ts:
 // the get-activity bundle must never carry answer-reading code (V9 lesson).
 export { extractAnswerKey, extractBlockAnswerKey } from './answer-key/extract.js';
+export { AnswerKeyProvider, useBlockAnswerKey } from './answer-key/context.js';
+export type { AnswerKeyProviderProps } from './answer-key/context.js';
 export { ANSWER_KEY_COVERAGE, ANSWER_KEY_INK } from './answer-key/types.js';
 export type {
   AnswerKeyMap,

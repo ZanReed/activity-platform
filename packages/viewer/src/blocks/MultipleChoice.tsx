@@ -26,6 +26,7 @@ import { useId } from 'react';
 import type { MultipleChoiceBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
 import { choiceLetter } from './paperAffordances.js';
+import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
@@ -36,6 +37,11 @@ export default function MultipleChoice({
 }: BlockComponentProps<MultipleChoiceBlock>) {
   const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
   const groupName = useId();
+  // The key names correct choices by ID; the LETTER a teacher reads comes from
+  // the position this render is drawing them in, so a shuffled print version
+  // marks the right letter without the key knowing anything about the shuffle.
+  const answerKey = useBlockAnswerKey(block.id);
+  const keyedCorrect = new Set(answerKey?.correctChoiceIds ?? []);
 
   const selected = state.responses.choices[block.id] ?? [];
   const phase = phaseOf(block.id);
@@ -69,8 +75,16 @@ export default function MultipleChoice({
         <ul className="viewer-mc__choices">
           {block.choices.map((choice, index) => {
             const isSelected = selected.includes(choice.id);
+            const isKeyed = keyedCorrect.has(choice.id);
             return (
-              <li key={choice.id} className="viewer-mc__choice">
+              <li
+                key={choice.id}
+                className="viewer-mc__choice"
+                // The answer mark rides the LETTER (below) rather than the
+                // native control, because the control is hidden on paper —
+                // marking it would produce a key that prints blank.
+                {...(isKeyed ? { 'data-answer-key': 'correct' } : {})}
+              >
                 <label className="viewer-mc__label">
                   <input
                     type={block.multiSelect ? 'checkbox' : 'radio'}
@@ -89,7 +103,14 @@ export default function MultipleChoice({
                       aria-hidden because the visible label already names the
                       choice; a screen reader announcing "A" before every option
                       is noise, not information. */}
-                  <span className="viewer-mc__letter" aria-hidden="true">
+                  <span
+                    className={
+                      isKeyed
+                        ? 'viewer-mc__letter viewer-mc__letter--key'
+                        : 'viewer-mc__letter'
+                    }
+                    aria-hidden="true"
+                  >
                     {choiceLetter(index)}
                   </span>
                   <span className="viewer-mc__choice-content">

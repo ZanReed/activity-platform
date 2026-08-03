@@ -39,12 +39,16 @@ import { graphSurface, type GraphSurfaceHandle } from './kitSurfaces.js';
 import { CANVAS_HOST_STYLE, VISUALLY_HIDDEN } from './canvasChrome.js';
 import { renderGraphSvg } from '@activity/graph-kit/static-svg';
 import { PrintTwin } from './printTwin.js';
+import { useBlockAnswerKey } from '../answer-key/context.js';
+import { ANSWER_KEY_INK } from '../answer-key/types.js';
 
 export default function InteractiveGraph({
   block,
   mode = 'screen',
 }: BlockComponentProps<InteractiveGraphBlock>) {
   const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const answerKey = useBlockAnswerKey(block.id);
+  const answerOverlay = answerKey?.graphOverlay;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<GraphSurfaceHandle | null>(null);
   const [narration, setNarration] = useState('');
@@ -184,26 +188,46 @@ export default function InteractiveGraph({
       ) : null}
 
       {/* What actually prints (S5-1/OV4): empty axes for a question the
-          student plots onto, the authored drawables for a display figure. */}
+          student plots onto, the authored drawables for a display figure —
+          and, on a teacher answer key only, the answer drawn over the axes. */}
       <PrintTwin
         svg={renderGraphSvg(
           block.axisConfig,
-          // Narrowed on the interaction itself rather than the isDisplay
-          // boolean: only the display variant HAS drawables, and the type
-          // system is what proves a question's twin cannot accidentally carry
-          // any (which would print the answer).
+          // THREE cases, in the order that keeps the student invariant intact:
+          //
+          // The answer overlay is a SEPARATE channel (D8A) reaching this
+          // component through the teacher-only context, never through the
+          // block. That matters: the display branch below stays narrowed on
+          // the interaction itself rather than on a boolean, so only a display
+          // variant HAS drawables and the type system still proves a question's
+          // twin cannot carry any. Widening that field to carry answers would
+          // have deleted exactly the proof this file relies on.
           //
           // The cast recovers tuple-ness, not correctness: the sanitized
           // projection maps [number, number] to number[] (it rebuilds object
           // types structurally and tuples do not survive that), so the values
           // are already exactly what the renderer wants and only the type has
           // widened. Confined to this one argument.
-          block.interaction?.type === 'display'
-            ? (block.interaction.drawables as Parameters<typeof renderGraphSvg>[1])
-            : [],
+          answerOverlay
+            ? [...answerOverlay]
+            : block.interaction?.type === 'display'
+              ? (block.interaction.drawables as Parameters<typeof renderGraphSvg>[1])
+              : [],
           block.id,
+          // A distinct neutral ink, so a teacher reads the overlay as "added
+          // for the key" rather than as authored content.
+          answerOverlay ? ANSWER_KEY_INK : undefined,
         )}
       />
+
+      {/* "No solution" is an answer, and an empty grid cannot say it. Without
+          this a teacher cannot tell a no-solution key from a question whose key
+          failed to render. */}
+      {answerKey?.graphNoSolution ? (
+        <p className="viewer-graph__answer-note" data-answer-key="no-solution">
+          Answer: no solution
+        </p>
+      ) : null}
 
       <div
         ref={mountRef}

@@ -19,6 +19,7 @@ import { useId } from 'react';
 import type { MatchingBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
 import { choiceLetter } from './paperAffordances.js';
+import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
@@ -38,6 +39,14 @@ export default function Matching({
   const result = resultFor(block.id);
   const solution = solutionFor(block.id);
   const placed = state.responses.matches[block.id] ?? {};
+
+  // The key pairs item id → TARGET ID. The letter a teacher writes is a fact
+  // about the order the bank is being rendered in, which print shuffles per
+  // version — so it is derived here, from this render, rather than stored.
+  const answerKey = useBlockAnswerKey(block.id);
+  const letterByTargetId = new Map(
+    block.targets.map((target, i) => [target.id, choiceLetter(i)]),
+  );
 
   return (
     <div
@@ -63,6 +72,10 @@ export default function Matching({
       <ul className="viewer-matching__items">
         {block.items.map((item) => {
           const selectId = `${groupId}-${item.id}`;
+          const keyedTargetId = answerKey?.targetIdByItemId?.[item.id];
+          const keyLetter = keyedTargetId
+            ? letterByTargetId.get(keyedTargetId)
+            : undefined;
           return (
             <li key={item.id} className="viewer-matching__item" data-item-id={item.id}>
               <label htmlFor={selectId} className="viewer-matching__item-label">
@@ -72,7 +85,17 @@ export default function Matching({
                   letter on. The <select> beside it is the screen answer and is
                   hidden in print; this is hidden on screen. Both are always in
                   the DOM because printing cannot wait on a render. */}
-              <span className="viewer-matching__letter-line" aria-hidden="true" />
+              <span
+                className={
+                  keyLetter
+                    ? 'viewer-matching__letter-line viewer-matching__letter-line--key'
+                    : 'viewer-matching__letter-line'
+                }
+                aria-hidden="true"
+                {...(keyLetter ? { 'data-answer-key': keyLetter } : {})}
+              >
+                {keyLetter ?? ''}
+              </span>
               <select
                 id={selectId}
                 className="viewer-matching__select"

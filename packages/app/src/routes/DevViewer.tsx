@@ -20,10 +20,12 @@
 
 import { useMemo, useState } from 'react';
 import {
+  AnswerKeyProvider,
   ViewerContainer,
   boundBlockTypes,
   createMockCheckService,
   createViewerStore,
+  extractAnswerKey,
   registeredBlockTypes,
 } from '@activity/viewer';
 import { PrintButton } from '@activity/viewer';
@@ -38,6 +40,7 @@ const FONT_IDS: ActivityFont[] = [
 ];
 import type { BlockType, SanitizedActivityDocument } from '@activity/viewer';
 import {
+  authoredFixtureDocument,
   sanitizedVariantFixtures,
   servedFixtureDocument,
 } from '@activity/viewer/fixtures';
@@ -66,6 +69,12 @@ export default function DevViewer() {
   const [variant, setVariant] = useState(Number(params.get('variant') ?? 0));
   const [verdict, setVerdict] = useState<Verdict>('correct');
   const [mode, setMode] = useState<'screen' | 'print'>('screen');
+  // The teacher answer key (S5.5). Deep-linkable like the other switches so the
+  // parity gate can drive a keyed render, and mounted the same way the teacher
+  // print route will: a provider wrapped around the container, extracted from
+  // the AUTHORED fixtures while the container still renders the SERVED ones.
+  const [showAnswers, setShowAnswers] = useState(params.get('answers') === '1');
+  const answerKey = useMemo(() => extractAnswerKey(authoredFixtureDocument()), []);
   const [failing, setFailing] = useState(false);
   // Typography is a DOCUMENT-level print/render case (documentPrintRoster's
   // `document/typography`), so the harness needs a way to exercise it — the
@@ -270,6 +279,15 @@ export default function DevViewer() {
           <label>
             <input
               type="checkbox"
+              checked={showAnswers}
+              onChange={(e) => setShowAnswers(e.target.checked)}
+            />{' '}
+            answer key
+          </label>
+
+          <label>
+            <input
+              type="checkbox"
               checked={failing}
               onChange={(e) => setFailing(e.target.checked)}
             />{' '}
@@ -304,12 +322,23 @@ export default function DevViewer() {
       </header>
 
       <main style={{ borderTop: '1px solid #8884', paddingTop: '1rem' }}>
-        <ViewerContainer
-          document={docWithFont}
-          store={store}
-          versionId={VERSION_ID}
-          mode={mode}
-        />
+        {showAnswers ? (
+          <AnswerKeyProvider answers={answerKey}>
+            <ViewerContainer
+              document={docWithFont}
+              store={store}
+              versionId={VERSION_ID}
+              mode={mode}
+            />
+          </AnswerKeyProvider>
+        ) : (
+          <ViewerContainer
+            document={docWithFont}
+            store={store}
+            versionId={VERSION_ID}
+            mode={mode}
+          />
+        )}
       </main>
     </div>
   );

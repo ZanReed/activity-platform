@@ -30,12 +30,14 @@ import { numberLineSurface, type NumberLineSurfaceHandle } from './kitSurfaces.j
 import { renderNumberLineSvg } from '@activity/graph-kit/static-svg';
 import { PrintTwin } from './printTwin.js';
 import { CANVAS_HOST_STYLE, VISUALLY_HIDDEN } from './canvasChrome.js';
+import { useBlockAnswerKey } from '../answer-key/context.js';
 
 export default function NumberLine({
   block,
   mode = 'screen',
 }: BlockComponentProps<NumberLineBlock>) {
   const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const answerMarks = useBlockAnswerKey(block.id)?.numberLineMarks;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<NumberLineSurfaceHandle | null>(null);
   const [narration, setNarration] = useState('');
@@ -140,9 +142,17 @@ export default function NumberLine({
       ) : null}
 
       {/* Both number-line variants are QUESTIONS (there is no display
-          variant), so the printed line is always blank: the marks are the
-          answer. */}
-      <PrintTwin svg={renderNumberLineSvg(block.config, [], block.id)} />
+          variant), so the printed line is blank for a student: the marks ARE
+          the answer. A teacher answer key is the one surface that draws them,
+          and it reaches this component through the separate answer channel
+          rather than through the block. */}
+      <PrintTwin
+        svg={renderNumberLineSvg(
+          block.config,
+          answerMarks ? [...answerMarks] : [],
+          block.id,
+        )}
+      />
 
       <div
         ref={mountRef}
