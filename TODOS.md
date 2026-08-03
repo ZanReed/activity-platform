@@ -312,3 +312,61 @@ the harness needs the server-stop approach and the rows can be un-parked.
 students actually meet this path.
 
 **Context:** surfaced by /plan-eng-review's S6 build, V9 (2026-08-02).
+
+## Question parameterization — different numbers per printed version
+
+**What:** Templated question variants: the same authored question with per-version
+parameter values ("solve 3x + 5 = 20" vs "solve 4x + 7 = 31"), so randomized print
+versions (S5.5) differ in CONTENT, not just arrangement.
+
+**Why:** S5.5's version feature shuffles arrangement only (MC choice order, matching
+bank, ordering items). A teacher fighting copying gets far more from different numbers.
+The author asked for this during the S5.5 eng review and explicitly deferred it as its
+own arc (ruling D5, 2026-08-03).
+
+**What it needs (why it's an arc, not a task):** schema for parameter definitions and
+constraints; per-instance answer computation (the answer key must be derived, not
+authored, for parameterized blanks/MC); editor UI for authoring templates; grading
+implications if parameterized activities ever meet the live check path; print-version
+seeds extended to select parameter instantiations deterministically.
+
+**Depends on:** S5.5 shipped (version selector + deterministic seeds are the natural
+substrate). Wants its own design pass + eng review.
+
+**Context:** surfaced in the S5.5 /plan-eng-review (2026-08-03) when the author asked
+whether "versions" meant different questions; ruled out-of-slice, captured here.
+
+## Batch print: all versions + answer keys in one job
+
+**What:** A "Print all versions" action producing ONE print job containing Version
+1..N sheets (optionally each version's answer key appended), instead of N separate
+print-dialog runs.
+
+**Why:** A teacher printing 3 versions for a class runs 3–6 print dialogs today
+(version × key). Real time-saver once versions see classroom use.
+
+**How (sketch):** sequential `window.print()` calls are browser-blocked; the workable
+shape is a composed multi-version document — render each version's worksheet
+(offscreen, same capture path the foldable uses post-S5.5), concatenate into one
+printable document with per-version page breaks. The foldable's compose/iframe
+machinery is the pattern.
+
+**Depends on:** S5.5's version feature shipping AND seeing real use — demand-triggered.
+
+**Context:** surfaced in the S5.5 /plan-eng-review (2026-08-03, decision D22).
+
+## Editor load path and the schema upgrade seam
+
+**What:** When the first real schema migration lands in `packages/schema/src/upgrade.ts`,
+check the EDITOR's activity-load path runs the upgrade seam before parsing drafts.
+
+**Why:** S5.5 wires the seam into the teacher print route (ruling D23, 2026-08-03), but
+the editor loads drafts the same direct way. Zero impact today (zero migrations exist);
+the day migration #1 lands, an un-upgraded old draft would fail the editor's parse.
+
+**Where to start:** the editor's load in `packages/app/src/routes/ActivityEditor.tsx`
+(or wherever draft_content is parsed) — mirror what the S5.5 print route does.
+
+**Depends on:** the first schema migration existing. Until then this is a no-op.
+
+**Context:** surfaced in the S5.5 /plan-eng-review (2026-08-03, decision D23).
