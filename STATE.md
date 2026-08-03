@@ -33,7 +33,19 @@ pnpm deploy:publish        # only after the upload prints its Uploaded: lines
 
 `packages/graph-kit` gained ungraded input mode (author ruling A, 2026-07-31) — `answerKey` is now optional so the server-authoritative viewer can mount a graph question as a pure input surface. **Nothing is broken meanwhile:** the change is additive, graded behavior is unchanged (half the new tests exist to prove that), already-published pages keep pointing at their existing kit hash, and no shipped code uses ungraded mode yet. The upload matters when the viewer's graph components land. Order is the standing CLAUDE.md rule — **kit upload FIRST, then the function deploy** (deploying first points at a hash that isn't on R2 yet and 404s the summon button), and the regenerated manifest must be committed or a future deploy from a clean checkout silently reverts to the stale hash.
 
-**⚠ QUEUED 2026-08-03 (S5.5 T3) — REDEPLOY BOTH `get-activity` AND `check-activity`, and treat them as ONE change.** The viewer's `seededShuffle` gained the renderer's never-identity guarantee (`packages/viewer/src/sanitize/shuffle.ts`): a fair shuffle deals the authored order back 1/n! of the time, and ordering blocks are allowed as few as TWO items, so one student in two could be served a pre-solved question. Both Edge bundles moved because both read the shuffle — `get-activity` **serves** the permutation, `check-activity` **recomputes** it for S4's ordering omission rule.
+**🔴 ACTION NEEDED 2026-08-03 — `check-activity` IS DEPLOYED, `get-activity` IS NOT. The pair is currently SPLIT.** The author ran both; `check-activity` succeeded, `get-activity` failed with **`413 request entity too large`**. So the grader now recomputes the never-identity permutation while the reader still serves the old one — they disagree for exactly the seeds that used to land on the identity. Bounded and non-fatal (an untouched ordering list is marked wrong instead of unscored, for that small fraction of student/block pairs), but it should not sit.
+
+**The 413 is FIXED IN THE REPO — retry the deploy:**
+
+```bash
+pnpm deploy:get-activity
+```
+
+**Cause, because it will look mysterious otherwise:** `get-activity/deno.json` mapped a directory prefix (`"@/shared/": "../_shared/"`). The CLI resolves that by uploading ALL of `_shared/` — the renderer (3.5 MB) and grading (2.5 MB) bundles included, neither of which `get-activity` imports — about 6.9 MB per deploy. The alias was never *used*: every import is relative. It has been removed from `get-activity`, `ingest-submission` and `publish-activity` (all three carried it), so each now uploads only its own graph: get-activity ~0.9 MB, the other two ~3.6 MB. `check-activity` and `get-feedback` never had it, which is precisely why check-activity deployed fine. Written up in [functions README](supabase/functions/README.md) → "Never put a DIRECTORY-PREFIX alias".
+
+**Worth knowing it was NOT caused by this slice:** S5.5 added ~15 KB across the three bundles (renderer 3562→3569K, grading 2519→2523K, viewer-server 903→907K). `_shared` was already at ~6.98 MB, so it was sitting on the limit and any change would have tipped it.
+
+**Original note (still accurate) — the two functions are ONE change:** The viewer's `seededShuffle` gained the renderer's never-identity guarantee (`packages/viewer/src/sanitize/shuffle.ts`): a fair shuffle deals the authored order back 1/n! of the time, and ordering blocks are allowed as few as TWO items, so one student in two could be served a pre-solved question. Both Edge bundles moved because both read the shuffle — `get-activity` **serves** the permutation, `check-activity` **recomputes** it for S4's ordering omission rule.
 
 ```bash
 pnpm deploy:get-activity   # --no-verify-jwt is baked into the script

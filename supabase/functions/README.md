@@ -19,6 +19,31 @@ Phase 1 Edge Functions for the activity platform.
 - **`renderer.bundle.js`** — **Auto-generated.** Do NOT edit by hand. Produced by `pnpm bundle:renderer` from `packages/renderer`. Re-run after any change to schema or renderer.
 - **`viewer-server.bundle.js`** — **Auto-generated.** Do NOT edit by hand. Produced by `pnpm bundle:viewer-server` from `packages/viewer/src/server/` (upgrade-on-read + the answer-key sanitizer + serve shuffles + `SANITIZER_REV`). Re-run after any change to schema or the viewer's sanitize/registry source. Kept separate from the renderer bundle so `get-activity` never loads the renderer + KaTeX.
 
+### ⚠ Never put a DIRECTORY-PREFIX alias to `_shared/` in a function's `deno.json`
+
+A function's `deno.json` must not map a folder, e.g.:
+
+```jsonc
+// DON'T — this uploads ALL of _shared/ with every deploy
+{ "imports": { "@/shared/": "../_shared/" } }
+```
+
+The CLI resolves that prefix by uploading the **whole directory**, not the files
+the function imports. Since `_shared/` holds three generated bundles totalling
+~7 MB, any function carrying such an alias uploads all of them — and on
+2026-08-03 that finally exceeded the request limit and `get-activity` failed to
+deploy with `413 request entity too large`. The alias had never been *used*:
+every function imports by relative path (`../_shared/cors.ts`), so it was pure
+upload weight and was removed from all three functions that had it.
+
+Diagnostic if it recurs: the deploy log lists the assets it uploads. A function
+should only list the files it actually imports. `get-activity` listing
+`renderer.bundle.js` is the tell.
+
+Rough sizes, so the next bundle growth is predictable: renderer ~3.5 MB,
+grading-server ~2.5 MB, viewer-server ~0.9 MB. No single function needs more
+than one of them.
+
 ## One-time setup
 
 ### 1. Cloudflare R2 secrets
