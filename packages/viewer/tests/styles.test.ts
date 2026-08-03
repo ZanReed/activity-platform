@@ -289,3 +289,74 @@ describe('the print stylesheet agrees with the registry it mirrors', () => {
     }
   });
 });
+
+describe('the in-page print preview mirrors the printed page (S5.5 D24)', () => {
+  // WHY THIS GUARD EXISTS. The teacher route previews in-page (D4A), so the
+  // paper conventions have to be visible on a SCREEN render — but every one of
+  // them lives behind `@media print`, and CSS cannot share one rule body
+  // between a media query and an attribute selector. The show/hide half is
+  // therefore written twice, and duplication without a guard is just drift with
+  // a delay: a treatment added to the print block and forgotten here produces a
+  // preview that quietly stops predicting the printout.
+  //
+  // Only VISIBILITY is mirrored. Page geometry (size, margins, pagination) is
+  // deliberately absent from the preview because a screen has none of it.
+
+  const printBlock = code.slice(code.indexOf('@media print'));
+  const previewBlock = code.slice(
+    code.indexOf("[data-viewer-mode='print']"),
+    code.indexOf('@media print'),
+  );
+
+  /** Selectors given `display: none` inside a block, ignoring the preview's
+   *  own attribute prefix so the two lists are comparable. */
+  function hiddenSelectors(block: string): Set<string> {
+    const out = new Set<string>();
+    for (const match of block.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const body = match[2] ?? '';
+      if (!/display:\s*none/.test(body)) continue;
+      for (const selector of (match[1] ?? '').split(',')) {
+        const cleaned = selector
+          .replace(/\[data-viewer-mode='print'\]\s*/g, '')
+          .trim();
+        if (cleaned.startsWith('.') || cleaned.startsWith('[')) out.add(cleaned);
+      }
+    }
+    return out;
+  }
+
+  it('hides in the preview everything the printed page hides', () => {
+    const inPrint = hiddenSelectors(printBlock);
+    const inPreview = hiddenSelectors(previewBlock);
+
+    expect(inPrint.size).toBeGreaterThan(0);
+    for (const selector of inPrint) {
+      expect(
+        inPreview.has(selector),
+        `${selector} is hidden when printing but still shows in the in-page ` +
+          'preview — a teacher would see chrome that will not be on the paper',
+      ).toBe(true);
+    }
+  });
+
+  it('reveals in the preview every paper affordance the printed page reveals', () => {
+    // The affordances hidden on screen by the base stylesheet, which print
+    // turns back on. Each must also come back for the preview, or the teacher
+    // is judging work space against furniture that is not there.
+    for (const selector of [
+      '.viewer-mc__letter',
+      '.viewer-matching__letter-line',
+      '.viewer-ordering__number-box',
+      '.viewer-print-header',
+      '.viewer-print-heading',
+      '[data-print-svg]',
+      '.viewer-reference-print',
+      '.viewer-glossary',
+    ]) {
+      expect(
+        previewBlock,
+        `${selector} prints but is not revealed in the in-page preview`,
+      ).toContain(selector);
+    }
+  });
+});

@@ -976,6 +976,74 @@
 
 
 /* =============================================================================
+   PRINT PREVIEW ON SCREEN (S5.5 T4, ruling D24)
+   -----------------------------------------------------------------------------
+   The teacher's print route renders the viewer in-page rather than in an iframe
+   (D4A), which means the preview is a SCREEN render — and every paper
+   convention below lives behind `@media print`, so without this block the
+   preview would show the content and none of the furniture: no write-the-letter
+   lines, no number boxes, no static figure twins, and the live board still
+   sitting where the printed figure goes. A teacher tuning work space against
+   that preview is tuning blind.
+
+   WHAT THIS MIRRORS, AND WHAT IT DELIBERATELY DOES NOT (D24-C). Only the
+   VISIBILITY decisions: what appears on paper appears here, what is screen
+   chrome disappears here. Page size, margins and pagination are NOT mirrored,
+   because a screen has none of those — they exist only once the browser's print
+   dialog is open, and pretending otherwise would be a more convincing lie than
+   showing nothing.
+
+   The `@media print` block below stays the single source of truth for the
+   printed page; this is a second expression of its show/hide half, and
+   tests/styles.test.ts fails if the two ever disagree. That guard is the price
+   of the duplication and the reason it is safe: CSS cannot share one rule body
+   between a media query and an attribute selector.
+   ============================================================================= */
+
+[data-viewer-mode='print'] .viewer-print-heading,
+[data-viewer-mode='print'] .viewer-mc__letter,
+[data-viewer-mode='print'] .viewer-matching__letter-line,
+[data-viewer-mode='print'] .viewer-ordering__number-box,
+[data-viewer-mode='print'] .viewer-print-header,
+[data-viewer-mode='print'] .viewer-reference-print,
+[data-viewer-mode='print'] .viewer-glossary,
+[data-viewer-mode='print'] [data-print-svg] {
+  display: block;
+}
+
+/* The inline affordances sit in running text, so they take the same
+   inline-block the print block gives them rather than the block above. */
+[data-viewer-mode='print'] .viewer-mc__letter,
+[data-viewer-mode='print'] .viewer-matching__letter-line,
+[data-viewer-mode='print'] .viewer-ordering__number-box {
+  display: inline-block;
+}
+
+/* Screen chrome that never reaches paper. Shown in the preview it would read as
+   part of the worksheet — a teacher would wonder why "Check" is on their
+   photocopy. */
+[data-viewer-mode='print'] .viewer-banner,
+[data-viewer-mode='print'] .viewer-topbar,
+[data-viewer-mode='print'] .viewer-section__footer,
+[data-viewer-mode='print'] .viewer-section__status,
+[data-viewer-mode='print'] .viewer-section__shortfall,
+[data-viewer-mode='print'] .viewer-state-pill,
+[data-viewer-mode='print'] .viewer-ordering__controls,
+[data-viewer-mode='print'] .viewer-blank__feedback,
+[data-viewer-mode='print'] .viewer-matching__select,
+[data-viewer-mode='print'] .viewer-graph__unavailable,
+[data-viewer-mode='print'] .viewer-essay__count,
+[data-viewer-mode='print'] .viewer-solution,
+[data-viewer-mode='print'] [data-feedback='server'],
+[data-viewer-mode='print'] .viewer-mc__choice input,
+[data-viewer-mode='print'] .viewer-graph__canvas,
+[data-viewer-mode='print'] .viewer-number-line__canvas,
+[data-viewer-mode='print'] .viewer-data-plot__canvas {
+  display: none;
+}
+
+
+/* =============================================================================
    PRINT — the clean worksheet (ruling 7.3A; the S5 print slice)
    -----------------------------------------------------------------------------
    What a student prints is the BLANK version of the worksheet: no check chrome,
