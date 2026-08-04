@@ -21,6 +21,15 @@
 -- Requires: at least one teacher account (the fixture activity needs an owner).
 -- No deploy is involved for sections A-C; the get-activity redeploy matters for
 -- scripts/verify-analytics-e2e.js, which is the other half of this proof.
+--
+-- ALREADY RUN ONCE, GREEN, against the live database (2026-08-04, immediately
+-- after 0026 was applied): A1-A3, B1-B4 and the whole of C passed with exact
+-- numbers — census 2 counts / 3 items, idempotent re-run, fill_in_blank 4/6 all
+-- attempts vs 3/4 latest, multiple_choice 2/3 vs 2/2, one _unattributed verdict
+-- with a null block_count, totals 3 checks / 2 students / censused, stranger and
+-- student both refused "Not available", one ledger row. Rollback verified clean
+-- afterward (no fixture activity, domain, auth user, check, census or ledger row
+-- survived, and the sweep's own deletes rolled back with it).
 -- =============================================================================
 
 -- ===================== 0. PRECONDITION — run this FIRST ======================
@@ -183,8 +192,16 @@ begin
   end if;
 
   -- ---- Fixture -------------------------------------------------------------
-  insert into activities (owner_id, title, status)
-  values (v_teacher, 'verify-0026 fixture', 'published')
+  -- `slug` is NOT NULL on activities; a fixture that omits it fails at the
+  -- first insert (found running this against the live database, 2026-08-04).
+  -- Randomized so repeat runs can never collide on a unique index.
+  insert into activities (owner_id, title, slug, status)
+  values (
+    v_teacher,
+    'verify-0026 fixture',
+    'verify-0026-fixture-' || substr(gen_random_uuid()::text, 1, 8),
+    'published'
+  )
   returning id into v_activity;
 
   insert into activity_versions (activity_id, version_num, content, created_by)
