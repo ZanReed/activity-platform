@@ -61,7 +61,17 @@ export default function MathBlock({
     /\\placeholder\[([^\]]*)\]\{[^}]*\}/g,
     (_marker, promptId: string) => {
       const answer = gapAnswers?.[promptId];
-      return answer ? `\\boxed{${answer}}` : '\\square';
+      // BRACED, and it is not cosmetic. A gap is usually followed immediately
+      // by the term it multiplies — `\placeholder[g1]{}x` — so emitting a bare
+      // `\square` produces `\squarex`, which LaTeX reads as one unknown command
+      // and KaTeX renders as red error text. Braces terminate the command so it
+      // cannot glue to whatever follows. (The answer branch is already safe:
+      // its closing brace does the same job.)
+      //
+      // Pre-existing since S3 and invisible until S5.5, because on screen
+      // MathLive covers this fallback and nothing had ever screenshotted print
+      // mode — the first correct Linux baseline run is what surfaced it.
+      return answer ? `\\boxed{${answer}}` : '{\\square}';
     },
   );
   const [html, setHtml] = useState<string | null>(() => {

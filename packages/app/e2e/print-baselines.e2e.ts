@@ -57,8 +57,23 @@ test.describe('print baselines (viewer)', () => {
                     : route.abort();
             });
 
-            await page.goto(`/dev/viewer?type=${type}`);
+            // mode=print is NOT the same switch as emulateMedia, and both are
+            // required. `mode` is a component prop; emulateMedia is CSS. Drive
+            // the media alone and the harness renders a hybrid that prints
+            // nothing for a gap-bearing math_block: the component mounts its
+            // MathLive field (screen behaviour) and hides the static KaTeX
+            // behind it, then the print stylesheet hides the field. The first
+            // Linux baseline run captured exactly that and would have pinned a
+            // blank image as correct for a graded block type.
+            await page.goto(`/dev/viewer?type=${type}&mode=print`);
             await expect(page.locator(`[data-block-type="${type}"]`).first()).toBeAttached();
+            // Lazy block components (D16) show a Suspense fallback first, and a
+            // screenshot taken then pins a spinner. Same signal the print
+            // readiness barrier polls, so the shutter waits for what the product
+            // waits for.
+            await expect(page.locator('.viewer-block__loading')).toHaveCount(0, {
+                timeout: 15_000,
+            });
             // Fonts settled before the shutter: a swap mid-screenshot is the
             // classic source of a diff nobody can explain.
             await page.evaluate(() => document.fonts.ready);

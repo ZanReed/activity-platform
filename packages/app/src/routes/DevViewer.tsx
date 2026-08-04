@@ -68,7 +68,17 @@ export default function DevViewer() {
   );
   const [variant, setVariant] = useState(Number(params.get('variant') ?? 0));
   const [verdict, setVerdict] = useState<Verdict>('correct');
-  const [mode, setMode] = useState<'screen' | 'print'>('screen');
+  // Deep-linkable like every other switch here, and it matters more than it
+  // looks: `mode` is a COMPONENT prop, not a CSS media state, and the two are
+  // independently settable. A harness driven with print media but screen mode
+  // renders a hybrid — MathBlock mounts its MathLive field (screen behaviour),
+  // the component hides the static KaTeX behind it, and the print stylesheet
+  // then hides the field, so a gap-bearing equation disappears entirely. The
+  // first Linux baseline run captured exactly that and pinned a blank image for
+  // math_block. Anything screenshotting this harness must pass mode=print.
+  const [mode, setMode] = useState<'screen' | 'print'>(
+    params.get('mode') === 'print' ? 'print' : 'screen',
+  );
   // The teacher answer key (S5.5). Deep-linkable like the other switches so the
   // parity gate can drive a keyed render, and mounted the same way the teacher
   // print route will: a provider wrapped around the container, extracted from

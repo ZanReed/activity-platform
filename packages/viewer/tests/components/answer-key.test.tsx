@@ -385,3 +385,39 @@ describe('letters follow the RENDERED order, not the authored one', () => {
     expect(reversed.choices[markedIndex]?.id).toBe(expectedId);
   });
 });
+
+describe('math gaps produce PARSEABLE latex (regression)', () => {
+  // Found by the first correct print baseline. A gap is normally followed
+  // straight away by the term it multiplies — `\placeholder[g1]{}x` — so a bare
+  // `\square` yields `\squarex`, which LaTeX reads as one unknown command and
+  // KaTeX renders as red error text on the printed page. Invisible for two
+  // slices because on screen MathLive covers this fallback, and nothing had
+  // screenshotted print mode until the baselines existed.
+  //
+  // Asserted on the SUBSTITUTION rather than through a render, because the
+  // failure is a latex-string property: rendering it in jsdom without KaTeX
+  // would prove nothing.
+  const substitute = (latex: string, answers?: Record<string, string>) =>
+    latex.replace(/\\placeholder\[([^\]]*)\]\{[^}]*\}/g, (_m, id: string) => {
+      const answer = answers?.[id];
+      return answer ? `\\boxed{${answer}}` : '{\\square}';
+    });
+
+  it('never glues the empty-gap marker to the next token', () => {
+    const out = substitute('y = \\placeholder[g1]{}x + 4');
+
+    expect(out).toBe('y = {\\square}x + 4');
+    // The specific shape that rendered red on paper.
+    expect(out).not.toContain('\\squarex');
+    expect(out).not.toMatch(/\\square[a-zA-Z]/);
+  });
+
+  it('never glues a filled gap to the next token either', () => {
+    // Safe for a different reason — the closing brace terminates the command —
+    // but pinned so a future edit to a bare `\answer` form has to argue here.
+    const out = substitute('y = \\placeholder[g1]{}x + 4', { g1: '3' });
+
+    expect(out).toBe('y = \\boxed{3}x + 4');
+    expect(out).not.toMatch(/\}[a-zA-Z]*\\/);
+  });
+});
