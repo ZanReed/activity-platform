@@ -8,9 +8,14 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **📌 NOT reproducible from migrations: all three teacher `display_name`s are NULL by a direct data edit.** 0021's backfill NULLed the two rows that held emails; the author then ruled (2026-08-04) that the third row — a 2026-07-29 account where Google DID supply `full_name`, so it held the real name `"Zan Reed"` — should be NULL too. That row was outside 0021's scope by design (the backfill only touches `display_name = email`, so it never rewrites a chosen name), so it was cleared with a direct one-row UPDATE, **not a migration**. Verified after: all three published activities return `teacher_name:null` over anonymous HTTP. Consequence to remember: a restored-from-migrations database would NOT reproduce this, and **a brand-new teacher signing in with a Google account that has a `full_name` will publish that name** — the trigger stores it, ruling 3.2A says a name is what that screen is for, and that is still correct for other teachers. See the design signal on the name-appearance control in Backlog.
 
-**📌 S7 QUEUED (built 2026-08-04, not yet applied) — five steps, in this order:**
-1. **Apply migration 0026** (`supabase db push`) — analytics census tables, `write_version_census`, `run_analytics_maintenance`, `get_activity_analytics`.
-2. **`pnpm deploy:get-activity`** — the read path now writes the census. **Keeps `--no-verify-jwt`** (the 3.2A meta branch); the pnpm script has the flag baked in. The committed `viewer-server.bundle.js` is already regenerated in the same commit.
+**📌 S7 PARTIALLY LANDED — ⚠ THE FUNCTION IS DEPLOYED AHEAD OF ITS MIGRATION. Apply 0026 next.**
+
+*Verified live 2026-08-04 after the author's deploy:* `get-activity` is at **v8, `verify_jwt:false`** (the flag survived — that was the risk that mattered), but **0026 is NOT applied** (`list_migrations` ends at 0025; `write_version_census` does not exist). So the deployed cache-fill path calls an RPC that isn't there yet.
+
+**Impact is bounded and non-breaking, by design.** A missing census RPC returns an error, the handler withholds the cache row, and the student still gets a correct 200 — the self-healing ordering doing exactly its job. The only cost: the **2 published current versions with no cache row** re-run upgrade+sanitize on every read until 0026 lands. Nothing is wrong, nothing is lost, no student sees an error. Edge logs show only v7 meta traffic so far, so no content read has even hit it yet.
+
+1. ~~**`pnpm deploy:get-activity`**~~ ✅ **DONE — v8 live, `verify_jwt:false` confirmed.**
+2. **▶ APPLY MIGRATION 0026 NOW** (`supabase db push`) — census tables, `write_version_census`, `run_analytics_maintenance`, `get_activity_analytics`. **No redeploy is needed afterward:** the deployed function is already correct and simply starts succeeding once the RPC exists. (Cache state at the time of checking: 5 rows — 3 under the stale rev `1-5dbcb651`, 2 under the current `1-f8328527`. Those 3 orphans are exactly what R6(a)'s new GC clears.)
 3. **Schedule the cron** (pg_cron must be enabled in the dashboard first):
    `select cron.schedule('analytics-maintenance', '30 3 * * *', 'select run_analytics_maintenance();');`
    03:30 keeps it clear of the 03:00 purge job. Until this runs, `analytics_job_runs` stays empty and the panel says the job has never run — which is true and is the point.
