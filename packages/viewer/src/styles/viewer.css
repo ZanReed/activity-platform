@@ -993,52 +993,66 @@
    dialog is open, and pretending otherwise would be a more convincing lie than
    showing nothing.
 
-   The `@media print` block below stays the single source of truth for the
-   printed page; this is a second expression of its show/hide half, and
-   tests/styles.test.ts fails if the two ever disagree. That guard is the price
-   of the duplication and the reason it is safe: CSS cannot share one rule body
+   EVERY SELECTOR HERE IS WRAPPED IN :where(), AND THAT IS LOAD-BEARING. It
+   contributes zero specificity, so these rules can never outrank the @media
+   print block below — which is the single source of truth for the printed page.
+   Without it the attribute selector (0,2,0) beats the print block's plain class
+   (0,1,0) and wins INSIDE print media too: an earlier version forced
+   `display: block` on the print header, overrode its `display: flex`, and
+   removed the 1.5rem gap between "Name" and "Date" on the actual paper. The
+   first correct Linux baseline is what caught it.
+
+   tests/styles.test.ts checks both halves — that nothing print hides is visible
+   here, and that a revealed element takes the same display value — which is the
+   price of the duplication CSS forces on us: a rule body cannot be shared
    between a media query and an attribute selector.
    ============================================================================= */
 
-[data-viewer-mode='print'] .viewer-print-heading,
-[data-viewer-mode='print'] .viewer-mc__letter,
-[data-viewer-mode='print'] .viewer-matching__letter-line,
-[data-viewer-mode='print'] .viewer-ordering__number-box,
-[data-viewer-mode='print'] .viewer-print-header,
-[data-viewer-mode='print'] .viewer-reference-print,
-[data-viewer-mode='print'] .viewer-glossary,
-[data-viewer-mode='print'] [data-print-svg] {
+:where([data-viewer-mode='print']) .viewer-print-heading,
+:where([data-viewer-mode='print']) .viewer-reference-print,
+:where([data-viewer-mode='print']) .viewer-glossary,
+:where([data-viewer-mode='print']) [data-print-svg] {
   display: block;
 }
 
-/* The inline affordances sit in running text, so they take the same
-   inline-block the print block gives them rather than the block above. */
-[data-viewer-mode='print'] .viewer-mc__letter,
-[data-viewer-mode='print'] .viewer-matching__letter-line,
-[data-viewer-mode='print'] .viewer-ordering__number-box {
+/* The header is a flex ROW, and the gap is repeated here on purpose: the print
+   block's own `gap` lives inside @media print and therefore does not reach the
+   on-screen preview, where a teacher would otherwise see "Name:____Date:____"
+   run together. */
+:where([data-viewer-mode='print']) .viewer-print-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 1.5rem;
+}
+
+/* The inline affordances sit in running text, so they take inline-block. */
+:where([data-viewer-mode='print']) .viewer-mc__letter,
+:where([data-viewer-mode='print']) .viewer-matching__letter-line,
+:where([data-viewer-mode='print']) .viewer-ordering__number-box {
   display: inline-block;
 }
 
 /* Screen chrome that never reaches paper. Shown in the preview it would read as
    part of the worksheet — a teacher would wonder why "Check" is on their
    photocopy. */
-[data-viewer-mode='print'] .viewer-banner,
-[data-viewer-mode='print'] .viewer-topbar,
-[data-viewer-mode='print'] .viewer-section__footer,
-[data-viewer-mode='print'] .viewer-section__status,
-[data-viewer-mode='print'] .viewer-section__shortfall,
-[data-viewer-mode='print'] .viewer-state-pill,
-[data-viewer-mode='print'] .viewer-ordering__controls,
-[data-viewer-mode='print'] .viewer-blank__feedback,
-[data-viewer-mode='print'] .viewer-matching__select,
-[data-viewer-mode='print'] .viewer-graph__unavailable,
-[data-viewer-mode='print'] .viewer-essay__count,
-[data-viewer-mode='print'] .viewer-solution,
-[data-viewer-mode='print'] [data-feedback='server'],
-[data-viewer-mode='print'] .viewer-mc__choice input,
-[data-viewer-mode='print'] .viewer-graph__canvas,
-[data-viewer-mode='print'] .viewer-number-line__canvas,
-[data-viewer-mode='print'] .viewer-data-plot__canvas {
+:where([data-viewer-mode='print']) .viewer-banner,
+:where([data-viewer-mode='print']) .viewer-topbar,
+:where([data-viewer-mode='print']) .viewer-section__footer,
+:where([data-viewer-mode='print']) .viewer-section__status,
+:where([data-viewer-mode='print']) .viewer-section__shortfall,
+:where([data-viewer-mode='print']) .viewer-state-pill,
+:where([data-viewer-mode='print']) .viewer-ordering__controls,
+:where([data-viewer-mode='print']) .viewer-blank__feedback,
+:where([data-viewer-mode='print']) .viewer-matching__select,
+:where([data-viewer-mode='print']) .viewer-graph__unavailable,
+:where([data-viewer-mode='print']) .viewer-essay__count,
+:where([data-viewer-mode='print']) .viewer-solution,
+:where([data-viewer-mode='print']) [data-feedback='server'],
+:where([data-viewer-mode='print']) .viewer-mc__choice input,
+:where([data-viewer-mode='print']) .viewer-graph__canvas,
+:where([data-viewer-mode='print']) .viewer-number-line__canvas,
+:where([data-viewer-mode='print']) .viewer-data-plot__canvas {
   display: none;
 }
 

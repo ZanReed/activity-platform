@@ -317,7 +317,7 @@ describe('the in-page print preview mirrors the printed page (S5.5 D24)', () => 
       if (!/display:\s*none/.test(body)) continue;
       for (const selector of (match[1] ?? '').split(',')) {
         const cleaned = selector
-          .replace(/\[data-viewer-mode='print'\]\s*/g, '')
+          .replace(/:where\(\[data-viewer-mode='print'\]\)\s*/g, '')
           .trim();
         if (cleaned.startsWith('.') || cleaned.startsWith('[')) out.add(cleaned);
       }
@@ -336,6 +336,46 @@ describe('the in-page print preview mirrors the printed page (S5.5 D24)', () => 
         `${selector} is hidden when printing but still shows in the in-page ` +
           'preview — a teacher would see chrome that will not be on the paper',
       ).toBe(true);
+    }
+  });
+
+  it('reveals each affordance with the SAME display value print gives it', () => {
+    // The presence check below is not enough, and this test exists because that
+    // gap shipped a bug: the preview revealed .viewer-print-header with a
+    // blanket `display: block` while print lays it out as a flex row. The
+    // preview selectors carry an attribute, so they OUTSPECIFY the print
+    // block's own — meaning a wrong value here does not merely mis-render the
+    // preview, it overrides the printed page too. The Name and Date fields lost
+    // the 1.5rem gap between them and ran together on paper.
+    const displaysIn = (block: string): Map<string, string> => {
+      const out = new Map<string, string>();
+      for (const match of block.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const display = /display:\s*([a-z-]+)/.exec(match[2] ?? '')?.[1];
+        if (!display || display === 'none') continue;
+        for (const selector of (match[1] ?? '').split(',')) {
+          const cleaned = selector
+            .replace(/:where\(\[data-viewer-mode='print'\]\)\s*/g, '')
+            .trim();
+          if (cleaned.startsWith('.') || cleaned.startsWith('[')) {
+            out.set(cleaned, display);
+          }
+        }
+      }
+      return out;
+    };
+
+    const printed = displaysIn(printBlock);
+    const preview = displaysIn(previewBlock);
+
+    for (const [selector, value] of preview) {
+      const printValue = printed.get(selector);
+      if (printValue === undefined) continue; // preview-only affordance
+      expect(
+        value,
+        `${selector} is ${value} in the preview but ${printValue} when printing ` +
+          '— and the preview selector wins on specificity, so this changes the ' +
+          'PRINTED page too',
+      ).toBe(printValue);
     }
   });
 
