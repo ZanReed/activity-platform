@@ -4,6 +4,10 @@
 -- Run AFTER applying 0023_account_retention_clock.sql (SQL editor, service
 -- role). Every query states its EXPECTED result. Anything else = stop.
 --
+-- ⚠ RUN SECTION 0 FIRST. It answers "is the migration actually live?" — every
+-- other section is meaningless if it is not, and section C in particular
+-- MISREPORTS a not-applied migration as a failing fix.
+--
 -- ⚠ Section C reports success as a Postgres ERROR (`P0001`), same convention
 -- as verify-0022: the `raise exception` is what forces the rollback that
 -- protects live data. Judge C by the TEXT of the message, never by the fact
@@ -12,6 +16,22 @@
 --
 -- No redeploy involved — pg_cron calls purge_soft_deleted inside the database.
 -- =============================================================================
+
+-- ===================== 0. PRECONDITION — run this FIRST ======================
+--
+-- Is 0023 actually live? If the migration has not been applied, section C
+-- reports `job ABORTED -> 23503 ... activities_owner_id_fkey`, which looks
+-- like the fix failing when it is really the OLD function still running. That
+-- exact confusion cost a round-trip on 2026-08-04, hence this gate.
+--
+-- EXPECT: applied = t. If it says f, STOP — run `supabase db push`, confirm
+-- 0023 appears in `supabase migration list`, and start over from here.
+select strpos(prosrc, 'delete from auth.users') > 0 as applied,
+       case when strpos(prosrc, 'delete from auth.users') > 0
+            then 'OK — 0023 is live, continue to section A'
+            else 'STOP — 0023 NOT APPLIED. Run: supabase db push'
+       end as verdict
+from pg_proc where proname = 'purge_soft_deleted';
 
 -- ========================= A. Function shape =================================
 

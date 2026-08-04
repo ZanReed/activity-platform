@@ -17,6 +17,18 @@
 -- pg_cron inside the database.
 -- =============================================================================
 
+-- ===================== 0. PRECONDITION — run this FIRST ======================
+--
+-- Is 0022 actually live? A not-applied migration makes section C report the
+-- ORIGINAL bug, which reads as "the fix does not work" rather than "the fix is
+-- not installed". EXPECT: applied = t; if f, run `supabase db push` first.
+select strpos(prosrc, 'get diagnostics') > 0 as applied,
+       case when strpos(prosrc, 'get diagnostics') > 0
+            then 'OK — 0022 is live, continue to section A'
+            else 'STOP — 0022 NOT APPLIED. Run: supabase db push'
+       end as verdict
+from pg_proc where proname = 'purge_soft_deleted';
+
 -- ========================= A. Function shape =================================
 
 -- A1. Checks are deleted BEFORE activity_versions (the whole point — the
