@@ -58,9 +58,14 @@ editor and runtime behavior (dev builds only).
 | `pnpm lint` | Lint all packages (currently the app) |
 | `pnpm build` | Build all packages |
 | `pnpm bundle:renderer` | Bundle the renderer for Edge Function consumption → `supabase/functions/_shared/renderer.bundle.js` |
+| `pnpm bundle:viewer-server` | Bundle the read-API server code → `supabase/functions/_shared/viewer-server.bundle.js` |
+| `pnpm bundle:grading-server` | Bundle the grading engine → `supabase/functions/_shared/grading-server.bundle.js` |
 | `pnpm build:graph-kit` | Bundle the graphing kit + regenerate `supabase/functions/_shared/graph-kit-manifest.ts`. Build-only — never uploads |
 | `pnpm upload:graph-kit` | Build the kit AND upload it to R2 (`shared/`) — the deploy step (creds auto-load from gitignored `.env.r2`) |
 | `pnpm deploy:ingest` | Redeploy `ingest-submission` with the required `--no-verify-jwt` flag baked in |
+| `pnpm deploy:feedback` | Redeploy `get-feedback` with the required `--no-verify-jwt` flag baked in |
+| `pnpm deploy:get-activity` | Redeploy `get-activity` with the required `--no-verify-jwt` flag baked in (run `bundle:viewer-server` first) |
+| `pnpm deploy:check` | Redeploy `check-activity` — no flag; `verify_jwt` stays true (run `bundle:grading-server` first) |
 | `pnpm deploy:publish` | Redeploy `publish-activity` |
 | `pnpm deploy:train` | Interactive walkthrough that sequences kit upload → ingest → publish-activity in the safe order |
 | `pnpm clean` | Remove all `dist/` directories |
@@ -131,6 +136,6 @@ This README intentionally does not track build status — that is what `STATE.md
 
 ## Edge Functions
 
-The `supabase/functions/` directory holds Deno Edge Functions. `publish-activity` takes a draft, atomically snapshots a version, validates, renders, and uploads the static HTML to Cloudflare R2. `ingest-submission` receives student submissions from published pages, validates them, and writes to the `submissions` table. `upload-image` handles editor image uploads to R2. See `supabase/functions/README.md` for setup and deploy instructions.
+The `supabase/functions/` directory holds Deno Edge Functions. `publish-activity` takes a draft, atomically snapshots a version, validates, renders, and uploads the static HTML to Cloudflare R2. `ingest-submission` receives student submissions from published pages, validates them, and writes to the `submissions` table. `get-feedback` serves teacher grades/feedback back to published pages. `get-activity` is the viewer read API (anonymous meta + authenticated sanitized content), and `check-activity` is the server-authoritative grading RPC for the signed-in viewer. (There is no `upload-image` function — the editor uploads images directly to the `activity-images` Supabase Storage bucket under an RLS INSERT policy.) See `supabase/functions/README.md` for setup, deploy instructions, and which functions need `--no-verify-jwt`.
 
-The renderer is bundled for Edge Function consumption via `pnpm bundle:renderer`, which produces `supabase/functions/_shared/renderer.bundle.js`. Re-run after any change to `packages/schema` or `packages/renderer`. CI (`.github/workflows/ci.yml`) runs `typecheck → lint → test → build` on every PR and on pushes to `main` (feature-branch pushes are covered by their PR run) and re-runs `bundle:renderer`, failing if the committed bundle is stale — so a forgotten re-bundle is caught before deploy rather than shipping silently.
+Server-side code reaches the functions as committed bundles in `_shared/`: `pnpm bundle:renderer` (renderer + runtime), `pnpm bundle:viewer-server` (read-API sanitizer), and `pnpm bundle:grading-server` (grading engine). Re-run the relevant bundler after changing its source — CLAUDE.md maps which sources feed which bundle. CI (`.github/workflows/ci.yml`) runs `typecheck → lint → test → build` on every PR and on pushes to `main` (feature-branch pushes are covered by their PR run) and regenerates all three bundles, failing if any committed bundle is stale — so a forgotten re-bundle is caught before deploy rather than shipping silently.

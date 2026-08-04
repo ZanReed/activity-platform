@@ -1,7 +1,6 @@
 # Graph-kit color pass
 
-Status: **DESIGN — eng-reviewed + decisions RULED (2026-07-18), ready to build.**
-No code yet. Item 2 of the deferred design-token backlog, after the chrome+editor
+Status: ✅ **SHIPPED + DEPLOYED 2026-07-19** (drift audit 2026-08-04 — this line had stayed at "ready to build"). Built with the board-dark arc and deployed on the same train: 145 color literals → 60 in the two source-of-truth files (`graph-colors.ts` + `drawable-palette.ts`), value-identical in light, NO wire change; kit `NXZNIEUK`, manifest `850ceca`. See [HISTORY.md](../HISTORY.md) 2026-07-19 + [graph-kit-board-dark.md](graph-kit-board-dark.md). The design rationale below is the reference for the token decisions; where detail conflicts with code, code wins. (Original status: DESIGN — eng-reviewed + decisions RULED 2026-07-18.) Item 2 of the deferred design-token backlog, after the chrome+editor
 dark-mode arc ([dark-mode.md](dark-mode.md), slices 1–5 shipped). Author rulings
 (§D): **D2** DRY-consolidate all 3 layers + make the calculator CSS chrome
 dark-*ready* (board JS colors organized, not runtime-themed); **D3** one unified

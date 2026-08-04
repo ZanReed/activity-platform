@@ -6,8 +6,9 @@ Companion to STATE.md (where things are), ROADMAP.md (where things are going), a
 
 ## Status
 
-- **Sequencing: implemented after Stage 16**, once the Phase 1 create → publish → submit → review loop is closed. Print is an enhancement to a working product, not a substitute for having one.
-- This doc is written now to preserve design context. The open questions below are resolved at print-stage kickoff, not now.
+- ✅ **SHIPPED (Drops A–D, 2026-06) — then RE-PLATFORMED by S5/S5.5 (2026-08-01→03).** The feature landed as designed (worksheet config + journal foldable, entirely client-side; see STATE's status table + HISTORY). The components-as-data re-architecture then moved the whole print surface onto the viewer tree: **S5** built student print mode + the print-rules gate + screenshot baselines, and **S5.5** migrated teacher print — the ActivityPrint route, the answer-key variant (derived at render time, one canonical key per shuffled version), printed versions (`printSeed`), and the foldable (offscreen viewer render → capture → the existing measure/paginate engine). `@activity/renderer` has no print consumer in the app anymore; its print path survives only for published pages until S9. This doc remains the rationale for the FEATURE (what teachers need on paper); the viewer registry's PrintSpec + `printChecks.ts` are the as-built mechanism — where detail conflicts, code wins.
+- *(Original sequencing note: implemented after Stage 16, once the Phase 1 loop closed — which is what happened.)*
+- This doc was written ahead of implementation to preserve design context.
 - **Not covered here:** the *baseline print stylesheet* — the small `@media print` layer that keeps the already-rendered HTML from looking broken on paper (hide interactive controls, page-break integrity, grayscale safety, sane margins and type). That ships with Stage 11 as part of the runtime work and is deliberately minimal. *This doc is the feature; the baseline is table stakes.*
 
 ## Why this is a feature, not a stylesheet

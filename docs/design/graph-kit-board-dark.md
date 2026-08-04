@@ -1,6 +1,6 @@
 # Graph-kit board dark-theming
 
-Status: **SHIPPED — slices 1–4 done + verified (2026-07-19), deploy queued.**
+Status: ✅ **SHIPPED + DEPLOYED 2026-07-19** (the queued deploy ran same day — kits `NNS6KNUS` then `NXZNIEUK` with the color pass; see [HISTORY.md](../HISTORY.md)).
 The live graph-kit boards (interactive graph, point/system answer, display,
 number-line, dot/histogram/box plots) now self-theme dark in the editor and
 re-color on a live toggle; the calculator opts out (light unit); light is

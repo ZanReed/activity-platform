@@ -1,5 +1,7 @@
 # Image crop mode (design) — 2026-07-17
 
+**Status:** ✅ **SHIPPED + DEPLOYED 2026-07-18** (owner CR-J1b PASSED; drift audit 2026-08-04 added this line). Schema `crop {x,y,w,h}` + `srcAspect` (both-or-neither; `height` removed), 2-D crop-mode gesture UI, Crop as command-bar primary; `publish-activity` redeployed (additive, no wire/storage bump). Commits `fbab914` (foundation), `67d2af1`/`20e3dff` (authoring); see [HISTORY.md](../HISTORY.md) 2026-07-18. Where detail below conflicts with code, code wins.
+
 `office-hours` design doc for the Group 3 deferred item "Image crop mode."
 Feeds `/plan-eng-review`. Problem + intent were ruled by the author
 (editor-refinement-pass.md, 2026-07-16); this doc locks the technical design.

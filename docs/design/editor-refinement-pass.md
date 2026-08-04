@@ -1,7 +1,9 @@
 # Editor refinement pass (2026-07-16)
 
+**Status:** ✅ **COMPLETE — all four groups worked through (2026-07-16 → 07-18); arc closed** (drift audit 2026-08-04 added this line). App/editor-only, rode the SPA deploy. Session narratives archived in [HISTORY.md](../HISTORY.md) (2026-07-15 → 07-21 section); spin-off designs that got their own docs: [image-crop.md](image-crop.md) (shipped), [graph-systems.md](graph-systems.md) (shipped). The rulings below remain the record of what was decided and why.
+
 Author feedback list after dogfooding the MC-coherence pass, with Claude's
-pushback and author rulings. This is a multi-session arc; work it in the four
+pushback and author rulings. This was a multi-session arc, worked in the four
 groups below. App/editor-only unless a group says otherwise.
 
 ## Through-line

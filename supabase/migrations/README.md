@@ -1,6 +1,6 @@
 # Supabase migrations
 
-Schema for the activity platform. `0001`–`0019` are applied to the live project; `0020` is prepared and probe-verified but NOT yet applied (see STATE.md for per-migration verification records).
+Schema for the activity platform. **The applied set is whatever `supabase migration list` reports against the live project — check it, don't trust a range pinned here** (this header has rotted twice by pinning one: it said "0017 queued" after 0017 was live, then "0020 not yet applied" after 0020 was live). Per-migration verification records live in STATE.md; anything genuinely pending appears under STATE.md → "Pending author actions".
 
 ## Files
 

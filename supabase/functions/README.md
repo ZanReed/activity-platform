@@ -9,15 +9,19 @@ Phase 1 Edge Functions for the activity platform.
 | `publish-activity` | Take a draft, atomically snapshot a version, render to HTML, upload to Cloudflare R2, return URLs. | ✅ Deployed |
 | `ingest-submission` | Receive student submissions from published HTML, validate, write to `submissions`. **Must be deployed with `--no-verify-jwt`** (see Build + deploy). | ✅ Deployed |
 | ~~`upload-image`~~ | **Deleted 2026-07-31** (eng review; DECISIONS.md → "Direct-to-Storage image upload"). The editor uploads straight to the public `activity-images` bucket; migration 0019's RLS INSERT policy calls `can_edit_activity` as the caller. The deployed instance is removed with `supabase functions delete upload-image` — see STATE.md for the ordering. | 🗑 Removed |
-| `get-activity` | The viewer read API (S2): anonymous title/teacher meta (rate-limited), authenticated resolve of the current version, and the upgraded+sanitized content served from the durable per-version cache with immutable headers. **Must be deployed with `--no-verify-jwt`** (the anonymous meta branch; see Build + deploy). Needs migration 0017. | ⏳ Awaiting first deploy |
+| `get-activity` | The viewer read API (S2): anonymous title/teacher meta (rate-limited), authenticated resolve of the current version, and the upgraded+sanitized content served from the durable per-version cache with immutable headers. **Must be deployed with `--no-verify-jwt`** (the anonymous meta branch; see Build + deploy). Needs migration 0017. | ✅ Deployed |
+| `get-feedback` | Student feedback sidecar (Phase 2.6 manual grading): published pages fetch teacher grades/feedback anonymously. **Must be deployed with `--no-verify-jwt`** (see Build + deploy). | ✅ Deployed |
+| `check-activity` | The S4 grading RPC: server-authoritative section checks for the signed-in viewer. Deploy with `pnpm deploy:check` — **`verify_jwt` stays TRUE**, deliberately NOT in the no-verify-jwt trio (a check is always made by a signed-in student, so the platform gate is a free first line of defense). Needs migration 0020 + the grading-server bundle. | ✅ Deployed |
 
 ## Shared code
 
-`_shared/` is for code imported by multiple functions. Two files live here:
+`_shared/` is for code imported by multiple functions (the directory listing is the source of truth for what lives here):
 
 - **`cors.ts`** — CORS helper (preflight handling, JSON response builder, error response builder). Hand-written, edit freely.
 - **`renderer.bundle.js`** — **Auto-generated.** Do NOT edit by hand. Produced by `pnpm bundle:renderer` from `packages/renderer`. Re-run after any change to schema or renderer.
 - **`viewer-server.bundle.js`** — **Auto-generated.** Do NOT edit by hand. Produced by `pnpm bundle:viewer-server` from `packages/viewer/src/server/` (upgrade-on-read + the answer-key sanitizer + serve shuffles + `SANITIZER_REV`). Re-run after any change to schema or the viewer's sanitize/registry source. Kept separate from the renderer bundle so `get-activity` never loads the renderer + KaTeX.
+- **`grading-server.bundle.js`** — **Auto-generated.** Do NOT edit by hand. Produced by `pnpm bundle:grading-server` (the S4 grading engine + graph-kit's pure `/scorers` — never the package barrel, which would pull MathLive; the build enforces a size ceiling). Re-run after any change to `packages/viewer/src/server/`, the grading engine, schema, or graph-kit's scorers. Separate from the viewer-server bundle so the read path never pays the grader's cold start.
+- **`graph-kit-manifest.ts`** — **Auto-generated** by `scripts/build-graph-kit.mjs`; the content-hashed kit filename on R2 that `publish-activity` injects into published pages. Commit it after every `pnpm upload:graph-kit`.
 
 ### ⚠ Never put a DIRECTORY-PREFIX alias to `_shared/` in a function's `deno.json`
 
@@ -102,7 +106,7 @@ supabase functions deploy publish-activity
 supabase functions deploy ingest-submission --no-verify-jwt
 ```
 
-The root `package.json` wraps these so the flags can't be forgotten: `pnpm deploy:publish`, `pnpm deploy:ingest` (bakes in `--no-verify-jwt`), `pnpm deploy:get-activity` (bakes in `--no-verify-jwt`; run `pnpm bundle:viewer-server` first). For a multi-part deploy, `pnpm deploy:train` walks the whole ordering below interactively.
+The root `package.json` wraps these so the flags can't be forgotten: `pnpm deploy:publish`, `pnpm deploy:ingest` / `pnpm deploy:feedback` / `pnpm deploy:get-activity` (each bakes in `--no-verify-jwt`; for get-activity run `pnpm bundle:viewer-server` first), and `pnpm deploy:check` (no flag — `verify_jwt` stays true; run `pnpm bundle:grading-server` first). For a multi-part deploy, `pnpm deploy:train` walks the whole ordering below interactively.
 
 **`ingest-submission`, `get-feedback`, and `get-activity` must always be deployed with `--no-verify-jwt`.** The first two are called anonymously from published pages (no auth header); `get-activity`'s anonymous branch is the 3.2A pre-auth meta endpoint. With JWT verification on, the platform gateway 401s those requests before the function runs. There is no `config.toml`, so the flag lives only on the Supabase platform — a plain redeploy silently re-enables verification. Each function self-authenticates in its body (service role / user-scoped RPC).
 
