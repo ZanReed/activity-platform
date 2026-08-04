@@ -716,3 +716,19 @@ online load.
 **One ineligible account aborted the whole nightly run.** Same failure class 0022 fixed for `section_checks`: several children of `users` are RESTRICT or NO ACTION, so a single blocked account raised 23503 and rolled back everything the job had already done. Eligibility is now a per-account precondition — blocked accounts are skipped and counted, never fatal. Both behaviors were reproduced against the live function inside rolled-back transactions.
 
 **No account can be purged at all, and 0023 deliberately does not fix it.** `audit_log.actor_id` is NO ACTION and the signup trigger writes a `user.create` row for every account, so every account is permanently blocked by its own audit trail. Resolving it means ruling on audit_log's 2-year security window against account deletion — SET NULL the actor and keep the event, delete the rows with the account, or make the account wait out the two years. That is another compliance decision, so 0023 makes the blockage *visible and reported* rather than guessing. Queued in STATE.
+
+## An audit event outlives the account that made it (2026-08-04, ruling + migration 0024)
+
+**Decision.** When an account is purged, its `audit_log` rows **stay** for their own 2-year security window but stop naming a person: `audit_log.actor_id` becomes ON DELETE SET NULL, and the purge job stamps `metadata.actor_purged = true` on the surviving rows before deleting the account.
+
+**This is what finally made account deletion possible at all.** Until 0024, no account could be purged — `actor_id` was NO ACTION and the signup trigger writes a `user.create` row for every account, so every account was permanently blocked by its own audit trail. 0023 made that visible and non-fatal; this closes it. Proven end to end against the live database in a rolled-back transaction: an account owning nothing deleted cleanly, its audit row survived, stamped, with the actor nulled.
+
+**Why not cascade the audit rows away with the account.** One line, no bookkeeping — but it makes audit_log's own 2-year window untrue for any purged actor, and turns account deletion into an evidence-erasure path. That last part matters specifically because privacy-policy.md offers deletion on request.
+
+**Why not make the account wait out the 2-year audit window,** which the 0023 precedent might suggest. It would keep a real name and email roughly 18 months longer than the work that justified keeping the account in the first place, purely so the *operator's* security log stays attributable. That inverts data minimization. The two cases are genuinely different: in 0023 the identity was required by the purpose (attributable school records), whereas security review is mostly served by the event itself — what happened, when, to what target, from what `ip_hash`. Attribution is retained the entire time the person is connected to the system and degrades only after full purge, which per 0023 is 400+ days after they left.
+
+**Why the stamp is not decoration.** NULL `actor_id` was already meaningful — 7 rows carried it for genuinely unattributed events (anonymous `submission.create` from published pages). Nulling on purge without a marker would silently merge "no account did this" with "an account did this and was later purged," which are different facts to a security reviewer. `metadata` is jsonb and nullable, so recording the distinction cost no schema change.
+
+**The anti-abuse loss is small and bounded.** Purge requires 30 days past account soft-delete *and* no retained work, so an abusive actor cannot erase attribution quickly, and `ip_hash` is scrubbed at 30 days regardless.
+
+**Three teacher-side FKs stay NO ACTION deliberately** (`allowlist.added_by`, `student_domain.added_by`, `classes.age_assertion_by`): they record an administrative act by a named person rather than routine activity, so an account still holding them is reported as blocked rather than silently stripped.

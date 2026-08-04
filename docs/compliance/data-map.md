@@ -46,7 +46,7 @@
 | `submissions.ip_hash` | salted SHA-256 of IP | student | ingest/grading edge | abuse detection ONLY | **30 days** |
 | `submissions.user_agent` | browser string | student | same | abuse detection ONLY | 30 days (scrubbed with ip_hash) |
 | `grades.*` | teacher feedback + scores on student work | student | teacher | grading | follows submissions window |
-| `audit_log.actor_id` + `action` (+`ip_hash`) | who did what when | both | triggers/RPCs | security review | **2 years** |
+| `audit_log.actor_id` + `action` (+`ip_hash`) | who did what when | both | triggers/RPCs | security review | **2 years** — and the row outlives the account: on purge `actor_id` goes NULL and `metadata.actor_purged` is stamped (0024), so the event survives its window without naming a person |
 
 ## Flows
 

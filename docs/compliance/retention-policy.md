@@ -10,12 +10,14 @@
 > the deletion mechanics: the "wrong order fails loudly" property is real but
 > **partial** — it does not cover `section_checks`. See Mechanics.
 >
-> `draft-3` (2026-08-04) carries the account-clock ruling: the account window
-> is **subordinate to the work window**, not independent of it. It also records
-> that the deletion promises here are **not mechanically achievable yet** —
-> every account is blocked by its own audit trail, and nothing starts the
-> account clock. Both are named in Mechanics and must be closed before a real
-> student account exists. Counsel should read Mechanics, not just the table.
+> `draft-3` (2026-08-04) carries two rulings that together make the deletion
+> promises here mechanically achievable for the first time: the account window
+> is **subordinate to the work window** (0023), and **a purged account's audit
+> events survive without naming a person** (0024). Before them, no account
+> could be deleted at all. **One gap remains** — nothing starts the account
+> clock (`users.deleted_at` is never set), so the purge is inert in practice.
+> It is named in Mechanics and must close before a real student account
+> exists. Counsel should read Mechanics, not just the table.
 
 ## Windows
 
@@ -90,19 +92,30 @@ truthful privacy page).
   **permanently**, while this policy promised `users` + `auth.users` in 30
   days. 0023 deletes the `auth.users` row, which is what actually removes an
   account.
-- **⚠ NO ACCOUNT CAN BE PURGED TODAY, and 0023 does not change that.**
-  `audit_log.actor_id` is NO ACTION and the signup trigger writes a
-  `user.create` row for every account, so **every** account is permanently
-  blocked by its own audit trail. 0023 makes this reported and non-fatal
-  rather than a nightly crash, but resolving it needs a ruling on audit_log's
-  2-year security window versus account deletion: SET NULL the actor and keep
-  the event, delete the rows with the account, or make the account wait out
-  the two years. **Until that is decided, the deletion promises in this
-  document are not mechanically achievable** — it must be settled before the
-  first real student account exists.
-- **Nothing sets `users.deleted_at` yet.** There is no soft-delete-student
-  flow; the column is only read by the purge job. So the account clock does
-  not start on its own — the marking step lands with the same purge-job work.
+- **RULED 2026-08-04 — an audit event outlives the account that made it**
+  (migration 0024; reasoning in [DECISIONS.md](../DECISIONS.md) → "An audit
+  event outlives the account that made it"). A purged account's `audit_log`
+  rows **stay** for their own 2-year security window but stop naming a person:
+  `actor_id` is ON DELETE SET NULL, and the purge job stamps
+  `metadata.actor_purged = true` before deleting, so a purged actor stays
+  distinguishable from an event that was never attributed. **This is what made
+  account deletion possible at all** — until 0024, every account was
+  permanently blocked by its own `user.create` row, so none could be purged.
+  Cascading the audit rows away instead would have made this document's own
+  2-year window untrue and turned deletion into an evidence-erasure path;
+  making the account wait out the 2 years would have kept a name and email
+  ~18 months past the work that justified keeping the account, purely for the
+  operator's log.
+  **What a security reviewer keeps after a purge:** the action, its timestamp,
+  its target, the `ip_hash` (itself scrubbed at 30 days), and the fact that the
+  actor was a since-purged account. What they lose is which account.
+- **⚠ THE LAST REMAINING GAP: nothing sets `users.deleted_at`.** There is no
+  soft-delete-student flow; the column is only read by the purge job. So the
+  account clock never starts on its own, and the purge — now mechanically
+  capable of completing, after 0022/0023/0024 — stays inert in practice. This
+  is the final item between the windows in the table above and reality, and it
+  must close before the first real student account exists. It lands with the
+  S4/S7 purge-job work.
 - A district's written deletion request (via the authorization agreement)
   short-circuits every window: fulfilled within 30 days of the request.
 
