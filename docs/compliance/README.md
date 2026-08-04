@@ -21,4 +21,10 @@ Ground rules baked into all four (from the ruled design):
 - **Answers never reach clients** (ruling Q2B) — graded server-side.
 - **No behavioral telemetry.** Analytics are census-based aggregates (P3A).
 - **Data minimization:** a student account is district email + Google display
-  name, nothing else. `ip_hash` exists for abuse detection only, never raw IPs.
+  name (which may be absent — 0021 stores a name or NULL, never a fallback to
+  the email), nothing else. `ip_hash` exists for abuse detection only, never
+  raw IPs.
+- **One anonymous disclosure, by design:** the pre-auth screen shows an
+  activity's title and its teacher's display name to anyone with the link
+  (ruling 3.2A). No student data is ever disclosed without a sign-in. See
+  [data-map.md](data-map.md) → Disclosures.
