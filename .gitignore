@@ -34,6 +34,9 @@ supabase/functions/_shared/renderer.bundle.js.map
 # R2 deploy creds auto-loaded by `pnpm build:graph-kit` (see .env.r2.example).
 # The .example twin is committed; the real file never is.
 .env.r2
+# Supabase service-role creds auto-loaded by `pnpm backfill:census`
+# (see .env.supabase.example). Same rule: the .example twin is committed.
+.env.supabase
 
 # ---- Supabase CLI working files --------------------------------------------
 # The Supabase CLI creates these when you run `supabase start` locally.

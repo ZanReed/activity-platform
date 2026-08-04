@@ -40,10 +40,21 @@
 // Pipeline (content mode): get_published_activity RPC as the CALLER (the DB
 // enforces auth + published-only; draft content is unreachable here) →
 // durable per-version cache lookup in activity_version_reads keyed by
-// (version_id, SANITIZER_REV) → on miss: read the version row (service role),
-// upgradeActivityDocument, sanitizeActivityDocument, upsert the cache row →
+// (version_id, SANITIZER_REV) → on miss the cache-fill path below →
 // applyServeShuffles seeded `${version_id}:${user_id}` (deterministic: reloads
 // never reshuffle; the cached artifact stays student-independent).
+//
+//   cache MISS ──► readVersion ──► upgrade ──► sanitize
+//                                                 │
+//                    ┌────────────────────────────┘
+//                    ▼
+//              writeCensus (S7) ──fails──► NO cache row: next read retries
+//                    │ ok                  (self-healing; see the ordering
+//                    ▼                      note at the call site)
+//              upsertCache ──► deleteStaleCache (old-rev GC for this version)
+//
+// The analytics writes are a SIDE-CHANNEL: every one of them can fail without
+// changing the student's response. A cache HIT does none of this work.
 //
 // Access rule (S2 decision 2): ANY authenticated user (student or teacher) may
 // read the published current version of a non-deleted activity — the R2
@@ -61,6 +72,8 @@
 // =============================================================================
 
 import { UpgradeError, upgradeActivityDocument } from '@activity/schema';
+import { censusOfDocument } from '../census/census.js';
+import type { VersionCensus } from '../census/census.js';
 import { SANITIZER_REV, sanitizeActivityDocument } from '../sanitize/sanitize.js';
 import { applyServeShuffles } from '../sanitize/shuffle.js';
 import type { SanitizedActivityDocument } from '../sanitize/sanitized-types.js';
@@ -115,6 +128,21 @@ export interface GetActivityDb {
     schema_version: number;
     content: unknown;
   }): Promise<{ error: { message?: string } | null }>;
+  /** Replace this version's census + item-attribution rows (S7). Idempotent:
+   * the census is a pure function of an immutable version, so a re-run writes
+   * identical rows. */
+  writeCensus(
+    versionId: string,
+    census: VersionCensus,
+  ): Promise<{ error: { message?: string } | null }>;
+  /** Delete this version's cache rows written under any OTHER sanitizer rev —
+   * the exact half of the R6(a) GC. Only this code knows the current rev, so
+   * only this code can be precise about it; the scheduled job sweeps the tail
+   * of versions that are never read again. */
+  deleteStaleCache(
+    versionId: string,
+    keepRev: string,
+  ): Promise<{ error: { message?: string } | null }>;
 }
 
 /** The _shared/cors.ts helper surface (env-reading, so it stays Deno-side). */
@@ -363,17 +391,58 @@ export function createGetActivityHandler(
       }
       sanitized = sanitizeActivityDocument(upgraded.doc);
 
-      // Rows for old sanitizer revs are orphaned automatically (new rev = new
-      // key).
-      const { error: upsertErr } = await db.upsertCache({
-        version_id: versionId,
-        sanitizer_rev: SANITIZER_REV,
-        schema_version: upgraded.doc.schemaVersion,
-        content: sanitized,
-      });
-      if (upsertErr) {
-        // Non-fatal: the response is already computed; the next request retries.
-        console.error('[get-activity] cache upsert failed:', upsertErr);
+      // ---- Analytics side-channel (S7) -----------------------------------
+      // ORDER IS LOAD-BEARING: census FIRST, and the cache row is written only
+      // if it succeeded (ruling S7-9).
+      //
+      // The cache row is what makes every later read a HIT — and a HIT does no
+      // analytics work at all. So writing the cache row after a FAILED census
+      // would strand this version with no census until the next SANITIZER_REV
+      // bump, while every check on it aggregated as unattributed. Silent, and
+      // permanent. Withholding the cache row instead means the next read is
+      // another miss that retries both: the failure self-heals, and its only
+      // cost is recomputing a document we already know how to recompute.
+      //
+      // The census itself is total (never throws — see UNKNOWN_CENSUS_KEY), so
+      // what this ordering actually guards against is a transient DB failure,
+      // which is exactly the kind that a retry fixes.
+      let censusOk = true;
+      try {
+        const { error: censusErr } = await db.writeCensus(
+          versionId,
+          censusOfDocument(upgraded.doc),
+        );
+        if (censusErr) {
+          censusOk = false;
+          console.error('[get-activity] census write failed:', censusErr);
+        }
+      } catch (err) {
+        censusOk = false;
+        console.error('[get-activity] census threw:', err);
+      }
+
+      if (censusOk) {
+        const { error: upsertErr } = await db.upsertCache({
+          version_id: versionId,
+          sanitizer_rev: SANITIZER_REV,
+          schema_version: upgraded.doc.schemaVersion,
+          content: sanitized,
+        });
+        if (upsertErr) {
+          // Non-fatal: the response is already computed; the next request
+          // retries.
+          console.error('[get-activity] cache upsert failed:', upsertErr);
+        } else {
+          // This version is now cached under the CURRENT rev, so any row it
+          // has under an older rev is dead weight nothing will ever read.
+          const { error: gcErr } = await db.deleteStaleCache(
+            versionId,
+            SANITIZER_REV,
+          );
+          if (gcErr) {
+            console.error('[get-activity] stale-cache GC failed:', gcErr);
+          }
+        }
       }
     }
 

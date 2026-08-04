@@ -30,6 +30,13 @@ export type {
   SanitizedBlock,
 } from '../sanitize/sanitized-types.js';
 
+export { UNKNOWN_CENSUS_KEY, censusOfDocument } from '../census/census.js';
+export type {
+  CensusCount,
+  CensusItem,
+  VersionCensus,
+} from '../census/census.js';
+
 export {
   API_VERSION,
   META_MAX_PER_WINDOW,

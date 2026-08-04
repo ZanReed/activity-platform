@@ -181,10 +181,16 @@ re-pointed.
 ruled tension T2, TODO ask 1). Full rulings: the S4 section of
 `~/.gstack/projects/ZanReed-activity-platform/user-main-design-20260728-components-as-data.md`.
 
-## `section_checks` retention / GC
+## `section_checks` retention / GC — AND the durable analytics rollup
 
 **What:** A pruning story for `section_checks`, ridden on the same scheduled job as the
-already-earmarked read-cache GC.
+already-earmarked read-cache GC. **Amended 2026-08-04 (S7): this entry now also owns the durable
+analytics rollup**, because both wait on the same ruling. Do them together.
+
+**Status update from S7 (shipped 2026-08-04, migration 0026):** the read-cache half of R6(a) is
+DONE — `get-activity` deletes stale-rev rows for any version it re-caches, and
+`run_analytics_maintenance()` sweeps the tail nightly. What that job does NOT do is prune
+`section_checks` or pre-aggregate anything, for the reason below.
 
 **Why:** Every check writes a durable row carrying the full responses jsonb, and the check loop
 is formative — students re-check freely, by design (parity ruling 7.1A). Nothing deletes a check
@@ -198,8 +204,30 @@ by the teacher-grading slice above: if grading targets the latest response per b
 attempts are cheaper to drop; if it targets attempts, they are the record itself. Don't tune
 retention before that decision.
 
-**Depends on:** S4 shipping `section_checks`; S7's scheduled aggregation existing; ideally the
-teacher-grading slice's attempts-vs-latest ruling.
+**The SAME question decides the rollup's shape, which is why S7 refused to build one.** A
+pre-aggregated per-day count is the one artifact designed to outlive its source rows, so getting
+its shape wrong is unrecoverable. And a naive shape IS wrong here: re-checking is a designed
+feature, so counting every verdict tallies one student's one mastered item once per attempt
+(`verify-0026.sql` C3 shows the fixture reading 4 correct across attempts vs 3 on latest).
+Until then `get_activity_analytics` computes both readings live from raw checks — correct, and
+frozen into nothing.
+
+**Design inputs to carry into that slice** (recorded by the S7 outside voice so they aren't
+re-derived):
+- Attempt-aware shape: first-attempt correctness, latest-per-student, or both.
+- Small-cohort exposure: a rolled-up row with `students = 1` is that student's daily performance
+  record. Decide suppression or coarser granularity, and amend
+  `docs/compliance/retention-policy.md` — 0026's tables deliberately hold no student identifiers,
+  and a rollup is where that stops being automatic.
+- Rollup timezone: "calendar day" in UTC splits a US school evening across two days.
+- Durable watermark + a purge-side assertion that nothing unrolled is being deleted (a rollup job
+  dead for 30 days would otherwise let 0022's purge delete never-rolled checks silently).
+- Composable counts: daily distinct-students cannot be summed into weekly or all-time uniques,
+  which is the first question any real consumer asks.
+
+**Depends on:** S4 shipping `section_checks` (done); S7's census + item map + maintenance job
+(done, 0026 — the rollup's join is already built); the teacher-grading slice's attempts-vs-latest
+ruling (the actual blocker).
 
 **Where to start:** finding R6(a) in the components-as-data design doc, plus the per-student rate
 ceiling S4 puts inside `record_check` (the same indexed count over a trailing window is the

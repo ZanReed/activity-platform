@@ -11,7 +11,8 @@
 //   - reads the auto-injected env (SUPABASE_URL / SUPABASE_ANON_KEY /
 //     SUPABASE_SERVICE_ROLE_KEY — no new secrets),
 //   - implements the handler's GetActivityDb port against real supabase-js
-//     clients (RPCs + activity_version_reads + activity_versions),
+//     clients (RPCs + activity_version_reads + activity_versions, plus the S7
+//     analytics side-channel: write_version_census + the stale-rev cache GC),
 //   - passes the _shared/cors.ts helpers through the CorsKit port,
 //   - serves the handler.
 //
@@ -92,6 +93,29 @@ const db: GetActivityDb = {
     const { error } = await admin
       .from('activity_version_reads')
       .upsert(row, { onConflict: 'version_id,sanitizer_rev' });
+    return { error };
+  },
+
+  async writeCensus(versionId, census) {
+    // ONE atomic RPC for both census tables (0026): a half-written census is
+    // worse than none, and the handler treats this call's success as the
+    // signal that it may cache the version.
+    const { error } = await admin.rpc('write_version_census', {
+      p_version_id: versionId,
+      p_counts: census.counts,
+      p_items: census.items,
+    });
+    return { error };
+  },
+
+  async deleteStaleCache(versionId, keepRev) {
+    // The exact half of the read-cache GC: this version is now cached under
+    // keepRev, so any row it has under a different rev is unreachable.
+    const { error } = await admin
+      .from('activity_version_reads')
+      .delete()
+      .eq('version_id', versionId)
+      .neq('sanitizer_rev', keepRev);
     return { error };
   },
 };

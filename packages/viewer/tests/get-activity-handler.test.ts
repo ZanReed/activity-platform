@@ -28,6 +28,7 @@ import {
   jwtSub,
   sanitizeActivityDocument,
 } from '../src/index.js';
+import { censusOfDocument } from '../src/census/census.js';
 import type {
   CorsKit,
   GetActivityDb,
@@ -74,6 +75,8 @@ function makeDb(overrides: Partial<GetActivityDb> = {}): GetActivityDb {
     readCache: vi.fn(unexpected('readCache')),
     readVersion: vi.fn(unexpected('readVersion')),
     upsertCache: vi.fn(unexpected('upsertCache')),
+    writeCensus: vi.fn(unexpected('writeCensus')),
+    deleteStaleCache: vi.fn(unexpected('deleteStaleCache')),
     ...overrides,
   };
 }
@@ -421,6 +424,23 @@ function contentDb(overrides: Partial<GetActivityDb> = {}): GetActivityDb {
   });
 }
 
+/** A cache-MISS db with the analytics side-channel wired and succeeding — the
+ * shape most CONTENT tests want. Overrides land last so a test can fail one
+ * leg. */
+function missDb(overrides: Partial<GetActivityDb> = {}): GetActivityDb {
+  return contentDb({
+    readCache: vi.fn(async () => ({ data: null, error: null })),
+    readVersion: vi.fn(async () => ({
+      data: { content: storedDocWithSecret() },
+      error: null,
+    })),
+    upsertCache: vi.fn(async () => ({ error: null })),
+    writeCensus: vi.fn(async () => ({ error: null })),
+    deleteStaleCache: vi.fn(async () => ({ error: null })),
+    ...overrides,
+  });
+}
+
 const contentQuery = `activity_id=${ACTIVITY_ID}&version_id=${VERSION_ID}`;
 
 describe('CONTENT branch', () => {
@@ -494,16 +514,11 @@ describe('CONTENT branch', () => {
   });
 
   it('cache read failure is non-fatal: logs and falls through to the source of truth', async () => {
-    const db = contentDb({
+    const db = missDb({
       readCache: vi.fn(async () => ({
         data: null,
         error: { message: 'relation gone' },
       })),
-      readVersion: vi.fn(async () => ({
-        data: { content: storedDocWithSecret() },
-        error: null,
-      })),
-      upsertCache: vi.fn(async () => ({ error: null })),
     });
     const handler = createGetActivityHandler({ db, cors });
     const res = await handler(authedRequest(contentQuery));
@@ -516,10 +531,8 @@ describe('CONTENT branch', () => {
 
   it('cache miss: upgrades, SANITIZES (the secret never reaches the wire), and upserts the sanitized artifact', async () => {
     const stored = storedDocWithSecret();
-    const db = contentDb({
-      readCache: vi.fn(async () => ({ data: null, error: null })),
+    const db = missDb({
       readVersion: vi.fn(async () => ({ data: { content: stored }, error: null })),
-      upsertCache: vi.fn(async () => ({ error: null })),
     });
     const handler = createGetActivityHandler({ db, cors });
     const res = await handler(authedRequest(contentQuery));
@@ -577,12 +590,7 @@ describe('CONTENT branch', () => {
   });
 
   it('cache upsert failure is non-fatal: the computed response still ships', async () => {
-    const db = contentDb({
-      readCache: vi.fn(async () => ({ data: null, error: null })),
-      readVersion: vi.fn(async () => ({
-        data: { content: storedDocWithSecret() },
-        error: null,
-      })),
+    const db = missDb({
       upsertCache: vi.fn(async () => ({ error: { message: 'conflict' } })),
     });
     const handler = createGetActivityHandler({ db, cors });
@@ -592,6 +600,147 @@ describe('CONTENT branch', () => {
       '[get-activity] cache upsert failed:',
       expect.anything(),
     );
+    // The GC only runs behind a SUCCESSFUL cache write: there is no current-rev
+    // row yet, so deleting the older one would throw away the only artifact.
+    expect(db.deleteStaleCache).not.toHaveBeenCalled();
+  });
+});
+
+// ---- Analytics side-channel (S7) --------------------------------------------
+// The ordering ruling (S7-9) is the load-bearing pin here: a cache row written
+// after a failed census would shadow that version's analytics forever, because
+// every later read is a HIT that does no analytics work at all.
+
+describe('CONTENT branch — census + cache GC (S7)', () => {
+  it('writes the census for the served version on a cache miss', async () => {
+    const db = missDb();
+    const handler = createGetActivityHandler({ db, cors });
+    const res = await handler(authedRequest(contentQuery));
+    expect(res.status).toBe(200);
+    expect(db.writeCensus).toHaveBeenCalledTimes(1);
+
+    const [versionId, census] = (db.writeCensus as ReturnType<typeof vi.fn>).mock
+      .calls[0]! as [string, { counts: unknown[]; items: unknown[] }];
+    expect(versionId).toBe(VERSION_ID);
+    expect(census.counts.length).toBeGreaterThan(0);
+    // Computed from the UPGRADED document — the same input the cache row is
+    // sanitized from, so the two can never describe different documents.
+    expect(census).toEqual(
+      censusOfDocument(upgradeActivityDocument(storedDocWithSecret()).doc),
+    );
+  });
+
+  it('census FIRST, then the cache row, then the stale-rev GC', async () => {
+    const order: string[] = [];
+    const db = missDb({
+      writeCensus: vi.fn(async () => {
+        order.push('census');
+        return { error: null };
+      }),
+      upsertCache: vi.fn(async () => {
+        order.push('cache');
+        return { error: null };
+      }),
+      deleteStaleCache: vi.fn(async () => {
+        order.push('gc');
+        return { error: null };
+      }),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    await handler(authedRequest(contentQuery));
+    expect(order).toEqual(['census', 'cache', 'gc']);
+  });
+
+  it('census write failure WITHHOLDS the cache row so the next read retries', async () => {
+    const db = missDb({
+      writeCensus: vi.fn(async () => ({ error: { message: 'deadlock' } })),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    const res = await handler(authedRequest(contentQuery));
+
+    // The student is unaffected — the document was already computed.
+    expect(res.status).toBe(200);
+    expect(JSON.stringify(await body(res))).not.toContain('SECRET_ANSWER');
+    // ...and nothing was cached, so the miss (and the census) happen again.
+    expect(db.upsertCache).not.toHaveBeenCalled();
+    expect(db.deleteStaleCache).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[get-activity] census write failed:',
+      expect.anything(),
+    );
+  });
+
+  it('a THROWN census is contained the same way (never a 500 for the student)', async () => {
+    const db = missDb({
+      writeCensus: vi.fn(async () => {
+        throw new Error('connection reset');
+      }),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    const res = await handler(authedRequest(contentQuery));
+    expect(res.status).toBe(200);
+    expect(db.upsertCache).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[get-activity] census threw:',
+      expect.anything(),
+    );
+  });
+
+  it('GC targets this version and KEEPS the current rev', async () => {
+    const db = missDb();
+    const handler = createGetActivityHandler({ db, cors });
+    await handler(authedRequest(contentQuery));
+    expect(db.deleteStaleCache).toHaveBeenCalledWith(VERSION_ID, SANITIZER_REV);
+  });
+
+  it('GC failure is non-fatal (it is dead weight, not correctness)', async () => {
+    const db = missDb({
+      deleteStaleCache: vi.fn(async () => ({ error: { message: 'nope' } })),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    const res = await handler(authedRequest(contentQuery));
+    expect(res.status).toBe(200);
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[get-activity] stale-cache GC failed:',
+      expect.anything(),
+    );
+  });
+
+  it('a cache HIT does NO analytics work at all', async () => {
+    // Deliberately wired with WORKING analytics ports rather than the throwing
+    // defaults: the handler swallows a census throw by design, so a fake that
+    // threw would let this assertion pass vacuously. Spies that record are the
+    // only way to prove the call never happened.
+    const db = missDb({
+      readCache: vi.fn(async () => ({
+        data: {
+          content: sanitizeActivityDocument(
+            upgradeActivityDocument(storedDocWithSecret()).doc,
+          ),
+        },
+        error: null,
+      })),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    const res = await handler(authedRequest(contentQuery));
+    expect(res.status).toBe(200);
+    expect(db.readVersion).not.toHaveBeenCalled();
+    expect(db.writeCensus).not.toHaveBeenCalled();
+    expect(db.upsertCache).not.toHaveBeenCalled();
+    expect(db.deleteStaleCache).not.toHaveBeenCalled();
+  });
+
+  it('an unservable document writes no census (nothing to count)', async () => {
+    const db = contentDb({
+      readCache: vi.fn(async () => ({ data: null, error: null })),
+      readVersion: vi.fn(async () => ({
+        data: { content: { schemaVersion: 1, legacy: true } },
+        error: null,
+      })),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    expect((await handler(authedRequest(contentQuery))).status).toBe(500);
+    expect(db.writeCensus).not.toHaveBeenCalled();
   });
 });
 

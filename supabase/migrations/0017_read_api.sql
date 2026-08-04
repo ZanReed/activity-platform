@@ -34,9 +34,15 @@
 --      the Edge Function (best-effort per-isolate; proportionate to what this
 --      exposes).
 --
--- Reads write NO audit_log rows — P3A's census aggregates from
--- submissions/audit_log on the write path; per-read audit at student scale
--- would be hot-path bloat for no ruled requirement.
+-- Reads write NO audit_log rows — per-read audit at student scale would be
+-- hot-path bloat for no ruled requirement.
+--
+-- ⚠ AMENDED BY 0026 (S7): this header used to add "P3A's census aggregates
+-- from submissions/audit_log on the write path". That was written before S4.
+-- The census is DERIVED from stored version snapshots (and is in fact written
+-- by this very function's cache-fill path), and check data comes from
+-- section_checks — `submissions` is the anonymous-era table S9 demolishes.
+-- The no-audit-on-read rule above is unchanged and still correct.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------

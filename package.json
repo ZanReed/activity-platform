@@ -19,6 +19,7 @@
     "deploy:check": "supabase functions deploy check-activity",
     "deploy:publish": "supabase functions deploy publish-activity",
     "deploy:train": "node scripts/deploy-train.mjs",
+    "backfill:census": "node --env-file-if-exists=.env.supabase scripts/backfill-census.js",
     "test": "pnpm -r test",
     "test:watch": "pnpm -r test:watch",
     "typecheck": "pnpm -r typecheck",

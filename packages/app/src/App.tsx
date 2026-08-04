@@ -8,6 +8,7 @@ import Classes from './routes/Classes';
 import ActivityEditor from './routes/ActivityEditor';
 import ActivityPrint from './routes/ActivityPrint';
 import Submissions from './routes/Submissions';
+import ActivityAnalytics from './routes/ActivityAnalytics';
 import Playground from './routes/Playground';
 import Privacy from './routes/Privacy';
 import DevFoldableColumns from './routes/DevFoldableColumns';
@@ -67,6 +68,14 @@ export default function App() {
         element={
             <RequireAuth>
             <Submissions />
+            </RequireAuth>
+        }
+        />
+        <Route
+        path="/activity/:id/analytics"
+        element={
+            <RequireAuth>
+            <ActivityAnalytics />
             </RequireAuth>
         }
         />

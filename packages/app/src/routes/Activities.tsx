@@ -282,6 +282,12 @@ export default function Activities() {
                 >
                 Submissions
                 </Link>
+                <Link
+                to={`/activity/${a.id}/analytics`}
+                className="hidden text-sm font-medium text-muted underline underline-offset-2 hover:text-strong sm:inline"
+                >
+                Analytics
+                </Link>
                 <button
                 type="button"
                 onClick={() => handleDelete(a)}
