@@ -484,9 +484,10 @@ function Centered({ children }: { children: React.ReactNode }) {
  * unauthenticated page is not what ruling 3.2A meant by "teacher display
  * name", so an email-shaped value is suppressed rather than rendered.
  *
- * ⚠ The real fix is server-side (display_name should hold a name, or the RPC
- * should derive one) — recorded in STATE. This guard stays regardless: the
- * client should not print an address it was handed by accident.
+ * The server-side fix landed as migration 0021 (trigger stores a name or
+ * NULL, the RPC refuses to return an email-shaped value, bad rows backfilled).
+ * This guard stays regardless — same regex, third layer: the client should
+ * not print an address it was handed by accident.
  */
 function looksLikeEmail(value: string): boolean {
   return /\S+@\S+\.\S+/.test(value);
