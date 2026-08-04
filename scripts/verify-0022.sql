@@ -9,6 +9,10 @@
 -- rather than inspecting it. Safe to run on the live project — the DO block
 -- ends in a RAISE, which aborts the transaction. Nothing commits.
 --
+-- ⚠ Consequence of that design: **C1 reports success as a Postgres ERROR**
+-- (`P0001`). It is not a failure — see the banner above C1. Judge C1 by the
+-- text of its message, never by the fact that the editor calls it an error.
+--
 -- No Edge Function redeploy is involved: purge_soft_deleted is called by
 -- pg_cron inside the database.
 -- =============================================================================
@@ -53,13 +57,27 @@ select case confdeltype when 'r' then 'RESTRICT' when 'c' then 'CASCADE'
 from pg_constraint where conname = 'section_checks_activity_version_id_fkey';
 
 -- ===================== C. Behavior — the actual proof =========================
-
+--
+--  ⚠ READ THIS BEFORE RUNNING C1 ⚠
+--  C1 REPORTS ITS RESULT AS A POSTGRES ERROR. That is by design and is not a
+--  failure. The block ends in `raise exception` because raising is the only
+--  way to guarantee the transaction aborts — that RAISE is what protects your
+--  live data. The SQL editor has no choice but to render it as:
+--
+--      Failed to run sql query: ERROR: P0001: EXPECTED ROLLBACK ...
+--
+--  Read the TEXT of the message, not the fact that it is an error:
+--    • contains `purge SUCCEEDED`  → PASS (this is what you want)
+--    • contains `purge FAILED`     → the bug is present; stop and report
+--  A P0001 whose message starts with EXPECTED ROLLBACK is always a pass.
+--
 -- C1. Reproduce the bug scenario end to end and roll it back. Soft-deletes an
 --     activity that HAS checks, backdates it past the 30-day window, runs the
 --     real purge, then aborts.
 --
---     EXPECT (after the fix):
---       RESULT >>> purge SUCCEEDED | checks_remaining=0 | activity_rows_left=0
+--     EXPECT (after the fix), delivered as a P0001 error per the note above:
+--       EXPECTED ROLLBACK — this "error" IS the pass >>> purge SUCCEEDED |
+--       checks_remaining=0 | activity_rows_left=0
 --     BEFORE the fix this same block returned:
 --       purge FAILED -> 23503: ... violates foreign key constraint
 --       "section_checks_activity_version_id_fkey" on table "section_checks"
@@ -88,7 +106,8 @@ begin
   select count(*) into v_remaining from section_checks where activity_id = v_activity;
   select count(*) into v_left      from activities     where id = v_activity;
 
-  raise exception 'RESULT >>> % | checks_remaining=% | activity_rows_left=%',
+  raise exception
+    'EXPECTED ROLLBACK — this "error" IS the pass >>> % | checks_remaining=% | activity_rows_left=%',
     v_result, v_remaining, v_left;
 end $outer$;
 
