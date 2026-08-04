@@ -694,3 +694,25 @@ online load.
 **Follow-on the same day: the real name came off too, by hand.** Verifying 0021 surfaced a third teacher row (created 2026-07-29) where Google HAD supplied a `full_name`, so it held `"Zan Reed"` and published it to the anonymous pre-auth screen. That was ruling 3.2A working correctly — a name is what the screen is for — and the backfill left it alone on purpose. The author nonetheless ruled it NULL, cleared with a direct one-row UPDATE rather than a migration (a personal-preference data edit, not schema; recorded in STATE because a migrations-only rebuild won't reproduce it).
 
 **The signal that ruling sends to the deferred control.** Asked twice in one day what should appear as their student-facing attribution, the author chose "nothing" both times — including over a perfectly valid real name. So the backlogged name-appearance control should default to publishing NOTHING and make a name opt-in, rather than adopting the SSO profile's `full_name` automatically. The trigger still stores what Google supplies (correct: other teachers may well want their name shown), but "stored" and "published by default" should not be the same decision.
+
+## The account clock waits for the work (2026-08-04, ruling + migration 0023)
+
+**Decision.** When a student leaves all their classes, the **work's retention clock wins**. An account becomes purge-eligible only once no retained work remains — it is not deleted at 30 days while its submissions are still inside their own window. `submissions.student_id` stays ON DELETE RESTRICT; it is now the *enforcement* of the ruling rather than an obstacle to it.
+
+**The question was forced by a conflict between two promises.** The retention policy said the student account goes at 30 days, and the work at 400 — but the account is what makes the work attributable, and RESTRICT meant the two could not both happen. The clocks also start from different events (last class membership ending vs. the class being deleted), so the conflict is routine, not an edge case.
+
+**Why not cascade the work away with the account.** Simplest, and it would have made the 30-day promise literally true — but the 400-day window exists to keep *attributable* school records ("can I see my grade from last semester"). A student removed from a class mid-year would lose their graded work 30 days later while the class was still running. That destroys the thing the window was for.
+
+**Why not sever and pseudonymize.** On paper it satisfies both: identity gone at 30 days, work retained for 400. In practice it needs the `users → auth.users` FK dropped (public.users cannot outlive auth.users today), a `submissions` FK change, and a pseudonym scheme — and once the work is unattributable it no longer answers the question it was being kept for. Maximum cost, self-defeating outcome.
+
+**What settled it** was a sentence already written for students in privacy-policy.md: *"submitted classwork may be kept for the school's records window, then purged."* The student-facing promise already contemplates work outliving an account-deletion request. The retention policy's flat "30 days" account line was the one that had to change; it now states that the account follows the work.
+
+**The honest cost, which must stay disclosed:** a departed student's email and display name persist for as long as their work does — up to ~400 days. That is the price of attributable school records, and it is the minimum needed to serve the documented purpose.
+
+### Three defects surfaced underneath the ruling
+
+**The purge job deleted the wrong table.** 0003 ran `delete from users` under a comment claiming it "cascades to auth.users via the FK from public.users". The FK runs the other way — `public.users.id REFERENCES auth.users(id) ON DELETE CASCADE` — so deleting `public.users` left the Google identity (email, name, provider metadata, OAuth consents, sessions) in `auth.users` permanently, while the policy promised both were gone in 30 days. Deleting `auth.users` is what actually removes an account.
+
+**One ineligible account aborted the whole nightly run.** Same failure class 0022 fixed for `section_checks`: several children of `users` are RESTRICT or NO ACTION, so a single blocked account raised 23503 and rolled back everything the job had already done. Eligibility is now a per-account precondition — blocked accounts are skipped and counted, never fatal. Both behaviors were reproduced against the live function inside rolled-back transactions.
+
+**No account can be purged at all, and 0023 deliberately does not fix it.** `audit_log.actor_id` is NO ACTION and the signup trigger writes a `user.create` row for every account, so every account is permanently blocked by its own audit trail. Resolving it means ruling on audit_log's 2-year security window against account deletion — SET NULL the actor and keep the event, delete the rows with the account, or make the account wait out the two years. That is another compliance decision, so 0023 makes the blockage *visible and reported* rather than guessing. Queued in STATE.

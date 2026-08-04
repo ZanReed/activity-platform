@@ -1,7 +1,7 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-04-draft-2`. Windows below are the author-ruled S1 defaults
+> Version `2026-08-04-draft-3`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
@@ -9,6 +9,13 @@
 > `draft-2` adds `section_checks` (0020), which draft-1 predated, and corrects
 > the deletion mechanics: the "wrong order fails loudly" property is real but
 > **partial** — it does not cover `section_checks`. See Mechanics.
+>
+> `draft-3` (2026-08-04) carries the account-clock ruling: the account window
+> is **subordinate to the work window**, not independent of it. It also records
+> that the deletion promises here are **not mechanically achievable yet** —
+> every account is blocked by its own audit trail, and nothing starts the
+> account clock. Both are named in Mechanics and must be closed before a real
+> student account exists. Counsel should read Mechanics, not just the table.
 
 ## Windows
 
@@ -16,7 +23,7 @@
 |---|---|---|---|
 | Student responses, scores, grades | **400 days** | when the class is deleted (soft-delete) | scheduled purge job (extends `purge_soft_deleted`) |
 | Section checks (`section_checks` — responses + the verdicts/feedback shown) | **400 days**, same as the above: it is the same student work | when the class is deleted (soft-delete) | same purge job. **Also cascades** on student-account deletion (see Mechanics) |
-| Student account (`users` + `auth.users`) | **30 days** | last active class membership ends (removed or class deleted) | purge job; deletes submissions first (that FK is ON DELETE RESTRICT, so wrong order fails loudly — but see Mechanics: the property does **not** extend to `section_checks`) |
+| Student account (`users` + `auth.users`) | **30 days, but never before the account's work is gone** — see the ruling below | last active class membership ends (removed or class deleted) | purge job deletes the `auth.users` row; `public.users`, `class_members`, and `section_checks` fall via CASCADE behind it |
 | `ip_hash` + `user_agent` on submissions | **30 days** | submission time | scheduled scrub (UPDATE to NULL, keeps the row) |
 | `audit_log` | **2 years** | row creation | scheduled purge |
 | Teacher account + activities | account lifetime | — | soft-delete flow (0008), purge after 30 days (existing) |
@@ -62,12 +69,40 @@ truthful privacy page).
   (`scripts/verify-0022.sql` section C). A retention job that silently stops is
   the failure this policy exists to prevent, so the verification script keeps
   the reproduction rather than just inspecting the code.
-- **Still open, deliberately** (a decision, not a mechanical fix — flagged in
-  STATE for the purge-job work): `submissions.student_id` RESTRICT means
-  deleting a purge-eligible student still fails if they have account-backed
-  submissions. The account's 30-day clock and the submissions' 400-day clock
-  genuinely disagree, and which wins is a retention ruling nobody has made.
-  Harmless today — zero such rows exist.
+- **RULED 2026-08-04 — the account clock is subordinate to the work clock**
+  (migration 0023; full reasoning in [DECISIONS.md](../DECISIONS.md) → "The
+  account clock waits for the work"). The 30-day account window and the
+  400-day work window genuinely conflict, because the account is what makes
+  the work attributable and `submissions.student_id` is RESTRICT. **The work
+  wins:** an account is purged only once no retained work remains. This is
+  what the student-facing policy already says — *"submitted classwork may be
+  kept for the school's records window, then purged"* — and the alternative
+  (cascading the work away at 30 days) would destroy the very school records
+  the 400-day window exists to keep.
+  **The honest cost, and it must stay disclosed:** a departed student's email
+  and display name persist as long as their work does, up to ~400 days. That
+  is the minimum needed for attributable records; it is not incidental
+  retention.
+- **The job deleted the wrong table until 0023.** It ran `delete from users`
+  believing that cascaded to `auth.users`. The FK runs the other way
+  (`public.users.id → auth.users(id)` CASCADE), so the Google identity —
+  email, name, provider metadata, OAuth consents, sessions — survived
+  **permanently**, while this policy promised `users` + `auth.users` in 30
+  days. 0023 deletes the `auth.users` row, which is what actually removes an
+  account.
+- **⚠ NO ACCOUNT CAN BE PURGED TODAY, and 0023 does not change that.**
+  `audit_log.actor_id` is NO ACTION and the signup trigger writes a
+  `user.create` row for every account, so **every** account is permanently
+  blocked by its own audit trail. 0023 makes this reported and non-fatal
+  rather than a nightly crash, but resolving it needs a ruling on audit_log's
+  2-year security window versus account deletion: SET NULL the actor and keep
+  the event, delete the rows with the account, or make the account wait out
+  the two years. **Until that is decided, the deletion promises in this
+  document are not mechanically achievable** — it must be settled before the
+  first real student account exists.
+- **Nothing sets `users.deleted_at` yet.** There is no soft-delete-student
+  flow; the column is only read by the purge job. So the account clock does
+  not start on its own — the marking step lands with the same purge-job work.
 - A district's written deletion request (via the authorization agreement)
   short-circuits every window: fulfilled within 30 days of the request.
 
