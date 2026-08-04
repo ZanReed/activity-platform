@@ -83,29 +83,58 @@ from pg_constraint where conname = 'section_checks_activity_version_id_fkey';
 --    • contains `purge FAILED`     → the bug is present; stop and report
 --  A P0001 whose message starts with EXPECTED ROLLBACK is always a pass.
 --
--- C1. Reproduce the bug scenario end to end and roll it back. Soft-deletes an
---     activity that HAS checks, backdates it past the 30-day window, runs the
---     real purge, then aborts.
+-- C1. Reproduce the bug scenario end to end and roll it back. BUILDS ITS OWN
+--     check fixture, soft-deletes the activity past the 30-day window, runs
+--     the real purge, then aborts.
+--
+--     It used to point at whatever section_checks rows happened to be lying
+--     around (the author's 44 rows of S4 E2E residue). Those were cleared
+--     2026-08-04, which would have made this block VACUOUSLY PASS: with no
+--     check to block, "purge SUCCEEDED, checks_remaining=0" proves nothing
+--     about the RESTRICT it exists to test. This repo has been bitten by a
+--     vacuous check before (HISTORY → the empty-activity leak scan), so the
+--     fixture is now created here and `checks_before` is asserted.
 --
 --     EXPECT (after the fix), delivered as a P0001 error per the note above:
 --       EXPECTED ROLLBACK — this "error" IS the pass >>> purge SUCCEEDED |
---       checks_remaining=0 | activity_rows_left=0
+--       checks_before=1 | checks_remaining=0 | activity_rows_left=0
 --     BEFORE the fix this same block returned:
 --       purge FAILED -> 23503: ... violates foreign key constraint
 --       "section_checks_activity_version_id_fkey" on table "section_checks"
 --
---     Substitute any activity id that has section_checks rows. As of
---     2026-08-04 that is the author's E2E activity, with 44 of them:
---       select activity_id, count(*) from section_checks group by 1;
+--     ⚠ checks_before MUST be 1. If it is 0 the fixture failed to build and
+--       the rest of the line is meaningless — do not read it as a pass.
 --
 --     The trailing RAISE is what guarantees the rollback. Do not remove it.
 do $outer$
 declare
-  v_activity  uuid := '6a84c8cb-fc49-4338-ab49-927ba6254f20';
+  v_activity  uuid;
+  v_version   uuid;
+  v_student   uuid;
   v_result    text;
+  v_before    int;
   v_remaining int;
   v_left      int;
 begin
+  -- any activity that has at least one version, plus any account to attribute
+  -- the check to (section_checks.student_id just needs a live users row)
+  select a.id, av.id into v_activity, v_version
+    from activities a
+    join activity_versions av on av.activity_id = a.id
+   where a.deleted_at is null
+   order by a.created_at
+   limit 1;
+  select id into v_student from users order by created_at limit 1;
+
+  insert into section_checks
+    (student_id, activity_id, activity_version_id, section_id,
+     attempt_number, responses, verdicts)
+  values
+    (v_student, v_activity, v_version, 'verify-0022-fixture',
+     1, '{}'::jsonb, '{}'::jsonb);
+
+  select count(*) into v_before from section_checks where activity_id = v_activity;
+
   update activities set deleted_at = now() - interval '31 days' where id = v_activity;
 
   begin
@@ -119,17 +148,16 @@ begin
   select count(*) into v_left      from activities     where id = v_activity;
 
   raise exception
-    'EXPECTED ROLLBACK — this "error" IS the pass >>> % | checks_remaining=% | activity_rows_left=%',
-    v_result, v_remaining, v_left;
+    'EXPECTED ROLLBACK — this "error" IS the pass >>> % | checks_before=% | checks_remaining=% | activity_rows_left=%',
+    v_result, v_before, v_remaining, v_left;
 end $outer$;
 
--- C2. Confirm C1 left nothing behind. EXPECT: the same check count you started
---     with, the activity present, deleted_at still null.
+-- C2. Confirm C1 left nothing behind — both the fixture it created and the
+--     soft-delete it applied. EXPECT: your real counts, and 0 fixture rows.
 select (select count(*) from section_checks) as checks,
-       (select count(*) from activities
-         where id = '6a84c8cb-fc49-4338-ab49-927ba6254f20') as activity_present,
-       (select deleted_at is null from activities
-         where id = '6a84c8cb-fc49-4338-ab49-927ba6254f20') as not_soft_deleted;
+       (select count(*) from section_checks
+         where section_id = 'verify-0022-fixture') as fixture_rows_left,
+       (select count(*) from activities where deleted_at is null) as live_activities;
 
 -- ===================== D. Known-remaining, deliberately ======================
 
