@@ -111,7 +111,7 @@ jobs:
   # ambiguous.
   # ---------------------------------------------------------------------------
   print-gates:
-    name: print gates (rules · pagination · answer key)
+    name: print gates (rules · pagination · answer key · baselines)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -131,12 +131,22 @@ jobs:
         run: pnpm --filter @activity/app exec playwright install --with-deps chromium
 
       # Every print suite, matched by prefix: the rules gate (print-rules), the
-      # paginated layer it cannot reach (print-pagination), and the answer-key
-      # gate (print-answer-key). All three are viewer-only: the cross-surface
-      # halves that compared against the retiring renderer retired once the port
-      # was proven and the contact sheet signed off (S5-abs). The baseline suite
-      # matches too and skips itself until its Linux images exist.
+      # paginated layer it cannot reach (print-pagination), the answer-key gate
+      # (print-answer-key), and the screenshot baselines. All are viewer-only:
+      # the cross-surface halves that compared against the retiring renderer
+      # retired once the port was proven and the contact sheet signed off
+      # (S5-abs).
+      #
+      # PRINT_BASELINES=1 turns the baseline suite ON here, in COMPARE mode —
+      # note there is no --update-snapshots, which is what separates this from
+      # the generation job below. Without the flag the suite skips itself and
+      # the committed images sit inert, which is what they did until now.
+      # It belongs on Linux only: macOS font rasterisation differs enough to
+      # fail against Linux-authored images for no reason a human would call a
+      # defect (S5-7), so local `playwright test print-` still skips them.
       - name: Print gates
+        env:
+          PRINT_BASELINES: '1'
         run: pnpm --filter @activity/app exec playwright test print-
 
       - name: Upload failure traces
