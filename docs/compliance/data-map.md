@@ -35,7 +35,7 @@
 | `student_domain.domain` | district domain (not personal per se) | — | author-entered | student admission gate | until removed |
 | `classes.name` | class name (may reference a teacher) | teacher | teacher | roster | class lifetime |
 | `classes.age_assertion_at/by/text_version` | assertion record | teacher | teacher checkbox (3.1C) | 13+ compliance paper trail | class lifetime + audit window |
-| `class_members.*` | class ↔ student link, join/remove times | student | join_class RPC | roster | class lifetime; drives account purge clock |
+| `class_members.*` | class ↔ student link, join/remove times | student | join_class RPC | roster | class lifetime; **IS** the account purge clock — dormancy is derived from these rows live (0025), never stored |
 | `section_checks.student_id` | account-backed identity | student | `record_check` RPC (0020, service-role only) | attributing work | follows submissions window |
 | `section_checks.responses` / `verdicts` | classwork **and the feedback the student was shown** | student | student work + server grading | the product; lets a teacher see what a student was actually told | follows submissions window |
 | `section_checks.attempt_number` / `idempotency_key` / `section_id` | check bookkeeping | student | RPC | replay safety, attempt ordering | same |

@@ -10,14 +10,15 @@
 > the deletion mechanics: the "wrong order fails loudly" property is real but
 > **partial** — it does not cover `section_checks`. See Mechanics.
 >
-> `draft-3` (2026-08-04) carries two rulings that together make the deletion
-> promises here mechanically achievable for the first time: the account window
-> is **subordinate to the work window** (0023), and **a purged account's audit
-> events survive without naming a person** (0024). Before them, no account
-> could be deleted at all. **One gap remains** — nothing starts the account
-> clock (`users.deleted_at` is never set), so the purge is inert in practice.
-> It is named in Mechanics and must close before a real student account
-> exists. Counsel should read Mechanics, not just the table.
+> `draft-3` (2026-08-04) carries three rulings that together make the deletion
+> promises here mechanically real for the first time — before them, **no
+> account could be deleted at all**: the account window is **subordinate to the
+> work window** (0023), **a purged account's audit events survive without
+> naming a person** (0024), and **student dormancy is derived rather than
+> marked**, on a 400-day window (0025). The account clock also changed
+> substance, not just mechanism: 30 days was shorter than a summer break.
+> Counsel should read Mechanics, not just the table — the rationale for each
+> window lives there.
 
 ## Windows
 
@@ -25,7 +26,8 @@
 |---|---|---|---|
 | Student responses, scores, grades | **400 days** | when the class is deleted (soft-delete) | scheduled purge job (extends `purge_soft_deleted`) |
 | Section checks (`section_checks` — responses + the verdicts/feedback shown) | **400 days**, same as the above: it is the same student work | when the class is deleted (soft-delete) | same purge job. **Also cascades** on student-account deletion (see Mechanics) |
-| Student account (`users` + `auth.users`) | **30 days, but never before the account's work is gone** — see the ruling below | last active class membership ends (removed or class deleted) | purge job deletes the `auth.users` row; `public.users`, `class_members`, and `section_checks` fall via CASCADE behind it |
+| Student account (`users` + `auth.users`) | **400 days of dormancy**, and never before the account's work is gone — see the rulings below | last active class membership ends (removed or class deleted); for a student who never joined one, account creation | purge job deletes the `auth.users` row; `public.users`, `class_members`, and `section_checks` fall via CASCADE behind it |
+| Account explicitly deleted (admin action or an on-request deletion) | **30 days** | `users.deleted_at` is set | same purge path; this is the only thing that sets that column |
 | `ip_hash` + `user_agent` on submissions | **30 days** | submission time | scheduled scrub (UPDATE to NULL, keeps the row) |
 | `audit_log` | **2 years** | row creation | scheduled purge |
 | Teacher account + activities | account lifetime | — | soft-delete flow (0008), purge after 30 days (existing) |
@@ -109,13 +111,22 @@ truthful privacy page).
   **What a security reviewer keeps after a purge:** the action, its timestamp,
   its target, the `ip_hash` (itself scrubbed at 30 days), and the fact that the
   actor was a since-purged account. What they lose is which account.
-- **⚠ THE LAST REMAINING GAP: nothing sets `users.deleted_at`.** There is no
-  soft-delete-student flow; the column is only read by the purge job. So the
-  account clock never starts on its own, and the purge — now mechanically
-  capable of completing, after 0022/0023/0024 — stays inert in practice. This
-  is the final item between the windows in the table above and reality, and it
-  must close before the first real student account exists. It lands with the
-  S4/S7 purge-job work.
+- **RULED 2026-08-04 — student dormancy is DERIVED, never marked** (migration
+  0025; reasoning in [DECISIONS.md](../DECISIONS.md) → "Student dormancy is
+  derived, not marked"). This closed the last gap: after 0022/0023/0024 the
+  purge could complete, but nothing started the clock, so it stayed inert.
+  Eligibility is now computed live from `class_members` and `classes` — no
+  stored flag, no marking sweep, no backfill, nothing that can drift.
+  **`users.deleted_at` is never written by the job**, because `join_class`
+  refuses accounts that have it set: marking a dormant student would have
+  locked them out of rejoining between terms. That column means *account
+  disabled*, and stays reserved for explicit and administrative deletion.
+  **Why 400 days and not the 30 first written here:** 30 days is shorter than
+  a summer break, so a student whose spring class ended would have been purged
+  before returning in the fall. Matching the work-records window makes the
+  account and its work expire together.
+  **To answer "who is dormant right now" there is no column to read** — run the
+  derivation query in `scripts/verify-0025.sql` section D.
 - A district's written deletion request (via the authorization agreement)
   short-circuits every window: fulfilled within 30 days of the request.
 
