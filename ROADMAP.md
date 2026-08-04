@@ -2,6 +2,18 @@
 
 The long-term plan. STATE.md says where things are *today*; this file says where things are *going*. Updated rarely (when a major decision changes), not at the end of every session.
 
+## ⚠ 2026-07-28 re-architecture — read this before citing any phase below as precedent
+
+The author ruled a full **components-as-data re-architecture** of the student path (2026-07-28; eng + design reviews cleared), followed by the **Cloudflare-exit hosting ruling** (2026-07-31). Together they supersede several architectural premises this file still states in its phase bodies. The phases' *goals* stand — the vision, the sequencing logic, the user-visible wins — but where a phase sketches a **mechanism**, check it against these rulings first:
+
+- **Students are no longer anonymous-with-typed-name.** Student accounts exist now (district Google SSO, 13+ via teacher class assertion) — built as re-architecture lane C (S1), not deferred to Phase 3. Phase 3's "roster members with stable opaque tokens" framing predates this; Classroom integration remains future work, but its identity foundation already shipped in a different shape.
+- **Static published HTML on R2 is not the student delivery architecture.** Students get a live-API viewer SPA (`@activity/viewer` + the `get-activity` read API + server-authoritative `check-activity` grading; answer keys never reach clients). R2 HTML publishing survives only until the **S9 cutover deletes it** — along with the anonymous submission wire, the R2 kit-summon path, and the R2 font hosting. The "Performance" and "Hosting platform" sections below describe the Phase-1 architecture as built, which is accurate history but no longer the forward plan.
+- **Forward hosting posture:** Supabase-only backend; the SPA stays on Cloudflare Pages *for now* as a deliberately swappable static host (no Workers/KV/`_redirects`; moving is a build-config + Auth-URL + CORS change). Don't adopt Pages-specific features without a ruling.
+- **"Keys-in-HTML is fine" is dead.** The free-catalog paragraph (Phase 2) and any later sketch assuming answer keys baked into published pages predate server-authoritative grading, which is built and live. The catalog's discovery surface also can't be "the already-public R2 URL" post-S9 — it becomes a viewer route; re-scope at pickup.
+- ~~Custom domain for the published-HTML R2 bucket~~ (Phase 2 deferred decision) — dead scope; R2 retires at S9. A domain question survives only for the Pages-hosted SPA, if branding ever warrants it.
+
+**Sequencing consequence (author's explicit call):** the rewrite runs first; the August 2026 Algebra I release was deliberately delayed behind it ("good architecture is worth the wait"). Full rulings: STATE.md → "components-as-data re-architecture" + "Cloudflare exit", DECISIONS.md → "Student identity S1", and the design doc outside the repo (`~/.gstack/projects/ZanReed-activity-platform/user-main-design-20260728-components-as-data.md`). Where this banner and a phase body disagree, the banner wins; where code and the banner disagree, code wins.
+
 ## Vision
 
 An interactive math activity platform for K–12 educators that starts as a small invite-only tool for one Algebra II department, grows into a Google Classroom–integrated platform for districts, and ends as a multi-tenant creator marketplace where teachers can buy and sell high-quality activities. Static, fast, accessible, privacy-respecting; never stores student PII it doesn't need; treats teachers as the primary users, students as the audience their work is for, and districts as the eventual buyers of curriculum. Architecturally subject-portable from the start — the platform leads with math because that's where the founder teaches, but no schema or renderer decision is math-only, so social studies, ELA, foreign language, science, and CS teachers can adopt the same tool when the time comes.
@@ -67,7 +79,7 @@ For MC / matching / ordering: each gets its own optional parallel map on `Submis
 - MC option randomization: per-student shuffle? Author-controlled lock for "last option must stay last (none of the above)"?
 - Matching UI affordance: drag-and-drop pairs, dropdowns, or both? Touch-friendly default.
 - Ordering UI affordance: drag-to-reorder list, or numbered slots? Drag is friendlier; numbered slots are more keyboard-accessible.
-- Custom domain for the published-HTML R2 bucket (currently `pub-*.r2.dev`). Phase 2 is a reasonable point to introduce a vanity URL like `activities.<brand>.com` if a domain is owned.
+- ~~Custom domain for the published-HTML R2 bucket (currently `pub-*.r2.dev`). Phase 2 is a reasonable point to introduce a vanity URL like `activities.<brand>.com` if a domain is owned.~~ **Dead scope** per the Cloudflare-exit ruling (2026-07-31) — R2 retires at S9; see the banner at the top of this file.
 
 **Done when**: A teacher who's never seen the system before can sign up, build a useful activity in 15 minutes, and use it with students that week — whether they teach Algebra II, AP US History, Spanish III, or 6th-grade ELA.
 
