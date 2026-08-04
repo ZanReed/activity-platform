@@ -47,9 +47,27 @@ truthful privacy page).
   entire check history with it. For a purge that is the intended end state, so
   nothing here is unsafe — but it means **`section_checks` is not protected by
   the loud-failure property**, and a mistaken `users` delete destroys check
-  history with no error to catch it. The purge job should delete
-  `section_checks` explicitly rather than leaning on the cascade, so the row
+  history with no error to catch it. **Migration 0022 makes the job delete
+  `section_checks` explicitly** rather than leaning on the cascade, so the row
   counts it reports are the ones it actually intended to remove.
+- **The purge job could not have run at all once checks aged in — fixed in
+  0022.** `section_checks.activity_version_id` is ON DELETE RESTRICT (correctly:
+  a version must never vanish from under the checks whose block ids it minted).
+  `purge_soft_deleted` deleted a purge-eligible activity's *versions* before the
+  activity itself, so the first check old enough to matter would have raised
+  `23503` — and because the job is one plpgsql function, that one exception
+  rolled back the **entire nightly run**: assignments, activities, and account
+  purges included, reporting only into the cron log. Reproduced against the live
+  function and confirmed fixed, both inside rolled-back transactions
+  (`scripts/verify-0022.sql` section C). A retention job that silently stops is
+  the failure this policy exists to prevent, so the verification script keeps
+  the reproduction rather than just inspecting the code.
+- **Still open, deliberately** (a decision, not a mechanical fix — flagged in
+  STATE for the purge-job work): `submissions.student_id` RESTRICT means
+  deleting a purge-eligible student still fails if they have account-backed
+  submissions. The account's 30-day clock and the submissions' 400-day clock
+  genuinely disagree, and which wins is a retention ruling nobody has made.
+  Harmless today — zero such rows exist.
 - A district's written deletion request (via the authorization agreement)
   short-circuits every window: fulfilled within 30 days of the request.
 
