@@ -81,8 +81,12 @@ where schemaname = 'public'
   and replace(coalesce(qual, '') || coalesce(with_check, ''),
               '( SELECT auth.uid() AS uid)', '') like '%auth.uid()%';
 
--- B5. Teacher guards landed on the five authoring policies. EXPECT: 5 rows
---     (activities ×2, activity_versions ×1, assignments ×2)
+-- B5. Teacher guards landed on the authoring policies. EXPECT: 6 rows —
+--     activities ×2, activity_versions ×1, assignments ×2 (the five 0013
+--     retrofitted) PLUS classes_insert_teacher, which 0014 writes with the
+--     guard built in. This said "5" until 2026-08-04: it counted only 0013's
+--     retrofit while querying both migrations' output, so every re-run showed
+--     a mismatch that had to be re-diagnosed. Six is correct and stable.
 select tablename, policyname from pg_policies
 where schemaname = 'public'
   and coalesce(with_check, '') like '%current_user_is_teacher%'
