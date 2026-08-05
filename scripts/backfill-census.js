@@ -33,7 +33,12 @@
 // activity_versions; it can neither modify a document nor touch student work.
 // =============================================================================
 
-import { createClient } from '@supabase/supabase-js';
+// PostgREST over plain fetch, deliberately: `@supabase/supabase-js` is a
+// dependency of packages/app, and pnpm's strict node_modules means a script run
+// from the workspace root cannot resolve it (found the hard way — this script's
+// first run died on ERR_MODULE_NOT_FOUND). The root package has no runtime
+// dependencies at all and the R2 scripts already talk HTTP directly, so this
+// keeps the convention and stays runnable from a clean checkout with no install.
 import {
   censusOfDocument,
   upgradeActivityDocument,
@@ -58,26 +63,54 @@ if (!URL || !KEY) {
   process.exit(1);
 }
 
-const db = createClient(URL, KEY, { auth: { persistSession: false } });
+const HEADERS = {
+  apikey: KEY,
+  Authorization: `Bearer ${KEY}`,
+  'Content-Type': 'application/json',
+};
+
+/** Never let a failure echo the service-role key back to the terminal. */
+const scrub = (s) =>
+  String(s).replace(/(sb_secret_|sb_publishable_|eyJ)[A-Za-z0-9._-]+/g, '<redacted>');
+
+async function rest(path, init = {}) {
+  const res = await fetch(`${URL}/rest/v1/${path}`, {
+    ...init,
+    headers: { ...HEADERS, ...(init.headers ?? {}) },
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`${res.status} ${scrub(text).slice(0, 300)}`);
+  }
+  return text ? JSON.parse(text) : null;
+}
+
+/** Page through a table — PostgREST caps a single response, and this script is
+ * expected to run against a project with far more versions than it has today. */
+async function selectAll(table, columns, pageSize = 200) {
+  const rows = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const page = await rest(
+      `${table}?select=${columns}&order=created_at.asc&limit=${pageSize}&offset=${offset}`,
+    );
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+  }
+}
 
 // ---- Which versions need work ----------------------------------------------
 
-const { data: versions, error: vErr } = await db
-  .from('activity_versions')
-  .select('id, activity_id, version_num, content')
-  .order('created_at', { ascending: true });
-
-if (vErr) {
-  console.error('Could not read activity_versions:', vErr.message);
-  process.exit(1);
-}
-
-const { data: censused, error: cErr } = await db
-  .from('activity_version_census')
-  .select('version_id');
-
-if (cErr) {
-  console.error('Could not read activity_version_census:', cErr.message);
+let versions;
+let censused;
+try {
+  versions = await selectAll('activity_versions', 'id,activity_id,version_num,content');
+  censused = await selectAll('activity_version_census', 'version_id');
+} catch (err) {
+  console.error('');
+  console.error('Could not read from the database:', scrub(err.message));
+  console.error('');
+  console.error('If this is a 404 on activity_version_census, migration 0026 is');
+  console.error('not applied yet — run `supabase db push` first.');
   process.exit(1);
 }
 
@@ -95,7 +128,16 @@ console.log('');
 
 let ok = 0;
 let failed = 0;
+// Unservable is NOT a failure. A version whose document predates the current
+// upgrade chain cannot be upgraded, which means the read API cannot serve it
+// either — it is inert history, not a broken write. Counting it as a failure
+// (the first version of this script did) makes a normal run exit 1 and reads
+// as an outage in a log. Live-published current versions are the ones that
+// matter, and they are reported separately below.
+let skipped = 0;
 const keyTotals = new Map();
+/** reason → how many versions hit it, so 110 identical lines collapse to one. */
+const skipReasons = new Map();
 
 for (const version of todo) {
   const label = `${version.id.slice(0, 8)} (activity ${version.activity_id.slice(0, 8)} v${version.version_num})`;
@@ -109,8 +151,11 @@ for (const version of todo) {
     // A version that cannot be upgraded also cannot be SERVED — the read path
     // 500s on it with the same error. Report and keep going: one unservable
     // version must not stop the backfill.
-    failed += 1;
-    console.error(`  SKIP ${label} — ${err instanceof Error ? err.message : String(err)}`);
+    skipped += 1;
+    skipReasons.set(
+      err instanceof Error ? err.message : String(err),
+      (skipReasons.get(err instanceof Error ? err.message : String(err)) ?? 0) + 1,
+    );
     continue;
   }
 
@@ -126,26 +171,42 @@ for (const version of todo) {
     continue;
   }
 
-  const { error } = await db.rpc('write_version_census', {
-    p_version_id: version.id,
-    p_counts: census.counts,
-    p_items: census.items,
-  });
-  if (error) {
-    failed += 1;
-    console.error(`  FAIL ${label} — ${error.message}`);
-  } else {
+  try {
+    await rest('rpc/write_version_census', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_version_id: version.id,
+        p_counts: census.counts,
+        p_items: census.items,
+      }),
+    });
     ok += 1;
     console.log(
       `  ok   ${label} — ${census.counts.length} keys, ${census.items.length} items`,
     );
+  } catch (err) {
+    failed += 1;
+    console.error(`  FAIL ${label} — ${scrub(err.message)}`);
   }
 }
 
 // ---- Report -----------------------------------------------------------------
 
 console.log('');
-console.log(`${DRY_RUN ? 'Would census' : 'Censused'}: ${ok}   Failed: ${failed}`);
+console.log(
+  `${DRY_RUN ? 'Would census' : 'Censused'}: ${ok}   Skipped (unservable): ${skipped}   Failed: ${failed}`,
+);
+
+if (skipReasons.size > 0) {
+  console.log('');
+  console.log('Skipped — these documents predate the current upgrade chain, so');
+  console.log('the read API cannot serve them either. Expected for superseded and');
+  console.log('soft-deleted history; worth investigating only if a LIVE PUBLISHED');
+  console.log('activity appears here (none did on the 2026-08-05 run):');
+  for (const [reason, count] of [...skipReasons].sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${String(count).padStart(5)}  ${reason}`);
+  }
+}
 
 if (keyTotals.size > 0) {
   console.log('');
