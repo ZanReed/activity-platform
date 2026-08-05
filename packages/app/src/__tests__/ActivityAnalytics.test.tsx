@@ -99,12 +99,36 @@ describe('ActivityAnalytics', () => {
         expect(screen.getByText(/Maintenance last ran/)).toBeTruthy();
     });
 
-    it('says so when the nightly job has never run', async () => {
+    it('says the job has not run yet WITHOUT claiming it is unscheduled', async () => {
+        // The ledger knows whether the job RAN; it knows nothing about whether
+        // it is scheduled. An earlier version asserted "not scheduled yet",
+        // which went false the moment the cron was registered and would have
+        // sent a reader to re-schedule an already-scheduled job.
         h.result.current = { data: { ...payload, job: null }, error: null };
         renderPanel();
-        await waitFor(() =>
-            expect(screen.getByText(/never run/)).toBeTruthy(),
-        );
+        await waitFor(() => expect(screen.getByText(/has not run yet/)).toBeTruthy());
+        expect(screen.queryByText(/not scheduled/)).toBeNull();
+    });
+
+    it('flags a run that is more than a day old as possibly stopped', async () => {
+        const twoDaysAgo = new Date(Date.now() - 48 * 3_600_000).toISOString();
+        h.result.current = {
+            data: { ...payload, job: { ...payload.job, last_run_at: twoDaysAgo } },
+            error: null,
+        };
+        renderPanel();
+        await waitFor(() => expect(screen.getByText(/may have stopped/)).toBeTruthy());
+    });
+
+    it('does not flag a run from within the last day', async () => {
+        const sixHoursAgo = new Date(Date.now() - 6 * 3_600_000).toISOString();
+        h.result.current = {
+            data: { ...payload, job: { ...payload.job, last_run_at: sixHoursAgo } },
+            error: null,
+        };
+        renderPanel();
+        await waitFor(() => expect(screen.getByText(/Maintenance last ran/)).toBeTruthy());
+        expect(screen.queryByText(/may have stopped/)).toBeNull();
     });
 
     it('explains an uncensused version instead of showing a bare zero', async () => {

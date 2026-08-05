@@ -77,6 +77,38 @@ function percent(correct: number, of: number): string {
     return `${Math.round((correct / of) * 100)}%`;
 }
 
+/** How long past its daily schedule a run has to be before this reads as a
+ * problem rather than a gap. The job runs at 03:30 UTC, so anything past ~36h
+ * has genuinely missed a night. */
+const STALE_AFTER_HOURS = 36;
+
+/**
+ * What to say about the nightly maintenance job.
+ *
+ * This exists because a silently-dead scheduled job is this system's classic
+ * failure — `purge_soft_deleted` went unscheduled from the project's start and
+ * nobody noticed for months, because the only evidence was a Postgres notice
+ * nobody reads. So the run shows up on a screen someone opens.
+ *
+ * The one thing this must NOT do is guess at causes. An earlier version said
+ * "the nightly analytics job is not scheduled yet" whenever there was no ledger
+ * row — which was wrong the moment the job WAS scheduled and simply hadn't
+ * fired, and would have sent a reader off to re-schedule something already
+ * scheduled. The ledger knows whether the job has RUN. It knows nothing about
+ * whether it is scheduled, so this says only what it can see.
+ */
+function jobHealth(job: AnalyticsPayload['job']): string {
+    if (!job) {
+        return 'The nightly maintenance job has not run yet.';
+    }
+    const ranAt = new Date(job.last_run_at);
+    const hoursAgo = (Date.now() - ranAt.getTime()) / 3_600_000;
+    const base = `Maintenance last ran ${formatWhen(job.last_run_at)} · ${job.section_check_rows.toLocaleString()} checks stored`;
+    return hoursAgo > STALE_AFTER_HOURS
+        ? `${base} — that is more than a day ago, so the nightly job may have stopped.`
+        : base;
+}
+
 /** Human label for a census key: `data_plot.build_histogram` reads as
  * "data plot · build histogram". The key itself stays visible in a title
  * attribute — it is the vocabulary the database speaks. */
@@ -231,9 +263,7 @@ export default function ActivityAnalytics() {
                     )}
 
                     <p className="mt-8 text-xs text-muted">
-                        {data.job
-                            ? `Maintenance last ran ${formatWhen(data.job.last_run_at)} · ${data.job.section_check_rows.toLocaleString()} checks stored`
-                            : 'Maintenance has never run — the nightly analytics job is not scheduled yet.'}
+                        {jobHealth(data.job)}
                     </p>
                 </>
             )}

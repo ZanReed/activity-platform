@@ -116,10 +116,14 @@
     `keys: ${Object.keys(payload).join(', ')}`,
   );
   info(`censused=${payload.censused} · keys=${payload.keys?.length ?? 0} · checks=${payload.totals?.checks ?? 0}`);
+  // Says only what the ledger can actually see. "No row yet" does NOT mean the
+  // cron is unscheduled — it means it has not fired, which is the normal
+  // reading between registering the job and its first nightly run. Confirm
+  // scheduling separately: select jobname, schedule, active from cron.job;
   info(
     payload.job
       ? `maintenance last ran ${payload.job.last_run_at} (${payload.job.section_check_rows} checks stored)`
-      : 'maintenance job has NEVER run — schedule the cron (see 0026 section 5)',
+      : 'maintenance job has not run yet — expected until its first nightly fire; check cron.job if it stays empty',
   );
 
   // ================= C. Refusal, over real HTTP ==============================
