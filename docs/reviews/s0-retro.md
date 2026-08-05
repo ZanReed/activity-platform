@@ -131,3 +131,205 @@ staying `{block, mode}` with context carrying the rest, exactly as declared.
 `serveShuffled` as a contract — S5.5's paper shuffle built straight on it. The census
 consuming `censusKeyOf` as designed. Zero literal hex in any component CSS, and the
 AA contrast harness catching real sub-AA values at design time.
+
+---
+
+## Independent audit (2026-08-05, second-pass session)
+
+Adversarial verification of every claim above against the repo (every cited commit
+and file re-read, every count recounted), then a hunt for what the retro does not
+examine: the S0 surfaces its authoring session treated as settled — package/build
+setup, the tokens.ts mechanism, the guard suite's own cost, the checked-state spec.
+
+**Verdict on the retro:** the findings substantially hold — no claim is invented,
+and the two "what lives on the same object" lessons (findings 1–2) are exactly
+right. But three claims are materially wrong (§7's severity, §9's count, the
+`serveShuffled` held-up item), several numbers and cites need correction, and the
+blind spots cluster in one place: **the retro audits what S0 declared, not what S0's
+own machinery does** — the guard suite, the typed token lists, and the build setup
+were never turned over.
+
+### Confirmed
+
+Findings 1, 2, 3, 5, 6 (the rev half), 7 (the line cite), 8 (both counts exact: four
+`familyOf(… as never)` sites, 22 `as never` in bindings.ts); watchlist items 1–4's
+feasibility estimates; "189 declarations" in finding 9; the 185-commit figure (true
+at authoring time); held-up items on `BlockComponentProps` (exactly `{block, mode}`
+today, zero widening anywhere) and the census (`census.ts:84-90` explicitly refuses
+to restate `censusKeyOf`'s rule). The MATH_PROMPT leak narrative is precise:
+S0 shipped `['answer', 'equivalence', 'tolerance']` while `BLANK_SECRET_FIELDS`
+*did* include `acceptableAnswers` — a per-list gap, fixed in `8ce27f2` (the missing
+evidence pointer for finding 3). Guard integrity: zero assertions weakened or
+deleted since S0; the one roster that changed got stricter.
+
+### Corrected
+
+1. **`categoryOf` is dead code, and the live bug is worse than finding 7 says.**
+   The resolver has zero runtime callers — `ViewerContainer.tsx:482` emits
+   `data-block-category={entry.category}`, the *unresolved* value, despite
+   `registry.ts:191`/`:347` claiming "display variant resolves content via
+   categoryOf()". So display-mode graphs and data plots emit `question` in the DOM
+   today, and watchlist item 1 as written fixes a function nothing calls. The real
+   fix is two steps: fix the probe AND wire the resolver into `ViewerContainer`
+   (or delete it and say the field is static).
+2. **Finding 4's "six of eleven" mixes nesting levels and gets two fields wrong.**
+   Only 3 of the 6 are entry fields (`interactivity`, `analyticsKey`, `a11y`);
+   `treatment`/`keepWithNext`/`answerKeyVariant` live on the nested `PrintSpec`.
+   `analyticsKey` *has* a runtime consumer — `censusKeyOf` reads it on the server
+   census path (`registry.ts:511,513`), which is why watchlist item 2 exists; §4
+   contradicts the retro's own watchlist. And `treatment`/`keepWithNext` are read by
+   `printExpectations.ts:449,473,493` — a public exported API driving the Playwright
+   print gate, not test-file vocabulary. The honest cut: `interactivity`, `a11y`,
+   `answerKeyVariant` are truly consumer-less; `analyticsKey` is tautological
+   (guard-pinned to `type`); `treatment`/`keepWithNext` drive the print gate only.
+3. **Finding 9's "40 of 189" — 189 is exact, 40 matches nothing.** The unprefixed
+   set is **121 declarations / 55 unique names**, and the retro omits six entire
+   families (`--space-*`, `--z-*`, `--gutter-*`, `--focus-*`, `--measure`,
+   `--touch-target`). Also: `--leading` escapes the guard on a trailing-hyphen
+   technicality (`leading` IS a Tailwind namespace; the token is bare `--leading`),
+   not by being outside the namespaces — and the guard only inspects the `:root`
+   segment, so a collision declared in a theme block would pass. Watchlist item 10's
+   "all consumers live in one viewer.css" is true for `var()` reads but the rename
+   is not one-file: tokens.ts, two guard tests' string templates, DESIGN.md, and
+   README all carry the names. The app already declares `--callout-accent` in
+   editor.css — same `--callout-*` family, no overlap yet, exactly finding 2's
+   failure class.
+4. **Finding 6 overstates the duplication.** The PRNG is single-sourced
+   (`printShuffle.ts:32` imports `seededShuffle`); what's duplicated is the ~45-line
+   document *walker* (`applyServeShuffles`/`applyPrintShuffles`, line-for-line
+   identical down to the comments — printShuffle even recurses via
+   `sanitize.childBlocks`, not a print field). "One shuffle primitive, two
+   near-identical walkers."
+5. **The held-up list's `serveShuffled` item is wrong as written.** S5.5's paper
+   shuffle explicitly *refused* to build on `serveShuffled`
+   (`printShuffle.ts:16-21`: extending it would change the wire and move
+   `SANITIZER_REV`). What was reused: the `seededShuffle` primitive and the
+   declaration *pattern*. The actual bond is a guard test
+   (`printShuffle.test.ts:275-299`: every serve-shuffled field is also
+   print-shuffled). That's a *good* outcome — but it's the opposite of "built
+   straight on it," and it's the same fork finding 6 warns about, already taken.
+6. **Finding 8 undercounts the cast tax.** 49 real `as never` casts in
+   `packages/viewer/src` (retro accounts for 26). The unmentioned second cluster:
+   `server/grading/graphs.ts` (9) and `print/DefinitionGlossary.tsx` (5) — a
+   different seam (grading↔graph-kit) with the same disease. And the "duplicated
+   lazy resolver" is a **correctness gap, not DRY**: `ViewerContainer` and
+   `ChildBlocks` each hold their own module-level `lazyCache` Map, so a lazy type
+   rendered both top-level and nested gets two distinct `React.lazy` identities —
+   precisely the remount/state-loss failure the cache's own comment says it
+   prevents. Watchlist item 6 should be promoted from "opportunistic" to "cheap
+   now."
+7. **Finding 5's bond is weaker than "tests are the only bond."** The type-side
+   check is `sanitized-types.test-d.ts` — not run by vitest (deliberate: vitest's
+   typecheck mode silently passed broken assertions; plain `tsc` enforces it), a
+   hand-written flat list with **no completeness guard over `registeredBlockTypes`**.
+   A new strip path added to a registry entry passes the runtime leak suite and
+   leaves the type file untouched — the bond does not detect the drift it exists
+   for. (Its header also cites `tests/sanitized-types.test.ts`, a file that doesn't
+   exist — it's `.test-d.ts`.)
+8. **Citation and framing fixes.** Finding 1: the size figures live at
+   `bindings.ts:11-13` (`:4` is the topic sentence); 888 KiB was the clean baseline
+   *before* any bindings, not leaked state — the leak is the 2.8 MB and 21 MB
+   steps; `a9aca2b` is primarily the interactive_graph component commit (the split
+   rode along). Finding 2: the collision surface was **four** Tailwind namespaces
+   (`--color/--radius/--font/--shadow`), and "seven shared names" = 5 app-declared
+   + 2 Tailwind defaults (`--radius-md/lg`). Finding 3: `inlineBlankSecrets` is not
+   purely documentation — `types.ts:87-92` names it the hand-followed
+   type-projection signal for `sanitized-types.ts`, and it's test-pinned. Finding
+   4's quotes are verbatim but live at `walk.ts:14-15` and
+   `printExpectations.ts:13-14` (`:11`/`:10` are paragraph openers). Held-up items:
+   "the one addition" is true of the strip *grammar* but the sanitize module also
+   gained `sanitizeInlineContent` (S4, `61dae3f`) and a behavior change to
+   `seededShuffle` (the never-return-identity rotate, `a3a3ada`);
+   "`block.solution` a compile error in all 22" is load-bearing in only the 9 types
+   that declare a solution; "zero literal hex in any component CSS" is true of a
+   package with exactly one component stylesheet — and the worst real sub-AA value
+   (1.80:1) was caught by the app's e2e *after going red on main*, not by the
+   design-time harness, whose scope is the state trio + inks + accent on paper.
+
+### Missed — what the retro never examined
+
+9. **The guard suite's own maintenance cost — the retro's method audits every S0
+   contract except the enforcement machinery itself.** The evidence is strongly
+   favorable and deserved banking: 3 of 186 commits touched the two guard files
+   (~86 changed lines total); zero weakened assertions; test count 59 → 79 with
+   only 2 new hand-written declarations (the rest parametric). The feared
+   add-a-block-type tax was never levied — 22 types at S0, 22 today. But the
+   counterfactual bill is real and unpriced: `registry.test.ts` carries **6
+   hand-maintained rosters** (48 type literals), 13 more test files hold hardcoded
+   type rosters (`leakFixture.ts` lists all 22 with zero derived refs), and the one
+   semantic vocabulary change in the window (S5-OV6) rippled across **7 files**
+   with the same roster edited twice in 17 minutes — after which the author added a
+   rule-derived test whose comment concedes the roster form was the wrong shape.
+   The honest generalization of finding 4: rosters that restate declarations are
+   shadow bookkeeping; guards derived from rules (`registeredBlockTypes`,
+   `treatment === 'writing-box'`) self-adapt. `styles.test.ts:183-185` already says
+   this out loud.
+10. **The namespace guard is a post-hoc pin, not a catch.** The S0 guard suite did
+    *not* catch finding 2's collision — the app's e2e did, red on main. `988e701`
+    then added the cheap unit-level pin. The retro credits the guard arc without
+    noting its one real-world miss was caught downstream.
+11. **tokens.ts's typed-list premise is dead — the token-side twin of finding 4.**
+    The stated purpose ("TypeScript consumers can reference tokens without string
+    literals") never materialized: `ColorToken`/`StaticToken`/`DesignToken` and the
+    two arrays have **zero component consumers** — only the guard tests and the
+    barrel re-export. Their real job (guard vocabulary: CSS↔list sync, theme
+    completeness, AA harness input) is load-bearing and sufficient; the header
+    should say that instead.
+12. **Guard rot from the `--vw-` rename itself.** `styles.test.ts`'s box-shadow
+    assertion still pins `var(--shadow-` — a family `988e701` renamed away. It is
+    vacuous today (zero `box-shadow` declarations in viewer.css) and will
+    *spuriously fail* the first correct `var(--vw-shadow-*)` use. The same test's
+    "colorish" filter (`/^--(?:color|state|callout)-/`) no longer matches the
+    renamed `--vw-color-*` family, silently narrowing the named-colour subset check
+    to the unprefixed families (the wider all-namespaces check compensates). Small,
+    but it's the finding-9 two-tone cost reaching into guard logic.
+13. **The `--vw-shadow-*` trio has zero consumers anywhere** — declared in
+    tokens.css/tokens.ts, consumed by nothing. Declaration-only tokens, the exact
+    pattern finding 4 flags on the registry side.
+14. **Build/tsconfig surfaces were never opened.** (a) Server-bundle purity is
+    enforced solely by the size ceiling — deliberate and documented
+    ("every real leak has been enormous", `bundle-viewer-server.mjs:66`), but worth
+    stating: a small wrong-code leak passes the only guard. (b) The package-wide
+    `lib: ["ES2022", "DOM"]` means the Edge-Function-bound `server/` subtree
+    typechecks against DOM globals — nothing type-level stops `document`/`window`
+    creep into grading code; the current cleanliness is by convention. (c)
+    `package.json` `exports` points at `./src/index.ts`, so `build: tsc` emits a
+    `dist/` nobody consumes — stale artifacts that already pollute greps (a stale
+    `dist/tokens.d.ts` surfaced during this audit). (d) `server/index.ts` isn't in
+    the exports map; the bundler deep-imports it — the real server API surface is
+    invisible from package.json.
+15. **The barrel grew from 42 to 347 lines as an append-only chronolog.** Client
+    and server exports interleave in S-number order; the load-bearing negative
+    rules ("deliberately absent from server/index.ts — V9 lesson") live in
+    comments, enforced only by entry-file reachability plus the size ceiling. The
+    "intentional friction" premise held (nothing leaked via the barrel), but the
+    file now reads as history, not topology.
+16. **The checked-state family spec held up well — one wording note and one
+    unbonded restatement.** "Model A prompts" is reconstructible
+    (docs/design/math-blanks.md, RUNTIME.md §math-prompts), so no rationale gap.
+    But the recorded trio is now stated in three places — the spec's "exactly the
+    manually reviewed free-text trio, and nothing else, ever", the registry's three
+    `family: 'recorded'` entries (guard-bonded), and grading's hand-coded
+    `FREE_TEXT_TYPES` (`walk.ts:60`, bonded to neither) — watchlist item 7 fixes
+    the third leg and should cite the spec's "nothing else, ever" line as the
+    reason it matters.
+
+### Audit addenda to the watchlist
+
+- **Promote item 6 (deduplicate the lazy resolver) to "cheap now"** — it's a live
+  correctness gap (two `React.lazy` identities for nested lazy blocks), not DRY.
+- **Rewrite item 1**: fix the `categoryOf` probe *and* wire it into
+  `ViewerContainer` (or delete the resolver) — as written it patches dead code
+  while the DOM ships unresolved categories.
+- **Recompute item 10 on the real numbers** (121 declarations / 55 names, six more
+  families) before choosing rename vs pin; either way fix the two rotted
+  `styles.test.ts` assertions (box-shadow regex, colorish filter) and decide the
+  fate of the unconsumed `--vw-shadow-*` trio.
+- **Extend item 4's registry-header rewrite** to tokens.ts (state the guard-
+  vocabulary role, drop the dead "typed consumers" premise) and to
+  `sanitized-types.test-d.ts` (fix the stale filename cite; consider a completeness
+  guard over `registeredBlockTypes`).
+- **New, policy**: when adding a guard, prefer rule-derived assertions over
+  hand-rosters (the S5-OV6 lesson, item 9 above); when renaming a token family,
+  grep the guard *tests* for the old prefix — two assertions rotted in `988e701`'s
+  wake.
