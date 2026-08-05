@@ -236,46 +236,36 @@ natural place to observe real growth rates).
 **Context:** surfaced by /plan-eng-review 2026-08-01 (S4 review, outside-voice finding 2, TODO
 ask 2).
 
-## ▶ DECIDE: how math-bearing pages load KaTeX (S8 measured it — author gate, T7)
+## The remaining ~380 ms LaTeX-fallback window (S5-2 residual, halved not closed)
 
-**What:** Choose between three options for the KaTeX chunk. **The measurement this was
-waiting on now exists**, so this is a decision, not an investigation.
+**What:** A student still sees readable-LaTeX fallback for roughly **380 ms** after the
+worksheet becomes interactive, and a browser-menu Ctrl+P inside that window prints the
+fallback rather than typeset math.
 
-**THE NUMBERS (S8 perf lane, 2026-08-05, 4x CPU throttle + 5 Mbps, local darwin run —
-re-read them from a CI run before deciding, since runner speed moves them):**
-- KaTeX chunk: **75.2 KiB gz** (the whole shell is 168.1 KiB gz, so eager-loading it on a
-  math page is roughly a **+45% first-load** for that page).
-- Worksheet interactive at **~840 ms**; math rendered at **~1570 ms**.
-- **LaTeX-fallback window ≈ 740 ms.** That is how long a student sees readable LaTeX
-  instead of typeset math, and the window in which a browser-menu Ctrl+P prints the
-  fallback (residual S5-2).
+**What already happened (do not redo it):** S8 T7 shipped preload-on-math-detect — the
+KaTeX fetch now starts the instant the served document is known to contain math instead of
+waiting for a math component to mount. That took the window from ~737 ms to ~382 ms and
+cost nothing in shell size. Full reasoning and the before/after table: DECISIONS.md →
+"Preload math on detect, rather than eager-loading it".
 
-**The three options:**
-1. **Keep it lazy** (today). Costs nothing on math-free pages; the ~740 ms window stays.
-2. **Eager on math-bearing pages.** Erases the window; adds ~75 KiB gz to first load and
-   **amends ruling D16** (eager-statics/lazy-heavies), which exists to protect Chromebook
-   load time. Note the eager tier is inside the entry chunk, so this also pushes against
-   the shell budget.
-3. **Preload on math-detect** (surfaced by the S8 outside voice; not previously on the
-   table). Fire the KaTeX import the instant the served document is known to contain math,
-   rather than waiting for a math block to render. This is a **fetch-timing** change, not a
-   chunk-policy change: no D16 amendment, no shell-size cost, and it should recover most of
-   the 740 ms because math presence is knowable as soon as the document arrives —
-   which is also the earliest anyone could know it.
+**The only lever left is eager loading, and it is expensive.** KaTeX is 75.2 KiB gz against
+a 168.1 KiB gz shell — about **+45% first load** on every math-bearing page — and it would
+amend ruling D16, which exists to protect Chromebook load time. Deliberately NOT taken: a
+sub-half-second window that only bites if a student reaches for Ctrl+P in the first moment
+is not worth that, especially on the school hardware D16 protects.
 
-**Recommendation to whoever picks this up:** option 3 first, then re-measure. It is the
-only one that shrinks the window without spending shell bytes, and if it closes the gap
-the D16 amendment never has to be argued.
+**Trigger to revisit:** a teacher or student actually reports printing raw LaTeX, OR the
+shell gets enough lighter (see the 168→150 KiB entry below) that 75 KiB stops being a
+meaningful share of first load.
 
-**Where to start:** `packages/viewer/src/inline/math.ts` (`loadMathRenderer` is the chunk
-boundary and already stamps the `student-interactive:math-rendered` mark); the document
-arrives in `packages/app/src/routes/StudentViewer.tsx`. Re-run
-`pnpm --filter @activity/app exec playwright test --project=perf` and compare the
-fallback-window line the spec prints.
+**Where to start:** `packages/viewer/src/inline/mathPreload.ts` (detection + preload) and
+the `loading` tier in `packages/viewer/src/registry/bindings.ts`. Re-measure with
+`pnpm --filter @activity/app exec playwright test --project=perf` — the spec prints the
+fallback-window number directly.
 
-**Context:** surfaced by /plan-eng-review 2026-08-01 (S5 review, Issue 2 + outside-voice
-finding 6); reframed from a binary to three options by the S8 outside voice (2026-08-05,
-ruling D7) and measured in the S8 build.
+**Context:** original residual from /plan-eng-review 2026-08-01 (S5 ruling S5-2); reframed
+from a binary into three options by the S8 outside voice (2026-08-05, ruling D7); option 3
+built and measured the same day.
 
 ## Get the student shell from 168 KiB gz toward the 150 KiB target
 

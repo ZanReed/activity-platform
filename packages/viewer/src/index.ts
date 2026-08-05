@@ -339,3 +339,8 @@ export type {
 // (ruling R2): the perf lane and the committed calibration targets key on them.
 export { MARKS, markOnce, resetMarksForTest } from './perf/marks.js';
 export type { MarkName } from './perf/marks.js';
+
+// S8 T7 — start the lazy KaTeX fetch as soon as a document is known to carry
+// math, instead of waiting for a math component to mount. Timing, not policy:
+// math-free documents still fetch nothing.
+export { preloadMathIfNeeded, documentUsesMath } from './inline/mathPreload.js';

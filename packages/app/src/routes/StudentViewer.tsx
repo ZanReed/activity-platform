@@ -30,7 +30,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { MARKS, markOnce } from '@activity/viewer';
+import { MARKS, markOnce, preloadMathIfNeeded } from '@activity/viewer';
 import { useParams } from 'react-router';
 import {
   PrintButton,
@@ -169,6 +169,14 @@ export default function StudentViewer() {
       .load(activityId)
       .then((served) => {
         if (cancelled) return;
+
+        // EARLIEST POSSIBLE MOMENT to learn this document needs math (S8 T7).
+        // Before this line the KaTeX fetch could not start until React had
+        // rendered the tree and a math component had mounted; the document
+        // already knew, ~a render earlier. Fire-and-forget, and a no-op for a
+        // document with no math — the chunk stays lazy and conditional.
+        preloadMathIfNeeded(served.document);
+
         const storage = safeStorage();
 
         // Keep the document we were just served. This is what makes the
@@ -194,6 +202,11 @@ export default function StudentViewer() {
             stranded.versionId,
           );
           if (pinned) {
+            // Their pinned version is a DIFFERENT document from the one just
+            // served, so ask it about math too rather than assuming the two
+            // versions agree. Idempotent when the served copy already started
+            // the fetch.
+            preloadMathIfNeeded(pinned.document);
             // We still have their version. Render it, let the queue fire
             // against it (the grader accepts non-current versions by design),
             // and let the stale banner offer the move on THEIR terms.
@@ -233,6 +246,12 @@ export default function StudentViewer() {
             ? loadAnyCachedDocument(storage, session.user.id, activityId)
             : null;
           if (cached) {
+            // Worth trying even here: the service worker runtime-caches hashed
+            // assets, so a student who has opened a math activity before may
+            // well have KaTeX on the device. If not, this fails silently and
+            // the readable-LaTeX fallback renders, which is what offline math
+            // did before this existed.
+            preloadMathIfNeeded(cached.document);
             setState({
               phase: 'ready',
               source: 'offline',

@@ -818,3 +818,24 @@ online load.
 **And the failure paths are tested, because they are unreachable in a healthy build.** `scripts/tests/check-perf-budget.test.mjs` builds deliberately-broken fixture dists and asserts each red branch actually fires. Writing those tests found a real bug in the fixtures themselves: the obvious "random" filler (`String.fromCharCode(33 + i*k % 90)`) cycles every 90 characters, so gzip crushed it and three over-cap cases silently landed *under* their caps.
 
 **Content markers, not filenames.** Ledger rows identify their payload by a string only that library's own code contains, and sum **every** matching chunk. A filename-keyed row survives a rename as loud churn but silently mismeasures when weight *migrates* to a still-matching chunk. Matching is done after stripping asset-path string literals — the entry chunk legitimately names every lazy chunk in its module-preload map, so a naive search reports MathLive and KaTeX inside a perfectly clean shell.
+
+## Preload math on detect, rather than eager-loading it (2026-08-05, S8 T7 resolved)
+
+**Decision.** When a served document is known to contain math, the viewer starts the KaTeX fetch immediately (`preloadMathIfNeeded`, called the moment the document lands in `StudentViewer`) instead of waiting for a math component to mount. The chunk stays **lazy and conditional**: a document with no math still downloads nothing.
+
+**The question this answers.** Ruling S5-2 accepted a residual: a student who hits Ctrl+P in the first moments after load prints readable-LaTeX fallback instead of typeset math, and the viewer's own Print action can await readiness but the browser's menu cannot. TODOS carried it as "eager-load KaTeX if S8 measures it cheap" — a binary. The S8 outside voice pointed out the binary was false: eager-vs-lazy is a *chunk-policy* question (amends D16, costs shell bytes on every math page), while the actual problem was *when the fetch starts*, which is a timing question that costs nothing.
+
+**What the sequence used to be, and why it was slower than it needed to be.** The import fired from inside `InlineMath`/`MathBlock`, in a `useEffect` — so it waited for the document to arrive, then for React to render the whole tree, then for a math component to mount and paint its fallback. The document already knew it contained math, a full render earlier.
+
+**Measured, before and after** (perf lane, 4× CPU + 5 Mbps, local darwin; re-read from CI before quoting):
+
+| | worksheet interactive | math typeset | LaTeX-fallback window |
+|---|---|---|---|
+| lazy-on-mount (before) | ~838 ms | ~1575 ms | **~737 ms** |
+| preload-on-detect (after) | ~878 ms | ~1256 ms | **~382 ms** |
+
+**The window roughly halves (-48%), and math is typeset ~320 ms sooner.** The honest cost is in the same table: worksheet-interactive got **~40 ms slower**, because the KaTeX fetch now competes with the remaining render for CPU and bandwidth under throttling. That trade was accepted deliberately — on a math worksheet, seeing typeset math is close to part of being able to work, and 40 ms is inside the noise a student would notice while 355 ms of raw LaTeX is not.
+
+**Why not eager, now that the numbers exist.** Eager would close the window entirely, but KaTeX is 75.2 KiB gz against a 168.1 KiB gz shell — roughly **+45% first load** for every math-bearing page — and it would amend D16, whose whole job is protecting Chromebook load time. Spending that to remove a 382 ms window that only matters if a student reaches for Ctrl+P in the first second is the wrong trade. The residual is recorded in TODOS.md with a trigger rather than closed.
+
+**Detection is structural, and that is the load-bearing detail.** `documentUsesMath` walks the document for a node whose `type` is `math_inline`/`math_block`, rather than searching the serialized JSON. A substring search is shorter and would return true for an English worksheet whose prose mentions "math_block" — and a false positive costs a math-free page exactly the 75 KiB the lazy tier exists to save. The walk is generic over objects and arrays rather than following the known sections → rows → columns → blocks path, because math also appears in rich-text content, inside column containers, and in definition bodies; a hand-written path walk stops finding it the first time a new container lands. It is depth-capped so a cyclic object cannot hang the student's critical path.

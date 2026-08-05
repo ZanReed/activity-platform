@@ -205,7 +205,20 @@ test.describe('throttled Chromebook lab run', () => {
             await page.goto(`/a/${E2E_ACTIVITY_ID}`);
 
             // The worksheet is on screen and answerable.
-            await expect(page.locator('.viewer-section').first()).toBeVisible();
+            //
+            // Waits on `.viewer-topbar`, which ONLY the ready state renders —
+            // not on `.viewer-section`, because the loading Skeleton renders
+            // that class too (with aria-busy="true"). Waiting on the section
+            // let this spec proceed while the skeleton was still up, read a
+            // mark that had not fired yet, and fail as "the viewer no longer
+            // stamps it". It passed most runs purely because the document
+            // usually arrives before Playwright's first poll — a race that
+            // would have read as flaky instrumentation rather than a bad
+            // selector.
+            await expect(page.locator('.viewer-topbar')).toBeVisible();
+            await expect(
+                page.locator('.viewer-section[aria-busy="true"]'),
+            ).toHaveCount(0);
 
             const mediated = await swMediatedResources(page);
             expect(mediated, 'service worker mediated a measured request').toEqual([]);
