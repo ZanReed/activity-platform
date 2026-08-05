@@ -334,3 +334,8 @@ export type {
   CheckErrorKind,
   HttpCheckServiceOptions,
 } from './client/httpCheckService.js';
+
+// S8 — the student-facing performance contract. Names are ADDITIVE-ONLY
+// (ruling R2): the perf lane and the committed calibration targets key on them.
+export { MARKS, markOnce, resetMarksForTest } from './perf/marks.js';
+export type { MarkName } from './perf/marks.js';

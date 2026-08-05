@@ -22,6 +22,7 @@ import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { mkdir } from 'node:fs/promises';
+import { VIEWER_SERVER_MAX_KIB } from './perf-budgets.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -62,19 +63,10 @@ const bytes = Object.values(result.metafile.outputs).reduce(
 );
 
 // ---- Client-code leak guard -------------------------------------------------
-// The read API imports the registry for its sanitize specs. When component
-// BINDINGS lived on those registry entries, this bundle silently absorbed the
-// entire component tree: 888 KiB → 2.8 MB once the exemplars were bound, then
-// 21 MB once the graph binding pulled in JSXGraph and MathLive. A read API that
-// renders nothing was about to ship with a graphing engine inside it.
-//
-// Components now bind in registry/bindings.ts, which only client code imports.
-// SIZE is the guard, deliberately: substring-matching for 'react' or 'mathlive'
-// false-positives on the comments this deliberately-unminified bundle keeps,
-// while every real leak is enormous — the two above were 3x and 23x the
-// ceiling. Raise this only alongside a deliberate, explained growth in what the
-// read path legitimately needs.
-const MAX_KIB = 1500;
+// SIZE is the guard, deliberately (the leak this catches went 888 KiB → 2.8 MB
+// → 21 MB). The ceiling and its full reasoning live in scripts/perf-budgets.mjs
+// (S8 ruling D5); the failure message below stays here, where it fires.
+const MAX_KIB = VIEWER_SERVER_MAX_KIB;
 const actualKiB = bytes / 1024;
 if (actualKiB > MAX_KIB) {
   console.error('');

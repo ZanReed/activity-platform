@@ -30,6 +30,7 @@ import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { mkdir } from 'node:fs/promises';
+import { GRADING_SERVER_MAX_KIB } from './perf-budgets.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -71,18 +72,11 @@ const bytes = Object.values(result.metafile.outputs).reduce(
 
 // ---- Size ceiling -----------------------------------------------------------
 // This bundle legitimately carries the math engine, so it is BIGGER than the
-// read path's by design. The ceiling still matters for two reasons: cold start
-// is on the interactive path (a student is waiting on the Check button), and
-// the failure mode the read bundle already hit once — a client component tree
-// leaking in through a registry import and taking JSXGraph and MathLive with it
-// — applies here identically. That regression went 888 KiB → 2.8 MB → 21 MB
-// before anyone noticed, which is why size is the guard rather than
-// substring-matching: every real leak has been enormous, while substring checks
-// false-positive on the comments this deliberately-unminified bundle keeps.
-//
-// Raise this only alongside a deliberate, explained growth in what grading
-// needs. If it jumps by a multiple, something is importing a component.
-const MAX_KIB = 4000;
+// read path's by design — and size is the guard rather than substring-matching
+// because every real leak has been enormous (888 KiB → 2.8 MB → 21 MB). The
+// ceiling and its full reasoning live in scripts/perf-budgets.mjs (S8 ruling
+// D5); the failure message below stays here, where it fires.
+const MAX_KIB = GRADING_SERVER_MAX_KIB;
 const actualKiB = bytes / 1024;
 if (actualKiB > MAX_KIB) {
   console.error('');

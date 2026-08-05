@@ -48,6 +48,16 @@ const STUDENT_SUPABASE_URL = 'http://127.0.0.1:54321';
 const SW_PORT = String(Number(PORT) + 2);
 const SW_BASE_URL = `http://localhost:${SW_PORT}`;
 
+// E2E_SKIP_BUILD lets the preview server serve a dist/ that ALREADY EXISTS.
+// CI's `check` job builds the app to run the size budgets against it, then
+// uploads dist/ as an artifact; the perf job downloads it and serves it. Same
+// bytes, one build instead of two — and it also means the lane measures the
+// exact artifact the budgets passed, rather than a rebuild that merely ought to
+// be identical. Locally the flag is unset, so `playwright test` still builds.
+const PREVIEW_COMMAND = process.env.E2E_SKIP_BUILD
+    ? `pnpm preview --port ${SW_PORT} --strictPort`
+    : `pnpm build && pnpm preview --port ${SW_PORT} --strictPort`;
+
 export default defineConfig({
     testDir: './e2e',
     // Named *.e2e.ts (not *.spec.ts) so vitest's default {test,spec} glob never
@@ -71,7 +81,7 @@ export default defineConfig({
             // them at the wrong baseURL. (Omitting the sw entry here ran those
             // specs twice — once correctly, once against the dev server that
             // has no worker at all.)
-            testIgnore: ['**/student/**', '**/sw/**'],
+            testIgnore: ['**/student/**', '**/sw/**', '**/perf/**'],
         },
         {
             name: 'student',
@@ -88,6 +98,23 @@ export default defineConfig({
             fullyParallel: false,
             workers: 1,
         },
+        {
+            // The S8 perf lane. Shares the sw lane's PREVIEW SERVER rather than
+            // starting a third one: both need the production build, and the
+            // budget for this slice explicitly refused to add another full
+            // build per PR (ruling D9).
+            //
+            // Serial, single worker, for the same reason the sw lane is — but
+            // more sharply. These specs measure wall-clock time, and parallel
+            // workers competing for CPU would add exactly the variance the
+            // throttling is trying to control. A timing lane that runs beside
+            // other browsers is measuring the runner, not the product.
+            name: 'perf',
+            testMatch: '**/perf/**/*.e2e.ts',
+            use: { ...devices['Desktop Chrome'], baseURL: SW_BASE_URL },
+            fullyParallel: false,
+            workers: 1,
+        },
     ],
     webServer: [
         {
@@ -97,10 +124,11 @@ export default defineConfig({
             timeout: 120_000,
         },
         {
-            command: `pnpm build && pnpm preview --port ${SW_PORT} --strictPort`,
+            command: PREVIEW_COMMAND,
             url: `${SW_BASE_URL}/`,
             reuseExistingServer: false,
             // Builds the whole app first — slower than the dev lanes by design.
+            // (Unless E2E_SKIP_BUILD is set; see PREVIEW_COMMAND above.)
             timeout: 300_000,
             env: {
                 VITE_SUPABASE_URL: STUDENT_SUPABASE_URL,

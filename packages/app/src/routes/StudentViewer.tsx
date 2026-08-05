@@ -23,7 +23,14 @@
 // when the RPC deploys, with no change here.
 // =============================================================================
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { MARKS, markOnce } from '@activity/viewer';
 import { useParams } from 'react-router';
 import {
   PrintButton,
@@ -390,6 +397,25 @@ export default function StudentViewer() {
     };
   }, [store, userId, activityId, versionId, servedDocument]);
 
+  // The signed-in half of the S8 timing contract (ruling D2). Fires on the
+  // commit in which the worksheet itself first renders: `store` is non-null
+  // only when a served document, a version and a user all exist, which is
+  // exactly the condition guarding the ViewerContainer return below.
+  //
+  // Declared HERE, above every early return, because hook order must not
+  // depend on load state — the branches below return different trees for
+  // loading, error and pre-auth, and a hook placed after them would be skipped
+  // on some renders and crash on the next.
+  //
+  // HONEST SCOPE: this marks "the worksheet is on screen and answerable". A
+  // section that happens to contain a lazy heavy block (a graph) may still be
+  // resolving its own chunk — that cost is measured separately by the chunk
+  // ledger and the math-rendered mark, rather than smuggled into this number.
+  const worksheetReady = state.phase === 'ready' && store !== null;
+  useLayoutEffect(() => {
+    if (worksheetReady) markOnce(MARKS.worksheetInteractive);
+  }, [worksheetReady]);
+
   if (sessionLoading) return <Centered>Loading…</Centered>;
   if (!activityId) return <Centered>No activity in this link.</Centered>;
 
@@ -499,6 +525,18 @@ function PreAuth({ meta }: { meta: ActivityMeta | null }) {
     meta?.teacherName && !looksLikeEmail(meta.teacherName)
       ? meta.teacherName
       : null;
+
+  // The anonymous half of the S8 timing contract. Stamped in a layout effect so
+  // the mark lands when this screen is COMMITTED to the DOM and its sign-in
+  // button is clickable — which is the promise being measured, not the moment
+  // React decided to render. Fires on the first commit and never again, even
+  // though `meta` arriving later re-renders this screen with a real title:
+  // the student could already act before the title resolved, and moving the
+  // mark forward to the prettier render would silently flatter the number.
+  useLayoutEffect(() => {
+    markOnce(MARKS.preAuthInteractive);
+  }, []);
+
   return (
     <div className="viewer-centered">
       <div className="viewer-gate">

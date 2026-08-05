@@ -236,78 +236,69 @@ natural place to observe real growth rates).
 **Context:** surfaced by /plan-eng-review 2026-08-01 (S4 review, outside-voice finding 2, TODO
 ask 2).
 
-## Eager-load KaTeX if S8 measures it cheap (closes the browser-menu print race)
+## ▶ DECIDE: how math-bearing pages load KaTeX (S8 measured it — author gate, T7)
 
-**What:** When S8's perf-budget CI produces real chunk-cost numbers on Chromebook-class
-throttling, decide whether math-bearing pages should eager-load the KaTeX chunk instead of
-lazy-loading it (a deliberate amendment to DX ruling D16's eager-statics/lazy-heavies split).
+**What:** Choose between three options for the KaTeX chunk. **The measurement this was
+waiting on now exists**, so this is a decision, not an investigation.
 
-**Why:** S5 ruling S5-2 put a readiness barrier on the viewer's own Print action, but the
-browser's File→Print / Ctrl+P flow cannot be awaited — a student printing in the first
-moments after load can get the readable-LaTeX fallback on paper instead of rendered math.
-Accepted as a residual because the fallback is legible and the window is sub-second; eager
-loading would erase it entirely if the chunk turns out to be cheap.
+**THE NUMBERS (S8 perf lane, 2026-08-05, 4x CPU throttle + 5 Mbps, local darwin run —
+re-read them from a CI run before deciding, since runner speed moves them):**
+- KaTeX chunk: **75.2 KiB gz** (the whole shell is 168.1 KiB gz, so eager-loading it on a
+  math page is roughly a **+45% first-load** for that page).
+- Worksheet interactive at **~840 ms**; math rendered at **~1570 ms**.
+- **LaTeX-fallback window ≈ 740 ms.** That is how long a student sees readable LaTeX
+  instead of typeset math, and the window in which a browser-menu Ctrl+P prints the
+  fallback (residual S5-2).
 
-**Pros:** kills the last print race for free if the measurement supports it.
-**Cons:** grows first-load on math-bearing pages; amends D16, which exists to protect
-Chromebook TTI — hence measure-first, never a print-slice side effect.
+**The three options:**
+1. **Keep it lazy** (today). Costs nothing on math-free pages; the ~740 ms window stays.
+2. **Eager on math-bearing pages.** Erases the window; adds ~75 KiB gz to first load and
+   **amends ruling D16** (eager-statics/lazy-heavies), which exists to protect Chromebook
+   load time. Note the eager tier is inside the entry chunk, so this also pushes against
+   the shell budget.
+3. **Preload on math-detect** (surfaced by the S8 outside voice; not previously on the
+   table). Fire the KaTeX import the instant the served document is known to contain math,
+   rather than waiting for a math block to render. This is a **fetch-timing** change, not a
+   chunk-policy change: no D16 amendment, no shell-size cost, and it should recover most of
+   the 740 ms because math presence is knowable as soon as the document arrives —
+   which is also the earliest anyone could know it.
 
-**Depends on:** S8 (perf-budget CI) landing its measurements.
+**Recommendation to whoever picks this up:** option 3 first, then re-measure. It is the
+only one that shrinks the window without spending shell bytes, and if it closes the gap
+the D16 amendment never has to be argued.
 
-**Where to start:** the D16 chunk-policy declaration in the viewer registry
-(`packages/viewer/src/registry/` binding eager/lazy axis) + S8's numbers; the residual is
-recorded in the S5 eng-review section of the components-as-data design doc (ruling S5-2).
+**Where to start:** `packages/viewer/src/inline/math.ts` (`loadMathRenderer` is the chunk
+boundary and already stamps the `student-interactive:math-rendered` mark); the document
+arrives in `packages/app/src/routes/StudentViewer.tsx`. Re-run
+`pnpm --filter @activity/app exec playwright test --project=perf` and compare the
+fallback-window line the spec prints.
 
 **Context:** surfaced by /plan-eng-review 2026-08-01 (S5 review, Issue 2 + outside-voice
-finding 6; TODO ask approved).
+finding 6); reframed from a binary to three options by the S8 outside voice (2026-08-05,
+ruling D7) and measured in the S8 build.
 
-## SW precache-manifest budget row in S8's perf-budget CI
+## Get the student shell from 168 KiB gz toward the 150 KiB target
 
-**What:** When S8 (perf-budget CI) lands, add a row asserting the vite-plugin-pwa
-generated precache manifest stays within a byte budget and an entry-count budget.
+**What:** Deliberate work to shrink the entry chunk. Ruling P1A sketched a ~150 KiB gz
+shell cap; the measured post-split reality is **168.1 KiB gz**, and the committed budget is
+a regression pin at that number rather than a claim the target was met.
 
-**Why:** The S6 eng review (2026-08-02, ruling 10A) restricted the service worker's
-precache to the core shell only — lazy heavies (KaTeX, graph-kit, editor chunks) are
-runtime-cached on first use, preserving the D16 eager-statics/lazy-heavies chunk policy.
-Nothing *enforces* that ruling: one careless `globPatterns` edit silently re-inflates
-every student's first visit to multi-MB over school Wi-Fi, and nobody notices until a
-classroom complains. Same silent-regression class the bundle-size ceilings already guard.
+**Why it is not slack:** the entry chunk is react-dom + react-router + supabase-js + the
+viewer's eager block tier + StudentViewer + Home. Nothing in it is obviously wasteful — the
+3 MB of editor weight already left in the S8 split. Closing the last ~18 KiB needs a real
+lever, not tidying.
 
-**Where to start:** `.github/workflows/ci.yml` next to the bundle-drift guards; read the
-generated `dist/` precache manifest (generateSW embeds it in the built worker; vite-plugin-pwa
-also exposes it at build time) and compare against the two budgets.
+**The obvious lever:** supabase-js is a substantial share of what remains, and the student
+path uses a narrow slice of it (session read, one or two function calls). A hand-rolled
+fetch client for the viewer — or importing a narrower entry point — is the candidate worth
+measuring first. Weigh it against the maintenance cost of not using the vendor client.
 
-**Depends on:** S6's SW drop landing first (the manifest must exist to measure). S8 owns
-the suite this joins (D16's chunk-regression budgets).
+**How to know if it worked:** `node scripts/check-perf-budget.mjs` prints the number every
+run; lower `SHELL_JS_GZ_KIB` in `scripts/perf-budgets.mjs` deliberately when it drops, so
+the win is locked in rather than silently re-spent.
 
-**Context:** surfaced by /plan-eng-review's S6 pass, 2026-08-02 (performance finding 10 +
-TODO ruling D19).
-
-## Split the 3 MB app entry chunk before students meet it
-
-**What:** Code-split `packages/app` so the student viewer route does not download
-the teacher editor. Today the entry chunk is ~3 MB (plus a 149 KB entry CSS) and
-`dist/assets` totals 7.2 MB across 170 files.
-
-**Why:** Measured during S6 V8 while sizing the service-worker precache. A student
-on school Wi-Fi currently pays for Tiptap, the editor UI, and every authoring
-surface to answer a worksheet. The SW makes the SECOND visit cheap, which is
-exactly why the first visit's weight is now the thing that matters — and S9's
-cutover puts every student on this bundle. It is also what forced V8's precache
-down to the navigation document alone: a "shell" glob is not meaningful while the
-shell is the whole app.
-
-**Where to start:** `packages/app/src/App.tsx` — the route table eagerly imports
-both `StudentViewer` and the editor routes, so nothing can tree-shake them apart.
-`React.lazy` per route group is the obvious first cut; measure with
-`vite build` + `dist/assets` sizes before and after. Registry-driven block chunks
-(D16 eager-statics/lazy-heavies) are already lazy and are NOT the problem here.
-
-**Depends on:** nothing technically. Naturally belongs with **S8** (perf-budget
-CI), which is where a regression guard for it would live — pair it with the
-precache-manifest budget row already queued above.
-
-**Context:** surfaced by /plan-eng-review's S6 build, V8 (2026-08-02).
+**Context:** surfaced during the S8 build (2026-08-05) when calibration met the P1A sketch;
+outside-voice finding 7 predicted the gap before it was measured.
 
 ## Prove offline reopen against the built service worker (S6 V9 gap)
 
@@ -398,3 +389,30 @@ the day migration #1 lands, an un-upgraded old draft would fail the editor's par
 **Depends on:** the first schema migration existing. Until then this is a no-op.
 
 **Context:** surfaced in the S5.5 /plan-eng-review (2026-08-03, decision D23).
+
+## Field measurement of student-interactive on real Chromebooks (post-S9, compliance-gated)
+
+**What:** Collect real-user timings of the `performance.mark('student-interactive')`
+mark (landing with S8) from actual student devices, once the compliance posture
+allows it.
+
+**Why:** S8's throttled lab lane is a proxy; the mark was deliberately designed so
+lab and field speak the same vocabulary (S8 ruling D2/R2 — the mark contract is
+additive-only precisely so historical comparison survives). Real Chromebook numbers
+are the ground truth the lab run approximates.
+
+**Hard gate:** this is data collection from students. The backlog already rules that
+behavioral telemetry waits until (a) the census cannot answer a concrete question AND
+(b) the compliance pack is amended. Performance timing is thinner than behavioral
+telemetry but it is still collection — the same two-part gate applies. Do NOT ship
+quiet student telemetry as a perf-slice side effect.
+
+**Where to start:** the mark already exists (S8, viewer instrumentation); collection
+would be a small beacon + an amendment to docs/compliance/. Scope the retention and
+aggregation before any write path exists.
+
+**Depends on:** S9 cutover (students on the viewer at scale) + the compliance-pack
+amendment.
+
+**Context:** surfaced in the S8 /plan-eng-review long-term audit (2026-08-05, T1
+ruling; rulings in the gstack design doc → S8 section).

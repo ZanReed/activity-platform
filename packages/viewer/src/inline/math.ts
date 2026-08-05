@@ -27,6 +27,8 @@ export interface MathRenderer {
   (latex: string, displayMode: boolean): string;
 }
 
+import { MARKS, markOnce } from '../perf/marks.js';
+
 let engine: MathRenderer | null = null;
 let loading: Promise<MathRenderer> | null = null;
 
@@ -72,6 +74,14 @@ export async function loadMathRenderer(): Promise<MathRenderer> {
       }
     };
     engine = renderer;
+    // S8: the moment the KaTeX chunk is actually usable. This is the number
+    // that decides T7 (keep math lazy, load it eagerly on math-bearing pages,
+    // or preload it the moment the served document is known to contain math).
+    // Before this instant a student sees the readable-LaTeX fallback, and a
+    // browser-menu Ctrl+P in that window prints the fallback (residual S5-2) —
+    // so the length of this window IS the open question, and now it is
+    // measured rather than argued about.
+    markOnce(MARKS.mathRendered);
     return renderer;
   });
   return loading;

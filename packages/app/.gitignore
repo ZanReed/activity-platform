@@ -10,3 +10,4 @@ dist
 /.playwright/
 /playwright/.cache/
 print-contact-sheet/
+perf-results/

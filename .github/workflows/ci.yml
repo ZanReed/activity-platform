@@ -48,6 +48,36 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # The S8 size gates. Deterministic by construction — the same commit
+      # produces the same bytes everywhere — so a red here is always a real
+      # regression, never runner variance. That is why the millisecond
+      # measurements live in the perf job instead of this one (ruling D3).
+      #
+      # Guards: the student shell (entry chunk JS and CSS, separately), the
+      # shell's purity (no KaTeX/MathLive/JSXGraph/ProseMirror code in the entry
+      # chunk — the enforcement of ruling D16), the heavy-chunk ledger, and the
+      # service-worker precache (count + bytes, ruling D19). Numbers and their
+      # reasoning: scripts/perf-budgets.mjs.
+      - name: Performance budgets
+        run: node scripts/check-perf-budget.mjs
+
+      # Unit tests for the budget machinery itself, including the pin that the
+      # three Edge Function ceilings still hold their pre-migration values
+      # (ruling D8) and the fixture cases that fire every failure path. A gate
+      # whose red branches have never run is a gate nobody has tested — and the
+      # vacuity cases are unreachable against a healthy build by definition.
+      - name: Budget script tests
+        run: node --test scripts/tests/*.test.mjs
+
+      # The perf job serves THIS dist rather than rebuilding, so the lane
+      # measures the exact artifact the budgets above just passed.
+      - name: Upload built app
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-dist
+          path: packages/app/dist
+          retention-days: 1
+
       # Regenerate the committed renderer/runtime bundle and fail if it drifts
       # from what's checked in — deploys must never ship a stale bundle.
       # (CLAUDE.md: "Renderer bundle commits with the source it supports.")
@@ -154,6 +184,79 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: print-gate-traces
+          path: packages/app/test-results/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # The S8 perf lane, plus the two browser lanes that were local-only until now.
+  #
+  # WHY THESE THREE RUN TOGETHER. They all need the same thing: the production
+  # build served by `vite preview`. The perf lane measures it, the sw lane
+  # exercises the worker that only exists in it, and the student lane drives the
+  # signed-in viewer. Sharing one job means one download and one browser
+  # install.
+  #
+  # WHY THE SW AND STUDENT LANES ARE HERE AT ALL (ruling D11). They were
+  # local-only, which made "these lanes must stay green" an aspiration rather
+  # than a gate — nothing ran them. Route-splitting is precisely the change most
+  # likely to break the service worker's stale-chunk recovery path, and that
+  # path's only test lived in the lane CI never ran. Bringing them in was part
+  # of the same slice that created the risk.
+  #
+  # The editor's 145-case suite deliberately stays out; folding it in is its own
+  # decision with its own runtime cost, unchanged by this job.
+  # ---------------------------------------------------------------------------
+  perf-gates:
+    name: perf budget lane (throttled timing · route mount · sw · student)
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter @activity/app exec playwright install --with-deps chromium
+
+      # Reuse the artifact `check` already built and already measured, instead
+      # of a third full build per PR.
+      - name: Download built app
+        uses: actions/download-artifact@v4
+        with:
+          name: app-dist
+          path: packages/app/dist
+
+      - name: Perf, service-worker and student lanes
+        env:
+          # Serve the downloaded dist; do not rebuild (see playwright.config.ts).
+          E2E_SKIP_BUILD: '1'
+        run: |
+          pnpm --filter @activity/app exec playwright test \
+            --project=perf --project=sw --project=student
+
+      # The timing artifact. Recorded every run whether or not anything failed:
+      # the numbers are the input to the calibration baseline and to the open
+      # KaTeX decision (T7), and a measurement you only keep on success is a
+      # measurement you cannot learn from.
+      - name: Upload timing measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-measurements
+          path: packages/app/perf-results/
+          retention-days: 30
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-gate-traces
           path: packages/app/test-results/
           retention-days: 7
 

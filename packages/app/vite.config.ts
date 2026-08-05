@@ -66,6 +66,21 @@ export default defineConfig({
       },
     }),
   ],
+  // ------------------------------------------------------------------
+  // Build manifest (S8). `scripts/check-perf-budget.mjs` reads
+  // dist/.vite/manifest.json to identify the ENTRY chunk and its CSS
+  // deterministically, instead of scraping dist/index.html for whatever
+  // <script> happens to be there. It also powers the per-chunk attribution
+  // in a failed budget's error message: a red budget must say WHAT grew,
+  // not merely that something did, or every red becomes an archaeology
+  // session and the budget gets raised instead of investigated.
+  //
+  // The manifest is a build artifact only — it ships in dist/ but nothing
+  // at runtime reads it, and the service worker does not precache it.
+  // ------------------------------------------------------------------
+  build: {
+    manifest: true,
+  },
   // Default 5173 (the OAuth Site URL); a PORT env var overrides so a second
   // dev server (e.g. an agent-session preview) can run beside a manual one.
   server: {

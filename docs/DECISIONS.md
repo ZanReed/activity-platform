@@ -770,3 +770,51 @@ online load.
 **What the analytics tables deliberately do NOT contain.** No student identifiers, anywhere. Everything 0026 stores describes authored content or job bookkeeping, which is what keeps it outside the retention scope the 0022–0025 arc closed and why it needs no purge path. `verify-0026.sql` B4 asserts the absence against `information_schema`, because "we just won't add that column" is not a control. Per-student analytics isn't forbidden — it is a different design, and it belongs with the rollup slice where retention and small-cohort exposure (a class of one makes an "aggregate" personal) get decided together.
 
 **Observability is a table, not a log line.** 0022 answered "a scheduled job that silently stops" with `raise notice`. That is weaker than it looks: pg_cron records a job's status and **return value** in `cron.job_run_details`, not its notices, and free-tier Postgres logs are gone in about a day. `run_analytics_maintenance()` therefore writes an `analytics_job_runs` row and returns its id, and the teacher panel prints the last run — so a job that died three weeks ago is visible on a screen someone actually opens. The same ledger carries the `section_checks` growth number the parked retention decision will want.
+
+## The entry chunk is the student shell (2026-08-05, S8 ruling D4)
+
+**Decision.** `StudentViewer` and `Home` are imported **statically** in `App.tsx`; every teacher route and every dev route is `React.lazy`. So the built entry chunk is, byte for byte, what a student downloads before first paint — and that is the number `scripts/check-perf-budget.mjs` caps.
+
+**Why not lazy-load the viewer too.** It is the tidier bundle graph and the wrong product call. A lazy viewer costs a student a second serialized round-trip before anything renders, on the worst network the platform serves; and it decouples the budget from reality, because "entry chunk" would then mean a router skeleton that no user journey corresponds to. Measuring a number nobody experiences is how a budget quietly stops protecting anyone. The registry's own eager tier (ruling D16) lives inside this same chunk, which is why growing the eager tier shows up against the shell cap with no second policy to maintain.
+
+**What the split actually bought.** Entry chunk 2.86 MB → 592 KB raw (168.1 KiB gz), entry CSS 156 KB → 59 KB raw (11.3 KiB gz). Before it, a student answering a worksheet downloaded Tiptap, the image cropper, and every authoring surface. It is also what made "shell-only precache" meaningful — S6 had to shrink the precache to the navigation document alone precisely because the shell *was* the whole app.
+
+**The 150 that became 168, said plainly.** Ruling P1A sketched a ~150 KiB gz shell cap. The measured post-split reality is 168.1, and the gap is not slack: it is react-dom + react-router + supabase-js + the viewer's eager block tier. The committed cap is therefore a regression pin at the real number with ~10% headroom, not a claim the target was met. Reaching 150 needs deliberate work (the auth client is the obvious lever) and is recorded in TODOS.md rather than papered over — a budget that quietly redefines its own target teaches nobody anything.
+
+## Size budgets get one home; the reasoning travels with the number (2026-08-05, S8 ruling D5=C)
+
+**Decision.** Every size ceiling in the repo lives in `scripts/perf-budgets.mjs` — including the three Edge Function bundle ceilings that used to sit inline in their bundler scripts. The numbers moved **with their full rationale comments**; the bundler scripts kept their own failure messages, which fire where the failure happens.
+
+**Why unify rather than leave working code alone.** Two conventions for the same question ("how big is too big, and why?") means the next session has to find both. One commented home makes a budget bump a one-file diff whose reasoning is right there in review, and when the renderer retires at S9 its ceiling is a one-line deletion instead of a script hunt.
+
+**The hazard this introduced, and the guard.** CI's bundle-drift guards compare bundle *content*, not ceiling *values* — so a transcription error during the migration would have silently loosened a deploy guard with nothing to catch it. `scripts/tests/perf-budgets.test.mjs` pins all three ceilings to their exact pre-migration values (40/60 KiB, 1500 KiB, 4000 KiB). If that test fails, the question is never "what value makes it green"; it is "who changed the ceiling, and why isn't it in the diff".
+
+## Deterministic bytes are gates; milliseconds are records (2026-08-05, S8 ruling D3)
+
+**Decision.** Size budgets (shell JS, shell CSS, chunk ledger, precache count and bytes) **fail the build**. The throttled timing run **records** its numbers every run and hard-fails only past a derived 2× ceiling.
+
+**Why split them.** The same commit produces the same bytes on every machine, so a red size budget is always a real regression. Milliseconds on a shared CI runner are not: a tight timing gate goes red for reasons nobody can fix, and the reliable outcome is that people re-run CI until it passes — which costs every *other* gate its authority too. The 2× ceiling is deliberately far outside runner variance while still catching the catastrophic case (someone makes the graph kit eager) on the commit that causes it.
+
+**Why the ceiling is derived and not written down.** It is `2 × TIMING_TARGET_MS` computed in the config (ruling R1). Recalibrating means editing one number and the ceiling follows, which is what keeps this from becoming a fossil: a budget that can only ever be loosened stops describing the product. The config names the recalibration triggers — after the S9 cutover, after deliberate shell perf work, and at drift-audit cadence.
+
+**Why deltas compare against a committed number, not the last CI artifact** (ruling R3). Artifacts expire; a comparison built on them silently stops working during the first quiet quarter and nobody notices, because "no warning" and "no data" look identical. The baseline lives in git.
+
+## The viewer says when a student can start (2026-08-05, S8 ruling D2/R2)
+
+**Decision.** The viewer stamps `performance.mark('student-interactive:pre-auth' | ':worksheet' | ':math-rendered')`, and the throttled lane measures those marks. The names are a **contract**: additive-only, exactly like the runtime's data-attribute contract.
+
+**Why a custom mark instead of a standard metric.** Ruling P1A asked for a "TTI target on school Chromebooks". Time to Interactive was removed from Lighthouse in v10 because it was too sensitive to outlier requests and long tasks — in a CI gate that means noise. Its replacements measure real things that are not this product's promise: Total Blocking Time measures main-thread blocking, so a slow document fetch delays the worksheet while leaving TBT untouched. The marks say what the product actually claims, and they work unchanged for field measurement on real devices later (compliance-gated; see TODOS.md).
+
+**Why renaming one is a contract break.** It does not fail loudly. The numbers keep flowing and quietly stop meaning the same thing, so months of comparison become a lie without a single error. `packages/viewer/tests/perfMarks.test.ts` pins the literal strings and asserts they match the copy in `perf-budgets.mjs`, which is the only thing standing between a rename and a silently dead baseline.
+
+**Why the contract lives in `@activity/viewer`.** Two layers stamp these: `StudentViewer` (app) owns the pre-auth and worksheet moments, and `inline/math.ts` (viewer) is the only code that knows when the KaTeX chunk landed. Putting it in the lower package gives both one definition. It is a dependency-free leaf, and the read-API server bundle enters at `server/index.ts`, so it never reaches an Edge Function.
+
+## A gate must be able to fail (2026-08-05, S8)
+
+**Decision.** Every structural assumption in the budget script is asserted before any measurement is trusted: missing `dist/`, missing build manifest, no entry chunk, an unparseable service worker, and — the subtle one — **a ledger row that matches zero chunks**. Each exits non-zero with a message saying the check could not measure what it exists to measure.
+
+**Why this is a feature and not defensive clutter.** This repo has shipped vacuously-green checks twice: the empty-activity leak scan, and `verify-0022`'s C1 pointing at ambient rows that were later deleted, so its RESTRICT assertion had nothing left to block while still reporting success. A size budget is unusually prone to it — delete `dist/` and the naive implementation reports zero bytes and passes. The zero-match ledger case is the same failure one level up: a renamed chunk makes a row match nothing, total size *drops*, and every remaining row still passes.
+
+**And the failure paths are tested, because they are unreachable in a healthy build.** `scripts/tests/check-perf-budget.test.mjs` builds deliberately-broken fixture dists and asserts each red branch actually fires. Writing those tests found a real bug in the fixtures themselves: the obvious "random" filler (`String.fromCharCode(33 + i*k % 90)`) cycles every 90 characters, so gzip crushed it and three over-cap cases silently landed *under* their caps.
+
+**Content markers, not filenames.** Ledger rows identify their payload by a string only that library's own code contains, and sum **every** matching chunk. A filename-keyed row survives a rename as loud churn but silently mismeasures when weight *migrates* to a still-matching chunk. Matching is done after stripping asset-path string literals — the entry chunk legitimately names every lazy chunk in its module-preload map, so a naive search reports MathLive and KaTeX inside a perfectly clean shell.
