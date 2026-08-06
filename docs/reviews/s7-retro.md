@@ -123,3 +123,103 @@ concretely in the verify fixture (4/6 vs 3/4) instead of asserted. And **the
 analytics tables carry no student identifier by construction**, with the
 absence asserted against `information_schema` — "we just won't add that
 column" correctly treated as not a control.
+
+---
+
+## Independent audit (2026-08-06, second-pass)
+
+Adversarial re-verification by a fresh-context auditor, with the orchestrating
+session re-verifying material findings — including one auditor correction that
+live-database evidence overturns.
+
+**Verdict on the retro:** substantially accurate and well-sourced — every
+commit, count, and narrative beat traces to HISTORY or code, and two Part-C
+candidates resolved in the retro's favor (the backfill's delete-then-insert
+idempotency is real and reasoned; the variant-suffix census guard is
+rule-derived, not a hand-roster). But the live-DB claim compresses a two-part
+prediction into one sentence, the residue-procedure cite does not survive
+reading the script, one watchlist pointer aims at the wrong document — and the
+blind spots are the S0/S1 shape: the retro audits what S7 *ruled*, not what
+S7's machinery does (the panel, the backfill's paging, the hazard's real
+window).
+
+### Confirmed
+
+Findings 1–4 verbatim against source: the function-ahead-of-migration
+narrative including "the reverse order is never needed" in CLAUDE.md; both
+backfill defects documented in the script itself with the "reads as an outage"
+reasoning; 110 unservable with the skip banner printed every run; the slug
+defect fixed in place; the write-ordering red-green pins at
+`get-activity-handler.test.ts:633,654,673`. The GC hazard comment at
+`0026:203-215`; the two-deep park real (`TODOS.md:168-175` with the
+"first real teacher" trigger; `:230-233` naming that ruling as the rollup
+blocker); attribution via `inventorySection` with the `import type` pin;
+B4's `information_schema` assertion.
+
+### Corrected
+
+1. **Item 8 compresses a two-job prediction and inherits STATE's own error.**
+   STATE:14 predicts the analytics job's ledger row with `census_versions = 0`
+   — but the backfill censused 24 versions the same day, so that half of the
+   committed prediction was stale before the run. "Matching the falsifiable
+   prediction" is true of the purge half (`past_window = 0`) only; say which.
+2. **The auditor's companion claim — that the first fire must have been
+   2026-08-06 — is itself wrong; the database overrules the inference.**
+   [Orchestrator, from `cron.job_run_details` queried live 2026-08-06:
+   `purge-soft-deleted` start_time `2026-08-05 03:00:00+00`,
+   `analytics-maintenance` `03:30:00+00`, both `succeeded`.] The sharper
+   finding the failed inference exposes: STATE's "had not yet run when last
+   checked" was committed at 20:40 JST — *after* the 03:00 UTC fire — so the
+   observation item was already stale when written, and closing it requires
+   correcting the prediction, not just ticking it.
+3. **"Manually cleaned per the documented residue procedure" does not hold** —
+   the script's printed cleanup is scoped to one run's activity and a
+   30-minute window; the 44 rows cleared spanned three days. The cleanup was
+   necessarily a broader, undocumented delete (see the S4 audit, which also
+   found it vacated `verify-0022` C1).
+4. **Watchlist item 3 points at the wrong artifact** — the five rollup design
+   inputs live in `TODOS.md:214-227`; DECISIONS carries only a compressed
+   parenthetical.
+5. **Finding 4's "precondition gate and banner"**: verify-0026 adopted the
+   gate and deliberately *rejected* the banner shape (its header says the
+   raise-exception form "reports success as a scary P0001"); the banner is a
+   0022–0025 artifact.
+6. **Finding 5's hazard window is narrower than stated** — right after a
+   deploy *every* row carries the old rev, so the sweep deletes nothing wrong;
+   the eviction requires a new-rev row *older by created_at* than an old-rev
+   row (a rollback, or two function versions serving concurrently). The
+   proposed DECISIONS amendment should encode that window, not "right after a
+   deploy."
+
+### Missed — what the retro never examined
+
+7. **The panel is mostly good and one field is dead**: real error/empty/
+   staleness states with honest copy — but `stale_cache_rows_deleted` is
+   fetched, typed, and never rendered (the S0 finding-4 pattern, one line to
+   fix), and there is no guard on a missing route param before the RPC call.
+8. **The teacher gate is `can_read_activity` — used correctly, with an
+   unstated side effect**: its `deleted_at is null` clause makes a
+   soft-deleted activity's analytics unreadable *to its own owner* during the
+   retention window. Plausibly intended; recorded nowhere.
+9. **The de-identification win is about the tables, not the screen** — the
+   panel already emits per-key `students` counts, and TODOS names
+   `students = 1` as exactly the unresolved small-cohort exposure. Owner-scoped
+   today, so not a leak; but "no student identifier by construction" is
+   narrower than the closing sentence implies.
+10. **The growth-ledger number has exactly one consumer** (the panel's
+    job-health line); the retention decision DECISIONS says it serves does not
+    read it yet. And the backfill's `limit/offset` paging over full `content`
+    can skip rows under concurrent inserts and scales memory with total
+    published content — fine at 134 rows, unexamined as a property.
+
+### Audit addenda to the watchlist
+
+- Rewrite item 1: close STATE's observation with the split verdict (purge half
+  matched; analytics half's prediction was stale before the run) and fix
+  STATE:14 rather than propagating it.
+- Extend item 2 with the hazard's real window (correction 6); repoint item 3
+  at `TODOS.md:214-227`.
+- **New, cheap (~5 min)**: render or delete `stale_cache_rows_deleted`.
+- **New, policy**: when a retro cites a "documented procedure," read the
+  procedure — the second time in this arc a documented path was credited for
+  work done by hand.
