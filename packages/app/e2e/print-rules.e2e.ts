@@ -358,15 +358,23 @@ test.describe('document print rules', () => {
     test('document/page-size — the configured paper reaches the @page box', async ({ page }) => {
         await page.goto('/dev/viewer?type=paragraph&paper=a4');
         await page.emulateMedia({ media: 'print' });
-        const rules = await page.evaluate(() =>
-            [...document.querySelectorAll('style')]
-                .map((s) => (s.textContent ?? '').trim())
-                .filter((t) => t.startsWith('@page')),
-        );
+        // /dev/viewer is a LAZY route since the S8 split (D4), so nothing has
+        // mounted when goto resolves. Every other case in this file waits via a
+        // locator; a bare page.evaluate races the chunk and reads zero <style>
+        // tags. expect.poll is the same collector, made to wait.
+        //
         // A4 with a 1in margin, emitted as a real rule — @page cannot read
         // custom properties, so a var()-based attempt would silently print
         // letter on every A4 printer.
-        expect(rules).toContain('@page{size:A4;margin:1in;}');
+        await expect
+            .poll(() =>
+                page.evaluate(() =>
+                    [...document.querySelectorAll('style')]
+                        .map((s) => (s.textContent ?? '').trim())
+                        .filter((t) => t.startsWith('@page')),
+                ),
+            )
+            .toContain('@page{size:A4;margin:1in;}');
     });
 
     test('document/print-vars — configured type and spacing take effect', async ({ page }) => {

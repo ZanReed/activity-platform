@@ -74,8 +74,19 @@ test.describe('print baselines (viewer)', () => {
             await expect(page.locator('.viewer-block__loading')).toHaveCount(0, {
                 timeout: 15_000,
             });
+            // Math settled before the shutter, same signal awaitPrintReady
+            // polls. Without this the screenshot races the lazy KaTeX chunk:
+            // typeset-vs-fallback moves display math by tens of pixels and
+            // inline math by a couple, and WHICH state wins flipped when the
+            // S8 route split made /dev/viewer lazy (the four math-bearing
+            // fixtures drifted while the other 78 held).
+            await expect(page.locator('[data-math-pending]')).toHaveCount(0, {
+                timeout: 15_000,
+            });
             // Fonts settled before the shutter: a swap mid-screenshot is the
-            // classic source of a diff nobody can explain.
+            // classic source of a diff nobody can explain. AFTER the math wait
+            // on purpose — typesetting introduces the KaTeX web fonts, so a
+            // fonts.ready taken earlier predates the fonts that matter.
             await page.evaluate(() => document.fonts.ready);
             await page.emulateMedia({ media: 'print' });
 

@@ -45,8 +45,18 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # The Supabase env is BAKED IN at build time (vite inlines import.meta.env),
+      # and this dist is what the perf job downloads and serves. The sw and
+      # student-path specs fake a session under the storage key supabase-js
+      # derives from this URL — an env-less build derives no key at all, so
+      # every signed-in spec lands on the sign-in screen and times out. These
+      # are the same pinned values playwright.config.ts gives the local preview
+      # build; they are e2e-only and this artifact is never deployed.
       - name: Build
         run: pnpm build
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_ANON_KEY: e2e-anon-key
 
       # The S8 size gates. Deterministic by construction — the same commit
       # produces the same bytes everywhere — so a red here is always a real
@@ -210,6 +220,10 @@ jobs:
     name: perf budget lane (throttled timing · route mount · sw · student)
     needs: check
     runs-on: ubuntu-latest
+    # Typical end-to-end: ~6-8 min (install + chromium + 35 specs at ~2.6 min).
+    # Without a bound, a hung preview server burns free-tier minutes silently
+    # until GitHub's 6-HOUR default kills it (eng-review D22, 2026-08-06).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
