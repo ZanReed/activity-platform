@@ -18,9 +18,14 @@ import {
     signOutEverything,
     watchIdle,
     watchIdleSignOut,
-    VIEWER_STORAGE_PREFIX,
 } from '../lib/studentAuth';
-import { VIEWER_SHELL_CACHE, viewerContentCacheName } from '@activity/viewer';
+// The prefix comes from its OWNER (S6-V1); studentAuth's redundant re-export
+// was deleted (A17).
+import {
+    VIEWER_SHELL_CACHE,
+    VIEWER_STORAGE_PREFIX,
+    viewerContentCacheName,
+} from '@activity/viewer';
 
 describe('signOutEverything', () => {
     beforeEach(() => {

@@ -25,6 +25,10 @@
 // keys, hints, and solutions the served document had stripped.
 // =============================================================================
 
+import {
+  childBlocksOf,
+  looksLikeBlockArray,
+} from '../../container/blockIndex.js';
 import { PROMPT_CARRIER_TYPES } from '../../sanitize/promptCarriers.js';
 import type { BlankKey } from './blanks.js';
 import type { RawGraphBlock } from './graphs.js';
@@ -162,37 +166,13 @@ function collectInBandKeys(
   }
 }
 
-/** Structural child-block detection, mirroring blockIndex's: an array of
- * objects each carrying `id` + a non-inline `type`. Structural rather than
- * registry-declared so a container that forgets its declaration still cannot
- * get its children's ids mis-attributed to itself. */
-function looksLikeBlockArray(value: unknown): boolean {
-  return (
-    Array.isArray(value) &&
-    value.length > 0 &&
-    value.every(
-      (item) =>
-        typeof item === 'object' &&
-        item !== null &&
-        typeof (item as { id?: unknown }).id === 'string' &&
-        typeof (item as { type?: unknown }).type === 'string',
-    ) &&
-    value.every((item) => {
-      const t = (item as { type: string }).type;
-      return (
-        t !== 'text' && t !== 'blank' && t !== 'math_inline' && t !== 'hard_break'
-      );
-    })
-  );
-}
-
-function childBlocksOf(block: RawBlock): RawBlock[] {
-  const out: RawBlock[] = [];
-  for (const value of Object.values(block)) {
-    if (looksLikeBlockArray(value)) out.push(...(value as RawBlock[]));
-  }
-  return out;
-}
+// looksLikeBlockArray / childBlocksOf are IMPORTED from container/blockIndex —
+// this file carried a private, logically-identical copy of the subtle
+// heuristic until 2026-08-06 (A24), hedged "mirroring blockIndex's" while the
+// source file claimed "this one is the source": the copy that would silently
+// drift, and drifted attribution mis-grades invisibly. Same package, and the
+// census already imports childBlocksOf server-side, so the bundle boundary
+// was proven before this joined it.
 
 function visit(block: RawBlock, inv: GradableInventory): void {
   const id = typeof block.id === 'string' ? block.id : '';

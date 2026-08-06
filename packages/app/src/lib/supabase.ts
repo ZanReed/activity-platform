@@ -7,7 +7,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const MISSING_ENV =
+export const MISSING_ENV =
   'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
   'Copy packages/app/.env.local.example to packages/app/.env.local and fill in the values.';
 

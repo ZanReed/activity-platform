@@ -320,7 +320,6 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         // failure (2.1A "Couldn't check — try again", non-blaming). The key is
         // deliberately NOT cleared: the next attempt is a retry of this check.
         const kind = (err as { kind?: CheckErrorKind }).kind;
-        const retryable = (err as { retryable?: boolean }).retryable;
         if (!kind) {
           // An untyped failure is not a check outcome — it is a BUG in the
           // service or the store, and this catch is about to dress it up as a
@@ -362,7 +361,6 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
               phase: 'error',
               message: err instanceof Error ? err.message : 'Check failed',
               ...(kind ? { kind } : {}),
-              ...(retryable !== undefined ? { retryable } : {}),
             },
           },
           // A reachable-but-failing server means this check is NOT queued:

@@ -474,14 +474,20 @@ export default function ActivityPrint() {
         </select>
         </label>
 
+        {/* Outside the version-1 conditional on purpose (A23): version 1 IS
+            shuffled too (pinned by printShuffle.test), so the teacher printing
+            the default sheet with answers needs this warning exactly as much. */}
+        <p className="text-xs text-muted">
         {version > 1 && (
-            <p className="text-xs text-muted">
+            <>
             Version {String.fromCharCode(64 + version)} shuffles the questions
-            that can be shuffled. Print its answer key from this same version —
-            and reprint keys after editing the activity, since a change to the
-            questions changes the arrangement.
-            </p>
+            that can be shuffled.{' '}
+            </>
         )}
+        Print the answer key from the same version as the worksheet — and
+        reprint keys after editing the activity, since a change to the
+        questions changes the arrangement.
+        </p>
 
         <label className="flex items-center gap-2 text-sm text-strong">
         <input

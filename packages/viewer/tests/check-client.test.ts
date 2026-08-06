@@ -6,8 +6,9 @@
 //
 //   1. FAILURES ARE DISTINGUISHABLE. A stale tab, an expired session, an
 //      offline blip and a broken grader must not collapse into one "try again",
-//      because retrying fixes exactly one of them. Pinning `retryable` is how
-//      the UI knows whether offering the button is honest.
+//      because retrying fixes exactly one of them. `kind` is the whole
+//      vocabulary a retry decision derives from (the write-only `retryable`
+//      boolean that used to ride along was deleted 2026-08-06, A15).
 //   2. A RETRY DOES NOT COST AN ATTEMPT. The idempotency key survives a failed
 //      check and is reused; a deliberate re-check gets a fresh one.
 //   3. A REPUBLISH DOES NOT BREAK A CHECK. The advisory rides a SUCCESSFUL
@@ -58,7 +59,6 @@ describe('check failures are distinguishable', () => {
       details: { code: 'wire_version_mismatch' },
     });
     expect(err.kind).toBe('stale_client');
-    expect(err.retryable).toBe(false);
     expect(err.message).toMatch(/reload/i);
   });
 
@@ -73,31 +73,29 @@ describe('check failures are distinguishable', () => {
   });
 
   it.each([
-    [401, {}, 'unauthenticated', false],
-    [403, {}, 'unauthenticated', false],
-    [404, {}, 'unavailable', false],
-    [429, {}, 'rate_limited', true],
-    [500, {}, 'server_error', true],
-    [503, {}, 'server_error', true],
-  ])('maps %s to %s', (status, body, kind, retryable) => {
+    [401, {}, 'unauthenticated'],
+    [403, {}, 'unauthenticated'],
+    [404, {}, 'unavailable'],
+    [429, {}, 'rate_limited'],
+    [500, {}, 'server_error'],
+    [503, {}, 'server_error'],
+  ])('maps %s to %s', (status, body, kind) => {
     const err = checkErrorFor(status as number, body);
     expect(err.kind).toBe(kind);
-    expect(err.retryable).toBe(retryable);
   });
 
   it('prefers the server code over the status for a rate limit', () => {
     expect(checkErrorFor(400, { code: 'rate_limited' }).kind).toBe('rate_limited');
   });
 
-  it('treats an unrecognised 4xx as OUR bug — not retryable', () => {
+  it('treats an unrecognised 4xx as OUR bug', () => {
     // A student cannot fix a malformed request, so inviting them to try again
     // would be a lie dressed as help.
     const err = checkErrorFor(422, { message: 'nope' });
     expect(err.kind).toBe('unknown');
-    expect(err.retryable).toBe(false);
   });
 
-  it('reports a network failure as offline and retryable', async () => {
+  it('reports a network failure as offline', async () => {
     const service = createHttpCheckService({
       checkUrl: 'https://x.test/check',
       feedbackUrl: 'https://x.test/feedback',
@@ -114,7 +112,7 @@ describe('check failures are distinguishable', () => {
           blanks: {}, choices: {}, matches: {}, orderings: {}, freeText: {}, graphs: {},
         },
       }),
-    ).rejects.toMatchObject({ kind: 'offline', retryable: true });
+    ).rejects.toMatchObject({ kind: 'offline' });
   });
 
   it('reports a missing session without calling the network at all', async () => {
@@ -263,7 +261,6 @@ describe('the store records WHICH failure happened', () => {
     expect(store.getState().sections.s1).toMatchObject({
       phase: 'error',
       kind: 'stale_client',
-      retryable: false,
     });
   });
 

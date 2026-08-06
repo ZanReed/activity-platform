@@ -26,7 +26,6 @@
 // =============================================================================
 
 import {
-  lazy,
   Suspense,
   useCallback,
   useEffect,
@@ -36,7 +35,7 @@ import {
 } from 'react';
 import type { ComponentType } from 'react';
 import { blockRegistry, familyOf } from '../registry/registry.js';
-import { bindingFor } from '../registry/bindings.js';
+import { resolveBlockComponent } from '../registry/resolveComponent.js';
 import type { BlockComponentProps, BlockType } from '../registry/types.js';
 import type {
   SanitizedActivityDocument,
@@ -105,29 +104,10 @@ export interface ViewerContainerProps {
   onTakeOver?: () => void;
 }
 
-/** Memo so a lazy binding produces ONE React.lazy per type, not one per
- * render (a fresh lazy() each render remounts the subtree and loses state). */
-const lazyCache = new Map<BlockType, ComponentType<BlockComponentProps>>();
-
-/** Registry-driven resolution honoring the D16 eager/lazy split. Unbound types
- * return null and render the placeholder. */
-function defaultResolve(
-  type: BlockType,
-): ComponentType<BlockComponentProps> | null {
-  // The one cast: bindings are typed against their OWN block, the slot renders
-  // the union. The registry guard proves each binding sits on its own entry.
-  const binding = bindingFor(type);
-  if (!binding) return null;
-  if (binding.loading === 'eager') {
-    return binding.component as ComponentType<BlockComponentProps>;
-  }
-  let component = lazyCache.get(type);
-  if (!component) {
-    component = lazy(binding.load) as unknown as ComponentType<BlockComponentProps>;
-    lazyCache.set(type, component);
-  }
-  return component;
-}
+/** Registry-driven resolution honoring the D16 eager/lazy split — the SHARED
+ * cache (registry/resolveComponent.ts), so a type rendered both top-level and
+ * nested gets one React.lazy identity, not two (A14). */
+const defaultResolve = resolveBlockComponent;
 
 function statusLabel(status: SectionStatus | undefined): string {
   switch (status?.phase) {

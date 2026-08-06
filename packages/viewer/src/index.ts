@@ -109,7 +109,6 @@ export type { ColorToken, StaticToken, DesignToken, StateName } from './tokens/t
 export { deriveQuestionShape } from './sanitize/sanitize.js';
 export type { QuestionShape } from './sanitize/sanitize.js';
 export {
-  SANITIZER_ALGO_REV,
   SANITIZER_REV,
   sanitizeActivityDocument,
   sanitizeBlock,
@@ -117,15 +116,11 @@ export {
 export { applyServeShuffles, seededShuffle } from './sanitize/shuffle.js';
 
 // S2 — the get-activity request handler (extracted from the Edge Function so
-// its branching is unit-testable; the function is now thin wiring).
-export {
-  API_VERSION,
-  META_MAX_PER_WINDOW,
-  META_WINDOW_MS,
-  createGetActivityHandler,
-  createMetaRateLimiter,
-  jwtSub,
-} from './server/get-activity-handler.js';
+// its branching is unit-testable; the function is now thin wiring). ONLY the
+// handler factory rides the barrel: the rate-limiter internals, API_VERSION,
+// and jwtSub are module concerns tests import from the module file directly
+// (A17 — test-only re-exports were trimmed from both barrels 2026-08-06).
+export { createGetActivityHandler } from './server/get-activity-handler.js';
 export type {
   CorsKit,
   DbResult,
@@ -344,3 +339,7 @@ export type { MarkName } from './perf/marks.js';
 // math, instead of waiting for a math component to mount. Timing, not policy:
 // math-free documents still fetch nothing.
 export { preloadMathIfNeeded, documentUsesMath } from './inline/mathPreload.js';
+export {
+  preloadGraphKitIfNeeded,
+  documentUsesGraphKit,
+} from './blocks/kitPreload.js';

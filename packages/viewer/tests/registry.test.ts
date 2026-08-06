@@ -249,22 +249,11 @@ describe('analytics census keys (ruling P3A)', () => {
 });
 
 describe('print declarations (faithful to the baseline print layer)', () => {
-  it('answer-key variants match the renderer showAnswers set', () => {
-    const declared = registeredBlockTypes.filter(
-      (type) => blockRegistry[type].print.answerKeyVariant === true,
-    );
-    expect(declared.sort()).toEqual(
-      [
-        'data_plot',
-        'fill_in_blank',
-        'interactive_graph',
-        'matching',
-        'multiple_choice',
-        'number_line',
-        'ordering',
-      ].sort(),
-    );
-  });
+  // ('answer-key variants match the renderer showAnswers set' lived here,
+  // pinning print.answerKeyVariant against a hardcoded seven — a surface that
+  // no longer exists in the app. Both the field and the pin were deleted
+  // 2026-08-06 (A18): ANSWER_KEY_COVERAGE is the single source of "which
+  // types have a key", guarded for vacuity in answerKey.test.ts.)
 
   it('break-inside:avoid covers every block that must stay whole on a page', () => {
     const avoid = registeredBlockTypes.filter(

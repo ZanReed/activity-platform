@@ -141,9 +141,9 @@ describe('checkSection (one batched call, ruling P2A)', () => {
 
   it('a failed check surfaces as section error and loses NO responses', async () => {
     // A real CheckError, matching what the production client throws — the
-    // store branches on `kind`/`retryable`, and the queue executor (S6) decides
-    // whether to enqueue from them, so a bare Error here would test a path no
-    // deployed code takes.
+    // store branches on `kind`, and the queue executor (S6) decides whether to
+    // enqueue from it, so a bare Error here would test a path no deployed
+    // code takes.
     const { store } = makeStore({
       failWith: new CheckError('server_error', 'RPC down'),
     });
@@ -154,7 +154,6 @@ describe('checkSection (one batched call, ruling P2A)', () => {
       phase: 'error',
       message: 'RPC down',
       kind: 'server_error',
-      retryable: true,
     });
     expect(store.getState().responses.blanks['blank-1']).toBe('3');
   });

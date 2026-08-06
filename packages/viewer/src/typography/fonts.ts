@@ -103,6 +103,16 @@ export async function ensureActivityFontLoaded(font: ActivityFont): Promise<void
           import('@fontsource/comic-neue/700-italic.css'),
         ]);
         break;
+      default: {
+        // Exhaustiveness (A19): a sixth ActivityFont id is a compile error
+        // HERE, not a menu entry that silently renders as the default. This
+        // matters more after S9, when the renderer's menu↔registry↔fontsource
+        // guard — currently the only loading-completeness check — retires
+        // with its package.
+        const unhandled: never = font;
+        void unhandled;
+        break;
+      }
     }
   } catch {
     // Allow a retry on a later mount rather than caching the failure.

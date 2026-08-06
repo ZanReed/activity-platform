@@ -185,5 +185,6 @@ function sanitizeOut(nodes: unknown[]): never[] {
   return sanitizeInlineContent(nodes) as never[];
 }
 
-export { SectionNotFoundError as GradingSectionNotFound };
+// (A `GradingSectionNotFound` alias re-export lived here with zero consumers —
+// deleted 2026-08-06, A17. `SectionNotFoundError` above is the real name.)
 export type { GradableInventory } from './walk.js';

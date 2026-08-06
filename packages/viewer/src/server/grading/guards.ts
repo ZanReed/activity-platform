@@ -126,9 +126,6 @@ export function checkExpressionSafety(expression: string): ExpressionCheck {
   return { ok: true };
 }
 
-export const EXPRESSION_LIMITS = {
-  MAX_EXPRESSION_LENGTH,
-  MAX_EXPONENT_OPERATORS,
-  MAX_OPERATORS,
-  MAX_NESTING_DEPTH,
-} as const;
+// (An aggregate EXPRESSION_LIMITS export used to re-bundle the four constants
+// above; zero consumers anywhere — deleted 2026-08-06, A17. The individual
+// constants are the working values; import those.)

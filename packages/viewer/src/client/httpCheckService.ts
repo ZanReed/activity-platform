@@ -49,18 +49,18 @@ export type CheckErrorKind =
 export class CheckError extends Error {
   readonly kind: CheckErrorKind;
   readonly status?: number;
-  /** True when trying the same thing again could plausibly succeed. The UI
-   * offers Retry on exactly these, so a student is never invited to repeat an
-   * action that cannot work. */
-  readonly retryable: boolean;
+  // NO `retryable` field, deliberately (A15, 2026-08-06): it was derived here,
+  // copied into SectionStatus, persisted — and read by nothing. A comment
+  // claiming "the UI offers Retry on exactly these" described UI that never
+  // existed (s4-retro finding 9). `kind` is the whole vocabulary; whichever
+  // slice builds a real retry decision derives it from `kind` at the point of
+  // use, WITH the consumer that makes it true.
 
   constructor(kind: CheckErrorKind, message: string, status?: number) {
     super(message);
     this.name = 'CheckError';
     this.kind = kind;
     if (status !== undefined) this.status = status;
-    this.retryable =
-      kind === 'offline' || kind === 'server_error' || kind === 'rate_limited';
   }
 }
 

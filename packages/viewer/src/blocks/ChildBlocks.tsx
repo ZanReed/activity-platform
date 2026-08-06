@@ -14,28 +14,17 @@
 // so a crash there IS a check shortfall.
 // =============================================================================
 
-import { lazy, Suspense, useMemo } from 'react';
-import type { ComponentType } from 'react';
-import { bindingFor } from '../registry/bindings.js';
+import { Suspense, useMemo } from 'react';
 import { familyOf } from '../registry/registry.js';
-import type { BlockComponentProps, BlockType } from '../registry/types.js';
+import { resolveBlockComponent } from '../registry/resolveComponent.js';
+import type { BlockType } from '../registry/types.js';
 import { BlockBoundary, type BlockCrash } from '../container/BlockBoundary.js';
 
-const lazyCache = new Map<BlockType, ComponentType<BlockComponentProps>>();
-
-function resolve(type: BlockType): ComponentType<BlockComponentProps> | null {
-  const binding = bindingFor(type);
-  if (!binding) return null;
-  if (binding.loading === 'eager') {
-    return binding.component as ComponentType<BlockComponentProps>;
-  }
-  let component = lazyCache.get(type);
-  if (!component) {
-    component = lazy(binding.load) as unknown as ComponentType<BlockComponentProps>;
-    lazyCache.set(type, component);
-  }
-  return component;
-}
+// One SHARED lazy cache with ViewerContainer (registry/resolveComponent.ts,
+// A14): this module previously held its own byte-equivalent copy, so a lazy
+// type rendered both nested and top-level got two React.lazy identities — the
+// remount/state-loss case the cache exists to prevent.
+const resolve = resolveBlockComponent;
 
 export interface ChildBlocksProps {
   blocks: readonly unknown[];

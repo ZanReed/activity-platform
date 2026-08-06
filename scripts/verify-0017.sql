@@ -48,9 +48,14 @@ where proname in ('get_published_activity', 'get_activity_public_meta');
 
 -- ============================== C. Behavior ==================================
 
--- C1. Anonymous meta on a PUBLISHED activity. EXPECT: 1 row — its title +
---     the owner's display_name. (Run as-is; DEFINER means role doesn't matter
---     for the read, and anon EXECUTE is the deliberate grant.)
+-- C1. Anonymous meta on a PUBLISHED activity. EXPECT: 1 row — its title, with
+--     a NULL teacher_name (post-0021 every live teacher's display_name is
+--     NULL: the privacy backfill nulled the email rows and the author's
+--     2026-08-04 ruling nulled the remaining real name by direct edit — see
+--     STATE's not-reproducible-from-migrations note. A NON-null name here is
+--     only correct for a teacher who deliberately set one AFTER 0021).
+--     (Run as-is; DEFINER means role doesn't matter for the read, and anon
+--     EXECUTE is the deliberate grant.)
 --     Substitute any published activity id from your dashboard.
 -- select * from get_activity_public_meta('<published-activity-uuid>');
 

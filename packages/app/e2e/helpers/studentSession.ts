@@ -25,6 +25,7 @@
 // =============================================================================
 
 import type { Page, Route } from '@playwright/test';
+import { CHECK_WIRE_VERSION } from '@activity/viewer';
 import { servedFixtureDocument } from '@activity/viewer/fixtures';
 
 export const E2E_STUDENT_ID = 'dddddddd-0000-4000-8000-00000000e2e1';
@@ -266,7 +267,9 @@ export async function stubActivityApi(
     }
     await route.fulfill({
       json: {
-        wireVersion: 2,
+        // Imported, never retyped (A16/P2): a hand-copied wire version makes a
+        // future bump fail e2e with a confusing symptom instead of a clear one.
+        wireVersion: CHECK_WIRE_VERSION,
         sectionId: body.sectionId,
         items,
         solutions: options.check?.solutions ?? {},

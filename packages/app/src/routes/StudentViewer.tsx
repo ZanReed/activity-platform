@@ -30,7 +30,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { MARKS, markOnce, preloadMathIfNeeded } from '@activity/viewer';
+import { MARKS, markOnce, preloadGraphKitIfNeeded, preloadMathIfNeeded } from '@activity/viewer';
 import { useParams } from 'react-router';
 import {
   PrintButton,
@@ -58,10 +58,18 @@ import type {
 } from '@activity/viewer';
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
-import { supabase } from '../lib/supabase';
+import { MISSING_ENV, supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
 
-const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+// Built lazily so an env-less boot fails at the CALL with the same
+// MISSING_ENV message the D10 criterion standardized — not at module load,
+// and never as a request to `undefined/functions/v1` (A21, the D10 bug class
+// one route over: s3-audit missed-12).
+function functionsBase(): string {
+    const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    if (!url) throw new Error(MISSING_ENV);
+    return `${url}/functions/v1`;
+}
 
 /**
  * The one sign-in call, shared by the pre-auth gate and the expired-session
@@ -127,7 +135,7 @@ export default function StudentViewer() {
   const readClient = useMemo(
     () =>
       createReadClient({
-        baseUrl: `${FUNCTIONS_BASE}/get-activity`,
+        baseUrl: `${functionsBase()}/get-activity`,
         getAccessToken,
       }),
     [getAccessToken],
@@ -176,6 +184,10 @@ export default function StudentViewer() {
         // already knew, ~a render earlier. Fire-and-forget, and a no-op for a
         // document with no math — the chunk stays lazy and conditional.
         preloadMathIfNeeded(served.document);
+        // The same pattern for the HEAVIER chunk (A20): graph-kit's import
+        // used to fire from inside the mounting kit surface, a full render
+        // later than the document knowing it holds graph blocks.
+        preloadGraphKitIfNeeded(served.document);
 
         const storage = safeStorage();
 
@@ -207,6 +219,7 @@ export default function StudentViewer() {
             // versions agree. Idempotent when the served copy already started
             // the fetch.
             preloadMathIfNeeded(pinned.document);
+            preloadGraphKitIfNeeded(pinned.document);
             // We still have their version. Render it, let the queue fire
             // against it (the grader accepts non-current versions by design),
             // and let the stale banner offer the move on THEIR terms.
@@ -252,6 +265,7 @@ export default function StudentViewer() {
             // the readable-LaTeX fallback renders, which is what offline math
             // did before this existed.
             preloadMathIfNeeded(cached.document);
+            preloadGraphKitIfNeeded(cached.document);
             setState({
               phase: 'ready',
               source: 'offline',
@@ -296,8 +310,8 @@ export default function StudentViewer() {
       activityId,
       versionId,
       checkService: createHttpCheckService({
-        checkUrl: `${FUNCTIONS_BASE}/check-section`,
-        feedbackUrl: `${FUNCTIONS_BASE}/get-feedback`,
+        checkUrl: `${functionsBase()}/check-section`,
+        feedbackUrl: `${functionsBase()}/get-feedback`,
         getAccessToken,
       }),
     });

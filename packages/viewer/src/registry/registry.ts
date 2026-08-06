@@ -152,7 +152,7 @@ export const blockRegistry: BlockRegistry = {
     numbered: 'always',
     analyticsKey: 'fill_in_blank',
     sanitize: { strip: ['solution'], inlineBlankSecrets: true },
-    print: { breakInside: 'avoid', treatment: 'underline-blanks', answerKeyVariant: true },
+    print: { breakInside: 'avoid', treatment: 'underline-blanks' },
     a11y: {
       story:
         'Each blank is a text input in tab order with a label naming its ' +
@@ -223,7 +223,7 @@ export const blockRegistry: BlockRegistry = {
         'builtinFeedback',
       ],
     },
-    print: { breakInside: 'avoid', treatment: 'static-svg', answerKeyVariant: true },
+    print: { breakInside: 'avoid', treatment: 'static-svg' },
     a11y: {
       story:
         'The canvas is focusable; handles move by arrow keys with position ' +
@@ -247,7 +247,6 @@ export const blockRegistry: BlockRegistry = {
     print: {
       breakInside: 'avoid',
       treatment: 'choice-letters',
-      answerKeyVariant: true,
       // Printed versions rearrange the choices; a question that says "all of
       // the above" opts out per-block (D17A). NOT serveShuffled: the student
       // screen keeps the authored order, because the answer is the choice id
@@ -271,7 +270,7 @@ export const blockRegistry: BlockRegistry = {
     numbered: 'always',
     analyticsKey: 'matching',
     sanitize: { strip: ['key', 'solution'] },
-    print: { breakInside: 'avoid', treatment: 'letter-bank', answerKeyVariant: true },
+    print: { breakInside: 'avoid', treatment: 'letter-bank' },
     a11y: {
       story:
         'Pointer drag with a keyboard select-then-place grammar underneath: ' +
@@ -297,7 +296,6 @@ export const blockRegistry: BlockRegistry = {
     print: {
       breakInside: 'avoid',
       treatment: 'number-boxes',
-      answerKeyVariant: true,
       // The authored order is the answer, so paper must never show it. The
       // server already shuffles for students (serveShuffled above); teacher
       // print gets its own, because that path deliberately does not run the
@@ -331,7 +329,7 @@ export const blockRegistry: BlockRegistry = {
         'solution',
       ],
     },
-    print: { breakInside: 'avoid', treatment: 'static-svg', answerKeyVariant: true },
+    print: { breakInside: 'avoid', treatment: 'static-svg' },
     a11y: {
       story:
         'The line is focusable; points/interval endpoints move by arrow keys ' +
@@ -362,7 +360,7 @@ export const blockRegistry: BlockRegistry = {
     // WAS a faithful oddity (absent from the baseline break-inside:avoid list,
     // unlike the graph and number-line canvases). FIXED by ruling S5-OV6 — a
     // chart split across a page boundary is unreadable.
-    print: { breakInside: 'avoid', treatment: 'static-svg', answerKeyVariant: true },
+    print: { breakInside: 'avoid', treatment: 'static-svg' },
     a11y: {
       story:
         'Chart-building controls are focusable; dots/bars/box handles adjust ' +

@@ -89,7 +89,9 @@ export async function listClasses(): Promise<ClassInfo[]> {
     return ((data ?? []) as ClassRow[]).map(rowToClass);
 }
 
-export interface CreateClassInput {
+// Unexported (A17): zero external importers — the shape is visible through
+// createClass's signature, which is how every caller consumes it.
+interface CreateClassInput {
     name: string;
     /** Raw teacher input; normalized here. */
     expectedDomain: string;

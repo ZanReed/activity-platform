@@ -63,11 +63,12 @@ export type SectionStatus =
   | {
       phase: 'error';
       message: string;
-      /** Which failure this was (S4 T8). The UI needs it to decide whether to
-       * offer Retry at all: a stale tab and an offline blip both fail a check,
-       * but only one of them can be fixed by pressing the same button again. */
+      /** Which failure this was (S4 T8) — the one field a future retry
+       * affordance decides from. (A `retryable` boolean used to ride along:
+       * derived, copied, persisted, read by nothing — deleted 2026-08-06,
+       * A15. Removing an optional field narrows the shape compatibly, so no
+       * STORAGE version bump: old blobs carrying it still hydrate.) */
       kind?: CheckErrorKind;
-      retryable?: boolean;
     };
 
 /**

@@ -28,10 +28,15 @@ import { supabase } from './supabase';
 // purge is only complete if both sides mean the same string. A second literal
 // here would let the two drift silently — a buffer written under a prefix
 // sign-out doesn't scan is work left on a shared machine.
-export { VIEWER_STORAGE_PREFIX };
+// (A redundant `export { VIEWER_STORAGE_PREFIX }` re-export lived here —
+// deleted 2026-08-06, A17. The viewer OWNS the prefix (S6-V1 flipped
+// ownership precisely so two literals could not drift); import it from
+// '@activity/viewer' like this module does.)
 
-// Ruling 2.4A: prompt after ~30 minutes of inactivity.
-export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+// Ruling 2.4A: prompt after ~30 minutes of inactivity. Unexported (A17):
+// consumed only as the default parameter below; the S9 idle-chrome wiring
+// (cutover checklist C2) configures through the parameter, not the constant.
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
 /**
  * How long the idle prompt waits for an answer before signing out on its own
@@ -40,7 +45,7 @@ export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
  * period. Long enough that a student who stepped away mid-problem can come
  * back to it; short enough to beat the next class.
  */
-export const IDLE_GRACE_MS = 2 * 60 * 1000;
+const IDLE_GRACE_MS = 2 * 60 * 1000; // unexported (A17): default param only
 
 function purgePrefixed(storage: Storage): void {
     // Collect first — removing while iterating shifts key() indices.

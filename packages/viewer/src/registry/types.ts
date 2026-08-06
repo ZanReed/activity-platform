@@ -146,9 +146,10 @@ export interface PrintSpec {
   readonly treatment: PrintTreatment;
   /** Never strand this block at a page bottom (headings). */
   readonly keepWithNext?: boolean;
-  /** Participates in the answer-key print variant (showAnswers today; the T8
-   * teacher answer-key variant later). */
-  readonly answerKeyVariant?: boolean;
+  // NO answerKeyVariant field (deleted 2026-08-06, A18/P4): it restated
+  // "which types have a key" beside ANSWER_KEY_COVERAGE (answer-key/types.ts)
+  // — the map that actually gates, carries anti-vacuity guards, and disagreed
+  // with this field (9 types vs 7). One source; the coverage map is it.
   /**
    * Array fields this block must NOT print in its authored order (S5.5 D15A).
    *

@@ -19,15 +19,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 import { createEmptyDocument, upgradeActivityDocument } from '@activity/schema';
 import {
+  SANITIZER_REV,
+  createGetActivityHandler,
+  sanitizeActivityDocument,
+} from '../src/index.js';
+// Module-file imports, deliberately not the barrel: these are test-only
+// symbols the production bundles no longer re-export (A17).
+import {
   API_VERSION,
   META_MAX_PER_WINDOW,
   META_WINDOW_MS,
-  SANITIZER_REV,
-  createGetActivityHandler,
   createMetaRateLimiter,
   jwtSub,
-  sanitizeActivityDocument,
-} from '../src/index.js';
+} from '../src/server/get-activity-handler.js';
 import { censusOfDocument } from '../src/census/census.js';
 import type {
   CorsKit,

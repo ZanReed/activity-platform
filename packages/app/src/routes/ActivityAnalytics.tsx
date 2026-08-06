@@ -103,7 +103,13 @@ function jobHealth(job: AnalyticsPayload['job']): string {
     }
     const ranAt = new Date(job.last_run_at);
     const hoursAgo = (Date.now() - ranAt.getTime()) / 3_600_000;
-    const base = `Maintenance last ran ${formatWhen(job.last_run_at)} · ${job.section_check_rows.toLocaleString()} checks stored`;
+    // stale_cache_rows_deleted joins the line (A22): it was fetched, typed,
+    // and never rendered — and it is the one number that shows the nightly
+    // GC actually doing something rather than merely running.
+    const base =
+        `Maintenance last ran ${formatWhen(job.last_run_at)} · ` +
+        `${job.section_check_rows.toLocaleString()} checks stored · ` +
+        `${job.stale_cache_rows_deleted.toLocaleString()} stale cache rows swept`;
     return hoursAgo > STALE_AFTER_HOURS
         ? `${base} — that is more than a day ago, so the nightly job may have stopped.`
         : base;

@@ -558,7 +558,7 @@ describe('response fingerprint (drift detection input)', () => {
 
 describe('in-flight idempotency key survives a reload (ruling S6-3)', () => {
   // A REAL CheckError, not a bare Error: the production client always attaches
-  // `kind`/`retryable`, and a double that omits them takes a different branch
+  // `kind`, and a double that omits it takes a different branch
   // in the store (the untyped-error console.error path). Doubles that don't
   // match the thing they stand in for is how this repo previously shipped a
   // dead error path that every unit test agreed was fine.

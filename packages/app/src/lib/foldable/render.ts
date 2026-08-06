@@ -7,8 +7,11 @@
 // — the outside face then the inside face — so a double-sided print lands all
 // four panels on one landscape sheet that folds down the middle.
 //
-// The document shares the renderer's blockStyles/katexCss and the foldable
-// panel stylesheet (styles.ts) so what prints matches what was measured. On top
+// The document carries the `styleTags` cloned from the app document (the
+// viewer's stylesheets — the same set the measuring pass ran under; the old
+// "renderer blockStyles/katexCss" wording predated S5.5 T5 re-pointing this
+// at the viewer tree, A26) and the foldable panel stylesheet (styles.ts) so
+// what prints matches what was measured. On top
 // it layers the SHEET geometry: a landscape @page with zero margin (margins are
 // handled inside each panel), and a two-panel flex row per face with a faint
 // center fold guide. An @media screen block dresses the preview (grey mat,

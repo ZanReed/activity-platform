@@ -7,15 +7,21 @@
 // heights and content overflows the fold. We guarantee that by sharing ONE
 // stylesheet between the two contexts — this one.
 //
-// The renderer's own print rules live inside `@media print`, so they only take
-// effect when printing — invisible to an on-screen measuring iframe. This
-// stylesheet PROMOTES the relevant ones to unconditional rules (paper-twin
-// confidence row shown, interactive controls hidden, blanks as underlines), so
-// the measuring iframe sees exactly what the printer will. It is included AFTER
-// the renderer's `blockStyles` in both contexts, so on equal specificity it
-// wins — neutralizing the renderer's @media-print problem margins (the foldable
-// owns inter-block spacing via a single controlled flow gap, so a measured
-// border-box height plus one gap fully describes the stack).
+// Since S5.5 T5 the foldable composes the VIEWER tree (viewer.css vocabulary:
+// .viewer-row, .viewer-section, …); this sheet is included AFTER viewer.css in
+// both contexts, so on equal specificity it wins. Its job is to re-assert the
+// print-appropriate layout that viewer.css's screen rules would otherwise
+// override in the measuring iframe (which renders in SCREEN media), and to
+// own inter-block spacing via a single controlled flow gap, so a measured
+// border-box height plus one gap fully describes the stack.
+//
+// (Until 2026-08-06 this file also carried ~55 lines promoting the RENDERER's
+// @media-print rules — .js-checkpoint-btn, .blank-wrapper, .print-confidence,
+// .block-* — under a header describing the pre-T5 pipeline where render.ts
+// injected renderer styles. Every one of those class names is zero-hit in
+// viewer source: dead since the same slice that wrote the plan, which is why
+// it survived. Deleted per A26; policy P5 — the retirement grep'd for code,
+// not claims.)
 //
 // Layout note: blocks are placed as direct children of `.foldable-panel-content`
 // at the panel's exact content width. All block margins are zeroed and a single
@@ -85,61 +91,5 @@ body { margin: 0; padding: 0; background: #fff; }
   max-width: none;
   padding: 0;
 }
-
-/* Promote the renderer's @media-print element visibility to UNCONDITIONAL, so
-   the offscreen measuring pass sees the same elements the printer will. These
-   mirror the renderer styles.ts @media print hide/show lists exactly. */
-.identity-prompt,
-.submit-area,
-.js-checkpoint-btn,
-.js-section-score,
-.js-confidence-rating,
-.js-blank-hint,
-.js-blank-mistake,
-.js-popover,
-.js-solution { display: none !important; }
-
-.blank-wrapper { display: inline; }
-.blank,
-.blank.correct,
-.blank.incorrect {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid black;
-}
-
-/* Paper-twin confidence row (the interactive fieldset above is hidden). */
-.print-confidence {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.3rem 1.25rem;
-  margin-top: 0.5rem;
-  font-size: 0.9em;
-}
-.print-confidence-label { font-weight: 600; }
-.print-confidence-option {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  white-space: nowrap;
-}
-.print-confidence-box {
-  display: inline-block;
-  width: 0.85em;
-  height: 0.85em;
-  border: 1px solid black;
-  transform: translateY(0.1em);
-}
-
-/* Per-problem work space rides as padding so it's part of the measured box. */
-.block-problem,
-.block-fill-in-blank { padding-bottom: var(--print-work-space, 0); }
-
-/* Grayscale callout variants by border style (matches the baseline print layer). */
-.block-callout-info    { border-left-style: solid;  }
-.block-callout-warning { border-left-style: dashed; }
-.block-callout-success { border-left-style: double; }
-.block-callout-note    { border-left-style: dotted; }
 `.trim();
 }

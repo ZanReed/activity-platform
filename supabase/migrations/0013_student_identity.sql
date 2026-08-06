@@ -199,8 +199,13 @@ alter policy assignments_update_own on assignments
 -- left join pg_roles g on g.oid = a.grantee
 -- where p.proname = 'current_user_is_teacher';
 --
--- -- 4. Guards present. EXPECT: 5 rows (the five altered policies), each
--- --    containing 'current_user_is_teacher'.
+-- -- 4. Guards present. EXPECT: 6 rows, each containing
+-- --    'current_user_is_teacher' — the five policies THIS migration altered
+-- --    PLUS classes_insert_teacher, which 0014 writes with the guard built
+-- --    in and this query cannot help matching. (This footer said 5 long
+-- --    after ac30ba4 fixed the same count in verify-0013-0014.sql §B5 — the
+-- --    hand-copied-expectations lesson, A25: when one copy of an expectation
+-- --    is corrected, sweep every copy.)
 -- select tablename, policyname from pg_policies
 -- where schemaname = 'public'
 --   and coalesce(with_check, '') like '%current_user_is_teacher%';

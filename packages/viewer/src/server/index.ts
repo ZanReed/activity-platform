@@ -19,7 +19,6 @@ export {
 export type { UpgradeResult } from '@activity/schema';
 
 export {
-  SANITIZER_ALGO_REV,
   SANITIZER_REV,
   sanitizeActivityDocument,
   sanitizeBlock,
@@ -37,14 +36,11 @@ export type {
   VersionCensus,
 } from '../census/census.js';
 
-export {
-  API_VERSION,
-  META_MAX_PER_WINDOW,
-  META_WINDOW_MS,
-  createGetActivityHandler,
-  createMetaRateLimiter,
-  jwtSub,
-} from './get-activity-handler.js';
+// ONLY the handler factory: the Deno file imports createGetActivityHandler +
+// one type; every other symbol that used to ride here was test-only surface
+// shipping in the production bundle (A17, 2026-08-06 — tests import the
+// module file directly).
+export { createGetActivityHandler } from './get-activity-handler.js';
 export type {
   CorsKit,
   DbResult,

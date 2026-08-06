@@ -99,9 +99,11 @@ function collectInBandIds(
  * registry-declared so a container that forgets its childBlocks declaration
  * still can't get its children's ids mis-attributed.
  *
- * Exported because the answer-key extraction walks the AUTHORED document with
- * the same question to answer ("is this a nested block, or content of this
- * one?"). Two copies of a subtle heuristic drift; this one is the source. */
+ * Exported because the answer-key extraction, the census, AND the grading
+ * walk (since A24, 2026-08-06 — it carried a private copy for a slice
+ * generation) all answer the same question ("is this a nested block, or
+ * content of this one?"). Two copies of a subtle heuristic drift; this one
+ * is THE source, with zero copies remaining. */
 export function looksLikeBlockArray(value: unknown): boolean {
   return (
     Array.isArray(value) &&
