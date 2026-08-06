@@ -116,3 +116,88 @@ run independently of the review.
 8. **Review-time promises go on a tracked checklist with an owner slice** — the DX boomerang and the pre-S8 a11y pass fired no alarm when their slices shipped without them.
 9. **When a slice's headline lesson is "this check was vacuous," re-run that lesson over the fix** — S8's route smoke.
 10. **Keep the re-derive-against-shipped-reality review cadence** (S7's two pre-build shape changes were the arc's cheapest corrections) and **comments asserting counts/coverage are claims — guard them or don't make them**.
+
+---
+
+## RULINGS — eng review 2026-08-06 (all four outcomes settled; 0 unresolved)
+
+28 decisions (D2–D29). Outside voice: fresh-context subagent, 14 findings → 6 tensions
+ruled + 6 amendments accepted (absorbed below). Design pass only — **no fixes were made
+during the review**; execution order at the bottom.
+
+### B — all 15 ruled
+
+| # | Ruling |
+|---|---|
+| B1 | **Lift** the stale-version advisory into the route's single dedup chain. Enumerated priority: session-expired > storage-failure > work-stranded > offline-copy > pinned > stale-version. Comment rewritten to enumerate ALL arms; combined pinned+stale test. |
+| B2 | **Wire** `onStatusChange` into the route's banner chain (storage-failure arm + copy). The unwired-primitive exception: the message is worth wiring, not deleting. |
+| B3 | **Byte-budgeted LRU** on `documentCache` (~2 MB ≈ 50 activities, derived from the 5 MB origin quota — count-cap rejected as underived). Never evict an activity with unsent buffer work (reuse the V6 `bufferHasUnsentWork` exception). Evict-on-write-failure before surfacing B2's banner. Evicted offline copies self-heal on next online open; documented. Buffer itself stays unbounded (deliberate — one sentence in the design note). |
+| B4 | **Both directions**: every flush checks held-ness AT WRITE TIME (probe, not cached boolean) + re-hydrate buffer/store on `held` false→true BEFORE write authority returns (storage wins — the regainer's divergence is exactly the stale part). E2e: two new V7-matrix rows (steal: displaced tab's late flush never lands; handback: regainer sees thief's state), assert-the-guarantee style. |
+| B5 | **Fix and regenerate**: reset the `--touch-target` height floors in the print block, add a printExpectations height rule (red-green), re-token `viewer.css:857`'s hardcoded 44px, regenerate all 22 baselines in one **CSS-only** commit. Sequenced AFTER B15's archive. |
+| B6 | **Delete** the client seam (method + inert surfaces + header promise). Deployed `get-feedback` untouched until C15. The teacher-grading TODO owns the correct re-add. |
+| B7 | **Consume crash half** (StudentViewer passes `onCheckShortfall` → error log + store flag); **delete the unsupported half** until wire v3. Visible treatment deferred to the grading-UX era. |
+| B8 | **Typed `malformed_document`** failure code + walk integrity gate (design must distinguish authored-empty → grade as today, from structurally-broken → fail typed) + corpus cases red-green + **client mapping to its own non-retryable copy** (httpCheckService currently routes unknown codes to "our bug" — the code must not land unmapped). Additive wire change; grading-server bundle regen + `pnpm deploy:check`. A34's header documents the new posture. |
+| B9 | **Derive the natural bound** in a comment at the channel (solutions ⊆ sanitized doc ⊆ publish limit; names the coupling) + a handler test asserting solutions never enter `record_check`'s persisted columns. If they do, that's the defect — strip from persistence. In the batch. |
+| B10 | **Drop the under-13 clause**; POLICY_VERSION bump (shared with B11). DECISIONS records the consequence plainly: **v1 serves 13+ students only** — under-13 8th graders are out of scope until a school-authorization feature exists. **Counsel/district read of the pack gates the first real classroom** (distinct from S9; cutover may ship to a 13+ pilot). |
+| B11 | **Full pack rewrite** in one pass (400-day identity-retention disclosure into the student-facing policy; "teacher sees your name" → name and school email; Mechanics stops telling counsel the purge job doesn't exist; Privacy.tsx restores the dropped sentence), same single bump. Author reads the legal wording. Bump lands BEFORE B13's immutability migration. |
+| B12 | **Role into `SessionContext`** (one `users.role` select on auth-state change; UX-only trust — every data surface stays RLS-gated, one comment says so). Home branches to a minimal student view: **join-by-code UI + shareable `/join/:code` deep link** (code survives the OAuth redirect via redirectTo state; refused-account screen for personal-Gmail hits, `hd` param as the district hint) + joined-class activities + sign-out chrome (the 2.4A wiring). Roster sync (Google Classroom etc.) stays a future seam: all membership creation flows through `join_class`; nothing sync-specific built now. |
+| B13 | **One S9-prep slice with B12**: allowlist case-normalization (lower() both sides + normalize on insert), pass `hd` on sign-in, `expected_domain` format check + class-edit path, 13+ assertion immutability (strip the two columns from `classes_update_own`) + `class.create` audit writer. Migration-first; hard-sequenced BEFORE `student_domain` seeding (C4). Own verify script + e2e rows for the trigger's four branches at production values. |
+| B14 | **Two explicit actions, no default**: "Remove" / "Remove & regenerate code (prevents rejoin — invalidates the posted link for future joins)". Default-checked was reversed after the outside voice composed it with B12's shareable links. |
+| B15 | **Release asset**: zip the 44 PNGs + index.html, attach to an annotated tag (e.g. `s5.5-print-signoff`) BEFORE B5's print change; tag message notes the height fix postdates the sign-off; one-line pointer in HISTORY. **Pending author action** (tag + push). |
+
+### D — all 10 ratified (11 entries; P10 split)
+
+P1 **with the export-reachability / zero-non-test-importer lint added to the batch** (a
+policy that lives only in prose is itself an uncalled primitive); P2 with the
+"or documents why it diverges" clause; P3 keeps "at production values"; P10 split into
+10a (re-derive-before-build cadence) and 10b (count/coverage comments are guarded
+claims). **Home: one-line-per-policy "Verification policies (ratified 2026-08-06)" list
+in CLAUDE.md with retro cites + one DECISIONS rationale entry** — lands in the batch's
+docs tier.
+
+### A — GREENLIT as one batch, 41 items (~2.5–3 CC-days), tier order as written
+
+Amendments: **A1 excluded** (stays on its task chip). **A3**: arm `TIMING_TARGET_MS`
+from the **median of ≥5 CI runs** (never local darwin, never a single run) + add the
+missing `mathRendered` entry. **A15**: the `retryable`-field deletion stays in the
+batch; the student-facing copy half moves to the local-first slice so the banner chain
+is rewritten once. **A17**: also unexport `IDLE_TIMEOUT_MS`; `IDLE_GRACE_MS`/
+`CreateClassInput` only lose the `export` keyword (live in-file). **A18 ruled**: delete
+`answerKeyVariant` — `ANSWER_KEY_COVERAGE` is the single source (P4). **Additions**:
+G1 serve-seed → one shared symbol imported by `get-activity-handler.ts` and
+`servedOrder.ts` (bundle-boundary care per s2a c6; commit notes STATE's sanitize-flake
+watch item); G2 `jwtSub`/`jwtSubject` unify + ONE `UUID_RE` decision across 4 sites
+(if strict-everywhere: read-side function redeploys join Pending author actions);
+G3 print-path sentinel leak scan (`showAnswers=false` + foldable channel, existing
+`leakFixture`); G4 foldable pins (480px grid + `data-theme="light"`, in measure/render
+tests per s5.5a c1); the P1 lint; the D18 policy docs; a `timeout-minutes` line on the
+perf/sw/student CI job; B9's persistence test. **Bundle discipline**: every commit
+touching viewer/server or grading source regenerates its bundle in the same commit
+(viewer-server: A17/A18/G1/G2; grading-server: A24/A34/G1/G2). No function redeploy
+required by the batch itself.
+
+### C — CONFIRMED, now 15 gates
+
+C1–C10 as written, plus: **C11** the S9-prep identity slice (B12+B13+B14) BEFORE C4's
+seeding; **C12** the local-first safety set (B1/B2/B3/B4 rulings + A15 copy) before
+cutover; **C13** the POLICY_VERSION bump (B10/B11) before the first real class row AND
+before B13's immutability migration; **C14** B15's evidence capture before the renderer
+dies; **C15** delete `ingest-submission` + `get-feedback` at cutover after a
+zero-traffic check in edge logs (get-activity's anonymous META branch is NOT in this
+set — it serves the viewer's pre-auth screen and survives S9).
+
+### New TODOS approved
+
+- Privacy-guard content hash (pack files + rendered Privacy.tsx text pinned to
+  POLICY_VERSION), **blocked on the B11 rewrite landing first**; kills the s1a
+  tautology tests in the same visit.
+
+### Execution order (work packages)
+
+1. **B15 archive** (author: tag + asset) → 2. **A batch** (tiers in order; docs tier
+   carries policies + C-checklist STATE edit) → 3. **B5 print commit** (CSS-only) →
+4. **D2/D3 pack rewrite + bump** (author reads) → 5. **Local-first slice** (B1/B2/B3/
+   B4 + A15 copy) → 6. **B8 malformed slice** → 7. **S9-prep identity slice** (B12/B13/
+   B14; migration first, then seeding) → 8. **S9 itself gets its own design + eng
+   review** — the cutover was checklist-confirmed here, not scrutinized (outside-voice
+   finding 14, accepted as the next act).
