@@ -459,3 +459,39 @@ describe('jwtSubject', () => {
     spy.mockRestore();
   });
 });
+
+// -----------------------------------------------------------------------------
+// B9 (eng-review 2026-08-06): solutions are transient — released, never stored.
+// -----------------------------------------------------------------------------
+describe('the solutions channel is absent from the persisted row (B9)', () => {
+  it('releases solutions in the response and keeps them OUT of record_check', async () => {
+    // The leak fixture: every solution populated with the RELEASABLE sentinel.
+    const { RELEASABLE, STR, fullyLoadedDocument } = await import(
+      '../src/fixtures/leakFixture.js'
+    );
+    const leakDoc = fullyLoadedDocument() as unknown as {
+      sections: Array<{ id: string }>;
+    };
+    const h = harness({
+      readVersion: async () => ({ data: { content: leakDoc }, error: null }),
+    });
+
+    const res = await h.handler(
+      post(validBody({ sectionId: leakDoc.sections[0]!.id })),
+    );
+    expect(res.status).toBe(200);
+
+    // Release fired — the scan below cannot pass vacuously.
+    const responseJson = JSON.stringify(await res.json());
+    expect(responseJson).toContain(RELEASABLE);
+
+    // The persisted row: one record, carrying NO solution content and no
+    // answer material. section_checks rows live ~400 days; every re-check
+    // mints another — solutions riding along would multiply stored bytes for
+    // a year-plus per formative loop (s4-audit missed-12).
+    expect(h.recorded()).toHaveLength(1);
+    const persisted = JSON.stringify(h.recorded());
+    expect(persisted).not.toContain(RELEASABLE);
+    expect(persisted).not.toContain(STR);
+  });
+});

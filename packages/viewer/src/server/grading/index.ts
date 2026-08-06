@@ -167,6 +167,15 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
   }
 
   // ---- solutions ------------------------------------------------------------
+  // SIZE BOUND, by derivation rather than by cap (eng-review B9, 2026-08-06):
+  // every value here is a subset of the stored document, and documents are
+  // bounded at publish — so the response inherits that bound and needs no
+  // truncation (which would cut a worked example mid-step). The bound is
+  // COUPLED to the publish limit: loosen that and this channel loosens with
+  // it. The persistence leg is separate and guarded: record_check persists
+  // responses + verdicts for ~400 days, and the handler suite asserts
+  // solutions NEVER ride into that row — the response is transient, the row
+  // is not, and the storage multiplier lives in the row.
   const solutions: Record<string, unknown[]> = {};
   for (const { blockId, solution } of inv.solutions) {
     solutions[blockId] = sanitizeOut(solution);
