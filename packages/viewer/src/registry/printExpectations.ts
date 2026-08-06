@@ -587,9 +587,16 @@ export const structuralPrintRoster: readonly {
     id: 'structure/block-sizing',
     rule: 'Per-block footprint sizing (width preset, work space) is honored on paper — footprint control is the point of the feature.',
   },
+  // 'structure/section-confidence' was DELETED here (eng-review A10,
+  // 2026-08-06): the viewer has no section-confidence feature — the string
+  // "confidence" appears nowhere in viewer source outside this file — so the
+  // entry described renderer behavior that dies at S9, and no e2e could ever
+  // assert it. If a viewer confidence feature lands, the entry returns WITH
+  // its spec: the roster↔titles cross-check (printRosterCrossCheck.test.ts in
+  // the app package) refuses a declared id with no test, in both directions.
   {
-    id: 'structure/section-confidence',
-    rule: 'A section with confidence-rating problems prints hand-tickable boxes in place of the interactive fieldset.',
+    id: 'structure/reserved-work-space',
+    rule: 'An authored reserved work-space floor reaches paper — the teacher sized the answer area on purpose.',
   },
   {
     id: 'structure/section-flow',

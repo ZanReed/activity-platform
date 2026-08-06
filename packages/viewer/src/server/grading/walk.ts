@@ -25,6 +25,7 @@
 // keys, hints, and solutions the served document had stripped.
 // =============================================================================
 
+import { PROMPT_CARRIER_TYPES } from '../../sanitize/promptCarriers.js';
 import type { BlankKey } from './blanks.js';
 import type { RawGraphBlock } from './graphs.js';
 
@@ -57,8 +58,21 @@ export interface GradableInventory {
   solutions: Array<{ blockId: string; solution: unknown[] }>;
 }
 
-const FREE_TEXT_TYPES = new Set(['self_explanation', 'short_answer', 'essay']);
-const GRAPH_TYPES = new Set(['interactive_graph', 'number_line', 'data_plot']);
+// Exported for the roster-bond test ONLY (rosterBonds.test.ts) — these two
+// Sets restate registry facts (family 'recorded'; deriveQuestionShape) that
+// this module deliberately does not import the registry to derive, and a
+// hand-list that restates a registry fact is a claim that needs a guard (A7,
+// policy P10b). Production code must keep consuming them from here.
+export const FREE_TEXT_TYPES = new Set([
+  'self_explanation',
+  'short_answer',
+  'essay',
+]);
+export const GRAPH_TYPES = new Set([
+  'interactive_graph',
+  'number_line',
+  'data_plot',
+]);
 
 /** Project a raw BlankToken onto the grading key shape. */
 function blankTokenToKey(node: Record<string, unknown>): BlankKey {
@@ -109,7 +123,8 @@ function mathPromptToKey(node: Record<string, unknown>): BlankKey {
   };
 }
 
-const PROMPT_CARRIER_TYPES = new Set(['math_inline', 'math_block']);
+// PROMPT_CARRIER_TYPES is imported from sanitize/promptCarriers.ts — the ONE
+// declaration both the sanitizer's deep strip and this walk consume (A7).
 
 /** Collect in-band keys (blanks + math gaps) belonging to THIS block, at any
  * depth short of a nested child block. */

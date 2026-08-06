@@ -40,6 +40,8 @@ const h = vi.hoisted(() => ({
     /** What `activities` currently holds. Tests mutate it mid-flight to model a
      *  second tab writing while this page is open. */
     row: { current: null as Record<string, unknown> | null },
+    /** Non-null models the activities SELECT failing outright (A12). */
+    loadError: { current: null as { message: string } | null },
     version: { current: null as Record<string, unknown> | null },
     /** Every update payload the route sent, in order. */
     updates: [] as Array<Record<string, unknown>>,
@@ -52,7 +54,10 @@ vi.mock('../lib/supabase', () => {
         select: () => ({
             eq: () => ({
                 is: () => ({
-                    maybeSingle: async () => ({ data: h.row.current, error: null }),
+                    maybeSingle: async () => ({
+                        data: h.loadError.current ? null : h.row.current,
+                        error: h.loadError.current,
+                    }),
                 }),
             }),
         }),
@@ -123,6 +128,7 @@ function renderRoute() {
 beforeEach(() => {
     h.updates.length = 0;
     h.row.current = { id: ACTIVITY_ID, title: 'T', draft_content: authored(), current_version_id: null };
+    h.loadError.current = null;
     h.version.current = null;
 });
 afterEach(cleanup);
@@ -307,5 +313,39 @@ describe('saving a print setting (ruling D20A)', () => {
         // The other tab's work is still there. Before D20A this assertion
         // failed: the route wrote back the stale document it had loaded.
         expect(written.meta.title).toBe('Edited in another tab');
+    });
+});
+
+// -----------------------------------------------------------------------------
+// A12 (eng-review 2026-08-06): a non-owner NEVER reaches a rendered key.
+// -----------------------------------------------------------------------------
+// Route-level protection for the answer key is one RLS policy deep
+// (s5.5-audit missed-6): RequireAuth checks session only, so a signed-in
+// STUDENT can navigate here — what stops them is activities_select_own
+// returning no row, after which extractAnswerKey must never have anything to
+// run on. Correct design, previously untested at every level: nothing
+// asserted the empty/error branches land on their screens rather than a
+// rendered key.
+describe('non-owner / failed load never renders a key (A12)', () => {
+    it('RLS-empty load (the not-my-activity case) → not-found screen, zero key nodes', async () => {
+        h.row.current = null; // RLS filters foreign rows: no row, no error
+        renderRoute();
+        await waitFor(() =>
+            expect(screen.getByText('Activity not found')).toBeInTheDocument(),
+        );
+        expect(document.querySelector('.viewer')).toBeNull();
+        expect(document.querySelectorAll('[data-answer-key]')).toHaveLength(0);
+    });
+
+    it('failed fetch → error screen, zero key nodes', async () => {
+        h.loadError.current = { message: 'permission denied for table activities' };
+        renderRoute();
+        await waitFor(() =>
+            expect(
+                screen.getByText(/permission denied for table activities/),
+            ).toBeInTheDocument(),
+        );
+        expect(document.querySelector('.viewer')).toBeNull();
+        expect(document.querySelectorAll('[data-answer-key]')).toHaveLength(0);
     });
 });

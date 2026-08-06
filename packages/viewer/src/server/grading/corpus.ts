@@ -27,11 +27,15 @@
 // pinned by the golden corpus", scoped to the half that actually was ported.
 // Per-variant graph dispatch is covered in grading-section.test.ts instead.
 //
-// INTENTIONAL DIFFERENCES ARE DATA, NOT EXCEPTIONS. Two rulings deliberately
-// changed behavior (G1 normalization, 2.1A's hint fallback). Those cases carry
-// `runtimeDiffers` with the reason, so the gate asserts the difference EXISTS
-// rather than tolerating it — a silent regression back to the old behavior
-// fails, and so does an undeclared new divergence.
+// INTENTIONAL DIFFERENCES ARE DATA, NOT EXCEPTIONS. The G1 normalization
+// ruling deliberately changed behavior; its cases carry `runtimeDiffers` with
+// the reason, so the gate asserts the difference EXISTS rather than tolerating
+// it — a silent regression back to the old behavior fails, and so does an
+// undeclared new divergence. (2.1A's hint-fallback divergence is NOT here —
+// the corpus has no feedback column at all; that path is pinned by
+// check-leak.test.ts's released-channel cases and the blank-feedback suite.
+// This header once claimed a 2.1A case that never existed: a coverage claim
+// in a comment is a claim — guard it or don't make it, policy P10b.)
 // =============================================================================
 
 import type { BlankKey } from './blanks.js';

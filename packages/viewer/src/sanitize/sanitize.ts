@@ -34,6 +34,7 @@ import {
   blockRegistry,
   registeredBlockTypes,
 } from '../registry/registry.js';
+import { PROMPT_CARRIER_TYPES } from './promptCarriers.js';
 import type {
   SanitizedActivityDocument,
   SanitizedBlock,
@@ -117,8 +118,9 @@ function applyStripPath(block: Record<string, unknown>, path: string): void {
 // -----------------------------------------------------------------------------
 // In-band secrets — the unconditional deep walk (layer 3)
 // -----------------------------------------------------------------------------
-
-const PROMPT_CARRIER_TYPES = new Set(['math_inline', 'math_block']);
+// PROMPT_CARRIER_TYPES is single-sourced (promptCarriers.ts) — the grading
+// walk consumes the same roster, and two declarations drifted-risk a silent
+// leak or a silent mis-grade (A7).
 
 function stripInBandSecrets(value: unknown): void {
   if (Array.isArray(value)) {

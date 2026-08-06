@@ -7,6 +7,8 @@ import {
   renderDefinitionGlossary,
 } from '../src/definition-glossary.js';
 import { renderActivity, renderActivityForPrint } from '../src/document.js';
+import { collectDefinitions as viewerCollectDefinitions } from '@activity/viewer';
+import { authoredFixtureDocument } from '@activity/viewer/fixtures';
 
 const META = {
   title: 'T',
@@ -231,5 +233,41 @@ describe('printDefinitionGlossary gate', () => {
     const at = html.indexOf('<aside class="definition-glossary"');
     expect(at).toBeGreaterThan(html.indexOf('<section class="activity-section"'));
     expect(at).toBeLessThan(html.indexOf('<div class="submit-area">'));
+  });
+});
+
+// -----------------------------------------------------------------------------
+// A9 bond (eng-review 2026-08-06): the viewer's ported copy, held equal
+// -----------------------------------------------------------------------------
+describe('the ported viewer copy stays equal (the bond the retired gate orphaned)', () => {
+  // print/definitions.ts in the viewer is a PORT of this module, not an import
+  // — the viewer must not depend on the package it replaces. The original
+  // containment plan ("the parity gate's document fixture holds them equal")
+  // died when the cross-surface gate retired in 29ea4f5 (s5.5-retro finding
+  // 8); THIS test is the replacement bond. It lives in the RENDERER's suite
+  // deliberately: the suite dies with the renderer at S9, in the same breath
+  // as the copy-delete it guards (cutover checklist C8) — so the bond can
+  // never outlive its subject and dangle.
+  it('agrees with the renderer on the shared fixture corpus document', () => {
+    const doc = authoredFixtureDocument();
+    const entries = collectDefinitions(doc);
+    expect(entries.length).toBeGreaterThan(0); // the empty-fixture trap
+    expect(viewerCollectDefinitions(doc)).toEqual(entries);
+  });
+
+  it('agrees on dedup, case-collapse, and alphabetical order', () => {
+    const doc = docWith([
+      term('Slope', 'rise over run'),
+      term('intercept', 'where the line crosses the axis'),
+      term('slope', 'second sense — must lose: first occurrence wins'),
+      term('Axis', 'a reference line'),
+    ]);
+    const rendererEntries = collectDefinitions(doc);
+    expect(viewerCollectDefinitions(doc)).toEqual(rendererEntries);
+    expect(rendererEntries.map((e) => e.term.toLowerCase())).toEqual([
+      'axis',
+      'intercept',
+      'slope',
+    ]);
   });
 });

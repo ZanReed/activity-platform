@@ -18,10 +18,15 @@
 //
 // PORTED, deliberately, from packages/renderer/src/definition-glossary.ts
 // rather than imported from it. The viewer must not take a dependency on the
-// renderer it is replacing — the renderer dies at S5.5 and this would become a
-// dangling import. Two copies exist only until then, and the parity gate's
-// document fixture holds them equal meanwhile by asserting the same appendix on
-// both surfaces. Same posture as S4-6 (scorer duplication contained by one
+// renderer it is replacing — the renderer dies at S9 (publish-activity is its
+// one remaining consumer) and this would become a dangling import. Two copies
+// exist until then, held equal by the bond test in the RENDERER's suite
+// (packages/renderer/tests/definition-glossary.test.ts — placed there so the
+// bond dies with the renderer, in the same breath as the copy-delete on the
+// S9 cutover checklist, C8). The original containment plan named the
+// cross-surface parity gate, which retired in S5.5 before the renderer did —
+// the lesson that became policy P5 (a comment citing a guard rots when the
+// guard retires). Same posture as S4-6 (scorer duplication contained by one
 // shared corpus, not by refactoring code that is about to be deleted).
 // =============================================================================
 

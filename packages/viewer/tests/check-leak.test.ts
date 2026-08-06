@@ -348,3 +348,88 @@ describe('the in-band deep walk covers the check channel too', () => {
     expect(wire).toContain('substitute and simplify');
   });
 });
+
+// -----------------------------------------------------------------------------
+// A13 (eng-review 2026-08-06): poison the RELEASED channels, not just solution.
+// -----------------------------------------------------------------------------
+describe('the deep walk covers the hint and mistake-feedback channels too', () => {
+  it('strips a blank inside a released HINT and a math gap inside released feedback', () => {
+    // The two cases above poison `solution`; `hint` and
+    // `mistakeFeedback[].feedback` ride the same post-check release path
+    // (ruling 2.1A) and were never poisoned — so a green suite could not
+    // distinguish "sanitizeOut covers the feedback channel" from "nothing
+    // ever tested it" (s4-retro finding 10). Two blanks, two release paths,
+    // and BOTH readable payloads are asserted present so neither strip can
+    // pass by the channel simply not firing (the vacuous-pass family).
+    const poisoned = structuredClone(doc);
+
+    const blanks: Array<Record<string, unknown>> = [];
+    const findBlanks = (v: unknown): void => {
+      if (Array.isArray(v)) {
+        for (const item of v) findBlanks(item);
+        return;
+      }
+      if (v === null || typeof v !== 'object') return;
+      const node = v as Record<string, unknown>;
+      if (node.type === 'blank' && typeof node.id === 'string') blanks.push(node);
+      for (const value of Object.values(node)) findBlanks(value);
+    };
+    findBlanks(poisoned);
+    expect(blanks.length).toBeGreaterThanOrEqual(2);
+
+    // Blank 1: anticipated-mistake feedback MATCHES the wrong answer the
+    // submission gives, so its feedback content is released — carrying a
+    // poisoned math gap that must be stripped in flight.
+    blanks[0]!.mistakeFeedback = [
+      {
+        match: 'deliberately-wrong-answer',
+        feedback: [
+          { type: 'text', text: 'sign error — flip the inequality' },
+          {
+            type: 'math_inline',
+            latex: 'x = \\placeholder[hp]{}',
+            prompts: [
+              {
+                id: 'hp',
+                answer: 'POISONED_FEEDBACK_GAP_ANSWER',
+                acceptableAnswers: ['POISONED_FEEDBACK_GAP_ALT'],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    // Blank 2: NO matching mistake entry, so the hint fallback releases —
+    // carrying a poisoned blank token that must be stripped in flight.
+    blanks[1]!.mistakeFeedback = [];
+    blanks[1]!.hint = [
+      { type: 'text', text: 'try isolating the variable first' },
+      {
+        type: 'blank',
+        id: 'hint-poison',
+        answer: 'POISONED_HINT_ANSWER_VALUE',
+        acceptableAnswers: ['POISONED_HINT_ALTERNATE'],
+        tolerance: 123456.789,
+      },
+    ];
+
+    const wire = JSON.stringify(
+      gradeSection({
+        document: poisoned as never,
+        sectionId,
+        responses: wrongAnswerSubmission(),
+      }),
+    );
+
+    // Both release paths actually fired…
+    expect(wire).toContain('sign error — flip the inequality');
+    expect(wire).toContain('try isolating the variable first');
+    // …and neither carried its poison.
+    expect(wire).not.toContain('POISONED_FEEDBACK_GAP_ANSWER');
+    expect(wire).not.toContain('POISONED_FEEDBACK_GAP_ALT');
+    expect(wire).not.toContain('POISONED_HINT_ANSWER_VALUE');
+    expect(wire).not.toContain('POISONED_HINT_ALTERNATE');
+    expect(wire).not.toContain('123456.789');
+  });
+});
