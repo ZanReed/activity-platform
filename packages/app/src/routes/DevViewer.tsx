@@ -57,7 +57,7 @@ const VERSION_ID = 'bbbbbbbb-0000-4000-8000-000000000001';
 const DEV_USER_ID = 'dddddddd-0000-4000-8000-00000000dev0';
 
 export default function DevViewer() {
-  // Deep-linkable so the print-parity gate can drive ONE fixture at a time:
+  // Deep-linkable so the print gate can drive ONE fixture at a time:
   // /dev/viewer?type=multiple_choice&variant=1&font=lexend. Read once as the
   // initial state — the controls still work normally afterwards.
   const params = new URLSearchParams(
@@ -153,7 +153,7 @@ export default function DevViewer() {
 
   /**
    * Document- and structure-level print features, driven by query params so the
-   * print-parity gate can exercise them. These are NOT block features — they
+   * print gate can exercise them. These are NOT block features — they
    * are the layer the per-block fixture roster is structurally blind to
    * (rulings S5-OV1 and S5-OV2), so without a way to turn them on the gate's
    * document and structural rosters would have nothing to assert against.

@@ -23,6 +23,20 @@
 // This walk reads the RAW document. That is what makes `ordering` gradable at
 // all (its authored item order IS the key) and what gives the grader the answer
 // keys, hints, and solutions the served document had stripped.
+//
+// MALFORMED-DOCUMENT POSTURE (interim — declared per A34, DECIDED per D10):
+// today this walk THROWS NOTHING. Every field is defensively narrowed, so a
+// structurally broken block produces a MARK (unscored, or graded against an
+// empty key) rather than a typed failure — the student sees a confident wrong
+// verdict and nobody sees an error. That posture was undeclared for a slice
+// generation (s4-audit missed-9); it is now declared AND ruled against: the
+// 2026-08-06 eng review (D10) ruled a typed `malformed_document` failure —
+// walk gains an integrity gate distinguishing authored-empty (legitimately
+// ungradable, today's behavior stays) from structurally-broken (fail typed),
+// with corpus cases and a client mapping. Until that slice lands, silent
+// coercion is the KNOWN behavior here, not an accident. In its favor: the
+// defensive narrowing is what contained S7's real-world malformed case
+// (schemaVersion-1 documents) safely.
 // =============================================================================
 
 import {

@@ -65,8 +65,8 @@ export default function Privacy() {
               recognizes your work.
             </li>
             <li>
-              <span className="font-medium">Class memberships</span> — from the
-              join code you enter.
+              <span className="font-medium">Class memberships</span> —
+              created when you join a class with a join code.
             </li>
             <li>
               <span className="font-medium">

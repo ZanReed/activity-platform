@@ -406,3 +406,31 @@ amendment.
 
 **Context:** surfaced in the S8 /plan-eng-review long-term audit (2026-08-05, T1
 ruling; rulings in the gstack design doc → S8 section).
+
+## Privacy-guard content hash (after the compliance-pack rewrite)
+
+**What:** Strengthen the compliance-pack guard from string-presence (`toContain`) to a
+content hash over the student-facing pack files + the rendered `Privacy.tsx` text,
+pinned beside `POLICY_VERSION` — so wording and version can only move together.
+
+**Why:** The current guard asserts presence only, and the S1 audit found the
+assertion-text tests are tautologies (they compare the constant to itself) — a material
+wording edit without a version bump passes everywhere, which defeats
+`assertion_text_version`'s entire purpose (distinguishing wording generations on the
+legal record). The 2026-08-06 eng review ruled the first real POLICY_VERSION bump
+(B10/B11); after that rewrite the wording is finally load-bearing enough to deserve a
+real guard.
+
+**⚠ Sequencing (the reason this is a TODO and not part of the rewrite):** land it
+AFTER the D2/D3 pack rewrite — hashing the current text would pin the drift the rewrite
+exists to fix. Kept out of the rewrite commit itself so the legal-wording diff stays
+reviewable by the author without mechanical guard noise (eng review D23).
+
+**Bonus in the same visit:** delete the tautology tests (`classes.test.ts:108` and
+friends) the hash guard supersedes; add a one-line howto in the test for re-pinning the
+hash on a deliberate wording change (the friction is the feature).
+
+**Where to start:** the presence-only guard the privacy-version test already runs;
+`packages/app/src/lib/policyVersion.ts`; `docs/compliance/*.md`.
+
+**Context:** eng review 2026-08-06 (D23), from s1-retro audit findings 9/12.

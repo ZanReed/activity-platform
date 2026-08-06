@@ -40,6 +40,20 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - UX is a priority: performance budget, optimistic autosave, visible state indicators, predictable shortcuts.
 - More in `docs/COLLABORATION.md`.
 
+## Verification policies (ratified 2026-08-06, eng review — rationale in DECISIONS.md → "Eleven verification policies")
+
+P1. **A primitive is not delivered until something calls it** — ship the caller or a tracked xfail; enforced by `scripts/tests/export-reachability.test.mjs` (s1/s3/s4/s6 retros, 8+ instances).
+P2. **E2E route mocks derive from production constants, never retyped** — or document why they diverge (s4:7 — the check-URL bug was invisible to its own test).
+P3. **Dormant safeguards need a liveness proof, at production values** — force every throttle/quota/gate to fire once before crediting it (s2:1, s4a, s8a — three generations of the gap).
+P4. **Rosters are derived or cross-checked, never merely written** (s0/s5 — the derived roster never drifted; the written one drifted in three days).
+P5. **Retiring a guard requires auditing every comment that cites it**; a ported copy's bond must outlive the port's timeline assumption (s5.5:8/9 — S9's renderer deletion runs this as a claims-grep).
+P6. **Deploy-time flags live in declarative config with a verification step** — a decision recorded only in an npm script is not recorded (s2a; `supabase/config.toml` is the instance).
+P7. **A verification script that writes durable rows owns its residue end-to-end** — run-scoped cleanup, printed before and after, co-readers named (s4a/s7a — the S4 residue silently vacated verify-0022 C1).
+P8. **Review-time promises go on a tracked checklist with an owner slice** — never only in prose (s1/s3 — the DX boomerang and the pre-S8 a11y pass rotted silently).
+P9. **When a check's headline lesson is "this was vacuous," re-run that lesson over the fix** (s8a — the fix for the vacuous route smoke shipped its own vacuity).
+P10. **Re-derive plans against shipped reality before building** (s7 — the arc's cheapest corrections came from pre-build re-derivation).
+P11. **Comments asserting counts or coverage are claims — guard them or don't make them** (s3/s4 — "the one cast" above 24 casts; the corpus's phantom case).
+
 ## Standing constraints
 
 - **Pure renderer.** `@activity/renderer` is JSON-in, HTML-string-out. No I/O, no environment reads at render time. The runtime is the exception that proves the rule — its text is baked in at build time as a string constant.
@@ -66,7 +80,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - Don't regress flowing-water UX as features land — performance budget, optimistic autosave, visible state indicators, predictable shortcuts. Flag friction risks proactively.
 - Don't mix `@tiptap/*` package versions. Update the family together.
 - Don't make breaking changes to the runtime data-attribute contract. Add new attributes; never rename or remove existing ones.
-- Don't import `@activity/schema` from the runtime. Parallel types are deliberate; the runtime size budget (40 KiB target / 60 KiB ceiling, amended 2026-07-10) rules out Zod. Wire format is the contract.
+- Don't import `@activity/schema` from the runtime. Parallel types are deliberate; the runtime size budget (`RUNTIME_SIZE_TARGET`/`RUNTIME_SIZE_CEILING` in `scripts/perf-budgets.mjs` — the ONE home for every size number, D5; don't restate values here) rules out Zod. Wire format is the contract.
 - **Don't mutate the DOM outside `render()`.** The single permitted exception is `applyStoredState` setting `input.value` during bootstrap restoration, before the initial render runs and before handlers attach. Every other DOM mutation goes through render.
 - **Don't query the DOM outside `init.ts`.** All `querySelector` / `querySelectorAll` against arbitrary subtrees happens once at init; downstream consumes typed refs.
 - **Don't widen the persistence schema without bumping `STORAGE_SCHEMA_VERSION`.** Load returns null on mismatch (fresh state, which is correct behavior); silently accepting wider shapes risks reading stale incompatible data.

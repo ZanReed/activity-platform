@@ -104,8 +104,8 @@ function Roster({ classId }: { classId: string }) {
     if (active.length === 0)
         return (
             <p className="mt-2 text-sm text-muted">
-            No students yet. Share the join code with your class — students sign
-            in with their school Google account and enter it.
+            No students yet. Once student sign-in opens, share the join code —
+            students sign in with their school Google account and enter it.
             </p>
         );
 

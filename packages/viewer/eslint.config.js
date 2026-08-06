@@ -33,10 +33,13 @@ export default tseslint.config(
   // again, and a re-import would go unnoticed until S9 deletes the package and
   // the app breaks for reasons nobody connects to this change.
   //
-  // SCOPED TO SOURCE, DELIBERATELY. packages/app/e2e is exempt: the print
-  // parity gate, the answer-key gate and the contact-sheet generator import the
-  // renderer ON PURPOSE, because comparing the two surfaces is the whole point
-  // of them. They retire with the renderer, not before it.
+  // SCOPED TO SOURCE, DELIBERATELY — though the original justification has
+  // thinned (A27): the cross-surface parity gate and the contact-sheet
+  // generator this exemption was written for were DELETED in the S5.5
+  // retirement (29ea4f5), and no e2e imports the renderer today. The scope
+  // stays src-only because tests/ may still legitimately reach the renderer
+  // (the glossary bond in the RENDERER's suite is the pattern — a bond that
+  // dies with the package it guards, C8).
   {
     files: ['src/**/*.{ts,tsx}'],
     rules: {

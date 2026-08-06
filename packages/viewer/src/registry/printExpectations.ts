@@ -422,7 +422,9 @@ const SUPPRESSED: Partial<Record<BlockType, Readonly<Record<string, string>>>> =
 // -----------------------------------------------------------------------------
 
 /**
- * Every print rule that must hold for one block instance, on both surfaces.
+ * Every print rule that must hold for one block instance on the viewer print
+ * surface. ("On both surfaces" until the cross-surface half retired with the
+ * renderer's gate, 29ea4f5 — A27.)
  *
  * Composition, in order:
  *   1. break-inside / break-after — DERIVED from the registry's PrintSpec.
@@ -638,6 +640,6 @@ export const documentPrintRoster: readonly {
   },
   {
     id: 'document/typography',
-    rule: 'A teacher-chosen worksheet font is applied by NAME on both surfaces (never pixel-compared — the font pipelines differ by design).',
+    rule: 'A teacher-chosen worksheet font is applied by NAME (never pixel-compared — the historical cross-surface comparison retired with the renderer gate).',
   },
 ];

@@ -295,8 +295,10 @@ export default function ActivityPrint() {
         savePrint,
     );
 
-    // Journal foldable — still the renderer's own document in its own iframe
-    // until T5 re-points it. Rebuilt whenever its inputs change while active.
+    // Journal foldable — composed from the VIEWER tree (T5 re-pointed it in
+    // the same slice that wrote the old "until T5" promise here; the comment
+    // outlived its own fulfilment for a slice generation — A27/P5). Rebuilt
+    // whenever its inputs change while active.
     useEffect(() => {
         if (layout !== 'foldable' || !authoredDoc) return;
         let cancelled = false;

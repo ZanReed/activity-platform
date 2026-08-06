@@ -3,8 +3,10 @@
 **Scope:** slice S6 of the components-as-data rewrite (2026-08-02, V1–V10:
 buffer `ca80e74`, queue `e5d2001`, tab lock `e8e212e`, sign-out `039f0ec`,
 e2e harness `fe35a8e`, boot paths `9335aed`, failure matrix `a85f914`, service
-worker `69fbc01`, preview-build lane `80c76e2`, close-out `7d6f59`-era docs;
-plus the post-slice test-race fix `f0df8b5`), reviewed after S7–S8 and before
+worker `69fbc01`, preview-build lane `80c76e2`; V1–V9 plus the close-out docs
+commit `7d18b87` — the original scope line cited `7d6f59`, which is not a
+commit, and invented a V10 rung (own audit, correction 1); plus the post-slice
+test-race fix `f0df8b5`), reviewed after S7–S8 and before
 S9. **Evidence base:** the V1–V10 build narrative, five DECISIONS entries, the
 S1/S3/S4 retro surveys (which each traced S6's seams from their own side), and
 current-state spot-checks (the sw fixme, cache producers, e2e counts). An

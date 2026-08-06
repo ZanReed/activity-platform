@@ -1062,10 +1062,11 @@
    -----------------------------------------------------------------------------
    What a student prints is the BLANK version of the worksheet: no check chrome,
    no marks, no revealed solutions, blanks neutralized to writing lines. The
-   parity gate (packages/app/e2e/print-parity.e2e.ts) asserts these rules on
-   this surface AND on the retiring renderer's published page, driven by
-   registry/printExpectations.ts — so this block and that table are two
-   expressions of one contract, and the gate fails if they disagree.
+   print gate (packages/app/e2e/print-rules.e2e.ts — named print-parity until
+   the cross-surface half retired with the renderer's gate, A27) asserts these
+   rules on this surface, driven by registry/printExpectations.ts — so this
+   block and that table are two expressions of one contract, and the gate
+   fails if they disagree.
 
    Colour is not a channel here. A worksheet is photocopied, faxed, and printed
    on a school laser printer with a dying toner cartridge, so every distinction

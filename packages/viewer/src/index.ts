@@ -53,9 +53,11 @@ export { DefinitionGlossary } from './print/DefinitionGlossary.js';
 export { collectDefinitions } from './print/definitions.js';
 export type { GlossaryEntry } from './print/definitions.js';
 
-// S5 — the print contract the parity gate asserts on BOTH surfaces. Imports
-// FROM the registry, never into it, and is deliberately absent from
-// server/index.ts: the get-activity bundle must not carry it (V9 lesson).
+// S5 — the print contract the print-rules gate asserts on the viewer surface
+// (the cross-surface "both surfaces" half retired with the renderer's gate in
+// S5.5 — A27). Imports FROM the registry, never into it, and is deliberately
+// absent from server/index.ts: the get-activity bundle must not carry it (V9
+// lesson).
 export {
   printExpectations,
   suppressedChecksFor,

@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-04-draft-2`. Mirrors migrations 0001–0021; regenerate this
+> Version `2026-08-04-draft-2`. Mirrors migrations 0001–0026; regenerate this
 > doc whenever a migration adds/removes a personal-data column (Q4A in-arc
 > doc rule).
 >
@@ -39,7 +39,9 @@
 | `section_checks.student_id` | account-backed identity | student | `record_check` RPC (0020, service-role only) | attributing work | follows submissions window |
 | `section_checks.responses` / `verdicts` | classwork **and the feedback the student was shown** | student | student work + server grading | the product; lets a teacher see what a student was actually told | follows submissions window |
 | `section_checks.attempt_number` / `idempotency_key` / `section_id` | check bookkeeping | student | RPC | replay safety, attempt ordering | same |
-| `submissions.student_id` | account-backed identity | student | grading RPC (S4) | attributing work | submissions window |
+| `submissions.student_id` | account-backed identity | student | ~~grading RPC (S4)~~ **never written — S4 landed checks in `section_checks` instead; branch demolished at S9 (C5)** | attributing work | submissions window |
+| `activity_version_census.*` / `activity_version_items.*` (0026) | per-version block/item counts — **no student identifier by construction** (absence asserted against `information_schema`) | — | derived by `get-activity`'s cache-fill from stored version snapshots | teacher analytics | follows the version |
+| `analytics_job_runs.*` (0026) | nightly maintenance ledger (row counts, timings) — no personal data | — | `run_analytics_maintenance` cron | job observability | operational |
 | `submissions.display_name` | **typed name (legacy path)** | student | student-typed on legacy pages | attributing work | submissions window; path demolished at S9 |
 | `submissions.opaque_token` | pseudonymous roster token (Phase-3 design, unused) | student | — | — | — |
 | `submissions.responses` / `score` / `attempt_number` | classwork | student | student work | the product | submissions window |
@@ -54,10 +56,13 @@
 Google OAuth ──► auth.users ──trigger──► users (role decided: allowlist→teacher,
                                                student_domain→student, else rejected)
                                          display_name = Google full_name, else NULL
-join code ──► join_class RPC ──► class_members (+audit row)
+join code ──► join_class RPC ──► class_members (+audit row)   [UI lands at S9 —
+                                       the RPC is the only write path; no student
+                                       has executed this flow yet]
 student work ──► check-activity ──► record_check RPC ──► section_checks(student_id,
                                                           responses, verdicts)
 student work ──► grading RPC (S4) ──► submissions(student_id, responses, score)
+                                        [never built — see the table note above]
                                       └─ ip_hash/user_agent (30-day abuse window)
 teacher grading ──► grades
 legacy published page ──► ingest-submission ──► submissions(display_name)   [until S9]
