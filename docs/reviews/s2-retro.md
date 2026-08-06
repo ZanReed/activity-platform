@@ -193,3 +193,129 @@ DECISIONS entries are the repo's best rationale record — every residual (share
 profile cache, unverified JWT decode, non-crypto PRNG, the inert limiter) is
 documented *in the file where the next reader will meet it*; this retro found no
 rationale gaps at all.
+
+---
+
+## Independent audit (2026-08-06, second-pass)
+
+Adversarial re-derivation by a fresh-context auditor (all eight commits re-read,
+every count recounted, every cite line-checked), with the orchestrating session
+re-verifying material findings.
+
+**Verdict on the retro:** unusually accurate on numbers — 29→37 and the 39-pin
+sibling are exact, as are all eight commit characterizations, the eight cast
+sites, and the four shared error spellings. Two findings are wrong in a familiar
+way (a "dead" symbol that runs in production; an undercount hiding a live
+divergence), one absolute is self-contradicted by the retro's own finding 8, and
+the blind spots repeat the S0/S1 shape: **the retro audits what S2 declared, not
+the machinery S2 built to enforce it** — the CORS port, the deploy flag, the CI
+drift guard, and the cache key's blindness to the schema version were never
+opened.
+
+### Confirmed
+
+All commits verbatim. The rate-limiter narrative (95/zero-429s, 30→600,
+classroom-is-one-IP), the 13 false positives with the exact-13 correlation and
+the surviving precision-control sentence, 0017 recorded-but-never-run. Pins
+29→37 exact; sibling 39 exact; **zero pins weakened** (the only later edit is
+S7's +164/−15 setup refactor; sanitize.test's −357 is the fixture extraction,
+tests 21→22). `jwtSub`/`jwtSubject` byte-identical. `SANITIZER_ALGO_REV` never
+bumped, zero importers of either re-export. Eight `as unknown as` sites exact.
+The 0026 second writer + hazard verbatim. Fixtures 1/2 zero code references.
+Three leak-scan rules; print has no sentinel scan. Upgrade seam exactly four
+callers. The `1-f8328527` pin. S4-by-citation confirmed in the sibling
+handler's own header.
+
+### Corrected
+
+1. **`serveSeed` is not "unexercised by function"** — `computeServedOrderings`
+   calls it and the live Deno wiring calls that on every check request. Only the
+   *export* is dead. The sharper missed finding: **`computeServedOrderings` has
+   zero test coverage at any level** — every handler test stubs the port — so
+   the function the held-up section praises as "where duplication was refused"
+   is untested production code reachable only through untested Deno wiring.
+2. **"~6.9 MB of bundles get-activity never imports" repeats the commit's loose
+   arithmetic** — renderer + grading = 6.24 MB; the ~6.9 figure is the whole
+   `_shared` directory including the bundle it *does* import.
+3. **`UUID_RE` exists four times, not two** (loose in get-activity,
+   ingest-submission, get-feedback; strict only in check-activity) — the strict
+   copy is the outlier, and watchlist item 2 is a four-site decision.
+4. **"Three seeding schemes on two implementations" undercounts and misplaces
+   `Matching.tsx`.** Four schemes (the retro omits `printSeed` entirely), and
+   `Matching.tsx` is in the *viewer* using the viewer's FNV-1a — so the same
+   `block.id` deals a different arrangement than the published page did, and
+   that divergence does **not** retire at S9; it is the successor surface.
+   (`mulberry32` is byte-identical in both files; only the string hash differs.)
+5. **"No rationale gaps at all" is contradicted by the retro's own finding 8**
+   (the `UUID_RE` divergence has no recorded why), and by a second independent
+   gap: nothing records why the read-cache key omits the schema version
+   (missed-3 below).
+6. **Watchlist item 1's estimate ignores a bundle boundary** — the shared seed
+   symbol must land where the read bundle can import it without dragging
+   grading past the 1500 KiB ceiling; item 3 must budget both bundle
+   regenerations or CI's drift guard reds.
+
+### Citation and framing fixes
+
+"Both switch exhaustively" — only the read side does (a total `Record`); the
+check side reads `kind` structurally. `httpCheckService.ts` is in `client/`, not
+the server tree. The Deno file also imports four helpers from `_shared/cors.ts`.
+Item 4's print scan must pin `showAnswers=false` (the answer-key channel is a
+second, deliberate secret path beside the sanitized doc). The scope line never
+states the bundle number: 966.69 KiB against 1500 (64% consumed).
+
+### Missed — what the retro never examined
+
+7. **`_shared/cors.ts` is the CorsKit's entire real implementation and nothing
+   tests it** — shared by every function, untouched since the repo's initial
+   commit, stubbed by every handler suite. `ALLOWED_ORIGINS` defaults to `'*'`
+   and a non-matching origin is answered with `allowed[0]`. The port is proven;
+   the thing behind it never was.
+8. **There is no `supabase/config.toml` — the `--no-verify-jwt` flag exists
+   only in an npm script.** Any deploy by another route silently re-enables the
+   JWT gate and 401s the anonymous META branch, which the client maps to the
+   sign-in screen — a failure that looks like normal behavior. The CLI supports
+   a declarative pin; it is unused, and nothing verifies the live flag.
+9. **The read cache is blind to the schema version.** `SANITIZER_REV` hashes
+   `{algo, secret-field lists, specs}` — no `ACTIVITY_SCHEMA_VERSION`, no
+   upgrade-chain fingerprint. The first v2→v3 upgrade step leaves every cache
+   row valid and serving *pre-upgrade* artifacts until GC'd, and
+   `SANITIZER_ALGO_REV`'s comment scopes the manual hatch to "the transform
+   logic itself." Finding 13's fork on the axis nobody looked at, inside the
+   mechanism the retro credits as S2's best design.
+10. **The upgrade 500 ships document internals to the student** — the handler
+    puts `UpgradeError.message` (up to three zod paths + messages from the
+    stored document) into the response `detail`, sixty lines below the code
+    that suppresses RPC errors precisely so "no internals leak." Deliberate in
+    tests, undocumented in decisions.
+11. **Favorable set**: the stale-version retry cannot loop (one follow, then
+    rethrow); `verify-0017.sql` has *not* rotted structurally — but §C1's
+    expectation is stale (post-0021, every live teacher's display_name is NULL,
+    so the correct expectation is a NULL `teacher_name` row) — the S1-audit's
+    hand-copied-expectations lesson landing again; `upgrade.ts`'s design holds
+    (typed error taxonomy, real YAGNI win; one S0-pattern residue:
+    `fromSchemaVersion` has no consumer). Also unmentioned from `8ce27f2`'s own
+    diff: the CI bundle-drift guard — arguably S2's most-copied machinery.
+12. **A fourth sanitizer channel**: the foldable runs the same
+    sanitize+print-shuffle posture headlessly with its own `showAnswers` path
+    and no wire proof — the "three channels" framing omits it. And the pre-auth
+    hot path constructs a fresh Supabase client per META request while `admin`
+    is module-scoped — undocumented, on exactly the branch the 600/min ceiling
+    protects.
+
+### Audit addenda to the watchlist
+
+- **New, cheap-now**: pin `verify_jwt = false` in a `supabase/config.toml`
+  (missed-8) — the flag is one npm-script away from silently 401'ing every
+  student's first screen.
+- **New, cheap-now**: a direct test for `computeServedOrderings`
+  (correction 1) — the retro's own thesis (divergence silently mis-grades) is
+  the argument.
+- **New, before any schemaVersion 3**: fold the schema version (or an
+  upgrade-chain fingerprint) into `SANITIZER_REV`'s material, or name the
+  upgrade chain as a bump trigger in `SANITIZER_ALGO_REV`'s comment (missed-9).
+- Rewrite items 1–2 per corrections 3, 4, 6; extend item 4 to
+  `showAnswers=false` + the foldable; fix `verify-0017.sql` §C1's expectation.
+- **New, policy**: a decision recorded only in a `package.json` script is not
+  recorded — deploy-time flags belong in declarative config with a verification
+  step, next to the dormant-safeguard rule the limiter earned.
