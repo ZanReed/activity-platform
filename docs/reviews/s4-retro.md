@@ -184,3 +184,143 @@ developer will meet it, and nothing partially built the frozen decision.
 **verify-0020 is in the regression re-run set** with its two security boundaries
 named. And the slice's hygiene matches S2/S3: zero TODO/FIXME anywhere in the
 grading engine, every "deliberately" carrying its reason.
+
+---
+
+## Independent audit (2026-08-06, second-pass)
+
+Adversarial verification by a fresh-context auditor (every cited commit re-read,
+every count recomputed from source), with the orchestrating session re-verifying
+the material corrections before publication.
+
+**Verdict on the retro:** the strongest of the set so far. The headline is real,
+unfixed at audit time, and correctly diagnosed on all three legs; every
+recomputable count is exact except one; no finding is invented. Three claims
+need correction, and the blind spots cluster where the S0/S1 audits also found
+them: **the retro grades the code S4 wrote and skips the machinery S4
+operates** — the rate ceiling's live constant, the RLS policies' product
+consumers, the engine's malformed-document behavior, and the response's own
+size. One structural note: the "S4 eng-review record" the retro cites lives
+outside the repo, and rulings S4-7 and S4-9…S4-12 leave zero in-tree trace —
+neither the retro nor this audit can grade them.
+
+### Confirmed
+
+The headline (all three legs re-verified after `e4615c6`; repo-wide
+`check-section` = the two sites + retro prose; the wrong name is load-bearing
+across six e2e specs; not fixed). Corpus 46 (31/6/5/4). `graphs.ts` 26 casts /
+13 `as never` on 9 lines; repo-wide viewer `as never` 53. Pins 39 + 37. The
+p95 table verbatim (`DECISIONS.md:380-382`). `corpus.ts:31`'s phantom 2.1A
+case. `FREE_TEXT_TYPES` in a one-commit file; `PROMPT_CARRIER_TYPES` duplicated;
+`matchMistakeFeedback` unbonded (the corpus has no feedback column at all).
+`attemptNumber` unread; the store re-cast; `unavailable` → default arm;
+`SectionStatus.retryable` never read; S6-3 at `persistence.ts:89-107`; the Deno
+file imports 3 symbols; `f737461` and the MathLive story word-for-word; the
+three plan-vs-reality gaps verbatim. Held-up: the renderer-side corpus half
+live in CI; ordering pins are contrapositive proofs (`documentWasRead()`
+asserted false on the foreign-version and missing-auth paths); idempotency six
+layers incl. the partial unique index and replay-before-rate-check (B9);
+verify-0020 in the regression set; zero TODO/FIXME in `server/`.
+
+### Corrected
+
+1. **"3 of grading-entry's 12 exports" — the denominator is 16** (8 values + 8
+   types). The finding is *stronger* than written; the "agree by import"
+   comment is confirmed false.
+2. **The dead-export list mixes two kinds of dead**: `EXPRESSION_LIMITS` and
+   `GradingSectionNotFound` are genuinely reference-free; but `serveSeed` is
+   live inside `servedOrder.ts:49` and `GradableInventory` is the working type
+   of the walk's inventory path — what's dead is the *re-export*, not the
+   symbol.
+3. **The route's dedup chain is four-way, not three**, and its "At most ONE of
+   these shows" comment already fails to enumerate its own arms
+   (`session-expired`/`work-stranded`/`offline-copy`/`pinned-version`,
+   `StudentViewer.tsx:468-495`) — S6 added the fourth without updating the
+   comment. Finding 8's cross-package collision stands *and* the in-file
+   comment is stale too: the S3 "comments that lie" class in the exact file
+   cited.
+4. **Cost 4's "normalized on both sides" will be read as "both engines," which
+   is false** — `normalize.ts` exists only server-side; the runtime normalizes
+   nothing (that is *why* the G1 cases carry `runtimeDiffers`). "Both sides"
+   means student value and answer key, inside one engine. In a paragraph about
+   7.1A parity, the ambiguity inverts the finding.
+5. **`retryable` is write-only in two places, not one**: `CheckError.retryable`
+   carries "the UI offers Retry on exactly these" and is equally unread.
+   Watchlist item 2 must name both or it deletes half the fiction.
+
+### Citation and framing fixes
+
+Banner sites `:307`/`:495`; the 26-cast count requires excluding four prose
+" as " hits in comments; "poisons solutions only" is about the *poisoning* —
+`mistakeFeedback.match` values are already wire-scanned, the gap is the
+poisoned-blank shape; hint rides the feedback channel so the one-`sanitizeOut`
+held-up claim covers it; bundle is 2524 KiB today (2516 was the S4-era figure);
+"grades untouched since 0010" should read "no migration since 0010 *alters the
+table*" (five later ones mention it).
+
+### Missed — what the retro never examined
+
+6. **The rate ceiling's live constant is un-calibrated and untested at its real
+   value — the S2 lesson only half-learned.** `record_check` defaults to 60/60
+   and the Edge Function passes neither parameter, so production always runs a
+   default justified as "generous… a 429 means a script" — not a classroom
+   number. The only boundary exercise sets `p_rate_limit := 1`; the 60/60 pair
+   is never exercised anywhere. S4 fixed the *mechanism* (DB-backed, durable —
+   genuinely S2's prescription) and inherited the *calibration* blind spot
+   verbatim. Favorable half: replay is checked before the ceiling, so a
+   cold-start retry is never punished (pinned, B9).
+7. **0020's two SELECT policies are declaration-only in product code** — the
+   student policy says so in its own comment; the teacher policy is bypassed by
+   the DEFINER analytics RPC. Correct posture, DB-probed, zero product
+   consumers: the export-surface pattern on the security surface.
+8. **The by-construction bucket's rule tests provenance, not marshalling.** The
+   scorers are imported (clause satisfied) — but the 13 `as never` sit at the
+   *adapter* re-deriving scorer parameter shapes from schema fields, which the
+   coverage rule doesn't notice. It should read "imported **and** called with
+   type-checked arguments."
+9. **The engine has no error taxonomy for malformed documents — it has silent
+   coercion.** Zero throws in `walk.ts`; every field defensively narrowed; no
+   `malformed_document` wire code. A corrupt block produces a *mark* (unscored,
+   or graded against an empty key) rather than a typed failure — and
+   server-authoritative grading makes a silently wrong mark worse than a 500.
+   Nothing tests the class; the posture is undeclared, hence unreviewable.
+10. **Nothing pins the invariant that keeps the expression guard sufficient.**
+    `mathEquivalent` has exactly one caller, inside the guard — genuinely clean
+    today — but the "one entry point, behind the bound" invariant is written
+    nowhere; any future math path inherits the S4-B3 threat class unguarded.
+11. **The E2E residue procedure was not the one actually followed, and the
+    cleanup vacuumed a downstream verification.** The script prints a scoped,
+    30-minute-window delete only on success; the real cleanup (`f273dce`)
+    deleted all 44 three-day-old rows — and its own message records that
+    emptying `section_checks` made `verify-0022` C1 vacuous. S4's verification
+    artifact created durable state a later slice's verification silently
+    depended on; graded in neither retro (S7's "per the documented residue
+    procedure" is inexact).
+12. **The solutions channel has no size bound.** Every block with a solution
+    returns it on every check, every attempt; the request side is bounded
+    (413, MAX_ITEMS 500), the response is not — and `record_check` persists
+    `responses` + `verdicts` per row for ~400 days, so it is a storage
+    multiplier too. The latency ruling attributes the 598 ms floor to "transit
+    and the durable write" without asking what is in either.
+13. **The evidence-base line implies coverage that cannot be reconstructed** —
+    state that the 17 rulings live in the external gstack doc and that
+    S4-7/S4-9…12 have no in-tree trace.
+
+### Audit addenda to the watchlist
+
+- **Item 1 is 45–60 min, not 30**: no constant exists to bond to — it must be
+  minted, exported where both app and e2e can import it, the helper's glob
+  derived from it, and the directory-existence assertion needs a node-env test.
+- **Extend item 2** to `CheckError.retryable` and its comment.
+- **Rewrite item 4's second half** per the citation fix above.
+- **New, cheap now**: pin the rate ceiling's real numbers (a test that the
+  defaults are what production relies on + one 60/60 boundary case + a recorded
+  classroom estimate).
+- **New, cheap now**: a `malformed_document` decision — typed failure code + one
+  walk test, or the "silent coercion is deliberate, here is why" paragraph at
+  `walk.ts`'s header.
+- **New, opportunistic**: bound or document the solutions payload; pin
+  `mathEquivalent`'s single-caller invariant.
+- **New, policy**: a verification script that writes durable rows owns its
+  residue end-to-end — scope cleanup to the run, print it before as well as
+  after, and name every check that reads the same table.
