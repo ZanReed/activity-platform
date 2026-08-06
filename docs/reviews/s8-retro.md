@@ -83,3 +83,89 @@ dist, unparseable worker, zero-match ledger rows — each red branch exercised
 against a deliberately broken fixture); and the marks contract lives in the
 viewer as a dependency-free leaf both stampers share. All verified present at
 HEAD. Whether they *hold* is the next retro's question.
+
+---
+
+## Independent audit (2026-08-06, second-pass)
+
+Adversarial re-verification by a fresh-context auditor, with the orchestrating
+session re-verifying material findings.
+
+**Verdict on the retro:** every number, defect narrative, and artifact claim is
+exact — the design-vs-shipped verification genuinely holds, the thinness is
+honest, and the checklist is well-aimed. Two things are wrong: **168.1 KiB is
+not the committed cap** (185 is, with ~10% headroom — the retro drops the slack
+DECISIONS states plainly), and **"no cheap-now items" does not survive
+contact**: the timing gate is unarmed, the route smoke's headline assertion is
+partly vacuous by the very defect S8 discovered, and CI already auto-retries
+the lane whose re-run-until-green failure mode checklist item 6 watches for.
+
+### Confirmed
+
+All split numbers exact across HISTORY, DECISIONS, and the commit body. The
+150→168 honesty carried in three independent places. The vacuous route smoke
+documented in the spec's own header; the CDP/SW finding implemented as claimed
+(`workerStart > 0` filter, fresh context, serial worker). All four test-code
+defects real, each with a comment at its fix site. T7's numbers verbatim. All
+claimed artifacts at HEAD: the five preconditions incl. the zero-match ledger
+case, the 40/60/1500/4000 pins with the "why isn't it in the diff" framing,
+the literal mark strings pinned *and* cross-checked against the config copy,
+13 broken-fixture cases (5 VACUITY-prefixed). **Bonus, unclaimed and true:**
+the perf marks are stamped on the pinned and offline boot paths too (all three
+`preloadMathIfNeeded` sites), so the instrumentation is not happy-path-only —
+only the *measurement* is.
+
+### Corrected
+
+1. **"A cap pinned at the measured 168.1 KiB" is wrong — `SHELL_JS_GZ_KIB =
+   185`.** 168.1 lives only in prose; DECISIONS says "a regression pin at the
+   real number **with ~10% headroom**." The distinction matters for checklist
+   item 8: 168 can drift to 185 without a single red build (same shape: CSS
+   11.3 measured / 14 cap; katex 75.2 / 85).
+2. **`e3fbcf3` is not a "ruling record"** — it is the main S8 build commit;
+   HISTORY says S8 landed in two commits and the scope line mislabels one.
+3. **Checklist item 6 is unanswerable as written: the 2× ceiling cannot
+   currently fire.** `TIMING_TARGET_MS` is null for both calibrated marks, the
+   ceiling derives to null, and the assert returns early on null —
+   `mathRendered` has no entry at all, so the one mark S8 spent its measurement
+   budget on has no baseline and no pin. "Milliseconds record" is accurate; the
+   checklist implies an armed gate that does not exist.
+
+### Missed — what the retro never examined
+
+4. **The route smoke's headline assertion is partly vacuous — by the exact
+   defect S8 discovered.** The "split works" leg counts every `/assets/*.js`
+   response with no dedup and **no `NON_RENDER_CHUNKS` filter**, and the SW
+   registration pulls two chunks on every prod load — so entry + 2 SW chunks
+   clears `toBeGreaterThan(1)` before the route chunk is considered. The
+   sibling test in the same file applies the filter. The fourth member of the
+   vacuous-pass family, landing inside the fix for the third.
+5. **CI auto-retries the perf lane** (`retries: process.env.CI ? 1 : 0`,
+   inherited) — the re-run-until-green mechanism checklist item 6 watches for
+   is already automated, once, before a human sees it.
+6. **D5's "one home" holds for code, not prose** — the 40/60 numbers are still
+   restated in RUNTIME.md (×2) and CLAUDE.md, the exact "two places to find"
+   failure D5's rationale names.
+7. **Nobody owns the content markers.** A dependency bump that changes a
+   library-internal marker string fails loud (well designed, tested) — but no
+   doc says who re-derives a marker, and the failure message's cheaper branch
+   is "delete this row." The next upgrade's path of least resistance deletes a
+   guard. Also unpriced: the perf job's minutes-per-PR (no `timeout-minutes`),
+   which makes the checklist's cost side unfalsifiable; and the route smoke's
+   "signs in" is the fabricated-localStorage student session reused for
+   teacher routes — any future role-gated route passes this lane while broken.
+
+### Audit addenda to the watchlist
+
+- **Rewrite item 1 — three cheap items exist**: (a) set `TIMING_TARGET_MS`
+  from the recorded runs and add a `mathRendered` entry, arming the ceiling
+  (~15 min); (b) apply `NON_RENDER_CHUNKS` + dedup to the route-mount chunk
+  assertion (~10 min); (c) correct the 168.1-as-cap sentence — item 8's real
+  question is "does the number quietly drift to 185."
+- **Add to the post-S9 checklist**: whether the CI retry got exercised, and
+  the lane's minutes-per-PR.
+- **New, opportunistic**: finish D5 on the doc side (RUNTIME.md ×2,
+  CLAUDE.md).
+- **New, policy (earned by missed-4)**: when a slice's headline lesson is
+  "this check was vacuous," re-run that lesson over the *fix* before banking
+  it.
