@@ -187,3 +187,127 @@ exported heuristics** became load-bearing for S5.5's answer key and S7's census 
 consumers S3 never anticipated. And the slice's hygiene is the repo's best: zero
 TODO/HACK/FIXME across `blocks/`, `container/`, `check/`, `client/`, with every
 "deliberately" attached to a reason.
+
+---
+
+## Independent audit (2026-08-06, second-pass)
+
+Adversarial verification by a fresh-context auditor (every commit re-read, every
+count re-derived, the conformance suite actually run), with the orchestrating
+session re-verifying the material corrections against the repo before
+publication.
+
+**Verdict on the retro:** all fifteen commit characterizations hold, the
+promise-miss findings are exact (the one `devex-review` record predates S3 by
+three weeks; the student e2e contains zero aria-live/keyboard/focus assertions;
+DECISIONS.md is S3-less), the two-lazyCache and shortfall findings are
+confirmed and slightly *understated* — but one finding is materially wrong, two
+held-up claims mislead about where logic lives, and the missed list contains
+the slice's best unclaimed win.
+
+### Confirmed
+
+Factory = 164 tests (run, green). 13 of 22 components single-commit (enumerated).
+22 `as never` in bindings.ts; both `lazyCache` Maps byte-equivalent and unfixed
+at HEAD. `CHECK_WIRE_VERSION` bumped exactly once, inside S3, never since
+(`git log -L`). `wireVersion: 2` literal at `studentSession.ts:269`. The walk
+duplication real and logically identical. Zero TODO/HACK/FIXME in the four
+dirs. All five production `<ViewerContainer>` sites pass neither `onCrash` nor
+`onCheckShortfall`. Styles guard 11 → 22 test cases (17 → 36 expects). The
+mock↔real bond exactly 8 tests. Watchlist items 1–4 feasible as estimated
+(item 4's premise is already production-proven — `census.ts` imports
+`childBlocksOf` server-side); item 5 is 45–90 min, not 45.
+
+### Corrected
+
+1. **Finding 9 is refuted by `persistence.ts`'s own header (lines 15-19,
+   ruling S6-1)**: the constant stayed at 1 because *nothing had ever written a
+   blob* — the buffer that persists the shape shipped in the same slice that
+   added the fields, so bumping would pin a migration scenario that cannot
+   occur. A recorded ruling, not YAGNI-by-neglect; nothing was at stake. The
+   surviving point is only that the constant has never discriminated a real
+   change.
+2. **The held-up read-client claim is backwards.** `readClient.ts` has exactly
+   one commit (S3) and contains no offline/pinning logic; S6's boot paths live
+   in the *route*, wrapped around `load()`. The stronger true story: **S3's
+   error taxonomy was the extension point** — S6 branched on
+   `kind === 'offline'` and never had to open the client.
+3. **Finding 11's `fetchReleasedFeedback` is wrong in both directions.** The
+   production implementation does *not* reject — `httpCheckService.ts:195-203`
+   POSTs to the real deployed `get-feedback` function; only the two inert
+   surfaces reject. The sharper truth: **nothing anywhere calls it** — and if
+   anything did, the shapes mismatch (the endpoint expects `{submission_id}`,
+   the Phase-2.6 anonymous contract; the client sends `{activity_id}`)
+   [orchestrator-verified]. A live endpoint, a real client method, a component
+   header promising rendered teacher feedback, zero wiring, and a wire-shape
+   disagreement waiting behind the zero.
+4. **"The only print-specific rendering is a 61-line printTwin" is false** —
+   `print/DefinitionGlossary.tsx` (S5, 175 lines) is a print-only component
+   with its own seven-variant alphabet outside the registry and 5 `as never`
+   casts. "No parallel *block* component" survives; the honest number is 236
+   print-only lines.
+5. **The cast count undercounts inside S3's own files**: the widening pattern
+   occurs 4× (not 2×), giving **31 in the S3-owned seam / 49 repo-wide `as
+   never`** — the S0 audit corrected this exact undercount the day before the
+   retro restated the old number. Policy item 11 applies to the retro's own
+   prose.
+6. **"Five of seven dev routes uncovered" is six of seven** (only `/dev/viewer`
+   appears in e2e; `DevConfigDrawer` is also uncovered and unlisted), and
+   `/playground` is an eighth DEV-gated route the count omits.
+
+### Citation fixes
+
+`blockIndex.ts:104` (not `:100`); `walk.ts:154-181`; the "one cast" comment
+governs casts at `:122`/`:126`; `foldable/styles.ts` carries exactly two hex
+literals.
+
+### Missed — what the retro never examined
+
+7. **`unsupportedBlockIds` is test-pinned empty at wire v2**
+   (`blockIndex.test.ts:170`: "a claim, not an omission") — so of the two
+   things `CheckShortfall` reports, one is provably always empty; wiring a
+   consumer (watchlist item 2) buys crash telemetry only.
+8. **graph-kit has no preload path while S8 built one for the lighter chunk**:
+   four `await import('@activity/graph-kit')` sites fire at component mount;
+   KaTeX got `preloadMathIfNeeded` on document-detect, JSXGraph (heavier) got
+   nothing. A real, cheap, unclaimed opportunity in an S3 file.
+9. **The fixtures corpus needed a visual gate to teach it what a worksheet
+   looks like**: sanitized shapes are genuinely derived and roster-guarded (no
+   drift class), but the hand-written authored bodies took three S5 correction
+   commits found by the print gate. The repo's de facto content spec was wrong
+   enough to matter; lesson never banked.
+10. **StatePill is the slice's best unclaimed win**: one commit ever, zero
+    diffs since, and S4/S6 statuses fit the closed union without a fifth pill —
+    the S3 original had already declared `pending` with rationale. InlineContent
+    similarly: zero post-S3 fixes despite two downstream consumers re-rendering
+    it in new contexts.
+11. **DevViewer doubled** (175 → 360 lines, 11 commits, the second-most-churned
+    S3 artifact) — the retro prices dev routes only as coverage risk, never
+    the flagship harness's carrying cost.
+12. **The env-less criterion holds at HEAD with one soft erosion**:
+    `StudentViewer.tsx:64` builds `FUNCTIONS_BASE` from
+    `import.meta.env.VITE_SUPABASE_URL` at module load, so an env-less student
+    route fails later as `undefined/functions/v1` instead of the `MISSING_ENV`
+    message — the same bug class D10 caught, one route over.
+13. **The factory's a11y half is stronger than "attribute assertions only"
+    implies** — it pins `aria-live="polite"`, tab-order focusability, and
+    accessible names; touch targets are pinned in styles.test; normalization is
+    server-side. The standing 6.1A gaps are exactly four: real announcement
+    behavior, the keyboard path, visible focus, reduced-motion. Finding 12 is
+    more actionable stated that way.
+
+### Audit addenda to the watchlist
+
+- Rewrite item 6 around ruling S6-1 ("never discriminated a real change — bump
+  on the first change after a blob population exists, or demote the comment").
+- Re-scope item 2 per missed-7; consider deleting the unsupported half of
+  `CheckShortfall` until a wire v3 needs it.
+- Fix the held-up section's read-client and print-surface claims (corrections
+  2 and 4) — the two places a future reader would be misled about where logic
+  lives.
+- **New, cheap-now**: wire `fetchReleasedFeedback` or delete it — and note the
+  wire-shape mismatch behind it (correction 3).
+- **New, cheap-now (~20 min)**: give graph-kit the `preloadMathIfNeeded`
+  treatment (missed-8).
+- **New, opportunistic**: make the env-less student route fail with
+  `MISSING_ENV` (missed-12).
