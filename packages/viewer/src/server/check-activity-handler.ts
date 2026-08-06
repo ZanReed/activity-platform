@@ -36,9 +36,11 @@ import {
 } from '../check/wire.js';
 import { gradeSection, SectionNotFoundError } from './grading/index.js';
 import type { CorsKit, DbResult } from './get-activity-handler.js';
+import { jwtSub } from './jwt.js';
+import { UUID_RE } from './uuid.js';
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// UUID_RE is imported (server/uuid.ts, G2): this file's strict shape is now
+// THE shape — the read handler adopted it rather than staying looser.
 
 /** Hard ceiling on a single check request. A section is a handful of questions;
  * anything approaching this is not a worksheet. Enforced before parsing so a
@@ -265,24 +267,8 @@ export function validateCheckRequest(
   };
 }
 
-// ---- JWT subject -------------------------------------------------------------
-// Decoded WITHOUT verification, deliberately — same reasoning as
-// get-activity-handler: the user-scoped RPC has already succeeded by the time
-// this runs, so PostgREST verified the signature. This only re-reads `sub` to
-// key the student's row and their serve shuffle. NEVER an authorization input.
-export function jwtSubject(authHeader: string): string | null {
-  const token = authHeader.replace(/^Bearer\s+/i, '');
-  const payload = token.split('.')[1];
-  if (!payload) return null;
-  try {
-    const json = JSON.parse(
-      atob(payload.replace(/-/g, '+').replace(/_/g, '/')),
-    ) as { sub?: unknown };
-    return typeof json.sub === 'string' ? json.sub : null;
-  } catch {
-    return null;
-  }
-}
+// jwtSub is imported (server/jwt.ts, G2) — this file's byte-identical
+// jwtSubject copy is gone; see the leaf for the no-verification reasoning.
 
 // ---- The handler -------------------------------------------------------------
 
@@ -356,7 +342,7 @@ export function createCheckActivityHandler(
     }
     if (!version) return cors.errorResponse(req, 404, 'Not available');
 
-    const studentId = jwtSubject(authHeader);
+    const studentId = jwtSub(authHeader);
     if (!studentId) {
       // The RPC accepted the token, so this is a malformed-but-valid JWT we
       // cannot key a row by. A 500 is honest: it is our problem, not theirs.

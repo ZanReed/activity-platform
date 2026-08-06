@@ -20,13 +20,12 @@
 // =============================================================================
 
 import { applyServeShuffles } from '../../sanitize/shuffle.js';
+import { serveSeed } from '../../sanitize/serveSeed.js';
 import type { SanitizedActivityDocument } from '../../sanitize/sanitized-types.js';
 import type { RawSection } from './walk.js';
 
-/** Compose the seed the read path uses for this student and version. */
-export function serveSeed(versionId: string, studentId: string): string {
-  return `${versionId}:${studentId}`;
-}
+// serveSeed is imported from sanitize/serveSeed.ts (G1) — the one spelling
+// the read path serves with and this walk recomputes from.
 
 /**
  * blockId → the item id order this student was served, for every `ordering`

@@ -17,10 +17,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  computeServedOrderings,
-  serveSeed,
-} from '../src/server/grading/servedOrder.js';
+import { computeServedOrderings } from '../src/server/grading/servedOrder.js';
+import { serveSeed } from '../src/sanitize/serveSeed.js';
 import { applyServeShuffles } from '../src/sanitize/shuffle.js';
 import { sanitizeActivityDocument } from '../src/sanitize/sanitize.js';
 import type { ActivityDocument } from '@activity/schema';

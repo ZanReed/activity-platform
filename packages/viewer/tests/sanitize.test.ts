@@ -49,7 +49,7 @@ import {
   fullyLoadedDocument,
   uuid,
   wireOf,
-} from './helpers/leakFixture.js';
+} from '../src/fixtures/leakFixture.js';
 
 
 // -----------------------------------------------------------------------------

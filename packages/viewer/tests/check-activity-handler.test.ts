@@ -20,10 +20,10 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createCheckActivityHandler,
   validateCheckRequest,
-  jwtSubject,
-  type CheckActivityDb,
+    type CheckActivityDb,
 } from '../src/server/check-activity-handler.js';
 import type { CorsKit } from '../src/server/get-activity-handler.js';
+import { jwtSub as jwtSubject } from '../src/server/jwt.js';
 import { CHECK_WIRE_VERSION } from '../src/check/wire.js';
 import { authoredFixtureDocument } from '../src/fixtures/index.js';
 

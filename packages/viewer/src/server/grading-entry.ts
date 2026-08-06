@@ -17,7 +17,6 @@
 export {
   createCheckActivityHandler,
   validateCheckRequest,
-  jwtSubject,
 } from './check-activity-handler.js';
 export type {
   CheckActivityDb,
@@ -29,10 +28,11 @@ export type {
 export { gradeSection, SectionNotFoundError } from './grading/index.js';
 export type { GradeSectionInput } from './grading/index.js';
 
-export {
-  computeServedOrderings,
-  serveSeed,
-} from './grading/servedOrder.js';
+export { computeServedOrderings } from './grading/servedOrder.js';
+// (jwtSubject and serveSeed re-exports rode here with zero Deno importers —
+// dropped 2026-08-06 with the G1/G2 single-sourcing: jwtSub lives in
+// server/jwt.ts, serveSeed in sanitize/serveSeed.ts, and the Deno file
+// imports neither.)
 
 // The wire contract itself, so the Deno file and the client agree by import
 // rather than by convention.

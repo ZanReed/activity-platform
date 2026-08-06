@@ -27,7 +27,7 @@
 // =============================================================================
 
 import { describe, expect, it } from 'vitest';
-import { RELEASABLE, fullyLoadedDocument } from './helpers/leakFixture.js';
+import { RELEASABLE, fullyLoadedDocument } from '../src/fixtures/leakFixture.js';
 import { gradeSection } from '../src/server/grading/index.js';
 import { findSection, inventorySection } from '../src/server/grading/walk.js';
 import { emptySectionResponses, type SectionResponses } from '../src/check/wire.js';

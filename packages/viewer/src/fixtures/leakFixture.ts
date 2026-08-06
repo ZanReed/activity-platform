@@ -1,5 +1,5 @@
 // =============================================================================
-// tests/helpers/leakFixture.ts — the fully-loaded secret-bearing document
+// fixtures/leakFixture.ts — the fully-loaded secret-bearing document
 // -----------------------------------------------------------------------------
 // ONE fixture, TWO channels. Every block type — plus every interaction variant
 // of the three variant-carrying blocks — with EVERY secret field populated by a
@@ -7,9 +7,11 @@
 //
 // It was written for S2's read-path leak tests (TV4-A). S4 added a SECOND
 // server→client channel: the check response returns authored feedback and
-// solutions that the read path deliberately stripped. Both channels must be
-// scanned against the same fixture, and they must scan the same sentinels, or
-// a block type gains a secret field and gets covered on one path only.
+// solutions that the read path deliberately stripped. G3 (2026-08-06) added
+// the THIRD: the teacher print route's rendered DOM, scanned app-side — which
+// is why this moved from tests/helpers into src/fixtures (exported at
+// '@activity/viewer/fixtures/leak'). Every channel scans the same sentinels,
+// or a block type gains a secret field and gets covered on one path only.
 //
 // Extracting it here means a new secret field is declared once and both leak
 // suites inherit it. Keeping two copies would have guaranteed the opposite.
@@ -21,7 +23,7 @@
 
 
 import { ActivityDocument, createEmptyDocument } from '@activity/schema';
-import type { BlockType } from '../../src/index.js';
+import type { BlockType } from '../index.js';
 
 export const uuid = () => crypto.randomUUID();
 

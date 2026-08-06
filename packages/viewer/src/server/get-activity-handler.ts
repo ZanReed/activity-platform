@@ -75,6 +75,9 @@ import { UpgradeError, upgradeActivityDocument } from '@activity/schema';
 import { censusOfDocument } from '../census/census.js';
 import type { VersionCensus } from '../census/census.js';
 import { SANITIZER_REV, sanitizeActivityDocument } from '../sanitize/sanitize.js';
+import { serveSeed } from '../sanitize/serveSeed.js';
+import { jwtSub } from './jwt.js';
+import { UUID_RE } from './uuid.js';
 import { applyServeShuffles } from '../sanitize/shuffle.js';
 import type { SanitizedActivityDocument } from '../sanitize/sanitized-types.js';
 
@@ -82,8 +85,8 @@ import type { SanitizedActivityDocument } from '../sanitize/sanitized-types.js';
  * versioned by the schema + SANITIZER_REV, not by this). */
 export const API_VERSION = 1;
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// UUID_RE is imported (server/uuid.ts, G2): this file's loose local copy
+// accepted ids the check API rejected — one shape rule now, strict.
 
 // ---- Ports ------------------------------------------------------------------
 // The handler never touches supabase-js or Deno directly; the entry point
@@ -231,24 +234,8 @@ export function createMetaRateLimiter(
   };
 }
 
-// ---- JWT subject (shuffle seed only) ----------------------------------------
-// Decoded WITHOUT verification — deliberately. The user-scoped RPC call has
-// already succeeded by the time this runs, which means PostgREST verified the
-// token's signature; this only re-reads the `sub` claim for the shuffle seed.
-// Never use this for authorization.
-export function jwtSub(authHeader: string): string | null {
-  const token = authHeader.replace(/^Bearer\s+/i, '');
-  const payload = token.split('.')[1];
-  if (!payload) return null;
-  try {
-    const json = JSON.parse(
-      atob(payload.replace(/-/g, '+').replace(/_/g, '/')),
-    ) as { sub?: unknown };
-    return typeof json.sub === 'string' ? json.sub : null;
-  } catch {
-    return null;
-  }
-}
+// jwtSub is imported (server/jwt.ts, G2) — it was pasted byte-identically
+// into both handlers; see that leaf for the no-verification reasoning.
 
 // ---- The handler ------------------------------------------------------------
 
@@ -447,7 +434,10 @@ export function createGetActivityHandler(
     }
 
     const userId = jwtSub(authHeader) ?? 'anonymous';
-    const served = applyServeShuffles(sanitized, `${versionId}:${userId}`);
+    // serveSeed, imported (G1): the grading side recomputes this student's
+    // arrangement from the SAME symbol — two spellings agreeing by luck was
+    // the s2 retro's sharpest seam finding.
+    const served = applyServeShuffles(sanitized, serveSeed(versionId, userId));
 
     return new Response(
       JSON.stringify({

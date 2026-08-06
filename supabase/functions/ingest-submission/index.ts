@@ -77,6 +77,10 @@ interface SubmissionResponse {
 // Loose UUID syntax check. The DB does the authoritative check via the uuid
 // column type — this is just so we can return a clean 400 instead of a
 // generic RPC error when someone POSTs garbage.
+// LOOSE copy, deliberately left (G2, 2026-08-06): the shared STRICT shape
+// lives in packages/viewer/src/server/uuid.ts, but this function serves only
+// the anonymous published-page wire and is deleted at S9 (cutover checklist
+// C15) — tightening a doomed surface would buy a redeploy for nothing.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**

@@ -30,8 +30,8 @@ import {
   META_MAX_PER_WINDOW,
   META_WINDOW_MS,
   createMetaRateLimiter,
-  jwtSub,
 } from '../src/server/get-activity-handler.js';
+import { jwtSub } from '../src/server/jwt.js';
 import { censusOfDocument } from '../src/census/census.js';
 import type {
   CorsKit,
@@ -85,8 +85,11 @@ function makeDb(overrides: Partial<GetActivityDb> = {}): GetActivityDb {
   };
 }
 
-const ACTIVITY_ID = '11111111-2222-3333-4444-555555555555';
-const VERSION_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+// v4-shaped on purpose: the shared UUID_RE (server/uuid.ts, G2) now requires
+// the version nibble + RFC variant everywhere, and a fixture id no real
+// database could mint was testing a shape no client can send.
+const ACTIVITY_ID = '11111111-2222-4333-8444-555555555555';
+const VERSION_ID = 'aaaaaaaa-bbbb-4ccc-9ddd-eeeeeeeeeeee';
 const BASE = 'https://edge.test/get-activity';
 
 const publishedRow = {

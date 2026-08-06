@@ -30,6 +30,10 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('Missing required Supabase environment variables');
 }
 
+// LOOSE copy, deliberately left (G2, 2026-08-06): the shared STRICT shape
+// lives in packages/viewer/src/server/uuid.ts, but this function serves only
+// the anonymous published-page wire and is deleted at S9 (cutover checklist
+// C15) — tightening a doomed surface would buy a redeploy for nothing.
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
