@@ -154,3 +154,143 @@ one sweep cover both stores. And **the honest-limitation register**: expired
 token + offline shows the pre-auth gate, recorded with the reason the fix was
 refused (it would need the test-harness internal in shipped code) — the
 residue is known, bounded, and written where the next developer will look.
+
+---
+
+## Independent audit (2026-08-06, second-pass)
+
+Adversarial re-verification by a fresh-context auditor (every commit
+re-resolved, every current-state claim re-derived, every cross-slice pointer
+opened in the retro it cites), with the orchestrating session re-verifying
+material findings.
+
+**Verdict on the retro:** the strongest of the series on narrative accuracy —
+the V-ladder account is exact in every particular and no finding is invented.
+But it inherits the build narrative's optimism in five places where the code
+says otherwise, and its blind spot has a shape: **it grades what S6 built, not
+what S6 wired.** Three S6 primitives (`sweepForeignCaches`, the buffer's status
+port, `watchIdleSignOut`) have no caller at all; the retro names only the
+third, and only by reference to another retro.
+
+### Confirmed
+
+Nine of ten scope hashes resolve and map to V1–V9 + `f0df8b5`. The ladder
+narrative exact (V6→V1, V7→V3+V4, V9→worker, V8's ungated reload). The
+`test.fixme` present (describe-level); `purgeStudentCaches` genuinely
+producerless; e2e counts exact (7/14/5); `f0df8b5` verbatim down to "~1 in 4"
+and the 30 runs; the S6-3 overturn recorded in *three* places (DECISIONS, the
+type, the store); the `ifAvailable` story and "assert the guarantee" both
+sourced. All four cross-slice pointers accurate to the cited retros' body
+findings. Watchlist item 2's ~15 min plausible (five sites, no e2e dependency).
+
+### Corrected
+
+1. **`7d6f59` is not a commit** — it exists only as a substring of an unrelated
+   schema fix. The real S6 close-out is **`7d18b87`**, and there is no V10
+   build step: HISTORY's ladder ends at V9, so the scope line invents a rung on
+   the very ladder the verdict praises.
+2. **`navigator.onLine` is not "a TRIGGER only" — the queue gates on it**
+   (`queue.ts:86`, the first statement of `run()`). A false negative (interface
+   flap, VPN, captive portal) strands every queued check, and every later wake
+   signal takes the same early return. The gate is a pure optimization — firing
+   while offline is harmless, since the store turns an `offline` kind straight
+   back into `pending`.
+3. **"The honest-limitation register" overstates where the residue lives** —
+   the expired-token-plus-offline limitation exists only in the archived
+   HISTORY paragraph: not in DECISIONS, not in TODOS, no comment at the
+   offline-boot path. Contrast the sw fixme (spec inline + TODOS + STATE gate).
+4. **"Three e2e lanes" is stale at review time** — S8 added a fourth (`perf`),
+   piggybacking on the sw lane's preview server. That is a *favorable* S6
+   consequence worth banking: the build-per-run cost is now amortized across
+   two lanes.
+5. **The GC-exception tests are in `documentCache.test.ts:91-119`, not the
+   buffer tests** — `buffer.test.ts`'s single sweep case stores an unparseable
+   literal and never exercises the exception.
+6. **Finding 9 understates the caches.ts residue**: `sweepForeignCaches` — the
+   boot half of V4's contract — has **no caller anywhere** (the route runs the
+   two storage sweeps only), and `purgeStudentCaches`'s sole proof
+   *manufactures* the caches it deletes; the sw lane's sign-out row asserts
+   localStorage and shell survival only. The defence-in-depth is verified
+   exclusively against synthetic inputs.
+7. **The fieldset guarantee does not extend to canvas surfaces** — they are
+   opt-in via a hand-applied `[data-graph-canvas]` attribute in three
+   components, only one of which is test-pinned; nothing derives it from the
+   registry, so a future canvas block silently lands in the exact failure the
+   CSS comment describes (draggable in a stale tab, writes refused, screen
+   showing work that is not being saved).
+
+### Citation and framing fixes
+
+The `s1-retro 9`/`14` cites are ambiguous (that file's audit restarts
+numbering; the retro means the body findings). The scope line omits `988e701`
+(landed inside S6's window) and the flake close-out. Finding 8 should state the
+fixme is describe-level — a third row added to that block parks silently.
+
+### Missed — what the retro never examined
+
+8. **The buffer's status port is fully tested and completely unwired.**
+   `buffer.ts:35-37` promises the UI "can be honest that work is not being
+   saved"; the three transitions are proven in tests; and the route constructs
+   the buffer **without `onStatusChange`**, reading `buffer.status()` nowhere.
+   At real quota on a Chromebook the student sees nothing: writes fail, work
+   lives only in memory, and the first signal is a reload that comes back
+   empty. The same class as V4's zero-caller sign-out — in the slice whose
+   defining lesson was that class.
+9. **`documentCache` has no cross-activity eviction** — one ~40 KB blob per
+   activity ever opened, forever, against a ~5 MB origin quota, with both
+   failure branches swallowing their own evidence. The terminal state is
+   missed-8's silent one: the quota ceiling S6-9's GC was written to prevent,
+   reintroduced by the store S6-5 added.
+10. **The lock handback re-grants write authority without re-hydrating** — a
+    re-held tab serializes the in-memory state it has held since boot over
+    everything the thief wrote (on the next keystroke, or with none: `dirty`
+    survives refused writes and dispose/hide flushes it). The V7 row asserts
+    exactly-one-editable, which this does not violate; but "closing the thief
+    hands the activity back with no reload" is stated as a feature in HISTORY
+    and DECISIONS, and it is the unsafe half.
+11. **V9's `warmAssetCache` made V8's runtime-cache e2e vacuous** — page script
+    now writes the same URLs into the same cache on every production load, so
+    the assertion can no longer distinguish worker-populated from
+    page-populated (and the drift guard `main.tsx` claims is thereby voided).
+    Two riders: nothing raises the 250-entry resource-buffer default, so a
+    heavy page silently under-warms; and `cache.add()` entries are invisible to
+    workbox's `ExpirationPlugin`, so `maxEntries: 200` governs only the
+    worker's own writes.
+12. **The sweep's parser is the key grammar's silent enforcer** —
+    `parseScopedKey` deletes anything under the prefix it cannot parse, so a
+    future store adding a `kind` without editing the union is swept from under
+    itself at mount. Two other dialects already share the prefix (the
+    sessionStorage reload flag, safe only by living in a different storage; the
+    Web Locks name).
+13. **The autoUpdate + skipWaiting/clientsClaim choice is untested for the
+    mid-worksheet deploy** — a deploy during a class period activates and
+    claims the open tab; whether the auto-reload and the buffer's hide-flush
+    compose is proven nowhere. And if the DB rate ceiling ever *were* hit,
+    `rate_limited` is not `offline`: the store deletes the pending entry,
+    converting a queued check into a manual-Retry error — one storm would strip
+    the whole queue.
+14. `packages/viewer/dist/` remains stale (S0-audit item 14c), now with S6
+    files in it, polluting exactly the greps this audit ran.
+
+### Audit addenda to the watchlist
+
+- **New, cheap now (~30 min)**: wire `onStatusChange` into the route's banner
+  chain, or delete the port and the header sentence that promises it — silent
+  quota is the one S6 failure mode with no visible symptom.
+- **New, cheap now**: bound `documentCache` (LRU or a cross-activity sweep
+  pass), paired with the above so the failure is visible even after the bound.
+- **New, before S9**: re-hydrate on lock handback (reload the buffer when
+  `held` flips false→true), or refuse the handback — today's no-reload
+  ergonomics are bought with the clobber the lock exists to prevent.
+- **Rewrite item 2 to cover both halves** — `sweepForeignCaches` (no caller)
+  and `purgeStudentCaches` (no producer) live or die together.
+- **Fix the scope line**: `7d18b87`; V1–V9 plus a close-out docs commit.
+- **New, policy (the generalization the retro stops one step short of): a
+  primitive is not delivered until something calls it.** S6 shipped three more
+  instances after V7 caught the first, and the failure matrix could not see
+  them because e2e proves what the app does, never what it declines to do.
+  Mechanical form: an export-reachability check from the entry files, or a
+  zero-non-test-importer lint on package exports.
+- **New, policy**: when a later V-step adds a second writer to a resource an
+  earlier step's test asserts on, re-derive that test's discriminating power
+  (`warmAssetCache` vs V8's cache assertion is the worked example).
