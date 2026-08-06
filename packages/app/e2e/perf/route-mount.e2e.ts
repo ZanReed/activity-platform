@@ -80,18 +80,46 @@ function collectConsoleErrors(page: Page): string[] {
     return errors;
 }
 
+/**
+ * Chunks that are NOT on the render path and are excluded from every chunk
+ * count in this file.
+ *
+ * The service-worker registration (workbox-window plus vite-plugin-pwa's
+ * virtual register module) is its own chunk, fetched because main.tsx calls
+ * registerServiceWorker(). It is deliberately asynchronous and off the critical
+ * path — nothing waits on it to paint — so counting it would make these
+ * assertions pass or fail for reasons that cost the student nothing. Its
+ * WEIGHT is still governed, by the shell budget rows in
+ * scripts/perf-budgets.mjs.
+ *
+ * Discovered by the first run of the student-shell test below, which reported
+ * 4 chunks on a path that renders from 1 — and then REdiscovered by the S8
+ * audit on the per-route leg, which had shipped without this filter: entry +
+ * 2 SW chunks cleared `> 1` before the route chunk was ever considered, so a
+ * broken lazy import still passed (policy P9: when the headline lesson is
+ * "this check was vacuous," re-run that lesson over the fix).
+ */
+const NON_RENDER_CHUNKS = [/pwa-register/i, /workbox-window/i];
+
 test.describe('every production route mounts from its lazy chunk', () => {
     for (const route of PRODUCTION_ROUTES) {
         test(`${route.name} (${route.path})`, async ({ page }) => {
             const errors = collectConsoleErrors(page);
 
-            // Which JS chunks the browser actually asked for during this
-            // navigation. A lazy route MUST add at least one beyond the entry.
-            const fetchedChunks: string[] = [];
+            // Which RENDER-PATH JS chunks the browser actually asked for during
+            // this navigation. A lazy route MUST add at least one beyond the
+            // entry. Filtered and DEDUPED like the student-shell test below —
+            // this leg originally had neither, so entry + the two SW chunks
+            // cleared `> 1` before the route chunk was ever considered, and a
+            // broken dynamic import still passed (S8 audit missed-4).
+            const fetchedChunks = new Set<string>();
             page.on('response', (res) => {
                 const url = res.url();
                 if (url.includes('/assets/') && url.endsWith('.js')) {
-                    fetchedChunks.push(url.split('/').pop()!);
+                    const file = url.split('/').pop()!;
+                    if (!NON_RENDER_CHUNKS.some((re) => re.test(file))) {
+                        fetchedChunks.add(file);
+                    }
                 }
             });
 
@@ -124,10 +152,12 @@ test.describe('every production route mounts from its lazy chunk', () => {
                 // The direct evidence: more than just the entry chunk was
                 // fetched. On a broken dynamic import this is where it fails.
                 expect(
-                    fetchedChunks.length,
-                    `${route.name} fetched no route chunk. Either the route is no ` +
-                        `longer lazy (update this table and the shell budget, since ` +
-                        `it now rides in the entry chunk) or its dynamic import broke.`,
+                    fetchedChunks.size,
+                    `${route.name} fetched no route chunk beyond the entry ` +
+                        `(render-path chunks: ${[...fetchedChunks].join(', ')}). ` +
+                        `Either the route is no longer lazy (update this table and ` +
+                        `the shell budget, since it now rides in the entry chunk) ` +
+                        `or its dynamic import broke.`,
                 ).toBeGreaterThan(1);
             }
 
@@ -141,21 +171,6 @@ test.describe('every production route mounts from its lazy chunk', () => {
         });
     }
 });
-
-/**
- * Chunks that are NOT on the render path and are excluded below.
- *
- * The service-worker registration (workbox-window plus vite-plugin-pwa's
- * virtual register module) is its own chunk, fetched because main.tsx calls
- * registerServiceWorker(). It is deliberately asynchronous and off the critical
- * path — nothing waits on it to paint — so counting it would make this
- * assertion fail for a reason that costs the student nothing. Its WEIGHT is
- * still governed, by the shell budget rows in scripts/perf-budgets.mjs.
- *
- * Discovered by the first run of this spec, which reported 4 chunks on a path
- * that renders from 1.
- */
-const NON_RENDER_CHUNKS = [/pwa-register/i, /workbox-window/i];
 
 test('the student route needs no extra chunk (it IS the shell)', async ({ page }) => {
     // The complement of the table above, and the assertion that keeps ruling D4

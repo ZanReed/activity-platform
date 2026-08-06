@@ -50,7 +50,7 @@ that touches auth, identity, RLS policies, or function grants, re-run:**
   matrix on 0019's policy, incl. the non-uuid-key clean-denial pin and the no-UPDATE-policy
   overwrite check — this policy rides `can_edit_activity`, so any migration touching that helper
   or its grants can regress it).
-- `scripts/verify-0020.sql` (the section-check surface: 22-case matrix over the authorization
+- `scripts/verify-0020.sql` (the section-check surface: 23-case matrix over the authorization
   chain, `record_check`, and `section_checks` RLS). Two of its cases are security boundaries
   rather than conveniences, and a regression in either is silent: **A2** — a version belonging to
   a DIFFERENT activity must be refused, because without the parentage join an empty-responses

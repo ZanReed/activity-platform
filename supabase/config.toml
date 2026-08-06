@@ -1,0 +1,40 @@
+# Declarative per-function deploy flags (eng-review ruling A2/P6, 2026-08-06).
+#
+# WHY THIS FILE EXISTS: whether a student can reach their first screen depends
+# on `verify_jwt` being FALSE for the three anonymous functions below. Until
+# 2026-08-06 that decision lived ONLY in package.json's deploy scripts — any
+# deploy by another route (raw `supabase functions deploy`, dashboard, CI)
+# silently re-enabled the platform's JWT gate and 401'd anonymous requests in a
+# way that reads as normal sign-in behavior. It bit once (get-feedback's first
+# deploy). Policy P6: a decision recorded only in an npm script is not recorded.
+#
+# AUTHORITY: this file is the authoritative record of each function's flag.
+# The `pnpm deploy:*` scripts keep `--no-verify-jwt` baked in as belt and
+# braces; if the two ever disagree, THIS file is the intent and the script is
+# the bug. After any deploy, verify live flags with the platform advisor
+# (`list_edge_functions` → verify_jwt per function).
+#
+# The anonymous trio (called from published pages / the viewer's pre-auth META
+# branch with NO Authorization header — see CLAUDE.md "Division of labor"):
+
+project_id = "activity-platform"
+
+[functions.ingest-submission]
+verify_jwt = false
+
+[functions.get-feedback]
+verify_jwt = false
+
+[functions.get-activity]
+verify_jwt = false
+
+# Deliberately verify_jwt = true — a check is always made by a signed-in
+# student, so the platform gate is a free first line of defense (CLAUDE.md):
+
+[functions.check-activity]
+verify_jwt = true
+
+# Teacher-only:
+
+[functions.publish-activity]
+verify_jwt = true

@@ -279,9 +279,19 @@ export const THROTTLE = {
  * committed number, never against a previous CI artifact, because artifacts
  * expire and a comparison that silently stops working is worse than none).
  */
+/*
+ * CALIBRATION RULE (eng-review 2026-08-06, amending "from a real run"): each
+ * target is the MEDIAN OF ≥5 green CI runs of the perf lane — never a single
+ * run (one shared-runner sample inside known runner variance would make the
+ * derived 2x ceiling flaky), and never a local darwin number (different
+ * machine). As of 2026-08-06 the perf lane has ZERO green CI runs (CI has been
+ * red since the S8 push — see STATE), so all three stay null until five exist.
+ * For reference, the lane recorded pre-auth at 862/867/900 ms on the red runs.
+ */
 export const TIMING_TARGET_MS = {
     [MARKS.preAuthInteractive]: null,
     [MARKS.worksheetInteractive]: null,
+    [MARKS.mathRendered]: null,
 };
 
 /**

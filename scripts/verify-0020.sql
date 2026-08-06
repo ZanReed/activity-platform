@@ -7,7 +7,8 @@
 -- section_checks RLS. Nothing persists.
 --
 -- Run as postgres (SQL editor / MCP) AFTER 0020 is applied. Expect the final
--- notice `=== verify-0020: 22 PASS, 0 FAIL ===`; any FAIL raises, so the
+-- notice `=== verify-0020: 23 PASS, 0 FAIL ===` (22 original + B11, the 60/60
+-- production-defaults boundary, added 2026-08-06); any FAIL raises, so the
 -- transaction can never be mistaken for green. Re-run after ANY future
 -- auth/RLS/grant migration (migrations/README.md → "Regression re-runs").
 --
@@ -322,6 +323,40 @@ begin
   else
     v_fail := v_fail + 1; raise warning 'FAIL B10: feedback not persisted';
   end if;
+
+  -- B11. The PRODUCTION ceiling: the 60/60 DEFAULTS, at their real boundary
+  --      (eng-review A6, 2026-08-06 — the dormant-safeguard rule P3). B8 proves
+  --      the MECHANISM at a forced limit of 1; nothing anywhere exercised the
+  --      pair production actually runs — the Edge Function passes neither rate
+  --      parameter, so the defaults below ARE the live ceiling. The calls here
+  --      deliberately OMIT both parameters: if a migration ever drops the
+  --      defaults, this case fails to execute at all, which is the point.
+  --
+  --      Every row inserted in this transaction shares created_at = now()
+  --      (now() is frozen per transaction), so the window count sees all of
+  --      them; fill from the CURRENT count up to exactly 60, then the 61st
+  --      must raise.
+  select count(*) into v_n from section_checks
+  where student_id = v_student
+    and created_at > now() - make_interval(secs => 60);
+  while v_n < 60 loop
+    perform record_check(v_student, v_activity, v_version, 'sec-RATE',
+      '{}'::jsonb, '{}'::jsonb);
+    v_n := v_n + 1;
+  end loop;
+  begin
+    perform record_check(v_student, v_activity, v_version, 'sec-RATE',
+      '{}'::jsonb, '{}'::jsonb);
+    v_fail := v_fail + 1;
+    raise warning 'FAIL B11: the 61st check inside the window was accepted — the 60/60 defaults are not gating';
+  exception when others then
+    if sqlerrm like '%rate_limited%' then
+      v_pass := v_pass + 1;
+      raise notice 'PASS B11: the production 60/60 defaults gate at exactly 60';
+    else
+      v_fail := v_fail + 1; raise warning 'FAIL B11: wrong error %', sqlerrm;
+    end if;
+  end;
 
   -- ======================= C. RLS on section_checks =========================
 
