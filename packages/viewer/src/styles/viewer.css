@@ -853,8 +853,10 @@
 }
 
 .viewer-banner-action {
-  /* 44px target, same floor the styles suite pins for every control. */
-  min-height: 44px;
+  /* The same tap floor every control gets — via the TOKEN, so the styles
+     suite can actually see it (it pins var(--touch-target) usage; the old
+     hardcoded 44px was invisible to it — s5-audit missed-6, fixed with B5). */
+  min-height: var(--touch-target);
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--vw-color-accent);
   border-radius: var(--vw-radius-md);
@@ -1031,6 +1033,17 @@
 :where([data-viewer-mode='print']) .viewer-matching__letter-line,
 :where([data-viewer-mode='print']) .viewer-ordering__number-box {
   display: inline-block;
+}
+
+/* Tap floors come off in the preview exactly as they do on paper (B5) — a
+   teacher judging page density from the preview must see the density the
+   printer will produce. (The D24 mirror guard compares VISIBILITY only, so
+   this pair is held together by the gate's no-tap-floor checks + this
+   comment, not by that guard.) */
+:where([data-viewer-mode='print']) .viewer-mc__label,
+:where([data-viewer-mode='print']) .viewer-matching__item,
+:where([data-viewer-mode='print']) .viewer-ordering__item {
+  min-height: 0;
 }
 
 /* Screen chrome that never reaches paper. Shown in the preview it would read as
@@ -1284,6 +1297,21 @@
   .viewer-glossary__math .katex-display,
   .viewer-glossary__math .katex-display > .katex {
     text-align: left;
+  }
+
+  /* ---- Tap floors are screen ergonomics (eng review B5, 2026-08-06) -------
+     --touch-target is the 6.1A FINGER floor; paper is answered with a pencil.
+     Left alone it survives into print, and a four-option multiple choice
+     carries ~1.85in of minimum height before its content counts (s5-audit
+     missed-5 — the one audit item that changed what teachers physically get).
+     Selection rows only: the free-text inputs KEEP their floor, because on
+     paper that height is the writing room (the writing-space gate checks pin
+     it). Mirrored in the preview twin above so the teacher's density read
+     stays honest; the gate's no-tap-floor checks hold this side. */
+  .viewer-mc__label,
+  .viewer-matching__item,
+  .viewer-ordering__item {
+    min-height: 0;
   }
 
   /* ---- Interactive chrome never prints ------------------------------------ */

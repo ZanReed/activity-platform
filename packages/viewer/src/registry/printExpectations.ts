@@ -244,6 +244,12 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
       expect: { kind: 'visible' },
     },
     {
+      id: 'mc/no-tap-floor',
+      rule: 'Choice rows shed the 44px tap floor on paper — a four-option question must not spend ~1.85in before its content counts (B5).',
+      target: '.viewer-mc__label',
+      expect: { kind: 'computed', property: 'min-height', oneOf: ['0px', 'auto'] },
+    },
+    {
       id: 'mc/no-verdict-fill',
       rule: 'Post-check choice highlighting is neutralized on paper.',
       target: '.viewer-mc__choice',
@@ -269,6 +275,12 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
       expect: { kind: 'bare-underline' },
     },
     {
+      id: 'matching/no-tap-floor',
+      rule: 'Matching rows shed the 44px tap floor on paper — the floor is finger ergonomics, not layout (B5).',
+      target: '.viewer-matching__item',
+      expect: { kind: 'computed', property: 'min-height', oneOf: ['0px', 'auto'] },
+    },
+    {
       id: 'matching/bank-visible',
       rule: 'The lettered bank prints so the student can read the options.',
       target: '.viewer-matching__bank',
@@ -282,6 +294,12 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
       rule: 'Reorder controls and grips never print.',
       target: '.viewer-ordering__controls',
       expect: { kind: 'hidden' },
+    },
+    {
+      id: 'ordering/no-tap-floor',
+      rule: 'Ordering rows shed the 44px tap floor on paper — the floor is finger ergonomics, not layout (B5).',
+      target: '.viewer-ordering__item',
+      expect: { kind: 'computed', property: 'min-height', oneOf: ['0px', 'auto'] },
     },
     {
       id: 'ordering/number-box',
