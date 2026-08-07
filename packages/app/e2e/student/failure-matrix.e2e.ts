@@ -250,6 +250,115 @@ test.describe('two tabs', () => {
 
     expect(await bufferValue(live)).toContain('live tab work');
   });
+
+  test('a STOLEN-FROM tab’s late flush never lands (eng review D28)', async ({
+    page,
+    context,
+  }) => {
+    // The steal direction of the V7 matrix, previously uncovered: the
+    // displaced tab learns it lost ASYNCHRONOUSLY (the steal rejection is the
+    // notification), so a debounced write scheduled just before the steal
+    // could land after the thief took over. The write gate checks held-ness
+    // at write time; this row pins that nothing lands once the notification
+    // has arrived. Timing envelope: the debounce is 300ms and the steal
+    // notification arrives in tens of ms, so the pending write always fires
+    // AFTER the tab knows it lost — which is exactly the case under test.
+    await stubActivityApi(page);
+    await signInAs(page);
+    await openWorksheet(page);
+
+    const second = await context.newPage();
+    await stubActivityApi(second);
+    await second.goto(activityUrl());
+    await firstBlank(second).waitFor();
+
+    await expect
+      .poll(async () =>
+        [await firstBlank(page).isDisabled(), await firstBlank(second).isDisabled()]
+          .filter((disabled) => !disabled).length,
+      )
+      .toBe(1);
+    const live = (await firstBlank(page).isDisabled()) ? second : page;
+    const thief = live === page ? second : page;
+
+    // Dirty state IN the debounce window: type and steal back-to-back, so the
+    // displaced tab still owes a write when it loses the lock.
+    await firstBlank(live).fill('late-edit-must-not-land');
+    await thief.getByRole('button', { name: /use it here/i }).click();
+    await expect(firstBlank(live)).toBeDisabled();
+
+    // The thief establishes the truth…
+    await firstBlank(thief).fill('thief truth');
+    await expect.poll(async () => bufferValue(thief)).toContain('thief truth');
+
+    // …then the displaced tab is given every chance to flush: its debounce
+    // timer expires, and we fire the hide events that trigger the synchronous
+    // flush path too.
+    await live.evaluate(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    await live.waitForTimeout(400);
+
+    const persisted = await bufferValue(thief);
+    expect(persisted).toContain('thief truth');
+    expect(persisted).not.toContain('late-edit-must-not-land');
+
+    await second.close();
+  });
+
+  test('regaining the lock re-hydrates from storage — the handback is honest (eng review D6)', async ({
+    page,
+    context,
+  }) => {
+    // "Closing the thief hands the activity back with no reload" is a
+    // documented feature — and it used to be the unsafe half: the regaining
+    // tab re-gained WRITE AUTHORITY over the in-memory state it had held
+    // since boot, clobbering everything the thief wrote on the next
+    // keystroke. D6: storage wins — the regainer re-hydrates BEFORE input
+    // re-enables, so what the student sees after the handback is what the
+    // thief actually did.
+    await stubActivityApi(page);
+    await signInAs(page);
+    await openWorksheet(page);
+
+    const second = await context.newPage();
+    await stubActivityApi(second);
+    await second.goto(activityUrl());
+    await firstBlank(second).waitFor();
+
+    await expect
+      .poll(async () =>
+        [await firstBlank(page).isDisabled(), await firstBlank(second).isDisabled()]
+          .filter((disabled) => !disabled).length,
+      )
+      .toBe(1);
+    const original = (await firstBlank(page).isDisabled()) ? second : page;
+    const thiefTab = original === page ? second : page;
+
+    // The original does some work first, so the regain has stale memory to
+    // be tempted by.
+    await firstBlank(original).fill('original work');
+    await expect.poll(async () => bufferValue(original)).toContain('original work');
+
+    // The thief takes over and moves the work forward.
+    await thiefTab.getByRole('button', { name: /use it here/i }).click();
+    await expect(firstBlank(original)).toBeDisabled();
+    await firstBlank(thiefTab).fill('thief moved the work forward');
+    await expect
+      .poll(async () => bufferValue(thiefTab))
+      .toContain('thief moved the work forward');
+
+    // Handback: the thief closes. The original regains — and must SEE the
+    // thief's state, not resurrect its own.
+    await thiefTab.close();
+    await expect(firstBlank(original)).toBeEnabled();
+    await expect(firstBlank(original)).toHaveValue('thief moved the work forward');
+
+    // And the buffer still holds the thief's truth after the regain settles.
+    await original.waitForTimeout(400);
+    expect(await bufferValue(original)).toContain('thief moved the work forward');
+  });
 });
 
 test.describe('shared device', () => {

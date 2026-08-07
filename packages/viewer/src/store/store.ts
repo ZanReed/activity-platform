@@ -79,6 +79,16 @@ export interface ViewerStoreState {
    */
   inFlight: Record<string, InFlightCheck>;
   /**
+   * Section id → gradable block ids that CRASHED before the last check of
+   * that section, so the check under-covered (D12's recordable half, wired
+   * by eng review D13). RUNTIME-ONLY — deliberately absent from serialize():
+   * a crash roster describes THIS render of this tab, and persisting it
+   * would resurrect a stale accusation after the crash is gone. Consumers
+   * today: the route's error log; later, whatever the grading-UX era decides
+   * an under-covered check should DO.
+   */
+  shortfalls: Record<string, string[]>;
+  /**
    * Set once the server tells us a newer version of this activity exists
    * (ruling S4-T5). The check STILL SUCCEEDED — the student keeps working and
    * checking against the version they were served, because a mid-period
@@ -106,6 +116,10 @@ export interface ViewerStore {
    * the status transition has landed; never throws — failures surface as the
    * section's 'error' status. */
   checkSection(sectionId: string, items: SectionItemIds): Promise<void>;
+
+  /** Record that a section's last check under-covered (crashed gradable
+   * blocks sent no response). Runtime-only state — see ViewerStoreState. */
+  recordShortfall(sectionId: string, crashedBlockIds: string[]): void;
 
   /**
    * Forget a queued check without running it. The one caller today is the
@@ -176,6 +190,7 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
     sections: {},
     pending: {},
     inFlight: {},
+    shortfalls: {},
   };
   const listeners = new Set<() => void>();
 
@@ -374,6 +389,13 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
           })(),
         });
       }
+    },
+
+    recordShortfall(sectionId, crashedBlockIds) {
+      commit({
+        ...state,
+        shortfalls: { ...state.shortfalls, [sectionId]: [...crashedBlockIds] },
+      });
     },
 
     dropPendingCheck(sectionId) {

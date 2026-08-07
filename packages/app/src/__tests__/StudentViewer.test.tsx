@@ -25,6 +25,15 @@ const STUDENT_ID = 'dddddddd-0000-4000-8000-000000000001';
 const OTHER_STUDENT_ID = 'dddddddd-0000-4000-8000-000000000002';
 
 const h = vi.hoisted(() => ({
+    /** Scriptable check response (D9 chain tests). Default: bare success. */
+    check: {
+        current: ((req: { sectionId: string }) => ({
+            wireVersion: 2,
+            sectionId: req.sectionId,
+            items: {},
+            solutions: {},
+        })) as (req: { sectionId: string }) => unknown,
+    },
     // Shaped like a real Supabase Session: `user` is NOT optional there, and a
     // double that omits it lets the route read `session.user.id` in tests that
     // would crash against the real thing.
@@ -72,7 +81,7 @@ vi.mock('@activity/viewer', async (importOriginal) => {
             fetchContent: async () => h.load.current,
         }),
         createHttpCheckService: () => ({
-            checkSection: async () => ({}),
+            checkSection: async (req: { sectionId: string }) => h.check.current(req),
             fetchReleasedFeedback: async () => ({ graded: false, blocks: {} }),
         }),
     };
@@ -97,6 +106,12 @@ afterEach(() => {
     h.session.current = null;
     h.meta.current = { title: 'Linear Systems', teacherName: 'Kia Jafari' };
     h.load.current = null;
+    h.check.current = (req) => ({
+        wireVersion: 2,
+        sectionId: req.sectionId,
+        items: {},
+        solutions: {},
+    });
 });
 
 describe('pre-auth gate (ruling 3.2A)', () => {
@@ -375,5 +390,174 @@ describe('boot paths (S6 V6)', () => {
         await screen.findAllByRole('textbox');
 
         expect(container.querySelector('[data-banner]')).toBeNull();
+    });
+});
+
+// =============================================================================
+// The banner dedup chain (eng review D9/D4/A15) — one owner, enumerated order.
+// =============================================================================
+describe('the banner dedup chain (D9/D4/A15)', () => {
+    const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
+
+    function servedActivity(versionId = 'v1') {
+        return {
+            activityId: ACTIVITY,
+            versionId,
+            versionNum: 1,
+            title: 'Linear Systems',
+            document: servedFixtureDocument(),
+        };
+    }
+
+    function seedUnsentWork(versionId: string) {
+        window.localStorage.setItem(
+            `activity-viewer:buffer:${STUDENT_ID}:${ACTIVITY}:${versionId}`,
+            JSON.stringify({
+                schemaVersion: 1,
+                userId: STUDENT_ID,
+                activityId: ACTIVITY,
+                versionId,
+                responses: { blanks: { 'blank-1': '42' }, choices: {}, matches: {}, orderings: {}, freeText: {}, graphs: {} },
+                checked: {},
+                pending: { 'sec-1': { fingerprint: 'fp' } },
+                inFlight: {},
+            }),
+        );
+    }
+
+    function seedCachedDocument(versionId: string) {
+        window.localStorage.setItem(
+            `activity-viewer:doc:${STUDENT_ID}:${ACTIVITY}:${versionId}`,
+            JSON.stringify({ ...servedActivity(versionId), document: servedFixtureDocument() }),
+        );
+    }
+
+    /** Sign in, serve, and wait until the worksheet is mounted AND wired. */
+    async function bootServed() {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = servedActivity();
+        const view = renderRoute(ACTIVITY);
+        await screen.findAllByRole('textbox');
+        await act(async () => {});
+        return view;
+    }
+
+    afterEach(() => window.localStorage.clear());
+
+    it('stale-version: appears after a check reveals a newer version, as an OFFER (ported from the container by D9)', async () => {
+        h.check.current = (req) => ({
+            wireVersion: 2,
+            sectionId: req.sectionId,
+            items: {},
+            solutions: {},
+            currentVersionId: 'a-newer-version',
+        });
+        const { container } = await bootServed();
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Check' })[0]!);
+
+        await waitFor(() =>
+            expect(container.querySelector('[data-banner="stale-version"]')).not.toBeNull(),
+        );
+        // Politely announced, never focus-grabbing (role=status = aria-live
+        // polite) — and the reload is a BUTTON the student chooses, never
+        // an automatic one.
+        const banner = container.querySelector('[data-banner="stale-version"]')!;
+        expect(banner.getAttribute('role')).toBe('status');
+        expect(
+            screen.getByRole('button', { name: /reload to get the new version/i }),
+        ).toBeInTheDocument();
+        // The check itself still worked — this is an offer, not a failure.
+        expect(screen.getByText('Checked.')).toBeInTheDocument();
+    });
+
+    it('pinned beats stale: a pinned student is NEVER told to reload (the s4-retro 8 contradiction)', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        seedUnsentWork('v1');
+        seedCachedDocument('v1');
+        h.load.current = servedActivity('v2'); // republished; route pins to v1
+        h.check.current = (req) => ({
+            wireVersion: 2,
+            sectionId: req.sectionId,
+            items: {},
+            solutions: {},
+            currentVersionId: 'v2', // every check of the pinned version says so
+        });
+
+        const { container } = renderRoute(ACTIVITY);
+        await waitFor(() =>
+            expect(container.querySelector('[data-banner="pinned-version"]')).not.toBeNull(),
+        );
+        await act(async () => {});
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Check' })[0]!);
+        await screen.findByText('Checked.');
+
+        // The advisory arrived — and the chain suppresses it: reloading is
+        // exactly what pinning exists to avoid.
+        expect(container.querySelector('[data-banner="pinned-version"]')).not.toBeNull();
+        expect(container.querySelector('[data-banner="stale-version"]')).toBeNull();
+        expect(
+            screen.queryByRole('button', { name: /reload to get the new version/i }),
+        ).toBeNull();
+    });
+
+    it('storage-failure: quota loss is SAID, and it outranks the stale advisory (D4)', async () => {
+        h.check.current = (req) => ({
+            wireVersion: 2,
+            sectionId: req.sectionId,
+            items: {},
+            solutions: {},
+            currentVersionId: 'a-newer-version',
+        });
+        const { container } = await bootServed();
+
+        // From here on, every buffer write hits a full device.
+        const original = Storage.prototype.setItem;
+        const spy = vi
+            .spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(function (this: Storage, key: string, value: string) {
+                if (key.startsWith('activity-viewer:buffer:')) {
+                    const err = new Error('quota');
+                    (err as { name: string }).name = 'QuotaExceededError';
+                    throw err;
+                }
+                return original.call(this, key, value);
+            });
+        try {
+            const input = (await screen.findAllByRole('textbox'))[0]!;
+            fireEvent.change(input, { target: { value: 'my answer' } });
+            // The hide flush is synchronous — no debounce to wait out.
+            fireEvent(document, new Event('visibilitychange'));
+
+            await waitFor(() =>
+                expect(
+                    container.querySelector('[data-banner="storage-failure"]'),
+                ).not.toBeNull(),
+            );
+            expect(screen.getByText(/NOT being saved/)).toBeInTheDocument();
+
+            // Now surface the stale advisory too — storage-failure still wins.
+            fireEvent.click(screen.getAllByRole('button', { name: 'Check' })[0]!);
+            await screen.findByText('Checked.');
+            expect(container.querySelector('[data-banner="storage-failure"]')).not.toBeNull();
+            expect(container.querySelector('[data-banner="stale-version"]')).toBeNull();
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
+    it('unavailable check: its own sentence, and NEVER "try again" (A15)', async () => {
+        const { CheckError } = await import('@activity/viewer');
+        h.check.current = () => {
+            throw new CheckError('unavailable', 'not yours');
+        };
+        await bootServed();
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Check' })[0]!);
+
+        await screen.findByText(/isn’t available to check anymore/);
+        // The taxonomy's whole point: no invitation to a retry that cannot work.
+        expect(screen.queryByText(/try again/i)).toBeNull();
     });
 });

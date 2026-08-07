@@ -73,7 +73,7 @@ Baseline facts, verified live 2026-08-04/05: migrations applied **through 0026**
 9. S8 recalibration re-measure + re-run the S8 retro against its posted checklist (s8)
 10. Do **NOT** unify renderer/viewer shuffle hashes pre-S9 (changes published arrangements for nothing); `Matching.tsx`'s block-id seeding *survives* S9 (s2:w10)
 11. S9-prep identity slice (D7/D8 rulings: role/shell/join UI + gate hardening incl. allowlist case-normalization, `hd`, `expected_domain` edit path, assertion immutability, `class.create` audit writer, two-action remove dialog) — lands **BEFORE gate 4's seeding**
-12. Local-first safety set (D4/D5/D6/D9/D27/D28 rulings: single banner chain, quota banner, byte-budgeted LRU w/ unsent-work exemption, write-time lock gate + re-hydrate, A15 copy) — before cutover
+12. ✅ **DONE 2026-08-07** — Local-first safety set (D4/D5/D6/D9/D27/D28 + A15 copy + D13's shortfall consumer, which was ruled but package-less): single six-arm banner chain in the route, quota banner wired, byte-budgeted LRU (2 MiB, unsent-work exempt), handback re-hydrate + steal-window write gate with both V7-matrix e2e rows
 13. `POLICY_VERSION` bump (D2/D3: clause-drop + pack rewrite) — before the first real class row AND before gate 11's assertion-immutability migration
 14. Contact-sheet evidence captured (D15: tag + release asset) — before the renderer dies
 15. DELETE `ingest-submission` + `get-feedback` after a zero-traffic check in edge logs (D26; get-activity's anonymous META branch survives — it serves the viewer's own pre-auth screen)

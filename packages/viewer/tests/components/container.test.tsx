@@ -347,7 +347,7 @@ describe('print mode', () => {
   });
 });
 
-describe('the stale-version banner (ruling S4-T5)', () => {
+describe('the stale-version advisory (ruling S4-T5, LIFTED by eng review D9)', () => {
   /** A check service that reports the student's version has been superseded. */
   function supersedingService(): CheckService {
     return {
@@ -366,14 +366,13 @@ describe('the stale-version banner (ruling S4-T5)', () => {
     };
   }
 
-  it('shows nothing while the student is on the current version', () => {
-    const { container } = setup(sanitizedFixtureDocument());
-    expect(container.querySelector('[data-banner="stale-version"]')).toBeNull();
-  });
-
-  it('appears after a check reveals a newer version, WITHOUT failing the check', async () => {
-    // The teacher fixed a typo mid-period. The student's check still worked —
-    // this is an offer, not an interruption.
+  it('the container NEVER renders the stale banner — the route owns the chain', async () => {
+    // The banner used to render here, independently of the route's dedup
+    // chain — which is how a pinned student got "your unsent work is safe
+    // here" stacked against "Reload to get the new version" (s4-retro 8).
+    // D9 lifted it into the route's single enumerated chain
+    // (StudentViewer.test pins the banner's contract there); THIS pin is the
+    // don't-reintroduce guard.
     const doc = sanitizedFixtureDocument();
     const store = createViewerStore({
       userId: TEST_USER_ID,
@@ -384,68 +383,19 @@ describe('the stale-version banner (ruling S4-T5)', () => {
     const { container } = render(
       <ViewerContainer document={doc} store={store} versionId={VERSION} />,
     );
-
     const sectionId = doc.sections[0]!.id;
     await act(async () => {
       await store.checkSection(sectionId, {});
     });
 
-    await waitFor(() => {
-      expect(
-        container.querySelector('[data-banner="stale-version"]'),
-      ).not.toBeNull();
-    });
+    // The advisory is IN the store for the route to consume…
+    expect(store.getState().newerVersionId).toBe('a-newer-version');
+    // …the check itself still succeeded (an offer, not an interruption)…
     expect(store.getState().sections[sectionId]?.phase).toBe('checked');
-  });
-
-  it('announces itself politely rather than grabbing focus', async () => {
-    // role=status is an aria-live=polite region: it must not interrupt a
-    // student mid-answer, which is the whole reason this is a banner and not a
-    // modal.
-    const doc = sanitizedFixtureDocument();
-    const store = createViewerStore({
-      userId: TEST_USER_ID,
-      activityId: ACTIVITY,
-      versionId: VERSION,
-      checkService: supersedingService(),
-    });
-    const { container } = render(
-      <ViewerContainer document={doc} store={store} versionId={VERSION} />,
-    );
-    await act(async () => {
-      await store.checkSection(doc.sections[0]!.id, {});
-    });
-
-    await waitFor(() => {
-      const banner = container.querySelector('[data-banner="stale-version"]');
-      expect(banner?.getAttribute('role')).toBe('status');
-    });
-  });
-
-  it('offers a reload the student chooses, never an automatic one', async () => {
-    // Auto-reloading would discard in-flight work — the opposite of helpful.
-    const doc = sanitizedFixtureDocument();
-    const store = createViewerStore({
-      userId: TEST_USER_ID,
-      activityId: ACTIVITY,
-      versionId: VERSION,
-      checkService: supersedingService(),
-    });
-    const { container } = render(
-      <ViewerContainer document={doc} store={store} versionId={VERSION} />,
-    );
-    await act(async () => {
-      await store.checkSection(doc.sections[0]!.id, {});
-    });
-
-    await waitFor(() => {
-      const action = container.querySelector('.viewer-banner-action');
-      expect(action?.tagName).toBe('BUTTON');
-      expect(action?.textContent).toMatch(/reload/i);
-    });
+    // …and the container renders NO banner for it.
+    expect(container.querySelector('[data-banner="stale-version"]')).toBeNull();
   });
 });
-
 describe('read-only tab (ruling 2.3A / S6-4)', () => {
   it('renders the other-tab notice with an explicit takeover', () => {
     const { container } = setup(docOf(blocksOf('paragraph')[0]), { readOnly: true });

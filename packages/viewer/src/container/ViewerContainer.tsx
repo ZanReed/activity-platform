@@ -14,10 +14,13 @@
 // The crashed-gradable rule (ruling D12, second half): if a gradable block in
 // a section crashed, checking that section CANNOT honestly report "all
 // checked". The container keeps the crash roster, renders the shortfall next
-// to the section status, and hands it to `onCheckShortfall` so the app can log
-// it. Same treatment for `unsupported` ids (graph-family blocks, which
-// CHECK_WIRE_VERSION 1 has no category for): both are ways a student's work can
-// go ungraded, and both are said out loud rather than swallowed.
+// to the section status, and hands it to `onCheckShortfall` so the app can
+// record it. (An `unsupported` half used to ride along for gradable types the
+// wire couldn't carry — wire v2 gave the graph family its category, the roster
+// was TEST-PINNED empty, and eng review D13 deleted the dead wire shape;
+// blockIndex still DETECTS unsupported ids, so a future type ahead of its wire
+// bump surfaces there first, and the field returns with the wire that can
+// populate it.)
 //
 // Component resolution goes through `resolveComponent`, defaulting to the
 // registry's `component` binding. In V4 no entry has one, so every block
@@ -72,8 +75,6 @@ export interface CheckShortfall {
   sectionId: string;
   /** Gradable blocks that crashed and therefore sent no response. */
   crashedBlockIds: string[];
-  /** Gradable blocks with no wire-v1 response category (graph family). */
-  unsupportedBlockIds: string[];
 }
 
 export interface ViewerContainerProps {
@@ -139,6 +140,11 @@ function statusLabel(status: SectionStatus | undefined): string {
           return 'Checking too quickly — wait a moment and try again.';
         case 'offline':
           return 'You’re offline — we’ll check when you reconnect.';
+        case 'unavailable':
+          // Deliberately NOT "try again" (A15): this activity is gone or not
+          // theirs — the taxonomy's whole point is never inviting a retry
+          // that cannot work.
+          return 'This activity isn’t available to check anymore. Ask your teacher.';
         default:
           return 'Couldn’t check — try again.';
       }
@@ -197,7 +203,6 @@ export function ViewerContainer({
       crashedBlockIds: section.blockIds.filter(
         (id) => crashed[id]?.gradable === true,
       ),
-      unsupportedBlockIds: [...section.unsupported],
     }),
     [crashed],
   );
@@ -206,10 +211,7 @@ export function ViewerContainer({
     async (section: SectionIndex) => {
       const shortfall = shortfallFor(section);
       await store.checkSection(section.sectionId, section.items);
-      if (
-        shortfall.crashedBlockIds.length > 0 ||
-        shortfall.unsupportedBlockIds.length > 0
-      ) {
+      if (shortfall.crashedBlockIds.length > 0) {
         onCheckShortfall?.(shortfall);
       }
     },
@@ -277,24 +279,12 @@ export function ViewerContainer({
         </aside>
       ) : null}
 
-      {/* Passive stale-version notice (ruling S4-T5). Deliberately NOT a modal
-          and deliberately not an auto-reload: the student's checks still work
-          against the version they were served, and reloading for them would
-          discard in-flight work. It matters most when a teacher republished to
-          FIX a wrong answer key — without this the student would keep being
-          graded by the broken one with no way to know. */}
-      {state.newerVersionId ? (
-        <div className="viewer-banner" role="status" data-banner="stale-version">
-          <span>Your teacher updated this activity.</span>
-          <button
-            type="button"
-            className="viewer-banner-action"
-            onClick={() => globalThis.location?.reload()}
-          >
-            Reload to get the new version
-          </button>
-        </div>
-      ) : null}
+      {/* The stale-version advisory used to render HERE, independently of the
+          route's banner chain — which is how a pinned student got "your unsent
+          work is safe here" and "Reload to get the new version" stacked with
+          opposite advice (s4-retro finding 8). Lifted into the route's single
+          dedup chain (eng review D9, 2026-08-07): one owner, one enumerated
+          priority, and pinned suppressing stale falls out of ordering. */}
       {/* The other-tab notice (2.3A). Passive and non-blocking, like every
           other banner here: the student can still READ their work, which is
           the common reason a second tab exists at all. Taking over is an
@@ -326,9 +316,8 @@ export function ViewerContainer({
         const status = state.sections[section.id];
         const shortfall = sectionIndex
           ? shortfallFor(sectionIndex)
-          : { sectionId: section.id, crashedBlockIds: [], unsupportedBlockIds: [] };
-        const uncovered =
-          shortfall.crashedBlockIds.length + shortfall.unsupportedBlockIds.length;
+          : { sectionId: section.id, crashedBlockIds: [] };
+        const uncovered = shortfall.crashedBlockIds.length;
 
         return (
           <section

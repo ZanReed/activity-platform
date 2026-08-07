@@ -26,6 +26,7 @@ import {
   serializeViewerState,
   sweepForeignStorage,
   sweepOrphanVersions,
+  type CachedDocument,
   type StorageLike,
 } from '../src/index.js';
 import { OTHER_USER_ID, TEST_USER_ID } from './helpers/ids.js';
@@ -227,5 +228,110 @@ describe('the document cache', () => {
     // answers — but it is still theirs, and the sweep must reach it.
     expect(loadCachedDocument(storage, OTHER_USER_ID, ACTIVITY, V1)).toBeNull();
     expect(loadCachedDocument(storage, TEST_USER_ID, ACTIVITY, V1)).not.toBeNull();
+  });
+});
+
+// -----------------------------------------------------------------------------
+// The byte budget (eng review D5/D27) — both sides, like the GC exception.
+// -----------------------------------------------------------------------------
+describe('the document-cache byte budget (D5)', () => {
+  const A2 = 'aaaaaaaa-0000-4000-8000-000000000002';
+  const A3 = 'aaaaaaaa-0000-4000-8000-000000000003';
+  const A4 = 'aaaaaaaa-0000-4000-8000-000000000004';
+
+  /** ~0.9 MB of document, so three exceed DOC_CACHE_BUDGET (2 MiB). */
+  const bigDoc = (activityId: string, versionId: string): CachedDocument => ({
+    activityId,
+    versionId,
+    versionNum: 1,
+    title: 't',
+    document: { pad: 'x'.repeat(900_000) },
+  });
+
+  it('evicts the least-recently-SAVED entry once the budget is exceeded', () => {
+    const storage = new FakeStorage();
+    let t = 1000;
+    const clock = () => t;
+
+    saveCachedDocument(storage, TEST_USER_ID, bigDoc(ACTIVITY, V1), clock);
+    t = 2000;
+    saveCachedDocument(storage, TEST_USER_ID, bigDoc(A2, V1), clock);
+    t = 3000;
+    // Third save blows the budget: the OLDEST (ACTIVITY, t=1000) must go.
+    saveCachedDocument(storage, TEST_USER_ID, bigDoc(A3, V1), clock);
+
+    expect(loadCachedDocument(storage, TEST_USER_ID, ACTIVITY, V1)).toBeNull();
+    expect(loadCachedDocument(storage, TEST_USER_ID, A2, V1)).not.toBeNull();
+    expect(loadCachedDocument(storage, TEST_USER_ID, A3, V1)).not.toBeNull();
+  });
+
+  it('NEVER evicts an activity whose buffer holds unsent work (the V6 exception)', () => {
+    const storage = new FakeStorage();
+    let t = 1000;
+    const clock = () => t;
+
+    saveCachedDocument(storage, TEST_USER_ID, bigDoc(ACTIVITY, V1), clock);
+    // The oldest activity has unsent work — its offline copy is untouchable.
+    storage.setItem(
+      bufferKey({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: V1 }),
+      blob({ answered: true }),
+    );
+    t = 2000;
+    saveCachedDocument(storage, TEST_USER_ID, bigDoc(A2, V1), clock);
+    t = 3000;
+    saveCachedDocument(storage, TEST_USER_ID, bigDoc(A3, V1), clock);
+
+    // The exempt oldest survives; the next-oldest unexempt entry went instead.
+    expect(loadCachedDocument(storage, TEST_USER_ID, ACTIVITY, V1)).not.toBeNull();
+    expect(loadCachedDocument(storage, TEST_USER_ID, A2, V1)).toBeNull();
+    expect(loadCachedDocument(storage, TEST_USER_ID, A3, V1)).not.toBeNull();
+  });
+
+  it('treats a pre-budget blob (no touchedAt) as the oldest candidate', () => {
+    const storage = new FakeStorage();
+    // A legacy entry written before the budget existed.
+    storage.setItem(
+      documentKey({ userId: TEST_USER_ID, activityId: A4, versionId: V1 }),
+      JSON.stringify({
+        activityId: A4,
+        versionId: V1,
+        versionNum: 1,
+        title: 'legacy',
+        document: { pad: 'x'.repeat(900_000) },
+      }),
+    );
+    let t = 5000;
+    const clock = () => t;
+    saveCachedDocument(storage, TEST_USER_ID, bigDoc(ACTIVITY, V1), clock);
+    t = 6000;
+    saveCachedDocument(storage, TEST_USER_ID, bigDoc(A2, V1), clock);
+
+    expect(loadCachedDocument(storage, TEST_USER_ID, A4, V1)).toBeNull();
+    expect(loadCachedDocument(storage, TEST_USER_ID, ACTIVITY, V1)).not.toBeNull();
+  });
+
+  it('on a quota failure, sheds the oldest copy and retries once', () => {
+    let failNext = true;
+    class QuotaStorage extends FakeStorage {
+      override setItem(k: string, v: string): void {
+        if (failNext && parseScopedKey(k)?.kind === 'doc') {
+          failNext = false;
+          const err = new Error('quota');
+          (err as { name: string }).name = 'QuotaExceededError';
+          throw err;
+        }
+        super.setItem(k, v);
+      }
+    }
+    const storage = new QuotaStorage();
+    // Something old to shed.
+    failNext = false;
+    saveCachedDocument(storage, TEST_USER_ID, bigDoc(ACTIVITY, V1), () => 1);
+    failNext = true;
+
+    const ok = saveCachedDocument(storage, TEST_USER_ID, bigDoc(A2, V1), () => 2);
+    expect(ok).toBe(true);
+    expect(loadCachedDocument(storage, TEST_USER_ID, ACTIVITY, V1)).toBeNull();
+    expect(loadCachedDocument(storage, TEST_USER_ID, A2, V1)).not.toBeNull();
   });
 });

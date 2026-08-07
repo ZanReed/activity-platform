@@ -119,6 +119,16 @@ export default function StudentViewer() {
   const [strandedNotice, setStrandedNotice] = useState(false);
   /** The session died while they were working (2.3A). Passive, never a modal. */
   const [authExpired, setAuthExpired] = useState(false);
+  // Storage failure (D4): the buffer's status port, finally wired — quota or
+  // an unavailable store means work is NOT being saved, and silence here was
+  // the one S6 failure mode with no visible symptom.
+  const [storageFailure, setStorageFailure] = useState<
+    'quota-exceeded' | 'unavailable' | null
+  >(null);
+  // Stale-version advisory (D9): mirrored from the store so the ROUTE's dedup
+  // chain owns it — it used to render inside ViewerContainer, independently,
+  // which is how a pinned student got opposite advice.
+  const [newerVersionId, setNewerVersionId] = useState<string | null>(null);
 
   const getAccessToken = useCallback(
     () => session?.access_token ?? null,
@@ -352,21 +362,49 @@ export default function StudentViewer() {
     // not a conflict, and two students on one machine must not block each
     // other. Version is deliberately out — two tabs on two versions of the
     // same activity still write buffers that would fight.
+    // Declared before the lock so its onChange can re-hydrate through it;
+    // assigned right after createViewerBuffer below.
+    let buffer: ReturnType<typeof createViewerBuffer> | null = null;
+    let everHeld = false;
+
     const lock = createTabLock({
       name: `activity-viewer:lock:${userId}:${activityId}`,
-      onChange: setTabHeld,
+      onChange: (held) => {
+        // THE HANDBACK RE-HYDRATE (eng review D6/D28). Regaining the lock —
+        // the thief tab closed — must not re-grant write authority over the
+        // state THIS tab has held in memory since boot: everything the other
+        // tab wrote would be clobbered on the next keystroke (or none: dirty
+        // state survives refused writes and flushes on dispose). Storage wins,
+        // deliberately: this tab's writes were refused the whole time it
+        // didn't hold the lock, so its divergence is exactly the stale part.
+        // Re-hydrating BEFORE setTabHeld re-enables input closes the window.
+        // (First acquisition is not a regain — the mount path below hydrates.)
+        if (held && everHeld && buffer) {
+          const latest = buffer.load();
+          if (latest) store.hydrate(latest);
+        }
+        if (held) everHeld = true;
+        setTabHeld(held);
+      },
     });
 
-    const buffer = createViewerBuffer({
+    buffer = createViewerBuffer({
       storage,
       userId,
       activityId,
       versionId,
       serialize: () => store.serialize(),
-      // The write gate (outside-voice #7). A tab that lost the lock stops
-      // WRITING, not just typing — otherwise closing it hours later would
-      // flush its stale state over whatever the live tab has since done.
+      // The write gate (outside-voice #7, tightened by D28). A tab that lost
+      // the lock stops WRITING, not just typing — otherwise closing it hours
+      // later would flush its stale state over whatever the live tab has
+      // since done. This gates every write INCLUDING the dispose/hide flush.
+      // Honest residual: Web Locks reports the steal asynchronously, so a
+      // flush landing in the notification gap can still write once — after
+      // which the thief's next save overwrites it, and the regain re-hydrate
+      // above never reads this tab's memory as truth. Post-notification,
+      // nothing lands (the steal-direction e2e row pins exactly that).
       canWrite: () => lock.isHeld(),
+      onStatusChange: (st) => setStorageFailure(st === 'ok' ? null : st),
     });
     const restored = buffer.load();
     if (restored) store.hydrate(restored);
@@ -404,10 +442,13 @@ export default function StudentViewer() {
     // per-section error in one case and a banner in the other. Watching the
     // store here is what makes the two paths converge.
     const unwatchAuth = store.subscribe(() => {
-      const expired = Object.values(store.getState().sections).some(
+      const snapshot = store.getState();
+      const expired = Object.values(snapshot.sections).some(
         (status) => status.phase === 'error' && status.kind === 'unauthenticated',
       );
       if (expired) setAuthExpired(true);
+      // D9: the check-response advisory, surfaced through the route's chain.
+      setNewerVersionId(snapshot.newerVersionId ?? null);
     });
     queue.start();
 
@@ -417,9 +458,11 @@ export default function StudentViewer() {
       queue.stop();
       unsubscribe();
       unwatchAuth();
-      buffer.dispose(); // flushes whatever the debounce still owed
+      buffer?.dispose(); // flushes whatever the debounce still owed
       lock.dispose();
       setTakeOver(null);
+      setStorageFailure(null);
+      setNewerVersionId(null);
     };
   }, [store, userId, activityId, versionId, servedDocument]);
 
@@ -465,12 +508,26 @@ export default function StudentViewer() {
             action is the same one those will call. */}
         <PrintButton />
       </header>
-      {/* BANNER ORDER IS THE DEDUP RULE (outside-voice finding 13). At most
-          ONE of these shows at a time, most-actionable first: a dead session
-          blocks checking entirely, a stranded version needs a decision, and
-          "you're offline" is merely context. Stacking all three would turn
-          three sentences a student can act on into a wall they skip. The
-          per-section pill remains the persistent state; these are transitions. */}
+      {/* BANNER ORDER IS THE DEDUP RULE (outside-voice finding 13; rebuilt as
+          ONE chain by eng review D9 after its old comment failed to enumerate
+          its own arms AND ViewerContainer rendered a fifth banner
+          independently — the pinned-vs-reload contradiction). At most ONE
+          shows, most-actionable first, and this list IS the chain below:
+
+            1. session-expired   — checking is blocked until they act
+            2. storage-failure   — work is silently not persisting (D4)
+            3. work-stranded     — an earlier check needs their understanding
+            4. offline-copy      — context for why things look frozen
+            5. pinned-version    — why they are NOT on the newest version
+            6. stale-version     — a newer version exists; reload is OFFERED
+
+          Pinned before stale is load-bearing: a pinned student's unsent work
+          lives on their version, and "Reload to get the new version" is
+          exactly what pinning exists to avoid — ordering suppresses the
+          contradiction structurally. The per-section pill remains the
+          persistent state; these are transitions. (The other-tab/read-only
+          notice renders in ViewerContainer beside its takeover affordance —
+          takeover UI, not a status banner; the one deliberate exception.) */}
       {authExpired ? (
         <div className="viewer-banner" role="status" data-banner="session-expired">
           <span>Your sign-in expired. Your work is saved on this device.</span>
@@ -483,6 +540,18 @@ export default function StudentViewer() {
           >
             Sign in again
           </button>
+        </div>
+      ) : storageFailure ? (
+        <div className="viewer-banner" role="status" data-banner="storage-failure">
+          <span>
+            {storageFailure === 'quota-exceeded'
+              ? 'This device is out of storage — your work here is NOT being ' +
+                'saved. Checking still works, but unsent answers will be lost ' +
+                'if this tab closes.'
+              : 'This browser is blocking storage — your work here is NOT ' +
+                'being saved. Checking still works, but unsent answers will ' +
+                'be lost if this tab closes.'}
+          </span>
         </div>
       ) : strandedNotice ? (
         <div className="viewer-banner" role="status" data-banner="work-stranded">
@@ -505,12 +574,33 @@ export default function StudentViewer() {
             your unsent work isn’t lost.
           </span>
         </div>
+      ) : newerVersionId ? (
+        <div className="viewer-banner" role="status" data-banner="stale-version">
+          <span>Your teacher updated this activity.</span>
+          <button
+            type="button"
+            className="viewer-banner-action"
+            onClick={() => globalThis.location?.reload()}
+          >
+            Reload to get the new version
+          </button>
+        </div>
       ) : null}
       <ViewerContainer
         document={state.served.document}
         store={store}
         versionId={state.served.versionId}
         readOnly={!tabHeld}
+        // D13: an under-covered check is RECORDABLE, not just visible — the
+        // container's banner says it to the student; this says it to the log
+        // and the store (where the grading-UX era can act on it).
+        onCheckShortfall={(shortfall) => {
+          console.error(
+            '[viewer] check shortfall — crashed gradable blocks went unchecked',
+            shortfall,
+          );
+          store.recordShortfall(shortfall.sectionId, shortfall.crashedBlockIds);
+        }}
         {...(takeOver ? { onTakeOver: takeOver } : {})}
       />
     </>
