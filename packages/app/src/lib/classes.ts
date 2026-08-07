@@ -17,11 +17,16 @@ import { POLICY_VERSION } from './policyVersion';
 export const ASSERTION_TEXT_VERSION = POLICY_VERSION;
 
 // The exact text the teacher asserts to (rendered next to the checkbox).
+// The under-13 school-authorization clause was DROPPED 2026-08-07 (eng
+// review D2, POLICY_VERSION 2026-08-07-draft-2): the platform declines
+// under-13 sign-ins unconditionally, so the one sentence a teacher legally
+// attests to must not offer an escape hatch the rest of the pack disclaims.
+// v1's age floor is a recorded MARKET constraint (DECISIONS → "The 13+
+// floor"): under-13 use returns only with a real school-authorization arc.
 // Changing this wording = bump POLICY_VERSION (the stored assertion must be
 // reconstructable from the version string).
 export const ASSERTION_TEXT =
-    'I confirm that every student in this class is 13 or older, or that my ' +
-    'school has authorized younger students to use this platform.';
+    'I confirm that every student in this class is 13 or older.';
 
 export interface ClassInfo {
     id: string;

@@ -29,7 +29,12 @@ teachers are authorized to make that assertion.
 
 ☐ *(Optional, later arc — not available in v1)* The School additionally
 authorizes under-13 use under COPPA's school-consent provision. **Leave
-unchecked; the platform will decline under-13 sign-ins regardless in v1.**
+unchecked; the platform will decline under-13 sign-ins regardless in v1** —
+and as of policy version `2026-08-07-draft-2` the in-product assertion text
+contains no authorization branch either (it reads: "I confirm that every
+student in this class is 13 or older."), so this checkbox is the ONLY place
+the future arc is even mentioned. Checking it changes nothing until that arc
+is built.
 
 ## 3. Data handling
 

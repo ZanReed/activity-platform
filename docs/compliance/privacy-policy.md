@@ -1,8 +1,16 @@
 # Privacy Policy — Activity Platform
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Effective date: ⟨date⟩ · Policy version: `2026-07-28-draft-1`
+> Effective date: ⟨date⟩ · Policy version: `2026-08-07-draft-2`
 > Operator: ⟨legal name / contact email⟩
+>
+> `draft-2` (2026-08-07): the class-creation assertion dropped its under-13
+> school-authorization clause (the platform declines under-13 sign-ins
+> unconditionally — the clause offered a branch v1 does not support); "your
+> teacher sees your name" corrected to name **and school email** (the roster
+> shows the email, and is REQUIRED to when no display name exists); and the
+> departed-student retention disclosure below was added — it was always true
+> and always required by the retention policy, and this doc never said it.
 
 This is the source text for the public `/privacy` page. Written in plain
 language on purpose — students and parents are the audience.
@@ -22,8 +30,9 @@ language on purpose — students and parents are the audience.
 ## Who can use this
 
 Student accounts are for students **13 or older** whose school uses the
-platform. Your teacher confirms this when they create a class. If you're under
-13, don't sign in — ask your teacher for a paper copy.
+platform — with no exceptions in this version. Your teacher confirms this when
+they create a class. If you're under 13, don't sign in — ask your teacher for
+a paper copy.
 
 ## What we collect, exactly
 
@@ -41,8 +50,10 @@ use cookies for advertising or analytics — only for keeping you signed in.
 
 ## Who sees what
 
-- **Your teacher** sees your name, your responses, scores, and grades for
-  their own classes and activities. Not other teachers' classes.
+- **Your teacher** sees your name **and school email**, your responses,
+  scores, and grades for their own classes and activities. Not other teachers'
+  classes. (The email is how the roster identifies you when Google supplies no
+  display name.)
 - **Other students** see nothing of yours.
 - **The operator** (the person who runs the platform) can access the database
   for maintenance and security; access is logged.
@@ -58,6 +69,11 @@ use cookies for advertising or analytics — only for keeping you signed in.
 - **Delete your account:** contact ⟨contact email⟩ (or ask your teacher to
   request it). Deletion follows the [retention policy](retention-policy.md) —
   submitted classwork may be kept for the school's records window, then purged.
+- **After you leave** (your class ends, or you're removed): your name and
+  school email stay attached to your submitted work for as long as that work
+  is kept — up to about 400 days — because school records need to say whose
+  work they are. This is the minimum retention that keeps records attributable;
+  it is not incidental. Then the account and the work are purged together.
 - **Sign out on shared computers:** use the sign-out button in the account
   menu; it clears everything stored on that machine.
 

@@ -24,7 +24,8 @@ export default function Privacy() {
       <div className="mx-auto max-w-2xl">
         <h1 className="text-3xl font-bold text-ink">Privacy Policy</h1>
         <p className="mt-2 text-sm text-muted">
-          Version {POLICY_VERSION} · Draft pending district review
+          Version {POLICY_VERSION} · Draft pending district review · Effective
+          date and operator contact to be finalized
         </p>
 
         <div className="mt-6 rounded-lg border border-line bg-canvas p-6 shadow-sm">
@@ -52,8 +53,9 @@ export default function Privacy() {
         <Section title="Who can use this">
           <p>
             Student accounts are for students 13 or older whose school uses the
-            platform. Your teacher confirms this when they create a class. If
-            you're under 13, don't sign in — ask your teacher for a paper copy.
+            platform — with no exceptions in this version. Your teacher
+            confirms this when they create a class. If you're under 13, don't
+            sign in — ask your teacher for a paper copy.
           </p>
         </Section>
 
@@ -91,13 +93,15 @@ export default function Privacy() {
 
         <Section title="Who sees what">
           <p>
-            Your teacher sees your name, responses, scores, and grades for
-            their own classes — not other teachers' classes. Other students
-            see nothing of yours. The platform operator can access the
-            database for maintenance and security; that access is logged. Data
-            is stored with Supabase (database and sign-in) and Cloudflare
-            (page hosting), who process it for us and have no right to use it
-            otherwise. Nobody else — no sale, no ads, no data brokers.
+            Your teacher sees your name and school email, your responses,
+            scores, and grades for their own classes — not other teachers'
+            classes. (The email is how the roster identifies you when Google
+            supplies no display name.) Other students see nothing of yours.
+            The platform operator can access the database for maintenance and
+            security; that access is logged. Data is stored with Supabase
+            (database and sign-in) and Cloudflare (page hosting), who process
+            it for us and have no right to use it otherwise. Nobody else — no
+            sale, no ads, no data brokers.
           </p>
         </Section>
 
@@ -106,6 +110,15 @@ export default function Privacy() {
             <li>
               See, export, or delete your work: ask your teacher, or contact
               the operator <span className="text-muted">(contact to be finalized)</span>.
+              Deletion follows the retention policy — submitted classwork may
+              be kept for the school's records window, then purged.
+            </li>
+            <li>
+              After you leave (your class ends, or you're removed), your name
+              and school email stay attached to your submitted work for as
+              long as that work is kept — up to about 400 days — because
+              school records need to say whose work they are. Then the account
+              and the work are purged together.
             </li>
             <li>
               On shared computers, use the sign-out button in the account menu

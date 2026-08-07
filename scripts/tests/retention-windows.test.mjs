@@ -7,24 +7,13 @@
 // the windows live only in migration SQL and md prose — so this is the md↔SQL
 // leg: extract both, compare.
 //
-// WRITING THIS TEST FOUND THREE GAPS (2026-08-06), each recorded below as a
-// `todo` rather than a green lie or a permanently red suite. They are owned by
-// the ratified compliance-pack rewrite (eng-review D2/D3 — the POLICY_VERSION
-// bump); whoever lands it either implements the mechanism or corrects the
-// prose, then promotes the todo to a real assertion:
-//   1. The policy table says student responses/section_checks live 400 days
-//      keyed on CLASS deletion. The SQL that actually deletes checks
-//      (0022/0025 step 1) fires 30 days after ACTIVITY deletion — a different,
-//      shorter path the policy never discloses. A teacher tidying worksheets
-//      in June deletes student records in July; the policy told the school
-//      those records survive the year.
-//   2. The policy table says class rows (incl. the 13+ assertion record) purge
-//      400 days after deletion. NO SQL path purges classes at all — the only
-//      `interval '400 days'` in the schema is the dormancy clock.
-//   3. The policy table says ip_hash/user_agent scrub to NULL at 30 days via a
-//      "scheduled scrub". No such scrub exists in any migration. (Bounded in
-//      practice by S9 — submissions die with the anonymous wire — but the
-//      policy doesn't say that.)
+// WRITING THIS TEST FOUND THREE GAPS (2026-08-06), originally recorded as
+// `todo` cases. The D2/D3 pack rewrite (2026-08-07, draft-4) reconciled all
+// three PROSE-SIDE — the policy now discloses the 30-day activity-deletion
+// path and flags the two unbuilt mechanisms (class-row purge, ip_hash scrub)
+// in place — so the todos were promoted to the GAP assertions below, which
+// pin the corrected prose. If a future migration BUILDS either mechanism,
+// update the doc row and the matching assertion together.
 // =============================================================================
 
 import { test } from 'node:test';
@@ -78,20 +67,26 @@ test('the policy\'s prose and table agree with themselves on 400', () => {
   assert.match(policy, /~400 days/);
 });
 
-test(
-  'GAP 1 (D2/D3 owner): checks purge 30d after ACTIVITY deletion; the policy discloses only 400d after CLASS deletion',
-  { todo: 'reconcile in the compliance-pack rewrite: implement the class-keyed 400-day window, or disclose the activity-deletion path' },
-  () => {},
-);
+test('GAP 1 closed prose-side: the policy DISCLOSES the 30-day activity-deletion path', () => {
+  assert.match(
+    policy,
+    /via ACTIVITY deletion[\s\S]{0,300}30 days/,
+    'the activity-deletion disclosure row vanished — the 0022 SQL path still deletes checks 30d after activity soft-deletion, and the policy must keep saying so (or the mechanism must change)',
+  );
+});
 
-test(
-  'GAP 2 (D2/D3 owner): no SQL purges class rows; the policy promises 400 days after deletion',
-  { todo: 'implement the class purge or correct the table row (the 13+ assertion record rides on it)' },
-  () => {},
-);
+test('GAP 2 closed prose-side: the class-row purge is flagged as not yet built', () => {
+  assert.match(
+    policy,
+    /Class row incl\. 13\+ assertion record[\s\S]{0,400}mechanism not yet built/,
+    'the class-row window row no longer admits its mechanism is unbuilt — either the purge now exists (update this pin to assert the SQL) or the honesty flag was lost',
+  );
+});
 
-test(
-  'GAP 3 (D2/D3 owner): no ip_hash/user_agent scrub exists; the policy names a scheduled 30-day scrub',
-  { todo: 'implement the scrub, or amend the row to say the field dies with the anonymous wire at S9' },
-  () => {},
-);
+test('GAP 3 closed prose-side: the ip_hash scrub is flagged as not yet built, bounded by S9', () => {
+  assert.match(
+    policy,
+    /`ip_hash`[\s\S]{0,400}mechanism not yet built/,
+    'the ip_hash row no longer admits no scrub exists — either the scrub now exists (update this pin) or the honesty flag was lost',
+  );
+});

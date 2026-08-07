@@ -10,6 +10,13 @@
 > the deletion mechanics: the "wrong order fails loudly" property is real but
 > **partial** — it does not cover `section_checks`. See Mechanics.
 >
+> `draft-4` (2026-08-07) corrects this document against the SQL that enforces
+> it (the automated md↔SQL pin, `scripts/tests/retention-windows.test.mjs`,
+> found three places where the table promised mechanisms that do not exist —
+> each row below now states its real mechanism or is flagged "mechanism not
+> yet built"). It also records that the purge job is LIVE: pg_cron registered
+> 2026-08-05, first fire observed and verified the same day.
+>
 > `draft-3` (2026-08-04) carries three rulings that together make the deletion
 > promises here mechanically real for the first time — before them, **no
 > account could be deleted at all**: the account window is **subordinate to the
@@ -24,14 +31,14 @@
 
 | Data | Window | Clock starts | Mechanism |
 |---|---|---|---|
-| Student responses, scores, grades | **400 days** | when the class is deleted (soft-delete) | scheduled purge job (extends `purge_soft_deleted`) |
-| Section checks (`section_checks` — responses + the verdicts/feedback shown) | **400 days**, same as the above: it is the same student work | when the class is deleted (soft-delete) | same purge job. **Also cascades** on student-account deletion (see Mechanics) |
+| Student responses, scores, grades (`section_checks` — responses + the verdicts/feedback shown) | **400 days** in the normal case | the student's last active class membership ends (class deleted or student removed) | the ACCOUNT path: dormancy (row below) purges the account at 400 days and the job deletes their checks explicitly with it. There is no separate class-keyed deletion — checks are keyed to activities and accounts, not classes |
+| ⚠ The same work, via ACTIVITY deletion — **a shorter path counsel should know about** | **30 days** | the teacher soft-deletes the activity | `purge_soft_deleted` removes a purge-eligible activity's checks with it (0022). A teacher tidying old worksheets deletes the student work on them at 30 days, regardless of the 400-day window above |
 | Student account (`users` + `auth.users`) | **400 days of dormancy**, and never before the account's work is gone — see the rulings below | last active class membership ends (removed or class deleted); for a student who never joined one, account creation | purge job deletes the `auth.users` row; `public.users`, `class_members`, and `section_checks` fall via CASCADE behind it |
 | Account explicitly deleted (admin action or an on-request deletion) | **30 days** | `users.deleted_at` is set | same purge path; this is the only thing that sets that column |
-| `ip_hash` + `user_agent` on submissions | **30 days** | submission time | scheduled scrub (UPDATE to NULL, keeps the row) |
+| `ip_hash` + `user_agent` on submissions | **30 days** (intent) | submission time | **mechanism not yet built** — no scrub job exists. Bounded in practice: these fields live only on the legacy anonymous wire, which is deleted whole at the viewer cutover (S9). If cutover slips past real usage, build the scrub first |
 | `audit_log` | **2 years** | row creation | scheduled purge |
 | Teacher account + activities | account lifetime | — | soft-delete flow (0008), purge after 30 days (existing) |
-| Class row incl. 13+ assertion record | 400 days after deletion (aligned with responses — the assertion should outlive the work it covered) | class deletion | purge job |
+| Class row incl. 13+ assertion record | **at least** 400 days after deletion (the assertion should outlive the work it covered) | class deletion | **mechanism not yet built** — nothing purges class rows today, so they are retained indefinitely. Conservative for a compliance record (it names the teacher and the attestation, not students), but the window above is an intent, not a behavior |
 | Legacy localStorage (published pages) | never leaves the student device | — | student clears browser storage; page's own reset |
 | Viewer local buffer (T7) | until sign-out or sync | — | `signOutEverything()` purges the namespace |
 
@@ -42,12 +49,13 @@ truthful privacy page).
 
 ## Mechanics (build state)
 
-- The purge job extensions land with **S4/S7 server work** — this policy doc
-  leads the code (windows are contractual before they're mechanical). Until
-  the job ships, enforcement is manual via the SQL in the purge-job spec, run
-  by the author on a monthly calendar reminder. The S1 gap is acceptable
-  because no student data exists yet; **the job must ship before the first
-  real class does** — it is listed as a hard item on the S9 cutover checklist.
+- **The purge job is LIVE** (0022–0025; pg_cron registered 2026-08-05, first
+  fire observed and verified the same day — it completed without abort and
+  purged nothing, correctly, since nothing was past its window). Enforcement
+  is no longer manual; the monthly-reminder era this bullet used to describe
+  ended when the cron registered. What remains build-state: the two
+  "mechanism not yet built" rows in the table above (class-row purge; the
+  `ip_hash` scrub), each with its bound stated in place.
 - Deletion order for a student purge: `grades` → `submissions` →
   `class_members` → `users` → `auth.users`.
 - **The RESTRICT safety net is partial — know which half you are in** (verified
