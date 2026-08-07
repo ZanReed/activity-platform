@@ -56,6 +56,7 @@ Baseline facts, verified live 2026-08-04/05: migrations applied **through 0026**
 | # | run | pre-auth | worksheet | math-rendered |
 |---|---|---|---|---|
 | 1 | 31144354624 (2026-08-07) | 948 ms | 1118 ms | 1828 ms |
+| 2 | 31145342108 (2026-08-07) | 946 ms | 1106 ms | 1805 ms |
 
  `TIMING_TARGET_MS` in [perf-budgets.mjs](scripts/perf-budgets.mjs) is deliberately `null`, so the perf lane **records** every run and prints the numbers but enforces nothing (the size budgets always enforce). Local darwin values are pre-auth ~780 ms, worksheet ~878 ms. **Set them from the first green CI run** — a Linux runner is a different machine, and baking a Mac number into a gate would be dishonest. The ceiling then derives itself (2×) and the delta warning turns on.
 
