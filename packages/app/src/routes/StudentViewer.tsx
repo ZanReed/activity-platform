@@ -58,18 +58,11 @@ import type {
 } from '@activity/viewer';
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
-import { MISSING_ENV, supabase } from '../lib/supabase';
+import { functionsBase, supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
 
-// Built lazily so an env-less boot fails at the CALL with the same
-// MISSING_ENV message the D10 criterion standardized — not at module load,
-// and never as a request to `undefined/functions/v1` (A21, the D10 bug class
-// one route over: s3-audit missed-12).
-function functionsBase(): string {
-    const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-    if (!url) throw new Error(MISSING_ENV);
-    return `${url}/functions/v1`;
-}
+// functionsBase comes from lib/supabase (A21) — the one env-read site, so
+// this route's tests stay env-independent by mocking that module.
 
 /**
  * The one sign-in call, shared by the pre-auth gate and the expired-session

@@ -50,6 +50,10 @@ vi.mock('../lib/supabase', () => ({
         },
     },
     supabaseConfigured: true,
+    // The route builds its service URLs through this (A21) — supplying it here
+    // is what keeps these tests env-independent (the route never reads
+    // import.meta.env itself).
+    functionsBase: () => 'http://supabase.test/functions/v1',
 }));
 vi.mock('@activity/viewer', async (importOriginal) => {
     const actual = await importOriginal<Record<string, unknown>>();

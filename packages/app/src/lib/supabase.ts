@@ -52,3 +52,19 @@ export const supabase = new Proxy({} as SupabaseClient, {
 /** True when the Supabase env is configured — lets a dev route or a guard
  * check without triggering the throw. */
 export const supabaseConfigured = Boolean(url && anonKey);
+
+/**
+ * The Edge Functions base URL, resolved lazily so an env-less boot fails at
+ * the CALL with MISSING_ENV — never at module load, and never as a request to
+ * `undefined/functions/v1` (A21; the D10 bug class one route over).
+ *
+ * Lives HERE, not in the consuming route, so this module stays the single
+ * env-read site — which is also what keeps the route's tests env-independent:
+ * they mock '../lib/supabase' and supply a stub base URL, instead of the
+ * route reading import.meta.env behind the mock's back (the exact
+ * masked-locally-red-on-CI failure the first version of A21 shipped).
+ */
+export function functionsBase(): string {
+  if (!url) throw new Error(MISSING_ENV);
+  return `${url}/functions/v1`;
+}
