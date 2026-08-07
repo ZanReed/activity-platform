@@ -47,6 +47,8 @@ import {
 import { scoreGraphBlock } from './graphs.js';
 import { findSection, inventorySection, type RawSection } from './walk.js';
 
+export { MalformedDocumentError } from './walk.js';
+
 export interface GradeSectionInput {
   /** The RAW (unsanitized, upgraded) document for the version the student was
    * served. Grading against the served document would be wrong twice over: no

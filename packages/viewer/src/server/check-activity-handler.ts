@@ -34,7 +34,11 @@ import {
   type SectionCheckResult,
   type SectionResponses,
 } from '../check/wire.js';
-import { gradeSection, SectionNotFoundError } from './grading/index.js';
+import {
+  gradeSection,
+  MalformedDocumentError,
+  SectionNotFoundError,
+} from './grading/index.js';
 import type { CorsKit, DbResult } from './get-activity-handler.js';
 import { jwtSub } from './jwt.js';
 import { UUID_RE } from './uuid.js';
@@ -392,6 +396,27 @@ export function createCheckActivityHandler(
         // stale tab or a bad payload, not a grading failure.
         return cors.errorResponse(req, 400, 'Unknown section', {
           code: 'unknown_section',
+        });
+      }
+      if (err instanceof MalformedDocumentError) {
+        // The STORED DOCUMENT is structurally broken (B8/D10) — our data, not
+        // their request, so a 500 is honest. The typed code is the whole
+        // point: the client maps it to its own non-retryable copy instead of
+        // the generic "try again", because no number of retries fixes a
+        // broken document. On today's path the upgrade step's Zod validation
+        // should catch this first — reaching here means a validator gap, and
+        // the problems list is the defect report.
+        console.error(
+          '[check-activity] malformed document',
+          JSON.stringify({
+            activityId: request.activityId,
+            versionId: request.versionId,
+            sectionId: request.sectionId,
+            problems: err.problems,
+          }),
+        );
+        return cors.errorResponse(req, 500, 'This activity’s content is broken', {
+          code: 'malformed_document',
         });
       }
       // A real grading bug. Fail the WHOLE check and write nothing: partial

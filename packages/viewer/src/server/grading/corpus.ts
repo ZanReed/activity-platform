@@ -459,6 +459,333 @@ export const ORDERING_CASES: OrderingCase[] = [
   },
 ];
 
+// ---- walk integrity (eng-review B8/D10, 2026-08-06) -------------------------
+// SERVER-ONLY, deliberately outside the parity gate: these cases pin the walk's
+// integrity gate — a posture the published-page runtime never had and never
+// gets (it retires at S9, and it reads data-attributes rendered from a
+// validated document, so there is no equivalent coercion site). The renderer
+// half of the parity suite must NOT execute these.
+//
+// THE RULE THE CASES ENCODE: a field the grader reads that is PRESENT with a
+// shape the schema cannot author is structurally broken → typed
+// MalformedDocumentError, mapped to `malformed_document` on the wire. A field
+// that is ABSENT, or authored empty, grades exactly as it always has —
+// authored-empty is a teacher mid-edit, not corruption. Executed red-green by
+// walk-integrity.test.ts against gradeSection.
+
+export interface IntegrityCase {
+  name: string;
+  /** The affected raw block, as stored. The test wraps it in a one-block
+   * section. */
+  block: Record<string, unknown>;
+  /** The student's responses aimed at that block (SectionResponses shape). */
+  responses: {
+    blanks?: Record<string, string>;
+    choices?: Record<string, string[]>;
+    matches?: Record<string, Record<string, string>>;
+    orderings?: Record<string, string[]>;
+  };
+  /**
+   * 'malformed' → gradeSection must throw MalformedDocumentError.
+   * Otherwise: the wire outcome per id — 'absent' means NO items entry, which
+   * is how an omission travels. These non-malformed rows are the authored-empty
+   * boundary pins: they prove the gate did not tighten legitimate documents.
+   */
+  expect: 'malformed' | Record<string, 'correct' | 'incorrect' | 'absent'>;
+}
+
+export const INTEGRITY_CASES: IntegrityCase[] = [
+  // -- block identity ---------------------------------------------------------
+  {
+    name: 'broken: a block whose id is not a string',
+    // Today: silently skipped — the student's selection is submitted, stored,
+    // and never scored.
+    block: { id: 42, type: 'multiple_choice', choices: [{ id: 'a', correct: true }] },
+    responses: { choices: { '42': ['a'] } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a block whose type is not a string',
+    block: { id: 'b1', type: 7 },
+    responses: {},
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a solution that is not an array',
+    // Today: silently dropped — the section says "checked" but the worked
+    // explanation never unlocks, which reads as a content bug.
+    block: { id: 'b1', type: 'problem', solution: 'not-content' },
+    responses: {},
+    expect: 'malformed',
+  },
+
+  // -- multiple choice --------------------------------------------------------
+  {
+    name: 'broken: choices is not an array',
+    // Today: coerced to [] — the selection grades against an EMPTY key and the
+    // student is marked wrong with confidence.
+    block: { id: 'b1', type: 'multiple_choice', choices: 'broken' },
+    responses: { choices: { b1: ['a'] } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a choice entry that is not an object',
+    block: { id: 'b1', type: 'multiple_choice', choices: ['a'] },
+    responses: { choices: { b1: ['a'] } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a choice id that is not a string',
+    // Today: String(7) → '7' — an id the served page never rendered.
+    block: { id: 'b1', type: 'multiple_choice', choices: [{ id: 7, correct: true }] },
+    responses: { choices: { b1: ['7'] } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a correct flag that is a string, not a boolean',
+    // Today: 'true' !== true — the key silently empties and every selection
+    // is wrong.
+    block: {
+      id: 'b1',
+      type: 'multiple_choice',
+      choices: [{ id: 'a', correct: 'true' }, { id: 'b', correct: false }],
+    },
+    responses: { choices: { b1: ['a'] } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: per-choice feedback that is not an array',
+    block: {
+      id: 'b1',
+      type: 'multiple_choice',
+      choices: [{ id: 'a', correct: true, feedback: 'nice' }],
+    },
+    responses: { choices: { b1: ['a'] } },
+    expect: 'malformed',
+  },
+  {
+    name: 'authored-empty: zero choices, nothing selected',
+    block: { id: 'b1', type: 'multiple_choice', choices: [] },
+    responses: {},
+    expect: { b1: 'absent' },
+  },
+  {
+    name: 'authored-empty: the choices field absent entirely',
+    block: { id: 'b1', type: 'multiple_choice' },
+    responses: {},
+    expect: { b1: 'absent' },
+  },
+
+  // -- matching ---------------------------------------------------------------
+  {
+    name: 'broken: a matching key that is not an object',
+    // Today: passed through a bare cast — lookups return undefined and every
+    // pair is wrong.
+    block: { id: 'b1', type: 'matching', items: [{ id: 'i1' }], key: 'broken' },
+    responses: { matches: { b1: { i1: 't1' } } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a matching key whose values are not strings',
+    block: { id: 'b1', type: 'matching', items: [{ id: 'i1' }], key: { i1: 7 } },
+    responses: { matches: { b1: { i1: 't1' } } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: matching items that are not an array',
+    block: { id: 'b1', type: 'matching', items: 'broken', key: { i1: 't1' } },
+    responses: { matches: { b1: { i1: 't1' } } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a matching item without a string id',
+    block: { id: 'b1', type: 'matching', items: [{ id: 9 }], key: {} },
+    responses: { matches: { b1: {} } },
+    expect: 'malformed',
+  },
+  {
+    name: 'authored-empty: no items, no key, no pairs placed',
+    block: { id: 'b1', type: 'matching', items: [], key: {} },
+    responses: {},
+    expect: { b1: 'absent' },
+  },
+  {
+    name: 'authored-empty: the key field absent, pairs placed anyway',
+    // Grades as today: an absent key means every pair is wrong, and that is
+    // the authored state of the block, not corruption.
+    block: { id: 'b1', type: 'matching', items: [{ id: 'i1' }] },
+    responses: { matches: { b1: { i1: 't1' } } },
+    expect: { b1: 'incorrect' },
+  },
+
+  // -- ordering ---------------------------------------------------------------
+  {
+    name: 'broken: ordering items that are not an array',
+    // Today: authoredOrder coerces to [] — a deliberate arrangement grades
+    // against an empty key and is marked wrong.
+    block: { id: 'b1', type: 'ordering', items: 'broken' },
+    responses: { orderings: { b1: ['a', 'b'] } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: an ordering item without a string id',
+    block: { id: 'b1', type: 'ordering', items: [{ id: 1 }, { id: 2 }] },
+    responses: { orderings: { b1: ['1', '2'] } },
+    expect: 'malformed',
+  },
+  {
+    name: 'authored-empty: zero ordering items, nothing submitted',
+    block: { id: 'b1', type: 'ordering', items: [] },
+    responses: {},
+    expect: { b1: 'absent' },
+  },
+
+  // -- blank tokens (in-band, any depth) --------------------------------------
+  {
+    name: 'broken: a blank whose answer is not a string',
+    // Today: coerced to '' — the key is empty and everything typed is wrong.
+    block: {
+      id: 'b1',
+      type: 'fill_in_blank',
+      content: [{ type: 'blank', id: 'k1', answer: 42 }],
+    },
+    responses: { blanks: { k1: '42' } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: acceptableAnswers that is not an array',
+    block: {
+      id: 'b1',
+      type: 'fill_in_blank',
+      content: [{ type: 'blank', id: 'k1', answer: '7', acceptableAnswers: 'seven' }],
+    },
+    responses: { blanks: { k1: 'seven' } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a non-string entry inside acceptableAnswers',
+    // Today: silently FILTERED — the alternate the author wrote is lost and a
+    // correct student is marked wrong.
+    block: {
+      id: 'b1',
+      type: 'fill_in_blank',
+      content: [{ type: 'blank', id: 'k1', answer: '7', acceptableAnswers: [7] }],
+    },
+    responses: { blanks: { k1: '7' } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: an answerType outside the vocabulary',
+    // Today: coerced to 'text' — a math answer grades byte-wise.
+    block: {
+      id: 'b1',
+      type: 'fill_in_blank',
+      content: [{ type: 'blank', id: 'k1', answer: '2a', answerType: 'fancy' }],
+    },
+    responses: { blanks: { k1: 'a+a' } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: an equivalence outside the vocabulary',
+    block: {
+      id: 'b1',
+      type: 'fill_in_blank',
+      content: [
+        { type: 'blank', id: 'k1', answer: '2a', answerType: 'math', equivalence: 'sorta' },
+      ],
+    },
+    responses: { blanks: { k1: '2a' } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a tolerance that is not a number',
+    // Today: coerced to 0 — answers inside the authored tolerance are wrong.
+    block: {
+      id: 'b1',
+      type: 'fill_in_blank',
+      content: [
+        { type: 'blank', id: 'k1', answer: '3.14', answerType: 'numeric', tolerance: '0.01' },
+      ],
+    },
+    responses: { blanks: { k1: '3.141' } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: an interchangeable flag that is a string',
+    // Today: 'true' !== true — the group silently degrades to positional
+    // grading and a swapped-but-correct pair is marked wrong.
+    block: {
+      id: 'b1',
+      type: 'fill_in_blank',
+      content: [
+        { type: 'blank', id: 'k1', answer: '2' },
+        { type: 'blank', id: 'k2', answer: '3', interchangeableWithPrevious: 'true' },
+      ],
+    },
+    responses: { blanks: { k1: '3', k2: '2' } },
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a blank token whose id is not a string',
+    // Today: not even recognized as a blank — the typed answer vanishes.
+    block: {
+      id: 'b1',
+      type: 'fill_in_blank',
+      content: [{ type: 'blank', id: 9, answer: '7' }],
+    },
+    responses: {},
+    expect: 'malformed',
+  },
+  {
+    name: 'authored-empty: an empty answer with typed input grades as today',
+    // The authored key IS the empty string — mid-edit, not corruption. A
+    // non-empty response against it stays incorrect, exactly as shipped.
+    block: {
+      id: 'b1',
+      type: 'fill_in_blank',
+      content: [{ type: 'blank', id: 'k1', answer: '' }],
+    },
+    responses: { blanks: { k1: '7' } },
+    expect: { k1: 'incorrect' },
+  },
+  {
+    name: 'authored-empty: an empty answer and an empty response stays unscored',
+    block: {
+      id: 'b1',
+      type: 'fill_in_blank',
+      content: [{ type: 'blank', id: 'k1', answer: '' }],
+    },
+    responses: { blanks: { k1: '' } },
+    expect: { k1: 'absent' },
+  },
+
+  // -- math prompts -----------------------------------------------------------
+  {
+    name: 'broken: a prompts field that is not an array',
+    block: { id: 'b1', type: 'math_block', prompts: 'broken' },
+    responses: {},
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a prompt entry that is not an object',
+    block: { id: 'b1', type: 'math_block', prompts: ['g1'] },
+    responses: {},
+    expect: 'malformed',
+  },
+  {
+    name: 'broken: a prompt whose answer is not a string',
+    block: { id: 'b1', type: 'math_block', prompts: [{ id: 'g1', answer: 42 }] },
+    responses: { blanks: { g1: '42' } },
+    expect: 'malformed',
+  },
+  {
+    name: 'authored-empty: a promptless math_block is static',
+    block: { id: 'b1', type: 'math_block', prompts: [] },
+    responses: {},
+    expect: { b1: 'absent' },
+  },
+];
+
 // ---- completeness (ruling S4-8) ---------------------------------------------
 
 /**

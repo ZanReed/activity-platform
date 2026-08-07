@@ -22,6 +22,30 @@ import {
   validateCheckRequest,
     type CheckActivityDb,
 } from '../src/server/check-activity-handler.js';
+import { MalformedDocumentError } from '../src/server/grading/walk.js';
+
+// The ONE mocked module in this file, and only as a pass-through with an
+// override hook. The malformed_document branch cannot be reached through the
+// real path today: the handler Zod-validates via upgradeActivityDocument
+// before grading, so no STORABLE content trips the walk's integrity gate —
+// which is exactly why the branch exists (defense in depth for the day a
+// validator gap opens). A dormant safeguard still needs its liveness proof
+// (P3), so the override fires it once; every other test runs the real engine.
+const gradingOverride = vi.hoisted(() => ({
+  gradeSection: null as ((...args: never[]) => unknown) | null,
+}));
+vi.mock('../src/server/grading/index.js', async (importOriginal) => {
+  const real = await importOriginal<
+    typeof import('../src/server/grading/index.js')
+  >();
+  return {
+    ...real,
+    gradeSection: (...args: never[]) =>
+      gradingOverride.gradeSection
+        ? gradingOverride.gradeSection(...args)
+        : (real.gradeSection as (...a: never[]) => unknown)(...args),
+  };
+});
 import type { CorsKit } from '../src/server/get-activity-handler.js';
 import { jwtSub as jwtSubject } from '../src/server/jwt.js';
 import { CHECK_WIRE_VERSION } from '../src/check/wire.js';
@@ -347,6 +371,33 @@ describe('grading failures', () => {
     // a student complaint.
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it('maps a structurally broken document to 500 + malformed_document, recording nothing', async () => {
+    // B8/D10: the typed failure the client maps to its own non-retryable
+    // copy. Distinct from grading_failed on purpose — "our data is broken"
+    // and "the grader crashed" want different follow-ups, and the problems
+    // list in the log line is the defect report.
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    gradingOverride.gradeSection = () => {
+      throw new MalformedDocumentError(['block b1: choices is not an array']);
+    };
+    try {
+      const h = harness();
+      const res = await h.handler(post(validBody()));
+      expect(res.status).toBe(500);
+      expect(await res.json()).toMatchObject({
+        details: { code: 'malformed_document' },
+      });
+      expect(h.recorded()).toHaveLength(0);
+      expect(spy).toHaveBeenCalledWith(
+        '[check-activity] malformed document',
+        expect.stringContaining('choices is not an array'),
+      );
+    } finally {
+      gradingOverride.gradeSection = null;
+      spy.mockRestore();
+    }
   });
 
   it('reports a document that cannot be loaded as 500', async () => {

@@ -149,7 +149,14 @@ export function censusOfDocument(doc: ActivityDocument): VersionCensus {
   };
 
   for (const section of doc.sections ?? []) {
-    const inv = inventorySection(section as unknown as RawSection);
+    // 'coerce' opts OUT of the B8/D10 integrity gate, deliberately: this is
+    // the READ path, whose ruled failure posture is withhold-and-serve (the
+    // cache-fill caller already fails safe). A censused malformed document
+    // merely miscounts; only GRADING one mints a wrong mark, so only grading
+    // runs the gate.
+    const inv = inventorySection(section as unknown as RawSection, {
+      integrity: 'coerce',
+    });
     // Blanks and math gaps attribute to their OWNING block (the walk already
     // resolves containers to the child), which is why a blank inside a faded
     // example counts as faded_worked_example and not as fill_in_blank.

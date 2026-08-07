@@ -39,6 +39,13 @@ export type CheckErrorKind =
   | 'stale_client'
   /** The student is checking faster than the ceiling allows. Retry later. */
   | 'rate_limited'
+  /**
+   * THE STORED ACTIVITY IS BROKEN (B8/D10). The server's walk integrity gate
+   * refused to grade a structurally broken document. Nothing the student does
+   * fixes it — not retrying, not reloading — so this must never fall into the
+   * retryable server_error bucket its 500 status would otherwise land in.
+   */
+  | 'malformed_document'
   /** The request never reached the server. Retry when back online. */
   | 'offline'
   /** The server failed to grade. Retrying is reasonable. */
@@ -116,6 +123,17 @@ export function checkErrorFor(status: number, body: ErrorBody): CheckError {
   }
   if (code === 'rate_limited' || status === 429) {
     return new CheckError('rate_limited', 'Checking too quickly.', status);
+  }
+  // BEFORE the status branches, like wire_version_mismatch above: the server
+  // sends this as a 500, and the `status >= 500` arm below would otherwise
+  // dress it as retryable server_error (the D29 amendment — the code must
+  // not land unmapped).
+  if (code === 'malformed_document') {
+    return new CheckError(
+      'malformed_document',
+      'This activity has a problem on our side.',
+      status,
+    );
   }
   if (status === 401 || status === 403) {
     return new CheckError('unauthenticated', 'Your session has expired.', status);

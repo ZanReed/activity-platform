@@ -560,4 +560,20 @@ describe('the banner dedup chain (D9/D4/A15)', () => {
         // The taxonomy's whole point: no invitation to a retry that cannot work.
         expect(screen.queryByText(/try again/i)).toBeNull();
     });
+
+    it('malformed_document check: non-blaming, names the teacher, NEVER "try again" (B8/D29)', async () => {
+        // The server refused to grade a structurally broken document. Same
+        // no-retry rule as `unavailable`: no student action fixes stored data,
+        // so the generic retry sentence would be a lie dressed as help.
+        const { CheckError } = await import('@activity/viewer');
+        h.check.current = () => {
+            throw new CheckError('malformed_document', 'content is broken', 500);
+        };
+        await bootServed();
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Check' })[0]!);
+
+        await screen.findByText(/wrong with this activity itself — not your work/);
+        expect(screen.queryByText(/try again/i)).toBeNull();
+    });
 });

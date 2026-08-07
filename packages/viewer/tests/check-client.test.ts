@@ -88,6 +88,18 @@ describe('check failures are distinguishable', () => {
     expect(checkErrorFor(400, { code: 'rate_limited' }).kind).toBe('rate_limited');
   });
 
+  it('maps malformed_document to its own kind, out of the retryable 500 bucket', () => {
+    // The D29 amendment: the server sends B8's typed failure as a 500, and
+    // the bare-status arm would dress that as retryable server_error — a
+    // student pressing Retry forever against broken stored data. The code
+    // must win over the status, in the real nested body shape.
+    const err = checkErrorFor(500, {
+      error: 'This activity’s content is broken',
+      details: { code: 'malformed_document' },
+    });
+    expect(err.kind).toBe('malformed_document');
+  });
+
   it('treats an unrecognised 4xx as OUR bug', () => {
     // A student cannot fix a malformed request, so inviting them to try again
     // would be a lie dressed as help.

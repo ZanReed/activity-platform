@@ -145,6 +145,12 @@ function statusLabel(status: SectionStatus | undefined): string {
           // theirs — the taxonomy's whole point is never inviting a retry
           // that cannot work.
           return 'This activity isn’t available to check anymore. Ask your teacher.';
+        case 'malformed_document':
+          // Same no-retry rule (B8/D10): the STORED activity is broken, and
+          // no retry or reload fixes data. Non-blaming — it is our defect,
+          // never the student's work — and it names the one person with a
+          // path to fixing it.
+          return 'Something is wrong with this activity itself — not your work. Ask your teacher to take a look.';
         default:
           return 'Couldn’t check — try again.';
       }
