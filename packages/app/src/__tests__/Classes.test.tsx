@@ -28,7 +28,13 @@ const h = vi.hoisted(() => {
     });
     // Creation goes through the audited create_class RPC since 0027 (E-2);
     // the direct INSERT is privilege-dead, so the mock exposes rpc only.
-    const rpc = vi.fn(() => Promise.resolve({ data: [], error: null }));
+    // Wide return type: mockImplementation swaps shapes per test (list rows
+    // vs the created-class object), and never[] would reject the latter —
+    // the exact TS2322 a stale local .tsbuildinfo hid until CI's cold check.
+    const rpc = vi.fn(
+        (): Promise<{ data: unknown; error: unknown }> =>
+            Promise.resolve({ data: [], error: null }),
+    );
     return { listResult, from, rpc };
 });
 
