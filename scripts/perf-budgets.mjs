@@ -284,14 +284,17 @@ export const THROTTLE = {
  * target is the MEDIAN OF ≥5 green CI runs of the perf lane — never a single
  * run (one shared-runner sample inside known runner variance would make the
  * derived 2x ceiling flaky), and never a local darwin number (different
- * machine). As of 2026-08-06 the perf lane has ZERO green CI runs (CI has been
- * red since the S8 push — see STATE), so all three stay null until five exist.
- * For reference, the lane recorded pre-auth at 862/867/900 ms on the red runs.
+ * machine). ARMED 2026-08-09 per the A3 amendment: medians of the five green
+ * CI runs in STATE's calibration ledger (31144354624, 31145342108,
+ * 31149262316, 31151334014, 31315856831 — pre-auth 948/946/969/969/1009,
+ * worksheet 1118/1106/1100/1195/1156, math 1828/1805/1814/1877/1831).
+ * Local darwin numbers were never used (a Mac number in a Linux gate would
+ * be dishonest). Recalibrate by the same rule: median of ≥5 green runs.
  */
 export const TIMING_TARGET_MS = {
-    [MARKS.preAuthInteractive]: null,
-    [MARKS.worksheetInteractive]: null,
-    [MARKS.mathRendered]: null,
+    [MARKS.preAuthInteractive]: 969,
+    [MARKS.worksheetInteractive]: 1118,
+    [MARKS.mathRendered]: 1828,
 };
 
 /**

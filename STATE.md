@@ -66,8 +66,9 @@ Baseline facts, verified live 2026-08-07 (post-B8 deploy): migrations applied **
 | 2 | 31145342108 (2026-08-07) | 946 ms | 1106 ms | 1805 ms |
 | 3 | 31149262316 (2026-08-07) | 969 ms | 1100 ms | 1814 ms |
 | 4 | 31151334014 (2026-08-07) | 969 ms | 1195 ms | 1877 ms |
+| 5 | 31315856831 (2026-08-09) | 1009 ms | 1156 ms | 1831 ms |
 
- `TIMING_TARGET_MS` in [perf-budgets.mjs](scripts/perf-budgets.mjs) is deliberately `null`, so the perf lane **records** every run and prints the numbers but enforces nothing (the size budgets always enforce). Local darwin values are pre-auth ~780 ms, worksheet ~878 ms. **Set them from the first green CI run** — a Linux runner is a different machine, and baking a Mac number into a gate would be dishonest. The ceiling then derives itself (2×) and the delta warning turns on.
+ **✅ ARMED 2026-08-09 (the ledger closed at 5 — the A3 carry-over is DONE):** `TIMING_TARGET_MS` = the medians (pre-auth **969**, worksheet **1118**, math-rendered **1828**); the 2× ceiling and delta warning are live from the next CI run. The S8 slice has no open items left. Recalibrate only by the same rule (median of ≥5 green runs — never local darwin, never a single run).
 
 **⏭ NEXT: S9 cutover — the gate list (consolidated at the 2026-08-06 eng review, C1–C15; rulings + detail in [findings-backlog.md](docs/reviews/findings-backlog.md) → RULINGS).** Needs both parity gates green (grading corpus + print, both in CI) plus every gate below:
 
