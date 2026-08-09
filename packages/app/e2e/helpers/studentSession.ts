@@ -301,3 +301,120 @@ export async function stubActivityApi(
 export function activityUrl(activityId = E2E_ACTIVITY_ID): string {
   return `/a/${activityId}`;
 }
+
+// =============================================================================
+// Identity-slice harness (B12/E-7; identity e2e rows). The app now reads the
+// role from public.users over PostgREST and joins over rpc/join_class —
+// neither passes `**/functions/v1/*`, so they get their own stubs. Shapes
+// derive from the production wire contract (P2):
+//   * role rows mirror SessionContext's `.select('role').maybeSingle()`
+//   * join errors carry authContract.json's EXACT strings — the same file the
+//     client matcher and migration 0027 use, never retyped
+// =============================================================================
+import authContract from '../../src/lib/authContract.json' with { type: 'json' };
+
+export const JOIN_WIRE = authContract.joinClassErrors;
+
+export interface IdentityStubOptions {
+  /** The users-row answer for the role select; 'none' = zero rows (E-11). */
+  role: 'teacher' | 'student' | 'none';
+  /** Active memberships served to listMyClasses. */
+  classes?: { classId: string; name: string; joinedAt: string }[];
+  /** join_class outcome: 'ok' or the wire-error key to refuse with. */
+  join?: 'ok' | keyof typeof JOIN_WIRE;
+  /** Joined-class payload for the 'ok' case. */
+  joined?: { classId: string; name: string };
+  /** Artificial join latency — REQUIRED by the double-submit row: an instant
+   * stub has no in-flight window for the disable-while-busy guard to guard. */
+  joinDelayMs?: number;
+}
+
+export interface IdentityStubControl {
+  readonly joinCalls: number;
+  setJoin(join: 'ok' | keyof typeof JOIN_WIRE): void;
+}
+
+export async function stubIdentityApi(
+  page: Page,
+  options: IdentityStubOptions,
+): Promise<IdentityStubControl> {
+  const state = {
+    joinCalls: 0,
+    join: options.join ?? 'ok',
+  };
+
+  await page.route('**/rest/v1/users**', async (route) => {
+    const wantsObject = (route.request().headers()['accept'] ?? '').includes(
+      'pgrst.object',
+    );
+    if (options.role === 'none') {
+      // maybeSingle over zero rows: the object form 406s with PGRST116,
+      // which supabase-js maps to data:null/error:null — the E-11 state.
+      if (wantsObject) {
+        await route.fulfill({
+          status: 406,
+          json: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned', details: '0 rows', hint: null },
+        });
+      } else {
+        await route.fulfill({ json: [] });
+      }
+      return;
+    }
+    const row = { role: options.role };
+    await route.fulfill({ json: wantsObject ? row : [row] });
+  });
+
+  await page.route('**/rest/v1/rpc/join_class', async (route) => {
+    state.joinCalls += 1;
+    if (options.joinDelayMs) {
+      await new Promise((r) => setTimeout(r, options.joinDelayMs));
+    }
+    if (state.join === 'ok') {
+      const joined = options.joined ?? { classId: E2E_ACTIVITY_ID, name: 'Algebra I — Period 3' };
+      await route.fulfill({
+        json: {
+          class_id: joined.classId,
+          class_name: joined.name,
+          joined_at: new Date().toISOString(),
+        },
+      });
+      return;
+    }
+    // PostgREST surfaces a raised exception as a 400 whose message is the
+    // raise text — the wire strings the client classifies on.
+    const template = JOIN_WIRE[state.join];
+    await route.fulfill({
+      status: 400,
+      json: {
+        code: 'P0001',
+        message: template.replace('%', 'school.org'),
+        details: null,
+        hint: null,
+      },
+    });
+  });
+
+  await page.route('**/rest/v1/class_members**', async (route) => {
+    await route.fulfill({
+      json: (options.classes ?? []).map((c) => ({
+        class_id: c.classId,
+        joined_at: c.joinedAt,
+        classes: { name: c.name },
+      })),
+    });
+  });
+
+  return {
+    get joinCalls() {
+      return state.joinCalls;
+    },
+    setJoin(join) {
+      state.join = join;
+    },
+  };
+}
+
+/** The join deep link for a code. */
+export function joinUrl(code: string): string {
+  return `/join/${code}`;
+}

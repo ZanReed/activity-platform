@@ -14,7 +14,7 @@
  * surface renders is the P3 route split: /join/:code + the StudentViewer gate
  * show school-account guidance; Home shows the generic frame.
  */
-import contract from './authContract.json';
+import contract from './authContract.json' with { type: 'json' };
 
 export const AUTH_CONTRACT = contract;
 

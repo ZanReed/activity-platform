@@ -301,9 +301,12 @@ function RemoveStudentDialog({
             type="button"
             disabled={busy !== null}
             onClick={() => void removeOnly()}
+            aria-label="Remove"
             className="rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-left text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
             >
             {busy === 'remove' ? 'Removing…' : 'Remove'}
+            {/* aria-label keeps the accessible NAME the action; the
+                consequence subline reads as content, not name. */}
             <span className="block text-xs font-normal text-muted">
             Can rejoin with the current code
             </span>
@@ -312,6 +315,7 @@ function RemoveStudentDialog({
             type="button"
             disabled={busy !== null}
             onClick={() => void removeAndRegenerate()}
+            aria-label="Remove and get a new class code"
             className="rounded-md bg-danger px-4 py-2.5 text-left text-sm font-medium text-white shadow-sm transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
             >
             {busy === 'lockout' ? 'Removing…' : 'Remove & get a new class code'}

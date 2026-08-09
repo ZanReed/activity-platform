@@ -29,8 +29,14 @@ async function signOut() {
 export default function Home() {
   const { session, loading, role, roleStatus, retryRole } = useSession();
   const callbackError = useAuthCallbackError();
-  // Consumed once per mount; survives the idle-sign-out redirect (board 1d).
-  const [idleSignedOut] = useState(() => consumeIdleSignOutFlag());
+  // The idle-escalation flag is consumed when the SIGNED-OUT state renders,
+  // not at mount: idle sign-out happens while Home is already mounted, so a
+  // mount-time read would race the escalation and the banner would never
+  // show (caught by the s1:9 e2e row).
+  const [idleSignedOut, setIdleSignedOut] = useState(false);
+  useEffect(() => {
+    if (!loading && !session && consumeIdleSignOutFlag()) setIdleSignedOut(true);
+  }, [loading, session]);
   const gateActive = loading || (session !== null && roleStatus === 'loading');
   const slow = useSlowFlag(gateActive);
 
@@ -70,9 +76,17 @@ export default function Home() {
     body = (
       <div className="rounded-lg border border-line bg-canvas p-6 shadow-sm">
         <p className="text-muted">We couldn&apos;t load your account just now.</p>
-        <button type="button" onClick={retryRole} className={`mt-3 ${BTN_SECONDARY}`}>
-          Try again
-        </button>
+        <div className="mt-3 flex items-center gap-3">
+          <button type="button" onClick={retryRole} className={BTN_SECONDARY}>
+            Try again
+          </button>
+          {/* Shared-device escape hatch: a failing role fetch must never
+              trap a signed-in session on a cart Chromebook (the S6-6
+              guarantee reaches every state Home can be in). */}
+          <button type="button" onClick={() => void signOut()} className={BTN_SECONDARY}>
+            Sign out
+          </button>
+        </div>
       </div>
     );
   } else if (roleStatus === 'empty') {
