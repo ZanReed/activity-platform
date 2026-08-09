@@ -70,6 +70,19 @@ student Home branch; join-by-code UI + `/join/:code` deep link; `hd` on sign-in;
 refused-account screen; sign-out chrome on the student surface; B14 two-action remove
 dialog; unit + e2e coverage for all of the above.
 
+**IdP expansion map (recorded 2026-08-09 so no session re-derives it):** Blackboard/
+Canvas are LMSes, not identity providers — they federate to the district's real IdP.
+The K-12 IdP landscape: Google Workspace (current target, works as-is regardless of
+LMS), Microsoft 365/Entra (those students have NO Google account — the cheap second
+door: Supabase's `azure` provider + a second button; the admission trigger keys on
+email domain and is IdP-agnostic by design), Clever/ClassLink (SSO brokers + ROSTERING
+— would supersede join codes; already in STATE's backlog, demand-triggered), LTI 1.3
+(activities launched inside Canvas/Blackboard with LMS-asserted identity — biggest
+lift, only if a district demands in-LMS embedding). Expansion order when demand
+arrives: Azure → Clever/ClassLink → LTI. Nothing built now; the seams are deliberate
+(domain-keyed trigger, all membership through `join_class`, refusal copy in the
+shared-constants module so IdP wording is a one-file edit).
+
 **Out (explicitly):** `student_domain` seeding (S9 gate 4, author, AFTER this slice);
 roster sync (future seam — all membership creation stays through `join_class`);
 Edge Function changes (none needed — this slice is DB + app only; no bundle regens);
