@@ -493,6 +493,50 @@ accepted, F5 owns the future) · community n/a · DX measurement 8. Overall targ
 **9/10** against a pre-review baseline of ~5 (five manual stations, two dead-on-
 arrival prerequisites, three-of-five mandated scripts uncovered).
 
+## 12. Design spec (2026-08-09, /plan-design-review — rulings P1–P4 + 20 outside-voice findings)
+
+**Approved visual reference (the implementer builds from this):**
+`~/.gstack/projects/ZanReed-activity-platform/designs/identity-screens-20260809/wireframes.html`
+— v2 board, 12 frames, every state; slate tokens from `index.css`; dark mode via the
+app's `light-dark()` tokens (verify with ThemeToggle). Direction: viewer-gate
+composition (eyebrow/title/body/one button) for student gate screens; token-styled
+cards for Home; near-monochrome, no gradients, no decoration.
+
+**Ruled decisions:**
+- **P1:** Sign-in-failure screen is **cause-agnostic** ("We couldn't sign you in" +
+  school-account guidance as the *likely* fix) — the screen fires on ANY callback
+  error and cannot know the cause. Probe 2's recording may enable branching later.
+- **P2:** Auto-join stays frictionless; the success screen carries "Wrong class? Ask
+  your teacher to remove you." The pre-auth class-name meta endpoint is recorded as
+  the S9 fix (join gate can only show the code — RLS hides the name pre-auth).
+- **P3:** Error-screen route split follows E-6's hd asymmetry: `/join/:code` +
+  StudentViewer gate render the school-account frame; Home (shared entry) renders the
+  generic frame without school-account guidance. Parser shared; copy branches by
+  surface; route list enumerated in T5.
+- **P4 (17 mechanical, all accepted):** join-error states inline under the input with
+  code preserved and per-case E-7 constant copy; regenerate **after-state** showing
+  the new code + copy affordance ("The old link no longer works"); **neutral
+  signed-out Home** + idle-sign-out "your work is saved" banner variant;
+  `prompt: 'select_account'` on the failure screen's retry (pinned by test — without
+  it Google silently reuses the rejected account); dialog focus rules (open on safe
+  "Remove", trap, Esc, return-to-invoker), Cancel promoted to a full row, in-dialog
+  busy/error; join-input interaction spec (uppercase-on-input, 6-char gate, paste
+  trim, Enter submits, in-flight disable, "6-character code" copy — alphabet already
+  excludes O/0/I/1); the 8s `SLOW_LOAD_MS` escalation shared onto the role gate and
+  join call; identity email in the topbar, card opens with "Your classes"; class-list
+  loading/error frames; every sign-out control calls `signOutEverything` (S6-6
+  contract, restated in T5/T8); copy fixes (no "this time", "wherever your teacher
+  posts links"); 44px touch floors incl. padded quiet-links; joining/joined as
+  sequential states; primary-button consistency on 2c; inert class rows carry no
+  hover affordance; keyboard order + focus-visible inheritance stated; 16px body on
+  gate screens; visible "Class code" label (placeholder is not a label).
+
+**Pass scores (before → after):** Info Arch 3→9 · States 4→9 · Journey 6→9 ·
+AI-slop 8→9 · System alignment 8→9 · Responsive/a11y 3→9 · Unresolved 0.
+Overall **4/10 → 9/10**. Not in scope (design): brand identity pass (backlog,
+"when the identity question goes live" — arguably next), pre-auth class-name
+endpoint (S9), student class-detail pages (S9 content surface).
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
@@ -500,16 +544,18 @@ arrival prerequisites, three-of-five mandated scripts uncovered).
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 (2026-08-08) | CLEAR (PLAN) | 22 issues, 0 critical gaps |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 (2026-08-09) | CLEAR (FULL) | score 4 → 9; 12-frame board approved; P1–P4 ruled |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 1 (2026-08-09) | CLEAR (EXPANSION) | score ~5 → 9 target; apply-day <15 min steady-state |
 
-- **CROSS-MODEL:** Two outside-voice passes (Claude subagent; Codex not installed).
-  Eng pass: 12 findings — 8 accepted (two P1s reworked E-7/E-8), 3 rejected with
-  reasons, 1 folded as E-11; tensions T1–T5 ruled. DX pass: 14 findings — 4 P1s all
-  verified (unrunnable probe, rollback-idiom collision, DSN prerequisite, §E
-  disposition); rulings X1–X3 folded into §4/§5/E-7/E-8/T11.
-- **VERDICT:** ENG + DX CLEARED — ready to implement. Scope = full plan + verify
-  runner (D4/X2) + one-off rehearsal (F4); migration-first order stands; optional
-  /plan-design-review available for the student-facing screens.
+- **CROSS-MODEL:** Three outside-voice passes (Claude subagent; Codex not installed).
+  Eng: 12 findings — 8 accepted (two P1s reworked E-7/E-8), 3 rejected with reasons,
+  1 folded as E-11; tensions T1–T5 ruled. DX: 14 findings — 4 verified P1s; rulings
+  X1–X3 folded. Design: 20 findings — 3 critical (absent join-error states, undesigned
+  regenerate after-state, teacher-copy signed-out Home) + the select_account retry
+  trap; P1–P4 ruled, all folded into §12 + the v2 wireframe board; one OV claim
+  corrected (dark mode exists via light-dark() tokens).
+- **VERDICT:** ENG + DX + DESIGN CLEARED — ready to implement. Scope = full plan +
+  verify runner (D4/X2) + one-off rehearsal (F4) + the §12 design spec; migration-first
+  order stands.
 
 NO UNRESOLVED DECISIONS
