@@ -1,9 +1,13 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-04-draft-2`. Mirrors migrations 0001–0026; regenerate this
-> doc whenever a migration adds/removes a personal-data column (Q4A in-arc
-> doc rule).
+> Version `2026-08-04-draft-2`. Mirrors migrations 0001–**0027**; regenerate
+> this doc whenever a migration adds/removes a personal-data column (Q4A
+> in-arc doc rule). 0027 adds **no personal-data columns** — it changes WRITE
+> PATHS: class create / join-code regeneration / domain edits now run through
+> audited SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows,
+> actor + old/new metadata), and the assertion record became structurally
+> immutable (client column grants).
 >
 > Changes since `draft-1` (which mirrored 0001–0014): `section_checks` added
 > (0020 — it, not `submissions`, is where student work lands in the new

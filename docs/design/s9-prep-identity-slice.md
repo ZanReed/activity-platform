@@ -1,8 +1,8 @@
 # S9-prep identity slice — plan (B12 / B13 / B14)
 
-**Status: ENG-REVIEWED 2026-08-08 (10 findings ruled as E-1…E-11 + outside-voice
-tensions T1–T5) AND DX-REVIEWED 2026-08-09 (rulings D4/F1–F5/G1/X1–X3 in §11; author
-runbook rewritten in §5). 0 unresolved. Ready to build.**
+**Status: BUILT 2026-08-09 — all reviews clear (eng E-1…E-11+T1–T5, DX D4/F1–F5/G1/X1–X3,
+design P1–P4), all 12 implementation tasks landed. Remaining: the §5 author
+apply-day runbook (mirrored in STATE → Pending author actions).**
 Rulings source: [findings-backlog.md](../reviews/findings-backlog.md) → RULINGS (2026-08-06 eng
 review, B12/B13/B14 + C11/C13); defect detail in [s1-retro.md](../reviews/s1-retro.md) (items
 9–15 + audit addenda). This plan re-derives those rulings against shipped reality per P10;
@@ -458,18 +458,18 @@ Realistically a single-session sequential build also fits (the repo's usual mode
 
 Synthesized from this review's findings; checkbox as you ship.
 
-- [ ] **T1 (P1, CC: ~20m)** — app/lib — shared-constant module: join_class split strings + refusal-screen keys; pin test greps latest defining migration (E-7)
-- [ ] **T2 (P1, CC: ~1.5h)** — supabase — 0027: trigger replace w/ case-normalized compare, allowlist lower()+CHECK, domain defensive-normalize+CHECK, UPDATE grant→(name), INSERT revoke + policy drop, updated_at trigger, create_class / regenerate_join_code / update_class_domain RPCs + audit writers, join_class error split + RAISE LOG + dated comment, is_class_teacher role conjunct (E-1/E-2/E-3/E-7/E-8/T3/T4/D-11)
-- [ ] **T3 (P1, CC: ~1h)** — scripts — verify-0027 (verify-0025 §C pattern): four trigger proof rows, grant matrix incl. INSERT, audit-row assertions, prosrc constant assertion, RAISE LOG fire, throttle-acceptance comment check; update verify-0013-0014 §B expectations (P3/P7/OV-10)
-- [ ] **T4 (P1, CC: ~45m)** — app — SessionContext role: fetch-on-user-id-change, neutral gate, failure→retry, zero-rows→account-unavailable (E-4/E-11)
-- [ ] **T5 (P1, CC: ~1.5h)** — app — Home student branch + /join/:code route (auto-join after role resolves, teacher explanatory screen, signed-out redirectTo state) + refusal screen keyed on any callback error, hash+query parsing (B12/E-5/E-7/E-9)
-- [ ] **T6 (P2, CC: ~20m)** — app — signInWithGoogle helper + VITE_DISTRICT_HINT via lib/supabase.ts (E-6/E-10)
-- [ ] **T7 (P2, CC: ~45m)** — app — B14 two-action remove dialog + domain-edit UI on the RPCs; Classes.test.tsx create-path regression update (B14/T4/E-2)
-- [ ] **T8 (P2, CC: ~30m)** — app — idle sign-out wiring + student sign-out chrome (D-10, closes C2 early)
-- [ ] **T9 (P1, CC: ~1.5h)** — e2e — harness extension (role fakeSession, /rest/v1 stubs from production constants) + rows: join happy, double-click, mid-join expiry, role-branched Home, refusal, idle wiring (s1:9), remove dialog both actions + 4 regression rows
-- [ ] **T10 (P2, CC: ~30m)** — docs — DECISIONS entry, STATE update (incl. stale pack-diff note + apply-day duration datapoint slot), data-map write-path inventory, hd claim now true
-- [ ] **T11 (P1, CC: ~2.5h — honest restatement per OV-DX #4)** — scripts — verify runner (`pnpm verify:auth`, DX D4/F1/G1/X1/X2 + OV-DX #2/#3/#5/#6/#7): psql subprocess, `--target local|live` (refuses untargeted), `SUPABASE_DB_URL` pooler DSN, EXPECTED-ROLLBACK-classified-as-PASS, stderr LOG capture for E-8, per-assertion PASS/FAIL with expected-vs-actual + failing-section SQL on mismatch; migrates ALL FOUR mandated scripts (verify-0013-0014 §C/§D rewritten self-fixturing + §E supersession header, verify-0017, verify-image-storage, verify-0020); shared-JSON constants injected via `psql -v`; migrations/README gains Option C; **sequenced BEFORE the F4 rehearsal (build order step 2)**
-- [ ] **T12 (P2, CC: ~10m)** — docs/env — VITE_DISTRICT_HINT documented in `.env.local.example` + README getting-started + a harness comment recording it deliberately unset in e2e lanes (DX F3)
+- [x] **T1 (P1, CC: ~20m)** — app/lib — shared-constant module: join_class split strings + refusal-screen keys; pin test greps latest defining migration (E-7)
+- [x] **T2 (P1, CC: ~1.5h)** — supabase — 0027: trigger replace w/ case-normalized compare, allowlist lower()+CHECK, domain defensive-normalize+CHECK, UPDATE grant→(name), INSERT revoke + policy drop, updated_at trigger, create_class / regenerate_join_code / update_class_domain RPCs + audit writers, join_class error split + RAISE LOG + dated comment, is_class_teacher role conjunct (E-1/E-2/E-3/E-7/E-8/T3/T4/D-11)
+- [x] **T3 (P1, CC: ~1h)** — scripts — verify-0027 (verify-0025 §C pattern): four trigger proof rows, grant matrix incl. INSERT, audit-row assertions, prosrc constant assertion, RAISE LOG fire, throttle-acceptance comment check; update verify-0013-0014 §B expectations (P3/P7/OV-10)
+- [x] **T4 (P1, CC: ~45m)** — app — SessionContext role: fetch-on-user-id-change, neutral gate, failure→retry, zero-rows→account-unavailable (E-4/E-11)
+- [x] **T5 (P1, CC: ~1.5h)** — app — Home student branch + /join/:code route (auto-join after role resolves, teacher explanatory screen, signed-out redirectTo state) + refusal screen keyed on any callback error, hash+query parsing (B12/E-5/E-7/E-9)
+- [x] **T6 (P2, CC: ~20m)** — app — signInWithGoogle helper + VITE_DISTRICT_HINT via lib/supabase.ts (E-6/E-10)
+- [x] **T7 (P2, CC: ~45m)** — app — B14 two-action remove dialog + domain-edit UI on the RPCs; Classes.test.tsx create-path regression update (B14/T4/E-2)
+- [x] **T8 (P2, CC: ~30m)** — app — idle sign-out wiring + student sign-out chrome (D-10, closes C2 early)
+- [x] **T9 (P1, CC: ~1.5h)** — e2e — harness extension (role fakeSession, /rest/v1 stubs from production constants) + rows: join happy, double-click, mid-join expiry, role-branched Home, refusal, idle wiring (s1:9), remove dialog both actions + 4 regression rows
+- [x] **T10 (P2, CC: ~30m)** — docs — DECISIONS entry, STATE update (incl. stale pack-diff note + apply-day duration datapoint slot), data-map write-path inventory, hd claim now true
+- [x] **T11 (P1, CC: ~2.5h — honest restatement per OV-DX #4)** — scripts — verify runner (`pnpm verify:auth`, DX D4/F1/G1/X1/X2 + OV-DX #2/#3/#5/#6/#7): psql subprocess, `--target local|live` (refuses untargeted), `SUPABASE_DB_URL` pooler DSN, EXPECTED-ROLLBACK-classified-as-PASS, stderr LOG capture for E-8, per-assertion PASS/FAIL with expected-vs-actual + failing-section SQL on mismatch; migrates ALL FOUR mandated scripts (verify-0013-0014 §C/§D rewritten self-fixturing + §E supersession header, verify-0017, verify-image-storage, verify-0020); shared-JSON constants injected via `psql -v`; migrations/README gains Option C; **sequenced BEFORE the F4 rehearsal (build order step 2)**
+- [x] **T12 (P2, CC: ~10m)** — docs/env — VITE_DISTRICT_HINT documented in `.env.local.example` + README getting-started + a harness comment recording it deliberately unset in e2e lanes (DX F3)
 
 ## 11. DX review record (2026-08-09, /plan-devex-review — EXPANSION mode)
 

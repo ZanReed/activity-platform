@@ -37,7 +37,9 @@ The editor/dashboard needs Supabase credentials before it can start:
 
 ```bash
 cp packages/app/.env.local.example packages/app/.env.local
-# fill in the Supabase URL + anon key (see the comments in the file)
+# fill in the Supabase URL + anon key (see the comments in the file);
+# VITE_DISTRICT_HINT (optional) steers Google's account picker on student
+# sign-ins — see the example file's comments
 pnpm --filter @activity/app dev        # Vite dev server on http://localhost:5173
 ```
 

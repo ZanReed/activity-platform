@@ -133,6 +133,11 @@ export default defineConfig({
             env: {
                 VITE_SUPABASE_URL: STUDENT_SUPABASE_URL,
                 VITE_SUPABASE_ANON_KEY: 'e2e-anon-key',
+                // Pinned EMPTY (→ no district hint): the dev server would
+                // otherwise inherit .env.local, making the identity rows
+                // env-dependent (the env-masked-verification pitfall). The
+                // rows assert the graceful no-hint behavior.
+                VITE_DISTRICT_HINT: '',
             },
         },
         {
@@ -145,6 +150,11 @@ export default defineConfig({
             env: {
                 VITE_SUPABASE_URL: STUDENT_SUPABASE_URL,
                 VITE_SUPABASE_ANON_KEY: 'e2e-anon-key',
+                // Pinned EMPTY (→ no district hint): the dev server would
+                // otherwise inherit .env.local, making the identity rows
+                // env-dependent (the env-masked-verification pitfall). The
+                // rows assert the graceful no-hint behavior.
+                VITE_DISTRICT_HINT: '',
             },
         },
     ],
