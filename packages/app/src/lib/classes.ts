@@ -103,13 +103,13 @@ interface CreateClassInput {
     /** Must be true — the required 3.1C checkbox. The type says boolean so the
      *  call site reads honestly; the throw is the real gate. */
     ageAsserted: boolean;
-    /** auth.uid() — pinned by RLS WITH CHECK (teacher_id AND age_assertion_by). */
-    teacherId: string;
 }
 
 /**
- * Create a class carrying the 13+ assertion record. join_code is generated
- * DB-side (default); the rare code collision (unique violation) is retried.
+ * Create a class carrying the 13+ assertion record — via the audited
+ * create_class DEFINER RPC (0027, ruling E-2): validation, join-code
+ * collision retry, and the class.create audit row all live server-side.
+ * The direct INSERT died with 0027 (grant revoked; the RPC is the only door).
  */
 export async function createClass(input: CreateClassInput): Promise<ClassInfo> {
     if (!input.ageAsserted) {
@@ -118,52 +118,56 @@ export async function createClass(input: CreateClassInput): Promise<ClassInfo> {
     const name = input.name.trim();
     if (name.length === 0) throw new Error('Class name is required');
 
-    const row = {
-        name,
-        teacher_id: input.teacherId,
-        expected_domain: normalizeExpectedDomain(input.expectedDomain),
-        age_assertion_by: input.teacherId,
-        assertion_text_version: ASSERTION_TEXT_VERSION,
+    const { data, error } = await supabase.rpc('create_class', {
+        p_name: name,
+        p_expected_domain: normalizeExpectedDomain(input.expectedDomain),
+        p_assertion_text_version: ASSERTION_TEXT_VERSION,
+    });
+    if (error) throw new Error(error.message);
+    const r = data as {
+        id: string; name: string; join_code: string; expected_domain: string | null;
+        created_at: string; age_assertion_at: string; assertion_text_version: string;
     };
-
-    // Up to 3 attempts: a join_code collision surfaces as 23505 on the unique
-    // constraint; a fresh insert draws a fresh default code.
-    let lastError = '';
-    for (let attempt = 0; attempt < 3; attempt++) {
-        const { data, error } = await supabase
-            .from('classes')
-            .insert(row)
-            .select(CLASS_COLUMNS)
-            .single();
-        if (!error) return rowToClass(data as ClassRow);
-        lastError = error.message;
-        if (error.code !== '23505') break;
-    }
-    throw new Error(lastError);
+    return {
+        id: r.id,
+        name: r.name,
+        joinCode: r.join_code,
+        expectedDomain: r.expected_domain,
+        ageAssertionAt: r.age_assertion_at,
+        assertionTextVersion: r.assertion_text_version,
+        createdAt: r.created_at,
+    };
 }
 
 /**
  * Draw a fresh join code (invalidates the old one — the lockout path after
- * remove-student or a leaked code). Collision-retried like createClass.
+ * remove-student or a leaked code). Audited server-side since 0027 (ruling
+ * E-3: the class.update row carries old/new, so the trail reconstructs which
+ * posted link died); collision retry moved into the RPC.
  */
 export async function regenerateJoinCode(classId: string): Promise<string> {
-    let lastError = '';
-    for (let attempt = 0; attempt < 3; attempt++) {
-        const { data: code, error: genError } = await supabase.rpc(
-            'generate_join_code',
-        );
-        if (genError) throw new Error(genError.message);
-        const { data, error } = await supabase
-            .from('classes')
-            .update({ join_code: code as string, updated_at: new Date().toISOString() })
-            .eq('id', classId)
-            .select('join_code')
-            .single();
-        if (!error) return (data as { join_code: string }).join_code;
-        lastError = error.message;
-        if (error.code !== '23505') break;
-    }
-    throw new Error(lastError);
+    const { data, error } = await supabase.rpc('regenerate_join_code', {
+        p_class_id: classId,
+    });
+    if (error) throw new Error(error.message);
+    return (data as { join_code: string }).join_code;
+}
+
+/**
+ * Change (or clear) the class's domain pin — via the audited RPC (0027,
+ * ruling T4): widening/nulling the domain LOOSENS the admission boundary, so
+ * it must leave a trace. Raw teacher input tolerated ("@domain", full email).
+ */
+export async function updateClassDomain(
+    classId: string,
+    rawDomain: string,
+): Promise<string | null> {
+    const { data, error } = await supabase.rpc('update_class_domain', {
+        p_class_id: classId,
+        p_domain: normalizeExpectedDomain(rawDomain),
+    });
+    if (error) throw new Error(error.message);
+    return (data as { expected_domain: string | null }).expected_domain;
 }
 
 /** Roster via the DEFINER RPC (ownership-gated server-side). */
@@ -210,4 +214,50 @@ export async function softDeleteClass(classId: string): Promise<void> {
         p_class_id: classId,
     });
     if (error) throw new Error(error.message);
+}
+
+// =============================================================================
+// Student-side surface (identity slice B12 — the join flow + joined classes)
+// =============================================================================
+
+export interface JoinedClass {
+    classId: string;
+    name: string;
+    joinedAt: string;
+}
+
+/**
+ * Join a class by code (the student's one write path — join_class RPC).
+ * Errors carry the 0027 wire strings; callers classify with
+ * classifyJoinError() and render JOIN_ERROR_COPY, never the raw message.
+ */
+export async function joinClass(code: string): Promise<JoinedClass> {
+    const { data, error } = await supabase.rpc('join_class', {
+        p_join_code: code.trim().toUpperCase(),
+    });
+    if (error) throw new Error(error.message);
+    const r = data as { class_id: string; class_name: string; joined_at: string };
+    return { classId: r.class_id, name: r.class_name, joinedAt: r.joined_at };
+}
+
+/**
+ * The student's joined classes (active memberships), newest first. Reads ride
+ * class_members' student-select-self policy + classes_select_member.
+ */
+export async function listMyClasses(): Promise<JoinedClass[]> {
+    const { data, error } = await supabase
+        .from('class_members')
+        .select('class_id, joined_at, classes(name)')
+        .is('removed_at', null)
+        .order('joined_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    interface MembershipRow {
+        class_id: string;
+        joined_at: string;
+        classes: { name: string } | { name: string }[] | null;
+    }
+    return ((data ?? []) as MembershipRow[]).map((r) => {
+        const cls = Array.isArray(r.classes) ? r.classes[0] : r.classes;
+        return { classId: r.class_id, name: cls?.name ?? '(class)', joinedAt: r.joined_at };
+    });
 }

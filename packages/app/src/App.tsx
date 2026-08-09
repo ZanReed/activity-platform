@@ -5,6 +5,7 @@ import RequireAuth from './components/RequireAuth';
 import ThemeToggle from './components/ThemeToggle';
 import Home from './routes/Home';
 import StudentViewer from './routes/StudentViewer';
+import JoinClass from './routes/JoinClass';
 
 // =============================================================================
 // Route loading tiers (S8 ruling D4) — the entry chunk IS the student shell.
@@ -91,6 +92,11 @@ export default function App() {
             route itself shows the pre-auth screen (ruling 3.2A) so a signed-out
             student sees WHAT they were sent before being asked who they are. */}
         <Route path="/a/:activityId" element={<StudentViewer />} />
+        {/* The shareable join deep link (identity slice B12). Static import —
+            it is a student first-paint surface like StudentViewer/Home, and
+            it shares their chunk anyway (same shell components). Not
+            RequireAuth: the route runs its own gate (same 3.2A shape). */}
+        <Route path="/join/:code" element={<JoinClass />} />
         <Route
         path="/activities"
         element={

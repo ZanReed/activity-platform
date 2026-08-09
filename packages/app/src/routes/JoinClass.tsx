@@ -1,0 +1,171 @@
+/**
+ * /join/:code — the shareable join deep link (B12/E-9, design board frames
+ * 2a/2b/2c + 3). Signed-out: the viewer-gate composition with the code
+ * echoed (the class NAME is unknowable pre-auth — RLS; S9's meta endpoint is
+ * the recorded fix). Student: auto-join AFTER the role resolves (E-4 gate),
+ * then the success card with the quiet undo line (P2). Teacher: the
+ * explanatory screen — never a raw join_class error (E-9).
+ */
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { useSession } from '../lib/SessionContext';
+import { useSlowFlag } from '../lib/slowLoad';
+import { signInWithGoogle } from '../lib/auth';
+import { signOutEverything } from '../lib/studentAuth';
+import { joinClass, type JoinedClass } from '../lib/classes';
+import { classifyJoinError, JOIN_ERROR_COPY } from '../lib/authMessages';
+import { normalizeJoinCodeInput } from '../components/JoinCodeForm';
+import {
+  AccountUnavailableCard,
+  NeutralGateCard,
+  SignInFailedCard,
+  useAuthCallbackError,
+  BTN_PRIMARY,
+} from '../components/AuthScreens';
+
+type JoinPhase =
+  | { phase: 'joining' }
+  | { phase: 'joined'; joined: JoinedClass }
+  | { phase: 'failed'; copy: string };
+
+export default function JoinClass() {
+  const { code: rawCode } = useParams();
+  const code = normalizeJoinCodeInput(rawCode ?? '');
+  const { session, loading, role, roleStatus, retryRole } = useSession();
+  const callbackError = useAuthCallbackError();
+  const navigate = useNavigate();
+  const [join, setJoin] = useState<JoinPhase>({ phase: 'joining' });
+  const attemptedFor = useRef<string | null>(null);
+  const isStudent = session !== null && roleStatus === 'ready' && role === 'student';
+  const gateActive =
+    loading || (session !== null && roleStatus === 'loading') ||
+    (isStudent && join.phase === 'joining');
+  const slow = useSlowFlag(gateActive);
+
+  useEffect(() => {
+    // Auto-join exactly once per code, and only as a resolved student —
+    // never mid-role-fetch, never for teachers (E-9), never twice on a
+    // re-render (the double-click class of bug, e2e-pinned).
+    if (!isStudent || attemptedFor.current === code) return;
+    attemptedFor.current = code;
+    setJoin({ phase: 'joining' });
+    joinClass(code)
+      .then((joined) => setJoin({ phase: 'joined', joined }))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        setJoin({ phase: 'failed', copy: JOIN_ERROR_COPY[classifyJoinError(message)] });
+      });
+  }, [isStudent, code]);
+
+  let body;
+  if (loading || (session && (roleStatus === 'loading' || roleStatus === 'idle'))) {
+    body = <NeutralGateCard slow={slow} onRetry={session ? retryRole : undefined} />;
+  } else if (!session) {
+    body = callbackError ? (
+      // Student entry point → the school-account frame (P3).
+      <SignInFailedCard studentSurface redirectTo={window.location.href} />
+    ) : (
+      <div className="mx-auto max-w-sm rounded-lg border border-line bg-canvas p-6 text-center shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted">
+          You&apos;re joining a class
+        </p>
+        <h1 className="mt-1.5 text-2xl font-bold text-ink">
+          Code{' '}
+          <span className="rounded border border-line bg-surface-2 px-2 py-0.5 font-mono text-lg tracking-[0.15em]">
+            {code}
+          </span>
+        </h1>
+        <p className="mt-2 text-base text-muted">
+          Sign in with your school Google account to join.
+        </p>
+        <button
+          type="button"
+          className={`mt-4 w-full ${BTN_PRIMARY}`}
+          onClick={() => {
+            // redirectTo = THIS url: the code survives the OAuth round-trip
+            // (B12; the dashboard redirect-URL allowlist must cover /join/* —
+            // Probe 1 in the plan's runbook proves it live).
+            void signInWithGoogle({
+              redirectTo: window.location.href,
+              includeDistrictHint: true,
+            });
+          }}
+        >
+          Sign in with Google
+        </button>
+      </div>
+    );
+  } else if (roleStatus === 'error') {
+    body = <NeutralGateCard slow onRetry={retryRole} />;
+  } else if (roleStatus === 'empty') {
+    body = (
+      <AccountUnavailableCard
+        onSignOut={() => {
+          void signOutEverything().catch((e) => console.error('Sign-out failed:', e));
+        }}
+      />
+    );
+  } else if (!isStudent) {
+    // Signed-in teacher/admin hit their own posted link (E-9): explain, never
+    // call join_class, never bounce silently.
+    body = (
+      <div className="mx-auto max-w-sm rounded-lg border border-line bg-canvas p-6 shadow-sm">
+        <h1 className="text-lg font-bold text-ink">Join links are for student accounts</h1>
+        <p className="mt-2 text-base text-muted">
+          You&apos;re signed in as a teacher. Your class and its code live in your
+          Classes page.
+        </p>
+        <Link to="/classes" className={`mt-4 inline-block ${BTN_PRIMARY}`}>
+          Open Classes
+        </Link>
+      </div>
+    );
+  } else if (join.phase === 'joining') {
+    body = (
+      <div
+        className="mx-auto max-w-sm rounded-lg border border-line bg-canvas p-6 text-center shadow-sm"
+        role="status"
+      >
+        <p className="text-muted">
+          {slow ? 'This is taking longer than usual…' : `Joining class ${code}…`}
+        </p>
+      </div>
+    );
+  } else if (join.phase === 'failed') {
+    body = (
+      <div className="mx-auto max-w-sm rounded-lg border border-line bg-canvas p-6 text-center shadow-sm">
+        <p role="alert" className="text-base text-strong">
+          {join.copy}
+        </p>
+        <Link to="/" className={`mt-4 inline-block ${BTN_PRIMARY}`}>
+          Go to your classes
+        </Link>
+      </div>
+    );
+  } else {
+    body = (
+      <div className="mx-auto max-w-sm rounded-lg border border-line bg-canvas p-6 text-center shadow-sm">
+        <h1 className="text-2xl font-bold text-ink">You&apos;re in ✓</h1>
+        <p className="mt-2 text-base text-muted">
+          You joined <strong className="text-strong">{join.joined.name}</strong>.
+        </p>
+        <button
+          type="button"
+          className={`mt-4 w-full ${BTN_PRIMARY}`}
+          onClick={() => void navigate('/')}
+        >
+          Go to your classes
+        </button>
+        <p className="mt-3 text-sm text-muted">
+          Wrong class? Ask your teacher to remove you.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-surface p-8">
+      <div className="w-full max-w-md">{body}</div>
+    </main>
+  );
+}

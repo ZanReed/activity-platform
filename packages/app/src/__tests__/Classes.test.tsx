@@ -16,20 +16,20 @@ const h = vi.hoisted(() => {
     const listResult: { current: { data: unknown; error: unknown } } = {
         current: { data: [], error: null },
     };
-    const insert = vi.fn();
     const from = vi.fn((table: string) => {
         if (table === 'classes') {
             const qb: Record<string, unknown> = {
                 select: () => qb,
                 order: () => Promise.resolve(listResult.current),
-                insert: (row: unknown) => insert(row),
             };
             return qb;
         }
         throw new Error(`unexpected table ${table}`);
     });
+    // Creation goes through the audited create_class RPC since 0027 (E-2);
+    // the direct INSERT is privilege-dead, so the mock exposes rpc only.
     const rpc = vi.fn(() => Promise.resolve({ data: [], error: null }));
-    return { listResult, from, insert, rpc };
+    return { listResult, from, rpc };
 });
 
 vi.mock('../lib/supabase', () => ({
@@ -53,29 +53,24 @@ function renderClasses() {
     );
 }
 
-function createdRow() {
-    return {
-        select: () => ({
-            single: () =>
-                Promise.resolve({
-                    data: {
-                        id: 'c-new',
-                        name: 'Algebra I — Period 2',
-                        join_code: 'ABC234',
-                        expected_domain: null,
-                        age_assertion_at: '2026-07-28T00:00:00Z',
-                        assertion_text_version: ASSERTION_TEXT_VERSION,
-                        created_at: '2026-07-28T00:00:00Z',
-                    },
-                    error: null,
-                }),
-        }),
-    };
+function createdRpcResult() {
+    return Promise.resolve({
+        data: {
+            id: 'c-new',
+            name: 'Algebra I — Period 2',
+            join_code: 'ABC234',
+            expected_domain: null,
+            age_assertion_at: '2026-07-28T00:00:00Z',
+            assertion_text_version: ASSERTION_TEXT_VERSION,
+            created_at: '2026-07-28T00:00:00Z',
+        },
+        error: null,
+    });
 }
 
 beforeEach(() => {
     h.listResult.current = { data: [], error: null };
-    h.insert.mockClear().mockImplementation(createdRow);
+    h.rpc.mockClear().mockImplementation(() => createdRpcResult());
 });
 afterEach(cleanup);
 
@@ -118,10 +113,13 @@ describe('Classes create flow — assertion gate', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Create class' }));
 
         await screen.findByText('ABC234');
-        expect(h.insert).toHaveBeenCalledWith(
+        // The audited door (E-2): the version rides the wire; identity is
+        // auth.uid() server-side, so no client-supplied teacher id exists to
+        // assert on anymore.
+        expect(h.rpc).toHaveBeenCalledWith(
+            'create_class',
             expect.objectContaining({
-                age_assertion_by: 'teacher-1',
-                assertion_text_version: ASSERTION_TEXT_VERSION,
+                p_assertion_text_version: ASSERTION_TEXT_VERSION,
             }),
         );
 

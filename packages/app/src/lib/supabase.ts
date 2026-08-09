@@ -68,3 +68,14 @@ export function functionsBase(): string {
   if (!url) throw new Error(MISSING_ENV);
   return `${url}/functions/v1`;
 }
+
+/**
+ * The district's Google Workspace domain, used as the OAuth `hd` hint on
+ * STUDENT-facing sign-ins so the account picker prefers school accounts
+ * (identity slice E-6; UX only — the admission trigger is the gate). Unset =
+ * no hint, gracefully. Lives here because this module is the single
+ * env-read site (the A21/functionsBase lesson: an env read behind a vi.mock
+ * boundary is env-DEPENDENT without looking it).
+ */
+export const districtHint: string | undefined =
+  (import.meta.env.VITE_DISTRICT_HINT as string | undefined) || undefined;

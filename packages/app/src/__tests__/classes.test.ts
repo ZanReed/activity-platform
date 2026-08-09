@@ -1,25 +1,27 @@
 // =============================================================================
-// classes.test.ts — teacher-side class data layer (S1, ruling 3.1C)
+// classes.test.ts — class data layer (S1 ruling 3.1C; identity slice E-2/E-3)
 // -----------------------------------------------------------------------------
 // The assertion gate and input normalization are the testable logic; the thin
 // Supabase reads aren't re-tested (grades.ts convention). createClass's gate
 // matters most: a class row without a real assertion must be unrepresentable
-// from this code path.
+// from this code path. REWRITTEN with 0027 (regression row from the eng
+// review's IRON RULE): creation goes through the audited create_class RPC —
+// the direct INSERT is privilege-dead — so the mock pins the RPC wire shape.
 // =============================================================================
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const insertMock = vi.fn();
+const rpcMock = vi.fn();
 vi.mock('../lib/supabase', () => ({
     supabase: {
-        from: () => ({ insert: (row: unknown) => insertMock(row) }),
-        rpc: vi.fn(),
+        rpc: (fn: string, args: unknown) => rpcMock(fn, args),
     },
 }));
 
 import {
     ASSERTION_TEXT_VERSION,
     createClass,
+    regenerateJoinCode,
     normalizeExpectedDomain,
 } from '../lib/classes';
 import { POLICY_VERSION } from '../lib/policyVersion';
@@ -40,7 +42,7 @@ describe('normalizeExpectedDomain', () => {
 });
 
 describe('createClass assertion gate', () => {
-    beforeEach(() => insertMock.mockReset());
+    beforeEach(() => rpcMock.mockReset());
 
     it('refuses to create without the age assertion — no DB call at all', async () => {
         await expect(
@@ -48,10 +50,9 @@ describe('createClass assertion gate', () => {
                 name: 'Algebra I — Period 2',
                 expectedDomain: '',
                 ageAsserted: false,
-                teacherId: 't-1',
             }),
         ).rejects.toThrow(/age assertion/);
-        expect(insertMock).not.toHaveBeenCalled();
+        expect(rpcMock).not.toHaveBeenCalled();
     });
 
     it('refuses an empty name', async () => {
@@ -60,46 +61,53 @@ describe('createClass assertion gate', () => {
                 name: '   ',
                 expectedDomain: '',
                 ageAsserted: true,
-                teacherId: 't-1',
             }),
         ).rejects.toThrow(/name/i);
-        expect(insertMock).not.toHaveBeenCalled();
+        expect(rpcMock).not.toHaveBeenCalled();
     });
 
-    it('stamps the assertion fields with the policy version in force', async () => {
-        insertMock.mockReturnValue({
-            select: () => ({
-                single: () =>
-                    Promise.resolve({
-                        data: {
-                            id: 'c-1',
-                            name: 'Algebra I — Period 2',
-                            join_code: 'ABC234',
-                            expected_domain: 'district.org',
-                            age_assertion_at: '2026-07-28T00:00:00Z',
-                            assertion_text_version: ASSERTION_TEXT_VERSION,
-                            created_at: '2026-07-28T00:00:00Z',
-                        },
-                        error: null,
-                    }),
-            }),
+    it('calls the audited RPC with normalized inputs + the policy version in force', async () => {
+        rpcMock.mockResolvedValue({
+            data: {
+                id: 'c-1',
+                name: 'Algebra I — Period 2',
+                join_code: 'ABC234',
+                expected_domain: 'district.org',
+                age_assertion_at: '2026-07-28T00:00:00Z',
+                assertion_text_version: ASSERTION_TEXT_VERSION,
+                created_at: '2026-07-28T00:00:00Z',
+            },
+            error: null,
         });
 
         const info = await createClass({
             name: '  Algebra I — Period 2  ',
             expectedDomain: 'Kid@District.org',
             ageAsserted: true,
-            teacherId: 't-1',
         });
 
-        expect(insertMock).toHaveBeenCalledWith({
-            name: 'Algebra I — Period 2',
-            teacher_id: 't-1',
-            expected_domain: 'district.org',
-            age_assertion_by: 't-1',
-            assertion_text_version: ASSERTION_TEXT_VERSION,
+        // The RPC wire shape (P2: the e2e stub derives from this same
+        // contract — 0027's create_class(p_name, p_expected_domain,
+        // p_assertion_text_version)).
+        expect(rpcMock).toHaveBeenCalledWith('create_class', {
+            p_name: 'Algebra I — Period 2',
+            p_expected_domain: 'district.org',
+            p_assertion_text_version: ASSERTION_TEXT_VERSION,
         });
         expect(info.joinCode).toBe('ABC234');
+    });
+});
+
+describe('regenerateJoinCode', () => {
+    beforeEach(() => rpcMock.mockReset());
+
+    it('is one audited RPC call, no client compose (E-3)', async () => {
+        rpcMock.mockResolvedValue({ data: { join_code: 'R8KD4N' }, error: null });
+        const code = await regenerateJoinCode('class-1');
+        expect(rpcMock).toHaveBeenCalledWith('regenerate_join_code', {
+            p_class_id: 'class-1',
+        });
+        expect(code).toBe('R8KD4N');
     });
 });
 

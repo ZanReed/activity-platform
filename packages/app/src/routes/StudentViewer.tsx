@@ -60,19 +60,24 @@ import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
 import { functionsBase, supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
+import { signInWithGoogle as sharedSignIn, markIdleSignOut } from '../lib/auth';
+import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
+import { SLOW_LOAD_MS } from '../lib/slowLoad';
+import { SignInFailedCard, useAuthCallbackError } from '../components/AuthScreens';
 
 // functionsBase comes from lib/supabase (A21) — the one env-read site, so
 // this route's tests stay env-independent by mocking that module.
 
 /**
  * The one sign-in call, shared by the pre-auth gate and the expired-session
- * banner. `redirectTo` is the current URL so a student lands back on the
- * activity they were doing, not on a dashboard.
+ * banner — through the app-wide helper (identity slice E-10) so the district
+ * hint reaches this student surface too. `redirectTo` is the current URL so
+ * a student lands back on the activity they were doing, not on a dashboard.
  */
 function signInWithGoogle(): Promise<unknown> {
-  return supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.href },
+  return sharedSignIn({
+    redirectTo: window.location.href,
+    includeDistrictHint: true,
   });
 }
 
@@ -85,8 +90,9 @@ function safeStorage(): Storage | null {
     return null;
   }
 }
-/** How long before we admit the load is slow (ruling 1.2A). */
-const SLOW_LOAD_MS = 8000;
+// SLOW_LOAD_MS: shared from lib/slowLoad since the identity slice (design
+// OV#8) — the role gate and join call escalate on the same clock as this
+// skeleton (ruling 1.2A).
 
 type LoadState =
   | { phase: 'loading' }
@@ -119,6 +125,28 @@ export default function StudentViewer() {
   const [strandedNotice, setStrandedNotice] = useState(false);
   /** The session died while they were working (2.3A). Passive, never a modal. */
   const [authExpired, setAuthExpired] = useState(false);
+  const [idlePrompt, setIdlePrompt] = useState(false);
+
+  // The 2.4A idle wiring (identity slice D-10; closes cutover gate C2 with
+  // the student e2e row): a live session on a shared Chromebook between
+  // periods is the threat. Prompt after the quiet stretch; escalation signs
+  // out for real (signOutEverything — the S6-6 contract) and flags the
+  // signed-out Home so it can say what happened.
+  useEffect(() => {
+    if (!session) return;
+    const watcher = watchIdleSignOut({
+      onPrompt: () => setIdlePrompt(true),
+      onDismiss: () => setIdlePrompt(false),
+      onEscalate: async () => {
+        markIdleSignOut();
+        await signOutEverything();
+      },
+    });
+    return () => {
+      setIdlePrompt(false);
+      watcher.stop();
+    };
+  }, [session]);
   // Storage failure (D4): the buffer's status port, finally wired — quota or
   // an unavailable store means work is NOT being saved, and silence here was
   // the one S6 failure mode with no visible symptom.
@@ -514,12 +542,18 @@ export default function StudentViewer() {
           independently — the pinned-vs-reload contradiction). At most ONE
           shows, most-actionable first, and this list IS the chain below:
 
+            0. idle-prompt       — about to be signed out; ANY activity
+                                   dismisses it (identity slice D-10 / 2.4A)
             1. session-expired   — checking is blocked until they act
             2. storage-failure   — work is silently not persisting (D4)
             3. work-stranded     — an earlier check needs their understanding
             4. offline-copy      — context for why things look frozen
             5. pinned-version    — why they are NOT on the newest version
             6. stale-version     — a newer version exists; reload is OFFERED
+
+          Idle above session-expired: the prompt precedes the sign-out that
+          MAKES the session expire — showing the consequence before the
+          warning would invert cause and effect.
 
           Pinned before stale is load-bearing: a pinned student's unsent work
           lives on their version, and "Reload to get the new version" is
@@ -528,7 +562,13 @@ export default function StudentViewer() {
           persistent state; these are transitions. (The other-tab/read-only
           notice renders in ViewerContainer beside its takeover affordance —
           takeover UI, not a status banner; the one deliberate exception.) */}
-      {authExpired ? (
+      {idlePrompt ? (
+        <div className="viewer-banner" role="status" data-banner="idle-prompt">
+          <span>
+            Still there? You&apos;ll be signed out soon to keep this device safe.
+          </span>
+        </div>
+      ) : authExpired ? (
         <div className="viewer-banner" role="status" data-banner="session-expired">
           <span>Your sign-in expired. Your work is saved on this device.</span>
           <button
@@ -642,6 +682,12 @@ function PreAuth({ meta }: { meta: ActivityMeta | null }) {
       ? meta.teacherName
       : null;
 
+  // A refused/failed OAuth round-trip lands back HERE with an error in the
+  // URL (identity slice E-7: GoTrue's message is generic — presence is the
+  // signal). Student entry point → the school-account frame (P3), with the
+  // account picker forced on retry (OV#4).
+  const callbackError = useAuthCallbackError();
+
   // The anonymous half of the S8 timing contract. Stamped in a layout effect so
   // the mark lands when this screen is COMMITTED to the DOM and its sign-in
   // button is clickable — which is the promise being measured, not the moment
@@ -652,6 +698,14 @@ function PreAuth({ meta }: { meta: ActivityMeta | null }) {
   useLayoutEffect(() => {
     markOnce(MARKS.preAuthInteractive);
   }, []);
+
+  if (callbackError) {
+    return (
+      <div className="viewer-centered">
+        <SignInFailedCard studentSurface redirectTo={window.location.href} />
+      </div>
+    );
+  }
 
   return (
     <div className="viewer-centered">
