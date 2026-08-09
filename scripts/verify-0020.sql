@@ -43,6 +43,14 @@
 --     forced-RLS tables work from the outer (non-impersonated) scope.
 -- =============================================================================
 
+-- Runner-compatible since the identity slice (DX F1/X2): `pnpm verify:auth`
+-- runs the block below as one section; the exact "23 PASS, 0 FAIL" notice is
+-- the assertion (any failure changes the counts and raises). Still
+-- paste-runnable as before. NOTE: needs a published activity + a second user
+-- row to exist (the script's own fixture requirements).
+
+-- @section grading-surface-matrix
+-- @expect-log === verify-0020: 23 PASS, 0 FAIL ===
 begin;
 
 create function pg_temp.impersonate(p_sub text, p_role text) returns void as $$

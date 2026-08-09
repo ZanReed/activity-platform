@@ -31,6 +31,13 @@
 --     scope.
 -- =============================================================================
 
+-- Runner-compatible since the identity slice (DX F1/X2): `pnpm verify:auth`
+-- runs the block below as one section and PASSES only on the exact
+-- "8 PASS, 0 FAIL" notice — any failing case changes the counts (and raises),
+-- so the match is the assertion. Still paste-runnable as before.
+
+-- @section rls-predicate-matrix
+-- @expect-log === verify-image-storage: 8 PASS, 0 FAIL ===
 begin;
 
 create function pg_temp.impersonate(p_sub text, p_role text) returns void as $$

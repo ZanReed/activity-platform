@@ -1,0 +1,12 @@
+{
+  "_comment": "The auth-boundary string contract (identity slice E-7, design P3). These strings appear VERBATIM in the SQL that raises them (migration 0027 — the latest defining migration; authContract.test.ts greps it, and verify-0027 §E pins them against live pg_proc.prosrc so a future CREATE OR REPLACE can't drift silently). The client matcher imports THIS file; never retype a string on either side. The verify runner injects these via psql -v.",
+  "joinClassErrors": {
+    "notStudent": "Only student accounts can join a class",
+    "disabled": "This account is disabled",
+    "badCode": "No class found for that code",
+    "domainTemplate": "This class is limited to % accounts"
+  },
+  "signupRefusalTemplate": "Email % is not permitted to sign up",
+  "joinRefusalLogPrefix": "join_class refused",
+  "_transportNote": "signupRefusalTemplate never reaches the browser — GoTrue swallows trigger raise text and redirects with a generic server_error (T1 ruling). The client keys the sign-in-failed screens on error PRESENCE, not this phrase. joinClassErrors DO reach the client verbatim via PostgREST rpc error messages."
+}

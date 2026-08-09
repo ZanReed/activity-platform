@@ -90,6 +90,19 @@ Open your Supabase project → SQL Editor → New query. Paste and run `0001`, `
 
 This works but isn't reproducible. Use Option A once you're past the prototype stage.
 
+### Option C: the verify runner (for the regression re-runs, not for applying)
+
+`pnpm verify:auth --target live` executes the whole auth/grant regression set
+(verify-0027 + verify-0013-0014 + verify-0017 + verify-image-storage +
+verify-0020) over psql and prints per-assertion PASS/FAIL — replacing the
+paste-and-eyeball walkthrough for those five scripts. `--target local` points
+it at a `supabase start` stack instead (migration rehearsal). One-time
+prerequisites and the connection-string setup are documented in the runner's
+header (`scripts/verify-runner.mjs`): `brew install libpq && brew link --force
+libpq`, plus `SUPABASE_DB_URL` (the **pooler** DSN + the dashboard database
+password) in `.env.supabase`. Scripts stay individually paste-runnable — the
+runner just automates them via `-- @section` markers.
+
 ## Notable decisions baked into these migrations
 
 A few things worth calling out, mostly additions that came out of conversation:
