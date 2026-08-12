@@ -544,6 +544,143 @@ Lanes: **A:** Drop 1 → Drop 3 → Drop 4 (sequential — shared app routes + d
 Lane A's Drop 3 are done; Drop 5 last. Conflict flag: Drops 3 and 4 both edit
 CLAUDE.md/STATE — same lane, sequential (already ordered).
 
+## 8. Cutover runbook (author stations, identity-runbook parity — DX ruling D4/D5)
+
+Every station: paste the block, check the EXPECT, move on. Failure = stop, the
+EXPECT names what broke. **End every drop with the CI gate** (OV-DX-8):
+`gh run list --limit 1` → EXPECT ✓ green before the next drop starts.
+
+**Station 0 (now, before any S9 build session):**
+1. **STATE reconciliation commit** (OV-DX-6): fix line 185's "None of it is
+   pushed" (pushed; tree clean) + the status table's stale pg_cron "first run
+   not yet observed" row (closed 2026-08-06, A31).
+2. **B15 evidence** (a same-named insurance zip already exists at
+   `~/.gstack/projects/ZanReed-activity-platform/s5.5-print-signoff-contact-sheet-INSURANCE.zip`):
+   ```
+   cd packages/app && zip -r ../../s5.5-contact-sheet.zip print-contact-sheet/ && cd ../..
+   git tag -a s5.5-print-signoff -m "S5.5 print sign-off evidence: 44 contact-sheet PNGs + index.html (gitignored, generator retired in 29ea4f5, unregenerable). NOTE: the B5 touch-target height fix POSTDATES this sign-off."
+   git push origin s5.5-print-signoff
+   gh release create s5.5-print-signoff s5.5-contact-sheet.zip --title "S5.5 print sign-off evidence" --notes "Human-judged half of print parity; see tag message."
+   ```
+   EXPECT: `git tag -l` shows `s5.5-print-signoff`; the release shows the asset.
+3. **0027 apply-day runbook** — the identity plan §5, unchanged. EXPECT at end:
+   `supabase migration list` shows 0027 under Remote; `pnpm verify:auth
+   --target live` all PASS; Probes 1+2 recorded (Probe 2's callback params
+   validate the refusal parser).
+4. **A1 chip** landed (StudentViewer check URL) — EXPECT: no `/check-section`
+   grep hits in packages/app/src.
+
+**Drop 1 station (publish rewrite, runs 1st):** repo-side. The commit also
+deletes `deploy:publish` from package.json (OV-DX-2) and tombstones CLAUDE.md's
+publish-activity/renderer-bundle bullets it falsifies (OV-DX-3). Env-less
+verification: `mv .env.local .env.local.bak` → run the suite → `mv .env.local.bak
+.env.local` (OV-DX-13). Author: `supabase functions delete publish-activity`
+(verify per-invocation syntax with `--help` first), record
+`git rev-parse HEAD` in STATE as the last-commit-containing-the-function
+(OV-DX-9). EXPECT: `list_edge_functions` shows 4 remaining. CI gate.
+
+**Drop 3 station (demolition, runs 2nd — HARD-GATED):**
+1. Gate: `supabase migration list` EXPECT 0027 present under Remote (OV-8).
+2. Zero-traffic evidence (OV-10), recorded into STATE:
+   `select count(*) as subs, max(submitted_at) as newest from submissions;`
+   EXPECT newest = 2026-07-29 (nothing newer) — plus one 24h edge-function log
+   window for ingest-submission + get-feedback, EXPECT zero requests.
+3. Pre-wipe counts (OV-DX-5): the same query + `select count(*) from grades;`
+   — record both numbers; verify-0028 asserts both tables EMPTY post-apply
+   (the local rehearsal wipes 0 rows and proves only mechanics).
+4. Apply: `supabase migration list` EXPECT exactly ONE pending (0028)
+   (OV-DX-4 — push applies ALL pending) → `supabase db push` →
+   `pnpm verify:auth --target live` EXPECT all PASS (T3 updates
+   verify-0013-0014's student_id expectations first — OV-DX-1).
+5. Function deletion: record HEAD hash in STATE (OV-DX-9), then
+   `supabase functions delete ingest-submission` and
+   `supabase functions delete get-feedback` (one per invocation).
+   EXPECT: `list_edge_functions` shows exactly get-activity + check-activity.
+   The same commit deleted `deploy:ingest`/`deploy:feedback`/`deploy-train`
+   (OV-DX-2). CI gate.
+
+**Drop 4 station (renderer death, runs 3rd):** repo-side; CI gate additionally
+EXPECTs the workflow's renderer-drift step gone and the remaining two bundle
+steps intact (OV-DX-8).
+
+**Drop 2 station (content surface, runs 4th — three steps in ORDER, OV-DX-12):**
+1. `supabase migration list` EXPECT exactly ONE pending (0029) → `db push` →
+   `pnpm verify:auth --target live` all PASS.
+2. `pnpm deploy:get-activity` (the join_code meta branch calls the new anon
+   RPC) → EXPECT `list_edge_functions`: get-activity version bumped,
+   `verify_jwt:false` preserved.
+3. ONLY THEN push the UI commit (OV-7). CI gate.
+
+**Drop 5 station (proof lanes, runs 5th):** `pnpm test:e2e:a11y` and
+`pnpm test:e2e:integration` green locally (the integration preflight prints
+`supabase start`/Docker fixes on a cold machine). CI gate (a11y joins CI;
+integration stays local-only per P6).
+
+**R2 teardown station (last):**
+1. MathLive-font check (D-13a): `pnpm build` → `grep -r "r2.dev"
+   packages/app/dist/ | wc -l` EXPECT 0; open the editor calculator with
+   DevTools network filtered to `r2.dev` EXPECT zero requests.
+2. Keep-check (D-13b): `select id, title from activities where
+   draft_content::text like '%pub-4675df837c14420c8a996a41027154b1.r2.dev%'`
+   (+ the same over `activity_versions.content`) EXPECT only disposable test
+   activities.
+3. Bucket receipt (OV-DX-10): one dated download —
+   `rclone copy r2:<bucket> ./r2-final-backup-$(date +%Y%m%d)/` (or wrangler)
+   — then: R2 secrets off the functions → `ALLOWED_ORIGINS` shrunk to
+   localhost + pages.dev → the kit/font scripts + `.env.r2` deletion commit
+   (gated on step 1, OV-11) → bucket delete LAST.
+4. **Boomerang datapoints (P8):** record in STATE (a) one-time setup duration
+   and (b) per-station steady-state durations — the <15min target applies
+   to (b).
+
+**Post-cutover:** seeding + live student-branch verify (gate 4) · D-12
+re-measure (≥5 green runs → recalibrate medians) · s8-retro re-run.
+
+## 9. DX review record (2026-08-12, /plan-devex-review — POLISH, CLEAR)
+
+**Persona (D1/D2):** internal tooling; the author (hand-runs every deploy,
+eyeballs EXPECT lines) + fresh AI sessions (one context window) + the
+cutover-day variant (irreversible steps, no second operator). **Benchmark
+(D4):** identity-runbook parity — the repo's champion tier. **Magical moment
+(D5):** the §8 runbook — paste, PASS, move on. **Mode (D6): POLISH.**
+
+**Journey rulings:** D7 integration-lane preflight with named fixes (the
+runner's error-contract bar); D8 pnpm aliases for all six lanes
+(`test:e2e:editor/:student/:sw/:perf/:a11y/:integration`) + README row;
+D9 `supabase db reset` per integration-lane run (deterministic, residue-free,
+free apply-rehearsal); D10 lane fixtures at
+`packages/app/e2e/integration/fixtures.sql` with identities derived from the
+authContract constants (P2), a11y lane joins the CI e2e job as a dev-server
+step, the 13 claims-grep targets enumerated verbatim in Drop 4's task.
+
+**Pass findings:** P2 — verify-0028/0029 must be REGISTERED in
+verify-runner.mjs's hardcoded set (:43-47); explicit lines in T3/T6 + a
+comment on the array naming the rule. P6 — the integration lane is
+LOCAL-ONLY for S9; CI adoption is a TODOS entry with a named trigger
+(consistent with the runner's accepted no-live-DB-in-CI posture).
+P8 — the two boomerang datapoint slots (§8 teardown station).
+
+**DX outside voice (Claude subagent): 13 findings, ALL accepted** — 4 ruled
+individually: OV-DX-2 (deploy scripts deleted WITH their function — the
+resurrection path), OV-DX-3 (per-drop CLAUDE/STATE tombstoning — amends D-7's
+batch shape; the sweep stays in Drop 4), OV-DX-8 (CI-green gate per drop —
+encodes the check-ci-after-push memory), OV-DX-10 (dated bucket download +
+paste-able keep-check — the arc's only unhedged irreversible gets a receipt);
+9 as the mechanical batch (X3 precedent): stale verify-0013-0014 expectations
+updated at T3 (would go red at Drop 3), migration-list EXPECT before every
+push (push applies ALL pending), pre-wipe live counts + verify-0028
+empty-assert (the rehearsal is vacuous on 0 rows), the Drop-0 STATE
+reconciliation, runs-Nth stamps, deletion-station HEAD-hash record + CLI
+syntax check, the D-2 design-review artifact slot in STATE, Drop 2's
+three-step internal order, and the `mv`-based env-less check.
+
+**Scorecard: 5/10 → 9/10 target** (stations were prose; now identity-parity).
+Getting started 9 · CLI ergonomics 9 · Errors 9 · Docs 9 · Upgrade 9 · Dev
+env 8 (integration lane local-only — accepted, TODO owns CI) · Community n/a ·
+Measurement 8 (targets become measurements only at the boomerang). TTHW
+(per station): 30–60min re-derivation → <15min steady-state target; the §8
+boomerang turns the target into a measurement.
+
 ## Implementation Tasks
 
 Synthesized from this review's findings. Checkbox as you ship.
@@ -581,27 +718,49 @@ Synthesized from this review's findings. Checkbox as you ship.
   (D-11/E-5; A1 chip prerequisite)
 - [ ] **T12 (P2, post-cutover)** — perf — re-measure ≥5 green runs,
   recalibrate medians, s8-retro re-run, rule the 150 KiB number (D-12)
-- [ ] **T13 (P1, author)** — stations — B15 tag FIRST · 0027 runbook · seeding
-  + live verify · R2 teardown in the OV-11 order (D-1/D-13)
+- [ ] **T13 (P1, author)** — stations — execute §8 (B15 tag FIRST · 0027
+  runbook · per-drop gates · seeding + live verify · R2 teardown w/ receipt)
+  (D-1/D-13/OV-11/OV-DX)
+
+**DX amendments to the tasks (2026-08-12, /plan-devex-review):**
+
+- T1 also: delete `deploy:publish` from package.json (OV-DX-2); tombstone the
+  CLAUDE.md bullets Drop 1 falsifies (OV-DX-3); env-less check via
+  `mv .env.local .env.local.bak` (OV-DX-13).
+- T3 also: update verify-0013-0014's student_id expectations (OV-DX-1);
+  register verify-0028 in verify-runner.mjs's set + array comment (P2);
+  delete `deploy:ingest`/`deploy:feedback`/`deploy-train` (OV-DX-2);
+  tombstone the trio language (OV-DX-3).
+- T6 also: register verify-0029 in the runner's set (P2).
+- T11 also: pnpm aliases for all six lanes + README row (D8); integration
+  preflight with named fixes (D7); `supabase db reset` per run (D9);
+  fixtures.sql identities derived from authContract constants (D10);
+  lane stays LOCAL-ONLY (P6).
+- NEW **T14 (P1, CC: ~20m)** — process/docs — Drop-0 STATE reconciliation
+  commit (OV-DX-6) + the D-2 design-review artifact slot in STATE (OV-DX-11);
+  per-drop CI-green gates written into each drop's close-out (OV-DX-8).
 
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
-| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | (not installed; Claude subagent ran as outside voice) |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | (not installed; Claude subagents ran as outside voices) |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 (2026-08-12) | CLEAR (PLAN) | 6 issues + 11 outside-voice findings, 0 critical gaps, 0 unresolved |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | owed for Drop 2 (D-2/D-3 surfaces) — runs in parallel with Drops 1/3/4 |
-| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | next per the ruled order |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 1 (2026-08-12) | CLEAR (POLISH) | score 5 → 9 target; §8 runbook at identity parity; 6 findings + 13 outside-voice, all ruled |
 
-- **CROSS-MODEL:** Outside voice (Claude subagent, fresh context): 11 findings,
-  ALL accepted — 4 amended in-review rulings (OV-1 broke E-6's joined-select on
-  verified RLS text, its strongest finding; OV-2 hardened E-1's flush handling;
-  OV-3 reordered the drops against D-14's own reasoning; OV-4 retracted a false
-  threat-arithmetic claim), 7 amended the plan (feature-retirement naming, P9
-  audit, SPA ordering rule, 0027 hard gate, discovery posture, evidence
-  definition, script gating). No unresolved disagreement.
-- **VERDICT:** ENG CLEARED — /plan-devex-review + the D-2 design review remain
-  before build (per the ruled execution order).
+- **CROSS-MODEL:** TWO outside-voice passes (Claude subagents, fresh context).
+  Eng: 11 findings, ALL accepted — 4 amended in-review rulings (OV-1 broke
+  E-6's joined-select on verified RLS text; OV-2 hardened E-1's flush handling;
+  OV-3 reordered the drops; OV-4 retracted a false threat-arithmetic claim).
+  DX: 13 findings, ALL accepted — 4 ruled individually (deploy-script
+  resurrection path, per-drop tombstoning, per-drop CI gates, the R2 bucket
+  receipt), 9 as the mechanical batch (stale verify expectations, batch-apply
+  EXPECTs, vacuous-rehearsal counts, STATE reconciliation, and five runbook
+  mechanics). No unresolved disagreement in either pass.
+- **VERDICT:** ENG + DX CLEARED — the D-2 design review (Drop 2's teacher
+  share flow + student Home list + join-gate name) is the one review remaining
+  before build; it runs in parallel with Drops 1/3/4.
 
 NO UNRESOLVED DECISIONS

@@ -446,6 +446,32 @@ hash on a deliberate wording change (the friction is the feature).
 
 **Context:** eng review 2026-08-06 (D23), from s1-retro audit findings 9/12.
 
+## Integration e2e lane into CI (post-S9)
+
+**What:** Run the S9 integration Playwright lane (real local Supabase via
+`supabase start`, password-users-through-the-real-trigger sessions) in GitHub
+Actions — docker service + stack boot + `supabase db reset` + the lane.
+
+**Why:** The lane is the only automated proof of the app↔function↔RLS wire
+contract (the A1 check-URL bug class). Local-only means it proves things only
+when someone remembers to run it.
+
+**Why not at S9 (DX ruling P6, 2026-08-12):** CI adoption adds the arc's
+flakiest new surface (2min stack boot, docker-in-CI) during the exact weeks the
+cutover needs CI trustworthy — the same accepted posture as the verify runner's
+no-live-DB-in-CI.
+
+**Trigger:** first time the lane catches a regression locally that CI missed,
+OR the first post-cutover slice that touches auth/RLS/RPC surfaces.
+
+**Where to start:** `.github/workflows/ci.yml` (the e2e job's shape),
+`packages/app/playwright.config.ts` (the integration project),
+`supabase/config.toml` (local stack config). The lane's preflight already
+prints its own prerequisites.
+
+**Context:** S9 DX review 2026-08-12 (Pass 6 ruling P6); eng review T1 ruled
+the session mechanism; docs/design/s9-cutover.md §9.
+
 ## Drop the dormant `assignments` table (Classroom-integration arc)
 
 **What:** Drop `assignments` (and its indexes/policies) when the Phase 3
