@@ -1,11 +1,13 @@
 # S9 cutover — plan (the hard cutover + the student content surface)
 
-**Status: AUTHOR-RULED 2026-08-09 — P10 recon complete; D-1…D-14 all ruled (every
-one as recommended, in a 14-question walkthrough). No code yet. NEXT, in order:
-/plan-eng-review → /plan-devex-review → design review for the student content
-surface (D-2/D-3) — per the ruled execution order (findings-backlog → execution
-order step 8; outside-voice finding 14: S9 was checklist-confirmed, never
-scrutinized).**
+**Status: ENG-REVIEWED 2026-08-12 (CLEAR — full 4-section review + outside voice;
+all findings ruled, 0 unresolved). D-1…D-14 author-ruled 2026-08-09; the eng
+review added rulings E-1…E-6 and OV-1…OV-11 (§7), which AMEND D-4 (validation +
+flush-abort), D-2/A3 (list RPC, discovery posture), D-3 (mechanism + honest
+oracle arithmetic), D-6 (feature-retirement naming + P9 audit), D-13 (script
+gating), and D-14 (drop order 1→3→4→2→5). No code yet. NEXT: /plan-devex-review,
+then the D-2 design review — per the ruled execution order (findings-backlog →
+step 8; outside-voice finding 14: S9 was checklist-confirmed, never scrutinized).**
 
 Sources: STATE.md 15-gate list; findings-backlog.md → RULINGS §C (C1–C15);
 the arc design doc (`~/.gstack/.../user-main-design-20260728-components-as-data.md` —
@@ -316,34 +318,56 @@ verification or a gate, that gate is binding on the build.
   deletion behind it) and *proof lanes earlier* (they would assert against
   surfaces the demolition then changes, which is how a lane goes vacuous).
 
-## 5. Proposed drop order
+## 5. Drop order — ⚠ REORDERED at eng review (OV-3 amends D-14)
 
-Ordering constraints: D-1 before everything; 0027 apply before 0028 and before
-seeding; D-4 before D-7 (publish-activity is the renderer's last consumer);
-zero-traffic evidence before function deletion; bucket death last; A1's chip
-landed before the D-10/D-11 lanes assert real checking.
+The 2026-08-09 order put Drop 2 ahead of the demolition drops, contradicting
+D-14's own rejection reasoning ("the design review is the longest pole"). Ruled
+order is now **1 → 3 → 4 → 2 → 5**: demolition depends only on 0027-apply +
+zero-traffic, so deletions stop waiting on the design review, which runs IN
+PARALLEL during Drops 3/4. Migration numbers follow the new order: **0028 =
+demolition, 0029 = content surface.**
+
+Ordering constraints: D-1 before everything; **Drop 3 does not START until
+`supabase migration list` shows 0027 live — verified, not assumed (OV-8)**;
+D-4 before D-7 (publish-activity is the renderer's last consumer); zero-traffic
+evidence (as defined in OV-10) before function deletion; **any push shipping UI
+that calls a NEW table/RPC waits until its migration is applied live — the
+migration-before-deploy rule generalized to the Pages-auto-deployed SPA (OV-7)**;
+bucket death last; A1's chip landed before the Drop-5 lanes assert real checking.
 
 0. **Author, now:** B15 tag (D-1) · the 0027 apply-day runbook (identity plan §5)
    · A1 chip if not already run.
-1. **Drop 1 — publish rewrite** (D-4): RPC-direct publish, usePublish +
-   PublishStatus rework, env var deletion. App-only + one function deletion
-   queued. Budgets watched.
-2. **Drop 2 — student content surface** (D-2 + D-3): migration 0028a
-   (class_activities + RPC + class-name meta), teacher share UI, student Home
-   list, join-gate name display. Design review first; e2e rows from production
-   constants (P2); budgets watched (entry chunk).
-3. **Drop 3 — demolition** (D-5 + D-6): 0028b (student_id branch drop, RPC drop,
-   data wipe), dashboard deletion, compliance row + pin updates. Author:
-   zero-traffic evidence, then `supabase functions delete ingest-submission
-   get-feedback`.
-4. **Drop 4 — renderer death + doc migration** (D-7 + D-8): package deletion,
-   CI/scripts cleanup, P5 claims-grep, CLAUDE/README/RUNTIME/ROADMAP/STATE
-   rewrite, cache-pair removal.
-5. **Drop 5 — proof lanes** (D-9 + D-10 + D-11): sw-offline closure, a11y
-   project, integration lane.
+1. **Drop 1 — publish rewrite** (D-4 + E-1/OV-2): RPC-direct publish with
+   flush-abort + pre-publish safeParse, PublishStatus rework, env var deletion
+   (verified once with `.env.local` removed — Q1). App-only + one function
+   deletion queued. Budgets watched. *In parallel: the D-2 design review.*
+2. **Drop 3 — demolition** (D-5 + D-6 + OV-5/6/10): **hard-gated on 0027 live.**
+   Migration 0028 (student_id branch drop, ingest RPC drop, data wipe with
+   counts printed per P7), dashboard deletion **named as the Phase 2.6
+   feature retirement with the teacher-grading slice as owner**, compliance
+   row + pin updates, the get-feedback e2e stub deleted (Q1), the scoped P9
+   audit of Phase 2.6-era "live-verified" claims (OV-6). Author: zero-traffic
+   evidence = newest-submissions-row check + one 24h edge-log window for both
+   doomed functions, captured into STATE (OV-10), then `supabase functions
+   delete ingest-submission get-feedback`.
+3. **Drop 4 — renderer death + doc migration** (D-7 + D-8): package deletion,
+   CI/scripts cleanup, the P5 claims-grep as a **13-target enumerated
+   checklist** (the 11 recon targets + STATE's Phase 2.6 rows + ROADMAP's 2.6
+   line — OV-5), CLAUDE/README/RUNTIME/ROADMAP/STATE rewrite, cache-pair
+   removal (with the signOutEverything purge-order pin UPDATED, not deleted).
+4. **Drop 2 — student content surface** (D-2 + D-3 + E-2/E-3/OV-1/OV-4/OV-9):
+   migration 0029 (class_activities package + share/unshare RPCs +
+   `list_class_activities` DEFINER RPC + class-meta anon RPC), get-activity
+   join_code meta branch (bundle regen + deploy), teacher share UI, student
+   Home list, join-gate name display. Design review already done (parallel);
+   UI push waits for the 0029 apply (OV-7); e2e rows from production constants
+   (P2); budgets watched (entry chunk).
+5. **Drop 5 — proof lanes** (D-9 + D-10 + D-11 + E-5): sw-offline closure, a11y
+   project, integration lane (password-users-through-the-real-trigger sessions).
 6. **Author stations:** seeding + live student-branch verify (gate 4, incl. the
-   full join round-trip probe) · R2 teardown (D-13) · then D-12's re-measure
-   closes gate 9 and the arc.
+   full join round-trip probe) · R2 teardown (D-13, OV-11 order: secrets →
+   origins → **MathLive-font verification → THEN kit/font scripts + .env.r2** →
+   bucket last) · then D-12's re-measure closes gate 9 and the arc.
 
 ## 6. Risks / watch items
 
@@ -358,3 +382,226 @@ landed before the D-10/D-11 lanes assert real checking.
   a SURVIVING surface; verify before the bucket dies, not after.
 - Doc migration is large and P5-shaped: CLAUDE.md alone carries ~15 bullets that
   become false at cutover; a missed one becomes next session's misdirection.
+
+## 7. Eng review record (2026-08-12, /plan-eng-review — CLEAR, 0 unresolved)
+
+Full 4-section review + outside voice (Claude subagent; Codex not installed).
+**6 review findings (E-1…E-6) + 11 outside-voice findings (OV-1…OV-11), all
+ruled by the author — every one as recommended.** Amendments are folded into
+§4/§5 above; this section is the record.
+
+**Review findings:**
+
+- **E-1 (A1, amends D-4; ⚠ reworked by OV-2).** The deleted Edge Function was
+  the only publish-time shape gate (`publish-activity/index.ts:237-244`); the
+  RPC validates nothing. Ruled: **client-side pre-publish validation in
+  usePublish** — and per OV-2, the autosave **flush failure ABORTS publish**
+  (today it is "best-effort and never throws", usePublish.ts:38-40) and
+  safeParse runs on the exact payload the flush persisted. SQL-side validation
+  rejected (a hand-rolled parallel validator — the "fifth encoding").
+- **E-2 (A2, settles D-3's mechanism).** The class-name lookup **rides
+  get-activity's anonymous meta branch** (new `join_code` query param → new
+  anon RPC; same limiter, no-cache, wire-leak rows; bundle regen + deploy).
+  A direct anon PostgREST grant rejected: a second standing anonymous surface
+  with zero request shaping.
+- **E-3 (A3, amends D-2; ⚠ extended by OV-1/OV-9).** The `class_activities`
+  package: PK `(class_id, activity_id)` (dedupe by construction); both FKs
+  ON DELETE CASCADE (fire only at hard purge; reads filter soft-deletes via
+  helpers); RLS SELECT for members (`is_class_member`) + teacher
+  (`is_class_teacher`), client INSERT/DELETE denied; **TWO audited DEFINER
+  RPCs** — `share_activity_to_class` + `unshare_activity_from_class`, both
+  writing `class.update` audit with the activity id in metadata (unshare is
+  the same lockout family as B14); share **refuses a never-published
+  activity**; student list filters status + deleted_at as defense in depth.
+- **E-4 (Q1, mechanical batch).** Migrations renumbered to real sequential
+  numbers (now 0028 demolition / 0029 content surface per OV-3); the
+  `studentSession.ts:282` get-feedback stub dies in Drop 3 (a stub for a
+  nonexistent endpoint violates P2 silently); the claims-grep carries an
+  **enumerated target checklist** (13 targets after OV-5); Drop 1 verified
+  once with `.env.local` removed (the env-masked-green learning, 2 prior
+  instances).
+- **E-5 (T1, settles D-11's session mechanism).** The integration lane creates
+  **email+password users on the local stack so the REAL `handle_new_auth_user`
+  trigger mints roles** (seeded allowlist + student_domain), then
+  `signInWithPassword` for genuine JWTs. Admin-minted sessions rejected: they
+  bypass the trigger and recreate stub-blindness in the anti-stub lane.
+- **E-6 (P1, amends D-2; ⚠ reworked by OV-1).** The student Home list is ONE
+  round trip. Originally ruled as an RLS-scoped joined select — **OV-1 proved
+  that unimplementable** (`activities_select_own` is owner-only; a student's
+  join returns no titles). Final shape: **`list_class_activities()` SECURITY
+  DEFINER RPC** returning (class_id, activity_id, title, added_at) for the
+  caller's memberships, published + non-deleted filtered server-side.
+  `can_read_activity` is NOT widened (the recorded Activity-Bank landmine).
+
+**Outside-voice rulings (11 findings, all accepted):**
+
+- **OV-1** → E-6 rework (the list RPC). **OV-2** → E-1 rework (flush-abort).
+- **OV-3** → §5 reorder **1→3→4→2→5** (the 2026-08-09 order contradicted
+  D-14's own rejection reasoning; demolition doesn't depend on the design
+  review). Design review runs in parallel during Drops 3/4.
+- **OV-4** → the "same geologic arithmetic as E-8" claim was FALSE and is
+  retracted: join codes ≈ 2^29.7 via non-crypto `random()`, the endpoint is
+  unauthenticated, the inherited limiter is self-documented nearly inert.
+  Ruled: record the real arithmetic; a **P3 liveness row forces the limiter
+  to fire at production values on the join_code path**; revisit triggers
+  named (multi-district, public signup, observed enumeration in logs). No DB
+  write on the read path (standing rule). Proportionality: a discovered code
+  is exploitable only BY an admitted student; payoff = class name + joinable
+  code; recovery = B14 remove-and-regenerate.
+- **OV-5** → D-6 renamed honestly: **Phase 2.6 manual grading is RETIRED at
+  S9** (Submissions.tsx IS the grading UI), owner = the parked
+  teacher-grading slice (trigger unchanged: first real teacher). STATE's
+  Phase 2.6 rows + ROADMAP's 2.6 line join the claims-grep (13 targets).
+- **OV-6** → a **scoped P9 audit** of Phase 2.6-era "live-verified" claims
+  joins Drop 3's docs task — the method that credited a bodiless get-feedback
+  response as "live-verified" may have credited siblings.
+- **OV-7** → the migration-before-deploy rule **generalizes to the SPA**
+  (Pages auto-deploys from main): UI calling a new table/RPC pushes only
+  after its migration applies. Joins CLAUDE.md's division-of-labor rules at
+  Drop 4's doc migration.
+- **OV-8** → **0027-apply is a hard start-gate for Drop 3** (`supabase
+  migration list` shows 0027 — verified, not assumed). Drop 1 and the design
+  review proceed freely (no 0027 dependency).
+- **OV-9** → posture stated: **share = discovery, published = open.** Any
+  signed-in admitted student can open any published activity by UUID
+  (`get_published_activity` grants to all authenticated) — unchanged from
+  link-sharing reality. `class_activities` controls what appears on Home,
+  not who may read. Teacher copy must not imply an access wall; access
+  scoping is a named future ruling, never a side effect.
+- **OV-10** → zero-traffic evidence DEFINED: (a) newest `submissions` row
+  predates the cutover window (durable; already true — 2026-07-29), plus
+  (b) one 24-hour edge-log read for both doomed functions showing zero
+  requests, captured once into STATE on the day Drop 3 starts.
+- **OV-11** → D-13 resequenced: the MathLive-font verification gates the
+  **font/kit script deletion too**, not just the bucket.
+
+**Strength recorded:** D-4's RPC-direct shape makes the census-race hazard
+(the dead R6(b) amendment) impossible by construction — the new publish path
+has no code at all.
+
+### Test plan (traced at review; artifact for /qa:
+`~/.gstack/projects/ZanReed-activity-platform/user-main-eng-review-test-plan-20260812-220401.md`)
+
+34 traced paths, 0 covered today (all new/modified). **Five CRITICAL
+regression tests (iron rule, non-negotiable):** publish happy path, republish
+(version_num++), PublishStatus render (session + prior publish), dashboard
+entry-link removal (no dead links on Activities/editor), and the
+`signOutEverything` purge-order pin surviving the cache-pair removal (S6-6
+contract — updated, never deleted). Suites per drop:
+
+- **Drop 1:** usePublish unit (flush-fails→no publish, invalid-doc→no publish,
+  PostgREST error mapping, no-draft); PublishStatus RTL (+ env-less run);
+  e2e publish→open-viewer-link.
+- **Drop 3 (0028):** verify-0028 — CHECK back to 2 branches, indexes dropped,
+  wipe counts printed (P7), retention-pin todo-cases flip; route-removal
+  regression; stub deletion.
+- **Drop 4:** CI green with renderer steps deleted; reachability allowlist
+  re-triage (C6 + 3 grammar exports); 13-target claims-grep checklist ticked
+  in the PR.
+- **Drop 2 (0029):** verify-0029 — grant matrix (INSERT/DELETE denied), RPC
+  refusal matrix (non-owner, student caller, never-published, soft-deleted
+  class), audit rows, dedupe no-op, `list_class_activities` scope proof;
+  handler tests — join_code valid/invalid/deleted + **limiter liveness at
+  production values (P3)** + wire-leak row (name and NOTHING else); RTL Home
+  list states; e2e share→student-sees / unshare→gone / double-click-once /
+  unpublished-refusal / join-gate name + meta-fetch-fails fallback.
+- **Drop 5:** the two sw rows un-parked (or worker fix red-green); a11y ×4
+  gaps + axe per student surface; integration lane — real join_class, role
+  fetch, one real check round trip (A1 chip prerequisite).
+
+### Failure modes (new codepaths; test / handling / visibility)
+
+| Path | Realistic failure | Test? | Handled? | User sees |
+|---|---|---|---|---|
+| Publish (RPC) | flush fails mid-publish | unit | abort (E-1) | error line, nothing published |
+| Publish (RPC) | malformed doc | unit | safeParse refusal | publish-time error, not student 500 |
+| Publish (RPC) | PostgREST error | unit | taxonomy mapping | honest error copy |
+| Share RPC | non-owner / unpublished / collision | verify-0029 | raise → surfaced | error banner |
+| Student list RPC | RLS/helper drift returns foreign rows | verify-0029 scope proof | DEFINER + helpers | n/a (proof) |
+| Join-gate meta | fetch fails / invalid code | e2e | fallback to bare code | gate still works |
+| Meta limiter | enumeration burst | P3 liveness row | 429 branch | n/a — logged |
+| Drop 2 push early | RPC missing live | OV-7 ordering rule | n/a (process) | prevented |
+| Wipe migration | wrong-scope delete | verify counts (P7) | rolled-back rehearsal | n/a (author-side) |
+| SW offline | reopen fails for real | server-stop rows | fix or documented | cached worksheet |
+| Sign-out | purge order regressed | regression pin | S6-6 contract | machine clean |
+
+**Critical gaps: 0** — every failure mode has a test AND handling AND a
+non-silent outcome.
+
+### Worktree parallelization
+
+| Step | Modules touched | Depends on |
+|---|---|---|
+| Drop 1 | packages/app (usePublish, ActivityEditor) | — |
+| D-2 design review | docs/wireframes (no code) | — (parallel with Drops 1/3/4) |
+| Drop 3 | supabase/migrations, supabase/functions, packages/app (routes), docs | 0027 LIVE (OV-8) |
+| Drop 4 | packages/renderer (delete), scripts/, .github/, CLAUDE/docs | Drop 1 (last consumer), Drop 3 (bundle consumers) |
+| Drop 2 | supabase/migrations, packages/viewer/server (+bundle), packages/app | design review; 0029 apply before UI push (OV-7) |
+| Drop 5 | packages/app/e2e (+2 new projects) | Drops 2/4 surfaces final; A1 chip |
+
+Lanes: **A:** Drop 1 → Drop 3 → Drop 4 (sequential — shared app routes + docs).
+**B:** D-2 design review (independent, parallel). Drop 2 starts when B and
+Lane A's Drop 3 are done; Drop 5 last. Conflict flag: Drops 3 and 4 both edit
+CLAUDE.md/STATE — same lane, sequential (already ordered).
+
+## Implementation Tasks
+
+Synthesized from this review's findings. Checkbox as you ship.
+
+- [ ] **T1 (P1, CC: ~1h)** — app — usePublish → RPC-direct with flush-abort +
+  pre-publish safeParse + PostgREST error mapping; PublishStatus → viewer
+  link; delete VITE_PUBLISHED_URL_BASE + publishedUrl(); env-less
+  verification run; 3 regression tests (E-1/OV-2/Q1/D-4)
+- [ ] **T2 (P1, CC: ~10m)** — process — Drop 3 start-gate: verify 0027 live +
+  capture zero-traffic evidence per OV-10 into STATE (OV-8/OV-10)
+- [ ] **T3 (P1, CC: ~2h)** — supabase+app — 0028 demolition migration
+  (student_id branch, ingest RPC, wipe w/ P7 counts) + verify-0028 +
+  Submissions route/lib deletion named as Phase 2.6 retirement + compliance
+  row/pin updates + config.toml/CLAUDE trio edit + e2e stub deletion
+  (D-5/D-6/OV-5/Q1)
+- [ ] **T4 (P2, CC: ~45m)** — docs — scoped P9 audit of Phase 2.6-era
+  "live-verified" claims; correct STATE/HISTORY (OV-6)
+- [ ] **T5 (P1, CC: ~2h)** — repo-wide — renderer package deletion + CI/
+  scripts/deploy-train cleanup + cache-pair removal (purge-order pin updated)
+  + reachability re-triage + 13-target claims-grep checklist + doc migration
+  incl. the OV-7 SPA rule into CLAUDE.md (D-7/D-8/OV-7)
+- [ ] **T6 (P1, CC: ~2h)** — supabase — 0029 content-surface migration: the
+  E-3 package + list_class_activities DEFINER RPC + get_class_public_meta
+  anon RPC + verify-0029 (E-3/OV-1)
+- [ ] **T7 (P1, CC: ~1h)** — viewer/server — get-activity join_code meta
+  branch + P3 limiter liveness row + wire-leak row + bundle regen (E-2/OV-4)
+- [ ] **T8 (P1, CC: ~2h)** — app — teacher share/unshare UI + student Home
+  list (one RPC) + join-gate name + RTL/e2e rows; budgets watched (D-2/E-6)
+- [ ] **T9 (P1, CC: ~1.5h)** — e2e — sw server-stop harness; un-park or fix
+  red-green (D-9)
+- [ ] **T10 (P1, CC: ~1.5h)** — e2e — a11y project + @axe-core/playwright +
+  the 4 gap rows, in CI (D-10)
+- [ ] **T11 (P1, CC: ~2h)** — e2e — integration lane: supabase start,
+  password-users-through-the-real-trigger, join + role + one real check
+  (D-11/E-5; A1 chip prerequisite)
+- [ ] **T12 (P2, post-cutover)** — perf — re-measure ≥5 green runs,
+  recalibrate medians, s8-retro re-run, rule the 150 KiB number (D-12)
+- [ ] **T13 (P1, author)** — stations — B15 tag FIRST · 0027 runbook · seeding
+  + live verify · R2 teardown in the OV-11 order (D-1/D-13)
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | (not installed; Claude subagent ran as outside voice) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 (2026-08-12) | CLEAR (PLAN) | 6 issues + 11 outside-voice findings, 0 critical gaps, 0 unresolved |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | owed for Drop 2 (D-2/D-3 surfaces) — runs in parallel with Drops 1/3/4 |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | next per the ruled order |
+
+- **CROSS-MODEL:** Outside voice (Claude subagent, fresh context): 11 findings,
+  ALL accepted — 4 amended in-review rulings (OV-1 broke E-6's joined-select on
+  verified RLS text, its strongest finding; OV-2 hardened E-1's flush handling;
+  OV-3 reordered the drops against D-14's own reasoning; OV-4 retracted a false
+  threat-arithmetic claim), 7 amended the plan (feature-retirement naming, P9
+  audit, SPA ordering rule, 0027 hard gate, discovery posture, evidence
+  definition, script gating). No unresolved disagreement.
+- **VERDICT:** ENG CLEARED — /plan-devex-review + the D-2 design review remain
+  before build (per the ruled execution order).
+
+NO UNRESOLVED DECISIONS

@@ -172,6 +172,17 @@ nothing is being lost. What changes the urgency is the first real teacher: at
 that moment "Recorded ✓ — your teacher will review" becomes a promise the
 product cannot keep, and this slice is what keeps it.
 
+**⚠ S9 amendment (2026-08-12, eng review OV-5/OV-6):** the S9 cutover plan
+([s9-cutover.md](docs/design/s9-cutover.md) D-6) RETIRES the Phase 2.6 surface this
+entry would have re-pointed: the Submissions dashboard route is deleted, `grades`
+rows are wiped with the anonymous-wire test data, and `get-feedback` is deleted —
+**and was discovered to have NEVER worked** (every success return passed its
+arguments to `jsonResponse` swapped, so the body served was the literal `200`;
+released feedback never reached a published page). Consequence for pickup: this
+slice rebuilds against `section_checks` with NO working reference implementation —
+do not port `get-feedback`'s "behavior"; there is none. The Phase 2.6 rubric UI
+components remain in git history for salvage.
+
 **Where to start:** `supabase/migrations/0010_grades.sql` (the `submission_id`-keyed table +
 `can_grade_submission` helper + the dual-path RLS precedent already written for the assignment
 world), and the Phase 2.6 teacher grading UI (side-by-side + Needs-grading filter) that will be
@@ -434,3 +445,27 @@ hash on a deliberate wording change (the friction is the feature).
 `packages/app/src/lib/policyVersion.ts`; `docs/compliance/*.md`.
 
 **Context:** eng review 2026-08-06 (D23), from s1-retro audit findings 9/12.
+
+## Drop the dormant `assignments` table (Classroom-integration arc)
+
+**What:** Drop `assignments` (and its indexes/policies) when the Phase 3
+Google-Classroom arc re-derives assignment shapes.
+
+**Why:** The table has ZERO app consumers (grep-verified 2026-08-09: nothing in
+packages/app or packages/viewer references it), carries Google-Classroom text-id
+columns from a never-built integration sketch, and after S9 Drop 3 its last SQL
+consumer (the ingest RPC's token→assignment lookup) dies too. Dead schema misleads
+every future reader — but dropping it touches `submissions` FKs, which the parked
+teacher-grading slice hasn't ruled on, so S9 deliberately leaves it dormant
+(s9-cutover.md D-2: "leave assignments dormant").
+
+**Pros:** removes a whole dead subsystem from the schema. **Cons:** FK surgery on
+`submissions`; pointless to do before the Classroom arc decides what replaces it.
+
+**Depends on:** S9 Drop 3 landed; owned by the Phase 3 Classroom-integration arc.
+
+**Where to start:** `supabase/migrations/0001_initial_schema.sql:150-169` (the
+table), `0009:255` (index), `0002:169-176`/`0013:166-172` (policies);
+`submissions.assignment_id` FK.
+
+**Context:** S9 eng review 2026-08-12 (recon + D-2 ruling; TODO ask 2).
