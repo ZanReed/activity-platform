@@ -550,11 +550,13 @@ Every station: paste the block, check the EXPECT, move on. Failure = stop, the
 EXPECT names what broke. **End every drop with the CI gate** (OV-DX-8):
 `gh run list --limit 1` → EXPECT ✓ green before the next drop starts.
 
-**Station 0 (now, before any S9 build session):**
-1. **STATE reconciliation commit** (OV-DX-6): fix line 185's "None of it is
+**Station 0 (now, before any S9 build session) — 3 of 4 done 2026-08-13;
+item 3 (the 0027 runbook) is the one still open. It gates Drop 3 and Drop 2's
+apply, NOT Drop 1 (OV-8) — the build can start on Drop 1 while it waits.**
+1. ✅ **STATE reconciliation commit** (OV-DX-6, `576055a`): fix line 185's "None of it is
    pushed" (pushed; tree clean) + the status table's stale pg_cron "first run
    not yet observed" row (closed 2026-08-06, A31).
-2. **B15 evidence** (a same-named insurance zip already exists at
+2. ✅ DONE 2026-08-13 (tag + release live; C14 closed) — **B15 evidence** (a same-named insurance zip already exists at
    `~/.gstack/projects/ZanReed-activity-platform/s5.5-print-signoff-contact-sheet-INSURANCE.zip`):
    ```
    cd packages/app && zip -r ../../s5.5-contact-sheet.zip print-contact-sheet/ && cd ../..
@@ -563,7 +565,10 @@ EXPECT names what broke. **End every drop with the CI gate** (OV-DX-8):
    gh release create s5.5-print-signoff s5.5-contact-sheet.zip --title "S5.5 print sign-off evidence" --notes "Human-judged half of print parity; see tag message."
    ```
    EXPECT: `git tag -l` shows `s5.5-print-signoff`; the release shows the asset.
-3. **0027 apply-day runbook** — the identity plan §5, unchanged. EXPECT at end:
+3. ⏳ **OPEN — 0027 apply-day runbook** — the identity plan §5, unchanged.
+   One-time setup progress 2026-08-13: psql 18.4 installed + linked ✅;
+   `.env.supabase` (pooler DSN + dashboard DB password) still missing;
+   Docker not running (rehearsal only). EXPECT at end:
    `supabase migration list` shows 0027 under Remote; `pnpm verify:auth
    --target live` all PASS; Probes 1+2 recorded (Probe 2's callback params
    validate the refusal parser).
