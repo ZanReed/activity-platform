@@ -1,13 +1,13 @@
 # S9 cutover — plan (the hard cutover + the student content surface)
 
-**Status: ENG-REVIEWED 2026-08-12 (CLEAR — full 4-section review + outside voice;
-all findings ruled, 0 unresolved). D-1…D-14 author-ruled 2026-08-09; the eng
-review added rulings E-1…E-6 and OV-1…OV-11 (§7), which AMEND D-4 (validation +
-flush-abort), D-2/A3 (list RPC, discovery posture), D-3 (mechanism + honest
-oracle arithmetic), D-6 (feature-retirement naming + P9 audit), D-13 (script
-gating), and D-14 (drop order 1→3→4→2→5). No code yet. NEXT: /plan-devex-review,
-then the D-2 design review — per the ruled execution order (findings-backlog →
-step 8; outside-voice finding 14: S9 was checklist-confirmed, never scrutinized).**
+**Status: ALL THREE REVIEWS CLEAR — eng (2026-08-12), DX (2026-08-12), design
+(2026-08-13, Drop 2 — §10). D-1…D-14 author-ruled 2026-08-09; eng added
+E-1…E-6 + OV-1…OV-11 (§7), which AMEND D-4 (validation + flush-abort), D-2/A3
+(list RPC, discovery posture), D-3 (mechanism + honest oracle arithmetic), D-6
+(feature-retirement naming + P9 audit), D-13 (script gating), and D-14 (drop
+order 1→3→4→2→5); the design review ruled DR-1…DR-16 on the Drop 2 surfaces
+(§10) with a 6-frame v2 wireframe board. No code yet. NEXT: build, in the §5
+drop order — Station 0 (author) first.**
 
 Sources: STATE.md 15-gate list; findings-backlog.md → RULINGS §C (C1–C15);
 the arc design doc (`~/.gstack/.../user-main-design-20260728-components-as-data.md` —
@@ -740,6 +740,119 @@ Synthesized from this review's findings. Checkbox as you ship.
   commit (OV-DX-6) + the D-2 design-review artifact slot in STATE (OV-DX-11);
   per-drop CI-green gates written into each drop's close-out (OV-DX-8).
 
+## 10. Design review record (2026-08-13, /plan-design-review — Drop 2, CLEAR)
+
+**Approved visual reference (the implementer builds from this):**
+`~/.gstack/projects/ZanReed-activity-platform/designs/s9-drop2-content-surface-20260813/wireframes.html`
+— v2 board, 6 frames (3a card section · 3b add/remove states · 3c post-publish
+hook · 4a student Home nested list · 4b list states · 4c join gate), every state
+drawn; slate tokens, light-dark(), identity-board conventions. Initial rating
+4/10 → **9/10**; 16 issues ruled (every one as recommended); outside voice
+(Claude subagent, Codex not installed): **23 findings, 5 blocking, all
+resolved** — two v1 frames contradicted their own annotations (the join-gate
+no-jump promise, the student loading placement) and one drew a 44px violation;
+all fixed in v2.
+
+**Rulings DR-1…DR-16** (detail lives in the board's annotations; strings on the
+board are the ruled copy):
+
+- **DR-1 (OV-13).** Ordering mirrors everywhere: teacher list = student list
+  (newest first, tiebreak `(added_at, activity_id)`) — a deliberate
+  verification affordance; student classes in JOIN order; picker
+  newest-published-first.
+- **DR-2 (OV-14).** ONE verb system: **Add / Remove**, card section header
+  **"On students' Home"** (posture-accurate per OV-9-eng: placement, not
+  access); the editor hook says "Add to a class…" / "Added to <class> ✓".
+  RPC names stay share/unshare (code-only vocabulary).
+- **DR-3 (OV-20).** Count = COMMITTED rows; the undo-row is a transient
+  notice, never a list row, never counted; every mutation (add/remove/undo)
+  refetches the list + derived picker; cross-view freshness = next open.
+- **DR-4 (OV-1, was blocking).** The join gate is ONE composition in every
+  state: eyebrow / title slot reserved at TWO lines / chip row ALWAYS present
+  / button. Initial title **"Join your class"**; the name replaces text,
+  never structure; network failure = the neutral state persists.
+- **DR-5 (OV-3, was blocking).** Remove is CONFIRMED, not optimistic: row →
+  undo-row only on RPC success (failure: row stays + "Couldn't remove just
+  now — try again"). Undo failure (incl. the unpublished-during-window race):
+  undo-row persists, timer stops, "Couldn't restore — add it again below."
+  Both paths get RTL rows.
+- **DR-6 (OV-5, was blocking).** Definitive no-such-class from the meta RPC
+  warns BEFORE OAuth ("This code doesn't match a class — double-check it with
+  your teacher."), sign-in stays enabled; network failure keeps the silent
+  fallback. Two states, not one.
+- **DR-7 (OV-7).** A shared-then-unpublished/deleted activity renders
+  teacher-side as a MUTED row: "No longer published — students don't see
+  this" + Remove (self-healing; explains the count divergence). Teacher list
+  reads via the teacher RLS path so it CAN see status; the student RPC keeps
+  filtering server-side (E-6 unchanged).
+- **DR-8 (OV-10).** Multi-period is the dominant journey: after each editor-
+  hook success the select STAYS OPEN with the added class removed from
+  options; "Added to all your classes ✓" when none remain; success lines cap
+  at one per class; in-flight "Adding…"; failure copy = DR-9(c).
+- **DR-9 (mechanical batch, all accepted).** (a) teacher disclosure gets
+  loading + blameless error + retry, picker disabled until loaded; (b) picker
+  zero-published state distinct from all-added; (c) generic add-failure copy
+  ("Couldn't add just now — try again."), selection preserved; (d) class
+  headers ALWAYS render, per-class empty line is THE empty state (global
+  variant deleted); (e) student loading/error = ONE un-indented line below
+  ALL class headers; (f) refusal copy true for all causes ("This activity
+  can't be added — it's no longer published. Check it in your Activities
+  list.").
+- **DR-10/DR-11 (OV-23).** Ruled deliberate, recorded so they never return as
+  bug reports: a deleted class vanishes silently on next fetch; NO cross-class
+  recency cue in v1 (the "New this week" lever is a TODOS entry with a named
+  trigger: real multi-class usage).
+- **DR-12 (OV-2/OV-19, were system-rule violations).** 3c controls at the
+  44px floor; success = ink text + the existing success dot (green text at
+  13px fails AA; color never the carrier).
+- **DR-13 (OV-18).** Placeholders + action disabled until a real selection in
+  BOTH selects; exactly-one-class pre-selects (written exception — the v1
+  reality).
+- **DR-14 (OV-4 was blocking; OV-15/OV-16; + one prior learning).** Undo-row
+  = `role="status"` ("“<title>” removed. Undo available."), timer pauses on
+  hover AND focus-within, focus → Add select on expiry; truncation: teacher
+  titles 1-line ellipsis (full in `title`), student titles 2-line clamp, 4c
+  title slot reserves two lines, 3c success line ellipsizes; focus map at
+  every mutation (Add success → select resets + focus returns + "Added.";
+  Remove → focus to Undo; disclosure `aria-expanded` + resting style; 3c
+  open → focus to select, Esc collapses); 375px: whole-row 44px links, date
+  subline wraps under the title; semantics: per-class `<ul>` of single-`<a>`
+  rows, h3 under the card's h2. Loading states carry their OWN selector,
+  never the ready-state class (prior learning
+  `loading-skeletons-reuse-the-ready-state-css-class`, 9/10).
+- **DR-15 (OV-21).** Dates: absolute, viewer-local, year appended when not
+  current, never relative (read-aloud test; matches Classes.tsx formatDate).
+- **DR-16 (OV-22).** Picker options append the published date
+  ("Quiz review — published Aug 10") — dedupes identical titles at zero
+  schema cost.
+
+**Pass scores (before → after):** Info Arch 6→9 · States 5→9 · Journey 7→9 ·
+AI-slop 9 (no findings; APP UI, 0 hard rejections) · System alignment 7→9 ·
+Responsive/a11y 5→9 · Unresolved 0. **Overall 4/10 → 9/10.**
+
+**Not in scope (design):** class-detail pages (no class page exists — headers
+stay non-links); access scoping (OV-9-eng: a named future ruling); the recency
+cue (TODOS, trigger named); brand pass (backlog, unchanged).
+
+**Design amendments to the tasks:**
+
+- T8 also: build from the v2 board verbatim (path above); DR-5's two failure
+  RTL rows; DR-14's announcement strings feed T10's a11y-lane assertions;
+  loading states get their own selectors (never the ready-state class).
+- T6 also: the teacher read path returns rows WITH status so DR-7's muted
+  rows render (teacher RLS SELECT; the student RPC's server-side filter is
+  unchanged).
+- T14 also: the STATE design-artifact slot now points at the v2 board
+  (done with this review — OV-DX-11 closed).
+- NEW **T15 (P3, TODOS)** — the DR-11 recency-cue entry lands in TODOS.md
+  (done with this review).
+
+## Approved Mockups
+
+| Screen/Section | Mockup Path | Direction | Notes |
+|----------------|-------------|-----------|-------|
+| Drop 2: teacher card section, add/remove states, post-publish hook, student Home list, list states, join gate | ~/.gstack/projects/ZanReed-activity-platform/designs/s9-drop2-content-surface-20260813/wireframes.html | v2 board (6 frames), identity-board conventions, every state drawn | Board annotations carry the DR-rulings; strings on the board are the ruled copy |
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
@@ -747,20 +860,21 @@ Synthesized from this review's findings. Checkbox as you ship.
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | (not installed; Claude subagents ran as outside voices) |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 (2026-08-12) | CLEAR (PLAN) | 6 issues + 11 outside-voice findings, 0 critical gaps, 0 unresolved |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | owed for Drop 2 (D-2/D-3 surfaces) — runs in parallel with Drops 1/3/4 |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 (2026-08-13) | CLEAR (FULL) | score 4 → 9; 16 rulings (DR-1…DR-16); 6-frame v2 board approved; 23-finding outside voice, 5 blocking, all resolved |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 1 (2026-08-12) | CLEAR (POLISH) | score 5 → 9 target; §8 runbook at identity parity; 6 findings + 13 outside-voice, all ruled |
 
-- **CROSS-MODEL:** TWO outside-voice passes (Claude subagents, fresh context).
+- **CROSS-MODEL:** THREE outside-voice passes (Claude subagents, fresh context).
   Eng: 11 findings, ALL accepted — 4 amended in-review rulings (OV-1 broke
   E-6's joined-select on verified RLS text; OV-2 hardened E-1's flush handling;
   OV-3 reordered the drops; OV-4 retracted a false threat-arithmetic claim).
   DX: 13 findings, ALL accepted — 4 ruled individually (deploy-script
   resurrection path, per-drop tombstoning, per-drop CI gates, the R2 bucket
-  receipt), 9 as the mechanical batch (stale verify expectations, batch-apply
-  EXPECTs, vacuous-rehearsal counts, STATE reconciliation, and five runbook
-  mechanics). No unresolved disagreement in either pass.
-- **VERDICT:** ENG + DX CLEARED — the D-2 design review (Drop 2's teacher
-  share flow + student Home list + join-gate name) is the one review remaining
-  before build; it runs in parallel with Drops 1/3/4.
+  receipt), 9 as the mechanical batch. Design: 23 findings, 5 blocking, ALL
+  resolved — two v1 frames contradicted their own annotations (join-gate
+  no-jump, loading placement), one drew a 44px violation; the undo timer was
+  a WCAG 2.2.1 problem as drawn; a bad code cost a full OAuth round trip.
+  No unresolved disagreement in any pass.
+- **VERDICT:** ENG + DX + DESIGN CLEARED — ready to build, in the §5 drop
+  order (Station 0 first: B15 tag, 0027 runbook, A1 chip).
 
 NO UNRESOLVED DECISIONS

@@ -495,3 +495,30 @@ table), `0009:255` (index), `0002:169-176`/`0013:166-172` (policies);
 `submissions.assignment_id` FK.
 
 **Context:** S9 eng review 2026-08-12 (recon + D-2 ruling; TODO ask 2).
+
+## Student Home cross-class recency cue ("New this week")
+
+**What:** A recency indicator on the student Home activities list — e.g. a quiet
+"New" marker on rows added in the last ~7 days — so a student in many classes can
+find today's work without scanning every class section.
+
+**Why:** The S9 Drop 2 design ruled per-class newest-first as the complete v1
+answer (DR-11, 2026-08-13): students launch with 1–2 classes, and an unvalidated
+recency heuristic would be decoration. Past ~3 classes the scan cost becomes
+real; this entry is the named lever so the gap is a decision, not a bug report.
+
+**Trigger:** real multi-class usage exists (students in 3+ classes with active
+sharing), or a student/teacher asks how to find "what's new".
+
+**Pros:** one glance answers "what's new"; no layout change (a marker on
+existing rows). **Cons:** "new since when?" needs a definition (added-at age vs
+last-visit tracking — the latter is new per-student state); an age-based marker
+lies to a student who already did the work.
+
+**Where to start:** `packages/app/src/routes/Home.tsx` (StudentHome list rows);
+`list_class_activities` already returns `added_at`, so an age-based v1 needs no
+schema change. The design record is docs/design/s9-cutover.md §10 (DR-11) + the
+v2 board annotations.
+
+**Context:** S9 Drop 2 design review 2026-08-13 (issue 11 / OV-23b; ruled 11A —
+record v1 as deliberate + name the lever).

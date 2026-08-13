@@ -70,7 +70,7 @@ Baseline facts, verified live 2026-08-07 (post-B8 deploy): migrations applied **
 
  **✅ ARMED 2026-08-09 (the ledger closed at 5 — the A3 carry-over is DONE):** `TIMING_TARGET_MS` = the medians (pre-auth **969**, worksheet **1118**, math-rendered **1828**); the 2× ceiling and delta warning are live from the next CI run. The S8 slice has no open items left. Recalibrate only by the same rule (median of ≥5 green runs — never local darwin, never a single run).
 
-**⏭ NEXT: S9 cutover — the gate list (consolidated at the 2026-08-06 eng review, C1–C15; rulings + detail in [findings-backlog.md](docs/reviews/findings-backlog.md) → RULINGS).** Needs both parity gates green (grading corpus + print, both in CI) plus every gate below:
+**⏭ NEXT: S9 cutover — the gate list (consolidated at the 2026-08-06 eng review, C1–C15; rulings + detail in [findings-backlog.md](docs/reviews/findings-backlog.md) → RULINGS).** Plan + all three reviews CLEAR: [s9-cutover.md](docs/design/s9-cutover.md) (D-1…D-14 + eng §7 + DX §8/§9 + design §10). **D-2 design artifact (OV-DX-11 slot): `~/.gstack/projects/ZanReed-activity-platform/designs/s9-drop2-content-surface-20260813/wireframes.html`** — v2 board, 6 frames; the DR-1…DR-16 rulings live in plan §10; board annotations carry the ruled copy. Needs both parity gates green (grading corpus + print, both in CI) plus every gate below:
 
 1. sw-offline `test.fixme` closed — next step documented: real server stop, not `setOffline` (s6:8)
 2. ✅ **DONE 2026-08-09** — `watchIdleSignOut` + student sign-out chrome wired (2.4A) on the student Home AND StudentViewer (banner-chain arm 0), with the s1:9 e2e proving prompt→escalation at production values via Playwright's clock
