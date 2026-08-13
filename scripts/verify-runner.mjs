@@ -38,8 +38,15 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** The README-mandated regression set for auth/RLS/grant migrations (X2). */
+/**
+ * The README-mandated regression set for auth/RLS/grant migrations (X2).
+ *
+ * REGISTRATION IS THE RULE (DX ruling P2): a verify script that is not in this
+ * array is a script nobody runs. Every new grant/RLS/auth migration adds its
+ * verify file here in the SAME commit that writes it.
+ */
 export const AUTH_VERIFY_SET = [
+  'verify-0028.sql',
   'verify-0027.sql',
   'verify-0013-0014.sql',
   'verify-0017.sql',

@@ -33,7 +33,7 @@ demolition windows close.
   callback recording, which is the validation input for the refusal-screen parser**
   (built cause-agnostic per design ruling P1; the recording confirms hash-vs-query
   reality). S9 planning and most S9 build work do not block; the S9 demolition
-  migration (0028) and cutover day itself sequence after the 0027 apply.
+  migration (0029) and cutover day itself sequence after the 0027 apply.
 - Live traffic check (D26 preview): last `submissions` row **2026-07-29**; 4 rows in
   30 days, all the author's tests; `section_checks` = 0 rows; 0 classes, 0 student
   users, `student_domain` empty. The zero-traffic check will be a formality.
@@ -134,7 +134,7 @@ These change the work or the gate list's framing:
 ## 2. Scope
 
 **In:** the 15 gates as re-derived below; the publish rewrite (viewer-only);
-the anonymous-wire demolition (functions, migration 0028, data disposition);
+the anonymous-wire demolition (functions, migration 0029, data disposition);
 renderer package deletion + doc migration; the student content surface deferred
 by identity-slice E-5 (class→activity link + student Home list) + the P2
 pre-auth class-name endpoint; sw-offline closure; real-browser a11y pass;
@@ -179,7 +179,7 @@ verification or a gate, that gate is binding on the build.
 | D-2 | New `class_activities` join table + audited DEFINER RPC + teacher share UI + student Home list; `assignments` left dormant |
 | D-3 | Build the anon pre-auth class-name endpoint; eng review rules the mechanism and states the enumeration oracle |
 | D-4 | Delete the publish-activity function; publish = direct `publish_activity` RPC; share link = `${origin}/a/${activityId}` |
-| D-5 | One demolition drop (0028 + both function deletions), gated on recorded zero-traffic evidence |
+| D-5 | One demolition drop (0029 + both function deletions), gated on recorded zero-traffic evidence |
 | D-6 | Wipe the test rows (closes the ip_hash gap by data removal), delete the Submissions dashboard, **keep** the empty tables |
 | D-7 | Delete the renderer package in one drop, after D-4; P5 claims-grep is an explicit named task |
 | D-8 | Remove both cache functions + the call site + the C6 allowlist entry; re-triage the three grammar exports |
@@ -227,7 +227,7 @@ verification or a gate, that gate is binding on the build.
   URL `${origin}/a/${activityId}` (Open + Copy link, same UI); the "published
   link" IS the viewer link now. `VITE_PUBLISHED_URL_BASE` + `publishedUrl()`
   die; `versioned_url` dies unconsumed.
-- **D-5. Demolition set (gate 5 + C15), migration 0028 + function deletions.**
+- **D-5. Demolition set (gate 5 + C15), migration 0029 + function deletions.**
   After 0027 is applied and the zero-traffic check is recorded: delete
   `ingest-submission` + `get-feedback` (author: `supabase functions delete`),
   drop the `ingest_submission` RPC, drop `submissions.student_id` branch
@@ -236,7 +236,7 @@ verification or a gate, that gate is binding on the build.
   trio language (get-activity becomes the ONLY --no-verify-jwt function).
   The renderer bundle loses its last two non-publish consumers here.
 - **D-6. Data + dashboard disposition for the old submissions world.**
-  Recommend: **wipe the test rows** (`submissions`, dependent `grades`) in 0028
+  Recommend: **wipe the test rows** (`submissions`, dependent `grades`) in 0029
   — they are the author's test artifacts by the no-old-pages ruling, and the
   wipe closes the disclosed-but-unbuilt `ip_hash` scrub gap by data removal
   (update the compliance-pack row + its pin in the same commit: "anonymous wire
@@ -285,7 +285,7 @@ verification or a gate, that gate is binding on the build.
   attribute-assertion ceiling the gap exists to close.
 - **D-11. Integration e2e lane (F5): rule it IN, minimal.** One `integration`
   Playwright project against `supabase start` (local stack, real auth/RLS/RPCs,
-  migrations 0001–0028 applied), covering exactly the classes stubs cannot:
+  ALL migrations applied — 0001 through the arc's last), covering exactly the classes stubs cannot:
   the join flow end-to-end (real join_class), role fetch, and one real
   check-activity round trip — the A1 bug class (P2's known failure mode: mocks
   derived from retyped constants). Local-only by default; CI-optional job
@@ -324,8 +324,9 @@ The 2026-08-09 order put Drop 2 ahead of the demolition drops, contradicting
 D-14's own rejection reasoning ("the design review is the longest pole"). Ruled
 order is now **1 → 3 → 4 → 2 → 5**: demolition depends only on 0027-apply +
 zero-traffic, so deletions stop waiting on the design review, which runs IN
-PARALLEL during Drops 3/4. Migration numbers follow the new order: **0028 =
-demolition, 0029 = content surface.**
+PARALLEL during Drops 3/4. Migration numbers follow the new order: **0029 =
+demolition, 0030 = content surface** — renumbered 2026-08-13 when the first
+live verify run forced an unplanned **0028 = grant hygiene** (§11).
 
 Ordering constraints: D-1 before everything; **Drop 3 does not START until
 `supabase migration list` shows 0027 live — verified, not assumed (OV-8)**;
@@ -342,7 +343,7 @@ bucket death last; A1's chip landed before the Drop-5 lanes assert real checking
    (verified once with `.env.local` removed — Q1). App-only + one function
    deletion queued. Budgets watched. *In parallel: the D-2 design review.*
 2. **Drop 3 — demolition** (D-5 + D-6 + OV-5/6/10): **hard-gated on 0027 live.**
-   Migration 0028 (student_id branch drop, ingest RPC drop, data wipe with
+   Migration 0029 (student_id branch drop, ingest RPC drop, data wipe with
    counts printed per P7), dashboard deletion **named as the Phase 2.6
    feature retirement with the teacher-grading slice as owner**, compliance
    row + pin updates, the get-feedback e2e stub deleted (Q1), the scoped P9
@@ -356,11 +357,11 @@ bucket death last; A1's chip landed before the Drop-5 lanes assert real checking
    line — OV-5), CLAUDE/README/RUNTIME/ROADMAP/STATE rewrite, cache-pair
    removal (with the signOutEverything purge-order pin UPDATED, not deleted).
 4. **Drop 2 — student content surface** (D-2 + D-3 + E-2/E-3/OV-1/OV-4/OV-9):
-   migration 0029 (class_activities package + share/unshare RPCs +
+   migration 0030 (class_activities package + share/unshare RPCs +
    `list_class_activities` DEFINER RPC + class-meta anon RPC), get-activity
    join_code meta branch (bundle regen + deploy), teacher share UI, student
    Home list, join-gate name display. Design review already done (parallel);
-   UI push waits for the 0029 apply (OV-7); e2e rows from production constants
+   UI push waits for the 0030 apply (OV-7); e2e rows from production constants
    (P2); budgets watched (entry chunk).
 5. **Drop 5 — proof lanes** (D-9 + D-10 + D-11 + E-5): sw-offline closure, a11y
    project, integration lane (password-users-through-the-real-trigger sessions).
@@ -373,7 +374,7 @@ bucket death last; A1's chip landed before the Drop-5 lanes assert real checking
 
 - The contact-sheet evidence (D-1) is unrecoverable if lost — nothing else in
   this plan has that property; it goes first for that reason alone.
-- 0028's data wipe (D-6) is the plan's only destructive-by-design step; it runs
+- 0029's data wipe (D-6) is the plan's only destructive-by-design step; it runs
   only after the author's explicit ruling and the zero-traffic evidence, and the
   wipe is scoped to tables the no-old-pages ruling already declared test-only.
 - D-2 touches the entry chunk (Home list) — the 12 budget gates are the guard;
@@ -414,7 +415,7 @@ ruled by the author — every one as recommended.** Amendments are folded into
   the same lockout family as B14); share **refuses a never-published
   activity**; student list filters status + deleted_at as defense in depth.
 - **E-4 (Q1, mechanical batch).** Migrations renumbered to real sequential
-  numbers (now 0028 demolition / 0029 content surface per OV-3); the
+  numbers (now 0029 demolition / 0030 content surface per OV-3); the
   `studentSession.ts:282` get-feedback stub dies in Drop 3 (a stub for a
   nonexistent endpoint violates P2 silently); the claims-grep carries an
   **enumerated target checklist** (13 targets after OV-5); Drop 1 verified
@@ -492,13 +493,13 @@ contract — updated, never deleted). Suites per drop:
 - **Drop 1:** usePublish unit (flush-fails→no publish, invalid-doc→no publish,
   PostgREST error mapping, no-draft); PublishStatus RTL (+ env-less run);
   e2e publish→open-viewer-link.
-- **Drop 3 (0028):** verify-0028 — CHECK back to 2 branches, indexes dropped,
+- **Drop 3 (0029):** verify-0029 — CHECK back to 2 branches, indexes dropped,
   wipe counts printed (P7), retention-pin todo-cases flip; route-removal
   regression; stub deletion.
 - **Drop 4:** CI green with renderer steps deleted; reachability allowlist
   re-triage (C6 + 3 grammar exports); 13-target claims-grep checklist ticked
   in the PR.
-- **Drop 2 (0029):** verify-0029 — grant matrix (INSERT/DELETE denied), RPC
+- **Drop 2 (0030):** verify-0030 — grant matrix (INSERT/DELETE denied), RPC
   refusal matrix (non-owner, student caller, never-published, soft-deleted
   class), audit rows, dedupe no-op, `list_class_activities` scope proof;
   handler tests — join_code valid/invalid/deleted + **limiter liveness at
@@ -516,8 +517,8 @@ contract — updated, never deleted). Suites per drop:
 | Publish (RPC) | flush fails mid-publish | unit | abort (E-1) | error line, nothing published |
 | Publish (RPC) | malformed doc | unit | safeParse refusal | publish-time error, not student 500 |
 | Publish (RPC) | PostgREST error | unit | taxonomy mapping | honest error copy |
-| Share RPC | non-owner / unpublished / collision | verify-0029 | raise → surfaced | error banner |
-| Student list RPC | RLS/helper drift returns foreign rows | verify-0029 scope proof | DEFINER + helpers | n/a (proof) |
+| Share RPC | non-owner / unpublished / collision | verify-0030 | raise → surfaced | error banner |
+| Student list RPC | RLS/helper drift returns foreign rows | verify-0030 scope proof | DEFINER + helpers | n/a (proof) |
 | Join-gate meta | fetch fails / invalid code | e2e | fallback to bare code | gate still works |
 | Meta limiter | enumeration burst | P3 liveness row | 429 branch | n/a — logged |
 | Drop 2 push early | RPC missing live | OV-7 ordering rule | n/a (process) | prevented |
@@ -536,7 +537,7 @@ non-silent outcome.
 | D-2 design review | docs/wireframes (no code) | — (parallel with Drops 1/3/4) |
 | Drop 3 | supabase/migrations, supabase/functions, packages/app (routes), docs | 0027 LIVE (OV-8) |
 | Drop 4 | packages/renderer (delete), scripts/, .github/, CLAUDE/docs | Drop 1 (last consumer), Drop 3 (bundle consumers) |
-| Drop 2 | supabase/migrations, packages/viewer/server (+bundle), packages/app | design review; 0029 apply before UI push (OV-7) |
+| Drop 2 | supabase/migrations, packages/viewer/server (+bundle), packages/app | design review; 0030 apply before UI push (OV-7) |
 | Drop 5 | packages/app/e2e (+2 new projects) | Drops 2/4 surfaces final; A1 chip |
 
 Lanes: **A:** Drop 1 → Drop 3 → Drop 4 (sequential — shared app routes + docs).
@@ -596,9 +597,9 @@ verification: `mv .env.local .env.local.bak` → run the suite → `mv .env.loca
    EXPECT newest = 2026-07-29 (nothing newer) — plus one 24h edge-function log
    window for ingest-submission + get-feedback, EXPECT zero requests.
 3. Pre-wipe counts (OV-DX-5): the same query + `select count(*) from grades;`
-   — record both numbers; verify-0028 asserts both tables EMPTY post-apply
+   — record both numbers; verify-0029 asserts both tables EMPTY post-apply
    (the local rehearsal wipes 0 rows and proves only mechanics).
-4. Apply: `supabase migration list` EXPECT exactly ONE pending (0028)
+4. Apply: `supabase migration list` EXPECT exactly ONE pending (0029)
    (OV-DX-4 — push applies ALL pending) → `supabase db push` →
    `pnpm verify:auth --target live` EXPECT all PASS (T3 updates
    verify-0013-0014's student_id expectations first — OV-DX-1).
@@ -614,7 +615,7 @@ EXPECTs the workflow's renderer-drift step gone and the remaining two bundle
 steps intact (OV-DX-8).
 
 **Drop 2 station (content surface, runs 4th — three steps in ORDER, OV-DX-12):**
-1. `supabase migration list` EXPECT exactly ONE pending (0029) → `db push` →
+1. `supabase migration list` EXPECT exactly ONE pending (0030) → `db push` →
    `pnpm verify:auth --target live` all PASS.
 2. `pnpm deploy:get-activity` (the join_code meta branch calls the new anon
    RPC) → EXPECT `list_edge_functions`: get-activity version bumped,
@@ -663,7 +664,7 @@ free apply-rehearsal); D10 lane fixtures at
 authContract constants (P2), a11y lane joins the CI e2e job as a dev-server
 step, the 13 claims-grep targets enumerated verbatim in Drop 4's task.
 
-**Pass findings:** P2 — verify-0028/0029 must be REGISTERED in
+**Pass findings:** P2 — verify-0029/0030 must be REGISTERED in
 verify-runner.mjs's hardcoded set (:43-47); explicit lines in T3/T6 + a
 comment on the array naming the rule. P6 — the integration lane is
 LOCAL-ONLY for S9; CI adoption is a TODOS entry with a named trigger
@@ -678,7 +679,7 @@ encodes the check-ci-after-push memory), OV-DX-10 (dated bucket download +
 paste-able keep-check — the arc's only unhedged irreversible gets a receipt);
 9 as the mechanical batch (X3 precedent): stale verify-0013-0014 expectations
 updated at T3 (would go red at Drop 3), migration-list EXPECT before every
-push (push applies ALL pending), pre-wipe live counts + verify-0028
+push (push applies ALL pending), pre-wipe live counts + verify-0029
 empty-assert (the rehearsal is vacuous on 0 rows), the Drop-0 STATE
 reconciliation, runs-Nth stamps, deletion-station HEAD-hash record + CLI
 syntax check, the D-2 design-review artifact slot in STATE, Drop 2's
@@ -701,8 +702,8 @@ Synthesized from this review's findings. Checkbox as you ship.
   verification run; 3 regression tests (E-1/OV-2/Q1/D-4)
 - [ ] **T2 (P1, CC: ~10m)** — process — Drop 3 start-gate: verify 0027 live +
   capture zero-traffic evidence per OV-10 into STATE (OV-8/OV-10)
-- [ ] **T3 (P1, CC: ~2h)** — supabase+app — 0028 demolition migration
-  (student_id branch, ingest RPC, wipe w/ P7 counts) + verify-0028 +
+- [ ] **T3 (P1, CC: ~2h)** — supabase+app — 0029 demolition migration
+  (student_id branch, ingest RPC, wipe w/ P7 counts) + verify-0029 +
   Submissions route/lib deletion named as Phase 2.6 retirement + compliance
   row/pin updates + config.toml/CLAUDE trio edit + e2e stub deletion
   (D-5/D-6/OV-5/Q1)
@@ -712,9 +713,9 @@ Synthesized from this review's findings. Checkbox as you ship.
   scripts/deploy-train cleanup + cache-pair removal (purge-order pin updated)
   + reachability re-triage + 13-target claims-grep checklist + doc migration
   incl. the OV-7 SPA rule into CLAUDE.md (D-7/D-8/OV-7)
-- [ ] **T6 (P1, CC: ~2h)** — supabase — 0029 content-surface migration: the
+- [ ] **T6 (P1, CC: ~2h)** — supabase — 0030 content-surface migration: the
   E-3 package + list_class_activities DEFINER RPC + get_class_public_meta
-  anon RPC + verify-0029 (E-3/OV-1)
+  anon RPC + verify-0030 (E-3/OV-1)
 - [ ] **T7 (P1, CC: ~1h)** — viewer/server — get-activity join_code meta
   branch + P3 limiter liveness row + wire-leak row + bundle regen (E-2/OV-4)
 - [ ] **T8 (P1, CC: ~2h)** — app — teacher share/unshare UI + student Home
@@ -738,10 +739,10 @@ Synthesized from this review's findings. Checkbox as you ship.
   CLAUDE.md bullets Drop 1 falsifies (OV-DX-3); env-less check via
   `mv .env.local .env.local.bak` (OV-DX-13).
 - T3 also: update verify-0013-0014's student_id expectations (OV-DX-1);
-  register verify-0028 in verify-runner.mjs's set + array comment (P2);
+  register verify-0029 in verify-runner.mjs's set + array comment (P2);
   delete `deploy:ingest`/`deploy:feedback`/`deploy-train` (OV-DX-2);
   tombstone the trio language (OV-DX-3).
-- T6 also: register verify-0029 in the runner's set (P2).
+- T6 also: register verify-0030 in the runner's set (P2).
 - T11 also: pnpm aliases for all six lanes + README row (D8); integration
   preflight with named fixes (D7); `supabase db reset` per run (D9);
   fixtures.sql identities derived from authContract constants (D10);
@@ -862,6 +863,56 @@ cue (TODOS, trigger named); brand pass (backlog, unchanged).
 | Screen/Section | Mockup Path | Direction | Notes |
 |----------------|-------------|-----------|-------|
 | Drop 2: teacher card section, add/remove states, post-publish hook, student Home list, list states, join gate | ~/.gstack/projects/ZanReed-activity-platform/designs/s9-drop2-content-surface-20260813/wireframes.html | v2 board (6 frames), identity-board conventions, every state drawn | Board annotations carry the DR-rulings; strings on the board are the ruled copy |
+
+## 11. Unplanned: migration 0028, grant hygiene (2026-08-13)
+
+**How it surfaced:** the FIRST live `pnpm verify:auth --target live` — the
+runner the identity slice built, on its first real post-migration pass.
+Result: **54 passed, 4 failed**. All of verify-0027 green (including the armed
+mis-cased-teacher branch through the real trigger, the join_class error split,
+the RAISE LOG refusal proof, the audit doors). The 4 failures were both in
+verify-0017 and neither was a live exposure — but both were real:
+
+- **Finding A (pre-existing, systemic).** All SEVEN zero-policy tables
+  (`activity_version_census`, `activity_version_items`,
+  `activity_version_reads`, `allowlist`, `analytics_job_runs`, `audit_log`,
+  `student_domain`) carried Supabase's default `GRANT ALL` to
+  `anon`+`authenticated`. The platform grants it on any `public` table created
+  without an explicit revoke. **Containment held and was verified empirically,
+  not assumed:** as `authenticated`, `activity_version_reads` returned 0 rows
+  while the owner saw 3 — RLS forced + zero policies was doing the work.
+  But verify-0017 §C6 asserts "no policies AND no grant", and the second half
+  had never been true here. RLS was the *only* gate.
+- **Finding B (introduced by 0027, same day).** `set_classes_updated_at()`
+  never got the `revoke execute` line 0026 applies to every function it
+  creates, so it was anon-reachable and tripped §D-acl-completeness. Not
+  exploitable (`trigger functions can only be called as triggers`), but it is
+  precisely the drift that check exists to catch.
+
+**Ruled (author, 2026-08-13):** *sweep and revoke* — make the shipped state
+match the assertion, because the day anyone adds a narrow policy to one of
+those tables, the wide grant becomes the whole exposure. Rejected: weakening
+C6 to assert only RLS (removes the second layer permanently), and recording
+known-red (normalizes a red baseline — the vacuity failure mode this repo's
+own retros keep finding). Timing ruled *hotfix now*, over folding into the
+demolition migration: Drop 1 is app-only, so a red verify baseline would have
+greeted every build session for days.
+
+**Shipped:** `0028_grant_hygiene.sql` (the seven revokes + `ALTER DEFAULT
+PRIVILEGES` so future tables inherit the fix + finding B's function revoke) and
+`scripts/verify-0028.sql`, registered in the runner's `AUTH_VERIFY_SET` with
+the registration rule written into the array's comment (DX P2). The verify
+script's §C is the anti-recurrence check that generalizes the finding: it is
+**catalog-derived**, so any future zero-policy table carrying a client grant
+fails without anyone editing a roster — the check that would have caught this
+class on day one. §B asserts `service_role` grants SURVIVE (a sweep that
+stripped them would break get-activity's cache-fill silently, under load) and
+that RLS is still forced (0028 added a layer, replaced nothing); the last
+assertion is an anti-vacuity pin that policy-bearing tables kept their grants.
+
+**Consequence for the arc:** the plan's migrations renumbered — demolition
+0028→**0029**, content surface 0029→**0030**. Task/runbook references updated
+throughout §5/§7/§8/§9.
 
 ## GSTACK REVIEW REPORT
 
