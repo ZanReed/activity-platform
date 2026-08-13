@@ -26,6 +26,7 @@
 
 import type { Page, Route } from '@playwright/test';
 import { CHECK_WIRE_VERSION } from '@activity/viewer';
+import { CHECK_ACTIVITY_FUNCTION } from '../../src/lib/edgeFunctions';
 import { servedFixtureDocument } from '@activity/viewer/fixtures';
 
 export const E2E_STUDENT_ID = 'dddddddd-0000-4000-8000-00000000e2e1';
@@ -239,7 +240,10 @@ export async function stubActivityApi(
     });
   });
 
-  await page.route('**/functions/v1/check-section', async (route) => {
+  // A1/P2: the matched path derives from the production constant — a retyped
+  // literal here once matched the app's typo instead of catching it (history
+  // in src/lib/edgeFunctions.ts).
+  await page.route(`**/functions/v1/${CHECK_ACTIVITY_FUNCTION}`, async (route) => {
     if (await abortIfOffline(route)) return;
     const body = route.request().postDataJSON() as {
       sectionId: string;

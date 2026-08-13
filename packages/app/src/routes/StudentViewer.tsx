@@ -59,6 +59,7 @@ import type {
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
 import { functionsBase, supabase } from '../lib/supabase';
+import { CHECK_ACTIVITY_FUNCTION } from '../lib/edgeFunctions';
 import { useSession } from '../lib/SessionContext';
 import { signInWithGoogle as sharedSignIn, markIdleSignOut } from '../lib/auth';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
@@ -341,7 +342,9 @@ export default function StudentViewer() {
       activityId,
       versionId,
       checkService: createHttpCheckService({
-        checkUrl: `${functionsBase()}/check-section`,
+        // A1: the name derives from the shared constant the e2e stubs also
+        // import — never a retyped literal (history in lib/edgeFunctions.ts).
+        checkUrl: `${functionsBase()}/${CHECK_ACTIVITY_FUNCTION}`,
         feedbackUrl: `${functionsBase()}/get-feedback`,
         getAccessToken,
       }),
