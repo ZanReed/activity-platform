@@ -3,7 +3,7 @@
 --
 -- TWO ways to run:
 --   * `pnpm verify:auth --target live|local` — the runner executes each
---     @section below, prints per-check PASS/FAIL, and injects the wire
+--     marked section below, prints per-check PASS/FAIL, and injects the wire
 --     contract as psql variables (:'contract_bad_code' etc.) from
 --     packages/app/src/lib/authContract.json — never retyped here.
 --   * By hand in the SQL editor: run a section at a time. Sections C uses
