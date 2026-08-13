@@ -567,8 +567,13 @@ EXPECT names what broke. **End every drop with the CI gate** (OV-DX-8):
    `supabase migration list` shows 0027 under Remote; `pnpm verify:auth
    --target live` all PASS; Probes 1+2 recorded (Probe 2's callback params
    validate the refusal parser).
-4. **A1 chip** landed (StudentViewer check URL) — EXPECT: no `/check-section`
-   grep hits in packages/app/src.
+4. **A1 chip** ✅ LANDED 2026-08-13 (StudentViewer check URL → the shared
+   `CHECK_ACTIVITY_FUNCTION` constant in `lib/edgeFunctions.ts`; the e2e stub
+   derives from the same constant per P2; pin test asserts the name is an
+   existing `supabase/functions/` dir). EXPECT (already true):
+   `grep -rln "check-section" packages/app/src/routes packages/app/e2e/helpers`
+   returns only the two history comments; the pin test
+   (`src/__tests__/edgeFunctions.test.ts`) is green.
 
 **Drop 1 station (publish rewrite, runs 1st):** repo-side. The commit also
 deletes `deploy:publish` from package.json (OV-DX-2) and tombstones CLAUDE.md's

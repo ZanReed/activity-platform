@@ -74,7 +74,18 @@ same owner-only gating, `= any(p_ids)` + per-row degradation instead of a single
 **Context:** surfaced by /plan-eng-review on 2026-07-24 (Activity Bank arc, performance
 review finding 4-1).
 
-## Anonymous assignment-link validation at page load
+## ⚰ MOOT at S9 (struck 2026-08-13) — Anonymous assignment-link validation at page load
+
+**Why struck:** this entry proposed a new anonymous endpoint so PUBLISHED PAGES
+could preflight `?a=` assignment links — the entire world it serves (published
+static pages, the anonymous wire, get-feedback as the precedent to copy) is
+demolished by the S9 cutover (plan: docs/design/s9-cutover.md, Drops 3/4;
+rulings D-5/D-6). Students reach activities through the signed-in viewer at
+`/a/:id`; there are no anonymous assignment links left to validate. Kept (not
+deleted) because the September-observation trigger below names Kia/Felice
+classes — if a *viewer-era* dead-link problem ever appears, it is a NEW design
+against `class_activities`, not this endpoint. Original entry follows for the
+record:
 
 **What:** A tiny anonymous endpoint (get-feedback's `--no-verify-jwt` pattern, or a new
 action on it) that a published page calls at bootstrap when `?a=` is present, so a dead
