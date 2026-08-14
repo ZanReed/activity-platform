@@ -648,10 +648,16 @@ transaction, sentinel green, residue zero; author steps queued in STATE):
    `verify_jwt:false` preserved.
 3. ONLY THEN push the UI commit (OV-7). CI gate.
 
-**Drop 5 station (proof lanes, runs 5th):** `pnpm test:e2e:a11y` and
-`pnpm test:e2e:integration` green locally (the integration preflight prints
-`supabase start`/Docker fixes on a cold machine). CI gate (a11y joins CI;
-integration stays local-only per P6).
+**Drop 5 station (proof lanes, runs 5th): ✅ repo-side COMPLETE 2026-08-14**
+(T9+T10+T11; a11y green 7/7 locally and wired into CI's e2e job; the sw rows
+un-parked 7/7 ×3 — with the REAL bug found and fixed: `Vary: Origin` defeated
+`Cache.match` on parse-time requests, so offline reopen had never worked;
+`ignoreVary` in vite.config, red→green; the integration preflight's named
+fixes verified on a Docker-less machine). Author half: after the Drop-2 push,
+`supabase start` → `pnpm --filter @activity/app test:e2e:integration` →
+EXPECT 3/3 (the lane's first green run; also the free local apply-rehearsal
+of 0001–0030). Integration stays local-only per P6 (TODOS carries the CI
+trigger).
 
 **R2 teardown station (last):**
 1. MathLive-font check (D-13a): `pnpm build` → `grep -r "r2.dev"
@@ -765,13 +771,19 @@ Synthesized from this review's findings. Checkbox as you ship.
   student Home list (one RPC) + join-gate name + RTL/e2e rows (DR-5's two
   failure paths incl.); budgets watched — entry 174.0/185, the surface cost
   1.0 KiB (D-2/E-6)
-- [ ] **T9 (P1, CC: ~1.5h)** — e2e — sw server-stop harness; un-park or fix
-  red-green (D-9)
-- [ ] **T10 (P1, CC: ~1.5h)** — e2e — a11y project + @axe-core/playwright +
-  the 4 gap rows, in CI (D-10)
-- [ ] **T11 (P1, CC: ~2h)** — e2e — integration lane: supabase start,
-  password-users-through-the-real-trigger, join + role + one real check
-  (D-11/E-5; A1 chip prerequisite)
+- [x] **T9 (P1, CC: ~1.5h)** — ✅ 2026-08-14 — e2e — sw server-stop harness
+  (disposablePreview.ts); BOTH branches of D-9 fired: reproduced for real,
+  found the worker bug (Vary vs Cache.match — offline reopen never worked),
+  fixed red→green with `ignoreVary`, both rows un-parked (D-9)
+- [x] **T10 (P1, CC: ~1.5h)** — ✅ 2026-08-14 — e2e — a11y project +
+  @axe-core/playwright + the 4 gap rows, in CI; first axe run caught a real
+  AA failure (callout-note 4.39:1 → fixed + the callout family joined the
+  tokens contrast guard) (D-10)
+- [x] **T11 (P1, CC: ~2h)** — ✅ 2026-08-14 repo-side — e2e — integration
+  lane: supabase start, password-users-through-the-real-trigger (+ the
+  refused outsider), join + role + publish/share/list + one real check;
+  project gated behind test:e2e:integration; preflight named-fixes proven
+  cold. First green run = author station (Docker) (D-11/E-5; A1 chip landed)
 - [ ] **T12 (P2, post-cutover)** — perf — re-measure ≥5 green runs,
   recalibrate medians, s8-retro re-run, rule the 150 KiB number (D-12)
 - [ ] **T13 (P1, author)** — stations — execute §8 (B15 tag FIRST · 0027

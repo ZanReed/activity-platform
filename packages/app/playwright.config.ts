@@ -58,6 +58,22 @@ const PREVIEW_COMMAND = process.env.E2E_SKIP_BUILD
     ? `pnpm preview --port ${SW_PORT} --strictPort`
     : `pnpm build && pnpm preview --port ${SW_PORT} --strictPort`;
 
+// The S9 Drop 5 integration lane (D-11): a dev server against the REAL local
+// Supabase stack (supabase start), with the stack's well-known demo anon key.
+// Registered ONLY when explicitly requested — the lane is LOCAL-ONLY (DX P6),
+// needs Docker, and must never turn a plain `playwright test` sweep red on a
+// machine without it. `test:e2e:integration` is the front door.
+const INTEGRATION_REQUESTED =
+    process.argv.includes('--project=integration') ||
+    process.env.E2E_INTEGRATION === '1';
+const INTEGRATION_PORT = String(Number(PORT) + 3);
+const INTEGRATION_BASE_URL = `http://localhost:${INTEGRATION_PORT}`;
+// The demo key is a fixed CLI constant; the lane's preflight VERIFIES it
+// against `supabase status` and names the fix if the stack uses a custom
+// secret (e2e/integration/stack.ts).
+const LOCAL_DEMO_ANON_KEY =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+
 export default defineConfig({
     testDir: './e2e',
     // Named *.e2e.ts (not *.spec.ts) so vitest's default {test,spec} glob never
@@ -81,11 +97,28 @@ export default defineConfig({
             // them at the wrong baseURL. (Omitting the sw entry here ran those
             // specs twice — once correctly, once against the dev server that
             // has no worker at all.)
-            testIgnore: ['**/student/**', '**/sw/**', '**/perf/**'],
+            testIgnore: [
+                '**/student/**',
+                '**/sw/**',
+                '**/perf/**',
+                '**/a11y/**',
+                '**/integration/**',
+            ],
         },
         {
             name: 'student',
             testMatch: '**/student/**/*.e2e.ts',
+            use: { ...devices['Desktop Chrome'], baseURL: STUDENT_BASE_URL },
+        },
+        {
+            // The S9 Drop 5 a11y lane (D-10): real-browser assertions for the
+            // four 6.1A gaps (announcement text, keyboard path, visible
+            // focus, reduced motion) + an axe scan per student surface.
+            // Dev-server based on purpose — it shares the student lane's
+            // pinned-env server, stays parallel-ok, and never pays the
+            // preview serialization the sw/perf lanes need.
+            name: 'a11y',
+            testMatch: '**/a11y/**/*.e2e.ts',
             use: { ...devices['Desktop Chrome'], baseURL: STUDENT_BASE_URL },
         },
         {
@@ -115,6 +148,24 @@ export default defineConfig({
             fullyParallel: false,
             workers: 1,
         },
+        ...(INTEGRATION_REQUESTED
+            ? [
+                  {
+                      // Anti-stub lane (D-11/E-5): real local stack, real
+                      // trigger, real RLS, real Edge Functions. Serial — the
+                      // per-run `supabase db reset` (DX D9) makes the world
+                      // deterministic, and parallel workers would race it.
+                      name: 'integration',
+                      testMatch: '**/integration/**/*.e2e.ts',
+                      use: {
+                          ...devices['Desktop Chrome'],
+                          baseURL: INTEGRATION_BASE_URL,
+                      },
+                      fullyParallel: false,
+                      workers: 1,
+                  },
+              ]
+            : []),
     ],
     webServer: [
         {
@@ -157,5 +208,21 @@ export default defineConfig({
                 VITE_DISTRICT_HINT: '',
             },
         },
+        ...(INTEGRATION_REQUESTED
+            ? [
+                  {
+                      command: `pnpm dev --port ${INTEGRATION_PORT} --strictPort`,
+                      url: `${INTEGRATION_BASE_URL}/`,
+                      // Never reused: the env below is the point.
+                      reuseExistingServer: false,
+                      timeout: 120_000,
+                      env: {
+                          VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
+                          VITE_SUPABASE_ANON_KEY: LOCAL_DEMO_ANON_KEY,
+                          VITE_DISTRICT_HINT: '',
+                      },
+                  },
+              ]
+            : []),
     ],
 });

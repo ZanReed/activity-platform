@@ -130,7 +130,11 @@
   --callout-success-ink: #15803d;
   --callout-success-surface: #dcfce7;
   --callout-success-print-border: double;
-  --callout-note-ink: #6b7280;
+  /* note ink was #6b7280 until S9 Drop 5: 4.39:1 on its surface — the a11y
+   * lane's first axe run caught it (serious, color-contrast). gray-600 keeps
+   * the muted read at 6.87:1. The whole callout family is contrast-guarded
+   * in tokens.test.ts now, both themes. */
+  --callout-note-ink: #4b5563;
   --callout-note-surface: #f3f4f6;
   --callout-note-print-border: dotted;
 

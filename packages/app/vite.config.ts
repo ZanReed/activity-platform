@@ -60,6 +60,18 @@ export default defineConfig({
               cacheName: 'activity-viewer:cache:shell',
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
               cacheableResponse: { statuses: [0, 200] },
+              // THE OFFLINE-REOPEN FIX (S9 Drop 5, D-9). Static hosts send
+              // `Vary: Origin` on assets (vite preview does; CDNs can), and
+              // Cache.match HONORS Vary — so a parse-time <script type=
+              // module>/<link> request, whose Origin-header shape differs
+              // from the stored key's, MISSES the cache and goes to the dead
+              // network. That was the S6 V9 mystery ("fetch() 200s while
+              // parse-time dies with ERR_FAILED"): page-script fetch happens
+              // to match the stored shape; parse-time requests don't. These
+              // files are content-hashed and immutable — the hash IS the
+              // identity — so Vary carries no information here. Proven
+              // red→green by the server-stop rows in sw/service-worker.e2e.ts.
+              matchOptions: { ignoreVary: true },
             },
           },
         ],

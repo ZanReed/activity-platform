@@ -312,9 +312,46 @@ the win is locked in rather than silently re-spent.
 **Context:** surfaced during the S8 build (2026-08-05) when calibration met the P1A sketch;
 outside-voice finding 7 predicted the gap before it was measured.
 
-## Prove offline reopen against the built service worker (S6 V9 gap)
+## Integration lane in CI (S9 Drop 5 deferral, DX ruling P6)
 
-**What:** Get the two parked rows in `packages/app/e2e/sw/service-worker.e2e.ts`
+**What:** The `integration` Playwright lane (real `supabase start` stack, real
+trigger/RLS/RPCs/Edge Functions — `packages/app/e2e/integration/`) is
+LOCAL-ONLY by ruling: CI would need Docker-in-Actions + a supabase stack per
+run, which the verify-runner's no-live-DB-in-CI posture deliberately avoided.
+
+**Trigger to adopt:** the first regression that the integration lane catches
+locally but CI missed — at that point the lane has proven it earns its CI
+minutes; wire it as a separate workflow job with `supabase/setup-cli` +
+`supabase start`, keyed E2E_INTEGRATION=1.
+
+**Until then:** run `pnpm --filter @activity/app test:e2e:integration` before
+cutover-adjacent pushes; the preflight prints named fixes on a cold machine
+(verified 2026-08-14 — Docker-less run produced the exact fix text).
+
+## ✅ RESOLVED 2026-08-14 (S9 Drop 5, D-9): offline reopen PROVEN — and the worker WAS broken
+
+**The "Where to start" hunch below was right, twice over.** The server-stop
+harness (an in-test child-process preview server killed mid-test —
+`e2e/helpers/disposablePreview.ts`) reproduced the failure against a genuinely
+dead server, and the diagnosis found a REAL product bug: static hosts send
+`Vary: Origin` on assets (vite preview does; CDNs can) and `Cache.match`
+HONORS Vary — parse-time `<script type=module>`/`<link>` requests carry a
+different Origin-header shape than the stored key, MISS the cache, and hit
+the dead network. That was the whole "fetch() 200s while parse-time dies"
+mystery: page-script fetch happens to match the stored shape. Fix:
+`matchOptions: { ignoreVary: true }` on the CacheFirst route (the assets are
+content-hashed — the hash IS the identity), proven red→green. Two more
+harness findings, both encoded in the un-parked rows' comments: a page that
+ever carried `page.route` handlers blocks the worker from serving a
+NAVIGATION even after `unrouteAll` (the reopen runs in a FRESH page — which
+is also the honest student story), and a `fill()` racing a navigation loses
+the debounced buffer write (the kill now waits until the buffer provably
+holds the work). Both rows green 5/5 solo + 3/3 full-lane. The un-parked
+rows in `sw/service-worker.e2e.ts` are the living record; the original
+parking note survives in git history. Original entry kept below for the
+reasoning trail.
+
+**What (original):** Get the two parked rows in `packages/app/e2e/sw/service-worker.e2e.ts`
 (`offline reopen`, currently `test.fixme`) running green, or establish that the
 worker genuinely cannot serve a navigation offline and fix the worker.
 

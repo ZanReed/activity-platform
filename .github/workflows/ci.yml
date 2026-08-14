@@ -205,7 +205,7 @@ jobs:
   # decision with its own runtime cost, unchanged by this job.
   # ---------------------------------------------------------------------------
   perf-gates:
-    name: perf budget lane (throttled timing · route mount · sw · student)
+    name: perf budget lane (throttled timing · route mount · sw · student · a11y)
     needs: check
     runs-on: ubuntu-latest
     # Typical end-to-end: ~6-8 min (install + chromium + 35 specs at ~2.6 min).
@@ -234,13 +234,13 @@ jobs:
           name: app-dist
           path: packages/app/dist
 
-      - name: Perf, service-worker and student lanes
+      - name: Perf, service-worker, student and a11y lanes
         env:
           # Serve the downloaded dist; do not rebuild (see playwright.config.ts).
           E2E_SKIP_BUILD: '1'
         run: |
           pnpm --filter @activity/app exec playwright test \
-            --project=perf --project=sw --project=student
+            --project=perf --project=sw --project=student --project=a11y
 
       # The timing artifact. Recorded every run whether or not anything failed:
       # the numbers are the input to the calibration baseline and to the open

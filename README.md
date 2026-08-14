@@ -66,6 +66,7 @@ editor behavior (dev builds only).
 | `pnpm deploy:check` | Redeploy `check-activity` — no flag; `verify_jwt` stays true (run `bundle:grading-server` first) |
 
 | `pnpm clean` | Remove all `dist/` directories |
+| `pnpm --filter @activity/app test:e2e:<lane>` | One Playwright lane: `editor` (200+ /playground specs, reuses your dev server) · `student` (signed-in stubs, own pinned-env server) · `sw` (built worker via preview) · `perf` (throttled timings, same preview) · `a11y` (axe + the four real-browser gap rows, student dev server) · `integration` (real local Supabase stack — needs Docker; see the lane's preflight) |
 
 (`deploy:publish`, `deploy:ingest`, `deploy:feedback`, and `deploy:train` died at S9 Drops 1+3 with their functions — publish is a direct RPC and the anonymous submission wire is demolished. Two functions remain.)
 

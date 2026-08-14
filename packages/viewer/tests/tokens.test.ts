@@ -165,4 +165,19 @@ describe.each(themes)('WCAG AA — $name theme', ({ decls }) => {
       4.5,
     );
   });
+
+  // Joined at S9 Drop 5: the callout family was the one ink-on-surface pair
+  // set NOT guarded here, and the a11y lane's first axe run caught the light
+  // note variant at 4.39:1 (the s3 "attributes-only ceiling", made concrete).
+  it.each(['info', 'warning', 'success', 'note'])(
+    'callout "%s" ink is AA on its surface',
+    (variant) => {
+      expect(
+        contrast(
+          value(`--callout-${variant}-ink`),
+          value(`--callout-${variant}-surface`),
+        ),
+      ).toBeGreaterThanOrEqual(4.5);
+    },
+  );
 });
