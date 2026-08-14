@@ -40,6 +40,52 @@ async function openWorksheet(page: Page) {
   await firstBlank(page).waitFor();
 }
 
+/** Wait for the two-tab lock race to SETTLE, then report which tab holds it.
+ *
+ *  Every two-tab row needs this, and none of them may snapshot the winner the
+ *  instant "exactly one tab is enabled" first becomes true: settling passes
+ *  through that state more than once, because StrictMode remounts both tabs and
+ *  the lock can be released and re-acquired by the OTHER tab right after a
+ *  sample. A row that snapshots early then acts on its choice races — the action
+ *  lands on a tab that has just gone read-only, which surfaces as a fill() or
+ *  click() retrying against a disabled control until timeout.
+ *
+ *  That is not hypothetical: it took down `a read-only tab cannot overwrite the
+ *  live tab's work` twice in CI (runs 31772779555, 31787010974), and when only
+ *  THAT row was fixed its two siblings went flaky in the very next run
+ *  (31791526509) with the same shape. Hence one helper rather than three copies
+ *  of the idiom — the fix has to move for the whole family at once.
+ *
+ *  Two consecutive agreeing samples mean the race has settled rather than merely
+ *  passed through. Returns [liveTab, otherTab]. */
+async function settledLockHolders(a: Page, b: Page): Promise<[Page, Page]> {
+  let settledOn: 'a' | 'b' | null = null;
+  await expect
+    .poll(
+      async () => {
+        const [aDisabled, bDisabled] = [
+          await firstBlank(a).isDisabled(),
+          await firstBlank(b).isDisabled(),
+        ];
+        // Both or neither enabled = still contending, not a valid sample.
+        const winner =
+          aDisabled === bDisabled ? null : aDisabled ? ('b' as const) : ('a' as const);
+        const agreed = winner !== null && winner === settledOn;
+        settledOn = winner;
+        return agreed;
+      },
+      { intervals: [250] },
+    )
+    .toBe(true);
+
+  const live = settledOn === 'a' ? a : b;
+  const other = live === a ? b : a;
+  // Auto-retrying guard: if the lock somehow moves again, the row fails naming
+  // the real condition instead of a bare action timeout.
+  await expect(firstBlank(live)).toBeEnabled();
+  return [live, other];
+}
+
 /** The buffer key for the signed-in student, once it exists. */
 async function bufferValue(page: Page): Promise<string | null> {
   return page.evaluate((userId) => {
@@ -201,8 +247,9 @@ test.describe('two tabs', () => {
     await expect.poll(editableCount).toBe(1);
 
     // Takeover, on the other hand, IS deterministic — that is its whole job.
-    const loser = (await firstBlank(page).isDisabled()) ? page : second;
-    const winner = loser === page ? second : page;
+    // Which tab to take over FROM still has to come from a settled race, not a
+    // single sample (settledLockHolders explains why).
+    const [winner, loser] = await settledLockHolders(page, second);
     await expect(loser.locator('[data-banner="other-tab"]')).toBeVisible();
 
     await loser.getByRole('button', { name: /use it here/i }).click();
@@ -231,44 +278,10 @@ test.describe('two tabs', () => {
     // failed four runs in five in isolation while passing in the full lane,
     // where different timing hid it. The guarantee under test is about the
     // read-only tab not clobbering the live one, whichever is which.
-    // ...and require the winner to be STABLE, not merely momentary. Settling
-    // passes through "exactly one enabled" more than once — StrictMode remounts
-    // both tabs, so the lock can be released and re-acquired by the OTHER tab
-    // right after a sample. The previous version snapshotted the winner the
-    // instant the count first hit 1 and then filled it; on a slow runner the
-    // lock had moved on by then and fill() sat retrying against a disabled
-    // input until timeout. That is the exact shape of the two CI failures
-    // (runs 31772779555 and 31787010974). Two consecutive agreeing samples
-    // mean the race has actually settled rather than passed through.
-    let settledOn: 'page' | 'second' | null = null;
-    await expect
-      .poll(
-        async () => {
-          const [pageDisabled, secondDisabled] = [
-            await firstBlank(page).isDisabled(),
-            await firstBlank(second).isDisabled(),
-          ];
-          // Both or neither enabled = still contending, not a valid sample.
-          const winner =
-            pageDisabled === secondDisabled
-              ? null
-              : pageDisabled
-                ? ('second' as const)
-                : ('page' as const);
-          const agreed = winner !== null && winner === settledOn;
-          settledOn = winner;
-          return agreed;
-        },
-        { intervals: [250] },
-      )
-      .toBe(true);
+    // ...and require the winner to be STABLE, not merely momentary — see
+    // settledLockHolders for why a snapshot at the first sample races.
+    const [live, stale] = await settledLockHolders(page, second);
 
-    const live = settledOn === 'page' ? page : second;
-    const stale = live === page ? second : page;
-
-    // Auto-retrying guard: if the lock somehow moves again, this fails naming
-    // the real condition instead of a bare fill() timeout.
-    await expect(firstBlank(live)).toBeEnabled();
     await firstBlank(live).fill('live tab work');
     await expect.poll(async () => bufferValue(live)).toContain('live tab work');
 
@@ -300,14 +313,7 @@ test.describe('two tabs', () => {
     await second.goto(activityUrl());
     await firstBlank(second).waitFor();
 
-    await expect
-      .poll(async () =>
-        [await firstBlank(page).isDisabled(), await firstBlank(second).isDisabled()]
-          .filter((disabled) => !disabled).length,
-      )
-      .toBe(1);
-    const live = (await firstBlank(page).isDisabled()) ? second : page;
-    const thief = live === page ? second : page;
+    const [live, thief] = await settledLockHolders(page, second);
 
     // Dirty state IN the debounce window: type and steal back-to-back, so the
     // displaced tab still owes a write when it loses the lock.
@@ -355,14 +361,7 @@ test.describe('two tabs', () => {
     await second.goto(activityUrl());
     await firstBlank(second).waitFor();
 
-    await expect
-      .poll(async () =>
-        [await firstBlank(page).isDisabled(), await firstBlank(second).isDisabled()]
-          .filter((disabled) => !disabled).length,
-      )
-      .toBe(1);
-    const original = (await firstBlank(page).isDisabled()) ? second : page;
-    const thiefTab = original === page ? second : page;
+    const [original, thiefTab] = await settledLockHolders(page, second);
 
     // The original does some work first, so the regain has stale memory to
     // be tempted by.
