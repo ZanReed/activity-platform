@@ -169,3 +169,64 @@ only the *measurement* is.
 - **New, policy (earned by missed-4)**: when a slice's headline lesson is
   "this check was vacuous," re-run that lesson over the *fix* before banking
   it.
+
+---
+
+## Post-S9 re-run (2026-08-14 — the re-run item 3 scheduled, run the day the cutover's repo work closed)
+
+Answering the checklist items 5–9 and the audit addenda against ten days of
+shipped reality (S9-prep + the five-drop cutover arc + the day-one CI catches).
+
+5. **Did the budgets fail anyone?** The **bundle-size ceilings** fired for
+   real: the grading-server ceiling caught the barrel import that put 1 MB of
+   MathLive into the grading Edge Function (now a standing CLAUDE.md rule:
+   scorers subpath, never the barrel). The **12 perf budgets** have not yet
+   gone red on a real regression — every entry-chunk addition since arrived
+   pre-priced (content surface: +1.0 KiB, measured in its own drop). Their
+   liveness still rests on the broken-dist failure-path tests (the designed
+   answer, P3-style); an organic red remains unobserved. Honest status:
+   armed, exercised by test, not yet by history.
+6. **Did the 2× ceiling survive runner variance?** Yes — armed 2026-08-09,
+   and across every green run since, deltas stayed within ±6% of target; the
+   ceiling never fired, and no timing red was ever re-run to green. **But the
+   CI retry the audit flagged WAS exercised, and it briefly masked a real
+   race**: the failure-matrix tab-lock row passed-on-retry in run 31772779555
+   (recorded as a watch-note at the time), failed again in 31787010974, went
+   flaky-on-siblings in 31791526509, and was fixed for the family in
+   `1abd491` (one `settledLockHolders()` helper; four consecutive 0-flaky
+   runs since). Verdict on the mechanism: the retry did hide a defect once,
+   the recorded watch-note is what caught it — **the discipline that makes
+   `retries: 1` safe is writing down every retry that fires**, and that
+   discipline is now demonstrated rather than hoped.
+7. **Marks contract additive-only through S9?** Yes. Routes were deleted
+   (Submissions), added (`/join`, content surface), and the renderer died —
+   the three marks and their pinned literals never changed, and the pin test
+   never had to fire.
+8. **The 150 KiB TODO.** The number did *not* quietly become the cap — but it
+   drifted the other way: entry is **174.0/185** (168.4 → 173.0 → 173.5 →
+   174.0, each addition priced in its own commit). The drift item 8 warned
+   about is therefore *live*: 174 is 6.3% under the audit's drift-to-185
+   scenario. **The ruling on 150 is now due** — it is gate 9's one remaining
+   author decision, queued in STATE.
+9. **Did the recalibration re-measure happen?** Yes — the D-12 ledger closed
+   at 5 post-cutover runs and `TIMING_TARGET_MS` was recalibrated the same
+   day (992/1135/1812; every shift under ±2.5%). The named-but-unowned
+   follow-up failure (the S3 boomerang precedent) did not recur, because the
+   trigger lived in STATE's pending-actions queue with the rule inline.
+
+**Audit addenda, closed out:** (a) targets armed 08-09, recalibrated today ✓;
+(b) `NON_RENDER_CHUNKS` + dedup applied at both route-mount count sites ✓;
+(c) the 168.1-as-cap sentence corrected — and the real question it protected
+(item 8) is answered above ✓; CI-retry exercise: documented above, three
+sightings ✓; lane cost: `timeout-minutes: 15` is set, actual perf-lane
+runtime 1m52s–2m36s across the five ledger runs ✓; D5 doc-side: RUNTIME.md
+died with the renderer at Drop 4 and CLAUDE.md no longer restates the 40/60
+numbers ✓. **Still open, deliberately:** content-marker ownership (the
+markers in `perf-budgets.mjs` have no named re-deriver; the next mathlive/
+katex/jsxgraph major is the trigger, and the cheapest-branch-deletes-a-guard
+risk stands).
+
+**One line for the next retro:** S8's gates survived their first arc — what
+fired was caught by discipline around the gates (watch-notes, pre-priced
+additions, the pending-actions queue), which is the part a gate cannot
+supply for itself.
