@@ -593,7 +593,9 @@ they gate nothing.**
    returns only the two history comments; the pin test
    (`src/__tests__/edgeFunctions.test.ts`) is green.
 
-**Drop 1 station (publish rewrite, runs 1st):** repo-side. The commit also
+**Drop 1 station (publish rewrite, runs 1st): ✅ repo-side COMPLETE 2026-08-14**
+(T1 + the DX amendments; committed, suite/e2e/budgets green, env-less run done;
+author half queued in STATE → Pending author actions). The commit also
 deletes `deploy:publish` from package.json (OV-DX-2) and tombstones CLAUDE.md's
 publish-activity/renderer-bundle bullets it falsifies (OV-DX-3). Env-less
 verification: `mv .env.local .env.local.bak` → run the suite → `mv .env.local.bak
@@ -716,9 +718,9 @@ boomerang turns the target into a measurement.
 
 Synthesized from this review's findings. Checkbox as you ship.
 
-- [ ] **T1 (P1, CC: ~1h)** — app — usePublish → RPC-direct with flush-abort +
-  pre-publish safeParse + PostgREST error mapping; PublishStatus → viewer
-  link; delete VITE_PUBLISHED_URL_BASE + publishedUrl(); env-less
+- [x] **T1 (P1, CC: ~1h)** — ✅ 2026-08-14 — app — usePublish → RPC-direct with
+  flush-abort + pre-publish safeParse + PostgREST error mapping; PublishStatus
+  → viewer link; delete VITE_PUBLISHED_URL_BASE + publishedUrl(); env-less
   verification run; 3 regression tests (E-1/OV-2/Q1/D-4)
 - [ ] **T2 (P1, CC: ~10m)** — process — Drop 3 start-gate: verify 0027 live +
   capture zero-traffic evidence per OV-10 into STATE (OV-8/OV-10)

@@ -7,6 +7,9 @@
 //   1. Kit change  → upload the kit FIRST (`pnpm upload:graph-kit`), THEN deploy
 //      publish-activity. Reversed, the live function points at a not-yet-uploaded
 //      hash and the summon button 404s on every page published in the gap.
+//      [S9 Drop 1 TOMBSTONE: publish-activity is deleted — publish is now a
+//      direct `publish_activity` RPC from the app. The publish-deploy steps
+//      below are removed; this whole script dies with ingest at Drop 3.]
 //   2. Wire bump   → redeploy ingest-submission BEFORE republishing any activity.
 //      A page publishing the new wire POSTs a version the live ingest 400s until
 //      ingest is redeployed. Ingest accepts older wire versions, so ingest-first
@@ -29,9 +32,9 @@ if (!process.stdin.isTTY) {
   console.log('deploy-train is interactive; no TTY detected. The ordered checklist:');
   console.log('  1. Kit changed?  pnpm upload:graph-kit   (confirm the Uploaded: lines)');
   console.log('  2. Wire bumped?  pnpm deploy:ingest      (always --no-verify-jwt)');
-  console.log('  3. Renderer/schema/kit-URL changed?  pnpm deploy:publish');
-  console.log('  4. Deploy the app if it changed; re-publish affected activities.');
-  console.log('  5. Commit the regenerated graph-kit manifest if step 1 ran.');
+  console.log('  3. Deploy the app if it changed; re-publish affected activities.');
+  console.log('  4. Commit the regenerated graph-kit manifest if step 1 ran.');
+  console.log('  (publish-activity deleted at S9 Drop 1 — publish is the RPC, no deploy step.)');
   process.exit(0);
 }
 
@@ -42,9 +45,6 @@ console.log('Deploy train — answer what changed; the ordering is handled for y
 
 const kitChanged = await yes('Did packages/graph-kit change (new kit hash)?');
 const wireBumped = await yes('Did the submission wire format (schemaVersion) bump?');
-const publishChanged = await yes(
-  'Did schema/renderer/runtime change (publish-activity needs the fresh bundle)?',
-);
 const appChanged = await yes('Did the app (editor/dashboard) change?');
 
 /** @type {{label: string, cmd?: string[], note?: string}[]} */
@@ -61,12 +61,6 @@ if (wireBumped) {
   steps.push({
     label: 'Redeploy ingest-submission with --no-verify-jwt (MUST precede any republish)',
     cmd: ['pnpm', 'deploy:ingest'],
-  });
-}
-if (publishChanged || kitChanged) {
-  steps.push({
-    label: 'Redeploy publish-activity (picks up the committed bundle + kit manifest)',
-    cmd: ['pnpm', 'deploy:publish'],
   });
 }
 if (appChanged) {

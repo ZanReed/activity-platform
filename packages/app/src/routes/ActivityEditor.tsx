@@ -3,8 +3,8 @@
 // -----------------------------------------------------------------------------
 // Loads an activity's draft (or its published version if no draft exists),
 // displays it in the editor, autosaves changes (title + body) back to Supabase,
-// and provides a Publish action that snapshots the current draft to an
-// immutable, student-accessible static HTML page.
+// and provides a Publish action that snapshots the current draft as an
+// immutable activity version students open at the viewer URL (/a/:id).
 //
 // Load priority on mount: prefer draft_content (a pending edit-in-progress) →
 // then current_version_id's content (post-publish, no edits yet) → then a
@@ -26,13 +26,7 @@ import {
     type ReactNode,
 } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
-import {
-    FileText,
-    BarChart3,
-    ClipboardPaste,
-    Globe,
-    ExternalLink,
-} from 'lucide-react';
+import { FileText, BarChart3, ClipboardPaste, Globe } from 'lucide-react';
 import type { Editor as TiptapEditor, JSONContent } from '@tiptap/react';
 import {
     ActivityDocument,
@@ -50,7 +44,8 @@ import {
 } from '../lib/serialize';
 import { emptyDocJSON, wrapBlocksStrict } from '../editor/strictGrid';
 import { useAutosave } from '../lib/useAutosave';
-import { usePublish } from '../lib/usePublish';
+import { usePublish, type PrePublishResult } from '../lib/usePublish';
+import PublishStatus from '../components/PublishStatus';
 import Editor from '../editor/Editor';
 import ImportMarkdownDialog from '../components/ImportMarkdownDialog';
 import {
@@ -124,74 +119,6 @@ function Shell({ children }: { children: ReactNode }) {
     );
 }
 
-// Public base for published pages, mirrored from the publish Edge Function's
-// R2_PUBLIC_URL_BASE. Trailing slashes trimmed so URL building is unambiguous.
-const PUBLISHED_BASE = (import.meta.env.VITE_PUBLISHED_URL_BASE ?? '').replace(
-    /\/+$/,
-    '',
-);
-
-// The live alias URL the publish function writes (`{base}/{id}/index.html`).
-// Null when the base env is unset, so callers can hide the affordance rather
-// than render a broken link.
-function publishedUrl(activityId: string): string | null {
-    return PUBLISHED_BASE ? `${PUBLISHED_BASE}/${activityId}/index.html` : null;
-}
-
-// The one published-status line, below the header (replaces the old standalone
-// PublishedLink AND PublishControl's green success pill — they were two
-// copy-link affordances for the same URL). Renders whenever the activity is
-// live: a "Live" dot + Open + Copy link, upgrading to "Published v{N}" for the
-// session that just published (version is only known then). The live-alias URL
-// is stable, so Open/Copy work whether or not this session did the publish.
-function PublishStatus({
-    activityId,
-    version,
-}: {
-    activityId: string;
-    version: number | null;
-}) {
-    const url = publishedUrl(activityId);
-    const [copied, setCopied] = useState(false);
-    if (!url) return null;
-    const copy = async () => {
-        try {
-            await navigator.clipboard.writeText(url);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-        } catch {
-            /* clipboard write can fail in unsupported contexts; non-fatal */
-        }
-    };
-    return (
-        <span className="flex items-center gap-2 text-xs">
-        <span className="flex items-center gap-1.5 font-medium text-muted">
-        <span
-        aria-hidden="true"
-        className="h-1.5 w-1.5 rounded-full bg-success-accent"
-        />
-        {version != null ? `Published v${version}` : 'Live'}
-        </span>
-        <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-0.5 font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
-        >
-        Open
-        <ExternalLink size={12} aria-hidden="true" />
-        </a>
-        <button
-        type="button"
-        onClick={copy}
-        className="font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
-        >
-        {copied ? 'Copied!' : 'Copy link'}
-        </button>
-        </span>
-    );
-}
-
 export default function ActivityEditor() {
     const { id } = useParams();
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
@@ -244,6 +171,13 @@ export default function ActivityEditor() {
     const location = useLocation();
     const fresh =
         (location.state as { fresh?: boolean } | null)?.fresh === true;
+    // Mirror of the server's draft_content, as this client last knew it:
+    // seeded from the loaded draft, advanced by every successful save. This is
+    // the exact payload pre-publish validation runs on (E-1) — never a
+    // re-serialization, which would mint fresh UUIDs and validate a payload
+    // the server doesn't hold. Null = no draft known (post-publish, no edits),
+    // where the publish RPC answers authoritatively.
+    const lastPersistedDraft = useRef<ActivityDocument | null>(null);
     const titleRef = useRef<HTMLInputElement | null>(null);
     const freshFocusDone = useRef(false);
     useEffect(() => {
@@ -302,6 +236,9 @@ export default function ActivityEditor() {
                     return;
                 }
                 doc = parsed.data;
+                // Seed the persisted-draft mirror: this payload IS the
+                // server's draft_content right now.
+                lastPersistedDraft.current = parsed.data;
             } else if (row.current_version_id) {
                 const { data: versionData, error: vErr } = await supabase
                 .from('activity_versions')
@@ -498,14 +435,38 @@ export default function ActivityEditor() {
         })
         .eq('id', id);
         if (error) throw error;
+        lastPersistedDraft.current = parsed.data;
     };
 
         const { status, flush } = useAutosave(changeKey, save);
+        // Pre-publish step (E-1/OV-2): flush the autosave and ABORT the publish
+        // when the latest edits could not persist — publishing would otherwise
+        // snapshot a stale draft. On success, hand usePublish the exact payload
+        // known to be persisted so its safeParse gate runs on server reality.
+        const prepareForPublish = useCallback(
+            async (): Promise<PrePublishResult> => {
+                const flushed = await flush();
+                if (!flushed) return { ok: false };
+                return { ok: true, draft: lastPersistedDraft.current };
+            },
+            [flush],
+        );
         // Publish state is lifted here (out of the old PublishControl) so the
         // header's Publish chip and the PublishStatus line share it. id can be
         // undefined pre-route-match; publish() is never reachable until the
         // chip renders (past the id guards), so the '' fallback is inert.
-        const { state: publishState, publish } = usePublish(id ?? '', flush);
+        const { state: publishState, publish } = usePublish(
+            id ?? '',
+            prepareForPublish,
+        );
+        // A successful publish clears draft_content server-side; keep the
+        // mirror honest so a no-edit republish sends draft:null and lets the
+        // RPC answer "no unpublished changes" authoritatively.
+        useEffect(() => {
+            if (publishState.kind === 'success') {
+                lastPersistedDraft.current = null;
+            }
+        }, [publishState.kind]);
 
         if (loadState.status === 'loading') {
             return (

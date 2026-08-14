@@ -52,6 +52,8 @@ than one of them.
 
 ### 1. Cloudflare R2 secrets
 
+> **[TOMBSTONE, S9 Drop 1 2026-08-14] `publish-activity` is deleted.** Publish is a direct `publish_activity` RPC from the app (`usePublish`); no HTML is rendered or uploaded anywhere, and the share link is the viewer URL `/a/:id`. Everything below about publish-activity, its R2 secrets, and `VITE_PUBLISHED_URL_BASE` is historical until the Drop 3/4 doc sweep rewrites this file.
+
 Published **HTML** lives on Cloudflare R2, **not** Supabase Storage (Supabase free tier rewrites HTML responses to `text/plain` — see STATE.md / ROADMAP "Hosting platform"). Only `publish-activity` still talks to R2 via the S3 API and needs these secrets:
 
 > **Uploaded images no longer involve R2 — or any function.** Per the 2026-07-31 Cloudflare-exit ruling and the same-day eng review, the editor uploads straight to the public `activity-images` Supabase Storage bucket; migration `0019_image_storage.sql`'s RLS INSERT policy (calling `can_edit_activity` as the caller) is the gate, and the bucket's mime/size limits are the validation. **No secrets, no function.** Images were always safe on Storage; the anti-abuse rewrite that forced R2 applies to `text/html` only. R2 retires entirely at the S9 cutover, when published HTML stops existing.

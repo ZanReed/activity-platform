@@ -17,6 +17,8 @@
 //     navigating away within the debounce window doesn't drop the last edits.
 //   - On-demand flush(): force a pending debounced change to save immediately
 //     and await it (e.g. before publish, so the DB has the latest draft).
+//     Reports whether the latest state actually persisted — publish ABORTS on
+//     false (S9 Drop 1, OV-2), so this result must stay honest.
 //   - beforeunload guard: warns on tab close while a change is unsaved (pending
 //     debounce or in-flight write), so a hard close doesn't silently drop edits.
 // =============================================================================
@@ -28,12 +30,12 @@ export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 export interface Autosave {
     status: SaveStatus;
     /**
-     * Force any pending/in-flight save to complete, resolving once the latest
-     * document state has reached the server (or a save errored — flush is
-     * best-effort and never throws). Safe to call when nothing is pending; it
-     * resolves immediately.
+     * Force any pending/in-flight save to complete. Resolves `true` once the
+     * latest document state has reached the server, `false` when a save
+     * errored and the latest state is NOT persisted. Never throws. Safe to
+     * call when nothing is pending; it resolves `true` immediately.
      */
-    flush: () => Promise<void>;
+    flush: () => Promise<boolean>;
 }
 
 export function useAutosave(
@@ -99,12 +101,12 @@ export function useAutosave(
         inFlightPromise.current = promise;
     }, []);
 
-    const flush = useCallback(async (): Promise<void> => {
+    const flush = useCallback(async (): Promise<boolean> => {
         // Baseline not yet recorded — there's nothing meaningful to save; adopt
         // the current key as baseline (mirrors the debounce effect) and return.
         if (savedKey.current === null) {
             savedKey.current = latestKey.current;
-            return;
+            return true;
         }
         while (
             alive.current &&
@@ -121,6 +123,12 @@ export function useAutosave(
                 break;
             }
         }
+        // Persisted iff nothing is left pending — the honest answer publish's
+        // flush-abort gate (OV-2) relies on.
+        return (
+            latestKey.current === null ||
+            latestKey.current === savedKey.current
+        );
     }, [runSave]);
 
     // Flush a pending change on unmount (fire-and-forget — the network write

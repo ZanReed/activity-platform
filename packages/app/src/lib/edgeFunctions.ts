@@ -15,3 +15,12 @@
  * directory, so a rename on either side goes red.
  */
 export const CHECK_ACTIVITY_FUNCTION = 'check-activity';
+
+/**
+ * RPC names the app calls over PostgREST (`/rest/v1/rpc/<name>`) — same P2
+ * discipline as the function names above: e2e stubs derive their matched
+ * paths from here. Pinned by edgeFunctions.test.ts to a `create or replace
+ * function` definition in supabase/migrations/, the RPC equivalent of the
+ * functions-directory pin.
+ */
+export const PUBLISH_ACTIVITY_RPC = 'publish_activity';
