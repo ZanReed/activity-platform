@@ -566,10 +566,15 @@ apply, NOT Drop 1 (OV-8) — the build can start on Drop 1 while it waits.**
    gh release create s5.5-print-signoff s5.5-contact-sheet.zip --title "S5.5 print sign-off evidence" --notes "Human-judged half of print parity; see tag message."
    ```
    EXPECT: `git tag -l` shows `s5.5-print-signoff`; the release shows the asset.
-3. ⏳ **OPEN — 0027 apply-day runbook** — the identity plan §5, unchanged.
-   One-time setup progress 2026-08-13: psql 18.4 installed + linked ✅;
-   `.env.supabase` (pooler DSN + dashboard DB password) still missing;
-   Docker not running (rehearsal only). EXPECT at end:
+3. ⏳ **PARTLY DONE — 0027 apply-day runbook** — the identity plan §5.
+   ✅ psql 18.4 + `.env.supabase` (pooler DSN); ✅ 0027 applied; ✅ 0028
+   grant-hygiene applied (§11); ✅ **`pnpm verify:auth --target live` → 65
+   passed, 0 failed across 6 scripts** (C11 CLOSED); ✅ **Probe 2 recorded
+   and passed** (§12). ⏳ REMAINING: **B5 dashboard Additional Redirect URLs**,
+   then **Probe 1** (the `/join/:code` round trip — untested; the sign-in that
+   produced Probe 2 started at root, so it exercised no redirect), then the
+   two duration datapoints. The local rehearsal was SKIPPED (no Docker) — the
+   accepted G1 fallback; the live runner pass is the proof. EXPECT at end:
    `supabase migration list` shows 0027 under Remote; `pnpm verify:auth
    --target live` all PASS; Probes 1+2 recorded (Probe 2's callback params
    validate the refusal parser).
@@ -857,6 +862,11 @@ cue (TODOS, trigger named); brand pass (backlog, unchanged).
   (done with this review — OV-DX-11 closed).
 - NEW **T15 (P3, TODOS)** — the DR-11 recency-cue entry lands in TODOS.md
   (done with this review).
+- NEW **T16 (P2, CC: ~10m)** — app/copy — the generic sign-in-failure body
+  stops guessing a cause (§12 finding): replace "Check your connection and try
+  again." with cause-agnostic copy naming the two real levers (try again / use
+  a different account). `SIGN_IN_FAILED_COPY` gains the string; the RTL row
+  asserts the generic frame renders it. Evidence: the Probe 2 recording.
 
 ## Approved Mockups
 
@@ -913,6 +923,55 @@ assertion is an anti-vacuity pin that policy-bearing tables kept their grants.
 **Consequence for the arc:** the plan's migrations renumbered — demolition
 0028→**0029**, content surface 0029→**0030**. Task/runbook references updated
 throughout §5/§7/§8/§9.
+
+## 12. Probe 2 result — the recording, and what it proved (2026-08-14)
+
+**Ran accidentally, passed deliberately.** The author signed in from the site
+root with a personal Gmail; the admission trigger refused it. Postgres logs
+carry the real reason (`Email <addr> is not permitted to sign up`, ×4 retries);
+the browser got:
+
+```
+https://activity-platform.pages.dev/?error=server_error
+  &error_code=unexpected_failure
+  &error_description=Database+error+saving+new+user
+#error=server_error&error_code=unexpected_failure
+  &error_description=Database+error+saving+new+user&sb=
+```
+
+**What it proves:**
+
+1. **OV-1's E-7 rework was load-bearing, not defensive.** GoTrue forwards
+   NOTHING of the trigger's message — only the generic `server_error` /
+   "Database error saving new user". The pre-rework design keyed the refusal
+   screen on the trigger's "not permitted" text: **that screen would never
+   have fired in production, and nothing would have reported it.** The
+   cause-agnostic rework is what makes the surface work at all.
+2. **Both query AND hash carry the identical triple** — the "handle both
+   forms" requirement is now proven necessary, not speculative. The shipped
+   parser (`readAuthCallbackError`, authMessages.ts:56) reads query first, so
+   there is no double-report; replayed against this exact URL it returns
+   `"Database error saving new user"` → truthy → the card renders. The
+   trailing `&sb=` is a Supabase artifact and is ignored.
+3. **The rollback is clean at production values.** 3 auth.users, 3
+   public.users, **zero orphans** — the raise inside the trigger rolled the
+   whole signup back, which is exactly the leak class 0024 exists to prevent,
+   now demonstrated live rather than in a rolled-back test block.
+4. **Landing on `/` was correct** (the sign-in started at root), so this run
+   says NOTHING about the `/join/:code` redirect. **Probe 1 remains genuinely
+   untested and B5's Additional Redirect URLs remain unconfigured** — the
+   silent-fallback failure OV-11 named is still unproven-either-way.
+
+**FINDING (new, evidence-backed): the generic frame's body copy contradicts
+ruling P1.** The screen is cause-agnostic by ruling, and the title obeys it
+("We couldn't sign you in") — but the non-student body reads "Check your
+connection and try again." (authMessages.ts / AuthScreens.tsx:54), which
+asserts a cause. In the one real refusal observed to date the connection was
+fine and the account was declined, so the copy actively misdirects. Distinct
+from P3 (which governs whether the school-account LINE appears, and stands):
+this is the fallback sentence guessing where P1 forbids guessing.
+**Ruled:** replace with cause-agnostic copy that names the two real user
+levers — retry, or a different account — carried as a Drop 2 copy task.
 
 ## GSTACK REVIEW REPORT
 
