@@ -35,13 +35,17 @@ select 'trigger_fn_not_anon_executable',
 select 'trigger_fn_not_authenticated_executable',
        not has_function_privilege('authenticated', 'public.set_classes_updated_at()', 'execute'),
        '';
+-- Roster grew to TWO at 0030 (S9 Drop 2): get_class_public_meta is the join
+-- gate's pre-auth class-name lookup, served through get-activity's anonymous
+-- meta branch (D-3/E-2). Any THIRD name failing here is the drift this check
+-- exists to catch.
 select 'anon_reachable_function_roster',
        (select coalesce(array_agg(p.proname::text order by p.proname), '{}')
           from pg_proc p
          where p.pronamespace = 'public'::regnamespace
            and has_function_privilege('anon', p.oid, 'execute'))
-       = array['get_activity_public_meta'],
-       'exactly one: get_activity_public_meta (the 3.2A exception)';
+       = array['get_activity_public_meta', 'get_class_public_meta'],
+       'exactly two: the 3.2A activity meta + the 0030 class meta';
 
 -- @section B-zero-policy-table-grants
 -- @expect-rows

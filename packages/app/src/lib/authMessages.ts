@@ -61,9 +61,15 @@ export function readAuthCallbackError(url: URL): string | null {
   return hashParams.get('error_description') ?? hashParams.get('error');
 }
 
-/** Sign-in-failed copy — cause-agnostic (P1); school-account line only on student surfaces (P3). */
+/** Sign-in-failed copy — cause-agnostic (P1); school-account line only on
+ * student surfaces (P3). `genericBody` replaced "Check your connection and
+ * try again." (T16, Probe 2 evidence): in the one real refusal observed the
+ * connection was fine and the ACCOUNT was declined, so the old sentence
+ * actively misdirected. The body now names the two real user levers and
+ * guesses no cause. */
 export const SIGN_IN_FAILED_COPY = {
   title: "We couldn't sign you in",
+  genericBody: 'Try again, or sign in with a different account.',
   studentGuidance:
     'Most of the time this means the wrong Google account. Choose the account that ends in',
   retry: 'Try again',

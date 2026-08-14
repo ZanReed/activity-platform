@@ -6,6 +6,11 @@ import { useSession } from '../lib/SessionContext';
 import { useSlowFlag } from '../lib/slowLoad';
 import { listMyClasses, type JoinedClass } from '../lib/classes';
 import {
+  formatListDate,
+  listClassActivities,
+  type StudentClassActivity,
+} from '../lib/classActivities';
+import {
   AccountUnavailableCard,
   NeutralGateCard,
   SignInFailedCard,
@@ -157,22 +162,38 @@ type ClassesState =
   | { phase: 'error' }
   | { phase: 'ready'; classes: JoinedClass[] };
 
+type ActivitiesState =
+  | { phase: 'loading' }
+  | { phase: 'error' }
+  | { phase: 'ready'; rows: StudentClassActivity[] };
+
 /**
- * The student shell (B12/E-5, board frames 1a/1b): joined classes first,
- * join-another second; the empty state IS the hero. The activity list is
- * deliberately absent until S9 — teachers share activities as links.
+ * The student shell (B12/E-5 → S9 Drop 2, board frames 1a/1b + 4a/4b):
+ * joined classes with their teacher-added activities nested under each
+ * header (the E-5 deferral come due), join-another second; the empty state
+ * IS the hero. The activity list is a SEPARATE fetch with its own retry —
+ * a failed list never hides classes or the join form (degraded, not broken).
  */
 function StudentHome({ email }: { email: string }) {
   void email; // identity lives in the topbar (OV#9); param kept for symmetry
   const [state, setState] = useState<ClassesState>({ phase: 'loading' });
+  const [activities, setActivities] = useState<ActivitiesState>({ phase: 'loading' });
   const [idlePrompt, setIdlePrompt] = useState(false);
+
+  const loadActivities = useCallback(() => {
+    setActivities({ phase: 'loading' });
+    listClassActivities()
+      .then((rows) => setActivities({ phase: 'ready', rows }))
+      .catch(() => setActivities({ phase: 'error' }));
+  }, []);
 
   const load = useCallback(() => {
     setState({ phase: 'loading' });
     listMyClasses()
       .then((classes) => setState({ phase: 'ready', classes }))
       .catch(() => setState({ phase: 'error' }));
-  }, []);
+    loadActivities();
+  }, [loadActivities]);
 
   useEffect(() => {
     load();
@@ -237,26 +258,76 @@ function StudentHome({ email }: { email: string }) {
       ) : (
         <div className="rounded-lg border border-line bg-canvas p-6 shadow-sm">
           <h2 className="text-xl font-bold text-ink">Your classes</h2>
-          <ul className="mt-2 divide-y divide-line">
-            {joined.map((c) => (
-              // Inert rows by design in v1 (no class page yet — OV#19): no
-              // hover affordance, nothing to click.
-              <li key={c.classId} className="py-3">
-                <p className="font-medium text-strong">{c.name}</p>
-                <p className="text-sm text-muted">
-                  Joined{' '}
-                  {new Date(c.joinedAt).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                  })}
+          {/* Class headers ALWAYS render (DR-9d — they confirm the join
+              worked), even while activities load or fail; the per-class
+              empty line is THE empty state. Headers stay non-links: no
+              class page exists (ruled, not an oversight). */}
+          {joined.map((c) => {
+            const rows =
+              activities.phase === 'ready'
+                ? activities.rows.filter((r) => r.classId === c.classId)
+                : [];
+            return (
+              <div key={c.classId} className="mt-3">
+                <h3 className="font-bold text-ink">{c.name}</h3>
+                <p className="text-xs text-muted">
+                  Joined {formatListDate(c.joinedAt)}
                 </p>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 text-sm text-muted">
-            Your teacher shares activities as links — open them from wherever your
-            teacher posts links.
-          </p>
+                {activities.phase === 'ready' &&
+                  (rows.length === 0 ? (
+                    <p className="ml-5 py-1.5 text-sm text-muted">
+                      Nothing here yet — your teacher hasn&apos;t added activities.
+                    </p>
+                  ) : (
+                    <ul className="mt-1">
+                      {rows.map((r) => (
+                        <li key={r.activityId}>
+                          <Link
+                            to={`/a/${r.activityId}`}
+                            className="ml-3 flex min-h-[44px] flex-wrap items-center justify-between gap-x-3 rounded-r-md border-l-2 border-line py-1.5 pl-3 pr-2 hover:bg-surface"
+                          >
+                            <span className="line-clamp-2 min-w-0 text-sm font-medium text-ink underline underline-offset-2">
+                              {r.title}
+                            </span>
+                            <span className="shrink-0 text-xs text-muted">
+                              Added {formatListDate(r.addedAt)}
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ))}
+              </div>
+            );
+          })}
+          {/* ONE status line for the whole list, below ALL headers (DR-9e —
+              an indented spinner read as "the first class is loading").
+              Loading carries its OWN selector, never the ready-state class. */}
+          {activities.phase === 'loading' && (
+            <p
+              className="mt-2 flex items-center gap-2 text-sm text-muted"
+              role="status"
+              data-list-loading
+            >
+              <span
+                className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-line-strong border-t-ink"
+                aria-hidden="true"
+              />
+              Loading activities…
+            </p>
+          )}
+          {activities.phase === 'error' && (
+            <p className="mt-2 text-sm text-muted">
+              We couldn&apos;t load activities just now.{' '}
+              <button
+                type="button"
+                onClick={loadActivities}
+                className="font-medium text-ink underline underline-offset-2"
+              >
+                Try again
+              </button>
+            </p>
+          )}
           <h3 className="mt-6 mb-1 text-sm font-semibold text-ink">Join another class</h3>
           <JoinCodeForm inputId="join-code" onJoined={load} />
         </div>

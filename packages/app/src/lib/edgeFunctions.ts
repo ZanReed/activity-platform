@@ -24,3 +24,7 @@ export const CHECK_ACTIVITY_FUNCTION = 'check-activity';
  * functions-directory pin.
  */
 export const PUBLISH_ACTIVITY_RPC = 'publish_activity';
+/** S9 Drop 2 (0030): the content-surface RPCs. */
+export const SHARE_ACTIVITY_RPC = 'share_activity_to_class';
+export const UNSHARE_ACTIVITY_RPC = 'unshare_activity_from_class';
+export const LIST_CLASS_ACTIVITIES_RPC = 'list_class_activities';

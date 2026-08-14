@@ -637,7 +637,10 @@ platform's 2 functions). Author half: push → CI gate, which additionally
 EXPECTs the workflow's renderer-drift step gone and the remaining two bundle
 steps intact (OV-DX-8).
 
-**Drop 2 station (content surface, runs 4th — three steps in ORDER, OV-DX-12):**
+**Drop 2 station (content surface, runs 4th — three steps in ORDER, OV-DX-12):
+✅ repo-side COMPLETE 2026-08-14** (T6+T7+T8+T16 from the v2 board verbatim;
+0030 + the full verify-0030 behavior matrix rehearsed live in a rolled-back
+transaction, sentinel green, residue zero; author steps queued in STATE):
 1. `supabase migration list` EXPECT exactly ONE pending (0030) → `db push` →
    `pnpm verify:auth --target live` all PASS.
 2. `pnpm deploy:get-activity` (the join_code meta branch calls the new anon
@@ -749,13 +752,19 @@ Synthesized from this review's findings. Checkbox as you ship.
   survives re-triage, with its live main.tsx consumer) + reachability
   re-triage + 13-target claims-grep checklist + doc migration incl. the OV-7
   SPA rule into CLAUDE.md (D-7/D-8/OV-7)
-- [ ] **T6 (P1, CC: ~2h)** — supabase — 0030 content-surface migration: the
-  E-3 package + list_class_activities DEFINER RPC + get_class_public_meta
-  anon RPC + verify-0030 (E-3/OV-1)
-- [ ] **T7 (P1, CC: ~1h)** — viewer/server — get-activity join_code meta
-  branch + P3 limiter liveness row + wire-leak row + bundle regen (E-2/OV-4)
-- [ ] **T8 (P1, CC: ~2h)** — app — teacher share/unshare UI + student Home
-  list (one RPC) + join-gate name + RTL/e2e rows; budgets watched (D-2/E-6)
+- [x] **T6 (P1, CC: ~2h)** — ✅ 2026-08-14 — supabase — 0030 content-surface
+  migration: the E-3 package + list_class_activities DEFINER RPC +
+  get_class_public_meta anon RPC + verify-0030 (registered; live rolled-back
+  rehearsal green) + the verify-0028 anon-roster row updated to TWO
+  (E-3/OV-1)
+- [x] **T7 (P1, CC: ~1h)** — ✅ 2026-08-14 — viewer/server — get-activity
+  join_code meta branch + P3 limiter liveness row (at production values, one
+  shared window across both anon lookups) + wire-leak row + bundle regen
+  (E-2/OV-4)
+- [x] **T8 (P1, CC: ~2h)** — ✅ 2026-08-14 — app — teacher share/unshare UI +
+  student Home list (one RPC) + join-gate name + RTL/e2e rows (DR-5's two
+  failure paths incl.); budgets watched — entry 174.0/185, the surface cost
+  1.0 KiB (D-2/E-6)
 - [ ] **T9 (P1, CC: ~1.5h)** — e2e — sw server-stop harness; un-park or fix
   red-green (D-9)
 - [ ] **T10 (P1, CC: ~1.5h)** — e2e — a11y project + @axe-core/playwright +
@@ -893,11 +902,11 @@ cue (TODOS, trigger named); brand pass (backlog, unchanged).
   (done with this review — OV-DX-11 closed).
 - NEW **T15 (P3, TODOS)** — the DR-11 recency-cue entry lands in TODOS.md
   (done with this review).
-- NEW **T16 (P2, CC: ~10m)** — app/copy — the generic sign-in-failure body
-  stops guessing a cause (§12 finding): replace "Check your connection and try
-  again." with cause-agnostic copy naming the two real levers (try again / use
-  a different account). `SIGN_IN_FAILED_COPY` gains the string; the RTL row
-  asserts the generic frame renders it. Evidence: the Probe 2 recording.
+- ✅ **T16 (P2, CC: ~10m)** — DONE 2026-08-14 — app/copy — the generic
+  sign-in-failure body stops guessing a cause (§12 finding):
+  `SIGN_IN_FAILED_COPY.genericBody` = "Try again, or sign in with a different
+  account."; RTL pins both the ruled copy and the absence of the connection
+  guess. Evidence: the Probe 2 recording.
 
 ## Approved Mockups
 

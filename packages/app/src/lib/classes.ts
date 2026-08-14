@@ -241,7 +241,8 @@ export async function joinClass(code: string): Promise<JoinedClass> {
 }
 
 /**
- * The student's joined classes (active memberships), newest first. Reads ride
+ * The student's joined classes (active memberships), in JOIN ORDER (DR-1:
+ * stable, matches the student's own history — first class first). Reads ride
  * class_members' student-select-self policy + classes_select_member.
  */
 export async function listMyClasses(): Promise<JoinedClass[]> {
@@ -249,7 +250,7 @@ export async function listMyClasses(): Promise<JoinedClass[]> {
         .from('class_members')
         .select('class_id, joined_at, classes(name)')
         .is('removed_at', null)
-        .order('joined_at', { ascending: false });
+        .order('joined_at', { ascending: true });
     if (error) throw new Error(error.message);
     interface MembershipRow {
         class_id: string;

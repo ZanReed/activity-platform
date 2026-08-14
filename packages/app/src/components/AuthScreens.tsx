@@ -51,7 +51,7 @@ export function SignInFailedCard({
           <strong className="text-strong">@{districtHint ?? 'your school'}</strong>.
         </p>
       ) : (
-        <p className="mt-2 text-base text-muted">Check your connection and try again.</p>
+        <p className="mt-2 text-base text-muted">{SIGN_IN_FAILED_COPY.genericBody}</p>
       )}
       <button
         type="button"

@@ -60,6 +60,18 @@ const db: GetActivityDb = {
       .maybeSingle();
   },
 
+  async classMeta(joinCode) {
+    // Anon client — get_class_public_meta joined the anon-RPC roster at 0030
+    // (the join gate's pre-auth class-name lookup; verify-0028 §A pins the
+    // roster at exactly two).
+    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false },
+    });
+    return await anonClient
+      .rpc('get_class_public_meta', { p_join_code: joinCode })
+      .maybeSingle();
+  },
+
   async publishedActivity(authHeader, activityId) {
     // User-scoped client: the RPC runs as the caller, so the DB enforces the
     // access rule (authenticated + published + not deleted) — not this file.

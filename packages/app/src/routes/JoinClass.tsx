@@ -13,6 +13,7 @@ import { useSlowFlag } from '../lib/slowLoad';
 import { signInWithGoogle } from '../lib/auth';
 import { signOutEverything } from '../lib/studentAuth';
 import { joinClass, type JoinedClass } from '../lib/classes';
+import { fetchClassMeta, type ClassMetaResult } from '../lib/classActivities';
 import { classifyJoinError, JOIN_ERROR_COPY } from '../lib/authMessages';
 import { normalizeJoinCodeInput } from '../components/JoinCodeForm';
 import {
@@ -42,6 +43,23 @@ export default function JoinClass() {
     (isStudent && join.phase === 'joining');
   const slow = useSlowFlag(gateActive);
 
+  // The pre-auth class-name lookup (S9 Drop 2, D-3 — the fix this file's
+  // header recorded). THREE outcomes by design (DR-6): the name fills the
+  // reserved title slot; a DEFINITIVE no-such-class warns BEFORE OAuth
+  // (sign-in stays enabled — the lookup could be stale; an anon endpoint
+  // never hard-blocks); a network failure keeps the silent neutral state.
+  const [meta, setMeta] = useState<ClassMetaResult | null>(null);
+  useEffect(() => {
+    if (!code) return;
+    let cancelled = false;
+    void fetchClassMeta(code).then((m) => {
+      if (!cancelled) setMeta(m);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
   useEffect(() => {
     // Auto-join exactly once per code, and only as a resolved student —
     // never mid-role-fetch, never for teachers (E-9), never twice on a
@@ -65,19 +83,34 @@ export default function JoinClass() {
       // Student entry point → the school-account frame (P3).
       <SignInFailedCard studentSurface redirectTo={window.location.href} />
     ) : (
+      // ONE composition in every state (DR-4, no-jump by construction):
+      // eyebrow / title slot reserved at TWO lines / chip row ALWAYS present
+      // / button. The class name replaces the title TEXT, never the
+      // structure; the chip stays — the code is what the student verifies
+      // against the board.
       <div className="mx-auto max-w-sm rounded-lg border border-line bg-canvas p-6 text-center shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted">
           You&apos;re joining a class
         </p>
-        <h1 className="mt-1.5 text-2xl font-bold text-ink">
-          Code{' '}
-          <span className="rounded border border-line bg-surface-2 px-2 py-0.5 font-mono text-lg tracking-[0.15em]">
-            {code}
+        <h1 className="mt-1.5 flex min-h-16 items-center justify-center text-2xl font-bold text-ink">
+          <span className="line-clamp-2">
+            {meta?.kind === 'name' ? meta.name : 'Join your class'}
           </span>
         </h1>
+        <p className="mt-2">
+          <span className="rounded border border-line bg-surface-2 px-2 py-0.5 font-mono text-base tracking-[0.15em]">
+            {code}
+          </span>
+        </p>
         <p className="mt-2 text-base text-muted">
           Sign in with your school Google account to join.
         </p>
+        {meta?.kind === 'none' && (
+          <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm text-amber-900">
+            This code doesn&apos;t match a class — double-check it with your
+            teacher.
+          </p>
+        )}
         <button
           type="button"
           className={`mt-4 w-full ${BTN_PRIMARY}`}

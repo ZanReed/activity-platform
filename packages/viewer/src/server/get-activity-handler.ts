@@ -20,6 +20,16 @@
 //        contract ("Mrs. Jafari's 'Linear Systems'" + "use your @district.org
 //        account"). Same data any published page already shows publicly.
 //
+//   1b. CLASS META (anonymous, same limiter — S9 Drop 2, D-3/E-2):
+//        GET ?join_code=<code>&meta=1
+//      → { class_name } and NOTHING else — the join gate's "Join <class name>"
+//        instead of the bare code. Rides THIS branch rather than a direct anon
+//        PostgREST grant so the one anonymous surface keeps its request
+//        shaping (E-2's rejection reason). Enumeration posture recorded in
+//        0030's header (OV-4): codes ≈2^29.7, the limiter is opportunistic
+//        not a guarantee, payoff is a class name, recovery is B14
+//        remove-and-regenerate; revisit triggers named there.
+//
 //   2. RESOLVE (authenticated):
 //        GET ?activity_id=<uuid>
 //      → { activity_id, version_id, version_num, title } for the CURRENT
@@ -110,6 +120,10 @@ export interface GetActivityDb {
   publicMeta(
     activityId: string,
   ): Promise<DbResult<{ title: string; teacher_name: string | null }>>;
+  /** `get_class_public_meta` RPC as anon (0030; the join gate's pre-auth
+   * class-name lookup — the roster's SECOND anon RPC, asserted in
+   * verify-0028 §A). */
+  classMeta(joinCode: string): Promise<DbResult<{ name: string }>>;
   /** `get_published_activity` RPC as the CALLER (Authorization header passed
    * through), so the DB enforces auth + published-only — not this handler. */
   publishedActivity(
@@ -208,6 +222,13 @@ export interface GetActivityHandlerDeps {
 //
 // The authed branches are NOT rate-limited here; the JWT is their gate.
 
+/** Join-code request shaping: 0014 mints 6 chars from a 31-char alphabet, but
+ * the gate here is deliberately looser (any 4–12 alphanumerics) — the RPC's
+ * normalized lookup is the real judge; this only bounces garbage before it
+ * costs a round trip. Tightening this to today's mint format would turn a
+ * future code-format change into a silent 400. */
+export const JOIN_CODE_RE = /^[A-Za-z0-9]{4,12}$/;
+
 export const META_WINDOW_MS = 60_000;
 /** School-safe ceiling: sized for a whole campus behind one NAT at a bell
  * change, not for one person. See the topology note above. */
@@ -256,6 +277,42 @@ export function createGetActivityHandler(
     const activityId = url.searchParams.get('activity_id') ?? '';
     const versionId = url.searchParams.get('version_id');
     const metaOnly = url.searchParams.get('meta') === '1';
+    const joinCode = url.searchParams.get('join_code');
+
+    // ---- 1b. CLASS META (anonymous) ---------------------------------------
+    // Handled before the activity_id shape check: this branch has no
+    // activity. join_code exists ONLY as a meta lookup — any other use of the
+    // param is a malformed request, not a mode.
+    if (joinCode !== null) {
+      if (!metaOnly) {
+        return cors.errorResponse(req, 400, 'join_code requires meta=1');
+      }
+      const code = joinCode.trim();
+      if (!JOIN_CODE_RE.test(code)) {
+        return cors.errorResponse(req, 400, 'join_code must be a class code');
+      }
+      const ip =
+        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+      // The SAME limiter instance as the activity meta branch — one anonymous
+      // window per IP across both lookups (P3's liveness row fires it here).
+      if (metaRateLimited(ip)) {
+        return cors.errorResponse(req, 429, 'Too many requests');
+      }
+      const { data, error } = await db.classMeta(code);
+      if (error) {
+        console.error('[get-activity] class meta RPC error:', error);
+        return cors.errorResponse(req, 500, 'Lookup failed');
+      }
+      // No row = unknown or deleted class — the DEFINITIVE negative DR-6's
+      // pre-OAuth warning keys on (network failure above is the silent one).
+      if (!data) return cors.errorResponse(req, 404, 'Not available');
+      return cors.jsonResponse(
+        req,
+        // The wire-leak contract: the class NAME and nothing else.
+        { api_version: API_VERSION, class_name: data.name },
+        { headers: { 'Cache-Control': 'no-cache' } },
+      );
+    }
 
     if (!UUID_RE.test(activityId)) {
       return cors.errorResponse(req, 400, 'activity_id must be a UUID');

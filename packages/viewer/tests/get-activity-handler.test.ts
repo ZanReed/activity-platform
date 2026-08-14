@@ -75,6 +75,7 @@ function makeDb(overrides: Partial<GetActivityDb> = {}): GetActivityDb {
   };
   return {
     publicMeta: vi.fn(unexpected('publicMeta')),
+    classMeta: vi.fn(unexpected('classMeta')),
     publishedActivity: vi.fn(unexpected('publishedActivity')),
     readCache: vi.fn(unexpected('readCache')),
     readVersion: vi.fn(unexpected('readVersion')),
@@ -349,6 +350,100 @@ describe('createMetaRateLimiter', () => {
 });
 
 // ---- Auth + RESOLVE ---------------------------------------------------------
+
+describe('CLASS META branch (anonymous, S9 Drop 2 — D-3/E-2)', () => {
+  function classMetaRequest(code = 'QX7M2P', ip?: string): Request {
+    return new Request(`${BASE}?join_code=${code}&meta=1`, {
+      headers: ip ? { 'x-forwarded-for': ip } : {},
+    });
+  }
+
+  it('serves { api_version, class_name } and NOTHING else, no-cache (wire-leak row)', async () => {
+    const db = makeDb({
+      classMeta: vi.fn(async () => ({
+        data: { name: 'Algebra I — Period 3' },
+        error: null,
+      })),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    const res = await handler(classMetaRequest());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Cache-Control')).toBe('no-cache');
+    // toEqual is exact: any extra key (teacher name, ids, member counts, a
+    // code echo) fails this row — the name and NOTHING else.
+    expect(await body(res)).toEqual({
+      api_version: API_VERSION,
+      class_name: 'Algebra I — Period 3',
+    });
+    expect(db.classMeta).toHaveBeenCalledWith('QX7M2P');
+  });
+
+  it('trims and passes the code through — normalization is the RPC contract', async () => {
+    const db = makeDb({
+      classMeta: vi.fn(async () => ({ data: { name: 'C' }, error: null })),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    await handler(
+      new Request(`${BASE}?join_code=${encodeURIComponent(' qx7m2p ')}&meta=1`),
+    );
+    expect(db.classMeta).toHaveBeenCalledWith('qx7m2p');
+  });
+
+  it('404s an unknown/deleted class — the DEFINITIVE negative DR-6 warns on', async () => {
+    const db = makeDb({
+      classMeta: vi.fn(async () => ({ data: null, error: null })),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    const res = await handler(classMetaRequest());
+    expect(res.status).toBe(404);
+    expect((await body(res)).error).toBe('Not available');
+  });
+
+  it('maps an RPC error to a generic 500 (the client keeps its silent fallback)', async () => {
+    const db = makeDb({
+      classMeta: vi.fn(async () => ({
+        data: null,
+        error: { message: 'connection refused at 10.0.0.7' },
+      })),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    const res = await handler(classMetaRequest());
+    expect(res.status).toBe(500);
+    expect((await body(res)).error).toBe('Lookup failed');
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('400s a garbage code and join_code without meta=1, without touching the db', async () => {
+    const db = makeDb();
+    const handler = createGetActivityHandler({ db, cors });
+    expect((await handler(classMetaRequest('%3B--drop'))).status).toBe(400);
+    expect((await handler(classMetaRequest('x'))).status).toBe(400);
+    expect(
+      (await handler(new Request(`${BASE}?join_code=QX7M2P`))).status,
+    ).toBe(400);
+  });
+
+  it('LIVENESS (P3): the shared limiter fires at production values on the join_code path', async () => {
+    let calls = 0;
+    const db = makeDb({
+      classMeta: vi.fn(async () => {
+        calls++;
+        return { data: { name: 'C' }, error: null };
+      }),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    for (let i = 0; i < META_MAX_PER_WINDOW; i++) {
+      expect((await handler(classMetaRequest('QX7M2P', '10.0.0.9'))).status).toBe(200);
+    }
+    const limited = await handler(classMetaRequest('QX7M2P', '10.0.0.9'));
+    expect(limited.status).toBe(429);
+    expect(calls).toBe(META_MAX_PER_WINDOW);
+    // ...and it is ONE window with the activity meta branch, not a second
+    // budget: the same IP is refused there too.
+    const alsoLimited = await handler(metaRequest(ACTIVITY_ID, '10.0.0.9'));
+    expect(alsoLimited.status).toBe(429);
+  });
+});
 
 describe('auth gate + RESOLVE branch', () => {
   it('401s a missing Authorization header before any db work', async () => {

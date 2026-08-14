@@ -4,7 +4,10 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   CHECK_ACTIVITY_FUNCTION,
+  LIST_CLASS_ACTIVITIES_RPC,
   PUBLISH_ACTIVITY_RPC,
+  SHARE_ACTIVITY_RPC,
+  UNSHARE_ACTIVITY_RPC,
 } from '../lib/edgeFunctions';
 
 // A1's real lesson: the app POSTed to a function name that never existed
@@ -39,10 +42,14 @@ const MIGRATIONS_DIR = resolve(
 );
 
 describe('rpc name constants', () => {
-  it(`PUBLISH_ACTIVITY_RPC is defined by a migration (${PUBLISH_ACTIVITY_RPC})`, () => {
-    const definition = new RegExp(
-      `create or replace function ${PUBLISH_ACTIVITY_RPC}\\(`,
-    );
+  const rpcs = [
+    PUBLISH_ACTIVITY_RPC,
+    SHARE_ACTIVITY_RPC,
+    UNSHARE_ACTIVITY_RPC,
+    LIST_CLASS_ACTIVITIES_RPC,
+  ];
+  it.each(rpcs)('%s is defined by a migration', (rpc) => {
+    const definition = new RegExp(`create or replace function ${rpc}\\(`);
     const defined = readdirSync(MIGRATIONS_DIR)
       .filter((f) => f.endsWith('.sql'))
       .some((f) =>

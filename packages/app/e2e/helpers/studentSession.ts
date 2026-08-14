@@ -405,6 +405,14 @@ export async function stubIdentityApi(
     });
   });
 
+  // S9 Drop 2: the student Home always fetches its activity list; default
+  // EMPTY so identity rows render the per-class empty state instead of the
+  // list-error line. Specs that need rows use content-surface.e2e.ts's
+  // stateful stub instead.
+  await page.route('**/rest/v1/rpc/list_class_activities', async (route) => {
+    await route.fulfill({ json: [] });
+  });
+
   return {
     get joinCalls() {
       return state.joinCalls;

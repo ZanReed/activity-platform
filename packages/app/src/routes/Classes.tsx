@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useSession } from '../lib/SessionContext';
+import ClassActivitiesPanel, {
+    useTeacherClassActivities,
+    type TeacherActivitiesData,
+} from '../components/ClassActivitiesPanel';
 import {
     ASSERTION_TEXT,
     createClass,
@@ -401,18 +405,27 @@ function RemoveStudentDialog({
 
 function ClassCard({
     info,
+    activities,
     onCodeChange,
     onDomainChange,
     onDeleted,
     onError,
 }: {
     info: ClassInfo;
+    activities: TeacherActivitiesData;
     onCodeChange: (id: string, code: string) => void;
     onDomainChange: (id: string, domain: string | null) => void;
     onDeleted: (id: string) => void;
     onError: (msg: string) => void;
 }) {
     const [showRoster, setShowRoster] = useState(false);
+    // The "On students' Home" disclosure (board 3a). The count is COMMITTED
+    // rows only (DR-3) — it derives from the shared page-level data, which
+    // every mutation refetches, so it can never drift from the server.
+    const [showActivities, setShowActivities] = useState(false);
+    const activityCount = activities.rows.filter(
+        (r) => r.classId === info.id,
+    ).length;
     const [regenerating, setRegenerating] = useState(false);
     // Domain edit (T4/D-4): a typo'd domain bricks joining, so it is
     // editable in place — through the audited RPC, since widening/clearing
@@ -540,6 +553,16 @@ function ClassCard({
         </button>
         <button
         type="button"
+        onClick={() => setShowActivities((s) => !s)}
+        aria-expanded={showActivities}
+        className={`text-sm font-medium underline underline-offset-2 transition ${
+            showActivities ? 'text-ink' : 'text-muted hover:text-strong'
+        }`}
+        >
+        Activities ({activityCount})
+        </button>
+        <button
+        type="button"
         onClick={handleDelete}
         disabled={deleting}
         className={`text-sm font-medium underline underline-offset-2 transition disabled:cursor-not-allowed disabled:opacity-50 ${
@@ -551,6 +574,9 @@ function ClassCard({
         </span>
         </div>
         {showRoster && <Roster info={info} onCodeChange={onCodeChange} />}
+        {showActivities && (
+            <ClassActivitiesPanel classId={info.id} data={activities} />
+        )}
         </li>
     );
 }
@@ -562,6 +588,9 @@ export default function Classes() {
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
+    // ONE fetch pair for every card's "On students' Home" section (rows +
+    // picker options); mutations inside any panel refetch it (DR-3).
+    const classActivities = useTeacherClassActivities();
 
     // Create form state. The assertion checkbox intentionally has NO
     // remembered default — it resets per class (each class is its own
@@ -725,6 +754,7 @@ export default function Classes() {
                 <ClassCard
                 key={c.id}
                 info={c}
+                activities={classActivities}
                 onCodeChange={(id, code) =>
                     setClasses((prev) =>
                         prev.map((x) => (x.id === id ? { ...x, joinCode: code } : x)),
