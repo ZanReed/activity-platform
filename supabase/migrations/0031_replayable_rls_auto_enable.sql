@@ -23,13 +23,21 @@
 -- re-applied at the end here, so a fresh database lands on the same grant shape
 -- live already has rather than leaving the function executable by PUBLIC.
 --
--- ⚠ THE FUNCTION BODY IS A RECONSTRUCTION, not a dump of the live definition.
--- Nothing in the repo ever recorded the original (only its purpose: "a safety
--- net that auto-enables RLS on new public tables"), and it is deliberately NOT
--- `create or replace` — replacing would overwrite live's working definition
--- with this reconstruction. Live keeps its own body; only rebuilt databases use
--- this one. To retire this caveat, diff the two and reconcile:
---     select prosrc from pg_proc where proname = 'rls_auto_enable';
+-- THE BODY BELOW IS LIVE'S ACTUAL DEFINITION, dumped from the live database
+-- (`pg_get_functiondef`) on 2026-08-14 and reproduced verbatim, so a rebuilt
+-- database gets the REAL safety net rather than an approximation of it. It is
+-- still deliberately NOT `create or replace`: creating only when absent means
+-- this migration can never overwrite live's definition with a repo copy that
+-- has drifted from it.
+--
+-- This file first shipped with a RECONSTRUCTION written from the function's
+-- documented purpose, and the gap is the reason that was worth replacing: the
+-- real one also handles CREATE TABLE AS / SELECT INTO and partitioned tables,
+-- guards system schemas, uses `alter table if exists`, and wraps each table in
+-- its own exception block so a single failure logs instead of aborting the DDL
+-- that triggered it. The reconstruction did none of that and would have failed
+-- the whole statement on error — a plausible-looking body that was quietly
+-- weaker than the thing it replaced.
 --
 -- ⚠ CREATE EVENT TRIGGER REQUIRES SUPERUSER. That is almost certainly why the
 -- original was made in the dashboard. On live the trigger already exists so the
@@ -54,24 +62,31 @@ begin
         returns event_trigger
         language plpgsql
         security definer
-        set search_path = public, pg_catalog
+        set search_path = 'pg_catalog'
       as $body$
-      declare
-        obj record;
-      begin
-        -- The safety net: any table newly created in `public` gets RLS turned
-        -- on immediately, so a migration that forgets `enable row level
-        -- security` fails closed (no policies = no access) instead of open.
-        for obj in
-          select * from pg_event_trigger_ddl_commands()
-          where command_tag = 'CREATE TABLE' and object_type = 'table'
-        loop
-          if obj.schema_name = 'public' then
-            execute format('alter table %s enable row level security', obj.object_identity);
-          end if;
-        end loop;
-      end;
-      $body$;
+DECLARE
+  cmd record;
+BEGIN
+  FOR cmd IN
+    SELECT *
+    FROM pg_event_trigger_ddl_commands()
+    WHERE command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
+      AND object_type IN ('table','partitioned table')
+  LOOP
+     IF cmd.schema_name IS NOT NULL AND cmd.schema_name IN ('public') AND cmd.schema_name NOT IN ('pg_catalog','information_schema') AND cmd.schema_name NOT LIKE 'pg_toast%' AND cmd.schema_name NOT LIKE 'pg_temp%' THEN
+      BEGIN
+        EXECUTE format('alter table if exists %s enable row level security', cmd.object_identity);
+        RAISE LOG 'rls_auto_enable: enabled RLS on %', cmd.object_identity;
+      EXCEPTION
+        WHEN OTHERS THEN
+          RAISE LOG 'rls_auto_enable: failed to enable RLS on %', cmd.object_identity;
+      END;
+     ELSE
+        RAISE LOG 'rls_auto_enable: skip % (either system schema or not in enforced list: %.)', cmd.object_identity, cmd.schema_name;
+     END IF;
+  END LOOP;
+END;
+$body$;
     $fn$;
   end if;
 end
@@ -84,8 +99,11 @@ do $outer$
 begin
   if not exists (select 1 from pg_event_trigger where evtname = 'ensure_rls') then
     begin
+      -- Tags match live exactly (pg_event_trigger.evttags): the function's
+      -- WHERE clause filters the same three, so a narrower trigger would
+      -- silently under-cover CREATE TABLE AS and SELECT INTO.
       execute 'create event trigger ensure_rls on ddl_command_end '
-           || 'when tag in (''CREATE TABLE'') '
+           || 'when tag in (''CREATE TABLE'', ''CREATE TABLE AS'', ''SELECT INTO'') '
            || 'execute function public.rls_auto_enable()';
     exception
       when insufficient_privilege then
