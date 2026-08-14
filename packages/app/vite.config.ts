@@ -1,8 +1,81 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
+import { copyFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+// ------------------------------------------------------------------
+// MathLive fonts, self-hosted in the app bundle (2026-08-14, D-13 station).
+//
+// graph-kit's mathlive-setup.ts derives the fonts URL as a SIBLING of its own
+// chunk: `new URL('mathlive-fonts/v<ver>/', import.meta.url)`. That logic was
+// written for the R2-hosted kit, where the fonts really were uploaded next to
+// it. Post-S9 the kit is app-bundled, so on the production origin (https, not
+// localhost) the derived path is `<origin>/assets/mathlive-fonts/v<ver>/` —
+// which did not exist in dist. Every math field a student opened on the
+// deployed app 404'd its glyph fonts and fell back to system glyphs. Dev never
+// showed it (localhost takes the CDN branch), and the D-13a r2.dev grep never
+// caught it (the bad URL isn't r2.dev).
+//
+// This plugin makes the derived path true again: it copies the installed
+// mathlive's woff2 files to dist/assets/mathlive-fonts/v<version>/ at build
+// close. MA-D7's rationale carries over unchanged — no CDN on the student
+// path, where a school firewall blocking jsDelivr would leave equations in
+// fallback glyphs. The SW's existing /assets/ CacheFirst rule covers the
+// fonts automatically; the versioned directory preserves the "name IS the
+// version" immutability that rule relies on (font FILEnames aren't hashed,
+// but the path is version-pinned).
+//
+// The version guard below turns mathlive-setup.ts's "MUST stay in step"
+// comment into an enforced check (P11): if the installed mathlive's version
+// no longer matches the MATHLIVE_VERSION constant, the BUILD fails, instead
+// of the copied directory and the derived URL silently diverging.
+// ------------------------------------------------------------------
+function mathliveFonts(): Plugin {
+  return {
+    name: 'activity:mathlive-fonts',
+    apply: 'build',
+    closeBundle() {
+      const require = createRequire(
+        path.resolve(__dirname, '../graph-kit/package.json'),
+      );
+      const mathliveDir = path.dirname(require.resolve('mathlive'));
+      const installed = (
+        JSON.parse(readFileSync(path.join(mathliveDir, 'package.json'), 'utf8')) as {
+          version: string;
+        }
+      ).version;
+      const setupSrc = readFileSync(
+        path.resolve(__dirname, '../graph-kit/src/mathlive-setup.ts'),
+        'utf8',
+      );
+      const constant = setupSrc.match(/MATHLIVE_VERSION = '([^']+)'/)?.[1];
+      if (constant !== installed) {
+        throw new Error(
+          `mathlive-setup.ts pins MATHLIVE_VERSION '${constant}' but the installed ` +
+            `mathlive is ${installed} — bump the constant (and this copy step follows), ` +
+            'or the derived fonts URL will point at a directory that does not exist.',
+        );
+      }
+      const fontsSrc = path.join(mathliveDir, 'fonts');
+      const fontsDest = path.resolve(
+        __dirname,
+        `dist/assets/mathlive-fonts/v${installed}`,
+      );
+      mkdirSync(fontsDest, { recursive: true });
+      const files = readdirSync(fontsSrc).filter((f) => f.endsWith('.woff2'));
+      if (files.length === 0) {
+        throw new Error(`no .woff2 files under ${fontsSrc} — mathlive layout changed?`);
+      }
+      for (const f of files) {
+        copyFileSync(path.join(fontsSrc, f), path.join(fontsDest, f));
+      }
+      this.info(`copied ${files.length} MathLive fonts -> assets/mathlive-fonts/v${installed}/`);
+    },
+  };
+}
 
 // Tailwind v4 ships as a Vite plugin — no PostCSS config, no tailwind.config.js.
 // All theme customization (if any) goes in src/index.css via @theme directives.
@@ -14,6 +87,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    mathliveFonts(),
     // ------------------------------------------------------------------
     // Service worker (S6 V8, rulings S6-5 / S6-11).
     //
