@@ -30,6 +30,35 @@ export interface MathPromptMountOptions {
   onValue: (promptId: string, ascii: string) => void;
 }
 
+/** MathLive builds a `.ML__keyboard-sink` span with `role="textbox"` and NO
+ *  accessible name, and 0.109.2 exposes no API to give it one — `ariaLabel` in
+ *  its types belongs to menu items, and an `aria-label` on the HOST element does
+ *  not reach the sink (both verified against the running component). A role
+ *  without a name is axe `aria-input-field-name`, serious, WCAG A: a screen
+ *  reader announces the student's math answer box as an unlabeled textbox.
+ *
+ *  So we name the shadow node directly. That reaches into MathLive's internals
+ *  and a future rename would silently un-name the field again — which is why
+ *  this is deliberately NOT a silent best-effort: the a11y lane's axe row scans
+ *  the mounted worksheet and goes red the moment the sink stops being found.
+ *  The guard lives in CI rather than in a runtime throw, because failing a
+ *  student's page over a missing aria-label would be the worse trade. */
+function nameKeyboardSink(field: HTMLElement, label: string): void {
+  // The sink is built during the custom element's upgrade, which has not
+  // necessarily happened by the time we return from insertBefore — so retry
+  // across a few frames before giving up to CI.
+  let attempts = 0;
+  const apply = (): void => {
+    const sink = field.shadowRoot?.querySelector('.ML__keyboard-sink');
+    if (sink) {
+      sink.setAttribute('aria-label', label);
+      return;
+    }
+    if (attempts++ < 10) requestAnimationFrame(apply);
+  };
+  apply();
+}
+
 /** Handle for the state->view sync (reveal / lock / correct-incorrect) — wired
  *  by the runtime's render on check/reveal in a follow-up (MA-D5). Exposed now
  *  so the contract is stable; MathLive renders the correct/incorrect state. */
@@ -73,6 +102,12 @@ export function mountMathPrompts(
   const staticMath = host.querySelector<HTMLElement>('.katex');
   if (staticMath) staticMath.style.display = 'none';
   host.insertBefore(field, host.firstChild);
+  // Deliberately generic: the field holds the whole equation, and reading its
+  // LaTeX aloud as a label would be worse than useless. "Math answer" names the
+  // control's PURPOSE, which is what the name is for; the equation itself is
+  // still in the accessible tree as content.
+  // No per-block override until something needs one (YAGNI — the repo's rule).
+  nameKeyboardSink(field, 'Math answer');
 
   return {
     setResult(promptId, correct, lock) {

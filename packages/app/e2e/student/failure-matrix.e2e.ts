@@ -231,16 +231,44 @@ test.describe('two tabs', () => {
     // failed four runs in five in isolation while passing in the full lane,
     // where different timing hid it. The guarantee under test is about the
     // read-only tab not clobbering the live one, whichever is which.
+    // ...and require the winner to be STABLE, not merely momentary. Settling
+    // passes through "exactly one enabled" more than once — StrictMode remounts
+    // both tabs, so the lock can be released and re-acquired by the OTHER tab
+    // right after a sample. The previous version snapshotted the winner the
+    // instant the count first hit 1 and then filled it; on a slow runner the
+    // lock had moved on by then and fill() sat retrying against a disabled
+    // input until timeout. That is the exact shape of the two CI failures
+    // (runs 31772779555 and 31787010974). Two consecutive agreeing samples
+    // mean the race has actually settled rather than passed through.
+    let settledOn: 'page' | 'second' | null = null;
     await expect
-      .poll(async () =>
-        [await firstBlank(page).isDisabled(), await firstBlank(second).isDisabled()]
-          .filter((disabled) => !disabled).length,
+      .poll(
+        async () => {
+          const [pageDisabled, secondDisabled] = [
+            await firstBlank(page).isDisabled(),
+            await firstBlank(second).isDisabled(),
+          ];
+          // Both or neither enabled = still contending, not a valid sample.
+          const winner =
+            pageDisabled === secondDisabled
+              ? null
+              : pageDisabled
+                ? ('second' as const)
+                : ('page' as const);
+          const agreed = winner !== null && winner === settledOn;
+          settledOn = winner;
+          return agreed;
+        },
+        { intervals: [250] },
       )
-      .toBe(1);
+      .toBe(true);
 
-    const live = (await firstBlank(page).isDisabled()) ? second : page;
+    const live = settledOn === 'page' ? page : second;
     const stale = live === page ? second : page;
 
+    // Auto-retrying guard: if the lock somehow moves again, this fails naming
+    // the real condition instead of a bare fill() timeout.
+    await expect(firstBlank(live)).toBeEnabled();
     await firstBlank(live).fill('live tab work');
     await expect.poll(async () => bufferValue(live)).toContain('live tab work');
 

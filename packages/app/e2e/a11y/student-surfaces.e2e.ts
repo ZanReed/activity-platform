@@ -23,6 +23,8 @@
 
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { blockBindings } from '@activity/viewer';
+import { servedFixtureDocument } from '@activity/viewer/fixtures';
 import {
   activityUrl,
   signInAs,
@@ -30,33 +32,125 @@ import {
   stubIdentityApi,
 } from '../helpers/studentSession';
 
+// The lazy tier renders NOTHING — not even its own markers — until the chunk
+// resolves, so a wait that counts those markers first is a no-op that scans the
+// pre-mount DOM. That is precisely how this lane's first fix passed locally
+// (probe at scan time: 0 canvases, 0 math-fields) while CI scanned the mounted
+// state and stayed red. Each lazy type therefore declares the marker that
+// proves it MOUNTED, and the map is cross-checked against the registry below
+// (P11 — a coverage claim is guarded or not made).
+const LAZY_MOUNT_MARKERS: Record<string, string> = {
+  // The kit renders JSXGraph's <svg> into the canvas host.
+  interactive_graph: '[data-graph-canvas] svg',
+  number_line: '[data-graph-canvas] svg',
+  data_plot: '[data-graph-canvas] svg',
+  // A gap-bearing equation swaps the static KaTeX render for a MathLive field.
+  math_block: 'math-field',
+};
+
+/** The registry's lazy tier, derived — never retyped (P2). */
+function lazyBlockTypes(): string[] {
+  return Object.entries(blockBindings)
+    .filter(([, binding]) => binding.loading === 'lazy')
+    .map(([type]) => type);
+}
+
+/** Every block type the fixture student is actually SERVED, nested included.
+ * A deep walk rather than a rows→columns→blocks descent on purpose: nesting has
+ * several container shapes (a worked_example holds its children under `content`)
+ * and this lane only needs the SET of types, so keying on the registry is both
+ * simpler and immune to a new container field. */
+function servedBlockTypes(): Set<string> {
+  const bound = new Set(Object.keys(blockBindings));
+  const seen = new Set<string>();
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+      return;
+    }
+    if (node === null || typeof node !== 'object') return;
+    const record = node as Record<string, unknown>;
+    const type = record['type'];
+    if (typeof type === 'string' && bound.has(type)) seen.add(type);
+    for (const value of Object.values(record)) walk(value);
+  };
+  walk(servedFixtureDocument().sections);
+  return seen;
+}
+
+test('every lazy block type declares a mount marker', () => {
+  // Guards LAZY_MOUNT_MARKERS against the registry: a new lazy binding fails
+  // here until its marker lands, rather than silently un-waiting the scan.
+  expect(Object.keys(LAZY_MOUNT_MARKERS).sort()).toEqual(lazyBlockTypes().sort());
+});
+
 async function openWorksheet(page: Page): Promise<void> {
   await stubActivityApi(page);
   await signInAs(page);
   await page.goto(activityUrl());
   await page.locator('[data-section-id] input[type="text"]').first().waitFor();
-  // Deterministic scan surface: if the fixture carries graph/chart blocks,
-  // wait for the lazy kit to MOUNT (JSXGraph renders an <svg> into the
-  // canvas). The lane's first CI run diverged from local exactly here — the
-  // slower runner scanned the mounted state, local scanned the pre-mount
-  // one, and each state can carry its own violations.
-  const canvases = page.locator('[data-graph-canvas]');
-  if ((await canvases.count()) > 0) {
-    await canvases.first().locator('svg').first().waitFor({ timeout: 20_000 });
+  // Deterministic scan surface: wait for every lazy type the fixture carries to
+  // be genuinely mounted, so local and CI scan the SAME DOM. Derived from the
+  // served document, so a fixture that gains or loses a canvas block adjusts
+  // the wait with it.
+  const served = servedBlockTypes();
+  for (const [type, marker] of Object.entries(LAZY_MOUNT_MARKERS)) {
+    if (!served.has(type)) continue;
+    await page.locator(marker).first().waitFor({ timeout: 20_000 });
   }
 }
 
-async function expectNoAxeViolations(page: Page): Promise<void> {
+// The ONE carve-out, scoped to a single rule on a single element type, with the
+// reason and an owner — never a blanket rule-disable (author-ruled 2026-08-14).
+//
+//   RULE:    nested-interactive (serious)
+//   ELEMENT: <math-field> (MathLive 0.109.2)
+//   WHY:     MathLive's own structure — a focusable host (tabindex=0) wrapping a
+//            focusable `.ML__keyboard-sink` span with role="textbox". It is not
+//            reachable from our code: setting the host's tabindex to -1 does NOT
+//            clear the finding (verified against the running component), and the
+//            component exposes no API for its focus structure. Fixing it means
+//            changing MathLive.
+//   OWNER:   revisit at the next MathLive major; the sibling finding
+//            (aria-input-field-name) IS fixed, in math-prompt-mount.ts.
+//
+// Everything else stays strict, including nested-interactive ANYWHERE ELSE and
+// every other rule on math-field itself.
+const AXE_EXCLUSIONS: readonly { rule: string; selectorPrefix: string }[] = [
+  { rule: 'nested-interactive', selectorPrefix: 'math-field' },
+];
+
+function isExcluded(ruleId: string, target: string): boolean {
+  return AXE_EXCLUSIONS.some(
+    (x) => x.rule === ruleId && target.includes(x.selectorPrefix),
+  );
+}
+
+async function rawAxeViolations(
+  page: Page,
+): Promise<{ id: string; impact: string | null | undefined; nodes: string[] }[]> {
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .analyze();
-  expect(
-    results.violations.map((v) => ({
+  return results.violations.map((v) => ({
+    id: v.id,
+    impact: v.impact,
+    nodes: v.nodes.map((n) => n.target.join(' ')),
+  }));
+}
+
+async function expectNoAxeViolations(page: Page): Promise<void> {
+  const results = { violations: await rawAxeViolations(page) };
+  const reported = results.violations
+    .map((v) => ({
       id: v.id,
       impact: v.impact,
-      nodes: v.nodes.map((n) => n.target.join(' ')),
-    })),
-  ).toEqual([]);
+      // Drop only the excluded NODES, so the same rule firing on any other
+      // element still fails this scan.
+      nodes: v.nodes.filter((target) => !isExcluded(v.id, target)),
+    }))
+    .filter((v) => v.nodes.length > 0);
+  expect(reported).toEqual([]);
 }
 
 test.describe('gap 1 — the check announcement is observed, not assumed', () => {
@@ -79,11 +173,23 @@ test.describe('gap 2 — the full keyboard path', () => {
   }) => {
     await openWorksheet(page);
 
-    // Tab from the top of the document until the first blank has focus —
-    // bounded, so an unreachable input fails loudly instead of spinning.
+    // The bound is DERIVED from the page's own focusable count, not a magic
+    // number: the fixture carries every block type, and once the lazy canvas
+    // blocks mount, Check sits ~76 stops in — past the old hard-coded 60. A
+    // fixed bound silently re-fails the day a block type is added; this one
+    // tracks the document. Still bounded, so an unreachable control fails
+    // loudly instead of spinning forever.
+    const tabBudget = await page.evaluate(
+      () =>
+        document.querySelectorAll(
+          'a[href], button, input, select, textarea, math-field, [tabindex]:not([tabindex="-1"])',
+        ).length + 40,
+    );
+
+    // Tab from the top of the document until the first blank has focus.
     await page.locator('body').press('Tab');
     let reachedInput = false;
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < tabBudget; i++) {
       const isInput = await page.evaluate(
         () =>
           document.activeElement?.matches(
@@ -102,7 +208,7 @@ test.describe('gap 2 — the full keyboard path', () => {
 
     // Keep tabbing to the section's Check button.
     let reachedCheck = false;
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < tabBudget; i++) {
       const isCheck = await page.evaluate(
         () => document.activeElement?.matches('.viewer-section__check') ?? false,
       );
@@ -192,6 +298,26 @@ test.describe('axe — zero WCAG A/AA violations per student surface', () => {
   test('the worksheet', async ({ page }) => {
     await openWorksheet(page);
     await expectNoAxeViolations(page);
+  });
+
+  test('the nested-interactive carve-out is still load-bearing', async ({
+    page,
+  }) => {
+    // P3/P5: an exclusion with no liveness proof outlives its reason silently.
+    // If a MathLive upgrade fixes the nesting, this row fails and the carve-out
+    // above must be DELETED rather than quietly kept forever. It also pins the
+    // scope — the finding is on math-field and nowhere else.
+    await openWorksheet(page);
+    const raw = await rawAxeViolations(page);
+    const nested = raw.find((v) => v.id === 'nested-interactive');
+    expect(
+      nested,
+      'nested-interactive no longer fires — delete the AXE_EXCLUSIONS entry',
+    ).toBeDefined();
+    expect(
+      nested!.nodes.every((target) => target.includes('math-field')),
+      'nested-interactive now fires outside math-field — re-scope the carve-out',
+    ).toBe(true);
   });
 
   test('the student Home', async ({ page }) => {

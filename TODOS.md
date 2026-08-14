@@ -3,6 +3,32 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## Canvas blocks add ~17 keyboard stops — Check sits 76 tabs in (S9 Drop 5 follow-up)
+
+**What:** On the fixture worksheet (every block type, all lazy blocks mounted), a
+student tabbing from the top of the document reaches the first blank at stop 3 and
+the section's **Check** button at stop **76**. The canvas blocks contribute ~17 of
+those: 12 `viewer-graph__canvas` + 3 `viewer-data-plot__canvas` + 2
+`viewer-number-line__canvas`, and JSXGraph adds further focusable descendants.
+
+**Why it is only a finding, not a bug:** every one of those stops has an accessible
+name, so it is not a WCAG violation and axe is clean — the a11y lane passes. It is a
+UX question, not a conformance one.
+
+**Why it was invisible until now:** the a11y lane's axe scan ran against the
+PRE-mount DOM (the lazy tier renders nothing at all until its chunk resolves), so
+nobody had ever measured the mounted tab order. Made deterministic 2026-08-14; the
+measurement above is from that mounted state.
+
+**The actual question when this is picked up:** how should a canvas block expose its
+handles to the keyboard? Options run from a single roving-tabindex entry point per
+board (one stop, arrow keys within) to a skip-link past the canvas. That is a design
+pass, deliberately NOT smuggled into a CI-green commit (author-ruled 2026-08-14).
+
+**Watch item:** `e2e/a11y/student-surfaces.e2e.ts` derives its Tab budget from the
+page's focusable count, so adding block types will not silently re-fail the row —
+but a large jump in that count is the signal this got worse.
+
 ## Settle on ⌘⇧↑/↓ keyboard reorder (debounced)
 
 **What:** Tag `BlockReorderShortcuts` (⌘⇧↑/↓) into the stage-6 SettleMotion flow with a
