@@ -115,8 +115,10 @@ export interface PublishedActivityRow {
 }
 
 export interface GetActivityDb {
-  /** `get_activity_public_meta` RPC as anon (the one anon-callable RPC —
-   * postgres-owned DEFINER; 0017 documents the deliberate grant). */
+  /** `get_activity_public_meta` RPC as anon (postgres-owned DEFINER; 0017
+   * documents the deliberate grant — one of exactly TWO anon RPCs since
+   * 0030, with classMeta's below; verify-0017 §D + verify-0028 §A both pin
+   * the roster). */
   publicMeta(
     activityId: string,
   ): Promise<DbResult<{ title: string; teacher_name: string | null }>>;

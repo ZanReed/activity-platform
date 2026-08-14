@@ -51,21 +51,25 @@ select 'cache_denied_to_anon',
 -- @section D-acl-completeness
 -- @expect-rows
 -- The 0016 post-DDL routine, catalog-wide (the ONE copy — DECISIONS + the
--- migrations README both point here): the only public-schema function
--- reachable by anon or PUBLIC is get_activity_public_meta.
+-- migrations README both point here): the only public-schema functions
+-- reachable by anon or PUBLIC are the TWO documented anonymous meta lookups —
+-- get_activity_public_meta (3.2A) and, since 0030 (S9 Drop 2, D-3/E-2),
+-- get_class_public_meta (the join gate's pre-auth class-name lookup, served
+-- through get-activity's meta branch). This roster is asserted by NAME, not
+-- count alone, and its twin in verify-0028 §A must move in the same commit —
+-- this section going red on 2030's apply day was exactly that twin-drift
+-- (0028's copy was updated, this one was missed).
 select 'anon_reachable_functions',
-       (select count(distinct p.proname)
+       (select coalesce(array_agg(distinct p.proname::text order by p.proname::text), '{}')
         from pg_proc p
         join pg_namespace n on n.oid = p.pronamespace
         cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
         left join pg_roles g on g.oid = a.grantee
-        where n.nspname = 'public' and (g.rolname = 'anon' or a.grantee = 0)) = 1
-       and exists (
-        select 1 from pg_proc p
-        join pg_namespace n on n.oid = p.pronamespace
-        where n.nspname = 'public' and p.proname = 'get_activity_public_meta'
-          and has_function_privilege('anon', p.oid, 'execute')),
-       'exactly one: get_activity_public_meta (the documented 3.2A exception)';
+        where n.nspname = 'public' and (g.rolname = 'anon' or a.grantee = 0))
+       = array['get_activity_public_meta', 'get_class_public_meta']
+       and has_function_privilege('anon', 'public.get_activity_public_meta(uuid)', 'execute')
+       and has_function_privilege('anon', 'public.get_class_public_meta(text)', 'execute'),
+       'exactly two: the 3.2A activity meta + the 0030 class meta';
 
 -- ==================== C. Manual behavior checks (unchanged) ==================
 -- These need a real published activity; the deployed get-activity function
