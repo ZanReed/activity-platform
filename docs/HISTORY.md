@@ -4,6 +4,28 @@ Archived completed-work narratives, moved out of STATE.md to keep it readable. N
 
 ---
 
+## 2026-08-14 — the integration lane's first run: the database could not be rebuilt
+
+Drop 5's author half finally ran (Docker Desktop installed on the previously Docker-less machine), and the lane found **three real defects on its first honest run** — including one that had made the repo's migration chain unreplayable for months without leaving a trace on live.
+
+**1. The chain aborted at 0009.** `revoke execute on function rls_auto_enable()` — a function 0009's own comment documents as *"Created via the dashboard, not by a migration — recorded here for provenance."* It is not provenance; it is an executable dependency on a dashboard-only object. Live has the function, so 0009 applied cleanly long ago and the defect was **invisible from production**. A fresh replay halted there, which meant: no environment could be built from migrations, disaster recovery from migrations was broken, and the integration lane could never have passed on **any** machine, because its preflight runs `supabase db reset` on every run. Docker was never the only thing in the way.
+
+The lesson is sharper than the bug. DECISIONS.md had recorded the provenance explicitly, *"so the next catalog-vs-repo diff doesn't treat it as a mystery"* — and the note worked perfectly as documentation while doing nothing to prevent the executable break. **Provenance in a comment is not reproducibility.** The fix: 0009's revoke is existence-guarded, and **0031** recreates the function + `ensure_rls` event trigger, written so live is a strict no-op (creates only when ABSENT; deliberately not `create or replace`, so live's working definition is never overwritten by the reconstruction). ⚠ The body IS a reconstruction — nothing in the repo ever recorded the original — and the file carries the query to diff it against live.
+
+**2. The migrations never granted the client roles at all.** Every table created before 0028 received its anon/authenticated/service_role DML from **Supabase's hosted platform defaults**, never from a migration. The local CLI stack (2.109.0) does not reproduce them — its `public` default ACL is `postgres=arwdDxtm | service_role=Dxtm`, client roles absent entirely. Result on a rebuilt database: **10 of 11 policy-bearing tables had RLS policies that could never be satisfied**, which is precisely the dependency 0028's own header states — a policy can only permit what a grant already allows.
+
+**0032** encodes them, **read off live** (`supabase db query --linked`) rather than reasoned about; the rebuilt grant matrix now diffs **IDENTICAL** to live. It deliberately reproduces live's full breadth rather than a narrower "safer" set, and the reasoning is worth keeping: **a local database stricter than production MASKS RLS defects.** A policy hole would be invisible locally (the missing grant refuses first) and open in production — a test environment stricter than production manufactures false confidence about exactly the layer that separates student data. Fidelity is the security property. The seven zero-policy tables and `classes`' 0027 narrowing (no table-level INSERT/UPDATE; column-level UPDATE(name) only) are preserved exactly.
+
+**3. Three of the lane's own assertions were stubs.** UI copy retyped from imagination into a lane that had never executed, so nothing could contradict it: the teacher link is `My activities`, not `Activities`; the join-success copy is `&apos;` (U+0027) while the assertion used a curly U+2019 — two strings that can never match and look identical in a diff; and seeding went through PostgREST as `service_role`, which holds no DML on `student_domain`/`allowlist` locally. Seeding now runs as `postgres` via the CLI, matching the path 0013 documents (*"the author seeds rows in the SQL editor"*), which also removes any dependence on grant shape — **not** by granting service_role DML, since those two tables are the admission boundary 0027/0028 hardened and widening a production grant to serve a test is the wrong direction. Per the same day's tab-lock lesson, all three were audited and fixed together rather than one per run.
+
+**Correction recorded the same day:** the claim "the lane's seeding was never viable on any machine" was too strong. Live *does* hold `service_role=FULL` on both tables, so the original PostgREST path would have worked there — it was a local/live divergence, not a universally broken path.
+
+**Result: 3/3 GREEN**, the lane's first green run — real users through the real `handle_new_auth_user` trigger (including the refused outsider), a real `join_class` via `/join/:code`, real publish + share, and one genuine `check-activity` round trip. Plain sweep still excludes it (304 tests, 0 integration).
+
+**Two environment traps found while verifying, both in TODOS:** the `sw` lane's offline-reopen rows fail while the local Supabase stack is running (stop it before a plain sweep), and heavy background load — a game client at ~80% CPU plus Docker — turned a 40-second four-lane run into 14.5 minutes and failed five `failure-matrix` rows that are green on a quiet machine, including rows nobody had touched. **Local e2e timing is not trustworthy under load; CI is the arbiter.**
+
+---
+
 ## 2026-08-14 — the S9 cutover arc: all five drops, repo-side (archived from STATE 2026-08-14)
 
 The whole arc landed in one day. Drop order was the eng review's (OV-3), not the plan's original: **1 publish-rewrite → 3 demolition → 4 renderer-death → 2 content-surface → 5 proof-lanes**. Author stations ran alongside; Drops 1 and 3 closed end to end the same day.

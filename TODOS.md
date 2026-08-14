@@ -3,6 +3,31 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## The `sw` lane fails while the local Supabase stack is running (2026-08-14)
+
+**What:** With `supabase start` up, the two offline-reopen rows in
+`e2e/sw/service-worker.e2e.ts` (`a student who lost the network still gets their
+worksheet`, `with no saved copy, offline fails honestly rather than hanging`)
+time out waiting for `[data-banner="offline-copy"]` — 20 s, element never found.
+Stop the stack and the same lane passes 7/7. Reproduced both ways.
+
+**Why it is recorded, not fixed:** it is a local environment interaction, not a
+product defect. CI never runs the local stack (the integration lane is
+local-only), and CI ran these two rows green in 31795715961 with identical app
+code. The likely mechanism is contention — the rows kill a disposable preview
+server and race a service-worker fetch, and the Docker VM makes that timing
+much worse — but that was not proven, so treat the mechanism as a hypothesis.
+
+**Practical consequence, worth knowing before it wastes an hour:** after running
+`test:e2e:integration`, `supabase stop` before running a plain sweep, or the sw
+lane will look broken when it is not.
+
+**Related trap seen the same day:** heavy background load (a game client at ~80 %
+CPU, plus Docker) turned a 40-second four-lane run into 14.5 minutes and failed
+five `failure-matrix` rows that are green on a quiet machine — including rows
+nobody had touched. **Local e2e timing results are not trustworthy under load;
+CI is the arbiter.** Check `uptime` before believing a local e2e failure.
+
 ## Canvas blocks add ~17 keyboard stops — Check sits 76 tabs in (S9 Drop 5 follow-up)
 
 **What:** On the fixture worksheet (every block type, all lazy blocks mounted), a
