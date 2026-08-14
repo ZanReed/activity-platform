@@ -16,14 +16,16 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 1a. **Push `b17b0fc`, then apply 0031 + 0032 live.** Both are deliberate no-ops on live — they encode what live already has — so this is ledger hygiene, not a change: without it `supabase migration list` shows two permanently-pending rows and the next real migration's "EXPECT exactly ONE pending" check (OV-DX-4) reads wrong. **No ordering constraint against the push** (no UI calls anything they touch, so OV-7 does not bite). EXPECT: `db push` applies both; live grants and `rls_auto_enable` unchanged; `pnpm verify:auth --target live` still 85/0. ⚠ If `db push` reports anything other than a no-op effect on live state, STOP — that would mean live diverged from the matrix 0032 was read off of.
 2. **Gate 4 — seed `student_domain` + live-verify the trigger's student branch** (deliberately LAST; needs a real district domain). Prerequisite MET (0027 live, so the mis-cased-teacher defect is disarmed). ⚠ **Never seed a consumer domain like `gmail.com`** — one row would admit every Google account on earth as a student.
 3. **R2 teardown station** — [s9-cutover.md](docs/design/s9-cutover.md) §8 verbatim, in order: MathLive-font check (D-13a) → keep-check (D-13b) → dated bucket download (OV-DX-10) → R2 secrets off the functions → `ALLOWED_ORIGINS` shrunk → the kit/font scripts + `.env.r2` deletion commit (**gated on the font check, OV-11**; `upload:graph-kit` / `build:fonts` / `build:mathlive-fonts` die here) → **bucket delete LAST**.
-4. **Gate 9 / D-12 post-cutover re-measure:** after ≥5 green CI runs, recalibrate `TIMING_TARGET_MS` medians, re-run the s8 retro against its posted checklist, and RULE the 150 KiB shell number (entry is 174.0/185 today). **Post-cutover ledger — 2 of 5** (median of ≥5 green runs; never local darwin, never a single run):
+4. **Gate 9 / D-12 post-cutover re-measure:** after ≥5 green CI runs, recalibrate `TIMING_TARGET_MS` medians, re-run the s8 retro against its posted checklist, and RULE the 150 KiB shell number (entry is 174.0/185 today). **Post-cutover ledger — 4 of 5** (median of ≥5 green runs; never local darwin, never a single run):
 
-| # | run | pre-auth | worksheet | math-rendered |
-|---|---|---|---|---|
-| 1 | 31791526509 | 1024 ms (+6%) | 1163 ms (+4%) | 1844 ms |
-| 2 | 31795715961 | 944 ms (−3%) | 1089 ms (−3%) | 1807 ms |
+| # | run | pre-auth | worksheet | math-rendered | flaky |
+|---|---|---|---|---|---|
+| 1 | 31791526509 | 1024 ms (+6%) | 1163 ms (+4%) | 1844 ms | 2 |
+| 2 | 31795715961 | 944 ms (−3%) | 1089 ms (−3%) | 1807 ms | 0 |
+| 3 | 31796358508 | 1009 ms (+4%) | 1144 ms (+2%) | 1812 ms | 0 |
+| 4 | 31803968894 | 992 ms (+2%) | 1135 ms (+2%) | 1844 ms | 0 |
 
-Run 1's uniform upward drift did **not** persist — run 2 came in under target on both committed marks, so the two straddle the armed medians rather than trending. Nothing to act on yet; that judgement is the re-measure's, at five.
+Running medians (pre-auth **1000**, worksheet **1140**, math-rendered **1828**) sit within ~3% of the armed targets (969 / 1118 / 1828) — no trend, just scatter, and math-rendered is dead on. **One more green run and the recalibration can be RULED.** The flaky column is deliberate: it is the tab-lock family's evidence, and three consecutive zeroes since the `settledLockHolders()` helper is the strongest signal available, given the failure never reproduced locally.
 5. **P8 boomerang — still uncollected, deliberately.** The duration datapoints for a multi-station apply day were voided by construction for the 0027 run (two password resets, a pooler lockout, no Docker, an unplanned migration mid-station, and a materially faster author across the run — the numbers would encode a learning curve). **The slot stays open for the NEXT representative multi-station day.**
 
 **Station HEADs recorded (OV-DX-9)** — deploy-state markers, not "last commit containing the source":
@@ -109,7 +111,7 @@ Run 1's uniform upward drift did **not** persist — run 2 came in under target 
 | Edge Functions (**2**) + deploy flags | ✅ get-activity v11 (`false`) + check-activity v7 (`true`); re-verified live 2026-08-14 |
 | Cloudflare R2 hosting | ⚰️ Code-side DEAD; bucket + upload scripts await the teardown station |
 | Auth (Google OAuth teacher allowlist + student SSO) / React app / editor stack | ✅ In place |
-| CI (typecheck/lint/test/build + **2** bundle-drift guards + **12 perf budgets + 38 script tests** + print gates + perf/sw/student/**a11y** lane job) | ✅ **GREEN and CLEAN — run 31795715961, 71 passed / 0 flaky.** Two consecutive green runs (OV-DX-8 closed at 31791526509) |
+| CI (typecheck/lint/test/build + **2** bundle-drift guards + **12 perf budgets + 38 script tests** + print gates + perf/sw/student/**a11y** lane job) | ✅ **GREEN and CLEAN — run 31803968894, 71 passed / 0 flaky.** Four consecutive green runs, the last three with zero flaky (OV-DX-8 closed at 31791526509) |
 | Student bundle (S8) | ✅ Entry chunk = the student shell, 174.0 KiB gz (cap 185); heavy libs lazy and content-pinned out of the shell |
 
 ## Repo layout
