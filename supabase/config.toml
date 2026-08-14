@@ -34,7 +34,12 @@ verify_jwt = false
 [functions.check-activity]
 verify_jwt = true
 
-# Teacher-only:
-
-[functions.publish-activity]
-verify_jwt = true
+# TOMBSTONE — publish-activity was DELETED from the platform at S9 Drop 1
+# (2026-08-14). Publish is a direct `publish_activity` RPC from the app; there
+# is no publish function and no publish deploy step. Its `[functions.
+# publish-activity] verify_jwt = true` entry is deliberately GONE rather than
+# commented-in-place: the source still sits in supabase/functions/ until the
+# Drop 4 sweep deletes it, so a bare `supabase functions deploy` (no function
+# name = deploy ALL) would redeploy it — and a live flag entry would make that
+# resurrection look configured and intentional. Do not re-add this block; if
+# the directory is still here, deploy functions BY NAME.
