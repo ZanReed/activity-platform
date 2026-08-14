@@ -652,9 +652,17 @@ integration stays local-only per P6).
    — then: R2 secrets off the functions → `ALLOWED_ORIGINS` shrunk to
    localhost + pages.dev → the kit/font scripts + `.env.r2` deletion commit
    (gated on step 1, OV-11) → bucket delete LAST.
-4. **Boomerang datapoints (P8):** record in STATE (a) one-time setup duration
-   and (b) per-station steady-state durations — the <15min target applies
-   to (b).
+4. **Boomerang datapoints (P8): NOT COLLECTED for the 0027 run — void by
+   construction, author's call 2026-08-14, and the reason is worth keeping.**
+   That run was not steady-state in any useful sense: two database-password
+   resets, a pooler auth circuit-breaker lockout, a missing Docker install
+   (rehearsal skipped), and an unplanned migration (0028) written mid-station.
+   The author also got materially faster across the run, so the numbers would
+   encode a learning curve rather than the workflow the <15min target is about.
+   Measuring it would have produced a precise answer to the wrong question.
+   **The slot stays open for the NEXT multi-station apply day** (Drop 3 or
+   Drop 2's three-step station) — same instrument, a run that is actually
+   representative.
 
 **Post-cutover:** seeding + live student-branch verify (gate 4) · D-12
 re-measure (≥5 green runs → recalibrate medians) · s8-retro re-run.
