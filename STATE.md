@@ -56,7 +56,7 @@ Baseline facts, verified live 2026-08-07 (post-B8 deploy): migrations applied **
 | S5.5 teacher print | ActivityPrint + answer key + versions + foldable on the viewer tree; renderer out of app product code | ✅ 2026-08-03, CLOSED |
 | S7 analytics census | derived census + item map on the read path, read-cache GC, maintenance ledger, on-demand teacher panel, migration 0026 | ✅ 2026-08-04, applied + verified live |
 | S8 perf-budget CI | route split (entry = student shell), 12 CI size budgets + 23 script tests, throttled perf lane, sw/student lanes into CI, unified budget config, math preload-on-detect | ✅ 2026-08-05 — T7 resolved; only timing calibration open (above) |
-| S9-prep identity | migration 0027 (case-normalized allowlist, deny-by-default classes writes, 3 audited RPCs, join_class error split + RAISE LOG), role-gated student shell, /join/:code, sign-in-failure frames, B14 dialog, verify runner (`pnpm verify:auth`), 15 identity e2e rows | ✅ built 2026-08-09 — **author apply pending** (runbook above); closes cutover gates C2+C3 (C11 closes at apply) |
+| S9-prep identity | migration 0027 (case-normalized allowlist, deny-by-default classes writes, 3 audited RPCs, join_class error split + RAISE LOG), role-gated student shell, /join/:code, sign-in-failure frames, B14 dialog, verify runner (`pnpm verify:auth`), 15 identity e2e rows | ✅ **COMPLETE 2026-08-14 — applied + live-verified**: 0027 (+0028 grant hygiene) live, `verify:auth --target live` **65/0 green**, both probes passed. Gates **C2+C3+C11 CLOSED** |
 
 **S8's one carry-over: calibrate the timing targets — CALIBRATION LEDGER OPEN (median of ≥5 green CI runs per the A3 amendment; artifacts expire, so record each datapoint here as it lands):**
 
@@ -75,7 +75,7 @@ Baseline facts, verified live 2026-08-07 (post-B8 deploy): migrations applied **
 1. sw-offline `test.fixme` closed — next step documented: real server stop, not `setOffline` (s6:8)
 2. ✅ **DONE 2026-08-09** — `watchIdleSignOut` + student sign-out chrome wired (2.4A) on the student Home AND StudentViewer (banner-chain arm 0), with the s1:9 e2e proving prompt→escalation at production values via Playwright's clock
 3. ✅ **DONE 2026-08-09** — Role fetch + student shell branch (B12): join-by-code UI + shareable `/join/:code` link; role in SessionContext (fetch-per-user-id, neutral gate, E-11 zero-rows state)
-4. Seed `student_domain` + live-verify the trigger's student branch before the first class (s1:7)
+4. Seed `student_domain` + live-verify the trigger's student branch before the first class (s1:7) — **prerequisite MET 2026-08-14** (0027 live, so the mis-cased-teacher defect is disarmed and seeding is now safe to do); still deliberately last, and needs a real district domain. ⚠ **Never seed a consumer domain like `gmail.com`** — one row would admit every Google account on earth as a student (the boundary-loosening hazard `update_class_domain`'s audit exists for)
 5. Demolish `submissions.student_id` branch + `submissions_account_attempt_idx` with the anonymous wire (s1:8)
 6. `purgeStudentCaches` + `sweepForeignCaches`: producer or removal — they live or die together; the reachability-lint allowlist entry goes with them (s6:9)
 7. Real-browser a11y pass: announcements, keyboard path, visible focus, reduced-motion — the four 6.1A gaps (s3:12)

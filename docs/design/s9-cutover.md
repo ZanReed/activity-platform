@@ -551,9 +551,10 @@ Every station: paste the block, check the EXPECT, move on. Failure = stop, the
 EXPECT names what broke. **End every drop with the CI gate** (OV-DX-8):
 `gh run list --limit 1` → EXPECT ✓ green before the next drop starts.
 
-**Station 0 (now, before any S9 build session) — 3 of 4 done 2026-08-13;
-item 3 (the 0027 runbook) is the one still open. It gates Drop 3 and Drop 2's
-apply, NOT Drop 1 (OV-8) — the build can start on Drop 1 while it waits.**
+**Station 0 — ✅ COMPLETE 2026-08-14. All four items done; the arc's build
+drops are unblocked, including Drop 3 (0027 is live, so OV-8's hard start-gate
+is satisfied). Only the two duration datapoints (P8 boomerang) remain, and
+they gate nothing.**
 1. ✅ **STATE reconciliation commit** (OV-DX-6, `576055a`): fix line 185's "None of it is
    pushed" (pushed; tree clean) + the status table's stale pg_cron "first run
    not yet observed" row (closed 2026-08-06, A31).
@@ -566,15 +567,21 @@ apply, NOT Drop 1 (OV-8) — the build can start on Drop 1 while it waits.**
    gh release create s5.5-print-signoff s5.5-contact-sheet.zip --title "S5.5 print sign-off evidence" --notes "Human-judged half of print parity; see tag message."
    ```
    EXPECT: `git tag -l` shows `s5.5-print-signoff`; the release shows the asset.
-3. ⏳ **PARTLY DONE — 0027 apply-day runbook** — the identity plan §5.
-   ✅ psql 18.4 + `.env.supabase` (pooler DSN); ✅ 0027 applied; ✅ 0028
-   grant-hygiene applied (§11); ✅ **`pnpm verify:auth --target live` → 65
-   passed, 0 failed across 6 scripts** (C11 CLOSED); ✅ **Probe 2 recorded
-   and passed** (§12). ⏳ REMAINING: **B5 dashboard Additional Redirect URLs**,
-   then **Probe 1** (the `/join/:code` round trip — untested; the sign-in that
-   produced Probe 2 started at root, so it exercised no redirect), then the
-   two duration datapoints. The local rehearsal was SKIPPED (no Docker) — the
-   accepted G1 fallback; the live runner pass is the proof. EXPECT at end:
+3. ✅ **DONE 2026-08-14 — 0027 apply-day runbook** — the identity plan §5.
+   psql 18.4 + `.env.supabase` (pooler DSN) · 0027 applied · 0028
+   grant-hygiene applied (§11) · **`pnpm verify:auth --target live` → 65
+   passed, 0 failed across 6 scripts** (**C11 CLOSED**) · dashboard Additional
+   Redirect URLs configured · **Probe 1 PASSED** and **Probe 2 PASSED**
+   (§12). The local rehearsal was SKIPPED (no Docker) — the accepted G1
+   fallback; the live runner pass is the proof.
+   **Probe 1 passed for the RIGHT reason, verified server-side rather than by
+   screenshot:** the teacher landed back on `/join/<CODE>` with the E-9
+   explanatory screen and the logs show **zero `join_class refused` entries**
+   in the window — so the client never called `join_class` at all. E-9 ruled
+   "never a raw join_class error"; an auto-submit that merely rendered the
+   refusal prettily would have logged `not_student` against the teacher's id.
+   The role gate held at the client, which is the half a screenshot cannot
+   distinguish. Historic EXPECT text, kept for the record:
    `supabase migration list` shows 0027 under Remote; `pnpm verify:auth
    --target live` all PASS; Probes 1+2 recorded (Probe 2's callback params
    validate the refusal parser).
