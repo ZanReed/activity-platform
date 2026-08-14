@@ -165,7 +165,11 @@ export default function DataPlot({
         className="viewer-data-plot__canvas"
         style={CANVAS_SIZE}
         data-graph-canvas="true"
-        {...(isDisplay || mode === 'print' ? {} : { tabIndex: 0, role: 'application' })}
+        {...(isDisplay || mode === 'print'
+          ? // role=img from FIRST PAINT — see InteractiveGraph: aria-label on
+            // a role-less div is axe's aria-prohibited-attr.
+            { role: 'img' }
+          : { tabIndex: 0, role: 'application' })}
         aria-label={isDisplay ? 'Chart' : 'Interactive chart'}
       />
 

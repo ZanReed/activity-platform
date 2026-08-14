@@ -244,7 +244,13 @@ export default function InteractiveGraph({
         // kit: the registry's a11y story promises a focusable canvas, and a
         // keyboard user should reach it even before the lazy chunk lands (or
         // if it never does). The kit adds arrow-key handling on top.
-        {...(isDisplay || mode === 'print' ? {} : { tabIndex: 0, role: 'application' })}
+        {...(isDisplay || mode === 'print'
+          ? // role=img from FIRST PAINT: aria-label on a role-less div is
+            // prohibited (axe aria-prohibited-attr — the a11y lane's first CI
+            // run caught it), and the kit's own role=img lands only after the
+            // lazy chunk mounts.
+            { role: 'img' }
+          : { tabIndex: 0, role: 'application' })}
         aria-label={isDisplay ? 'Graph' : 'Interactive graph'}
       />
 

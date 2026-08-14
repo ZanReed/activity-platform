@@ -35,6 +35,15 @@ async function openWorksheet(page: Page): Promise<void> {
   await signInAs(page);
   await page.goto(activityUrl());
   await page.locator('[data-section-id] input[type="text"]').first().waitFor();
+  // Deterministic scan surface: if the fixture carries graph/chart blocks,
+  // wait for the lazy kit to MOUNT (JSXGraph renders an <svg> into the
+  // canvas). The lane's first CI run diverged from local exactly here — the
+  // slower runner scanned the mounted state, local scanned the pre-mount
+  // one, and each state can carry its own violations.
+  const canvases = page.locator('[data-graph-canvas]');
+  if ((await canvases.count()) > 0) {
+    await canvases.first().locator('svg').first().waitFor({ timeout: 20_000 });
+  }
 }
 
 async function expectNoAxeViolations(page: Page): Promise<void> {
