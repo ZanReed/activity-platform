@@ -20,7 +20,7 @@
 // failed network call must never be what decides whether it survives.
 // =============================================================================
 
-import { VIEWER_STORAGE_PREFIX, purgeStudentCaches } from '@activity/viewer';
+import { VIEWER_STORAGE_PREFIX } from '@activity/viewer';
 import { supabase } from './supabase';
 
 // Namespace prefix for everything the viewer persists on-device. IMPORTED, not
@@ -59,13 +59,25 @@ function purgePrefixed(storage: Storage): void {
 
 /**
  * Full shared-device sign-out: purge every viewer-namespaced key from local
- * and session storage AND every cache holding student content, then end the
- * Supabase session — falling back to a local-only sign-out if the network call
- * fails, so the token cannot outlive the purge.
+ * and session storage, then end the Supabase session — falling back to a
+ * local-only sign-out if the network call fails, so the token cannot outlive
+ * the purge.
+ *
+ * THE ORDER IS THE CONTRACT (S6-6, pinned in studentAuth.test.ts): the purge
+ * runs BEFORE the sign-out and before any throw, so the device is already
+ * clean even when the network call fails — that is the part that matters to
+ * the next student.
+ *
+ * (A cache purge used to sit between storage purge and sign-out. Removed at
+ * S9 Drop 4, D-8: the worker never caches per-student responses — the
+ * offline document lives in localStorage's documentCache, INSIDE this purge —
+ * so it purged caches that cannot exist. If SW response-caching ever returns,
+ * the purge slots back in HERE, before the signOut, same contract; see
+ * @activity/viewer store/caches.ts for the full resurrection note.)
  *
  * Still throws on a failed network sign-out, because the caller should be able
  * to say "we couldn't reach the server" — but by then the device is already
- * clean, which is the part that matters to the next student.
+ * clean.
  *
  * Storage access is best-effort: a locked-down browser profile that throws on
  * storage access must not block the signOut itself.
@@ -76,14 +88,6 @@ export async function signOutEverything(): Promise<void> {
         purgePrefixed(window.sessionStorage);
     } catch {
         // Storage unavailable (private mode / policy) — nothing buffered there.
-    }
-    // The SW's per-student document caches. The shell survives on purpose: it
-    // is application code with no student data, and re-downloading it would
-    // punish the next student for the previous one signing out.
-    try {
-        if (typeof caches !== 'undefined') await purgeStudentCaches(caches);
-    } catch {
-        // No CacheStorage — nothing cached to purge.
     }
 
     const { error } = await supabase.auth.signOut();

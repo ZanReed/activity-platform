@@ -630,7 +630,10 @@ queued in STATE → Pending author actions.)
    The same commit deleted `deploy:ingest`/`deploy:feedback`/`deploy-train`
    (OV-DX-2). CI gate.
 
-**Drop 4 station (renderer death, runs 3rd):** repo-side; CI gate additionally
+**Drop 4 station (renderer death, runs 3rd): ✅ repo-side COMPLETE 2026-08-14**
+(T5; the 13-target claims-grep ran as the doc migration — see the commit; the
+deleted functions' source dirs left the tree here, so the repo matches the
+platform's 2 functions). Author half: push → CI gate, which additionally
 EXPECTs the workflow's renderer-drift step gone and the remaining two bundle
 steps intact (OV-DX-8).
 
@@ -740,10 +743,12 @@ Synthesized from this review's findings. Checkbox as you ship.
 - [x] **T4 (P2, CC: ~45m)** — ✅ 2026-08-14 — docs — scoped P9 audit of Phase
   2.6-era "live-verified" claims; corrected STATE + two HISTORY sites (the
   07-13 headline; the Drop-0 CORS deferral — the predicted sibling) (OV-6)
-- [ ] **T5 (P1, CC: ~2h)** — repo-wide — renderer package deletion + CI/
-  scripts/deploy-train cleanup + cache-pair removal (purge-order pin updated)
-  + reachability re-triage + 13-target claims-grep checklist + doc migration
-  incl. the OV-7 SPA rule into CLAUDE.md (D-7/D-8/OV-7)
+- [x] **T5 (P1, CC: ~2h)** — ✅ 2026-08-14 — repo-wide — renderer package
+  deletion + CI/scripts cleanup (deploy-train already died at Drop 3) +
+  cache-pair removal (purge-order pin updated; only VIEWER_SHELL_CACHE
+  survives re-triage, with its live main.tsx consumer) + reachability
+  re-triage + 13-target claims-grep checklist + doc migration incl. the OV-7
+  SPA rule into CLAUDE.md (D-7/D-8/OV-7)
 - [ ] **T6 (P1, CC: ~2h)** — supabase — 0030 content-surface migration: the
   E-3 package + list_class_activities DEFINER RPC + get_class_public_meta
   anon RPC + verify-0030 (E-3/OV-1)

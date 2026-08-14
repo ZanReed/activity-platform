@@ -21,8 +21,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    RUNTIME_SIZE_TARGET,
-    RUNTIME_SIZE_CEILING,
     VIEWER_SERVER_MAX_KIB,
     GRADING_SERVER_MAX_KIB,
     CHUNK_LEDGER,
@@ -36,23 +34,12 @@ import {
 
 test('migrated ceilings still hold their pre-migration values (D8 pin)', () => {
     // Pre-migration source of truth, verbatim:
-    //   bundle-renderer.mjs      RUNTIME_SIZE_TARGET  = 40 * 1024
-    //                            RUNTIME_SIZE_CEILING = 60 * 1024
     //   bundle-viewer-server.mjs MAX_KIB              = 1500
     //   bundle-grading-server.mjs MAX_KIB             = 4000
-    assert.equal(RUNTIME_SIZE_TARGET, 40 * 1024, 'published runtime soft target');
-    assert.equal(RUNTIME_SIZE_CEILING, 60 * 1024, 'published runtime hard ceiling');
+    // (The renderer runtime's 40/60 KiB pair left this pin at S9 Drop 4 with
+    // the renderer package — its bundle no longer exists to measure.)
     assert.equal(VIEWER_SERVER_MAX_KIB, 1500, 'read-API server bundle ceiling');
     assert.equal(GRADING_SERVER_MAX_KIB, 4000, 'grading server bundle ceiling');
-});
-
-test('the runtime soft target sits below its hard ceiling', () => {
-    // Inverting these would make the warning unreachable and the ceiling the
-    // only signal — the amendment that set 40/60 depends on the ordering.
-    assert.ok(
-        RUNTIME_SIZE_TARGET < RUNTIME_SIZE_CEILING,
-        'soft target must be under the hard ceiling',
-    );
 });
 
 test('every ledger row is complete and its marker is a real regex', () => {

@@ -216,17 +216,11 @@ export type {
 export { createCheckQueue } from './store/queue.js';
 export type { CheckQueue, CheckQueueOptions } from './store/queue.js';
 
-// S6 V4 — the SW cache naming contract (V8's worker conforms to it) plus the
-// sweep/purge that make a shared device clean.
-export {
-  VIEWER_CACHE_PREFIX,
-  VIEWER_SHELL_CACHE,
-  contentCacheUser,
-  purgeStudentCaches,
-  sweepForeignCaches,
-  viewerContentCacheName,
-} from './store/caches.js';
-export type { CacheStorageLike } from './store/caches.js';
+// S6 V4 — the SW cache naming contract. Shrunk to the shell name at S9
+// Drop 4 (D-8): the per-student content-cache grammar + sweep/purge died —
+// V8's worker never caches per-student responses, so they guarded caches
+// that cannot exist (rationale + resurrection contract in store/caches.ts).
+export { VIEWER_SHELL_CACHE } from './store/caches.js';
 
 // S6 V3 — one editable tab per student per activity.
 export { createTabLock } from './store/tabLock.js';

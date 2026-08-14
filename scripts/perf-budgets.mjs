@@ -27,18 +27,12 @@
 /**
  * Published-page runtime, inlined into every published activity.
  *
- * Runtime size budget (RUNTIME.md "Standing constraints"; amended 2026-07-10,
- * was 20/40 — reasoning in docs/DECISIONS.md "Runtime size budget amendment").
- * The runtime is student-facing and runs on school Chromebooks, where JS
- * parse/execute cost is the binding constraint. Heavy capability goes in lazy
- * kits on R2, never in these inlined bundles — that invariant, not this
- * number, is the non-negotiable part.
- *
- * NB: the renderer (and this pair of numbers) retires at S9 when published
- * pages die. Until then it is live and enforced.
+ * (RUNTIME_SIZE_TARGET / RUNTIME_SIZE_CEILING stood here until S9 Drop 4 —
+ * the published-page runtime's 40/60 KiB pair, self-declared to retire "at S9
+ * when published pages die". They did. The invariant they encoded lives on in
+ * the surviving budgets: heavy capability stays in lazy chunks, never in the
+ * always-parsed path.)
  */
-export const RUNTIME_SIZE_TARGET = 40 * 1024; // soft target — warn past this
-export const RUNTIME_SIZE_CEILING = 60 * 1024; // hard ceiling — fail past this
 
 /**
  * Read-API (get-activity) server bundle — client-code leak guard.

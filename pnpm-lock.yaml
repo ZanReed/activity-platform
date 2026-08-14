@@ -227,28 +227,6 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
 
-  packages/renderer:
-    dependencies:
-      '@activity/graph-kit':
-        specifier: workspace:*
-        version: link:../graph-kit
-      '@activity/schema':
-        specifier: workspace:*
-        version: link:../schema
-      katex:
-        specifier: ^0.16.10
-        version: 0.16.45
-    devDependencies:
-      '@activity/viewer':
-        specifier: workspace:*
-        version: link:../viewer
-      '@types/katex':
-        specifier: ^0.16.7
-        version: 0.16.8
-      jsdom:
-        specifier: ^29.1.1
-        version: 29.1.1
-
   packages/schema:
     dependencies:
       zod:

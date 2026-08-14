@@ -18,9 +18,9 @@
 # viewer's 3.2A pre-auth META endpoint — no Authorization header, so the
 # platform's verify_jwt gate must stay OFF). The old "anonymous trio" language
 # died at S9 Drop 3: ingest-submission + get-feedback (the published-page wire)
-# were deleted from the platform — their entries are deliberately GONE, same
-# rule as publish-activity's tombstone below: source dirs survive until the
-# Drop 4 sweep, so deploy functions BY NAME, never bare deploy-all.
+# were deleted from the platform with publish-activity (Drop 1); their source
+# dirs left the tree at Drop 4, so exactly two functions exist — this file
+# lists both, completely.
 
 project_id = "activity-platform"
 
@@ -34,11 +34,7 @@ verify_jwt = false
 verify_jwt = true
 
 # TOMBSTONE — publish-activity was DELETED from the platform at S9 Drop 1
-# (2026-08-14). Publish is a direct `publish_activity` RPC from the app; there
-# is no publish function and no publish deploy step. Its `[functions.
-# publish-activity] verify_jwt = true` entry is deliberately GONE rather than
-# commented-in-place: the source still sits in supabase/functions/ until the
-# Drop 4 sweep deletes it, so a bare `supabase functions deploy` (no function
-# name = deploy ALL) would redeploy it — and a live flag entry would make that
-# resurrection look configured and intentional. Do not re-add this block; if
-# the directory is still here, deploy functions BY NAME.
+# (2026-08-14); publish is a direct `publish_activity` RPC from the app —
+# there is no publish function and no publish deploy step. Its source dir
+# (and the bare-deploy-all resurrection hazard the interim note here warned
+# about) left the tree at Drop 4. Do not re-add a flag entry for it.

@@ -1,11 +1,15 @@
 // =============================================================================
 // grading/corpus.ts — the golden grading corpus (ruling S4-8)
 // -----------------------------------------------------------------------------
-// THE PARITY GATE. Ruling T1A makes retiring `@activity/renderer` and its inline
-// runtime conditional on proving that the server engine marks student work the
-// same way the published page does. This file is that proof's input: pure DATA
-// — an authored block, a student's raw input, and the mark a student should get
-// — executed by BOTH engines.
+// THE PARITY GATE — now the standing gate. Ruling T1A made retiring
+// `@activity/renderer` and its inline runtime conditional on proving the
+// server engine marks student work the same way the published page did; the
+// proof held and the renderer was DELETED at S9 Drop 4 (2026-08-14), so
+// "executed by BOTH engines" is history — grading-corpus.test.ts runs the
+// corpus against the ONE surviving engine. The corpus outlives the
+// comparison on purpose: each case states its expected verdict as
+// human-reviewable DATA, so it pins grading semantics absolutely, not
+// relative to a dead twin.
 //
 // WHY DATA AND NOT TWO TEST SUITES. Each case states the EXPECTED verdict
 // independently, and both engines are checked against it. Comparing the engines

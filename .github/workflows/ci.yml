@@ -88,21 +88,9 @@ jobs:
           path: packages/app/dist
           retention-days: 1
 
-      # Regenerate the committed renderer/runtime bundle and fail if it drifts
-      # from what's checked in — deploys must never ship a stale bundle.
-      # (CLAUDE.md: "Renderer bundle commits with the source it supports.")
-      - name: Renderer bundle is up to date
-        run: |
-          pnpm bundle:renderer
-          git diff --exit-code -- \
-            packages/renderer/src/runtime/generated/runtime-bundle.ts \
-            packages/renderer/src/runtime/generated/runtime-graphs-bundle.ts \
-            packages/renderer/src/generated/katex-css.ts \
-            supabase/functions/_shared/renderer.bundle.js \
-          || {
-            echo "::error::Committed renderer bundle is stale. Run 'pnpm bundle:renderer' and commit the result.";
-            exit 1;
-          }
+      # (The renderer-bundle drift step died at S9 Drop 4 with the renderer
+      # package — published pages no longer exist. The two surviving bundle
+      # disciplines are below.)
 
       # Same discipline for the read-API server bundle (S2): regenerate and
       # fail if the committed file drifts from schema/viewer sanitize source.

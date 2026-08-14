@@ -21,11 +21,7 @@ import {
 } from '../lib/studentAuth';
 // The prefix comes from its OWNER (S6-V1); studentAuth's redundant re-export
 // was deleted (A17).
-import {
-    VIEWER_SHELL_CACHE,
-    VIEWER_STORAGE_PREFIX,
-    viewerContentCacheName,
-} from '@activity/viewer';
+import { VIEWER_STORAGE_PREFIX } from '@activity/viewer';
 
 describe('signOutEverything', () => {
     beforeEach(() => {
@@ -110,24 +106,10 @@ describe('watchIdle', () => {
 });
 
 describe('signOutEverything — the offline hole (ruling S6-6)', () => {
-    /** Minimal CacheStorage stand-in; jsdom has none. */
-    function installCaches(names: string[]) {
-        const state = { names: [...names] };
-        (globalThis as unknown as { caches: unknown }).caches = {
-            keys: async () => [...state.names],
-            delete: async (n: string) => {
-                state.names = state.names.filter((x) => x !== n);
-                return true;
-            },
-        };
-        return state;
-    }
-
     beforeEach(() => {
         localStorage.clear();
         sessionStorage.clear();
         signOutMock.mockReset().mockResolvedValue({ error: null });
-        delete (globalThis as unknown as { caches?: unknown }).caches;
     });
 
     it('falls back to a LOCAL sign-out when the network call fails', async () => {
@@ -150,22 +132,11 @@ describe('signOutEverything — the offline hole (ruling S6-6)', () => {
         expect(signOutMock).toHaveBeenCalledTimes(1);
     });
 
-    it('purges every student’s cached documents but keeps the app shell', async () => {
-        const caches = installCaches([
-            viewerContentCacheName('student-a'),
-            viewerContentCacheName('student-b'),
-            VIEWER_SHELL_CACHE,
-        ]);
-
-        await signOutEverything();
-
-        expect(caches.names).toEqual([VIEWER_SHELL_CACHE]);
-    });
-
-    it('still ends the session when there is no CacheStorage at all', async () => {
-        await expect(signOutEverything()).resolves.toBeUndefined();
-        expect(signOutMock).toHaveBeenCalledTimes(1);
-    });
+    // (Two cache-purge rows stood here until S9 Drop 4. They died WITH
+    // purgeStudentCaches — D-8 removed the per-student cache machinery the
+    // worker never fed. The S6-6 contract this suite still pins is the purge
+    // ORDER: "purges storage BEFORE a failing signOut throws", above — that
+    // row is the updated pin, and it survives any cache resurrection.)
 });
 
 describe('watchIdleSignOut (ruling S6-6)', () => {

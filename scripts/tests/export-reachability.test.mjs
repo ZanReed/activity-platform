@@ -89,14 +89,12 @@ const ALLOWLIST = new Map([
   ['bufferKey', 'key-grammar pin surface'],
   ['parseBufferKey', 'key-grammar pin surface'],
   ['documentKey', 'key-grammar pin surface'],
-  ['VIEWER_CACHE_PREFIX', 'cache-grammar pin surface'],
-  ['contentCacheUser', 'cache-grammar pin surface'],
-  ['viewerContentCacheName', 'cache-grammar pin surface (sign-out suite)'],
-
-  // OWNED: the boot half of the V4 cache contract has NO caller anywhere —
-  // the s6-audit finding the cutover checklist tracks. Producer or removal,
-  // decided at S9; it lives or dies with purgeStudentCaches (gate C6).
-  ['sweepForeignCaches', 'OWNER C6: producer-or-removal decision at S9 cutover'],
+  // (Four cache-grammar entries + the C6-owned sweepForeignCaches stood here
+  // until S9 Drop 4: the D-8 ruling REMOVED the per-student cache machinery
+  // instead of writing it a producer — the worker never caches per-student
+  // responses, so the pair guarded caches that could not exist. The C6 gate
+  // is CLOSED by removal; VIEWER_SHELL_CACHE survives with a live consumer
+  // in main.tsx and needs no exemption.)
 ]);
 
 /** VALUE export names declared by the barrel, name → defining module path. */

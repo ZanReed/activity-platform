@@ -15,8 +15,10 @@
 //
 // That proof is complete: the rules gate ran green on both, the answer-key gate
 // compared their semantics, and the author signed off the contact sheet on
-// 2026-08-03. So the renderer half retired as designed, and what remains is the
-// standing print gate — one surface, the same declared rules. The comparison
+// 2026-08-03 (evidence durable: tag `s5.5-print-signoff` + its release asset).
+// The renderer half retired as designed — and the renderer PACKAGE was deleted
+// at S9 Drop 4 — so what remains is the standing print gate — one surface, the
+// same declared rules. The comparison
 // cannot be rebuilt later (it needed the renderer reachable), which is why it
 // had to be finished before the eviction rather than after.
 // ============================================================================
