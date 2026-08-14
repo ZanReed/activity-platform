@@ -138,3 +138,53 @@ describe('Classes create flow — assertion gate', () => {
         );
     });
 });
+
+// =============================================================================
+// The shareable join link (B12's "shareable /join/:code deep link").
+// The route has existed since the identity slice, but the teacher UI only ever
+// copied the bare CODE — so the one thing a teacher actually posts to Google
+// Classroom had to be hand-assembled, and the B14 dialog's "the old link no
+// longer works" referred to a link the product never produced. These rows pin
+// the link's SHAPE, because a link that does not match App.tsx's /join/:code
+// route is a dead link in every classroom that already posted it.
+// =============================================================================
+describe('join link', () => {
+    it('Copy link yields the /join/:code URL, and the code chip still yields the bare code', async () => {
+        const writeText = vi.fn(() => Promise.resolve());
+        Object.assign(navigator, { clipboard: { writeText } });
+        h.listResult.current = {
+            data: [
+                {
+                    id: 'class-1',
+                    name: 'Algebra I — Period 3',
+                    join_code: 'QX7M2P',
+                    expected_domain: null,
+                    age_assertion_at: '2026-08-12T00:00:00Z',
+                    created_at: '2026-08-12T00:00:00Z',
+                },
+            ],
+            error: null,
+        };
+        renderClasses();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Copy link' }));
+        await waitFor(() =>
+            expect(writeText).toHaveBeenCalledWith(
+                `${window.location.origin}/join/QX7M2P`,
+            ),
+        );
+
+        // The chip is a DIFFERENT affordance on purpose: teachers read codes
+        // aloud. Copying the chip must not start handing out a URL.
+        fireEvent.click(screen.getByRole('button', { name: 'QX7M2P' }));
+        await waitFor(() => expect(writeText).toHaveBeenLastCalledWith('QX7M2P'));
+    });
+
+    it('the link matches the route App.tsx registers (a mismatch is a dead posted link)', async () => {
+        const { joinUrlFor } = await import('../routes/Classes');
+        const path = new URL(joinUrlFor('ABC123')).pathname;
+        // App.tsx: <Route path="/join/:code" ... />
+        expect(path).toBe('/join/ABC123');
+        expect(path.split('/')[1]).toBe('join');
+    });
+});

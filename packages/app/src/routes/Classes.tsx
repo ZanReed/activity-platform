@@ -28,27 +28,66 @@ function formatDate(iso: string): string {
     });
 }
 
+/**
+ * The join URL for a code. ONE definition, because the teacher-facing copy
+ * control, the B14 regenerate after-state, and anything that later emails or
+ * prints a link must all produce the same string — a hand-assembled URL in a
+ * second place is how a shared link quietly stops matching the route (P2).
+ * Origin-relative on purpose: it is correct on localhost and in production
+ * without an env var, and it is the same origin the SPA already serves
+ * `/join/:code` from (App.tsx).
+ */
+export function joinUrlFor(code: string): string {
+    return `${window.location.origin}/join/${code}`;
+}
+
 function JoinCode({ code }: { code: string }) {
-    // Read-aloud artifact: large, spaced, monospace. Click to copy.
-    const [copied, setCopied] = useState(false);
-    const copy = async () => {
+    // TWO affordances, deliberately, because teachers distribute a class code
+    // two different ways: they READ IT ALOUD (hence the large spaced monospace
+    // chip, which copies the bare code) and they POST IT (hence Copy link,
+    // which yields the /join/:code deep link B12 ruled and the B14 dialog's
+    // "the old link no longer works" copy already presumes exists).
+    const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+    const flash = (what: 'code' | 'link') => {
+        setCopied(what);
+        setTimeout(() => setCopied(null), 1500);
+    };
+    const copyCode = async () => {
         try {
             await navigator.clipboard.writeText(code);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
+            flash('code');
         } catch {
             // Clipboard unavailable — the code is visible; nothing to do.
         }
     };
+    const copyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(joinUrlFor(code));
+            flash('link');
+        } catch {
+            // Clipboard unavailable — nothing to fall back to; the code is
+            // still readable and the link is derivable from it.
+        }
+    };
     return (
+        <>
         <button
         type="button"
-        onClick={copy}
+        onClick={copyCode}
         title="Copy join code"
         className="rounded-md border border-line bg-surface px-3 py-1 font-mono text-lg font-semibold tracking-[0.2em] text-ink transition hover:border-line-strong"
         >
-        {copied ? 'Copied' : code}
+        {copied === 'code' ? 'Copied' : code}
         </button>
+        <button
+        type="button"
+        onClick={copyLink}
+        title={`Copy the join link (${joinUrlFor(code)})`}
+        className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
+        >
+        {copied === 'link' ? 'Link copied' : 'Copy link'}
+        </button>
+        </>
     );
 }
 
@@ -170,9 +209,10 @@ function RemoveStudentDialog({
     const [busy, setBusy] = useState<'remove' | 'lockout' | null>(null);
     const [error, setError] = useState<string | null>(null);
     // Board 5b: the after-state. The flow's whole point is invalidating the
-    // posted link, so it ends by handing the teacher the new code to re-post.
+    // posted link, so it ends by handing the teacher BOTH re-postable forms of
+    // the new code — the code to read aloud and the link to paste.
     const [newCode, setNewCode] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
+    const [copied, setCopied] = useState<'code' | 'link' | null>(null);
     const dialogRef = useRef<HTMLDivElement>(null);
     const firstActionRef = useRef<HTMLButtonElement>(null);
     const invokerRef = useRef<HTMLElement | null>(null);
@@ -255,7 +295,8 @@ function RemoveStudentDialog({
             <>
             <h2 className="text-lg font-bold text-ink">{studentLabel} removed</h2>
             <p className="mt-2 text-sm text-muted">
-            The old link no longer works. Share this new code with your class:
+            The old link no longer works. Share this new code — or the new link —
+            with your class:
             </p>
             <div className="mt-3 flex items-center gap-3">
             <span className="rounded-md border border-line bg-surface px-3 py-1.5 font-mono text-lg font-semibold tracking-[0.2em] text-ink">
@@ -266,13 +307,27 @@ function RemoveStudentDialog({
             type="button"
             onClick={() => {
                 void navigator.clipboard?.writeText(newCode).then(() => {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
+                    setCopied('code');
+                    setTimeout(() => setCopied(null), 1500);
                 }).catch(() => undefined);
             }}
             className="rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink min-h-11"
             >
-            {copied ? 'Copied' : 'Copy'}
+            {copied === 'code' ? 'Copied' : 'Copy code'}
+            </button>
+            <button
+            type="button"
+            onClick={() => {
+                // Same helper the class card uses — the regenerated link must
+                // be byte-identical to the one the teacher copies elsewhere.
+                void navigator.clipboard?.writeText(joinUrlFor(newCode)).then(() => {
+                    setCopied('link');
+                    setTimeout(() => setCopied(null), 1500);
+                }).catch(() => undefined);
+            }}
+            className="rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink min-h-11"
+            >
+            {copied === 'link' ? 'Copied' : 'Copy link'}
             </button>
             <button
             type="button"
