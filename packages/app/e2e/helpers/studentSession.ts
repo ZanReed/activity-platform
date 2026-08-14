@@ -281,12 +281,9 @@ export async function stubActivityApi(
     });
   });
 
-  // Released feedback is not what these specs are about, but the viewer may
-  // ask; answer honestly rather than letting it 404 into a failure state.
-  await page.route('**/functions/v1/get-feedback', async (route) => {
-    if (await abortIfOffline(route)) return;
-    await route.fulfill({ json: { graded: false, blocks: {} } });
-  });
+  // No get-feedback stub: the function was deleted at S9 Drop 3 (nothing in
+  // the viewer ever calls fetchReleasedFeedback — zero call sites), and a
+  // stub for a nonexistent endpoint violates P2 silently (eng ruling Q1).
 
   return {
     get checkRequests() {

@@ -345,6 +345,13 @@ export default function StudentViewer() {
         // A1: the name derives from the shared constant the e2e stubs also
         // import — never a retyped literal (history in lib/edgeFunctions.ts).
         checkUrl: `${functionsBase()}/${CHECK_ACTIVITY_FUNCTION}`,
+        // TOMBSTONE (S9 Drop 3): the get-feedback function is DELETED and this
+        // URL points at nothing. It is dormant, not dead-in-effect — the wire
+        // interface requires fetchReleasedFeedback but NOTHING ever calls it
+        // (zero call sites; the deleted function also never worked — it
+        // returned bodiless 200s its whole life). The parked teacher-grading
+        // slice owns the feedback wire's successor; do not treat this
+        // endpoint name as a working reference when building it.
         feedbackUrl: `${functionsBase()}/get-feedback`,
         getAccessToken,
       }),

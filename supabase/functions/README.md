@@ -52,7 +52,7 @@ than one of them.
 
 ### 1. Cloudflare R2 secrets
 
-> **[TOMBSTONE, S9 Drop 1 2026-08-14] `publish-activity` is deleted.** Publish is a direct `publish_activity` RPC from the app (`usePublish`); no HTML is rendered or uploaded anywhere, and the share link is the viewer URL `/a/:id`. Everything below about publish-activity, its R2 secrets, and `VITE_PUBLISHED_URL_BASE` is historical until the Drop 3/4 doc sweep rewrites this file.
+> **[TOMBSTONE, S9 Drops 1+3, 2026-08-14] `publish-activity`, `ingest-submission`, and `get-feedback` are all DELETED.** Publish is a direct `publish_activity` RPC from the app (`usePublish`); the anonymous submission wire was demolished whole (migration 0029: rows wiped, `ingest_submission` RPC dropped). **Two functions remain: `get-activity` (`verify_jwt:false` — the 3.2A anonymous meta branch) and `check-activity` (`verify_jwt:true`).** Everything below about the deleted three, their R2 secrets, deploy scripts, and `VITE_PUBLISHED_URL_BASE` is historical until the Drop 4 doc sweep rewrites this file.
 
 Published **HTML** lives on Cloudflare R2, **not** Supabase Storage (Supabase free tier rewrites HTML responses to `text/plain` — see STATE.md / ROADMAP "Hosting platform"). Only `publish-activity` still talks to R2 via the S3 API and needs these secrets:
 

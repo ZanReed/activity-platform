@@ -277,12 +277,6 @@ export default function Activities() {
                 Edited {formatEdited(a.updated_at)}
                 </span>
                 <Link
-                to={`/activity/${a.id}/submissions`}
-                className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
-                >
-                Submissions
-                </Link>
-                <Link
                 to={`/activity/${a.id}/analytics`}
                 className="hidden text-sm font-medium text-muted underline underline-offset-2 hover:text-strong sm:inline"
                 >

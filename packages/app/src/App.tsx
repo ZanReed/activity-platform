@@ -29,7 +29,7 @@ import JoinClass from './routes/JoinClass';
 //        ┌───────────────────────────┐        ┌──────────────────────────┐
 //        │ router · SessionProvider  │        │ ActivityEditor (Tiptap)  │
 //        │ StudentViewer · Home      │  ───▶  │ Activities · Classes     │
-//        │ viewer eager block tier   │        │ Submissions · Analytics  │
+//        │ viewer eager block tier   │        │ Analytics                │
 //        │ ThemeToggle               │        │ ActivityPrint · Privacy  │
 //        └───────────────────────────┘        │ /dev/* (DEV only)        │
 //                                             └──────────────────────────┘
@@ -43,7 +43,8 @@ const Activities = lazy(() => import('./routes/Activities'));
 const Classes = lazy(() => import('./routes/Classes'));
 const ActivityEditor = lazy(() => import('./routes/ActivityEditor'));
 const ActivityPrint = lazy(() => import('./routes/ActivityPrint'));
-const Submissions = lazy(() => import('./routes/Submissions'));
+// The Submissions dashboard died at S9 Drop 3 — Phase 2.6 manual grading is
+// RETIRED (OV-5); the parked teacher-grading slice owns any successor UI.
 const ActivityAnalytics = lazy(() => import('./routes/ActivityAnalytics'));
 const Privacy = lazy(() => import('./routes/Privacy'));
 
@@ -126,14 +127,6 @@ export default function App() {
         element={
             <RequireAuth>
             <ActivityPrint />
-            </RequireAuth>
-        }
-        />
-        <Route
-        path="/activity/:id/submissions"
-        element={
-            <RequireAuth>
-            <Submissions />
             </RequireAuth>
         }
         />

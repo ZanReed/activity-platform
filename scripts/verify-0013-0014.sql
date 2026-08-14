@@ -29,19 +29,28 @@ select 'rls_forced_on_identity_tables',
 select 'student_domain_zero_policies',
        (select count(*) from pg_policies where tablename = 'student_domain') = 0,
        'service-role / DEFINER only';
-select 'identity_check_three_branches',
+-- 0029 (S9 Drop 3) demolished 0014 §9's account-backed submissions branch:
+-- the identity CHECK is back to TWO branches and both partial indexes are
+-- gone (verify-0029 §B owns the full demolition proof; these rows assert this
+-- script's own expectations moved WITH the schema — OV-DX-1).
+select 'identity_check_two_branches',
        (select pg_get_constraintdef(oid) from pg_constraint
         where conname = 'submissions_identity_present')
-       like all (array['%opaque_token%', '%display_name%', '%student_id%']), '';
-select 'six_identity_indexes',
+       like all (array['%opaque_token%', '%display_name%'])
+       and (select pg_get_constraintdef(oid) from pg_constraint
+             where conname = 'submissions_identity_present')
+           not like '%student_id%', 'post-0029 shape';
+select 'five_identity_indexes',
        (select count(*) from pg_indexes
         where schemaname = 'public'
           and indexname in ('student_domain_added_by_idx', 'classes_teacher_idx',
                             'classes_assertion_by_idx', 'class_members_class_idx',
-                            'class_members_student_idx', 'submissions_student_idx')) = 6, '';
-select 'attempt_race_guard',
-       (select indexdef from pg_indexes where indexname = 'submissions_account_attempt_idx')
-       like '%UNIQUE%' , 'unique partial index present';
+                            'class_members_student_idx')) = 5,
+       'submissions_student_idx demolished by 0029';
+select 'attempt_race_guard_demolished',
+       not exists (select 1 from pg_indexes
+                    where indexname = 'submissions_account_attempt_idx'),
+       'unique partial index dropped by 0029 with its identity branch';
 
 -- @section B-function-posture
 -- @expect-rows

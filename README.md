@@ -64,12 +64,10 @@ editor and runtime behavior (dev builds only).
 | `pnpm bundle:grading-server` | Bundle the grading engine → `supabase/functions/_shared/grading-server.bundle.js` |
 | `pnpm build:graph-kit` | Bundle the graphing kit + regenerate `supabase/functions/_shared/graph-kit-manifest.ts`. Build-only — never uploads |
 | `pnpm upload:graph-kit` | Build the kit AND upload it to R2 (`shared/`) — the deploy step (creds auto-load from gitignored `.env.r2`) |
-| `pnpm deploy:ingest` | Redeploy `ingest-submission` with the required `--no-verify-jwt` flag baked in |
-| `pnpm deploy:feedback` | Redeploy `get-feedback` with the required `--no-verify-jwt` flag baked in |
 | `pnpm deploy:get-activity` | Redeploy `get-activity` with the required `--no-verify-jwt` flag baked in (run `bundle:viewer-server` first) |
 | `pnpm deploy:check` | Redeploy `check-activity` — no flag; `verify_jwt` stays true (run `bundle:grading-server` first) |
-| `pnpm deploy:publish` | Redeploy `publish-activity` |
-| `pnpm deploy:train` | Interactive walkthrough that sequences kit upload → ingest → publish-activity in the safe order |
+
+(`deploy:publish`, `deploy:ingest`, `deploy:feedback`, and `deploy:train` died at S9 Drops 1+3 with their functions — publish is a direct RPC and the anonymous submission wire is demolished. Two functions remain.)
 | `pnpm clean` | Remove all `dist/` directories |
 
 Single-package commands work too:
@@ -95,7 +93,7 @@ Three rules. Violating any of them rots the architecture.
 
 *Editor:* a Tiptap extension (plus a NodeView for blocks that render interactively) under `packages/app/src/editor/`; one entry in `slashMenuItems.ts` — it drives BOTH the slash menu and the toolbar's "+ Insert" dropdown, so there is no separate toolbar step; ★ the node name added to the `Column` node's content expression in `extensions/Columns.ts` (guard: `app/src/__tests__/blockTypeGuards.test.ts`, which also requires a `representativeBlock` case for the new type); registered in `ReferencePanelEditor.tsx` if the serializer can emit it in panel content (guard: `ActivityConfigDrawer.test.tsx`); both directions in `lib/serialize.ts`.
 
-*App plumbing:* ★ `buildActivityIndex` in `lib/submissions.ts` if the block is a question (same guard file — index parity inside columns is asserted for every block type), plus the Submissions dashboard rendering for its response category. Optionally: the markdown importer (`lib/markdownToTiptap.ts`) + `docs/markdown-import-format.md` + the Copy-AI prompt (their own drift-guard test keeps the three in lockstep).
+*App plumbing:* ~~`buildActivityIndex` + Submissions dashboard rendering~~ **DEAD at S9 Drop 3** — the Phase 2.6 dashboard and `lib/submissions.ts` were retired whole (the parked teacher-grading slice owns any successor; the viewer registry's conformance factory is the surviving per-type gate). Optionally: the markdown importer (`lib/markdownToTiptap.ts`) + `docs/markdown-import-format.md` + the Copy-AI prompt (their own drift-guard test keeps the three in lockstep).
 
 *Viewer (`packages/viewer`, the student path that is replacing the renderer):* ★ a registry entry in `src/registry/registry.ts` declaring family, numbering, category, sanitize spec, print treatment, and — for interactive blocks — an a11y story (guard: `viewer/tests/registry.test.ts`, which fails until every schema block type has an entry and the declarations agree with `block-predicates.ts`); ★ an authored fixture in `src/fixtures/index.ts`, one per interaction variant (guard: `viewer/tests/fixtures.test.ts`); a React component in `src/blocks/` bound to the registry entry via `binding`, at which point the family conformance suite starts running against it automatically (`viewer/tests/conformance/`). If the block carries answer-key fields, the sanitize spec is what strips them — the wire-level leak suite (`viewer/tests/sanitize.test.ts`) will fail until it does. Analytics needs no extra step: the registry entry's `analyticsKey` (plus any declared interaction variants) IS the census key, and `viewer/tests/census.test.ts` derives its required roster from the registry, so it fails alongside the two guards above until the entry and fixture exist. Start from `packages/viewer/README.md`, which is the five-minute version of this paragraph.
 

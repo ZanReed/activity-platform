@@ -93,9 +93,11 @@ This works but isn't reproducible. Use Option A once you're past the prototype s
 ### Option C: the verify runner (for the regression re-runs, not for applying)
 
 `pnpm verify:auth --target live` executes the whole auth/grant regression set
-(verify-0027 + verify-0013-0014 + verify-0017 + verify-image-storage +
-verify-0020) over psql and prints per-assertion PASS/FAIL — replacing the
-paste-and-eyeball walkthrough for those five scripts. `--target local` points
+(the `AUTH_VERIFY_SET` array in `scripts/verify-runner.mjs` is the authoritative
+roster — currently verify-0029 + verify-0028 + verify-0027 + verify-0013-0014 +
+verify-0017 + verify-image-storage + verify-0020) over psql and prints
+per-assertion PASS/FAIL — replacing the paste-and-eyeball walkthrough for
+those scripts. `--target local` points
 it at a `supabase start` stack instead (migration rehearsal). One-time
 prerequisites and the connection-string setup are documented in the runner's
 header (`scripts/verify-runner.mjs`): `brew install libpq && brew link --force

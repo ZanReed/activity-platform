@@ -35,7 +35,7 @@
 | ⚠ The same work, via ACTIVITY deletion — **a shorter path counsel should know about** | **30 days** | the teacher soft-deletes the activity | `purge_soft_deleted` removes a purge-eligible activity's checks with it (0022). A teacher tidying old worksheets deletes the student work on them at 30 days, regardless of the 400-day window above |
 | Student account (`users` + `auth.users`) | **400 days of dormancy**, and never before the account's work is gone — see the rulings below | last active class membership ends (removed or class deleted); for a student who never joined one, account creation | purge job deletes the `auth.users` row; `public.users`, `class_members`, and `section_checks` fall via CASCADE behind it |
 | Account explicitly deleted (admin action or an on-request deletion) | **30 days** | `users.deleted_at` is set | same purge path; this is the only thing that sets that column |
-| `ip_hash` + `user_agent` on submissions | **30 days** (intent) | submission time | **mechanism not yet built** — no scrub job exists. Bounded in practice: these fields live only on the legacy anonymous wire, which is deleted whole at the viewer cutover (S9). If cutover slips past real usage, build the scrub first |
+| `ip_hash` + `user_agent` on submissions | **CLOSED — the data no longer exists** | — | the anonymous wire and its data were deleted whole at the S9 cutover (migration 0029, 2026-08-14): every `submissions` row was wiped (17 rows, all the author's test artifacts — 6 carried an `ip_hash`), the ingest path was dropped, and nothing can write new rows. No scrub job is needed for a field with zero rows and no writer |
 | `audit_log` | **2 years** | row creation | scheduled purge |
 | Teacher account + activities | account lifetime | — | soft-delete flow (0008), purge after 30 days (existing) |
 | Class row incl. 13+ assertion record | **at least** 400 days after deletion (the assertion should outlive the work it covered) | class deletion | **mechanism not yet built** — nothing purges class rows today, so they are retained indefinitely. Conservative for a compliance record (it names the teacher and the attestation, not students), but the window above is an intent, not a behavior |
@@ -53,9 +53,10 @@ truthful privacy page).
   fire observed and verified the same day — it completed without abort and
   purged nothing, correctly, since nothing was past its window). Enforcement
   is no longer manual; the monthly-reminder era this bullet used to describe
-  ended when the cron registered. What remains build-state: the two
-  "mechanism not yet built" rows in the table above (class-row purge; the
-  `ip_hash` scrub), each with its bound stated in place.
+  ended when the cron registered. What remains build-state: ONE
+  "mechanism not yet built" row in the table above (the class-row purge),
+  with its bound stated in place. (The `ip_hash` scrub row closed at S9
+  Drop 3 by data removal — see the row.)
 - Deletion order for a student purge: `grades` → `submissions` →
   `class_members` → `users` → `auth.users`.
 - **The RESTRICT safety net is partial — know which half you are in** (verified

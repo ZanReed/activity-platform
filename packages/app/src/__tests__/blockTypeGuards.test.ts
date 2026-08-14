@@ -1,15 +1,19 @@
 // =============================================================================
 // blockTypeGuards.test.ts — add-a-block-type structural guards
 // -----------------------------------------------------------------------------
-// The multiple_choice block shipped without being placeable in columns and
-// without dashboard indexing inside columns (fixed in 3ffb6d4) because those
-// wiring points are easy to miss. These guards make the app-side halves of the
-// README add-a-block-type checklist fail loudly instead:
+// The multiple_choice block shipped without being placeable in columns (fixed
+// in 3ffb6d4) because the wiring point is easy to miss. This guard makes the
+// app-side half of the README add-a-block-type checklist fail loudly instead:
 //
-//   1. EDITOR: every schema-legal column-cell block the editor can represent
-//      must be accepted by the `column` node's content expression.
-//   2. DASHBOARD: a block must contribute the same index entries inside a
-//      column cell as at the top level (buildActivityIndex recursion).
+//   EDITOR: every schema-legal column-cell block the editor can represent
+//   must be accepted by the `column` node's content expression.
+//
+// A second guard used to live here — DASHBOARD: buildActivityIndex indexes a
+// block identically inside a column and at top level. It died with its
+// subject at S9 Drop 3: the Submissions dashboard + lib/submissions.ts were
+// the Phase 2.6 manual-grading surface, RETIRED whole (OV-5; the parked
+// teacher-grading slice owns any successor index, and the viewer's per-block
+// conformance factory is the surviving per-type structural gate).
 //
 // The schema-side half (ColumnCellBlock = Block minus columns) is guarded in
 // packages/schema/tests/columns.test.ts. The reference-panel drawer guard
@@ -22,7 +26,6 @@ import { getSchema } from '@tiptap/core';
 import {
     ActivityDocument,
     createEmptyDocument,
-    createRow,
     createParagraphBlock,
     createHeadingBlock,
     createMathBlock,
@@ -51,7 +54,6 @@ import {
 import { activityToTiptap } from '../lib/serialize';
 import { toBare } from '../lib/serializeTestBridge';
 import { buildEditorExtensions } from '../editor/editorExtensions';
-import { buildActivityIndex, type ActivityIndex } from '../lib/submissions';
 
 // Discriminator literals of a Zod discriminated union, read at runtime.
 const unionTypes = (union: { options: readonly unknown[] }): string[] =>
@@ -60,10 +62,10 @@ const unionTypes = (union: { options: readonly unknown[] }): string[] =>
     );
 
 // A representative instance per cell-legal block type. Question types carry
-// enough content to actually index (an empty fill_in_blank indexes nothing,
-// which would let the dashboard guard pass vacuously). A NEW block type hits
-// the `default` throw — extend this map as part of the add-a-block-type
-// checklist, then the two guards below cover it automatically.
+// real content (kept from the dashboard-guard era — representative beats
+// hollow). A NEW block type hits the `default` throw — extend this map as
+// part of the add-a-block-type checklist, then the guard below covers it
+// automatically.
 function representativeBlock(type: string): Block {
     switch (type) {
         case 'paragraph':
@@ -227,44 +229,5 @@ describe('editor column-cell guard', () => {
     );
 });
 
-describe('dashboard column-indexing guard', () => {
-    // Every Map-valued index (blanks, graphs, mcs, …future response
-    // categories) — compared by size so a new category is covered without
-    // touching this test.
-    const mapSizes = (idx: ActivityIndex): Record<string, number> =>
-        Object.fromEntries(
-            Object.entries(idx)
-                .filter(([, v]) => v instanceof Map)
-                .map(([k, v]) => [k, (v as Map<unknown, unknown>).size]),
-        );
-
-    it.each(cellTypes)(
-        'block type %s contributes the same index entries in a column as at top level',
-        (type) => {
-            const topIdx = buildActivityIndex(docWith(representativeBlock(type)));
-
-            // The same block nested in the FIRST cell of a multi-column row must
-            // index identically (buildActivityIndex walks row → column → block).
-            const row = createRow(2);
-            row.columns[0]!.blocks = [representativeBlock(type)];
-            const doc = createEmptyDocument({ title: 'Guard' });
-            doc.sections[0]!.rows = [row];
-            const colIdx = buildActivityIndex(ActivityDocument.parse(doc));
-
-            expect(
-                mapSizes(colIdx),
-                `'${type}' indexes differently inside a column cell — ` +
-                    `buildActivityIndex (lib/submissions.ts) must handle it in its ` +
-                    `row/column recursion`,
-            ).toEqual(mapSizes(topIdx));
-        },
-    );
-
-    it('the guard is not vacuous: question types actually index', () => {
-        for (const type of ['fill_in_blank', 'interactive_graph', 'multiple_choice']) {
-            const sizes = mapSizes(buildActivityIndex(docWith(representativeBlock(type))));
-            const total = Object.values(sizes).reduce((a, b) => a + b, 0);
-            expect(total, `${type} indexed nothing — enrich representativeBlock`).toBeGreaterThan(0);
-        }
-    });
-});
+// (The dashboard column-indexing guard that stood here died with
+// buildActivityIndex at S9 Drop 3 — see the header.)

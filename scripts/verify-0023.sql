@@ -1,6 +1,13 @@
 -- =============================================================================
 -- verify-0023.sql — author walkthrough for the account retention clock
 -- -----------------------------------------------------------------------------
+-- ⚠ SCHEMA-ERA NOTE (S9 Drop 3, 2026-08-14): this walkthrough predates
+-- migration 0029, which dropped submissions.student_id (column, FK, indexes)
+-- and rewrote purge_soft_deleted without its submissions guards. Sections
+-- here that read submissions.student_id will now ERROR — that is schema-era
+-- mismatch, not a regression. This script is a dated one-time verification
+-- (not in the verify-runner regression set); the living demolition proof is
+-- scripts/verify-0029.sql.
 -- Run AFTER applying 0023_account_retention_clock.sql (SQL editor, service
 -- role). Every query states its EXPECTED result. Anything else = stop.
 --

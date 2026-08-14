@@ -14,16 +14,15 @@
 # the bug. After any deploy, verify live flags with the platform advisor
 # (`list_edge_functions` → verify_jwt per function).
 #
-# The anonymous trio (called from published pages / the viewer's pre-auth META
-# branch with NO Authorization header — see CLAUDE.md "Division of labor"):
+# get-activity is the ONE anonymous function left (its anonymous branch is the
+# viewer's 3.2A pre-auth META endpoint — no Authorization header, so the
+# platform's verify_jwt gate must stay OFF). The old "anonymous trio" language
+# died at S9 Drop 3: ingest-submission + get-feedback (the published-page wire)
+# were deleted from the platform — their entries are deliberately GONE, same
+# rule as publish-activity's tombstone below: source dirs survive until the
+# Drop 4 sweep, so deploy functions BY NAME, never bare deploy-all.
 
 project_id = "activity-platform"
-
-[functions.ingest-submission]
-verify_jwt = false
-
-[functions.get-feedback]
-verify_jwt = false
 
 [functions.get-activity]
 verify_jwt = false

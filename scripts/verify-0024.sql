@@ -1,6 +1,13 @@
 -- =============================================================================
 -- verify-0024.sql — author walkthrough for the audit-actor purge rule
 -- -----------------------------------------------------------------------------
+-- ⚠ SCHEMA-ERA NOTE (S9 Drop 3, 2026-08-14): this walkthrough predates
+-- migration 0029, which dropped submissions.student_id (column, FK, indexes)
+-- and rewrote purge_soft_deleted without its submissions guards. Sections
+-- here that read submissions.student_id will now ERROR — that is schema-era
+-- mismatch, not a regression. This script is a dated one-time verification
+-- (not in the verify-runner regression set); the living demolition proof is
+-- scripts/verify-0029.sql.
 -- Run AFTER applying 0024_audit_actor_purge.sql (SQL editor, service role).
 --
 -- ⚠ RUN SECTION 0 FIRST — it answers "is the migration actually live?".

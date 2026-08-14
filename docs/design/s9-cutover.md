@@ -604,7 +604,13 @@ verification: `mv .env.local .env.local.bak` → run the suite → `mv .env.loca
 `git rev-parse HEAD` in STATE as the last-commit-containing-the-function
 (OV-DX-9). EXPECT: `list_edge_functions` shows 4 remaining. CI gate.
 
-**Drop 3 station (demolition, runs 2nd — HARD-GATED):**
+**Drop 3 station (demolition, runs 2nd — HARD-GATED): ✅ repo-side COMPLETE
+2026-08-14** (T3+T4; the OV-8 gate was verified live and the OV-10 evidence
+captured into STATE at build time; 0029 rehearsed on the live DB in a
+rolled-back transaction, 11/11 green. Build-time P10 find: 0029 also
+re-creates `purge_soft_deleted` minus its two submissions.student_id guards —
+the cron job would have died at first post-apply fire otherwise. Author steps
+queued in STATE → Pending author actions.)
 1. Gate: `supabase migration list` EXPECT 0027 present under Remote (OV-8).
 2. Zero-traffic evidence (OV-10), recorded into STATE:
    `select count(*) as subs, max(submitted_at) as newest from submissions;`
@@ -722,15 +728,18 @@ Synthesized from this review's findings. Checkbox as you ship.
   flush-abort + pre-publish safeParse + PostgREST error mapping; PublishStatus
   → viewer link; delete VITE_PUBLISHED_URL_BASE + publishedUrl(); env-less
   verification run; 3 regression tests (E-1/OV-2/Q1/D-4)
-- [ ] **T2 (P1, CC: ~10m)** — process — Drop 3 start-gate: verify 0027 live +
-  capture zero-traffic evidence per OV-10 into STATE (OV-8/OV-10)
-- [ ] **T3 (P1, CC: ~2h)** — supabase+app — 0029 demolition migration
-  (student_id branch, ingest RPC, wipe w/ P7 counts) + verify-0029 +
+- [x] **T2 (P1, CC: ~10m)** — ✅ 2026-08-14 — process — Drop 3 start-gate: 0027
+  verified live (list_migrations shows 0027+0028) + zero-traffic evidence
+  captured per OV-10 into STATE (OV-8/OV-10)
+- [x] **T3 (P1, CC: ~2h)** — ✅ 2026-08-14 — supabase+app — 0029 demolition
+  migration (student_id branch, ingest RPC, wipe w/ P7 counts, + the
+  purge_soft_deleted recreation the plan missed) + verify-0029 (registered) +
   Submissions route/lib deletion named as Phase 2.6 retirement + compliance
   row/pin updates + config.toml/CLAUDE trio edit + e2e stub deletion
   (D-5/D-6/OV-5/Q1)
-- [ ] **T4 (P2, CC: ~45m)** — docs — scoped P9 audit of Phase 2.6-era
-  "live-verified" claims; correct STATE/HISTORY (OV-6)
+- [x] **T4 (P2, CC: ~45m)** — ✅ 2026-08-14 — docs — scoped P9 audit of Phase
+  2.6-era "live-verified" claims; corrected STATE + two HISTORY sites (the
+  07-13 headline; the Drop-0 CORS deferral — the predicted sibling) (OV-6)
 - [ ] **T5 (P1, CC: ~2h)** — repo-wide — renderer package deletion + CI/
   scripts/deploy-train cleanup + cache-pair removal (purge-order pin updated)
   + reachability re-triage + 13-target claims-grep checklist + doc migration

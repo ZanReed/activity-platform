@@ -47,11 +47,7 @@ const PRODUCTION_ROUTES = [
         name: 'ActivityPrint',
         lazy: true,
     },
-    {
-        path: '/activity/aaaaaaaa-0000-4000-8000-00000000e2e1/submissions',
-        name: 'Submissions',
-        lazy: true,
-    },
+    // Submissions died at S9 Drop 3 (Phase 2.6 retirement, OV-5).
     {
         path: '/activity/aaaaaaaa-0000-4000-8000-00000000e2e1/analytics',
         name: 'ActivityAnalytics',

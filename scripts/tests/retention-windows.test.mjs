@@ -9,11 +9,13 @@
 //
 // WRITING THIS TEST FOUND THREE GAPS (2026-08-06), originally recorded as
 // `todo` cases. The D2/D3 pack rewrite (2026-08-07, draft-4) reconciled all
-// three PROSE-SIDE — the policy now discloses the 30-day activity-deletion
-// path and flags the two unbuilt mechanisms (class-row purge, ip_hash scrub)
-// in place — so the todos were promoted to the GAP assertions below, which
-// pin the corrected prose. If a future migration BUILDS either mechanism,
-// update the doc row and the matching assertion together.
+// three PROSE-SIDE, and the todos were promoted to the GAP assertions below,
+// which pin the corrected prose. Since then: GAP 3 (the ip_hash scrub)
+// CLOSED at S9 Drop 3 by DATA REMOVAL — migration 0029 wiped every
+// submissions row and dropped the ingest path, so its assertion now pins the
+// closure disclosure instead of the unbuilt-mechanism flag. GAP 2 (the
+// class-row purge) remains unbuilt; if a future migration builds it, update
+// the doc row and the matching assertion together.
 // =============================================================================
 
 import { test } from 'node:test';
@@ -83,10 +85,17 @@ test('GAP 2 closed prose-side: the class-row purge is flagged as not yet built',
   );
 });
 
-test('GAP 3 closed prose-side: the ip_hash scrub is flagged as not yet built, bounded by S9', () => {
+test('GAP 3 CLOSED by data removal (S9 Drop 3): the ip_hash row discloses the 0029 wipe', () => {
+  // The flip is still guarded, not merely asserted once (P11): if the row
+  // stops naming the closure mechanism, the disclosure regressed.
   assert.match(
     policy,
-    /`ip_hash`[\s\S]{0,400}mechanism not yet built/,
-    'the ip_hash row no longer admits no scrub exists — either the scrub now exists (update this pin) or the honesty flag was lost',
+    /`ip_hash`[\s\S]{0,500}deleted whole at the S9 cutover \(migration 0029/,
+    'the ip_hash row must disclose HOW the window closed (the 0029 wipe + dropped ingest path), not merely go quiet',
+  );
+  assert.doesNotMatch(
+    policy.split('`ip_hash` + `user_agent`')[1]?.split('\n')[0] ?? '',
+    /mechanism not yet built/,
+    'the row still carries the unbuilt-mechanism flag — the closure edit half-landed',
   );
 });

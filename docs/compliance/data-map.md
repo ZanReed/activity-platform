@@ -49,8 +49,8 @@
 | `submissions.display_name` | **typed name (legacy path)** | student | student-typed on legacy pages | attributing work | submissions window; path demolished at S9 |
 | `submissions.opaque_token` | pseudonymous roster token (Phase-3 design, unused) | student | — | — | — |
 | `submissions.responses` / `score` / `attempt_number` | classwork | student | student work | the product | submissions window |
-| `submissions.ip_hash` | salted SHA-256 of IP | student | ingest/grading edge | abuse detection ONLY | **30 days** |
-| `submissions.user_agent` | browser string | student | same | abuse detection ONLY | 30 days (scrubbed with ip_hash) |
+| `submissions.ip_hash` | salted SHA-256 of IP | student | ~~ingest edge~~ (writer demolished) | abuse detection ONLY | **CLOSED at S9 Drop 3** — all rows wiped by 0029, ingest path dropped; zero rows remain, nothing can write new ones |
+| `submissions.user_agent` | browser string | student | same | abuse detection ONLY | closed with ip_hash (same wipe) |
 | `grades.*` | teacher feedback + scores on student work | student | teacher | grading | follows submissions window |
 | `audit_log.actor_id` + `action` (+`ip_hash`) | who did what when | both | triggers/RPCs | security review | **2 years** — and the row outlives the account: on purge `actor_id` goes NULL and `metadata.actor_purged` is stamped (0024), so the event survives its window without naming a person |
 
@@ -69,7 +69,11 @@ student work ──► grading RPC (S4) ──► submissions(student_id, respon
                                         [never built — see the table note above]
                                       └─ ip_hash/user_agent (30-day abuse window)
 teacher grading ──► grades
-legacy published page ──► ingest-submission ──► submissions(display_name)   [until S9]
+legacy published page ──► ingest-submission ──► submissions(display_name)
+                                      [DEMOLISHED at S9 Drop 3: function deleted,
+                                       ingest_submission RPC dropped, rows wiped (0029);
+                                       the submissions/grades tables survive EMPTY for
+                                       the parked teacher-grading slice to re-decide]
 
 ⚠ OUTBOUND, NO SIGN-IN REQUIRED:
 anyone with an activity link ──► get-activity?meta=1 ──► get_activity_public_meta

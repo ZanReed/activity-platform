@@ -26,7 +26,7 @@ import {
     type ReactNode,
 } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
-import { FileText, BarChart3, ClipboardPaste, Globe } from 'lucide-react';
+import { FileText, ClipboardPaste, Globe } from 'lucide-react';
 import type { Editor as TiptapEditor, JSONContent } from '@tiptap/react';
 import {
     ActivityDocument,
@@ -568,12 +568,6 @@ export default function ActivityEditor() {
             label="Print view"
             to={`/activity/${id}/print`}
             title="Open the printable worksheet view + print layout settings"
-            />
-            <HeaderButton
-            icon={<BarChart3 size={18} />}
-            label="Submissions"
-            to={`/activity/${id}/submissions`}
-            title="Open the submissions dashboard (student results)"
             />
             <HeaderButton
             icon={<ClipboardPaste size={18} />}
