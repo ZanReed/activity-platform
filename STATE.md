@@ -8,7 +8,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **⏭ S9 Drop 1 station (publish rewrite — repo-side COMPLETE, committed this session).** In order, per [s9-cutover.md](docs/design/s9-cutover.md) §8:
 1. Push the Drop 1 commit; **CI gate**: `gh run list --limit 1` → green (OV-DX-8).
-2. Record the HEAD hash here as the last-commit-containing-publish-activity (OV-DX-9 — the function's source deliberately stays in the tree until the Drop 3/4 sweeps; the hash is the resurrection pointer): `git rev-parse HEAD` → `____________`.
+2. ✅ **HEAD recorded 2026-08-14 (OV-DX-9): `27a4a08dd7b58aa460f5c13d9d360d85f0ec13df`** (`27a4a08`, the Drop 1 commit) — the resurrection pointer for the deleted deploy. Note the nuance this repo's own rule anticipated: `supabase/functions/publish-activity/` is still IN the tree at this hash and stays there until the Drop 3/4 sweeps delete it, so the hash is a *deploy-state* marker (last commit whose repo still described a deployed publish-activity), not the last commit containing the source. Re-record at the Drop 4 deletion if a source pointer is wanted then.
 3. `supabase functions delete publish-activity` (verify per-invocation syntax with `--help` first). EXPECT: `list_edge_functions` shows 4 remaining (get-activity, check-activity, ingest-submission, get-feedback).
 4. Then Drop 3 (demolition) is next in the ruled order 1→3→4→2→5 — hard-gated on the OV-10 zero-traffic evidence; the D-2 design review is already done.
 
