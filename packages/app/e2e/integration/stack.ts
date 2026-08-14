@@ -20,11 +20,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import {
-  INT_DOMAIN,
-  LOCAL_ANON_KEY,
-  LOCAL_SUPABASE_URL,
-} from './contract';
+import { INT_DOMAIN, LOCAL_ANON_KEY } from './contract';
 
 const REPO_ROOT = resolve(import.meta.dirname ?? __dirname, '../../../..');
 
@@ -114,27 +110,64 @@ export function preflightAndReset(): LocalStack {
   return { serviceRoleKey: service };
 }
 
-export async function seedAdmission(stack: LocalStack): Promise<void> {
-  const headers = {
-    apikey: stack.serviceRoleKey,
-    Authorization: `Bearer ${stack.serviceRoleKey}`,
-    'Content-Type': 'application/json',
-    Prefer: 'resolution=ignore-duplicates',
-  };
+/** Seed the admission fixtures AS `postgres`, through the CLI's own psql.
+ *
+ *  NOT through PostgREST as the service role, which is what this did until
+ *  2026-08-14 and which never worked: `student_domain` and `allowlist` are two
+ *  of the SEVEN zero-policy tables, and service_role holds no DML on either, so
+ *  every seed returned `42501 permission denied for table`. Nothing had noticed
+ *  because the lane had never completed a run (the chain aborted earlier, at
+ *  0009).
+ *
+ *  The fix is deliberately NOT "grant service_role INSERT". Those two tables are
+ *  the admission boundary — a row in `student_domain` admits an entire email
+ *  domain as students, and a row in `allowlist` mints a teacher — and 0027/0028
+ *  hardened exactly that surface. Widening a production grant so a test can
+ *  write is the wrong direction; a fixture should reach for more privilege
+ *  LOCALLY, not lower the bar globally. `postgres` is also the path 0013
+ *  documents for real seeding ("the author seeds rows in the SQL editor"), so
+ *  the lane now rehearses the documented path instead of an invented one.
+ *
+ *  Local-only by construction: this runs inside `supabase db` against the
+ *  container stack and has no meaning against a hosted project. */
+export async function seedAdmission(): Promise<void> {
   const teacherEmail = (await import('./contract')).INT_TEACHER.email;
-  const domainRes = await fetch(`${LOCAL_SUPABASE_URL}/rest/v1/student_domain`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify([{ domain: INT_DOMAIN }]),
-  });
-  const allowRes = await fetch(`${LOCAL_SUPABASE_URL}/rest/v1/allowlist`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify([{ email: teacherEmail }]),
-  });
-  if (!domainRes.ok || !allowRes.ok) {
+  // Generated from contract.ts, never retyped (D10/P2). Quote-escaped rather
+  // than interpolated raw: these are test constants, but a seeder that breaks
+  // on an apostrophe is a trap for whoever edits the contract next.
+  const q = (v: string) => `'${v.replace(/'/g, "''")}'`;
+  // ONE command on purpose: `supabase db query` sends a prepared statement, and
+  // Postgres refuses multiple commands in one — two bare INSERTs fail with
+  // "cannot insert multiple commands into a prepared statement". A DO block is
+  // a single command and keeps both seeds in one transaction.
+  const sql = [
+    `do $seed$ begin`,
+    `  insert into public.student_domain (domain) values (${q(INT_DOMAIN)})`,
+    `    on conflict (domain) do nothing;`,
+    `  insert into public.allowlist (email) values (${q(teacherEmail)})`,
+    `    on conflict (email) do nothing;`,
+    `end $seed$;`,
+  ].join('\n');
+
+  try {
+    execFileSync('supabase', ['db', 'query', sql], {
+      cwd: REPO_ROOT,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 60_000,
+    });
+  } catch (err) {
+    // Surface the CLI's OWN output, not just execFileSync's "Command failed"
+    // banner. D7 promises a named fix, and the first version of this seeder
+    // buried the actual cause ("cannot insert multiple commands into a prepared
+    // statement") behind a truncated echo of the command — which is the failure
+    // mode the preflight contract exists to prevent.
+    const e = err as { message?: string; stdout?: Buffer; stderr?: Buffer };
+    const detail = [e.stdout?.toString(), e.stderr?.toString()]
+      .filter((s): s is string => Boolean(s?.trim()))
+      .join('\n')
+      .trim();
     fail(
-      `seeding failed (student_domain ${domainRes.status}, allowlist ${allowRes.status}).`,
+      `seeding the admission fixtures failed.\n  CLI SAID: ${detail || e.message}`,
       'check the local stack is healthy: `supabase status`, then re-run',
     );
   }

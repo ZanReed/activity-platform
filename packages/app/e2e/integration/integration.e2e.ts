@@ -102,8 +102,11 @@ function checkableDoc(): unknown {
 test.beforeAll(async () => {
   test.setTimeout(360_000); // db reset downloads nothing but replays 30 migrations
 
-  const stack = preflightAndReset();
-  await seedAdmission(stack);
+  // Called for its effects (preflight with named fixes, then a full db reset);
+  // the returned handle is no longer needed now that seeding goes through the
+  // CLI as postgres rather than PostgREST as the service role.
+  preflightAndReset();
+  await seedAdmission();
 
   // Edge Functions must be served for the check round trip. Recent CLIs serve
   // them as part of `supabase start`; older setups need the extra command.
@@ -183,15 +186,24 @@ test('a teacher makes a class + publishes + shares; a student joins through the 
   // -- the teacher's OWN shell routes by the real role -----------------------
   await useSession(page, teacher.session);
   await page.goto('/');
+  // "My activities", not "Activities" — the teacher shell's actual link text
+  // (routes/Home.tsx). This assertion was retyped from imagination and had
+  // never run against the real UI; see the note on the join-success copy below.
   await expect(
-    page.getByRole('link', { name: 'Activities', exact: true }),
+    page.getByRole('link', { name: 'My activities', exact: true }),
   ).toBeVisible();
 
   // -- student side: the join deep link, end to end --------------------------
   const studentPage = await page.context().newPage();
   await useSession(studentPage, student.session);
   await studentPage.goto(`/join/${joinCode}`);
-  await expect(studentPage.getByText('You’re in ✓')).toBeVisible({
+  // STRAIGHT apostrophe: JoinClass.tsx writes `You&apos;re in ✓`, which renders
+  // U+0027, while this assertion was originally typed with a curly U+2019 — two
+  // strings that can never match and that look identical in a diff. Both this
+  // and the link text above are the same class of defect: UI copy retyped into
+  // a lane that had never executed, so nothing could contradict it. The lane
+  // built to end stub-blindness shipped with three stubs of its own.
+  await expect(studentPage.getByText("You're in ✓")).toBeVisible({
     timeout: 15_000,
   });
   await expect(studentPage.getByText(className)).toBeVisible();

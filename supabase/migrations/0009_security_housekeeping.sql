@@ -114,7 +114,27 @@ grant execute on function handle_new_auth_user() to supabase_auth_admin;
 
 revoke execute on function purge_soft_deleted() from public, anon, authenticated;
 
-revoke execute on function rls_auto_enable() from public, anon, authenticated;
+-- GUARDED 2026-08-14. This line is the reason the migration chain could not be
+-- replayed from scratch for months: rls_auto_enable() was created in the
+-- dashboard, so on a FRESH database it does not exist and this revoke aborted
+-- the whole run at 0009 — no new environment, no disaster recovery from
+-- migrations, and no integration lane (its preflight resets the DB every run).
+-- Live is unaffected: 0009 applied there long ago, with the function present.
+--
+-- The guard keeps this file's live-applied behavior identical while letting a
+-- fresh chain reach 0031, which CREATES the function and event trigger and then
+-- re-applies this revoke — so a rebuilt database ends up where live already is.
+do $guard$
+begin
+  if exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where p.proname = 'rls_auto_enable' and n.nspname = 'public'
+  ) then
+    execute 'revoke execute on function public.rls_auto_enable() from public, anon, authenticated';
+  end if;
+end
+$guard$;
 
 -- -----------------------------------------------------------------------------
 -- 3. Pin search_path on the RLS helper functions
