@@ -278,17 +278,22 @@ export const THROTTLE = {
  * target is the MEDIAN OF ≥5 green CI runs of the perf lane — never a single
  * run (one shared-runner sample inside known runner variance would make the
  * derived 2x ceiling flaky), and never a local darwin number (different
- * machine). ARMED 2026-08-09 per the A3 amendment: medians of the five green
- * CI runs in STATE's calibration ledger (31144354624, 31145342108,
- * 31149262316, 31151334014, 31315856831 — pre-auth 948/946/969/969/1009,
- * worksheet 1118/1106/1100/1195/1156, math 1828/1805/1814/1877/1831).
- * Local darwin numbers were never used (a Mac number in a Linux gate would
- * be dishonest). Recalibrate by the same rule: median of ≥5 green runs.
+ * machine). ARMED 2026-08-09 per the A3 amendment; RECALIBRATED 2026-08-14
+ * per the gate-9/D-12 post-cutover re-measure the rule itself names: medians
+ * of the five green post-cutover CI runs in STATE's ledger (31791526509,
+ * 31795715961, 31796358508, 31803968894, 31805589675 — pre-auth
+ * 1024/944/1009/992/969, worksheet 1163/1089/1144/1135/1096, math
+ * 1844/1807/1812/1844/1792). The shift from the armed values (969/1118/1828)
+ * is under ±2.5% on every mark — scatter, not a regression; the S9 content
+ * surface's 1.0 KiB entry cost did not move the timing floor. Prior ledger
+ * (2026-08-07/09 runs) archived in HISTORY. Local darwin numbers were never
+ * used (a Mac number in a Linux gate would be dishonest). Recalibrate by the
+ * same rule: median of ≥5 green runs.
  */
 export const TIMING_TARGET_MS = {
-    [MARKS.preAuthInteractive]: 969,
-    [MARKS.worksheetInteractive]: 1118,
-    [MARKS.mathRendered]: 1828,
+    [MARKS.preAuthInteractive]: 992,
+    [MARKS.worksheetInteractive]: 1135,
+    [MARKS.mathRendered]: 1812,
 };
 
 /**
