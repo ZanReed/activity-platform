@@ -88,6 +88,39 @@ per-district DPAs at scale (SDPC registry) was not crawled; DeltaMath's own
 terms ("agreements with the school or district") and the Ed-Law-2-d/SOPPA
 name-drops corroborate it from the vendor side.
 
+**Round 2 (2026-08-15, author asked for Desmos + Khan before ruling on the
+admission point):**
+
+- **Desmos Classroom (now Amplify):** `student.desmos.com` →
+  `student.amplify.com/join` — the student entry page IS a 6-digit code box
+  (verified by driving it: six digit inputs, an optional "Log in" button,
+  nothing else). Join-code-first, account-optional — the purest guest tier in
+  the set.
+- **Khan Academy:** learner signup is `/signup/learner/birthday` — a **date
+  of birth gate before anything else** ("First, we need your date of birth"),
+  then the auth methods. The signup was not driven past the gate (no
+  fabricated birthdate); the mechanism behind it is in their Children's
+  Privacy Notice, verbatim: *"…seeking the consent of a parent or legal
+  guardian ('Parent') for creation of that account. When Khan Academy is used
+  by a School in an educational setting, we rely on the School to provide the
+  requisite consent, on behalf of the Parent."* Age-gated self-signup with a
+  parent-consent branch for independents, school consent for school users.
+
+**The two patterns that hold across ALL FIVE platforms (Desmos, Blooket,
+Gimkit, DeltaMath, Khan):**
+
+1. **None is OAuth-only for students, and none uses domain-gating as the
+   admission floor.** Email+password student signup exists everywhere
+   accounts exist; domain/SSO identity appears only as the paid district
+   tier (DeltaMath INTEGRAL). The proposed email+password-plus-class-code
+   signup is not merely "like DeltaMath" — it is the only admission floor
+   any of the five uses for login-required use.
+2. **The class code is the universal enrollment anchor** — without accounts
+   (Desmos/Blooket/Gimkit), at signup (DeltaMath), or joining a teacher
+   (Khan). Under-13 legality rides school consent "on behalf of the parent"
+   in every school-facing policy that addresses it (Gimkit's and Khan's
+   wording are near-identical).
+
 ## 3. The enforcement precedent — FTC v. Edmodo (2023), read precisely
 
 Verified via Wikipedia (ftc.gov blocks automated reads): **$6M civil penalty
