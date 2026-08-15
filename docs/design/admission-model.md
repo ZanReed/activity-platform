@@ -1,13 +1,25 @@
-# Admission model — the teacher-anchored signal (recorded 2026-08-15)
+# Admission model — teacher-anchored admission (direction RULED 2026-08-15)
 
-**Status: DESIGN SIGNAL, not a ruling.** The author challenged S1's mandatory
-domain gate (2026-08-15) and, after the competitor/regulatory analysis below,
-picked **option C (per-class/per-district domain requirement, teacher-anchored
-default)** as the preferred direction. This amends nothing yet: it is the input
-to a future design + eng review, because it re-rules S1's admission model — the
-trigger, the 0027 hardening, the verify-auth suite, and the compliance pack all
-sit on the current gate. **Trigger for that pass: the free-catalog arc kickoff
-or the first external teacher, whichever lands first.**
+**Status: DIRECTION RULED — design pass IN PROGRESS; not yet build-ready.**
+The author challenged S1's mandatory domain gate, picked **option C**
+(teacher-anchored default, domain requirement as a per-class/district option),
+and after the round-1/round-2 re-derivation below ruled the two anchor
+decisions (2026-08-15):
+
+- **A1 — Admission point: email+password student signup carrying a class
+  code** (the five-for-five verified industry floor). The code rides in
+  `raw_user_meta_data`, where `handle_new_auth_user` already reads — admission
+  stays at signup, deny-by-default, one choke point. District students keep
+  Google SSO (the platform's DeltaMath-INTEGRAL-equivalent tier).
+- **A2 — Teacher signup: self-serve with attestation** (the Gimkit posture,
+  paired with `docs/compliance/school-authorization-template.md`). The teacher
+  account becomes the trust anchor.
+
+**Remaining before build: the D-list below (awaiting per-item yes/no), then
+the eng review this doc has always named.** The compliance-pack amendment is
+load-bearing, not paperwork — A1/A2 change the consent story the pack tells,
+which is also why the D24 counsel read is deliberately HELD until this lands
+(reviewing the pre-A1 pack would buy a review that has to be repurchased).
 
 Provenance: the author's challenge ("this feels like a bad system now and an
 impossible system later"), a three-round analysis, and a `/browse` verification
@@ -228,6 +240,51 @@ near zero — this is the cheapest moment this decision will ever have.
    surface, the natural try-it loop. S9 demolished the *old* anonymous wire
    as test-artifact cleanup, not as a verdict on guest checking; a designed
    guest tier would be its successor, and is its own arc.
+
+## 5a. The D-list — remaining decisions under A1/A2 (drafted 2026-08-15, each needs the author's yes/no)
+
+- **D1 — The trigger ADMITS, it never JOINS.** The join-code branch validates
+  the code (class exists, not soft-deleted, `expected_domain` satisfied) and
+  mints `role='student'` — then the existing client-side `join_class` runs
+  after first sign-in, exactly as it does today for domain students.
+  Rationale: `join_class` stays the ONLY write path into `class_members`
+  (0027's invariant); an admit+join trigger would be a second, unaudited
+  writer. Refusal on a bad code reuses the E-7 contract (RAISE LOG before the
+  raise; distinct string).
+- **D2 — `expected_domain` is checked at ADMISSION for code-signups, and
+  stays checked at join.** A class that requires a district domain refuses
+  the code-signup outright (the student never gets an account they cannot
+  use); the join-time check stays as the second lock. This is the full
+  option-C semantics using the column 0014 already built.
+- **D3 — The signup UI lives on `/join/<CODE>`** as a "create an account"
+  branch beside the existing Google button, code pre-filled from the URL.
+  No standalone /signup route: a student account with no class is a thing
+  D1 makes impossible to want.
+- **D4 — Email confirmation ON, password reset via Supabase's built-ins.**
+  School filters may eat mail — the failure mode is visible (student says
+  "no email"), the E-11-style empty state names the fix (ask the teacher /
+  retry). No custom SMTP until it actually hurts.
+- **D5 — Join-code entropy gets re-derived before codes become bearer
+  admission tokens.** Today a code leaks only a class name (rate-limited
+  meta); under A1 it admits an account. Decide length/alphabet + the
+  limiter's window against brute force as an eng-review item with numbers.
+- **D6 — Teacher attestation is stored like the age assertion:** columns on
+  `users` (`educator_attested_at/_text_version`), NOT NULL for self-serve
+  teachers, rides `POLICY_VERSION`. Allowlist teachers keep NULL (they
+  predate the mechanism and the author vouched for them directly).
+- **D7 — Under-13 stays EXCLUDED in v1.** The per-class 13+ assertion
+  continues to carry COPPA (no parent/school consent mechanics built yet);
+  the Khan-style birthdate gate and school-consent enrollment are a named
+  follow-on, not part of this slice. The compliance pack says so plainly.
+- **D8 — The compliance-pack amendment ships IN the same slice** (not
+  after): the Gimkit-style enrollment-=-consent story, the operator-side
+  direct notice (what is collected, why, education-only), and the D24
+  counsel read is scheduled AFTER this lands.
+- **D9 — verify:auth grows an admission matrix for the new branch** (code
+  admits / bad code refuses / expired class refuses / expected_domain
+  refuses / domain path unchanged / allowlist path unchanged), and the
+  integration lane gains the code-signup round trip — it already creates
+  email+password users through the real trigger, so the harness exists.
 
 ## 6. What this signal does NOT do
 
