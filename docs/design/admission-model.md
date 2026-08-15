@@ -1,24 +1,19 @@
-# Admission model — teacher-anchored admission (direction RULED 2026-08-15)
+# Admission model — Google-only self-serve with a pending role (ENG-REVIEWED 2026-08-15)
 
-**Status: DIRECTION RULED — design pass IN PROGRESS; not yet build-ready.**
-The author challenged S1's mandatory domain gate, picked **option C**
-(teacher-anchored default, domain requirement as a per-class/district option),
-and after the round-1/round-2 re-derivation below ruled the two anchor
-decisions (2026-08-15):
+**Status: ENG REVIEW CLEAR — build-ready. The ruled architecture is §5b (R1–R11);
+it SUPERSEDES the morning's A1/A2/D-list where they conflict.** The arc of the
+day, kept for the record: the author challenged S1's mandatory domain gate →
+option C ruled → A1 (email+password + class code) and A2 (self-serve
+attestation) ruled → the eng review's outside voice exposed A1's real cost
+(Supabase's built-in mail cannot survive one classroom; the password path armed
+a pre-creation attack) → **the author's own counter-proposal won: tie all
+self-serve account creation to Google (more providers later), admit unknowns as
+a contained `pending` role, and finish enrollment through audited RPCs whose
+error text actually reaches the UI.** The morning's email+password mechanism
+was never built and is now a demand-triggered follow-on, not the floor.
 
-- **A1 — Admission point: email+password student signup carrying a class
-  code** (the five-for-five verified industry floor). The code rides in
-  `raw_user_meta_data`, where `handle_new_auth_user` already reads — admission
-  stays at signup, deny-by-default, one choke point. District students keep
-  Google SSO (the platform's DeltaMath-INTEGRAL-equivalent tier).
-- **A2 — Teacher signup: self-serve with attestation** (the Gimkit posture,
-  paired with `docs/compliance/school-authorization-template.md`). The teacher
-  account becomes the trust anchor.
-
-**D-list RULED "all yes" (author, 2026-08-15) — next: the eng review.** The compliance-pack amendment is
-load-bearing, not paperwork — A1/A2 change the consent story the pack tells,
-which is also why the D24 counsel read is deliberately HELD until this lands
-(reviewing the pre-A1 pack would buy a review that has to be repurchased).
+The D24 counsel read is scheduled BETWEEN the drops (gates Drop 2 — teacher
+self-serve going live), per the review's OV-8 ruling.
 
 Provenance: the author's challenge ("this feels like a bad system now and an
 impossible system later"), a three-round analysis, and a `/browse` verification
@@ -240,7 +235,98 @@ near zero — this is the cheapest moment this decision will ever have.
    as test-artifact cleanup, not as a verdict on guest checking; a designed
    guest tier would be its successor, and is its own arc.
 
-## 5a. The D-list — remaining decisions under A1/A2 (drafted 2026-08-15, each needs the author's yes/no)
+## 5b. THE RULED ARCHITECTURE — R1–R11 (eng review, 2026-08-15; supersedes §5a where they conflict)
+
+**R1 — Admission: the trigger admits, and the only self-serve door is OAuth.**
+`handle_new_auth_user` keeps its two fast paths verbatim (allowlist → teacher;
+`student_domain` → student; precedence allowlist > domain, trivially safe now)
+and gains ONE new terminal branch: any other Google signup is admitted as
+**`role='pending'`** instead of refused. No email+password path exists in the
+app; adding Microsoft/other providers later is configuration, not architecture.
+(Supersedes A1's email+password mechanism and the whole password-path
+precedence question — there is no password path to attack. The morning's
+"2B follow-on" note is RESOLVED: this IS the create-then-onboard shape,
+arrived at with a contained role instead of a blank account.)
+
+**R2 — `redeem_join_code(p_code)` — the student promotion.** Audited DEFINER
+RPC, callable by `pending` only: validates the class (exists, not
+soft-deleted, `expected_domain` vs caller email — keeping `join_class`'s
+existing disclosure shape, which names the domain to a signed-in, code-holding
+caller; 0014 precedent), then **promotes to student and joins in one
+transaction, with `join_class` remaining the single `class_members` writer**
+(the promotion happens first; the join call runs under the new role). E-7/E-8
+contract: RAISE LOG before every refusal; distinct strings — and because this
+is a plain RPC, **the raise text reaches the client** (the GoTrue-swallowing
+problem the morning's 1A machinery existed to work around is gone; the
+pre-auth `/join/<CODE>` meta lookup (T7) stays exactly as it is).
+
+**R3 — `claim_teacher(p_attestation_version)` — the teacher promotion.**
+Audited DEFINER RPC, `pending` only: writes `educator_attested_at/_version`
+(riding `POLICY_VERSION`, the 3.1C pattern; D6's columns, now written by an
+RPC that can enforce rather than a trigger that cannot), promotes to teacher.
+**Attested (non-allowlist) teachers are structurally capped: 5 classes, 50
+members per class** (OV-9; enforced in the audited create/join paths;
+allowlist teachers uncapped via a `teacher_caps_exempt` flag; lifting a cap is
+an author action). A fraudulent anchor harvests at most one classroom-shaped
+blast radius while the audit rows light up.
+
+**R4 — Pending containment is proven, not assumed.** Every capability check
+already keys on `role='teacher'` or `role='student'`, so `pending` is excluded
+by construction — and the verify matrix gains a containment row per capability
+(authoring policies, `join_class`, `check-activity`, class RPCs, roster reads)
+proving it. **The ONE deliberate widening, author-accepted:** a pending
+account can read link-shared published content under S2's "any authenticated
+user" rule — continuity with the R2 link-share model S2 was built on; stated
+plainly in the compliance amendment. Checks, classes, rosters, and all student
+data stay behind real roles.
+
+**R5 — The flow.** `/join/<CODE>`: pre-auth meta (exists) → `signInWithGoogle`
+(exists) → pending lands back on the code page → auto-`redeem` replaces the
+old auto-join → success/refusal states with REAL error text. A bare pending
+sign-in (no code) lands on an E-11-style onboarding state: "have a class
+code?" + "I'm a teacher" → attestation → `claim_teacher`. Idempotent on
+re-entry; double-submits die on the pending-only guard.
+
+**R6 — Strings.** Both RPCs' refusal strings + LOG prefixes join
+`authContract.json` and its pin test (4A) — and they are now user-visible, so
+the pin test guards real UI copy, not just server logs (the P9 vacuity note
+resolves itself).
+
+**R7 — Codes.** `generate_join_code` upgrades to `gen_random_bytes` selection
+(3A). The numbers, pinned: 6 chars × 31-char confusable-excluded alphabet ≈
+887M, unique-indexed; the old `(random()*30)::int+1` bias dies with the
+upgrade. Brute-force surface: authenticated-only redemption (a failed guess
+costs an audited, logged RPC call on a real Google account) + the pre-auth
+meta limiter in front.
+
+**R8 — Retention.** Never-redeemed pending accounts hold email + provider
+name only; the 0025 dormancy clock covers them from account age (verify row
+added), and the compliance amendment states their status in one sentence.
+
+**R9 — The matrix, re-derived (~26 rows).** Trigger: allowlist / domain /
+pending / precedence (4). Redeem: valid / bad code / deleted class / domain
+mismatch / non-pending caller / double-call (6). Claim: attested / missing
+attestation / non-pending / both caps firing at their production values (4).
+Containment: pending × five capabilities (5). UI: join-flow states (4) +
+onboarding states (3). Integration lane: full real-trigger redeem round trip,
+refused redeem, claim + cap liveness, and the **P3 classroom-burst row — 30
+sign-ins + 30 redeems from one IP at production limiter values** (4). The
+lane's email+password harness still works unchanged: those signups land
+`pending` and exercise the same RPCs the app calls.
+
+**R10 — Drops and gates.** Drop 1: `pending` + `redeem_join_code` + the join
+flow (students; usable by the author's own classes immediately). Drop 2:
+`claim_teacher` + caps + attestation UI + the D8 compliance amendment —
+**gated on the D24 counsel read** (OV-8: lawyered before strangers' student
+data arrives). OV-7 considered and declined: no server-side signup function
+(no new anonymous service-role surface; GoTrue's abuse protections stay).
+
+**R11 — Why accounts-first and not the guest tier first** (OV-10c, one
+sentence): the author's own classroom — the only live user — needs persistent
+identity for grading and retention, so the account path ships first; the guest
+tier remains the named follow-on for stranger try-it traffic.
+
+## 5a. The D-list — remaining decisions under A1/A2 (drafted 2026-08-15 morning; SUPERSEDED where §5b conflicts — kept for the ruling record)
 
 - **D1 — The trigger ADMITS, it never JOINS.** The join-code branch validates
   the code (class exists, not soft-deleted, `expected_domain` satisfied) and
@@ -299,4 +385,110 @@ near zero — this is the cheapest moment this decision will ever have.
 It does not change the trigger, the verify suite, the compliance pack, or
 gate 4 (seeding the author's own district under the CURRENT model proceeds
 unchanged — C is additive to it, and the author's district would simply be a
-`require_domain` district under C).
+`require_domain` district under C). *(Post-review note: gate 4 stays
+unchanged under §5b too — the domain fast path is untouched.)*
+
+## 7. NOT in scope (considered and deferred, eng review 2026-08-15)
+
+- **Email+password signup** — the morning's A1 mechanism; superseded by R1.
+  Returns only on demand evidence (a student population without Google
+  accounts). Carries the SMTP/confirmation/reset cost bundle when it does.
+- **Additional OAuth providers (Microsoft/Entra)** — config-level follow-on;
+  already sequenced in the backlog's IdP map (Azure → Clever/ClassLink → LTI).
+- **The guest tier** (anonymous join-code play) — named follow-on, R11's one
+  sentence records why it is second.
+- **Under-13 support** — D7 stands: the per-class 13+ assertion carries COPPA;
+  birthdate gate + school-consent enrollment is its own arc.
+- **DPA template / district paperwork** — D8 ships the consent amendment only;
+  the signable DPA waits for the first district that asks (with counsel).
+- **Cap-lifting admin surface** — author lifts `teacher_caps_exempt` by SQL;
+  a UI waits for the second real teacher.
+- **CAPTCHA on redemption** — the authenticated-RPC cost + audit trail is the
+  v1 defense; revisit only if abuse telemetry appears.
+
+## 8. What already exists (the review's reuse inventory)
+
+Reused verbatim: the T7 pre-auth `/join/<CODE>` meta lookup + limiter ·
+`signInWithGoogle` + redirect plumbing · `join_class` (stays the only
+`class_members` writer) + its E-7/E-8 contract · `expected_domain` + its
+audited edit path (0014/0027) · the 3.1C attestation column pattern ·
+`authContract.json` + pin test · the verify:auth runner · the integration
+lane's email+password-through-the-real-trigger harness · 0025's dormancy
+derivation · E-11 empty-state pattern · the audit_log writers. Built new:
+one trigger branch, two RPCs, two cap checks, one onboarding UI state,
+~26 verify/e2e rows, the compliance amendment. Nothing is rebuilt that
+existed.
+
+## 9. Failure modes (per new codepath; test / handling / visibility)
+
+| Failure | Test | Handling | User sees |
+|---|---|---|---|
+| Code regenerated between meta and redeem | R9 redeem row | RPC refuses, text delivers | "Code no longer valid — ask your teacher" |
+| Class deleted between meta and redeem | R9 row | same | same |
+| Domain-restricted class, wrong account | R9 row | RPC refuses, names domain (0014 shape) | "This class is limited to @X accounts" |
+| Pending user abandons mid-onboarding | R9 idempotency row | re-entry lands same state | onboarding screen again |
+| Double-submit redeem/claim | R9 rows | pending-only guard refuses 2nd call | success state (1st) |
+| Classroom burst trips a limiter | **P3 liveness row at prod values** | limits configured for 30+/IP | nothing (that's the test's job) |
+| Trigger failure during OAuth callback | existing E-7 frames | callback error parsing (S9-prep) | sign-in-failed frame |
+| Pending account never redeems | R8 retention row | 0025 dormancy from account age | n/a (purged in time) |
+
+No silent failure survives the table: every row has a test AND handling AND a
+visible outcome. **Critical gaps: 0.**
+
+## 10. Worktree parallelization
+
+| Step | Modules touched | Depends on |
+|---|---|---|
+| S1: migration 0033 (pending role, RPCs, caps, code-gen v2) + verify rows | supabase/ | — |
+| S2: onboarding UI + redeem flow + RTL/e2e | packages/app/ | S1 (RPC names/strings via authContract) |
+| S3: compliance amendment (D8) | docs/compliance/ | — (content-independent of code) |
+
+Lane A: S1 → S2 (sequential — S2 derives from S1's contract). Lane B: S3
+(independent, parallel with everything). Launch A and B together; Drop 2's
+counsel gate (R10) sits between S1/S2 landing and claim_teacher going LIVE.
+
+## Implementation Tasks
+
+Synthesized from this review's findings. Run with Claude Code; checkbox as you ship.
+
+- [ ] **T1 (P1, human: ~1.5d / CC: ~45min)** — supabase — Migration 0033: `pending` in the role CHECK, the R1 trigger branch, `redeem_join_code`, `claim_teacher` + caps + `teacher_caps_exempt`, attestation columns, `generate_join_code` v2 (crypto)
+  - Surfaced by: R1–R3, R7 (findings 2A→reshape, 3A, OV-9)
+  - Files: supabase/migrations/0033_*.sql, supabase/config.toml (none — no function changes)
+  - Verify: rolled-back live rehearsal (the 0029/0030 discipline), then `supabase db reset` local
+- [ ] **T2 (P1, human: ~1d / CC: ~30min)** — scripts — verify-0033: the ~26-row matrix incl. containment rows, cap liveness at production values, the P3 classroom-burst row, retention row
+  - Surfaced by: R4, R9 (finding 5A expanded, OV-2, OV-5)
+  - Files: scripts/verify-0033.sql, scripts/tests runner registration
+  - Verify: `pnpm verify:auth --target local` green on a rebuilt DB
+- [ ] **T3 (P1, human: ~1d / CC: ~40min)** — app — the onboarding state + redeem flow on `/join/<CODE>` and Home; authContract strings for both RPCs + pin-test extension
+  - Surfaced by: R5, R6 (findings 1A→R5, 4A)
+  - Files: packages/app/src/routes/JoinClass.tsx, Home.tsx, lib/authContract.json, __tests__/authContract.test.ts
+  - Verify: RTL rows + the student e2e lane; OV-7's declined alternative means NO new Edge Function anywhere
+- [ ] **T4 (P2, human: ~0.5d / CC: ~20min)** — integration lane — real-trigger redeem round trip, refused redeem, claim+caps, burst liveness
+  - Surfaced by: R9 integration rows
+  - Files: packages/app/e2e/integration/integration.e2e.ts, contract.ts
+  - Verify: `pnpm --filter @activity/app test:e2e:integration` 7/7 (3 existing + 4 new)
+- [ ] **T5 (P2, human: ~0.5d / CC: ~30min)** — compliance — the D8 amendment: enrollment-=-consent (Gimkit shape), operator direct notice, the S2-widening sentence, the pending-retention sentence
+  - Surfaced by: D8, R4, R8 (OV-5, OV-S2)
+  - Files: docs/compliance/privacy-policy.md, data-map.md, retention-policy.md; lib/policyVersion.ts bump
+  - Verify: retention-windows pin test; the pack's drift guards
+- [ ] **T6 (P3, human: ~1h / CC: ~10min)** — docs — STATE/backlog pointers: 2B-follow-on merged-as-adopted, email+password to NOT-in-scope, counsel gate on Drop 2
+  - Surfaced by: R10, §7
+  - Files: STATE.md, docs/design/admission-model.md
+  - Verify: drift-audit clean
+
+_No new tasks from the Performance section._
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | (not installed; Claude subagent served as outside voice) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 14 issues, 0 critical gaps — 5 review findings + 9 outside-voice findings, all ruled |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR (2026-08-13, S9 Drop 2 — predates this plan; onboarding states will need their own pass) | score 4→9, 16 decisions |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+- **CROSS-MODEL:** The outside voice (fresh-context Claude subagent) overturned two same-day rulings (D4's built-in mail, 5A's precedence) and challenged one (1A's shape, kept on review counter-argument). Its SMTP finding + the author's Google-only counter-proposal produced the §5b reshape — the review's eureka: five findings deleted by one architecture change rather than five patches.
+- **VERDICT: ENG CLEARED — ready to implement (T1–T6; Drop 2 gated on the D24 counsel read per R10).**
+
+NO UNRESOLVED DECISIONS
