@@ -408,7 +408,7 @@ Synthesized from this review's findings. Checkbox as you ship.
   - Verify: viewer suite + the sw-lane offline row; **run `pnpm
     bundle:grading-server` + `bundle:viewer-server` and check for drift —
     wire.ts is shared source**
-- [ ] **T4 (P1, human: ~2d / CC: ~1h)** — app — the Responses tab per G8/G4:
+- [x] **T4 (P1, human: ~2d / CC: ~1h)** — app — the Responses tab per G8/G4:
   per-version queue, side-by-side panel with explicit Save, release button +
   unreleased badge, needs-grading filter; contract strings + copy tables
   - Surfaced by: G4, G8, G10 (issues 2, 6; OV #13)

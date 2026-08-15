@@ -363,6 +363,46 @@ test.describe('axe — zero WCAG A/AA violations per student surface', () => {
     await expectNoAxeViolations(page);
   });
 
+  test('the Responses tab (the teacher grading surface)', async ({ page }) => {
+    // A teacher surface in a lane named for student ones, deliberately: this
+    // is the slice's only new form-bearing screen, and the axe scan is cheaper
+    // here than the bug it catches. The queue row carries a rubric input, a
+    // textarea, and two buttons — the shapes a11y regressions live in.
+    await signInAs(page);
+    await stubIdentityApi(page, { role: 'teacher' });
+    await page.route('**/rest/v1/rpc/list_grading_queue', (route) =>
+      route.fulfill({
+        json: [
+          {
+            check_id: '11111111-0000-4000-8000-000000000001',
+            student_id: '22222222-0000-4000-8000-000000000001',
+            student_label: 'student@school.example',
+            in_your_class: true,
+            activity_version_id: '33333333-0000-4000-8000-000000000001',
+            version_num: 1,
+            is_current: true,
+            section_id: 'sec-1',
+            block_id: '44444444-0000-4000-8000-000000000001',
+            block_type: 'short_answer',
+            response_text: 'because the slope stays the same',
+            attempt_number: 1,
+            checked_at: '2026-08-15T00:00:00Z',
+            graded: false,
+            criteria: null,
+            general_feedback: null,
+            graded_at: null,
+            released_at: null,
+            has_grader: true,
+            stale: false,
+          },
+        ],
+      }),
+    );
+    await page.goto('/activity/55555555-0000-4000-8000-000000000001/responses');
+    await page.getByText('1 need grading').waitFor();
+    await expectNoAxeViolations(page);
+  });
+
   test('the pre-auth landing (the R5-DR admission fork)', async ({ page }) => {
     // The first screen a stranger sees, and the only one carrying a form
     // before authentication — so it gets the same scan as the surfaces behind

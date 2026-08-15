@@ -46,6 +46,9 @@ const ActivityPrint = lazy(() => import('./routes/ActivityPrint'));
 // The Submissions dashboard died at S9 Drop 3 — Phase 2.6 manual grading is
 // RETIRED (OV-5); the parked teacher-grading slice owns any successor UI.
 const ActivityAnalytics = lazy(() => import('./routes/ActivityAnalytics'));
+// Lazy like its sibling: the teacher grading surface must not weigh on the
+// student shell's entry chunk (the S8 budget).
+const ActivityResponses = lazy(() => import('./routes/ActivityResponses'));
 const Privacy = lazy(() => import('./routes/Privacy'));
 
 const Playground = lazy(() => import('./routes/Playground'));
@@ -135,6 +138,14 @@ export default function App() {
         element={
             <RequireAuth>
             <ActivityAnalytics />
+            </RequireAuth>
+        }
+        />
+        <Route
+        path="/activity/:id/responses"
+        element={
+            <RequireAuth>
+            <ActivityResponses />
             </RequireAuth>
         }
         />
