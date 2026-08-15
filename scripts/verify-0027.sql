@@ -81,7 +81,15 @@ select 'join_class_domain_template', strpos(p.prosrc, :'contract_domain_template
 from pg_proc p where p.proname = 'join_class' and p.pronamespace = 'public'::regnamespace;
 select 'join_class_log_prefix', strpos(p.prosrc, :'contract_log_prefix') > 0, ''
 from pg_proc p where p.proname = 'join_class' and p.pronamespace = 'public'::regnamespace;
-select 'trigger_refusal_template', strpos(p.prosrc, :'contract_signup_template') > 0, ''
+-- SUPERSEDED BY 0033 (2026-08-15), flipped rather than deleted (P5/P11): the
+-- trigger's refusal branch became the PENDING branch, so the signup-refusal
+-- template must now be ABSENT from its body. Asserting the absence keeps the
+-- contract row load-bearing — a re-added refusal would be a silent regression
+-- of self-serve admission, and this row is what would catch it.
+select 'trigger_refusal_template_retired',
+       strpos(p.prosrc, :'contract_signup_template') = 0
+       and strpos(p.prosrc, '''pending''') > 0,
+       '0033: the else-branch admits pending instead of raising'
 from pg_proc p where p.proname = 'handle_new_auth_user' and p.pronamespace = 'public'::regnamespace;
 
 -- @section D-trigger-branches
@@ -99,7 +107,6 @@ declare
   v_id2 uuid := gen_random_uuid();
   v_id3 uuid := gen_random_uuid();
   v_id4 uuid := gen_random_uuid();
-  v_refused boolean := false;
 begin
   -- fixture: a domain seed that exists ONLY inside this transaction
   insert into student_domain (domain) values ('vfy0027.example');
@@ -123,19 +130,21 @@ begin
   select role into v_role from users where id = v_id3;
   v_report := v_report || format('student=%s ', v_role);
 
-  -- 4. off-domain refusal
-  begin
-    insert into auth.users (id, email, raw_user_meta_data)
-    values (v_id4, 'vfy0027-outsider@gmail.example', '{}'::jsonb);
-  exception when others then
-    v_refused := true;
-  end;
-  v_report := v_report || format('outsider_refused=%s', v_refused);
+  -- 4. off-domain admission as PENDING.
+  --    SUPERSEDED BY 0033 (2026-08-15), flipped rather than deleted (P5): this
+  --    row asserted a REFUSAL until self-serve admission landed. The outsider is
+  --    now admitted contained — still a branch proof, still at production
+  --    values, just proving the branch 0033 put there. Containment itself is
+  --    verify-0033 §C's five rows; this row only proves the ROLE.
+  insert into auth.users (id, email, raw_user_meta_data)
+  values (v_id4, 'vfy0027-outsider@gmail.example', '{}'::jsonb);
+  select role into v_role from users where id = v_id4;
+  v_report := v_report || format('outsider=%s', v_role);
 
   if (select role from users where id = v_id1) <> 'teacher'
      or (select role from users where id = v_id2) <> 'teacher'
      or (select role from users where id = v_id3) <> 'student'
-     or not v_refused then
+     or (select role from users where id = v_id4) <> 'pending' then
     raise exception 'BRANCH PROOF FAILED >>> %', v_report;
   end if;
 
