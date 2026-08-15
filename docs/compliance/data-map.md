@@ -1,13 +1,21 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-04-draft-2`. Mirrors migrations 0001–**0027**; regenerate
+> Version `2026-08-04-draft-2`. Mirrors migrations 0001–**0033**; regenerate
 > this doc whenever a migration adds/removes a personal-data column (Q4A
 > in-arc doc rule). 0027 adds **no personal-data columns** — it changes WRITE
 > PATHS: class create / join-code regeneration / domain edits now run through
 > audited SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows,
 > actor + old/new metadata), and the assertion record became structurally
 > immutable (client column grants).
+>
+> **0033 (2026-08-15) DOES add personal-data columns** — the educator
+> attestation pair and the caps flag, all three in the table below — and adds
+> the `pending` role, an admitted account that holds nothing. ⚠ **This doc's
+> own `draft-2` stamp was not bumped when those rows landed**; the doc-local
+> version numbering (this file, retention-policy) is separate from the
+> in-product `POLICY_VERSION` (`2026-08-15-draft-3`), and unifying the two is
+> an open question for the counsel read — see `counsel-review-packet.md` Q8.
 >
 > Changes since `draft-1` (which mirrored 0001–0014): `section_checks` added
 > (0020 — it, not `submissions`, is where student work lands in the new

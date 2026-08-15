@@ -629,3 +629,91 @@ v2 board annotations.
 
 **Context:** S9 Drop 2 design review 2026-08-13 (issue 11 / OV-23b; ruled 11A —
 record v1 as deliberate + name the lever).
+
+## Cap-lifting admin surface for attested teachers (0033 R3 follow-on)
+
+**What:** A way to raise or clear the self-serve teacher caps without hand-written
+SQL. Migration 0033 caps an attested (non-allowlist) teacher at **5 classes and
+50 members per class**; `users.teacher_caps_exempt` lifts both. Today the author
+lifts it with a one-row UPDATE.
+
+**Why it is here and not still in §7:** the caps are LIVE and they bind a real
+person the first time an outside teacher hits one. §7 deferred the UI on "waits
+for the second real teacher", which is correct — what that reasoning does not
+cover is the moment BEFORE the UI exists, when a legitimate teacher is blocked
+mid-lesson and the only remedy is the author at a SQL prompt. That is a support
+path, not a feature, and it should be a known one.
+
+**Trigger:** the first attested teacher who is not the author — i.e. the first
+time `teacher_caps_exempt` matters to somebody who cannot edit the database.
+
+**Where to start:** the caps are enforced in 0033's audited create/join paths;
+`scripts/verify-0033.sql` has the liveness rows that fire both caps at production
+values, so any change has a working proof harness already. The interim runbook is
+one UPDATE on `users.teacher_caps_exempt` — worth writing into the support notes
+before it is needed rather than during.
+
+**Watch:** lifting a cap is the one action that converts a self-attested stranger
+into an unbounded teacher. Whatever the surface becomes, it should stay an author
+action with an audit row, not a self-service button.
+
+**Context:** docs/design/admission-model.md §5b R3 + §7; eng review OV-9.
+
+## Under-13 support — the age gate and school-consent enrollment (D7)
+
+**What:** The arc that would let a class with students under 13 use the platform:
+a student-facing age gate (the Khan-style birthdate-before-anything pattern) plus
+a school-consent enrollment mechanism that actually carries COPPA's school-consent
+exception, rather than excluding under-13s outright.
+
+**Why it is here:** v1 excludes under-13 use entirely, and the ONLY thing carrying
+that exclusion is the teacher's per-class "every student in this class is 13 or
+older" assertion. Students are never asked their age. That is a real dependency on
+a teacher's accuracy, disclosed in the pack, and it is the single most likely thing
+for counsel to push back on (it is Q4 of the counsel packet). If the answer comes
+back "teacher assertion is not enough", this stops being a deferred arc and becomes
+required work — so it needs an entry that a session can pick up cold.
+
+**Trigger:** the D24 counsel read answering Q4 against the current design, OR a
+teacher asking for a 6th/7th-grade class.
+
+**Scope sketch (not a design):** birthdate gate before auth; a parent-consent
+branch for independent learners; school-consent enrollment for school users; the
+compliance pack rewritten around consent rather than exclusion; the
+`school-authorization-template.md` checkbox that currently reads "not available in
+v1" becomes live. Gimkit's and Khan's published wording are the closest models —
+both were read and quoted in the design doc.
+
+**Do NOT half-build it.** The current posture is coherent (exclude, say so
+plainly). A birthdate gate WITHOUT the consent mechanism behind it would collect
+ages from children while still refusing them, which is worse than either end state.
+
+**Context:** docs/design/admission-model.md §5a D7 + §7; docs/compliance/
+counsel-review-packet.md Q4.
+
+## Signable DPA template for the first district
+
+**What:** A data-processing agreement the author can actually put in front of a
+district, rather than assembling one under time pressure during a first adoption
+conversation.
+
+**Why it is here:** Illinois SOPPA, NY Ed Law 2-d and their siblings require
+signed per-district agreements for school-directed services — this is statutory,
+not a nicety, and no gate design avoids it. §7 defers the template to "the first
+district that asks (with counsel)", which is the right sequencing but a bad
+surprise: the first district that asks will be mid-conversation, and the delay is
+visible to them. The cheap version of this is to know, before that call, which
+regime applies and what the template must contain.
+
+**Trigger:** the D24 counsel read (Q7 asks exactly this — should a template exist
+BEFORE the first outside teacher, or is on-demand right?), or the first district
+conversation, whichever comes first.
+
+**Where to start:** `docs/compliance/school-authorization-template.md` is the
+teacher-facing half and already exists; the DPA is the district-facing half and
+does not. The SDPC registry is the usual source of standard forms. This one is
+genuinely counsel-led — the repo-side contribution is the data map, which is
+current as of 0033 and is what a DPA's schedule is built from.
+
+**Context:** docs/design/admission-model.md §5 item 5 + §7; docs/compliance/
+counsel-review-packet.md Q7.

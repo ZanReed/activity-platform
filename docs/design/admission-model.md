@@ -433,14 +433,16 @@ unchanged under §5b too — the domain fast path is untouched.)*
   already sequenced in the backlog's IdP map (Azure → Clever/ClassLink → LTI).
 - **The guest tier** (anonymous join-code play) — named follow-on, R11's one
   sentence records why it is second.
-- **Under-13 support** — D7 stands: the per-class 13+ assertion carries COPPA;
-  birthdate gate + school-consent enrollment is its own arc.
-- **DPA template / district paperwork** — D8 ships the consent amendment only;
-  the signable DPA waits for the first district that asks (with counsel).
-- **Cap-lifting admin surface** — author lifts `teacher_caps_exempt` by SQL;
-  a UI waits for the second real teacher.
 - **CAPTCHA on redemption** — the authenticated-RPC cost + audit trail is the
   v1 defense; revisit only if abuse telemetry appears.
+
+**Three of this list's items moved to [TODOS.md](../../TODOS.md) on 2026-08-15
+(author-ruled), and are NOT restated here** — a deferred item described in two
+places drifts, which this project has now been bitten by twice in one week. They
+live there with their triggers and pickup notes: **under-13 support** (D7),
+**the DPA template**, and **the cap-lifting admin surface** (R3). Deferred and
+still described here in full: email+password, additional OAuth providers, the
+guest tier, and CAPTCHA above.
 
 ## 8. What already exists (the review's reuse inventory)
 
@@ -487,30 +489,52 @@ counsel gate (R10) sits between S1/S2 landing and claim_teacher going LIVE.
 
 Synthesized from this review's findings. Run with Claude Code; checkbox as you ship.
 
-- [ ] **T1 (P1, human: ~1.5d / CC: ~45min)** — supabase — Migration 0033: `pending` in the role CHECK, the R1 trigger branch, `redeem_join_code`, `claim_teacher` + caps + `teacher_caps_exempt`, attestation columns, `generate_join_code` v2 (crypto)
+- [x] **T1 (P1, human: ~1.5d / CC: ~45min)** — supabase — Migration 0033: `pending` in the role CHECK, the R1 trigger branch, `redeem_join_code`, `claim_teacher` + caps + `teacher_caps_exempt`, attestation columns, `generate_join_code` v2 (crypto)
   - Surfaced by: R1–R3, R7 (findings 2A→reshape, 3A, OV-9)
   - Files: supabase/migrations/0033_*.sql, supabase/config.toml (none — no function changes)
   - Verify: rolled-back live rehearsal (the 0029/0030 discipline), then `supabase db reset` local
-- [ ] **T2 (P1, human: ~1d / CC: ~30min)** — scripts — verify-0033: the ~26-row matrix incl. containment rows, cap liveness at production values, the P3 classroom-burst row, retention row
+- [x] **T2 (P1, human: ~1d / CC: ~30min)** — scripts — verify-0033: the ~26-row matrix incl. containment rows, cap liveness at production values, the P3 classroom-burst row, retention row
   - Surfaced by: R4, R9 (finding 5A expanded, OV-2, OV-5)
   - Files: scripts/verify-0033.sql, scripts/tests runner registration
   - Verify: `pnpm verify:auth --target local` green on a rebuilt DB
-- [ ] **T3 (P1, human: ~1d / CC: ~40min)** — app — the onboarding state + redeem flow on `/join/<CODE>` and Home; authContract strings for both RPCs + pin-test extension
+- [x] **T3 (P1, human: ~1d / CC: ~40min)** — app — the onboarding state + redeem flow on `/join/<CODE>` and Home; authContract strings for both RPCs + pin-test extension
   - Surfaced by: R5, R6 (findings 1A→R5, 4A)
   - Files: packages/app/src/routes/JoinClass.tsx, Home.tsx, lib/authContract.json, __tests__/authContract.test.ts
   - Verify: RTL rows + the student e2e lane; OV-7's declined alternative means NO new Edge Function anywhere
-- [ ] **T4 (P2, human: ~0.5d / CC: ~20min)** — integration lane — real-trigger redeem round trip, refused redeem, claim+caps, burst liveness
+- [x] **T4 (P2, human: ~0.5d / CC: ~20min)** — integration lane — real-trigger redeem round trip, refused redeem, claim+caps, burst liveness
   - Surfaced by: R9 integration rows
   - Files: packages/app/e2e/integration/integration.e2e.ts, contract.ts
   - Verify: `pnpm --filter @activity/app test:e2e:integration` 7/7 (3 existing + 4 new)
-- [ ] **T5 (P2, human: ~0.5d / CC: ~30min)** — compliance — the D8 amendment: enrollment-=-consent (Gimkit shape), operator direct notice, the S2-widening sentence, the pending-retention sentence
+- [x] **T5 (P2, human: ~0.5d / CC: ~30min)** — compliance — the D8 amendment: enrollment-=-consent (Gimkit shape), operator direct notice, the S2-widening sentence, the pending-retention sentence
   - Surfaced by: D8, R4, R8 (OV-5, OV-S2)
   - Files: docs/compliance/privacy-policy.md, data-map.md, retention-policy.md; lib/policyVersion.ts bump
   - Verify: retention-windows pin test; the pack's drift guards
-- [ ] **T6 (P3, human: ~1h / CC: ~10min)** — docs — STATE/backlog pointers: 2B-follow-on merged-as-adopted, email+password to NOT-in-scope, counsel gate on Drop 2
+- [x] **T6 (P3, human: ~1h / CC: ~10min)** — docs — STATE/backlog pointers: 2B-follow-on merged-as-adopted, email+password to NOT-in-scope, counsel gate on Drop 2
   - Surfaced by: R10, §7
   - Files: STATE.md, docs/design/admission-model.md
   - Verify: drift-audit clean
+
+- [x] **T7 (P1, added + shipped 2026-08-15)** — app — the PRE-AUTH fork
+  (`SignedOutLanding`): the code door → `/join/<CODE>`, the teacher door →
+  `/?intent=teacher` → onboarding opening on attest, the DR-6 definitive-negative
+  check before Google, and an a11y row for the new surface
+  - **Why it was not in T1–T6:** T3's line named "the onboarding state + redeem
+    flow on `/join/<CODE>` and Home", and that is exactly what shipped — but
+    R5-DR is the UI spec, and it ruled the pre-auth fork the DOMINANT path with
+    the post-auth screen demoted to a safety net. Only the safety net was built,
+    so the ruled primary surface was missing while the slice read complete, and
+    `Home.tsx` carried a comment asserting "the pre-auth fork routes them" — a
+    claim about a surface that did not exist (P11). Caught 2026-08-15 by reading
+    the shipped signed-out Home against the board rather than against the task
+    line (P10).
+  - Files: `packages/app/src/components/SignedOutLanding.tsx`, `Home.tsx`,
+    `PendingOnboarding.tsx` (`initialView`), `lib/authMessages.ts`
+    (`LANDING_COPY`/`LANDING_ANNOUNCEMENTS`), `JoinClass.tsx` (shares the DR-6
+    sentence rather than holding a second copy), `__tests__/SignedOutLanding.test.tsx`,
+    `e2e/a11y/student-surfaces.e2e.ts`, `e2e/student/identity.e2e.ts` (P5 flip)
+  - Verify: app suite 1057, a11y 10/10, identity 15/15, 12/12 budgets (shell
+    176.3/185 KiB), bad-code warning exercised in a real browser against the live
+    meta endpoint
 
 _No new tasks from the Performance section._
 
