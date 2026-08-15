@@ -271,11 +271,13 @@ today. Free-tier Postgres is 500 MB. Finding R6(a) already earmarked a GC pass o
 aggregation for `activity_version_reads` rows orphaned by a `SANITIZER_REV` change; one job
 should cover both.
 
-**The open question:** keep every attempt (attempt history is genuine teacher insight — how many
-tries did this student need?) or prune to last-N per (student, section)? This is partly answered
-by the teacher-grading slice above: if grading targets the latest response per block, old
-attempts are cheaper to drop; if it targets attempts, they are the record itself. Don't tune
-retention before that decision.
+**The open question — ⚡ RULED 2026-08-15 (teacher-grading eng review, G2):** grades key on a
+SPECIFIC check row (immutable "what was graded"); the queue surfaces the latest per (student,
+section) within a version. Consequence for pruning, **recorded here because the cascade makes it
+destructive (G12): pruning must NEVER delete a check row referenced by `check_grades`** —
+`check_grades.check_id` is ON DELETE CASCADE from `section_checks`, so pruning a graded check
+silently deletes the teacher's grade with it. Prune candidates are non-latest, non-graded rows
+only, and the pruning build must ship a verify row proving a graded check survives the prune.
 
 **The SAME question decides the rollup's shape, which is why S7 refused to build one.** A
 pre-aggregated per-day count is the one artifact designed to outlive its source rows, so getting
@@ -717,3 +719,53 @@ current as of 0033 and is what a DPA's schedule is built from.
 
 **Context:** docs/design/admission-model.md §5 item 5 + §7; docs/compliance/
 counsel-review-packet.md Q7.
+
+## Student feedback discoverability (the promise's second half)
+
+**What:** A quiet indicator on the student Home / activity list when released teacher feedback
+exists that the student hasn't seen — e.g. a "Feedback" marker on the activity row.
+
+**Why:** The teacher-grading slice's readback is pull-only: a student only finds released
+feedback by spontaneously reopening a finished worksheet. The outside voice's sharpest strategic
+point (2026-08-15): "Recorded — your teacher will review" completes in PRACTICE only when the
+review's OUTPUT is findable. Without this, released feedback mostly goes unread.
+
+**Design-together constraint:** "unread" needs either a seen-marker (new per-student state) or an
+age heuristic — the same fork as the "Student Home cross-class recency cue" entry above (DR-11).
+Design the two indicators together; two separate marker systems on the same list rows is the
+twin-drift class.
+
+**Trigger:** the first real released feedback (i.e. the teacher-grading slice live with a real
+class), or the recency-cue entry's own trigger firing — whichever first.
+
+**Where to start:** `list_class_activities` (0030) already returns the student's rows; a derived
+"has unread released feedback" flag is a join against `check_grades.released_at`. The no-new-state
+v1 is age-based ("released since your last check"), which lies less than it sounds because
+re-checking is the natural reaction to reading feedback.
+
+**Context:** docs/design/teacher-grading.md (Why-now + G5); outside-voice finding #14, ruled
+2026-08-15 (TODO, not slice scope).
+
+## Retire the `submissions` table (the last 0029 survivor)
+
+**What:** A housekeeping migration dropping `submissions` (and its 0005/0007 attempt machinery),
+removing purge_soft_deleted's step 2, and running the P5 citation audit over everything that
+names the table.
+
+**Why:** 0029 kept `submissions` + `grades` empty "for the parked teacher-grading slice to
+re-decide." That slice re-decided 2026-08-15: grading is checks-native, `grades` +
+`can_grade_submission` die in 0034 — which leaves `submissions` with NO future consumer: an
+empty table with live RLS whose only remaining reader is the purge function.
+
+**Why NOT bundled into 0034 (author-ruled 2026-08-15):** dropping it means rewriting
+`purge_soft_deleted` a third time — blast radius on the nightly cron — and it sits nowhere on
+the grading slice's path. The purge function deserves its own careful commit.
+
+**Trigger:** 0034 applied live + one green nightly purge run after it (proving nothing re-keyed
+onto submissions).
+
+**Where to start:** 0029's header (what deliberately survived and why), 0022+0029 for the purge
+function's history, `scripts/verify-*` for every row that asserts the table exists. Remember the
+0009 discipline: the FK-covering indexes die with it.
+
+**Context:** teacher-grading eng review 2026-08-15 (G1 scoping + TODO ruling); 0029's D-6 note.
