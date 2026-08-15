@@ -15,8 +15,7 @@ decisions (2026-08-15):
   paired with `docs/compliance/school-authorization-template.md`). The teacher
   account becomes the trust anchor.
 
-**Remaining before build: the D-list below (awaiting per-item yes/no), then
-the eng review this doc has always named.** The compliance-pack amendment is
+**D-list RULED "all yes" (author, 2026-08-15) — next: the eng review.** The compliance-pack amendment is
 load-bearing, not paperwork — A1/A2 change the consent story the pack tells,
 which is also why the D24 counsel read is deliberately HELD until this lands
 (reviewing the pre-A1 pack would buy a review that has to be repurchased).
@@ -252,7 +251,16 @@ near zero — this is the cheapest moment this decision will ever have.
   writer. Refusal on a bad code reuses the E-7 contract (RAISE LOG before the
   raise; distinct string).
 - **D2 — `expected_domain` is checked at ADMISSION for code-signups, and
-  stays checked at join.** A class that requires a district domain refuses
+  stays checked at join.** *(Author asked how DeltaMath validates joins;
+  verified from their help docs 2026-08-15: on the individual tier they do NO
+  domain validation — the 8-character code is the entire gate ("Register
+  Students with a Code… the 8 character [code]"), with post-hoc teacher
+  roster curation; "domain" appears zero times in their registration/settings
+  docs. Integrations at the district tier REPLACE the code flow with roster
+  membership. So the code+curation default here matches their individual
+  tier exactly — the platform already has the curation loop
+  (list_class_members + DR-5 remove + regenerate) — and expected_domain is
+  an optional tightening no competitor's individual tier offers.)* A class that requires a district domain refuses
   the code-signup outright (the student never gets an account they cannot
   use); the join-time check stays as the second lock. This is the full
   option-C semantics using the column 0014 already built.
