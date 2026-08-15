@@ -1,7 +1,8 @@
 # Teacher grading bound to `section_checks` — the S4 deferral comes due
 
-**Status: ENG + DESIGN REVIEW CLEAR (2026-08-15) — G1–G14 are the ruled
-architecture; §2b (G8-DR) is the ruled UI. Build-ready: T1–T5.** Successor to
+**Status: BUILT (T1–T6, 2026-08-15) — ENG + DESIGN REVIEW CLEAR; G1–G14 are
+the ruled architecture and §2b (G8-DR) the ruled UI. ⚠ Migration 0034 is NOT
+yet applied live (author action), so the surface is repo-complete and dark.** Successor to
 Phase 2.6 ([manual-grading.md](manual-grading.md), whose surface was demolished
 at S9 Drop 3) and owner of the S4 deferral recorded in
 [TODOS.md](../../TODOS.md) → "Teacher grading bound to `section_checks`".
@@ -415,13 +416,13 @@ Synthesized from this review's findings. Checkbox as you ship.
   - Files: packages/app/src/routes/ActivityResponses.tsx (new), App.tsx route,
     lib/grading.ts (new), lib/authMessages.ts, RTL suites
   - Verify: RTL rows; **blocked on the design review's compositions**
-- [ ] **T5 (P2, human: ~0.5d / CC: ~20min)** — integration lane — the
+- [x] **T5 (P2, human: ~0.5d / CC: ~20min)** — integration lane — the
   grade→release→student-sees round trip through real PostgREST + the refused
   containment rows
   - Surfaced by: G9, §5 integration rows
   - Files: packages/app/e2e/integration/integration.e2e.ts, contract.ts
   - Verify: `pnpm --filter @activity/app test:e2e:integration` green (supabase stop after)
-- [ ] **T6 (P2, human: ~2h / CC: ~15min)** — docs — TODOS: the G12 pruning
+- [x] **T6 (P2, human: ~2h / CC: ~15min)** — docs — TODOS: the G12 pruning
   sentence into the retention/rollup entry; the two new entries (feedback
   discoverability; submissions retirement); manual-grading.md status line
   corrected to name this doc as successor; STATE pointer

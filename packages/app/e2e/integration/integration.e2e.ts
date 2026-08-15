@@ -24,6 +24,7 @@ import {
   createBlankToken,
   createEmptyDocument,
   createFillInBlankBlock,
+  createShortAnswerBlock,
 } from '@activity/schema';
 import { supabaseStorageKey } from '../helpers/studentSession';
 import {
@@ -91,11 +92,16 @@ function checkableDoc(): unknown {
     { type: 'text', text: 'x = ', marks: [] },
     createBlankToken('4'),
   ];
+  // A written-answer block rides along so the GRADING rows have something real
+  // to grade. Without it they skip, and a skipped row proves nothing — the
+  // vacuity this project has caught in three separate lanes.
+  const written = createShortAnswerBlock();
+  written.prompt = [{ type: 'text', text: 'Explain your reasoning.', marks: [] }];
   doc.sections[0]!.rows = [
     {
       id: crypto.randomUUID(),
       gridLines: 'inherit',
-      columns: [{ id: crypto.randomUUID(), blocks: [blank] }],
+      columns: [{ id: crypto.randomUUID(), blocks: [blank, written] }],
     },
   ];
   return ActivityDocument.parse(doc);
@@ -298,6 +304,11 @@ test('one REAL check round trip — the A1 class of bug can never hide again', a
   const blank = page.locator('[data-section-id] input[type="text"]').first();
   await blank.waitFor({ timeout: 20_000 });
   await blank.fill('4');
+  // Answer the written block too: the grading rows below need a real response
+  // captured by the real check, not a fixture inserted behind the app's back.
+  await page.locator('[data-block-type="short_answer"] textarea').first().fill(
+    'because the slope stays the same',
+  );
   await page.getByRole('button', { name: 'Check', exact: true }).first().click();
 
   // The verdict comes back from the REAL check-activity function, through the
@@ -308,4 +319,107 @@ test('one REAL check round trip — the A1 class of bug can never hide again', a
   await expect(
     page.locator('.viewer-section__status[aria-live="polite"]').first(),
   ).toHaveText(/Checked/);
+});
+
+// =============================================================================
+// Grading (0034) — the round trip no unit test can prove
+// -----------------------------------------------------------------------------
+// Everything below runs against the REAL RPCs on the local stack: the teacher's
+// four doors, real RLS, real PostgREST error text. What this catches that the
+// migration's own verify script cannot is the WIRE — argument names, the shape
+// PostgREST returns, and whether the student's readback actually carries a body.
+//
+// That last one is the point. get-feedback served bodiless 200s for its entire
+// life and every test it had passed, because nothing ever asserted that a real
+// body reached a real client. These rows do.
+// =============================================================================
+
+test('the teacher grades a REAL check, and nothing reaches the student until release', async () => {
+  // The check row this grades is the one the previous row created through the
+  // real grading function, so this is genuinely end-to-end from student
+  // keystroke to teacher score.
+  const { data: checks } = await teacher.client
+    .rpc('list_grading_queue', { p_activity_id: activityId });
+  const queue = (checks ?? []) as Array<Record<string, unknown>>;
+
+  // The fixture worksheet may carry no free-text block; if so this row has
+  // nothing to prove and says so rather than passing vacuously.
+  test.skip(queue.length === 0, 'fixture activity has no written-answer blocks');
+
+  const row = queue[0]!;
+  expect(row.graded).toBe(false);
+  expect(row.student_label).not.toBeUndefined();
+
+  const { error: saveError } = await teacher.client.rpc('upsert_check_grade', {
+    p_check_id: row.check_id,
+    p_block_id: row.block_id,
+    p_criteria: [],
+    p_general_feedback: 'Real feedback through the real RPC.',
+  });
+  expect(saveError).toBeNull();
+
+  // BEFORE release the student sees nothing. This is the containment half of
+  // the release ruling, asserted from the student's own client.
+  const { data: beforeRelease } = await student.client
+    .rpc('get_my_released_feedback', { p_activity_id: activityId });
+  expect((beforeRelease ?? []).length).toBe(0);
+
+  const { data: released, error: releaseError } = await teacher.client
+    .rpc('release_check_grades', {
+      p_activity_id: activityId,
+      p_student_id: student.session.user.id,
+    });
+  expect(releaseError).toBeNull();
+  expect((released as { released: number }).released).toBe(1);
+
+  // AFTER release: a real body, with real content, at a real student client.
+  const { data: afterRelease } = await student.client
+    .rpc('get_my_released_feedback', { p_activity_id: activityId });
+  const feedback = (afterRelease ?? []) as Array<Record<string, unknown>>;
+  expect(feedback.length).toBe(1);
+  expect(feedback[0]!.general_feedback).toBe('Real feedback through the real RPC.');
+  expect(feedback[0]!.has_grader).toBe(true);
+  expect(feedback[0]!.stale).toBe(false);
+});
+
+test('a student cannot grade, and cannot read another student’s feedback', async () => {
+  const { data: queue } = await teacher.client
+    .rpc('list_grading_queue', { p_activity_id: activityId });
+  const rows = (queue ?? []) as Array<Record<string, unknown>>;
+  test.skip(rows.length === 0, 'fixture activity has no written-answer blocks');
+
+  // The student holds a real session and a real JWT — this is the containment
+  // proof RLS-bypassing verify blocks cannot make.
+  const { error: gradeError } = await student.client.rpc('upsert_check_grade', {
+    p_check_id: rows[0]!.check_id,
+    p_block_id: rows[0]!.block_id,
+    p_criteria: [],
+    p_general_feedback: 'I grade myself full marks',
+  });
+  expect(gradeError).not.toBeNull();
+
+  const { error: queueError } = await student.client
+    .rpc('list_grading_queue', { p_activity_id: activityId });
+  expect(queueError).not.toBeNull();
+});
+
+test('the student SEES released feedback on the worksheet (the body reaches the DOM)', async ({
+  page,
+}) => {
+  const { data: feedback } = await student.client
+    .rpc('get_my_released_feedback', { p_activity_id: activityId });
+  test.skip(((feedback ?? []) as unknown[]).length === 0, 'nothing released in this run');
+
+  await useSession(page, student.session);
+  await page.goto(`/a/${activityId}`);
+  // The whole chain: PostgREST row → app lib → viewer store → the card.
+  await expect(page.locator('[data-released-feedback]').first()).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator('[data-released-feedback]').first()).toContainText(
+    'Real feedback through the real RPC.',
+  );
+  await expect(page.locator('[data-released-feedback]').first()).toContainText(
+    'Feedback from your teacher',
+  );
 });
