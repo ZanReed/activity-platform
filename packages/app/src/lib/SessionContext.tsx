@@ -10,7 +10,12 @@ import {
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './supabase';
 
-export type UserRole = 'teacher' | 'student' | 'admin';
+/** 'pending' (0033 R1) is a real, CONTAINED role, not a loading state: the
+ *  account exists and holds nothing. roleStatus stays 'ready' for it — the
+ *  shell renders onboarding, never a spinner. Keeping it in this union is what
+ *  makes every `role === 'student' | 'teacher'` branch in the app exhaustive
+ *  and therefore safe by construction. */
+export type UserRole = 'teacher' | 'student' | 'admin' | 'pending';
 
 /**
  * Role fetch lifecycle (identity slice E-4/E-11):

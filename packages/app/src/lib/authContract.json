@@ -1,12 +1,28 @@
 {
-  "_comment": "The auth-boundary string contract (identity slice E-7, design P3). These strings appear VERBATIM in the SQL that raises them (migration 0027 — the latest defining migration; authContract.test.ts greps it, and verify-0027 §E pins them against live pg_proc.prosrc so a future CREATE OR REPLACE can't drift silently). The client matcher imports THIS file; never retype a string on either side. The verify runner injects these via psql -v.",
+  "_comment": "The auth-boundary string contract (identity slice E-7, design P3). These strings appear VERBATIM in the SQL that raises them (migrations 0027 and 0033 — the latest defining migration per family; authContract.test.ts greps them, and verify-0027 §C / verify-0033 §A pin them against live pg_proc.prosrc so a future CREATE OR REPLACE can't drift silently). The client matcher imports THIS file; never retype a string on either side. The verify runner injects these via psql -v.",
   "joinClassErrors": {
     "notStudent": "Only student accounts can join a class",
     "disabled": "This account is disabled",
     "badCode": "No class found for that code",
     "domainTemplate": "This class is limited to % accounts"
   },
+  "redeemErrors": {
+    "signedOut": "Sign in before joining a class",
+    "wrongRole": "Teacher accounts cannot join a class as a student",
+    "classFull": "This class is full. Ask your teacher for help."
+  },
+  "claimTeacherErrors": {
+    "signedOut": "Sign in before setting up a teacher account",
+    "alreadySetUp": "This account is already set up",
+    "noAttestation": "Educator attestation is required",
+    "classCapTemplate": "This account is limited to 5 classes"
+  },
+  "rpcNames": {
+    "redeemJoinCode": "redeem_join_code",
+    "claimTeacher": "claim_teacher"
+  },
   "signupRefusalTemplate": "Email % is not permitted to sign up",
   "joinRefusalLogPrefix": "join_class refused",
-  "_transportNote": "signupRefusalTemplate never reaches the browser — GoTrue swallows trigger raise text and redirects with a generic server_error (T1 ruling). The client keys the sign-in-failed screens on error PRESENCE, not this phrase. joinClassErrors DO reach the client verbatim via PostgREST rpc error messages."
+  "_transportNote": "signupRefusalTemplate is RETIRED as a live behavior by 0033 — the trigger's else-branch now admits a contained 'pending' role instead of raising, so no unknown-email refusal reaches signup at all. The string stays in this file because verify-0027 §C asserts its ABSENCE from the deployed trigger body (a re-added refusal would silently regress self-serve admission). joinClassErrors, redeemErrors and claimTeacherErrors DO reach the client verbatim via PostgREST rpc error messages — that transport difference is why 0033 moved every refusal into an RPC.",
+  "_announceNote": "announcements are what the aria-live region says; the a11y lane asserts these strings, so they live here rather than inline in the component (R5-DR)."
 }

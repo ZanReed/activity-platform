@@ -11,10 +11,20 @@
 
 import { supabase } from './supabase';
 import { POLICY_VERSION } from './policyVersion';
+import { AUTH_CONTRACT } from './authMessages';
 
 // The assertion text version stored on class rows is the privacy-policy
 // version the teacher saw when asserting. Same string by construction.
 export const ASSERTION_TEXT_VERSION = POLICY_VERSION;
+
+// The educator attestation (0033 R3/D6) rides the same version by the same
+// construction — a reworded attestation is distinguishable in the record.
+export const ATTESTATION_TEXT_VERSION = POLICY_VERSION;
+
+// RPC names come from the contract, never retyped (P2 — the same rule that
+// made PUBLISH_ACTIVITY_RPC a constant at S9 Drop 1).
+const REDEEM_JOIN_CODE_RPC = AUTH_CONTRACT.rpcNames.redeemJoinCode;
+const CLAIM_TEACHER_RPC = AUTH_CONTRACT.rpcNames.claimTeacher;
 
 // The exact text the teacher asserts to (rendered next to the checkbox).
 // The under-13 school-authorization clause was DROPPED 2026-08-07 (eng
@@ -238,6 +248,39 @@ export async function joinClass(code: string): Promise<JoinedClass> {
     if (error) throw new Error(error.message);
     const r = data as { class_id: string; class_name: string; joined_at: string };
     return { classId: r.class_id, name: r.class_name, joinedAt: r.joined_at };
+}
+
+/**
+ * Redeem a class code (0033 R2) — the SELF-SERVE student door.
+ *
+ * Distinct from joinClass() on purpose: this one promotes a `pending` account
+ * to student and joins in one audited transaction, and it is what an account
+ * with no role calls. joinClass() stays the path for an ALREADY-student
+ * (district SSO), and remains the only writer into class_members underneath —
+ * redeem calls it after promoting rather than inlining an insert.
+ *
+ * Errors carry the 0033 wire strings; callers classify with
+ * classifyRedeemError() and render REDEEM_ERROR_COPY, never the raw message.
+ */
+export async function redeemJoinCode(code: string): Promise<JoinedClass> {
+    const { data, error } = await supabase.rpc(REDEEM_JOIN_CODE_RPC, {
+        p_join_code: code.trim().toUpperCase(),
+    });
+    if (error) throw new Error(error.message);
+    const r = data as { class_id: string; class_name: string; joined_at: string };
+    return { classId: r.class_id, name: r.class_name, joinedAt: r.joined_at };
+}
+
+/**
+ * Claim a teacher account (0033 R3) — attestation is required by the RPC, and
+ * the version stored is the policy version the teacher actually saw, the same
+ * construction ASSERTION_TEXT_VERSION uses for the per-class age assertion.
+ */
+export async function claimTeacher(): Promise<void> {
+    const { error } = await supabase.rpc(CLAIM_TEACHER_RPC, {
+        p_attestation_version: ATTESTATION_TEXT_VERSION,
+    });
+    if (error) throw new Error(error.message);
 }
 
 /**

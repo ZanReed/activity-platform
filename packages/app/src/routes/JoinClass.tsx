@@ -12,9 +12,9 @@ import { useSession } from '../lib/SessionContext';
 import { useSlowFlag } from '../lib/slowLoad';
 import { signInWithGoogle } from '../lib/auth';
 import { signOutEverything } from '../lib/studentAuth';
-import { joinClass, type JoinedClass } from '../lib/classes';
+import { joinClass, redeemJoinCode, type JoinedClass } from '../lib/classes';
 import { fetchClassMeta, type ClassMetaResult } from '../lib/classActivities';
-import { classifyJoinError, JOIN_ERROR_COPY } from '../lib/authMessages';
+import { classifyRedeemError, REDEEM_ERROR_COPY } from '../lib/authMessages';
 import { normalizeJoinCodeInput } from '../components/JoinCodeForm';
 import {
   AccountUnavailableCard,
@@ -38,9 +38,17 @@ export default function JoinClass() {
   const [join, setJoin] = useState<JoinPhase>({ phase: 'joining' });
   const attemptedFor = useRef<string | null>(null);
   const isStudent = session !== null && roleStatus === 'ready' && role === 'student';
+  // 0033 R2/R5-DR: a PENDING account arriving with a code auto-redeems, which
+  // promotes and joins in one audited call. This is the flow's dominant path
+  // under self-serve admission — a stranger clicking a teacher's join link has
+  // no role until this fires — so it shares the auto-attempt machinery below
+  // (once per code, never mid-role-fetch, never twice on re-render) rather
+  // than growing a parallel one.
+  const isPending = session !== null && roleStatus === 'ready' && role === 'pending';
+  const canAttempt = isStudent || isPending;
   const gateActive =
     loading || (session !== null && roleStatus === 'loading') ||
-    (isStudent && join.phase === 'joining');
+    (canAttempt && join.phase === 'joining');
   const slow = useSlowFlag(gateActive);
 
   // The pre-auth class-name lookup (S9 Drop 2, D-3 — the fix this file's
@@ -64,16 +72,25 @@ export default function JoinClass() {
     // Auto-join exactly once per code, and only as a resolved student —
     // never mid-role-fetch, never for teachers (E-9), never twice on a
     // re-render (the double-click class of bug, e2e-pinned).
-    if (!isStudent || attemptedFor.current === code) return;
+    if (!canAttempt || attemptedFor.current === code) return;
     attemptedFor.current = code;
     setJoin({ phase: 'joining' });
-    joinClass(code)
-      .then((joined) => setJoin({ phase: 'joined', joined }))
+    // A pending account must REDEEM (promote + join); an already-student joins.
+    // Both raise the same wire strings for the shared refusals, so one copy
+    // table serves both — redeem's classifier is a superset of join's.
+    const attempt = isPending ? redeemJoinCode(code) : joinClass(code);
+    attempt
+      .then((joined) => {
+        setJoin({ phase: 'joined', joined });
+        // The role just changed under us; re-read it so the shell that renders
+        // after this screen is the student one, not the pending onboarding.
+        if (isPending) retryRole();
+      })
       .catch((error) => {
         const message = error instanceof Error ? error.message : String(error);
-        setJoin({ phase: 'failed', copy: JOIN_ERROR_COPY[classifyJoinError(message)] });
+        setJoin({ phase: 'failed', copy: REDEEM_ERROR_COPY[classifyRedeemError(message)] });
       });
-  }, [isStudent, code]);
+  }, [canAttempt, isPending, code, retryRole]);
 
   let body;
   if (loading || (session && (roleStatus === 'loading' || roleStatus === 'idle'))) {

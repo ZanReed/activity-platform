@@ -61,6 +61,101 @@ export function readAuthCallbackError(url: URL): string | null {
   return hashParams.get('error_description') ?? hashParams.get('error');
 }
 
+/* ---------------------------------------------------------------------------
+ * 0033 admission: redeem + claim (R2/R3/R6)
+ * -------------------------------------------------------------------------
+ * The transport difference that decided the whole architecture: these RPC
+ * raises REACH THE BROWSER verbatim, where the trigger's did not. That is why
+ * every refusal moved into an RPC — the copy below is reachable, so a student
+ * gets a named reason instead of "something went wrong".
+ */
+export type RedeemErrorKind =
+  | 'bad_code'
+  | 'domain'
+  | 'disabled'
+  | 'signed_out'
+  | 'wrong_role'
+  | 'class_full'
+  | 'unknown';
+
+/** Classify a redeem_join_code error against the wire contract. Order matters:
+ *  redeem delegates to join_class after promoting, so a single call can raise
+ *  from either body — the shared strings (bad_code/domain/disabled) are matched
+ *  through the same joinClassErrors entries both functions use. */
+export function classifyRedeemError(message: string): RedeemErrorKind {
+  if (message.includes(contract.redeemErrors.signedOut)) return 'signed_out';
+  if (message.includes(contract.redeemErrors.wrongRole)) return 'wrong_role';
+  if (message.includes(contract.redeemErrors.classFull)) return 'class_full';
+  if (message.includes(contract.joinClassErrors.disabled)) return 'disabled';
+  if (message.includes(contract.joinClassErrors.badCode)) return 'bad_code';
+  if (DOMAIN_PREFIX && message.includes(DOMAIN_PREFIX.trim())) return 'domain';
+  return 'unknown';
+}
+
+/** Student-facing redeem copy (R5-DR row 2). Every string names a next action:
+ *  no state in this family is a dead end. */
+export const REDEEM_ERROR_COPY: Record<RedeemErrorKind, string> = {
+  bad_code: "That code didn't match a class. Check it with your teacher and try again.",
+  domain: 'This class needs your school account. Sign in with your school Google account to join.',
+  disabled: "This account isn't active — ask your teacher.",
+  signed_out: 'Your sign-in expired. Sign in again to join.',
+  wrong_role: "You're signed in as a teacher. Use a student account to join a class.",
+  // Deliberately NOT the wire string (which reads for a log): the copy layer is
+  // what a 13-year-old sees, and the distinctness is pinned by the contract test.
+  class_full: 'This class is already full. Let your teacher know so they can sort it out.',
+  unknown: 'Something went wrong joining the class. Try again, and if it keeps happening, ask your teacher.',
+};
+
+export type ClaimErrorKind =
+  | 'signed_out'
+  | 'already_set_up'
+  | 'no_attestation'
+  | 'class_cap'
+  | 'unknown';
+
+export function classifyClaimError(message: string): ClaimErrorKind {
+  if (message.includes(contract.claimTeacherErrors.signedOut)) return 'signed_out';
+  if (message.includes(contract.claimTeacherErrors.alreadySetUp)) return 'already_set_up';
+  if (message.includes(contract.claimTeacherErrors.noAttestation)) return 'no_attestation';
+  if (message.includes(contract.claimTeacherErrors.classCapTemplate)) return 'class_cap';
+  return 'unknown';
+}
+
+export const CLAIM_ERROR_COPY: Record<ClaimErrorKind, string> = {
+  signed_out: 'Your sign-in expired. Sign in again to continue.',
+  already_set_up: 'This account is already set up. Reload to continue.',
+  no_attestation: 'Please confirm you are an educator to continue.',
+  class_cap: 'This account has reached its class limit. Contact support to raise it.',
+  unknown: 'Something went wrong setting up your account. Try again.',
+};
+
+/** Onboarding copy — the R5-DR fork and the attestation card. */
+export const ONBOARDING_COPY = {
+  forkTitle: "Welcome! Let's get you set up.",
+  forkBody: "Ask your teacher for the class code if you don't have it.",
+  codeLabel: 'Have a class code?',
+  codeAction: 'Join your class',
+  teacherAction: "I'm a teacher",
+  claimTitle: 'Set up your teacher account',
+  claimBody: 'For educators using this with their own classes.',
+  claimAttestation:
+    'I am an educator, and I am authorized by my school to use this platform with my students.',
+  claimAction: 'Continue as a teacher',
+  claimBack: 'Back',
+  signedInAs: 'Signed in as',
+} as const;
+
+/** aria-live announcements (R5-DR a11y block). The a11y lane asserts these
+ *  exact strings, so they are contract, not incidental component copy. */
+export const ADMISSION_ANNOUNCEMENTS = {
+  redeeming: 'Joining your class',
+  redeemed: 'Joined',
+  redeemFailed: 'Could not join',
+  claiming: 'Setting up your teacher account',
+  claimed: 'Teacher account ready',
+  claimFailed: 'Could not set up your account',
+} as const;
+
 /** Sign-in-failed copy — cause-agnostic (P1); school-account line only on
  * student surfaces (P3). `genericBody` replaced "Check your connection and
  * try again." (T16, Probe 2 evidence): in the one real refusal observed the

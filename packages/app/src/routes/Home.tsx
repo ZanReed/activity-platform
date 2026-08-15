@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
+import { PendingOnboarding } from '../components/PendingOnboarding';
 import { markIdleSignOut, consumeIdleSignOutFlag, signInWithGoogle } from '../lib/auth';
 import { useSession } from '../lib/SessionContext';
 import { useSlowFlag } from '../lib/slowLoad';
@@ -97,6 +98,17 @@ export default function Home() {
   } else if (roleStatus === 'empty') {
     // Zero users row (E-11): honest dead-end, never a retry loop.
     body = <AccountUnavailableCard onSignOut={() => void signOut()} />;
+  } else if (role === 'pending') {
+    // 0033 R5-DR safety net: an account admitted with no role yet. Most users
+    // never land here — the pre-auth fork routes them — so this is the
+    // intent-less arrival (direct OAuth, stale bookmark).
+    body = (
+      <PendingOnboarding
+        email={session.user.email ?? ''}
+        onPromoted={retryRole}
+        onSignOut={() => void signOut()}
+      />
+    );
   } else if (role === 'student') {
     body = <StudentHome email={session.user.email ?? ''} />;
   } else {
@@ -104,6 +116,7 @@ export default function Home() {
   }
 
   const isStudent = session !== null && role === 'student' && roleStatus === 'ready';
+  const isPending = session !== null && role === 'pending' && roleStatus === 'ready';
 
   return (
     <main className="min-h-screen bg-surface p-8">
@@ -123,7 +136,7 @@ export default function Home() {
             </span>
           ) : null}
         </div>
-        {!isStudent && !loading && session && roleStatus === 'ready' ? (
+        {!isStudent && !isPending && !loading && session && roleStatus === 'ready' ? (
           <p className="mt-2 text-muted">
             Build interactive activities and share them with your students.
           </p>
