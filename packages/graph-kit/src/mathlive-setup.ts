@@ -8,21 +8,30 @@
 // (Previously only the calculator set them, so a math-prompt page without a
 // calculator got MathLive's default font path — wrong under a bundled kit.)
 //
-// Fonts are SELF-HOSTED on R2 alongside the kit (MA-D7): no jsDelivr dependency
-// on the student's path, where a school firewall blocking the CDN would leave
-// the equation in fallback glyphs. The published kit is served from
-// `${R2}/shared/graph-kit-<hash>.js`, and the fonts sit next to it at
-// `${R2}/shared/mathlive-fonts/v<version>/` — so we derive the fonts URL from
-// the kit's own module URL (import.meta.url; esbuild provides it, the same way
-// the kit resolves its lazy chunk). In the dev editor the kit is imported from
-// localhost where the R2 fonts don't exist, so we fall back to the CDN there —
-// dev isn't a student. Upload the fonts with `pnpm build:mathlive-fonts`.
+// Fonts are SELF-HOSTED as a SIBLING of this module's own chunk (MA-D7's
+// rationale, post-R2 home): no jsDelivr dependency on the student's path,
+// where a school firewall blocking the CDN would leave the equation in
+// fallback glyphs. We derive the fonts URL from the module URL
+// (import.meta.url) — `<origin>/assets/mathlive-fonts/v<version>/` in the
+// built app — and the app's build makes that derivation TRUE by copying the
+// installed mathlive's woff2 files to exactly that path (the
+// `activity:mathlive-fonts` plugin in packages/app/vite.config.ts, which also
+// fails the build if MATHLIVE_VERSION drifts from the installed package). In
+// dev the module is served from localhost where no fonts sibling exists, so
+// we fall back to the CDN — dev isn't a student.
+//
+// [TOMBSTONE 2026-08-15, D-13 teardown] This derivation was born for the
+// R2-hosted kit (`${R2}/shared/graph-kit-<hash>.js` + fonts uploaded next to
+// it by `pnpm build:mathlive-fonts`). The kit went app-bundled at S9 Drop 4,
+// which silently broke the derivation in production (no fonts at the derived
+// path — 404s, fallback glyphs) until the vite plugin restored it from the
+// app side; the uploader script and the bucket are gone.
 // =============================================================================
 
 import { MathfieldElement } from 'mathlive';
 
-// Bump alongside the `mathlive` dependency AND the version prefix in
-// scripts/build-mathlive-fonts.mjs (the R2 path is immutable per version).
+// Bump alongside the `mathlive` dependency. Guarded: the app build FAILS if
+// this constant and the installed mathlive version diverge (vite.config.ts).
 const MATHLIVE_VERSION = '0.109.2';
 
 function fontsDirectory(): string {
