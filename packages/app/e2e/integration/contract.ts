@@ -21,11 +21,27 @@ export const INT_STUDENT = {
   password: 'integration-lane-student-pw-1',
 };
 
-/** An email OUTSIDE both the allowlist and the domain — the trigger must
- * REFUSE it (the negative branch that proves the others aren't vacuous). */
+/** An email OUTSIDE both the allowlist and the domain. Until 0033 the trigger
+ * REFUSED it; under self-serve admission it is admitted into the contained
+ * `pending` role instead. Still the branch that proves the others aren't
+ * vacuous — the fate is just "contained" rather than "rejected", and the
+ * refusals moved to the promotion RPCs where their text reaches a browser. */
 export const INT_OUTSIDER = {
   email: 'int-outsider@elsewhere.example',
   password: 'integration-lane-outsider-pw-1',
+};
+
+/** Two more off-domain identities (0033): one redeems a class code, one claims
+ * a teacher account. Separate from INT_OUTSIDER so each row owns its account
+ * and the serial file has no cross-row promotion order to reason about. */
+export const INT_PENDING_STUDENT = {
+  email: 'int-pending-student@elsewhere.example',
+  password: 'integration-lane-pending-student-pw-1',
+};
+
+export const INT_PENDING_TEACHER = {
+  email: 'int-pending-teacher@elsewhere.example',
+  password: 'integration-lane-pending-teacher-pw-1',
 };
 
 /** The local stack's well-known demo ANON key (fixed across supabase-cli

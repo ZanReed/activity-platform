@@ -28,6 +28,8 @@ import {
 import { supabaseStorageKey } from '../helpers/studentSession';
 import {
   INT_OUTSIDER,
+  INT_PENDING_STUDENT,
+  INT_PENDING_TEACHER,
   INT_STUDENT,
   INT_TEACHER,
   LOCAL_ANON_KEY,
@@ -125,24 +127,92 @@ test.beforeAll(async () => {
   student = await signUpAndIn(INT_STUDENT);
 });
 
-test('the real trigger mints roles — and refuses the outsider (nothing here is vacuous)', async () => {
-  const roleOf = async (who: { client: SupabaseClient }) => {
-    const { data, error } = await who.client
-      .from('users')
-      .select('role')
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    return (data as { role?: string } | null)?.role;
-  };
+const roleOf = async (who: { client: SupabaseClient }) => {
+  const { data, error } = await who.client.from('users').select('role').maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as { role?: string } | null)?.role;
+};
+
+test('the real trigger mints all THREE fates (nothing here is vacuous)', async () => {
   expect(await roleOf(teacher)).toBe('teacher');
   expect(await roleOf(student)).toBe('student');
 
-  // The negative branch: neither allowlisted nor in-domain → the trigger
-  // raises, GoTrue rolls the signup back and reports its generic wire text —
-  // the exact behavior Probe 2 recorded in production.
-  const { error } = await anonClient().auth.signUp(INT_OUTSIDER);
-  expect(error, 'the outsider signup must be refused').not.toBeNull();
-  expect(error!.message).toMatch(/Database error/i);
+  // The third branch, REWRITTEN AT 0033 (P5 audit — this row asserted a
+  // REFUSAL until self-serve admission landed). An email that is neither
+  // allowlisted nor in-domain is no longer rejected by the trigger: it is
+  // admitted into the contained `pending` role, and two audited RPCs promote
+  // it. The negative branch has not disappeared — it MOVED to the RPCs, where
+  // the refusal text can actually reach a browser, and it is proven by the
+  // refused-redeem row below plus verify-0033's five containment rows.
+  const outsider = await signUpAndIn(INT_OUTSIDER);
+  expect(await roleOf(outsider), 'the outsider is admitted CONTAINED').toBe('pending');
+});
+
+test('a pending account redeems a real code: promoted + joined in one call', async () => {
+  const pending = await signUpAndIn(INT_PENDING_STUDENT);
+  expect(await roleOf(pending)).toBe('pending');
+
+  // Fixture: a class owned by the (allowlisted, cap-exempt) teacher.
+  const { data: created, error: createErr } = await teacher.client.rpc('create_class', {
+    p_name: 'Redeem lane class',
+    p_expected_domain: null,
+    p_assertion_text_version: 'integration-lane',
+  });
+  if (createErr) throw new Error(createErr.message);
+  const code = (created as { join_code: string }).join_code;
+
+  // REFUSED first, so the happy path below cannot be vacuous: a bad code must
+  // leave the caller pending, not half-promoted.
+  const bad = await pending.client.rpc('redeem_join_code', { p_join_code: 'ZZZZZZ' });
+  expect(bad.error, 'a bad code must refuse').not.toBeNull();
+  expect(await roleOf(pending), 'a refusal must not promote').toBe('pending');
+
+  // The real thing: promote + join, one audited call.
+  const { data: joined, error: redeemErr } = await pending.client.rpc('redeem_join_code', {
+    p_join_code: code,
+  });
+  if (redeemErr) throw new Error(redeemErr.message);
+  expect((joined as { class_name: string }).class_name).toBe('Redeem lane class');
+  expect(await roleOf(pending), 'redeem promotes to student').toBe('student');
+
+  // Idempotent: re-redeeming is a no-op, not a duplicate membership or an error.
+  const again = await pending.client.rpc('redeem_join_code', { p_join_code: code });
+  expect(again.error).toBeNull();
+});
+
+test('a pending account claims teacher — attestation required, and the cap is REAL', async () => {
+  const claimer = await signUpAndIn(INT_PENDING_TEACHER);
+  expect(await roleOf(claimer)).toBe('pending');
+
+  // Attestation is not optional: the RPC refuses an empty version.
+  const noAttest = await claimer.client.rpc('claim_teacher', { p_attestation_version: '' });
+  expect(noAttest.error, 'claim without attestation must refuse').not.toBeNull();
+  expect(await roleOf(claimer)).toBe('pending');
+
+  const { error: claimErr } = await claimer.client.rpc('claim_teacher', {
+    p_attestation_version: 'integration-lane',
+  });
+  if (claimErr) throw new Error(claimErr.message);
+  expect(await roleOf(claimer), 'claim promotes to teacher').toBe('teacher');
+
+  // P3 LIVENESS: a self-serve teacher is capped at 5 classes. Fire it at the
+  // production value — a cap nobody has watched refuse is a dormant safeguard,
+  // and this lane exists precisely to stop trusting unfired guards.
+  for (let i = 1; i <= 5; i++) {
+    const { error } = await claimer.client.rpc('create_class', {
+      p_name: `capped ${i}`,
+      p_expected_domain: null,
+      p_assertion_text_version: 'integration-lane',
+    });
+    if (error) throw new Error(`class ${i} should have been allowed: ${error.message}`);
+  }
+  const sixth = await claimer.client.rpc('create_class', {
+    p_name: 'capped 6',
+    p_expected_domain: null,
+    p_assertion_text_version: 'integration-lane',
+  });
+  expect(sixth.error, 'the 6th class must be refused by the cap').not.toBeNull();
+  expect(sixth.error!.message).toMatch(/limited to 5 classes/i);
 });
 
 test('a teacher makes a class + publishes + shares; a student joins through the REAL join_class', async ({
