@@ -129,6 +129,46 @@ district), the trigger admitting a student when a valid join context exists
 OR the domain matches a required one, and the E-9 refusal screens gaining the
 "this class requires a school account" branch.
 
+## 4a. Design pass, round 1 — re-derived against shipped reality (2026-08-15, P10)
+
+The signal above was written from the DECISIONS record. Re-deriving it against
+the live schema and the app changed two things materially — both in the
+direction of "smaller than described, but blocked on a question nobody asked."
+
+**FINDING 1 — half of option C already exists and is live.**
+`classes.expected_domain` (0014, hardened by 0027 with a dotted-domain CHECK and
+an audited `update_class_domain` edit path) is exactly the per-class domain
+requirement option C proposes, and `join_class` already enforces it with its own
+refusal: *"This class is limited to % accounts."* Nullable = no restriction.
+So the "per-class toggle" half is **built, live, and audited** — the signal's
+"needs a `require_domain` flag" framing was wrong. What `expected_domain` does
+NOT do is admit anyone: it only narrows which class an ALREADY-ADMITTED student
+may join.
+
+**FINDING 2 — the real blocker is the OAuth callback, not a missing flag.**
+`handle_new_auth_user` fires during the OAuth callback and sees only
+`new.email` + `new.raw_user_meta_data`. `/join/:code` passes `redirectTo = this
+URL`, so the code survives the round trip **as a redirect target — invisible to
+the trigger.** At the moment admission is decided, there is no join context to
+read. So "a valid join code suffices for admission" is not a one-condition edit;
+it requires choosing where admission happens.
+
+**FINDING 3 — the unasked question this exposes: is student sign-in staying
+Google-OAuth-only?** DeltaMath-shape ("register with a class code") is natively
+an **email+password** signup, where `signUp({ options: { data: { join_code }}})`
+lands the code in `raw_user_meta_data` — which the trigger CAN read. The
+database already supports this path (the S9 integration lane creates users via
+email+password through the real trigger, incl. the refused outsider); the app
+does not (zero password call sites in `packages/app/src` — OAuth only). So the
+admission model and the authentication method are the same decision wearing two
+hats, and the signal doc treated them as independent.
+
+**Live baseline at the pass (2026-08-15):** allowlist 5 rows (lowercase
+constraint on, 0 mis-cased — the gate-4 demotion hazard is disarmed), 3
+teachers, **0 students**, 1 class, 0 memberships, `student_domain` 0 rows.
+Nothing is in production use yet, so the migration cost of any option here is
+near zero — this is the cheapest moment this decision will ever have.
+
 ## 5. What the future design pass MUST cover (not exhaustive)
 
 1. **Teacher admission is the bigger unlock and the bigger risk.** Teachers
