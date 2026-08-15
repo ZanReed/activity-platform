@@ -342,6 +342,14 @@ built and measured the same day.
 
 ## Get the student shell from 168 KiB gz toward the 150 KiB target
 
+**⚖ RULED 2026-08-15 (author, closing gate 9's last open item): TRACK ONLY for now.**
+No shrink work; the number gets recorded whenever it moves (it is priced per-addition
+already: 168.4 → 173.0 → 173.5 → 174.0/185 through the S9 drops), and **the decision on
+what is realistically achievable — if anything — happens at the end of the refactor**,
+once the arc's remaining teardown settles. Until then this entry is a ledger, not a task.
+The s8-retro's item-8 warning stands recorded: the audit's drift-to-185 scenario is the
+thing the per-addition pricing exists to prevent.
+
 **What:** Deliberate work to shrink the entry chunk. Ruling P1A sketched a ~150 KiB gz
 shell cap; the measured post-split reality is **168.1 KiB gz**, and the committed budget is
 a regression pin at that number rather than a claim the target was met.
