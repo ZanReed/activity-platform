@@ -34,7 +34,9 @@
 | `users.email` | school email | teacher, student | Google OAuth | identity, domain gate | account lifetime |
 | `users.display_name` (student) | name, **may be NULL** | student | Google `full_name` when supplied, else NULL (0021 — never the email) | teacher recognizes student work | account lifetime |
 | `users.display_name` (teacher) | name, **may be NULL** | teacher | same | student-facing attribution on the activity page — **⚠ disclosed to unauthenticated visitors, see Disclosures** | account lifetime |
-| `users.role` / `account_tier` | role/tier | both | system | authorization | account lifetime |
+| `users.role` / `account_tier` | role/tier | both | system | authorization (**`pending` = admitted, holds nothing**, 0033) | account lifetime |
+| `users.educator_attested_at` / `_version` | date + policy version of the educator confirmation | teacher (self-serve only) | the teacher, at setup | recording who confirmed school authorization, and against which wording | account lifetime |
+| `users.teacher_caps_exempt` | flag | teacher | system | exempts directly-added teachers from the self-serve class/roster caps | account lifetime |
 | `allowlist.email` | teacher email | teacher | author-entered | invite gate | until removed |
 | `student_domain.domain` | district domain (not personal per se) | — | author-entered | student admission gate | until removed |
 | `classes.name` | class name (may reference a teacher) | teacher | teacher | roster | class lifetime |

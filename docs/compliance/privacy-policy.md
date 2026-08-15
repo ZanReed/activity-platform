@@ -1,7 +1,7 @@
 # Privacy Policy — Activity Platform
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Effective date: ⟨date⟩ · Policy version: `2026-08-07-draft-2`
+> Effective date: ⟨date⟩ · Policy version: `2026-08-15-draft-3`
 > Operator: ⟨legal name / contact email⟩
 >
 > `draft-2` (2026-08-07): the class-creation assertion dropped its under-13
@@ -34,6 +34,37 @@ platform — with no exceptions in this version. Your teacher confirms this when
 they create a class. If you're under 13, don't sign in — ask your teacher for
 a paper copy.
 
+### How you get an account (2026-08-15)
+
+There are two doors, and both are anchored to a teacher:
+
+1. **Your school's Google account.** If your district is set up with us, your
+   school email is recognized at sign-in and you're a student straight away.
+2. **A class code from your teacher.** Anyone can sign in with Google, but
+   until you enter a teacher's class code you have **no role and no access**:
+   the account can't open activities, join classes, or see anyone's work. It's
+   an empty account waiting for a code. Entering a valid code is what makes
+   you a student, in that class.
+
+**Teachers** either are added by us directly, or set themselves up by
+confirming they're an educator authorized by their school to use this with
+students. That confirmation is recorded with the date and the version of this
+policy they saw.
+
+**Why it works this way.** A teacher deciding to use this with their class —
+and confirming their school authorizes it — is what permits us to collect a
+student's information at all, on the school's behalf, and only for schoolwork.
+We do not ask students to arrange that themselves. We also carry our own side
+of it rather than leaving it with the school: this notice, collecting as
+little as we can, and using it for nothing but the class.
+
+**One thing worth being plain about.** A signed-in account with no class can
+open an activity if a teacher shares its link directly — activity content is
+readable by anyone signed in who has the link, the same as it was when
+activities were published as public web pages. **Student work is not:** answers,
+scores, class rosters and membership are visible only to the student who wrote
+them and their teacher, and an account with no class reaches none of it.
+
 ## What we collect, exactly
 
 | Data | Where it comes from | Why |
@@ -41,6 +72,7 @@ a paper copy.
 | School email address | Google sign-in | Sign-in + confirming you belong to your district |
 | Display name | Google sign-in | So your teacher recognizes your work |
 | Class memberships | You entering a join code | Connecting you to your teacher |
+| Educator confirmation (teachers only) | The teacher, at setup | Recording who confirmed their school authorizes this, and when |
 | Activity responses, scores, attempt counts | Your work | The whole point — your teacher reviews it |
 | A one-way hash of your IP address, browser type | Automatic, on submission | Abuse detection only. We never store your raw IP. Deleted after 30 days |
 

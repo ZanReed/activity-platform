@@ -47,6 +47,19 @@ enough for "can I see my grade from last semester," short enough to not be an
 archive. Deliberately NOT configurable per teacher in v1 (one policy, one
 truthful privacy page).
 
+### Accounts that never joined a class (added 2026-08-15, migration 0033)
+
+Anyone can sign in with Google and get an account that holds **no role and no
+access** until they enter a teacher's class code. Such an account stores an
+email address and the Google identity link, nothing else — no class, no work,
+no responses, because it can reach none of those.
+
+These rows are covered by the same account-dormancy window as every other
+account (400 days), derived live from account activity rather than a stored
+flag, and purged by the same nightly job. Nothing separate is needed: an
+account that never joined a class is, by construction, an account with no
+membership history, which is exactly what the dormancy derivation looks for.
+
 ## Mechanics (build state)
 
 - **The purge job is LIVE** (0022–0025; pg_cron registered 2026-08-05, first
