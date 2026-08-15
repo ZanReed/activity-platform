@@ -145,6 +145,38 @@ export const ONBOARDING_COPY = {
   signedInAs: 'Signed in as',
 } as const;
 
+/**
+ * Landing copy — the R5-DR PRE-AUTH fork (board Row 0), which is the DOMINANT
+ * path: a student self-selects the code door and a teacher the teacher door
+ * BEFORE Google, so the post-auth ONBOARDING_COPY fork above only ever serves
+ * intent-less arrivals. Wording is the approved board's verbatim.
+ *
+ * `codeNotFound` is shared with /join/:code on purpose: the same DR-6
+ * definitive-negative is now rendered by two surfaces, and two copies of one
+ * sentence is exactly how they drift apart (P11).
+ */
+export const LANDING_COPY = {
+  lede: 'Students join with a class code. Teachers build the activities.',
+  studentHeading: 'Students',
+  codeLabel: 'Have a class code?',
+  studentAction: 'Continue with Google',
+  teacherAction: "I'm a teacher · get started",
+  teacherBody: "Teachers sign in with Google and confirm they're an educator.",
+  codeNotFound: "This code doesn't match a class — double-check it with your teacher.",
+  /** Shown WITH codeNotFound: the anon meta endpoint can be stale, so the
+   *  check warns and then gets out of the way — it never hard-blocks (DR-6). */
+  codeNotFoundContinue: 'Press again to continue anyway.',
+} as const;
+
+/** Landing announcements (R5-DR a11y block, same role=status channel as the
+ *  onboarding card). Kept separate from ADMISSION_ANNOUNCEMENTS so the strings
+ *  the a11y lane already asserts there stay a closed set. */
+export const LANDING_ANNOUNCEMENTS = {
+  checking: 'Checking your class code',
+  notFound: 'That code did not match a class',
+  continuing: 'Taking you to Google to sign in',
+} as const;
+
 /** aria-live announcements (R5-DR a11y block). The a11y lane asserts these
  *  exact strings, so they are contract, not incidental component copy. */
 export const ADMISSION_ANNOUNCEMENTS = {

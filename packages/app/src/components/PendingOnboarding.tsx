@@ -56,6 +56,12 @@ export interface PendingOnboardingProps {
   onSignOut: () => void;
   /** Pre-fills the code (the /join/:code deep link hands it over). */
   initialCode?: string;
+  /**
+   * Which view opens first. 'attest' is how the pre-auth teacher door lands
+   * (R5-DR: intent rides the redirect URL) — it saves an adult one tap and
+   * grants nothing, since claim_teacher still demands the attestation below.
+   */
+  initialView?: 'fork' | 'attest';
 }
 
 export function PendingOnboarding({
@@ -63,8 +69,9 @@ export function PendingOnboarding({
   onPromoted,
   onSignOut,
   initialCode = '',
+  initialView = 'fork',
 }: PendingOnboardingProps) {
-  const [view, setView] = useState<'fork' | 'attest'>('fork');
+  const [view, setView] = useState<'fork' | 'attest'>(initialView);
   const [code, setCode] = useState(initialCode);
   const [attested, setAttested] = useState(false);
   const [busy, setBusy] = useState(false);

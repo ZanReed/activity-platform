@@ -13,7 +13,7 @@ import {
   stubIdentityApi,
   joinUrl,
 } from '../helpers/studentSession';
-import { SIGN_IN_FAILED_COPY, JOIN_ERROR_COPY } from '../../src/lib/authMessages';
+import { SIGN_IN_FAILED_COPY, JOIN_ERROR_COPY, LANDING_COPY } from '../../src/lib/authMessages';
 
 const SUPABASE_URL = 'http://127.0.0.1:54321';
 const CODE = 'QX7M2P';
@@ -155,8 +155,16 @@ test.describe('idle sign-out wiring (s1:9 / D-10 — the C2 gate proof)', () => 
     await expect(page.getByText(/Still there\?/)).toBeVisible();
 
     // 2 more silent minutes → escalation: signed out, with the why.
+    // The landed-on surface is now the R5-DR pre-auth fork, not the old lone
+    // "Sign in to continue" button (P5: this assertion was FLIPPED to the
+    // surface that replaced it, not deleted — it still proves the escalation
+    // reaches a signed-out screen, and now also that the explanation survived
+    // the move onto the landing).
     await page.clock.fastForward('02:30');
-    await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible();
+    await expect(page.getByLabel(LANDING_COPY.codeLabel)).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: LANDING_COPY.teacherAction }),
+    ).toBeVisible();
     await expect(
       page.getByText('You were signed out after being away. Your work is saved.'),
     ).toBeVisible();

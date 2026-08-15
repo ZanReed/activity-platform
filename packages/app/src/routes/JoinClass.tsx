@@ -14,7 +14,7 @@ import { signInWithGoogle } from '../lib/auth';
 import { signOutEverything } from '../lib/studentAuth';
 import { joinClass, redeemJoinCode, type JoinedClass } from '../lib/classes';
 import { fetchClassMeta, type ClassMetaResult } from '../lib/classActivities';
-import { classifyRedeemError, REDEEM_ERROR_COPY } from '../lib/authMessages';
+import { classifyRedeemError, LANDING_COPY, REDEEM_ERROR_COPY } from '../lib/authMessages';
 import { normalizeJoinCodeInput } from '../components/JoinCodeForm';
 import {
   AccountUnavailableCard,
@@ -124,8 +124,7 @@ export default function JoinClass() {
         </p>
         {meta?.kind === 'none' && (
           <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm text-amber-900">
-            This code doesn&apos;t match a class — double-check it with your
-            teacher.
+            {LANDING_COPY.codeNotFound}
           </p>
         )}
         <button

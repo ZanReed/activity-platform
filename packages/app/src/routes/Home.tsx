@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
 import { PendingOnboarding } from '../components/PendingOnboarding';
-import { markIdleSignOut, consumeIdleSignOutFlag, signInWithGoogle } from '../lib/auth';
+import { SignedOutLanding } from '../components/SignedOutLanding';
+import { markIdleSignOut, consumeIdleSignOutFlag } from '../lib/auth';
 import { useSession } from '../lib/SessionContext';
 import { useSlowFlag } from '../lib/slowLoad';
 import { listMyClasses, type JoinedClass } from '../lib/classes';
@@ -45,14 +46,14 @@ export default function Home() {
   }, [loading, session]);
   const gateActive = loading || (session !== null && roleStatus === 'loading');
   const slow = useSlowFlag(gateActive);
-
-  const signIn = () => {
-    // The shared entry point (P3/E-6): no district hint on Home — teachers
-    // sign in here too.
-    void signInWithGoogle({ redirectTo: window.location.origin }).then(({ error }) => {
-      if (error) console.error('Sign-in failed:', error);
-    });
-  };
+  // The teacher door's routing hint (R5-DR): it only chooses which view of the
+  // onboarding card opens first. Read once, like useAuthCallbackError — and
+  // deliberately NOT trusted for anything else: promotion is claim_teacher's
+  // job, behind its attestation and its caps.
+  const teacherIntent = useMemo(
+    () => new URL(window.location.href).searchParams.get('intent') === 'teacher',
+    [],
+  );
 
   let body;
   if (loading) {
@@ -63,17 +64,10 @@ export default function Home() {
       // refused teacher here must not be told to use a student account.
       <SignInFailedCard studentSurface={false} redirectTo={window.location.origin} />
     ) : (
-      <div className="mx-auto max-w-sm rounded-lg border border-line bg-canvas p-6 text-center shadow-sm">
-        {idleSignedOut ? (
-          <p className="mb-4 rounded-md bg-surface-2 px-3 py-2 text-sm text-muted">
-            You were signed out after being away. Your work is saved.
-          </p>
-        ) : null}
-        <h2 className="text-lg font-bold text-ink">Sign in to continue</h2>
-        <button type="button" onClick={signIn} className={`mt-4 w-full ${BTN_PRIMARY}`}>
-          Sign in with Google
-        </button>
-      </div>
+      // The R5-DR pre-auth fork (board Row 0) — the dominant journey. It
+      // replaced a lone "Sign in to continue" button, which forced every
+      // student through Google before they could say why they were here.
+      <SignedOutLanding idleSignedOut={idleSignedOut} />
     );
   } else if (roleStatus === 'loading' || roleStatus === 'idle') {
     // Neutral until the role resolves — never a flash of the wrong shell (E-4).
@@ -99,14 +93,17 @@ export default function Home() {
     // Zero users row (E-11): honest dead-end, never a retry loop.
     body = <AccountUnavailableCard onSignOut={() => void signOut()} />;
   } else if (role === 'pending') {
-    // 0033 R5-DR safety net: an account admitted with no role yet. Most users
-    // never land here — the pre-auth fork routes them — so this is the
-    // intent-less arrival (direct OAuth, stale bookmark).
+    // 0033 R5-DR safety net: an account admitted with no role yet. A student
+    // who used the code door is on /join/<CODE> auto-redeeming and never sees
+    // this; a teacher who used the teacher door arrives with ?intent=teacher
+    // and opens straight on the attestation card. What is left for this screen
+    // is the intent-less arrival (direct OAuth, a stale bookmark).
     body = (
       <PendingOnboarding
         email={session.user.email ?? ''}
         onPromoted={retryRole}
         onSignOut={() => void signOut()}
+        initialView={teacherIntent ? 'attest' : 'fork'}
       />
     );
   } else if (role === 'student') {

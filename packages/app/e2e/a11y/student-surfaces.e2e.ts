@@ -31,6 +31,7 @@ import {
   stubActivityApi,
   stubIdentityApi,
 } from '../helpers/studentSession';
+import { LANDING_COPY } from '../../src/lib/authMessages';
 
 // The lazy tier renders NOTHING — not even its own markers — until the chunk
 // resolves, so a wait that counts those markers first is a no-op that scans the
@@ -359,6 +360,16 @@ test.describe('axe — zero WCAG A/AA violations per student surface', () => {
     });
     await page.goto('/');
     await page.getByRole('heading', { name: 'Your classes' }).waitFor();
+    await expectNoAxeViolations(page);
+  });
+
+  test('the pre-auth landing (the R5-DR admission fork)', async ({ page }) => {
+    // The first screen a stranger sees, and the only one carrying a form
+    // before authentication — so it gets the same scan as the surfaces behind
+    // the gate. The code field's label, the alert on refusal, and the
+    // role=status announcement region are all in scope here.
+    await page.goto('/');
+    await page.getByLabel(LANDING_COPY.codeLabel).waitFor();
     await expectNoAxeViolations(page);
   });
 
