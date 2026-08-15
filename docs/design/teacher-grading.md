@@ -1,8 +1,7 @@
 # Teacher grading bound to `section_checks` — the S4 deferral comes due
 
-**Status: ENG REVIEW CLEAR (2026-08-15) — G1–G14 below are the ruled
-architecture; awaiting the design review (owns the Responses-tab compositions,
-the staleness/release/score renderings, and the D2-UX half).** Successor to
+**Status: ENG + DESIGN REVIEW CLEAR (2026-08-15) — G1–G14 are the ruled
+architecture; §2b (G8-DR) is the ruled UI. Build-ready: T1–T5.** Successor to
 Phase 2.6 ([manual-grading.md](manual-grading.md), whose surface was demolished
 at S9 Drop 3) and owner of the S4 deferral recorded in
 [TODOS.md](../../TODOS.md) → "Teacher grading bound to `section_checks`".
@@ -223,6 +222,80 @@ check_grades ──(unreleased rows)──► "N unreleased" badge → Release b
        stamps released_at · audit: grade.release
 ```
 
+## 2b. G8-DR — THE DESIGN RULING (plan-design-review, 2026-08-15; board:
+`~/.gstack/projects/ZanReed-activity-platform/designs/responses-tab-20260815/wireframes.html`, approved.json beside it)
+
+Score 4/10 → 9/10, nine decisions (D4–D12). **One eng-layout amendment:** the
+outside voice's strongest finding overturned G8's version-header layout — G2's
+per-version DATA semantics stand untouched, but the queue's level-1 is the
+workload ("7 need grading"), and earlier-version rows carry a muted version
+TAG (shown only when ≥2 versions have work) — G6's "tag, don't map" applied
+to the teacher side.
+
+- **Composition (D4):** two-pane master–detail, ≥960px; queue grouped
+  **BY QUESTION** (section → question → student rows; the selectable unit is
+  a (student, block) response — a section with two essays is two rows, and
+  the panel shows one block response at a time). By-student view is a
+  recorded follow-on, not a toggle in v1. Below 960px: list → panel push
+  view with a back link. Rubric panel scrolls independently; the Save row is
+  sticky at the panel's bottom.
+- **Save flow (D8):** Save advances to the next ungraded item in queue
+  order; Enter submits from the points fields; switching selection with
+  dirty edits gets a confirm prompt ("Discard unsaved grade?") — the
+  flush-on-close bug class, closed by a prompt rather than a soft-block.
+- **Staleness (D5):** the amber "Text changed since grading" chip is the
+  ONLY amber on the surface, and **a stale row re-enters the needs-grading
+  set** wearing it — revision never silently vanishes behind "Graded".
+- **Release (D10):** per-student button always carries its count ("Release
+  2 graded to Maya" — preview-in-the-button, no modal); a header **"Release
+  all graded (N students)"** iterates the same audited RPC. The panel shows
+  a persistent released state — "Released · visible to student · edits
+  appear immediately" — styled distinctly from the unreleased editing state.
+- **G13 RULED (D6):** teacher-entered points are not a spirit violation —
+  **attribution is the distinction.** The student card: feedback-first,
+  "Feedback from your teacher" header BEFORE any number, per-criterion
+  points as quiet text data ("4/4"), **no total, no glyphs, no state-chrome
+  tokens**, rendered in the authored-content register below the block, never
+  adjacent to the StatePill. The ShortAnswer exemplar comment is amended in
+  the same commit (P5): "never a score" → "never a score in the system's
+  voice."
+- **Discoverability (D11):** when released feedback exists, the recorded
+  pill's LABEL overrides to **"Reviewed by your teacher"** — same state,
+  same glyph, union stays closed at four; the family spec blesses the label
+  override in the same P5 amendment. Home-level indicator stays in its TODO.
+- **Preview (D12):** the panel renders the D6 student card as an "as the
+  student sees it" preview — same component, same wire shape, mounted twice.
+- **States (D7):** empty ("No responses yet · When students check sections
+  with written answers, they'll appear here."), all-caught-up ("All caught
+  up ✓ · Every written answer is graded. **· N not yet released**" +
+  [Show graded]), no-written-questions ("This activity has no written-answer
+  questions."), failed save (panel keeps all entered work, inline error on
+  Save, retry reuses the payload), loading (queue skeleton; student side
+  reserves the card space — feedback appears on next open, never pops in
+  live), stale-while-grading (Save against a superseded check still
+  succeeds — grades pin to check rows; the row picks up the amber chip on
+  next queue refresh; no live push), student-stale ("You've revised your
+  answer since this feedback." — the card persists, never disappears on
+  re-check), version-mismatch ("On an earlier version of this worksheet —
+  your newest answers aren't graded yet.").
+- **Copy table (contract-string candidates, all above plus):** chips "Needs
+  grading" / "Graded" / "Text changed since grading" / "N unreleased";
+  "No answer" (italic) for response-less blocks; attribution variants
+  "Feedback from your teacher" / "from a former teacher" (the SET NULL
+  case); "On your answer from attempt N · {date}".
+- **A11y block:** points inputs labeled per criterion with the max static
+  ("/ 4"), clamped 0..max; the dirty prompt is a focus-trapped dialog (the
+  B14 pattern); the released-state line and save/release outcomes announce
+  through a role=status region with contract strings; the pill override's
+  label change announces via StatePill's existing aria-live; the feedback
+  card is a labeled region; 44px targets; the a11y lane gains an axe row for
+  the Responses tab and asserts the announcement strings (the R9/0033
+  discipline).
+- **Salvage scoping (anti-resurrection):** from the 2.6 components, ONLY the
+  rubric criterion-row rendering and the points-clamp logic are salvage
+  candidates; everything else is greenfield — the old components were built
+  against the dead submissions world.
+
 ## 3. NOT in scope
 
 - **Score aggregation / a gradebook** — no totals across sections or export.
@@ -362,7 +435,7 @@ _No new tasks from the Performance section beyond G10 (folded into T1)._
 
 | Screen/Section | Mockup Path | Direction | Notes |
 |----------------|-------------|-----------|-------|
-| *(pending design review)* | — | Responses tab per G8; staleness, release badge, version groups, and the score-on-recorded-family rendering are its named questions | — |
+| Responses tab (Rows 1–2) + student feedback card (Row 3) + state set (Row 4) | `~/.gstack/projects/ZanReed-activity-platform/designs/responses-tab-20260815/wireframes.html` | Two-pane by-question queue; feedback-first teacher-attributed card; utility APP-UI in the app's own tokens | Approved 2026-08-15 (approved.json beside the board); version headers DEMOTED to row tags post-approval (D9) — amend at build time |
 
 ## GSTACK REVIEW REPORT
 
@@ -371,10 +444,11 @@ _No new tasks from the Performance section beyond G10 (folded into T1)._
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | (not installed; Claude subagent served as the outside voice) |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | **CLEAR (PLAN)** | 6 review issues + 14 outside-voice findings — all ruled; 0 critical gaps |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | queued: owns G8 compositions + the G13 score-rendering question |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | **CLEAR (FULL, 2026-08-15)** | score 4/10 → 9/10, 9 decisions (D4–D12); board approved (§2b G8-DR) |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
-- **CROSS-MODEL:** The Claude-subagent outside voice raised 14 findings; 8 absorbed as amendments (feedback = plain text; maxPoints denormalized; can_edit_activity gate; SET NULL graded_by; queue returns grade rows; pruning constraint recorded; honest reuse wording; convergent offline row), 4 ruled as tensions (per-version queue + latest-released-wins; explicit-save + grade.release audit; 5A amended for unanswered blocks; release stays an event with a visible unreleased badge), 1 convergent with the review's own regression rule, 1 (strategic framing) absorbed into the doc's Why-now + a discoverability TODO. Scope rulings: explicit release KEPT; S7-8 rollups rule-only.
-- **VERDICT: ENG CLEARED — ready to implement T1–T3 now; T4 waits on the design review (G8/G13 are its named questions).**
+- **CROSS-MODEL (design):** The design outside voice's independent read converged on the board's 3A for G13 and added the layout rules that keep it safe; its strongest finding (version headers = wrong level-1) OVERTURNED G8's layout half (D9 — data semantics untouched), and its two critical findings (released-state chrome; zero student-perceivable release signal) both shipped as rulings (D10/D11).
+- **CROSS-MODEL (eng):** The Claude-subagent outside voice raised 14 findings; 8 absorbed as amendments (feedback = plain text; maxPoints denormalized; can_edit_activity gate; SET NULL graded_by; queue returns grade rows; pruning constraint recorded; honest reuse wording; convergent offline row), 4 ruled as tensions (per-version queue + latest-released-wins; explicit-save + grade.release audit; 5A amended for unanswered blocks; release stays an event with a visible unreleased badge), 1 convergent with the review's own regression rule, 1 (strategic framing) absorbed into the doc's Why-now + a discoverability TODO. Scope rulings: explicit release KEPT; S7-8 rollups rule-only.
+- **VERDICT: ENG + DESIGN CLEARED — ready to implement T1–T5, with §2b as T3/T4's UI spec.**
 
 NO UNRESOLVED DECISIONS
