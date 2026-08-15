@@ -855,3 +855,37 @@ Eng review ruled 14 decisions (11 + 3 long-term refinements), 0 unresolved; outs
 **Four defects found by running things, all in the test code.** An ambiguous `Loading…` selector that could not tell a route's own loading state from the Suspense fallback (ActivityPrint failed on a working chunk → added `data-route-fallback`); a periodic fixture filler that gzip crushed, so three over-cap cases silently landed under cap (→ `crypto.randomBytes`); the student path fetching pwa-register/workbox chunks off the render path, breaking a naive "exactly one chunk" assertion; and `.viewer-section` being rendered by the loading Skeleton too, so the timing spec could read a mark before the worksheet existed and report it as never stamped (→ wait on `.viewer-topbar`).
 
 **T7 resolved by measurement, not argument.** Preload-on-math-detect halved the LaTeX-fallback window **~737 ms → ~382 ms** (runs: 384/384/379/383), math typeset ~320 ms sooner, for a ~40 ms cost to worksheet-interactive. Eager loading rejected: +45% first load on every math page to close a sub-half-second window. Full reasoning in DECISIONS → "Preload math on detect".
+
+## S9 cutover arc — closing narratives (archived from STATE 2026-08-15 late)
+
+**🏁 THE S9 CUTOVER ARC IS COMPLETE.** All five drops shipped, every author station ran (0027→0032 applied, three Edge Functions deleted, the integration lane's first green run, the R2 bucket gone), and the **final C1–C15 gate sweep was run against shipped reality** — 14 closed, 1 standing, gate 4 deliberately deferred to the first classroom because it needs a real district domain and nothing else waits on it. **R2 is absent end to end: no code path, no script, no secret, no bucket.** The student path is now: viewer at `/a/:id`, server-authoritative grading, live-API reads, offline-capable — with no published-HTML world behind it. **The sweep earned its keep on its last pass**, catching STATE's Edge Function versions as the `entrypoint_path` misread for the second time in the arc (corrected under Baseline facts, with the procedural fix). What remains is not cutover work: gate 4 when a classroom approaches, the D24 counsel read before real students, and the admission-model re-ruling ([admission-model.md](docs/design/admission-model.md)) at the catalog kickoff.
+
+**2026-08-14 late — **The S9 arc is down to two author decisions and the teardown steps.** Same-day close-outs: the integration lane's first green run (3/3 — after finding the chain unreplayable, the platform-default grant gap, and its own three stub assertions; 0031+0032 applied live as verified no-ops, 0031 now carrying live's `rls_auto_enable` byte-for-byte, md5-verified); gate 9's recalibration + s8-retro re-run (both by their pre-ruled procedures); the R2 station's two pre-checks — which found and fixed a real production defect: **math fields on the deployed app were 404ing their MathLive glyph fonts** (the app-bundled kit derives a chunk-sibling fonts URL that didn't exist in dist; the build now self-hosts the 20 woff2 files at that exact path, version-guarded — `d9a93f6`, must deploy before the bucket dies). Live: migrations through **0032**, two Edge Functions, `verify:auth --target live` 85/0. What remains: the 150 KiB ruling, gate 4's seeding, the D-13b disposability ruling, and the R2 dashboard/bucket steps — every one needs the author. Full narratives in [HISTORY.md](docs/HISTORY.md).
+
+**The session's own finding, and why it matters more than its size:** the a11y lane went red on its first real CI run, and **the fix for it went red again for the same reason** — a "wait for the lazy blocks to mount" guard that counted markers which cannot exist before the chunk resolves, so it skipped the wait entirely and scanned the pre-mount DOM. Local passed; CI didn't. Underneath that vacuity sat a real WCAG A defect: **MathLive gives its keyboard sink `role="textbox"` with no accessible name, so a student's math answer box announced as an unlabeled textbox** — fixed by naming the shadow node, since 0.109.2 exposes no API for it. Its sibling `nested-interactive` is MathLive's own structure and is carved out by rule AND element, with a row that asserts the carve-out is still load-bearing so it self-retires. The failure-matrix tab-lock row failed a **second** time and is no longer a flake: the winner was snapshotted mid-settle and could move before the fill; it now requires two agreeing samples.
+
+**Then the same lesson landed a third time, which is the part worth keeping.** The push went GREEN (run 31791526509 — OV-DX-8 closed), but with 2 flaky, and they were *not* the fixed row: they were its two `two tabs` siblings, holding byte-identical copies of the same idiom. Fixing the row CI happened to fail on had left the class intact, and it simply surfaced one row over. All four rows now share one `settledLockHolders()` helper, including the fourth that had not flaked yet — leaving one copy behind is how this returns a fourth time. **None of the three sightings reproduce locally, so the flaky count is the only real evidence** — and the next run came back **71 passed / 0 flaky** (31795715961). One clean run is corroboration rather than proof; the strong half of the argument is structural, that the idiom no longer exists in any of the four rows.
+
+## Gate 9 close-out + S9 station HEADs (archived from STATE 2026-08-15 late)
+
+4. **Gate 9 — ✅ CLOSED 2026-08-15.** The 150 KiB ruling landed (author): **track only** — the number is a ledger, priced per addition, and what is realistically achievable gets decided at the end of the refactor (recorded in [TODOS.md](TODOS.md) → the shell-target entry). The mechanical record, for reference: The ledger closed at 5, `TIMING_TARGET_MS` was **recalibrated by the rule** (`9b78496`: 969/1118/1828 → **992/1135/1812**, every shift under ±2.5% — scatter, not regression), and the **s8-retro posted checklist was re-run** (appended to [s8-retro.md](docs/reviews/s8-retro.md) — items 5–9 + audit addenda all answered; content-marker ownership stays deliberately open).
+
+| # | run | pre-auth | worksheet | math-rendered | flaky |
+|---|---|---|---|---|---|
+| 1 | 31791526509 | 1024 ms | 1163 ms | 1844 ms | 2 |
+| 2 | 31795715961 | 944 ms | 1089 ms | 1807 ms | 0 |
+| 3 | 31796358508 | 1009 ms | 1144 ms | 1812 ms | 0 |
+| 4 | 31803968894 | 992 ms | 1135 ms | 1844 ms | 0 |
+| 5 | 31805589675 | 969 ms | 1096 ms | 1792 ms | 0 |
+
+**CLOSED ledger — medians 992 / 1135 / 1812, committed as the new targets.** Kept for the flaky column: four consecutive zeroes is the tab-lock family's evidence.
+
+**Station HEADs recorded (OV-DX-9)** — deploy-state markers, not "last commit containing the source":
+
+| Drop | HEAD | Note |
+|---|---|---|
+| 1 publish rewrite | `27a4a08dd7b58aa460f5c13d9d360d85f0ec13df` | `publish-activity` still in tree here; deleted at Drop 4 |
+| 3 demolition | `63db47659d7631f04ba9e9da1b6e8f59cc78be04` | the three deleted functions' dirs still in tree; died at Drop 4 |
+| 2 content surface | `5af20539823f8b6dd1265a8e6ce273e0a6fa8c5b` | the UI commit; pushed in the Drop 4+2+5 batch (pushed HEAD at station time: `227af90`) |
+
+
