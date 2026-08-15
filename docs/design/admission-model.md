@@ -287,6 +287,42 @@ sign-in (no code) lands on an E-11-style onboarding state: "have a class
 code?" + "I'm a teacher" → attestation → `claim_teacher`. Idempotent on
 re-entry; double-submits die on the pending-only guard.
 
+**R5-DR — The design ruling for R5 (plan-design-review, 2026-08-15; board:
+`~/.gstack/projects/ZanReed-activity-platform/designs/pending-onboarding-20260815/wireframes.html`, approved.json beside it).**
+
+- **The fork moves PRE-AUTH (DeltaMath-verified: they have no post-signup fork
+  at all — users self-select by entry door).** The signed-out landing carries
+  two doors: the student door (6-char code input + "Continue with Google" →
+  `/join/<CODE>` → auto-redeem) and the quieter teacher door ("I'm a teacher"
+  → Google → attestation card). Intent rides the redirect URL exactly like the
+  join code already does — a routing hint, never an admission input. **The
+  post-auth fork screen survives only as the safety net** for intent-less
+  sign-ins, in the approved composition: code-first, teacher path as a quiet
+  text link (students never mis-tap it; adults find it). Both doors are safe
+  for returning users of either role — door choice routes, roles rule.
+- **The 9-state table (all reusing ruled compositions):** Row-0 code entry
+  (pre-auth DR-6 definitive-negative check via the existing meta endpoint,
+  BEFORE Google) · redeem in-flight (spinner + class NAME in the DR-4 title
+  slot) · redeem success (**the existing "You're in ✓" card verbatim**) ·
+  bad/regenerated code (inline NEW-CODE input — recovery on the spot) ·
+  domain-restricted (names the domain, "Switch account" action, 0014
+  disclosure shape) · deleted class (same family) · network failure
+  (failure-matrix retryable pattern) · claim_teacher in-flight · claim
+  success (→ teacher Home's create-first-class empty state). Teacher
+  attestation card: DR-13 disabled-until-checked, checkbox
+  unchecked-by-default (3.1C mirror), "what this means" links the
+  school-authorization notice.
+- **A11y/responsive block:** code input ≥16px (no iOS zoom),
+  `autocapitalize/autocorrect off`, `inputmode` latin, paste-friendly ONE
+  input (deliberately not Desmos's six boxes); Enter submits; focus handoff —
+  success → primary action, refusal → code input (DR-14); in-flight/success/
+  refusal announced via the existing `role=status` region with strings from
+  authContract (the a11y lane asserts them, R9). New component: the code
+  input joins the token family with the standard :focus-visible treatment.
+- **Copy notes:** Row 0's headline is placeholder — the built landing leads
+  with the product wordmark; utility language throughout (APP-UI
+  classification; zero slop-blacklist hits on the approved board).
+
 **R6 — Strings.** Both RPCs' refusal strings + LOG prefixes join
 `authContract.json` and its pin test (4A) — and they are now user-visible, so
 the pin test guards real UI copy, not just server logs (the P9 vacuity note
@@ -478,17 +514,23 @@ Synthesized from this review's findings. Run with Claude Code; checkbox as you s
 
 _No new tasks from the Performance section._
 
+## Approved Mockups
+
+| Screen/Section | Mockup Path | Direction | Notes |
+|----------------|-------------|-----------|-------|
+| Pre-auth landing (Row 0) + fork safety net (Row 1 A) + redeem states (Row 2) + teacher card (Row 3) | `~/.gstack/projects/ZanReed-activity-platform/designs/pending-onboarding-20260815/wireframes.html` | DeltaMath-shaped pre-auth fork; code-first; utility APP-UI in the app's own tokens | Approved 2026-08-15 (approved.json beside the board); Row 0 headline is placeholder — lead with the wordmark |
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
-| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | (not installed; Claude subagent served as outside voice) |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 14 issues, 0 critical gaps — 5 review findings + 9 outside-voice findings, all ruled |
-| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR (2026-08-13, S9 Drop 2 — predates this plan; onboarding states will need their own pass) | score 4→9, 16 decisions |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | (not installed; Claude subagent served as the eng outside voice) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 14 issues, 0 critical gaps — 5 review + 9 outside-voice findings, all ruled |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | **CLEAR (FULL, this plan, 2026-08-15)** | score 4/10 → 9/10, 6 decisions; board approved (R5-DR) |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
-- **CROSS-MODEL:** The outside voice (fresh-context Claude subagent) overturned two same-day rulings (D4's built-in mail, 5A's precedence) and challenged one (1A's shape, kept on review counter-argument). Its SMTP finding + the author's Google-only counter-proposal produced the §5b reshape — the review's eureka: five findings deleted by one architecture change rather than five patches.
-- **VERDICT: ENG CLEARED — ready to implement (T1–T6; Drop 2 gated on the D24 counsel read per R10).**
+- **CROSS-MODEL:** The eng outside voice overturned two same-day rulings (D4's built-in mail, 5A's precedence); the author's Google-only counter-proposal produced the §5b reshape — five findings deleted by one architecture change. The design review then verified DeltaMath's fork live and moved it PRE-AUTH (R5-DR), with the post-auth screen demoted to a safety net.
+- **VERDICT: ENG + DESIGN CLEARED — ready to implement (T1–T6 with R5-DR as the UI spec; Drop 2 gated on the D24 counsel read per R10).**
 
 NO UNRESOLVED DECISIONS
