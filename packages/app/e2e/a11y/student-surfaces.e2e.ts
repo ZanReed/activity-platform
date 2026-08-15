@@ -221,9 +221,34 @@ test.describe('gap 2 — the full keyboard path', () => {
     expect(reachedCheck, 'Check must be reachable by Tab alone').toBe(true);
 
     await page.keyboard.press('Enter');
-    await expect(
-      page.locator('.viewer-section__status[aria-live="polite"]').first(),
-    ).toHaveText(/Checked/);
+    try {
+      await expect(
+        page.locator('.viewer-section__status[aria-live="polite"]').first(),
+      ).toHaveText(/Checked/, { timeout: 10_000 });
+    } catch (err) {
+      // FIRST-SIGHTING DIAGNOSTIC (CI run 31852826598, 2026-08-15): this row
+      // flaked once — the status stayed "" through every sample, meaning the
+      // click never fired at all (a fired check would have shown a phase
+      // label). Working THEORY, not proven mechanism: focus was stolen in the
+      // window between the walk's last activeElement sample and the Enter
+      // press — MathLive's keyboard sink settles asynchronously after mount,
+      // and the deterministic-wait fix made this walk long enough (~76 stops)
+      // to cross that settle window; the row could only start flaking once
+      // the scan became honest. Per the tab-lock precedent, a first sighting
+      // gets instrumented, not blind-fixed — so on the next failure, report
+      // where focus actually was instead of a bare timeout, and the second
+      // sighting becomes conclusive.
+      const focusAt = await page.evaluate(() => {
+        const a = document.activeElement;
+        if (!a) return 'null';
+        const cls = (a.className || '').toString().split(' ')[0];
+        return `${a.tagName.toLowerCase()}${cls ? `.${cls}` : ''}`;
+      });
+      throw new Error(
+        `status never changed after Enter — the click likely never fired; ` +
+          `focus is now on: ${focusAt}\n${String(err)}`,
+      );
+    }
   });
 });
 
