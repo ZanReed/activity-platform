@@ -397,7 +397,7 @@ Synthesized from this review's findings. Checkbox as you ship.
   - Surfaced by: §5; P3/P5/P7/P9 disciplines
   - Files: scripts/verify-0034.sql + runner registration
   - Verify: `pnpm verify:auth --target local` green on a rebuilt DB
-- [ ] **T3 (P1, human: ~1.5d / CC: ~45min)** — viewer — the feedback BUILD:
+- [x] **T3 (P1, human: ~1.5d / CC: ~45min)** — viewer — the feedback BUILD:
   wire widening (G13), PostgREST readback client replacing the tombstoned
   feedbackUrl, store state, ShortAnswer/Essay rendering, mock + conformance
   rows, the CRITICAL degrade row

@@ -32,6 +32,7 @@ import {
   type CheckRequest,
   type CheckService,
   type GraphWork,
+  type ReleasedBlockFeedback,
   type SectionResponses,
 } from '../check/wire.js';
 import type { CheckErrorKind } from '../client/httpCheckService.js';
@@ -97,6 +98,19 @@ export interface ViewerStoreState {
    * throw away in-flight work.
    */
   newerVersionId?: string;
+  /**
+   * Block id → released teacher feedback (0034 G5). RUNTIME-ONLY, deliberately
+   * absent from serialize(): it is server truth that the teacher can revise at
+   * any moment (an edit to an already-released grade goes live immediately,
+   * G4), so a persisted copy would show a student feedback their teacher had
+   * already changed. It is also cheap — one RPC on open.
+   *
+   * Populated by loadReleasedFeedback(), which never throws and never blocks
+   * the worksheet: an empty map is the honest state for "not graded yet",
+   * "nothing released yet", and "the call failed" alike, and the student's
+   * worksheet reads identically in all three (G14).
+   */
+  releasedFeedback: Record<string, ReleasedBlockFeedback>;
 }
 
 export interface ViewerStore {
@@ -120,6 +134,16 @@ export interface ViewerStore {
   /** Record that a section's last check under-covered (crashed gradable
    * blocks sent no response). Runtime-only state — see ViewerStoreState. */
   recordShortfall(sectionId: string, crashedBlockIds: string[]): void;
+
+  /**
+   * Read released teacher feedback for this activity (0034 §E) into state.
+   * NEVER throws and never rejects — the service degrades a failed read to an
+   * empty result, and this resolves either way. Callers do not need to handle
+   * failure, because there is no failure state to show a student: feedback
+   * that could not be fetched is indistinguishable, on the page, from feedback
+   * that was never released.
+   */
+  loadReleasedFeedback(): Promise<void>;
 
   /**
    * Forget a queued check without running it. The one caller today is the
@@ -191,6 +215,7 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
     pending: {},
     inFlight: {},
     shortfalls: {},
+    releasedFeedback: {},
   };
   const listeners = new Set<() => void>();
 
@@ -396,6 +421,22 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         ...state,
         shortfalls: { ...state.shortfalls, [sectionId]: [...crashedBlockIds] },
       });
+    },
+
+    async loadReleasedFeedback() {
+      // The try/catch is belt-and-suspenders: httpCheckService already degrades
+      // a failed read to an empty result (G14), and the mock cannot fail. This
+      // catch exists so a THIRD implementation of the port — a future realtime
+      // source, a test double someone writes in a hurry — cannot reintroduce a
+      // throw on the student's read path by forgetting the contract.
+      let result;
+      try {
+        result = await options.checkService.fetchReleasedFeedback(state.activityId);
+      } catch {
+        return;
+      }
+      if (!result?.blocks) return;
+      commit({ ...state, releasedFeedback: { ...result.blocks } });
     },
 
     dropPendingCheck(sectionId) {

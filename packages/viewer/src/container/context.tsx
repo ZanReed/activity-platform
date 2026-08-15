@@ -20,7 +20,7 @@
 
 import { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
-import type { CheckItemResult } from '../check/wire.js';
+import type { CheckItemResult, ReleasedBlockFeedback } from '../check/wire.js';
 import type { SanitizedInlineNode } from '../sanitize/sanitized-types.js';
 import type { SectionStatus } from '../store/persistence.js';
 import type { ViewerStore, ViewerStoreState } from '../store/store.js';
@@ -50,6 +50,13 @@ export interface ViewerContextValue {
   resultFor(blockId: string, itemId?: string): CheckItemResult | undefined;
   /** Solution content the server released for a block after its check. */
   solutionFor(blockId: string): SanitizedInlineNode[] | undefined;
+  /**
+   * Released TEACHER feedback for a free-text block (0034 G5), or undefined.
+   * Deliberately NOT keyed off the check cycle like resultFor/solutionFor: this
+   * arrives from a separate read on open, exists only after a teacher released
+   * it, and outlives any number of re-checks.
+   */
+  feedbackFor(blockId: string): ReleasedBlockFeedback | undefined;
 }
 
 const ViewerContext = createContext<ViewerContextValue | null>(null);
@@ -101,6 +108,7 @@ export function ViewerProvider({
         if (status?.phase !== 'checked') return undefined;
         return status.result.solutions[blockId];
       },
+      feedbackFor: (blockId) => state.releasedFeedback[blockId],
     };
   }, [store, state, sectionByBlock, defaultSectionId]);
 

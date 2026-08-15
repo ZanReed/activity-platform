@@ -176,14 +176,44 @@ export interface SectionCheckResult {
 
 // ---- Released teacher feedback (recorded family, D15) -----------------------
 
+/** One scored rubric criterion, as the student sees it. */
+export interface ReleasedCriterion {
+  criterionId: string;
+  earned: number;
+  /** Denormalized at grade time (0034 §C) — the student read never opens the
+   * document, so the rubric's maximum has to travel with the score. */
+  maxPoints: number;
+  /** PLAIN TEXT in v1 (0034 G3): the teacher types prose, React escapes it,
+   * and there is no inline-node payload to sanitize. Rich feedback is a
+   * future additive change to this field, not a reinterpretation of it. */
+  feedbackText?: string;
+}
+
 export interface ReleasedBlockFeedback {
-  feedback?: SanitizedInlineNode[];
-  score?: number;
-  maxScore?: number;
+  feedbackText?: string;
+  criteria: ReleasedCriterion[];
+  /** Which attempt the teacher actually graded. */
+  attemptNumber: number;
+  /** The version the graded work belonged to. When it is not the served
+   * version, the block ids do not correspond and the viewer says so instead of
+   * mapping (G6: tag, don't map). */
+  activityVersionId: string;
+  /** The student's TEXT changed after this was graded (G2). Never "a newer
+   * check exists" — re-checking to retry auto-graded blanks is a designed
+   * feature and would otherwise flag every revision that never happened. */
+  stale: boolean;
+  /** false ⇒ the grading account is gone (0034's SET NULL); the card says
+   * "a former teacher" rather than naming nobody. */
+  hasGrader: boolean;
 }
 
 export interface ReleasedFeedbackResult {
-  /** graded=false ⇒ nothing released yet (get-feedback precedent). */
+  /** graded=false ⇒ nothing released yet.
+   *
+   * ⚠ It is ALSO what a FAILED read returns. That is deliberate (G14): this
+   * call is the one new network dependency on the student's read path, and the
+   * offline-reopen guarantee (S9 Drop 5) must survive it being unreachable. A
+   * throw here would take down a worksheet the student can otherwise use. */
   graded: boolean;
   /** free-text block id → released teacher feedback. */
   blocks: Record<string, ReleasedBlockFeedback>;

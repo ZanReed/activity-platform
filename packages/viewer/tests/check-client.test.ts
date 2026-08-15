@@ -110,7 +110,6 @@ describe('check failures are distinguishable', () => {
   it('reports a network failure as offline', async () => {
     const service = createHttpCheckService({
       checkUrl: 'https://x.test/check',
-      feedbackUrl: 'https://x.test/feedback',
       getAccessToken: () => 'token',
       fetchImpl: (() => Promise.reject(new TypeError('failed to fetch'))) as never,
     });
@@ -131,7 +130,6 @@ describe('check failures are distinguishable', () => {
     const fetchImpl = vi.fn();
     const service = createHttpCheckService({
       checkUrl: 'https://x.test/check',
-      feedbackUrl: 'https://x.test/feedback',
       getAccessToken: () => null,
       fetchImpl: fetchImpl as never,
     });
@@ -144,7 +142,6 @@ describe('check failures are distinguishable', () => {
   it('treats a grader on a different wire version as a stale tab', async () => {
     const service = createHttpCheckService({
       checkUrl: 'https://x.test/check',
-      feedbackUrl: 'https://x.test/feedback',
       getAccessToken: () => 'token',
       fetchImpl: (async () =>
         new Response(JSON.stringify({ ...okResult(), wireVersion: 99 }), {
@@ -354,5 +351,82 @@ describe('a mid-period republish never breaks a check (ruling S4-T5)', () => {
     });
     await store.checkSection('s1', {});
     expect(store.getState().newerVersionId).toBeUndefined();
+  });
+});
+
+// ---- released feedback (0034 G5/G14) ----------------------------------------
+// The degrade rows are CRITICAL, not thorough: this call is the only network
+// dependency this slice adds to the student's read path, and the offline-reopen
+// guarantee S9 Drop 5 made true for the first time has to survive it failing.
+describe('fetchReleasedFeedback', () => {
+  const OPTS = { checkUrl: 'https://x.test/check', getAccessToken: () => 'token' };
+
+  it('maps PostgREST rows into the wire shape', async () => {
+    const service = createHttpCheckService({
+      ...OPTS,
+      releasedFeedback: async () => [
+        {
+          block_id: 'b1',
+          criteria: [{ criterionId: 'c1', earned: 3, maxPoints: 4, feedback: 'clear' }],
+          general_feedback: 'Nice reasoning.',
+          graded_at: '2026-08-15T00:00:00Z',
+          attempt_number: 2,
+          activity_version_id: 'v1',
+          has_grader: true,
+          stale: false,
+        },
+      ],
+    });
+    const result = await service.fetchReleasedFeedback('a1');
+    expect(result.graded).toBe(true);
+    expect(result.blocks.b1?.feedbackText).toBe('Nice reasoning.');
+    expect(result.blocks.b1?.criteria[0]).toMatchObject({
+      criterionId: 'c1', earned: 3, maxPoints: 4, feedbackText: 'clear',
+    });
+    expect(result.blocks.b1?.attemptNumber).toBe(2);
+    expect(result.blocks.b1?.hasGrader).toBe(true);
+  });
+
+  it('CRITICAL: a failing read degrades to ungraded, never a throw', async () => {
+    const service = createHttpCheckService({
+      ...OPTS,
+      releasedFeedback: async () => {
+        throw new Error('network is gone');
+      },
+    });
+    await expect(service.fetchReleasedFeedback('a1')).resolves.toEqual({
+      graded: false,
+      blocks: {},
+    });
+  });
+
+  it('CRITICAL: no source configured is ungraded, not a crash', async () => {
+    const service = createHttpCheckService(OPTS);
+    await expect(service.fetchReleasedFeedback('a1')).resolves.toEqual({
+      graded: false,
+      blocks: {},
+    });
+  });
+
+  it('drops malformed criteria instead of rendering NaN at a student', async () => {
+    const service = createHttpCheckService({
+      ...OPTS,
+      releasedFeedback: async () => [
+        {
+          block_id: 'b1',
+          criteria: [{ criterionId: 'c1', earned: 'oops', maxPoints: null }],
+          general_feedback: null,
+          graded_at: '2026-08-15T00:00:00Z',
+          attempt_number: 1,
+          activity_version_id: 'v1',
+          has_grader: false,
+          stale: true,
+        } as never,
+      ],
+    });
+    const result = await service.fetchReleasedFeedback('a1');
+    expect(result.blocks.b1?.criteria).toEqual([]);
+    expect(result.blocks.b1?.stale).toBe(true);
+    expect(result.blocks.b1?.hasGrader).toBe(false);
   });
 });

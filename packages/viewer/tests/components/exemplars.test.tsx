@@ -288,3 +288,130 @@ describe('ShortAnswer — the RECORDED template', () => {
     expect(container.innerHTML).not.toContain('maxPoints');
   });
 });
+
+// =============================================================================
+// Released teacher feedback on the recorded family (0034 G5 + design ruling D6)
+// -----------------------------------------------------------------------------
+// The family's rule is "never a verdict glyph, never a score" — and this card
+// renders a score. These rows pin the DISTINCTION that makes that legal:
+// attribution comes first, the numbers are text data, and nothing about the
+// card belongs to the auto-graded vocabulary. If a future change makes teacher
+// feedback look like machine judgment, one of these fails.
+// =============================================================================
+describe('ShortAnswer — released teacher feedback', () => {
+  const FEEDBACK = {
+    feedbackText: 'Nice reasoning. Name the rate of change next time.',
+    criteria: [
+      { criterionId: 'c1', earned: 4, maxPoints: 4, feedbackText: 'Clear.' },
+      { criterionId: 'c2', earned: 1, maxPoints: 2 },
+    ],
+    attemptNumber: 3,
+    activityVersionId: VERSION,
+    stale: false,
+    hasGrader: true,
+  };
+
+  async function withFeedback(overrides: Partial<typeof FEEDBACK> = {}) {
+    const h = harness(() => <ShortAnswer block={saBlock as never} mode="screen" />, {
+      released: {
+        graded: true,
+        blocks: { [saBlock.id]: { ...FEEDBACK, ...overrides } },
+      },
+    });
+    await h.store.loadReleasedFeedback();
+    return h;
+  }
+
+  it('renders nothing until feedback is released', () => {
+    harness(() => <ShortAnswer block={saBlock as never} mode="screen" />);
+    expect(document.querySelector('[data-released-feedback]')).toBeNull();
+  });
+
+  it('leads with the human, then the score', async () => {
+    await withFeedback();
+    await waitFor(() =>
+      expect(document.querySelector('[data-released-feedback]')).not.toBeNull(),
+    );
+    const card = document.querySelector('[data-released-feedback]') as HTMLElement;
+    // Attribution BEFORE any number: the eye hits the teacher first (D6 rule 2).
+    const text = card.textContent ?? '';
+    expect(text.indexOf('Feedback from your teacher')).toBeLessThan(text.indexOf('4/4'));
+    expect(text).toContain('Nice reasoning.');
+    expect(text).toContain('1/2');
+  });
+
+  it('never uses the auto-graded vocabulary (D6 rules 3 and 4)', async () => {
+    await withFeedback();
+    const card = document.querySelector('[data-released-feedback]') as HTMLElement;
+    // No glyphs: ✓/✗ are the auto-graded family's property, even meaning
+    // "criterion met". No state-chrome tokens either — a score is data here.
+    expect(card.textContent).not.toContain('✓');
+    expect(card.textContent).not.toContain('✗');
+    expect(card.querySelector('[data-state]')).toBeNull();
+    expect(card.querySelector('.viewer-state-pill')).toBeNull();
+    // No total: the card shows what the teacher entered, not a computed grade.
+    expect(card.textContent).not.toContain('5/6');
+  });
+
+  it('sits outside the state-chrome row, never inside the pill', async () => {
+    await withFeedback();
+    const pillEl = document.querySelector('.viewer-state-pill');
+    const card = document.querySelector('[data-released-feedback]');
+    expect(card).not.toBeNull();
+    expect(pillEl?.contains(card as Node)).not.toBe(true);
+  });
+
+  it('flips the recorded pill label once a teacher has reviewed (D11)', async () => {
+    const { store } = await withFeedback();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my answer' } });
+    await store.checkSection(SECTION, { freeText: [saBlock.id] });
+    await waitFor(() => expect(pill()).toHaveAttribute('data-state', 'recorded'));
+    // The STATE stays recorded — the union is closed at four — but the promise
+    // stops claiming a review that already happened.
+    expect(pill()?.textContent).toContain('Reviewed by your teacher');
+    expect(pill()?.textContent).not.toContain('your teacher will review');
+  });
+
+  it('says "a former teacher" when the grading account is gone', async () => {
+    await withFeedback({ hasGrader: false });
+    const card = document.querySelector('[data-released-feedback]') as HTMLElement;
+    expect(card.textContent).toContain('Feedback from a former teacher');
+  });
+
+  it('notes a revision without alarming (G2 staleness, student voice)', async () => {
+    await withFeedback({ stale: true });
+    const card = document.querySelector('[data-released-feedback]') as HTMLElement;
+    expect(card.textContent).toContain('revised your answer since this feedback');
+    expect(card.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('tags an earlier-version grade instead of mapping it (G6)', async () => {
+    await withFeedback({ activityVersionId: 'a-different-version' });
+    const card = document.querySelector('[data-released-feedback]') as HTMLElement;
+    expect(card.textContent).toContain('On an earlier version of this worksheet');
+  });
+
+  it('CRITICAL: a failing feedback read leaves the worksheet intact', async () => {
+    // The G14 guarantee at the component boundary: the store's loader swallows
+    // the failure, so the block renders exactly as it does with no feedback —
+    // no error state, no missing textarea, nothing for a student to hit.
+    const service = createMockCheckService({});
+    service.fetchReleasedFeedback = async () => {
+      throw new Error('offline');
+    };
+    const store = createViewerStore({
+      userId: TEST_USER_ID,
+      activityId: ACTIVITY,
+      versionId: VERSION,
+      checkService: service,
+    });
+    render(
+      <ViewerProvider store={store} defaultSectionId={SECTION}>
+        <ShortAnswer block={saBlock as never} mode="screen" />
+      </ViewerProvider>,
+    );
+    await expect(store.loadReleasedFeedback()).resolves.toBeUndefined();
+    expect(screen.getByRole('textbox')).toBeTruthy();
+    expect(document.querySelector('[data-released-feedback]')).toBeNull();
+  });
+});

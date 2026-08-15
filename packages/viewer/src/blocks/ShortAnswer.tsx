@@ -5,9 +5,15 @@
 // because the recorded family's contract is defined by what it must NEVER do,
 // and a rule stated only in prose gets broken by the twelfth component:
 //
-//   - NEVER a verdict glyph as judgment, never a score, never anything a
-//     student could read as auto-grading. The terminal state is
-//     "Recorded ✓ — your teacher will review" and nothing else.
+//   - NEVER a verdict glyph as judgment, and never a score IN THE SYSTEM'S
+//     VOICE — never anything a student could read as auto-grading. The
+//     terminal state is "Recorded ✓ — your teacher will review" and nothing
+//     else.
+//     ⚠ AMENDED 2026-08-15 (design ruling D6, P5: this comment is amended in
+//     the commit that changes what it describes, not after). Teacher-entered
+//     scores DO render, in ReleasedFeedbackCard — attribution is the
+//     distinction, and the card keeps them out of the state-chrome register
+//     entirely. The rule guards the SOURCE of judgment, not its existence.
 //   - Released TEACHER feedback renders when the server provides it, and is
 //     visibly attributed to the teacher — it arrives via
 //     fetchReleasedFeedback (the get-feedback precedent), NOT from a check.
@@ -28,17 +34,23 @@ import { InlineContent } from '../inline/InlineContent.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
+import { ReleasedFeedbackCard } from './ReleasedFeedbackCard.js';
+
+/** The released-feedback label override (design ruling D11). Exported so the
+ *  a11y lane and the essay twin assert the same string rather than retyping it. */
+export const REVIEWED_LABEL = 'Reviewed by your teacher';
 
 export default function ShortAnswer({
   block,
   mode = 'screen',
 }: BlockComponentProps<ShortAnswerBlock>) {
-  const { store, state, phaseOf, resultFor } = useViewer();
+  const { store, state, phaseOf, resultFor, feedbackFor } = useViewer();
   const fieldId = useId();
 
   const value = state.responses.freeText[block.id] ?? '';
   const phase = phaseOf(block.id);
   const result = resultFor(block.id);
+  const feedback = feedbackFor(block.id);
 
   return (
     <div
@@ -65,8 +77,24 @@ export default function ShortAnswer({
           always 'recorded' here (the server and the mock both enforce it); a
           correct/incorrect verdict would be a server bug, and rendering it
           would be this component's bug — so it renders the recorded pill
-          unconditionally rather than switching on the verdict. */}
-      {result ? <StatePill state="recorded" /> : null}
+          unconditionally rather than switching on the verdict.
+
+          The LABEL changes once the teacher has released feedback (design
+          ruling D11): "Recorded — your teacher will review" is a promise, and
+          leaving it up after the review happened makes the product look like it
+          forgot. The STATE stays `recorded` and the union stays closed at four
+          — this is the label override StatePill already supports, used for the
+          one thing it was meant for. */}
+      {result ? (
+        <StatePill state="recorded" label={feedback ? REVIEWED_LABEL : undefined} />
+      ) : null}
+
+      {feedback ? (
+        <ReleasedFeedbackCard
+          feedback={feedback}
+          fromAnotherVersion={feedback.activityVersionId !== state.versionId}
+        />
+      ) : null}
     </div>
   );
 }

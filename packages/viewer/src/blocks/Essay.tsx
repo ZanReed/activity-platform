@@ -16,16 +16,21 @@ import { InlineContent } from '../inline/InlineContent.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
+import { ReleasedFeedbackCard } from './ReleasedFeedbackCard.js';
+import { REVIEWED_LABEL } from './ShortAnswer.js';
 
 export default function Essay({
   block,
   mode = 'screen',
 }: BlockComponentProps<EssayBlock>) {
-  const { store, state, phaseOf, resultFor } = useViewer();
+  const { store, state, phaseOf, resultFor, feedbackFor } = useViewer();
   const fieldId = useId();
   const value = state.responses.freeText[block.id] ?? '';
   const phase = phaseOf(block.id);
   const result = resultFor(block.id);
+  // The exemplar's twin: same released-feedback treatment, same label override,
+  // imported rather than retyped (ShortAnswer.tsx is the family's source).
+  const feedback = feedbackFor(block.id);
   const words = countWords(value);
   const hint = block.wordCountHint;
 
@@ -63,7 +68,16 @@ export default function Essay({
       ) : null}
 
       {phase === 'checking' ? <StatePill state="pending" label="Saving…" /> : null}
-      {result ? <StatePill state="recorded" /> : null}
+      {result ? (
+        <StatePill state="recorded" label={feedback ? REVIEWED_LABEL : undefined} />
+      ) : null}
+
+      {feedback ? (
+        <ReleasedFeedbackCard
+          feedback={feedback}
+          fromAnotherVersion={feedback.activityVersionId !== state.versionId}
+        />
+      ) : null}
     </div>
   );
 }

@@ -80,13 +80,65 @@ export interface CheckSectionResponse extends SectionCheckResult {
   currentVersionId?: string;
 }
 
+/** One row of get_my_released_feedback (0034 §E), as PostgREST returns it. */
+export interface ReleasedFeedbackRow {
+  block_id: string;
+  criteria: unknown;
+  general_feedback: string | null;
+  graded_at: string;
+  attempt_number: number;
+  activity_version_id: string;
+  has_grader: boolean;
+  stale: boolean;
+}
+
 export interface HttpCheckServiceOptions {
   /** Full URL of the grading function. */
   checkUrl: string;
-  /** Full URL of the released-feedback function (the get-feedback precedent). */
-  feedbackUrl: string;
+  /**
+   * How to read released teacher feedback. INJECTED rather than a URL, because
+   * unlike checking, the readback is not an Edge Function at all: 0034 made it
+   * `get_my_released_feedback`, a plain PostgREST RPC (G5), and the app already
+   * owns a client that handles auth headers and token refresh for those. The
+   * viewer package stays out of the PostgREST wire format.
+   *
+   * ⚠ TOMBSTONE: this replaced `feedbackUrl`, which pointed at `get-feedback` —
+   * a function that was DELETED at S9 Drop 3 and never worked before that
+   * (every success return passed its arguments to jsonResponse swapped, so the
+   * body served was the literal 200). Nothing here is ported from it.
+   *
+   * Omitted ⇒ nothing is ever released to this student, which is the correct
+   * behavior for the mock and print harnesses that have no server at all.
+   */
+  releasedFeedback?: (activityId: string) => Promise<ReleasedFeedbackRow[]>;
   getAccessToken: () => Promise<string | null> | string | null;
   fetchImpl?: typeof fetch;
+}
+
+/** Normalize one PostgREST row into the wire shape, defensively: a widened or
+ *  half-broken row must degrade to "no feedback", never to a render crash on
+ *  the student's worksheet. */
+function toBlockFeedback(row: ReleasedFeedbackRow) {
+  const criteria = Array.isArray(row.criteria) ? row.criteria : [];
+  return {
+    feedbackText: row.general_feedback ?? undefined,
+    criteria: criteria.flatMap((c) => {
+      const item = c as Record<string, unknown>;
+      const earned = Number(item.earned);
+      const maxPoints = Number(item.maxPoints);
+      if (!Number.isFinite(earned) || !Number.isFinite(maxPoints)) return [];
+      return [{
+        criterionId: String(item.criterionId ?? ''),
+        earned,
+        maxPoints,
+        feedbackText: typeof item.feedback === 'string' ? item.feedback : undefined,
+      }];
+    }),
+    attemptNumber: row.attempt_number,
+    activityVersionId: row.activity_version_id,
+    stale: row.stale === true,
+    hasGrader: row.has_grader === true,
+  };
 }
 
 /**
@@ -210,14 +262,29 @@ export function createHttpCheckService(
       return data;
     },
 
+    /**
+     * NEVER THROWS (G14, and the one CRITICAL row in this slice's test plan).
+     * Released feedback is the only network call this slice adds to the
+     * student's read path, and the offline-reopen guarantee that S9 Drop 5
+     * made true for the first time must survive it failing. A student whose
+     * feedback call dies gets a worksheet with no feedback card — never a
+     * broken worksheet.
+     */
     async fetchReleasedFeedback(activityId: string): Promise<ReleasedFeedbackResult> {
-      const data = (await post(options.feedbackUrl, {
-        activity_id: activityId,
-      })) as ReleasedFeedbackResult;
-      return {
-        graded: data.graded === true,
-        blocks: data.blocks ?? {},
-      };
+      if (!options.releasedFeedback) return { graded: false, blocks: {} };
+      try {
+        const rows = await options.releasedFeedback(activityId);
+        if (!Array.isArray(rows) || rows.length === 0) {
+          return { graded: false, blocks: {} };
+        }
+        const blocks: ReleasedFeedbackResult['blocks'] = {};
+        for (const row of rows) {
+          if (row?.block_id) blocks[row.block_id] = toBlockFeedback(row);
+        }
+        return { graded: Object.keys(blocks).length > 0, blocks };
+      } catch {
+        return { graded: false, blocks: {} };
+      }
     },
   };
 }

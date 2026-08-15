@@ -60,6 +60,7 @@ import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
 import { functionsBase, supabase } from '../lib/supabase';
 import { CHECK_ACTIVITY_FUNCTION } from '../lib/edgeFunctions';
+import { fetchReleasedFeedbackRows } from '../lib/grading';
 import { useSession } from '../lib/SessionContext';
 import { signInWithGoogle as sharedSignIn, markIdleSignOut } from '../lib/auth';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
@@ -345,14 +346,12 @@ export default function StudentViewer() {
         // A1: the name derives from the shared constant the e2e stubs also
         // import — never a retyped literal (history in lib/edgeFunctions.ts).
         checkUrl: `${functionsBase()}/${CHECK_ACTIVITY_FUNCTION}`,
-        // TOMBSTONE (S9 Drop 3): the get-feedback function is DELETED and this
-        // URL points at nothing. It is dormant, not dead-in-effect — the wire
-        // interface requires fetchReleasedFeedback but NOTHING ever calls it
-        // (zero call sites; the deleted function also never worked — it
-        // returned bodiless 200s its whole life). The parked teacher-grading
-        // slice owns the feedback wire's successor; do not treat this
-        // endpoint name as a working reference when building it.
-        feedbackUrl: `${functionsBase()}/get-feedback`,
+        // The get-feedback TOMBSTONE that stood here is discharged: 0034 made
+        // released feedback a PostgREST RPC, so the dead Edge Function URL is
+        // gone rather than merely unused. Checking stays an Edge Function
+        // (it needs the grading engine server-side); reading feedback back is
+        // an ordinary authed database read and now looks like one.
+        releasedFeedback: fetchReleasedFeedbackRows,
         getAccessToken,
       }),
     });
@@ -369,6 +368,22 @@ export default function StudentViewer() {
   // cover the rare second tab would be the wrong trade.
   const [tabHeld, setTabHeld] = useState(true);
   const [takeOver, setTakeOver] = useState<(() => void) | null>(null);
+
+  /**
+   * Released teacher feedback (0034 G5). Deliberately its OWN effect rather
+   * than a step inside the local-first mount below: that effect returns early
+   * when storage is unavailable (a locked-down school profile), and a student
+   * on such a profile should still see their teacher's feedback.
+   *
+   * Fire-and-forget BY CONTRACT — loadReleasedFeedback never rejects, and
+   * there is no failure state to render: a feedback read that fails looks
+   * exactly like feedback that was never released, which is the behavior the
+   * offline-reopen guarantee requires (G14).
+   */
+  useEffect(() => {
+    if (!store) return;
+    void store.loadReleasedFeedback();
+  }, [store]);
 
   /**
    * LOCAL-FIRST MOUNT (S6 V1 + V2). Everything on-device hangs off this one

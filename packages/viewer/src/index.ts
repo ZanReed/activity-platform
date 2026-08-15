@@ -324,6 +324,7 @@ export { CheckError, createHttpCheckService } from './client/httpCheckService.js
 export type {
   CheckErrorKind,
   HttpCheckServiceOptions,
+  ReleasedFeedbackRow,
 } from './client/httpCheckService.js';
 
 // S8 — the student-facing performance contract. Names are ADDITIVE-ONLY
