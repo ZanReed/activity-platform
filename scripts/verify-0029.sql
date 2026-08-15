@@ -24,9 +24,15 @@
 select 'submissions_empty',
        (select count(*) from submissions) = 0,
        'D-6 wipe: anonymous-wire test rows deleted';
-select 'grades_empty',
-       (select count(*) from grades) = 0,
-       'wiped explicitly ahead of the cascade (counted act, P7)';
+-- P5 FLIP (0034, not a deletion): this row asserted `count(*) from grades = 0`
+-- while 0029 kept the emptied table "for the parked teacher-grading slice to
+-- re-decide". That slice decided — check_grades — so 0034 dropped the table and
+-- this assertion would now fail on a missing relation rather than on a real
+-- regression. The claim that REPLACED it is that the table is gone for good, so
+-- the row stays load-bearing instead of quietly disappearing with its subject.
+select 'grades_table_retired',
+       to_regclass('public.grades') is null,
+       '0034 dropped it once check_grades superseded it (the 0029 placeholder is discharged)';
 select 'no_ip_hash_rows_remain',
        not exists (select 1 from submissions where ip_hash is not null),
        'the disclosed ip_hash-scrub gap is closed by data removal';

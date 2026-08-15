@@ -1,6 +1,10 @@
 # Manual grading + rubrics (Phase 2.6) — design
 
-**Status:** ✅ SHIPPED + DEPLOYED + live-verified 2026-07-13 (all slices 1–5). Migrations 0010+0011 applied; `get-feedback` (`verify_jwt:false`) + `publish-activity` deployed; in-document rubrics, `grades` table + RLS + direct upsert, teacher grading UI, and the student feedback sidecar are all live. ` ```shortanswer ` + ` ```essay ` import fences added same day. Only a human app-level round-trip smoke test remained (see STATE.md Status-by-area). (Slices 2–5 forks were author-decided 2026-07-13.)
+**Status: ⚰️ SUPERSEDED 2026-08-15 by [teacher-grading.md](teacher-grading.md) — this doc is kept for its RULINGS, not its status.** Its old status line ("SHIPPED + DEPLOYED + live-verified") stopped being true at S9 Drop 3 and stayed on the page for a month; the P10 re-derivation that opened the successor slice caught it, which is the argument for re-deriving against shipped reality instead of reading a status line.
+
+**What actually survives from this arc:** the in-document rubric schema (`Rubric`/`RubricCriterion` on `short_answer`/`essay`, version-pinned) and its authoring UI, plus the ` ```shortanswer ` / ` ```essay ` import fences. Decisions 1 and 3 below still hold verbatim.
+
+**What is DEAD:** the `grades` table and `can_grade_submission` (dropped by migration 0034 — 0029 had emptied them and kept them only until the successor slice re-decided), the Submissions dashboard and `lib/submissions`/`lib/grades` (deleted at S9 Drop 3), and `get-feedback` — which was deleted at Drop 3 **and had never worked**: it served bodiless 200s its entire life (arguments to `jsonResponse` swapped), so released feedback never reached a published page. ⚠ **Do not treat decision 2 or 4 below as reference implementations.** Grading is now checks-native: grades key on `section_checks` rows through four audited RPCs (0034), and the student readback goes through PostgREST, not an Edge Function.
 
 The arc that opens the platform to subjects whose assessments aren't auto-gradable. Slice 1 shipped the student half (free-text capture into the wire-v9 `freeResponses` map — see [RUNTIME.md](../../packages/renderer/RUNTIME.md) "Free-text blocks"). This doc designs the grading half.
 

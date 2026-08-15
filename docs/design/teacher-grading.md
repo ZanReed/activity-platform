@@ -383,7 +383,7 @@ those files, the bundle rules in CLAUDE.md apply.
 
 Synthesized from this review's findings. Checkbox as you ship.
 
-- [ ] **T1 (P1, human: ~2d / CC: ~1h)** — supabase — Migration 0034:
+- [x] **T1 (P1, human: ~2d / CC: ~1h)** — supabase — Migration 0034:
   `check_grades` (G1 shape incl. denormalized maxPoints + SET NULL), the four
   RPCs (`upsert_check_grade`, `release_check_grades`,
   `get_my_released_feedback`, `list_grading_queue`), `grade.release` enum
@@ -391,7 +391,7 @@ Synthesized from this review's findings. Checkbox as you ship.
   - Surfaced by: G1–G5, G10 (review issues 1–6, OV #1/#3/#8/#10)
   - Files: supabase/migrations/0034_*.sql
   - Verify: local replay 0001→0034 clean; rolled-back live rehearsal (0029/0030 discipline)
-- [ ] **T2 (P1, human: ~1d / CC: ~40min)** — scripts — verify-0034: the ~36-row
+- [x] **T2 (P1, human: ~1d / CC: ~40min)** — scripts — verify-0034: the ~36-row
   matrix of §5, incl. the P5 audit rows for the drops and the three P7-counted
   retention rows
   - Surfaced by: §5; P3/P5/P7/P9 disciplines

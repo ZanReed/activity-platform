@@ -37,6 +37,8 @@ const DEFINING_MIGRATION = {
   trigger: '0033_pending_admission.sql',
   redeem: '0033_pending_admission.sql',
   claimTeacher: '0033_pending_admission.sql',
+  grade: '0034_check_grades.sql',
+  release: '0034_check_grades.sql',
 } as const;
 
 const migrationsDir = resolve(
@@ -91,6 +93,57 @@ describe('auth wire contract ↔ migration SQL', () => {
 
   it('the RAISE LOG refusal prefix appears in the defining migration', () => {
     expect(sqlFor('joinClass')).toContain(contract.joinRefusalLogPrefix);
+  });
+
+  /* ---- 0034 grading (the same discipline, one migration later) ---------- */
+
+  it('upsert_check_grade error strings appear verbatim in 0034', () => {
+    const sql = sqlFor('grade');
+    for (const s of Object.values(contract.gradeErrors)) {
+      expect(sql).toContain(`'${s}'`);
+    }
+  });
+
+  it('release_check_grades error strings appear verbatim in 0034', () => {
+    const sql = sqlFor('release');
+    for (const s of Object.values(contract.releaseErrors)) {
+      expect(sql).toContain(`'${s}'`);
+    }
+  });
+
+  it('the grading RPC names match the functions 0034 creates', () => {
+    const sql = sqlFor('grade');
+    for (const name of [
+      contract.rpcNames.upsertCheckGrade,
+      contract.rpcNames.releaseCheckGrades,
+      contract.rpcNames.myReleasedFeedback,
+      contract.rpcNames.gradingQueue,
+    ]) {
+      expect(sql).toContain(`create or replace function ${name}(`);
+    }
+  });
+
+  it('the grading RAISE LOG prefixes appear in 0034', () => {
+    const sql = sqlFor('grade');
+    expect(sql).toContain(contract.gradeRefusalLogPrefix);
+    expect(sql).toContain(contract.releaseRefusalLogPrefix);
+  });
+
+  /**
+   * The retirement pin, 0034's edition (the 0029-placeholder discharge). The
+   * Phase-2.6 grading world is gone: if a future migration re-creates `grades`
+   * or `can_grade_submission`, this row is what says so out loud — the same
+   * absence-is-assertable shape the signup-refusal row above uses.
+   */
+  it('the Phase-2.6 grading world is retired by 0034, not merely unused', () => {
+    const sql = sqlFor('grade');
+    expect(sql).toContain('drop table if exists grades');
+    expect(sql).toContain('drop function if exists can_grade_submission(uuid)');
+    // Order matters and cost a replay round: the grades POLICIES depend on the
+    // helper, so the table must go first (SQLSTATE 2BP01 otherwise).
+    expect(sql.indexOf('drop table if exists grades')).toBeLessThan(
+      sql.indexOf('drop function if exists can_grade_submission(uuid)'),
+    );
   });
 });
 

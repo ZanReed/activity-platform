@@ -17,10 +17,29 @@
     "noAttestation": "Educator attestation is required",
     "classCapTemplate": "This account is limited to 5 classes"
   },
+  "gradeErrors": {
+    "signedOut": "Sign in before grading",
+    "notYourActivity": "Not your activity",
+    "checkNotFound": "No such response to grade",
+    "blockNotInSection": "That question is not in this section",
+    "notGradable": "Only written-answer questions can be graded",
+    "criterionNotOnRubric": "That criterion is not on this rubric",
+    "pointsOutOfRange": "Points must be between 0 and the maximum"
+  },
+  "releaseErrors": {
+    "signedOut": "Sign in before releasing feedback",
+    "notYourActivity": "Not your activity"
+  },
   "rpcNames": {
     "redeemJoinCode": "redeem_join_code",
-    "claimTeacher": "claim_teacher"
+    "claimTeacher": "claim_teacher",
+    "upsertCheckGrade": "upsert_check_grade",
+    "releaseCheckGrades": "release_check_grades",
+    "myReleasedFeedback": "get_my_released_feedback",
+    "gradingQueue": "list_grading_queue"
   },
+  "gradeRefusalLogPrefix": "grade refused",
+  "releaseRefusalLogPrefix": "release refused",
   "signupRefusalTemplate": "Email % is not permitted to sign up",
   "joinRefusalLogPrefix": "join_class refused",
   "_transportNote": "signupRefusalTemplate is RETIRED as a live behavior by 0033 — the trigger's else-branch now admits a contained 'pending' role instead of raising, so no unknown-email refusal reaches signup at all. The string stays in this file because verify-0027 §C asserts its ABSENCE from the deployed trigger body (a re-added refusal would silently regress self-serve admission). joinClassErrors, redeemErrors and claimTeacherErrors DO reach the client verbatim via PostgREST rpc error messages — that transport difference is why 0033 moved every refusal into an RPC.",
