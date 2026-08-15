@@ -10,7 +10,13 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **⚠ AUTHOR STEP — apply 0033 live, then deploy nothing.** `supabase db push` (EXPECT exactly ONE pending: **0033**) → `pnpm verify:auth --target live` (EXPECT all PASS; verify-0033 is registered). **No Edge Function deploy is needed** — 0033 touches DB only, and the app reaches it through PostgREST. Per OV-7 the UI must NOT reach `main`'s auto-deploy before the migration is live, so the T3 commit is pushed but the FLOW only lights up once 0033 lands. Local rehearsal is done: full replay 0001→0033 clean, verify-0033 10/10, integration lane 5/5.
 
-**⚠ THEN: the D24 counsel read gates Drop 2** (R10/OV-8) — teacher self-serve (`claim_teacher`) must not go live to strangers before counsel reads the amended pack (POLICY_VERSION `2026-08-15-draft-3`). Student admission (Drop 1) is unaffected: it serves the author's own classes.
+**⚠ D24 counsel read — OWED, and the gate it was meant to hold is ALREADY OPEN (author-accepted risk, 2026-08-15).**
+
+R10/OV-8 ruled that teacher self-serve must not reach strangers before counsel read the amended pack. It does now: **0033 carried BOTH promotion RPCs and `PendingOnboarding` ships BOTH doors**, so applying the migration opened Drop 2 alongside Drop 1 in one step. That packaging was the build's error, not a station mistake — the drops were never separable once written that way.
+
+**The author reviewed the exposure and accepted it** rather than gating the UI: the site is unadvertised, the attested-teacher caps (5 classes / 50 members) bound any single bad actor, and the counsel read is intended soon regardless.
+
+**What that means concretely, so nobody rediscovers it as a surprise:** any Google account can currently sign in → "I'm a teacher" → attest → create classes and read roster emails, operating under a pack every file still marks DRAFT. **The counsel read is now a follow-up on live behavior, not a gate on shipping it** — and it is the last thing standing between this and a real external teacher.
 
 **✅ ALL S9 AUTHOR STATIONS CLOSED 2026-08-15** — narratives in [HISTORY.md](docs/HISTORY.md). In brief: the integration lane's first green run (which found three real defects incl. a migration chain that could not be replayed at all); 0031 + 0032 applied live as verified no-ops; the R2 teardown end to end (secrets, origins, bucket — R2 is now absent from the product: no code path, no script, no secret, no bucket); and the MathLive fonts fix deployed and curl-confirmed on the Pages origin.
 
