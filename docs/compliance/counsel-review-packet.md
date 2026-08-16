@@ -174,6 +174,23 @@ educator, and I am authorized by my school to use this platform with my
 students."* Recorded with date and policy version, unchecked by default, and
 required before the account is promoted.
 
+**Q10 — Do de-identified daily aggregates that outlive a purged student's work
+count as retained student data?** (Added 2026-08-16; nothing is built yet — the
+answer shapes a planned feature.) The platform plans daily per-question
+aggregate rows (counts only, no names or ids) that would survive the deletion
+of the student work they summarize, and would NOT be recomputed when a student
+account is purged — a distinct-student count cannot be decremented without the
+identifiers the tables deliberately refuse to hold. They ARE deleted with the
+activity they describe. The edge case: in a class of one, a surviving row
+still says *one student got this question wrong on this day*, and the teacher
+can tell who from memory and the roster. **Is that retained student data under
+the promises in retention-policy.md — and if so, is the right mitigation
+suppressing aggregates below a minimum cohort size, coarsening the time grain,
+or disclosure alone?** The current position (held, not shipped): the only
+reader is the teacher who could already see the live data, and the roster
+relationship carries the consent — but that reasoning is only obviously true
+while the underlying work still exists.
+
 ## 6. What this packet deliberately does not do
 
 - It does not ask counsel to review code, and no answer above depends on

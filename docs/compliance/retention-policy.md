@@ -1,7 +1,7 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-04-draft-3`. Windows below are the author-ruled S1 defaults
+> Version `2026-08-16-draft-5`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
@@ -16,6 +16,12 @@
 > each row below now states its real mechanism or is flagged "mechanism not
 > yet built"). It also records that the purge job is LIVE: pg_cron registered
 > 2026-08-05, first fire observed and verified the same day.
+>
+> `draft-5` (2026-08-16) records the DISARMED check-prune mechanism (migration
+> 0035 — see Mechanics; it deletes nothing until a rollup exists, by a schema
+> gate) and corrects two drift errors: the student-purge deletion order still
+> cited the `grades` table (dropped by 0034), and this header still read
+> `draft-3` while carrying the `draft-4` note below.
 >
 > `draft-3` (2026-08-04) carries three rulings that together make the deletion
 > promises here mechanically real for the first time — before them, **no
@@ -70,8 +76,25 @@ membership history, which is exactly what the dormancy derivation looks for.
   "mechanism not yet built" row in the table above (the class-row purge),
   with its bound stated in place. (The `ip_hash` scrub row closed at S9
   Drop 3 by data removal — see the row.)
-- Deletion order for a student purge: `grades` → `submissions` →
-  `class_members` → `users` → `auth.users`.
+- Deletion order for a student purge (corrected at draft-5 against 0034 §G,
+  the current job): `section_checks` (explicit and counted, 0022's visibility
+  ruling) → audit rows stamped `actor_purged` (0024) → `auth.users`, which
+  cascades `public.users` and `class_members`. The `grades` table this bullet
+  used to name was DROPPED by 0034 — teacher grades now live in `check_grades`,
+  which cascades from `section_checks`, so deleting a student's checks deletes
+  the grades on them with no separate step (and no purge-side knowledge of the
+  grading feature at all). `submissions` is frozen and empty since 0029.
+- **A DISARMED prune mechanism exists (migration 0035, 2026-08-16) and deletes
+  nothing.** `prune_section_checks` can remove a student's *superseded* check
+  attempts (never the latest per section, never a teacher-graded one) as a
+  space measure — but it is dry-run by default, and mechanically inert even if
+  armed: it refuses every row until a durable analytics rollup exists and
+  advances a watermark, which none does today. Before it is ever armed, the
+  counsel question Q10 (counsel-review-packet.md — do surviving aggregates
+  over a class of one constitute retained student data?) must be answered, and
+  this document gains a row for what pruning deletes and keeps. Until then the
+  student-data reality is unchanged: nothing deletes a check except the
+  activity-deletion and account-purge paths in the table above.
 - **The RESTRICT safety net is partial — know which half you are in** (verified
   against the live schema 2026-08-04). `submissions.student_id` is ON DELETE
   RESTRICT, so deleting a `users` row out of order fails loudly, as draft-1

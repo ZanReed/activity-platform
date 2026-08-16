@@ -254,62 +254,75 @@ re-pointed.
 ruled tension T2, TODO ask 1). Full rulings: the S4 section of
 `~/.gstack/projects/ZanReed-activity-platform/user-main-design-20260728-components-as-data.md`.
 
-## `section_checks` retention / GC — AND the durable analytics rollup
+## The check-rollup ARMING arc — build the rollup, then arm the (already-shipped) prune
 
-**What:** A pruning story for `section_checks`, ridden on the same scheduled job as the
-already-earmarked read-cache GC. **Amended 2026-08-04 (S7): this entry now also owns the durable
-analytics rollup**, because both wait on the same ruling. Do them together.
+**What:** Migration 0035 (2026-08-16) shipped the `section_checks` prune DISARMED with a
+schema-encoded gate: `prune_section_checks` refuses every row until `analytics_job_runs.rolled_through`
+is non-NULL, and NOTHING writes that column until this arc builds the rollup. Arming the prune
+early is therefore mechanically inert, not just forbidden (ruling D11). This arc builds the
+durable analytics rollup, backfills it, lets the watermark advance for N green nights, and only
+then arms the prune (the author flips the cron command to `prune_section_checks(false)`).
 
-**Status update from S7 (shipped 2026-08-04, migration 0026):** the read-cache half of R6(a) is
-DONE — `get-activity` deletes stale-rev rows for any version it re-caches, and
-`run_analytics_maintenance()` sweeps the tail nightly. What that job does NOT do is prune
-`section_checks` or pre-aggregate anything, for the reason below.
+**Trigger:** real check growth on the `analytics_job_runs.section_check_rows` ledger (still 0 as
+of 2026-08-16 — 11 runs, all zero). No date; read the ledger.
 
-**Why:** Every check writes a durable row carrying the full responses jsonb, and the check loop
-is formative — students re-check freely, by design (parity ruling 7.1A). Nothing deletes a check
-today. Free-tier Postgres is 500 MB. Finding R6(a) already earmarked a GC pass on S7's scheduled
-aggregation for `activity_version_reads` rows orphaned by a `SANITIZER_REV` change; one job
-should cover both.
+**THE RULINGS ARE MADE — inherit, do not re-derive** (eng review 2026-08-16, D2–D12 + an outside
+voice that overturned the build-now frame; full trail in
+[check-retention-and-rollup.md](docs/design/check-retention-and-rollup.md) §5):
+- **Item grain, two single-grain tables** (`check_rollup_daily` per version/day: checks, students;
+  `check_item_rollup_daily` per version/day/item: verdict counts, students). `census_key` resolved
+  at READ time via `activity_version_items` so a re-census re-attributes rolled history. FKs
+  CASCADE from activities AND versions; 0026 §B's no-student-identifier assertion extends to both;
+  zero RLS, DEFINER reads, **activity-scoped ownership gates only** (0035's header states this as
+  a checkable claim).
+- **The rollup rides `run_analytics_maintenance()`** (no third cron job): sweep → roll → advance
+  watermark, `rolled_through` written coalesce-forward on EVERY ledger row.
+- **MVCC watermark lag ≥ 5 min**, honestly framed: it shrinks (not closes) the in-flight-transaction
+  hole; state the bound and consider `idle_in_transaction_session_timeout`.
+- **Per-teacher timezone:** `users.timezone` (IANA text), default `America/Chicago`, the author's
+  row set to `Pacific/Auckland`; `analytics_day(ts, zone)` keyed on the activity OWNER's zone (the
+  platform spans the US and New Zealand — no single constant works). ⚠ **Validate the zone**: it is
+  user-editable text in the nightly job's path — check against `pg_timezone_names` at write AND
+  exception-guard to the default in the job (one bad row must not kill the nightly run — the 0022
+  failure class), with an invalid-zone verify row.
+- **Split-day re-rolls:** every owner-zone day spans ≥2 nightly runs (03:30 UTC is mid-afternoon
+  NZ); delete-then-insert per (version, day) must recompute the FULL day from raw rows, so
+  `PRUNE_HORIZON` (30d, floor 7d — the bond in 0035) must stay ≫ the day-completion lag. Verify
+  row: a day split across two runs. Re-derive the cron hour while here.
+- **Purge v4:** `purge_soft_deleted` is NEVER blocked by the watermark (retention outranks
+  analytics); it reports unrolled-destroyed counts **on a ledger row**, never the NOTICE (0026
+  established notices are unreadable).
+- **`rebuild_check_rollup(p_from date)`:** rebuild ≡ incremental, including after a re-census;
+  every shape decision stays reversible until arming.
+- **Per-key `students` becomes latest-grounded at arming** (no code change — the live query over
+  surviving rows already computes it); the deliverable is the panel-copy disclosure. Daily
+  `students` columns are per-day trend figures; **no RPC may offer their sum** (uniques don't
+  compose; `hll` is unavailable on Supabase, checked 2026-08-16).
+- **`*_latest` is NEVER rolled** — it stays live-computable forever (F2); the rollup carries the
+  flow family only, and `get_activity_analytics` v2 reads rolled + raw across a single-sourced
+  `>=`/`<` boundary.
 
-**The open question — ⚡ RULED 2026-08-15 (teacher-grading eng review, G2):** grades key on a
-SPECIFIC check row (immutable "what was graded"); the queue surfaces the latest per (student,
-section) within a version. Consequence for pruning, **recorded here because the cascade makes it
-destructive (G12): pruning must NEVER delete a check row referenced by `check_grades`** —
-`check_grades.check_id` is ON DELETE CASCADE from `section_checks`, so pruning a graded check
-silently deletes the teacher's grade with it. Prune candidates are non-latest, non-graded rows
-only, and the pruning build must ship a verify row proving a graded check survives the prune.
+**The arming checklist** (also in 0035's header): rollup built per the above → backfilled →
+watermark advancing for ≥ N green nights (read the ledger, not the registration — P3) → verify-0035
+re-run plus this arc's own matrix → **counsel packet Q10 answered** (n=1 aggregates; asked
+2026-08-16) → horizon re-checked → cron flipped.
 
-**The SAME question decides the rollup's shape, which is why S7 refused to build one.** A
-pre-aggregated per-day count is the one artifact designed to outlive its source rows, so getting
-its shape wrong is unrecoverable. And a naive shape IS wrong here: re-checking is a designed
-feature, so counting every verdict tallies one student's one mastered item once per attempt
-(`verify-0026.sql` C3 shows the fixture reading 4 correct across attempts vs 3 on latest).
-Until then `get_activity_analytics` computes both readings live from raw checks — correct, and
-frozen into nothing.
+**P5 debt this arc owes:** 0026:106 ("nothing prunes section_checks today") and 0022's header
+become FALSE at arming — applied migrations are immutable, so this arc's migration header must
+name and supersede both claims. Also flip verify-0035 §A's `rolled_through_never_written` row to
+this arc's own expectations (the row is designed to go red when the rollup lands).
 
-**Design inputs to carry into that slice** (recorded by the S7 outside voice so they aren't
-re-derived):
-- Attempt-aware shape: first-attempt correctness, latest-per-student, or both.
-- Small-cohort exposure: a rolled-up row with `students = 1` is that student's daily performance
-  record. Decide suppression or coarser granularity, and amend
-  `docs/compliance/retention-policy.md` — 0026's tables deliberately hold no student identifiers,
-  and a rollup is where that stops being automatic.
-- Rollup timezone: "calendar day" in UTC splits a US school evening across two days.
-- Durable watermark + a purge-side assertion that nothing unrolled is being deleted (a rollup job
-  dead for 30 days would otherwise let 0022's purge delete never-rolled checks silently).
-- Composable counts: daily distinct-students cannot be summed into weekly or all-time uniques,
-  which is the first question any real consumer asks.
+**Depends on:** 0035 applied (shipped, pending author apply as of 2026-08-16); real classroom
+traffic to validate the shape against — the one thing the 2026-08-16 review could not have.
 
-**Depends on:** S4 shipping `section_checks` (done); S7's census + item map + maintenance job
-(done, 0026 — the rollup's join is already built); the teacher-grading slice's attempts-vs-latest
-ruling (the actual blocker).
+**Where to start:** [check-retention-and-rollup.md](docs/design/check-retention-and-rollup.md)
+(§4 checklist, §5 rulings), then 0035's header, then `scripts/verify-0035.sql` §C for the fixture
+idiom this arc's matrix extends.
 
-**Where to start:** finding R6(a) in the components-as-data design doc, plus the per-student rate
-ceiling S4 puts inside `record_check` (the same indexed count over a trailing window is the
-natural place to observe real growth rates).
-
-**Context:** surfaced by /plan-eng-review 2026-08-01 (S4 review, outside-voice finding 2, TODO
-ask 2).
+**Context:** the original entry (2026-08-01, S4 review) waited months on the attempts-vs-latest
+ruling; teacher-grading G2 ruled it 2026-08-15, the 2026-08-16 eng review ruled the rollup's shape,
+and its outside voice overturned "build the rollup now" into "prune disarmed now, rollup at arming"
+(D10) — the frame this entry now records.
 
 ## The remaining ~380 ms LaTeX-fallback window (S5-2 residual, halved not closed)
 

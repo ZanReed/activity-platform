@@ -4,6 +4,22 @@ Archived completed-work narratives, moved out of STATE.md to keep it readable. N
 
 ---
 
+## 2026-08-16 (late) — teacher-grading session close, archived from STATE at the 0035 session
+
+*(Moved verbatim from STATE.md's "Last updated" block when the 0035 slice replaced it.)*
+
+**The reviews changed the architecture, which is the argument for running them before building.** The eng outside voice's 14 findings produced four rulings that are now load-bearing code: writes gate on `can_edit_activity` (immune to the recorded Activity-Bank read-widening landmine), maxPoints is denormalized server-side so the student read never opens the raw document, `graded_by` is SET NULL rather than RESTRICT, and the pruning follow-on inherited an explicit "never delete a graded check row" constraint. The design outside voice then **overturned an eng layout call** — version headers were the wrong level-1 for a grading queue — and its two critical findings (a released grade must SAY it is live-edited; release needed a student-perceivable signal) both shipped.
+
+**Four defects the tests caught before shipping, each a different class, and the reason to keep writing the matrix first:**
+1. **Dependency order** — dropping `can_grade_submission` before `grades` fails; the table's policies depend on it (SQLSTATE 2BP01).
+2. **A live cron that would have died at its next fire, not at migration time** — `purge_soft_deleted` cites `grades`. Rewritten without the blocker, which is a semantic change (SET NULL supersedes the RESTRICT that required it), not a port.
+3. **Nondeterminism in the staleness winner** — verify-0034 §D failed on the identical-text row, the one the whole G2 ruling exists for. `graded_at` defaults to `now()`, the TRANSACTION timestamp, so two grades written together tie and the `id desc` tiebreaker compared random uuids. Both functions now break ties on attempt_number.
+4. **Vacuous coverage, caught in the act** — the three new integration rows SKIPPED on first run because the lane's fixture had no written-answer block. Fixed the fixture, not the assertion.
+
+**Two operational facts** (both since promoted into STATE's standing notes): local verify reds are seeded-data preconditions whose exact pair depends on local data state, and a push can silently not land — `git ls-remote origin refs/heads/main` is the only check that settles it.
+
+*(Prior entry:)* **The admission side quest closed by finding what the slice had missed** — R5-DR's ruled PRE-AUTH fork existed only as its post-auth safety net, while `Home.tsx` carried a comment asserting the fork routed users. Shipped as T7 with the P5 flip on the e2e row that pinned the replaced heading. The counsel packet states the draft-2 → draft-3 delta and asks nine questions; writing it caught `data-map.md` claiming migrations 0001–0027 while documenting 0033's columns.
+
 ## 2026-08-14 — the integration lane's first run: the database could not be rebuilt
 
 Drop 5's author half finally ran (Docker Desktop installed on the previously Docker-less machine), and the lane found **three real defects on its first honest run** — including one that had made the repo's migration chain unreplayable for months without leaving a trace on live.
