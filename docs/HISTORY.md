@@ -889,3 +889,78 @@ Eng review ruled 14 decisions (11 + 3 long-term refinements), 0 unresolved; outs
 | 2 content surface | `5af20539823f8b6dd1265a8e6ce273e0a6fa8c5b` | the UI commit; pushed in the Drop 4+2+5 batch (pushed HEAD at station time: `227af90`) |
 
 
+
+## The teacher-grading slice: designed, reviewed, built, applied (2026-08-15 → 16)
+
+Archived from STATE at session end. The slice went from an unparked TODOS entry
+to live-and-CI-green in one arc: a P10 re-derivation, an eng review (G1–G14) and
+a design review (§2b/G8-DR, 4/10 → 9/10) each with an independent outside voice,
+then T1–T6 built, migration 0034 applied, pushed, and green on its first CI run.
+
+**Author station, 2026-08-16.** 0034 applied; `pnpm verify:auth --target live` =
+**116 passed / 0 failed across 10 scripts**. Live scores 116 where a fresh local
+DB scores 114/2 — the two extra passes are verify-image-storage and verify-0020,
+whose preconditions need a seeded published activity that live has and a reset
+local DB does not. The local "failures" were never defects, which is worth
+remembering the next time a fresh-DB run looks red.
+
+**The posture was re-verified against live rather than against that number:**
+migrations through 0034 · `check_grades` present with RLS enabled AND forced,
+**zero policies**, no client table grants · `grades` + `can_grade_submission`
+gone · all four RPCs present and anon-denied · `check_id` CASCADE +
+`graded_by` SET NULL · `grade.release` in the enum · the readback's body carries
+no `activity_versions` reference (the leak guard) · the upsert gates on
+`can_edit_activity` and never `can_read_activity`.
+
+**The purge rewrite got a LIVENESS proof, not a source check (P3).** §G exists
+because a purge job citing a dropped relation fails at its NEXT NIGHTLY FIRE,
+not at migration time, so waiting for 03:00 UTC would have been the wrong kind
+of confidence. `purge_soft_deleted()` was executed end to end against live data
+inside an aborted transaction (the verify-0025/0033 EXPECTED-ROLLBACK idiom): it
+ran clean, and row counts after (8 activities / 24 versions / 3 users / 1 class)
+confirmed nothing was durably deleted. ⚠ Historical note for that table, so a
+future reader does not misread it: jobid 1 FAILED on 2026-08-14 03:00 with a
+`submissions_activity_id_fkey` violation — that predates 0029's wipe the same
+day, and the 08-15 run succeeded. Resolved, not lurking.
+
+**The push silently did not land the first time.** `origin/main` stayed at
+`68e4d1e` while local was 7 ahead, and nothing else looked wrong: clean tree,
+green tests, migration live. The only stale thing was the deployed app being
+older than everything else. `git ls-remote origin refs/heads/main` is the check
+that catches it; `git status` reports "ahead N" whether or not a push was
+attempted. Second attempt landed at `27986f8`.
+
+**CI green on the slice's first run** ([31893704928](https://github.com/ZanReed/activity-platform/actions/runs/31893704928)):
+unit suites identical to local (schema 340 / graph-kit 384 / viewer 1139 / app
+1077), 12/12 perf budgets with both bundle-drift guards passing — `wire.ts`
+feeds the grading-server bundle, so the regeneration committed with T3 is what
+kept this from failing CI — print gates 83, and the four e2e lanes at **73
+passed, 0 flaky**, up from 72: exactly the one a11y row the slice added. A count
+that did not reconcile would have meant a phantom or a lost row; green alone
+would not have said so.
+
+## Slice ledger + cutover gates (archived from STATE 2026-08-16)
+
+Every slice below is closed and every gate swept; kept here as the arc's index.
+
+**Slice ledger — S0 through S9 are ALL COMPLETE** (narratives in [HISTORY.md](docs/HISTORY.md)):
+
+| Slice | What | Closed |
+|---|---|---|
+| S0 registry + tokens | `packages/viewer` block registry (22 entries, guard-enforced) + design tokens | ✅ 2026-07-28 |
+| S1 student identity | district Google SSO, `student` role, compliance pack | ✅ 2026-07-28 |
+| S2 read API | `get-activity` (anon meta / authed sanitized content), sanitizer + `SANITIZER_REV` cache, 0017 | ✅ 2026-07-28 |
+| S3 viewer | 22 block components + conformance factory + live route `/a/:activityId` | ✅ 2026-07-31 |
+| S4 grading | `check-activity` RPC + engine + golden corpus parity gate + 0020 | ✅ 2026-08-01 |
+| S5 student print | print layer + rules gate + screenshot baselines + pagination pass | ✅ 2026-08-01 |
+| S6 local-first | buffer, queued checks, tab lock, sign-out hardening, service worker | ✅ 2026-08-02 |
+| S5.5 teacher print | ActivityPrint + answer key + versions + foldable on the viewer tree | ✅ 2026-08-03 |
+| S7 analytics census | derived census + item map on the read path, read-cache GC, teacher panel, 0026 | ✅ 2026-08-04 |
+| S8 perf-budget CI | route split, 12 CI size budgets + 38 script tests, throttled perf lane, math preload | ✅ 2026-08-05 |
+| S9-prep identity | 0027 (+0028), role-gated student shell, `/join/:code`, `pnpm verify:auth`, 15 identity e2e rows | ✅ 2026-08-14 |
+| **S9 cutover** | **5 drops: publish rewrite · demolition · renderer death · content surface · proof lanes** | ✅ **COMPLETE 2026-08-15** — all five drops + every author station (incl. the R2 teardown); final gate sweep run. Gate 4 deferred by design (first classroom) |
+| **Admission** | **T1–T7: 0033 (`pending` role + 2 audited RPCs + caps) · verify-0033 · onboarding surface · integration rows · compliance draft-3 · docs · the PRE-AUTH fork** | ✅ **COMPLETE + LIVE 2026-08-15.** T7 was found late: R5-DR's ruled primary surface had never been built, only its safety net. Two commits unpushed; the browser sign-in proof is the author's step |
+
+**Cutover gates C1–C15 — FINAL SWEEP RUN 2026-08-15: 14 CLOSED + 1 STANDING, with gate 4 deliberately deferred.** Each gate was re-verified against shipped reality (code greps, live catalog queries, live function list) rather than against this file's own checkmarks — a sweep that reads its own claims proves nothing. Evidence: C1 zero `test.fixme` in the sw spec · C2 `watchIdleSignOut` at 2 sites · C3 role in SessionContext + `/join/:code` routed · C5 `submissions.student_id` **gone live** (the 3 repo hits are `class_members.student_id`, a different table — still live, correctly) · C6 cache pair gone, 2 remaining hits are tombstone comments (P5-correct) · C7 `--project=a11y` in the CI workflow · C8 `packages/renderer` absent · C9 targets recalibrated (992/1135/1812) + retro re-run appended · C10 STANDING, `Matching.tsx` block-id seeding intact · C11 `join_class` live · C12/C13 satisfied (`POLICY_VERSION 2026-08-07-draft-2`) · C14 tag `s5.5-print-signoff` present · C15 `ingest_submission` RPC gone, exactly 2 Edge Functions live with correct flags. **The sweep also caught a real defect** — STATE's Edge Function versions were the `entrypoint_path` misread a second time (corrected above). **Open by design: gate 4** (seed `student_domain` + live student-branch verify) — it gates the FIRST CLASSROOM, not the cutover, and needs a real district domain. Gate 9 fully closed 2026-08-15 (recalibration + retro re-run 08-14; the 150 KiB track-only ruling 08-15). Gate 13's cutover half is satisfied; its counsel read (D24) gates classrooms, not cutover. Rulings + detail in [findings-backlog.md](docs/reviews/findings-backlog.md) → RULINGS; plan in [s9-cutover.md](docs/design/s9-cutover.md) (D-1…D-14 + eng §7 + DX §8/§9 + design §10).
+
+
