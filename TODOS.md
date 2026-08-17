@@ -389,36 +389,52 @@ fallback-window number directly.
 from a binary into three options by the S8 outside voice (2026-08-05, ruling D7); option 3
 built and measured the same day.
 
-## Get the student shell from 168 KiB gz toward the 150 KiB target
+## Get the student shell toward the 150 KiB gz target — SLICE 1 SHIPPED, ~6 KiB left
 
-**⚖ RULED 2026-08-15 (author, closing gate 9's last open item): TRACK ONLY for now.**
-No shrink work; the number gets recorded whenever it moves (it is priced per-addition
-already: 168.4 → 173.0 → 173.5 → 174.0/185 through the S9 drops), and **the decision on
-what is realistically achievable — if anything — happens at the end of the refactor**,
-once the arc's remaining teardown settles. Until then this entry is a ledger, not a task.
-The s8-retro's item-8 warning stands recorded: the audit's drift-to-185 scenario is the
-thing the per-addition pricing exists to prevent.
+**⚖ Status 2026-08-18: ACTIVE again, one rung climbed.** The 2026-08-15 "TRACK ONLY"
+ruling held until the shell reached ~96% of its cap and the next shell-touching feature
+would have hit it. Slice 1 then ran, plan → eng review → build in one day.
 
-**What:** Deliberate work to shrink the entry chunk. Ruling P1A sketched a ~150 KiB gz
-shell cap; the measured post-split reality is **168.1 KiB gz**, and the committed budget is
-a regression pin at that number rather than a claim the target was met.
+**SHIPPED — slice 1, the Supabase sub-clients (2026-08-18):**
+[shell-slim-supabase.md](docs/design/shell-slim-supabase.md). `@supabase/realtime-js`
+(+ phoenix) and `@supabase/storage-js` (+ iceberg-js) are aliased to inert stubs; the
+one storage caller, `lib/uploadImage.ts`, makes its two calls as raw `fetch`.
+**177.6 → 156.4 KiB gz (−21.2), and the cap tightened 185 → 172 in the same slice**
+(ruling R6 — a cap left at 185 over a 156 shell is 18% slack, i.e. the fossil this
+file's own budget policy warns about). Guarded by four absence rows in
+`scripts/check-perf-budget.mjs` and by `scripts/tests/supabase-stub-pin.test.mjs`.
 
-**Why it is not slack:** the entry chunk is react-dom + react-router + supabase-js + the
-viewer's eager block tier + StudentViewer + Home. Nothing in it is obviously wasteful — the
-3 MB of editor weight already left in the S8 split. Closing the last ~18 KiB needs a real
-lever, not tidying.
+**THE LADDER'S REMAINING RUNGS, cheapest first** (ruling R7 — each is its own slice,
+deliberately NOT folded into slice 1):
+1. **The zod audit.** `@activity/schema` parses in the shell, and the offline-restore
+   path is parse-bearing — so this needs real thought about what may become a
+   trust-the-bytes read and what must stay validated. Biggest remaining candidate.
+2. **The router.** react-router v7's data APIs cost more than this app's route table
+   needs; a swap is mechanical but touches every route file.
+3. **Preact/compat.** Largest single win and largest blast radius (Tiptap, floating-ui
+   and the whole editor ride on React); measure before believing.
+4. **auth-js itself** (27.1 KiB gz, the biggest single line in the attribution). NOT a
+   candidate the way realtime was: it runs constantly — session restore, refresh, the
+   OAuth round trip. Hand-rolling it would be re-implementing security-relevant code
+   the platform maintains. Listed for completeness, not as a plan.
 
-**The obvious lever:** supabase-js is a substantial share of what remains, and the student
-path uses a narrow slice of it (session read, one or two function calls). A hand-rolled
-fetch client for the viewer — or importing a narrower entry point — is the candidate worth
-measuring first. Weigh it against the maintenance cost of not using the vendor client.
+**Then re-judge whether 150 still matters.** ~6 KiB separates the shell from the P1A
+sketch. That number was never measured against a real Chromebook on school Wi-Fi; the
+honest close may be "re-baseline deliberately", not "chase the last rung".
 
-**How to know if it worked:** `node scripts/check-perf-budget.mjs` prints the number every
-run; lower `SHELL_JS_GZ_KIB` in `scripts/perf-budgets.mjs` deliberately when it drops, so
-the win is locked in rather than silently re-spent.
+**Why the remainder is not slack:** the entry chunk is react-dom + react-router +
+auth-js/postgrest + the viewer's eager block tier + StudentViewer + Home. The 3 MB of
+editor weight already left in the S8 split.
 
-**Context:** surfaced during the S8 build (2026-08-05) when calibration met the P1A sketch;
-outside-voice finding 7 predicted the gap before it was measured.
+**How to know if it worked:** `node scripts/check-perf-budget.mjs` prints the number
+every run; lower `SHELL_JS_GZ_KIB` in `scripts/perf-budgets.mjs` deliberately when it
+drops, so the win is locked in rather than silently re-spent. Slice 1 did exactly that
+— do the same, in the same commit as the shrink.
+
+**Context:** surfaced during the S8 build (2026-08-05) when calibration met the P1A
+sketch; outside-voice finding 7 predicted the gap before it was measured. Slice 1's
+attribution (2026-08-18, sourcemap-decoded) replaced the folklore 168 number with a
+real per-library table — re-derive the same way before picking rung 2.
 
 ## Integration lane in CI (S9 Drop 5 deferral, DX ruling P6)
 

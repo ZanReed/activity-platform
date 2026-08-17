@@ -11,6 +11,21 @@ export const MISSING_ENV =
   'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
   'Copy packages/app/.env.local.example to packages/app/.env.local and fill in the values.';
 
+// ⚠ TWO OF THIS CLIENT'S SUB-CLIENTS ARE STUBBED OUT (2026-08-18).
+// `@supabase/realtime-js` and `@supabase/storage-js` are aliased to inert
+// shells by `resolve.alias` in packages/app/vite.config.ts, to keep 22.7 KiB gz
+// of never-executed code out of the student's entry chunk. Consequences for
+// anyone reading THIS file first:
+//   * `supabase.channel()` / `getChannels()` / `removeChannel()` /
+//     `removeAllChannels()` THROW, with a message naming the alias.
+//   * `supabase.storage.from(...)` THROWS. Image upload goes through
+//     lib/uploadImage.ts, which talks to Storage's HTTP API directly.
+//   * Auth, PostgREST and Functions are untouched and fully real.
+//   * The alias is runtime-only, so TypeScript will happily autocomplete all
+//     of the above as if it worked. The runtime throw is your first signal.
+// Reasoning, the audited internals contract, and the un-stub path:
+// docs/design/shell-slim-supabase.md.
+//
 // Single client instance for the whole app. Importing this module from
 // multiple places gives you the same client (ES module caching), which is what
 // we want — Supabase's auth state lives on the client object.
@@ -67,6 +82,34 @@ export const supabaseConfigured = Boolean(url && anonKey);
 export function functionsBase(): string {
   if (!url) throw new Error(MISSING_ENV);
   return `${url}/functions/v1`;
+}
+
+/**
+ * The Storage base URL, resolved lazily for the same reasons `functionsBase`
+ * is: an env-less boot must fail at the CALL with MISSING_ENV, never at module
+ * load and never as a request to `undefined/storage/v1`.
+ *
+ * Exists because `@supabase/storage-js` is stubbed out (see the note above) —
+ * lib/uploadImage.ts builds its two requests by hand, and this module stays the
+ * single env-read site so the caller's tests remain env-independent (A21).
+ * Mirrors supabase-js's own derivation: `new URL('storage/v1', supabaseUrl)`.
+ */
+export function storageBase(): string {
+    if (!url) throw new Error(MISSING_ENV);
+    return `${url}/storage/v1`;
+}
+
+/**
+ * The anon (publishable) key, for hand-built requests.
+ *
+ * supabase-js's `fetchWithAuth` attaches `apikey` INVISIBLY to every sub-client
+ * request; a raw fetch that sends only the Bearer token gets a 401 from the API
+ * gateway before Storage ever sees it. That was the review's severe finding —
+ * so the key is exported here, explicitly, and uploadImage sends both headers.
+ */
+export function supabaseAnonKey(): string {
+    if (!anonKey) throw new Error(MISSING_ENV);
+    return anonKey;
 }
 
 /**

@@ -316,6 +316,58 @@ test('ledger sums ALL matching chunks, so weight cannot escape by splitting', ()
     }
 });
 
+// -----------------------------------------------------------------------------
+// The absence rows (2026-08-18, shell-slimming slice 1) — P3 liveness
+// -----------------------------------------------------------------------------
+// An absence row is the one row type that passes by default: against a healthy
+// build it matches nothing, forever, whether or not it works. That is exactly
+// the dormant-safeguard shape policy P3 exists for ("force every gate to fire
+// once before crediting it"), so both rows below make it fire.
+//
+// The second one is the whole reason ABSENT_FROM_BUILD is a separate structure
+// from SHELL_FORBIDDEN_MARKERS: a library that comes back inside a LAZY chunk
+// is invisible to an entry-chunk-only check, and "storage-js is back, but only
+// in the image-popover chunk" is the realistic regression — it is where
+// storage-js would have lived if the original (rejected) plan had shipped.
+
+test('a stubbed-out library returning to the ENTRY chunk fails the absence row', () => {
+    const dir = makeHealthyDist({
+        entryBody:
+            '["assets/katex-fixture.js"];const app=1;' +
+            'const e="API key is required to connect to Realtime";',
+    });
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, 'realtime-js code anywhere in the build must fail');
+        assert.match(out, /build is free of @supabase\/realtime-js/);
+        assert.match(out, /resolve\.alias/, 'the failure must name the cause');
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('a stubbed-out library returning to a LAZY chunk fails too, and names it', () => {
+    const dir = makeHealthyDist({
+        chunks: {
+            'assets/katex-fixture.js': 'throw new ParseError("KaTeX parse error: x")',
+            'assets/mathlive-fixture.js': 'class MathfieldElement extends HTMLElement{}',
+            'assets/jsx-fixture.js': 'JXG.Board = function(){}',
+            'assets/pm-fixture.js': 'class ReplaceError extends Error{}',
+            // The image popover: a lazy chunk the shell purity rows never read.
+            'assets/popover-fixture.js':
+                'class StorageUnknownError extends Error{};const p=(k)=>k;',
+        },
+    });
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, 'a lazy chunk is still part of the build');
+        assert.match(out, /build is free of @supabase\/storage-js/);
+        assert.match(out, /popover-fixture\.js/, 'the offending chunk must be named');
+    } finally {
+        cleanup(dir);
+    }
+});
+
 test('gzip is what is measured, not raw bytes', () => {
     // Guards against someone "simplifying" the script to statSync sizes: a
     // highly-compressible chunk that is huge on disk is cheap on the wire, and

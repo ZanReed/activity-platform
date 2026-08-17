@@ -50,6 +50,7 @@ import {
     PRECACHE_MAX_BYTES,
     CHUNK_LEDGER,
     SHELL_FORBIDDEN_MARKERS,
+    ABSENT_FROM_BUILD,
     stripAssetSpecifiers,
 } from './perf-budgets.mjs';
 
@@ -232,6 +233,53 @@ for (const rowSpec of CHUNK_LEDGER) {
         `${matched.length} chunk(s): ` +
             matched.map((m) => `${m.file} (${fmt(m.gz)} KiB)`).join(', '),
     );
+}
+
+// -----------------------------------------------------------------------------
+// Rows — payloads that must be absent from the WHOLE build, not just the shell
+// -----------------------------------------------------------------------------
+// The inverse of the ledger (see ABSENT_FROM_BUILD's comment for why it cannot
+// be expressed by either structure above). A ledger row fails when it matches
+// NOTHING; these fail when they match ANYTHING, and they scan every chunk
+// rather than the entry alone — so a stubbed-out library reappearing inside a
+// lazy chunk is caught too.
+//
+// A matching chunk is NAMED in the failure. "storage-js is back" without
+// saying which chunk pulled it in is the archaeology expedition this script's
+// attribution rule exists to prevent.
+
+for (const spec of ABSENT_FROM_BUILD) {
+    const matched = [];
+    for (const chunk of jsChunks) {
+        const source = stripAssetSpecifiers(readFileSync(chunk.path, 'utf8'));
+        if (spec.marker.test(source)) {
+            matched.push({ file: chunk.file, gz: gzKiB(readFileSync(chunk.path)) });
+        }
+    }
+    rows.push({
+        name: `build is free of ${spec.name}`,
+        actual: matched.length ? `${matched.length} chunk(s)` : 'absent',
+        cap: 'absent',
+        unit: '',
+        ok: matched.length === 0,
+    });
+    if (matched.length) {
+        failures.push({
+            name: `build is free of ${spec.name}`,
+            actual: `${matched.length} chunk(s)`,
+            cap: 'absent',
+            unit: '',
+            detail:
+                `${spec.name} is back in the bundle: ` +
+                matched.map((m) => `${m.file} (${fmt(m.gz)} KiB)`).join(', ') +
+                `. ${spec.why} The usual cause is the resolve.alias entry in ` +
+                'packages/app/vite.config.ts being removed or stopping short of a ' +
+                'new import path. This is not a cap to raise — either restore the ' +
+                'alias, or retire the stub deliberately (delete this row, the stub, ' +
+                'and scripts/tests/supabase-stub-pin.test.mjs together, and say so ' +
+                'in the diff). Background: docs/design/shell-slim-supabase.md.',
+        });
+    }
 }
 
 // -----------------------------------------------------------------------------

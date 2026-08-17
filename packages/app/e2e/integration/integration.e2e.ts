@@ -296,6 +296,124 @@ test('a teacher makes a class + publishes + shares; a student joins through the 
   await studentPage.close();
 });
 
+// =============================================================================
+// Image upload (V4) — the raw-fetch path, against a real Storage
+// -----------------------------------------------------------------------------
+// uploadImage stopped using @supabase/storage-js on 2026-08-18 (shell-slimming
+// slice 1, R2) and now builds its two requests by hand. A unit test believes
+// whatever headers you hand a mocked fetch, and the plan's claimed safety net —
+// "the existing editor e2e upload row" — turned out not to exist at all (the
+// review's severe finding OV-1: a safety net asserted without checking, policy
+// P11). So the proof has to be a real request to a real Storage, and this is
+// the only lane that has one.
+//
+// The module under test is imported FROM THE PAGE, through the same Vite dev
+// server the app runs on — so the resolve.alias substitution is in force and
+// this exercises the shipped code path, not a re-implementation of it.
+//
+// ⚠ A MEASURED CORRECTION TO THE PLAN, recorded here because the plan is wrong
+// and this row is what found it. The eng review's severe finding 1 said the
+// missing `apikey` header "would have 401'd uploads" — supabase-js's
+// `fetchWithAuth` adds it invisibly, so a hand-built request that sends only
+// the Bearer token was assumed to be rejected by the API gateway. Against the
+// real local stack it is NOT: apikey-less, Bearer-only uploads succeed with a
+// 200 and a real object. The gateway accepts the user JWT as the credential.
+//
+// uploadImage still sends both headers — it mirrors what the vendor client
+// sends, it costs nothing, and hosted Supabase's gateway config is not this
+// repo's to assume. But the liveness probe below asserts what is ACTUALLY
+// load-bearing (the Bearer token, and behind it 0019's RLS policy) rather than
+// a refusal that does not happen. A probe that pins a premise the world does
+// not honor is the vacuity this lane exists to end, not an example of it.
+// =============================================================================
+
+// A 1×1 PNG. Small enough to be free, real enough that the bucket's
+// allowed_mime_types check has something true to say yes to.
+const PIXEL_PNG_B64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+test('a REAL image upload through the raw-fetch path — and the token is load-bearing', async ({
+  page,
+}) => {
+  await useSession(page, teacher.session);
+  await page.goto('/');
+
+  const result = await page.evaluate(
+    async ([activity, b64]) => {
+      const bytes = Uint8Array.from(atob(b64 as string), (c) => c.charCodeAt(0));
+      const file = new File([bytes], 'pixel.png', { type: 'image/png' });
+
+      // The SHIPPED module, served by the dev server with the alias applied.
+      const mod = (await import('/src/lib/uploadImage.ts')) as {
+        uploadImage: (id: string, f: File) => Promise<string>;
+      };
+      const publicUrl = await mod.uploadImage(activity as string, file);
+
+      // ---- ANTI-VACUITY (P3): fire the refusal that actually guards the
+      // bucket. Identical request, identical URL shape (bucket included — an
+      // earlier draft dropped that segment and would have been refused for the
+      // wrong reason), with the Bearer token withheld. 0019's INSERT policy is
+      // `to authenticated`, so an anonymous caller must be refused. If THIS
+      // succeeds, the upload above proves nothing about authorization.
+      const sb = (await import('/src/lib/supabase.ts')) as {
+        storageBase: () => string;
+        supabaseAnonKey: () => string;
+      };
+      const form = new FormData();
+      form.append('cacheControl', '31536000');
+      form.append('', file);
+      const anon = await fetch(
+        `${sb.storageBase()}/object/activity-images/${activity as string}/probe-anonymous.png`,
+        {
+          method: 'POST',
+          headers: { apikey: sb.supabaseAnonKey(), 'x-upsert': 'false' },
+          body: form,
+        },
+      );
+
+      return {
+        publicUrl,
+        anonStatus: anon.status,
+        anonBody: (await anon.text()).slice(0, 200),
+      };
+    },
+    [activityId, PIXEL_PNG_B64] as const,
+  );
+
+  // 1. The key layout 0019's policy parses: exactly one folder segment, and it
+  //    is the activity id. A different layout 403s on the real policy — which
+  //    is why this assertion belongs against the real stack and not a mock.
+  expect(result.publicUrl).toContain(`/object/public/activity-images/${activityId}/`);
+  expect(result.publicUrl).toMatch(/\.png$/);
+
+  // 2. The returned URL is genuinely public: fetched from Node, with no
+  //    session, no headers, nothing. `getPublicUrl` was always pure string
+  //    building, so this is the row that proves the string we now build by
+  //    hand actually addresses the object we just wrote.
+  const fetched = await fetch(result.publicUrl);
+  expect(fetched.status, `public URL not fetchable: ${result.publicUrl}`).toBe(200);
+  expect(fetched.headers.get('content-type')).toContain('image/png');
+
+  // 3. The session token is what carries the authorization. Same bucket, same
+  //    key shape, no Bearer header — 0019's `to authenticated` INSERT policy
+  //    must refuse it. This is what stops row 1 from being "any request to this
+  //    URL returns 200".
+  //
+  //    Asserted as a specific AUTH refusal, not merely "not 200": a 404 from a
+  //    mistyped URL would satisfy the loose form while proving nothing. The
+  //    body is carried out of the page so that if Storage's wording or status
+  //    changes, the failure SHOWS it rather than silently reclassifying.
+  expect(
+    result.anonStatus,
+    'an ANONYMOUS upload was accepted — 0019’s INSERT policy is not gating this ' +
+      `bucket, which makes the upload above prove nothing. Body: ${result.anonBody}`,
+  ).not.toBe(200);
+  expect(
+    [400, 401, 403],
+    `expected an AUTH refusal without a session; got ${result.anonStatus}: ${result.anonBody}`,
+  ).toContain(result.anonStatus);
+});
+
 test('one REAL check round trip — the A1 class of bug can never hide again', async ({
   page,
 }) => {

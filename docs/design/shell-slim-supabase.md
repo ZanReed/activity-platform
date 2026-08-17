@@ -204,3 +204,146 @@ auto-deploys on the author's push).
   measured + ~10% in the same slice.
 
 NO UNRESOLVED DECISIONS
+
+---
+
+# AS BUILT — 2026-08-18
+
+W1–W6 shipped as amended. **177.6 → 156.4 KiB gz entry chunk (−21.2), cap tightened
+185 → 172.** The deltas below are the places the plan and reality parted; everything
+not listed shipped as written.
+
+## The plan's one wrong claim, and the row that caught it
+
+**§5 item 4 — "Vitest parity — DISSOLVED by inspection" — was WRONG, and it was
+load-bearing.** The inspection was half right: the app has no separate vitest config, so
+vitest does read `vite.config.ts`. What it misses is that **vitest EXTERNALIZES
+`node_modules` by default** and loads those packages through Node's own resolver, which
+knows nothing about `resolve.alias`. So supabase-js's internal
+`import '@supabase/realtime-js'` kept resolving to the REAL package under vitest — V1,
+V2 and V3 would all have passed while exercising the vendor library instead of the stub.
+
+That is the exact P9 shape this review was already alert to (the R5 "free net" retraction
+was the same failure one layer up), which is why V1's file opens with an anti-vacuity row
+— `the alias is actually in force` — asserting that `client.realtime` has the stub's
+member set and not the real client's. **It went red on first run.** Fix:
+`test.server.deps.inline: ['@supabase/supabase-js']` in `vite.config.ts`, which puts the
+one aliased package through Vite's transform pipeline. Both facts are now written where
+the mistake was made — a comment block on the `test` key.
+
+*Secondary:* the obvious way to type that block — `defineConfig` from `vitest/config` —
+does not work here. vitest 1.6 types it against **vite 5** while the app builds on
+**vite 6**, so it rejects the whole plugin array with a variance error. One narrow,
+commented cast instead of a second config file, so the alias keeps one home.
+
+## Verification matrix — as run
+
+| Row | Result |
+|---|---|
+| V1 | ✅ Real `createClient` + real `signOut({scope:'local'})` → SIGNED_OUT → the stub's **zero-arg** `setAuth()`. `toHaveBeenCalledWith()` asserts the zero-arg shape OV-11 flagged. Plus the one-arg / null shapes for the SIGNED_IN and refresh paths. |
+| V2 | ✅ `supabase.channel()` throws through the app's lazy Proxy, message contains `vite.config.ts`, the doc path, and "Realtime push arc". The other three channel methods walled too. |
+| V3 | ✅ `supabase.storage.from()` throws; **bare `supabase.storage` explicitly asserted NOT to throw** (OV-2 — it is constructor-assigned and runs for every client, student sessions included). |
+| V4 | ✅ Unit: 17 rows on the real request shape (both headers, `x-upsert:false`, **no** hand-set `Content-Type`, the multipart body). Integration: a new row in `e2e/integration/`, 9/9 green against the local stack — **and it corrected the finding it was written to prove; see below.** |
+| V5 | ✅ `scripts/tests/supabase-stub-pin.test.mjs`, 4 rows: exact pin (no caret), each stub's `AUDITED AGAINST:` line agrees with it, the INSTALLED version agrees, **and the alias still exists in `vite.config.ts`** (a 4th row the plan did not ask for — the first three all pass if the alias silently vanishes). |
+| V6 | ✅ Cap tightened to 172; four **absence-only** rows added as a third structure, `ABSENT_FROM_BUILD`. Budgets: 12 → 16, all pass. |
+| V7 | ✅ Full suite green under the inherited alias — 340 / 384 / 1139 / **1092** unit + **50** script tests. Framed honestly: with `deps.inline` this now proves rather more than module resolution, but still nothing the mocked auth suites were ever going to prove. |
+| V8 | (dead with D5-II, as planned) |
+| V9 | ✅ **Dev parity holds with NO `optimizeDeps` change** — Vite 6's dep optimizer honors `resolve.alias` when prebundling. Verified in a real browser against the running dev server: `import('/src/lib/supabase.ts')` → `channel()` and `storage.from()` both threw the stub messages, `'connect' in realtime === false`. Recorded rather than assumed, per OV-9. |
+| V10 | ✅ **No new spec needed — checked, not assumed.** `e2e/student/failure-matrix.e2e.ts` → "signing out leaves nothing behind" already clicks the in-page Sign out button in the student lane, so the SIGNED_OUT → `setAuth()` path does fire there. (`e2e/sw/service-worker.e2e.ts` clicks it too.) |
+
+## The absence rows needed a third structure, and their markers were proven present first
+
+`ABSENT_FROM_BUILD` could not be folded into either existing list: `CHUNK_LEDGER` FAILS a
+row matching no chunk (correct for a payload that is supposed to exist, fatal for one
+that just left), and `SHELL_FORBIDDEN_MARKERS` reads only the entry chunk — so a library
+returning inside the lazy image-popover chunk would pass. The new rows scan every chunk
+and fail on any match.
+
+**Every marker was verified PRESENT in a pre-slice build before being trusted** (alias
+removed, rebuilt, grepped: each matched exactly one chunk), then absent after. That run
+also confirmed OV-8's warning empirically: `realtime/v1`, `storage/v1` and `x-upsert` all
+still appear in surviving code, so all three are unusable as markers — and
+`postgres_changes` had to be dropped as well, because the realtime stub itself exports
+that enum value. A structural test now enforces the rule mechanically: each marker is
+run against a sample of surviving supabase-js and app code and must NOT match.
+
+Both new absence rows have had their red path fired (P3): a returning library in the
+entry chunk, and one in a lazy chunk.
+
+## R2 as built — the wire, exactly
+
+The multipart body mirrors what storage-js 2.105.3 sends for a Blob: a `cacheControl`
+field, then the file under the **empty** field name. Two details worth keeping:
+
+* **`contentType` was never a header on that path.** storage-js only sets a
+  `content-type` header for the non-Blob branch; for a File it rides as the multipart
+  part's own type, which is what the bucket's `allowed_mime_types` check reads. So
+  dropping it is not a behavior change — and setting `Content-Type` on the request by
+  hand would actively break the upload, since only the browser knows the boundary.
+* **`getPublicUrl` never made a request.** It was `encodeURI(url + '/object/public/' +
+  bucket + '/' + key)`, string-building. Same construction now, one dependency fewer.
+
+`friendlyStorageError` gained a **401** case: a hand-built request is the one that can be
+rejected by the gateway (expired token, or the missing `apikey`), a failure supabase-js's
+client could never produce here. Two new supporting rows cover a non-JSON error body (a
+proxy 502 is HTML) and a dead network.
+
+## ⚠ SEVERE FINDING 1's PREMISE IS WRONG — measured, not argued
+
+The review's first severe finding said the missing `apikey` header "would have 401'd
+uploads": supabase-js's `fetchWithAuth` attaches it invisibly, so a hand-built
+Bearer-only request was assumed to die at the API gateway before Storage ran. **It does
+not.** The integration row's first liveness probe fired exactly that request against the
+real local stack and got **200 with a real object written** — the gateway accepts the
+user JWT as the credential.
+
+The finding's *conclusion* survives intact (send `apikey` explicitly; a header the vendor
+client adds behind your back is precisely what a raw rewrite loses), and the code does.
+Its *reasoning* does not, and it mattered: a liveness probe built on that premise would
+have failed on a correct implementation, and the second time that happened someone would
+have deleted the probe rather than the belief.
+
+**What is actually load-bearing is the session token**, and behind it 0019's
+`to authenticated` INSERT policy. The probe now fires THAT refusal — same bucket, same key
+shape, no `Authorization` header — and asserts a specific auth status rather than merely
+"not 200" (a 404 from a mistyped URL would satisfy the loose form; an earlier draft of the
+probe did drop the bucket segment and would have passed vacuously).
+
+Hosted-gateway behavior is **unverified** — checking it means writing an object to the
+author's production Storage, which is the author's call, not a session's. The header stays
+regardless.
+
+The rest of the row: the real `uploadImage` module is imported **from the page**, so it
+runs through the same dev server with the alias in force; the returned public URL is then
+fetched **from Node with no headers at all**, which is what proves the string we now build
+by hand addresses the object we just wrote.
+
+## W5 — the lanes as run, including one red that is not ours
+
+* **Unit + script tests:** all green (see V7).
+* **e2e, all lanes in one run:** 282 passed / 2 failed / 22 skipped.
+* **The 2 failures are `e2e/sw/service-worker.e2e.ts`'s two offline-reopen rows** ("a
+  student who lost the network still gets their worksheet"; "with no saved copy, offline
+  fails honestly rather than hanging"). **They fail IDENTICALLY on a clean `main`** —
+  stashed the whole slice, re-ran the sw lane alone, same two rows, same locators. So they
+  are a pre-existing local/environment failure of the real-server-stop specs on this
+  machine, not a regression from this slice. CI's last run (31999243137) was 73/0.
+  Recorded rather than waved past; whoever picks it up should start from the fact that it
+  reproduces with the working tree clean.
+* **Integration lane:** 9/9 against `supabase start` — including the new upload row, and
+  including a full `supabase db reset` replay of every migration.
+* One incidental note from V9's dev-server session: `/playground` logs a React
+  "state update on a component that hasn't mounted" warning in dev. Unrelated to this
+  slice (nothing here touches React), unverified against `main`, noted only so the next
+  reader does not attribute it to the stubs.
+
+## Numbers
+
+* Plan predicted ≈154–155 KiB gz landing; actual **156.4**. The plan's baseline (177.2)
+  was also 0.4 low against the tool. Both within measurement drift, neither worth chasing.
+* Cap = 156.4 × 1.1 ≈ **172**.
+* Stub export surfaces, from the audit: **realtime-js 9 names** (supabase-js does
+  `export *`, so the whole package index is contract); **storage-js 2** (`StorageClient`,
+  `StorageApiError` — no `export *`, only those two are imported by name and only
+  `StorageApiError` is re-exported).
+* Suite deltas: app unit 1078 → 1092, script tests 43 → 50, perf budgets 12 → 16.

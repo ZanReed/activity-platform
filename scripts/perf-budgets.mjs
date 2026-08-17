@@ -104,9 +104,23 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * take deliberate work (a lighter auth client is the obvious lever) and is
  * recorded in TODOS.md rather than pretended away here.
  *
- * Measured 2026-08-05: 168.1 KiB gz.
+ * Measured 2026-08-05: 168.1 KiB gz (cap was 185).
+ *
+ * TIGHTENED 2026-08-18 — shell-slimming slice 1, ruling R6 (anti-fossil).
+ * The lever the paragraph above predicted got pulled: supabase-js's realtime
+ * and storage sub-clients are aliased to inert stubs (docs/design/
+ * shell-slim-supabase.md), which took the shell from 177.6 to 156.4 KiB gz —
+ * 21.2 KiB of code no student session ever executed. Leaving the cap at 185
+ * over a 156 shell would have been 18% slack: a budget that has quietly
+ * stopped protecting anything, which is precisely the fossil this file's own
+ * "a budget that can only ever loosen is a fossil" line warns about. New cap
+ * is the same ~10% headroom policy applied to the new measurement:
+ * 156.4 × 1.1 ≈ 172.
+ *
+ * Measured 2026-08-18: 156.4 KiB gz. (The 150 target is now ~6 KiB away; the
+ * next rung of the ladder is the zod audit — see TODOS.md.)
  */
-export const SHELL_JS_GZ_KIB = 185;
+export const SHELL_JS_GZ_KIB = 172;
 
 /**
  * The student shell's CSS, gzipped — a SEPARATE row on purpose.
@@ -203,6 +217,64 @@ export const SHELL_FORBIDDEN_MARKERS = CHUNK_LEDGER.map(({ name, marker }) => ({
     name,
     marker,
 }));
+
+/**
+ * Payloads that must be absent from the ENTIRE BUILD, not merely the shell.
+ *
+ * A THIRD STRUCTURE, and it needs to be (2026-08-18, shell-slimming slice 1,
+ * outside-voice finding OV-8). The two above cannot express this:
+ *   * CHUNK_LEDGER FAILS a row that matches no chunk — by design, because a
+ *     ledger row exists to cap a payload that is supposed to be there. Adding
+ *     "realtime-js" as a ledger row would fail the moment the slice succeeded.
+ *   * SHELL_FORBIDDEN_MARKERS only looks at the entry chunk, so it would keep
+ *     passing if the stub were dropped and storage-js reappeared inside the
+ *     lazy image-popover chunk instead.
+ * These libraries are gone from the app ENTIRELY — @supabase/realtime-js and
+ * @supabase/storage-js resolve to inert stubs via resolve.alias in
+ * packages/app/vite.config.ts, and phoenix and iceberg-js were only ever their
+ * transitive dependencies. So the assertion is: zero chunks, anywhere.
+ *
+ * MARKERS COME FROM LIBRARY INTERNALS, NEVER PACKAGE NAMES — the trap this row
+ * set is built to avoid. The SURVIVING supabase-js code legitimately contains
+ * the string literals 'realtime/v1', 'storage/v1' and `.channel(`, and the
+ * app's own uploadImage.ts sends an 'x-upsert' header; every one of those
+ * would make an absence row cry wolf forever. Each marker below was verified
+ * PRESENT in a pre-slice build (2026-08-18, alias removed, rebuilt, grepped:
+ * every one matched exactly one chunk) and ABSENT after — a row that has never
+ * been seen to match is a row that proves nothing.
+ *
+ * ⚠ AND THE HONEST CAVEAT: an absence row cannot self-verify the way a ledger
+ * row can. If the alias silently vanished AND the marker rotted, this would go
+ * on passing. The alias's existence is therefore pinned separately, by
+ * scripts/tests/supabase-stub-pin.test.mjs — read the two together.
+ */
+export const ABSENT_FROM_BUILD = [
+    {
+        name: '@supabase/realtime-js',
+        // Two of realtime-js's own error/log strings. Not 'realtime/v1' — that
+        // literal lives in SupabaseClient, which stays.
+        marker: /API key is required to connect to Realtime|Newly joined presences/,
+        why: 'Websocket client for a feature with zero call sites. Stubbed by resolve.alias; un-stub at the realtime-push backlog arc.',
+    },
+    {
+        name: '@supabase/phoenix',
+        // Phoenix wire message names — nothing else in the world says these.
+        marker: /phx_ref_prev|phx_join/,
+        why: "realtime-js's only dependency. It leaves when realtime-js leaves; this row proves it actually did.",
+    },
+    {
+        name: '@supabase/storage-js',
+        // A private method name and an error class name, both preserved
+        // through minification (property names are not mangled).
+        marker: /_removeEmptyFolders|StorageUnknownError/,
+        why: 'The app talks to Storage with two raw fetch calls in lib/uploadImage.ts instead. Stubbed by resolve.alias.',
+    },
+    {
+        name: 'iceberg-js',
+        marker: /X-Iceberg-Access-Delegation|CommitStateUnknownException/,
+        why: "storage-js's dependency — an Apache Iceberg client, on a path that uploads PNGs.",
+    },
+];
 
 /**
  * Strip string literals that merely NAME another chunk, so content matching

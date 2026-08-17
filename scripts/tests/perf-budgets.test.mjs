@@ -25,6 +25,7 @@ import {
     GRADING_SERVER_MAX_KIB,
     CHUNK_LEDGER,
     SHELL_FORBIDDEN_MARKERS,
+    ABSENT_FROM_BUILD,
     MARKS,
     TIMING_TARGET_MS,
     TIMING_CEILING_MULTIPLE,
@@ -55,6 +56,39 @@ test('every ledger row is complete and its marker is a real regex', () => {
         // session raises casually. D5 chose one commented home precisely so
         // this stays true.
         assert.ok(row.why && row.why.length > 20, `${row.name}: needs a stated reason`);
+    }
+});
+
+test('every absence row is complete, and its marker cannot cry wolf', () => {
+    assert.ok(ABSENT_FROM_BUILD.length > 0, 'an empty absence list guards nothing');
+
+    // The trap OV-8 named: the SURVIVING supabase-js still contains these
+    // literals, and the app's own uploadImage sends an x-upsert header. An
+    // absence marker that matches any of them fails on every correct build —
+    // and the second time that happens, someone deletes the row instead of
+    // reading it. So the rule ("markers come from library internals, never
+    // package names") is enforced rather than merely written down.
+    const SURVIVING_CODE = [
+        `this.realtimeUrl = new URL("realtime/v1", baseUrl);`,
+        `this.storageUrl = new URL("storage/v1", baseUrl);`,
+        `channel(name, opts) { return this.realtime.channel(name, opts); }`,
+        `headers: { apikey: k, 'x-upsert': 'false' }`,
+        `import { StorageApiError, StorageClient } from "@supabase/storage-js";`,
+        `export * from "@supabase/realtime-js"`,
+    ].join('\n');
+
+    for (const row of ABSENT_FROM_BUILD) {
+        assert.ok(row.name, 'absence row needs a name');
+        assert.ok(row.marker instanceof RegExp, `${row.name}: marker must be a RegExp`);
+        assert.ok(row.why && row.why.length > 20, `${row.name}: needs a stated reason`);
+        assert.equal(
+            row.marker.test(SURVIVING_CODE),
+            false,
+            `${row.name}: the marker ${row.marker} matches code that legitimately ` +
+                'SURVIVES the stubbing (supabase-js internals or the app itself), so ' +
+                'the row would fail on a correct build. Pick a marker from the ' +
+                "stubbed library's own internals instead.",
+        );
     }
 });
 
