@@ -203,21 +203,217 @@ updated.
 Database-side only; no Edge Function, bundle, or app work. Migration 0035 apply is an author
 action. Nothing here needs a deploy ordering rule — no function or UI calls the new objects.
 
+# PART II — the arming-arc BUILD PLAN (2026-08-16, same day; author pulled the trigger forward)
+
+**Status:** PLAN — awaiting `/plan-eng-review` Part II pass. Part I is SHIPPED (0035 live,
+127/0, CI-green).
+**The trigger override, on the record:** the arc's recorded trigger was "real check growth on
+the ledger" (still 0). The author chose to build now — with every §5 ruling fresh and
+`rebuild_check_rollup` keeping the shape reversible, the momentum argument beats the wait. **The
+CRON FLIP IS STILL NOT IN THIS ARC**: arming stays gated on the §4 checklist (counsel Q10, N
+green nights). What ships is the rollup *running* while the prune stays inert.
+
+## II.1 — P10 re-derivation for the build (tool-read live, 2026-08-16 late)
+
+1. **`users` is table-level client-writable** (0032 breadth): the self-only UPDATE policy's
+   WITH CHECK pins only `role` + `account_tier`. A new `timezone` column is client-writable
+   arbitrary text on day one ⇒ **the §5 IANA validation trigger ships in the same migration,
+   not later** — one bad zone would otherwise abort the entire nightly run (0022 class).
+2. **The panel's job object reads the newest ledger row blind** (0026 §6 `order by ran_at desc
+   limit 1`) ⇒ purge-side ledger rows (finding 4's fix) need a discriminator or the 03:00 purge
+   row masks the 03:30 analytics row's health daily. ⇒ `job_name` column (II.2.3).
+3. **Cron hour (finding 11), re-derived — CORRECTED by OV-8 (the draft claimed 09:30 UTC was
+   "quiet for both"; it is not):** across a 17–18h offset there IS no mutually-quiet hour —
+   09:30 UTC = US Central 03:30 (quiet) but NZ 21:30 (homework evening); the current
+   03:00/03:30 UTC is US Central 21:00 (homework evening) and NZ 15:00/15:30 (school
+   afternoon). Any hour deprioritizes one cohort; the honest statement is WHICH. Correctness
+   never depends on the hour (full-day re-rolls are idempotent) — the only cost is boundary
+   churn. OPTIONAL author call, stated plainly: keep 03:00/03:30 (status quo), or move to
+   ~09:30/10:00 UTC to favor the US cohort at the cost of NZ-evening rolls. `cron.alter_job`,
+   author-run SQL; not a migration step; no recommendation pretends both win.
+4. **`prune_section_checks` is NOT touched.** Its watermark read (`where rolled_through is not
+   null order by id desc`) already tolerates ledger rows that don't carry the watermark, and its
+   behavior is pinned by verify-0035. The boundary helper (II.2.5) serves the two NEW readers;
+   re-plumbing the just-verified prune for DRY would be churn without a defect.
+
+## II.2 — What migration 0036 ships (every design point inherits a §5 ruling)
+
+1. **`users.timezone text`** — nullable; **validation trigger** on INSERT/UPDATE: value must be
+   NULL or exist in `pg_timezone_names` (refusal text names the column — RPC-style clarity);
+   the author's row set to `Pacific/Auckland` by an email-keyed, existence-guarded UPDATE
+   (replay-safe: no-op on a fresh DB). Default applied at READ time via
+   `coalesce(u.timezone, analytics_default_zone())` — **the default lives in ONE immutable
+   function** (D3-II: three call sites — roll, guard, verify — would otherwise carry drifting
+   literals, and a drifted default forks day keys). No stored backfill.
+   **Zone-change self-heal (D2-II — this review's P1):** a rolled row's day key is frozen at
+   roll time, so a later zone change lets a boundary-hour check be counted under BOTH the old
+   and the new day (concrete case in the review: Sep 5 13:00 UTC rolls as Chicago Sep 5; after
+   a switch to Auckland, a new check at Sep 5 23:00 UTC triggers a full-day recompute of
+   Auckland Sep 6 — which re-includes the already-rolled row). "Rebuild after a zone change"
+   as prose is the promise-in-prose failure D11 just closed. Mechanism instead: the validation
+   trigger also stamps `users.rollup_rebuild_needed = true` on any zone CHANGE;
+   `run_analytics_maintenance()` rebuilds flagged owners' activities' rolled days under the
+   current zone and clears the flag. Three integrity guards from the OV pass:
+   **(a) horizon-clamped (OV-1/D5-II, severe):** the self-heal (and the no-arg rebuild)
+   recomputes ONLY days ending after `now() - PRUNE_HORIZON` — days the prune's clause 4
+   guarantees raw-complete. Older rolled rows **FREEZE under the zone they were recorded in**
+   (immutable history, like dates in an old ledger). This is what makes the mechanism
+   compatible with the armed prune: an unclamped rebuild would recompute `*_all` history from
+   a world where superseded rows are deleted, silently collapsing the aggregates the rollup
+   exists to preserve. The clamp loses nothing — the double-count window a zone change creates
+   lies near the watermark, inside the horizon, so the clamped heal closes it completely. It
+   also caps the self-heal's nightly cost at ~horizon days per owner (OV-9d).
+   **(b) compare-and-clear (OV-3):** the flag clears only `where timezone = <the zone just
+   rebuilt under>` — a zone change committing mid-rebuild keeps its flag and heals next night,
+   never silently swallowed.
+   **(c) trigger-guarded (OV-4):** the trigger REFUSES any client write to
+   `rollup_rebuild_needed` (users carries table-level client UPDATE and the policy's WITH
+   CHECK pins only role/account_tier — without the guard a teacher's client could clear its
+   own flag and freeze a double-count in place). Only the trigger sets it; only the DEFINER
+   job clears it.
+2. **The two rollup tables** (D4, verbatim from §5): `check_rollup_daily (activity_id FK CASC,
+   activity_version_id FK CASC, day, checks, students, rolled_at, PK(version, day))` and
+   `check_item_rollup_daily (same FKs, day, item_id, verdicts_all, correct_all, incorrect_all,
+   recorded_all, students, rolled_at, PK(version, day, item_id))`. Zero policies, zero client
+   grants, RLS forced. `census_key` resolved at read via `activity_version_items`.
+3. **`analytics_job_runs.job_name text not null default 'analytics'`** — the discriminator
+   (II.1.2). The panel's job object and the growth ledger filter `job_name='analytics'`; purge
+   rows use `'purge'` and leave `rolled_through` NULL (the §5 "every row carries it
+   coalesce-forward" rule is scoped to the ANALYTICS job's rows — the prune's not-null read is
+   what makes that scoping safe, verified in 0035).
+4. **`run_analytics_maintenance()` v2** — sweep (unchanged) → **self-heal** (horizon-clamped
+   rebuild of flagged owners — D2-II/D5-II) → **roll** → stamp. The roll:
+   `new_wm = now() - interval '5 minutes'` (D3 lag); collect the (version, owner-zone-day) set
+   touched by checks in `[coalesce(old_wm, '-infinity'), new_wm)` (OV-9a — the first run's
+   window is the backfill); for each, **recompute the FULL day from raw rows**
+   (`created_at < new_wm` bound) and delete-then-insert both tables' rows for that (version,
+   day) — the finding-6 split-day semantics, idempotent by construction. Owner zone resolved
+   activity→owner→`coalesce(timezone, analytics_default_zone())` with an exception guard
+   falling back to the default (defense in depth behind the trigger; one bad zone degrades one
+   activity's day labels, never the run — L row proves it). Ledger row: counts +
+   `rolled_through = new_wm` (coalesce-forward against the previous ANALYTICS row) + **the
+   OV-6 reconciliation pair**: `raw checks with created_at < new_wm` vs `sum of rolled daily
+   checks` — the MVCC late-commit hole (a row committing after its window was scanned, in a
+   day never re-rolled) becomes a visible drift on a screen someone opens, WHILE rebuild can
+   still heal it. Drift ⇒ run the rebuild; post-arming, an unhealed drift is the known cost,
+   now measured instead of invisible.
+5. **`analytics_rolled_boundary() returns timestamptz`** — the single-sourced `>=`/`<` boundary
+   read for the two NEW readers (roll + analytics v2). Prune untouched (II.1.4).
+6. **`rebuild_check_rollup(p_from date default null)`** — recompute through the same
+   day-recompute core the roll uses (one implementation, two entry points — the R7 rebuild ≡
+   incremental property is structural, not aspirational). **Horizon-clamped by default
+   (D5-II):** no-arg calls recompute only days ending after `now() - PRUNE_HORIZON`; an
+   explicit `p_from` older than the safe boundary is honored but the result jsonb carries a
+   WARNING naming the collapse risk (post-arming, pruned days recompute from surviving rows
+   only — `*_all` would collapse toward latest). R7's "rebuild ≡ incremental" is hereby
+   BOUNDED to the raw-complete window; frozen days are compared, not recomputed, in verify §J.
+   First nightly run after 0036 IS the backfill (rolls everything < watermark; trivially empty
+   at 0 checks).
+7. **`purge_soft_deleted` v4** — 0034 §G byte-preserved (NOTICE prefix included — verify-0029
+   §D greps it) plus: count destroyed checks with `created_at >=` the watermark (or all, when
+   NULL) and write a `job_name='purge'` ledger row carrying `purge_unrolled_destroyed` (new
+   nullable int). Never blocked — F3 unchanged.
+8. **`get_activity_analytics` v2** — `*_all` = rolled tables + raw rows `created_at >=`
+   boundary (single-sourced via II.2.5). **Totals re-specced (OV-2/D6-II — the draft's
+   "totals from the view" was a defect):** `totals.checks` = sum of `check_rollup_daily.checks`
+   + count of raw checks above the boundary — it KEEPS meaning "checks performed" across the
+   prune boundary forever, keeps verify-0026 §C6's fixture pin green, **and is
+   `check_rollup_daily`'s production reader (P1 satisfied)**; `totals.students` and
+   `last_check_at` from the `section_checks_latest` view (exact under F1, D7's second
+   consumer); **per-key `students` becomes latest-grounded** (D8, applied now — one semantic
+   change, at 0 rows, instead of a second one at arming); keys join `activity_version_items`
+   at read with the `_unattributed` bucket preserved (R2); `job` object filters
+   `job_name='analytics'`. **The per-day `students`/`students_all` columns' reader is the
+   future daily-trend surface — tracked as a named TODOS line (P1's tracked-debt form); they
+   stay because per-day distinct students is the ONE figure that cannot be recomputed
+   retroactively after pruning (D6-II).**
+
+**App-side (one string):** the panel's readings-explainer paragraph
+(`ActivityAnalytics.tsx:212–217`) gains the R12 disclosure — "Students counts each student
+whose latest attempt touches the question." No layout, no new elements. **No design review**
+(prior ruling stands: no new pixel).
+
+**P5 flips in the same commit:** verify-0035 §A's `rolled_through_never_written` row is
+REPLACED (as designed — its own message says so) by a writer-exists assertion
+(`run_analytics_maintenance` prosrc contains `rolled_through`); the live never-written state
+moves to verify-0036's rollback-liveness row (E), which needs no durable state. 0036's header
+names and supersedes 0026:106 ("nothing prunes… today") and 0022's header — the §5-recorded
+debt, discharged where the rulings said it would be.
+
+## II.3 — verify-0036 matrix (authored FIRST, the standing method)
+
+| § | Row | Why |
+|---|---|---|
+| A | Catalog: both tables' shape + CASCADE FKs (activity AND version), zero policies + zero client grants + RLS forced, `job_name`/`purge_unrolled_destroyed`/`timezone` columns present, all new fns service-role-only (0009), boundary helper exists | II.2 |
+| B | No-student-identifier columns on either rollup table (`information_schema` — 0026 §B extended, the erosion fails loudly) | R1 |
+| C | Timezone trigger: invalid zone REFUSED with the named-column message; valid zone accepted; NULL accepted | II.2.1 |
+| D | Day keys at real offsets: 01:00 UTC / Chicago owner → PREVIOUS day; 10:00 UTC / Auckland owner → SAME NZ day; unset timezone → Chicago default | D6 |
+| E | Roll liveness (P3, rollback): seeded checks roll into BOTH tables; `rolled_through` stamped ≤ `now() - 5 min` (the lag, asserted); ledger row `job_name='analytics'` carries it | D3/D5 |
+| F | Idempotence: a second run in the same state changes nothing (delete-then-insert per day) | II.2.4 |
+| G | Split-day: checks in ONE owner-zone day rolled across TWO watermark advances → final rows equal a single full-day recompute | finding 6 |
+| H | Analytics v2 `*_all` = rolled + raw with no double-count across the boundary (fixture sum equality) | R3 |
+| I | `*_latest` byte-identical before/after a roll; per-key `students` equals the latest-grounded count (D8 semantics pinned) | F1/R12 |
+| J | `rebuild_check_rollup` ≡ incremental (byte-compare both tables) — **including after a `write_version_census` re-census** (item-grain re-attribution) | R7/D4 |
+| K | Purge v4: runs to completion with unrolled rows present (never blocked), writes the `job_name='purge'` ledger row with the count, NOTICE prefix intact | F3/finding 4 |
+| L | Job guard: an invalid zone FORCED into `users.timezone` (superuser bypass of the trigger) does NOT abort the run — that activity falls back to the default and the ledger row still lands | 0022 class |
+| M | The panel's job object ignores purge rows (newest-row read filtered to `job_name='analytics'`) | II.1.2 |
+| **N** | **Zone-change self-heal end to end (D2-II, the review's P1 fix — P3 liveness): roll under zone A, change the zone (trigger stamps the flag), run the job → in-horizon history re-days under zone B, the flag clears, and a boundary-hour check is counted EXACTLY once across both tables** | D2-II |
+| **O2** | Flag integrity: a CLIENT write to `rollup_rebuild_needed` is REFUSED (OV-4); the compare-and-clear leaves the flag standing when the zone changed mid-rebuild (OV-3) | D7-II |
+| **P2** | Horizon clamp: a no-arg rebuild does NOT touch a rolled day older than the horizon (frozen row byte-identical after); an explicit deep `p_from` returns the WARNING in its result jsonb (OV-1) | D5-II |
+| **Q2** | §D gains a Chicago DST-transition day (spring-forward, 23-hour day): day keys contiguous, no gap or double-count across the transition (OV-9b) | OV-9b |
+| **R2** | Reconciliation pair on the ledger row: seeded drift (a raw row inserted below the watermark, bypassing the roll) is REPORTED as a discrepancy, not silently absorbed (OV-6) | OV-6 |
+| — | verify-0035 §A flip is a LIVE-STATE assertion, not a prosrc grep (D4-II): `no analytics_job_runs row carries rolled_through with job_name <> 'analytics'` — catches foreign writers (a writer mimicking `job_name='analytics'` passes it; the grants surface in §A/C is what refuses that class) | P11 |
+| — | One RTL assertion pins the panel's R12 disclosure sentence (the app's only change) | D4-II |
+| — | verify-0035 re-run green under the flipped row; verify-0026 §C3 still green against analytics v2 (regression pins — the runner runs both anyway; the pin is they stay green) | P5/P9 |
+
+## II.4 — failure modes (delta over Part I's table)
+
+| Codepath | Failure | Handling / visibility |
+|---|---|---|
+| Roll step | Invalid zone reaches the job | Trigger blocks the write path; job guard degrades one activity to the default zone; §C + §L |
+| Roll step | Day double-rolled across split runs | Full-day recompute + delete-then-insert; §F/§G |
+| Roll step | Boundary drift between roll and read | One helper (II.2.5); §H |
+| Purge row | Masks analytics job health on the panel | `job_name` filter; §M |
+| Watermark | Purge rows interleave with analytics rows | Purge rows leave it NULL; the prune's not-null read (0035, already verified) skips them |
+| First run | Rolls everything ever (backfill) | Designed — it IS the backfill; trivially empty today |
+| Zone change | Boundary-hour checks double-count across old/new day keys | D2-II flag + nightly self-heal rebuild; §N proves the heal; window ≤ one nightly run |
+| Rebuild | Single transaction grows with history | Batch-before-arming comment (same discipline as the prune's array note); years of headroom at plausible scale |
+
+## II.5 — implementation tasks (Part II)
+
+**U1** verify-0036.sql (matrix first, runner-registered same commit) · **U2** migration
+`0036_check_rollup.sql` (II.2.1–.8 + the P5 supersession header) · **U3** verify-0035 §A flip
+(same commit as U2) · **U4** ActivityAnalytics disclosure sentence + its RTL pin · **U5**
+docs: TODOS arming-arc entry advances (built → awaiting-arming) **and gains two named lines
+(OV-5/OV-7): the daily-trend surface as the `students_all` columns' future reader, and the
+teacher timezone control (bundled with the display-name control — same users-self-edit
+family; until it ships, non-author teachers get the default zone's day keys)**; STATE;
+DECISIONS delta; retention-policy UNCHANGED (the prune is still disarmed — policy changes at
+arming, not before) · **U6** pending-author block: apply 0036 → verify live → push; plus the
+OPTIONAL cron-hour call (II.1.3, honest version — either hour deprioritizes one cohort;
+`cron.alter_job`, author-run).
+
+Arming itself stays out: after ≥ N green nights of ledger rows + Q10's answer, the author flips
+the cron per §4. Nothing in this arc deletes a row.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 (this doc) | CLEAR (SCOPE_REDUCED) | 8 issues (D2–D9), 11 outside-voice findings; frame pivoted at D10; 0 critical gaps open |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | Not warranted | No pixel changes in this slice |
+| Eng Review (Part I) | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (SCOPE_REDUCED) | 8 issues (D2–D9), 11 outside-voice findings; frame pivoted at D10; 0 critical gaps open |
+| Eng Review (Part II) | `/plan-eng-review` | The arming-arc build plan (§II.1–II.5) | 1 | CLEAR (AMENDED) | Part I live re-check clean (no record-vs-reality drift); 3 section issues (D2-II self-heal P1, D3-II default-zone home, D4-II three test pins); 9 outside-voice findings — OV-1 SEVERE (post-arming rebuild would collapse `*_all` history → D5-II horizon-clamp + freeze), OV-2 (totals re-spec, also feeds P1's orphan table → D6-II), OV-3/4 flag integrity, OV-5 tracked-debt columns, OV-6 reconciliation instrument, OV-7 timezone-surface TODOS line, OV-8 cron-claim corrected, OV-9a–d build details. All folded into II.1–II.5. |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | Not warranted (re-affirmed Part II) | One disclosure sentence; no new pixel |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
-- **CROSS-MODEL:** The outside voice (Claude subagent, fresh context) overturned the review's own
-  D2 ruling — "build the rollup now" fell to "the invariant is rollup-before-ARMING"; the user
-  accepted the simpler frame (D10) and the D11 watermark-column synthesis made its ordering
-  invariant schema-encoded. Findings 3, 4, 6, 8, 9, 11 folded as recorded constraints for the
-  arming arc; finding 10 (R12 timing) resolved by the pivot itself (no code change needed).
-- **VERDICT:** ENG CLEARED (scope-reduced to prune-only-disarmed) — ready to implement T1–T6.
+- **CROSS-MODEL:** Part I's outside voice overturned the review's own D2 ruling (frame pivot →
+  D10/D11, schema-encoded arming gate — shipped as 0035). Part II's outside voice (fresh
+  subagent) then caught the review's OWN new ruling contradicting the armed prune (OV-1: the
+  D2-II self-heal rebuild vs pruned raw rows) — resolved by D5-II's horizon-clamp + frozen
+  history, which also bounds the self-heal's nightly cost. Two reviews, two overturns of
+  same-day rulings: the outside voice keeps paying for itself.
+- **VERDICT:** ENG CLEARED (Part II amended in place) — ready to implement U1–U6. Arming itself
+  remains outside this arc (§4 checklist: counsel Q10 + N green nights, author-run).
 
 NO UNRESOLVED DECISIONS

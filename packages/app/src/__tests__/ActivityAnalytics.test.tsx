@@ -91,6 +91,21 @@ describe('ActivityAnalytics', () => {
         expect(screen.getByText('67%')).toBeTruthy();
     });
 
+    // 0036 (R12/D8): the Students column counts LATEST attempts only, so the
+    // panel must say so. The number alone is ambiguous — a teacher reading it
+    // beside "all attempts" would reasonably assume it spans every attempt.
+    // Pinned because it is the arc's ONE user-visible change and a copy
+    // refactor could drop it silently.
+    it('discloses that Students is grounded in the latest attempt', async () => {
+        h.result.current = { data: payload, error: null };
+        renderPanel();
+
+        await waitFor(() => expect(screen.getByText('fill in blank')).toBeTruthy());
+        expect(
+            screen.getByText(/Students.*counts each student whose latest attempt reaches/i),
+        ).toBeTruthy();
+    });
+
     it('shows totals and the maintenance-job line', async () => {
         h.result.current = { data: payload, error: null };
         renderPanel();

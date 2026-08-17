@@ -213,7 +213,8 @@ export default function ActivityAnalytics() {
                                 Students re-check as often as they like, so &ldquo;all
                                 attempts&rdquo; counts a question each time it was checked.
                                 &ldquo;Latest&rdquo; counts each student&rsquo;s most recent
-                                attempt once.
+                                attempt once. &ldquo;Students&rdquo; counts each student
+                                whose latest attempt reaches that question.
                             </p>
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-[34rem] border-collapse text-sm">

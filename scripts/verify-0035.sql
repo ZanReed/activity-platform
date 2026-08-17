@@ -28,8 +28,12 @@
 --        H  the queue's row set is byte-identical across the prune (the D7
 --           equivalence pin: pruning touched nothing any reader reads);
 --        I  get_activity_analytics: *_latest sums and totals.students are
---           unchanged; *_all drops by EXACTLY the pruned verdicts (the honest
---           statement of what pruning destroys — F2);
+--           unchanged — and, FLIPPED at 0036 (P5), so is *_all. Pre-0036 this
+--           row asserted the honest LOSS (*_all down by exactly the pruned
+--           verdicts, because raw rows were the only record). The fixture is
+--           now ROLLED before the prune, so the durable aggregate carries
+--           those verdicts and the delta is ZERO. That flip is the arming
+--           arc's promise, asserted where the loss used to be;
 --        J  record_check still derives max+1 over the surviving rows (the
 --           latest row is never pruned, so numbering has no gap at the top).
 
@@ -50,9 +54,11 @@ select 'rolled_through_column_nullable',
        (select is_nullable = 'YES' from information_schema.columns
          where table_name = 'analytics_job_runs' and column_name = 'rolled_through'),
        'D11: ships nullable so the gate below can exist before the rollup does';
-select 'rolled_through_never_written',
-       not exists (select 1 from analytics_job_runs where rolled_through is not null),
-       'THE D11 assertion: only the future rollup step may write this. If this row goes red, the arming arc has landed and this expectation moves to ITS verify script — flip it there, do not delete it (P5)';
+select 'rolled_through_analytics_only',
+       not exists (select 1 from analytics_job_runs
+                    where rolled_through is not null
+                      and job_name <> 'analytics'),
+       'FLIPPED at 0036 exactly as the original row instructed (P5): the arming arc landed, the rollup writes the watermark nightly, and the live assertion is now SCOPING — analytics rows only. The pre-0036 form ("never written") lives on as verify-0036 §C''s liveness rows';
 select 'prune_fn_dry_run_default',
        (select pg_get_function_arguments(oid) ilike '%default true%'
           from pg_proc where proname = 'prune_section_checks'),
@@ -185,6 +191,12 @@ begin
             jsonb_build_array(jsonb_build_object('criterionId', v_crit, 'earned', 3)),
             'Good reasoning.');
 
+  -- 0036: ROLL the fixture before measuring. Without this, §I would seed a
+  -- watermark (below) while nothing was ever rolled — a state production
+  -- cannot reach, since the job that stamps the watermark does the rolling in
+  -- the same transaction. Rolling here makes §I measure the real thing.
+  perform run_analytics_maintenance();
+
   -- Baselines: analytics + the queue's row set, BEFORE any prune.
   v_before := get_activity_analytics(v_activity);
   select array_agg(q.check_id order by q.check_id)
@@ -192,6 +204,12 @@ begin
     from list_grading_queue(v_activity) q;
 
   -- ---- (G) the D11 gate: ARMED, NULL watermark ⇒ inert --------------------
+  -- FLIPPED at 0036 (P5): live now carries a nightly watermark, so the gate's
+  -- precondition no longer exists in the wild. It is RECONSTRUCTED here (we
+  -- are inside the EXPECTED-ROLLBACK transaction — durable-write-free) so the
+  -- D11 regression pin keeps running at full strength: an armed prune against
+  -- a NULL watermark must still refuse everything.
+  delete from analytics_job_runs where rolled_through is not null;
   v_res := prune_section_checks(p_dry_run => false);
   if (v_res->>'deleted')::int <> 0 or (v_res->>'candidates')::int <> 0 then
     raise exception 'FAIL D11 gate: armed prune with NULL watermark acted (%)', v_res;
@@ -279,9 +297,16 @@ begin
   or (v_before->'keys'->0->>'correct_latest') is distinct from (v_after->'keys'->0->>'correct_latest') then
     raise exception 'FAIL F1: the latest family changed across the prune';
   end if;
-  if (v_before->'keys'->0->>'verdicts_all')::int - (v_after->'keys'->0->>'verdicts_all')::int <> 3 then
-    raise exception 'FAIL F2 honesty: verdicts_all delta=% (want exactly the 3 pruned verdicts)',
-      (v_before->'keys'->0->>'verdicts_all')::int - (v_after->'keys'->0->>'verdicts_all')::int;
+  -- FLIPPED at 0036 (P5), and this is the arc's whole point. Pre-0036 this
+  -- row asserted the honest LOSS: *_all fell by exactly the pruned verdicts,
+  -- because raw rows were the only record. Now the fixture is rolled first,
+  -- so the durable aggregate carries those verdicts and *_all is UNCHANGED
+  -- across the prune. The rollup earning this delta of zero is the reason the
+  -- arming arc exists.
+  if (v_before->'keys'->0->>'verdicts_all')::int
+     is distinct from (v_after->'keys'->0->>'verdicts_all')::int then
+    raise exception 'FAIL rollup protection: verdicts_all moved across the prune (% → %) — the rolled aggregate should have carried the pruned verdicts',
+      v_before->'keys'->0->>'verdicts_all', v_after->'keys'->0->>'verdicts_all';
   end if;
 
   -- ---- (J) record_check numbering: max+1 over survivors -------------------
