@@ -254,21 +254,46 @@ re-pointed.
 ruled tension T2, TODO ask 1). Full rulings: the S4 section of
 `~/.gstack/projects/ZanReed-activity-platform/user-main-design-20260728-components-as-data.md`.
 
-## The check-rollup ARMING arc — build the rollup, then arm the (already-shipped) prune
+## The check-rollup ARMING arc — ✅ ROLLUP BUILT (0036); only the ARMING FLIP remains
 
-**What:** Migration 0035 (2026-08-16) shipped the `section_checks` prune DISARMED with a
-schema-encoded gate: `prune_section_checks` refuses every row until `analytics_job_runs.rolled_through`
-is non-NULL, and NOTHING writes that column until this arc builds the rollup. Arming the prune
-early is therefore mechanically inert, not just forbidden (ruling D11). This arc builds the
-durable analytics rollup, backfills it, lets the watermark advance for N green nights, and only
-then arms the prune (the author flips the cron command to `prune_section_checks(false)`).
+**⚡ STATUS 2026-08-16 (late): the build half is DONE and committed.** Migration **0036** ships the
+two rollup tables, `users.timezone` + the IANA-validating guard trigger, `run_analytics_maintenance`
+v2 (sweep → self-heal → roll → stamp + reconciliation pair), `rebuild_check_rollup`,
+`purge_soft_deleted` v4, and `get_activity_analytics` v2. verify-0036 is **20/20**; the full local
+suite is **145/2** (the 2 are the documented fresh-DB seeded-data preconditions). **Everything
+below the checklist is now HISTORY of how it was ruled — the live work is the checklist alone.**
 
-**Trigger:** real check growth on the `analytics_job_runs.section_check_rows` ledger (still 0 as
-of 2026-08-16 — 11 runs, all zero). No date; read the ledger.
+⚠ **THE GATE'S CHARACTER CHANGED, and this is the one thing a future session must not misread.**
+0035's gate was mechanical: nothing wrote `rolled_through`, so arming was inert. **0036 writes it
+nightly.** The prune is now held disarmed by exactly two things — **it is not scheduled**, and its
+**`p_dry_run` default is true**. Scheduling `prune_section_checks(false)` now DELETES ROWS. The
+inert-by-construction era is over; from here the checklist is the only guard.
 
-**THE RULINGS ARE MADE — inherit, do not re-derive** (eng review 2026-08-16, D2–D12 + an outside
-voice that overturned the build-now frame; full trail in
-[check-retention-and-rollup.md](docs/design/check-retention-and-rollup.md) §5):
+**What remains:** apply 0036 live → watch the ledger for N green nights → work the arming
+checklist below → the author flips the cron command to `prune_section_checks(false)`.
+
+**Trigger for ARMING:** real check growth on the `analytics_job_runs.section_check_rows` ledger
+(still 0 as of 2026-08-16 — 11 runs, all zero). No date; read the ledger. Building the rollup
+early was the author's deliberate call (momentum + every ruling fresh); arming has no such
+argument and waits for real data.
+
+**Two tracked follow-ons this arc deliberately did NOT build (P1 tracked-debt form, OV-5/OV-7):**
+- **The daily-trend surface** is the production reader for `check_rollup_daily.students` and
+  `check_item_rollup_daily.students_all`. Those columns ship with no reader today and are kept
+  anyway because per-day distinct students is the ONE figure that cannot be recomputed
+  retroactively once pruning runs. **No RPC may ever offer their SUM** (uniques don't compose;
+  `hll` is unavailable on Supabase, checked 2026-08-16).
+- **A teacher timezone control.** `users.timezone` has no editing surface, so every teacher but
+  the author (set by 0036's email-keyed UPDATE) gets the `America/Chicago` default baked into
+  their rolled day keys. Bundle it with the deferred **"how your name appears to students"**
+  control — same `users` self-edit family, same tiny RLS-covered write. ⚠ Ordering matters: a
+  zone correction after arming can only re-day the in-horizon window (older days are frozen),
+  so the control is worth more BEFORE a second teacher accumulates history.
+
+**THE RULINGS BELOW ARE ALL BUILT INTO 0036** (eng review 2026-08-16 Part I D2–D12, Part II
+D2-II–D7-II + OV-1..9; full trail in
+[check-retention-and-rollup.md](docs/design/check-retention-and-rollup.md) §5 + §II). Kept as the
+record of WHY the schema looks like it does — read them before changing it, not before building it:
 - **Item grain, two single-grain tables** (`check_rollup_daily` per version/day: checks, students;
   `check_item_rollup_daily` per version/day/item: verdict counts, students). `census_key` resolved
   at READ time via `activity_version_items` so a re-census re-attributes rolled history. FKs
@@ -302,22 +327,31 @@ voice that overturned the build-now frame; full trail in
   flow family only, and `get_activity_analytics` v2 reads rolled + raw across a single-sourced
   `>=`/`<` boundary.
 
-**The arming checklist** (also in 0035's header): rollup built per the above → backfilled →
-watermark advancing for ≥ N green nights (read the ledger, not the registration — P3) → verify-0035
-re-run plus this arc's own matrix → **counsel packet Q10 answered** (n=1 aggregates; asked
-2026-08-16) → horizon re-checked → cron flipped.
+**THE ARMING CHECKLIST — the live work** (also in 0035's header):
+1. ✅ rollup built (0036, committed 2026-08-16) · 2. ⏭ **0036 applied live** (pending author) ·
+3. ⏭ backfill — no separate step: **the first nightly run after 0036 IS the backfill** (it rolls
+everything below the watermark; trivially empty at 0 checks) · 4. ⏭ watermark advancing for **≥ N
+green nights, read off `analytics_job_runs` rows, not the cron registration (P3)**, with the
+**reconciliation pair not drifting between runs** (`checks_below_watermark` vs
+`rolled_checks_total` — movement is the signal, not the absolute) · 5. ⏭ verify-0035 + verify-0036
+re-run live · 6. ⏭ **counsel packet Q10 answered** (n=1 aggregates surviving a purge; asked
+2026-08-16) · 7. ⏭ `PRUNE_HORIZON` re-checked against real split-day lag · 8. ⏭ **cron flipped to
+`prune_section_checks(false)`** — the first genuinely destructive act in this whole arc.
 
-**P5 debt this arc owes:** 0026:106 ("nothing prunes section_checks today") and 0022's header
-become FALSE at arming — applied migrations are immutable, so this arc's migration header must
-name and supersede both claims. Also flip verify-0035 §A's `rolled_through_never_written` row to
-this arc's own expectations (the row is designed to go red when the rollup lands).
+**✅ P5 debt — DISCHARGED by 0036**, where each retired guard said to discharge it: 0036's header
+names and supersedes 0026:106 and 0022's header (applied migrations are immutable, so the
+supersession is recorded rather than edited); verify-0035 §A's `rolled_through_never_written`
+became a **scoping** assertion (`rolled_through` on `job_name='analytics'` rows only); and
+verify-0035 §I **inverted** — the fixture is now rolled before the prune, so `*_all` is UNCHANGED
+across it. That delta of zero, asserted where the honest loss used to be, is the arc's promise.
 
-**Depends on:** 0035 applied (shipped, pending author apply as of 2026-08-16); real classroom
-traffic to validate the shape against — the one thing the 2026-08-16 review could not have.
+**Depends on (for ARMING):** 0036 applied live; real classroom traffic — the one thing neither
+2026-08-16 review could have, and the reason step 8 waits.
 
 **Where to start:** [check-retention-and-rollup.md](docs/design/check-retention-and-rollup.md)
-(§4 checklist, §5 rulings), then 0035's header, then `scripts/verify-0035.sql` §C for the fixture
-idiom this arc's matrix extends.
+(§4 checklist, §5 + §II rulings), then **0036's header** (its "design tension carried visibly"
+block explains the horizon clamp — the single most important invariant to not break), then
+`scripts/verify-0036.sql` §C for the fixture idiom.
 
 **Context:** the original entry (2026-08-01, S4 review) waited months on the attempts-vs-latest
 ruling; teacher-grading G2 ruled it 2026-08-15, the 2026-08-16 eng review ruled the rollup's shape,
