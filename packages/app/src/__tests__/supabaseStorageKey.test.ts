@@ -21,9 +21,13 @@ import { createClient } from '@supabase/supabase-js';
 import {
     supabaseStorageKey,
     fakeSession,
+    E2E_SUPABASE_URL,
 } from '../../e2e/helpers/studentSession';
 
-const URL_UNDER_TEST = 'http://127.0.0.1:54321';
+// The harness's own origin, imported — the derived key is port-independent
+// (it is the first host label), so this assertion is unaffected by the
+// 2026-08-18 port move and would have caught it if it were not.
+const URL_UNDER_TEST = E2E_SUPABASE_URL;
 const USER_ID = 'dddddddd-0000-4000-8000-00000000e2e1';
 
 describe('supabaseStorageKey', () => {

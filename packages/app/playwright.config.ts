@@ -1,4 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+import { STUB_LANE_SUPABASE_URL } from './e2e/helpers/e2eOrigins';
+import { LOCAL_ANON_KEY, LOCAL_SUPABASE_URL } from './e2e/integration/contract';
 
 // ============================================================================
 // Playwright config — the editor interaction harness (slice-6 stage 0).
@@ -34,7 +36,11 @@ const BASE_URL = `http://localhost:${PORT}`;
 // iteration on the 200+ existing specs is unchanged.
 const STUDENT_PORT = String(Number(PORT) + 1);
 const STUDENT_BASE_URL = `http://localhost:${STUDENT_PORT}`;
-const STUDENT_SUPABASE_URL = 'http://127.0.0.1:54321';
+// IMPORTED, never retyped (P2). The stub lanes' Supabase origin must be an
+// address NOTHING listens on — see e2e/helpers/e2eOrigins.ts for why, and for
+// the 2026-08-18 collision with the integration lane's real stack that this
+// separation ended.
+const STUDENT_SUPABASE_URL = STUB_LANE_SUPABASE_URL;
 
 // The service-worker lane (S6 V9) runs against a PRODUCTION BUILD served by
 // `vite preview`, because the worker only exists there. vite-plugin-pwa's own
@@ -68,11 +74,18 @@ const INTEGRATION_REQUESTED =
     process.env.E2E_INTEGRATION === '1';
 const INTEGRATION_PORT = String(Number(PORT) + 3);
 const INTEGRATION_BASE_URL = `http://localhost:${INTEGRATION_PORT}`;
-// The demo key is a fixed CLI constant; the lane's preflight VERIFIES it
-// against `supabase status` and names the fix if the stack uses a custom
-// secret (e2e/integration/stack.ts).
-const LOCAL_DEMO_ANON_KEY =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+// Its URL and anon key are IMPORTED from e2e/integration/contract.ts (see the
+// webServer entry at the bottom of this file), never retyped here. They were
+// duplicated until 2026-08-18, which quietly made stack.ts's own preflight
+// message — "update LOCAL_ANON_KEY in e2e/integration/contract.ts to match" —
+// advice that would have fixed only half the problem. contract.ts is this
+// lane's one identity source by ruling D10; the config honors that now instead
+// of shadowing it. (The demo key is a fixed CLI constant, and that preflight
+// verifies it against `supabase status` on every run.)
+//
+// ⚠ AND NOTE WHAT THIS ORIGIN IS NOT. The integration lane's stack is the one
+// thing that must be REACHABLE; the stub lanes above need theirs to be DEAD.
+// They shared an address until 2026-08-18 — see e2e/helpers/e2eOrigins.ts.
 
 export default defineConfig({
     testDir: './e2e',
@@ -217,8 +230,8 @@ export default defineConfig({
                       reuseExistingServer: false,
                       timeout: 120_000,
                       env: {
-                          VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
-                          VITE_SUPABASE_ANON_KEY: LOCAL_DEMO_ANON_KEY,
+                          VITE_SUPABASE_URL: LOCAL_SUPABASE_URL,
+                          VITE_SUPABASE_ANON_KEY: LOCAL_ANON_KEY,
                           VITE_DISTRICT_HINT: '',
                       },
                   },

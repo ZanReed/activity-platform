@@ -23,6 +23,7 @@ import {
   viewerKeys,
 } from '../helpers/studentSession';
 import { startDisposablePreview } from '../helpers/disposablePreview';
+import { assertStubOriginIsDead } from '../helpers/e2eOrigins';
 
 /** Wait until a worker is installed AND controlling this page. */
 async function waitForController(page: Page): Promise<void> {
@@ -134,6 +135,28 @@ test.describe('the generated worker', () => {
 // on the first run, in the setOffline era.)
 // ---------------------------------------------------------------------------
 test.describe('offline reopen (real server stop, D-9)', () => {
+  // THE UNSTATED PRECONDITION, NOW STATED (2026-08-18). Killing the preview
+  // server only takes down the page's own origin. What makes the app's API
+  // calls fail is that NOTHING LISTENS on the Supabase origin the bundle was
+  // built against — the comment inside the first row has always asserted this
+  // ("where nothing listens"), but nothing checked it.
+  //
+  // It stopped being true the moment a developer ran `supabase start`, because
+  // the stub lanes and the integration lane shared port 54321. Kong then
+  // answered with a real 401 ("Expected 3 parts in JWT; got 1" — the harness's
+  // fake token is deliberately not a JWT), the viewer classified it as
+  // `unauthenticated`, and both rows below died on a 20-second locator timeout
+  // pointing at an offline banner that was never going to render. CI never saw
+  // it: no stack runs there.
+  //
+  // The origins are separated now (e2e/helpers/e2eOrigins.ts), so this should
+  // hold by construction. It is checked anyway: a port can be squatted, and
+  // the cost of learning that from a timeout instead of a sentence is an
+  // afternoon.
+  test.beforeAll(async () => {
+    await assertStubOriginIsDead();
+  });
+
   test('a student who lost the network still gets their worksheet', async ({
     page,
     context,

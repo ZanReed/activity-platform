@@ -9,13 +9,14 @@
 import { test, expect } from '@playwright/test';
 import {
   E2E_STUDENT_ID,
+  E2E_SUPABASE_URL,
   signInAs,
   stubIdentityApi,
   joinUrl,
 } from '../helpers/studentSession';
 import { SIGN_IN_FAILED_COPY, JOIN_ERROR_COPY, LANDING_COPY } from '../../src/lib/authMessages';
 
-const SUPABASE_URL = 'http://127.0.0.1:54321';
+const SUPABASE_URL = E2E_SUPABASE_URL;
 const CODE = 'QX7M2P';
 
 test.describe('role-branched Home (B12/E-4)', () => {

@@ -52,10 +52,20 @@ jobs:
       # every signed-in spec lands on the sign-in screen and times out. These
       # are the same pinned values playwright.config.ts gives the local preview
       # build; they are e2e-only and this artifact is never deployed.
+      #
+      # ⚠ THE PORT IS LOAD-BEARING AND MUST STAY DEAD. The sw lane's offline
+      # rows prove their behavior by getting a real connection refusal from
+      # this origin, so it must be an address nothing listens on. It used to be
+      # 54321 — the Supabase CLI's own API port — which meant those rows passed
+      # in CI only because no stack runs here, and failed on any developer
+      # machine with `supabase start` up. Full story, and the one home this
+      # value is defined in: packages/app/e2e/helpers/e2eOrigins.ts.
+      # scripts/tests/e2e-origins.test.mjs fails the build if this line and
+      # that constant drift apart.
       - name: Build
         run: pnpm build
         env:
-          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_URL: http://127.0.0.1:54399
           VITE_SUPABASE_ANON_KEY: e2e-anon-key
 
       # The S8 size gates. Deterministic by construction — the same commit

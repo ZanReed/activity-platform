@@ -25,6 +25,7 @@
 // =============================================================================
 
 import type { Page, Route } from '@playwright/test';
+import { STUB_LANE_SUPABASE_URL } from './e2eOrigins';
 import { CHECK_WIRE_VERSION } from '@activity/viewer';
 import { CHECK_ACTIVITY_FUNCTION } from '../../src/lib/edgeFunctions';
 import { servedFixtureDocument } from '@activity/viewer/fixtures';
@@ -103,8 +104,11 @@ export async function signOutCompletely(page: Page): Promise<void> {
   });
 }
 
-/** Must match packages/app/playwright.config.ts's pinned webServer env. */
-export const E2E_SUPABASE_URL = 'http://127.0.0.1:54321';
+/** The pinned webServer env, IMPORTED rather than "must match" in a comment
+ *  (P2 — the comment this replaces was a promise nothing enforced). Why the
+ *  origin has to be unreachable, and what happened when it stopped being:
+ *  e2e/helpers/e2eOrigins.ts. */
+export const E2E_SUPABASE_URL = STUB_LANE_SUPABASE_URL;
 
 export interface CheckOutcome {
   /** Verdict per item id; anything omitted comes back 'correct'. */
