@@ -1,7 +1,8 @@
 # Declarative per-function deploy flags (eng-review ruling A2/P6, 2026-08-06).
 #
 # WHY THIS FILE EXISTS: whether a student can reach their first screen depends
-# on `verify_jwt` being FALSE for the three anonymous functions below. Until
+# on `verify_jwt` being FALSE for `get-activity` — the one anonymous function
+# left (it was three until S9 Drop 3; see the paragraph below). Until
 # 2026-08-06 that decision lived ONLY in package.json's deploy scripts — any
 # deploy by another route (raw `supabase functions deploy`, dashboard, CI)
 # silently re-enabled the platform's JWT gate and 401'd anonymous requests in a

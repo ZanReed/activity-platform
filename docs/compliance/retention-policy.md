@@ -1,7 +1,7 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-16-draft-5`. Windows below are the author-ruled S1 defaults
+> Version `2026-08-17-draft-6`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
@@ -16,6 +16,16 @@
 > each row below now states its real mechanism or is flagged "mechanism not
 > yet built"). It also records that the purge job is LIVE: pg_cron registered
 > 2026-08-05, first fire observed and verified the same day.
+>
+> `draft-6` (2026-08-17) adds the row counsel question Q10 is actually about:
+> **de-identified daily aggregates** (migration 0036) that OUTLIVE the checks
+> they summarize, hold no student identifiers, and are not recomputed when a
+> student's account is purged — including the honest statement that a row
+> reading `students = 1` describes one identifiable student's day. It also
+> **corrects draft-5's claim that the prune is "mechanically inert"**: that was
+> true only while nothing wrote the rollup watermark, and 0036's nightly job
+> began writing it on 2026-08-18. The prune is still disarmed, but by
+> operational means (unscheduled + dry-run default), not by a schema gate.
 >
 > `draft-5` (2026-08-16) records the DISARMED check-prune mechanism (migration
 > 0035 — see Mechanics; it deletes nothing until a rollup exists, by a schema
@@ -42,6 +52,7 @@
 | Student account (`users` + `auth.users`) | **400 days of dormancy**, and never before the account's work is gone — see the rulings below | last active class membership ends (removed or class deleted); for a student who never joined one, account creation | purge job deletes the `auth.users` row; `public.users`, `class_members`, and `section_checks` fall via CASCADE behind it |
 | Account explicitly deleted (admin action or an on-request deletion) | **30 days** | `users.deleted_at` is set | same purge path; this is the only thing that sets that column |
 | `ip_hash` + `user_agent` on submissions | **CLOSED — the data no longer exists** | — | the anonymous wire and its data were deleted whole at the S9 cutover (migration 0029, 2026-08-14): every `submissions` row was wiped (17 rows, all the author's test artifacts — 6 carried an `ip_hash`), the ingest path was dropped, and nothing can write new rows. No scrub job is needed for a field with zero rows and no writer |
+| **De-identified daily aggregates** (`check_rollup_daily`, `check_item_rollup_daily` — per-day counts of checks, verdicts, and distinct students per question) | **the life of the activity** — they OUTLIVE the individual checks they summarize | first written the night after a student checks | `purge_soft_deleted` removes them via CASCADE when the activity is purged (30 days after the teacher soft-deletes it). ⚠ **Two properties counsel should read together, and they are the subject of question Q10:** these tables hold **no student identifiers** — no id, name, or email, only counts, asserted against `information_schema` by `scripts/verify-0036.sql` §B so the property cannot erode silently. But a count is not always anonymous: **a row reading `students = 1` describes one identifiable student's day**, and it is **not recomputed or removed when that student's account is purged** (a distinct-student count cannot be decremented without storing the identifiers these tables deliberately refuse to hold). Access is teacher-scoped to their own activity via `can_read_activity`, so the aggregate exposes nothing the teacher cannot already see live |
 | `audit_log` | **2 years** | row creation | scheduled purge |
 | Teacher account + activities | account lifetime | — | soft-delete flow (0008), purge after 30 days (existing) |
 | Class row incl. 13+ assertion record | **at least** 400 days after deletion (the assertion should outlive the work it covered) | class deletion | **mechanism not yet built** — nothing purges class rows today, so they are retained indefinitely. Conservative for a compliance record (it names the teacher and the attestation, not students), but the window above is an intent, not a behavior |
@@ -87,14 +98,22 @@ membership history, which is exactly what the dormancy derivation looks for.
 - **A DISARMED prune mechanism exists (migration 0035, 2026-08-16) and deletes
   nothing.** `prune_section_checks` can remove a student's *superseded* check
   attempts (never the latest per section, never a teacher-graded one) as a
-  space measure — but it is dry-run by default, and mechanically inert even if
-  armed: it refuses every row until a durable analytics rollup exists and
-  advances a watermark, which none does today. Before it is ever armed, the
-  counsel question Q10 (counsel-review-packet.md — do surviving aggregates
-  over a class of one constitute retained student data?) must be answered, and
-  this document gains a row for what pruning deletes and keeps. Until then the
-  student-data reality is unchanged: nothing deletes a check except the
-  activity-deletion and account-purge paths in the table above.
+  space measure — but **it is not scheduled, and it is dry-run by default**, so
+  no code path in production deletes a check attempt.
+  ⚠ **Corrected at draft-6:** through 0035 this bullet could say the prune was
+  *mechanically* inert, because it refused every row until a durable rollup
+  advanced a watermark and nothing wrote one. **Migration 0036 (2026-08-17)
+  builds that rollup, and the nightly job began advancing the watermark on
+  2026-08-18.** The mechanical bar is therefore gone; what holds the prune
+  disarmed now is operational — it is not on any schedule, and a bare call
+  cannot delete. Arming it is a deliberate act gated on an eight-step
+  checklist (TODOS.md) whose sixth step is **counsel question Q10**
+  (counsel-review-packet.md — do surviving aggregates over a class of one
+  constitute retained student data?). **The student-data reality is unchanged
+  either way: nothing deletes a check except the activity-deletion and
+  account-purge paths in the table above.** What DID change on 2026-08-18 is
+  that de-identified daily aggregates began accumulating — see their row in
+  the table, which is the artifact Q10 is actually about.
 - **The RESTRICT safety net is partial — know which half you are in** (verified
   against the live schema 2026-08-04). `submissions.student_id` is ON DELETE
   RESTRICT, so deleting a `users` row out of order fails loudly, as draft-1

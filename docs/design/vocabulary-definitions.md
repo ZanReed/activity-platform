@@ -1,5 +1,14 @@
 # Vocabulary definitions — Phase 2 design
 
+> ⚠ **ANNOTATION (drift audit 2026-08-17).** "Reaches a page on its next re-publish" describes a
+> world that ended at S9: **`publish-activity` was deleted** (publish is now a direct
+> `publish_activity` RPC) and **published HTML pages no longer exist at all** — students open the
+> viewer at `/a/:id`. The definition mark itself is live and reaches students through the viewer's
+> React block registry, not a runtime sidecar; `runtime/definitions.ts` died with
+> `packages/renderer` at S9 Drop 4. The **data-attribute contract** the rationale below relies on
+> is likewise a renderer-era concept. The feature is shipped and working; the delivery mechanism
+> described is historical.
+
 **Status:** SHIPPED 2026-06-19; `publish-activity` redeployed 2026-07-06, so it reaches a page on its next re-publish. The inline feature is live in `packages/schema` (`DefinitionMark`), the renderer, the runtime sidecar (`runtime/definitions.ts`), and the editor. **The shipped shape is richer than the Stage-9c sketch below:** a definition carries `content` (rich text + inline math, via the shared `InlineRichTextEditor`) + an optional `image` ({src, alt}), not a bare `definition: string` — see the schema's `DefinitionMark` and STATE.md. The rest of this doc keeps the original rationale (why a mark, the data-attribute contract, the tenant-scoped Phase 4 glossary, auto-suggest) — still accurate. Phase 4 (glossary store + implicit reuse + auto-suggest) remains future work.
 
 See ROADMAP.md "Phase 2 — Polish the loop" for the user-visible framing and "Phase 4 — Multi-tenancy" for the glossary extension.

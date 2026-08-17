@@ -1,5 +1,13 @@
 # Math blanks — fill-in-the-blank *inside* an equation — design
 
+> ⚠ **ANNOTATION (drift audit 2026-08-17), two things.** (1) The deploy steps this line names —
+> **`upload:graph-kit`** (with its committed manifest) and **`deploy:publish`** — no longer exist:
+> the R2 upload scripts and their manifest target died at S9 Drop 4 / D-13, and `publish-activity`
+> was deleted at S9 Drop 1. The kit now builds from the workspace into an app-bundled lazy chunk,
+> so no upload step exists for a kit change. (2) **The trailing "No code yet." contradicts this
+> line's own "DEPLOYED + PUSHED"** — it is a leftover from the DESIGN-ONLY draft (2026-07-14) that
+> survived the ship edit. Model B shipped; read "No code yet" as dead text.
+
 **Status:** DEPLOYED + PUSHED (Model B, 2026-07-19). T1–T8 shipped: `upload:graph-kit` (manifest committed) → `deploy:publish` author-run, arc pushed. Only the owner J1b eyeball remains — see "Eng review resolution" → T8. (Was ENG-CLEARED buildable 2026-07-19 via `/plan-eng-review` + Claude outside-voice; DESIGN ONLY 2026-07-14. Model A = in-equation MathLive prompts stays a separate deferred arc.) Scope: **Model B (`answerType:'math'`) + the blank-discoverability signifier this arc; Model A (in-equation MathLive prompts) DEFERRED to its own review** (re-sequenced after the outside voice caught a real grading-model hole; matches design D1). Decisions + task list in "Eng review resolution" at the bottom. No code yet. Prompted by the author ask: *"math blocks could contain blanks which contain math blocks."*
 
 ## The ask, reframed

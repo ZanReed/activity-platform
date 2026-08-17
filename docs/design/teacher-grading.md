@@ -1,9 +1,11 @@
 # Teacher grading bound to `section_checks` — the S4 deferral comes due
 
-**Status: BUILT + LIVE-VERIFIED (T1–T6). Migration 0034 applied 2026-08-16;
-`verify:auth --target live` 116/0, with an independent posture re-check and a
-rolled-back liveness proof of the rewritten purge. ⚠ The UI is not yet pushed,
-so the surface is live server-side and undeployed client-side.** Successor to
+**Status:** ✅ **SHIPPED — server and client both live.** T1–T6 built, migration 0034 applied
+2026-08-16, `verify:auth --target live` 116/0 (147/0 as of 0036) with an independent posture
+re-check and a rolled-back liveness proof of the rewritten purge; **pushed and CI-green the same
+day**, so the teacher surface is deployed. *(Drift audit 2026-08-17 retired this line's "the UI is
+not yet pushed" warning — that was true for a few hours on 2026-08-16.)* ⚠ **Still unexercised by
+reality: 0 checks and 0 grades live**, so no student has ever been graded on it. Successor to
 Phase 2.6 ([manual-grading.md](manual-grading.md), whose surface was demolished
 at S9 Drop 3) and owner of the S4 deferral recorded in
 [TODOS.md](../../TODOS.md) → "Teacher grading bound to `section_checks`".

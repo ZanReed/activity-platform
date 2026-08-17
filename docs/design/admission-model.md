@@ -1,8 +1,16 @@
 # Admission model — Google-only self-serve with a pending role (ENG-REVIEWED 2026-08-15)
 
-**Status: ENG REVIEW CLEAR — build-ready. The ruled architecture is §5b (R1–R11);
-it SUPERSEDES the morning's A1/A2/D-list where they conflict.** The arc of the
-day, kept for the record: the author challenged S1's mandatory domain gate →
+**Status:** ✅ **SHIPPED AND LIVE** (T1–T7; migration 0033 applied 2026-08-15). The ruled
+architecture is §5b (R1–R11); it SUPERSEDES the morning's A1/A2/D-list where they conflict.
+**The join-code half was driven end to end by a human on 2026-08-16** — a second, distinct Google
+account joined class `7NE9M2` as a student, tool-confirmed (`users` 0 → 1 student, 1 active
+member, no `pending` residue). **⚠ Two doors remain unexercised live:** the `student_domain` fast
+path (Gate 4 — deliberately last, needs a real district domain; never seed a consumer domain) and
+`claim_teacher`, which has never promoted a stranger. **⚠ The D24 counsel read is still OWED** and
+the teacher self-serve door it was meant to gate is already open by author-accepted risk — see
+STATE and `docs/compliance/counsel-review-packet.md`. *(Status line corrected by the drift audit
+2026-08-17; it still read "ENG REVIEW CLEAR — build-ready" two days after shipping.)*
+The arc of the day, kept for the record: the author challenged S1's mandatory domain gate →
 option C ruled → A1 (email+password + class code) and A2 (self-serve
 attestation) ruled → the eng review's outside voice exposed A1's real cost
 (Supabase's built-in mail cannot survive one classroom; the password path armed

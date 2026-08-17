@@ -1,6 +1,20 @@
-# Check pruning (disarmed) + the rollup deferred to arming
+# Check pruning + the durable analytics rollup
 
-**Status:** ENG-REVIEWED 2026-08-16 (D2–D12 ruled interactively; report at end). Build next.
+**Status:** ✅ **SHIPPED — both halves live.** Part I = migration **0035** (the disarmed prune +
+the schema-encoded arming gate), applied live 2026-08-16, `verify:auth --target live` 127/0.
+Part II = migration **0036** (the durable rollup + the self-healing timezone layer), applied live
+2026-08-17, live 147/0, `verify-0036` 20/20. **What is NOT done is ARMING the prune** — an
+eight-step checklist owned by [TODOS.md](../../TODOS.md) ("The check-rollup ARMING arc"), blocking
+on counsel question Q10 and N green nights of a non-drifting reconciliation pair.
+
+⚠ **As-built delta — read this before citing anything below.** Part I's frame (§1–§7, and the D10
+pivot note immediately following) argued for shipping the prune ALONE and deferring the rollup to
+arming. **That deferral lasted one day:** the author pulled the arming arc forward the same
+evening, and Part II (§II) designed and shipped the rollup. Part I's reasoning is preserved
+because it is why the *gate* exists, not because the rollup is still deferred. **The single most
+important consequence, and the thing most likely to be misread: 0035's gate was mechanical
+(nothing wrote the watermark), and 0036 writes it nightly — so the prune is now held disarmed only
+by being unscheduled and dry-run-by-default.** See §II and the prohibition in CLAUDE.md.
 **THE FRAME PIVOTED AT REVIEW (D10):** the draft ruled "build the full rollup now, prune disarmed"
 (D2). The outside voice showed the real invariant is *rollup before ARMING*, not *rollup before
 first check* — while the prune is disarmed, a rollup is rebuildable from raw rows at any time, so
@@ -205,8 +219,9 @@ action. Nothing here needs a deploy ordering rule — no function or UI calls th
 
 # PART II — the arming-arc BUILD PLAN (2026-08-16, same day; author pulled the trigger forward)
 
-**Status:** PLAN — awaiting `/plan-eng-review` Part II pass. Part I is SHIPPED (0035 live,
-127/0, CI-green).
+**Status:** ✅ **SHIPPED as migration 0036** — applied live 2026-08-17, `verify:auth --target live`
+147/0, `verify-0036` 20/20, CI-green (31999243137). Eng review CLEAR-AMENDED (D2-II–D7-II +
+OV-1..9, all folded into §II.1–II.5 below). Arming remains outside this arc.
 **The trigger override, on the record:** the arc's recorded trigger was "real check growth on
 the ledger" (still 0). The author chose to build now — with every §5 ruling fresh and
 `rebuild_check_rollup` keeping the shape reversible, the momentum argument beats the wait. **The

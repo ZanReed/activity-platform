@@ -76,7 +76,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **Timing calibration — RECALIBRATED 2026-08-14 (the gate-9 re-measure, done by the rule).** `TIMING_TARGET_MS` = medians of the 5 post-cutover green runs (pre-auth **992**, worksheet **1135**, math-rendered **1812**; `9b78496`); the 2× ceiling and delta warning derive from these. Recalibrate only by the same rule — median of ≥5 green runs, never local darwin, never a single run. (Both ledgers archived: 08-07/09 in HISTORY, post-cutover above.)
 
-**Suite (tool-verified 2026-08-15, after the grading slice):** schema 340 / graph-kit 384 / **viewer 1139** / **app 1077** unit, plus **38 budget-script tests**, the print e2e lane, and the editor/student/sw/perf/**a11y** e2e lanes (the four CI lanes run **73** rows — a11y is 11 with the Responses-tab axe row; the local-only integration lane is 8). Typecheck + lint clean (0 errors); all 12 perf budgets pass (entry **177.6**/185 KiB gz — +1.3 for the released-feedback card, priced per the gate-9 ledger rule). Treat the tools' printed numbers as truth, not this line.
+**Suite (tool-verified 2026-08-17, after 0036):** schema 340 / graph-kit 384 / **viewer 1139** / **app 1078** unit, plus **38 script tests**, the print e2e lane, and the editor/student/sw/perf/**a11y** e2e lanes (the four CI lanes run **73** rows — a11y is 11 with the Responses-tab axe row; the local-only integration lane is 8). Typecheck + lint clean (0 errors); all **12 perf budgets pass**. ⚠ **This line does NOT pin the bundle sizes any more** (drift audit 2026-08-17: three different entry-chunk numbers were in circulation across two STATE rows). **`node scripts/check-perf-budget.mjs` prints the real numbers and its caps live in `scripts/perf-budgets.mjs` with their reasoning** — read those, never a doc's copy. Same for test counts: `pnpm test`.
 
 **Editor open remainders (deferred, pre-rewrite arcs; roughly priority-ordered):**
 1. **Focus mode** — needs a caret-tracking ProseMirror plugin; off-by-default, wants its own design+eng pass.
@@ -111,7 +111,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 | Cloudflare R2 hosting | ⚰️ Code-side DEAD; bucket + upload scripts await the teardown station |
 | Auth (Google OAuth teacher allowlist + student SSO) / React app / editor stack | ✅ In place |
 | CI (typecheck/lint/test/build + **2** bundle-drift guards + **12 perf budgets + 38 script tests** + print gates + perf/sw/student/**a11y** lane job) | ✅ **GREEN and CLEAN — run 31999243137 (the 0036 slice), 73 passed / 0 flaky.** **20** consecutive green runs, tool-counted (last failure 31787010974). Nothing is unpushed; the newest run covers HEAD |
-| Student bundle (S8) | ✅ Entry chunk = the student shell, **176.3 KiB gz** (cap 185; +0.6 for T7's pre-auth landing, priced per the gate-9 ledger rule); heavy libs lazy and content-pinned out of the shell |
+| Student bundle (S8) | ✅ Entry chunk = the student shell; heavy libs lazy and content-pinned out of the shell. **Size is NOT pinned here — run `node scripts/check-perf-budget.mjs`** (caps + reasoning in `scripts/perf-budgets.mjs`). ⚠ **Headroom is thin: ~96% of the 185 KiB gz cap as of 2026-08-17.** The next shell-touching feature hits it — either schedule the 168→150 work (TODOS) or re-baseline deliberately, per DECISIONS' "a budget that can only ever loosen is a fossil" |
 
 ## Repo layout
 
