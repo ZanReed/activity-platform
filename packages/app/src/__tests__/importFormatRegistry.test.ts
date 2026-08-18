@@ -149,6 +149,21 @@ describe('registry ↔ converter (behavioral)', () => {
                 expect(result.warnings).toEqual([]);
                 return;
             }
+            // The meta fence contributes NO blocks anywhere — not even inside
+            // a mark. Its example must land every key it names in
+            // ImportResult.meta, and must leave the body untouched.
+            if (f.meta) {
+                const result = convert(fence(f.tag, f.example));
+                expect(result.blocks).toEqual([]);
+                expect(result.referencePanel).toBeUndefined();
+                expect(
+                    result.meta,
+                    `${f.tag} example produced no ImportResult.meta`,
+                ).toBeDefined();
+                expect(Object.keys(result.meta ?? {}).length).toBeGreaterThan(0);
+                expect(result.warnings).toEqual([]);
+                return;
+            }
             const result = convert(fence(f.tag, f.example));
             // A panel fence routes its blocks to the referencePanel side
             // channel (and contributes nothing to the body).

@@ -43,6 +43,7 @@ interface ImportMarkdownDialogProps {
     onImport: (
         blocks: JSONContent[],
         referencePanel?: ImportResult['referencePanel'],
+        meta?: ImportResult['meta'],
     ) => void;
 }
 
@@ -91,11 +92,15 @@ export default function ImportMarkdownDialog({
     // ```reference fence content — panel blocks, not body blocks. A paste can
     // be panel-only (a formula sheet by itself), so it counts toward import.
     const referenceCount = result?.referencePanel?.blocks.length ?? 0;
-    const canImport = blockCount > 0 || referenceCount > 0;
+    // A ```meta fence alone is a legitimate paste: filing an existing activity
+    // by pasting its metadata is a real (if minor) use, and refusing it would
+    // make the Import button look broken for input the parser understood.
+    const hasMeta = result?.meta !== undefined;
+    const canImport = blockCount > 0 || referenceCount > 0 || hasMeta;
 
     const handleImport = () => {
         if (!result || !canImport) return;
-        onImport(result.blocks, result.referencePanel);
+        onImport(result.blocks, result.referencePanel, result.meta);
         onClose();
     };
 

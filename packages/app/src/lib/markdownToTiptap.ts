@@ -56,6 +56,8 @@ import {
 import { toCurveDomain } from './graphDomain';
 import { parseNumberLineInterval } from '../editor/numberLineFormula';
 import { parseBlankSpec } from './blankSyntax';
+import { normalizeTags } from './normalizeTags';
+import { asPedagogicalRole, type PedagogicalRole } from './pedagogicalRole';
 
 // Minimal structural view of a markdown-it token — only the fields the mapper
 // reads. Defined locally (rather than importing markdown-it's Token type) so
@@ -89,10 +91,37 @@ export interface ImportResult {
     // the paste had no reference fence. Multiple fences accumulate; the first
     // authored title wins (the caller only applies it to an untitled panel).
     referencePanel?: { title?: string; blocks: JSONContent[] };
+    // Activity-level metadata authored via a ```meta fence — the taxonomy arc's
+    // Drop 2. A THIRD kind of side channel: like ```definitions it contributes
+    // no blocks anywhere, and unlike ```reference it does not even carry
+    // content — it describes the activity rather than filling it.
+    //
+    // Absent when the paste had no meta fence. The caller applies these
+    // NEVER-CLOBBER (ruling D16): a key lands only where the activity has no
+    // value yet, and anything skipped is reported back as a warning so the
+    // author is never silently ignored. Tags are the exception — they union,
+    // because adding a tag can't destroy one.
+    meta?: ImportedMeta;
     // Deduplicated, human-readable notes about anything that degraded (a code
     // fence flattened to text, a link's URL dropped, etc.). The dialog surfaces
     // these so the teacher knows what to fix by hand.
     warnings: string[];
+}
+
+/**
+ * What a ```meta fence can carry. Every field optional: a fence naming only
+ * `tags:` is valid and common.
+ *
+ * course/unit are DOCUMENT fields (they reach the activities row at publish,
+ * stamped by publish_activity); tags/pedagogicalRole are ROW-native. The fence
+ * deliberately hides that split — an author writing markdown should not have to
+ * know which storage layer a label lives in. See docs/design/activity-taxonomy.md.
+ */
+export interface ImportedMeta {
+    course?: string;
+    unit?: string;
+    tags?: string[];
+    pedagogicalRole?: PedagogicalRole;
 }
 
 export type MarkdownImporter = (markdown: string) => ImportResult;
@@ -352,6 +381,9 @@ interface Ctx {
     // reference in the body resolves regardless of whether the fence sits above
     // or below it. See parseDefinitionsFence.
     definitions: Map<string, DefinitionBlock[]>;
+    // Activity metadata from a ```meta fence, filled in the same PRE-PASS as
+    // definitions. Undefined until a fence supplies something.
+    meta?: ImportedMeta;
 }
 
 function tokensToBlocks(tokens: MdToken[], spans: MathSpan[]): ImportResult {
@@ -365,10 +397,14 @@ function tokensToBlocks(tokens: MdToken[], spans: MathSpan[]): ImportResult {
     // block, so [[term]] resolves in either direction. Scanning markdown-it's
     // TOKENS (not the raw source) means fence detection is exactly what the
     // real parse will do — no second, divergent fence regex.
+    // The ```meta fence rides the SAME pre-pass, for a different reason than
+    // definitions: metadata describes the whole activity, so it must not depend
+    // on where in the paste the author happened to put the fence.
     for (const token of tokens) {
-        if (token.type === 'fence' && (token.info ?? '').trim() === 'definitions') {
-            parseDefinitionsFence(token.content, ctx);
-        }
+        const info = (token.info ?? '').trim();
+        if (token.type !== 'fence') continue;
+        if (info === 'definitions') parseDefinitionsFence(token.content, ctx);
+        else if (info === 'meta') parseMetaFence(token.content, ctx);
     }
     const blocks = mapBlocks(nest(tokens), ctx);
     const result: ImportResult = { blocks, warnings: [...ctx.warnings] };
@@ -377,6 +413,7 @@ function tokensToBlocks(tokens: MdToken[], spans: MathSpan[]): ImportResult {
             ? { title: ctx.refPanelTitle, blocks: ctx.refPanelBlocks }
             : { blocks: ctx.refPanelBlocks };
     }
+    if (ctx.meta) result.meta = ctx.meta;
     return result;
 }
 
@@ -495,6 +532,15 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 return ctx.definitions.size > 0
                     ? []
                     : [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'meta') {
+                // Already consumed by the pre-pass in tokensToBlocks. The
+                // PUREST side channel in this file: it contributes no body
+                // blocks, no panel blocks, and no mark content — it describes
+                // the activity. Degrade to plain text only when nothing parsed
+                // at all, so a malformed fence stays visible to the teacher
+                // instead of vanishing (the ```definitions precedent).
+                return ctx.meta ? [] : [rawTextParagraph(node.token.content)];
             }
             if ((node.token.info ?? '').trim() === 'reference') {
                 // Side channel: the fence's blocks land in ctx.refPanelBlocks
@@ -1960,6 +2006,79 @@ function parseReferenceFence(src: string, ctx: Ctx): boolean {
 // Parsed in a PRE-PASS over the token list (collectDefinitionFences), before any
 // body block is mapped, so a [[term]] reference resolves no matter whether it
 // appears above or below the fence.
+// The ```meta fence — activity-level metadata (taxonomy arc Drop 2).
+//
+// Plain `key: value` lines, no nesting, no runs — deliberately the simplest
+// grammar in this file, because it is the one an AI writes on EVERY paste and
+// the one a teacher is most likely to hand-edit:
+//
+//     ```meta
+//     course: Algebra I
+//     unit: Quadratics
+//     tags: factoring, vertex form, word problems
+//     role: lesson
+//     ```
+//
+// Tags normalize through normalizeTags — the SAME function the drawer's chip
+// input uses, which is the whole point of that function existing (R5). A second
+// normalization here would fragment the vocabulary between the two write paths
+// the arc created, which is exactly the failure the single-function rule exists
+// to prevent.
+//
+// Unknown keys warn rather than fail: the fence is metadata, and a typo'd key
+// must never cost the author the body content in the same paste.
+function parseMetaFence(src: string, ctx: Ctx): void {
+    const meta: ImportedMeta = ctx.meta ?? {};
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (line === '') continue;
+        const m = /^([A-Za-z_]+)\s*:\s*(.*)$/.exec(line);
+        if (!m) {
+            ctx.warnings.add(
+                `Meta: “${line}” isn’t a \`key: value\` line and was skipped.`,
+            );
+            continue;
+        }
+        const key = (m[1] ?? '').toLowerCase();
+        const value = (m[2] ?? '').trim();
+        if (value === '') {
+            ctx.warnings.add(`Meta: “${key}:” had no value and was skipped.`);
+            continue;
+        }
+        switch (key) {
+            case 'course':
+                meta.course = value;
+                break;
+            case 'unit':
+                meta.unit = value;
+                break;
+            case 'tags': {
+                const tags = normalizeTags(value.split(','));
+                // Accumulate across fences and across repeated tags: lines,
+                // matching how ```reference blocks append rather than replace.
+                if (tags.length > 0) {
+                    meta.tags = normalizeTags([...(meta.tags ?? []), ...tags]);
+                }
+                break;
+            }
+            case 'role': {
+                const role = asPedagogicalRole(value.toLowerCase());
+                if (role) meta.pedagogicalRole = role;
+                else
+                    ctx.warnings.add(
+                        `Meta: role “${value}” isn’t one of lesson, review or practice — it was skipped.`,
+                    );
+                break;
+            }
+            default:
+                ctx.warnings.add(
+                    `Meta: “${key}” isn’t a recognized key (course, unit, tags, role) and was skipped.`,
+                );
+        }
+    }
+    if (Object.keys(meta).length > 0) ctx.meta = meta;
+}
+
 function parseDefinitionsFence(src: string, ctx: Ctx): void {
     // Split on a line that is exactly `---`. (markdown-it never sees these —
     // they are inside a fence — so there is no thematic-break ambiguity.)

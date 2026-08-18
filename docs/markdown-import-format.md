@@ -42,6 +42,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```essay ` fenced block | a **graded essay** question (word-count target + rubric optional; see below) |
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
 | a ` ```callout ` fenced block | a **tinted note box** — info / warning / success / note (see below) |
+| a ` ```meta ` fenced block | the activity's **metadata** — course, unit, tags, Bank role — not a body block (see below) |
 | a ` ```reference ` fenced block | the activity's **reference panel** (formula sheet students summon; prints at the top) — not a body block (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
@@ -381,13 +382,33 @@ REFERENCE SHEET (a `reference` fence fills the activity's reference panel)
 - Use at most one reference fence per activity; a second one adds onto the
   same sheet.
 
+ACTIVITY METADATA (optional, once, anywhere in the reply)
+- A ```meta fence files the activity. Plain `key: value` lines:
+    ```meta
+    course: Algebra I
+    unit: Quadratics
+    tags: factoring, vertex form, word problems
+    role: lesson
+    ```
+- course/unit: where this sits in the year. tags: comma-separated topic
+  labels used to find activities across units — lowercase them or don't,
+  they are normalized either way.
+- role is exactly one of lesson, review, or practice:
+    lesson   = core teaching content
+    review   = spaced retrieval, not day-of-teaching content
+    practice = an as-needed resource shelf
+- Do NOT put role words (lesson/review/practice) in tags — they belong in
+  role. Omit any key you are unsure about; a wrong guess is worse than a
+  missing one, because metadata already set by hand is never overwritten.
+
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  ```columns, ```callout, ```definitions, and ```reference — only the single
+  ```columns, ```callout, ```definitions, ```meta, and ```reference — only the
+  single
   outer block that wraps the whole reply and those fences are allowed;
   anything unsupported imports as plain text.
 
@@ -683,6 +704,52 @@ Find the **[[Slope]]** of the line, then check its [[intercept]].
 - **One entry per term** — a duplicate `term:` warns and keeps the first.
 - **Not here** — columns and callouts are not valid definition content, and a definition can never contain another definition or a question (`{{…}}` stays literal). Blocks outside the allowed set are dropped with a warning.
 - **Printing** — definition pop-ups don't exist on paper. Turn on **⚙ → Print → "Include a glossary of defined words when printing"** to add every defined term as a glossary at the end of the worksheet.
+
+## Activity metadata (```meta fence)
+
+A fenced code block with the `meta` language tag **files** the activity — it says
+what course and unit the activity belongs to, what topics it covers, and what
+role it plays in your sequence. Like ` ```reference `, it contributes **nothing**
+to the worksheet body; unlike every other fence it carries no content at all,
+only labels.
+
+Plain `key: value` lines, one per line:
+
+    ```meta
+    course: Algebra I
+    unit: Quadratics
+    tags: factoring, vertex form, word problems
+    role: lesson
+    ```
+
+| Key | Meaning |
+|---|---|
+| `course` | the course this belongs to (e.g. `Algebra I`). Shown to students. |
+| `unit` | where it sits in the year (e.g. `Quadratics`). Optional. |
+| `tags` | comma-separated topic labels, used to find activities **across** units. Normalized on the way in: lower-cased, trimmed, inner spaces collapsed, duplicates dropped. Accents and macrons are preserved. |
+| `role` | exactly one of `lesson`, `review`, or `practice` — how the activity is used in the sequence. Anything else warns and is skipped. |
+
+- **Nothing is ever overwritten.** A key applies **only where the activity has
+  no value yet**: an unset unit, an unclassified role, a course still on the
+  default. If the paste disagrees with something you already set, your value
+  wins and the import warning tells you what was ignored. This matters because
+  an AI writing to this format will tend to emit a `meta` fence on *every*
+  reply, including when you are only pasting one extra section into a finished
+  activity — that paste must not silently rename your course.
+- **Tags are the exception, and they union.** Imported tags are added to
+  whatever the activity already has; adding a tag can't destroy one, so there is
+  nothing to protect. Nothing is ever removed by an import.
+- **Role words don't belong in tags.** `lesson` / `review` / `practice` go in
+  `role`. A tag named "review" is a different (and worse) thing than the role.
+- **Side channel** — the fence produces no body block, no panel content, and no
+  glossary entry. It may sit anywhere in the document.
+- **Unknown keys warn rather than fail.** A typo'd key is skipped with a
+  message; it never costs you the body content in the same paste.
+- **`role` and *Activity type* are different settings.** `role` is how the
+  activity is used in your sequence (Bank role); *Activity type*
+  (worksheet / exit ticket / warm-up / review) is about **layout**, is set in
+  ⚙ → Settings, and is not importable. Both offer a "review" — they mean
+  different things.
 
 ## Reference sheet (```reference fence)
 

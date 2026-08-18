@@ -46,6 +46,11 @@ export interface FenceSpec {
     // `probeTerm` and looks for blockType inside that mark's content.
     definitions?: boolean;
     probeTerm?: string;
+    // True for the ```meta fence, a FOURTH kind of side channel: it produces
+    // no blocks ANYWHERE (not even inside a mark, unlike ```definitions) —
+    // it describes the activity rather than filling it, landing in
+    // ImportResult.meta. The guard probes that object instead of the document.
+    meta?: boolean;
 }
 
 // An inline fill-in-the-blank modifier — the `{{…}}` grammar.
@@ -174,6 +179,18 @@ export const FENCES: FenceSpec[] = [
             'term: Slope\nSteepness of a line — rise over run.\n$$m = \\frac{y_2 - y_1}{x_2 - x_1}$$',
         definitions: true,
         probeTerm: 'Slope',
+    },
+    {
+        tag: 'meta',
+        // No block type: the fence contributes nothing to the document. The
+        // field is required by FenceSpec, so it names the ImportResult key the
+        // guard probes instead.
+        blockType: 'meta',
+        summary:
+            'activity metadata — course, unit, tags and Bank role — as plain `key: value` lines; applied only where the activity has no value yet, so a paste never overwrites metadata you set by hand',
+        example:
+            'course: Algebra I\nunit: Quadratics\ntags: factoring, vertex form\nrole: lesson',
+        meta: true,
     },
 ];
 

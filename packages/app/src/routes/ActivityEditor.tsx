@@ -56,6 +56,8 @@ import {
 } from '../components/ActivityConfigDrawer';
 import { collectTagVocabulary, normalizeTags } from '../lib/normalizeTags';
 import { activityChangeKey } from '../lib/activityChangeKey';
+import { applyImportedMeta } from '../lib/applyImportedMeta';
+import type { ImportedMeta } from '../lib/markdownToTiptap';
 import {
     asPedagogicalRole,
     type PedagogicalRole,
@@ -166,6 +168,10 @@ export default function ActivityEditor() {
     // once alongside the activity; a stale-by-one-session list is fine (it only
     // drives suggestions), and refetching per keystroke would be absurd.
     const [tagVocabulary, setTagVocabulary] = useState<readonly string[]>([]);
+    // What a ```meta fence import declined to overwrite. Surfaced under the
+    // header after an import so the author learns their value won rather than
+    // wondering why the paste "did nothing"; cleared on the next import.
+    const [metaImportNotes, setMetaImportNotes] = useState<string[]>([]);
     // Activity-level calculator config (scaffold sibling to the panel). Undefined
     // when the activity has no calculator; folded into changeKey + the save.
     const [calculator, setCalculator] = useState<CalculatorTool | undefined>(
@@ -388,6 +394,7 @@ export default function ActivityEditor() {
         (
             importedBlocks: JSONContent[],
             referencePanel?: { title?: string; blocks: JSONContent[] },
+            importedMeta?: ImportedMeta,
         ) => {
             if (editorInstance && importedBlocks.length > 0) {
                 if (editorInstance.isEmpty) {
@@ -437,8 +444,27 @@ export default function ActivityEditor() {
                     setPanelTitle(referencePanel.title);
                 }
             }
+            // ```meta fence (Drop 2). NEVER-CLOBBER per ruling D16: applied
+            // only where the activity has no value yet, with tags unioning.
+            // The merge rule itself lives in lib/applyImportedMeta.ts so it is
+            // testable away from this callback; anything it skipped comes back
+            // as a warning the teacher sees, so a paste is never silently
+            // overruled OR silently ignored.
+            if (importedMeta && meta) {
+                const outcome = applyImportedMeta(importedMeta, {
+                    meta,
+                    tags,
+                    pedagogicalRole,
+                });
+                if (outcome.changed) {
+                    setMeta(outcome.meta);
+                    setTags(outcome.tags);
+                    setPedagogicalRole(outcome.pedagogicalRole);
+                }
+                setMetaImportNotes(outcome.warnings);
+            }
         },
-        [editorInstance, panelJson, panelTitle],
+        [editorInstance, panelJson, panelTitle, meta, tags, pedagogicalRole],
     );
 
     // Stable fingerprint of the whole document (body + meta). Null until the
@@ -696,6 +722,30 @@ export default function ActivityEditor() {
                         : null
                 }
                 />
+
+                {/* What a ```meta import declined to overwrite (D16). Without
+                    this the never-clobber rule would read as "the paste didn't
+                    work" — the whole point is that the author's own value won,
+                    which is only reassuring if they can see it happen. */}
+                {metaImportNotes.length > 0 && (
+                    <div
+                    role="status"
+                    className="mt-2 rounded-md border border-line bg-surface-2 px-3 py-2 text-xs text-muted"
+                    >
+                    <ul className="space-y-1">
+                    {metaImportNotes.map((note) => (
+                        <li key={note}>{note}</li>
+                    ))}
+                    </ul>
+                    <button
+                    type="button"
+                    onClick={() => setMetaImportNotes([])}
+                    className="mt-1.5 font-medium underline underline-offset-2 transition hover:text-ink"
+                    >
+                    Dismiss
+                    </button>
+                    </div>
+                )}
                 </div>
             )}
             {status === 'error' && (
