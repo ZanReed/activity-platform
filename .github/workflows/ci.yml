@@ -22,6 +22,9 @@ jobs:
   check:
     name: typecheck · lint · test · build · bundle
     runs-on: ubuntu-latest
+    # Measured 2m11s-2m25s across green runs; 15 is ~6x headroom. See the
+    # note on print-gates below for why every job carries a bound.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -151,6 +154,16 @@ jobs:
   print-gates:
     name: print gates (rules · pagination · answer key · baselines)
     runs-on: ubuntu-latest
+    # ⚠ GENERALIZED FROM perf-gates 2026-08-18, THE DAY THIS JOB PROVED IT.
+    # Eng review D22 (2026-08-06) bounded perf-gates because "without a bound, a
+    # hung preview server burns free-tier minutes silently until GitHub's 6-HOUR
+    # default kills it." That reasoning was never job-specific, but the bound was
+    # applied to one job and not the other three — and on 2026-08-18 THIS job hung
+    # on `playwright install chromium` for over 90 minutes with nothing to kill it.
+    # A ruling about a failure mode belongs on every job that can hit it.
+    # Measured 1m59s-4m9s across green runs; 20 covers a slow Chromium download
+    # without covering a hang.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -280,6 +293,8 @@ jobs:
     name: generate print baselines (manual)
     if: github.event_name == 'workflow_dispatch' && inputs.update_print_baselines
     runs-on: ubuntu-latest
+    # Same bound as print-gates: same browser install, same hazard.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
