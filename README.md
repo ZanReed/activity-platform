@@ -74,6 +74,31 @@ Single-package commands work too:
 pnpm --filter @activity/schema test
 ```
 
+## Repo layout
+
+Moved here from STATE.md at the 2026-08-18 drift audit: this is durable
+orientation, and STATE is a snapshot that gets replaced every session — a tree
+living there rots quietly between rewrites.
+
+```
+activity-platform/
+├── docs/
+│   ├── design/        — feature designs captured ahead of implementation
+│   ├── DECISIONS.md   — architecture decisions + reasoning
+│   ├── HISTORY.md     — archived completed-work logs
+│   └── COLLABORATION.md — working-with-the-author notes
+├── packages/
+│   ├── schema/        — Zod types, document model, factories, fonts registry
+│   ├── viewer/        — @activity/viewer: block registry + components + sanitize/server + grading engine + fixtures + print layer
+│   ├── graph-kit/     — @activity/graph-kit: shared graphing kit + /scorers + /static-svg pure subpaths
+│   └── app/           — Vite + React 19 + TS + Tailwind v4 + React Router v7 (editor, dashboard, viewer routes, print)
+├── supabase/
+│   ├── migrations/    — numbered SQL migrations (applied set = `supabase migration list`)
+│   └── functions/     — get-activity, check-activity, _shared/ (cors.ts + the generated viewer-server/grading-server bundles)
+├── scripts/           — bundlers (viewer-server/grading-server/graph-kit), verify-* SQL/JS + the verify runner
+└── ...root configs
+```
+
 ## Architecture invariants
 
 Three rules. Violating any of them rots the architecture.

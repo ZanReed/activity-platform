@@ -4,6 +4,53 @@ Archived completed-work narratives, moved out of STATE.md to keep it readable. N
 
 ---
 
+## 2026-08-16 — the live admission proof a session cannot make, archived from STATE at the 2026-08-18 drift audit
+
+*(The author drove the join-code half of the live admission flow end to end in a real
+browser with a second Google account. STATE keeps the one-paragraph result and the list of
+what it does NOT cover, because both still gate what a session may claim; this is the full
+record.)*
+
+**✅ THE ONE PROOF NO SESSION CAN MAKE — COLLECTED 2026-08-16 (author, real browser, second Google account).** The join-code half of the live admission flow has now been driven end to end by a human: a pre-existing teacher account used class `7NE9M2` (created 2026-08-14 — no class was made that day), and a second, distinct Google account joined it as a student. **Tool-read confirmation, not a claim-read:** `users` went 3 teachers / **0 students → 3 teachers / 1 student** (row created `2026-08-16 00:28:27+00`), `7NE9M2` shows **1 active member**, and **no `pending` rows remain** (consistent with promotion completing — `pending` is transient). The class's `expected_domain` is **null** and no `student_domain` row exists, so that account matched **no** fast path. That discharges all three items this block used to name: **the OAuth round trip** (the dashboard redirect allowlist covers the flow), **the trigger admitting a stranger**, and **`retryRole` after promotion**.
+
+**What the collected proof does NOT cover — read this before citing it:**
+- **Gate 4 is untouched.** What ran was `redeem_join_code`. The **`student_domain` fast path has still never executed live** — no seed, no exercise. It stays deliberately last (see its own item below).
+- **`claim_teacher` has never promoted anyone live.** All 3 teacher rows predate the admission slice (newest 2026-07-29), so the "I'm a teacher" self-serve door — the one D24 is actually about — is still unexercised by a stranger.
+- **✅ Confirmed by the author on the same run:** the brief neutral gate card DID appear between "Joining class…" and "You're in ✓", and read as normal loading rather than an error. Expected and correct — `retryRole()` sets `roleStatus='loading'` in the same batch as the success state. The question this closes is not "does it render" but "does a real person misread it as a failure"; they did not. Leave the sequence alone.
+
+*(Repro, if it is ever needed again: `/` → type `7NE9M2` → Continue with Google → expect "You're in ✓" then Algebra 1 on Home.)* Proven around it beforehand, and still valid: verify-0033 10/10, the integration lane through the real trigger, RTL, and the pre-auth half against the LIVE meta endpoint in a real browser (bad code → the DR-6 warning; `7NE9M2` → "Algebra 1" in the title slot).
+
+---
+
+## The components-as-data arc — its framing paragraphs, archived from STATE at the 2026-08-18 drift audit
+
+*(The arc is complete; these two paragraphs were STATE's standing summary of it. The live
+residue — the timing-calibration rule and the suite counts — stayed in STATE.)*
+
+**THE ACTIVE ARC (RULED 2026-07-28; eng + design reviews CLEARED).** Full re-architecture of the student path: live-API viewer SPA + student accounts (district Google SSO) + React component per block (single registry) + server-authoritative grading (answers never reach clients) + hard cutover. **Sequencing (author's explicit call): rewrite first; the August Algebra I release is deliberately delayed.** **Scope amendment (2026-07-28): "there are no old pages to maintain"** — live R2 pages are the author's own tests, so S9 DELETES the anonymous identity/wire machinery instead of preserving it. **Hosting (2026-07-31): Supabase-only backend; the SPA stays on Cloudflare Pages as a deliberately swappable static host.** All rulings: `~/.gstack/projects/ZanReed-activity-platform/user-main-design-20260728-components-as-data.md`; reasoning in [DECISIONS.md](docs/DECISIONS.md).
+
+**Slice ledger + the C1–C15 cutover gates are ARCHIVED in [HISTORY.md](docs/HISTORY.md)** — S0 through S9 plus the Admission and Teacher-grading slices are all closed, and the final gate sweep ran 2026-08-15 against shipped reality (14 closed, 1 standing, gate 4 deliberately deferred to the first classroom). Nothing in that table is a live decision anymore.
+
+---
+
+## 2026-08-17 — the 0036 / arming-arc session close, archived from STATE at the 2026-08-18 drift audit
+
+*(Moved verbatim from STATE.md's "Last updated" block. Its live residue — the rollup's
+ruled design, verify-0035's designed P5 flip, and the arming checklist — already lives in
+STATE's check-prune section and the TODOS arming-arc entry; this is the narrative only.)*
+
+*(Prior entry, 2026-08-17 — 0036 applied live, 147/0, pushed, CI-green at 31999243137.)* **The months-parked pruning/rollup entry went from parked to fully built in one day, across two arcs and two eng reviews.** Morning: re-derivation (P10) → plan → review → **the outside voice overturned the ratified frame** ("build the rollup now" fell to "prune disarmed now, rollup at arming") → 0035 shipped and applied. Evening: the author pulled the arming arc forward, and Part II went plan → review → build → 0036.
+
+**The Part II review caught its OWN new ruling — the pattern worth keeping.** The eng pass ruled a zone-change self-heal (a rolled day's key is frozen, so changing zones double-counts boundary hours). The outside voice then found that the self-heal's rebuild recomputes from RAW rows, which the armed prune deletes: an unclamped rebuild would silently collapse months of `*_all` history. Fix: every recompute path is horizon-clamped to days the prune guarantees raw-complete, older days freeze under their recorded zone, and a deep rebuild is honored with a warning. **Two reviews, two same-day rulings overturned by the outside voice** — it keeps paying for itself.
+
+**Four defects the matrix caught before 0036 could apply, and only one was in the test.** (1) A live bug: the roll passed a bare `array_agg` to a helper where NULL means "all versions", so a quiet night silently recomputed every version in the database — **and that accidental recompute was masking the very drift the reconciliation row exists to observe**. (2) A compile error: `v_versions` already names 0026's census count in the same function. (3+4) Two of my own assertions were wrong rather than the code (`correct_all` arithmetic; a global ledger sum compared against a fixture P2 had deliberately polluted) — the reconciliation row was rewritten to assert a DELTA against a baseline, which is also the honest post-arming reading.
+
+**The P5 flips landed where the retired guards said they would.** verify-0035's `rolled_through_never_written` became a scoping assertion, and its §I **inverted**: the fixture is rolled before the prune, so `*_all` is UNCHANGED across it. That delta of zero, asserted exactly where the honest loss used to be, is the arc's promise made checkable.
+
+**What a future session needs from this arc:** (1) the rollup's design is fully ruled and recorded (plan §5 + the TODOS arming-arc entry) — inherit, don't re-derive; among the rulings is a per-teacher timezone because **the platform now spans the US and New Zealand** (author's own answer — a fact no doc previously recorded). (2) verify-0035 §A's `rolled_through_never_written` row is designed to go red when the arming arc lands — flip it there (P5). (3) The review found two pre-existing drift errors in retention-policy.md (deletion order citing dropped `grades`; stale version header) — both fixed at draft-5. (4) The build's one new mechanical lesson: two ledger rows written in one transaction tie on `ran_at` (transaction-constant `now()` — 0034's graded_at lesson, third sighting), so the watermark read orders by `id desc`.
+
+---
+
 ## 2026-08-16 (late) — teacher-grading session close, archived from STATE at the 0035 session
 
 *(Moved verbatim from STATE.md's "Last updated" block when the 0035 slice replaced it.)*
