@@ -1,8 +1,8 @@
 # Graph-kit board dark-theming
 
 > ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-18).** The dark-theming work is live and
-> correct **in the editor**. Two things below are historical, and one is a LIVE GAP that moved
-> rather than closed.
+> correct. Two things below are historical; a third claim made here on the first pass was WRONG
+> and is retracted immediately below.
 >
 > **Historical:** the delivery mechanism this status line names — **R2-hosted kits** (`NNS6KNUS`,
 > `NXZNIEUK`), the kit manifest, and `upload:graph-kit` — died at S9 Drop 4 and the D-13 teardown
@@ -12,15 +12,17 @@
 > `renderDataPlotSvg` is described below as "a renderer static SVG" — `packages/renderer` is gone;
 > it lives in `packages/graph-kit/src/static-svg/`.
 >
-> ⚠ **LIVE GAP — the sentence "published falls back to light until published-dark ships" is still
-> TRUE, about a different surface.** Published pages died at S9; **the viewer inherited the gap.**
-> Verified 2026-08-18: `--gk-board-axis` / `--gk-board-label` / `--gk-board-ink` are defined in
-> exactly one place, `packages/app/src/editor/editor.css` (editor-scoped). The viewer's
-> `tokens/tokens.css` does dark-theme itself but does **not** define them — so the data-plot SVG
-> the viewer renders (`packages/viewer/src/blocks/DataPlot.tsx` → `renderDataPlotSvg`) falls back
-> to its light hexes on a dark student surface. `INK` is `#1e293b` (slate-800) on the viewer's dark
-> canvas. **Nothing tests it:** the `dark-contrast` e2e lane walks the text/surface/status ladder,
-> not SVG chart internals. Tracked in TODOS.md; the fix is a token decision, not a bug fix.
+> ✅ **AND THE VIEWER IS FINE — a claim in the first version of this annotation was WRONG and is
+> retracted.** It asserted that the sentence below ("published falls back to light until
+> published-dark ships") had become a live gap inherited by the viewer, on the reasoning that
+> `--gk-board-*` is editor-only. Disproved the same day in a real browser: at `/dev/viewer` in
+> dark mode the board draws `#94a3b8` / `#cbd5e1` — the **dark** palette — because on screen the
+> board is drawn by `detectBoardTheme` + `boardColors()`, a JS mechanism that reads the computed
+> `color-scheme` and never touches those custom properties. The SVG that DOES read them is the
+> **print twin**, `display:none` on screen and revealed only for print, where the light fallbacks
+> are the correct values. The editor defines the tokens because the editor shows that same static
+> SVG on screen as the DataPlotView preview. Two surfaces, two mechanisms, both correct. Full
+> evidence and the trap that produced the false claim: TODOS.md, "NOT A GAP — viewer data plots".
 
 Status: ✅ **SHIPPED + DEPLOYED 2026-07-19** (the queued deploy ran same day — kits `NNS6KNUS` then `NXZNIEUK` with the color pass; see [HISTORY.md](../HISTORY.md)).
 The live graph-kit boards (interactive graph, point/system answer, display,

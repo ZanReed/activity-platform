@@ -46,38 +46,47 @@ a plain sweep. Both lanes run with the stack up.
 **Local e2e timing results are not trustworthy under load; CI is the arbiter.** Check `uptime`
 before believing a local e2e failure.
 
-## Viewer data plots render LIGHT structural colors in dark mode (found 2026-08-18)
+## ✅ NOT A GAP — viewer data plots in dark mode (raised and DISPROVED 2026-08-18)
 
-**What:** `--gk-board-axis` / `--gk-board-label` / `--gk-board-ink` are defined in exactly one
-place — `packages/app/src/editor/editor.css`, editor-scoped. The static data-plot SVG
-(`packages/graph-kit/src/static-svg/data-plot-svg.ts`) consumes them with LIGHT hex fallbacks, and
-the viewer's `packages/viewer/src/tokens/tokens.css` — which does dark-theme everything else —
-never defines them. So a student on a dark-themed viewer gets a data plot drawn in light-mode
-colors: `INK` is `#1e293b` (slate-800) on the viewer's dark canvas.
+**Recorded so nobody re-finds it.** A drift-audit pass claimed the viewer renders data plots
+with light structural colors in dark mode, reasoning that `--gk-board-axis/label/ink` are
+defined only in `packages/app/src/editor/editor.css` while the viewer imports
+`renderDataPlotSvg`. **The claim was wrong, and the design is correct.** Disproved in a real
+browser at `/dev/viewer?type=data_plot` with `theme=dark` set BEFORE mount:
 
-**Why it exists:** it is not a regression, it is an INHERITED gap. `graph-kit-board-dark.md` shipped
-with the caveat "published falls back to light until published-dark ships", and the source comment
-in `data-plot-svg.ts` still says "published pages leave them undefined → the light fallback →
-unchanged". Published pages died at S9; the viewer took over the student surface and inherited the
-undefined tokens with it. The sentence stayed true about a surface nobody re-read it against.
+| Observed | Value |
+|---|---|
+| board axis stroke | `#94a3b8` — the **BOARD_DARK** value, not light `#64748b` |
+| board label fill | `#cbd5e1` — the dark value |
+| viewer page background | `#020617` |
+| `[data-print-svg]` display | **`none`** |
 
-**Nothing tests it:** the `dark-contrast` e2e lane walks the text / surface / status-token ladder,
-not SVG chart internals, so this is invisible to every gate.
+**Two mechanisms, and the audit conflated them:**
+1. **On screen, the live board draws** — `detectBoardTheme(container)` reads the computed
+   `color-scheme`, which `packages/app/src/index.css` sets at `:root` (`light dark` /
+   `light` / `dark`), and `boardColors('dark')` supplies a real dark palette. Nothing to do
+   with CSS custom properties. Graphs, number lines and data-plot boards all work this way.
+2. **`renderDataPlotSvg` is the PRINT TWIN** (`blocks/printTwin.tsx`), `display: none` on
+   screen (`viewer.css:914`), revealed only under `@media print` / `[data-viewer-mode='print']`
+   — and print forces `color-scheme: light` (`index.css`, pinned by the "print forces light
+   even for a dark-theme user" row in `dark-contrast.e2e.ts`). So the LIGHT fallback hexes are
+   the *correct* values on the only viewer surface that renders that SVG: paper.
 
-**Why it is recorded and not fixed here:** the fix is a TOKEN DECISION, not a bug fix — someone has
-to choose the viewer's dark values for axis/label/ink (the editor's `light-dark()` pairs are a
-starting point, not automatically right on the viewer's darker canvas) and decide whether the
-`FILL` constant (`#93c5fd`, hard-coded, no token) needs the same treatment. Worth pairing with a
-contrast check, since the whole point is legibility.
+The editor defines the tokens because the editor shows that same static SVG **on screen** as
+the DataPlotView preview — exactly the case `graph-kit-board-dark.md` describes. Two surfaces,
+two mechanisms, both right.
 
-**Where to start:** `packages/viewer/src/tokens/tokens.css` (add the three under the existing dark
-blocks), then re-read `data-plot-svg.ts`'s header comment — it documents the old published-page
-world and should name the viewer instead. Design context:
-[graph-kit-board-dark.md](docs/design/graph-kit-board-dark.md), which now carries the annotation.
+**⚠ The trap that produced the false finding, worth knowing before touching this:** grepping
+"viewer imports renderDataPlotSvg" + "viewer does not define the tokens" looks conclusive and
+is not. **Check whether the element is visible on the surface you are reasoning about.** The
+`data-plot-svg.ts` header comment actively misled here — it still described *published pages*
+(dead since S9) as the surface that leaves the tokens undefined; corrected 2026-08-18 to name
+the viewer's print path instead.
 
-**Scope check before starting:** confirm whether JSXGraph boards (not just the static SVG) have the
-same gap in the viewer — `board.ts` uses `gk-board-*` as CLASS names, which is a different
-mechanism, so this may be static-SVG-only. Not verified.
+**One thing genuinely NOT verified** (small, teacher-only): the teacher print ROUTE renders the
+twin on screen via `[data-viewer-mode='print']`. Whether that route forces a light surface on
+screen for a dark-theme teacher was not tested — only `@media print` was. If someone touches
+the print route, check it; it is a preview-fidelity question, not a student-facing one.
 
 ## Canvas blocks add ~17 keyboard stops — Check sits 76 tabs in (S9 Drop 5 follow-up)
 

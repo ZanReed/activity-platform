@@ -24,11 +24,19 @@ const TICK = 6; // labeled-tick half-height
 const MINOR_TICK = 3;
 
 // Structural colors emitted as CSS custom properties with a LIGHT hex fallback,
-// so the same SVG themes itself from the cascade (docs/design/graph-kit-board-dark.md):
-// the editor defines --gk-board-* (dark) → the data-plot preview goes dark;
-// published pages leave them undefined → the light fallback → unchanged. var()
-// works only in an inline `style` (not a presentation attribute), so the emission
-// sites use style="stroke:…" / style="fill:…". Fallbacks == today's values.
+// so the same SVG themes itself from the cascade (docs/design/graph-kit-board-dark.md).
+// WHO DEFINES THEM, and why the fallback being light is CORRECT rather than a gap
+// (corrected 2026-08-18 — the previous wording named "published pages", dead since
+// S9, and a drift-audit pass misread it into a false bug report):
+//   * THE EDITOR defines --gk-board-* and shows this SVG on screen as the
+//     DataPlotView preview → the preview goes dark with the editor.
+//   * THE VIEWER does NOT define them — deliberately. There, this SVG is the PRINT
+//     TWIN (viewer/src/blocks/printTwin.tsx): display:none on screen, revealed only
+//     for print, where `color-scheme: light` is forced. Light IS the right answer on
+//     paper. The viewer's ON-SCREEN chart is a live board drawn by
+//     detectBoardTheme() + boardColors(), which self-themes and never reads these.
+// var() works only in an inline `style` (not a presentation attribute), so the
+// emission sites use style="stroke:…" / style="fill:…". Fallbacks == today's values.
 const AXIS_COLOR = 'var(--gk-board-axis,#64748b)';
 const LABEL_COLOR = 'var(--gk-board-label,#475569)';
 const INK = 'var(--gk-board-ink,#1e293b)';
