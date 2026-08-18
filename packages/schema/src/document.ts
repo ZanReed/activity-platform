@@ -221,7 +221,15 @@ export type Typography = z.infer<typeof Typography>;
 
 export const ActivityMeta = z.object({
   title: z.string().min(1),
-                                     course: z.string().default('Algebra II'),
+                                     // .min(1): course is stamped into the
+                                     // activities.course column at publish
+                                     // (0037, taxonomy R1) where it is `not
+                                     // null` — a blank course would publish an
+                                     // empty facet into the catalog. The editor
+                                     // falls back to the default rather than
+                                     // ever sending a blank (ActivityEditor
+                                     // save(), same guard title already has).
+                                     course: z.string().min(1).default('Algebra II'),
                                      unit: z.string().optional(),
                                      submissionMode: z.enum(['single', 'locked', 'free']).default('free'),
                                      revisionMode: z.enum(['free', 'locked']).default('free'),

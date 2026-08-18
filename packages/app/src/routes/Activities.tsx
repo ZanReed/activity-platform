@@ -4,12 +4,16 @@ import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
 import { slugify, slugWithSuffix } from '../lib/slug';
+import { collectTagVocabulary } from '../lib/normalizeTags';
 
 interface ActivityRow {
     id: string;
     title: string;
     status: 'draft' | 'published' | 'archived';
     updated_at: string;
+    // Row-native taxonomy (0037). tags drives the filter below; it is the P1
+    // caller for the tags column — the column and its reader ship together.
+    tags: string[] | null;
 }
 
 function formatEdited(iso: string): string {
@@ -53,6 +57,13 @@ export default function Activities() {
     // undoStack holds the still-undoable rows (one toast each); actionError
     // surfaces a failed delete or undo. undoTimers keys each toast's
     // auto-dismiss timeout by activity id so Undo can cancel it.
+    // Tag filter (taxonomy R6 — the P1 caller for the tags column). Multi-select
+    // and AND-combining: picking "factoring" then "word problems" narrows to
+    // activities carrying BOTH, which is how a teacher actually hunts. Purely
+    // client-side over the rows already fetched — the list is one author's own
+    // activities, so there is no query to add and no index to depend on.
+    const [activeTags, setActiveTags] = useState<string[]>([]);
+
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [undoStack, setUndoStack] = useState<ActivityRow[]>([]);
     const [actionError, setActionError] = useState<string | null>(null);
@@ -82,7 +93,7 @@ export default function Activities() {
         (async () => {
             const { data, error } = await supabase
             .from('activities')
-            .select('id, title, status, updated_at')
+            .select('id, title, status, updated_at, tags')
             .is('deleted_at', null) // redundant with RLS, but self-documenting
             .order('updated_at', { ascending: false });
             if (cancelled) return;
@@ -226,6 +237,31 @@ export default function Activities() {
         );
     };
 
+    // Every tag in use, deduped and sorted — the chip row. Derived from the
+    // loaded rows rather than queried separately: the list already holds every
+    // activity this author owns, so a second round trip would only add a way
+    // for the chips and the rows to disagree.
+    const tagVocabulary = collectTagVocabulary(activities);
+
+    const toggleTag = (tag: string) => {
+        setActiveTags((prev) =>
+            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+        );
+    };
+
+    // AND across selected tags: each additional chip narrows.
+    const visibleActivities =
+        activeTags.length === 0
+            ? activities
+            : activities.filter((a) =>
+                activeTags.every((t) => (a.tags ?? []).includes(t)),
+            );
+
+    // A filtered-to-nothing list is a different state from an empty library,
+    // and it needs a different message plus a way back out.
+    const filteredToNothing =
+        activities.length > 0 && visibleActivities.length === 0;
+
     return (
         <main className="min-h-screen bg-surface p-8">
         <div className="mx-auto max-w-2xl">
@@ -247,6 +283,40 @@ export default function Activities() {
             </p>
         )}
 
+        {/* Tag filter. Rendered only when something is actually tagged, so an
+            untagged library shows no empty chrome. */}
+        {tagVocabulary.length > 0 && (
+            <div className="mt-5 flex flex-wrap items-center gap-1.5">
+            {tagVocabulary.map((tag) => {
+                const on = activeTags.includes(tag);
+                return (
+                    <button
+                    key={tag}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleTag(tag)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                        on
+                        ? 'border-ink bg-primary text-white'
+                        : 'border-line bg-canvas text-muted hover:border-line-strong hover:text-ink'
+                    }`}
+                    >
+                    {tag}
+                    </button>
+                );
+            })}
+            {activeTags.length > 0 && (
+                <button
+                type="button"
+                onClick={() => setActiveTags([])}
+                className="ml-1 text-xs font-medium text-muted underline underline-offset-2 transition hover:text-ink"
+                >
+                Clear
+                </button>
+            )}
+            </div>
+        )}
+
         <div className="mt-6">
         {listLoading ? (
             <p className="text-muted">Loading your activities…</p>
@@ -258,9 +328,20 @@ export default function Activities() {
             <p className="text-muted">
             No activities yet. Create your first one to get started.
             </p>
+        ) : filteredToNothing ? (
+            <p className="text-muted">
+            No activities match {activeTags.map((t) => `“${t}”`).join(' + ')}.{' '}
+            <button
+            type="button"
+            onClick={() => setActiveTags([])}
+            className="font-medium underline underline-offset-2 transition hover:text-ink"
+            >
+            Clear the filter
+            </button>
+            </p>
         ) : (
             <ul className="space-y-2">
-            {activities.map((a) => (
+            {visibleActivities.map((a) => (
                 <li
                 key={a.id}
                 className="flex items-center justify-between gap-3 rounded-lg border border-line bg-canvas p-4 shadow-sm transition hover:border-line-strong hover:shadow"

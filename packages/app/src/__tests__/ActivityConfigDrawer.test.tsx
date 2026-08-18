@@ -12,7 +12,7 @@
 // =============================================================================
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { createEmptyDocument, type ActivityMeta } from '@activity/schema';
 import {
@@ -25,6 +25,17 @@ import {
 afterEach(cleanup);
 
 const meta = createEmptyDocument({ title: 'Test' }).meta;
+
+// The row-native taxonomy props (0037). Inert defaults: these existing tests
+// are about meta, so the taxonomy block is scaffolding here — the taxonomy's
+// own behavior is covered in the taxonomy describe block below.
+const inertTaxonomy = {
+    tags: [],
+    onTagsChange: () => {},
+    pedagogicalRole: null,
+    onPedagogicalRoleChange: () => {},
+    tagVocabulary: [],
+};
 
 function renderDrawer(
     active: 'settings' | 'reference' | 'calculator' | null,
@@ -47,6 +58,7 @@ function renderDrawer(
                 onPanelEditorUpdate={() => {}}
                 calculator={undefined}
                 onCalculatorChange={() => {}}
+                taxonomy={inertTaxonomy}
             />
         </MemoryRouter>,
     );
@@ -126,6 +138,7 @@ describe('Settings — typography (meta.typography)', () => {
                     onPanelEditorUpdate={() => {}}
                     calculator={undefined}
                     onCalculatorChange={() => {}}
+                    taxonomy={inertTaxonomy}
                 />
             </MemoryRouter>,
         );
@@ -159,5 +172,148 @@ describe('ConfigButtons', () => {
         expect(
             container.querySelector('[data-config-button="calculator"] .bg-success-accent'),
         ).not.toBeNull();
+    });
+});
+
+// =============================================================================
+// Row-native taxonomy (0037 / taxonomy R1, R4, R7)
+// -----------------------------------------------------------------------------
+// course/unit are DOCUMENT fields (they reach the row at publish, stamped by
+// publish_activity); tags + pedagogical_role are ROW-native and reach the row
+// through the autosave UPDATE. The drawer is where both are authored, so these
+// pin that each control writes to the right channel.
+// =============================================================================
+
+describe('activity taxonomy controls', () => {
+    function renderTaxonomy(
+        overrides: Partial<{
+            metaOverride: ActivityMeta;
+            tags: string[];
+            pedagogicalRole: 'lesson' | 'review' | 'practice' | null;
+            onMetaChange: (m: ActivityMeta) => void;
+            onTagsChange: (t: string[]) => void;
+            onPedagogicalRoleChange: (
+                r: 'lesson' | 'review' | 'practice' | null,
+            ) => void;
+        }> = {},
+    ) {
+        return render(
+            <MemoryRouter>
+                <ConfigDrawer
+                    active="settings"
+                    onClose={() => {}}
+                    meta={overrides.metaOverride ?? meta}
+                    onMetaChange={overrides.onMetaChange ?? (() => {})}
+                    panelEditorKey="test-tax"
+                    panelInitialContent={{
+                        type: 'doc',
+                        content: [{ type: 'paragraph' }],
+                    }}
+                    panelTitle=""
+                    onPanelTitleChange={() => {}}
+                    onPanelEditorUpdate={() => {}}
+                    calculator={undefined}
+                    onCalculatorChange={() => {}}
+                    taxonomy={{
+                        tags: overrides.tags ?? [],
+                        onTagsChange: overrides.onTagsChange ?? (() => {}),
+                        pedagogicalRole: overrides.pedagogicalRole ?? null,
+                        onPedagogicalRoleChange:
+                            overrides.onPedagogicalRoleChange ?? (() => {}),
+                        tagVocabulary: ['factoring', 'graphing'],
+                    }}
+                />
+            </MemoryRouter>,
+        );
+    }
+
+    it('edits course through meta, not the row', () => {
+        let next: ActivityMeta | null = null;
+        const { container } = renderTaxonomy({ onMetaChange: (m) => (next = m) });
+        const course =
+            container.querySelector<HTMLInputElement>('#activity-course')!;
+        expect(course.value).toBe('Algebra II');
+        fireEvent.change(course, { target: { value: 'Geometry' } });
+        expect(next!.course).toBe('Geometry');
+    });
+
+    it('sets unit through meta', () => {
+        let next: ActivityMeta | null = null;
+        const { container } = renderTaxonomy({ onMetaChange: (m) => (next = m) });
+        fireEvent.change(
+            container.querySelector<HTMLInputElement>('#activity-unit')!,
+            { target: { value: 'Quadratics' } },
+        );
+        expect(next!.unit).toBe('Quadratics');
+    });
+
+    // '' is not "no unit" — the key must be ABSENT, or publish stamps an
+    // empty-string facet into the catalog where NULL belongs.
+    it('DROPS the unit key entirely when the field is cleared', () => {
+        let next: ActivityMeta | null = null;
+        const { container } = renderTaxonomy({
+            metaOverride: { ...meta, unit: 'Quadratics' },
+            onMetaChange: (m) => (next = m),
+        });
+        fireEvent.change(
+            container.querySelector<HTMLInputElement>('#activity-unit')!,
+            { target: { value: '   ' } },
+        );
+        expect(next).not.toBeNull();
+        expect('unit' in next!).toBe(false);
+    });
+
+    it('selects a pedagogical role through the row channel', () => {
+        let next: string | null | undefined;
+        const { container } = renderTaxonomy({
+            onPedagogicalRoleChange: (r) => (next = r),
+        });
+        fireEvent.change(
+            container.querySelector<HTMLSelectElement>('#pedagogical-role')!,
+            { target: { value: 'review' } },
+        );
+        expect(next).toBe('review');
+    });
+
+    it('maps the blank role option back to null (unclassified is legitimate)', () => {
+        let next: string | null | undefined = 'lesson';
+        const { container } = renderTaxonomy({
+            pedagogicalRole: 'lesson',
+            onPedagogicalRoleChange: (r) => (next = r),
+        });
+        fireEvent.change(
+            container.querySelector<HTMLSelectElement>('#pedagogical-role')!,
+            { target: { value: '' } },
+        );
+        expect(next).toBeNull();
+    });
+
+    it('offers exactly the three red-teamed roles plus Unclassified', () => {
+        const { container } = renderTaxonomy();
+        const values = Array.from(
+            container.querySelectorAll<HTMLOptionElement>(
+                '#pedagogical-role option',
+            ),
+        ).map((o) => o.value);
+        expect(values).toEqual(['', 'lesson', 'review', 'practice']);
+    });
+
+    it('renders the role legend so a bare badge never carries the taxonomy alone', () => {
+        renderTaxonomy({ pedagogicalRole: 'review' });
+        expect(screen.getByText(/spaced retrieval/i)).toBeTruthy();
+    });
+
+    it('routes tag edits to the row channel, never into meta', () => {
+        let tagsNext: string[] | null = null;
+        let metaNext: ActivityMeta | null = null;
+        renderTaxonomy({
+            onTagsChange: (t) => (tagsNext = t),
+            onMetaChange: (m) => (metaNext = m),
+        });
+        const input = screen.getByPlaceholderText('Add a tag…');
+        fireEvent.change(input, { target: { value: 'Factoring' } });
+        fireEvent.keyDown(input, { key: 'Enter' });
+        expect(tagsNext).toEqual(['factoring']);
+        expect(metaNext).toBeNull();
     });
 });

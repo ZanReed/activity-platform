@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { PedagogicalRole } from '../lib/pedagogicalRole';
 import { FileText, BarChart3, ClipboardPaste, Globe } from 'lucide-react';
 import type { JSONContent } from '@tiptap/react';
 import {
@@ -34,6 +35,11 @@ export default function DevConfigDrawer() {
         undefined,
     );
     const [configOpen, setConfigOpen] = useState<ConfigKey | null>(null);
+    // Row-native taxonomy (0037) — real state so the dev surface exercises the
+    // chip input and role select the same way the editor does.
+    const [tags, setTags] = useState<string[]>(['factoring', 'word problems']);
+    const [pedagogicalRole, setPedagogicalRole] =
+        useState<PedagogicalRole | null>('practice');
 
     const referenceHasContent =
         panelTitle.trim().length > 0 ||
@@ -117,6 +123,17 @@ export default function DevConfigDrawer() {
                     onPanelEditorUpdate={setPanelJson}
                     calculator={calculator}
                     onCalculatorChange={setCalculator}
+                    taxonomy={{
+                        tags,
+                        onTagsChange: setTags,
+                        pedagogicalRole,
+                        onPedagogicalRoleChange: setPedagogicalRole,
+                        tagVocabulary: [
+                            'factoring',
+                            'graphing',
+                            'word problems',
+                        ],
+                    }}
                 />
             </div>
         </main>

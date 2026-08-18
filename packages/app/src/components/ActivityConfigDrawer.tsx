@@ -36,6 +36,27 @@ import { FONT_MENU, FONT_REGISTRY, fontFamilyValue } from '@activity/schema';
 import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 import ReferencePanelEditor from '../editor/ReferencePanelEditor';
 import { ensureActivityFontLoaded } from '../lib/fonts';
+import TagChipInput from './TagChipInput';
+import {
+    PEDAGOGICAL_ROLES,
+    PEDAGOGICAL_ROLE_HELP,
+    PEDAGOGICAL_ROLE_LABELS,
+    type PedagogicalRole,
+} from '../lib/pedagogicalRole';
+
+// The row-native taxonomy fields (taxonomy R1/R4/R7). These are NOT part of
+// ActivityMeta and never travel in the document: tags + pedagogical_role live
+// on the activities row as listing metadata, like `visibility`. They ride
+// through the drawer as their own props precisely so nothing is tempted to
+// fold them into meta, where the catalog could not filter on them.
+export interface RowTaxonomy {
+    tags: string[];
+    onTagsChange: (next: string[]) => void;
+    pedagogicalRole: PedagogicalRole | null;
+    onPedagogicalRoleChange: (next: PedagogicalRole | null) => void;
+    /** The author's existing tags across all activities — typeahead source. */
+    tagVocabulary: readonly string[];
+}
 
 export type ConfigKey = 'settings' | 'reference' | 'calculator';
 
@@ -239,6 +260,7 @@ export function ConfigDrawer({
     calculator,
     onCalculatorChange,
     activityId,
+    taxonomy,
 }: {
     active: ConfigKey | null;
     onClose: () => void;
@@ -252,6 +274,7 @@ export function ConfigDrawer({
     calculator: CalculatorTool | undefined;
     onCalculatorChange: (c: CalculatorTool | undefined) => void;
     activityId?: string;
+    taxonomy: RowTaxonomy;
 }) {
     const closeRef = useRef<HTMLButtonElement>(null);
     const prevActiveRef = useRef<ConfigKey | null>(null);
@@ -307,7 +330,11 @@ export function ConfigDrawer({
             </header>
             <div className="flex-1 overflow-y-auto px-4 py-4">
                 <div className={active === 'settings' ? '' : 'hidden'}>
-                    <ActivitySettingsBody meta={meta} onChange={onMetaChange} />
+                    <ActivitySettingsBody
+                        meta={meta}
+                        onChange={onMetaChange}
+                        taxonomy={taxonomy}
+                    />
                 </div>
                 <div className={active === 'reference' ? '' : 'hidden'}>
                     <ReferencePanelBody
@@ -344,14 +371,104 @@ export function ConfigDrawer({
 function ActivitySettingsBody({
     meta,
     onChange,
+    taxonomy,
 }: {
     meta: ActivityMeta;
     onChange: (next: ActivityMeta) => void;
+    taxonomy: RowTaxonomy;
 }) {
     const singleMode = meta.submissionMode === 'single';
 
+    // meta.unit is optional: a blank field means "no unit", which must be the
+    // ABSENT key, not an empty string. The publish stamp mirrors the document
+    // into activities.unit, so '' here would put an empty-string facet in the
+    // catalog where NULL belongs.
+    const setUnit = (raw: string) => {
+        const unit = raw.trim();
+        const next = { ...meta };
+        if (unit === '') delete next.unit;
+        else next.unit = unit;
+        onChange(next);
+    };
+
     return (
         <div className="grid gap-4">
+            {/* Classification first: what this activity IS, before how it
+                behaves. course/unit are document fields stamped onto the row
+                at publish (taxonomy R1); tags + role are row-native and take
+                effect immediately, with no republish (R4/R7). */}
+            <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className={SETTINGS_LABEL_CLASS} htmlFor="activity-course">
+                        Course
+                    </label>
+                    <input
+                        id="activity-course"
+                        type="text"
+                        className={SELECT_CLASS}
+                        value={meta.course}
+                        onChange={(e) =>
+                            onChange({ ...meta, course: e.target.value })
+                        }
+                    />
+                </div>
+                <div>
+                    <label className={SETTINGS_LABEL_CLASS} htmlFor="activity-unit">
+                        Unit
+                    </label>
+                    <input
+                        id="activity-unit"
+                        type="text"
+                        className={SELECT_CLASS}
+                        value={meta.unit ?? ''}
+                        placeholder="Optional"
+                        onChange={(e) => setUnit(e.target.value)}
+                    />
+                </div>
+            </div>
+            <p className={SETTINGS_HELP_CLASS}>
+                Shown to students, and used to file this activity. They reach
+                the catalog when you publish.
+            </p>
+
+            <div>
+                <label className={SETTINGS_LABEL_CLASS} htmlFor="pedagogical-role">
+                    Bank role
+                </label>
+                <select
+                    id="pedagogical-role"
+                    className={SELECT_CLASS}
+                    value={taxonomy.pedagogicalRole ?? ''}
+                    onChange={(e) =>
+                        taxonomy.onPedagogicalRoleChange(
+                            e.target.value === ''
+                                ? null
+                                : (e.target.value as PedagogicalRole),
+                        )
+                    }
+                >
+                    <option value="">Unclassified</option>
+                    {PEDAGOGICAL_ROLES.map((r) => (
+                        <option key={r} value={r}>
+                            {PEDAGOGICAL_ROLE_LABELS[r]}
+                        </option>
+                    ))}
+                </select>
+                <p className={SETTINGS_HELP_CLASS}>
+                    {taxonomy.pedagogicalRole
+                        ? PEDAGOGICAL_ROLE_HELP[taxonomy.pedagogicalRole]
+                        : 'How this activity is used in the sequence. Separate from Activity type below, which is about layout.'}
+                </p>
+            </div>
+
+            <TagChipInput
+                tags={taxonomy.tags}
+                onChange={taxonomy.onTagsChange}
+                vocabulary={taxonomy.tagVocabulary}
+            />
+
+            <hr className="border-line" />
+
             <div>
                 <label className={SETTINGS_LABEL_CLASS} htmlFor="submission-mode">
                     Submission mode

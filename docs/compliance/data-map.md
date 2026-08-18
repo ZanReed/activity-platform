@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-17-draft-3`. Mirrors migrations 0001–**0036**, verified
+> Version `2026-08-18-draft-4`. Mirrors migrations 0001–**0037**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,16 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-4` (2026-08-18) — 0037 adds NO personal data.** The activity
+> taxonomy slice adds `activities.tags` (text[]) and
+> `activities.pedagogical_role` (enum), and makes `publish_activity` stamp the
+> existing `activities.course`/`.unit` columns from the published snapshot.
+> All four describe the ACTIVITY, never a person: they are curriculum labels
+> an author types about their own worksheet. No new table, no new person
+> reference, no new retention question, and no change to any existing row
+> below. Stated explicitly rather than by silence, per the 0027/0035
+> precedent — the range moves to 0037 on that basis.
 >
 > **`draft-3` (2026-08-17) closes the gap for 0030 and 0034–0036:**
 > - **0034** replaced the never-used `grades` table with **`check_grades`** —

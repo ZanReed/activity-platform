@@ -54,12 +54,23 @@ import {
     HeaderButton,
     type ConfigKey,
 } from '../components/ActivityConfigDrawer';
+import { collectTagVocabulary, normalizeTags } from '../lib/normalizeTags';
+import { activityChangeKey } from '../lib/activityChangeKey';
+import {
+    asPedagogicalRole,
+    type PedagogicalRole,
+} from '../lib/pedagogicalRole';
 
 interface ActivityLoadRow {
     id: string;
     title: string;
     draft_content: unknown;
     current_version_id: string | null;
+    // Row-native taxonomy (0037). These are NOT in the document — they are
+    // listing metadata like `visibility`, so they load from and save to the
+    // row directly rather than travelling through ActivityMeta.
+    tags: string[] | null;
+    pedagogical_role: string | null;
 }
 
 interface ActivityVersionLoadRow {
@@ -142,6 +153,19 @@ export default function ActivityEditor() {
         version: number;
     } | null>(null);
     const [tiptapJson, setTiptapJson] = useState<JSONContent | null>(null);
+
+    // Row-native taxonomy state (0037 / taxonomy R4+R7). Kept OUT of `meta` on
+    // purpose: tags and role are listing metadata on the activities row, so the
+    // catalog can filter on real columns without reading draft_content. They
+    // ride the same autosave UPDATE as draft_content, which is what makes a
+    // metadata edit atomic with the document it describes.
+    const [tags, setTags] = useState<string[]>([]);
+    const [pedagogicalRole, setPedagogicalRole] =
+        useState<PedagogicalRole | null>(null);
+    // Every tag this author has used, for the chip input's typeahead. Loaded
+    // once alongside the activity; a stale-by-one-session list is fine (it only
+    // drives suggestions), and refetching per keystroke would be absurd.
+    const [tagVocabulary, setTagVocabulary] = useState<readonly string[]>([]);
     // Activity-level calculator config (scaffold sibling to the panel). Undefined
     // when the activity has no calculator; folded into changeKey + the save.
     const [calculator, setCalculator] = useState<CalculatorTool | undefined>(
@@ -198,7 +222,9 @@ export default function ActivityEditor() {
         (async () => {
             const { data, error } = await supabase
             .from('activities')
-            .select('id, title, draft_content, current_version_id')
+            .select(
+                'id, title, draft_content, current_version_id, tags, pedagogical_role',
+            )
             .eq('id', id)
             .is('deleted_at', null)
             .maybeSingle();
@@ -215,6 +241,13 @@ export default function ActivityEditor() {
 
             const row = data as ActivityLoadRow;
             setIsPublished(row.current_version_id !== null);
+
+            // Hydrate the row-native taxonomy BEFORE the document branches
+            // below: changeKey folds these in, so seeding them late would make
+            // the autosave baseline settle on a key that doesn't match the
+            // server and fire a spurious save on load.
+            setTags(normalizeTags(row.tags ?? []));
+            setPedagogicalRole(asPedagogicalRole(row.pedagogical_role));
 
             // Three-way load priority: draft > published version > fresh empty.
             // The draft path is the common case (any activity with in-progress
@@ -309,6 +342,27 @@ export default function ActivityEditor() {
         };
     }, [id]);
 
+    // The chip input's typeahead source: every tag this author has already
+    // used. Separate from the activity load on purpose — it must never delay
+    // opening the editor, and a failure here costs suggestions, not the
+    // document, so the error is swallowed rather than surfaced.
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const { data, error } = await supabase
+            .from('activities')
+            .select('tags')
+            .is('deleted_at', null);
+            if (cancelled || error || !data) return;
+            setTagVocabulary(
+                collectTagVocabulary(data as { tags: string[] | null }[]),
+            );
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     // The editor reports body changes here; onCreate also routes here, so the
     // first call carries the loaded baseline (the autosave hook ignores it).
     const handleEditorUpdate = useCallback((json: JSONContent) => {
@@ -389,18 +443,29 @@ export default function ActivityEditor() {
 
     // Stable fingerprint of the whole document (body + meta). Null until the
     // editor has produced its first JSON — the autosave stays idle until then.
+    // The fingerprint lives in lib/activityChangeKey.ts, which states and tests
+    // the contract it has with save() below: everything save() writes must be
+    // an input here, or that field silently never persists.
     const changeKey = useMemo(
         () =>
-        tiptapJson && meta && panelJson
-        ? JSON.stringify({
-            t: tiptapJson,
-            m: meta,
-            rt: panelTitle,
-            rj: panelJson,
-            c: calculator ?? null,
-        })
-        : null,
-        [tiptapJson, meta, panelTitle, panelJson, calculator],
+        activityChangeKey({
+            tiptapJson,
+            meta,
+            panelTitle,
+            panelJson,
+            calculator,
+            tags,
+            pedagogicalRole,
+        }),
+        [
+            tiptapJson,
+            meta,
+            panelTitle,
+            panelJson,
+            calculator,
+            tags,
+            pedagogicalRole,
+        ],
     );
 
     // Serializes the current state and writes the draft. draft_content and the
@@ -410,9 +475,14 @@ export default function ActivityEditor() {
         if (!tiptapJson || !meta || !id) return;
         // meta.title is z.string().min(1); a blank title would make the saved
         // draft fail validation on the next load. Fall back to a placeholder.
+        // course is z.string().min(1) (0037/R1: it is stamped into the
+        // `not null` activities.course column at publish), so a blank field
+        // gets the same placeholder treatment title already had — the editor
+        // must never persist a draft that fails its own validation.
         const safeMeta: ActivityMeta = {
             ...meta,
             title: meta.title.trim() || 'Untitled activity',
+            course: meta.course.trim() || 'Algebra II',
         };
         const doc = tiptapToActivity(
             tiptapJson,
@@ -426,11 +496,19 @@ export default function ActivityEditor() {
             // sanitized. Fail loud rather than persist a draft the editor can't read.
             throw new Error('Document failed validation; not saved.');
         }
+        // ONE update statement carries the document and the row-native
+        // taxonomy, so a metadata edit is atomic with the document it
+        // describes — they cannot half-commit. course/unit are NOT here:
+        // those columns are publish-truth, stamped server-side by
+        // publish_activity from the frozen snapshot (0037 §C / R1). One
+        // writer per column is the whole provenance ruling.
         const { error } = await supabase
         .from('activities')
         .update({
             draft_content: parsed.data,
             title: safeMeta.title,
+            tags,
+            pedagogical_role: pedagogicalRole,
             updated_at: new Date().toISOString(),
         })
         .eq('id', id);
@@ -686,6 +764,13 @@ export default function ActivityEditor() {
             calculator={calculator}
             onCalculatorChange={setCalculator}
             activityId={id}
+            taxonomy={{
+                tags,
+                onTagsChange: setTags,
+                pedagogicalRole,
+                onPedagogicalRoleChange: setPedagogicalRole,
+                tagVocabulary,
+            }}
             />
 
             {importOpen && (

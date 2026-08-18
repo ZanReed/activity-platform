@@ -923,3 +923,27 @@ function's history, `scripts/verify-*` for every row that asserts the table exis
 0009 discipline: the FK-covering indexes die with it.
 
 **Context:** teacher-grading eng review 2026-08-15 (G1 scoping + TODO ruling); 0029's D-6 note.
+
+## Activities list surface — search/sort/grouping (the taxonomy slice's sibling)
+
+**What:** The real list navigation for `/activities`: search-by-title, sort control, grouping/faceting on course/unit/`pedagogical_role`, pagination or virtualization if needed. The taxonomy slice ships only minimal tag-filter chips (eng review 2026-08-18, R6/D8 — the P1 caller, deliberately small).
+
+**Why:** [Activities.tsx](packages/app/src/routes/Activities.tsx) is a flat unsorted `<ul>` — fine at 8 activities, unusable at the ~150 the catalogue push will create. Every authoring hour flows through this surface.
+
+**Context:** All facet inputs exist once the taxonomy slice lands: `tags` (row), `course`/`unit` (publish-truth columns per R1), `pedagogical_role` (R7). Filtering stays client-side at this scale (the list already fetches all own rows). Wants a design pass (/plan-design-review or /design-review) before build — it's a UX surface, not a schema question. See [activity-taxonomy.md](docs/design/activity-taxonomy.md) §5.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** the taxonomy slice (Drop 1) landing.
+
+## Refresh capability-inventory.md against the post-registry importer (ride Drop 2)
+
+**What:** Update [docs/capability-inventory.md](docs/capability-inventory.md): §1's fence count (says 13, is 16 — `callout`/`reference`/`definitions` landed), §2.11 (`callout` is no longer editor-only), §4.B's importable-gaps list, and — once the taxonomy arc's Drop 2 lands — the new `meta` fence (which §3 currently declares impossible: "no activity-level settings are expressible in pasted markdown").
+
+**Why:** The doc presents itself as code-derived truth with file:line citations; the 2026-08-18 taxonomy eng review had to re-verify its claims against code because several had silently gone stale. Stale citations are worse than no doc (the repo's own stale-diagram principle; P11 for coverage claims).
+
+**Context:** Pin the refresh to the taxonomy arc's Drop 2 commit (the `meta` import fence), which touches the same three artifacts (parser/prompt/format doc) — refreshing before that commit would need doing twice. See [activity-taxonomy.md](docs/design/activity-taxonomy.md) §3.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** taxonomy arc Drop 2 (the `meta` fence).
