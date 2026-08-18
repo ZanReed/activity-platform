@@ -1,0 +1,70 @@
+# =============================================================================
+# .github/actions/install-chromium — one home for the browser install (2026-08-18)
+# -----------------------------------------------------------------------------
+# THREE jobs install Chromium (print-gates, perf-gates, print-baselines) and the
+# step was retyped in all three. It is a composite action now for the ordinary
+# P2 reason — one home, imported — and for a sharper one: the fix below has to
+# be in every copy or it is in none, and a retried install in two jobs out of
+# three is exactly the shape of gap this repo keeps finding.
+#
+# WHY IT NEEDS A FIX AT ALL. On 2026-08-18, `playwright install --with-deps
+# chromium` hung THREE times in 2h18m — perf-gates 01:01 (killed by its 15-min
+# bound), print-gates 01:39 (ran 100 min before a manual cancel, because that
+# job had no bound), print-gates 03:19 (killed by the new 20-min bound). Every
+# run before 01:00 installed it in seconds. Nothing in this repo changed; the
+# download side simply stopped answering, and a bound alone only decides how
+# long you wait to learn that.
+#
+# TWO LAYERS, in order of what actually helps:
+#
+#  1. CACHE — the only thing that dodges a dead download entirely. Keyed on the
+#     lockfile, so a Playwright version bump misses the cache and reinstalls,
+#     and a hit skips the network completely. This is what keeps CI green
+#     THROUGH an upstream outage rather than merely failing faster.
+#  2. RETRY WITH A PER-ATTEMPT TIMEOUT — for a cold cache. Three attempts at 5
+#     minutes each: a healthy install finishes in well under one, so a hung
+#     attempt is abandoned rather than sat on, and an intermittent failure
+#     recovers instead of taking the whole job down.
+#
+# The system deps (`--with-deps`, apt) are NOT cached — they install to system
+# paths a cache cannot restore. On a cache hit we still run the deps-only
+# install, which is apt and does not touch Playwright's CDN.
+# =============================================================================
+name: Install Chromium
+description: Playwright Chromium + system deps, cached and retried
+
+runs:
+  using: composite
+  steps:
+    - name: Restore Playwright browsers
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ms-playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+    # System deps only — apt, no CDN. Cheap, and required on a cache hit too
+    # because apt packages do not live in the cached directory.
+    - name: Install system dependencies
+      shell: bash
+      run: pnpm --filter @activity/app exec playwright install-deps chromium
+
+    - name: Install Chromium (cached, retried)
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        for attempt in 1 2 3; do
+          echo "::group::Chromium install attempt $attempt/3"
+          if timeout 300 pnpm --filter @activity/app exec playwright install chromium; then
+            echo "::endgroup::"
+            exit 0
+          fi
+          echo "::endgroup::"
+          echo "::warning::Chromium install attempt $attempt failed or timed out after 5m"
+          sleep 10
+        done
+        echo "::error::Chromium install failed 3 times. This has been an UPSTREAM"
+        echo "::error::hang before (2026-08-18, three times in one evening) rather"
+        echo "::error::than a repo problem — check Playwright/GitHub status before"
+        echo "::error::changing anything here."
+        exit 1

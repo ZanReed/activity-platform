@@ -178,8 +178,9 @@ jobs:
       # Chromium only — the gate asserts CSS the print engine applies, not
       # cross-browser behaviour, and every extra browser is install time on
       # every run.
+      # Cached + retried; see .github/actions/install-chromium for why.
       - name: Install Chromium
-        run: pnpm --filter @activity/app exec playwright install --with-deps chromium
+        uses: ./.github/actions/install-chromium
 
       # Every print suite, matched by prefix: the rules gate (print-rules), the
       # paginated layer it cannot reach (print-pagination), the answer-key gate
@@ -246,8 +247,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Cached + retried; see .github/actions/install-chromium for why.
       - name: Install Chromium
-        run: pnpm --filter @activity/app exec playwright install --with-deps chromium
+        uses: ./.github/actions/install-chromium
 
       # Reuse the artifact `check` already built and already measured, instead
       # of a third full build per PR.
@@ -306,8 +308,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Cached + retried; see .github/actions/install-chromium for why.
       - name: Install Chromium
-        run: pnpm --filter @activity/app exec playwright install --with-deps chromium
+        uses: ./.github/actions/install-chromium
 
       - name: Generate baselines
         env:
