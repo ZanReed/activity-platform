@@ -1,7 +1,7 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-17-draft-6`. Windows below are the author-ruled S1 defaults
+> Version `2026-08-18-draft-7`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
@@ -17,15 +17,32 @@
 > yet built"). It also records that the purge job is LIVE: pg_cron registered
 > 2026-08-05, first fire observed and verified the same day.
 >
+> `draft-7` (2026-08-18) fixes a TENSE, and the fix matters more than that sounds.
+> draft-6 stated as accomplished fact that the nightly rollup "began advancing the
+> watermark on 2026-08-18". At the moment those words were written it had not: the
+> first run of the new job was still hours away, and a direct read of the live ledger
+> showed the watermark NULL with zero rows carrying one. Every such statement is now
+> phrased as a SCHEDULE and a CONDITION rather than a completed event, so this
+> document is true whether that job runs on time, fails, or is rescheduled.
+>
+> **The rule this adopts, because the same mistake has now been made twice in
+> opposite directions:** draft-5 asserted a production fact that a scheduled job was
+> about to falsify; draft-6 asserted one that a scheduled job had not yet made true.
+> **This pack states mechanisms and schedules. It asserts that something HAPPENED
+> only after someone has observed it happening** — and names how to check, so a
+> reader never has to take the claim on trust.
+>
 > `draft-6` (2026-08-17) adds the row counsel question Q10 is actually about:
 > **de-identified daily aggregates** (migration 0036) that OUTLIVE the checks
 > they summarize, hold no student identifiers, and are not recomputed when a
 > student's account is purged — including the honest statement that a row
 > reading `students = 1` describes one identifiable student's day. It also
 > **corrects draft-5's claim that the prune is "mechanically inert"**: that was
-> true only while nothing wrote the rollup watermark, and 0036's nightly job
-> began writing it on 2026-08-18. The prune is still disarmed, but by
-> operational means (unscheduled + dry-run default), not by a schema gate.
+> true only while nothing wrote the rollup watermark, and 0036 introduces a
+> nightly job whose purpose is to write it (see draft-7 above on when that
+> becomes an observed fact rather than a schedule). Once it does, the prune is
+> still disarmed — but by operational means (unscheduled + dry-run default),
+> not by a schema gate.
 >
 > `draft-5` (2026-08-16) records the DISARMED check-prune mechanism (migration
 > 0035 — see Mechanics; it deletes nothing until a rollup exists, by a schema
@@ -100,19 +117,26 @@ membership history, which is exactly what the dormancy derivation looks for.
   attempts (never the latest per section, never a teacher-graded one) as a
   space measure — but **it is not scheduled, and it is dry-run by default**, so
   no code path in production deletes a check attempt.
-  ⚠ **Corrected at draft-6:** through 0035 this bullet could say the prune was
-  *mechanically* inert, because it refused every row until a durable rollup
-  advanced a watermark and nothing wrote one. **Migration 0036 (2026-08-17)
-  builds that rollup, and the nightly job began advancing the watermark on
-  2026-08-18.** The mechanical bar is therefore gone; what holds the prune
-  disarmed now is operational — it is not on any schedule, and a bare call
-  cannot delete. Arming it is a deliberate act gated on an eight-step
-  checklist (TODOS.md) whose sixth step is **counsel question Q10**
+  ⚠ **Corrected at draft-6, re-stated at draft-7:** through 0035 this bullet
+  could say the prune was *mechanically* inert, because it refused every row
+  until a durable rollup advanced a watermark and nothing wrote one.
+  **Migration 0036 (applied 2026-08-17) builds that rollup and SCHEDULES a
+  nightly job to advance the watermark, from 03:30 UTC.** From the first time
+  that job runs, the mechanical bar is gone and what holds the prune disarmed
+  is purely operational — it is on no schedule, and a bare call cannot delete.
+  **Counsel should treat the mechanical bar as gone from 2026-08-17 regardless
+  of when the job first succeeds**, since nothing but a schedule separates the
+  two states.
+  *(Verifiable, so nobody need take it on trust:
+  `select public.analytics_rolled_boundary();` — NULL means no rollup has
+  advanced a watermark yet; non-NULL means one has, and dates it.)*
+  Arming the prune is a deliberate act gated on an eight-step checklist
+  (TODOS.md) whose sixth step is **counsel question Q10**
   (counsel-review-packet.md — do surviving aggregates over a class of one
   constitute retained student data?). **The student-data reality is unchanged
   either way: nothing deletes a check except the activity-deletion and
-  account-purge paths in the table above.** What DID change on 2026-08-18 is
-  that de-identified daily aggregates began accumulating — see their row in
+  account-purge paths in the table above.** What changes once the job runs is
+  that de-identified daily aggregates begin accumulating — see their row in
   the table, which is the artifact Q10 is actually about.
 - **The RESTRICT safety net is partial — know which half you are in** (verified
   against the live schema 2026-08-04). `submissions.student_id` is ON DELETE
