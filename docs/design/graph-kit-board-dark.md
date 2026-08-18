@@ -1,5 +1,27 @@
 # Graph-kit board dark-theming
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-18).** The dark-theming work is live and
+> correct **in the editor**. Two things below are historical, and one is a LIVE GAP that moved
+> rather than closed.
+>
+> **Historical:** the delivery mechanism this status line names — **R2-hosted kits** (`NNS6KNUS`,
+> `NXZNIEUK`), the kit manifest, and `upload:graph-kit` — died at S9 Drop 4 and the D-13 teardown
+> (2026-08-15). The kit is now built from the workspace and shipped as an **app-bundled lazy
+> chunk**: viewer and editor both reach it through `import('@activity/graph-kit')`
+> (`packages/viewer/src/blocks/kitSurfaces.ts`). No upload step exists for a kit change. Likewise
+> `renderDataPlotSvg` is described below as "a renderer static SVG" — `packages/renderer` is gone;
+> it lives in `packages/graph-kit/src/static-svg/`.
+>
+> ⚠ **LIVE GAP — the sentence "published falls back to light until published-dark ships" is still
+> TRUE, about a different surface.** Published pages died at S9; **the viewer inherited the gap.**
+> Verified 2026-08-18: `--gk-board-axis` / `--gk-board-label` / `--gk-board-ink` are defined in
+> exactly one place, `packages/app/src/editor/editor.css` (editor-scoped). The viewer's
+> `tokens/tokens.css` does dark-theme itself but does **not** define them — so the data-plot SVG
+> the viewer renders (`packages/viewer/src/blocks/DataPlot.tsx` → `renderDataPlotSvg`) falls back
+> to its light hexes on a dark student surface. `INK` is `#1e293b` (slate-800) on the viewer's dark
+> canvas. **Nothing tests it:** the `dark-contrast` e2e lane walks the text/surface/status ladder,
+> not SVG chart internals. Tracked in TODOS.md; the fix is a token decision, not a bug fix.
+
 Status: ✅ **SHIPPED + DEPLOYED 2026-07-19** (the queued deploy ran same day — kits `NNS6KNUS` then `NXZNIEUK` with the color pass; see [HISTORY.md](../HISTORY.md)).
 The live graph-kit boards (interactive graph, point/system answer, display,
 number-line, dot/histogram/box plots) now self-theme dark in the editor and

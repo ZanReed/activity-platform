@@ -1,5 +1,18 @@
 # Graph-kit color pass
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-18).** The token consolidation is live: the
+> two source-of-truth files this doc rules on still exist and still are the source of truth
+> (`packages/graph-kit/src/graph-colors.ts` + `drawable-palette.ts`). What died is the **delivery**
+> — kit `NXZNIEUK`, manifest `850ceca`, and `upload:graph-kit` all went at S9 Drop 4 / the D-13
+> teardown (2026-08-15). The kit is an app-bundled lazy chunk built from the workspace; there is no
+> kit hash, no manifest, and no upload step any more. Read the hashes below as a record of how it
+> shipped.
+>
+> See the sibling annotation in [graph-kit-board-dark.md](graph-kit-board-dark.md) for the one part
+> of this arc that is a **live gap** rather than dead infrastructure: `--gk-board-*` is defined only
+> in the editor, so the viewer's data-plot SVG renders light-mode structural colors on a dark
+> student surface.
+
 Status: ✅ **SHIPPED + DEPLOYED 2026-07-19** (drift audit 2026-08-04 — this line had stayed at "ready to build"). Built with the board-dark arc and deployed on the same train: 145 color literals → 60 in the two source-of-truth files (`graph-colors.ts` + `drawable-palette.ts`), value-identical in light, NO wire change; kit `NXZNIEUK`, manifest `850ceca`. See [HISTORY.md](../HISTORY.md) 2026-07-19 + [graph-kit-board-dark.md](graph-kit-board-dark.md). The design rationale below is the reference for the token decisions; where detail conflicts with code, code wins. (Original status: DESIGN — eng-reviewed + decisions RULED 2026-07-18.) Item 2 of the deferred design-token backlog, after the chrome+editor
 dark-mode arc ([dark-mode.md](dark-mode.md), slices 1–5 shipped). Author rulings
 (§D): **D2** DRY-consolidate all 3 layers + make the calculator CSS chrome

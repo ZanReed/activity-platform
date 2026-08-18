@@ -3,30 +3,81 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
-## The `sw` lane fails while the local Supabase stack is running (2026-08-14)
+## ✅ RESOLVED 2026-08-18 — the `sw` lane fails while the local Supabase stack is running (recorded 2026-08-14)
 
-**What:** With `supabase start` up, the two offline-reopen rows in
-`e2e/sw/service-worker.e2e.ts` (`a student who lost the network still gets their
-worksheet`, `with no saved copy, offline fails honestly rather than hanging`)
-time out waiting for `[data-banner="offline-copy"]` — 20 s, element never found.
-Stop the stack and the same lane passes 7/7. Reproduced both ways.
+**Fixed in `cc24700`.** The two offline-reopen rows in `e2e/sw/service-worker.e2e.ts` now pass
+with `supabase start` UP; proven both directions (73/73 across the four CI lanes with the stack
+running, and on clean `main` moving only the port turned the same two rows green).
 
-**Why it is recorded, not fixed:** it is a local environment interaction, not a
-product defect. CI never runs the local stack (the integration lane is
-local-only), and CI ran these two rows green in 31795715961 with identical app
-code. The likely mechanism is contention — the rows kill a disposable preview
-server and race a service-worker fetch, and the Docker VM makes that timing
-much worse — but that was not proven, so treat the mechanism as a hypothesis.
+**⚠ THE RECORDED MECHANISM WAS WRONG, and the entry said so — which is the lesson.** This entry
+hypothesised *contention*: "the rows kill a disposable preview server and race a service-worker
+fetch, and the Docker VM makes that timing much worse — but that was not proven, so treat the
+mechanism as a hypothesis." Honest, and correctly hedged. **But the RULING it carried —
+"a local environment interaction, not a product defect... recorded, not fixed" — rested on that
+unproven hypothesis anyway, and stood for four days.**
 
-**Practical consequence, worth knowing before it wastes an hour:** after running
-`test:e2e:integration`, `supabase stop` before running a plain sweep, or the sw
-lane will look broken when it is not.
+**The real mechanism, tool-proven:** the stub lanes and the integration lane shared one address,
+`127.0.0.1:54321`, that they needed to mean OPPOSITE things — the stub lanes need it
+**unreachable** (their offline rows are built on a real connection refusal), the integration lane
+needs the **real stack** there. With a stack up, Kong answered with a genuine
+`401 {"error":"Expected 3 parts in JWT; got 1"}` (the harness's fake `access_token` is
+deliberately not a JWT), `readClient` mapped 401 → `unauthenticated`, and the page showed "Please
+sign in again" instead of the offline banner. Not timing at all; nothing to do with Docker load.
 
-**Related trap seen the same day:** heavy background load (a game client at ~80 %
-CPU, plus Docker) turned a 40-second four-lane run into 14.5 minutes and failed
-five `failure-matrix` rows that are green on a quiet machine — including rows
-nobody had touched. **Local e2e timing results are not trustworthy under load;
-CI is the arbiter.** Check `uptime` before believing a local e2e failure.
+**So it WAS a defect — in the harness, and fixable.** Stub lanes moved to `127.0.0.1:54399`
+(outside the CLI's whole default range, so the origin is dead by construction), one home per
+origin with everything else importing it, a preflight that fails with a named fix, and
+`scripts/tests/e2e-origins.test.mjs` pinning the constant ↔ `playwright.config.ts` ↔ `ci.yml`
+three-way agreement. Full story: `packages/app/e2e/helpers/e2eOrigins.ts`.
+
+**The advice this entry used to give is now obsolete** — you no longer need `supabase stop` before
+a plain sweep. Both lanes run with the stack up.
+
+**Two things to carry forward:**
+1. **A hypothesis flagged as unproven should not carry a ruling.** "Treat the mechanism as a
+   hypothesis" and "not a product defect, record don't fix" cannot both be honest in one entry —
+   the second is a conclusion the first says you have not earned.
+2. **A lane that passes because of what is ABSENT from the machine is not passing, it is
+   unobserved.** CI was green on these rows only because CI has no local stack.
+
+**Related trap, STILL LIVE and unrelated to the above:** heavy background load (a game client at
+~80 % CPU, plus Docker) turned a 40-second four-lane run into 14.5 minutes and failed five
+`failure-matrix` rows that are green on a quiet machine — including rows nobody had touched.
+**Local e2e timing results are not trustworthy under load; CI is the arbiter.** Check `uptime`
+before believing a local e2e failure.
+
+## Viewer data plots render LIGHT structural colors in dark mode (found 2026-08-18)
+
+**What:** `--gk-board-axis` / `--gk-board-label` / `--gk-board-ink` are defined in exactly one
+place — `packages/app/src/editor/editor.css`, editor-scoped. The static data-plot SVG
+(`packages/graph-kit/src/static-svg/data-plot-svg.ts`) consumes them with LIGHT hex fallbacks, and
+the viewer's `packages/viewer/src/tokens/tokens.css` — which does dark-theme everything else —
+never defines them. So a student on a dark-themed viewer gets a data plot drawn in light-mode
+colors: `INK` is `#1e293b` (slate-800) on the viewer's dark canvas.
+
+**Why it exists:** it is not a regression, it is an INHERITED gap. `graph-kit-board-dark.md` shipped
+with the caveat "published falls back to light until published-dark ships", and the source comment
+in `data-plot-svg.ts` still says "published pages leave them undefined → the light fallback →
+unchanged". Published pages died at S9; the viewer took over the student surface and inherited the
+undefined tokens with it. The sentence stayed true about a surface nobody re-read it against.
+
+**Nothing tests it:** the `dark-contrast` e2e lane walks the text / surface / status-token ladder,
+not SVG chart internals, so this is invisible to every gate.
+
+**Why it is recorded and not fixed here:** the fix is a TOKEN DECISION, not a bug fix — someone has
+to choose the viewer's dark values for axis/label/ink (the editor's `light-dark()` pairs are a
+starting point, not automatically right on the viewer's darker canvas) and decide whether the
+`FILL` constant (`#93c5fd`, hard-coded, no token) needs the same treatment. Worth pairing with a
+contrast check, since the whole point is legibility.
+
+**Where to start:** `packages/viewer/src/tokens/tokens.css` (add the three under the existing dark
+blocks), then re-read `data-plot-svg.ts`'s header comment — it documents the old published-page
+world and should name the viewer instead. Design context:
+[graph-kit-board-dark.md](docs/design/graph-kit-board-dark.md), which now carries the annotation.
+
+**Scope check before starting:** confirm whether JSXGraph boards (not just the static SVG) have the
+same gap in the viewer — `board.ts` uses `gk-board-*` as CLASS names, which is a different
+mechanism, so this may be static-SVG-only. Not verified.
 
 ## Canvas blocks add ~17 keyboard stops — Check sits 76 tabs in (S9 Drop 5 follow-up)
 
