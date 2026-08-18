@@ -389,11 +389,39 @@ fallback-window number directly.
 from a binary into three options by the S8 outside voice (2026-08-05, ruling D7); option 3
 built and measured the same day.
 
-## Get the student shell toward the 150 KiB gz target — SLICE 1 SHIPPED, ~6 KiB left
+## Get the student shell toward the 150 KiB gz target — SLICE 1 SHIPPED, then PARKED
 
-**⚖ Status 2026-08-18: ACTIVE again, one rung climbed.** The 2026-08-15 "TRACK ONLY"
-ruling held until the shell reached ~96% of its cap and the next shell-touching feature
-would have hit it. Slice 1 then ran, plan → eng review → build in one day.
+**⚖ RULED 2026-08-18 (author, same day slice 1 landed): STOP THE LADDER HERE.** One rung
+climbed, and the ladder is parked again — not because the remaining rungs are hard, but
+because nothing currently justifies their cost. Do not start rung 2 without the trigger
+below. This entry is a ledger again, as it was between 2026-08-15 and slice 1.
+
+**The four reasons, recorded so the next session does not re-litigate them:**
+1. **150 was never measured.** Ruling P1A *sketched* "~≤150 KiB gz"; `perf-budgets.mjs`
+   says so in its own comment. Chasing the last ~6 KiB is chasing a number nobody
+   derived from a device.
+2. **Timing already beats its targets with room.** The throttled Chromebook-class lane
+   at the time of the ruling: pre-auth 785 ms vs the 992 ms committed target (−21%),
+   worksheet 870 vs 1135 (−23%), math-rendered 1604 vs 1812. The shell is not the
+   bottleneck, so 6 KiB buys nothing a student would feel.
+3. **The pressure that started slice 1 is gone.** It ran because the shell sat at ~96%
+   of cap and the next shell-touching feature would have hit it. It now sits at ~91% of
+   a *tighter* cap. Headroom is real again AND the budget is honest again — which was
+   the actual win, more than the bytes.
+4. **Slice 1 was uniquely cheap; the remaining rungs are not.** It deleted code that
+   never executed: zero behavior change, zero risk to the student path. Every rung left
+   trades correctness or blast radius for bytes — see the list below.
+
+**⚑ THE TRIGGER TO RESUME — one thing, and it is not a byte count.** A real measurement
+on real school hardware showing the SHELL is the bottleneck (the field-measurement entry
+in this file). That is what should decide whether 150 means anything. Absent it, the
+honest close is "re-baseline deliberately", not "chase the last rung".
+
+**⚑ AND IF YOU DO RESUME: do not pick rung 2 off the list below.** Slice 1 changed the
+composition of the entry chunk, so P10 applies — run a FRESH sourcemap attribution of the
+current 156.4 KiB first and let it name the next lever. The list below was derived
+against the 177.6 KiB shell and is already one slice stale. (Slice 1's own attribution is
+what replaced the folklore 168 number; do it the same way.)
 
 **SHIPPED — slice 1, the Supabase sub-clients (2026-08-18):**
 [shell-slim-supabase.md](docs/design/shell-slim-supabase.md). `@supabase/realtime-js`
@@ -404,8 +432,8 @@ one storage caller, `lib/uploadImage.ts`, makes its two calls as raw `fetch`.
 file's own budget policy warns about). Guarded by four absence rows in
 `scripts/check-perf-budget.mjs` and by `scripts/tests/supabase-stub-pin.test.mjs`.
 
-**THE LADDER'S REMAINING RUNGS, cheapest first** (ruling R7 — each is its own slice,
-deliberately NOT folded into slice 1):
+**THE LADDER'S REMAINING RUNGS — ALL PARKED** (ruling R7 — each is its own slice,
+deliberately NOT folded into slice 1; and see the stale-list warning above):
 1. **The zod audit.** `@activity/schema` parses in the shell, and the offline-restore
    path is parse-bearing — so this needs real thought about what may become a
    trust-the-bytes read and what must stay validated. Biggest remaining candidate.
@@ -418,9 +446,12 @@ deliberately NOT folded into slice 1):
    OAuth round trip. Hand-rolling it would be re-implementing security-relevant code
    the platform maintains. Listed for completeness, not as a plan.
 
-**Then re-judge whether 150 still matters.** ~6 KiB separates the shell from the P1A
-sketch. That number was never measured against a real Chromebook on school Wi-Fi; the
-honest close may be "re-baseline deliberately", not "chase the last rung".
+**The measured position at the park (2026-08-18, both axes, re-measured against
+`647fb8b~1` rather than quoted):** entry chunk **626.4 → 547.1 KiB raw** and
+**177.6 → 156.4 KiB gz** — −79.3 raw, −21.2 gz. Raw is recorded on purpose: gz is what
+the school Wi-Fi carries, raw is what a CPU-bound Chromebook has to parse, and this
+project's throttling model says the second one is the half that hurts. ~6.4 KiB gz
+separates the shell from the P1A sketch.
 
 **Why the remainder is not slack:** the entry chunk is react-dom + react-router +
 auth-js/postgrest + the viewer's eager block tier + StudentViewer + Home. The 3 MB of

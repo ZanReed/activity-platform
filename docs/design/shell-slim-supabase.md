@@ -1,6 +1,10 @@
 # Shell slimming I — the Supabase sub-clients a student never runs
 
-**Status:** ENG-REVIEWED 2026-08-18 — CLEAR (AMENDED), build next. D2 full slice · D3 fail-loud ·
+**Status:** ✅ **SHIPPED 2026-08-18** (`647fb8b`, app-only; CI-green at run 32048169054). Entry chunk
+**177.6 → 156.4 KiB gz**, cap tightened 185 → 172. **As-built deltas — including two of this
+plan's own claims that measurement overturned — are in the AS BUILT section at the bottom;
+read it before citing anything above.** The ladder was then PARKED by the author the same day
+(TODOS.md). *(Was: ENG-REVIEWED 2026-08-18 — CLEAR (AMENDED), build next.)* D2 full slice · D3 fail-loud ·
 D4 four accepts · **D5-II raw-fetch rewrite of R2** · D6 the eight-finding honesty bundle. The
 outside voice found two severe defects in this plan's own claims (a fictional e2e row cited as
 the safety net; `storage` misread as a getter) and the simpler R2 — report at end.

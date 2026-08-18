@@ -28,8 +28,8 @@ Work through each item; skip none silently — say "clean" per section in the re
 
 **2. Bundle sizes and budgets.** `scripts/perf-budgets.mjs` is the ONE home for every ceiling, with its reasoning. Two families:
 - **Edge Function bundles:** `VIEWER_SERVER_MAX_KIB` / `GRADING_SERVER_MAX_KIB` vs the committed `supabase/functions/_shared/*.bundle.js` (`wc -c`). CI guards staleness, not ceiling values — that is this audit's job.
-- **Built SPA:** `node scripts/check-perf-budget.mjs` prints all 12 with their caps.
-- Flag anything within ~15% of its cap: the budget ladder should be *scheduled*, not discovered mid-feature. **As of 2026-08-17 the student shell sits at ~96% of its 185 KiB gz cap** — either the 168→150 work (TODOS) gets scheduled or the cap gets a deliberate, explained re-baseline. DECISIONS: "a budget that can only ever loosen is a fossil."
+- **Built SPA:** `node scripts/check-perf-budget.mjs` prints all 16 with their caps (12 until the 2026-08-18 shell-slim slice added four absence-only rows).
+- Flag anything within ~15% of its cap: the budget ladder should be *scheduled*, not discovered mid-feature. **As of 2026-08-18 the shell sits at 156.4 KiB gz against a 172 cap**, after slice 1 of the slimming work shipped and tightened the cap in the same commit; the author then PARKED the ladder (TODOS.md names the one trigger to resume). Prefer flagging a row that has MOVED toward its cap since the last audit over a raw percentage — the headroom policy is ~10%, so a freshly-calibrated row always sits near 90% and a raw threshold flags every healthy row. DECISIONS: "a budget that can only ever loosen is a fossil."
 
 **3. Design-doc status lines.** For each `docs/design/*.md`, read the status header and check it against STATE/HISTORY ship status.
 - ⚠ **Grep for BOTH forms:** `**Status:**` and `**Status: ` (colon inside the bold). The 2026-08-17 audit reported two docs as having *no* status line because its grep only matched the first form — a false positive that cost a finding's credibility. Normalize to `**Status:**` when fixing.
@@ -58,7 +58,7 @@ Work through each item; skip none silently — say "clean" per section in the re
 
 **8. Cross-references, guards, and README durability.**
 - Every `DECISIONS →`, `HISTORY →`, and design-doc link in STATE resolves to a real file/heading.
-- Run the drift-guard tests: `node --test scripts/tests/*.test.mjs` (41 as of 2026-08-17 — check-perf-budget, data-map-coverage, export-reachability, perf-budgets, rate-ceiling, retention-windows, verify-runner) plus the app-side lockstep guards (`markdownImportPrompt`, `blockTypeGuards`, `importFormatRegistry`).
+- Run the drift-guard tests: `node --test scripts/tests/*.test.mjs` (54 across 10 files as of 2026-08-18 — the seven named before, plus skill-references, supabase-stub-pin and e2e-origins) plus the app-side lockstep guards (`markdownImportPrompt`, `blockTypeGuards`, `importFormatRegistry`).
 - Test counts quoted in STATE vs actual `pnpm test`.
 - README deliberately carries no build status — confirm none crept in. Its CI paragraph describes a *mechanism*, which is durable and fine. Confirm the add-a-block-type checklist still matches the real wiring surface.
 
