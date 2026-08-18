@@ -947,3 +947,23 @@ function's history, `scripts/verify-*` for every row that asserts the table exis
 **Effort:** S
 **Priority:** P3
 **Depends on:** taxonomy arc Drop 2 (the `meta` fence).
+
+## React "state update on a not-yet-mounted component" from both editors' onCreate
+
+**What:** Both Tiptap editors call a React state setter from `onCreate`, which Tiptap fires during the render phase — before React has committed the mount. Every first mount of an editor route logs `Can't perform a React state update on a component that hasn't mounted yet. This indicates that you have a side-effect in your render function…`. Decide whether to fix it or to record it as accepted, but stop leaving it unexplained.
+
+**Why:** It is a real React warning on the primary authoring surface, and right now nobody knows whether it is benign. That ambiguity is the cost: the next person to see it in the console has to re-derive the whole thing before they can rule out that it is the cause of whatever they are actually debugging. (Found 2026-08-18 during the taxonomy slice's browser verification; **confirmed pre-existing** by checking out the pre-slice files and reproducing the identical warning, so it is not taxonomy fallout.)
+
+**Context — the exact source, already traced, do not re-derive:**
+- Stack bottoms out at `packages/app/src/editor/ReferencePanelEditor.tsx:128-130` — `onCreate: ({ editor }) => { onUpdate(editor.getJSON()); }` → `handlePanelUpdate` in ActivityEditor → `setPanelJson`.
+- `packages/app/src/editor/Editor.tsx:107-109` has the **identical shape** (`onCreate` → `onUpdate?.` → `setTiptapJson`), so this is not dev-bench-only — it fires on the real `/activity/:id` route too. Reproduce on `/dev/config-drawer`, which is the cheapest surface (no auth, no Supabase).
+- It warns **once per lazy chunk's first mount**: revisiting the route after the chunk is warm logs nothing, which is why it is easy to miss and why a naive "reload and check" shows a clean console.
+
+**⚠ The trap — this is NOT a free "move it to useEffect":** that `onCreate` call is load-bearing for the autosave baseline. `changeKey` gates on `panelJson` precisely so the fingerprint settles only once BOTH editors have reported their loaded content (see the comment on `handlePanelUpdate`). Deferring the first report to an effect changes WHEN the baseline settles, and getting it wrong produces either a spurious load-time save or a missed first edit. Any fix needs the autosave baseline tests (and `activityChangeKey.test.ts`) to stay green, plus a check that opening an activity and immediately closing it still writes nothing.
+
+**Pros:** Removes a real warning from the primary authoring surface; makes the console trustworthy again for debugging real defects.
+**Cons:** Touches the autosave baseline settle, which is delicate and has bitten before; the warning appears to be cosmetic today, so the fix carries more risk than the symptom.
+
+**Effort:** S (investigate + decide) / M (if the fix touches the baseline)
+**Priority:** P3
+**Depends on:** None.
