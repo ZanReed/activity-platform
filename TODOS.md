@@ -7,12 +7,43 @@ ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during revi
 
 Left open deliberately by [problem-answer-key.md](docs/design/problem-answer-key.md); T1–T6 shipped.
 
-**1. T7 (P2) — the print/a11y sweep for numbered free-response.** `short_answer` and `essay` became
-page-numbered (ruling E7). Owed: a `printExpectations.ts` row for the number on paper, and an a11y
-check that the number is announced with the question rather than read as loose text. Note the wider
-fact this sweep will run into: **the viewer renders no problem number for ANY block type yet** — the
-registry's `numbered` declaration is currently consumed only by the guard test and the editor's
-gutter. That is a pre-existing gap, not one this slice opened, but T7 is where it becomes visible.
+**1. ✅ T7 — DONE for everything that is implementable; ONE HALF IS BLOCKED, see the next item.**
+Shipped 2026-08-20: a `printExpectations.ts` universal row (the written answer key never prints on a
+student worksheet, with its non-vacuity pair named in `print-answer-key.e2e.ts`), and an a11y row
+that scans the **post-check** worksheet — a state this lane had never scanned at all, and which is
+where the answer-key slice's new solution-disclosure DOM lives. Both verified in a real browser.
+
+**1b. ⚠ THE VIEWER RENDERS NO PROBLEM NUMBER FOR ANY BLOCK TYPE — a gap the renderer's retirement
+left open, found while doing T7 (2026-08-20).** This is the blocked half of T7 and it is much wider
+than the answer-key slice.
+
+*The finding, verified in the dev harness:* `fill_in_blank`, `multiple_choice`, `matching`,
+`ordering`, `number_line` and `faded_worked_example` all declare `numbered: 'always'` in the
+registry, and **not one of them renders a number** on screen or on paper. `ViewerContainer`'s block
+slot emits `data-block-id/-type/-category/-family/-align` and nothing about numbering; no CSS
+counter exists; `pageLabel()` has no consumer outside the schema's own tests.
+
+*How it happened:* the surface that rendered numbering was the renderer's `isNumberedBlock`, which
+wrote "Problem N" into published HTML. It died with `packages/renderer` at **S9 Drop 4**, and the
+viewer — now the only student surface — never inherited the job. The registry declaration and its
+guard test survived the deletion, so the contract still *looks* honoured.
+
+*Why it matters more now:* ruling E7 (answer-key slice) made `short_answer` and `essay` numbered on
+the stated premise that "numbers render on screen and on paper from the one existing numbering
+walk". That premise is false for this surface. Paper-first workflows are the reason the slice
+exists — a printed worksheet whose questions have no numbers cannot be marked against a key, and
+the scan-grading arc's paper→block mapping has nothing to key on.
+
+*What the work is (its own slice, not a sweep):* give the viewer a numbering pass over the served
+document — sequence walk, the three `label` modes (`number` / `custom` / `none`, already in the
+schema), the on-screen and print renderings, and the a11y association between the number and its
+question. **Then** the two rules T7 could not declare become declarable: a `printExpectations.ts`
+row for the number on paper, and the a11y check that it is announced with the question rather than
+read as loose text. Do it for every numbered type at once — a numbering surface that serves two
+block types is worse than none, because the sheet's numbers would then skip.
+
+*Cross-reference:* the note at the top of `printExpectations.ts`'s universal block records the same
+finding where the future implementer will be standing.
 
 **2. A full answer/solution EDITING UI in the editor (ruling E10 deferred it).** What ships today is
 read-only display in `FreeResponseView` — a collapsed, teacher-only panel showing whatever the

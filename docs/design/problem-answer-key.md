@@ -140,6 +140,14 @@
 > renderer with ANSWER_KEY_INK treatment" was wrong on both surfaces — the key
 > panel inherits `--vw-color-ink` instead (unreadable in dark mode otherwise, and
 > the print token layer already forces every ink to pure black).
+>
+> **And one the T7 sweep found, which touches E7 itself:** "Numbers render on
+> screen and on paper from the one existing numbering walk" is **false for the
+> viewer** — it renders no problem number for ANY block type, because the walk
+> that rendered them belonged to the retired renderer. E7's registry change is
+> still right (it is the correct declaration, and the editor's gutter honours
+> it); what it cannot do on its own is put a number on a printed worksheet.
+> That surface is now a recorded slice of its own.
 
 - [x] **T1 (P1, human: ~3h / CC: ~25min)** — schema+registry — `answer`/`solution` on ShortAnswerBlock+EssayBlock; strip entries; `numbered:'always'`; tombstone on `problem`. Verify: schema tests + sanitize units + leak fixture red-then-green.
 - [x] **T2 (P1, human: ~4h / CC: ~30min)** — editor — Tiptap attrs + serialize both directions + read-only display (E10). Verify: round-trip tests.
@@ -147,7 +155,7 @@
 - [x] **T4 (P1, human: ~2h / CC: ~15min)** — importer — multi-line `answer:`/`solution:` keys on both fences; registry examples; prompt + format doc (incl. E8's convention). Verify: three-artifact guard.
 - [x] **T5 (P1, human: ~1h / CC: ~10min)** — viewer — ShortAnswer/Essay render unlocked solutions. Verify: viewer tests.
 - [x] **T6 (P1, human: ~1h / CC: ~10min)** — bundles + deploy — regenerate BOTH server bundles same commit; record_check regression pin; STATE pending-action w/ ordering constraint + liveness proof script. Verify: bundle drift green; verify script rows.
-- [ ] **T7 (P2)** — sweep: printExpectations row for numbered free-response, a11y numbering check. **Deferred 2026-08-20 with T1–T6 shipped; recorded in [TODOS.md](../../TODOS.md).**
+- [~] **T7 (P2)** — sweep: printExpectations row for numbered free-response, a11y numbering check. **PARTIALLY DONE 2026-08-20 — and the sweep found that E7's rendering premise is false.** Shipped: a universal printExpectations row (the written key never prints on a student worksheet) and an a11y row scanning the POST-CHECK worksheet, a state that lane had never scanned. **Blocked, and re-scoped as its own slice: the viewer renders no problem number for ANY block type** — the renderer's `isNumberedBlock` was the only implementation and died with `packages/renderer` at S9 Drop 4, so `numbered: 'always'` is a declaration nothing consumes on the student surface. The two rules T7 could not write are recorded in [TODOS.md](../../TODOS.md) item 1b, to land with that numbering surface, for every numbered type at once.
 
 Sequencing: T1 → {T2, T3, T4, T5 in any order} → T6. Single-module seams
 dominate — sequential implementation, no worktree parallelization worth its

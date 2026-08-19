@@ -151,7 +151,57 @@ const UNIVERSAL_CHECKS: readonly PrintCheck[] = [
     target: BLOCK_ROOT,
     expect: { kind: 'ink-not-paper' },
   },
+  {
+    id: 'chrome/written-answer-key',
+    rule: "The teacher's written answer key never prints on a student worksheet.",
+    // The answer-key slice's paper channel (T7). Universal rather than scoped
+    // to short_answer/essay on purpose: the answer-key CONTEXT is
+    // document-wide, so the next block type that grows a written key inherits
+    // this rule instead of needing to remember it.
+    //
+    // ⚠ ITS NON-VACUITY LIVES ELSEWHERE, and that is worth saying out loud
+    // because this check cannot fail on the route the print gate visits: the
+    // gate loads /dev/viewer WITHOUT `answers=1`, so the provider is never
+    // mounted and the element is never in the DOM. A `hidden` expectation
+    // passes on an absent element ("not rendered"), so on its own this is the
+    // "passing because of what is absent" shape this repo keeps naming.
+    // What makes it real is the PAIR in print-answer-key.e2e.ts: the positive
+    // rows load `answers=1` and assert the key IS there with the right label,
+    // and the negative-direction row loads the same page without it and
+    // asserts zero `[data-answer-key]` elements — which this panel carries.
+    // The declaration lives here because that is this file's job (single
+    // location for the print contract); the falsification lives there.
+    target: '.viewer-written-key',
+    expect: { kind: 'hidden' },
+  },
 ];
+
+// -----------------------------------------------------------------------------
+// ⚠ THE RULE THIS FILE CANNOT DECLARE YET — numbered questions on paper
+// -----------------------------------------------------------------------------
+// Ruling E7 (answer-key slice) made short_answer and essay `numbered: 'always'`
+// on the stated premise that "numbers render on screen and on paper from the one
+// existing numbering walk". THAT PREMISE IS FALSE FOR THIS SURFACE, and the
+// scope is much wider than those two blocks: **the viewer renders no problem
+// number for ANY block type.** fill_in_blank, multiple_choice, matching,
+// ordering and number_line all declare `numbered: 'always'` and all print
+// without a number (verified in the dev harness 2026-08-20 — no number text, no
+// numbering attribute on the block wrapper).
+//
+// The registry's `numbered` declaration is currently consumed by exactly two
+// things: the guard test that binds it to block-predicates.ts, and the EDITOR's
+// gutter. The surface that used to render it — the renderer's isNumberedBlock,
+// driving "Problem N" into published HTML — died with packages/renderer at S9
+// Drop 4, and the viewer never inherited the job.
+//
+// So a `numbered` print check written today would be a rule with no
+// implementation, and this file's convention for that (a missing target FAILS,
+// and the failing list is the build's to-do) only works while someone is
+// actively building the target. Declaring it now would leave the print gate
+// permanently red. The rule is therefore RECORDED IN TODOS.md as its own item,
+// to be declared here in the same slice that gives the viewer a numbering
+// surface — for every numbered type at once, not for these two.
+// -----------------------------------------------------------------------------
 
 /** Values a computed `color` may not take on paper. */
 export const PAPER_COLOURS: readonly string[] = [

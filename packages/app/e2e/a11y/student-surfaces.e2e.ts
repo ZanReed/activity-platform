@@ -85,6 +85,29 @@ test('every lazy block type declares a mount marker', () => {
   expect(Object.keys(LAZY_MOUNT_MARKERS).sort()).toEqual(lazyBlockTypes().sort());
 });
 
+/** The served id of the first block of a given type — for stubbing a check
+ *  response whose keys match the document the student was actually served. */
+function servedBlockId(type: string): string {
+  const found: string[] = [];
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+      return;
+    }
+    if (node === null || typeof node !== 'object') return;
+    const record = node as Record<string, unknown>;
+    if (record['type'] === type && typeof record['id'] === 'string') {
+      found.push(record['id']);
+    }
+    for (const value of Object.values(record)) walk(value);
+  };
+  walk(servedFixtureDocument().sections);
+  if (found[0] === undefined) {
+    throw new Error(`the served fixture carries no ${type} block`);
+  }
+  return found[0];
+}
+
 async function openWorksheet(page: Page): Promise<void> {
   await stubActivityApi(page);
   await signInAs(page);
@@ -323,6 +346,59 @@ test.describe('gap 4 — reduced motion is measured, not grepped', () => {
 test.describe('axe — zero WCAG A/AA violations per student surface', () => {
   test('the worksheet', async ({ page }) => {
     await openWorksheet(page);
+    await expectNoAxeViolations(page);
+  });
+
+  test('the worksheet AFTER a check, with a solution disclosed', async ({
+    page,
+  }) => {
+    // THE POST-CHECK DOM HAD NEVER BEEN SCANNED. Every row above this one
+    // scans the worksheet in its untouched state, so the elements that only
+    // exist after a check round trip — the state pills, and the solution
+    // disclosure the answer-key slice added to short_answer and essay — were
+    // outside a11y coverage entirely. That is the same shape as the gaps this
+    // lane was built to close: the coverage claim was about the SURFACE, and
+    // the surface has a second state.
+    //
+    // The solution is stubbed onto a real served block id rather than typed
+    // (P2): a hand-written id produces a response whose keys match nothing,
+    // the disclosure never renders, and the scan passes over a page missing
+    // the very thing it was added for.
+    const shortAnswerId = servedBlockId('short_answer');
+    await stubActivityApi(page, {
+      check: {
+        solutions: {
+          [shortAnswerId]: [
+            {
+              type: 'text',
+              text: 'The y-intercept is the value of y when x is zero.',
+              marks: [],
+            },
+          ],
+        },
+      },
+    });
+    await signInAs(page);
+    await page.goto(activityUrl());
+    await page.locator('[data-section-id] input[type="text"]').first().waitFor();
+
+    await page.locator('[data-section-id] textarea').first().fill('my answer');
+    await page.getByRole('button', { name: 'Check', exact: true }).first().click();
+
+    // Non-vacuity: the disclosure is really on the page before anything is
+    // asserted about its accessibility.
+    const disclosure = page.locator('.viewer-solution').first();
+    await expect(disclosure).toBeVisible();
+
+    // It is a native <details>, so the keyboard path is the platform's — but
+    // "we used the right element" is a claim, and this is the check. The
+    // summary takes focus and Enter opens it.
+    const summary = disclosure.locator('summary');
+    await summary.focus();
+    await expect(summary).toBeFocused();
+    await summary.press('Enter');
+    await expect(disclosure).toHaveAttribute('open', '');
+
     await expectNoAxeViolations(page);
   });
 
