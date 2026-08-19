@@ -8,7 +8,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **✅ 0037 IS APPLIED LIVE — the ordering gate is DISCHARGED.** Tool-read 2026-08-18: `0037` in `schema_migrations`, both columns present, `publish_activity` carries the stamp, **0 GIN indexes** (the D12 deferral held). The author ran `pnpm verify:auth --target live` = **verify-0037 11 passed / 0 failed**.
 
-**⏭ QUEUED: push three commits.** `5ab7359` taxonomy Drop 1, `adc90d5` the onCreate-warning TODO, and the Drop 2 import-fence commit. **The migration-before-push gate that governed Drop 1 is now satisfied**, and **Drop 2 is app-only** — no migration, no deploy, no bundle regeneration (it touches the importer, the prompt, the format doc and the editor; no Edge Function, no sanitize spec, no grading path). ⚠ The push IS a Cloudflare Pages deploy, so the taxonomy UI and the ```meta fence go live with it.
+**🚨 QUEUED: push the bundle-drift fix — main is RED (run 32118940997).** Drop 1's `.min(1)` on `ActivityMeta.course` was a SCHEMA change, and its commit claimed "no bundle regeneration" — **that claim was wrong** (the CLAUDE.md rule is unconditional: schema change ⇒ regenerate both server bundles in the same commit). CI's drift guard caught it. Both bundles are now regenerated and committed; push to go green. **Optional, not urgent:** redeploying `get-activity`/`check-activity` would carry the `.min(1)` validation live — nothing requires it (no existing document can have a blank course; the default always applied), so it can ride the next real function change.
 
 *(Previously queued, now closed: `647fb8b` shell slimming slice 1 and `cc24700` the e2e-origins fix are both pushed and CI-green at runs **32048169054** and **32081815982**.)*
 
