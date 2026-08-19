@@ -967,3 +967,29 @@ function's history, `scripts/verify-*` for every row that asserts the table exis
 **Effort:** S (investigate + decide) / M (if the fix touches the baseline)
 **Priority:** P3
 **Depends on:** None.
+
+## Remove the dead `problem` block (ride the next schema-changing slice)
+
+**What:** Delete `problem` from schema, viewer (Problem.tsx, registry, bindings), sanitizer types, and the grading corpus row — with a P5 claims-grep for every comment citing it before deletion.
+
+**Why:** E1 of the answer-key eng review (2026-08-19, [problem-answer-key.md](docs/design/problem-answer-key.md)) ruled the block stays dead: the editor has NEVER been able to hold one ([serialize.ts](packages/app/src/lib/serialize.ts) drops it with a warning), no fence produces one, and its paper-problem job now belongs to the extended `short_answer`/`essay`. What remains is a zombie that renders in the viewer and looks alive to any future session — the resurrection-path hazard OV-DX-2 names.
+
+**Pros:** One less block type in schema/sanitizer/registry/grading to reason about; the E1 tombstone becomes temporary.
+**Cons:** A `packages/schema` change, so it pays the bundle-regeneration round — which is why it should RIDE a slice already paying it, never stand alone.
+
+**Context:** Registry calls it "numbered legacy prose problem" (registry.ts:133). The corpus is empty of them (nothing could ever author one). The answer-key review deliberately did NOT fold this into its own slice — deletions deserve their own focus (the S9 lesson).
+
+**Effort:** S · **Priority:** P3 · **Depends on:** the next slice that regenerates the server bundles anyway.
+
+## Answer/solution editing UI in FreeResponseView
+
+**What:** Inline-content editors for the `answer`/`solution` fields on short_answer/essay blocks (E10 of the answer-key review ships READ-ONLY display only).
+
+**Why:** Until it exists, fixing an answer typo = edit the .md file → re-import. Correct while the markdown corpus is the source of truth; a wall the moment an activity is authored editor-natively with no backing file (a future co-teacher without a markdown workflow — the Activity Bank's multi-author future).
+
+**Pros:** Self-contained in-app authoring of answer keys.
+**Cons:** An InlineNode editing surface — real editor work — building a second authoring path while the file-based one is primary.
+
+**Context:** The fields ride Tiptap attrs (the rubric pattern); T2 of the review's task list adds the attrs + read-only display. **Trigger to build:** editor-native authoring of free-response answers becomes a real path.
+
+**Effort:** M · **Priority:** P3 · **Depends on:** answer-key slice T2 (attrs + serialize round-trip).
