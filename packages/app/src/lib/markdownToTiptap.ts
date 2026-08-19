@@ -48,7 +48,11 @@ import {
     latexToAscii,
 } from '@activity/graph-kit';
 import type { JSONContent } from '@tiptap/react';
-import type { DefinitionBlock, InlineNode } from '@activity/schema';
+import type {
+    ActivityMeta,
+    DefinitionBlock,
+    InlineNode,
+} from '@activity/schema';
 import {
     tiptapInlineToActivity,
     tiptapToDefinitionContent,
@@ -129,6 +133,22 @@ export interface ImportedMeta {
     unit?: string;
     tags?: string[];
     pedagogicalRole?: PedagogicalRole;
+    // Activity-level SETTINGS. Every one of these was editor-only before, so
+    // an imported activity arrived needing a drawer visit to become what its
+    // author already knew it was ("this is an exit ticket, answers hidden
+    // until check, no calculator"). Flat enums only — the nested knobs
+    // (calculator restrictions, print layout, typography) stay editor-only
+    // until something actually demands them.
+    submissionMode?: ActivityMeta['submissionMode'];
+    revisionMode?: ActivityMeta['revisionMode'];
+    activityType?: ActivityMeta['activityType'];
+    answerFeedback?: ActivityMeta['answerFeedback'];
+    // The MODE, not a built tool: keeping this a flat string leaves
+    // ImportedMeta a plain data bag, and lets the merge layer construct the
+    // CalculatorTool from the schema factory (so restriction defaults are
+    // never re-listed here). 'off' is distinct from absent — it lets an author
+    // say "no calculator on this one" explicitly.
+    calculatorMode?: 'off' | 'scientific' | 'graphing';
 }
 
 export type MarkdownImporter = (markdown: string) => ImportResult;
@@ -2035,6 +2055,26 @@ function parseReferenceFence(src: string, ctx: Ctx): boolean {
 //
 // Unknown keys warn rather than fail: the fence is metadata, and a typo'd key
 // must never cost the author the body content in the same paste.
+/**
+ * Read one enum-valued meta key, or warn and skip. Values are matched
+ * case-insensitively with spaces/hyphens folded to underscores, so an author
+ * (or an AI) writing "Exit Ticket" lands on `exit_ticket` rather than being
+ * told off for formatting.
+ */
+function metaEnum<T extends string>(
+    key: string,
+    raw: string,
+    allowed: readonly T[],
+    ctx: Ctx,
+): T | undefined {
+    const value = raw.toLowerCase().replace(/[\s-]+/g, '_');
+    if ((allowed as readonly string[]).includes(value)) return value as T;
+    ctx.warnings.add(
+        `Meta: ${key} “${raw}” isn’t one of ${allowed.join(', ')} — it was skipped.`,
+    );
+    return undefined;
+}
+
 function parseMetaFence(src: string, ctx: Ctx): void {
     const meta: ImportedMeta = ctx.meta ?? {};
     for (const rawLine of src.split('\n')) {
@@ -2072,6 +2112,50 @@ function parseMetaFence(src: string, ctx: Ctx): void {
                 }
                 break;
             }
+            case 'submissionmode':
+            case 'submission': {
+                const v = metaEnum(
+                    'submission mode', value,
+                    ['single', 'locked', 'free'] as const, ctx,
+                );
+                if (v) meta.submissionMode = v;
+                break;
+            }
+            case 'revisionmode':
+            case 'revision': {
+                const v = metaEnum(
+                    'revision mode', value, ['free', 'locked'] as const, ctx,
+                );
+                if (v) meta.revisionMode = v;
+                break;
+            }
+            case 'type':
+            case 'activitytype': {
+                const v = metaEnum(
+                    'activity type', value,
+                    ['worksheet', 'exit_ticket', 'warm_up', 'review'] as const,
+                    ctx,
+                );
+                if (v) meta.activityType = v;
+                break;
+            }
+            case 'feedback':
+            case 'answerfeedback': {
+                const v = metaEnum(
+                    'answer feedback', value,
+                    ['immediate', 'on_check'] as const, ctx,
+                );
+                if (v) meta.answerFeedback = v;
+                break;
+            }
+            case 'calculator': {
+                const v = metaEnum(
+                    'calculator', value,
+                    ['off', 'scientific', 'graphing'] as const, ctx,
+                );
+                if (v) meta.calculatorMode = v;
+                break;
+            }
             case 'role': {
                 const role = asPedagogicalRole(value.toLowerCase());
                 if (role) meta.pedagogicalRole = role;
@@ -2083,7 +2167,7 @@ function parseMetaFence(src: string, ctx: Ctx): void {
             }
             default:
                 ctx.warnings.add(
-                    `Meta: “${key}” isn’t a recognized key (title, course, unit, tags, role) and was skipped.`,
+                    `Meta: “${key}” isn’t a recognized key (title, course, unit, tags, role, type, submission, revision, feedback, calculator) and was skipped.`,
                 );
         }
     }

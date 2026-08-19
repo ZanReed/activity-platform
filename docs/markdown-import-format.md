@@ -42,7 +42,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```essay ` fenced block | a **graded essay** question (word-count target + rubric optional; see below) |
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
 | a ` ```callout ` fenced block | a **tinted note box** — info / warning / success / note (see below) |
-| a ` ```meta ` fenced block | the activity's **metadata** — title, course, unit, tags, Bank role — not a body block (see below) |
+| a ` ```meta ` fenced block | the activity's **metadata and settings** — title, course, unit, tags, Bank role, type, submission/revision mode, feedback, calculator — not a body block (see below) |
 | a ` ```reference ` fenced block | the activity's **reference panel** (formula sheet students summon; prints at the top) — not a body block (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
@@ -390,6 +390,11 @@ ACTIVITY METADATA (optional, once, anywhere in the reply)
     unit: Quadratics
     tags: factoring, vertex form, word problems
     role: lesson
+    type: exit_ticket
+    submission: locked
+    revision: locked
+    feedback: on_check
+    calculator: graphing
     ```
 - title NAMES the activity. Always include it — without it the activity
   imports as "Untitled activity" and has to be renamed by hand.
@@ -403,6 +408,27 @@ ACTIVITY METADATA (optional, once, anywhere in the reply)
 - Do NOT put role words (lesson/review/practice) in tags — they belong in
   role. Omit any key you are unsure about; a wrong guess is worse than a
   missing one, because metadata already set by hand is never overwritten.
+
+ACTIVITY SETTINGS (optional, same ```meta fence)
+- These decide how the activity BEHAVES for the student. Set them when the
+  kind of activity implies them; omit them to take the defaults.
+- type: worksheet | exit_ticket | warm_up | review   (default worksheet)
+    This is the activity's FORMAT. It is separate from role, which is where
+    the activity sits in your sequence — both offer a "review".
+- submission: single | locked | free   (default free)
+    single = one submit at the end, no per-section checks.
+    locked = per-section checkpoints, answers freeze once checked.
+    free   = per-section checkpoints, students may revise and re-check.
+- revision: free | locked   (default free) — may they resubmit after the
+    final submit? Ignored in single mode.
+- feedback: immediate | on_check   (default on_check)
+    immediate = each blank turns green/red as the student leaves it.
+    on_check  = correctness stays hidden until they check the section.
+    Use immediate for practice; on_check for anything quiz-like.
+- calculator: off | scientific | graphing   (default off)
+- Typical pairings: a quiz or exit ticket is submission: locked +
+  feedback: on_check; a practice sheet is submission: free +
+  feedback: immediate.
 
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
@@ -734,9 +760,32 @@ Plain `key: value` lines, one per line:
 | `tags` | comma-separated topic labels, used to find activities **across** units. Normalized on the way in: lower-cased, trimmed, inner spaces collapsed, duplicates dropped. Accents and macrons are preserved. |
 | `role` | exactly one of `lesson`, `review`, or `practice` — how the activity is used in the sequence. Anything else warns and is skipped. |
 
+### Settings — how the activity behaves
+
+The same fence carries the activity's **settings**. Set them when the kind of
+activity implies them; omit them to take the defaults. Values are matched
+case-insensitively with spaces and hyphens folded to underscores, so
+`Exit Ticket` and `exit-ticket` both reach `exit_ticket`.
+
+| Key | Values (default first) | What it decides |
+|---|---|---|
+| `type` | `worksheet`, `exit_ticket`, `warm_up`, `review` | The activity's **format**. Separate from `role`, which is where it sits in your sequence — both vocabularies offer a "review". |
+| `submission` | `free`, `locked`, `single` | `free` = per-section checkpoints, students revise and re-check freely. `locked` = checkpoints, but answers freeze once a section is checked. `single` = one submit at the end, no checkpoints. |
+| `revision` | `free`, `locked` | May students resubmit after the final submit? Ignored in `single` mode. |
+| `feedback` | `on_check`, `immediate` | `immediate` turns each blank green/red as the student leaves it; `on_check` hides correctness until they check the section. Practice wants `immediate`; anything quiz-like wants `on_check`. |
+| `calculator` | `off`, `scientific`, `graphing` | Whether the calculator tool is available, and which kind. Finer restrictions (trig, logs, regression models, expression caps) stay in ⚙ → Calculator. |
+
+Typical pairings: an exit ticket or quiz is `submission: locked` +
+`feedback: on_check`; a practice sheet is `submission: free` +
+`feedback: immediate`.
+
+**Still editor-only** (no import syntax, set in ⚙): print layout, typography,
+and the calculator's detailed restrictions.
+
 - **Nothing is ever overwritten.** A key applies **only where the activity has
   no value yet**: a title still reading "Untitled activity", an unset unit, an
-  unclassified role, a course still on the default. If the paste disagrees with something you already set, your value
+  unclassified role, a course still on the default, a setting still on its
+  default, no calculator configured. If the paste disagrees with something you already set, your value
   wins and the import warning tells you what was ignored. This matters because
   an AI writing to this format will tend to emit a `meta` fence on *every*
   reply, including when you are only pasting one extra section into a finished

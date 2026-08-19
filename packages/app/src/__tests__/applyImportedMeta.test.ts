@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyDocument } from '@activity/schema';
+import { createCalculatorTool, createEmptyDocument } from '@activity/schema';
 import {
     applyImportedMeta,
     DEFAULT_COURSE,
@@ -18,12 +18,21 @@ const fresh: ImportMetaTarget = {
     meta: freshMeta,
     tags: [],
     pedagogicalRole: null,
+    calculator: undefined,
 };
 
 const settled: ImportMetaTarget = {
-    meta: { ...freshMeta, course: 'Geometry', unit: 'Circles' },
+    meta: {
+        ...freshMeta,
+        course: 'Geometry',
+        unit: 'Circles',
+        submissionMode: 'locked',
+        activityType: 'exit_ticket',
+        answerFeedback: 'immediate',
+    },
     tags: ['existing'],
     pedagogicalRole: 'lesson',
+    calculator: createCalculatorTool(),
 };
 
 describe('applyImportedMeta — the fresh activity (the dominant workflow)', () => {
@@ -126,6 +135,7 @@ describe('applyImportedMeta — never-clobber (the case the rule exists for)', (
             meta: { ...freshMeta, course: 'Geometry' },
             tags: [],
             pedagogicalRole: null,
+            calculator: undefined,
         };
         const out = applyImportedMeta(
             { course: 'Algebra I', unit: 'Quadratics', pedagogicalRole: 'review' },
@@ -135,6 +145,86 @@ describe('applyImportedMeta — never-clobber (the case the rule exists for)', (
         expect(out.meta.unit).toBe('Quadratics');
         expect(out.pedagogicalRole).toBe('review');
         expect(out.warnings.length).toBe(1);
+    });
+});
+
+describe('applyImportedMeta — activity settings', () => {
+    it('applies every setting to an untouched activity', () => {
+        const out = applyImportedMeta(
+            {
+                submissionMode: 'locked',
+                revisionMode: 'locked',
+                activityType: 'exit_ticket',
+                answerFeedback: 'immediate',
+                calculatorMode: 'graphing',
+            },
+            fresh,
+        );
+        expect(out.meta.submissionMode).toBe('locked');
+        expect(out.meta.revisionMode).toBe('locked');
+        expect(out.meta.activityType).toBe('exit_ticket');
+        expect(out.meta.answerFeedback).toBe('immediate');
+        expect(out.calculator?.enabled).toBe(true);
+        expect(out.calculator?.restrictions.mode).toBe('graphing');
+        expect(out.warnings).toEqual([]);
+        expect(out.changed).toBe(true);
+    });
+
+    // Each setting's "unset" test is its SCHEMA DEFAULT — they always have a
+    // value, so an absence test could never let the fence set them.
+    it('treats each schema default as unset', () => {
+        expect(freshMeta.submissionMode).toBe('free');
+        expect(freshMeta.revisionMode).toBe('free');
+        expect(freshMeta.activityType).toBe('worksheet');
+        expect(freshMeta.answerFeedback).toBe('on_check');
+    });
+
+    it('keeps settings the author already changed, and says so', () => {
+        const out = applyImportedMeta(
+            {
+                submissionMode: 'free',
+                activityType: 'worksheet',
+                answerFeedback: 'on_check',
+            },
+            settled,
+        );
+        expect(out.meta.submissionMode).toBe('locked');
+        expect(out.meta.activityType).toBe('exit_ticket');
+        expect(out.meta.answerFeedback).toBe('immediate');
+        expect(out.warnings).toHaveLength(3);
+        expect(out.changed).toBe(false);
+    });
+
+    it('stays silent when a setting agrees with what is already there', () => {
+        const out = applyImportedMeta({ submissionMode: 'locked' }, settled);
+        expect(out.warnings).toEqual([]);
+        expect(out.changed).toBe(false);
+    });
+
+    it('builds the calculator from the schema factory, not re-listed defaults', () => {
+        const out = applyImportedMeta({ calculatorMode: 'scientific' }, fresh);
+        expect(out.calculator).toEqual(createCalculatorTool());
+    });
+
+    // 'off' on an activity that has no calculator agrees with reality — there
+    // is nothing to change and nothing worth saying.
+    it('is a silent no-op for calculator: off on an activity with none', () => {
+        const out = applyImportedMeta({ calculatorMode: 'off' }, fresh);
+        expect(out.calculator).toBeUndefined();
+        expect(out.changed).toBe(false);
+        expect(out.warnings).toEqual([]);
+    });
+
+    it('never turns OFF a calculator the author enabled', () => {
+        const out = applyImportedMeta({ calculatorMode: 'off' }, settled);
+        expect(out.calculator).toBe(settled.calculator);
+        expect(out.warnings.join(' ')).toMatch(/calculator/);
+    });
+
+    it('never switches the mode of a calculator already configured', () => {
+        const out = applyImportedMeta({ calculatorMode: 'graphing' }, settled);
+        expect(out.calculator?.restrictions.mode).toBe('scientific');
+        expect(out.warnings.join(' ')).toMatch(/scientific/);
     });
 });
 

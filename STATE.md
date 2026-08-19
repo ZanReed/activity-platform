@@ -57,7 +57,18 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — the Activities list surface, T1–T4 BUILT (unpushed)
+## Current focus — the ```meta fence now carries SETTINGS (the builder's briefing)
+
+**Trigger: the author is pre-authoring the whole catalogue as markdown in a separate folder, with an AI.** That makes the import prompt the builder's entire vocabulary — anything not importable is a per-activity drawer visit across ~150 activities. Two gaps closed 2026-08-19:
+
+1. **`title:`** — without it every import landed as "Untitled activity". One manual rename per activity was the single largest mechanical cost of the workflow. Never-clobber with the placeholder as the unset test.
+2. **Five settings keys** — `type` (worksheet/exit_ticket/warm_up/review), `submission` (single/locked/free), `revision` (free/locked), `feedback` (immediate/on_check), `calculator` (off/scientific/graphing). Each is a decision the builder is already making implicitly while writing; each one unimported was a drawer visit. Enum values fold spaces/hyphens and ignore case, so "Exit Ticket" reaches `exit_ticket`.
+
+**The fence now carries 10 keys and one rule: never-clobber (D16).** "Unset" is per-field — the create-time placeholder for title, the SCHEMA DEFAULT for course and the four settings, absent for unit, null for role, undefined for calculator. Tags still union. Anything skipped is reported under the editor header.
+
+**Deliberately still editor-only, and why:** print layout + typography (nested, and you can't yet tell whether the defaults are wrong); the calculator's detailed restrictions (trig/logs/regression/expression caps — `calculator: graphing` covers the real case). **Deliberately REFUSED:** `skills` (inert by Bank ruling A4 — STATE warns against a piecemeal surface) and `gradingMode` (inert in Phase 1; importing it would let the builder write something the platform ignores, which is worse than not offering it).
+
+## Prior focus — the Activities list surface, T1–T4 BUILT
 
 **[activities-list-surface.md](docs/design/activities-list-surface.md) — design-reviewed 2026-08-18 (D3–D11), built 2026-08-19.** The list is now the teacher's **curriculum outline**: natural-sorted unit groups with counts, a recently-edited strip, search + `/`, a drafts chip, flat separated rows (cards deleted), hidden-empty-groups under filters, and scroll restoration. New modules: `lib/activityGrouping.ts`, `lib/useScrollMemory.ts`.
 

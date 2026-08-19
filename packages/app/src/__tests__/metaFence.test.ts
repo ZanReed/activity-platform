@@ -101,6 +101,71 @@ describe('```meta fence', () => {
         expect(r.meta?.tags).toEqual(['factoring', 'graphing', 'algebra']);
     });
 
+    // ---- activity settings -------------------------------------------------
+
+    it('reads every settings key', () => {
+        const r = convert(
+            fence(
+                'type: exit_ticket\nsubmission: locked\nrevision: locked\nfeedback: on_check\ncalculator: graphing',
+            ),
+        );
+        expect(r.meta).toEqual({
+            activityType: 'exit_ticket',
+            submissionMode: 'locked',
+            revisionMode: 'locked',
+            answerFeedback: 'on_check',
+            calculatorMode: 'graphing',
+        });
+        expect(r.warnings).toEqual([]);
+    });
+
+    // An AI (or a human) writing "Exit Ticket" should land on the enum, not a
+    // scolding — spaces and hyphens fold to underscores.
+    it('folds spaces and hyphens, and ignores case, in enum values', () => {
+        expect(convert(fence('type: Exit Ticket')).meta?.activityType).toBe(
+            'exit_ticket',
+        );
+        expect(convert(fence('type: warm-up')).meta?.activityType).toBe(
+            'warm_up',
+        );
+        expect(convert(fence('feedback: On Check')).meta?.answerFeedback).toBe(
+            'on_check',
+        );
+    });
+
+    it('accepts the long-form key spellings too', () => {
+        const r = convert(
+            fence(
+                'activitytype: review\nsubmissionmode: single\nrevisionmode: locked\nanswerfeedback: immediate',
+            ),
+        );
+        expect(r.meta?.activityType).toBe('review');
+        expect(r.meta?.submissionMode).toBe('single');
+        expect(r.meta?.revisionMode).toBe('locked');
+        expect(r.meta?.answerFeedback).toBe('immediate');
+        expect(r.warnings).toEqual([]);
+    });
+
+    it('warns and skips an out-of-range setting rather than guessing', () => {
+        const r = convert(fence('submission: whenever'));
+        expect(r.meta).toBeUndefined();
+        expect(r.warnings.join(' ')).toMatch(/submission mode/);
+        expect(r.warnings.join(' ')).toMatch(/single, locked, free/);
+    });
+
+    it('reads calculator: off as an explicit value, not an absence', () => {
+        expect(convert(fence('calculator: off')).meta?.calculatorMode).toBe(
+            'off',
+        );
+    });
+
+    it('keeps good settings when one is out of range', () => {
+        const r = convert(fence('type: exit_ticket\ncalculator: abacus'));
+        expect(r.meta?.activityType).toBe('exit_ticket');
+        expect(r.meta?.calculatorMode).toBeUndefined();
+        expect(r.warnings.join(' ')).toMatch(/calculator/);
+    });
+
     it('accepts role case-insensitively', () => {
         expect(convert(fence('role: LESSON')).meta?.pedagogicalRole).toBe(
             'lesson',

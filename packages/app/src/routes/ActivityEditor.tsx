@@ -455,16 +455,26 @@ export default function ActivityEditor() {
                     meta,
                     tags,
                     pedagogicalRole,
+                    calculator,
                 });
                 if (outcome.changed) {
                     setMeta(outcome.meta);
                     setTags(outcome.tags);
                     setPedagogicalRole(outcome.pedagogicalRole);
+                    setCalculator(outcome.calculator);
                 }
                 setMetaImportNotes(outcome.warnings);
             }
         },
-        [editorInstance, panelJson, panelTitle, meta, tags, pedagogicalRole],
+        [
+            editorInstance,
+            panelJson,
+            panelTitle,
+            meta,
+            tags,
+            pedagogicalRole,
+            calculator,
+        ],
     );
 
     // Stable fingerprint of the whole document (body + meta). Null until the
