@@ -19,6 +19,7 @@ import {
     render,
     screen,
     waitFor,
+    within,
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 
@@ -201,13 +202,19 @@ describe('Activities tag filter', () => {
         h.listResult.current = { data: TAGGED_ROWS, error: null };
     });
 
-    it('renders one chip per tag in use, deduped and sorted', async () => {
+    it('renders one chip per tag in use, deduped and sorted, after the drafts chip', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Factoring Practice' });
         const chips = screen
             .getAllByRole('button', { pressed: false })
             .map((b) => b.textContent);
-        expect(chips).toEqual(['factoring', 'graphing', 'word problems']);
+        // The drafts task-filter (D11) leads; the tag vocabulary follows.
+        expect(chips).toEqual([
+            'drafts',
+            'factoring',
+            'graphing',
+            'word problems',
+        ]);
     });
 
     it('filters the list to activities carrying the picked tag', async () => {
@@ -263,24 +270,244 @@ describe('Activities tag filter', () => {
         expect(screen.getByRole('link', { name: 'Factoring Practice' })).toBeTruthy();
     });
 
-    it('Clear resets every active chip at once', async () => {
+    it('clear (in the count line) resets every active filter at once', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Factoring Practice' });
 
         fireEvent.click(screen.getByRole('button', { name: 'factoring' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+        fireEvent.click(screen.getByRole('button', { name: 'drafts' }));
+        fireEvent.click(screen.getByRole('button', { name: 'clear' }));
 
         expect(screen.getByRole('link', { name: 'Untagged Sheet' })).toBeTruthy();
+        expect(
+            screen.getByRole('button', { name: 'factoring' }).getAttribute('aria-pressed'),
+        ).toBe('false');
     });
 
-    it('renders no filter chrome at all when nothing is tagged', async () => {
+    it('renders no filter chrome at all when nothing is tagged and nothing is draft', async () => {
         h.listResult.current = {
-            data: [{ ...TAGGED_ROWS[2] }],
+            data: [{ ...TAGGED_ROWS[2], status: 'published' }],
             error: null,
         };
         renderList();
         await screen.findByRole('link', { name: 'Untagged Sheet' });
-        expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'clear' })).toBeNull();
         expect(screen.queryByRole('button', { pressed: false })).toBeNull();
+    });
+
+    // The drafts chip is a task filter, so it appears on the strength of
+    // drafts existing — independent of whether anything is tagged.
+    it('shows the drafts chip when drafts exist but nothing is tagged', async () => {
+        h.listResult.current = {
+            data: [{ ...TAGGED_ROWS[2], status: 'draft' }],
+            error: null,
+        };
+        renderList();
+        await screen.findByRole('link', { name: 'Untagged Sheet' });
+        expect(screen.getByRole('button', { name: 'drafts' })).toBeTruthy();
+    });
+});
+
+// =============================================================================
+// The curriculum outline (design review D3–D11)
+// -----------------------------------------------------------------------------
+// The list is the teacher's year: unit groups, natural-sorted, No-unit last;
+// a recent strip for resume-work; search + drafts chip; empty groups hidden
+// under filters. Row order inside a group stays recency.
+// =============================================================================
+
+const OUTLINE_ROWS = [
+    {
+        id: 'o1', title: 'Vertex Form Exit Ticket', status: 'published',
+        updated_at: '2026-08-17T00:00:00Z', tags: ['vertex form'],
+        pedagogical_role: 'lesson',
+        course: 'Algebra II', unit: null,
+        draft_course: null, draft_unit: 'Unit 2: Quadratics',
+    },
+    {
+        id: 'o2', title: 'Factoring Trinomials', status: 'draft',
+        updated_at: '2026-08-16T00:00:00Z', tags: ['factoring'],
+        pedagogical_role: 'practice',
+        course: 'Algebra II', unit: null,
+        draft_course: null, draft_unit: 'Unit 2: Quadratics',
+    },
+    {
+        id: 'o3', title: 'Radical Equations', status: 'published',
+        updated_at: '2026-08-15T00:00:00Z', tags: [],
+        pedagogical_role: null,
+        course: 'Algebra II', unit: 'Unit 10: Radicals',
+        draft_course: null, draft_unit: null,
+    },
+    {
+        id: 'o4', title: 'Untitled activity', status: 'draft',
+        updated_at: '2026-08-14T00:00:00Z', tags: null,
+        pedagogical_role: null,
+        course: 'Algebra II', unit: null,
+        draft_course: null, draft_unit: null,
+    },
+];
+
+describe('Activities curriculum outline', () => {
+    beforeEach(() => {
+        h.listResult.current = { data: OUTLINE_ROWS, error: null };
+    });
+
+    it('groups activities under natural-sorted unit headings, No unit last', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        const headings = screen
+            .getAllByRole('heading', { level: 2 })
+            .map((h2) => h2.textContent);
+        // "Unit 2" before "Unit 10" is the natural-sort point (D5).
+        expect(headings).toEqual([
+            'Unit 2: Quadratics',
+            'Unit 10: Radicals',
+            'No unit',
+        ]);
+    });
+
+    // The draft-first read: o1/o2 have unit ONLY in draft_unit (the column is
+    // null because they are unpublished/edited). Grouping on the column alone
+    // would file both under "No unit" — the bug this guards.
+    it('groups by the DRAFT unit when the published column is still null', async () => {
+        renderList();
+        const quad = await screen.findByRole('heading', {
+            name: 'Unit 2: Quadratics',
+        });
+        const section = quad.closest('section')!;
+        // Each row carries a title link AND an Analytics link; the title is
+        // the one whose href is the editor route.
+        const titles = within(section)
+            .getAllByRole('link')
+            .filter((a) => !a.getAttribute('href')?.endsWith('/analytics'))
+            .map((a) => a.textContent);
+        expect(titles).toEqual(['Vertex Form Exit Ticket', 'Factoring Trinomials']);
+    });
+
+    it('counts activities and drafts in the group heading', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        const quad = screen
+            .getByRole('heading', { name: 'Unit 2: Quadratics' })
+            .closest('div')!;
+        expect(quad.textContent).toContain('2 activities');
+        expect(quad.textContent).toContain('1 draft');
+    });
+
+    it('does not name the course in headings when there is only one', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        expect(
+            screen.queryByRole('heading', { name: /Algebra II/ }),
+        ).toBeNull();
+    });
+
+    it('renders the recently-edited strip as a labelled nav, newest first', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        const nav = screen.getByRole('navigation', { name: 'Recently edited' });
+        const titles = within(nav)
+            .getAllByRole('link')
+            .map((a) => a.getAttribute('aria-label'));
+        expect(titles[0]).toBe('Vertex Form Exit Ticket — recently edited');
+        expect(titles).toHaveLength(4);
+    });
+
+    it('filters by title substring, case-insensitively', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        fireEvent.change(screen.getByLabelText('Search activities'), {
+            target: { value: 'radical' },
+        });
+        expect(screen.getByRole('link', { name: 'Radical Equations' })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: 'Factoring Trinomials' })).toBeNull();
+    });
+
+    // D6: a filtered view shows hits, not absences.
+    it('hides unit groups that have no matches under a filter', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        fireEvent.change(screen.getByLabelText('Search activities'), {
+            target: { value: 'radical' },
+        });
+        const headings = screen
+            .getAllByRole('heading', { level: 2 })
+            .map((h2) => h2.textContent);
+        expect(headings).toEqual(['Unit 10: Radicals']);
+    });
+
+    // The strip is a shortcut back into work — a filter must never empty it.
+    it('leaves the recent strip intact while a filter is active', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        fireEvent.change(screen.getByLabelText('Search activities'), {
+            target: { value: 'radical' },
+        });
+        const nav = screen.getByRole('navigation', { name: 'Recently edited' });
+        expect(within(nav).getAllByRole('link')).toHaveLength(4);
+    });
+
+    it('the drafts chip narrows to drafts and ANDs with search', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        fireEvent.click(screen.getByRole('button', { name: 'drafts' }));
+        expect(screen.getByRole('link', { name: 'Factoring Trinomials' })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: 'Radical Equations' })).toBeNull();
+
+        fireEvent.change(screen.getByLabelText('Search activities'), {
+            target: { value: 'untitled' },
+        });
+        expect(screen.queryByRole('link', { name: 'Factoring Trinomials' })).toBeNull();
+        expect(screen.getByRole('link', { name: 'Untitled activity' })).toBeTruthy();
+    });
+
+    it('announces the filtered count politely, and only while filtering', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        expect(screen.queryByText(/of 4 shown/)).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: 'drafts' }));
+        const count = screen.getByRole('status');
+        expect(count.getAttribute('aria-live')).toBe('polite');
+        expect(count.textContent).toContain('2 of 4 shown');
+    });
+
+    it('Escape in the search box clears it', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        const box = screen.getByLabelText('Search activities') as HTMLInputElement;
+        fireEvent.change(box, { target: { value: 'radical' } });
+        fireEvent.keyDown(box, { key: 'Escape' });
+        expect(box.value).toBe('');
+        expect(screen.getByRole('link', { name: 'Factoring Trinomials' })).toBeTruthy();
+    });
+
+    it('`/` focuses the search box from the page body', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        const box = screen.getByLabelText('Search activities');
+        expect(document.activeElement).not.toBe(box);
+        fireEvent.keyDown(window, { key: '/' });
+        expect(document.activeElement).toBe(box);
+    });
+
+    // The guard: a slash typed INTO a field must stay a slash.
+    it('`/` does not steal focus while an input already has it', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        const box = screen.getByLabelText('Search activities') as HTMLInputElement;
+        box.focus();
+        const evt = new KeyboardEvent('keydown', { key: '/', cancelable: true, bubbles: true });
+        window.dispatchEvent(evt);
+        expect(evt.defaultPrevented).toBe(false);
+    });
+
+    it('shows the role badge only for classified activities', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
+        expect(screen.getByText('Lesson')).toBeTruthy();
+        expect(screen.getByText('Practice')).toBeTruthy();
+        // o3/o4 are unclassified — no placeholder chrome.
+        expect(screen.queryByText('Unclassified')).toBeNull();
     });
 });

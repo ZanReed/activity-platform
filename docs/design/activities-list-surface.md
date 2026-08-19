@@ -128,17 +128,28 @@ rather than answering where to put them.
 
 Synthesized from the review's findings; P1 blocks ship of the slice.
 
-- [ ] **T1 (P1, human: ~1d / CC: ~45min)** — Activities.tsx — the grouped
+> **✅ T1–T4 BUILT 2026-08-19.** `lib/activityGrouping.ts` (grouping + natural
+> sort), `lib/useScrollMemory.ts` (D7), and the rewritten
+> `routes/Activities.tsx`. **One thing the design pass did not foresee, found
+> in build:** `activities.unit` is publish-truth, so grouping on the column
+> alone files every unpublished draft under "No unit" — i.e. breaks the outline
+> for the bulk-authoring sprint it exists for. The list therefore reads
+> **draft-first** (`draft_content->meta->>unit`, extracted server-side by a
+> PostgREST json path so 150 rows never ship 150 documents), mirroring the
+> editor's own draft > published load priority. The column keeps its single
+> writer; taxonomy R1 is untouched.
+
+- [x] **T1 (P1, human: ~1d / CC: ~45min)** — Activities.tsx — the grouped
   outline: natural-sorted unit groups w/ sticky `<h2>` headers + counts,
   No-unit last, flat rows per D8's anatomy, empty groups hidden under filters.
   - Surfaced by: D3/D5/D6/D8. Verify: unit-order and empty-group unit tests +
     the a11y lane's axe row.
-- [ ] **T2 (P1, human: ~2h / CC: ~15min)** — recent strip (≤5, no shift, absent
+- [x] **T2 (P1, human: ~2h / CC: ~15min)** — recent strip (≤5, no shift, absent
   states per §3). Surfaced by: D4.
-- [ ] **T3 (P1, human: ~2h / CC: ~15min)** — search + `/` guard + drafts chip +
+- [x] **T3 (P1, human: ~2h / CC: ~15min)** — search + `/` guard + drafts chip +
   aria-live count line, all AND-composing with the shipped tag chips.
   Surfaced by: D9/D11/Pass 2.
-- [ ] **T4 (P1, human: ~1h / CC: ~10min)** — scroll restoration on
+- [x] **T4 (P1, human: ~1h / CC: ~10min)** — scroll restoration on
   editor→list return. Surfaced by: D7.
 - [ ] **T5 (P2, human: ~3h / CC: ~20min)** — mobile: ⋯ action menu, 44px
   targets, strip truncation; axe + viewport e2e rows. Surfaced by: D10.

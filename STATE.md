@@ -8,7 +8,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **✅ 0037 IS APPLIED LIVE — the ordering gate is DISCHARGED.** Tool-read 2026-08-18: `0037` in `schema_migrations`, both columns present, `publish_activity` carries the stamp, **0 GIN indexes** (the D12 deferral held). The author ran `pnpm verify:auth --target live` = **verify-0037 11 passed / 0 failed**.
 
-**🚨 QUEUED: push the bundle-drift fix — main is RED (run 32118940997).** Drop 1's `.min(1)` on `ActivityMeta.course` was a SCHEMA change, and its commit claimed "no bundle regeneration" — **that claim was wrong** (the CLAUDE.md rule is unconditional: schema change ⇒ regenerate both server bundles in the same commit). CI's drift guard caught it. Both bundles are now regenerated and committed; push to go green. **Optional, not urgent:** redeploying `get-activity`/`check-activity` would carry the `.min(1)` validation live — nothing requires it (no existing document can have a blank course; the default always applied), so it can ride the next real function change.
+**✅ RESOLVED: the bundle-drift fix is pushed and CI-GREEN (run 32244556362).** *(What it was:)* Drop 1's `.min(1)` on `ActivityMeta.course` was a SCHEMA change, and its commit claimed "no bundle regeneration" — **that claim was wrong** (the CLAUDE.md rule is unconditional: schema change ⇒ regenerate both server bundles in the same commit). CI's drift guard caught it. Both bundles were regenerated and committed. **Optional, not urgent:** redeploying `get-activity`/`check-activity` would carry the `.min(1)` validation live — nothing requires it (no existing document can have a blank course; the default always applied), so it can ride the next real function change.
 
 *(Previously queued, now closed: `647fb8b` shell slimming slice 1 and `cc24700` the e2e-origins fix are both pushed and CI-green at runs **32048169054** and **32081815982**.)*
 
@@ -57,7 +57,18 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — activity taxonomy, BOTH DROPS BUILT (unpushed)
+## Current focus — the Activities list surface, T1–T4 BUILT (unpushed)
+
+**[activities-list-surface.md](docs/design/activities-list-surface.md) — design-reviewed 2026-08-18 (D3–D11), built 2026-08-19.** The list is now the teacher's **curriculum outline**: natural-sorted unit groups with counts, a recently-edited strip, search + `/`, a drafts chip, flat separated rows (cards deleted), hidden-empty-groups under filters, and scroll restoration. New modules: `lib/activityGrouping.ts`, `lib/useScrollMemory.ts`.
+
+**Three things a future session needs from this build:**
+1. **⚠ THE OUTLINE READS DRAFT-FIRST, and this is not optional.** `activities.unit` is publish-truth (taxonomy R1), so grouping on the column alone files every *unpublished* draft under "No unit" — breaking the outline for the bulk-authoring sprint it exists to serve. The list selects BOTH the column and `draft_content->meta->>unit` (a PostgREST json path, extracted server-side so 150 rows never ship 150 documents) and prefers the draft, mirroring the editor's own draft > published load priority. **The column keeps its single writer; R1 is untouched.** See the header comment in `lib/activityGrouping.ts`.
+2. **supabase-js cannot type a json-path select.** Its row types come from PARSING the select string, and the parser doesn't understand `->`, so it degrades the row to `GenericStringError[]`. The `as unknown as ActivityRow[]` in the list query is load-bearing, not laziness — the runtime shape was verified against the live API before the cast was written.
+3. **`<ScrollRestoration>` is unavailable here** — it needs a data router, and this app mounts `<BrowserRouter>` + `<Routes>`. `useScrollMemory` is the scoped equivalent; its `ready` gate is the working part (restoring before rows render clamps to 0).
+
+**Still open from the review:** T5 (mobile ⋯ row menu, 44px targets) and T6 (state-coverage tests incl. the skeleton-selector pin) are P2, in the doc's §7.
+
+## Prior focus — activity taxonomy, BOTH DROPS SHIPPED
 
 **[activity-taxonomy.md](docs/design/activity-taxonomy.md) — RULED by full eng review 2026-08-18 (R1–R8, D1–D12, outside voice), then built the same day.** This closes [free-activity-catalog.md](docs/design/free-activity-catalog.md) **decision #6**, the last open catalog decision, ahead of the author's large activity catalogue — the corpus is empty (3 throwaway rows), so this was the last free moment to choose.
 
