@@ -142,6 +142,27 @@ describe('wire-level leak tests (TV4-A)', () => {
     }
     for (const sa of [...byType('short_answer'), ...byType('essay')]) {
       expect('rubric' in sa).toBe(false);
+      // The answer-key slice's two fields (E3). Asserted STRUCTURALLY as well
+      // as by sentinel: the sentinel scan above proves no VALUE reached the
+      // wire, this proves the KEY is gone too, so a future field whose value
+      // happened to be un-sentinelable can't pass on the strength of the
+      // other assertion.
+      expect('answer' in sa).toBe(false);
+      expect('solution' in sa).toBe(false);
+    }
+  });
+
+  it('the free-response answer fields carry their sentinels BEFORE sanitizing', () => {
+    // The non-vacuity half of the pair above: without this, both `in` checks
+    // would pass just as happily against a fixture that never set the fields —
+    // the "passing because of what is absent" failure the leak fixture exists
+    // to prevent.
+    const authored = fixturesByType();
+    for (const type of ['short_answer', 'essay'] as const) {
+      for (const block of authored.get(type) ?? []) {
+        expect(JSON.stringify(block.answer)).toContain(STR);
+        expect(JSON.stringify(block.solution)).toContain(RELEASABLE);
+      }
     }
   });
 

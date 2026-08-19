@@ -3,6 +3,30 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## The answer-key slice's three recorded follow-ups (T7 + two rulings, 2026-08-20)
+
+Left open deliberately by [problem-answer-key.md](docs/design/problem-answer-key.md); T1–T6 shipped.
+
+**1. T7 (P2) — the print/a11y sweep for numbered free-response.** `short_answer` and `essay` became
+page-numbered (ruling E7). Owed: a `printExpectations.ts` row for the number on paper, and an a11y
+check that the number is announced with the question rather than read as loose text. Note the wider
+fact this sweep will run into: **the viewer renders no problem number for ANY block type yet** — the
+registry's `numbered` declaration is currently consumed only by the guard test and the editor's
+gutter. That is a pre-existing gap, not one this slice opened, but T7 is where it becomes visible.
+
+**2. A full answer/solution EDITING UI in the editor (ruling E10 deferred it).** What ships today is
+read-only display in `FreeResponseView` — a collapsed, teacher-only panel showing whatever the
+importer brought in. The authoring surface is the .md file plus the batch importer's
+re-import-updates flow. Build this only when a teacher actually needs to edit a key without touching
+the file; the round-trip it would have to preserve is already pinned (`serialize.test.ts`).
+
+**3. Remove the `problem` block type (ruling E1).** It carries a tombstone comment
+([packages/schema/src/blocks/problem.ts](packages/schema/src/blocks/problem.ts)) and nothing but the
+schema and the viewer's read-only `Problem.tsx` still touches it. Removal is a **migration**
+question, not a deletion — documents in `activity_versions` may contain one and the schema is what
+must keep reading them. **Policy P5 applies: the removal audits every comment that cites `problem`**
+(a claims-grep), because several files explain their own behaviour by contrast with it.
+
 ## ✅ RESOLVED 2026-08-18 — the `sw` lane fails while the local Supabase stack is running (recorded 2026-08-14)
 
 **Fixed in `cc24700`.** The two offline-reopen rows in `e2e/sw/service-worker.e2e.ts` now pass

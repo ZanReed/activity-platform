@@ -88,7 +88,20 @@ function collectForbiddenValues(value: unknown, out = new Set<string>()): Set<st
       return;
     }
     if (typeof v === 'object') {
-      for (const item of Object.values(v)) harvest(item);
+      // Skip `type`. A never-release field may hold RICH INLINE CONTENT
+      // (short_answer/essay `answer` is InlineNode[], answer-key slice E2), and
+      // an inline node's `type` discriminant is STRUCTURE, not answer material:
+      // its values are 'text' / 'math_inline' / 'hardBreak', which appear on
+      // every wire that carries any inline content at all. Harvesting them made
+      // the scan report 'text' as a leaked answer — a false positive that would
+      // have to be silenced, and silencing it by weakening the assertion is how
+      // a real leak gets waved through later. Skipping the one structural key
+      // is the narrow, honest fix; every value-bearing scalar under the field
+      // is still harvested.
+      for (const [key, item] of Object.entries(v)) {
+        if (key === 'type') continue;
+        harvest(item);
+      }
     }
   };
 

@@ -255,7 +255,102 @@ describe('the overlay channel is usable by the twin renderer (D8A seam)', () => 
   });
 });
 
-describe('roster guard over auto_gradable types', () => {
+describe('written answers on the manually-graded pair (ruling §2)', () => {
+  const bare = (type: 'short_answer' | 'essay', extra: object = {}): Block =>
+    ({
+      id: '00000000-0000-4000-8000-00000000f00d',
+      type,
+      prompt: [{ type: 'text', text: 'Explain.', marks: [] }],
+      ...extra,
+    }) as unknown as Block;
+
+  it('prints `answer` when the author supplied one', () => {
+    const key = extractBlockAnswerKey(authoredBlockFixture('short_answer'));
+    expect(key.writtenAnswerSource).toBe('answer');
+    expect(key.writtenAnswer?.length).toBeGreaterThan(0);
+    expect(key.manuallyGraded).toBeUndefined();
+  });
+
+  it('FALLS BACK to `solution` — in the extractor, where both fields exist', () => {
+    // The essay fixture carries only `solution`. The fallback cannot live in
+    // the component: components render the SANITIZED document, where neither
+    // field survives, so a component-side fallback would be reaching for
+    // something that is gone by construction.
+    const key = extractBlockAnswerKey(authoredBlockFixture('essay'));
+    expect(key.writtenAnswerSource).toBe('solution');
+    expect(key.writtenAnswer?.length).toBeGreaterThan(0);
+  });
+
+  it('prefers `answer` over `solution` when both are present', () => {
+    const key = extractBlockAnswerKey(
+      bare('short_answer', {
+        answer: [{ type: 'text', text: 'THE ANSWER', marks: [] }],
+        solution: [{ type: 'text', text: 'the explanation', marks: [] }],
+      }),
+    );
+    expect(key.writtenAnswerSource).toBe('answer');
+    expect(JSON.stringify(key.writtenAnswer)).toContain('THE ANSWER');
+  });
+
+  it.each(['short_answer', 'essay'] as const)(
+    '%s with NEITHER field keys as manually graded — never as absent',
+    (type) => {
+      const key = extractBlockAnswerKey(bare(type));
+      expect(key).toEqual({ manuallyGraded: true });
+      // And it reaches the document-level map, so the printed key shows the
+      // question. A question missing from a key is indistinguishable from a
+      // question the key forgot — which a teacher discovers mid-marking.
+      const doc = authoredFixtureDocument();
+      const map = extractAnswerKey(doc);
+      const ids = doc.sections
+        .flatMap((section) => section.rows)
+        .flatMap((row) => row.columns)
+        .flatMap((column) => column.blocks)
+        .filter((block) => block.type === type)
+        .map((block) => block.id);
+      expect(ids.length).toBeGreaterThan(0);
+      for (const id of ids) expect(map[id]).toBeDefined();
+    },
+  );
+
+  it('an EMPTY answer array is not an answer — it falls through the chain', () => {
+    const key = extractBlockAnswerKey(bare('essay', { answer: [], solution: [] }));
+    expect(key).toEqual({ manuallyGraded: true });
+  });
+});
+
+// =============================================================================
+// The roster guard — CONTRACT AMENDED 2026-08-20 (answer-key slice, ruling §2)
+// -----------------------------------------------------------------------------
+// This guard used to assert an EQUALITY in two halves: every auto_gradable type
+// is keyed, and nothing that is not auto_gradable is keyed. The second half is
+// now WRONG on purpose, and it was rewritten rather than relaxed.
+//
+// The new contract is a CONTAINMENT: **keyed ⊇ auto-gradable**.
+//
+// What forced it: short_answer and essay are `recorded`-family blocks — no
+// machine grades them — and that is exactly WHY they carry a teacher's written
+// answer. A printed key for a paper worksheet must include the questions a
+// human marks; those are the ones the teacher actually needs the key for. Under
+// the old equality, adding them would have turned this file red, and the wrong
+// response would have been to append two names to a whitelist until the red
+// went away. So the claim itself is restated, with its own bound:
+//
+//   - every auto_gradable type is still keyed (unchanged — a machine-graded
+//     question with no key is the failure this roster exists to catch);
+//   - a keyed type must be QUESTION-BEARING (registry family ≠ 'static'), so
+//     the widening cannot drift into keying static content;
+//   - self_explanation is pinned as a NAMED exclusion, because "not in the map"
+//     and "decided not to key it" look identical from here otherwise
+//     (E5/finding 11 — the family audit is satisfied by decision, not silence);
+//   - non-vacuity now runs over EVERY keyed type rather than only the
+//     auto_gradable ones, which is what makes the two new rows earn their place
+//     instead of merely occupying it.
+// =============================================================================
+
+const keyedTypes = Object.keys(ANSWER_KEY_COVERAGE) as BlockType[];
+
+describe('roster guard: keyed ⊇ auto-gradable', () => {
   it('every auto_gradable type has a recorded answer-key decision', () => {
     for (const type of gradableTypes) {
       expect(
@@ -267,15 +362,34 @@ describe('roster guard over auto_gradable types', () => {
     }
   });
 
-  it('coverage names no type that is not gradable', () => {
-    for (const type of Object.keys(ANSWER_KEY_COVERAGE) as BlockType[]) {
-      expect(gradableTypes, `${type} is claimed but is not auto_gradable`)
-        .toContain(type);
+  it('the containment is PROPER — the roster is wider than auto-gradable', () => {
+    // Non-vacuity for the amendment itself. If this ever fails, the recorded
+    // rows were removed and the contract silently reverted to the old equality.
+    const recordedKeyed = keyedTypes.filter(
+      (type) => blockRegistry[type].family === 'recorded',
+    );
+    expect(recordedKeyed.sort()).toEqual(['essay', 'short_answer']);
+  });
+
+  it('coverage names no STATIC type — the bound on the widening', () => {
+    for (const type of keyedTypes) {
+      expect(
+        blockRegistry[type].family,
+        `${type} is claimed in the answer-key roster but is static content`,
+      ).not.toBe('static');
     }
   });
 
+  it('self_explanation is UNKEYED, by decision', () => {
+    // Ungraded reflection has no right answer to print. Pinned by name so the
+    // exclusion stays a ruling instead of decaying into an oversight the next
+    // time someone sweeps the recorded family.
+    expect(blockRegistry.self_explanation.family).toBe('recorded');
+    expect(ANSWER_KEY_COVERAGE.self_explanation).toBeUndefined();
+  });
+
   it('every claim is non-vacuous: the declared route really produces a key', () => {
-    for (const type of gradableTypes) {
+    for (const type of keyedTypes) {
       const coverage = ANSWER_KEY_COVERAGE[type];
       if (!coverage) continue; // the pin above already failed for this type
       const variants = authoredVariantFixtures(type);

@@ -39,6 +39,8 @@ import FillInBlank from '../../src/blocks/FillInBlank.js';
 import MultipleChoice from '../../src/blocks/MultipleChoice.js';
 import Matching from '../../src/blocks/Matching.js';
 import Ordering from '../../src/blocks/Ordering.js';
+import ShortAnswer from '../../src/blocks/ShortAnswer.js';
+import Essay from '../../src/blocks/Essay.js';
 import {
   authoredBlockFixture,
   sanitizedBlockFixture,
@@ -73,7 +75,15 @@ function harness(ui: ReactElement, answers?: AnswerKeyMap) {
 
 /** The served block a student sees, paired with the key extracted from the
  *  AUTHORED one — exactly the pairing the teacher route will construct. */
-function pair(type: 'fill_in_blank' | 'multiple_choice' | 'matching' | 'ordering') {
+function pair(
+  type:
+    | 'fill_in_blank'
+    | 'multiple_choice'
+    | 'matching'
+    | 'ordering'
+    | 'short_answer'
+    | 'essay',
+) {
   const served = sanitizedBlockFixture(type) as never as { id: string };
   const authored = authoredBlockFixture(type);
   return {
@@ -116,6 +126,23 @@ describe('no provider, no answers (the leak inversion)', () => {
     for (const box of Array.from(container.querySelectorAll('.viewer-ordering__number-box'))) {
       expect(box.textContent).toBe('');
       expect(box.getAttribute('data-answer-key')).toBeNull();
+    }
+  });
+
+  it('short_answer and essay print no written key at all', () => {
+    // The strongest form of the inversion for this pair: the served block has
+    // had `answer` and `solution` REMOVED by the sanitizer, so even a component
+    // that wanted to render one has nothing to render — and the panel that
+    // could is gated on a provider the student route never mounts.
+    for (const [type, Component] of [
+      ['short_answer', ShortAnswer],
+      ['essay', Essay],
+    ] as const) {
+      const { served } = pair(type);
+      expect('answer' in served).toBe(false);
+      expect('solution' in served).toBe(false);
+      const { container } = harness(<Component block={served as never} mode="print" />);
+      expect(container.querySelectorAll('.viewer-written-key')).toHaveLength(0);
     }
   });
 });
@@ -419,5 +446,69 @@ describe('math gaps produce PARSEABLE latex (regression)', () => {
 
     expect(out).toBe('y = \\boxed{3}x + 4');
     expect(out).not.toMatch(/\}[a-zA-Z]*\\/);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// The written-answer key (answer-key slice, T3)
+// -----------------------------------------------------------------------------
+
+describe('the written key on the manually-graded pair', () => {
+  it('short_answer prints the authored ANSWER, labelled as one', () => {
+    const { served, answers } = pair('short_answer');
+    const { container } = harness(
+      <ShortAnswer block={served as never} mode="print" />,
+      answers,
+    );
+
+    const key = container.querySelector('.viewer-written-key');
+    expect(key?.getAttribute('data-answer-key')).toBe('answer');
+    expect(key?.querySelector('.viewer-written-key__label')?.textContent).toBe(
+      'Answer',
+    );
+    expect(key?.textContent).toContain('where the line crosses the y-axis');
+  });
+
+  it('essay falls back to the SOLUTION and says so', () => {
+    // The essay fixture authors only `solution`. Labelling matters: a
+    // post-check explanation printed under the word "Answer" would tell the
+    // teacher marking with it that this is the response they should expect.
+    const { served, answers } = pair('essay');
+    const { container } = harness(
+      <Essay block={served as never} mode="print" />,
+      answers,
+    );
+
+    const key = container.querySelector('.viewer-written-key');
+    expect(key?.getAttribute('data-answer-key')).toBe('solution');
+    expect(key?.querySelector('.viewer-written-key__label')?.textContent).toBe(
+      'Solution',
+    );
+  });
+
+  it('an unanswered question prints "manually graded", never nothing', () => {
+    const { served } = pair('short_answer');
+    const answers: AnswerKeyMap = { [served.id]: { manuallyGraded: true } };
+    const { container } = harness(
+      <ShortAnswer block={served as never} mode="print" />,
+      answers,
+    );
+
+    const key = container.querySelector('.viewer-written-key');
+    expect(key?.getAttribute('data-answer-key')).toBe('manually-graded');
+    expect(key?.textContent).toContain('rubric');
+  });
+
+  it('the key is visible ON SCREEN too, not only in print mode', () => {
+    // Same reason the letter marks are (see the header): a teacher checks the
+    // key in the in-page preview before committing it to thirty photocopies,
+    // and a toggle whose effect only appears in the print dialog reads as a
+    // toggle that does nothing.
+    const { served, answers } = pair('short_answer');
+    const { container } = harness(
+      <ShortAnswer block={served as never} mode="screen" />,
+      answers,
+    );
+    expect(container.querySelector('.viewer-written-key')).not.toBeNull();
   });
 });

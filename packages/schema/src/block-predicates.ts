@@ -7,10 +7,21 @@
 //   2. isNumberedBlock (delegates here)                 — @activity/renderer
 //   3. problemNumberAt (delegates here)                 — @activity/app editor
 //   4. buildActivityIndex's docOrder walk               — @activity/app
-// The two sets are NOT the same: a display-mode graph is neither; a free-text
-// block (self_explanation / short_answer / essay) is GRADEABLE-reviewable but
-// NOT page-numbered; a legacy `problem` (prose, no blanks) is page-numbered but
-// carries no auto-graded response. So they need two predicates, not one.
+// The two sets are NOT the same: a display-mode graph is neither; an ungraded
+// self_explanation is GRADEABLE-reviewable but NOT page-numbered; a legacy
+// `problem` (prose, no blanks) is page-numbered but carries no auto-graded
+// response. So they need two predicates, not one.
+//
+// ⚠ AMENDED 2026-08-20 (answer-key slice, ruling E7). This comment used to name
+// the whole free-text trio — "self_explanation / short_answer / essay" — as
+// gradeable-but-unnumbered. short_answer and essay LEFT that group: they are
+// now always page-numbered. The reason is printability (an author ruling): a
+// paper worksheet whose graded questions are unnumbered cannot be marked
+// against a key, and the scan-grading arc needs a stable paper→block mapping it
+// gets structurally from the one existing numbering walk rather than from a
+// second mechanism. self_explanation stays unnumbered — ungraded reflection is
+// not a question a teacher marks, which is the same reason it is deliberately
+// absent from ANSWER_KEY_COVERAGE.
 //
 // The RUNTIME must never import this (numbering is baked into published HTML at
 // render time), but the renderer and editor both depend on @activity/schema, so
@@ -30,6 +41,11 @@ const ALWAYS_NUMBERED_TYPES: ReadonlySet<string> = new Set([
   'matching',
   'ordering',
   'number_line',
+  // The manually-graded free-response pair (ruling E7). They are questions a
+  // teacher marks, so they wear a number on screen AND on paper; the ungraded
+  // self_explanation deliberately does not join them.
+  'short_answer',
+  'essay',
   // The faded worked-example box counts as ONE problem (its number leads the
   // title); its faded steps are lettered locally and don't pull from the
   // sequence — that context-dependent exception lives in renderFadedWorkedExample.

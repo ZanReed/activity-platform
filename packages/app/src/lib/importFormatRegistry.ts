@@ -141,14 +141,25 @@ export const FENCES: FenceSpec[] = [
     {
         tag: 'shortanswer',
         blockType: 'shortAnswer',
-        summary: 'a graded short-answer question (optional rubric)',
-        example: 'prompt: Explain why the sum of two evens is even.',
+        summary:
+            'a graded short-answer question (optional rubric, answer key, solution)',
+        // The example carries the multi-line `answer:` grammar so the guard's
+        // BEHAVIOURAL probe exercises the continuation rule, not just the tag.
+        example: [
+            'prompt: Explain why the sum of two evens is even.',
+            'answer: 2m + 2n = 2(m + n), which is a multiple of 2.',
+            'So the sum is even.',
+        ].join('\n'),
     },
     {
         tag: 'essay',
         blockType: 'essay',
-        summary: 'a graded essay question (optional word-count target + rubric)',
-        example: 'prompt: Argue whether zoos do more good than harm.',
+        summary:
+            'a graded essay question (optional word-count target, rubric, answer key)',
+        example: [
+            'prompt: Argue whether zoos do more good than harm.',
+            'solution: Weigh conservation against captivity, then commit.',
+        ].join('\n'),
     },
     {
         tag: 'columns',

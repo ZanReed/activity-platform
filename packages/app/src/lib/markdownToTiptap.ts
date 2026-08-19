@@ -2299,6 +2299,24 @@ function parseWordRange(
 // (repeatable). Essay adds a `words: min-max` target range. The rubric attr is
 // stored as `{ criteria }` exactly like the editor writes it; serialize carries
 // it through untouched.
+//
+// MULTI-LINE `answer:` / `solution:` (answer-key slice, ruling E5.6). The two
+// teacher-only fields the answer key prints. Unlike every other key in this
+// file they accept CONTINUATION LINES, because a worked answer is rarely one
+// line and forcing a teacher to write one long run-on is how a key stops being
+// readable. The rule, in one sentence:
+//
+//   a bare line belongs to the most recent of `prompt:`, `answer:`, `solution:`
+//
+// so the target starts at the prompt (preserving the existing behaviour that a
+// bare line IS the prompt), and the single-line keys — starter/words/rubric —
+// leave it alone rather than silently capturing the lines after them.
+// Continuation lines join with HARD BREAKS, not spaces: the author wrote
+// separate lines because the steps are separate.
+//
+// Both fields are stored as CANONICAL InlineNode[] attrs (schemaInlineContent),
+// which is the shape serialize.ts reads back — the round-trip that ruling E5.1
+// made mandatory after the same seam killed the `problem` block.
 function parseFreeResponseFence(
     src: string,
     ctx: Ctx,
@@ -2310,6 +2328,11 @@ function parseFreeResponseFence(
     let wordMax: number | null = null;
     const criteria: ImportedCriterion[] = [];
     const promptLines: string[] = [];
+    const answerLines: string[] = [];
+    const solutionLines: string[] = [];
+    // Which field a bare line continues. See the header note: the prompt owns
+    // bare lines until an `answer:` or `solution:` key claims them.
+    let target = promptLines;
 
     for (const rawLine of src.split('\n')) {
         const line = rawLine.trim();
@@ -2324,7 +2347,24 @@ function parseFreeResponseFence(
         const p = /^prompt:\s*(.*)$/i.exec(line);
         if (p) {
             const v = (p[1] ?? '').trim();
+            target = promptLines;
             if (v) promptLines.push(v);
+            continue;
+        }
+
+        const a = /^answer:\s*(.*)$/i.exec(line);
+        if (a) {
+            const v = (a[1] ?? '').trim();
+            target = answerLines;
+            if (v) answerLines.push(v);
+            continue;
+        }
+
+        const sol = /^solution:\s*(.*)$/i.exec(line);
+        if (sol) {
+            const v = (sol[1] ?? '').trim();
+            target = solutionLines;
+            if (v) solutionLines.push(v);
             continue;
         }
 
@@ -2362,7 +2402,7 @@ function parseFreeResponseFence(
             continue;
         }
 
-        promptLines.push(line);
+        target.push(line);
     }
 
     if (promptLines.length === 0) {
@@ -2372,19 +2412,36 @@ function parseFreeResponseFence(
 
     const rubric = criteria.length > 0 ? { criteria } : null;
     const content = fenceInline(promptLines.join(' '), ctx, false);
+    const answer = joinKeyLines(answerLines, ctx);
+    const solution = joinKeyLines(solutionLines, ctx);
 
     if (kind === 'essay') {
         return {
             type: 'essay',
-            attrs: { id: '', placeholder, wordMin, wordMax, rubric },
+            attrs: { id: '', placeholder, wordMin, wordMax, rubric, answer, solution },
             content,
         };
     }
     return {
         type: 'shortAnswer',
-        attrs: { id: '', placeholder, rubric },
+        attrs: { id: '', placeholder, rubric, answer, solution },
         content,
     };
+}
+
+// Continuation lines → one canonical InlineNode[], separated by HARD BREAKS.
+// `hard_break` is the SCHEMA literal, not Tiptap's `hardBreak`: these ride as
+// attrs in the schema's own shape, and serialize.ts sanitizes them against
+// InlineNode, which would drop a Tiptap-shaped break as malformed — quietly
+// flattening a worked answer into one line.
+function joinKeyLines(lines: string[], ctx: Ctx): InlineNode[] | null {
+    if (lines.length === 0) return null;
+    const out: InlineNode[] = [];
+    lines.forEach((line, i) => {
+        if (i > 0) out.push({ type: 'hard_break' });
+        out.push(...schemaInlineContent(line, ctx));
+    });
+    return out.length > 0 ? out : null;
 }
 
 // ```dataplot fence — the statistics-chart DSL (data_plot block). One statement

@@ -1,6 +1,30 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
 
+// =============================================================================
+// ⚰ TOMBSTONE — `problem` IS DEAD. Do not build on it. (Ruling E1, 2026-08-19)
+// -----------------------------------------------------------------------------
+// The block still parses, because documents in the database may contain one and
+// the schema is the thing that must keep reading them. NOTHING ELSE about it is
+// alive:
+//
+//   - The EDITOR CANNOT HOLD ONE. serialize.ts's activityBlockToTiptap has no
+//     `problem` mapping and returns null, so an imported or hand-inserted
+//     problem is dropped from the editor view and DELETED by the first
+//     autosave. This is not a gap to fill; it is why the block is dead.
+//   - There is no importer fence, no insert affordance, and no editor NodeView.
+//   - The viewer's Problem.tsx renders it read-only for the documents that
+//     already have one, and that is its entire remaining job.
+//
+// The answer-key design pass (docs/design/problem-answer-key.md) opened by
+// proposing to REVIVE this block as the home of paper problems. The scope gate
+// overturned that premise on the evidence above: paper problems ship on
+// short_answer/essay, which have the editor, the fences, the viewer, and 0034's
+// grading queue that `problem` never had. Full REMOVAL of the type (with the
+// P5 claims-grep over every comment that cites it) is a recorded TODO, not part
+// of that slice — removing a parseable shape is a migration question.
+// =============================================================================
+
 // Auto-numbered at render time by walking the document and counting problem
 // blocks in order. The optional `number` field overrides the auto-number
 // (rare cases like "Problem 5a" or hand-numbered legacy worksheets).

@@ -353,17 +353,34 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
     type: 'self_explanation',
     prompt: [text('why?')],
   });
+  // The two manually-graded free-response blocks carry BOTH sentinels, and
+  // which one goes in which field is the whole point (answer-key slice, E3):
+  //
+  //   answer   → STR         answer material. Never released on ANY channel,
+  //                          including the check response — the printed
+  //                          teacher key is its only destination.
+  //   solution → RELEASABLE  content. Stripped from the read path, deliberately
+  //                          RETURNED by the check response (walk.ts's generic
+  //                          solution collection picks it up), so the check-leak
+  //                          suite must NOT see it as a violation.
+  //
+  // Getting these backwards would make one suite green for the wrong reason,
+  // which is why the two markers exist at all (see RELEASABLE's own note).
   put('short_answer', {
     id: uuid(),
     type: 'short_answer',
     prompt: [text('answer briefly')],
     rubric: { criteria: [{ id: uuid(), label: STR, maxPoints: 3, description: STR }] },
+    answer: [text(STR)],
+    solution: sentinelInline(),
   });
   put('essay', {
     id: uuid(),
     type: 'essay',
     prompt: [text('discuss')],
     rubric: { criteria: [{ id: uuid(), label: STR, maxPoints: 5 }] },
+    answer: [text(STR)],
+    solution: sentinelInline(),
   });
   put('graph_figure', {
     id: uuid(),

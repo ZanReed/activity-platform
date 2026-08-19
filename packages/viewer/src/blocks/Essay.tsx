@@ -18,16 +18,19 @@ import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { ReleasedFeedbackCard } from './ReleasedFeedbackCard.js';
 import { REVIEWED_LABEL } from './ShortAnswer.js';
+import { FreeResponseAnswerKey } from './FreeResponseAnswerKey.js';
 
 export default function Essay({
   block,
   mode = 'screen',
 }: BlockComponentProps<EssayBlock>) {
-  const { store, state, phaseOf, resultFor, feedbackFor } = useViewer();
+  const { store, state, phaseOf, resultFor, feedbackFor, solutionFor } =
+    useViewer();
   const fieldId = useId();
   const value = state.responses.freeText[block.id] ?? '';
   const phase = phaseOf(block.id);
   const result = resultFor(block.id);
+  const solution = solutionFor(block.id);
   // The exemplar's twin: same released-feedback treatment, same label override,
   // imported rather than retyped (ShortAnswer.tsx is the family's source).
   const feedback = feedbackFor(block.id);
@@ -78,6 +81,25 @@ export default function Essay({
           fromAnotherVersion={feedback.activityVersionId !== state.versionId}
         />
       ) : null}
+
+      {/* The post-check solution reveal (T5, ruling E9). Same semantics as
+          every other solution-bearing block: `solution` is stripped from the
+          served document and arrives on SectionCheckResult.solutions after the
+          section is checked, so the attempt is recorded BEFORE the explanation
+          is available. walk.ts collects it generically — this block type added
+          no grading-engine code to get here. Authors omit `solution:` on
+          revision-sensitive questions. */}
+      {solution ? (
+        <details className="viewer-solution">
+          <summary>Show solution</summary>
+          <div className="viewer-solution__body">
+            <InlineContent nodes={solution} />
+          </div>
+        </details>
+      ) : null}
+
+      {/* Teacher-only: renders only where the answer-key provider is mounted. */}
+      <FreeResponseAnswerKey blockId={block.id} />
     </div>
   );
 }

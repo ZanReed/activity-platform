@@ -20,7 +20,9 @@ import {
   createFillInBlankBlock,
   createMultipleChoiceBlock,
   createNumberLineBlock,
+  createEssayBlock,
   createSelfExplanationBlock,
+  createShortAnswerBlock,
   createInteractiveGraphBlock,
 } from '../src/index.js';
 
@@ -49,6 +51,17 @@ describe('isPageNumbered', () => {
     expect(isPageNumbered(createMathBlock('x^2'))).toBe(false);
     expect(isPageNumbered(createSelfExplanationBlock())).toBe(false);
     expect(isPageNumbered(displayGraph())).toBe(false);
+  });
+
+  // Ruling E7 (answer-key slice, 2026-08-19). These two USED to be false here,
+  // alongside self_explanation — the pin is rewritten deliberately, and the
+  // split within the free-text family is the thing worth pinning: a graded
+  // question a teacher marks on paper wears a number; ungraded reflection
+  // does not.
+  it('true for the manually-graded free-response pair, false for reflection', () => {
+    expect(isPageNumbered(createShortAnswerBlock())).toBe(true);
+    expect(isPageNumbered(createEssayBlock())).toBe(true);
+    expect(isPageNumbered(createSelfExplanationBlock())).toBe(false);
   });
 
   it('a math_block is numbered only when it carries in-equation gaps', () => {

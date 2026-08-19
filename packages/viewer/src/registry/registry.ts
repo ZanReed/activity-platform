@@ -429,11 +429,22 @@ export const blockRegistry: BlockRegistry = {
     family: 'recorded',
     interactivity: 'interactive',
     category: 'question',
-    numbered: 'never',
+    // WAS 'never' — a pre-paper-first choice. Ruling E7 (2026-08-19): a graded
+    // question a teacher marks on paper needs a number, and the numbering walk
+    // that already exists gives the scan arc its paper→block mapping for free.
+    numbered: 'always',
     analyticsKey: 'short_answer',
     // Rubrics are teacher-side data — already correctly withheld from student
     // HTML today; the registry makes that a declared invariant.
-    sanitize: { strip: ['rubric'] },
+    //
+    // `answer` and `solution` joined it with the answer-key slice (ruling E2/E3)
+    // and the ORDER OF EVENTS matters more than the list does: E3 declares the
+    // anti-leak chain ONE INSEPARABLE UNIT — this strip entry, the leakFixture
+    // sentinel row that observes it, the sanitize unit assertion, and the
+    // schema-vs-registry completeness gate all land together. A strip entry
+    // without its fixture row is a claim nothing checks (the "passing because
+    // of what is absent" class), which is exactly how a key leaks quietly.
+    sanitize: { strip: ['rubric', 'answer', 'solution'] },
     // Same former oddity as self_explanation, and fixed with it: the baseline
     // avoid rides the textarea, not the block, so a prompt could print on one
     // page with its answer space on the next. S5-OV6 named only the three
@@ -454,9 +465,12 @@ export const blockRegistry: BlockRegistry = {
     family: 'recorded',
     interactivity: 'interactive',
     category: 'question',
-    numbered: 'never',
+    // Numbered with short_answer — see the note there (ruling E7).
+    numbered: 'always',
     analyticsKey: 'essay',
-    sanitize: { strip: ['rubric'] },
+    // answer + solution ride the same anti-leak unit as short_answer's; E4's
+    // parity ruling is what keeps these two lists identical.
+    sanitize: { strip: ['rubric', 'answer', 'solution'] },
     // Extended with short_answer + self_explanation — see the note there.
     print: { breakInside: 'avoid', treatment: 'writing-box' },
     a11y: {

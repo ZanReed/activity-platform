@@ -25,6 +25,11 @@
 //   type is accounted for in ANSWER_KEY_COVERAGE and a guard fails when a new
 //   one appears without a decision.
 //
+// ⚠ WHAT "KEYED" MEANS WIDENED 2026-08-20 (answer-key slice). The roster used
+// to be exactly the auto_gradable types; it is now **keyed ⊇ auto-gradable**,
+// because short_answer and essay carry a teacher's written answer precisely
+// because no machine grades them. See ANSWER_KEY_COVERAGE's own note.
+//
 // DISPLAY VARIANTS HAVE NO ANSWERS. familyOf() resolves a display-mode graph or
 // chart to 'static' — it is a stimulus, not a question — so it contributes
 // nothing, matching how blockIndex declines to put it in a check payload.
@@ -129,6 +134,28 @@ function extractByType(block: Block): BlockAnswerKey {
       // The correct chart is computed from the dataset the student is given —
       // the same values the renderer handed its static SVG under showAnswers.
       return { dataPlotValues: block.data };
+
+    // The manually-graded free-response pair (answer-key slice, ruling §2).
+    // THE FALLBACK CHAIN LIVES HERE, and only here, because this function is
+    // the last place both fields exist: `answer` and `solution` are stripped
+    // from the served document, so the component that renders the key is
+    // holding a block on which neither field is even a key any more. A
+    // component-side fallback would be reaching for something already gone.
+    //
+    // Every one of these blocks produces an entry, including the empty case —
+    // `manuallyGraded` is a positive statement ("a teacher marks this by hand,
+    // against the rubric"), not the absence of one. A question missing from a
+    // printed key is indistinguishable from a question the key forgot.
+    case 'short_answer':
+    case 'essay': {
+      if (block.answer && block.answer.length > 0) {
+        return { writtenAnswer: block.answer, writtenAnswerSource: 'answer' };
+      }
+      if (block.solution && block.solution.length > 0) {
+        return { writtenAnswer: block.solution, writtenAnswerSource: 'solution' };
+      }
+      return { manuallyGraded: true };
+    }
 
     default:
       return {};

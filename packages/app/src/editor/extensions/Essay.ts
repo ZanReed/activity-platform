@@ -1,12 +1,15 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import FreeResponseView from '../nodeViews/FreeResponseView';
+import { answerFieldAttrs } from './freeResponseAttrs';
 
 // ============================================================================
 // Essay — Tiptap block node for the essay block (manually graded long free
 // text). Like ShortAnswer, but adds an optional word-count target stored as two
 // numeric attrs (wordMin / wordMax; serialize folds them into wordCountHint).
 // Shares FreeResponseView, which shows the word-guidance fields for `essay`.
+// Carries the same `answer` + `solution` pair as ShortAnswer (ruling E4's
+// parity: one schema round for both blocks, so neither grows the field alone).
 // ============================================================================
 
 declare module '@tiptap/core' {
@@ -79,6 +82,7 @@ export const Essay = Node.create({
                         ? { 'data-rubric': JSON.stringify(attributes.rubric) }
                         : {},
             },
+            ...answerFieldAttrs(),
         };
     },
 

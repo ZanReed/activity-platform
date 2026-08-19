@@ -269,7 +269,18 @@ describe('the declaration is where it is for a reason', () => {
     // they cannot orphan the read cache or force a get-activity redeploy; if
     // this ever fails, someone moved the declaration into the sanitize spec and
     // the deploy discipline changed with it.
-    expect(SANITIZER_REV).toBe('1-f8328527');
+    //
+    // MOVED 2026-08-20, deliberately: '1-f8328527' → '1-87a5e78b'. The
+    // answer-key slice added `answer` + `solution` to short_answer's and
+    // essay's strip lists, which IS a sanitize-spec change, so the rev moving
+    // is the mechanism working — it orphans every stale read-cache row the
+    // moment the new get-activity is live. The pin is not here to freeze the
+    // value; it is here to make a move IMPOSSIBLE TO MAKE ACCIDENTALLY, because
+    // a moved rev means both server bundles must be regenerated in this commit
+    // and a get-activity redeploy must be queued (CLAUDE.md's deploy rule, and
+    // ruling E5.4's ordering constraint: no answer-bearing activity may be
+    // published before that redeploy is verified live).
+    expect(SANITIZER_REV).toBe('1-87a5e78b');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

@@ -462,10 +462,21 @@ function authoredRawByType(
     type: 'self_explanation',
     prompt: [text('Why do we subtract 3 before dividing by 2?')],
   });
+  // The two free-response fixtures deliberately exercise DIFFERENT legs of the
+  // extractor's fallback chain (answer-key slice, ruling §2): short_answer
+  // carries `answer` (the first choice), essay carries only `solution` (the
+  // fallback). One fixture each way means the non-vacuity guard cannot pass on
+  // a chain whose second leg was never run. The third leg — neither field, key
+  // prints "manually graded" — has its own unit pin in answerKey.test.ts,
+  // because a fixture with the fields missing is what every OTHER block type
+  // here already is.
   put('short_answer', {
     id: fid(),
     type: 'short_answer',
     prompt: [text('Explain what the y-intercept means on this graph.')],
+    answer: [
+      text('It is the value of y when x = 0 — where the line crosses the y-axis.'),
+    ],
     rubric: {
       criteria: [
         {
@@ -481,6 +492,9 @@ function authoredRawByType(
     id: fid(),
     type: 'essay',
     prompt: [text('Describe a real situation modeled by y = 15x + 40.')],
+    solution: [
+      text('Any fixed start-up cost of 40 with a repeating charge of 15 works.'),
+    ],
     rubric: {
       criteria: [
         { id: fid(), label: 'Interprets slope as a rate', maxPoints: 3 },

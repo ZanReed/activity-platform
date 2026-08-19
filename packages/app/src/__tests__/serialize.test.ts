@@ -3061,6 +3061,130 @@ describe('content blocks — learning_objectives + worked_example', () => {
         expect(ActivityDocument.safeParse(activity).success).toBe(true);
     });
 
+    // -----------------------------------------------------------------------
+    // answer + solution — the data-loss seam the eng review pinned (E5.1)
+    // -----------------------------------------------------------------------
+    // These are not ordinary field tests. The answer-key design pass originally
+    // proposed reviving the `problem` block, and the scope gate killed that
+    // premise on ONE fact: serialize has no `problem` mapping, so an imported
+    // problem is dropped from the editor view and DELETED by the first
+    // autosave — silently, with every fence test still green, because a fence
+    // test stops at the Tiptap doc and never asks what survives a save.
+    //
+    // A field can die exactly the same way. Every test below therefore drives
+    // the SAVE→LOAD leg (activity → tiptap → activity), not just the import
+    // leg, because that second pass is where an unread attr disappears.
+
+    // NOTE the literal: the CANONICAL schema hard break is `hard_break`, not
+    // Tiptap's `hardBreak`. These attrs hold schema-shaped inline content (see
+    // activityBlockToTiptap's note), and a Tiptap-shaped break would be dropped
+    // by sanitizeInlineNodes as a malformed node — quietly turning a two-line
+    // answer into a one-line one.
+    const ANSWER_NODES = [
+        { type: 'text', text: 'y = 2x + 1', marks: [] },
+        { type: 'hard_break' },
+        { type: 'text', text: 'The slope is ', marks: [] },
+        { type: 'math_inline', latex: '2' },
+    ];
+    const SOLUTION_NODES = [
+        { type: 'text', text: 'Subtract 1 from both sides.', marks: [] },
+    ];
+
+    it.each(['shortAnswer', 'essay'] as const)(
+        '%s: answer + solution survive the editor round-trip',
+        (nodeType) => {
+            const node: JSONContent = {
+                type: nodeType,
+                attrs: {
+                    id: 'x',
+                    placeholder: '',
+                    answer: ANSWER_NODES,
+                    solution: SOLUTION_NODES,
+                },
+                content: [{ type: 'text', text: 'Find the equation.' }],
+            };
+
+            // Leg 1 — import → save. The fields reach the schema.
+            const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+            expect(ActivityDocument.safeParse(activity).success).toBe(true);
+            const block = flatBlocks(activity.sections[0]!)[0]!;
+            expect(block.type).toBe(nodeType === 'essay' ? 'essay' : 'short_answer');
+            if (block.type === 'short_answer' || block.type === 'essay') {
+                expect(block.answer).toEqual(ANSWER_NODES);
+                expect(block.solution).toEqual(SOLUTION_NODES);
+            }
+
+            // Leg 2 — load. The fields come BACK onto the node's attrs. Without
+            // this direction the editor would open the activity with the key
+            // already gone, and leg 3 would then write the loss to the database.
+            const backToTiptap = toBare(activityToTiptap(activity));
+            const reloaded = backToTiptap.content!.find((n) => n.type === nodeType)!;
+            expect(reloaded.attrs!.answer).toEqual(ANSWER_NODES);
+            expect(reloaded.attrs!.solution).toEqual(SOLUTION_NODES);
+
+            // Leg 3 — THE AUTOSAVE. Saving what the editor just loaded must be
+            // a fixed point. This is the assertion the whole slice rests on: if
+            // either direction is missing, the second save is where the
+            // teacher's answer key silently stops existing.
+            const resaved = tiptapToActivity(backToTiptap, META);
+            const resavedBlock = flatBlocks(resaved.sections[0]!)[0]!;
+            if (resavedBlock.type === 'short_answer' || resavedBlock.type === 'essay') {
+                expect(resavedBlock.answer).toEqual(ANSWER_NODES);
+                expect(resavedBlock.solution).toEqual(SOLUTION_NODES);
+            }
+        },
+    );
+
+    it.each(['shortAnswer', 'essay'] as const)(
+        '%s: a block with no answer key stays clean through both directions',
+        (nodeType) => {
+            const node: JSONContent = {
+                type: nodeType,
+                attrs: { id: 'x', placeholder: '' },
+                content: [{ type: 'text', text: 'Reflect.' }],
+            };
+            const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+            const block = flatBlocks(activity.sections[0]!)[0]!;
+            if (block.type === 'short_answer' || block.type === 'essay') {
+                // ABSENT, not `[]` — the extractor's fallback chain distinguishes
+                // "no answer authored" from "an answer that sanitized to nothing",
+                // and an empty array would collapse the two.
+                expect(block.answer).toBeUndefined();
+                expect(block.solution).toBeUndefined();
+            }
+            const out = toBare(activityToTiptap(activity));
+            const back = out.content!.find((n) => n.type === nodeType)!;
+            expect(back.attrs!.answer).toBeNull();
+            expect(back.attrs!.solution).toBeNull();
+        },
+    );
+
+    it('sanitizes malformed answer nodes per entry — valid ones survive', () => {
+        const node: JSONContent = {
+            type: 'shortAnswer',
+            attrs: {
+                id: 'x',
+                placeholder: '',
+                answer: [
+                    { type: 'text', text: 'good', marks: [] },
+                    { type: 'not_a_node', text: 'bad' },
+                    { type: 'text' }, // missing `text`
+                ],
+                solution: 'not an array at all',
+            },
+            content: [{ type: 'text', text: 'Q' }],
+        };
+        const activity = tiptapToActivity({ type: 'doc', content: [node] }, META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+        const block = flatBlocks(activity.sections[0]!)[0]!;
+        if (block.type === 'short_answer') {
+            expect(block.answer).toEqual([{ type: 'text', text: 'good', marks: [] }]);
+            // A non-array attr yields no field at all, rather than throwing or
+            // storing a shape the schema would reject at publish.
+            expect(block.solution).toBeUndefined();
+        }
+    });
+
     it('round-trips a faded worked example with a fill_in_blank step', () => {
         const node: JSONContent = {
             type: 'fadedWorkedExample',

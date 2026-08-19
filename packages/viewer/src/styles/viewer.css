@@ -965,6 +965,38 @@
   font-weight: 700;
 }
 
+/* The written-answer key on short_answer / essay (answer-key slice, T3). The
+   only key affordance that is a BLOCK of prose rather than a mark on an
+   existing affordance, because what a teacher marks these against is sentences.
+   Grayscale-safe the same way everything else here is: the label, the weight
+   and the left rule carry it — the ink colour is applied inline from
+   ANSWER_KEY_INK and never load-bearing on its own. Visible on screen for the
+   same reason the letter marks are: a teacher checks the key in the preview
+   before committing it to thirty photocopies. */
+.viewer-written-key {
+  margin-top: 0.5rem;
+  padding: 0.35rem 0 0.35rem 0.6rem;
+  border-left: 3px solid var(--vw-color-ink);
+  /* The theme's own ink — NOT ANSWER_KEY_INK, which is the SVG stroke colour
+     for graph overlays. Painting that near-black here made the key almost
+     unreadable in dark mode, and on paper the token layer already forces every
+     ink to pure black, so inheriting is right on both surfaces. */
+  color: var(--vw-color-ink);
+}
+
+.viewer-written-key__label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.viewer-written-key__body {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+
 /* The reference box is the PAPER form of the reference panel. On screen the
    panel is a tool a student summons, so the box would be a duplicate of
    material already available — it appears only when printing. Likewise the
@@ -1654,6 +1686,13 @@
 @media print {
   .viewer-released-feedback {
     border-left-width: 2px;
+    break-inside: avoid;
+  }
+
+  /* A key split across a page break is a key the teacher reads twice. Colour is
+     inherited (the token layer prints every ink black), so this rule carries
+     only the break rule. */
+  .viewer-written-key {
     break-inside: avoid;
   }
 }

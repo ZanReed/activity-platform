@@ -4,6 +4,42 @@ Archived completed-work narratives, moved out of STATE.md to keep it readable. N
 
 ---
 
+
+## Archived from STATE.md 2026-08-20 (the answer-key slice's session)
+
+Both narratives below were complete when they were archived; they moved out of STATE.md to keep it
+at its ~150-line budget. Their durable rules live in the files they name.
+
+### Prior focus — the Activities list surface, T1–T4 BUILT
+
+**[activities-list-surface.md](docs/design/activities-list-surface.md) — design-reviewed 2026-08-18 (D3–D11), built 2026-08-19.** The list is now the teacher's **curriculum outline**: natural-sorted unit groups with counts, a recently-edited strip, search + `/`, a drafts chip, flat separated rows (cards deleted), hidden-empty-groups under filters, and scroll restoration. New modules: `lib/activityGrouping.ts`, `lib/useScrollMemory.ts`.
+
+**Three things a future session needs from this build:**
+1. **⚠ THE OUTLINE READS DRAFT-FIRST, and this is not optional.** `activities.unit` is publish-truth (taxonomy R1), so grouping on the column alone files every *unpublished* draft under "No unit" — breaking the outline for the bulk-authoring sprint it exists to serve. The list selects BOTH the column and `draft_content->meta->>unit` (a PostgREST json path, extracted server-side so 150 rows never ship 150 documents) and prefers the draft, mirroring the editor's own draft > published load priority. **The column keeps its single writer; R1 is untouched.** See the header comment in `lib/activityGrouping.ts`.
+2. **supabase-js cannot type a json-path select.** Its row types come from PARSING the select string, and the parser doesn't understand `->`, so it degrades the row to `GenericStringError[]`. The `as unknown as ActivityRow[]` in the list query is load-bearing, not laziness — the runtime shape was verified against the live API before the cast was written.
+3. **`<ScrollRestoration>` is unavailable here** — it needs a data router, and this app mounts `<BrowserRouter>` + `<Routes>`. `useScrollMemory` is the scoped equivalent; its `ready` gate is the working part (restoring before rows render clamps to 0).
+
+**Still open from the review:** T5 (mobile ⋯ row menu, 44px targets) and T6 (state-coverage tests incl. the skeleton-selector pin) are P2, in the doc's §7.
+
+### Prior focus — activity taxonomy, BOTH DROPS SHIPPED
+
+**[activity-taxonomy.md](docs/design/activity-taxonomy.md) — RULED by full eng review 2026-08-18 (R1–R8, D1–D12, outside voice), then built the same day.** This closes [free-activity-catalog.md](docs/design/free-activity-catalog.md) **decision #6**, the last open catalog decision, ahead of the author's large activity catalogue — the corpus is empty (3 throwaway rows), so this was the last free moment to choose.
+
+**The reframing that drove it:** the question was never "add a tags field." **Six classification fields already existed across two storage layers and only one had a UI** — `course`/`unit` (columns AND `ActivityMeta`, zero UI), `meta.skills`, `block.skills` on **8 question block types**, `meta.activityType` (the only one with a control), and the proposed `tags`. Shipping tags without ruling that set would have made a seventh orphan.
+
+**Four things a future session needs from this slice:**
+1. **Provenance is split ON PURPOSE, and it is the thing not to "simplify."** `course`/`unit` are **publish-truth** — stamped server-side inside `publish_activity` from the frozen snapshot, because the catalog lists *published* activities and the viewer renders `doc.meta.course` from that same snapshot. `tags`/`pedagogical_role` are **row-native and live**, like `visibility` — editing them needs no republish. **One writer per column.** Autosave writes the row-native pair; it must never write course/unit.
+2. **`activityType` (document, presentation format) and `pedagogical_role` (row, Bank trust layer) are DISTINCT axes** — both vocabularies contain "review", and the distinct names are the whole collision fix. verify-0037 §A has a `no_activity_type_column` row that goes red if the collision ever ships.
+3. **The autosave fingerprint is now a tested contract.** `lib/activityChangeKey.ts` exists because the review caught `tags` being saved but absent from `changeKey` — which would have made a tags-only edit *silently never persist*. The rule, with a test per field: **everything `save()` writes must be an input to the key.**
+4. **`skills` stays inert by inheritance, not by re-decision** (Activity Bank ruling A4 — no trigger has fired). The guardrail this slice adds: tags are row-level discovery vocabulary; skills, when triggered, get their own tables keyed by block; **never merge them**, and role words belong in `pedagogical_role`, not tags.
+
+**✅ Drop 2 SHIPPED — the ```meta fence.** `course` / `unit` / `tags` / `role` as plain `key: value` lines, parsed in the same PRE-PASS as ```definitions (so the fence works wherever the author puts it) and routed through the SAME `normalizeTags` the chip input uses. The arc is now complete: a pasted activity arrives filed, with no manual drawer pass.
+
+**Two things about Drop 2 a future session needs:**
+1. **The merge rule is NEVER-CLOBBER (ruling D16) and the tests exist because it is tempting to "simplify."** A key applies only where the activity has no value yet (unset unit, null role, course still the default); **tags union**, since adding a tag can't destroy one. Anything skipped surfaces as a note under the header, so a paste is never silently overruled OR silently ignored. Why it matters: an AI writing to this format emits a meta fence on EVERY reply, including when you are only appending one section to a finished activity — overwrite-always would silently rename that activity's course. The rule lives in `lib/applyImportedMeta.ts`, not in the editor callback, so it stays testable.
+2. **The fence is the PUREST side channel in the importer** — no body blocks, no panel blocks, and (unlike ```definitions) no mark content either. `importFormatRegistry.ts` gained a `meta?: boolean` flag for this fourth kind, and the guard probes `ImportResult.meta` instead of the document. The registry is what forced the prompt + doc to be updated in the same commit; **it also caught that the doc EMBEDS the prompt verbatim** — regenerate that block from the constant, and never with JS `String.replace` (`$$` in a replacement string inserts a literal `$`, which silently halved every display-math delimiter on the first attempt).
+
+
 ## 2026-08-16 — the live admission proof a session cannot make, archived from STATE at the 2026-08-18 drift audit
 
 *(The author drove the join-code half of the live admission flow end to end in a real

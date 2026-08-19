@@ -335,7 +335,25 @@ SHORT ANSWER / ESSAY (a `shortanswer` or `essay` fence is a graded free-text que
     rubric: Thesis | 3
     rubric: Evidence | 5 | Cites at least two examples
     ```
-- Both are teacher-graded against the rubric — there is no auto-scored key.
+- Both accept two teacher-only keys the student NEVER sees:
+    answer:   what a correct response says — this is what prints on your
+              answer key, so write it the way you would mark against it
+    solution: the worked explanation shown to the student AFTER they check
+              the section (omit it on a question you want to reuse)
+  Both may run over SEVERAL LINES — keep writing on the lines beneath, and
+  each line becomes its own line in the key:
+    ```shortanswer
+    prompt: Solve $2x + 3 = 11$ and explain each step.
+    answer: x = 4
+    Subtract 3 from both sides, then divide by 2.
+    solution: Undo the operations in the reverse order they were applied.
+    ```
+  A continuation line belongs to whichever of prompt:, answer: or solution:
+  came last, so write the prompt first and the keys after it.
+- Points come from the rubric, never from the answer: one criterion per
+  rubric: line with its own points; a question with NO rubric is worth 1
+  point. Write answer: for WHAT is correct and rubric: for HOW MANY points.
+- Both are teacher-graded — there is no auto-scored key.
   Use ```explain instead when the reflection should be ungraded.
 
 COLUMNS (a `columns` fence lays blocks out side by side)
@@ -643,7 +661,7 @@ starter: I subtracted 3 because…
 
 ## Short-answer and essay blocks (```shortanswer / ```essay fences)
 
-The graded free-text siblings of `explain`. A ` ```shortanswer ` fence is a brief written response; a ` ```essay ` fence is a longer one that adds an optional word-count target. Both are **manually graded** by the teacher against an optional rubric — there is no auto-scored answer key. (Reach for `explain` instead when the reflection should be ungraded.)
+The graded free-text siblings of `explain`. A ` ```shortanswer ` fence is a brief written response; a ` ```essay ` fence is a longer one that adds an optional word-count target. Both are **manually graded** by the teacher against an optional rubric — no machine scores them. Both can still carry an `answer:` (what prints on your answer key) and a `solution:` (the worked explanation the student sees after checking). (Reach for `explain` instead when the reflection should be ungraded.)
 
 ```
 ```shortanswer
@@ -651,6 +669,8 @@ prompt: Explain why the sum of two even numbers is even.
 starter: The sum is even because…
 rubric: Correct reasoning | 3 | Uses that an even number is 2k
 rubric: Clear explanation | 2
+answer: Two evens are 2m and 2n, so their sum is 2(m + n) — a multiple of 2.
+solution: Write each even number as 2 times something, then factor the 2 out.
 ```⠀
 ```
 
@@ -669,7 +689,22 @@ rubric: Mechanics | 2
 - `starter:` — optional placeholder text shown in the empty answer box (same as `explain`).
 - `rubric:` — optional and **repeatable**; each line is one criterion, `Label | points | optional note`. The `|` splits the three parts (label required; points a positive number; the note optional). A rubric line that can't be read (no label, or non-numeric points) is skipped with a warning and the rest of the block still imports — one bad criterion never sinks the question. The rubric is teacher-side data: it's carried into the grading UI, never emitted into the student page.
 - `words:` (**essay only**) — an optional length target, `min-max`, with either side optional: `words: 200-300`, `words: 200-` (minimum only), `words: -300` (maximum only). The dash is required (a bare number is ambiguous); word counts are positive whole numbers, and an inverted `min-max` is dropped with a warning. The student sees a live word counter against the target. A `words:` line inside a `shortanswer` fence is ignored with a warning.
-- Neither block is auto-scored; both show up under "Written responses" in the submissions dashboard for grading.
+- `answer:` — optional. **What a correct response says.** This is what prints on your answer key, so write it the way you'd mark against it. Teacher-only: it is stripped from everything the student is served, on every channel.
+- `solution:` — optional. The worked explanation, shown to the student **after** they check the section (never before — the attempt is recorded first). Omit it on a question you want to reuse or that a student could revise their answer from.
+- **Both may run over several lines.** Keep writing on the lines beneath the key and each line becomes its own line in the key:
+
+```
+```shortanswer
+prompt: Solve $2x + 3 = 11$ and explain each step.
+answer: x = 4
+Subtract 3 from both sides, then divide by 2.
+solution: Undo the operations in the reverse order they were applied.
+```⠀
+```
+
+  A continuation line belongs to whichever of `prompt:`, `answer:` or `solution:` came last, so **write the prompt first and the keys after it**. (`starter:`, `words:` and `rubric:` are single-line and don't capture the lines beneath them.)
+- **Points come from the rubric, never from `answer:`.** `answer:` says *what* is correct; each `rubric:` line says *how many points* its criterion is worth. A question with no rubric is worth **1 point**.
+- Neither block is auto-scored; both show up under "Written responses" in the submissions dashboard for grading. Both are **numbered** on screen and on paper, like every other question a teacher marks.
 
 ## Columns blocks (```columns fence)
 

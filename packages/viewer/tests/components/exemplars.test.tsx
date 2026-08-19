@@ -29,6 +29,7 @@ import type { MockCheckScript } from '../../src/index.js';
 import Paragraph from '../../src/blocks/Paragraph.js';
 import MultipleChoice from '../../src/blocks/MultipleChoice.js';
 import ShortAnswer from '../../src/blocks/ShortAnswer.js';
+import Essay from '../../src/blocks/Essay.js';
 import { sanitizedBlockFixture } from '../../src/fixtures/index.js';
 import { TEST_USER_ID } from '../helpers/ids.js';
 
@@ -57,6 +58,7 @@ const mcBlock = sanitizedBlockFixture('multiple_choice') as never as {
   choices: Array<{ id: string }>;
 };
 const saBlock = sanitizedBlockFixture('short_answer') as never as { id: string };
+const esBlock = sanitizedBlockFixture('essay') as never as { id: string };
 
 const pill = () => document.querySelector('[data-state]');
 
@@ -286,6 +288,58 @@ describe('ShortAnswer — the RECORDED template', () => {
     const { container } = harness(() => <ShortAnswer block={saBlock as never} mode="screen" />);
     expect(JSON.stringify(saBlock)).not.toContain('rubric');
     expect(container.innerHTML).not.toContain('maxPoints');
+  });
+
+  it('never leaks the authored answer or solution either', () => {
+    // The served block has both stripped (registry, ruling E3). Asserted on the
+    // FIXTURE as well as the render because that is where the sanitizer's work
+    // is observable — the component could not print what is not there.
+    const { container } = harness(() => <ShortAnswer block={saBlock as never} mode="screen" />);
+    expect('answer' in saBlock).toBe(false);
+    expect('solution' in saBlock).toBe(false);
+    expect(container.querySelector('.viewer-written-key')).toBeNull();
+  });
+});
+
+// =============================================================================
+// The post-check solution reveal on the recorded pair (T5, ruling E9)
+// -----------------------------------------------------------------------------
+// Same semantics as every other solution-bearing block, and the ORDER is the
+// ruling: the attempt is recorded BEFORE the explanation becomes available, so
+// a student cannot read the solution and then answer. `solution` is stripped
+// from the served document and arrives on SectionCheckResult.solutions, which
+// walk.ts collects GENERICALLY — these blocks added no grading-engine code to
+// get here, which is precisely why E2 chose `solution` as the field name.
+// =============================================================================
+describe('ShortAnswer / Essay — the solution reveal', () => {
+  it.each([
+    ['short_answer', ShortAnswer, saBlock],
+    ['essay', Essay, esBlock],
+  ] as const)('%s discloses only after the check releases it', async (_label, Component, block) => {
+    const { store } = harness(
+      () => <Component block={block as never} mode="screen" />,
+      {
+        solutions: {
+          [block.id]: [{ type: 'text', text: 'Name the rate of change.', marks: [] }],
+        },
+      },
+    );
+    expect(screen.queryByText('Show solution')).toBeNull();
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my answer' } });
+    await store.checkSection(SECTION, { freeText: [block.id] });
+
+    await waitFor(() => expect(screen.getByText('Show solution')).toBeInTheDocument());
+    // Collapsed by default — a reveal the student opens, not one thrust at them.
+    expect(document.querySelector('details')).not.toHaveAttribute('open');
+    expect(document.body.textContent).toContain('Name the rate of change.');
+  });
+
+  it('stays absent when the author omitted a solution', () => {
+    // E9's escape hatch: authors omit `solution:` on revision-sensitive
+    // questions, and the box is then simply not there.
+    harness(() => <ShortAnswer block={saBlock as never} mode="screen" />);
+    expect(screen.queryByText('Show solution')).toBeNull();
   });
 });
 

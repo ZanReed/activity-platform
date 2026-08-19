@@ -131,13 +131,23 @@
 
 ## 7. Implementation tasks
 
-- [ ] **T1 (P1, human: ~3h / CC: ~25min)** — schema+registry — `answer`/`solution` on ShortAnswerBlock+EssayBlock; strip entries; `numbered:'always'`; tombstone on `problem`. Verify: schema tests + sanitize units + leak fixture red-then-green.
-- [ ] **T2 (P1, human: ~4h / CC: ~30min)** — editor — Tiptap attrs + serialize both directions + read-only display (E10). Verify: round-trip tests.
-- [ ] **T3 (P1, human: ~4h / CC: ~30min)** — answer key — coverage rows, extractor w/ fallback, `InlineNode[]` channel + renderer, guard-contract amendment. Verify: answerKey tests + key print e2e row.
-- [ ] **T4 (P1, human: ~2h / CC: ~15min)** — importer — multi-line `answer:`/`solution:` keys on both fences; registry examples; prompt + format doc (incl. E8's convention). Verify: three-artifact guard.
-- [ ] **T5 (P1, human: ~1h / CC: ~10min)** — viewer — ShortAnswer/Essay render unlocked solutions. Verify: viewer tests.
-- [ ] **T6 (P1, human: ~1h / CC: ~10min)** — bundles + deploy — regenerate BOTH server bundles same commit; record_check regression pin; STATE pending-action w/ ordering constraint + liveness proof script. Verify: bundle drift green; verify script rows.
-- [ ] **T7 (P2)** — sweep: printExpectations row for numbered free-response, a11y numbering check.
+> **BUILT 2026-08-20 — T1–T6 shipped, T7 deferred.** Two things this plan did not
+> anticipate, both found while building: (a) the EDITOR's numbering bridge
+> (`PM_NAME_TO_SCHEMA_TYPE`) did not know these blocks, so E7's `numbered:'always'`
+> would have shifted every question number after a short_answer down by one — the
+> bridge gained both types and the parity test that file had only *claimed* now
+> exists (P11); (b) `ANSWER_KEY_INK` is an SVG stroke colour, so §2's "inline
+> renderer with ANSWER_KEY_INK treatment" was wrong on both surfaces — the key
+> panel inherits `--vw-color-ink` instead (unreadable in dark mode otherwise, and
+> the print token layer already forces every ink to pure black).
+
+- [x] **T1 (P1, human: ~3h / CC: ~25min)** — schema+registry — `answer`/`solution` on ShortAnswerBlock+EssayBlock; strip entries; `numbered:'always'`; tombstone on `problem`. Verify: schema tests + sanitize units + leak fixture red-then-green.
+- [x] **T2 (P1, human: ~4h / CC: ~30min)** — editor — Tiptap attrs + serialize both directions + read-only display (E10). Verify: round-trip tests.
+- [x] **T3 (P1, human: ~4h / CC: ~30min)** — answer key — coverage rows, extractor w/ fallback, `InlineNode[]` channel + renderer, guard-contract amendment. Verify: answerKey tests + key print e2e row.
+- [x] **T4 (P1, human: ~2h / CC: ~15min)** — importer — multi-line `answer:`/`solution:` keys on both fences; registry examples; prompt + format doc (incl. E8's convention). Verify: three-artifact guard.
+- [x] **T5 (P1, human: ~1h / CC: ~10min)** — viewer — ShortAnswer/Essay render unlocked solutions. Verify: viewer tests.
+- [x] **T6 (P1, human: ~1h / CC: ~10min)** — bundles + deploy — regenerate BOTH server bundles same commit; record_check regression pin; STATE pending-action w/ ordering constraint + liveness proof script. Verify: bundle drift green; verify script rows.
+- [ ] **T7 (P2)** — sweep: printExpectations row for numbered free-response, a11y numbering check. **Deferred 2026-08-20 with T1–T6 shipped; recorded in [TODOS.md](../../TODOS.md).**
 
 Sequencing: T1 → {T2, T3, T4, T5 in any order} → T6. Single-module seams
 dominate — sequential implementation, no worktree parallelization worth its

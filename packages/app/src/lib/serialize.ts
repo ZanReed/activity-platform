@@ -547,11 +547,40 @@ function tiptapSelfExplanationToActivity(node: JSONContent): SelfExplanationBloc
     return block;
 }
 
+// The two teacher-only answer fields short_answer and essay share (answer-key
+// slice, ruling E2). Attrs-stored rich inline content, sanitized with the real
+// schema exactly like every other attrs-stored InlineNode[] in this file.
+//
+// THIS FUNCTION IS THE TRAP THE ENG REVIEW PINNED (E5.1). The design pass's
+// original premise died on precisely this seam: `problem` has no editor
+// mapping, so an imported problem block was silently DELETED by the first
+// autosave. Fields are lost the same way — an importer can write an `answer:`
+// attr the fence tests happily assert on, and if serialize does not read it
+// back, the teacher's answer key evaporates the first time the editor saves,
+// with nothing anywhere going red. Both directions or neither; the round-trip
+// tests in serialize.test.ts are what prove it.
+//
+// Omitted when empty rather than written as `[]`: the schema makes both fields
+// optional, and an empty array would make "the author wrote no answer" and "the
+// author wrote an answer that sanitized down to nothing" indistinguishable to
+// the answer-key extractor's fallback chain.
+function readAnswerFields(
+    node: JSONContent,
+): { answer?: InlineNode[]; solution?: InlineNode[] } {
+    const answer = sanitizeInlineNodes(node.attrs?.answer);
+    const solution = sanitizeInlineNodes(node.attrs?.solution);
+    return {
+        ...(answer.length > 0 ? { answer } : {}),
+        ...(solution.length > 0 ? { solution } : {}),
+    };
+}
+
 function tiptapShortAnswerToActivity(node: JSONContent): ShortAnswerBlock {
     const block: ShortAnswerBlock = {
         id: crypto.randomUUID(),
         type: 'short_answer',
         prompt: tiptapInlineToActivity(node.content ?? []),
+        ...readAnswerFields(node),
     };
     const placeholder = (node.attrs?.placeholder as string | undefined)?.trim();
     if (placeholder) block.placeholder = placeholder;
@@ -585,6 +614,7 @@ function tiptapEssayToActivity(node: JSONContent): EssayBlock {
         id: crypto.randomUUID(),
         type: 'essay',
         prompt: tiptapInlineToActivity(node.content ?? []),
+        ...readAnswerFields(node),
     };
     const placeholder = (node.attrs?.placeholder as string | undefined)?.trim();
     if (placeholder) block.placeholder = placeholder;
@@ -1418,6 +1448,12 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                 content: activityInlineToTiptap(block.prompt),
             };
 
+        // `answer` / `solution` ride as attrs in CANONICAL InlineNode[] form
+        // (not converted to Tiptap inline shape) because nothing in the editor
+        // edits them — E10 ships read-only display — and readAnswerFields reads
+        // the same shape straight back. Converting them would introduce a
+        // lossy leg for no gain; the day an editing UI lands, it edits this
+        // canonical form the way the popover fields already do.
         case 'short_answer':
             return {
                 type: 'shortAnswer',
@@ -1425,6 +1461,8 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                     id: block.id,
                     placeholder: block.placeholder ?? '',
                     rubric: block.rubric ?? null,
+                    answer: block.answer ?? null,
+                    solution: block.solution ?? null,
                 },
                 content: activityInlineToTiptap(block.prompt),
             };
@@ -1438,6 +1476,8 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                     wordMin: block.wordCountHint?.min ?? null,
                     wordMax: block.wordCountHint?.max ?? null,
                     rubric: block.rubric ?? null,
+                    answer: block.answer ?? null,
+                    solution: block.solution ?? null,
                 },
                 content: activityInlineToTiptap(block.prompt),
             };

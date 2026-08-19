@@ -25,7 +25,7 @@
 // about what a teacher reads while marking.
 // =============================================================================
 
-import type { Drawable } from '@activity/schema';
+import type { Drawable, InlineNode } from '@activity/schema';
 import type { NumberLineMark } from '@activity/graph-kit/static-svg';
 import type { BlockType } from '../registry/types.js';
 
@@ -73,6 +73,34 @@ export interface BlockAnswerKey {
    * residual) — but it IS what the key draws, so it travels the same channel.
    */
   readonly dataPlotValues?: readonly number[];
+  /**
+   * A WRITTEN answer, as rich inline content (answer-key slice, ruling E2/§2).
+   * The first channel here that is prose rather than a value or a coordinate,
+   * because the blocks it serves — short_answer and essay — are marked by a
+   * human reading what a student wrote against what the teacher wrote.
+   *
+   * The EXTRACTOR resolves which field this came from (`answer`, else
+   * `solution`), and that placement is deliberate: components render the
+   * SANITIZED document, in which neither field exists any more, so a component
+   * that tried to fall back would be reaching for something that is gone by
+   * construction. Ruling §2 puts the fallback where the fields still exist.
+   */
+  readonly writtenAnswer?: readonly InlineNode[];
+  /**
+   * Which field `writtenAnswer` came from. A post-check EXPLANATION printed
+   * under the word "Answer" would misrepresent it to the teacher marking with
+   * it, so the component labels the fallback for what it is.
+   */
+  readonly writtenAnswerSource?: 'answer' | 'solution';
+  /**
+   * The block is keyed as MANUALLY GRADED: it is a question a teacher marks,
+   * and the author supplied neither an answer nor a solution. Present so the
+   * key prints a row saying so ("manually graded — see rubric") instead of
+   * silently omitting the question — a key with a hole in it is worse than a
+   * key that says the hole is intentional, because the teacher discovers the
+   * difference mid-marking.
+   */
+  readonly manuallyGraded?: true;
 }
 
 /** Block id → its answers. Flat: nested blocks key by their OWN id, so a
@@ -89,11 +117,25 @@ export type AnswerKeyMap = Readonly<Record<string, BlockAnswerKey>>;
 export const ANSWER_KEY_INK = '#1e293b';
 
 /**
- * How each gradable block type's answers reach the key. Every `auto_gradable`
- * registry entry must appear here, and the roster guard fails when a new one
- * lands without a decision — the same forced-choice shape as S4's
- * CORPUS_COVERAGE, and for the same reason: silence in a coverage map reads as
- * "handled" when it actually means "nobody looked".
+ * How each keyed block type's answers reach the key.
+ *
+ * ⚠ THE ROSTER CONTRACT WAS AMENDED 2026-08-20 (answer-key slice, ruling §2).
+ * It used to be an EQUALITY — coverage named exactly the `auto_gradable`
+ * types — and it is now a CONTAINMENT: **keyed ⊇ auto-gradable**. Every
+ * auto_gradable type must still appear (a machine-graded question with no key
+ * is the failure the roster exists to catch), but a keyed type need not be
+ * auto-gradable: short_answer and essay are `recorded`-family blocks that carry
+ * a teacher's written answer precisely BECAUSE no machine will grade them.
+ *
+ * The widening is bounded, and the bound is the point: a keyed type must be a
+ * QUESTION (registry category), never static content. `self_explanation` is a
+ * question block that is deliberately NOT keyed — ungraded reflection has no
+ * right answer to print — and the guard pins that exclusion by name so it stays
+ * a decision rather than an omission (E5/finding 11).
+ *
+ * The forced-choice shape is unchanged, and so is its reason: silence in a
+ * coverage map reads as "handled" when it actually means "nobody looked"
+ * (S4's CORPUS_COVERAGE, same shape).
  */
 export type AnswerKeyCoverage =
   /** A per-type extractor reads the block's own answer fields. */
@@ -133,4 +175,9 @@ export const ANSWER_KEY_COVERAGE: Readonly<
       'by its own block id, exactly as the renderer delegated showAnswers to ' +
       'renderFillInBlank per child',
   },
+  // The two RECORDED-family entries — the containment amendment above in the
+  // concrete. Their key is the teacher's own words, and the extractor resolves
+  // answer → solution → "manually graded".
+  short_answer: { via: 'extractor' },
+  essay: { via: 'extractor' },
 };

@@ -123,6 +123,27 @@ test.describe('answer key — every gradable type puts its answer on the page', 
             expect(number).toBe(String(key[itemId]));
         }
     });
+
+    // The manually-graded pair (answer-key slice). "Every gradable type" in
+    // this describe's title now means every KEYED type — the roster widened to
+    // keyed ⊇ auto-gradable, because the questions a teacher marks by hand are
+    // the ones they most need a key for.
+    test('short_answer: the written answer is on the page', async ({ page }) => {
+        expect(ANSWER_KEY_COVERAGE.short_answer?.via).toBe('extractor');
+        await loadViewerKey(page, 'short_answer');
+        const key = page.locator('.viewer-written-key');
+        await expect(key).toHaveAttribute('data-answer-key', 'answer');
+        await expect(key).toContainText('crosses the y-axis');
+    });
+
+    test('essay: falls back to the solution and labels it as one', async ({ page }) => {
+        // The fixture authors only `solution`; printing it under the word
+        // "Answer" would misrepresent it to whoever is marking with it.
+        await loadViewerKey(page, 'essay');
+        const key = page.locator('.viewer-written-key');
+        await expect(key).toHaveAttribute('data-answer-key', 'solution');
+        await expect(key.locator('.viewer-written-key__label')).toHaveText('Solution');
+    });
 });
 
 test.describe('answer key — viewer-only, named with a reason', () => {

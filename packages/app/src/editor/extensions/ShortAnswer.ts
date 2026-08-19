@@ -1,11 +1,19 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import FreeResponseView from '../nodeViews/FreeResponseView';
+import { answerFieldAttrs } from './freeResponseAttrs';
 
 // ============================================================================
 // ShortAnswer — Tiptap block node for the short_answer block (manually graded
 // brief free text). Editable inline PROMPT (text + inline math) + an optional
-// `placeholder` attribute. No answer key. Shares FreeResponseView with Essay.
+// `placeholder` attribute. Shares FreeResponseView with Essay.
+//
+// ⚠ AMENDED 2026-08-20 (answer-key slice, E2): "No answer key" was true until
+// this slice. The block now carries optional `answer` + `solution` attrs — the
+// teacher's key and the post-check explanation. They are DATA HERE, never
+// edited here: E10 ships read-only display in FreeResponseView, and the fields
+// are authored in the .md file the batch importer re-imports. What this node
+// owes them is round-trip fidelity, nothing more.
 // ============================================================================
 
 declare module '@tiptap/core' {
@@ -60,6 +68,7 @@ export const ShortAnswer = Node.create({
                         ? { 'data-rubric': JSON.stringify(attributes.rubric) }
                         : {},
             },
+            ...answerFieldAttrs(),
         };
     },
 

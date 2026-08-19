@@ -4040,6 +4040,43 @@ img.mc-block__figure-preview {
     text-align: right;
 }
 
+/* The read-only answer key (E10). Collapsed by default and visually marked as
+   teacher-only material: a dashed rule and the muted register the rest of this
+   NodeView uses for inert readouts, so it never reads as part of the question
+   the student sees. It is display-only — there is no editing affordance here
+   by ruling, and the styling should not grow one by accident. */
+.free-response-block__key {
+    margin-top: 0.45rem;
+    padding-top: 0.4rem;
+    border-top: 1px dashed var(--ed-border-strong); /* slate-300 */
+    font-size: 0.8rem;
+    color: var(--ed-text-muted); /* slate-500 */
+}
+
+.free-response-block__key-summary {
+    cursor: pointer;
+    user-select: none;
+}
+
+.free-response-block__key-field {
+    margin-top: 0.35rem;
+}
+
+.free-response-block__key-field p {
+    margin: 0.1rem 0;
+    color: var(--ed-text); /* the key itself reads at full strength */
+    white-space: pre-wrap;
+}
+
+.free-response-block__key-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--ed-faint); /* slate-400 */
+}
+
 .free-response-block__footer {
     margin-top: 0.4rem;
     font-size: 0.8rem;

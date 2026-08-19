@@ -21,7 +21,20 @@ import { isPageNumberedType } from '@activity/schema';
 // ProseMirror node name (camelCase) → schema block type (snake_case), for the
 // block kinds that can carry a problem number. This map is the editor's
 // name-spelling bridge only; membership + the display-graph rule live in schema.
-const PM_NAME_TO_SCHEMA_TYPE: Readonly<Record<string, string>> = {
+//
+// A MISSING ENTRY IS A SILENT MIS-NUMBERING, not a missing number: the walk
+// simply doesn't count that block, so every question AFTER it shows a number
+// one too low — and the editor and the printed page then disagree about which
+// question is which. That is why the map is exported and bound to the schema's
+// own membership list by problemNumbering.test.ts. The bond used to be claimed
+// in this comment and nowhere else (P11: a comment asserting coverage is a
+// claim — guard it or don't make it); the answer-key slice made it real, having
+// walked straight into the gap it warns about.
+//
+// `problem` is deliberately absent: it is page-numbered in the schema but the
+// editor has no mapping for it at all (see its tombstone), so it can never
+// appear in a ProseMirror document.
+export const PM_NAME_TO_SCHEMA_TYPE: Readonly<Record<string, string>> = {
     fillInBlank: 'fill_in_blank',
     multipleChoice: 'multiple_choice',
     matching: 'matching',
@@ -31,6 +44,11 @@ const PM_NAME_TO_SCHEMA_TYPE: Readonly<Record<string, string>> = {
     interactiveGraph: 'interactive_graph',
     dataPlot: 'data_plot',
     mathBlock: 'math_block',
+    // Numbered since ruling E7 (answer-key slice): a graded question a teacher
+    // marks on paper wears a number, and it consumes a sequence slot here for
+    // the same reason it does on the page.
+    shortAnswer: 'short_answer',
+    essay: 'essay',
 };
 
 export function problemNumberAt(editor: Editor, pos: number | undefined): number {

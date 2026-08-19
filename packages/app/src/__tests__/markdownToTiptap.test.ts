@@ -1969,6 +1969,137 @@ describe('graded free-text fences (```shortanswer / ```essay)', () => {
         expect(res.blocks.every((b) => b.type !== 'essay')).toBe(true);
         expect(res.warnings.length).toBeGreaterThan(0);
     });
+
+    // ---- answer: / solution: (answer-key slice, ruling E5.6) ---------------
+
+    it.each(['shortanswer', 'essay'] as const)(
+        '```%s reads answer: and solution: as canonical inline content',
+        (tag) => {
+            const node = blocks(
+                '```' + tag + '\nprompt: Solve it.\nanswer: x = 4\nsolution: Undo the operations.\n```',
+            )[0]!;
+            expect(node.attrs!.answer).toEqual([
+                { type: 'text', text: 'x = 4', marks: [] },
+            ]);
+            expect(node.attrs!.solution).toEqual([
+                { type: 'text', text: 'Undo the operations.', marks: [] },
+            ]);
+        },
+    );
+
+    it('joins CONTINUATION lines with hard breaks, not spaces', () => {
+        // The author wrote separate lines because the steps are separate; a
+        // space-joined key prints as one run-on the teacher has to re-parse.
+        const node = blocks(
+            '```shortanswer\nprompt: Solve it.\nanswer: x = 4\nSubtract 3, then divide by 2.\n```',
+        )[0]!;
+        expect(node.attrs!.answer).toEqual([
+            { type: 'text', text: 'x = 4', marks: [] },
+            { type: 'hard_break' },
+            { type: 'text', text: 'Subtract 3, then divide by 2.', marks: [] },
+        ]);
+    });
+
+    it('a bare line belongs to the LAST of prompt:/answer:/solution:', () => {
+        const node = blocks(
+            [
+                '```essay',
+                'prompt: First prompt line.',
+                'And a second prompt line.',
+                'answer: The answer.',
+                'A second answer line.',
+                'solution: The solution.',
+                'A second solution line.',
+                '```',
+            ].join('\n'),
+        )[0]!;
+        // The prompt still collects bare lines until a key claims them — the
+        // pre-existing behaviour, unchanged for every fence without these keys.
+        expect(node.content).toEqual([
+            { type: 'text', text: 'First prompt line. And a second prompt line.' },
+        ]);
+        expect((node.attrs!.answer as unknown[]).length).toBe(3);
+        expect((node.attrs!.solution as unknown[]).length).toBe(3);
+        expect(JSON.stringify(node.attrs!.answer)).toContain('A second answer line.');
+        expect(JSON.stringify(node.attrs!.solution)).toContain(
+            'A second solution line.',
+        );
+    });
+
+    it('the single-line keys do not steal the lines beneath them', () => {
+        const node = blocks(
+            [
+                '```shortanswer',
+                'prompt: Q',
+                'answer: The answer.',
+                'rubric: Reasoning | 3',
+                'Still part of the answer.',
+                '```',
+            ].join('\n'),
+        )[0]!;
+        expect(criteriaOf(node)).toHaveLength(1);
+        expect(JSON.stringify(node.attrs!.answer)).toContain(
+            'Still part of the answer.',
+        );
+    });
+
+    it('carries $inline$ math into the key', () => {
+        const node = blocks(
+            '```shortanswer\nprompt: Q\nanswer: The slope is $m = 2$.\n```',
+        )[0]!;
+        expect(JSON.stringify(node.attrs!.answer)).toContain('math_inline');
+    });
+
+    it('omits both keys entirely when the author wrote neither', () => {
+        // null, not [] — serialize reads "no answer authored" from the absence,
+        // and the answer key's fallback chain depends on the distinction.
+        const node = blocks('```essay\nprompt: Just write.\n```')[0]!;
+        expect(node.attrs!.answer).toBeNull();
+        expect(node.attrs!.solution).toBeNull();
+    });
+
+    it('the key survives PASTE → SAVE → RELOAD → SAVE (the E5.1 trap)', () => {
+        // THE WHOLE PIPELINE, in the order a teacher actually runs it. The
+        // three legs in serialize.test.ts pin the bridge; this pins the leg
+        // BEFORE it — the fence — attached to them, because the design pass's
+        // original premise died exactly here: an imported block that the editor
+        // could not hold looked perfectly fine in a fence test and was deleted
+        // by the first autosave. A fence test that stops at the Tiptap doc
+        // cannot see that, so this one does not stop there.
+        const md =
+            '```shortanswer\nprompt: Solve it.\nanswer: x = 4\nCheck by substituting.\nsolution: Undo the operations.\n```';
+
+        // Paste → the strict grid the editor actually loads, and the REAL
+        // ProseMirror schema must accept it (an undeclared attr would be
+        // dropped here, silently, before serialize ever sees it).
+        const pasted = wrapBlocksStrict(convert(md).blocks);
+        expect(() => editorSchema.nodeFromJSON(pasted).check()).not.toThrow();
+
+        // Save → reload → save. The second save is the one that matters.
+        const saved = tiptapToActivity(pasted, META);
+        const reloaded = activityToTiptap(saved);
+        const resaved = tiptapToActivity(reloaded, META);
+
+        const answerOf = (doc: ReturnType<typeof tiptapToActivity>) => {
+            const block = doc.sections
+                .flatMap((section) => section.rows)
+                .flatMap((row) => row.columns)
+                .flatMap((column) => column.blocks)
+                .find((b) => b.type === 'short_answer');
+            expect(block).toBeDefined();
+            return block as Extract<typeof block, { type: 'short_answer' }>;
+        };
+
+        expect(answerOf(saved).answer).toEqual(answerOf(resaved).answer);
+        expect(answerOf(resaved).answer).toEqual([
+            { type: 'text', text: 'x = 4', marks: [] },
+            { type: 'hard_break' },
+            { type: 'text', text: 'Check by substituting.', marks: [] },
+        ]);
+        expect(JSON.stringify(answerOf(resaved).solution)).toContain(
+            'Undo the operations.',
+        );
+    });
 });
 
 describe('reference fence (```reference → the reference panel)', () => {

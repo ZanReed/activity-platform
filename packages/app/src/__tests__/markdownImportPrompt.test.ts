@@ -465,6 +465,27 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'multi-line answer: / solution: on a free-response fence',
+        fragment: 'answer: x = 4',
+        md: '```shortanswer\nprompt: Solve $2x + 3 = 11$ and explain each step.\nanswer: x = 4\nSubtract 3 from both sides, then divide by 2.\nsolution: Undo the operations in the reverse order they were applied.\n```',
+        check: (b) => {
+            const sa = b.find((n) => n.type === 'shortAnswer')!;
+            expect(sa).toBeDefined();
+            // The continuation line rides as its own line — a hard break, not a
+            // space — which is the promise the prompt makes to the author.
+            expect(sa.attrs!.answer).toEqual([
+                { type: 'text', text: 'x = 4', marks: [] },
+                { type: 'hard_break' },
+                {
+                    type: 'text',
+                    text: 'Subtract 3 from both sides, then divide by 2.',
+                    marks: [],
+                },
+            ]);
+            expect(JSON.stringify(sa.attrs!.solution)).toContain('reverse order');
+        },
+    },
+    {
         name: 'essay fence with a word-count target and rubric',
         fragment: 'words: 200-300',
         md: '```essay\nprompt: Argue whether zoos do more good than harm.\nwords: 200-300\nrubric: Thesis | 3\n```',

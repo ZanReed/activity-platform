@@ -451,6 +451,70 @@ describe('recording', () => {
     expect(record!.idempotencyKey).toBe('attempt-abc');
   });
 
+  // -------------------------------------------------------------------------
+  // record_check round-trip over the EXTENDED schema (answer-key slice, T6)
+  // -------------------------------------------------------------------------
+  // A CRITICAL regression pin, and the reason it is critical is the deploy
+  // shape: the schema change rides into the GRADING bundle as well as the read
+  // one, and a document the grader refuses is a live 500 on every check of
+  // every section that contains one of these blocks — not a degraded render, a
+  // hard failure in front of a class. The walk's invariant checker rejects a
+  // block whose `solution` is not an array, so a field arriving in an
+  // unexpected SHAPE is exactly the failure mode with a path to production.
+  it('accepts a document carrying the new answer/solution fields', async () => {
+    const { ActivityDocument, createEmptyDocument } = await import('@activity/schema');
+    const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+    const blocks = [
+      {
+        id: id(1),
+        type: 'short_answer',
+        prompt: [{ type: 'text', text: 'Explain.', marks: [] }],
+        answer: [{ type: 'text', text: 'Because 2(m+n).', marks: [] }],
+        solution: [{ type: 'text', text: 'Factor the 2 out.', marks: [] }],
+      },
+      {
+        id: id(2),
+        type: 'essay',
+        prompt: [{ type: 'text', text: 'Argue.', marks: [] }],
+        answer: [{ type: 'text', text: 'Either side, defended.', marks: [] }],
+      },
+    ];
+    // Parsed, so this is a REAL document — a hand-built shape that only looks
+    // valid would test the grader against a document that cannot exist.
+    const doc = ActivityDocument.parse({
+      ...JSON.parse(JSON.stringify(createEmptyDocument({ title: 'Answer key' }))),
+      sections: [
+        {
+          id: id(9),
+          isCheckpoint: false,
+          rows: blocks.map((block, i) => ({
+            id: id(20 + i),
+            gridLines: 'inherit',
+            columns: [{ id: id(30 + i), blocks: [block] }],
+          })),
+        },
+      ],
+    });
+
+    const h = harness({
+      readVersion: async () => ({ data: { content: doc }, error: null }),
+    });
+
+    const res = await h.handler(
+      post(validBody({ sectionId: id(9), responses: { freeText: { [id(1)]: 'my answer' } } })),
+    );
+    expect(res.status).toBe(200);
+    expect(h.recorded()).toHaveLength(1);
+
+    // The `solution` reaches the student through the RESPONSE (walk.ts's
+    // generic collection), while the `answer` reaches nobody — the two fields
+    // have different release rules and this is the wire where both are visible.
+    const body = JSON.stringify(await res.json());
+    expect(body).toContain('Factor the 2 out.');
+    expect(body).not.toContain('Because 2(m+n).');
+    expect(JSON.stringify(h.recorded())).not.toContain('Because 2(m+n).');
+  });
+
   it('returns the ORIGINAL verdicts on a replay, not a fresh grading', async () => {
     // A retried request must be byte-identical to the response that was lost,
     // otherwise a slow cold start can change a student's marks.
