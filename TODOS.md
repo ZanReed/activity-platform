@@ -930,9 +930,9 @@ function's history, `scripts/verify-*` for every row that asserts the table exis
 
 **Why:** [Activities.tsx](packages/app/src/routes/Activities.tsx) is a flat unsorted `<ul>` — fine at 8 activities, unusable at the ~150 the catalogue push will create. Every authoring hour flows through this surface.
 
-**Context:** All facet inputs exist once the taxonomy slice lands: `tags` (row), `course`/`unit` (publish-truth columns per R1), `pedagogical_role` (R7). Filtering stays client-side at this scale (the list already fetches all own rows). Wants a design pass (/plan-design-review or /design-review) before build — it's a UX surface, not a schema question. See [activity-taxonomy.md](docs/design/activity-taxonomy.md) §5.
+**Context:** ✅ **DESIGN RULED 2026-08-18** — full /plan-design-review (7 passes, wireframes, D3–D11): grouped-by-unit outline, recent strip, flat separated rows, drafts chip, `/`-search, scroll restoration, a11y spec. **[activities-list-surface.md](docs/design/activities-list-surface.md) is the build input — inherit, don't re-derive**; its §7 tasks T1–T6 are the slice. All facet inputs already live (taxonomy arc).
 
-**Effort:** M
+**Effort:** M (design settled — build only)
 **Priority:** P2
 **Depends on:** the taxonomy slice (Drop 1) landing.
 
