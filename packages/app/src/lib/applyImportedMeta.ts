@@ -33,6 +33,13 @@ import type { PedagogicalRole } from './pedagogicalRole';
 /** The schema default for `course`. A row still holding it counts as unset. */
 export const DEFAULT_COURSE = 'Algebra II';
 
+/**
+ * The placeholder every activity is created with (Activities.tsx instant-create
+ * + createEmptyDocument). A title still equal to it means the author has not
+ * named this activity, so an imported title may fill it.
+ */
+export const DEFAULT_TITLE = 'Untitled activity';
+
 export interface ImportMetaTarget {
     meta: ActivityMeta;
     tags: string[];
@@ -57,6 +64,21 @@ export function applyImportedMeta(
     let meta = target.meta;
     let pedagogicalRole = target.pedagogicalRole;
     let changed = false;
+
+    // Title first — it is the field a catalogue import most needs, and the
+    // one whose absence costs a manual rename per activity. "Unset" here means
+    // still holding the create-time placeholder, or blank.
+    if (imported.title !== undefined) {
+        const current = target.meta.title.trim();
+        if (current === '' || current === DEFAULT_TITLE) {
+            meta = { ...meta, title: imported.title };
+            changed = true;
+        } else if (current !== imported.title) {
+            warnings.push(
+                `Meta: kept the name you already gave this activity (“${current}”) — the paste said “${imported.title}”.`,
+            );
+        }
+    }
 
     if (imported.course !== undefined) {
         if (target.meta.course === DEFAULT_COURSE) {

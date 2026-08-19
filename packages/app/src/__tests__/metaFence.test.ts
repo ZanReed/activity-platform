@@ -20,10 +20,11 @@ describe('```meta fence', () => {
     it('reads every key', () => {
         const r = convert(
             fence(
-                'course: Algebra I\nunit: Quadratics\ntags: factoring, vertex form\nrole: lesson',
+                'title: Factoring Trinomials\ncourse: Algebra I\nunit: Quadratics\ntags: factoring, vertex form\nrole: lesson',
             ),
         );
         expect(r.meta).toEqual({
+            title: 'Factoring Trinomials',
             course: 'Algebra I',
             unit: 'Quadratics',
             tags: ['factoring', 'vertex form'],
@@ -63,6 +64,30 @@ describe('```meta fence', () => {
     it('normalizes tags through the SAME contract as the chip input', () => {
         const r = convert(fence('tags:  Factoring , WORD   PROBLEMS , factoring'));
         expect(r.meta?.tags).toEqual(['factoring', 'word problems']);
+    });
+
+    // Without this key every imported activity lands as "Untitled activity"
+    // and is renamed by hand — the dominant cost of importing a catalogue.
+    it('reads a title, preserving its case and inner punctuation', () => {
+        expect(convert(fence('title: Factoring Trinomials (a > 1)')).meta?.title)
+            .toBe('Factoring Trinomials (a > 1)');
+    });
+
+    it('trims a title but does not lowercase it', () => {
+        expect(convert(fence('title:   Vertex Form   ')).meta?.title).toBe(
+            'Vertex Form',
+        );
+    });
+
+    // D5's unit naming convention is literally "Unit 2: Quadratics" — a colon
+    // INSIDE the value. Only the first colon separates key from value.
+    it('keeps colons inside a value (the "Unit 2: Quadratics" convention)', () => {
+        expect(convert(fence('unit: Unit 2: Quadratics')).meta?.unit).toBe(
+            'Unit 2: Quadratics',
+        );
+        expect(convert(fence('title: Warm-Up: Factoring')).meta?.title).toBe(
+            'Warm-Up: Factoring',
+        );
     });
 
     it('preserves unicode in tags', () => {

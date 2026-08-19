@@ -187,9 +187,9 @@ export const FENCES: FenceSpec[] = [
         // guard probes instead.
         blockType: 'meta',
         summary:
-            'activity metadata — course, unit, tags and Bank role — as plain `key: value` lines; applied only where the activity has no value yet, so a paste never overwrites metadata you set by hand',
+            'activity metadata — title, course, unit, tags and Bank role — as plain `key: value` lines; applied only where the activity has no value yet, so a paste never overwrites metadata you set by hand',
         example:
-            'course: Algebra I\nunit: Quadratics\ntags: factoring, vertex form\nrole: lesson',
+            'title: Factoring Trinomials\ncourse: Algebra I\nunit: Quadratics\ntags: factoring, vertex form\nrole: lesson',
         meta: true,
     },
 ];

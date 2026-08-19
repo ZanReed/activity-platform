@@ -118,6 +118,13 @@ export interface ImportResult {
  * know which storage layer a label lives in. See docs/design/activity-taxonomy.md.
  */
 export interface ImportedMeta {
+    /**
+     * The activity's name. Applied only to a still-untitled activity (the
+     * never-clobber rule), so re-pasting never renames work you have named.
+     * Without this key every imported activity lands as "Untitled activity"
+     * and is renamed by hand — the dominant cost when importing a catalogue.
+     */
+    title?: string;
     course?: string;
     unit?: string;
     tags?: string[];
@@ -2013,6 +2020,7 @@ function parseReferenceFence(src: string, ctx: Ctx): boolean {
 // the one a teacher is most likely to hand-edit:
 //
 //     ```meta
+//     title: Factoring Trinomials
 //     course: Algebra I
 //     unit: Quadratics
 //     tags: factoring, vertex form, word problems
@@ -2046,6 +2054,9 @@ function parseMetaFence(src: string, ctx: Ctx): void {
             continue;
         }
         switch (key) {
+            case 'title':
+                meta.title = value;
+                break;
             case 'course':
                 meta.course = value;
                 break;
@@ -2072,7 +2083,7 @@ function parseMetaFence(src: string, ctx: Ctx): void {
             }
             default:
                 ctx.warnings.add(
-                    `Meta: “${key}” isn’t a recognized key (course, unit, tags, role) and was skipped.`,
+                    `Meta: “${key}” isn’t a recognized key (title, course, unit, tags, role) and was skipped.`,
                 );
         }
     }

@@ -42,7 +42,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```essay ` fenced block | a **graded essay** question (word-count target + rubric optional; see below) |
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
 | a ` ```callout ` fenced block | a **tinted note box** — info / warning / success / note (see below) |
-| a ` ```meta ` fenced block | the activity's **metadata** — course, unit, tags, Bank role — not a body block (see below) |
+| a ` ```meta ` fenced block | the activity's **metadata** — title, course, unit, tags, Bank role — not a body block (see below) |
 | a ` ```reference ` fenced block | the activity's **reference panel** (formula sheet students summon; prints at the top) — not a body block (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
@@ -383,13 +383,16 @@ REFERENCE SHEET (a `reference` fence fills the activity's reference panel)
   same sheet.
 
 ACTIVITY METADATA (optional, once, anywhere in the reply)
-- A ```meta fence files the activity. Plain `key: value` lines:
+- A ```meta fence names and files the activity. Plain `key: value` lines:
     ```meta
+    title: Factoring Trinomials
     course: Algebra I
     unit: Quadratics
     tags: factoring, vertex form, word problems
     role: lesson
     ```
+- title NAMES the activity. Always include it — without it the activity
+  imports as "Untitled activity" and has to be renamed by hand.
 - course/unit: where this sits in the year. tags: comma-separated topic
   labels used to find activities across units — lowercase them or don't,
   they are normalized either way.
@@ -716,6 +719,7 @@ only labels.
 Plain `key: value` lines, one per line:
 
     ```meta
+    title: Factoring Trinomials
     course: Algebra I
     unit: Quadratics
     tags: factoring, vertex form, word problems
@@ -724,14 +728,15 @@ Plain `key: value` lines, one per line:
 
 | Key | Meaning |
 |---|---|
+| `title` | the activity's name. **Include it in every activity** — without it the import lands as "Untitled activity" and you rename it by hand, which is the single biggest cost when importing a catalogue. |
 | `course` | the course this belongs to (e.g. `Algebra I`). Shown to students. |
 | `unit` | where it sits in the year (e.g. `Quadratics`). Optional. |
 | `tags` | comma-separated topic labels, used to find activities **across** units. Normalized on the way in: lower-cased, trimmed, inner spaces collapsed, duplicates dropped. Accents and macrons are preserved. |
 | `role` | exactly one of `lesson`, `review`, or `practice` — how the activity is used in the sequence. Anything else warns and is skipped. |
 
 - **Nothing is ever overwritten.** A key applies **only where the activity has
-  no value yet**: an unset unit, an unclassified role, a course still on the
-  default. If the paste disagrees with something you already set, your value
+  no value yet**: a title still reading "Untitled activity", an unset unit, an
+  unclassified role, a course still on the default. If the paste disagrees with something you already set, your value
   wins and the import warning tells you what was ignored. This matters because
   an AI writing to this format will tend to emit a `meta` fence on *every*
   reply, including when you are only pasting one extra section into a finished

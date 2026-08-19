@@ -3,6 +3,7 @@ import { createEmptyDocument } from '@activity/schema';
 import {
     applyImportedMeta,
     DEFAULT_COURSE,
+    DEFAULT_TITLE,
     type ImportMetaTarget,
 } from '../lib/applyImportedMeta';
 
@@ -11,7 +12,7 @@ import {
 // fresh-activity case (which dominates) behaves identically either way, so the
 // protective behavior is only visible in the cases below.
 
-const freshMeta = createEmptyDocument({ title: 'T' }).meta;
+const freshMeta = createEmptyDocument({ title: DEFAULT_TITLE }).meta;
 
 const fresh: ImportMetaTarget = {
     meta: freshMeta,
@@ -29,6 +30,7 @@ describe('applyImportedMeta — the fresh activity (the dominant workflow)', () 
     it('applies every key when nothing is set', () => {
         const out = applyImportedMeta(
             {
+                title: 'Factoring Trinomials',
                 course: 'Algebra I',
                 unit: 'Quadratics',
                 tags: ['factoring'],
@@ -36,6 +38,7 @@ describe('applyImportedMeta — the fresh activity (the dominant workflow)', () 
             },
             fresh,
         );
+        expect(out.meta.title).toBe('Factoring Trinomials');
         expect(out.meta.course).toBe('Algebra I');
         expect(out.meta.unit).toBe('Quadratics');
         expect(out.tags).toEqual(['factoring']);
@@ -53,6 +56,36 @@ describe('applyImportedMeta — the fresh activity (the dominant workflow)', () 
 });
 
 describe('applyImportedMeta — never-clobber (the case the rule exists for)', () => {
+    // The catalogue case: a freshly created activity still holds the
+    // create-time placeholder, so the imported title names it.
+    it('names an activity still holding the "Untitled activity" placeholder', () => {
+        const out = applyImportedMeta({ title: 'Factoring Trinomials' }, fresh);
+        expect(out.meta.title).toBe('Factoring Trinomials');
+        expect(out.warnings).toEqual([]);
+        expect(out.changed).toBe(true);
+    });
+
+    it('keeps a title the author already gave, and says so', () => {
+        const named: ImportMetaTarget = {
+            ...fresh,
+            meta: { ...freshMeta, title: 'My Own Name' },
+        };
+        const out = applyImportedMeta({ title: 'Factoring Trinomials' }, named);
+        expect(out.meta.title).toBe('My Own Name');
+        expect(out.warnings.join(' ')).toMatch(/My Own Name/);
+        expect(out.changed).toBe(false);
+    });
+
+    it('treats a blank title as unset', () => {
+        const blank: ImportMetaTarget = {
+            ...fresh,
+            meta: { ...freshMeta, title: '   ' },
+        };
+        expect(applyImportedMeta({ title: 'Named' }, blank).meta.title).toBe(
+            'Named',
+        );
+    });
+
     it('keeps a course the author already set, and says so', () => {
         const out = applyImportedMeta({ course: 'Algebra I' }, settled);
         expect(out.meta.course).toBe('Geometry');
