@@ -2652,6 +2652,55 @@ describe('rich bodies in worked / faded / columns fences', () => {
     });
 });
 
+describe('hand-numbering: what the pilot found (2026-08-21)', () => {
+    // The doc now tells authors not to write their own question numbers. That
+    // guidance is a CLAIM about behaviour, so it gets a test — policy P11.
+
+    it('strips the author\'s marker when a numbered line IS a question', () => {
+        // Why hand-numbering looks safe, and mostly is: the marker is consumed
+        // and the platform's own number replaces it, so nothing doubles up.
+        const [first, second] = blocks(
+            '1. What does 1 kg cost? {{=3.50}}\n2. And 5 kg? {{=17.50}}',
+        );
+        expect(first!.type).toBe('fillInBlank');
+        expect(second!.type).toBe('fillInBlank');
+        expect(JSON.stringify(first)).not.toContain('1.');
+        expect(JSON.stringify(second)).not.toContain('2.');
+    });
+
+    it('demotes a numbered non-question sitting AMONG the questions to prose', () => {
+        // Shape one, and the harmless one: markdown-it keeps these in a single
+        // list, so the non-question item simply loses its marker.
+        const got = blocks(
+            '1. What is the rate? {{=2}}\n\n2. Explain what it means.',
+        );
+        expect(got.map((b) => b.type)).toEqual(['fillInBlank', 'paragraph']);
+    });
+
+    it('makes a SEPARATED numbered non-question its own list — the collision', () => {
+        // Shape two, and the one that reaches paper wrong. Anything between the
+        // question and the stray line (here a fence, in the pilot a ```columns
+        // table) starts a NEW list, and OrderedListBlock carries no start
+        // offset — the viewer renders a bare <ol>, so it restarts at 1 beside
+        // the problem numbers.
+        const got = blocks(
+            '1. What is the rate? {{=2}}\n\n```callout\nA note.\n```\n\n2. Explain what it means.',
+        );
+        expect(got.map((b) => b.type)).toEqual([
+            'fillInBlank',
+            'callout',
+            'orderedList',
+        ]);
+    });
+
+    it('a list inside a worked example is NOT affected — no problem numbering there', () => {
+        // The other half, so the guidance does not read as "never use lists":
+        // steps inside an example carry no problem numbers to collide with.
+        const [example] = blocks('```worked\n1. first step\n2. second step\n```');
+        expect(example!.content!.map((c) => c.type)).toEqual(['orderedList']);
+    });
+});
+
 describe('```meta work: key — activity-wide print work space (2026-08-21)', () => {
     // The one PRINT field the meta fence reaches, and the first NESTED knob it
     // touches (print.workSpace). It exists because a printable catalogue that

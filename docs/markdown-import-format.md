@@ -378,6 +378,20 @@ COLUMNS (a `columns` fence lays blocks out side by side)
   student writes INSIDE the columns (a T-chart, a two-column proof, a
   cut-out) — it is boxed regions to write in, not lines to write on.
 
+NUMBERING — do not write your own question numbers
+- The platform numbers questions for you, on screen and on paper. A line you
+  write as "1. Solve for x: {{4}}" becomes a numbered problem and YOUR "1." is
+  stripped, so hand-numbering a question is harmless.
+- A numbered line that is NOT a question (no {{blank}}, no fence) does one of
+  two things, neither of them what you meant: sitting directly among your
+  questions it is demoted to plain prose and loses its number; separated from
+  them by anything else (a fence, a paragraph) it becomes its own numbered
+  LIST, which restarts at 1 and collides with the problem numbers — a sheet
+  reading 1. 1. 2.
+- So: write instructions as plain sentences, and let every numbered item be a
+  real question. Numbered lists are still right for steps INSIDE a worked
+  example or a reference sheet, where no problem numbering is in play.
+
 CALLOUT (a `callout` fence is a tinted note box)
 - ```callout … ``` with an optional variant: line, then the note text:
     variant: warning        (info | warning | success | note; default info)
@@ -872,6 +886,42 @@ costing more than it saves.
   whole reason they are named apart. *(This bullet said `type` was "not
   importable" until 2026-08-20 — true before the settings slice, false after
   it, and it contradicted the table 30 lines above. Corrected.)*
+
+## Numbering: don't write your own question numbers
+
+Found in the pilot (2026-08-21), and it is the trap most likely to bite a
+catalogue written in bulk.
+
+**The platform numbers questions itself**, on screen and on paper, from one walk
+over the document. Writing `1.` in front of a question is *harmless* — the line
+becomes a numbered problem and your marker is stripped, so what prints is the
+platform's number, once.
+
+**The failure is a numbered line that is not a question**, and it has two
+shapes — measured 2026-08-21, because the first version of this note guessed and
+got it wrong:
+
+| where the numbered non-question sits | what you get |
+|---|---|
+| directly among your questions (same run of lines) | demoted to plain prose, its number dropped — harmless, but not what you wrote |
+| separated from them by anything else — a fence, a paragraph | its own `ordered_list`, **restarting at 1** |
+
+The second is the one that reaches paper wrong. `OrderedListBlock` carries no
+start offset and the viewer renders a bare `<ol>`, so a stray numbered
+instruction after a `columns` fence prints like this:
+
+```
+1.   What is the rate of change? ____        ← problem 1
+     [a ruled table]
+1.   Explain what it means in context.       ← the list, restarting at 1
+2.   (short answer)                          ← problem 2
+```
+
+Two items labelled `1`, and an answer key that matches neither.
+
+**So:** write instructions as plain sentences, and let every numbered item be a
+real question. A numbered list is still the right tool for *steps inside* a
+worked example or a reference sheet, where no problem numbering is in play.
 
 ## Reference sheet (```reference fence)
 
