@@ -70,6 +70,7 @@ import { toCurveDomain } from './graphDomain';
 import { parseNumberLineInterval } from '../editor/numberLineFormula';
 import { parseBlankSpec } from './blankSyntax';
 import { normalizeTags } from './normalizeTags';
+import { parseWorkSpace } from './workSpaceUnits';
 import { asPedagogicalRole, type PedagogicalRole } from './pedagogicalRole';
 
 // Minimal structural view of a markdown-it token — only the fields the mapper
@@ -152,6 +153,26 @@ export interface ImportedMeta {
     revisionMode?: ActivityMeta['revisionMode'];
     activityType?: ActivityMeta['activityType'];
     answerFeedback?: ActivityMeta['answerFeedback'];
+    /**
+     * Blank hand-working space below EVERY problem, in rem — the activity-wide
+     * `print.workSpace` default, same unit and same meaning as ⚙ → Print →
+     * "Work space per problem (rem)".
+     *
+     * THE FIRST NESTED KNOB THIS FENCE REACHES, and deliberately so. The
+     * taxonomy slice drew the line at "flat enums only — the nested knobs
+     * (calculator restrictions, print layout, typography) stay editor-only
+     * until something actually demands them". Authoring a ~150-activity
+     * printable catalogue is that demand: without it every sheet imports with
+     * zero writing room and needs a ⚙ visit before it can be handed out, which
+     * is the same per-activity tax the `title` key was added to remove.
+     *
+     * Scoped tightly on purpose — this is ONE number out of PrintConfig's ten
+     * fields, not the print object. Per-PROBLEM overrides stay editor-only
+     * (ruled 2026-08-21: most problems want the same room, and the one type
+     * that needs a per-problem key — fill_in_blank — has no fence to hang it
+     * on). Revisit if uniform spacing starts costing more than it saves.
+     */
+    workSpace?: number;
     // The MODE, not a built tool: keeping this a flat string leaves
     // ImportedMeta a plain data bag, and lets the merge layer construct the
     // CalculatorTool from the schema factory (so restriction defaults are
@@ -2305,6 +2326,21 @@ function parseMetaFence(src: string, ctx: Ctx): void {
                     ['off', 'scientific', 'graphing'] as const, ctx,
                 );
                 if (v) meta.calculatorMode = v;
+                break;
+            }
+            case 'work':
+            case 'workspace': {
+                // Lines, inches, centimetres, millimetres or bare rem — see
+                // lib/workSpaceUnits.ts for why the fence takes all of them and
+                // why the doc leads with lines (ruling D6).
+                const rem = parseWorkSpace(value);
+                if (rem === null) {
+                    ctx.warnings.add(
+                        `Meta: work “${value}” isn’t an amount of space — try “3 lines”, “1in”, “2.5cm” or a plain number of rem. Ignored.`,
+                    );
+                    break;
+                }
+                meta.workSpace = rem;
                 break;
             }
             case 'role': {

@@ -27,6 +27,9 @@
 //   the four SETTINGS (submission/revision/type/feedback) — still the schema
 //           default, same reasoning as course
 //   calculator — undefined (no calculator configured)
+//   work space — still the schema default 0, same reasoning as course/settings.
+//                NESTED (print.workSpace), so it is the one field here that
+//                does not go through applySetting.
 // =============================================================================
 
 import {
@@ -36,6 +39,7 @@ import {
 } from '@activity/schema';
 import type { ImportedMeta } from './markdownToTiptap';
 import { normalizeTags } from './normalizeTags';
+import { describeWorkSpace } from './workSpaceUnits';
 import type { PedagogicalRole } from './pedagogicalRole';
 
 /** The schema default for `course`. A row still holding it counts as unset. */
@@ -146,6 +150,29 @@ export function applyImportedMeta(
         } else if (target.pedagogicalRole !== imported.pedagogicalRole) {
             warnings.push(
                 `Meta: kept the Bank role you already set (“${target.pedagogicalRole}”) — the paste said “${imported.pedagogicalRole}”.`,
+            );
+        }
+    }
+
+    // WORK SPACE — the first NESTED knob the fence reaches (print.workSpace),
+    // so it cannot use applySetting, which patches flat ActivityMeta keys.
+    // Same never-clobber TEST as the flat settings though: the schema default
+    // (0) means "the author never touched this". A teacher who deliberately set
+    // 0 is indistinguishable from one who never looked — the identical tradeoff
+    // course and the four settings already make, and the reason this file
+    // explains it once at the top rather than per field.
+    if (imported.workSpace !== undefined) {
+        const current = meta.print.workSpace;
+        if (current === 0) {
+            meta = {
+                ...meta,
+                print: { ...meta.print, workSpace: imported.workSpace },
+            };
+            changed = true;
+        } else if (current !== imported.workSpace) {
+            warnings.push(
+                `Meta: kept the work space you already set (${describeWorkSpace(current)}) — ` +
+                    `the paste said ${describeWorkSpace(imported.workSpace)}.`,
             );
         }
     }

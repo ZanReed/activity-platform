@@ -276,3 +276,71 @@ describe('applyImportedMeta — empties and no-ops', () => {
         expect(settled.tags).toEqual(['existing']);
     });
 });
+
+describe('applyImportedMeta — work space (the first NESTED knob, 2026-08-21)', () => {
+    // print.workSpace cannot go through applySetting, which patches flat
+    // ActivityMeta keys. These rows exist because the nested path is a second
+    // implementation of the same never-clobber rule, and two implementations of
+    // one rule is exactly how the two halves drift.
+
+    it('applies to an activity still on the schema default', () => {
+        const out = applyImportedMeta({ workSpace: 6 }, fresh);
+        expect(out.meta.print.workSpace).toBe(6);
+        expect(out.changed).toBe(true);
+        expect(out.warnings).toEqual([]);
+    });
+
+    it('KEEPS a work space the teacher already set, and says so in lines', () => {
+        // The protective case. The warning is phrased in lines rather than rem
+        // because the author typed lines — telling them "kept 4, the paste said
+        // 6" would name a unit they never used.
+        const target: ImportMetaTarget = {
+            ...fresh,
+            meta: { ...freshMeta, print: { ...freshMeta.print, workSpace: 4 } },
+        };
+        const out = applyImportedMeta({ workSpace: 6 }, target);
+
+        expect(out.meta.print.workSpace).toBe(4);
+        expect(out.warnings.join(' ')).toMatch(/kept the work space/i);
+        expect(out.warnings.join(' ')).toMatch(/line/i);
+    });
+
+    it('says nothing when the paste agrees with what is already set', () => {
+        const target: ImportMetaTarget = {
+            ...fresh,
+            meta: { ...freshMeta, print: { ...freshMeta.print, workSpace: 6 } },
+        };
+        const out = applyImportedMeta({ workSpace: 6 }, target);
+        expect(out.warnings).toEqual([]);
+    });
+
+    it('leaves the rest of print untouched', () => {
+        // The nested-merge trap: patching one field of print by replacing the
+        // object would drop paperSize, margin, the header — every other print
+        // setting the teacher configured. That failure would be invisible on a
+        // fresh activity and destructive on a configured one.
+        const target: ImportMetaTarget = {
+            ...fresh,
+            meta: {
+                ...freshMeta,
+                print: {
+                    ...freshMeta.print,
+                    paperSize: 'a4',
+                    margin: 1,
+                    header: { ...freshMeta.print.header, period: true },
+                },
+            },
+        };
+        const out = applyImportedMeta({ workSpace: 6 }, target);
+
+        expect(out.meta.print.workSpace).toBe(6);
+        expect(out.meta.print.paperSize).toBe('a4');
+        expect(out.meta.print.margin).toBe(1);
+        expect(out.meta.print.header.period).toBe(true);
+    });
+
+    it('is a no-op when the fence said nothing', () => {
+        const out = applyImportedMeta({ title: 'X' }, fresh);
+        expect(out.meta.print.workSpace).toBe(freshMeta.print.workSpace);
+    });
+});

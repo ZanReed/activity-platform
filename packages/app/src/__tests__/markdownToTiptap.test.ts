@@ -17,6 +17,7 @@ import {
     type MarkdownImporter,
 } from '../lib/markdownToTiptap';
 import { wrapBlocksStrict } from '../editor/strictGrid';
+import { importMetaSummary } from '../lib/importMetaSummary';
 import { buildEditorExtensions } from '../editor/editorExtensions';
 import {
     activityToTiptapBare as activityToTiptap,
@@ -2648,6 +2649,46 @@ describe('rich bodies in worked / faded / columns fences', () => {
         expect(dropEmptyAttrs(roundTrip(md))).toEqual(
             dropEmptyAttrs(blocks(md)),
         );
+    });
+});
+
+describe('```meta work: key — activity-wide print work space (2026-08-21)', () => {
+    // The one PRINT field the meta fence reaches, and the first NESTED knob it
+    // touches (print.workSpace). It exists because a printable catalogue that
+    // imports with zero writing room needs a ⚙ visit per activity — the same
+    // per-activity tax the `title` key was added to remove.
+
+    it('reads lines, the unit the doc leads with', () => {
+        const { meta } = convert('```meta\nwork: 3 lines\n```');
+        expect(meta?.workSpace).toBe(6);
+    });
+
+    it('reads inches and centimetres', () => {
+        expect(convert('```meta\nwork: 1in\n```').meta?.workSpace).toBe(6);
+        expect(convert('```meta\nwork: 2.5cm\n```').meta?.workSpace).toBe(5.906);
+    });
+
+    it('reads a bare number as rem, and accepts the workspace: spelling', () => {
+        expect(convert('```meta\nwork: 4\n```').meta?.workSpace).toBe(4);
+        expect(convert('```meta\nworkspace: 4\n```').meta?.workSpace).toBe(4);
+    });
+
+    it('warns on a value that is not an amount, and imports the rest', () => {
+        // A typo in one key must never cost the body content or the other keys
+        // in the same paste — the meta fence's standing rule.
+        const { meta, warnings } = convert(
+            '```meta\ntitle: Rates\nwork: lots\n```',
+        );
+        expect(meta?.title).toBe('Rates');
+        expect(meta?.workSpace).toBeUndefined();
+        expect(warnings.join(' ')).toMatch(/isn.t an amount of space/i);
+    });
+
+    it('appears in the dialog summary line', () => {
+        // The whole point of the summary slice: an author can SEE that the
+        // fence understood the key, at the moment they could still fix it.
+        const { meta } = convert('```meta\nwork: 3 lines\n```');
+        expect(importMetaSummary(meta)).toContain('work space');
     });
 });
 

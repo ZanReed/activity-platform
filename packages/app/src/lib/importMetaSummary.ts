@@ -41,6 +41,7 @@ const LABELS: Record<string, string> = {
     activityType: 'activity type',
     answerFeedback: 'answer feedback',
     calculatorMode: 'calculator',
+    workSpace: 'work space',
 };
 
 /**

@@ -454,6 +454,10 @@ ACTIVITY SETTINGS (optional, same ```meta fence)
     on_check  = correctness stays hidden until they check the section.
     Use immediate for practice; on_check for anything quiz-like.
 - calculator: off | scientific | graphing   (default off)
+- work: 3 lines        blank writing room under EVERY problem (default none).
+    Also takes 1in / 2.5cm / a plain number of rem. Use it on any sheet the
+    student writes on by hand — without it a printed worksheet has no room
+    to work in. One line is about 8mm.
 - Typical pairings: a quiz or exit ticket is submission: locked +
   feedback: on_check; a practice sheet is submission: free +
   feedback: immediate.
@@ -824,13 +828,24 @@ case-insensitively with spaces and hyphens folded to underscores, so
 | `revision` | `free`, `locked` | May students resubmit after the final submit? Ignored in `single` mode. |
 | `feedback` | `on_check`, `immediate` | `immediate` turns each blank green/red as the student leaves it; `on_check` hides correctness until they check the section. Practice wants `immediate`; anything quiz-like wants `on_check`. |
 | `calculator` | `off`, `scientific`, `graphing` | Whether the calculator tool is available, and which kind. Finer restrictions (trig, logs, regression models, expression caps) stay in ⚙ → Calculator. |
+| `work` | `3 lines` (default none) | **Blank writing room under every problem on paper.** Also accepts `1in`, `2.5cm`, `4mm` or a plain number (rem). One line is about 8mm — between college- and wide-ruled. Without it a printed worksheet gives the student nowhere to work. |
 
 Typical pairings: an exit ticket or quiz is `submission: locked` +
 `feedback: on_check`; a practice sheet is `submission: free` +
 `feedback: immediate`.
 
-**Still editor-only** (no import syntax, set in ⚙): print layout, typography,
-and the calculator's detailed restrictions.
+**Still editor-only** (no import syntax, set in ⚙): the rest of print layout
+(paper size, margins, columns, font size, problem spacing, the printed header),
+typography, and the calculator's detailed restrictions. **`work` is the one
+print field the fence reaches**, because a printable catalogue that imports with
+no writing room needs a ⚙ visit per activity — the same per-activity tax the
+`title` key exists to remove.
+
+**Per-PROBLEM work space stays editor-only too** (each problem's own settings in
+the editor). Ruled 2026-08-21: most problems on a sheet want the same room, and
+the one block type that would most need a per-problem key — an inline
+`{{blank}}` — has no fence to hang one on. Revisit if uniform spacing starts
+costing more than it saves.
 
 - **Nothing is ever overwritten.** A key applies **only where the activity has
   no value yet**: a title still reading "Untitled activity", an unset unit, an

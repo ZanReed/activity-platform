@@ -1,0 +1,545 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>test 4</title><style>@font-face{font-display:block;font-family:KaTeX_AMS;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_AMS-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_AMS-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_AMS-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Caligraphic;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Caligraphic;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Fraktur;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Fraktur;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:italic;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-BoldItalic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-BoldItalic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-BoldItalic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Math;font-style:italic;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-BoldItalic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-BoldItalic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-BoldItalic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Math;font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Script;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Script-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Script-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Script-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size1;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size1-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size1-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size1-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size2;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size2-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size2-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size2-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size3;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size3-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size3-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size3-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size4;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size4-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size4-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size4-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Typewriter;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Typewriter-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Typewriter-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Typewriter-Regular.ttf) format("truetype")}.katex{font:normal 1.21em KaTeX_Main,Times New Roman,serif;line-height:1.2;position:relative;text-indent:0;text-rendering:auto}.katex *{-ms-high-contrast-adjust:none!important;border-color:currentColor}.katex .katex-version:after{content:"0.16.45"}.katex .katex-mathml{clip:rect(1px,1px,1px,1px);border:0;height:1px;overflow:hidden;padding:0;position:absolute;width:1px}.katex .katex-html>.newline{display:block}.katex .base{position:relative;white-space:nowrap;width:-webkit-min-content;width:-moz-min-content;width:min-content}.katex .base,.katex .strut{display:inline-block}.katex .textbf{font-weight:700}.katex .textit{font-style:italic}.katex .textrm{font-family:KaTeX_Main}.katex .textsf{font-family:KaTeX_SansSerif}.katex .texttt{font-family:KaTeX_Typewriter}.katex .mathnormal{font-family:KaTeX_Math;font-style:italic}.katex .mathit{font-family:KaTeX_Main;font-style:italic}.katex .mathrm{font-style:normal}.katex .mathbf{font-family:KaTeX_Main;font-weight:700}.katex .boldsymbol{font-family:KaTeX_Math;font-style:italic;font-weight:700}.katex .amsrm,.katex .mathbb,.katex .textbb{font-family:KaTeX_AMS}.katex .mathcal{font-family:KaTeX_Caligraphic}.katex .mathfrak,.katex .textfrak{font-family:KaTeX_Fraktur}.katex .mathboldfrak,.katex .textboldfrak{font-family:KaTeX_Fraktur;font-weight:700}.katex .mathtt{font-family:KaTeX_Typewriter}.katex .mathscr,.katex .textscr{font-family:KaTeX_Script}.katex .mathsf,.katex .textsf{font-family:KaTeX_SansSerif}.katex .mathboldsf,.katex .textboldsf{font-family:KaTeX_SansSerif;font-weight:700}.katex .mathitsf,.katex .mathsfit,.katex .textitsf{font-family:KaTeX_SansSerif;font-style:italic}.katex .mainrm{font-family:KaTeX_Main;font-style:normal}.katex .vlist-t{border-collapse:collapse;display:inline-table;table-layout:fixed}.katex .vlist-r{display:table-row}.katex .vlist{display:table-cell;position:relative;vertical-align:bottom}.katex .vlist>span{display:block;height:0;position:relative}.katex .vlist>span>span{display:inline-block}.katex .vlist>span>.pstrut{overflow:hidden;width:0}.katex .vlist-t2{margin-right:-2px}.katex .vlist-s{display:table-cell;font-size:1px;min-width:2px;vertical-align:bottom;width:2px}.katex .vbox{align-items:baseline;display:inline-flex;flex-direction:column}.katex .hbox{width:100%}.katex .hbox,.katex .thinbox{display:inline-flex;flex-direction:row}.katex .thinbox{max-width:0;width:0}.katex .msupsub{text-align:left}.katex .mfrac>span>span{text-align:center}.katex .mfrac .frac-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline,.katex .hline,.katex .mfrac .frac-line,.katex .overline .overline-line,.katex .rule,.katex .underline .underline-line{min-height:1px}.katex .mspace{display:inline-block}.katex .smash{display:inline;line-height:0}.katex .clap,.katex .llap,.katex .rlap{position:relative;width:0}.katex .clap>.inner,.katex .llap>.inner,.katex .rlap>.inner{position:absolute}.katex .clap>.fix,.katex .llap>.fix,.katex .rlap>.fix{display:inline-block}.katex .llap>.inner{right:0}.katex .clap>.inner,.katex .rlap>.inner{left:0}.katex .clap>.inner>span{margin-left:-50%;margin-right:50%}.katex .rule{border:0 solid;display:inline-block;position:relative}.katex .hline,.katex .overline .overline-line,.katex .underline .underline-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline{border-bottom-style:dashed;display:inline-block;width:100%}.katex .sqrt>.root{margin-left:.2777777778em;margin-right:-.5555555556em}.katex .fontsize-ensurer.reset-size1.size1,.katex .sizing.reset-size1.size1{font-size:1em}.katex .fontsize-ensurer.reset-size1.size2,.katex .sizing.reset-size1.size2{font-size:1.2em}.katex .fontsize-ensurer.reset-size1.size3,.katex .sizing.reset-size1.size3{font-size:1.4em}.katex .fontsize-ensurer.reset-size1.size4,.katex .sizing.reset-size1.size4{font-size:1.6em}.katex .fontsize-ensurer.reset-size1.size5,.katex .sizing.reset-size1.size5{font-size:1.8em}.katex .fontsize-ensurer.reset-size1.size6,.katex .sizing.reset-size1.size6{font-size:2em}.katex .fontsize-ensurer.reset-size1.size7,.katex .sizing.reset-size1.size7{font-size:2.4em}.katex .fontsize-ensurer.reset-size1.size8,.katex .sizing.reset-size1.size8{font-size:2.88em}.katex .fontsize-ensurer.reset-size1.size9,.katex .sizing.reset-size1.size9{font-size:3.456em}.katex .fontsize-ensurer.reset-size1.size10,.katex .sizing.reset-size1.size10{font-size:4.148em}.katex .fontsize-ensurer.reset-size1.size11,.katex .sizing.reset-size1.size11{font-size:4.976em}.katex .fontsize-ensurer.reset-size2.size1,.katex .sizing.reset-size2.size1{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size2.size2,.katex .sizing.reset-size2.size2{font-size:1em}.katex .fontsize-ensurer.reset-size2.size3,.katex .sizing.reset-size2.size3{font-size:1.1666666667em}.katex .fontsize-ensurer.reset-size2.size4,.katex .sizing.reset-size2.size4{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size2.size5,.katex .sizing.reset-size2.size5{font-size:1.5em}.katex .fontsize-ensurer.reset-size2.size6,.katex .sizing.reset-size2.size6{font-size:1.6666666667em}.katex .fontsize-ensurer.reset-size2.size7,.katex .sizing.reset-size2.size7{font-size:2em}.katex .fontsize-ensurer.reset-size2.size8,.katex .sizing.reset-size2.size8{font-size:2.4em}.katex .fontsize-ensurer.reset-size2.size9,.katex .sizing.reset-size2.size9{font-size:2.88em}.katex .fontsize-ensurer.reset-size2.size10,.katex .sizing.reset-size2.size10{font-size:3.4566666667em}.katex .fontsize-ensurer.reset-size2.size11,.katex .sizing.reset-size2.size11{font-size:4.1466666667em}.katex .fontsize-ensurer.reset-size3.size1,.katex .sizing.reset-size3.size1{font-size:.7142857143em}.katex .fontsize-ensurer.reset-size3.size2,.katex .sizing.reset-size3.size2{font-size:.8571428571em}.katex .fontsize-ensurer.reset-size3.size3,.katex .sizing.reset-size3.size3{font-size:1em}.katex .fontsize-ensurer.reset-size3.size4,.katex .sizing.reset-size3.size4{font-size:1.1428571429em}.katex .fontsize-ensurer.reset-size3.size5,.katex .sizing.reset-size3.size5{font-size:1.2857142857em}.katex .fontsize-ensurer.reset-size3.size6,.katex .sizing.reset-size3.size6{font-size:1.4285714286em}.katex .fontsize-ensurer.reset-size3.size7,.katex .sizing.reset-size3.size7{font-size:1.7142857143em}.katex .fontsize-ensurer.reset-size3.size8,.katex .sizing.reset-size3.size8{font-size:2.0571428571em}.katex .fontsize-ensurer.reset-size3.size9,.katex .sizing.reset-size3.size9{font-size:2.4685714286em}.katex .fontsize-ensurer.reset-size3.size10,.katex .sizing.reset-size3.size10{font-size:2.9628571429em}.katex .fontsize-ensurer.reset-size3.size11,.katex .sizing.reset-size3.size11{font-size:3.5542857143em}.katex .fontsize-ensurer.reset-size4.size1,.katex .sizing.reset-size4.size1{font-size:.625em}.katex .fontsize-ensurer.reset-size4.size2,.katex .sizing.reset-size4.size2{font-size:.75em}.katex .fontsize-ensurer.reset-size4.size3,.katex .sizing.reset-size4.size3{font-size:.875em}.katex .fontsize-ensurer.reset-size4.size4,.katex .sizing.reset-size4.size4{font-size:1em}.katex .fontsize-ensurer.reset-size4.size5,.katex .sizing.reset-size4.size5{font-size:1.125em}.katex .fontsize-ensurer.reset-size4.size6,.katex .sizing.reset-size4.size6{font-size:1.25em}.katex .fontsize-ensurer.reset-size4.size7,.katex .sizing.reset-size4.size7{font-size:1.5em}.katex .fontsize-ensurer.reset-size4.size8,.katex .sizing.reset-size4.size8{font-size:1.8em}.katex .fontsize-ensurer.reset-size4.size9,.katex .sizing.reset-size4.size9{font-size:2.16em}.katex .fontsize-ensurer.reset-size4.size10,.katex .sizing.reset-size4.size10{font-size:2.5925em}.katex .fontsize-ensurer.reset-size4.size11,.katex .sizing.reset-size4.size11{font-size:3.11em}.katex .fontsize-ensurer.reset-size5.size1,.katex .sizing.reset-size5.size1{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size5.size2,.katex .sizing.reset-size5.size2{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size5.size3,.katex .sizing.reset-size5.size3{font-size:.7777777778em}.katex .fontsize-ensurer.reset-size5.size4,.katex .sizing.reset-size5.size4{font-size:.8888888889em}.katex .fontsize-ensurer.reset-size5.size5,.katex .sizing.reset-size5.size5{font-size:1em}.katex .fontsize-ensurer.reset-size5.size6,.katex .sizing.reset-size5.size6{font-size:1.1111111111em}.katex .fontsize-ensurer.reset-size5.size7,.katex .sizing.reset-size5.size7{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size5.size8,.katex .sizing.reset-size5.size8{font-size:1.6em}.katex .fontsize-ensurer.reset-size5.size9,.katex .sizing.reset-size5.size9{font-size:1.92em}.katex .fontsize-ensurer.reset-size5.size10,.katex .sizing.reset-size5.size10{font-size:2.3044444444em}.katex .fontsize-ensurer.reset-size5.size11,.katex .sizing.reset-size5.size11{font-size:2.7644444444em}.katex .fontsize-ensurer.reset-size6.size1,.katex .sizing.reset-size6.size1{font-size:.5em}.katex .fontsize-ensurer.reset-size6.size2,.katex .sizing.reset-size6.size2{font-size:.6em}.katex .fontsize-ensurer.reset-size6.size3,.katex .sizing.reset-size6.size3{font-size:.7em}.katex .fontsize-ensurer.reset-size6.size4,.katex .sizing.reset-size6.size4{font-size:.8em}.katex .fontsize-ensurer.reset-size6.size5,.katex .sizing.reset-size6.size5{font-size:.9em}.katex .fontsize-ensurer.reset-size6.size6,.katex .sizing.reset-size6.size6{font-size:1em}.katex .fontsize-ensurer.reset-size6.size7,.katex .sizing.reset-size6.size7{font-size:1.2em}.katex .fontsize-ensurer.reset-size6.size8,.katex .sizing.reset-size6.size8{font-size:1.44em}.katex .fontsize-ensurer.reset-size6.size9,.katex .sizing.reset-size6.size9{font-size:1.728em}.katex .fontsize-ensurer.reset-size6.size10,.katex .sizing.reset-size6.size10{font-size:2.074em}.katex .fontsize-ensurer.reset-size6.size11,.katex .sizing.reset-size6.size11{font-size:2.488em}.katex .fontsize-ensurer.reset-size7.size1,.katex .sizing.reset-size7.size1{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size7.size2,.katex .sizing.reset-size7.size2{font-size:.5em}.katex .fontsize-ensurer.reset-size7.size3,.katex .sizing.reset-size7.size3{font-size:.5833333333em}.katex .fontsize-ensurer.reset-size7.size4,.katex .sizing.reset-size7.size4{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size7.size5,.katex .sizing.reset-size7.size5{font-size:.75em}.katex .fontsize-ensurer.reset-size7.size6,.katex .sizing.reset-size7.size6{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size7.size7,.katex .sizing.reset-size7.size7{font-size:1em}.katex .fontsize-ensurer.reset-size7.size8,.katex .sizing.reset-size7.size8{font-size:1.2em}.katex .fontsize-ensurer.reset-size7.size9,.katex .sizing.reset-size7.size9{font-size:1.44em}.katex .fontsize-ensurer.reset-size7.size10,.katex .sizing.reset-size7.size10{font-size:1.7283333333em}.katex .fontsize-ensurer.reset-size7.size11,.katex .sizing.reset-size7.size11{font-size:2.0733333333em}.katex .fontsize-ensurer.reset-size8.size1,.katex .sizing.reset-size8.size1{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size8.size2,.katex .sizing.reset-size8.size2{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size8.size3,.katex .sizing.reset-size8.size3{font-size:.4861111111em}.katex .fontsize-ensurer.reset-size8.size4,.katex .sizing.reset-size8.size4{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size8.size5,.katex .sizing.reset-size8.size5{font-size:.625em}.katex .fontsize-ensurer.reset-size8.size6,.katex .sizing.reset-size8.size6{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size8.size7,.katex .sizing.reset-size8.size7{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size8.size8,.katex .sizing.reset-size8.size8{font-size:1em}.katex .fontsize-ensurer.reset-size8.size9,.katex .sizing.reset-size8.size9{font-size:1.2em}.katex .fontsize-ensurer.reset-size8.size10,.katex .sizing.reset-size8.size10{font-size:1.4402777778em}.katex .fontsize-ensurer.reset-size8.size11,.katex .sizing.reset-size8.size11{font-size:1.7277777778em}.katex .fontsize-ensurer.reset-size9.size1,.katex .sizing.reset-size9.size1{font-size:.2893518519em}.katex .fontsize-ensurer.reset-size9.size2,.katex .sizing.reset-size9.size2{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size9.size3,.katex .sizing.reset-size9.size3{font-size:.4050925926em}.katex .fontsize-ensurer.reset-size9.size4,.katex .sizing.reset-size9.size4{font-size:.462962963em}.katex .fontsize-ensurer.reset-size9.size5,.katex .sizing.reset-size9.size5{font-size:.5208333333em}.katex .fontsize-ensurer.reset-size9.size6,.katex .sizing.reset-size9.size6{font-size:.5787037037em}.katex .fontsize-ensurer.reset-size9.size7,.katex .sizing.reset-size9.size7{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size9.size8,.katex .sizing.reset-size9.size8{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size9.size9,.katex .sizing.reset-size9.size9{font-size:1em}.katex .fontsize-ensurer.reset-size9.size10,.katex .sizing.reset-size9.size10{font-size:1.2002314815em}.katex .fontsize-ensurer.reset-size9.size11,.katex .sizing.reset-size9.size11{font-size:1.4398148148em}.katex .fontsize-ensurer.reset-size10.size1,.katex .sizing.reset-size10.size1{font-size:.2410800386em}.katex .fontsize-ensurer.reset-size10.size2,.katex .sizing.reset-size10.size2{font-size:.2892960463em}.katex .fontsize-ensurer.reset-size10.size3,.katex .sizing.reset-size10.size3{font-size:.337512054em}.katex .fontsize-ensurer.reset-size10.size4,.katex .sizing.reset-size10.size4{font-size:.3857280617em}.katex .fontsize-ensurer.reset-size10.size5,.katex .sizing.reset-size10.size5{font-size:.4339440694em}.katex .fontsize-ensurer.reset-size10.size6,.katex .sizing.reset-size10.size6{font-size:.4821600771em}.katex .fontsize-ensurer.reset-size10.size7,.katex .sizing.reset-size10.size7{font-size:.5785920926em}.katex .fontsize-ensurer.reset-size10.size8,.katex .sizing.reset-size10.size8{font-size:.6943105111em}.katex .fontsize-ensurer.reset-size10.size9,.katex .sizing.reset-size10.size9{font-size:.8331726133em}.katex .fontsize-ensurer.reset-size10.size10,.katex .sizing.reset-size10.size10{font-size:1em}.katex .fontsize-ensurer.reset-size10.size11,.katex .sizing.reset-size10.size11{font-size:1.1996142719em}.katex .fontsize-ensurer.reset-size11.size1,.katex .sizing.reset-size11.size1{font-size:.2009646302em}.katex .fontsize-ensurer.reset-size11.size2,.katex .sizing.reset-size11.size2{font-size:.2411575563em}.katex .fontsize-ensurer.reset-size11.size3,.katex .sizing.reset-size11.size3{font-size:.2813504823em}.katex .fontsize-ensurer.reset-size11.size4,.katex .sizing.reset-size11.size4{font-size:.3215434084em}.katex .fontsize-ensurer.reset-size11.size5,.katex .sizing.reset-size11.size5{font-size:.3617363344em}.katex .fontsize-ensurer.reset-size11.size6,.katex .sizing.reset-size11.size6{font-size:.4019292605em}.katex .fontsize-ensurer.reset-size11.size7,.katex .sizing.reset-size11.size7{font-size:.4823151125em}.katex .fontsize-ensurer.reset-size11.size8,.katex .sizing.reset-size11.size8{font-size:.578778135em}.katex .fontsize-ensurer.reset-size11.size9,.katex .sizing.reset-size11.size9{font-size:.6945337621em}.katex .fontsize-ensurer.reset-size11.size10,.katex .sizing.reset-size11.size10{font-size:.8336012862em}.katex .fontsize-ensurer.reset-size11.size11,.katex .sizing.reset-size11.size11{font-size:1em}.katex .delimsizing.size1{font-family:KaTeX_Size1}.katex .delimsizing.size2{font-family:KaTeX_Size2}.katex .delimsizing.size3{font-family:KaTeX_Size3}.katex .delimsizing.size4{font-family:KaTeX_Size4}.katex .delimsizing.mult .delim-size1>span{font-family:KaTeX_Size1}.katex .delimsizing.mult .delim-size4>span{font-family:KaTeX_Size4}.katex .nulldelimiter{display:inline-block;width:.12em}.katex .delimcenter,.katex .op-symbol{position:relative}.katex .op-symbol.small-op{font-family:KaTeX_Size1}.katex .op-symbol.large-op{font-family:KaTeX_Size2}.katex .accent>.vlist-t,.katex .op-limits>.vlist-t{text-align:center}.katex .accent .accent-body{position:relative}.katex .accent .accent-body:not(.accent-full){width:0}.katex .overlay{display:block}.katex .mtable .vertical-separator{display:inline-block;min-width:1px}.katex .mtable .arraycolsep{display:inline-block}.katex .mtable .col-align-c>.vlist-t{text-align:center}.katex .mtable .col-align-l>.vlist-t{text-align:left}.katex .mtable .col-align-r>.vlist-t{text-align:right}.katex .svg-align{text-align:left}.katex svg{fill:currentColor;stroke:currentColor;display:block;height:inherit;position:absolute;width:100%}.katex svg path{stroke:none}.katex svg{fill-rule:nonzero;fill-opacity:1;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1}.katex img{border-style:none;max-height:none;max-width:none;min-height:0;min-width:0}.katex .stretchy{display:block;overflow:hidden;position:relative;width:100%}.katex .stretchy:after,.katex .stretchy:before{content:""}.katex .hide-tail{overflow:hidden;position:relative;width:100%}.katex .halfarrow-left{left:0;overflow:hidden;position:absolute;width:50.2%}.katex .halfarrow-right{overflow:hidden;position:absolute;right:0;width:50.2%}.katex .brace-left{left:0;overflow:hidden;position:absolute;width:25.1%}.katex .brace-center{left:25%;overflow:hidden;position:absolute;width:50%}.katex .brace-right{overflow:hidden;position:absolute;right:0;width:25.1%}.katex .x-arrow-pad{padding:0 .5em}.katex .cd-arrow-pad{padding:0 .55556em 0 .27778em}.katex .mover,.katex .munder,.katex .x-arrow{text-align:center}.katex .boxpad{padding:0 .3em}.katex .fbox,.katex .fcolorbox{border:.04em solid;box-sizing:border-box}.katex .cancel-pad{padding:0 .2em}.katex .cancel-lap{margin-left:-.2em;margin-right:-.2em}.katex .sout{border-bottom-style:solid;border-bottom-width:.08em}.katex .angl{border-right:.049em solid;border-top:.049em solid;box-sizing:border-box;margin-right:.03889em}.katex .anglpad{padding:0 .03889em}.katex .eqn-num:before{content:"(" counter(katexEqnNo) ")";counter-increment:katexEqnNo}.katex .mml-eqn-num:before{content:"(" counter(mmlEqnNo) ")";counter-increment:mmlEqnNo}.katex .mtr-glue{width:50%}.katex .cd-vert-arrow{display:inline-block;position:relative}.katex .cd-label-left{display:inline-block;position:absolute;right:calc(50% + .3em);text-align:left}.katex .cd-label-right{display:inline-block;left:calc(50% + .3em);position:absolute;text-align:right}.katex-display{display:block;margin:1em 0;text-align:center}.katex-display>.katex{display:block;text-align:center;white-space:nowrap}.katex-display>.katex>.katex-html{display:block;position:relative}.katex-display>.katex>.katex-html>.tag{position:absolute;right:0}.katex-display.leqno>.katex>.katex-html>.tag{left:0;right:auto}.katex-display.fleqn>.katex{padding-left:2em;text-align:left}body{counter-reset:katexEqnNo mmlEqnNo}
+</style><style>:root {
+  --color-text: #1a1a1a;
+  --color-muted: #6b6b6b;
+  --color-bg: #ffffff;
+  --color-border: #e5e5e5;
+  --color-accent: #2563eb;
+  --color-info: #0369a1;
+  --color-info-bg: #e0f2fe;
+  --color-warning: #b45309;
+  --color-warning-bg: #fef3c7;
+  --color-success: #15803d;
+  --color-success-bg: #dcfce7;
+  --color-note: #6b7280;
+  --color-note-bg: #f3f4f6;
+  --color-blank-correct-bg: #dcfce7;
+  --color-blank-correct-border: #22c55e;
+  --color-blank-incorrect-bg: #fee2e2;
+  --color-blank-incorrect-border: #ef4444;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-math: "Latin Modern Math", "Cambria Math", serif;
+  --max-width: 760px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.6;
+  margin: 0;
+  padding: 1rem;
+}
+
+.activity-container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.activity-header {
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+}
+
+.activity-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+}
+
+.activity-header .meta {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.identity-prompt {
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.identity-prompt label {
+  font-weight: 600;
+  color: var(--color-info);
+}
+
+.identity-prompt input {
+  flex: 1 1 200px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.activity-section {
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  margin: 1.5rem 0 1rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.block { margin: 1rem 0; }
+
+.block-paragraph { margin: 0.75rem 0; }
+
+.block-heading-1 { font-size: 1.5rem;  margin: 1.5rem 0 0.75rem; }
+.block-heading-2 { font-size: 1.25rem; margin: 1.25rem 0 0.5rem; }
+.block-heading-3 { font-size: 1.1rem;  margin: 1rem 0 0.5rem; font-weight: 600; }
+
+.block-math {
+  margin: 1.25rem 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.block-image {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+.block-image img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.block-image-caption {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.block-callout {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 6px;
+  border-left: 4px solid;
+  margin: 1.25rem 0;
+}
+.block-callout-icon { font-size: 1.25rem; line-height: 1; }
+.block-callout-body > :first-child { margin-top: 0; }
+.block-callout-body > :last-child { margin-bottom: 0; }
+
+.block-callout-info    { background: var(--color-info-bg);    border-color: var(--color-info);    }
+.block-callout-warning { background: var(--color-warning-bg); border-color: var(--color-warning); }
+.block-callout-success { background: var(--color-success-bg); border-color: var(--color-success); }
+.block-callout-note    { background: var(--color-note-bg);    border-color: var(--color-note);    }
+
+.block-problem,
+.block-fill-in-blank {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+  align-items: start;
+}
+.block-bullet-list,
+.block-ordered-list {
+  padding-left: 1.5rem;
+}
+.block-bullet-list li,
+.block-ordered-list li {
+  margin: 0.25rem 0;
+}
+/* Nested lists sit tighter than the .block 1rem default. */
+.block-bullet-list .block-bullet-list,
+.block-bullet-list .block-ordered-list,
+.block-ordered-list .block-bullet-list,
+.block-ordered-list .block-ordered-list {
+  margin: 0.25rem 0;
+}
+.block-problem-number {
+  font-weight: 600;
+  text-align: right;
+  padding-right: 0.25rem;
+}
+.block-problem-body > :first-child { margin-top: 0; }
+.block-problem-body > :last-child { margin-bottom: 0; }
+
+/* The blank-token wrapper keeps an <input class="blank"> and its sibling
+ a fford*ances (.js-blank-hint, .js-blank-feedback) on the same inline-flow
+ line, so they can't wrap apart mid-prose. The wrapper is structural only —
+ the 'blank' class stays on the <input> itself, so every existing .blank
+ selector continues to target the input directly. align-items: baseline lines
+ the input baseline up with the surrounding prose; the gap controls spacing
+ between input, hint button, and feedback. (Hidden siblings have display: none
+via the 'hidden' attribute and don't participate in the gap.) */
+.blank-wrapper {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.blank {
+  display: inline-block;
+  width: var(--blank-width, 6ch);
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-bottom: 2px solid var(--color-text);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: inherit;
+  background: #fafafa;
+  text-align: center;
+}
+.blank:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  background: white;
+}
+.blank.correct {
+  background: var(--color-blank-correct-bg);
+  border-color: var(--color-blank-correct-border);
+}
+.blank.incorrect {
+  background: var(--color-blank-incorrect-bg);
+  border-color: var(--color-blank-incorrect-border);
+}
+
+/* Hint affordance. The .js-blank-hint button is always available next to
+ t he bl*ank when the teacher authored a hint; clicking it opens the global
+ hint modal (.js-hint-modal) where the runtime shows the hint text. The
+ button is a small circular '?' icon — discoverable without dominating the
+ line. */
+.js-blank-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: white;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.js-blank-hint:hover {
+  color: var(--color-text);
+  border-color: var(--color-text);
+}
+.js-blank-hint:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Global hint modal. A single instance lives at the end of body
+ (document.ts). The runtime toggles the hidden attribute on .js-hint-modal
+ to open/close it. Fixed full-viewport overlay dims the page and centers the
+ dialog; the overlay itself is the click-outside-to-close target (the runtime
+ closes when the click target is the overlay, not the dialog). z-index sits
+ above all activity content. The dialog caps its width for readability and
+ scrolls internally if a hint is long, so it stays on-screen on small
+ displays. This is the foundation for richer/formatted hint content later. */
+.js-hint-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+.js-hint-modal[hidden] {
+  display: none;
+}
+.js-hint-modal-dialog {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  max-width: 28rem;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 1.25rem;
+}
+.hint-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.hint-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.js-hint-modal-close {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.js-hint-modal-close:hover {
+  background: var(--color-note-bg);
+  color: var(--color-text);
+}
+.js-hint-modal-close:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+.js-hint-modal-body {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
+/* .js-blank-feedback visible-state styling lands in Stage 13 once the
+ r untim*e starts rendering content into it. Until then it stays hidden
+ by the 'hidden' attribute on the element. */
+
+/* Confidence rating fieldset (Stage 12 step 3). One per fill-in-blank
+ b lock *when hasConfidenceRating is true. Sits inside the problem body
+ so it aligns under the problem number with the rest of the body
+ content. Default browser fieldset styling is heavy; we tone it down
+ to a thin bordered container with a small muted legend. Radios use
+ plain inline-block layout (vs inline-flex) — simpler whitespace
+ handling between input and label text, predictable across browsers. */
+.js-confidence-rating {
+  margin: 0.75rem 0 0;
+  padding: 0.4rem 0.75rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+.js-confidence-rating legend {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  padding: 0 0.4rem;
+}
+.js-confidence-rating label {
+  display: inline-block;
+  margin-right: 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.js-confidence-rating label:last-child {
+  margin-right: 0;
+}
+.js-confidence-rating input[type="radio"] {
+  margin-right: 0.25rem;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+/* Solution slot. Hidden in source HTML; the Stage 13 runtime toggles
+ ' hidde*n' when the section is checked. Visual treatment: subtle
+ left-accent + tinted background so a revealed solution reads clearly
+ as the teacher's explanation rather than continuation of the
+ problem prose. */
+.js-solution {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-info-bg);
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95rem;
+}
+
+/* Checkpoint controls (Stage 12 step 4). Per-section button + score
+ d ispla*y in locked/free submissionMode. Button visual: secondary
+ (accent border, white fill) so it doesn't compete with the final
+ submit button at the bottom of the page; hover fills it for clear
+ affordance. .js-section-score reveals on check with text like
+ "4 / 6 correct" — subdued status text inline with the button. */
+.js-checkpoint-btn {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.5rem 1.25rem;
+  background: white;
+  color: var(--color-accent);
+  border: 2px solid var(--color-accent);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.js-checkpoint-btn:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: white;
+}
+.js-checkpoint-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.js-checkpoint-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.js-section-score {
+  display: inline-block;
+  margin-left: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.math-error {
+  font-family: monospace;
+  font-size: 0.85em;
+  background: #fff0f0;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.submit-area {
+  border-top: 2px solid var(--color-border);
+  padding-top: 1.5rem;
+  margin-top: 2.5rem;
+  text-align: center;
+}
+.submit-button {
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.submit-button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+.submit-status {
+  margin-top: 0.75rem;
+  min-height: 1.5em;
+  font-size: 0.95rem;
+}
+.submit-status.success { color: var(--color-success); }
+.submit-status.error   { color: var(--color-warning); }
+
+/* =============================================================================
+ B aseline* print layer (Stage 11)
+ -----------------------------------------------------------------------------
+ Goal: a published activity that looks broken on paper today, doesn't.
+ This is NOT the print FEATURE (multi-column layout, work space, configured
+ header, answer key) — that lives post-Stage-16 (print-and-printables.md).
+ Scope of this layer:
+ - Maximize printable area: @page margin 0.5in (floor for safe edge across
+ unknown classroom printers — most laser printers have ~0.25in hardware
+ non-printable margin).
+ - Hide interactive controls so students don't print a Submit button.
+ - Page-break integrity: never split a problem; let sections flow.
+ - Grayscale safety: don't encode meaning in color alone (callouts vary by
+ border STYLE; blank correct/incorrect state is neutralized — pre-lesson
+ printables are blank worksheets, no scored state to distinguish).
+ - Print typography is deliberately unchanged: it's a configurable feature
+ (--print-font-size) reserved for the post-Stage-16 print work.
+ ============================================================================= */
+@media print {
+  @page { margin: 0.5in; }
+
+  body { padding: 0; }
+
+  /* Hide interactive elements. The js-* selectors are documented in
+   R UNT*IME.md; some not all emitted yet, listed here so the baseline is
+   correct the moment those land. Printable hints + solutions are a
+   post-Stage-16 print-feature configuration (answer-key variant), not
+   a baseline. */
+  .identity-prompt,
+  .submit-area,
+  .js-checkpoint-btn,
+  .js-section-score,
+  .js-confidence-rating,
+  .js-blank-feedback,
+  .js-blank-hint,
+  .js-hint-modal,
+  .js-solution {
+    display: none;
+  }
+
+  /* Don't establish an inline-flex formatting context in print — let the
+   i npu*t flow naturally as plain inline content. Equivalent in this single-
+   visible-child case to inline-flex, but explicit avoids relying on print
+   engines treating one-item flex identically to bare-inline. */
+  .blank-wrapper {
+    display: inline;
+  }
+
+  /* Page-break integrity. Modern break-* names; legacy page-break-* aliases
+   omit*ted (RUNTIME.md support matrix is Chrome/Firefox/Safari/Edge). */
+  .block-problem,
+  .block-fill-in-blank {
+    break-inside: avoid;
+  }
+  .activity-section {
+    break-before: auto; /* explicit: flow naturally, don't force a page */
+  }
+  .activity-header h1,
+  .section-title,
+  .block-heading-1,
+  .block-heading-2,
+  .block-heading-3 {
+    break-after: avoid; /* don't strand a heading at a page bottom */
+  }
+
+  /* Blanks print as underlined fill-ins. Correct/incorrect state classes
+   a re *neutralized — a printed worksheet is the BLANK version a teacher
+   hands out before the lesson, so there is no scored state to convey. */
+  .blank,
+  .blank.correct,
+  .blank.incorrect {
+    background: transparent;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-bottom: 1px solid black;
+  }
+
+  /* Callouts: solid borders carry color on screen; in B&W the variants
+   b eco*me indistinguishable. Encode the variant in border STYLE so an
+   info callout looks different from a warning even in grayscale. The
+   icons remain (they survive grayscale too — belt and suspenders). */
+  .block-callout-info    { border-left-style: solid;  }
+  .block-callout-warning { border-left-style: dashed; }
+  .block-callout-success { border-left-style: double; }
+  .block-callout-note    { border-left-style: dotted; }
+}</style></head><body><main class="activity-container" data-activity-type="worksheet"><header class="activity-header"><h1>test 4</h1><div class="meta">Algebra II</div></header><div class="identity-prompt"><label for="student-name">Your name:</label><input id="student-name" type="text" autocomplete="name" /></div><section class="activity-section" data-block-category="content" data-section-id="dff732b6-794e-42a6-876b-412fd6a5ca1d"><h2 class="section-title">Start</h2><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="199ff3ab-2961-478e-a038-71b8dface4c3">Bla</p><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="aebf9b64-9e98-44b6-8883-e1ad5d577e92"><div class="block-problem-number">1.</div><div class="block-problem-body">Glad that is <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="a2ef84ef-ef06-4e94-8f3f-d72be7eb8f75" data-blank-answers="dealt with|handled" data-hint="Consider how one would frame a problem that is done and no longer needs to be addressed." data-mistake-feedback="[{&quot;match&quot;:&quot;unfinished&quot;,&quot;feedback&quot;:&quot;this is the opposite of what I am looking for&quot;}]" aria-label="Blank 1 of 2" style="--blank-width:11ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /><button class="js-blank-hint" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="hint-modal" aria-label="Show hint">?</button><span class="js-blank-feedback" data-for-blank="a2ef84ef-ef06-4e94-8f3f-d72be7eb8f75" aria-live="polite" hidden></span></span> now that we talked<span class="blank-wrapper"><input type="text" class="blank" data-blank-id="45e7a7ed-5dc2-49d9-a7c2-9db56899339c" data-blank-answers="?" data-mistake-feedback="[{&quot;match&quot;:&quot;!&quot;,&quot;feedback&quot;:&quot;good thinking but wrong symbol&quot;}]" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /><span class="js-blank-feedback" data-for-blank="45e7a7ed-5dc2-49d9-a7c2-9db56899339c" aria-live="polite" hidden></span></span>. Please work dang it!</div></div></section><section class="activity-section" data-block-category="content" data-section-id="3e07c19f-d385-447f-b67e-68a3e6c578af"><h2 class="section-title">2.</h2><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="2b43e5a9-f497-402c-b7c0-5183907cbd51"><div class="block-problem-number">2.</div><div class="block-problem-body">2+4=<span class="blank-wrapper"><input type="text" class="blank" data-blank-id="67bcbb0f-f852-423b-bfac-d046d8a8611a" data-blank-answers="6|six" aria-label="Fill in the blank" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /><span class="js-blank-feedback" data-for-blank="67bcbb0f-f852-423b-bfac-d046d8a8611a" aria-live="polite" hidden></span></span>.</div></div><div class="block block-math" data-block-category="content" data-block-type="math_block" data-block-id="d1fe9915-ffd2-4ce7-b998-93e88019af20"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>x</mi></munderover><mi>i</mi><mo>=</mo><mfrac><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>+</mo><mn>1</mn><mo stretchy="false">)</mo></mrow><mn>3</mn></mfrac></mrow><annotation encoding="application/x-tex">\sum_{i=1}^{x}i=\frac{(x+1)}{3}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:2.9291em;vertical-align:-1.2777em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.6514em;"><span style="top:-1.8723em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2777em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.113em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">3</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">1</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></div><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="3139b0aa-3afb-4981-88ed-7e178f62b949"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msqrt><msup><mi>x</mi><mn>3</mn></msup></msqrt><mo>+</mo><mfrac><mn>3</mn><mi>x</mi></mfrac></mrow><annotation encoding="application/x-tex">\sqrt{x^3}+\frac{3}{x}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.04em;vertical-align:-0.0849em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9551em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7401em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">3</span></span></span></span></span></span></span></span></span></span><span style="top:-2.9151em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.0849em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.1901em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8451em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">3</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></p><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="ebbf2cb6-374f-4bae-b18b-e19c22bc12aa">Blah blah blah. Hello!</p><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="49f89abc-bb88-4dce-b14a-63d30f0d1dc3">Hope this <br>works</p></section><div class="submit-area"><button type="button" class="submit-button">Submit</button><span class="submit-status"></span><span class="score-display"></span></div></main><div class="js-hint-modal" id="hint-modal" role="dialog" aria-modal="true" aria-labelledby="hint-modal-title" hidden><div class="js-hint-modal-dialog" role="document"><div class="hint-modal-header"><h2 class="hint-modal-title" id="hint-modal-title">Hint</h2><button type="button" class="js-hint-modal-close" aria-label="Close hint">&times;</button></div><div class="js-hint-modal-body"></div></div></div><script id="activity-config" type="application/json">{"activityId":"bbef6034-47e6-4e69-81eb-edb026153e7e","versionNum":28,"submissionEndpoint":"https://dtqutpdplefmufrrakxs.supabase.co/functions/v1/ingest-submission","submissionMode":"single","revisionMode":"free","gradingMode":"auto"}</script><script>"use strict";(()=>{function m(e,n=document){return n.querySelector(e)}function g(e,n=document){return Array.prototype.slice.call(n.querySelectorAll(e))}function v(e=document){let n=e.getElementById("activity-config");if(!n)return null;let t;try{t=JSON.parse(n.textContent||"{}")}catch{return null}if(!t||typeof t!="object")return null;let o=t;return typeof o.activityId!="string"||typeof o.versionNum!="number"||typeof o.submissionEndpoint!="string"||typeof o.submissionMode!="string"||typeof o.revisionMode!="string"||typeof o.gradingMode!="string"?null:o}function B(e){let n={};for(let[i]of e.sections)n[i]={checked:!1,locked:!1,score:0,total:0,checkedAt:null};let t={};for(let[i]of e.blanks)t[i]={result:null,matchedMistake:null};let o={};for(let[i]of e.fillInBlanks)o[i]={solutionRevealed:!1,confidence:null};return{submitted:!1,attemptNumber:1,studentName:"",hintModalBlankId:null,sections:n,blanks:t,blocks:o}}function E(e=document){let n=v(e);if(!n)return null;let t=D(e),o=B(t);return{config:n,refs:t,state:o}}function D(e=document){let n=new Map,t=new Map,o=new Map;for(let i of g(".activity-section",e)){let s=i.dataset.sectionId;if(!s){k("Section is missing data-section-id; skipping.");continue}let r=[],l=[];for(let a of g('[data-block-type="fill_in_blank"]',i)){let c=a.dataset.blockId;if(!c){k("Fill-in-blank block is missing data-block-id; skipping.");continue}r.push(c);let u=[];for(let d of g(".blank",a)){let f=G(d,c,s);if(!f)continue;let h=f.input.dataset.blankId;o.set(h,f),u.push(h)}l.push(...u),t.set(c,J(a,c,s,u))}n.set(s,U(i,r,l))}return{blanks:o,fillInBlanks:t,sections:n,hintModal:$(e)}}function $(e){let n=e.querySelector(".js-hint-modal");if(!n)return null;let t=n.querySelector(".js-hint-modal-dialog"),o=n.querySelector(".js-hint-modal-body"),i=n.querySelector(".js-hint-modal-close");return!t||!o||!i?(k("Hint modal markup is incomplete; hint buttons will be inert."),null):{overlay:n,dialog:t,bodyEl:o,closeButton:i}}function G(e,n,t){let o=e.dataset.blankId;if(!o)return k("Blank input is missing data-blank-id; skipping."),null;let i=e.parentElement;if(!i)return k("Blank "+o+" has no parent element; skipping."),null;let s=i.querySelector(".js-blank-feedback");if(!s)return k("Blank "+o+" has no .js-blank-feedback sibling; skipping."),null;let r=i.querySelector(".js-blank-hint"),l=(e.dataset.blankAnswers??"").split("|").filter(Boolean),a=e.dataset.blankStrategy??"list",c=e.dataset.hint??null,u=[],d=e.dataset.mistakeFeedback;if(d)try{let f=JSON.parse(d);Array.isArray(f)&&(u=f)}catch{k("Blank "+o+" has malformed data-mistake-feedback; ignoring.")}return{input:e,feedbackEl:s,hintButton:r,answers:l,strategy:a,hint:c,mistakeFeedback:u,blockId:n,sectionId:t}}function J(e,n,t,o){let i=e.dataset.solution??null,s=e.querySelector(".js-solution"),r=e.dataset.hasConfidenceRating==="true",l=e.querySelector(".js-confidence-rating"),a=l?Array.prototype.slice.call(l.querySelectorAll('input[type="radio"]')):[],c=[],u=e.dataset.skills;if(u)try{let d=JSON.parse(u);Array.isArray(d)&&(c=d)}catch{k("Block "+n+" has malformed data-skills; ignoring.")}return{el:e,blankIds:o,solution:i,solutionEl:s,hasConfidenceRating:r,confidenceFieldset:l,confidenceRadios:a,skills:c,sectionId:t}}function U(e,n,t){let o=e.dataset.isCheckpoint==="true",i=e.querySelector(".js-checkpoint-btn"),s=e.querySelector(".js-section-score");return{el:e,isCheckpoint:o,blankIds:t,blockIds:n,checkButton:i,scoreEl:s}}function k(e){typeof console<"u"&&console.warn("[activity-runtime init] "+e)}var I="activity_student_name";function M(){try{return localStorage.getItem(I)||""}catch{return""}}function x(e){try{localStorage.setItem(I,e)}catch{}}var w=2,K="activity_state_";function S(e,n){return K+e+"_v"+n}function C(e,n,t){if(!t.submitted)try{let o={};for(let[s,r]of n.blanks)o[s]=r.input.value;let i={schemaVersion:w,values:o,blanks:t.blanks,blocks:t.blocks,sections:t.sections};localStorage.setItem(S(e.activityId,e.versionNum),JSON.stringify(i))}catch{}}function A(e){try{let n=localStorage.getItem(S(e.activityId,e.versionNum));if(!n)return null;let t=JSON.parse(n);return!t||typeof t!="object"||t.schemaVersion!==w?null:t}catch{return null}}function j(e){try{localStorage.removeItem(S(e.activityId,e.versionNum))}catch{}}function L(e,n,t){for(let[o,i]of Object.entries(e.values)){let s=n.blanks.get(o);s&&(s.input.value=i)}for(let[o,i]of Object.entries(e.blanks))t.blanks[o]&&(t.blanks[o]=i);for(let[o,i]of Object.entries(e.blocks))t.blocks[o]&&(t.blocks[o]=i);for(let[o,i]of Object.entries(e.sections))t.sections[o]&&(t.sections[o]=i)}var H=(e,n)=>(e.getAttribute("data-blank-answers")||"").split("|").indexOf(n)!==-1,Y={list:H};function T(e,n){let t=e.getAttribute("data-blank-strategy")||"list",o=Y[t];return o?o(e,n):(typeof console<"u"&&console.warn('Unknown blank strategy "'+t+'", falling back to list'),H(e,n))}function p(e){return e.replace(/^\s+|\s+$/g,"")}function X(e,n){let t=p(n);return t===""?null:T(e.input,t)}function z(e,n){let t=p(n).toLowerCase();if(t==="")return null;for(let o of e.mistakeFeedback)if(p(o.match).toLowerCase()===t)return o.feedback;return null}function b(e,n,t){let o=t.input.value,i=X(t,o),s=e.blanks[n];return s&&(s.result=i,s.matchedMistake=i===!1?z(t,o):null),i}function Q(e,n){let t=e.blanks[n];return!t||t.result===null&&t.matchedMistake===null?!1:(t.result=null,t.matchedMistake=null,!0)}function N(e,n,t){for(let[o,i]of n.blanks)i.input.addEventListener("blur",()=>{b(e,o,i),t()}),i.input.addEventListener("input",()=>{Q(e,o)&&t()})}function O(e,n,t){for(let[o,i]of n.blanks)i.hintButton&&i.hintButton.addEventListener("click",()=>{var s;e.hintModalBlankId=o,t(),(s=n.hintModal)==null||s.closeButton.focus()})}function _(e,n,t){let o=n.hintModal;if(!o)return;let i=()=>{var r,l;let s=e.hintModalBlankId;s!==null&&(e.hintModalBlankId=null,t(),(l=(r=n.blanks.get(s))==null?void 0:r.hintButton)==null||l.focus())};o.closeButton.addEventListener("click",i),o.overlay.addEventListener("click",s=>{s.target===o.overlay&&i()}),document.addEventListener("keydown",s=>{s.key==="Escape"&&e.hintModalBlankId!==null&&(s.preventDefault(),i())})}function W(e,n,t,o){let i=t.sections.get(o),s=n.sections[o];if(!i||!s)return;let r=0;for(let l of i.blankIds){let a=t.blanks.get(l);if(!a)continue;b(n,l,a)===!0&&(r+=1)}s.checked=!0,s.score=r,s.total=i.blankIds.length,s.checkedAt=new Date().toISOString(),e.submissionMode==="locked"&&(s.locked=!0);for(let l of i.blockIds){let a=t.fillInBlanks.get(l),c=n.blocks[l];!a||!c||a.solution!==null&&(c.solutionRevealed=!0)}}function F(e,n,t,o){for(let[i,s]of t.sections)s.checkButton&&s.checkButton.addEventListener("click",()=>{W(e,n,t,i),o()})}function Z(e){return e==="unsure"||e==="think_so"||e==="certain"}function q(e,n,t){for(let[o,i]of n.fillInBlanks)if(!(!i.hasConfidenceRating||i.confidenceRadios.length===0))for(let s of i.confidenceRadios)s.addEventListener("change",()=>{if(!s.checked||!Z(s.value))return;let r=e.blocks[o];r&&(r.confidence=s.value,t())})}function y(e,n){for(let[t,o]of n.blanks){let i=e.blanks[t];i&&tt(t,i,o,e)}for(let[t,o]of n.fillInBlanks){let i=e.blocks[t];i&&et(i,o)}for(let[t,o]of n.sections){let i=e.sections[t];i&&nt(i,o)}n.hintModal&&ot(e,n.hintModal,n)}function tt(e,n,t,o){let{result:i,matchedMistake:s}=n;t.input.classList.toggle("correct",i===!0),t.input.classList.toggle("incorrect",i===!1);let r=i===null?null:i?"false":"true",l=t.input.getAttribute("aria-invalid");if(r!==l&&(r===null?t.input.removeAttribute("aria-invalid"):t.input.setAttribute("aria-invalid",r)),s!==null?(t.feedbackEl.textContent!==s&&(t.feedbackEl.textContent=s),t.feedbackEl.hidden&&(t.feedbackEl.hidden=!1)):t.feedbackEl.hidden||(t.feedbackEl.hidden=!0),t.hintButton){let u=o.hintModalBlankId===e?"true":"false";t.hintButton.getAttribute("aria-expanded")!==u&&t.hintButton.setAttribute("aria-expanded",u)}let a=o.sections[t.sectionId],c=(a==null?void 0:a.locked)===!0;t.input.disabled!==c&&(t.input.disabled=c)}function et(e,n){if(n.solutionEl){let t=!e.solutionRevealed;n.solutionEl.hidden!==t&&(n.solutionEl.hidden=t)}for(let t of n.confidenceRadios){let o=t.value===e.confidence;t.checked!==o&&(t.checked=o)}}function nt(e,n){if(n.scoreEl)if(e.checked){let t=e.score+" / "+e.total+" correct";n.scoreEl.textContent!==t&&(n.scoreEl.textContent=t),n.scoreEl.hidden&&(n.scoreEl.hidden=!1)}else n.scoreEl.hidden||(n.scoreEl.hidden=!0);n.checkButton&&n.checkButton.disabled!==e.locked&&(n.checkButton.disabled=e.locked)}function ot(e,n,t){var r;let o=e.hintModalBlankId,i=o?((r=t.blanks.get(o))==null?void 0:r.hint)??null:null;i!==null?(n.bodyEl.textContent!==i&&(n.bodyEl.textContent=i),n.overlay.hidden&&(n.overlay.hidden=!1)):n.overlay.hidden||(n.overlay.hidden=!0)}function it(e,n){return n>0?e/n:0}function st(e,n){let t={},o=0,i=0;for(let[s,r]of n.blanks){let l=b(e,s,r);l!==null&&(i+=1),l===!0&&(o+=1);let a={answer:p(r.input.value),correct:l===!0},c=e.blocks[r.blockId];c!=null&&c.confidence&&(a.confidence=c.confidence),t[s]=a}return{blanks:t,score:it(o,i),totalScored:i}}function rt(e){let n={},t=0;for(let[o,i]of Object.entries(e.sections))i.checked&&i.checkedAt!==null&&i.total>0&&(n[o]={score:i.score,total:i.total,checkedAt:i.checkedAt},t+=1);return t>0?n:void 0}function R(e,n){let t=m(".submit-status");t&&(t.textContent=e,t.className="submit-status"+(n?" "+n:""))}function lt(e,n){let t=m(".score-display");if(!t||n===0)return;let o=Math.round(e*100);t.textContent="Score: "+Math.round(e*n)+" / "+n+" ("+o+"%)"}function P(e,n,t,o){let i=m("#student-name"),s=i?p(i.value):"";if(!s){R("Please enter your name before submitting.","error"),i&&i.focus();return}t.studentName=s,x(s);let r=st(t,n),l=rt(t);o();let a={schemaVersion:2,blanks:r.blanks};l&&(a.checkpointResults=l);let c={activityId:e.activityId,displayName:s,responses:a,score:r.score},u=m(".submit-button");u&&(u.disabled=!0),R("Submitting\u2026"),fetch(e.submissionEndpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(c)}).then(d=>d.ok?d.json():d.text().then(f=>{throw new Error("Submission failed: "+(f||d.status))})).then(()=>{R("Submitted! You can close this page.","success"),lt(r.score,r.totalScored),t.submitted=!0,j(e),u&&(u.disabled=!0,u.textContent="Submitted")}).catch(d=>{let f=d instanceof Error?d.message:"Submission failed. Please try again.";R(f,"error"),u&&(u.disabled=!1)})}function V(){let e=E();if(!e){console.error("[activity-runtime] init failed; falling back to no-op runtime");return}let{config:n,refs:t,state:o}=e,i=m("#student-name");if(i){let a=M();i.value=a,o.studentName=a}let s=A(n);s&&L(s,t,o),y(o,t);let r=()=>{y(o,t),C(n,t,o)};N(o,t,r),O(o,t,r),_(o,t,r),F(n,o,t,r),q(o,t,r);let l=m(".submit-button");l&&l.addEventListener("click",()=>{P(n,t,o,r)})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",V):V();})();
+</script></body></html>

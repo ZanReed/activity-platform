@@ -63,4 +63,16 @@ export { normalizeTags } from './normalizeTags';
 // draft_content is the column the editor loads on next open, so a document
 // that fails validation must never reach it.
 export { ActivityDocument } from '@activity/schema';
+
+/**
+ * The canonical blank meta, so the script never hand-rolls schema defaults.
+ *
+ * It did, until 2026-08-21, and the bill arrived the moment `applyImportedMeta`
+ * learned to read a NESTED field: the literal carried title/course/the four
+ * settings and no `print` at all, so the first fence to say `work:` crashed on
+ * `meta.print.workSpace`. Zod had been papering over it (PrintConfig is
+ * `.default({})`, so the written document was always fine) — which is exactly
+ * why the gap survived to be found by a crash rather than by a test.
+ */
+export { createEmptyDocument } from '@activity/schema';
 export type { ActivityMeta } from '@activity/schema';

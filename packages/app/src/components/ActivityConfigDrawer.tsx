@@ -36,6 +36,7 @@ import { FONT_MENU, FONT_REGISTRY, fontFamilyValue } from '@activity/schema';
 import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 import ReferencePanelEditor from '../editor/ReferencePanelEditor';
 import { ensureActivityFontLoaded } from '../lib/fonts';
+import { describeWorkSpace } from '../lib/workSpaceUnits';
 import TagChipInput from './TagChipInput';
 import {
     PEDAGOGICAL_ROLES,
@@ -829,8 +830,14 @@ export function PrintSettingsBody({
 
                 <PrintNumberField
                     id="print-work-space"
+                    // The stored unit is rem, and this control still shows it —
+                    // but the ```meta fence takes "3 lines" / "1in" / "2.5cm"
+                    // (ruling D6), so the help text names the equivalence
+                    // rather than leaving two surfaces teaching two
+                    // vocabularies. A full lines/in/cm picker here is a
+                    // recorded follow-up, not this slice.
                     label="Work space per problem (rem)"
-                    help="Default blank space below each problem. Override on individual problems in their settings."
+                    help={`Default blank space below each problem — ${describeWorkSpace(print.workSpace)} (1 line ≈ 2rem ≈ 8mm). Override on individual problems in their settings.`}
                     value={print.workSpace}
                     min={0}
                     step={0.5}

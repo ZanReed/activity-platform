@@ -291,6 +291,37 @@ test('§B titleFromPath humanises a path', () => {
     assert.equal(titleFromPath('.md'), null);
 });
 
+test('§B a nested meta key (work:) reaches the document, print defaults intact', () => {
+    // REGRESSION, and the bug is worth naming because the class is subtle.
+    // blankTarget() used to hand-roll the schema's meta defaults and simply
+    // omitted `print`. Zod papered over it forever (PrintConfig is
+    // `.default({})`, so the WRITTEN document always looked right) — until
+    // applyImportedMeta learned to read a NESTED field, at which point the
+    // first `work:` fence crashed on `meta.print.workSpace`.
+    //
+    // The fix was to build the target from createEmptyDocument rather than a
+    // literal. This row pins the outcome: the fence's value lands, and every
+    // OTHER print default survives beside it.
+    const md = [
+        '```meta',
+        'title: Rates',
+        'work: 3 lines',
+        '```',
+        '',
+        'A 2 kg bag costs $7. Five kilos costs {{17.50}}.',
+    ].join('\n');
+
+    const out = convertOne(pipeline, md, null, 'unit-3/rates.md');
+
+    assert.equal(out.document.meta.print.workSpace, 6, '3 lines should be 6rem');
+    assert.equal(out.document.meta.print.paperSize, 'letter');
+    assert.equal(out.document.meta.print.margin, 0.5);
+    assert.ok(
+        out.document.meta.print.header,
+        'the print header object was dropped — a hand-rolled meta literal is back',
+    );
+});
+
 // =============================================================================
 // §C — identity planning (D1/D2)
 // =============================================================================

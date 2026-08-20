@@ -1,0 +1,1046 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>[TEST] Print Stress Test — Algebra II</title><style>@font-face{font-display:block;font-family:KaTeX_AMS;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_AMS-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_AMS-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_AMS-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Caligraphic;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Caligraphic;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Caligraphic-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Fraktur;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Fraktur;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Fraktur-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:italic;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-BoldItalic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-BoldItalic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-BoldItalic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Main-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Math;font-style:italic;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-BoldItalic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-BoldItalic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-BoldItalic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Math;font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Math-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_SansSerif-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Script;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Script-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Script-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Script-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size1;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size1-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size1-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size1-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size2;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size2-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size2-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size2-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size3;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size3-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size3-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size3-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size4;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size4-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size4-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Size4-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Typewriter;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Typewriter-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Typewriter-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.45/dist/fonts/KaTeX_Typewriter-Regular.ttf) format("truetype")}.katex{font:normal 1.21em KaTeX_Main,Times New Roman,serif;line-height:1.2;position:relative;text-indent:0;text-rendering:auto}.katex *{-ms-high-contrast-adjust:none!important;border-color:currentColor}.katex .katex-version:after{content:"0.16.45"}.katex .katex-mathml{clip:rect(1px,1px,1px,1px);border:0;height:1px;overflow:hidden;padding:0;position:absolute;width:1px}.katex .katex-html>.newline{display:block}.katex .base{position:relative;white-space:nowrap;width:-webkit-min-content;width:-moz-min-content;width:min-content}.katex .base,.katex .strut{display:inline-block}.katex .textbf{font-weight:700}.katex .textit{font-style:italic}.katex .textrm{font-family:KaTeX_Main}.katex .textsf{font-family:KaTeX_SansSerif}.katex .texttt{font-family:KaTeX_Typewriter}.katex .mathnormal{font-family:KaTeX_Math;font-style:italic}.katex .mathit{font-family:KaTeX_Main;font-style:italic}.katex .mathrm{font-style:normal}.katex .mathbf{font-family:KaTeX_Main;font-weight:700}.katex .boldsymbol{font-family:KaTeX_Math;font-style:italic;font-weight:700}.katex .amsrm,.katex .mathbb,.katex .textbb{font-family:KaTeX_AMS}.katex .mathcal{font-family:KaTeX_Caligraphic}.katex .mathfrak,.katex .textfrak{font-family:KaTeX_Fraktur}.katex .mathboldfrak,.katex .textboldfrak{font-family:KaTeX_Fraktur;font-weight:700}.katex .mathtt{font-family:KaTeX_Typewriter}.katex .mathscr,.katex .textscr{font-family:KaTeX_Script}.katex .mathsf,.katex .textsf{font-family:KaTeX_SansSerif}.katex .mathboldsf,.katex .textboldsf{font-family:KaTeX_SansSerif;font-weight:700}.katex .mathitsf,.katex .mathsfit,.katex .textitsf{font-family:KaTeX_SansSerif;font-style:italic}.katex .mainrm{font-family:KaTeX_Main;font-style:normal}.katex .vlist-t{border-collapse:collapse;display:inline-table;table-layout:fixed}.katex .vlist-r{display:table-row}.katex .vlist{display:table-cell;position:relative;vertical-align:bottom}.katex .vlist>span{display:block;height:0;position:relative}.katex .vlist>span>span{display:inline-block}.katex .vlist>span>.pstrut{overflow:hidden;width:0}.katex .vlist-t2{margin-right:-2px}.katex .vlist-s{display:table-cell;font-size:1px;min-width:2px;vertical-align:bottom;width:2px}.katex .vbox{align-items:baseline;display:inline-flex;flex-direction:column}.katex .hbox{width:100%}.katex .hbox,.katex .thinbox{display:inline-flex;flex-direction:row}.katex .thinbox{max-width:0;width:0}.katex .msupsub{text-align:left}.katex .mfrac>span>span{text-align:center}.katex .mfrac .frac-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline,.katex .hline,.katex .mfrac .frac-line,.katex .overline .overline-line,.katex .rule,.katex .underline .underline-line{min-height:1px}.katex .mspace{display:inline-block}.katex .smash{display:inline;line-height:0}.katex .clap,.katex .llap,.katex .rlap{position:relative;width:0}.katex .clap>.inner,.katex .llap>.inner,.katex .rlap>.inner{position:absolute}.katex .clap>.fix,.katex .llap>.fix,.katex .rlap>.fix{display:inline-block}.katex .llap>.inner{right:0}.katex .clap>.inner,.katex .rlap>.inner{left:0}.katex .clap>.inner>span{margin-left:-50%;margin-right:50%}.katex .rule{border:0 solid;display:inline-block;position:relative}.katex .hline,.katex .overline .overline-line,.katex .underline .underline-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline{border-bottom-style:dashed;display:inline-block;width:100%}.katex .sqrt>.root{margin-left:.2777777778em;margin-right:-.5555555556em}.katex .fontsize-ensurer.reset-size1.size1,.katex .sizing.reset-size1.size1{font-size:1em}.katex .fontsize-ensurer.reset-size1.size2,.katex .sizing.reset-size1.size2{font-size:1.2em}.katex .fontsize-ensurer.reset-size1.size3,.katex .sizing.reset-size1.size3{font-size:1.4em}.katex .fontsize-ensurer.reset-size1.size4,.katex .sizing.reset-size1.size4{font-size:1.6em}.katex .fontsize-ensurer.reset-size1.size5,.katex .sizing.reset-size1.size5{font-size:1.8em}.katex .fontsize-ensurer.reset-size1.size6,.katex .sizing.reset-size1.size6{font-size:2em}.katex .fontsize-ensurer.reset-size1.size7,.katex .sizing.reset-size1.size7{font-size:2.4em}.katex .fontsize-ensurer.reset-size1.size8,.katex .sizing.reset-size1.size8{font-size:2.88em}.katex .fontsize-ensurer.reset-size1.size9,.katex .sizing.reset-size1.size9{font-size:3.456em}.katex .fontsize-ensurer.reset-size1.size10,.katex .sizing.reset-size1.size10{font-size:4.148em}.katex .fontsize-ensurer.reset-size1.size11,.katex .sizing.reset-size1.size11{font-size:4.976em}.katex .fontsize-ensurer.reset-size2.size1,.katex .sizing.reset-size2.size1{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size2.size2,.katex .sizing.reset-size2.size2{font-size:1em}.katex .fontsize-ensurer.reset-size2.size3,.katex .sizing.reset-size2.size3{font-size:1.1666666667em}.katex .fontsize-ensurer.reset-size2.size4,.katex .sizing.reset-size2.size4{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size2.size5,.katex .sizing.reset-size2.size5{font-size:1.5em}.katex .fontsize-ensurer.reset-size2.size6,.katex .sizing.reset-size2.size6{font-size:1.6666666667em}.katex .fontsize-ensurer.reset-size2.size7,.katex .sizing.reset-size2.size7{font-size:2em}.katex .fontsize-ensurer.reset-size2.size8,.katex .sizing.reset-size2.size8{font-size:2.4em}.katex .fontsize-ensurer.reset-size2.size9,.katex .sizing.reset-size2.size9{font-size:2.88em}.katex .fontsize-ensurer.reset-size2.size10,.katex .sizing.reset-size2.size10{font-size:3.4566666667em}.katex .fontsize-ensurer.reset-size2.size11,.katex .sizing.reset-size2.size11{font-size:4.1466666667em}.katex .fontsize-ensurer.reset-size3.size1,.katex .sizing.reset-size3.size1{font-size:.7142857143em}.katex .fontsize-ensurer.reset-size3.size2,.katex .sizing.reset-size3.size2{font-size:.8571428571em}.katex .fontsize-ensurer.reset-size3.size3,.katex .sizing.reset-size3.size3{font-size:1em}.katex .fontsize-ensurer.reset-size3.size4,.katex .sizing.reset-size3.size4{font-size:1.1428571429em}.katex .fontsize-ensurer.reset-size3.size5,.katex .sizing.reset-size3.size5{font-size:1.2857142857em}.katex .fontsize-ensurer.reset-size3.size6,.katex .sizing.reset-size3.size6{font-size:1.4285714286em}.katex .fontsize-ensurer.reset-size3.size7,.katex .sizing.reset-size3.size7{font-size:1.7142857143em}.katex .fontsize-ensurer.reset-size3.size8,.katex .sizing.reset-size3.size8{font-size:2.0571428571em}.katex .fontsize-ensurer.reset-size3.size9,.katex .sizing.reset-size3.size9{font-size:2.4685714286em}.katex .fontsize-ensurer.reset-size3.size10,.katex .sizing.reset-size3.size10{font-size:2.9628571429em}.katex .fontsize-ensurer.reset-size3.size11,.katex .sizing.reset-size3.size11{font-size:3.5542857143em}.katex .fontsize-ensurer.reset-size4.size1,.katex .sizing.reset-size4.size1{font-size:.625em}.katex .fontsize-ensurer.reset-size4.size2,.katex .sizing.reset-size4.size2{font-size:.75em}.katex .fontsize-ensurer.reset-size4.size3,.katex .sizing.reset-size4.size3{font-size:.875em}.katex .fontsize-ensurer.reset-size4.size4,.katex .sizing.reset-size4.size4{font-size:1em}.katex .fontsize-ensurer.reset-size4.size5,.katex .sizing.reset-size4.size5{font-size:1.125em}.katex .fontsize-ensurer.reset-size4.size6,.katex .sizing.reset-size4.size6{font-size:1.25em}.katex .fontsize-ensurer.reset-size4.size7,.katex .sizing.reset-size4.size7{font-size:1.5em}.katex .fontsize-ensurer.reset-size4.size8,.katex .sizing.reset-size4.size8{font-size:1.8em}.katex .fontsize-ensurer.reset-size4.size9,.katex .sizing.reset-size4.size9{font-size:2.16em}.katex .fontsize-ensurer.reset-size4.size10,.katex .sizing.reset-size4.size10{font-size:2.5925em}.katex .fontsize-ensurer.reset-size4.size11,.katex .sizing.reset-size4.size11{font-size:3.11em}.katex .fontsize-ensurer.reset-size5.size1,.katex .sizing.reset-size5.size1{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size5.size2,.katex .sizing.reset-size5.size2{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size5.size3,.katex .sizing.reset-size5.size3{font-size:.7777777778em}.katex .fontsize-ensurer.reset-size5.size4,.katex .sizing.reset-size5.size4{font-size:.8888888889em}.katex .fontsize-ensurer.reset-size5.size5,.katex .sizing.reset-size5.size5{font-size:1em}.katex .fontsize-ensurer.reset-size5.size6,.katex .sizing.reset-size5.size6{font-size:1.1111111111em}.katex .fontsize-ensurer.reset-size5.size7,.katex .sizing.reset-size5.size7{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size5.size8,.katex .sizing.reset-size5.size8{font-size:1.6em}.katex .fontsize-ensurer.reset-size5.size9,.katex .sizing.reset-size5.size9{font-size:1.92em}.katex .fontsize-ensurer.reset-size5.size10,.katex .sizing.reset-size5.size10{font-size:2.3044444444em}.katex .fontsize-ensurer.reset-size5.size11,.katex .sizing.reset-size5.size11{font-size:2.7644444444em}.katex .fontsize-ensurer.reset-size6.size1,.katex .sizing.reset-size6.size1{font-size:.5em}.katex .fontsize-ensurer.reset-size6.size2,.katex .sizing.reset-size6.size2{font-size:.6em}.katex .fontsize-ensurer.reset-size6.size3,.katex .sizing.reset-size6.size3{font-size:.7em}.katex .fontsize-ensurer.reset-size6.size4,.katex .sizing.reset-size6.size4{font-size:.8em}.katex .fontsize-ensurer.reset-size6.size5,.katex .sizing.reset-size6.size5{font-size:.9em}.katex .fontsize-ensurer.reset-size6.size6,.katex .sizing.reset-size6.size6{font-size:1em}.katex .fontsize-ensurer.reset-size6.size7,.katex .sizing.reset-size6.size7{font-size:1.2em}.katex .fontsize-ensurer.reset-size6.size8,.katex .sizing.reset-size6.size8{font-size:1.44em}.katex .fontsize-ensurer.reset-size6.size9,.katex .sizing.reset-size6.size9{font-size:1.728em}.katex .fontsize-ensurer.reset-size6.size10,.katex .sizing.reset-size6.size10{font-size:2.074em}.katex .fontsize-ensurer.reset-size6.size11,.katex .sizing.reset-size6.size11{font-size:2.488em}.katex .fontsize-ensurer.reset-size7.size1,.katex .sizing.reset-size7.size1{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size7.size2,.katex .sizing.reset-size7.size2{font-size:.5em}.katex .fontsize-ensurer.reset-size7.size3,.katex .sizing.reset-size7.size3{font-size:.5833333333em}.katex .fontsize-ensurer.reset-size7.size4,.katex .sizing.reset-size7.size4{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size7.size5,.katex .sizing.reset-size7.size5{font-size:.75em}.katex .fontsize-ensurer.reset-size7.size6,.katex .sizing.reset-size7.size6{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size7.size7,.katex .sizing.reset-size7.size7{font-size:1em}.katex .fontsize-ensurer.reset-size7.size8,.katex .sizing.reset-size7.size8{font-size:1.2em}.katex .fontsize-ensurer.reset-size7.size9,.katex .sizing.reset-size7.size9{font-size:1.44em}.katex .fontsize-ensurer.reset-size7.size10,.katex .sizing.reset-size7.size10{font-size:1.7283333333em}.katex .fontsize-ensurer.reset-size7.size11,.katex .sizing.reset-size7.size11{font-size:2.0733333333em}.katex .fontsize-ensurer.reset-size8.size1,.katex .sizing.reset-size8.size1{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size8.size2,.katex .sizing.reset-size8.size2{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size8.size3,.katex .sizing.reset-size8.size3{font-size:.4861111111em}.katex .fontsize-ensurer.reset-size8.size4,.katex .sizing.reset-size8.size4{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size8.size5,.katex .sizing.reset-size8.size5{font-size:.625em}.katex .fontsize-ensurer.reset-size8.size6,.katex .sizing.reset-size8.size6{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size8.size7,.katex .sizing.reset-size8.size7{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size8.size8,.katex .sizing.reset-size8.size8{font-size:1em}.katex .fontsize-ensurer.reset-size8.size9,.katex .sizing.reset-size8.size9{font-size:1.2em}.katex .fontsize-ensurer.reset-size8.size10,.katex .sizing.reset-size8.size10{font-size:1.4402777778em}.katex .fontsize-ensurer.reset-size8.size11,.katex .sizing.reset-size8.size11{font-size:1.7277777778em}.katex .fontsize-ensurer.reset-size9.size1,.katex .sizing.reset-size9.size1{font-size:.2893518519em}.katex .fontsize-ensurer.reset-size9.size2,.katex .sizing.reset-size9.size2{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size9.size3,.katex .sizing.reset-size9.size3{font-size:.4050925926em}.katex .fontsize-ensurer.reset-size9.size4,.katex .sizing.reset-size9.size4{font-size:.462962963em}.katex .fontsize-ensurer.reset-size9.size5,.katex .sizing.reset-size9.size5{font-size:.5208333333em}.katex .fontsize-ensurer.reset-size9.size6,.katex .sizing.reset-size9.size6{font-size:.5787037037em}.katex .fontsize-ensurer.reset-size9.size7,.katex .sizing.reset-size9.size7{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size9.size8,.katex .sizing.reset-size9.size8{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size9.size9,.katex .sizing.reset-size9.size9{font-size:1em}.katex .fontsize-ensurer.reset-size9.size10,.katex .sizing.reset-size9.size10{font-size:1.2002314815em}.katex .fontsize-ensurer.reset-size9.size11,.katex .sizing.reset-size9.size11{font-size:1.4398148148em}.katex .fontsize-ensurer.reset-size10.size1,.katex .sizing.reset-size10.size1{font-size:.2410800386em}.katex .fontsize-ensurer.reset-size10.size2,.katex .sizing.reset-size10.size2{font-size:.2892960463em}.katex .fontsize-ensurer.reset-size10.size3,.katex .sizing.reset-size10.size3{font-size:.337512054em}.katex .fontsize-ensurer.reset-size10.size4,.katex .sizing.reset-size10.size4{font-size:.3857280617em}.katex .fontsize-ensurer.reset-size10.size5,.katex .sizing.reset-size10.size5{font-size:.4339440694em}.katex .fontsize-ensurer.reset-size10.size6,.katex .sizing.reset-size10.size6{font-size:.4821600771em}.katex .fontsize-ensurer.reset-size10.size7,.katex .sizing.reset-size10.size7{font-size:.5785920926em}.katex .fontsize-ensurer.reset-size10.size8,.katex .sizing.reset-size10.size8{font-size:.6943105111em}.katex .fontsize-ensurer.reset-size10.size9,.katex .sizing.reset-size10.size9{font-size:.8331726133em}.katex .fontsize-ensurer.reset-size10.size10,.katex .sizing.reset-size10.size10{font-size:1em}.katex .fontsize-ensurer.reset-size10.size11,.katex .sizing.reset-size10.size11{font-size:1.1996142719em}.katex .fontsize-ensurer.reset-size11.size1,.katex .sizing.reset-size11.size1{font-size:.2009646302em}.katex .fontsize-ensurer.reset-size11.size2,.katex .sizing.reset-size11.size2{font-size:.2411575563em}.katex .fontsize-ensurer.reset-size11.size3,.katex .sizing.reset-size11.size3{font-size:.2813504823em}.katex .fontsize-ensurer.reset-size11.size4,.katex .sizing.reset-size11.size4{font-size:.3215434084em}.katex .fontsize-ensurer.reset-size11.size5,.katex .sizing.reset-size11.size5{font-size:.3617363344em}.katex .fontsize-ensurer.reset-size11.size6,.katex .sizing.reset-size11.size6{font-size:.4019292605em}.katex .fontsize-ensurer.reset-size11.size7,.katex .sizing.reset-size11.size7{font-size:.4823151125em}.katex .fontsize-ensurer.reset-size11.size8,.katex .sizing.reset-size11.size8{font-size:.578778135em}.katex .fontsize-ensurer.reset-size11.size9,.katex .sizing.reset-size11.size9{font-size:.6945337621em}.katex .fontsize-ensurer.reset-size11.size10,.katex .sizing.reset-size11.size10{font-size:.8336012862em}.katex .fontsize-ensurer.reset-size11.size11,.katex .sizing.reset-size11.size11{font-size:1em}.katex .delimsizing.size1{font-family:KaTeX_Size1}.katex .delimsizing.size2{font-family:KaTeX_Size2}.katex .delimsizing.size3{font-family:KaTeX_Size3}.katex .delimsizing.size4{font-family:KaTeX_Size4}.katex .delimsizing.mult .delim-size1>span{font-family:KaTeX_Size1}.katex .delimsizing.mult .delim-size4>span{font-family:KaTeX_Size4}.katex .nulldelimiter{display:inline-block;width:.12em}.katex .delimcenter,.katex .op-symbol{position:relative}.katex .op-symbol.small-op{font-family:KaTeX_Size1}.katex .op-symbol.large-op{font-family:KaTeX_Size2}.katex .accent>.vlist-t,.katex .op-limits>.vlist-t{text-align:center}.katex .accent .accent-body{position:relative}.katex .accent .accent-body:not(.accent-full){width:0}.katex .overlay{display:block}.katex .mtable .vertical-separator{display:inline-block;min-width:1px}.katex .mtable .arraycolsep{display:inline-block}.katex .mtable .col-align-c>.vlist-t{text-align:center}.katex .mtable .col-align-l>.vlist-t{text-align:left}.katex .mtable .col-align-r>.vlist-t{text-align:right}.katex .svg-align{text-align:left}.katex svg{fill:currentColor;stroke:currentColor;display:block;height:inherit;position:absolute;width:100%}.katex svg path{stroke:none}.katex svg{fill-rule:nonzero;fill-opacity:1;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1}.katex img{border-style:none;max-height:none;max-width:none;min-height:0;min-width:0}.katex .stretchy{display:block;overflow:hidden;position:relative;width:100%}.katex .stretchy:after,.katex .stretchy:before{content:""}.katex .hide-tail{overflow:hidden;position:relative;width:100%}.katex .halfarrow-left{left:0;overflow:hidden;position:absolute;width:50.2%}.katex .halfarrow-right{overflow:hidden;position:absolute;right:0;width:50.2%}.katex .brace-left{left:0;overflow:hidden;position:absolute;width:25.1%}.katex .brace-center{left:25%;overflow:hidden;position:absolute;width:50%}.katex .brace-right{overflow:hidden;position:absolute;right:0;width:25.1%}.katex .x-arrow-pad{padding:0 .5em}.katex .cd-arrow-pad{padding:0 .55556em 0 .27778em}.katex .mover,.katex .munder,.katex .x-arrow{text-align:center}.katex .boxpad{padding:0 .3em}.katex .fbox,.katex .fcolorbox{border:.04em solid;box-sizing:border-box}.katex .cancel-pad{padding:0 .2em}.katex .cancel-lap{margin-left:-.2em;margin-right:-.2em}.katex .sout{border-bottom-style:solid;border-bottom-width:.08em}.katex .angl{border-right:.049em solid;border-top:.049em solid;box-sizing:border-box;margin-right:.03889em}.katex .anglpad{padding:0 .03889em}.katex .eqn-num:before{content:"(" counter(katexEqnNo) ")";counter-increment:katexEqnNo}.katex .mml-eqn-num:before{content:"(" counter(mmlEqnNo) ")";counter-increment:mmlEqnNo}.katex .mtr-glue{width:50%}.katex .cd-vert-arrow{display:inline-block;position:relative}.katex .cd-label-left{display:inline-block;position:absolute;right:calc(50% + .3em);text-align:left}.katex .cd-label-right{display:inline-block;left:calc(50% + .3em);position:absolute;text-align:right}.katex-display{display:block;margin:1em 0;text-align:center}.katex-display>.katex{display:block;text-align:center;white-space:nowrap}.katex-display>.katex>.katex-html{display:block;position:relative}.katex-display>.katex>.katex-html>.tag{position:absolute;right:0}.katex-display.leqno>.katex>.katex-html>.tag{left:0;right:auto}.katex-display.fleqn>.katex{padding-left:2em;text-align:left}body{counter-reset:katexEqnNo mmlEqnNo}
+</style><style>:root {
+  --color-text: #1a1a1a;
+  --color-muted: #6b6b6b;
+  --color-bg: #ffffff;
+  --color-border: #e5e5e5;
+  --color-accent: #2563eb;
+  --color-info: #0369a1;
+  --color-info-bg: #e0f2fe;
+  --color-warning: #b45309;
+  --color-warning-bg: #fef3c7;
+  --color-success: #15803d;
+  --color-success-bg: #dcfce7;
+  --color-note: #6b7280;
+  --color-note-bg: #f3f4f6;
+  --color-blank-correct-bg: #dcfce7;
+  --color-blank-correct-border: #22c55e;
+  --color-blank-incorrect-bg: #fee2e2;
+  --color-blank-incorrect-border: #ef4444;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-math: "Latin Modern Math", "Cambria Math", serif;
+  --max-width: 760px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.6;
+  margin: 0;
+  padding: 1rem;
+}
+
+.activity-container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.activity-header {
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+}
+
+.activity-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+}
+
+.activity-header .meta {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.identity-prompt {
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.identity-prompt label {
+  font-weight: 600;
+  color: var(--color-info);
+}
+
+.identity-prompt input {
+  flex: 1 1 200px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.activity-section {
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  margin: 1.5rem 0 1rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.block { margin: 1rem 0; }
+
+.block-paragraph { margin: 0.75rem 0; }
+
+.block-heading-1 { font-size: 1.5rem;  margin: 1.5rem 0 0.75rem; }
+.block-heading-2 { font-size: 1.25rem; margin: 1.25rem 0 0.5rem; }
+.block-heading-3 { font-size: 1.1rem;  margin: 1rem 0 0.5rem; font-weight: 600; }
+
+.block-math {
+  margin: 1.25rem 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.block-image {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+.block-image img {
+  max-width: 100%;
+  /* --block-height (set inline when the author fixed a height) wins over the
+   default auto. object-fit makes a width+height box CROP (center) instead of
+   stretch when it disagrees with the natural aspect ratio; with height auto
+   it has no effect, so unsized images are untouched. */
+  height: var(--block-height, auto);
+  object-fit: cover;
+  border-radius: 4px;
+}
+/* A sized image fills its authored width — the author's dial is authoritative
+ (a small source image upscales rather than silently ignoring the setting).
+ Unsized images keep their natural size, as before. */
+.block-image.block-sized img {
+  width: 100%;
+}
+.block-image-caption {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.block-callout {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 6px;
+  border-left: 4px solid;
+  margin: 1.25rem 0;
+}
+.block-callout-icon { font-size: 1.25rem; line-height: 1; }
+.block-callout-body > :first-child { margin-top: 0; }
+.block-callout-body > :last-child { margin-bottom: 0; }
+
+.block-callout-info    { background: var(--color-info-bg);    border-color: var(--color-info);    }
+.block-callout-warning { background: var(--color-warning-bg); border-color: var(--color-warning); }
+.block-callout-success { background: var(--color-success-bg); border-color: var(--color-success); }
+.block-callout-note    { background: var(--color-note-bg);    border-color: var(--color-note);    }
+
+.block-problem,
+.block-fill-in-blank {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+  align-items: start;
+}
+.block-bullet-list,
+.block-ordered-list {
+  padding-left: 1.5rem;
+}
+.block-bullet-list li,
+.block-ordered-list li {
+  margin: 0.25rem 0;
+}
+/* Nested lists sit tighter than the .block 1rem default. */
+.block-bullet-list .block-bullet-list,
+.block-bullet-list .block-ordered-list,
+.block-ordered-list .block-bullet-list,
+.block-ordered-list .block-ordered-list {
+  margin: 0.25rem 0;
+}
+.block-problem-number {
+  font-weight: 600;
+  text-align: right;
+  padding-right: 0.25rem;
+}
+.block-problem-body > :first-child { margin-top: 0; }
+.block-problem-body > :last-child { margin-bottom: 0; }
+
+/* Structural columns. The grid track sizing comes from --columns-template
+ (set inline by the renderer from per-column width weights); the fallback keeps
+ a config-less context (e.g. a stray clone) sane. min-width:0 on each cell lets
+ the grid track shrink so wide content (long math, pre, images) can't blow the
+ track out. The container lays out side by side everywhere — print and the
+ foldable inherit this rule unconditionally; only @media screen narrows it. */
+.block-columns {
+  display: grid;
+  grid-template-columns: var(--columns-template, 1fr 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin: 1rem 0;
+}
+.block-columns > .column-cell {
+  min-width: 0;
+  /* Reserved work space (Column.minHeight): the renderer sets
+   --cell-min-height inline only when authored, so the fallback keeps every
+   other cell content-sized. A floor, not a fixed height — the cell still
+   grows, so print pagination and foldable measurement stay honest. Applies
+   in every output: on paper this IS the write-in work space. */
+  min-height: var(--cell-min-height, auto);
+}
+.block-columns > .column-cell > :first-child { margin-top: 0; }
+.block-columns > .column-cell > :last-child { margin-bottom: 0; }
+
+/* Ruled grid (gridLines). The renderer emits data-grid-lines="true" only when
+ the resolved tri-state is on (per-block, or the activity-wide print default).
+ It boxes the whole block, draws a vertical rule between cells, and a horizontal
+ rule between the stacked blocks inside a cell — boxed regions to write in or cut
+ out on paper. The gap collapses to 0 so a single hairline (the border layer)
+ sits between regions instead of empty space; cells get their own padding back.
+ Renders in every output (screen, print, foldable), like the columns themselves. */
+.block-columns[data-grid-lines="true"] {
+  gap: 0;
+  border: 1px solid #94a3b8;
+  /* Override the unruled default (align-items:start). Ruled cells must stretch
+   to the row's full height so the between-cell divider (a border-left) spans
+   the whole box — otherwise a short or empty cell yields a stub divider that
+   stops where its own content ends. Stretch also gives equal-height boxed
+   regions, which is the point of a ruled grid on paper. */
+  align-items: stretch;
+}
+.block-columns[data-grid-lines="true"] > .column-cell {
+  padding: 0.75rem;
+  border-left: 1px solid #94a3b8;
+}
+.block-columns[data-grid-lines="true"] > .column-cell:first-child {
+  border-left: none;
+}
+/* Horizontal rule between stacked blocks in a cell. Zero the block's own
+ top-margin and use symmetric padding so the rule sits centered in even space,
+ not doubled against a block margin. :first-child stays flush (rule is between
+ blocks, not above the first). */
+.block-columns[data-grid-lines="true"] > .column-cell > * + * {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #cbd5e1;
+}
+
+/* Per-block sizing (width fraction + align). The renderer adds .block-sized
+ plus an inline --block-width custom property; consuming the property HERE
+ (instead of an inline width) lets the narrow-screen rule below relax it.
+ Auto horizontal margins center by default; align attrs zero one side. Only
+ the horizontal margins are touched, so each block type keeps its own
+ vertical rhythm. The sized block stays in normal flow — no wrap-around — by
+ design (reflow safety; see docs/design/variable-block-sizing.md). */
+.block-sized {
+  width: var(--block-width, 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+.block-sized[data-block-align="left"]  { margin-left: 0; }
+.block-sized[data-block-align="right"] { margin-right: 0; }
+
+/* Narrow screens only: collapse to a single column so a 2-/3-column layout
+ stays readable on a phone. Scoped to @media SCREEN so it never reaches paper
+ or the foldable (both print-media), where columns must stay side by side. */
+@media screen and (max-width: 640px) {
+  .block-columns { grid-template-columns: 1fr; }
+  /* Authored block widths relax to full on a phone (a 33%-wide figure in a
+   ~360px viewport is unusable) — paper and the foldable keep them. */
+  .block-sized { width: 100%; }
+  /* Stacked: the between-cell rule flips from a left border to a top border so
+   the grid still reads as separated regions when columns sit on top of
+   each other. */
+  .block-columns[data-grid-lines="true"] > .column-cell {
+    border-left: none;
+    border-top: 1px solid #94a3b8;
+  }
+  .block-columns[data-grid-lines="true"] > .column-cell:first-child {
+    border-top: none;
+  }
+}
+
+/* The blank-token wrapper keeps an <input class="blank"> and its sibling
+ a fford*ances (.js-blank-hint, .js-blank-mistake) on the same inline-flow
+ line, so they can't wrap apart mid-prose. The wrapper is structural only —
+ the 'blank' class stays on the <input> itself, so every existing .blank
+ selector continues to target the input directly. align-items: baseline lines
+ the input baseline up with the surrounding prose; the gap controls spacing
+ between input and its buttons. (Hidden siblings have display: none via the
+'hidden' attribute and don't participate in the gap.) */
+.blank-wrapper {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.blank {
+  display: inline-block;
+  width: var(--blank-width, 6ch);
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-bottom: 2px solid var(--color-text);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: inherit;
+  background: #fafafa;
+  text-align: center;
+}
+.blank:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  background: white;
+}
+.blank.correct {
+  background: var(--color-blank-correct-bg);
+  border-color: var(--color-blank-correct-border);
+}
+.blank.incorrect {
+  background: var(--color-blank-incorrect-bg);
+  border-color: var(--color-blank-incorrect-border);
+}
+
+/* Hint affordance. The .js-blank-hint button is always available next to
+ t he bl*ank when the teacher authored a hint; clicking it opens the global
+ hint modal (.js-hint-modal) where the runtime shows the hint text. The
+ button is a small circular '?' icon — discoverable without dominating the
+ line. */
+.js-blank-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: white;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.js-blank-hint:hover {
+  color: var(--color-text);
+  border-color: var(--color-text);
+}
+.js-blank-hint:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Mistake affordance. The red .js-blank-mistake '!' button mirrors the hint
+ button's geometry but is emitted 'hidden' — the runtime reveals it only when
+ a wrong answer matches an authored mistake-feedback entry, and clicking it
+ opens the shared popover with that feedback. Red signals "something's off
+ here" without being as heavy as inline error text. The explicit
+ [hidden] { display: none } overrides the inline-flex display so the button
+ truly disappears (and leaves no gap) until revealed. */
+.js-blank-mistake {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 1px solid var(--color-blank-incorrect-border);
+  border-radius: 50%;
+  background: white;
+  color: var(--color-blank-incorrect-border);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.js-blank-mistake[hidden] {
+  display: none;
+}
+.js-blank-mistake:hover {
+  background: var(--color-blank-incorrect-border);
+  color: white;
+}
+.js-blank-mistake:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Shared floating popover (document.ts) for hints and mistake feedback. A
+ single bare panel anchored beside the trigger button that opened it. Unlike
+ the old modal it does NOT dim the page or trap the viewport: position:fixed
+ with explicit left/top (set by the runtime) instead of a full-screen overlay,
+ so the rest of the activity stays interactive while it's open. The runtime
+ seeds left/top beside the trigger and updates them as the student drags the
+ header. z-index sits above all activity content; the panel caps its width for
+ readability and scrolls internally if the text is long. */
+.js-popover {
+  position: fixed;
+  z-index: 1000;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: 60vh;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.js-popover[hidden] {
+  display: none;
+}
+/* The header doubles as the drag handle. touch-action:none lets the runtime's
+ pointer drag work on touch without the browser hijacking it for scrolling;
+ user-select:none stops text selection while dragging. */
+.js-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 0.5rem 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.js-popover-header:active {
+  cursor: grabbing;
+}
+.js-popover-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+/* Mistake variant: tint the title red to match the '!' trigger. */
+.js-popover[data-kind="mistake"] .js-popover-title {
+  color: var(--color-blank-incorrect-border);
+}
+.js-popover-close {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.js-popover-close:hover {
+  background: var(--color-note-bg);
+  color: var(--color-text);
+}
+.js-popover-close:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+.js-popover-body {
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
+/* Inline vocabulary definition (the definition mark). A subtle dotted
+ underline cues that the term is defined; click / tap / Enter / Space opens a
+ small popover with the definition (the definitions sidecar, inlined only on
+ pages that have one). Deliberately NOT link-blue — a glossary cue, not a
+ hyperlink. The underline is currentColor so it stays ink-safe when printed. */
+.definition {
+  cursor: help;
+  text-decoration: underline dotted currentColor;
+  text-underline-offset: 0.15em;
+}
+.definition:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The definition popover is created and positioned by the sidecar — its own
+ element, independent of the scoring runtime's shared .js-popover. Card styling
+ mirrors that popover for visual consistency. */
+.definition-popover {
+  position: fixed;
+  z-index: 1000;
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: 50vh;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.definition-popover[hidden] {
+  display: none;
+}
+.definition-popover-body {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+/* Optional illustrative image inside a definition popover — capped to the
+ popover width, never stretched. */
+.definition-popover-body .definition-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: 0.5rem;
+  border-radius: 4px;
+}
+
+/* Confidence rating fieldset (Stage 12 step 3). One per fill-in-blank
+ b lock *when hasConfidenceRating is true. Sits inside the problem body
+ so it aligns under the problem number with the rest of the body
+ content. Default browser fieldset styling is heavy; we tone it down
+ to a thin bordered container with a small muted legend. Radios use
+ plain inline-block layout (vs inline-flex) — simpler whitespace
+ handling between input and label text, predictable across browsers. */
+.js-confidence-rating {
+  margin: 0.75rem 0 0;
+  padding: 0.4rem 0.75rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+.js-confidence-rating legend {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  padding: 0 0.4rem;
+}
+.js-confidence-rating label {
+  display: inline-block;
+  margin-right: 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.js-confidence-rating label:last-child {
+  margin-right: 0;
+}
+.js-confidence-rating input[type="radio"] {
+  margin-right: 0.25rem;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+/* Solution slot. Hidden in source HTML; the Stage 13 runtime toggles
+ ' hidde*n' when the section is checked. Visual treatment: subtle
+ left-accent + tinted background so a revealed solution reads clearly
+ as the teacher's explanation rather than continuation of the
+ problem prose. */
+.js-solution {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-info-bg);
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95rem;
+}
+
+/* Checkpoint controls (Stage 12 step 4). Per-section button + score
+ d ispla*y in locked/free submissionMode. Button visual: secondary
+ (accent border, white fill) so it doesn't compete with the final
+ submit button at the bottom of the page; hover fills it for clear
+ affordance. .js-section-score reveals on check with text like
+ "4 / 6 correct" — subdued status text inline with the button. */
+.js-checkpoint-btn {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.5rem 1.25rem;
+  background: white;
+  color: var(--color-accent);
+  border: 2px solid var(--color-accent);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.js-checkpoint-btn:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: white;
+}
+.js-checkpoint-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.js-checkpoint-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.js-section-score {
+  display: inline-block;
+  margin-left: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.math-error {
+  font-family: monospace;
+  font-size: 0.85em;
+  background: #fff0f0;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.submit-area {
+  border-top: 2px solid var(--color-border);
+  padding-top: 1.5rem;
+  margin-top: 2.5rem;
+  text-align: center;
+}
+.submit-button {
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.submit-button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+.submit-status {
+  margin-top: 0.75rem;
+  min-height: 1.5em;
+  font-size: 0.95rem;
+}
+.submit-status.success { color: var(--color-success); }
+.submit-status.error   { color: var(--color-warning); }
+
+/* =============================================================================
+ Reference panel (scaffold) — optional teacher-authored reference content
+ (formula charts, vocab lists, conversion tables…). Rendered OUTSIDE any
+ .activity-section so the runtime never walks it. Two presentations of the
+ same blocks:
+ - screen: .reference-panel, a fixed bottom toolbar (native <details>,
+ collapsed by default; opens UPWARD). Zero runtime JS — the disclosure is the
+ browser's, the positioning is CSS.
+ - print: .reference-print, a static box at the top (see @media print).
+ ============================================================================= */
+
+/* Screen toolbar. flex column-reverse keeps the clickable bar (the <summary>,
+ which must be the first DOM child) pinned at the bottom while the opened body
+ expands above it. */
+.reference-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100; /* above activity content; below .js-popover (1000) */
+  display: flex;
+  flex-direction: column-reverse;
+  max-height: 90vh; /* absolute safety cap; the body's max-height is the real limit */
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
+}
+.reference-panel-summary {
+  flex: 0 0 auto;
+  cursor: pointer;
+  list-style: none; /* hide the default disclosure triangle */
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  user-select: none;
+}
+.reference-panel-summary::-webkit-details-marker { display: none; }
+/* Chevron cue: up = 'open me' (the panel rises); flips down when open. Plain
+ glyphs survive grayscale. */
+.reference-panel-label::before { content: '\25B2  '; font-size: 0.85em; }
+.reference-panel[open] .reference-panel-label::before { content: '\25BC  '; }
+.reference-panel-body {
+  /* The body owns the height cap + scroll. Capping the BODY (not the panel)
+   with max-height + overflow is the dependency-free scroll pattern: flex-shrink
+   against a max-height-only flex container does NOT constrain children, so the
+   earlier panel-capped approach overflowed the page instead of scrolling. The
+   sidecar drives drag-resize by overriding this max-height. */
+  min-height: 0;
+  max-height: 60vh;
+  overflow: auto; /* scrolls internally when the content exceeds the cap */
+  padding: 0.25rem 1rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+/* Disclosed content wrapper: a plain flex column so the handle (DOM-first) sits
+ at the TOP and the scrollable body below it. The browser wraps <details>
+ content (::details-content), so arranging handle vs body at the PANEL level was
+ unreliable across versions; owning a wrapper makes the order deterministic. The
+ panel's column-reverse still floats this whole wrapper above the summary bar. */
+.reference-panel-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* Drag handle along the panel's TOP edge. The sidecar — inlined only when a
+ panel exists — wires pointer drag to resize the open panel; without JS it's an
+ inert grip. touch-action:none so the sidecar owns the touch drag. */
+.reference-panel-resize {
+  flex: 0 0 auto;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  touch-action: none;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+.reference-panel-resize::before {
+  content: '';
+  width: 2.5rem;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-border);
+}
+/* Reserve space so the collapsed bar never hides the last content (the submit
+ button). Only present when the activity has a panel. */
+.activity-container.has-reference-panel { padding-bottom: 3.5rem; }
+
+/* Print box hidden on screen; @media print reveals it (and hides the screen
+ toolbar). */
+.reference-print { display: none; }
+
+/* =============================================================================
+ Calculator tool (scaffold). A fixed summon button in the bottom-right corner;
+ the lazy-loaded widget mounts its own floating panel into .calculator-mount on
+ the first click. Rendered OUTSIDE any .activity-section so the runtime never
+ walks it. Hidden in print (a calculator on paper is meaningless).
+ ============================================================================= */
+.calculator-tool {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 110; /* above the reference bar (100); below .js-popover (1000) */
+}
+.calculator-summon {
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+.calculator-summon:hover { filter: brightness(0.95); }
+.calculator-summon:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.calculator-summon[aria-busy='true'] { cursor: progress; opacity: 0.7; }
+
+/* Print-only header (Name/Date/… fill-in lines). Hidden on screen — the live
+ on-screen name field is .identity-prompt; this is the paper equivalent and is
+ revealed (with its child styles) inside @media print below. */
+.print-header { display: none; }
+
+/* Print-only hand-markable confidence row. Hidden on screen — the live control
+ is the interactive .js-confidence-rating fieldset; this is the paper equivalent
+ (checkboxes to tick by pen), revealed inside @media print below. */
+.print-confidence { display: none; }
+
+/* =============================================================================
+ B aseline* print layer (Stage 11)
+ -----------------------------------------------------------------------------
+ Goal: a published activity that looks broken on paper today, doesn't.
+ This is NOT the print FEATURE (multi-column layout, work space, configured
+ header, answer key) — that lives post-Stage-16 (print-and-printables.md).
+ Scope of this layer:
+ - Maximize printable area: @page margin 0.5in (floor for safe edge across
+ unknown classroom printers — most laser printers have ~0.25in hardware
+ non-printable margin).
+ - Hide interactive controls so students don't print a Submit button.
+ - Page-break integrity: never split a problem; let sections flow.
+ - Grayscale safety: don't encode meaning in color alone (callouts vary by
+ border STYLE; blank correct/incorrect state is neutralized — pre-lesson
+ printables are blank worksheets, no scored state to distinguish).
+ - Print typography is deliberately unchanged: it's a configurable feature
+ (--print-font-size) reserved for the post-Stage-16 print work.
+ ============================================================================= */
+@media print {
+  /* @page (paper size + margin) is emitted PER-DOCUMENT by the renderer
+   (printPageStyle in document.ts) — it is configurable (letter/A4 + margin)
+   and @page rules can't reliably read CSS custom properties, so it can't be a
+   static rule here. */
+
+  body { padding: 0; }
+
+  /* Configured print layout. The renderer sets these --print-* vars on
+   .activity-container (printContainerVars); this is where they take effect.
+   The var() fallbacks keep a config-less context sane (e.g. the editor
+   preview, which renders the body without the container that carries the
+   vars). max-width is dropped so single- and multi-column layouts fill the
+   page box the @page margins define — the on-screen 760px cap is a
+   reading-comfort device with no place on paper, and A4 / multi-column need
+   the full width. */
+  .activity-container {
+    max-width: none;
+    font-size: var(--print-font-size, 11pt);
+    /* DORMANT worksheet-columns plumbing. The author-facing "Columns" control
+       (PrintConfig.columns) was retired when structural authored columns
+       landed, but this rule + the --print-columns var are intentionally kept so
+       activities saved with columns:2/3 still print multi-column, and so the
+       control can be re-exposed with no renderer change. --print-columns is 1
+       (a no-op single column) for every new activity. See PrintConfig.columns
+       in packages/schema/src/document.ts for the full rationale. */
+    column-count: var(--print-columns, 1);
+    column-gap: 2rem;
+  }
+
+  /* Print-only header: a wrapping row of labeled fill-in lines (Name, Date,
+   …) across the top of the sheet, ruled off from the body below. */
+  .print-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid black;
+    font-size: 0.95em;
+  }
+  .print-field {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+  .print-field-label {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .print-field-line {
+    display: inline-block;
+    min-width: 8ch;
+    border-bottom: 1px solid black;
+  }
+  /* Name and free-form custom fields get a longer writing line; the score
+   field needs only a short one. */
+  .print-field-name .print-field-line,
+  .print-field-custom .print-field-line {
+    min-width: 14ch;
+  }
+  .print-field-score .print-field-line {
+    min-width: 6ch;
+  }
+
+  /* Print-only confidence row: the paper equivalent of the interactive
+   fieldset (which is hidden just below). A wrapping row of labeled empty
+   boxes the student ticks by hand. */
+  .print-confidence {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 1.25rem;
+    margin-top: 0.5rem;
+    font-size: 0.9em;
+  }
+  .print-confidence-label {
+    font-weight: 600;
+  }
+  .print-confidence-option {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    white-space: nowrap;
+  }
+  .print-confidence-box {
+    display: inline-block;
+    width: 0.85em;
+    height: 0.85em;
+    border: 1px solid black;
+    /* Nudge the box onto the text baseline (inline-block sits on it by its
+     bottom edge, which reads as floating high next to the cap height). */
+    transform: translateY(0.1em);
+  }
+
+  /* Reference box: the screen toolbar never prints; the static box does (when
+   the teacher left printReferencePanel on — the renderer omits it otherwise).
+   Sits at the top of the worksheet, kept whole across page/column breaks. */
+  .reference-panel { display: none; }
+  .reference-print {
+    display: block;
+    break-inside: avoid;
+    border: 1px solid black;
+    border-radius: 4px;
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+  .reference-print-title {
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+  }
+
+  /* Hide interactive elements. The js-* selectors are documented in
+   R UNT*IME.md; some not all emitted yet, listed here so the baseline is
+   correct the moment those land. Printable hints + solutions are a
+   post-Stage-16 print-feature configuration (answer-key variant), not
+   a baseline. */
+  .identity-prompt,
+  .submit-area,
+  .js-checkpoint-btn,
+  .js-section-score,
+  .js-confidence-rating,
+  .js-blank-hint,
+  .js-blank-mistake,
+  .js-popover,
+  .definition-popover,
+  .calculator-tool,
+  .js-solution {
+    display: none;
+  }
+
+  /* Don't establish an inline-flex formatting context in print — let the
+   i npu*t flow naturally as plain inline content. Equivalent in this single-
+   visible-child case to inline-flex, but explicit avoids relying on print
+   engines treating one-item flex identically to bare-inline. */
+  .blank-wrapper {
+    display: inline;
+  }
+
+  /* Page-break integrity. Modern break-* names; legacy page-break-* aliases
+   omit*ted (RUNTIME.md support matrix is Chrome/Firefox/Safari/Edge).
+   Problem spacing and per-problem work space are configured here:
+   --print-problem-spacing sets the vertical gap between problems;
+   --print-work-space pads blank working room below each problem (a
+   fill-in-blank block may override it per-problem with its own inline
+   --print-work-space). break-inside: avoid keeps a problem (and its work
+   space) whole across page and column breaks. */
+  .block-problem,
+  .block-fill-in-blank {
+    break-inside: avoid;
+    margin-top: var(--print-problem-spacing, 1.25rem);
+    margin-bottom: var(--print-problem-spacing, 1.25rem);
+    padding-bottom: var(--print-work-space, 0);
+  }
+  .activity-section {
+    break-before: auto; /* explicit: flow naturally, don't force a page */
+  }
+  .activity-header h1,
+  .section-title,
+  .block-heading-1,
+  .block-heading-2,
+  .block-heading-3 {
+    break-after: avoid; /* don't strand a heading at a page bottom */
+  }
+
+  /* Blanks print as underlined fill-ins. Correct/incorrect state classes
+   a re *neutralized — a printed worksheet is the BLANK version a teacher
+   hands out before the lesson, so there is no scored state to convey. */
+  .blank,
+  .blank.correct,
+  .blank.incorrect {
+    background: transparent;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-bottom: 1px solid black;
+  }
+
+  /* Callouts: solid borders carry color on screen; in B&W the variants
+   b eco*me indistinguishable. Encode the variant in border STYLE so an
+   info callout looks different from a warning even in grayscale. The
+   icons remain (they survive grayscale too — belt and suspenders). */
+  .block-callout-info    { border-left-style: solid;  }
+  .block-callout-warning { border-left-style: dashed; }
+  .block-callout-success { border-left-style: double; }
+  .block-callout-note    { border-left-style: dotted; }
+}</style><style>@page{size:letter;margin:0.5in;}</style></head><body><main class="activity-container" data-activity-type="worksheet" style="--print-columns:2;--print-work-space:1rem;--print-font-size:10pt;--print-problem-spacing:0rem;"><div class="print-header" aria-hidden="true"><span class="print-field print-field-name"><span class="print-field-label">Name:</span><span class="print-field-line"></span></span><span class="print-field print-field-date"><span class="print-field-label">Date:</span><span class="print-field-line"></span></span><span class="print-field print-field-period"><span class="print-field-label">Period:</span><span class="print-field-line"></span></span><span class="print-field print-field-score"><span class="print-field-label">Score:</span><span class="print-field-line"></span></span><span class="print-field print-field-custom"><span class="print-field-label">Teacher:</span><span class="print-field-line"></span></span></div><header class="activity-header"><h1>[TEST] Print Stress Test — Algebra II</h1><div class="meta">Algebra II &middot; Print QA</div></header><div class="identity-prompt"><label for="student-name">Your name:</label><input id="student-name" type="text" autocomplete="name" /></div><section class="activity-section" data-block-category="content" data-section-id="2e056e85-6456-4154-b38f-ccff432dc17b" data-is-checkpoint="false"><div class="block block-columns" data-block-category="layout" data-block-type="columns" data-block-id="84cced7b-3e45-44a5-9006-4d2d42b93d07" data-grid-lines="true" style="--columns-template:1fr 1fr 1fr"><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="7246c163-b590-4038-8787-2d06ace481f7"></p></div><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="181add40-2ca2-4328-9b72-f64d01122bb3"> </p></div><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="6da0e1e6-2820-4f79-b50d-2e1ca62dd57a">What are</p></div></div><div class="block block-columns" data-block-category="layout" data-block-type="columns" data-block-id="24f4c506-f0e9-425c-b570-5b67c075dc87" data-grid-lines="true" style="--columns-template:1fr 1fr"><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="30545c96-99e6-4cdd-9908-03c0f61d3ca1"><span class="definition" data-definition="This is a greeting in english similar to oi" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false">Hello</span><template class="js-definition-content">This is a greeting in english similar to oi</template></p></div><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="1e8a814c-507d-4bd5-8f20-a0a6e59d6e8b"></p></div></div><div class="block block-columns" data-block-category="layout" data-block-type="columns" data-block-id="d8f70d0d-ae15-4fe7-9e91-2b58b70ba056" data-grid-lines="true" style="--columns-template:1fr 1fr 1fr"><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="a1f4be99-45bb-418b-9be1-0ae020e9c396"></p></div><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="988f4421-2ad7-412d-9699-c410ae6a68db"></p><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="3134153b-e0df-46f7-8e95-bdae45dfbff8"></p></div><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="d94d1b71-5d8b-49c7-b1d9-dd17380279ba">here</p></div></div><div class="block block-columns" data-block-category="layout" data-block-type="columns" data-block-id="98f30447-93a6-4e01-9fee-eeb03f5da221" data-grid-lines="true" style="--columns-template:2fr 1fr 1fr"><div class="column-cell"><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="0ee5e699-16d5-4b34-91ab-30a78973d08c"><div class="block-problem-number">1.</div><div class="block-problem-body">Give me the answer <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="a7c2f643-72de-4fee-b0dd-6a4c740f240f" data-blank-answers="blank" aria-label="Fill in the blank" style="--blank-width:6ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /><button class="js-blank-hint" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="activity-popover" aria-label="Show hint">?</button><button class="js-blank-mistake" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="activity-popover" aria-label="Show feedback" hidden>!</button><template class="js-blank-hint-content">I am thinking of a name</template><template class="js-blank-mistake-content" data-match="fred">that is a name but it is the wrong name</template></span></div></div></div><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="4baabef6-59fa-429f-ac36-d1e51efb7981"></p></div><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="2297ba7a-3183-477e-ae35-7ae473bbef3d">nooo</p></div></div><div class="block block-columns" data-block-category="layout" data-block-type="columns" data-block-id="a3b069f4-9425-4a5b-bb5b-28c449d5aa4e" style="--columns-template:1fr 1fr"><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="a73c78e9-79fd-4515-b49b-b35c57c1fd6d"></p></div><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="bc75a306-288f-4132-ab5e-afe2ca18f33b"></p></div></div><div class="block block-columns" data-block-category="layout" data-block-type="columns" data-block-id="1fb72be7-fb6a-4951-8e60-dfe82f76a1ee" style="--columns-template:1fr 1fr"><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="24c9b665-541d-465f-8682-eb07a1ce25d1"></p></div><div class="column-cell"><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="e652f0c4-e58e-40fa-9992-5e3f0a4896ec"></p></div></div><h1 class="block block-heading block-heading-1" data-block-category="content" data-block-type="heading" data-block-id="c76bd771-3d9a-4c0f-8e41-2932ec10149b">Algebra II — Comprehensive Print Stress Test</h1><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="f276aef9-318c-48eb-92f4-95e39265a978">Read carefully. This sheet exercises <strong>every</strong> editor-supported block and inline feature so the print layout can be judged across <em>many</em> pages. Formatting samples: <strong>bold</strong>, <em>italic</em>, <u>underline</u>, <code>code</code>, H<sub>2</sub>O and x<sup>2</sup>.<br>A hard break sits above this line to test line-break rendering in print.</p><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="d45aa9ca-eef6-4670-b1e0-e83df63dea52">Inline math flows in a sentence: the discriminant of <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><mi>b</mi><mi>x</mi><mo>+</mo><mi>c</mi></mrow><annotation encoding="application/x-tex">ax^2+bx+c</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8974em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">a</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">b</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">c</span></span></span></span> is <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>b</mi><mn>2</mn></msup><mo>−</mo><mn>4</mn><mi>a</mi><mi>c</mi></mrow><annotation encoding="application/x-tex">b^2-4ac</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8974em;vertical-align:-0.0833em;"></span><span class="mord"><span class="mord mathnormal">b</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">4</span><span class="mord mathnormal">a</span><span class="mord mathnormal">c</span></span></span></span>, and the roots are <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mstyle scriptlevel="0" displaystyle="true"><mfrac><mrow><mo>−</mo><mi>b</mi><mo>±</mo><msqrt><mrow><msup><mi>b</mi><mn>2</mn></msup><mo>−</mo><mn>4</mn><mi>a</mi><mi>c</mi></mrow></msqrt></mrow><mrow><mn>2</mn><mi>a</mi></mrow></mfrac></mstyle></mrow><annotation encoding="application/x-tex">x=\dfrac{-b\pm\sqrt{b^2-4ac}}{2a}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.2764em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.5904em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">2</span><span class="mord mathnormal">a</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">−</span><span class="mord mathnormal">b</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">±</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9134em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord"><span class="mord mathnormal">b</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7401em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">4</span><span class="mord mathnormal">a</span><span class="mord mathnormal">c</span></span></span><span style="top:-2.8734em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1266em;"><span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span>.</p><div class="block block-math" data-block-category="content" data-block-type="math_block" data-block-id="b04802a6-1b13-483b-bfb1-6fa9b68d7b83"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msubsup><mo>∫</mo><mn>0</mn><mn>1</mn></msubsup><msup><mi>x</mi><mn>2</mn></msup><mtext> </mtext><mi>d</mi><mi>x</mi><mo>=</mo><mfrac><mn>1</mn><mn>3</mn></mfrac><mspace width="2em"/><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mi>i</mi><mo>=</mo><mfrac><mrow><mi>n</mi><mo stretchy="false">(</mo><mi>n</mi><mo>+</mo><mn>1</mn><mo stretchy="false">)</mo></mrow><mn>2</mn></mfrac></mrow><annotation encoding="application/x-tex">\int_{0}^{1} x^2 \, dx = \frac{1}{3} \qquad \sum_{i=1}^{n} i = \frac{n(n+1)}{2}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:2.476em;vertical-align:-0.9119em;"></span><span class="mop"><span class="mop op-symbol large-op" style="margin-right:0.4445em;position:relative;top:-0.0011em;">∫</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.564em;"><span style="top:-1.7881em;margin-left:-0.4445em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">0</span></span></span></span><span style="top:-3.8129em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.9119em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8641em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">d</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.9291em;vertical-align:-1.2777em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">3</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.6514em;"><span style="top:-1.8723em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2777em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.113em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">2</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">1</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></div><h2 class="block block-heading block-heading-2" data-block-category="content" data-block-type="heading" data-block-id="0368e1cd-775c-48b7-9e5e-00509e992e24">How to use this sheet</h2><ol class="block block-ordered-list" data-block-category="content" data-block-type="ordered_list" data-block-id="4336962b-6382-4212-acc4-cd400d28e0bc"><li data-id="6e12dead-716b-4770-9666-d87ed4a7972e">Write your name and the date in the header above.</li><li data-id="99ba3326-cd44-4658-8305-9d9cf9c4f34c">Show all work in the space provided beneath each problem.</li><li data-id="a5d4f818-d285-4c02-b0d7-e734e7892620">Circle your final answer.<br>Use exact values where possible.<ul class="block block-bullet-list" data-block-category="content" data-block-type="bullet_list" data-block-id="8e334493-f847-4287-ba88-5a3a2d79bfee"><li data-id="45470c00-1438-4e04-9b44-5f3ed64d6b3e">Leave radicals in simplest form, e.g. <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><msqrt><mn>3</mn></msqrt></mrow><annotation encoding="application/x-tex">2\sqrt{3}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.04em;vertical-align:-0.1328em;"></span><span class="mord">2</span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9072em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord">3</span></span></span><span style="top:-2.8672em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1328em;"><span></span></span></span></span></span></span></span></span>.</li><li data-id="1067eae0-a3a6-4f04-ab28-878dc0239fcc">Rationalize denominators.</li></ul></li></ol><h3 class="block block-heading block-heading-3" data-block-category="content" data-block-type="heading" data-block-id="d86e8731-f893-4ad4-b869-e4a48abdeebb">Reference reminders</h3><ul class="block block-bullet-list" data-block-category="content" data-block-type="bullet_list" data-block-id="a3cedc79-b3f1-42cf-85cd-dd7a22c847b8"><li data-id="95773b4a-7baf-47ba-8cdf-a10156157123">Slope-intercept: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><mi>m</mi><mi>x</mi><mo>+</mo><mi>b</mi></mrow><annotation encoding="application/x-tex">y=mx+b</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">m</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">b</span></span></span></span></li><li data-id="da522ecf-2d30-4cab-b545-6d6884e3799b">Point-slope: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>−</mo><msub><mi>y</mi><mn>1</mn></msub><mo>=</mo><mi>m</mi><mo stretchy="false">(</mo><mi>x</mi><mo>−</mo><msub><mi>x</mi><mn>1</mn></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">y-y_1=m(x-x_1)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">m</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span><ol class="block block-ordered-list" data-block-category="content" data-block-type="ordered_list" data-block-id="9d2fc081-9433-4a78-b584-c08ecf050d3f"><li data-id="fd653b4b-265b-40d3-b59f-87c121b0ca31">Identify a point <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo separator="true">,</mo><msub><mi>y</mi><mn>1</mn></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(x_1,y_1)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span>.</li><li data-id="bd8b6277-7296-40af-87e3-349f706fff81">Identify the slope <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi></mrow><annotation encoding="application/x-tex">m</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">m</span></span></span></span>.</li></ol></li><li data-id="118f4fd4-6383-47ff-85d7-85a977a4d8d7">Vertex form: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><mi>a</mi><mo stretchy="false">(</mo><mi>x</mi><mo>−</mo><mi>h</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo>+</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">y=a(x-h)^2+k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">a</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal">h</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span></li></ul></section><section class="activity-section" data-block-category="content" data-section-id="627107a2-a12c-4db6-b725-b10c1b06a59e" data-is-checkpoint="true"><h2 class="section-title">Warm-Up</h2><h2 class="block block-heading block-heading-2" data-block-category="content" data-block-type="heading" data-block-id="46dcbbae-d1f8-48f1-9557-40036c93c9f6">Warm-Up: feature coverage</h2><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="1e2943de-32cb-49c7-ab59-999b436c8fd1">Each problem below stresses a different fill-in-blank feature.</p><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="9f1d3e58-5e3c-4f96-8165-e48ea6767b76" data-has-confidence-rating="true"><div class="block-problem-number">2.</div><div class="block-problem-body">Factor: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><mn>5</mn><mi>x</mi><mo>+</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">x^2+5x+6</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8974em;vertical-align:-0.0833em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">5</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">6</span></span></span></span> = ( x + <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="f1429f3d-c14b-4e97-81cc-75d1157245b9" data-blank-answers="2|two" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /><button class="js-blank-hint" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="activity-popover" aria-label="Show hint">?</button><button class="js-blank-mistake" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="activity-popover" aria-label="Show feedback" hidden>!</button><template class="js-blank-hint-content">Two numbers that multiply to 6 and add to 5.</template><template class="js-blank-mistake-content" data-match="6">6 multiplies but does not add to 5 — try a smaller pair.</template><template class="js-blank-mistake-content" data-match="1">1 adds toward 5 but 1×6 only works with <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>6</mn></mrow><annotation encoding="application/x-tex">6</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">6</span></span></span></span>.</template></span> )( x + <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="884b0ead-97ab-48ec-a548-23a0699428a6" data-blank-answers="3|three" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> )<fieldset class="js-confidence-rating" data-for-block="9f1d3e58-5e3c-4f96-8165-e48ea6767b76"><legend>How confident are you?</legend><label><input type="radio" name="conf-9f1d3e58-5e3c-4f96-8165-e48ea6767b76" value="unsure" /> Unsure</label><label><input type="radio" name="conf-9f1d3e58-5e3c-4f96-8165-e48ea6767b76" value="think_so" /> Think so</label><label><input type="radio" name="conf-9f1d3e58-5e3c-4f96-8165-e48ea6767b76" value="certain" /> Certain</label></fieldset><div class="print-confidence" aria-hidden="true"><span class="print-confidence-label">How confident are you?</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Unsure</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Think so</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Certain</span></div><div class="js-solution" data-for-block="9f1d3e58-5e3c-4f96-8165-e48ea6767b76" hidden>Two numbers multiply to 6 and sum to 5: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn></mrow><annotation encoding="application/x-tex">2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span></span></span></span> and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn></mrow><annotation encoding="application/x-tex">3</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">3</span></span></span></span>.</div></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="5515b0db-95e0-4d04-b696-0def13cf0333" style="--print-work-space:6rem"><div class="block-problem-number">3.</div><div class="block-problem-body">A blank with a wide width attribute and a unit follows: <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="8834e277-6916-4942-b75f-29f925f683c4" data-blank-answers="9.8|9.81" aria-label="Fill in the blank" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> m/s<sup>2</sup><div class="js-solution" data-for-block="5515b0db-95e0-4d04-b696-0def13cf0333" hidden>Standard gravity is about <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>9.8</mn></mrow><annotation encoding="application/x-tex">9.8</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">9.8</span></span></span></span> m/s<sup>2</sup>.</div></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="2a5b1815-1abe-418c-b51a-0bbd6745f399" data-has-confidence-rating="true"><div class="block-problem-number">4.</div><div class="block-problem-body">Simplify <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msqrt><mn>72</mn></msqrt></mrow><annotation encoding="application/x-tex">\sqrt{72}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.04em;vertical-align:-0.1328em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9072em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord">72</span></span></span><span style="top:-2.8672em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1328em;"><span></span></span></span></span></span></span></span></span> = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="1a06f42e-1688-4237-827a-f3fc82252001" data-blank-answers="6\sqrt{2}|6 sqrt 2|6√2" aria-label="Fill in the blank" style="--blank-width:10ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span><fieldset class="js-confidence-rating" data-for-block="2a5b1815-1abe-418c-b51a-0bbd6745f399"><legend>How confident are you?</legend><label><input type="radio" name="conf-2a5b1815-1abe-418c-b51a-0bbd6745f399" value="unsure" /> Unsure</label><label><input type="radio" name="conf-2a5b1815-1abe-418c-b51a-0bbd6745f399" value="think_so" /> Think so</label><label><input type="radio" name="conf-2a5b1815-1abe-418c-b51a-0bbd6745f399" value="certain" /> Certain</label></fieldset><div class="print-confidence" aria-hidden="true"><span class="print-confidence-label">How confident are you?</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Unsure</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Think so</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Certain</span></div><div class="js-solution" data-for-block="2a5b1815-1abe-418c-b51a-0bbd6745f399" hidden><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msqrt><mn>72</mn></msqrt><mo>=</mo><msqrt><mrow><mn>36</mn><mo>⋅</mo><mn>2</mn></mrow></msqrt><mo>=</mo><mn>6</mn><msqrt><mn>2</mn></msqrt></mrow><annotation encoding="application/x-tex">\sqrt{72}=\sqrt{36\cdot2}=6\sqrt{2}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.04em;vertical-align:-0.1328em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9072em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord">72</span></span></span><span style="top:-2.8672em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1328em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.04em;vertical-align:-0.1328em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9072em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord">36</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">2</span></span></span><span style="top:-2.8672em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1328em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.04em;vertical-align:-0.1328em;"></span><span class="mord">6</span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9072em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord">2</span></span></span><span style="top:-2.8672em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1328em;"><span></span></span></span></span></span></span></span></span></div></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="fae20310-27d7-41ec-bdb9-0439d9299cd0"><div class="block-problem-number">5.</div><div class="block-problem-body">Solve for x: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>x</mi><mo>−</mo><mn>7</mn><mo>=</mo><mn>11</mn></mrow><annotation encoding="application/x-tex">2x-7=11</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">2</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">7</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">11</span></span></span></span>, so x = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="88bc7f54-666a-47b2-8073-bddb07f41b26" data-blank-answers="9" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span>. Then <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="e1e80b04-3771-464e-b9ce-217c395f5574" data-blank-answers="81" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span></div></div><button class="js-checkpoint-btn" data-for-section="627107a2-a12c-4db6-b725-b10c1b06a59e" type="button">Check this section</button><div class="js-section-score" data-for-section="627107a2-a12c-4db6-b725-b10c1b06a59e" hidden></div></section><section class="activity-section" data-block-category="content" data-section-id="13bf7915-94be-4ecf-a7a8-3e3f531f8594" data-is-checkpoint="true"><h2 class="section-title">Core Practice A</h2><h2 class="block block-heading block-heading-2" data-block-category="content" data-block-type="heading" data-block-id="37bcf768-ce4a-46b6-8731-9e2cb565a575">Core Practice A</h2><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="bf21ff29-d44f-4d88-b5b8-2dffbd7b5a7e" data-has-confidence-rating="true" style="--print-work-space:8rem"><div class="block-problem-number">6.</div><div class="block-problem-body">Evaluate <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mn>6</mn><mi>x</mi><mo>+</mo><mn>2</mn><msup><mo stretchy="false">)</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">(6x+2)^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">6</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord">2</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> at x = 1: result = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="f54733aa-0e96-42aa-84a7-39b68b15c277" data-blank-answers="64" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span>. Coefficient of <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> is <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="08a4e835-b405-49b7-b588-fc196d6fb37f" data-blank-answers="36" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span><fieldset class="js-confidence-rating" data-for-block="bf21ff29-d44f-4d88-b5b8-2dffbd7b5a7e"><legend>How confident are you?</legend><label><input type="radio" name="conf-bf21ff29-d44f-4d88-b5b8-2dffbd7b5a7e" value="unsure" /> Unsure</label><label><input type="radio" name="conf-bf21ff29-d44f-4d88-b5b8-2dffbd7b5a7e" value="think_so" /> Think so</label><label><input type="radio" name="conf-bf21ff29-d44f-4d88-b5b8-2dffbd7b5a7e" value="certain" /> Certain</label></fieldset><div class="print-confidence" aria-hidden="true"><span class="print-confidence-label">How confident are you?</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Unsure</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Think so</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Certain</span></div></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="5eb93de5-e191-4d52-a5a4-f37fd16ad6f3"><div class="block-problem-number">7.</div><div class="block-problem-body">Evaluate <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mn>7</mn><mi>x</mi><mo>+</mo><mn>3</mn><msup><mo stretchy="false">)</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">(7x+3)^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">7</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord">3</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> at x = 1: result = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="0ce1b8de-de1d-4d64-8bde-2ddd59268e4b" data-blank-answers="100" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span>. Coefficient of <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> is <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="e11f038f-d984-4a56-8b3b-af8c77bf9c5d" data-blank-answers="49" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="5405bb9a-2b9f-45a0-9835-9a0c2b902872"><div class="block-problem-number">8.</div><div class="block-problem-body">Evaluate <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mn>1</mn><mi>x</mi><mo>+</mo><mn>4</mn><msup><mo stretchy="false">)</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">(1x+4)^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord">4</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> at x = 1: result = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="4a7fcfbb-4b26-4008-9e14-c43786019be4" data-blank-answers="25" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span>. Coefficient of <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> is <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="fe434c58-d07d-43fc-a17a-4558752df24b" data-blank-answers="1" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="160a5ed5-1591-4d77-852e-ee6a68ed0315" data-has-confidence-rating="true"><div class="block-problem-number">9.</div><div class="block-problem-body">Evaluate <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mn>2</mn><mi>x</mi><mo>+</mo><mn>5</mn><msup><mo stretchy="false">)</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">(2x+5)^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">2</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord">5</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> at x = 1: result = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="9ef091b9-faaa-4af3-9730-50754b1bf1ad" data-blank-answers="49" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span>. Coefficient of <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> is <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="24df7fc1-4254-4f4e-972f-b0a93936149e" data-blank-answers="4" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span><fieldset class="js-confidence-rating" data-for-block="160a5ed5-1591-4d77-852e-ee6a68ed0315"><legend>How confident are you?</legend><label><input type="radio" name="conf-160a5ed5-1591-4d77-852e-ee6a68ed0315" value="unsure" /> Unsure</label><label><input type="radio" name="conf-160a5ed5-1591-4d77-852e-ee6a68ed0315" value="think_so" /> Think so</label><label><input type="radio" name="conf-160a5ed5-1591-4d77-852e-ee6a68ed0315" value="certain" /> Certain</label></fieldset><div class="print-confidence" aria-hidden="true"><span class="print-confidence-label">How confident are you?</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Unsure</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Think so</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Certain</span></div></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="20ed443b-8fa3-46dc-96cc-3291e804094c" style="--print-work-space:8rem"><div class="block-problem-number">10.</div><div class="block-problem-body">Evaluate <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mn>3</mn><mi>x</mi><mo>+</mo><mn>6</mn><msup><mo stretchy="false">)</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">(3x+6)^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">3</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord">6</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> at x = 1: result = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="31962d40-e924-499c-8f88-cf91395479a8" data-blank-answers="81" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span>. Coefficient of <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> is <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="8eee054a-9ba9-45dd-85cd-9d9586b267c3" data-blank-answers="9" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="a19e4986-12f1-40dc-b5c8-f7c19e64a796"><div class="block-problem-number">11.</div><div class="block-problem-body">Evaluate <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mn>4</mn><mi>x</mi><mo>+</mo><mn>2</mn><msup><mo stretchy="false">)</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">(4x+2)^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">4</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord">2</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> at x = 1: result = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="0ddd1298-6e0b-40f3-b744-2856fed30613" data-blank-answers="36" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span>. Coefficient of <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> is <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="0a758f25-d6ef-4f8f-a08b-49cc1966e679" data-blank-answers="16" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span></div></div><button class="js-checkpoint-btn" data-for-section="13bf7915-94be-4ecf-a7a8-3e3f531f8594" type="button">Check this section</button><div class="js-section-score" data-for-section="13bf7915-94be-4ecf-a7a8-3e3f531f8594" hidden></div></section><section class="activity-section" data-block-category="content" data-section-id="4b80f5fe-bc95-470e-b9ff-cb0e21ae276e" data-is-checkpoint="true"><h2 class="section-title">Core Practice B</h2><h2 class="block block-heading block-heading-2" data-block-category="content" data-block-type="heading" data-block-id="edcdf50c-af10-43c6-b368-9cca58cba06e">Core Practice B</h2><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="9600da03-4d59-4295-82a5-f3280e2b5fcc">Mixed review. Some problems include a worked solution for the answer key.</p><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="d6a2ddfe-81b3-47a4-be72-f6e082d63205"><div class="block-problem-number">12.</div><div class="block-problem-body">Line through (0, 1) and (2, 5) has slope <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="a3558784-c8aa-463a-b073-139fdf77c7bc" data-blank-answers="2|2/1" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> and y-intercept <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="f2428f6d-fd6f-4b8f-a842-510e0d79056f" data-blank-answers="1" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span><div class="js-solution" data-for-block="d6a2ddfe-81b3-47a4-be72-f6e082d63205" hidden>Slope = <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mstyle scriptlevel="0" displaystyle="true"><mfrac><mrow><mi mathvariant="normal">Δ</mi><mi>y</mi></mrow><mrow><mi mathvariant="normal">Δ</mi><mi>x</mi></mrow></mfrac></mstyle><mo>=</mo><mstyle scriptlevel="0" displaystyle="true"><mfrac><mn>4</mn><mn>2</mn></mfrac></mstyle><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">\dfrac{\Delta y}{\Delta x}=\dfrac{4}{2}=2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:2.0463em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3603em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">Δ</span><span class="mord mathnormal">x</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">Δ</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.0074em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">2</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">4</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span></span></span></span>.</div></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="0d39bc56-f9c5-400c-b53c-04730f23ee61"><div class="block-problem-number">13.</div><div class="block-problem-body">Line through (1, 2) and (3, 6) has slope <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="3b579804-fb11-436d-94d6-c2601aabb109" data-blank-answers="2|2/1" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> and y-intercept <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="b49f5937-a4c4-4bcb-8fe2-24992b32d4f1" data-blank-answers="0" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="915395c4-fb90-428f-845f-7c2475e52c42"><div class="block-problem-number">14.</div><div class="block-problem-body">Line through (2, 3) and (4, 7) has slope <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="6f6b6cb9-84d2-45e2-a201-09bac07dd07e" data-blank-answers="2|2/1" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> and y-intercept <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="8aad4b9a-5bbd-4b1a-8db5-6e0b496690ea" data-blank-answers="-1" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span><div class="js-solution" data-for-block="915395c4-fb90-428f-845f-7c2475e52c42" hidden>Slope = <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mstyle scriptlevel="0" displaystyle="true"><mfrac><mrow><mi mathvariant="normal">Δ</mi><mi>y</mi></mrow><mrow><mi mathvariant="normal">Δ</mi><mi>x</mi></mrow></mfrac></mstyle><mo>=</mo><mstyle scriptlevel="0" displaystyle="true"><mfrac><mn>4</mn><mn>2</mn></mfrac></mstyle><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">\dfrac{\Delta y}{\Delta x}=\dfrac{4}{2}=2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:2.0463em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3603em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">Δ</span><span class="mord mathnormal">x</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">Δ</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.0074em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">2</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">4</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span></span></span></span>.</div></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="3ee425bc-c25a-4a19-87d5-a5469b323d85"><div class="block-problem-number">15.</div><div class="block-problem-body">Line through (3, 4) and (5, 8) has slope <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="06cb21cc-a0a9-4b0e-9e40-361d32f4574f" data-blank-answers="2|2/1" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> and y-intercept <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="471a7d20-3102-4575-82c3-3f666f2450e6" data-blank-answers="-2" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="cd2ee2d0-716f-403a-91a7-bb0bca4fae69"><div class="block-problem-number">16.</div><div class="block-problem-body">Line through (4, 5) and (6, 9) has slope <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="cde8a049-d4fe-43e0-ab63-b64d2f58da3a" data-blank-answers="2|2/1" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> and y-intercept <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="24aa05a9-5aac-447d-b269-c4039548d1fc" data-blank-answers="-3" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span><div class="js-solution" data-for-block="cd2ee2d0-716f-403a-91a7-bb0bca4fae69" hidden>Slope = <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mstyle scriptlevel="0" displaystyle="true"><mfrac><mrow><mi mathvariant="normal">Δ</mi><mi>y</mi></mrow><mrow><mi mathvariant="normal">Δ</mi><mi>x</mi></mrow></mfrac></mstyle><mo>=</mo><mstyle scriptlevel="0" displaystyle="true"><mfrac><mn>4</mn><mn>2</mn></mfrac></mstyle><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">\dfrac{\Delta y}{\Delta x}=\dfrac{4}{2}=2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:2.0463em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3603em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">Δ</span><span class="mord mathnormal">x</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">Δ</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.0074em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">2</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">4</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span></span></span></span>.</div></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="a7df8f48-d863-43d3-908a-11ce62d3c267"><div class="block-problem-number">17.</div><div class="block-problem-body">Line through (5, 6) and (7, 10) has slope <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="9d5f41bb-bb3e-4a46-aac5-e6ff712d258a" data-blank-answers="2|2/1" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> and y-intercept <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="40bf1533-0f53-485e-8ec0-613060fe5ada" data-blank-answers="-4" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="42325768-0986-42bf-a4df-7e7f57ec0615"><div class="block-problem-number">18.</div><div class="block-problem-body">Line through (6, 7) and (8, 11) has slope <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="82f3e772-ef23-4f8a-8021-6bb34e592bc5" data-blank-answers="2|2/1" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> and y-intercept <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="3d8bcfab-be57-4118-8cd4-afd51c38baae" data-blank-answers="-5" aria-label="Blank 2 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span><div class="js-solution" data-for-block="42325768-0986-42bf-a4df-7e7f57ec0615" hidden>Slope = <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mstyle scriptlevel="0" displaystyle="true"><mfrac><mrow><mi mathvariant="normal">Δ</mi><mi>y</mi></mrow><mrow><mi mathvariant="normal">Δ</mi><mi>x</mi></mrow></mfrac></mstyle><mo>=</mo><mstyle scriptlevel="0" displaystyle="true"><mfrac><mn>4</mn><mn>2</mn></mfrac></mstyle><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">\dfrac{\Delta y}{\Delta x}=\dfrac{4}{2}=2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:2.0463em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3603em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">Δ</span><span class="mord mathnormal">x</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">Δ</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.0074em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">2</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">4</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span></span></span></span>.</div></div></div><button class="js-checkpoint-btn" data-for-section="4b80f5fe-bc95-470e-b9ff-cb0e21ae276e" type="button">Check this section</button><div class="js-section-score" data-for-section="4b80f5fe-bc95-470e-b9ff-cb0e21ae276e" hidden></div></section><section class="activity-section" data-block-category="content" data-section-id="07215b5c-4e9b-4b0b-8333-4daf80d5212b" data-is-checkpoint="false"><h2 class="section-title">Challenge</h2><h2 class="block block-heading block-heading-2" data-block-category="content" data-block-type="heading" data-block-id="8182dafb-cd9a-45d5-a9b7-b175eb87df05">Challenge Problems</h2><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="737ccc16-3edf-4442-84b0-161b27d74b88">These problems use large per-problem work space (<code>workSpace</code> overrides) to verify pagination never splits a problem across a page.</p><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="4a926243-7cbd-4666-b586-29d365733f3e" data-has-confidence-rating="true" style="--print-work-space:14rem"><div class="block-problem-number">19.</div><div class="block-problem-body">A ball follows <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mo stretchy="false">(</mo><mi>t</mi><mo stretchy="false">)</mo><mo>=</mo><mo>−</mo><mn>16</mn><msup><mi>t</mi><mn>2</mn></msup><mo>+</mo><mn>40</mn><mi>t</mi><mo>+</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">h(t)=-16t^2+40t+5</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">h</span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8974em;vertical-align:-0.0833em;"></span><span class="mord">−</span><span class="mord">16</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">40</span><span class="mord mathnormal">t</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">5</span></span></span></span>. Its max height is <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="6acd8fac-34c4-4ac7-b4c4-4c197f51ee85" data-blank-answers="30|30 ft" aria-label="Blank 1 of 2" style="--blank-width:4ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> ft at t = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="fd79f7f9-90a7-48e9-8bbc-89d5cd216c26" data-blank-answers="1.25|5/4" aria-label="Blank 2 of 2" style="--blank-width:5ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span> s.<fieldset class="js-confidence-rating" data-for-block="4a926243-7cbd-4666-b586-29d365733f3e"><legend>How confident are you?</legend><label><input type="radio" name="conf-4a926243-7cbd-4666-b586-29d365733f3e" value="unsure" /> Unsure</label><label><input type="radio" name="conf-4a926243-7cbd-4666-b586-29d365733f3e" value="think_so" /> Think so</label><label><input type="radio" name="conf-4a926243-7cbd-4666-b586-29d365733f3e" value="certain" /> Certain</label></fieldset><div class="print-confidence" aria-hidden="true"><span class="print-confidence-label">How confident are you?</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Unsure</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Think so</span><span class="print-confidence-option"><span class="print-confidence-box"></span> Certain</span></div><div class="js-solution" data-for-block="4a926243-7cbd-4666-b586-29d365733f3e" hidden>Vertex at <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mo>−</mo><mstyle scriptlevel="0" displaystyle="true"><mfrac><mi>b</mi><mrow><mn>2</mn><mi>a</mi></mrow></mfrac></mstyle><mo>=</mo><mstyle scriptlevel="0" displaystyle="true"><mfrac><mn>40</mn><mn>32</mn></mfrac></mstyle><mo>=</mo><mn>1.25</mn></mrow><annotation encoding="application/x-tex">t=-\dfrac{b}{2a}=\dfrac{40}{32}=1.25</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6151em;"></span><span class="mord mathnormal">t</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.0574em;vertical-align:-0.686em;"></span><span class="mord">−</span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3714em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">2</span><span class="mord mathnormal">a</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">b</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.0074em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">32</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">40</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1.25</span></span></span></span>. Then <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mo stretchy="false">(</mo><mn>1.25</mn><mo stretchy="false">)</mo><mo>=</mo><mn>30</mn></mrow><annotation encoding="application/x-tex">h(1.25)=30</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">h</span><span class="mopen">(</span><span class="mord">1.25</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">30</span></span></span></span> ft.</div></div></div><div class="block block-fill-in-blank" data-block-category="question" data-block-type="fill_in_blank" data-block-id="6b0b1b49-7e32-4099-bedb-90faf7407fa5" style="--print-work-space:16rem"><div class="block-problem-number">20.</div><div class="block-problem-body">Completely factor <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>3</mn></msup><mo>−</mo><mi>x</mi></mrow><annotation encoding="application/x-tex">x^3-x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8974em;vertical-align:-0.0833em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">3</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">x</span></span></span></span> = <span class="blank-wrapper"><input type="text" class="blank" data-blank-id="6ed3b818-9ad8-42fb-9514-0c653bf60204" data-blank-answers="x(x-1)(x+1)|x(x+1)(x-1)" aria-label="Fill in the blank" style="--blank-width:12ch" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></span><div class="js-solution" data-for-block="6b0b1b49-7e32-4099-bedb-90faf7407fa5" hidden><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>3</mn></msup><mo>−</mo><mi>x</mi><mo>=</mo><mi>x</mi><mo stretchy="false">(</mo><msup><mi>x</mi><mn>2</mn></msup><mo>−</mo><mn>1</mn><mo stretchy="false">)</mo><mo>=</mo><mi>x</mi><mo stretchy="false">(</mo><mi>x</mi><mo>−</mo><mn>1</mn><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mi>x</mi><mo>+</mo><mn>1</mn><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">x^3-x=x(x^2-1)=x(x-1)(x+1)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8974em;vertical-align:-0.0833em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">3</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal">x</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">x</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1</span><span class="mclose">)</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1</span><span class="mclose">)</span></span></span></span></div></div></div></section><section class="activity-section" data-block-category="content" data-section-id="026b2451-4e6b-45b4-822f-582364cb415b" data-is-checkpoint="false"><h2 class="section-title">Reflection</h2><h3 class="block block-heading block-heading-3" data-block-category="content" data-block-type="heading" data-block-id="3e324b7a-ca1b-4e3c-979c-52749d6744dc">Reflection</h3><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="a60be6b4-2bc7-4e86-be43-209f81336d4f">Answer in complete sentences in the space below.</p><ul class="block block-bullet-list" data-block-category="content" data-block-type="bullet_list" data-block-id="b8203d10-248f-4058-8df4-d40761814efc"><li data-id="bb749b3a-075d-4498-9d68-05b414c8b097">Which problem type was hardest, and why?</li><li data-id="98219bcc-9484-46a9-8812-62362bf86aca">Where did you use the quadratic formula vs. factoring?</li></ul><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="9f15dbf0-b928-4d16-9cd9-1404e93df50e">Notes:</p><figure class="block block-image" data-block-category="content" data-block-type="image" data-block-id="a6fbe8c5-7eca-43cc-a867-e6553d961a2d"><img src="https://imgs.search.brave.com/iclKi2fg_36_nEICndBFQneufk2Y84dPdBQzMN6RqOI/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9tZWRp/YS5pc3RvY2twaG90/by5jb20vaWQvMTI5/MjI2NTg1MS9waG90/by93aGl0ZS1jbGFz/c2ljLWZyaWRnZS13/aXRoLW9wZW4tZG9v/ci1hbmQtZW1wdHkt/aW5zaWRlLmpwZz9z/PTYxMng2MTImdz0w/Jms9MjAmYz1VSFRB/ektsYnJYSVVxcUFY/VWNOdU8yOVRFeVIy/ZlVqdklTTy10alJv/TFVFPQ" alt="" loading="lazy" decoding="async" /></figure><p class="block block-paragraph" data-block-category="content" data-block-type="paragraph" data-block-id="cce901dc-4717-4e84-aa34-8901370ae7e8"></p></section><div class="submit-area"><button type="button" class="submit-button">Submit</button><span class="submit-status"></span><span class="score-display"></span></div></main><div class="calculator-tool" data-block-category="scaffold" data-calculator-mode="graphing" data-calculator-config="{&quot;mode&quot;:&quot;graphing&quot;,&quot;allowTrig&quot;:true,&quot;allowLogExp&quot;:true,&quot;allowedRegressionModels&quot;:[&quot;linear&quot;,&quot;quadratic&quot;,&quot;exponential&quot;]}" data-calculator-kit-src="https://pub-4675df837c14420c8a996a41027154b1.r2.dev/shared/graph-kit-KXEOKBPT.js"><button type="button" class="calculator-summon" aria-haspopup="dialog" aria-expanded="false">Calculator</button><div class="calculator-mount" hidden></div></div><div class="js-popover" id="activity-popover" role="dialog" aria-labelledby="popover-title" hidden><div class="js-popover-header"><h2 class="js-popover-title" id="popover-title"></h2><button type="button" class="js-popover-close" aria-label="Close">&times;</button></div><div class="js-popover-body"></div></div><script id="activity-config" type="application/json">{"activityId":"d0000000-0000-4000-8000-000000000001","versionNum":23,"submissionEndpoint":"https://dtqutpdplefmufrrakxs.supabase.co/functions/v1/ingest-submission","submissionMode":"free","revisionMode":"free","gradingMode":"auto","answerFeedback":"on_check"}</script><script>"use strict";(()=>{function p(t,o=document){return o.querySelector(t)}function S(t,o=document){return Array.prototype.slice.call(o.querySelectorAll(t))}function x(t=document){let o=t.getElementById("activity-config");if(!o)return null;let e;try{e=JSON.parse(o.textContent||"{}")}catch{return null}if(!e||typeof e!="object")return null;let n=e;if(typeof n.activityId!="string"||typeof n.versionNum!="number"||typeof n.submissionEndpoint!="string"||typeof n.submissionMode!="string"||typeof n.revisionMode!="string"||typeof n.gradingMode!="string")return null;let i=n.answerFeedback==="on_check"?"on_check":"immediate";return{...n,answerFeedback:i}}function M(t){let o={};for(let[i]of t.sections)o[i]={checked:!1,locked:!1,score:0,total:0,checkedAt:null};let e={};for(let[i]of t.blanks)e[i]={result:null,matchedMistake:null};let n={};for(let[i]of t.fillInBlanks)n[i]={solutionRevealed:!1,confidence:null};return{submitted:!1,attemptNumber:1,studentName:"",popover:null,sections:o,blanks:e,blocks:n}}function C(t=document){let o=x(t);if(!o)return null;let e=et(t),n=M(e);return{config:o,refs:e,state:n}}function et(t=document){let o=new Map,e=new Map,n=new Map;for(let i of S(".activity-section",t)){let r=i.dataset.sectionId;if(!r){g("Section is missing data-section-id; skipping.");continue}let c=[],l=[];for(let a of S('[data-block-type="fill_in_blank"]',i)){let s=a.dataset.blockId;if(!s){g("Fill-in-blank block is missing data-block-id; skipping.");continue}c.push(s);let u=[];for(let d of S(".blank",a)){let f=ot(d,s,r);if(!f)continue;let k=f.input.dataset.blankId;n.set(k,f),u.push(k)}l.push(...u),e.set(s,it(a,s,r,u))}o.set(r,rt(i,c,l))}return{blanks:n,fillInBlanks:e,sections:o,popover:nt(t)}}function nt(t){let o=t.querySelector(".js-popover");if(!o)return null;let e=o.querySelector(".js-popover-header"),n=o.querySelector(".js-popover-title"),i=o.querySelector(".js-popover-body"),r=o.querySelector(".js-popover-close");return!e||!n||!i||!r?(g("Popover markup is incomplete; hint/mistake buttons will be inert."),null):{el:o,header:e,titleEl:n,bodyEl:i,closeButton:r}}function ot(t,o,e){let n=t.dataset.blankId;if(!n)return g("Blank input is missing data-blank-id; skipping."),null;let i=t.parentElement;if(!i)return g("Blank "+n+" has no parent element; skipping."),null;let r=i.querySelector(".js-blank-hint"),c=i.querySelector(".js-blank-mistake"),l=(t.dataset.blankAnswers??"").split("|").filter(Boolean),a=t.dataset.blankStrategy??"list",s=t.dataset.blankGroup??null,u=i.querySelector(".js-blank-hint-content"),d=Array.prototype.slice.call(i.querySelectorAll(".js-blank-mistake-content")).map(f=>({match:f.dataset.match??"",content:f}));return{input:t,hintButton:r,mistakeButton:c,answers:l,strategy:a,hintContent:u,mistakeFeedback:d,blockId:o,sectionId:e,groupId:s}}function it(t,o,e,n){let i=t.querySelector(".js-solution"),r=t.dataset.hasConfidenceRating==="true",c=t.querySelector(".js-confidence-rating"),l=c?Array.prototype.slice.call(c.querySelectorAll('input[type="radio"]')):[],a=[],s=t.dataset.skills;if(s)try{let u=JSON.parse(s);Array.isArray(u)&&(a=u)}catch{g("Block "+o+" has malformed data-skills; ignoring.")}return{el:t,blankIds:n,solutionEl:i,hasConfidenceRating:r,confidenceFieldset:c,confidenceRadios:l,skills:a,sectionId:e}}function rt(t,o,e){let n=t.dataset.isCheckpoint==="true",i=t.querySelector(".js-checkpoint-btn"),r=t.querySelector(".js-section-score");return{el:t,isCheckpoint:n,blankIds:e,blockIds:o,checkButton:i,scoreEl:r}}function g(t){typeof console<"u"&&console.warn("[activity-runtime init] "+t)}var A="activity_student_name";function L(){try{return localStorage.getItem(A)||""}catch{return""}}function T(t){try{localStorage.setItem(A,t)}catch{}}var P=3,st="activity_state_";function h(t,o){return st+t+"_v"+o}function N(t,o,e){if(!e.submitted)try{let n={};for(let[r,c]of o.blanks)n[r]=c.input.value;let i={schemaVersion:P,values:n,blanks:e.blanks,blocks:e.blocks,sections:e.sections};localStorage.setItem(h(t.activityId,t.versionNum),JSON.stringify(i))}catch{}}function j(t){try{let o=localStorage.getItem(h(t.activityId,t.versionNum));if(!o)return null;let e=JSON.parse(o);return!e||typeof e!="object"||e.schemaVersion!==P?null:e}catch{return null}}function H(t){try{localStorage.removeItem(h(t.activityId,t.versionNum))}catch{}}var lt="activity_pending_submission_";function v(t){return lt+t}function _(t,o){try{localStorage.setItem(v(t.activityId),JSON.stringify(o))}catch{}}function F(t){try{let o=localStorage.getItem(v(t.activityId));return o?JSON.parse(o):null}catch{return null}}function y(t){try{localStorage.removeItem(v(t.activityId))}catch{}}function O(t,o,e){for(let[n,i]of Object.entries(t.values)){let r=o.blanks.get(n);r&&(r.input.value=i)}for(let[n,i]of Object.entries(t.blanks))e.blanks[n]&&(e.blanks[n]=i);for(let[n,i]of Object.entries(t.blocks))e.blocks[n]&&(e.blocks[n]=i);for(let[n,i]of Object.entries(t.sections))e.sections[n]&&(e.sections[n]=i)}var q=(t,o)=>(t.getAttribute("data-blank-answers")||"").split("|").indexOf(o)!==-1,at={list:q};function I(t,o){let e=t.getAttribute("data-blank-strategy")||"list",n=at[e];return n?n(t,o):(typeof console<"u"&&console.warn('Unknown blank strategy "'+e+'", falling back to list'),q(t,o))}function b(t){return t.replace(/^\s+|\s+$/g,"")}function ct(t,o){let e=b(o);return e===""?null:I(t.input,e)}function Y(t,o){let e=b(o).toLowerCase();if(e==="")return null;for(let n=0;n<t.mistakeFeedback.length;n++)if(b(t.mistakeFeedback[n].match).toLowerCase()===e)return n;return null}function B(t,o,e){let n=e.input.value,i=ct(e,n),r=t.blanks[o];return r&&(r.result=i,r.matchedMistake=i===!1?Y(e,n):null),i}function ut(t,o,e){let n=o.length,i=e.map(s=>b(s.input.value)),r=new Array(n).fill(-1),c=(s,u)=>{let d=i[s],f=e[u];return!d||!f?!1:I(f.input,d)},l=(s,u)=>{for(let d=0;d<n;d++){if(u[d]||!c(s,d))continue;u[d]=!0;let f=r[d];if(f!==void 0&&(f===-1||l(f,u)))return r[d]=s,!0}return!1};for(let s=0;s<n;s++)i[s]&&l(s,new Array(n).fill(!1));let a=new Array(n).fill(!1);for(let s=0;s<n;s++){let u=r[s];u!==void 0&&u>=0&&(a[u]=!0)}for(let s=0;s<n;s++){let u=o[s],d=e[s];if(u===void 0||!d)continue;let f=t.blanks[u];if(!f)continue;let k=i[s]??"",w=k===""?null:a[s]===!0;f.result=w,f.matchedMistake=w===!1?Y(d,k):null}}function R(t,o,e){let n=new Map;for(let i of e){let r=o.blanks.get(i);if(r)if(r.groupId){let c=n.get(r.groupId);c?c.push(i):n.set(r.groupId,[i])}else B(t,i,r)}for(let i of n.values()){let r=[];for(let c of i){let l=o.blanks.get(c);l&&r.push(l)}if(r.length!==i.length){for(let c of i){let l=o.blanks.get(c);l&&B(t,c,l)}continue}ut(t,i,r)}}function dt(t,o){let e=t.blanks[o];return!e||e.result===null&&e.matchedMistake===null?!1:(e.result=null,e.matchedMistake=null,!0)}function D(t,o,e,n){for(let[i,r]of e.blanks)t==="immediate"&&r.groupId===null&&r.input.addEventListener("blur",()=>{B(o,i,r),n()}),r.input.addEventListener("input",()=>{dt(o,i)&&n()})}function ft(t){let o=t.getBoundingClientRect(),e=Math.min(window.innerWidth-32,352),n=o.right+8,i=o.top;return n=Math.max(8,Math.min(n,window.innerWidth-e-8)),i=Math.max(8,Math.min(i,window.innerHeight-80)),{x:n,y:i}}function G(t,o,e,n,i,r){var a;let{x:c,y:l}=ft(i);t.popover={kind:e,blankId:n,x:c,y:l},r(),(a=o.popover)==null||a.closeButton.focus()}function V(t,o,e){for(let[n,i]of o.blanks){let r=i.hintButton;r&&r.addEventListener("click",()=>{G(t,o,"hint",n,r,e)})}}function K(t,o,e){for(let[n,i]of o.blanks){let r=i.mistakeButton;r&&r.addEventListener("click",()=>{G(t,o,"mistake",n,r,e)})}}function $(t,o,e){let n=o.popover;if(!n)return;let i=()=>{let l=t.popover;if(l===null)return;t.popover=null,e();let a=o.blanks.get(l.blankId),s=l.kind==="hint"?a==null?void 0:a.hintButton:a==null?void 0:a.mistakeButton;s==null||s.focus()};n.closeButton.addEventListener("click",i),document.addEventListener("keydown",l=>{l.key==="Escape"&&t.popover!==null&&(l.preventDefault(),i())}),document.addEventListener("click",l=>{let a=t.popover;if(a===null)return;let s=l.target;if(s===null||n.el.contains(s))return;let u=o.blanks.get(a.blankId);if(u&&u.input===s)return;let d=a.kind==="hint"?u==null?void 0:u.hintButton:u==null?void 0:u.mistakeButton;d&&d.contains(s)||i()});let r=null;n.header.addEventListener("pointerdown",l=>{if(t.popover===null||l.target.closest(".js-popover-close"))return;let a=n.el.getBoundingClientRect();r={pointerId:l.pointerId,offsetX:l.clientX-a.left,offsetY:l.clientY-a.top},n.header.setPointerCapture(l.pointerId),l.preventDefault()}),n.header.addEventListener("pointermove",l=>{if(r===null||l.pointerId!==r.pointerId)return;let a=t.popover;if(a===null)return;let s=n.el.offsetWidth,u=n.el.offsetHeight,d=l.clientX-r.offsetX,f=l.clientY-r.offsetY;d=Math.max(0,Math.min(d,window.innerWidth-s)),f=Math.max(0,Math.min(f,window.innerHeight-u)),a.x=d,a.y=f,n.el.style.left=d+"px",n.el.style.top=f+"px"});let c=l=>{r!==null&&l.pointerId===r.pointerId&&(n.header.hasPointerCapture(l.pointerId)&&n.header.releasePointerCapture(l.pointerId),r=null)};n.header.addEventListener("pointerup",c),n.header.addEventListener("pointercancel",c)}function mt(t,o,e,n){var l;let i=e.sections.get(n),r=o.sections[n];if(!i||!r)return;R(o,e,i.blankIds);let c=0;for(let a of i.blankIds)((l=o.blanks[a])==null?void 0:l.result)===!0&&(c+=1);r.checked=!0,r.score=c,r.total=i.blankIds.length,r.checkedAt=new Date().toISOString(),t.submissionMode==="locked"&&(r.locked=!0);for(let a of i.blockIds){let s=e.fillInBlanks.get(a),u=o.blocks[a];!s||!u||s.solutionEl!==null&&(u.solutionRevealed=!0)}}function J(t,o,e,n){for(let[i,r]of e.sections)r.checkButton&&r.checkButton.addEventListener("click",()=>{mt(t,o,e,i),n()})}function pt(t){return t==="unsure"||t==="think_so"||t==="certain"}function X(t,o,e){for(let[n,i]of o.fillInBlanks)if(!(!i.hasConfidenceRating||i.confidenceRadios.length===0))for(let r of i.confidenceRadios)r.addEventListener("change",()=>{if(!r.checked||!pt(r.value))return;let c=t.blocks[n];c&&(c.confidence=r.value,e())})}function E(t,o){for(let[e,n]of o.blanks){let i=t.blanks[e];i&&kt(e,i,n,t)}for(let[e,n]of o.fillInBlanks){let i=t.blocks[e];i&&bt(i,n)}for(let[e,n]of o.sections){let i=t.sections[e];i&&gt(i,n)}o.popover&&yt(t,o.popover,o)}function kt(t,o,e,n){var u,d;let{result:i,matchedMistake:r}=o;e.input.classList.toggle("correct",i===!0),e.input.classList.toggle("incorrect",i===!1);let c=i===null?null:i?"false":"true",l=e.input.getAttribute("aria-invalid");if(c!==l&&(c===null?e.input.removeAttribute("aria-invalid"):e.input.setAttribute("aria-invalid",c)),e.mistakeButton){let f=r===null;e.mistakeButton.hidden!==f&&(e.mistakeButton.hidden=f);let k=((u=n.popover)==null?void 0:u.kind)==="mistake"&&n.popover.blankId===t?"true":"false";e.mistakeButton.getAttribute("aria-expanded")!==k&&e.mistakeButton.setAttribute("aria-expanded",k)}if(e.hintButton){let f=((d=n.popover)==null?void 0:d.kind)==="hint"&&n.popover.blankId===t?"true":"false";e.hintButton.getAttribute("aria-expanded")!==f&&e.hintButton.setAttribute("aria-expanded",f)}let a=n.sections[e.sectionId],s=(a==null?void 0:a.locked)===!0;e.input.disabled!==s&&(e.input.disabled=s)}function bt(t,o){if(o.solutionEl){let e=!t.solutionRevealed;o.solutionEl.hidden!==e&&(o.solutionEl.hidden=e)}for(let e of o.confidenceRadios){let n=e.value===t.confidence;e.checked!==n&&(e.checked=n)}}function gt(t,o){if(o.scoreEl)if(t.checked){let e=t.score+" / "+t.total+" correct";o.scoreEl.textContent!==e&&(o.scoreEl.textContent=e),o.scoreEl.hidden&&(o.scoreEl.hidden=!1)}else o.scoreEl.hidden||(o.scoreEl.hidden=!0);o.checkButton&&o.checkButton.disabled!==t.locked&&(o.checkButton.disabled=t.locked)}function yt(t,o,e){var l,a;let n=t.popover,i=null,r=null;if(n){let s=e.blanks.get(n.blankId);if(n.kind==="hint")i=(s==null?void 0:s.hintContent)??null,r="hint:"+n.blankId;else{let u=((l=t.blanks[n.blankId])==null?void 0:l.matchedMistake)??null;u!==null&&(i=((a=s==null?void 0:s.mistakeFeedback[u])==null?void 0:a.content)??null,r="mistake:"+n.blankId+":"+u)}}if(n!==null&&i!==null){let s=n.kind==="hint"?"Hint":"Feedback";o.titleEl.textContent!==s&&(o.titleEl.textContent=s),o.bodyEl.dataset.contentKey!==r&&(o.bodyEl.replaceChildren(i.content.cloneNode(!0)),o.bodyEl.dataset.contentKey=r),o.el.dataset.kind!==n.kind&&(o.el.dataset.kind=n.kind);let u=n.x+"px",d=n.y+"px";o.el.style.left!==u&&(o.el.style.left=u),o.el.style.top!==d&&(o.el.style.top=d),o.el.hidden&&(o.el.hidden=!1)}else o.el.hidden||(o.el.hidden=!0)}function St(t,o,e,n){let i={schemaVersion:2,blanks:e.blanks};return n&&(i.checkpointResults=n),{activity_id:t.activityId,display_name:o,responses:i,score:e.score}}function Rt(t,o){return o>0?t/o:0}function ht(t,o){var r;let e={},n=0,i=0;R(t,o,o.blanks.keys());for(let[c,l]of o.blanks){let a=((r=t.blanks[c])==null?void 0:r.result)??null;a!==null&&(i+=1),a===!0&&(n+=1);let s={answer:b(l.input.value),correct:a===!0},u=t.blocks[l.blockId];u!=null&&u.confidence&&(s.confidence=u.confidence),e[c]=s}return{blanks:e,score:Rt(n,i),totalScored:i}}function vt(t){let o={},e=0;for(let[n,i]of Object.entries(t.sections))i.checked&&i.checkedAt!==null&&i.total>0&&(o[n]={score:i.score,total:i.total,checkedAt:i.checkedAt},e+=1);return e>0?o:void 0}function m(t,o){let e=p(".submit-status");e&&(e.textContent=t,e.className="submit-status"+(o?" "+o:""))}function It(t,o){let e=p(".score-display");if(!e||o===0)return;let n=Math.round(t*100);e.textContent="Score: "+Math.round(t*o)+" / "+o+" ("+n+"%)"}var W=[1e3,4e3,16e3];function Bt(t){return t>=400&&t<500?"terminal":"retryable"}async function Et(t,o,e){let n;try{n=await e(t,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(o)})}catch{return{ok:!1,terminal:!1,message:"Network error"}}if(n.ok){let r;try{let c=await n.json();typeof c.attempt_number=="number"&&(r=c.attempt_number)}catch{}return{ok:!0,attemptNumber:r}}let i="Submission failed ("+n.status+")";try{let r=await n.text();r&&(i=r)}catch{}return{ok:!1,terminal:Bt(n.status)==="terminal",message:i}}async function U(t,o,e={}){var c;let n=e.delay??(l=>new Promise(a=>setTimeout(a,l))),i=e.fetchFn??fetch,r=0;for(;;){let l=await Et(t,o,i);if(l.ok||l.terminal||r>=W.length)return l;let a=W[r];(c=e.onRetry)==null||c.call(e,r+2,a),await n(a),r+=1}}function z(t,o,e,n){let i=t.submissionMode!=="single"&&t.revisionMode==="free",r=o.attemptNumber>1?"Attempt "+o.attemptNumber+" submitted!":"Submitted!";n&&It(n.score,n.total),i?(m(r+" You can revise and resubmit.","success"),e&&(e.disabled=!1,e.textContent="Resubmit")):(m(r+" You can close this page.","success"),o.submitted=!0,H(t),e&&(e.disabled=!0,e.textContent="Submitted"))}function Q(t,o,e,n){let i=p("#student-name"),r=i?b(i.value):"";if(!r){m("Please enter your name before submitting.","error"),i&&i.focus();return}e.studentName=r,T(r);let c=ht(e,o),l=vt(e);n();let a=St(t,r,c,l);_(t,a);let s=p(".submit-button");s&&(s.disabled=!0),m("Submitting\u2026"),U(t.submissionEndpoint,a,{onRetry:(u,d)=>{m("Network problem \u2014 retrying in "+Math.round(d/1e3)+"s\u2026","error")}}).then(u=>{u.ok?(e.attemptNumber=u.attemptNumber??e.attemptNumber,y(t),z(t,e,s,{score:c.score,total:c.totalScored})):u.terminal?(y(t),m(u.message??"Submission failed.","error"),s&&(s.disabled=!1)):(m("Couldn\u2019t submit after several tries. Your work is saved \u2014 check your connection and press Submit again.","error"),s&&(s.disabled=!1))})}function Z(t,o){let e=F(t);if(!e)return;let n=p(".submit-button");n&&(n.disabled=!0),m("Resending your previous submission\u2026"),U(t.submissionEndpoint,e,{onRetry:(i,r)=>{m("Network problem \u2014 retrying in "+Math.round(r/1e3)+"s\u2026","error")}}).then(i=>{i.ok?(o.attemptNumber=i.attemptNumber??o.attemptNumber,y(t),z(t,o,n,null)):i.terminal?(y(t),m("Your previous submission could not be sent.","error"),n&&(n.disabled=!1)):(m("Couldn\u2019t resend your previous submission. Check your connection and press Submit again.","error"),n&&(n.disabled=!1))})}function tt(){let t=C();if(!t){console.error("[activity-runtime] init failed; falling back to no-op runtime");return}let{config:o,refs:e,state:n}=t,i=p("#student-name");if(i){let a=L();i.value=a,n.studentName=a}let r=j(o);r&&O(r,e,n),E(n,e);let c=()=>{E(n,e),N(o,e,n)};D(o.answerFeedback,n,e,c),V(n,e,c),K(n,e,c),$(n,e,c),J(o,n,e,c),X(n,e,c);let l=p(".submit-button");l&&l.addEventListener("click",()=>{Q(o,e,n,c)}),Z(o,n)}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",tt):tt();})();
+</script><script>"use strict";(()=>{function E(){let u=Array.from(document.querySelectorAll(".definition"));if(u.length===0)return;let n=null,a=null,l=null,p="definition-popover",b=()=>{if(n)return n;let e=document.createElement("div");e.className="definition-popover",e.id=p,e.setAttribute("role","dialog"),e.setAttribute("aria-label","Definition"),e.hidden=!0;let t=document.createElement("div");return t.className="definition-popover-body",e.appendChild(t),document.body.appendChild(e),n=e,a=t,e},L=(e,t)=>{let i=t.getBoundingClientRect(),o=8,d=6,v=e.offsetWidth,c=e.offsetHeight,s=i.left;s+v>window.innerWidth-o&&(s=window.innerWidth-o-v),s<o&&(s=o);let f=i.bottom+d;f+c>window.innerHeight-o&&i.top-c-d>o&&(f=i.top-c-d),e.style.left=s+"px",e.style.top=f+"px"},r=()=>{if(!n||n.hidden)return;n.hidden=!0;let e=l;l=null,e&&(e.setAttribute("aria-expanded","false"),e.removeAttribute("aria-controls"),e.focus())},h=e=>{let t=e.nextElementSibling,i=t instanceof HTMLTemplateElement&&t.classList.contains("js-definition-content")?t:null,o=e.getAttribute("data-definition")??"";if(i){if(i.content.childNodes.length===0)return}else if(!o)return;let d=b();a&&(i?a.replaceChildren(i.content.cloneNode(!0)):a.textContent=o),l&&l!==e&&(l.setAttribute("aria-expanded","false"),l.removeAttribute("aria-controls")),d.hidden=!1,L(d,e),l=e,e.setAttribute("aria-expanded","true"),e.setAttribute("aria-controls",p)},m=e=>{l===e&&n&&!n.hidden?r():h(e)};for(let e of u)e.addEventListener("click",t=>{t.preventDefault(),m(e)}),e.addEventListener("keydown",t=>{(t.key==="Enter"||t.key===" "||t.key==="Spacebar")&&(t.preventDefault(),m(e))});document.addEventListener("keydown",e=>{e.key==="Escape"&&r()}),document.addEventListener("click",e=>{if(!n||n.hidden)return;let t=e.target;t&&(t.closest(".definition")||t.closest(".definition-popover")||r())}),window.addEventListener("scroll",()=>r(),!0),window.addEventListener("resize",()=>r())}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",E):E();})();
+</script><script>"use strict";(()=>{function d(e){let o=e.querySelector(".calculator-summon"),r=e.querySelector(".calculator-mount"),c=e.getAttribute("data-calculator-kit-src");if(!o||!r||!c)return;let l={};try{let t=e.getAttribute("data-calculator-config");t&&(l=JSON.parse(t))}catch{l={}}let a=null,n=!1,u=t=>{o.setAttribute("aria-expanded",String(t))};o.addEventListener("click",async()=>{if(a){a.toggle();return}if(!n){n=!0,o.setAttribute("aria-busy","true");try{a=(await import(c)).mountCalculator(r,l,{onToggle:u}),u(a.isOpen)}catch(t){console.error("Calculator failed to load",t),n=!1}finally{o.removeAttribute("aria-busy")}}})}function i(){document.querySelectorAll(".calculator-tool").forEach(d)}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",i):i();})();
+</script></body></html>

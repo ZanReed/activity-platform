@@ -378,17 +378,19 @@ export function titleFromPath(sourcePath) {
     return base.replace(/(^|\s)(\S)/g, (_, sp, ch) => sp + ch.toUpperCase());
 }
 
-/** The "nothing set yet" target applyImportedMeta merges a fence against. */
+/**
+ * The "nothing set yet" target applyImportedMeta merges a fence against.
+ *
+ * Built by the SCHEMA FACTORY, never hand-rolled. The hand-rolled version
+ * listed title/course/the four settings and no `print`, which zod papered over
+ * on the way out (PrintConfig is `.default({})`) — so the omission was
+ * invisible until `applyImportedMeta` learned to read a nested field and the
+ * first `work:` fence crashed on `meta.print.workSpace`. A literal that
+ * duplicates schema defaults is a drift source that reports late and loudly.
+ */
 function blankTarget(pipeline) {
     return {
-        meta: {
-            title: pipeline.DEFAULT_TITLE,
-            course: pipeline.DEFAULT_COURSE,
-            submissionMode: 'free',
-            revisionMode: 'free',
-            activityType: 'worksheet',
-            answerFeedback: 'on_check',
-        },
+        meta: pipeline.createEmptyDocument().meta,
         tags: [],
         pedagogicalRole: null,
         calculator: undefined,
@@ -476,6 +478,7 @@ export async function loadPipeline() {
         applyImportedMeta: mod.applyImportedMeta,
         ActivityDocument: mod.ActivityDocument,
         tiptapToReferencePanel: mod.tiptapToReferencePanel,
+        createEmptyDocument: mod.createEmptyDocument,
         normalizeTags: mod.normalizeTags,
         slugify: mod.slugify,
         slugWithSuffix: mod.slugWithSuffix,
