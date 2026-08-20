@@ -149,7 +149,11 @@ if (process.argv.includes('--snippet')) {
 })();
 `;
   console.error(
-    'Copy the JavaScript on stdout into the DevTools console of the SIGNED-IN app,\n' +
+    '⚠ WHAT GOES IN THE BROWSER IS THE JAVASCRIPT ON STDOUT — never this command.\n' +
+      '  Pasting `node scripts/…` into a DevTools console gives\n' +
+      '  "Uncaught SyntaxError: unexpected token: identifier". Two artifacts (a\n' +
+      '  command AND a payload) is a footgun; this line is the guard rail.\n\n' +
+      'Copy the JavaScript on stdout into the DevTools console of the SIGNED-IN app,\n' +
       'with the throwaway sentinel activity published.\n\n' +
       (arg('activity')
         ? `  activity id baked in: ${bakedId}\n`
