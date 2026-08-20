@@ -85,48 +85,72 @@ function fail(message) {
 // derives the project ref from the storage key supabase-js already wrote, so
 // there is nothing to fill in and nothing to paste back.
 if (process.argv.includes('--snippet')) {
-  console.log(`
-Paste this into the DevTools console of the SIGNED-IN app, with the throwaway
-sentinel activity published. Replace ACTIVITY_ID with its id (from /a/<id>).
-
-────────────────────────────────────────────────────────────────────────────
-await (async () => {
+  // STDOUT IS PURE JAVASCRIPT. STDERR CARRIES THE INSTRUCTIONS.
+  //
+  // The first version printed the prose and a pair of box-drawing rules around
+  // the code, on stdout, together. The obvious action — select all, copy, paste
+  // into the console — then produced `Uncaught SyntaxError: unexpected token:
+  // identifier`, because the first thing pasted was the word "Paste". A snippet
+  // you cannot copy the obvious way is a snippet that does not work.
+  //
+  // Splitting the streams fixes both audiences at once: the terminal still
+  // shows the instructions, and `--snippet | pbcopy` puts ONLY runnable code on
+  // the clipboard. There is deliberately no top-level `await`, so this is valid
+  // in any JS context — which is also what lets `node --check` verify it.
+  const snippet = `(async () => {
   const ACTIVITY_ID = 'PASTE_THE_ACTIVITY_ID_HERE';
   const SENTINEL = '${SENTINEL}';
 
-  const key = Object.keys(localStorage).find(k => /^sb-.*-auth-token$/.test(k));
-  if (!key) return console.error('Not signed in — no supabase session in this tab.');
+  const key = Object.keys(localStorage).find((k) => /^sb-.*-auth-token$/.test(k));
+  if (!key) { console.error('Not signed in — no supabase session in this tab.'); return; }
   const ref = key.replace(/^sb-/, '').replace(/-auth-token$/, '');
   const token = JSON.parse(localStorage[key]).access_token;
-  const base = \`https://\${ref}.supabase.co/functions/v1/get-activity\`;
-  const get = async p => {
-    const r = await fetch(\`\${base}?\${new URLSearchParams(p)}\`,
-      { headers: { Authorization: \`Bearer \${token}\` } });
-    const t = await r.text();
-    if (!r.ok) throw new Error(\`\${r.status} \${t.slice(0, 300)}\`);
-    return { text: t, json: JSON.parse(t) };
+  const base = 'https://' + ref + '.supabase.co/functions/v1/get-activity';
+
+  const get = async (params) => {
+    const res = await fetch(base + '?' + new URLSearchParams(params), {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(res.status + ' ' + text.slice(0, 300));
+    return { text, json: JSON.parse(text) };
   };
 
   const resolved = await get({ activity_id: ACTIVITY_ID });
-  const served = await get({ activity_id: ACTIVITY_ID, version_id: resolved.json.version_id });
-  const blocks = JSON.stringify(served.json.activity ?? {});
+  const served = await get({
+    activity_id: ACTIVITY_ID,
+    version_id: resolved.json.version_id,
+  });
+  const blocks = JSON.stringify(served.json.activity || {});
 
-  // Leg 1 — non-vacuity. Without this, a wrong id or an unpublished draft
-  // "passes" by containing nothing at all.
-  if (!/"type":"short_answer"/.test(blocks))
-    return console.error('FAIL (vacuous): no short_answer in the served version — wrong activity, or the sentinel version was never published.');
+  // Leg 1 — non-vacuity. A wrong id or an unpublished draft would otherwise
+  // "pass" by containing nothing at all.
+  if (blocks.indexOf('"type":"short_answer"') === -1) {
+    console.error('FAIL (vacuous): no short_answer in the served version — wrong activity, or the sentinel version was never published.');
+    return;
+  }
   console.log('ok   leg 1 — the served version really is the probe');
 
-  // Leg 2 — the safety property.
-  if (served.text.includes(SENTINEL))
-    return console.error('FAIL: THE ANSWER REACHED THE WIRE. Do not publish answer-bearing activities; redeploy get-activity and re-run.');
-  if (blocks.includes('"answer":') || blocks.includes('"solution":'))
-    return console.error('FAIL: an answer/solution KEY survived on the served document.');
+  // Leg 2 — the safety property. Value AND key.
+  if (served.text.indexOf(SENTINEL) !== -1) {
+    console.error('FAIL: THE ANSWER REACHED THE WIRE. Do not publish answer-bearing activities; redeploy get-activity and re-run.');
+    return;
+  }
+  if (blocks.indexOf('"answer":') !== -1 || blocks.indexOf('"solution":') !== -1) {
+    console.error('FAIL: an answer/solution KEY survived on the served document.');
+    return;
+  }
   console.log('ok   leg 2 — no answer material on the wire (value AND key absent)');
-  console.log('%cPASS — now delete the throwaway activity (P7).', 'font-weight:bold');
+  console.log('PASS — now delete the throwaway activity (P7).');
 })();
-────────────────────────────────────────────────────────────────────────────
-`);
+`;
+  console.error(
+    'Copy the JavaScript on stdout into the DevTools console of the SIGNED-IN app,\n' +
+      'with the throwaway sentinel activity published, and replace\n' +
+      "PASTE_THE_ACTIVITY_ID_HERE with its id (the <id> in /a/<id>).\n\n" +
+      '  straight to the clipboard:  node scripts/verify-answer-key-strip.mjs --snippet | pbcopy\n',
+  );
+  process.stdout.write(snippet);
   process.exit(0);
 }
 
