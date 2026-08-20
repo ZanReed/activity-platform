@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockPrintRoster, type BlockType } from '@activity/viewer';
+import { blockPrintRoster, blockRegistry, type BlockType } from '@activity/viewer';
 
 // ============================================================================
 // print-baselines.e2e.ts — viewer-against-viewer screenshot pins (S5 T8)
@@ -89,6 +89,29 @@ test.describe('print baselines (viewer)', () => {
             // fonts.ready taken earlier predates the fonts that matter.
             await page.evaluate(() => document.fonts.ready);
             await page.emulateMedia({ media: 'print' });
+
+            // ⚠ THE NUMBER MUST BE ON THE PAGE BEFORE THE SHUTTER, and this
+            // assertion exists because the images alone could not tell us.
+            //
+            // When the numbering slice regenerated these baselines, only 3 of
+            // the 12 numbered types' images changed. Either the other 9 were
+            // rendering no number on Linux, or the diff fell under the rewrite
+            // threshold — and a screenshot suite cannot distinguish "correct"
+            // from "unchanged for the wrong reason". Worse, `numbering/prints`
+            // in print-rules never covered this route: it loads
+            // `?type=X&variant=N` and emulates print MEDIA, while this suite
+            // loads `?type=X&mode=print`, the component PROP. The two are
+            // different code paths and only one was guarded.
+            //
+            // So the contract is asserted in the DOM, on THIS route, before any
+            // pixel is compared. A missing number now fails with a sentence
+            // instead of hiding inside an image that happens to match.
+            if (blockRegistry[type].numbered === 'always' && type !== 'problem') {
+                await expect(
+                    page.locator('.viewer-block__number').first(),
+                    `${type} declares numbered:'always' but rendered no number on the ?mode=print route`,
+                ).toBeVisible();
+            }
 
             await expect(page.locator('.viewer').first()).toHaveScreenshot(
                 `${type}-print.png`,
