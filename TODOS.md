@@ -3,6 +3,50 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## The `number` override is an ORPHAN FIELD — wire it or delete it (eng review D9, 2026-08-20)
+
+**What:** `number: z.number().int().positive().optional()` sits on 8 block schemas
+([fill-in-blank.ts:38](packages/schema/src/blocks/fill-in-blank.ts) + 7 others) and **nothing writes it.**
+Decide whether to wire it end to end or remove it.
+
+**The evidence, all verified 2026-08-20:**
+- The dead renderer honoured it — `const num = block.number ?? ctx.problemNumber;`
+- **The editor's walk ignores it** — `problemNumberAt` returns a running count and never reads
+  `node.attrs.number`. So the two surviving surfaces already disagreed.
+- `serialize.ts` emits it in neither direction; there is no editor control and no importer key.
+  **No document currently in the database can carry it.**
+
+**The unresolved sub-question, which is the reason this is not a five-minute job:** what does a manual
+number do to the questions AFTER it? The renderer relabelled one question and let the count carry on
+underneath (`number: 12` on question 1 yields a sheet reading 12, 2, 3, 4 — self-contradicting). The
+alternative is that it restarts the count (12, 13, 14), which is the only semantics that serves the
+real use case: **continuity across the ~150-activity catalogue**, where activity 2 should carry on
+from where activity 1 stopped. Deleting the field instead is a schema change with the usual
+unconditional bundle regeneration.
+
+**Depends on:** nothing. Cut from the viewer numbering slice at D5 so the slice could ship without
+adopting an authoring feature nobody had asked for.
+
+## The document walk is duplicated FIVE times — extract `forEachTopLevelBlock` (eng review D10, 2026-08-20)
+
+**What:** The same 4-deep `sections → rows → columns → blocks` loop is written by hand in:
+[blockIndex.ts:189](packages/viewer/src/container/blockIndex.ts),
+[answer-key/extract.ts:198](packages/viewer/src/answer-key/extract.ts),
+[print/printShuffle.ts:90](packages/viewer/src/print/printShuffle.ts),
+[sanitize/sanitize.ts:356](packages/viewer/src/sanitize/sanitize.ts), and now
+`numbering/numbering.ts`. `census.ts`, `server/grading/walk.ts` and `servedOrder.ts` touch `.rows` too.
+
+**Why it waited:** one of those call sites is **the sanitizer** — the module that keeps answer keys
+away from students. Extracting a shared iterator drags the leak suites and both server bundles into
+whatever slice does it, which is a poor trade for saving four lines of `for`. The numbering slice
+deliberately wrote the fifth copy rather than take that blast radius (D6).
+
+**How to do it when it is worth doing:** its own structural commit with nothing else in flight —
+never structural and behavioural change in the same breath. Extract, migrate all callers, re-run the
+leak suites, regenerate both bundles, verify `SANITIZER_REV` is unmoved.
+
+**Depends on:** a quiet moment with no schema change in flight.
+
 ## The answer-key slice's three recorded follow-ups (T7 + two rulings, 2026-08-20)
 
 Left open deliberately by [problem-answer-key.md](docs/design/problem-answer-key.md); T1–T6 shipped.
