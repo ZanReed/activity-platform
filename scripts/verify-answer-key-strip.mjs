@@ -120,7 +120,7 @@ await (async () => {
   // Leg 2 — the safety property.
   if (served.text.includes(SENTINEL))
     return console.error('FAIL: THE ANSWER REACHED THE WIRE. Do not publish answer-bearing activities; redeploy get-activity and re-run.');
-  if (/"answer"\s*:/.test(blocks) || /"solution"\s*:/.test(blocks))
+  if (blocks.includes('"answer":') || blocks.includes('"solution":'))
     return console.error('FAIL: an answer/solution KEY survived on the served document.');
   console.log('ok   leg 2 — no answer material on the wire (value AND key absent)');
   console.log('%cPASS — now delete the throwaway activity (P7).', 'font-weight:bold');
