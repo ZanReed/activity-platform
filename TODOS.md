@@ -3,6 +3,53 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## Two print fields are DEAD DECLARATIONS: block `workSpace` and row `gridLines` (2026-08-21)
+
+**What:** The schema, the editor and the round trip all carry these two fields. **The viewer
+renders neither**, so neither reaches paper. Wire them, then expose the import syntax that was the
+original ask.
+
+**The evidence, all verified 2026-08-21 by reading the render path:**
+- **`workSpace` per block** — declared on `fill-in-blank.ts:43`, `ordering.ts:44`, `matching.ts:77`
+  and `multiple-choice.ts`. The print CSS at
+  [viewer.css:1234](packages/viewer/src/styles/viewer.css) *says* "A single problem can override the
+  work space with its own value; that is ordinary custom-property inheritance, not a special case."
+  **Nothing in `blocks/` or `registry/` ever sets `--print-work-space` on a block.** The comment
+  describes behaviour that does not exist (policy P11 — a comment asserting coverage is a claim).
+  What DOES render: the activity-level `print.workSpace` default, and `Column.minHeight`.
+- **`gridLines` per row** — `Row.gridLines` (layout.ts:64), read by the editor Toolbar and
+  round-tripped by serialize. `ViewerContainer.tsx:346` emits `data-row-id`, `data-column-count` and
+  a grid style **and no grid-lines attribute**; no CSS anywhere resolves it. The importer hardcodes
+  `'inherit'` at four sites, so nothing could set it anyway.
+
+**Why this keeps happening — the generalisable part.** Both implementations were the renderer's, and
+died with `packages/renderer` at S9 Drop 4. The schema field and the editor control survived, so the
+contract still reads as honoured. This is the **third** instance this month: `numbered` (fixed by the
+viewer-numbering slice), `LABELED_BLOCK_TYPES`, and now these two. **When a package is deleted, its
+surviving DECLARATIONS need a consumer audit** — and the guard must bind to OUTPUT, because a guard
+comparing two declarations outlives the implementation.
+
+**What it needs (why it is a slice, not a task):**
+1. Viewer: set `--print-work-space` on the block wrapper when a block authors `workSpace` — the same
+   shared wrapper the numbering slice used, so it is declared once rather than per type.
+2. Viewer: emit a row grid-lines attribute + print CSS resolving `'inherit'` against
+   `meta.print.gridLines`, `'on'`/`'off'` overriding.
+3. `printExpectations` rows bound to computed style for both. Note `structure/reserved-work-space`
+   already EXISTS as a bare `{id, rule}` with no `expect` — it is a rule with no test, which is how
+   this stayed invisible.
+4. **Print baselines will move** — a Linux regeneration author station (the V7 precedent).
+5. THEN the import syntax (a `work:` key on the problem fences, a `ruled` option on ```columns).
+
+**Do not ship the import syntax first.** A fence key feeding a field nothing renders is exactly the
+trap this entry documents.
+
+**Cost note:** no schema change (both fields exist), so **no bundle regeneration and no Edge Function
+deploy** — sanitize is a strip-list, not an allowlist, so both fields already survive to the student
+surface untouched. It ships via Pages like any SPA change.
+
+**Depends on:** nothing. Surfaced while scoping the print-gap feedback (2026-08-21); the import-syntax
+half was the original ask and is blocked on steps 1–3.
+
 ## The print baselines' 1% tolerance may be absorbing real layout changes (2026-08-20)
 
 **What:** `print-baselines.e2e.ts` compares with `maxDiffPixelRatio: 0.01`. On a 992-px-wide

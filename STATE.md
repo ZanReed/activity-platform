@@ -99,7 +99,17 @@ PASS
 
 **⚠ THE BRIEF'S CENTRAL "DO NOT RE-DERIVE" CLAIM WAS FALSE, and this is the generalisable part.** "The conversion path is DOM-free (verified)" did not survive a real node bundle: `markdownToTiptap.ts` and (via `serialize.ts`) `mathPromptSync.ts` both imported the **`@activity/graph-kit` barrel**, whose transitive `import { MathfieldElement } from 'mathlive'` does not exist in mathlive's node/SSR build — 4 hard esbuild errors. **The app suite was green about a path that could not run**, because vitest resolves through Vite, which takes mathlive's *browser* condition and externalizes `node_modules`. That is the sw-lane lesson a second time: a lane that passes because of what is ABSENT from the machine is unobserved, not passing. Fixed with two subpath exports; **CLAUDE.md's scorers-only barrel rule is now generalised to anything running outside a browser.** The guard (`scripts/tests/batch-import.test.mjs` §A) does NOT grep for the barrel — it bundles for node and runs a real conversion to a zod-valid document, bound to OUTPUT.
 
-**⏭ NEXT: the pilot** — 2–3 real activities round-tripped end to end.
+**✅ PRINT-GAP FEEDBACK TRIAGED 2026-08-21, and one item SHIPPED.** Seven gaps came back from a review of the import format. Ranked by real cost after checking each against the render path, not the schema alone:
+
+- **Already ship (2):** matching/ordering print (that is what `print/printShuffle.ts` is FOR — an ordering question printed in authored order is a printed answer key), and A/B forms *by arrangement* (`ActivityPrint.tsx` has a version selector; `applyPrintShuffles(doc, printSeed(id, version))`).
+- **✅ SHIPPED:** lists, headings and images inside ` ```worked `/` ```faded `/` ```columns `. The capability was never missing — both child unions accept them, `Column.blocks` is the full Block union, and `ChildBlocks` renders any registered type with no allowlist. **Only the parser could not say it.** One shared `parseBodyLines` grammar now serves all five line-based fences.
+- **⏭ Blocked on a render slice:** per-problem work space + ruled rows. **Both are DEAD DECLARATIONS** — see the TODOS entry. Third instance this month of a declaration outliving the renderer that consumed it.
+- **⏭ Its own slice:** page breaks (`Section` gains a `pageBreak` sibling to `isCheckpoint`; `.viewer-section` already carries an explicit `break-before: auto` to flip).
+- **⏭ Own design pass:** per-term definition print (today it is the global end-glossary toggle only).
+- **⏭ A whole new block type:** native TABLES. There is **no table block in the schema at all** — 21 block files, none of them a table. The design question that sets its size: can a cell hold a `{{blank}}`? For x/y rate tables it almost certainly must.
+- **⏭ An arc:** A/B forms by different NUMBERS — the parameterization entry already in TODOS.
+
+**⏭ NEXT: the pilot** — 2–3 real activities round-tripped end to end. Worth running it on genuinely TABLE-HEAVY activities: that is the one gap with no workaround, and the pilot is the cheap way to learn whether tables need blanks in cells before the slice is scoped.
 0. **✅ The viewer numbering slice — BUILT 2026-08-20 (V1–V6 + V9; V7 is an author action).**
    [viewer-numbering.md](docs/design/viewer-numbering.md), eng-reviewed (D2–D10) then DX-reviewed
    (D1–D4). **The viewer had rendered no problem number for ANY block type since the renderer died
@@ -199,7 +209,7 @@ PASS
 
 ---
 
-**Last updated:** 2026-08-20 (the batch importer built end to end — migration 0038, `scripts/batch-import.mjs`, the node seam, the meta summary line, 15 script-test rows + 8 app rows; `pnpm verify` = all 8 gates green, script tests 54 → 73). **0038 applied + verified live the same day (8/0) — no author station outstanding; the importer is ready for its first real run.**
+**Last updated:** 2026-08-21 (print-gap triage + rich fence bodies shipped; two dead print declarations filed). *(Prior entry:)* 2026-08-20 (the batch importer built end to end — migration 0038, `scripts/batch-import.mjs`, the node seam, the meta summary line, 15 script-test rows + 8 app rows; `pnpm verify` = all 8 gates green, script tests 54 → 73). **0038 applied + verified live the same day (8/0) — no author station outstanding; the importer is ready for its first real run.**
 
 **The lesson worth keeping from this slice: when a handoff brief says "inherited — do NOT re-derive", the first job is to make each of its claims falsifiable, not to trust them.** The brief's load-bearing claim was verified-sounding and wrong, and the thing that proved it was a two-minute esbuild run — cheaper than any of the work that would have been built on top of it. Same pattern the shell-slim plan hit on 2026-08-18 with two of its own claims. A claim inherited across a session boundary has no test attached to it; that is exactly what makes it worth testing first.
 
