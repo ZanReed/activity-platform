@@ -77,6 +77,9 @@ import type {
     GraphFigureBlock,
 } from '@activity/schema';
 import {
+    // The runtime union, aliased because `Block` is already imported as a type
+    // above. LABELED_BLOCK_TYPES is computed from its options — see below.
+    Block as BlockSchema,
     CropRect,
     SIMPLE_MARK_TYPES,
     InlineNode as InlineNodeSchema,
@@ -298,19 +301,26 @@ function sectionFromBreak(node: JSONContent): Section {
     return section;
 }
 
-// The numbered/gradeable block types that carry a per-block `label` (numbering/
-// label decouple). Both serialize directions attach/read the label centrally for
-// exactly these, so a new block type opts in by joining this set once.
-const LABELED_BLOCK_TYPES: ReadonlySet<string> = new Set([
-    'fill_in_blank',
-    'multiple_choice',
-    'matching',
-    'ordering',
-    'number_line',
-    'interactive_graph',
-    'data_plot',
-    'math_block',
-]);
+// The block types that carry a per-block `label` (numbering/label decouple).
+// Both serialize directions attach/read the label centrally for exactly these.
+//
+// ⚠ DERIVED FROM THE SCHEMA, NOT HAND-MAINTAINED — and that change is the whole
+// point (DX review D2, 2026-08-20). This was a literal set of eight names, read
+// by BOTH save directions, with no test binding it to anything. Add `label` to
+// a ninth block type and forget to type its name here and the failure is
+// silent and maximally confusing: the settings drawer offers "Number on the
+// page", the author picks "None", and the next autosave discards it. Every test
+// stays green, and it surfaces as a worksheet printing a number on a question
+// somebody deliberately unnumbered.
+//
+// That is the same defect shape that caused the viewer-numbering slice in the
+// first place — the renderer's "any new numbered block type must join this
+// list" was forgotten twice. A set the schema computes cannot be forgotten.
+const LABELED_BLOCK_TYPES: ReadonlySet<string> = new Set(
+    BlockSchema.options
+        .filter((option) => 'label' in option.shape)
+        .map((option) => option.shape.type.value),
+);
 
 // Read a node's `label` attr into a schema BlockLabel, applying the same
 // omit-when-default discipline as the block's other optional fields: auto (or an

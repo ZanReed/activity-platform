@@ -2,6 +2,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import FreeResponseView from '../nodeViews/FreeResponseView';
 import { answerFieldAttrs } from './freeResponseAttrs';
+import { labelNodeAttr } from '../labelNodeAttr';
 
 // ============================================================================
 // ShortAnswer — Tiptap block node for the short_answer block (manually graded
@@ -69,6 +70,7 @@ export const ShortAnswer = Node.create({
                         : {},
             },
             ...answerFieldAttrs(),
+            ...labelNodeAttr,
         };
     },
 

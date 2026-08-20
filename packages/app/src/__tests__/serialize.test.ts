@@ -3185,6 +3185,105 @@ describe('content blocks — learning_objectives + worked_example', () => {
         }
     });
 
+    // -----------------------------------------------------------------------
+    // The `label` chain — CRITICAL, because link 3 fails SILENTLY (D8)
+    // -----------------------------------------------------------------------
+    // Giving a block type a `label` is four changes: the schema field (V1), the
+    // Tiptap attr, `LABELED_BLOCK_TYPES`, and the settings-drawer descriptor.
+    // Miss the third and the worst thing happens — the drawer offers "None",
+    // the author picks it, and the first autosave discards it. No error, no
+    // failing test, and it surfaces as a worksheet printing a number on a
+    // question somebody deliberately unnumbered.
+    //
+    // Only the SAVE→RELOAD→RESAVE shape can see that. A test that stops at the
+    // Tiptap doc passes with link 3 missing, which is exactly how the answer-key
+    // slice's `answer` field nearly shipped broken one field over.
+    //
+    // LABELED_BLOCK_TYPES is now DERIVED from the schema (DX review D2), so the
+    // class is closed too — but these rows stay, because derivation is a claim
+    // about the set and this is a claim about the round trip.
+    describe('per-block label survives the editor round-trip', () => {
+        const CASES = [
+            ['shortAnswer', 'short_answer', { placeholder: '' }],
+            ['essay', 'essay', { placeholder: '', wordMin: null, wordMax: null }],
+            ['fadedWorkedExample', 'faded_worked_example', { title: 'Worked' }],
+        ] as const;
+
+        it.each(CASES)('%s: mode "none" survives save → reload → resave', (
+            nodeType,
+            schemaType,
+            attrs,
+        ) => {
+            const node: JSONContent = {
+                type: nodeType,
+                attrs: { id: 'x', ...attrs, label: { mode: 'none' } },
+                ...(nodeType === 'fadedWorkedExample'
+                    ? { content: [] }
+                    : { content: [{ type: 'text', text: 'Q' }] }),
+            };
+
+            const saved = tiptapToActivity({ type: 'doc', content: [node] }, META);
+            const block = flatBlocks(saved.sections[0]!)[0]!;
+            expect(block.type).toBe(schemaType);
+            expect((block as { label?: unknown }).label).toEqual({ mode: 'none' });
+
+            // Reload — the attr must come BACK onto the node.
+            const reloaded = toBare(activityToTiptap(saved));
+            const back = reloaded.content!.find((n) => n.type === nodeType)!;
+            expect(back.attrs!.label).toEqual({ mode: 'none' });
+
+            // THE AUTOSAVE. Saving what was just loaded must be a fixed point;
+            // this is the assertion that fails if LABELED_BLOCK_TYPES forgets
+            // the type.
+            const resaved = tiptapToActivity(reloaded, META);
+            const resavedBlock = flatBlocks(resaved.sections[0]!)[0]!;
+            expect((resavedBlock as { label?: unknown }).label).toEqual({
+                mode: 'none',
+            });
+        });
+
+        it.each(CASES)('%s: a custom label survives with its text', (
+            nodeType,
+            _schemaType,
+            attrs,
+        ) => {
+            const node: JSONContent = {
+                type: nodeType,
+                attrs: {
+                    id: 'x',
+                    ...attrs,
+                    label: { mode: 'custom', text: 'Warm-up' },
+                },
+                ...(nodeType === 'fadedWorkedExample'
+                    ? { content: [] }
+                    : { content: [{ type: 'text', text: 'Q' }] }),
+            };
+            const saved = tiptapToActivity({ type: 'doc', content: [node] }, META);
+            const resaved = tiptapToActivity(toBare(activityToTiptap(saved)), META);
+            expect(
+                (flatBlocks(resaved.sections[0]!)[0] as { label?: unknown }).label,
+            ).toEqual({ mode: 'custom', text: 'Warm-up' });
+        });
+
+        it.each(CASES)('%s: an unlabelled block stays unlabelled', (
+            nodeType,
+            _schemaType,
+            attrs,
+        ) => {
+            // Absent-with-no-default: a block nobody touched must re-serialize
+            // byte-identically, so no stored document moves when this ships.
+            const node: JSONContent = {
+                type: nodeType,
+                attrs: { id: 'x', ...attrs },
+                ...(nodeType === 'fadedWorkedExample'
+                    ? { content: [] }
+                    : { content: [{ type: 'text', text: 'Q' }] }),
+            };
+            const saved = tiptapToActivity({ type: 'doc', content: [node] }, META);
+            expect('label' in flatBlocks(saved.sections[0]!)[0]!).toBe(false);
+        });
+    });
+
     it('round-trips a faded worked example with a fill_in_blank step', () => {
         const node: JSONContent = {
             type: 'fadedWorkedExample',

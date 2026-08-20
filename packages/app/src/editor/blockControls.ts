@@ -479,7 +479,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     workedExample: { primary: [] },
     fadedWorkedExample: {
         primary: [],
-        // A single toggle — flips in place from the bar; no Advanced drawer.
+        // A single toggle — flips in place from the bar.
         simple: [
             {
                 kind: 'toggle',
@@ -490,6 +490,12 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                     setNodeAttr(editor, pos, 'showStepLabels', value),
             },
         ],
+        // Numbering (viewer-numbering N6/D8 link 4). The box has always been ONE
+        // numbered problem; this is what lets a teacher relabel it ("Warm-up")
+        // or unnumber it. Distinct from the toggle above, which governs the
+        // (a)/(b) letters INSIDE the box — that one is about the steps, this
+        // one is about the box.
+        advanced: [numberingGroup],
     },
     selfExplanation: {
         primary: [],
@@ -501,7 +507,11 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     shortAnswer: {
         primary: [],
         simple: [placeholderField],
-        advanced: [{ group: 'Grading', fields: [rubricField] }],
+        // Numbering joined at viewer-numbering N6/D8 link 4: answer-key ruling
+        // E7 made this block page-numbered, and until the schema carried
+        // `label` there was no way for an author to opt a reflection-style
+        // short answer out of the worksheet's numbering.
+        advanced: [{ group: 'Grading', fields: [rubricField] }, numberingGroup],
     },
     essay: {
         primary: [],
@@ -537,6 +547,10 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                 ],
             },
             { group: 'Grading', fields: [rubricField] },
+            // Numbering — see the note on shortAnswer; both blocks became
+            // page-numbered at answer-key ruling E7 and gained the field at
+            // viewer-numbering N6.
+            numberingGroup,
         ],
     },
 

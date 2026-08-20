@@ -290,21 +290,24 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       with zero leaked gutters and no `role="group"`. Print mode: all 20 render,
       none hidden — numbers reach paper, which is the point of the slice.
       Viewer tests 1158 → 1172; print lane 63 passed / 22 skipped.
-- [ ] **V4 (P1, human: ~1d / CC: ~20min)** — **the `label` chain, links 2-4**
-      (D8) — Tiptap attr on the three nodes, the three types added to
-      `LABELED_BLOCK_TYPES`, `numberingGroup` attached in their descriptors.
-      Verify: **import → save → reload → resave round-trip per link. CRITICAL.**
-      **⚠ PLUS the CLASS fix (DX review D2):** `LABELED_BLOCK_TYPES`
-      ([serialize.ts:304](../../packages/app/src/lib/serialize.ts)) is a
-      hand-maintained set read by both save directions (`:336`, `:347`) and
-      **no test references it** — verified by grep. The round-trip tests prove
-      the three types this slice adds; they say nothing about the ninth. Either
-      DERIVE the set from the schema (every Block option whose shape carries a
-      `label` key) or add a guard that fails when a `labelFields`-bearing block
-      is missing from it. Same pattern `registry.test.ts` uses against the Block
-      union and `export-reachability.test.mjs` uses against callers. **This is
-      the same shape as the bug that caused this whole slice** — the renderer's
-      "any new numbered block type must join this list" was forgotten twice.
+- [x] **V4 (P1) — SHIPPED 2026-08-20** — the `label` chain, links 2-4, and the
+      class fix. **Link 2:** `labelNodeAttr` spread into the shortAnswer, essay
+      and fadedWorkedExample nodes. **Link 3, and this is the D2 change:**
+      `LABELED_BLOCK_TYPES` is no longer a hand-typed set of eight names — it is
+      **DERIVED from the schema** (`Block.options.filter(o => 'label' in
+      o.shape)`), so it self-updated to 11 the moment V1 landed and a future
+      block type joins it by carrying the field, not by being remembered.
+      **Link 4:** `numberingGroup` attached to all three descriptors (the faded
+      example gains an Advanced drawer for it; its existing step-labels toggle
+      is a different thing and the comment says so).
+      **CRITICAL pins + their liveness proof (P3):** nine round-trip rows drive
+      save → **reload → resave** for `none`, `custom` and unlabelled across all
+      three types. Then the proof: temporarily excluding `essay` from the
+      derived set turned exactly the two essay rows red and nothing else, and
+      reverting returned 153 green. The pins are sensitive to the precise
+      failure they exist for, which is the only thing that makes them worth
+      having — a save-path drop has no error, no symptom, and surfaces as a
+      number printed on a question somebody deliberately unnumbered.
 - [ ] **V5 (P2, human: ~4h / CC: ~15min)** — sub-part lettering in
       `FillInBlank.tsx` (N7) + unit rows for all four branches.
 - [ ] **V6 (P1, human: ~4h / CC: ~15min)** — **the guard that would have caught

@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { labelNodeAttr } from '../labelNodeAttr';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import FadedWorkedExampleView from '../nodeViews/FadedWorkedExampleView';
 
@@ -61,6 +62,7 @@ export const FadedWorkedExample = Node.create({
                         : 'false',
                 }),
             },
+            ...labelNodeAttr,
         };
     },
 

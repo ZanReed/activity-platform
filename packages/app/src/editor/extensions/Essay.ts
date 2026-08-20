@@ -2,6 +2,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import FreeResponseView from '../nodeViews/FreeResponseView';
 import { answerFieldAttrs } from './freeResponseAttrs';
+import { labelNodeAttr } from '../labelNodeAttr';
 
 // ============================================================================
 // Essay — Tiptap block node for the essay block (manually graded long free
@@ -83,6 +84,7 @@ export const Essay = Node.create({
                         : {},
             },
             ...answerFieldAttrs(),
+            ...labelNodeAttr,
         };
     },
 
