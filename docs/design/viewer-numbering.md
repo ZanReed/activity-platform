@@ -264,10 +264,16 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       survive a save yet: `LABELED_BLOCK_TYPES` has not been updated, so the
       field exists in the schema and is dropped by serialize. That is the
       four-link chain working as designed — link 1 alone is inert, deliberately.
-- [ ] **V2 (P1, human: ~1d / CC: ~20min)** — `viewer/src/numbering/numbering.ts`
-      — `buildNumbering`, pure, plus its unit suite (order, column-major, all
-      three label modes, nested exclusion, reference-panel exclusion, empty doc).
+- [x] **V2 (P1) — SHIPPED 2026-08-20** — `viewer/src/numbering/numbering.ts`
+      — `buildNumbering`, pure, + 14 unit rows: order, column-major inside a
+      multi-column row, continuity across sections, all three label modes, the
+      three types V1 gave the field to, both structural exclusions, and four
+      degenerate documents.
       Writes its own document walk (D6); the DRY debt is a recorded TODO.
+      **Deliberately NOT exported from the viewer barrel yet** —
+      `scripts/tests/export-reachability.test.mjs` enforces P1 (a primitive is
+      not delivered until something calls it), and V3 is the caller. The tests
+      import the module path directly.
 - [ ] **V3 (P1, human: ~1d / CC: ~25min)** — `ViewerContainer` — `useMemo` the
       map, thread to `BlockSlot`, render the gutter with `role="group"` +
       `aria-labelledby` (N8); CSS grid on `.viewer-block[data-block-number]`
