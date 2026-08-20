@@ -324,11 +324,33 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       show the positive case — which is why it is built explicitly in a test
       rather than eyeballed. The faded-step exclusion WAS checked live: 0
       sublabels on nested blanks, 1 gutter on the box.*
-- [ ] **V6 (P1, human: ~4h / CC: ~15min)** — **the guard that would have caught
-      this**: for every registry type declaring `numbered: 'always'`, assert the
-      rendered fixture actually produces a number. Binds the declaration to
-      OUTPUT, not to another declaration (P1). Plus the `printExpectations` rows
-      and the a11y e2e row that T7 could not write, and the D7 story amendments.
+- [x] **V6 (P1) — SHIPPED 2026-08-20 — the guard that would have caught this.**
+      `tests/components/numbering-output.test.tsx` asserts against the **DOM**:
+      every registry type declaring `numbered:'always'` must actually put a
+      number on the page, in the real container, for the real fixture — plus the
+      sequence runs 1..N with no gaps or repeats, every numbered wrapper is a
+      labelled group whose gutter is `aria-hidden`, and unnumbered blocks get
+      none of it.
+      **PROVEN AGAINST THE ORIGINAL BUG.** Removing the render path (the exact
+      S9 Drop 4 state — declaration intact, implementation gone):
+      `registry.test.ts` reported **43 passed**, green, exactly as it was for
+      four months; this file reported **3 failed**, naming all eight types.
+      That is the P1 gap and its closure, reproducible in one command.
+      **Print:** `numbering/prints` declared in `printExpectations.ts`, DERIVED
+      from `blockRegistry[type].numbered` rather than hand-listed — a list of
+      numbered types kept there would be the third copy of the rule that has
+      already gone wrong twice. Scoped to the BASE run: a variant run points the
+      harness at `[data-variant=…]`, which only the component root carries,
+      while the number lives on the wrapper — so inside a variant scope the
+      target cannot be found even when rendering is perfect. The gate reported
+      exactly that on the rule's first run. Print gates 50/50.
+      **a11y:** a real-browser row proving the number is announced ONCE, from
+      the group, with the visible marker out of the reading order — and the
+      worksheet still axe-clean with the groups in place.
+      **D7 discharged:** both registry a11y stories rewritten to describe the
+      group mechanism they actually ship, in the commit that ships it (P5).
+      `SANITIZER_REV` re-checked and still `1-87a5e78b` — a11y prose is not a
+      sanitize declaration — though the bundles moved and were regenerated.
 - [ ] **V7 (P1, author action)** — regenerate the print baselines on Linux (N10)
       via `workflow_dispatch`; commit the artifact. CI print-gates is red until
       this lands. **The full sequence, because the plan previously named one

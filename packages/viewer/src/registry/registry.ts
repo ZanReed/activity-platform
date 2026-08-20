@@ -103,7 +103,9 @@ export const blockRegistry: BlockRegistry = {
     a11y: {
       story:
         'Each in-equation gap is a text input in tab order, labeled with its ' +
-        'position ("gap 1 of 2 in problem 3"). Values type as plain text; ' +
+        'position within the equation ("gap 1 of 2"). The PROBLEM number is ' +
+        'announced once by the block wrapper, which is a labelled group — not ' +
+        'repeated on every gap (viewer-numbering D3). Values type as plain text; ' +
         'verdicts are announced via the shared state-pill aria-live region.',
     },
   },
@@ -155,8 +157,12 @@ export const blockRegistry: BlockRegistry = {
     print: { breakInside: 'avoid', treatment: 'underline-blanks' },
     a11y: {
       story:
-        'Each blank is a text input in tab order with a label naming its ' +
-        'problem and sub-part ("blank (a), problem 3"). Hint and mistake ' +
+        'Each blank is a text input in tab order, labeled with its sub-part ' +
+        'and position ("Part b, blank 2 of 3") on a numbered multi-blank ' +
+        'problem, and "Blank 2 of 3" otherwise. The PROBLEM number is ' +
+        'announced once by the block wrapper, which is a labelled group, ' +
+        'rather than repeated on every blank (viewer-numbering D3/N7). ' +
+        'Hint and mistake ' +
         'affordances are buttons reachable by Tab; the opened popover traps ' +
         'no focus and closes on Escape. Verdicts announce via aria-live.',
     },

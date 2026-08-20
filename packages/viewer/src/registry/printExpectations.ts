@@ -177,30 +177,18 @@ const UNIVERSAL_CHECKS: readonly PrintCheck[] = [
 ];
 
 // -----------------------------------------------------------------------------
-// ⚠ THE RULE THIS FILE CANNOT DECLARE YET — numbered questions on paper
+// ✅ RESOLVED — the numbered-question print rule now EXISTS (`numbering/prints`)
 // -----------------------------------------------------------------------------
-// Ruling E7 (answer-key slice) made short_answer and essay `numbered: 'always'`
-// on the stated premise that "numbers render on screen and on paper from the one
-// existing numbering walk". THAT PREMISE IS FALSE FOR THIS SURFACE, and the
-// scope is much wider than those two blocks: **the viewer renders no problem
-// number for ANY block type.** fill_in_blank, multiple_choice, matching,
-// ordering and number_line all declare `numbered: 'always'` and all print
-// without a number (verified in the dev harness 2026-08-20 — no number text, no
-// numbering attribute on the block wrapper).
+// This block used to explain why the rule could not be written: the viewer
+// rendered no problem number for ANY block type, because the implementation
+// (the renderer's renderNumberGutter) died with packages/renderer at S9 Drop 4
+// and the viewer never inherited it, while the registry declaration and its
+// declaration-vs-declaration guard survived and kept reading as coverage.
 //
-// The registry's `numbered` declaration is currently consumed by exactly two
-// things: the guard test that binds it to block-predicates.ts, and the EDITOR's
-// gutter. The surface that used to render it — the renderer's isNumberedBlock,
-// driving "Problem N" into published HTML — died with packages/renderer at S9
-// Drop 4, and the viewer never inherited the job.
-//
-// So a `numbered` print check written today would be a rule with no
-// implementation, and this file's convention for that (a missing target FAILS,
-// and the failing list is the build's to-do) only works while someone is
-// actively building the target. Declaring it now would leave the print gate
-// permanently red. The rule is therefore RECORDED IN TODOS.md as its own item,
-// to be declared here in the same slice that gives the viewer a numbering
-// surface — for every numbered type at once, not for these two.
+// The viewer-numbering slice built that surface, so the rule is declared above,
+// DERIVED from `blockRegistry[type].numbered` rather than hand-listed — a list
+// of numbered types kept here would be the third copy of exactly the rule that
+// went wrong twice already.
 // -----------------------------------------------------------------------------
 
 /** Values a computed `color` may not take on paper. */
@@ -515,6 +503,36 @@ export function printExpectations(
       expect: { kind: 'computed', property: 'break-inside', oneOf: [spec.breakInside] },
     },
   ];
+
+  // THE NUMBER ON PAPER — derived from the registry's `numbered` declaration,
+  // never a hand-kept list of types (viewer-numbering V6). A worksheet whose
+  // questions carry no number cannot be marked against its answer key: the key
+  // prints "1. …, 2. …" against a sheet with nothing to match them to. That is
+  // the whole reason the numbering slice exists, so it gets a print rule.
+  //
+  // `when_gradable` types are excluded here rather than guessed at: a display
+  // graph is genuinely unnumbered, and this function is handed a bare type for
+  // the roster run, so 'always' is the only case it can assert without knowing
+  // the instance.
+  //
+  // ONLY ON THE BASE RUN, and the reason is scoping rather than taste. A
+  // variant run points the harness at
+  // `[data-block-type=X][data-variant=Y]`, and only the COMPONENT ROOT carries
+  // `data-variant` — while the number lives on the WRAPPER, which is the
+  // component root's parent. So inside a variant scope this target cannot be
+  // found even when the number is rendering perfectly, which is what the gate
+  // reported the first time this rule ran. Numbering is a block-level property,
+  // asserted once per type; re-asserting it per variant would test the same
+  // thing against a scope that structurally cannot see it.
+  const isBaseRun = ctx.variant === undefined && ctx.interaction === undefined;
+  if (isBaseRun && blockRegistry[type].numbered === 'always') {
+    derived.push({
+      id: 'numbering/prints',
+      rule: `${type} is a numbered question, so its number must reach paper — an unnumbered worksheet cannot be marked against its key.`,
+      target: '.viewer-block__number',
+      expect: { kind: 'visible' },
+    });
+  }
 
   if (spec.keepWithNext) {
     derived.push({

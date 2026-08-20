@@ -349,6 +349,49 @@ test.describe('axe — zero WCAG A/AA violations per student surface', () => {
     await expectNoAxeViolations(page);
   });
 
+  test('a numbered question announces its number ONCE, from the group', async ({
+    page,
+  }) => {
+    // Ruling D3, and the row T7 could not write because no number existed. The
+    // number reaches assistive tech through the wrapper's group name, not by
+    // being repeated on every control — a ten-choice question would otherwise
+    // say "problem 3" ten times.
+    await openWorksheet(page);
+
+    const numbered = page.locator('.viewer-block[data-block-number]');
+    // Non-vacuity first: the fixture really does carry numbered questions.
+    expect(await numbered.count()).toBeGreaterThan(3);
+
+    const audit = await page.evaluate(() => {
+      const out: { role: string | null; name: string | null; hidden: string | null }[] = [];
+      document
+        .querySelectorAll('.viewer-block[data-block-number]')
+        .forEach((el) => {
+          const target = el.getAttribute('aria-labelledby');
+          const gutter = target ? document.getElementById(target) : null;
+          out.push({
+            role: el.getAttribute('role'),
+            name: gutter?.textContent?.trim() ?? null,
+            hidden: gutter?.getAttribute('aria-hidden') ?? null,
+          });
+        });
+      return out;
+    });
+
+    for (const entry of audit) {
+      expect(entry.role).toBe('group');
+      // The group's accessible name resolves to real text, not an empty node.
+      expect(entry.name ?? '').not.toHaveLength(0);
+      // …and the visible marker is out of the reading order, so it is not
+      // announced a second time as loose text inside the group.
+      expect(entry.hidden).toBe('true');
+    }
+
+    // The whole worksheet still scans clean with the groups in place — a
+    // labelled group is only an improvement if it did not break anything else.
+    await expectNoAxeViolations(page);
+  });
+
   test('the worksheet AFTER a check, with a solution disclosed', async ({
     page,
   }) => {
