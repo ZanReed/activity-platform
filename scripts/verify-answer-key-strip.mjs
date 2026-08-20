@@ -24,7 +24,21 @@
 // not vacuous, the second is the safety property.
 //
 // ---------------------------------------------------------------------------
-// HOW TO RUN IT (about five minutes, all author-side)
+// TWO WAYS TO RUN IT. Prefer the browser one — it needs no credential handling.
+// ---------------------------------------------------------------------------
+//
+// `node scripts/verify-answer-key-strip.mjs --snippet` prints a snippet to
+// paste into the DevTools console of the signed-in app. It reads the session
+// the page already holds, calls the function, and runs both legs itself. No
+// token is copied anywhere, which is the point: the original CLI recipe below
+// asked the author to dig an access token out of localStorage and paste it onto
+// a command line, and a proof that requires handling a credential is a proof
+// that gets skipped.
+//
+// The CLI path stays for a machine without a browser session.
+//
+// ---------------------------------------------------------------------------
+// HOW TO RUN THE CLI PATH (about five minutes, all author-side)
 // ---------------------------------------------------------------------------
 // 1. Deploy the new function:      pnpm deploy:get-activity
 //    Then confirm the flag survived (CLAUDE.md): list_edge_functions must still
@@ -65,6 +79,55 @@ function arg(name) {
 function fail(message) {
   console.error(`\n  FAIL  ${message}\n`);
   process.exit(1);
+}
+
+// --snippet: print the browser-console proof and exit. Self-contained — it
+// derives the project ref from the storage key supabase-js already wrote, so
+// there is nothing to fill in and nothing to paste back.
+if (process.argv.includes('--snippet')) {
+  console.log(`
+Paste this into the DevTools console of the SIGNED-IN app, with the throwaway
+sentinel activity published. Replace ACTIVITY_ID with its id (from /a/<id>).
+
+────────────────────────────────────────────────────────────────────────────
+await (async () => {
+  const ACTIVITY_ID = 'PASTE_THE_ACTIVITY_ID_HERE';
+  const SENTINEL = '${SENTINEL}';
+
+  const key = Object.keys(localStorage).find(k => /^sb-.*-auth-token$/.test(k));
+  if (!key) return console.error('Not signed in — no supabase session in this tab.');
+  const ref = key.replace(/^sb-/, '').replace(/-auth-token$/, '');
+  const token = JSON.parse(localStorage[key]).access_token;
+  const base = \`https://\${ref}.supabase.co/functions/v1/get-activity\`;
+  const get = async p => {
+    const r = await fetch(\`\${base}?\${new URLSearchParams(p)}\`,
+      { headers: { Authorization: \`Bearer \${token}\` } });
+    const t = await r.text();
+    if (!r.ok) throw new Error(\`\${r.status} \${t.slice(0, 300)}\`);
+    return { text: t, json: JSON.parse(t) };
+  };
+
+  const resolved = await get({ activity_id: ACTIVITY_ID });
+  const served = await get({ activity_id: ACTIVITY_ID, version_id: resolved.json.version_id });
+  const blocks = JSON.stringify(served.json.activity ?? {});
+
+  // Leg 1 — non-vacuity. Without this, a wrong id or an unpublished draft
+  // "passes" by containing nothing at all.
+  if (!/"type":"short_answer"/.test(blocks))
+    return console.error('FAIL (vacuous): no short_answer in the served version — wrong activity, or the sentinel version was never published.');
+  console.log('ok   leg 1 — the served version really is the probe');
+
+  // Leg 2 — the safety property.
+  if (served.text.includes(SENTINEL))
+    return console.error('FAIL: THE ANSWER REACHED THE WIRE. Do not publish answer-bearing activities; redeploy get-activity and re-run.');
+  if (/"answer"\s*:/.test(blocks) || /"solution"\s*:/.test(blocks))
+    return console.error('FAIL: an answer/solution KEY survived on the served document.');
+  console.log('ok   leg 2 — no answer material on the wire (value AND key absent)');
+  console.log('%cPASS — now delete the throwaway activity (P7).', 'font-weight:bold');
+})();
+────────────────────────────────────────────────────────────────────────────
+`);
+  process.exit(0);
 }
 
 const activityId = arg('activity');

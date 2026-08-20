@@ -10,7 +10,18 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 *What moved and why it needed a deploy:* the answer-key slice added `answer` + `solution` to `short_answer`/`essay` and declared both stripped, which moved **`SANITIZER_REV` `1-f8328527` → `1-87a5e78b`** (pinned in `printShuffle.test.ts`). The rev move also orphans every stale read-cache row automatically, so no cache purge is owed. Both bundles were regenerated in the same commit as the schema change.
 
-**⏭ STILL OWED — the liveness proof, and it is the half that actually observes the behaviour.** A successful deploy proves a new bundle is *running*, not that it *strips*. [scripts/verify-answer-key-strip.mjs](scripts/verify-answer-key-strip.mjs) is the observation (P3: a safeguard nobody has watched fire is not a safeguard); its header carries the five-minute recipe. **Read it as a WIRE check, not a page check** — the student surface never renders `answer` even when served, so a clean-looking page proves nothing. Two legs: leg 1 proves the probe activity really is the probe, leg 2 is the safety property. **Until it passes, treat publishing an answer-bearing activity as unproven rather than safe** — the risk is now low (the correct bundle is live and its unit + handler tests are green) but it is untested against the real function. Clear the sentinel activity afterwards (P7) and record the result here.
+**⏭ THE LIVENESS PROOF — THREE OF ITS FOUR LEGS ARE NOW COLLECTED (tool-read 2026-08-20). Only the wire leg remains, and it needs YOUR signed-in session.**
+
+*Collected, by direct tool-read of the live project:*
+1. **The deployed bundle carries the strip.** `get_edge_function` on the live `get-activity` (v20) shows, verbatim, `sanitize: { strip: ["rubric", "answer", "solution"] }` for BOTH `short_answer` and `essay`, and `numbered: "always"` for both. The correct code IS deployed — not inferred from the deploy succeeding.
+2. **The read cache cannot serve stale bytes.** `activity_version_reads` holds **3 rows, all at the OLD rev `1-f8328527`** (newest 2026-08-05). The live function computes `1-87a5e78b`, and the rev is part of the cache key — so every one is orphaned exactly as designed. The orphaning mechanism is now observed, not just claimed.
+3. **Current exposure is ZERO.** Of 24 published versions, **none contains a `short_answer` or `essay` at all**, so nothing published can leak regardless.
+
+*Still owed — the wire leg.* None of the above watches the strip actually EXECUTE on a real request against an answer-bearing document, which is what P3 is about. That needs a published sentinel activity and a session, so it is yours.
+
+**Easiest path, and it handles no credentials:** run `node scripts/verify-answer-key-strip.mjs --snippet`, publish a throwaway activity whose `answer:` is the sentinel, then paste the printed snippet into the DevTools console of the signed-in app. It reads the session the page already holds and runs both legs itself. *(The original recipe asked you to dig an access token out of localStorage and paste it onto a command line — a proof that requires handling a credential is a proof that gets skipped, so the CLI path is now the fallback.)* Clear the sentinel activity afterwards (P7) and record the result here.
+
+⚠ **Read the wire leg as a WIRE check, not a page check** — the student surface never renders `answer` even when served, so a clean-looking page proves nothing. Leg 1 proves the probe activity really is the probe (a wrong id passes vacuously); leg 2 is the safety property.
 
 **⏭ V7 — REGENERATE THE PRINT BASELINES (the viewer numbering slice). CI's print-gates job is RED until this lands, and that red is EXPECTED.**
 
