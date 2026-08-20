@@ -71,7 +71,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 
 ## Not supported (degrades to plain text, with a warning)
 
-Tables, fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. (Images-or-lists *inside* a worked/faded example or a column have no Markdown round-trip yet — author those in the editor. Callouts import via the ` ```callout ` fence and columns via ` ```columns ` — see below.)
+Tables, fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. (Callouts import via the ` ```callout ` fence and columns via ` ```columns ` — see below. Lists, headings and images *inside* a worked/faded example or a column **do** import as of 2026-08-21 — see the fence sections.)
 
 ## Worked example
 
@@ -297,8 +297,9 @@ WORKED EXAMPLE (a fenced block with the `worked` tag becomes a boxed example to 
     Divide by 2.
     $$x = 4$$
 - Each line is its own block: a line that is only $$…$$ becomes a displayed
-  equation, every other line becomes a paragraph. Lists and images inside an
-  example are not supported here — add those in the editor.
+  equation, every other line becomes a paragraph. You can also use
+  consecutive - or 1. lines (they group into ONE list), #/##/### headings,
+  and ![alt](https://…) images on their own line.
 
 FADED WORKED EXAMPLE (a `faded` fenced block is a guided example the student completes)
 - ```faded … ``` is written just like ```worked, but any line containing a
@@ -309,6 +310,9 @@ FADED WORKED EXAMPLE (a `faded` fenced block is a guided example the student com
     x = {{4}}
 - Show the first steps, then fade (blank) the later ones. Blanks use the same
   {{answer|alt}} / {{=numeric}} grammar as fill-in-the-blank.
+- Lists, headings and images work here too, exactly as in ```worked — but a
+  line carrying a {{blank}} is always a STEP, never a list item, so write
+  "1. Divide: {{4}}" only when you want a fill-in step (you almost always do).
 
 SELF-EXPLANATION (an `explain` fenced block is an ungraded free-text reflection)
 - ```explain … ``` — the prompt text, plus an optional sentence starter:
@@ -365,8 +369,8 @@ COLUMNS (a `columns` fence lays blocks out side by side)
     Right column
 - 2 to 6 columns. Each non-blank line is its own block: a $$…$$ line becomes a
   displayed equation, a {{blank}} line becomes a fill-in-the-blank, every other
-  line becomes a paragraph. Keep column content simple (paragraphs, math,
-  blanks) — lists and headings inside a column are editor-only.
+  line becomes a paragraph. Consecutive - or 1. lines group into ONE list, and
+  #/##/### headings and ![alt](https://…) images work inside a column too.
 
 CALLOUT (a `callout` fence is a tinted note box)
 - ```callout … ``` with an optional variant: line, then the note text:
@@ -612,7 +616,7 @@ Graph a line from its equation
 
 ## Worked-example blocks (```worked fence)
 
-A fenced code block with the `worked` language tag becomes a worked example (a boxed, fully-worked solution to study). An optional `title:` line; every other line is one body block — a line that is **only** `$$…$$` becomes a display-math block, every other line becomes a paragraph.
+A fenced code block with the `worked` language tag becomes a worked example (a boxed, fully-worked solution to study). An optional `title:` line; every other line is one body block — a line that is **only** `$$…$$` becomes a display-math block, consecutive `-`/`*` (or `1.`) lines group into **one** list, `#`/`##`/`###` make headings, `![alt](https://…)` on its own line is an image, and every other line becomes a paragraph. A blank line ends a list run.
 
 ```
 ```worked
@@ -644,6 +648,7 @@ x = {{4}}
 - `title:` optional (defaults to "Guided practice").
 - A `{{answer}}` line becomes a graded fill-in step (same `{{answer|alt}}` / `{{=numeric}}` grammar as fill-in-the-blank); a plain line is a shown step; a `$$…$$` line is shown display math.
 - The faded steps number as ordinary problems and are scored like any fill-in-the-blank; the frame itself is ungraded scaffolding.
+- **Lists, headings and images** work here exactly as in `worked` — but a line carrying a `{{blank}}` is **always a step, never a list item**. So `1. Divide: {{4}}` stays a fill-in step (which is almost always what you mean); it does not become a numbered list. In a `worked` fence, where `{{…}}` is literal text, there is no step to protect and such a line groups like any other.
 
 ## Self-explanation blocks (```explain fence)
 
@@ -708,7 +713,7 @@ solution: Undo the operations in the reverse order they were applied.
 
 ## Columns blocks (```columns fence)
 
-A fenced code block with the `columns` language tag becomes a **multi-column (side-by-side) row** — the same layout you get from the editor's "Split into columns" / "2 columns". Columns are divided by a line that is **only** `---`; each column then holds one block per non-blank line.
+A fenced code block with the `columns` language tag becomes a **multi-column (side-by-side) row** — the same layout you get from the editor's "Split into columns" / "2 columns". Columns are divided by a line that is **only** `---`; each column then holds one block per non-blank line, with the same list/heading/image grammar the example fences use.
 
 ```
 ```columns
@@ -722,8 +727,8 @@ The blank: {{2}} is the smallest prime.
 ```
 
 - **Columns** — 2 to 6, separated by a `---` line on its own. Fewer than two columns imports as plain text with a warning; more than six is clamped to six (the extras are dropped, with a warning).
-- **Content** — one block per non-blank line inside each column, the same line-per-block rule as `worked`/`faded`: a line that is only `$$…$$` becomes a displayed equation, a line containing a `{{blank}}` becomes a fill-in-the-blank, and every other line becomes a paragraph (with `**bold**`, `*italic*`, `` `code` ``, and `$inline$` math). An empty column gets a single empty paragraph.
-- **Not here** — lists, headings, images, and nested question fences inside a column have no Markdown round-trip; author those in the editor after import. Column widths, grid lines, and reserved work space also default (adjust them in the editor's column toolbar).
+- **Content** — one block per non-blank line inside each column, the same line grammar as `worked`/`faded`: a line that is only `$$…$$` becomes a displayed equation, a line containing a `{{blank}}` becomes a fill-in-the-blank, consecutive `-`/`*` (or `1.`) lines group into **one** list, `#`/`##`/`###` make headings, `![alt](https://…)` on its own line is an image, and every other line becomes a paragraph (with `**bold**`, `*italic*`, `` `code` ``, and `$inline$` math). A blank line ends a list run. An empty column gets a single empty paragraph.
+- **Not here** — nested question fences (`mc`, `match`, `graph`, …) inside a column have no Markdown round-trip; author those in the editor after import. Column widths, grid lines, and reserved work space also default (adjust them in the editor's column toolbar).
 
 ## Callout blocks (```callout fence)
 

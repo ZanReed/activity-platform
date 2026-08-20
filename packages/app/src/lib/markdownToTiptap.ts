@@ -1194,6 +1194,139 @@ function fenceBodyBlock(
     return blockFromInline(fenceInline(line, ctx, allowBlanks));
 }
 
+// ---- The shared body-line grammar: lists, headings, images ------------------
+// Five surfaces parse LINE-BASED bodies — ```worked, ```faded, ```columns,
+// ```reference and ```definitions — and until 2026-08-21 only the last two
+// understood list runs, headings and images. The first three turned `- step`
+// into a paragraph with a visible dash, which is why the format doc said
+// "lists and images inside a worked example or a column are editor-only".
+//
+// The capability was never missing from the PRODUCT: WorkedExampleChild and
+// FadedWorkedExampleChild both accept ImageBlock/BulletListBlock/
+// OrderedListBlock, Column.blocks is the full Block union, and the viewer
+// renders any registered type through ChildBlocks (no allowlist). Only the
+// parser could not say it.
+//
+// These builders are the ONE home for the regexes and the node shapes, shared
+// with parseContentLines below, so the two grouping loops cannot drift into
+// two dialects of the same grammar — the reference fence's own header already
+// makes that argument for its two surfaces ("one implementation, not two"), and
+// this extends it to all five.
+const BODY_BULLET = /^[-*]\s+(.+)$/;
+const BODY_ORDERED = /^\d+[.)]\s+(.+)$/;
+const BODY_HEADING = /^(#{1,3})\s+(.+)$/;
+const BODY_IMAGE = /^!\[([^\]]*)\]\((\S+)\)$/;
+
+function listBlockFrom(
+    type: 'bulletList' | 'orderedList',
+    items: JSONContent[][],
+): JSONContent {
+    return {
+        type,
+        content: items.map((content) => ({
+            type: 'listItem',
+            content: [{ type: 'paragraph', content }],
+        })),
+    };
+}
+
+function headingBlockFrom(m: RegExpExecArray, ctx: Ctx): JSONContent {
+    return {
+        type: 'heading',
+        attrs: { level: (m[1] ?? '#').length },
+        content: fenceInline((m[2] ?? '').trim(), ctx, false),
+    };
+}
+
+function imageBlockFrom(
+    m: RegExpExecArray,
+    ctx: Ctx,
+    surface: string,
+): JSONContent | null {
+    const src = (m[2] ?? '').trim();
+    if (!src) {
+        ctx.warnings.add(`${surface}: an image with no URL was skipped.`);
+        return null;
+    }
+    return {
+        type: 'image',
+        attrs: { id: crypto.randomUUID(), src, alt: m[1] ?? '', caption: '' },
+    };
+}
+
+/**
+ * Group already-directive-stripped lines into body blocks. The caller removes
+ * its own `title:`-style lines first, because the surfaces disagree about them
+ * (an example's last title wins; a panel's first one sticks) and unifying that
+ * would be a behaviour change disguised as a refactor.
+ *
+ * THE ONE SUBTLE RULE — a line carrying a `{{…}}` is never a list item when
+ * blanks are live. In a faded example `1. Factor {{x+2}}` is a fill-in STEP,
+ * which is the whole point of the block; grouping it into an ordered list would
+ * both destroy the blank's block and double-number it against the (a)/(b) step
+ * letters `showStepLabels` already draws. When blanks are NOT live (a worked
+ * example, where `{{…}}` stays literal text) there is no step to protect, so
+ * such a line groups like any other.
+ */
+function parseBodyLines(
+    lines: readonly string[],
+    ctx: Ctx,
+    allowBlanks: boolean,
+    surface: string,
+): JSONContent[] {
+    const blocks: JSONContent[] = [];
+    let list: {
+        type: 'bulletList' | 'orderedList';
+        items: JSONContent[][];
+    } | null = null;
+
+    const flushList = (): void => {
+        if (!list) return;
+        blocks.push(listBlockFrom(list.type, list.items));
+        list = null;
+    };
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) {
+            flushList();
+            continue;
+        }
+
+        const isStep = allowBlanks && line.includes('{{');
+        const bullet = isStep ? null : BODY_BULLET.exec(line);
+        const ordered = bullet || isStep ? null : BODY_ORDERED.exec(line);
+        if (bullet || ordered) {
+            const type = bullet ? 'bulletList' : 'orderedList';
+            const text = (bullet?.[1] ?? ordered?.[1] ?? '').trim();
+            if (!list || list.type !== type) {
+                flushList();
+                list = { type, items: [] };
+            }
+            list.items.push(fenceInline(text, ctx, allowBlanks));
+            continue;
+        }
+        flushList();
+
+        const heading = BODY_HEADING.exec(line);
+        if (heading) {
+            blocks.push(headingBlockFrom(heading, ctx));
+            continue;
+        }
+
+        const image = BODY_IMAGE.exec(line);
+        if (image) {
+            const block = imageBlockFrom(image, ctx, surface);
+            if (block) blocks.push(block);
+            continue;
+        }
+
+        blocks.push(fenceBodyBlock(line, ctx, allowBlanks));
+    }
+    flushList();
+    return blocks;
+}
+
 // Attrs-stored inline content (MC choices/feedback/solution, matching sides,
 // ordering items) lives in the CANONICAL schema shape — the NodeViews write it
 // that way and read it back through activityInlineToTiptap, which requires
@@ -1731,20 +1864,23 @@ function parseExampleFence(
     label: string,
 ): JSONContent | null {
     let title = defaultTitle;
-    const blocks: JSONContent[] = [];
-
+    // Strip this fence's own directive lines, then hand the rest to the shared
+    // body grammar (list runs, #-headings, images, $$math$$, blanks). `title:`
+    // stays here because an example's LAST title wins while a panel's FIRST one
+    // sticks — folding that into the grouper would be a behaviour change
+    // wearing a refactor's clothes.
+    const body: string[] = [];
     for (const rawLine of src.split('\n')) {
         const line = rawLine.trim();
-        if (!line) continue;
-
         const t = /^title:\s*(.*)$/i.exec(line);
         if (t) {
             const v = (t[1] ?? '').trim();
             if (v) title = v;
             continue;
         }
-        blocks.push(fenceBodyBlock(line, ctx, allowBlanks));
+        body.push(line);
     }
+    const blocks = parseBodyLines(body, ctx, allowBlanks, label);
 
     if (blocks.length === 0) {
         ctx.warnings.add(
@@ -1799,12 +1935,9 @@ function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
     }
 
     const columns: JSONContent[] = segments.map((lines) => {
-        const blocks: JSONContent[] = [];
-        for (const rawLine of lines) {
-            const line = rawLine.trim();
-            if (!line) continue;
-            blocks.push(fenceBodyBlock(line, ctx, true));
-        }
+        // Column.blocks is the FULL Block union, so a column takes the same
+        // body grammar an example does — lists, headings and images included.
+        const blocks = parseBodyLines(lines, ctx, true, 'Columns block');
         // A column's content is `block+` — seed an empty paragraph when the
         // segment held nothing.
         if (blocks.length === 0) blocks.push({ type: 'paragraph' });
@@ -1879,13 +2012,7 @@ function parseContentLines(
 
     const flushList = (): void => {
         if (!list) return;
-        blocks.push({
-            type: list.type,
-            content: list.items.map((content) => ({
-                type: 'listItem',
-                content: [{ type: 'paragraph', content }],
-            })),
-        });
+        blocks.push(listBlockFrom(list.type, list.items));
         list = null;
     };
     const flushFigure = (): void => {
@@ -1968,8 +2095,8 @@ function parseContentLines(
         // Anything below is a non-figure block line.
         flushFigure();
 
-        const bullet = /^[-*]\s+(.+)$/.exec(line);
-        const ordered = bullet ? null : /^\d+[.)]\s+(.+)$/.exec(line);
+        const bullet = BODY_BULLET.exec(line);
+        const ordered = bullet ? null : BODY_ORDERED.exec(line);
         if (bullet || ordered) {
             const type = bullet ? 'bulletList' : 'orderedList';
             const text = (bullet?.[1] ?? ordered?.[1] ?? '').trim();
@@ -1982,32 +2109,16 @@ function parseContentLines(
         }
         flushList();
 
-        const heading = /^(#{1,3})\s+(.+)$/.exec(line);
+        const heading = BODY_HEADING.exec(line);
         if (heading) {
-            blocks.push({
-                type: 'heading',
-                attrs: { level: (heading[1] ?? '#').length },
-                content: fenceInline((heading[2] ?? '').trim(), ctx, false),
-            });
+            blocks.push(headingBlockFrom(heading, ctx));
             continue;
         }
 
-        const image = /^!\[([^\]]*)\]\((\S+)\)$/.exec(line);
+        const image = BODY_IMAGE.exec(line);
         if (image) {
-            const src2 = (image[2] ?? '').trim();
-            if (!src2) {
-                ctx.warnings.add('An image with no URL was skipped.');
-                continue;
-            }
-            blocks.push({
-                type: 'image',
-                attrs: {
-                    id: crypto.randomUUID(),
-                    src: src2,
-                    alt: image[1] ?? '',
-                    caption: '',
-                },
-            });
+            const block = imageBlockFrom(image, ctx, surface);
+            if (block) blocks.push(block);
             continue;
         }
 

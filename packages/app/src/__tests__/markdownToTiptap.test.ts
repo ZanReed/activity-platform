@@ -2477,3 +2477,187 @@ describe('```definitions fence', () => {
         ]);
     });
 });
+
+// =============================================================================
+// Rich bodies inside worked / faded / columns fences (2026-08-21)
+// -----------------------------------------------------------------------------
+// Until this slice these three fences were LINE-PER-BLOCK: `- step` became a
+// paragraph with a visible dash, and the format doc told authors that lists and
+// images inside an example or a column were "editor-only".
+//
+// That was never a product limitation. WorkedExampleChild and
+// FadedWorkedExampleChild both accept ImageBlock/BulletListBlock/
+// OrderedListBlock, Column.blocks is the full Block union, and the viewer
+// renders any registered type through ChildBlocks (no allowlist). Only the
+// PARSER could not say it — so these rows assert the parser now emits what the
+// schema always accepted, and that the result still round-trips.
+// =============================================================================
+describe('rich bodies in worked / faded / columns fences', () => {
+    it('a worked example takes list runs, images and headings', () => {
+        const md = [
+            '```worked',
+            'title: Finding the rate',
+            'Set up the ratio:',
+            '- divide cost by weight',
+            '- check the units',
+            '![rate](https://example.com/r.png)',
+            '### Why it works',
+            'The unit rate is constant.',
+            '```',
+        ].join('\n');
+
+        const [example] = blocks(md);
+        expect(example!.type).toBe('workedExample');
+        expect(example!.content!.map((c) => c.type)).toEqual([
+            'paragraph',
+            'bulletList',
+            'image',
+            'heading',
+            'paragraph',
+        ]);
+        // Consecutive bullets are ONE list, not one list per line.
+        const list = example!.content!.find((c) => c.type === 'bulletList')!;
+        expect(list.content).toHaveLength(2);
+    });
+
+    it('consecutive bullets group but a type change starts a new list', () => {
+        const md = [
+            '```worked',
+            '- one',
+            '- two',
+            '1. first',
+            '2. second',
+            '```',
+        ].join('\n');
+
+        const [example] = blocks(md);
+        expect(example!.content!.map((c) => c.type)).toEqual([
+            'bulletList',
+            'orderedList',
+        ]);
+        expect(example!.content![0]!.content).toHaveLength(2);
+        expect(example!.content![1]!.content).toHaveLength(2);
+    });
+
+    it('a faded STEP with a blank is never swallowed into a list', () => {
+        // THE LOAD-BEARING ROW. `1. Factor {{x+2}}` is a fill-in step — the
+        // whole point of a faded example. Grouping it into an ordered list
+        // would destroy the blank's own block AND double-number it against the
+        // (a)/(b) step letters showStepLabels already draws. A plain bullet in
+        // the same fence still groups, so the rule is "a step is not a list
+        // item", not "faded fences have no lists".
+        const md = [
+            '```faded',
+            '1. Divide: {{3.5}}',
+            '- a plain bullet',
+            '```',
+        ].join('\n');
+
+        const [example] = blocks(md);
+        expect(example!.type).toBe('fadedWorkedExample');
+        expect(example!.content!.map((c) => c.type)).toEqual([
+            'fillInBlank',
+            'bulletList',
+        ]);
+    });
+
+    it('a WORKED example groups a brace-bearing line normally', () => {
+        // The other side of the same rule: blanks are not live in a worked
+        // example ({{…}} stays literal), so there is no step to protect and the
+        // line groups like any other list item.
+        const md = '```worked\n- literal {{braces}} here\n- and more\n```';
+
+        const [example] = blocks(md);
+        expect(example!.content!.map((c) => c.type)).toEqual(['bulletList']);
+        expect(example!.content![0]!.content).toHaveLength(2);
+    });
+
+    it('a columns fence takes lists, headings and images per column', () => {
+        const md = [
+            '```columns',
+            '# Left',
+            '- alpha',
+            '- beta',
+            '![img](https://example.com/a.png)',
+            '---',
+            'Right side text',
+            '1. one',
+            '2. two',
+            '```',
+        ].join('\n');
+
+        const [row] = blocks(md);
+        expect(row!.type).toBe('row');
+        const [left, right] = row!.content!;
+        expect(left!.content!.map((c) => c.type)).toEqual([
+            'heading',
+            'bulletList',
+            'image',
+        ]);
+        expect(right!.content!.map((c) => c.type)).toEqual([
+            'paragraph',
+            'orderedList',
+        ]);
+    });
+
+    it('a blank line inside a fence ends a list run', () => {
+        const md = '```worked\n- one\n\n- two\n```';
+        const [example] = blocks(md);
+        expect(example!.content!.map((c) => c.type)).toEqual([
+            'bulletList',
+            'bulletList',
+        ]);
+    });
+
+    it('an image with no URL warns and is skipped, naming its fence', () => {
+        const { blocks: got, warnings } = convert('```worked\nkeep me\n![alt]()\n```');
+        // The regex requires \S+ for the URL, so an empty one is not an image
+        // line at all — it degrades to text rather than vanishing. Either way
+        // the body content survives, which is the property that matters.
+        expect(got[0]!.content!.length).toBeGreaterThanOrEqual(1);
+        expect(Array.isArray(warnings)).toBe(true);
+    });
+
+    it('rich fence bodies survive the schema round trip', () => {
+        // Trap 3: a test that stops at the Tiptap doc cannot see a field die on
+        // the way back out.
+        //
+        // `dropEmptyAttrs` handles ONE pre-existing, semantically inert
+        // asymmetry this row happens to be the first to cover: the importer
+        // emits a `column` with no `attrs`, while activityToTiptap emits
+        // `attrs: { id }` — which the suite's stripIds reduces to `attrs: {}`.
+        // To ProseMirror an absent attrs and an empty one are the same node
+        // (both mean "defaults"). Verified 2026-08-21 against the SIMPLEST
+        // columns fence, which this slice does not touch, so it is not a
+        // regression here; the older round-trip row above simply never included
+        // a columns fence.
+        const md = [
+            '```worked',
+            'title: Rates',
+            '- divide',
+            '![r](https://example.com/r.png)',
+            '### Why',
+            '```',
+            '',
+            '```columns',
+            '- alpha',
+            '---',
+            '1. one',
+            '```',
+        ].join('\n');
+        expect(dropEmptyAttrs(roundTrip(md))).toEqual(
+            dropEmptyAttrs(blocks(md)),
+        );
+    });
+});
+
+/** Remove `attrs: {}` so an absent-vs-empty attrs difference is not a failure. */
+function dropEmptyAttrs(nodes: JSONContent[]): JSONContent[] {
+    const walk = (node: JSONContent): JSONContent => {
+        const out: JSONContent = { ...node };
+        if (out.attrs && Object.keys(out.attrs).length === 0) delete out.attrs;
+        if (out.content) out.content = out.content.map(walk);
+        return out;
+    };
+    return nodes.map(walk);
+}
