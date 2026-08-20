@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/core';
-import { isPageNumberedType } from '@activity/schema';
+import { isPageNumberedType, stepLetter } from '@activity/schema';
 
 // ============================================================================
 // problemNumbering — the editor-side mirror of the renderer's isNumberedBlock.
@@ -87,18 +87,12 @@ export function problemNumberAt(editor: Editor, pos: number | undefined): number
     return count;
 }
 
-// Bijective base-26 index → letter: 0→"a" … 25→"z", 26→"aa". Mirrors the
-// renderer's stepLetter (packages/renderer/src/blocks/step-letter.ts).
-export function stepLetter(index: number): string {
-    let n = index + 1;
-    let out = '';
-    while (n > 0) {
-        const rem = (n - 1) % 26;
-        out = String.fromCharCode(97 + rem) + out;
-        n = Math.floor((n - 1) / 26);
-    }
-    return out;
-}
+// stepLetter MOVED to @activity/schema (viewer-numbering ruling N9). It lived
+// here as the second of what was about to become three copies — the renderer's
+// died with the package at S9 Drop 4, and the viewer needs one now that
+// sub-part lettering is coming back. Re-exported so this module's existing
+// callers keep their import path.
+export { stepLetter };
 
 export interface FadedStepContext {
     /** The compact letter for this step, e.g. "a". */

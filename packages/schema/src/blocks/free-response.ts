@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { InlineNode } from '../inline.js';
+import { labelFields } from '../label.js';
 
 // =============================================================================
 // free-response.ts — short_answer + essay (manually-graded free text)
@@ -76,6 +77,16 @@ export type Rubric = z.infer<typeof Rubric>;
 // The two teacher-only answer fields both blocks carry (ruling E2 + E4's
 // parity: one schema round for the pair, never two). Declared once here so the
 // two block shapes cannot drift apart field-by-field.
+//
+// ⚠ BOTH BLOCKS ALSO CARRY `labelFields` since the viewer-numbering slice
+// (ruling N6). Ruling E7 made them page-numbered, and until N6 they were the
+// only numbered types with no way to opt out — a teacher could not mark a
+// reflection-style short answer as unnumbered even though the schema has had
+// that vocabulary (auto / custom / none) since the numbering-label decouple.
+// The field is NOT enough on its own: `label` only survives a save if the type
+// is also in serialize.ts's LABELED_BLOCK_TYPES, and only reaches an author if
+// blockControls.ts attaches `numberingGroup`. See the plan's four-link chain
+// (docs/design/viewer-numbering.md, D8) — link 1 is here.
 const answerFields = {
   /** The canonical answer / marking guide. Teacher-only on every channel. */
   answer: z.array(InlineNode).optional(),
@@ -90,6 +101,7 @@ export const ShortAnswerBlock = z.object({
   placeholder: z.string().optional(),
   rubric: Rubric.optional(),
   ...answerFields,
+  ...labelFields,
 });
 export type ShortAnswerBlock = z.infer<typeof ShortAnswerBlock>;
 
@@ -114,5 +126,6 @@ export const EssayBlock = z.object({
   wordCountHint: WordCountHint.optional(),
   rubric: Rubric.optional(),
   ...answerFields,
+  ...labelFields,
 });
 export type EssayBlock = z.infer<typeof EssayBlock>;

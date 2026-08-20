@@ -5,6 +5,7 @@ import { MathBlock } from './math-block.js';
 import { ImageBlock } from './image.js';
 import { BulletListBlock, OrderedListBlock } from './list.js';
 import { FillInBlankBlock } from './fill-in-blank.js';
+import { labelFields } from '../label.js';
 
 // =============================================================================
 // FadedWorkedExampleBlock — a scaffolded ("faded") worked example.
@@ -59,5 +60,11 @@ export const FadedWorkedExampleBlock = z.object({
   // off per box (bare blanks, no gutter) for teachers who want maximum writing
   // room. Defaulted so pre-existing documents (no field) render labelled.
   showStepLabels: z.boolean().default(true),
+  // The box's OWN page label (viewer-numbering N6). It has always been one
+  // numbered problem; this is what lets a teacher relabel it ("Warm-up") or
+  // unnumber it, the same vocabulary every other numbered type already had.
+  // Distinct from showStepLabels, which governs the (a)/(b) letters INSIDE the
+  // box — that one is about the steps, this one is about the box.
+  ...labelFields,
 });
 export type FadedWorkedExampleBlock = z.infer<typeof FadedWorkedExampleBlock>;

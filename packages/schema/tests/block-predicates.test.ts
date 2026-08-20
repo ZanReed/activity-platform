@@ -24,6 +24,8 @@ import {
   createSelfExplanationBlock,
   createShortAnswerBlock,
   createInteractiveGraphBlock,
+  createFadedWorkedExampleBlock,
+  Block,
 } from '../src/index.js';
 
 const displayGraph = (): Block =>
@@ -138,5 +140,59 @@ describe('pageLabel', () => {
 
   it('a non-numbered block is never a number', () => {
     expect(pageLabel(createParagraphBlock())).toEqual({ kind: 'none' });
+  });
+
+  // Viewer-numbering ruling N6. These three were page-numbered with no way to
+  // opt out: short_answer and essay became numbered at answer-key ruling E7,
+  // and faded_worked_example has always been one numbered box. Until the field
+  // landed, `pageLabel` could only ever answer `number` for them.
+  //
+  // ⚠ THE FIELD ALONE IS NOT THE FEATURE. `label` survives a save only if the
+  // type is also in serialize.ts's LABELED_BLOCK_TYPES, and reaches an author
+  // only if blockControls.ts attaches `numberingGroup`. Those are links 3 and 4
+  // of the chain (viewer-numbering D8) and have their own tests; this pins
+  // link 1 — that the vocabulary exists and resolves.
+  it.each([
+    ['short_answer', createShortAnswerBlock],
+    ['essay', createEssayBlock],
+    ['faded_worked_example', createFadedWorkedExampleBlock],
+  ])('%s can now carry all three label modes', (_type, make) => {
+    const block = make() as Block;
+    // Default (absent) stays numbered — no behaviour changed for existing docs.
+    expect(pageLabel(block)).toEqual({ kind: 'number' });
+    expect(pageLabel({ ...block, label: { mode: 'none' } } as Block)).toEqual({
+      kind: 'none',
+    });
+    expect(
+      pageLabel({ ...block, label: { mode: 'custom', text: 'Warm-up' } } as Block),
+    ).toEqual({ kind: 'custom', text: 'Warm-up' });
+  });
+
+  it.each([
+    ['short_answer', createShortAnswerBlock],
+    ['essay', createEssayBlock],
+    ['faded_worked_example', createFadedWorkedExampleBlock],
+  ])('%s round-trips its label through the schema', (_type, make) => {
+    // Absent-with-no-default (like sizingFields): a block that never set a
+    // label re-serializes byte-identically, so no stored document moves.
+    const bare = make();
+    expect('label' in bare).toBe(false);
+
+    const labelled = { ...bare, label: { mode: 'custom' as const, text: 'Warm-up' } };
+    const parsed = Block.parse(labelled);
+    expect((parsed as { label?: unknown }).label).toEqual({
+      mode: 'custom',
+      text: 'Warm-up',
+    });
+  });
+
+  it('an empty custom label is rejected, on the new types too', () => {
+    // BlockLabel's min(1): an empty custom label is meaningless — the author
+    // wants text or wants `none`. Pinned here because the three new carriers
+    // inherit that rule rather than restating it.
+    expect(
+      Block.safeParse({ ...createEssayBlock(), label: { mode: 'custom', text: '' } })
+        .success,
+    ).toBe(false);
   });
 });

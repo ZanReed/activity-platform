@@ -242,11 +242,28 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
 
 ## 7. Implementation tasks
 
-- [ ] **V1 (P1, human: ~1d / CC: ~25min)** — schema — `labelFields` on
+- [x] **V1 (P1) — SHIPPED 2026-08-20** — schema — `labelFields` on
       short_answer / essay / faded_worked_example (N6 link 1); `stepLetter` moved
-      in and re-exported (N9); editor imports it. Regenerate BOTH bundles same
-      commit; **verify `SANITIZER_REV` did not move and record the observed
-      value.** Verify: schema tests, bundle drift clean.
+      to `packages/schema/src/step-letter.ts` and re-exported (N9); the editor
+      imports it and re-exports for its existing callers.
+      **`SANITIZER_REV` OBSERVED UNMOVED at `1-87a5e78b`** — measured by bundling
+      `sanitize.ts` and reading the export before and after, not asserted from
+      the rule. So no read-cache rows orphan and the `get-activity` redeploy
+      stays optional-not-urgent (the `.min(1)` posture). **Both bundles moved and
+      were regenerated in this commit** — the shape changed, and the CLAUDE.md
+      rule is unconditional on `packages/schema` regardless of how small the
+      change looks (learning `bundle-drift-claims-derive-from-rule-not-size`).
+      `pnpm verify` 8/8 green; cold typecheck clean (tsbuildinfo cleared first).
+      **New tests:** the three types resolve all three label modes through
+      `pageLabel`, round-trip a custom label, reject an empty one, and stay
+      absent-by-default so no stored document moves; plus `step-letter.test.ts`,
+      which the function never had in either of its previous homes — including
+      the bijective wrap at 26 ("aa", not "ba") that one shared implementation
+      now feeds two surfaces from. Schema tests 341 → 352.
+      **⚠ Links 2-4 are still owed (V4).** `label` on these three types does not
+      survive a save yet: `LABELED_BLOCK_TYPES` has not been updated, so the
+      field exists in the schema and is dropped by serialize. That is the
+      four-link chain working as designed — link 1 alone is inert, deliberately.
 - [ ] **V2 (P1, human: ~1d / CC: ~20min)** — `viewer/src/numbering/numbering.ts`
       — `buildNumbering`, pure, plus its unit suite (order, column-major, all
       three label modes, nested exclusion, reference-panel exclusion, empty doc).

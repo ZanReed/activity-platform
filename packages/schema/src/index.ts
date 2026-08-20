@@ -118,6 +118,10 @@ export type { PageLabel } from './block-predicates.js';
 // Per-block display label (numbering/label decouple)
 export { BlockLabel, labelFields } from './label.js';
 
+// The one home for the a/b/c step marker — the editor and the viewer both read
+// it from here (ruling N9). See step-letter.ts for why it moved.
+export { stepLetter } from './step-letter.js';
+
 // Sizing (shared per-block width/align fragment)
 export { BlockAlign, BlockWidthFraction } from './sizing.js';
 
