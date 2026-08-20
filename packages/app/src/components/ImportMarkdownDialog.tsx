@@ -20,6 +20,7 @@ import {
     type MarkdownImporter,
 } from '../lib/markdownToTiptap';
 import { MARKDOWN_IMPORT_AI_PROMPT } from '../lib/markdownImportPrompt';
+import { importMetaSummary } from '../lib/importMetaSummary';
 
 const EXAMPLE = `# Warm up
 
@@ -96,6 +97,12 @@ export default function ImportMarkdownDialog({
     // by pasting its metadata is a real (if minor) use, and refusing it would
     // make the Import button look broken for input the parser understood.
     const hasMeta = result?.meta !== undefined;
+    // What the fence actually READ, derived from the parsed object rather than
+    // from a list maintained here — see lib/importMetaSummary.ts. Without this
+    // the summary line reported blocks only, so an author could not tell
+    // whether course/unit/tags/role landed at the one moment they could still
+    // fix a typo.
+    const metaSummary = importMetaSummary(result?.meta);
     const canImport = blockCount > 0 || referenceCount > 0 || hasMeta;
 
     const handleImport = () => {
@@ -213,6 +220,9 @@ export default function ImportMarkdownDialog({
                                           : '') +
                                       (referenceCount > 0
                                           ? `${blockCount > 0 ? ' · ' : ' '}${referenceCount} reference-sheet block${referenceCount === 1 ? '' : 's'}`
+                                          : '') +
+                                      (metaSummary !== ''
+                                          ? `${blockCount > 0 || referenceCount > 0 ? ' · ' : ' '}${metaSummary}`
                                           : '')}
                         </span>
                         <div className="flex items-center gap-2">

@@ -10,6 +10,8 @@
     "./runtime-contract": "./src/runtime-contract.ts",
     "./drawable-palette": "./src/drawable-palette.ts",
     "./math-equivalent": "./src/math-equivalent.ts",
+    "./formula": "./src/formula.ts",
+    "./math-prompt-convert": "./src/math-prompt-convert.ts",
     "./scorers": "./src/scorers.ts",
     "./static-svg": "./src/static-svg.ts"
   },

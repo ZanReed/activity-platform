@@ -6,6 +6,10 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
+**⏭ APPLY MIGRATION 0038 — the batch importer's only author station.** `supabase db push`, then `pnpm verify:auth --target live --only verify-0038` (7 posture rows + a 5-case behavioral matrix, self-fixturing and rolled back). It adds `activities.source_path` (text, nullable) + a partial unique index on `(owner_id, source_path)`. **Ordering is unusually relaxed here and the reason is worth knowing: no SPA code reads the column** — only the node script does — so OV-7's "a push IS a deploy" does not bite, and pushing before applying is safe (the script fails loudly on a missing column rather than doing something wrong). **No Edge Function deploy and no bundle regeneration are owed** — nothing in schema, the viewer's sanitize/registry source, the viewer server, or graph-kit's scorers changed; both drift guards pass. Compliance moved in the same commit (`data-map.md` → `2026-08-20-draft-5`, range 0038, explicit "adds no personal data" per the 0027/0035 precedent).
+
+*Then, to actually run it:* `pnpm import:batch -- <folder> --owner <email> --dry-run` first — it reports every create/update/orphan and writes nothing. All imports land as DRAFTS; the script cannot publish (`publish_activity` needs `auth.uid()`, which a service-role key does not have — see the design doc).
+
 **✅ BOTH FUNCTIONS REDEPLOYED 2026-08-20 — the answer-key deploy gate is DISCHARGED on the deploy half.** Tool-read via `list_edge_functions`: **`get-activity` v20, `verify_jwt: false`** (the flag survived the redeploy — it is the only function deployed that way) and **`check-activity` v16, `verify_jwt: true`**, both updated within seconds of each other. So the live read path now knows to strip `answer`/`solution`, and the live grader accepts documents carrying them.
 
 *What moved and why it needed a deploy:* the answer-key slice added `answer` + `solution` to `short_answer`/`essay` and declared both stripped, which moved **`SANITIZER_REV` `1-f8328527` → `1-87a5e78b`** (pinned in `printShuffle.test.ts`). The rev move also orphans every stale read-cache row automatically, so no cache purge is owed. Both bundles were regenerated in the same commit as the schema change.
@@ -89,16 +93,11 @@ PASS
 
 **The build queue to the catalogue, in order (each gates the next):**
 
-**⏭ NEXT: the batch importer.** Brief written and ready to hand off:
-[batch-importer-BRIEF.md](docs/design/batch-importer-BRIEF.md). It carries the
-inherited pipeline (`getMarkdownImporter` → `wrapBlocksStrict` →
-`tiptapToActivity` → upsert, DOM-free and verified) and the five traps this
-month has already paid for. **It also names the one decision that must be ruled
-before any code:** "upsert keyed on filename" has nowhere to go — verified live
-2026-08-20, `activities` has no filename/source column and its only unique key
-is `(owner_id, slug)`. Reusing `slug` needs no migration but breaks on retitling;
-a `source_path` column is honest identity but costs a migration and drags in the
-ordering rules. Start with `/plan-eng-review` on the brief.
+**✅ THE BATCH IMPORTER — BUILT 2026-08-20** ([batch-importer.md](docs/design/batch-importer.md), eng review D1–D5; the BRIEF it superseded is kept for its trap list). `pnpm import:batch -- <folder> --owner <email> [--dry-run]` walks a folder of `.md` files through the app's own pipeline into `activities`, keyed on **`source_path`** (migration 0038) so a re-run updates instead of duplicating. Orphans are reported, never touched (D2); one bad file is skipped and named, exit 1 (D3); the pipeline is esbuild-bundled on run rather than committed (D4); on a re-import **the file wins and every changed field is printed** (D5 — never-clobber is create-only, or a title fixed in the `.md` could never land). Shipped alongside: the Import dialog's summary line now reports what the ` ```meta ` fence read, with the field set **derived from `Object.keys()`** so a future fence key appears the day it parses.
+
+**⚠ THE BRIEF'S CENTRAL "DO NOT RE-DERIVE" CLAIM WAS FALSE, and this is the generalisable part.** "The conversion path is DOM-free (verified)" did not survive a real node bundle: `markdownToTiptap.ts` and (via `serialize.ts`) `mathPromptSync.ts` both imported the **`@activity/graph-kit` barrel**, whose transitive `import { MathfieldElement } from 'mathlive'` does not exist in mathlive's node/SSR build — 4 hard esbuild errors. **The app suite was green about a path that could not run**, because vitest resolves through Vite, which takes mathlive's *browser* condition and externalizes `node_modules`. That is the sw-lane lesson a second time: a lane that passes because of what is ABSENT from the machine is unobserved, not passing. Fixed with two subpath exports; **CLAUDE.md's scorers-only barrel rule is now generalised to anything running outside a browser.** The guard (`scripts/tests/batch-import.test.mjs` §A) does NOT grep for the barrel — it bundles for node and runs a real conversion to a zod-valid document, bound to OUTPUT.
+
+**⏭ NEXT: the pilot** — 2–3 real activities round-tripped end to end.
 0. **✅ The viewer numbering slice — BUILT 2026-08-20 (V1–V6 + V9; V7 is an author action).**
    [viewer-numbering.md](docs/design/viewer-numbering.md), eng-reviewed (D2–D10) then DX-reviewed
    (D1–D4). **The viewer had rendered no problem number for ANY block type since the renderer died
@@ -166,7 +165,7 @@ ordering rules. Start with `/plan-eng-review` on the brief.
 | Area | Status |
 |---|---|
 | Stages 9–16 (schema, renderer, runtime, editor, publish flow, submissions dashboard) | Historical — Phase 1 shipped and served its era; the renderer/runtime/publish-HTML/dashboard halves were deliberately DELETED at S9. Schema + editor live on |
-| Database migrations 0001–0036 | ✅ **All applied + verified live — `verify:auth --target live` = 147/0 across 12 scripts** (0036 applied 2026-08-17). 0031+0032 were REPRODUCIBILITY migrations; **0033 is the admission slice**; **0034 is checks-native grading**; **0035 is the disarmed check-prune + arming gate**; **0036 writes the watermark that gate reads**. Re-run `verify-0013-0014.sql` + `verify-0017.sql` after any auth/RLS/grant migration |
+| Database migrations 0001–0038 | ⏭ **0038 written, NOT yet applied** (batch importer's `source_path`; see Pending author actions). 0001–0037: **applied + verified live — `verify:auth --target live` = 147/0 across 12 scripts** (0036 applied 2026-08-17). 0031+0032 were REPRODUCIBILITY migrations; **0033 is the admission slice**; **0034 is checks-native grading**; **0035 is the disarmed check-prune + arming gate**; **0036 writes the watermark that gate reads**. Re-run `verify-0013-0014.sql` + `verify-0017.sql` after any auth/RLS/grant migration |
 | Scheduled jobs (pg_cron) | ✅ Installed 2026-08-05; both jobs active; first fire observed + verified 2026-08-06. **Verify the run, not the registration** |
 | Components-as-data slices S0–S9 | ✅ Complete — see the slice ledger; only author stations remain |
 | Print (baseline CSS → authored feature → viewer print + gate) | ✅ Complete through S5.5; print gates run in CI; sign-off evidence durable at tag `s5.5-print-signoff` |
@@ -198,7 +197,11 @@ ordering rules. Start with `/plan-eng-review` on the brief.
 
 ---
 
-**Last updated:** 2026-08-18 (shell slimming slice 1 built, pushed, CI-green at 32048169054; then its one leftover red — the sw offline rows — chased to root cause, fixed, pushed and CI-green at 32081815982. The rollup's first v2 run at 03:30 UTC is still the thing to check.)
+**Last updated:** 2026-08-20 (the batch importer built end to end — migration 0038, `scripts/batch-import.mjs`, the node seam, the meta summary line, 15 script-test rows + 8 app rows; `pnpm verify` = all 8 gates green, script tests 54 → 73). **One author station: apply 0038.**
+
+**The lesson worth keeping from this slice: when a handoff brief says "inherited — do NOT re-derive", the first job is to make each of its claims falsifiable, not to trust them.** The brief's load-bearing claim was verified-sounding and wrong, and the thing that proved it was a two-minute esbuild run — cheaper than any of the work that would have been built on top of it. Same pattern the shell-slim plan hit on 2026-08-18 with two of its own claims. A claim inherited across a session boundary has no test attached to it; that is exactly what makes it worth testing first.
+
+*(Prior entry:)* 2026-08-18 (shell slimming slice 1 built, pushed, CI-green at 32048169054; then its one leftover red — the sw offline rows — chased to root cause, fixed, pushed and CI-green at 32081815982. The rollup's first v2 run at 03:30 UTC is still the thing to check.)
 
 **Two lessons from the day, both about tests that were passing for the wrong reason.** (1) **The sw offline rows were green in CI because CI has no local Supabase stack** — the stub lanes and the integration lane shared one address they needed to mean opposite things. A lane that passes because of what is ABSENT from the machine is not passing, it is unobserved. Mechanism + the guard now holding it: `packages/app/e2e/helpers/e2eOrigins.ts`. (2) **Two of the shell-slim plan's own claims were wrong, and the tests written to honor them are what found it** — "vitest parity, dissolved by inspection" (vitest externalizes `node_modules`, so the alias never applied) and severe-finding-1's premise (an apikey-less upload does not 401); both written up in that plan's AS BUILT section. **The pattern to keep: when a review's own claims are the input, the build's first job is to make each one falsifiable.**
 

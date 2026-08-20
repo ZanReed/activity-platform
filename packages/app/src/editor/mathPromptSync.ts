@@ -18,7 +18,10 @@
 // live field). See docs/design/math-blanks.md (Model A, MA-DR3 / Q5).
 // =============================================================================
 
-import { latexToAscii } from '@activity/graph-kit';
+// SUBPATH, never the barrel — see the note in lib/markdownToTiptap.ts. This
+// module is pulled in by serialize.ts, so a barrel import here reaches the
+// batch importer's node bundle just as surely as a direct one.
+import { latexToAscii } from '@activity/graph-kit/math-prompt-convert';
 import type { MathPrompt } from '@activity/schema';
 
 const MARKER = '\\placeholder[';

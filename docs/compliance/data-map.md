@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-18-draft-4`. Mirrors migrations 0001–**0037**, verified
+> Version `2026-08-20-draft-5`. Mirrors migrations 0001–**0038**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,18 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-5` (2026-08-20) — 0038 adds NO personal data.** The batch-importer
+> slice adds one column, `activities.source_path`: the path of the `.md` file an
+> activity was imported from, RELATIVE to the author's own catalogue folder
+> (e.g. `unit-3/factoring-quadratics.md`). It describes a file on the teacher's
+> own machine, not a person — the same character as `activities.slug`, which
+> this doc has never listed for the same reason. It is NULL for every activity
+> authored in the app, is never served to a student, and never appears in a URL
+> (the share link is built from the activity id). No new table, no new person
+> reference, no new retention question, and no change to any existing row below.
+> Stated explicitly rather than by silence, per the 0027/0035 precedent — the
+> range moves to 0038 on that basis.
 >
 > **`draft-4` (2026-08-18) — 0037 adds NO personal data.** The activity
 > taxonomy slice adds `activities.tags` (text[]) and

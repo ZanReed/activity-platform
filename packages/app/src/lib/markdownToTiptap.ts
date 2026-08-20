@@ -41,12 +41,21 @@
 // authored ones.
 // =============================================================================
 
+// SUBPATHS, never the graph-kit BARREL. The barrel statically re-exports the
+// mount functions, which import `MathfieldElement` from mathlive — a symbol
+// mathlive's node/SSR build does not export. In the browser that costs nothing
+// (Vite takes the browser condition and tree-shakes); under a bare-node bundle
+// it is a HARD build error, which is what made this module unreachable from the
+// batch importer until 2026-08-20. Same rule CLAUDE.md already carries for
+// graph-kit's scorers, and for the same reason. Guarded by
+// scripts/tests/batch-import.test.mjs, which bundles this path for node and
+// runs it — a guard bound to OUTPUT, not to a declaration.
 import {
     parseGraphFormula,
     parsePointList,
     parseRaySegment,
-    latexToAscii,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/formula';
+import { latexToAscii } from '@activity/graph-kit/math-prompt-convert';
 import type { JSONContent } from '@tiptap/react';
 import type {
     ActivityMeta,
