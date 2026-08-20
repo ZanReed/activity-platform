@@ -238,3 +238,34 @@ describe('degenerate documents', () => {
     expect(buildNumbering(d)).toEqual(buildNumbering(d));
   });
 });
+
+// -----------------------------------------------------------------------------
+// Sub-part lettering (ruling N7) — the decision, not the markup
+// -----------------------------------------------------------------------------
+// The rendering is pinned in the component tests; what is worth pinning here is
+// that all three exclusions come from DATA rather than from flags, because that
+// is what makes them hard to break by accident.
+
+describe('sub-part lettering preconditions', () => {
+  const letters = (label: { kind: string } | undefined, blanks: number) =>
+    label?.kind === 'number' && blanks >= 2;
+
+  it('letters a numbered problem with two or more blanks', () => {
+    expect(letters({ kind: 'number' }, 2)).toBe(true);
+    expect(letters({ kind: 'number' }, 5)).toBe(true);
+  });
+
+  it('does NOT letter a single-blank problem — nothing to tell apart', () => {
+    expect(letters({ kind: 'number' }, 1)).toBe(false);
+  });
+
+  it('does NOT letter a custom-labelled problem — it is out of sequence', () => {
+    expect(letters({ kind: 'custom' }, 3)).toBe(false);
+  });
+
+  it('does NOT letter a nested step — ChildBlocks passes no label at all', () => {
+    // The faded example letters its own steps with a real <ol>; a second
+    // lettering scheme inside it would collide with that one.
+    expect(letters(undefined, 3)).toBe(false);
+  });
+});

@@ -108,6 +108,15 @@
   align-items: start;
 }
 
+/* Sub-part marker before a gap on a numbered multi-blank problem (N7).
+   Compact and muted so it reads as a label rather than as part of the sentence
+   — the student is reading "(a) ___ (b) ___", not "a blank b blank". */
+.viewer-blank__sublabel {
+  font-weight: 600;
+  margin-right: 0.15rem;
+  white-space: nowrap;
+}
+
 .viewer-block__number {
   font-weight: 600;
   text-align: right;

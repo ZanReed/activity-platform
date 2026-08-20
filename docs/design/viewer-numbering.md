@@ -308,8 +308,22 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       failure they exist for, which is the only thing that makes them worth
       having — a save-path drop has no error, no symptom, and surfaces as a
       number printed on a question somebody deliberately unnumbered.
-- [ ] **V5 (P2, human: ~4h / CC: ~15min)** — sub-part lettering in
-      `FillInBlank.tsx` (N7) + unit rows for all four branches.
+- [x] **V5 (P2) — SHIPPED 2026-08-20** — sub-part lettering in
+      `FillInBlank.tsx` (N7). All three exclusions come from DATA, not flags:
+      `>= 2` blanks, `label.kind === 'number'`, and — for a faded step — the
+      fact that `ChildBlocks` passes no `label` at all, so the box keeps
+      lettering its own steps with its real `<ol>` and the two schemes cannot
+      collide. The letter is derived from render position, never stored.
+      `BlockComponentProps` gained an optional `label` for this; the wrapper
+      still draws the gutter itself, so no other component needs it.
+      **a11y:** the visible `(b)` marker is `aria-hidden` and the part is folded
+      into the input's own name instead ("Part b, blank 2 of 2") — the block
+      NUMBER stays out of it, because the wrapper's group label already says it
+      once (D3). 6 component rows + 4 precondition rows.
+      *Note: the fixture fill_in_blank has ONE blank, so the dev harness cannot
+      show the positive case — which is why it is built explicitly in a test
+      rather than eyeballed. The faded-step exclusion WAS checked live: 0
+      sublabels on nested blanks, 1 gutter on the box.*
 - [ ] **V6 (P1, human: ~4h / CC: ~15min)** — **the guard that would have caught
       this**: for every registry type declaring `numbered: 'always'`, assert the
       rendered fixture actually produces a number. Binds the declaration to

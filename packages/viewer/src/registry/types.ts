@@ -25,6 +25,7 @@
 // =============================================================================
 
 import type { ComponentType } from 'react';
+import type { ResolvedLabel } from '../numbering/numbering.js';
 import type { Block } from '@activity/schema';
 import type { SanitizeBlockType } from '../sanitize/sanitized-types.js';
 
@@ -202,6 +203,20 @@ export interface BlockComponentProps<B extends Block = Block> {
    */
   readonly block: SanitizeBlockType<B>;
   readonly mode: 'screen' | 'print';
+  /**
+   * What this block shows in its number slot, or undefined for "nothing".
+   *
+   * The wrapper draws the gutter itself (ruling N2) — a component never needs
+   * this to render its number. It is here for the components whose CONTENT
+   * depends on being numbered: fill_in_blank letters its gaps "(a) (b)" only on
+   * a numbered multi-blank problem (ruling N7).
+   *
+   * NESTED BLOCKS NEVER RECEIVE IT, and that is the faded-step rule falling out
+   * for free: `ChildBlocks` does not pass it, so a faded example's steps are
+   * unlettered by this route and lettered by their own <ol> instead — no flag,
+   * no coordination between the two renderers.
+   */
+  readonly label?: ResolvedLabel;
 }
 
 /** Lazy component binding — the dynamic import IS the per-block chunk (P1A). */

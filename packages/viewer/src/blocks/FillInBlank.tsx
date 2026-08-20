@@ -22,6 +22,7 @@
 // =============================================================================
 
 import type { FillInBlankBlock } from '@activity/schema';
+import { stepLetter } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useViewer } from '../container/context.js';
@@ -31,6 +32,7 @@ import { StatePill } from './StatePill.js';
 export default function FillInBlank({
   block,
   mode = 'screen',
+  label,
 }: BlockComponentProps<FillInBlankBlock>) {
   const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
   const phase = phaseOf(block.id);
@@ -43,6 +45,23 @@ export default function FillInBlank({
   const blankIds = block.content
     .filter((n) => (n as { type?: string }).type === 'blank')
     .map((n) => (n as unknown as { id: string }).id);
+
+  // SUB-PART LETTERING (ruling N7): "(a) ___ (b) ___" on a NUMBERED,
+  // MULTI-BLANK problem, so a student writing on paper and a teacher marking
+  // against a key can name the same gap.
+  //
+  // All three exclusions come from data rather than from flags:
+  //   single blank      → nothing to tell apart, so `>= 2`
+  //   custom/none label → out of the numbered sequence, so `kind === 'number'`
+  //   inside a faded step → the step is a NESTED block, and ChildBlocks does
+  //                         not pass `label` at all, so it is undefined here.
+  //                         The box already letters its steps with a real <ol>.
+  //
+  // The letter is DERIVED from render position, never stored — the same rule
+  // the answer key follows for matching letters and ordering numbers, and for
+  // the same reason: position is a property of what was served, not of the
+  // document.
+  const letterBlanks = label?.kind === 'number' && blankIds.length >= 2;
 
   return (
     <div
@@ -64,12 +83,24 @@ export default function FillInBlank({
             const value = keyAnswer ?? state.responses.blanks[blank.id] ?? '';
             const result = resultFor(block.id, blank.id);
             const index = blankIds.indexOf(blank.id);
-            const label =
-              blankIds.length > 1
+            // Renamed from `label` when the block-level label prop arrived —
+            // the two are different things and the shadowing was a trap.
+            const ariaLabel = letterBlanks
+              ? `Part ${stepLetter(index)}, blank ${index + 1} of ${blankIds.length}`
+              : blankIds.length > 1
                 ? `Blank ${index + 1} of ${blankIds.length}`
                 : 'Blank';
             return (
               <span className="viewer-blank" data-blank-id={blank.id}>
+                {letterBlanks ? (
+                  // aria-hidden: the input's own accessible name already says
+                  // "Part b", so exposing the marker too would announce it
+                  // twice. The block number itself is announced once by the
+                  // wrapper's group label (ruling D3).
+                  <span className="viewer-blank__sublabel" aria-hidden="true">
+                    ({stepLetter(index)})
+                  </span>
+                ) : null}
                 <input
                   type="text"
                   className="viewer-blank__input"
@@ -77,7 +108,7 @@ export default function FillInBlank({
                   // A keyed value is never editable: typing over it would leave
                   // the printed key silently disagreeing with itself.
                   readOnly={mode === 'print' || keyAnswer !== undefined}
-                  aria-label={label}
+                  aria-label={ariaLabel}
                   {...(keyAnswer !== undefined ? { 'data-answer-key': 'filled' } : {})}
                   {...(blank.width ? { size: blank.width } : {})}
                   {...(result

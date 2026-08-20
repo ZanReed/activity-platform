@@ -510,7 +510,7 @@ function BlockSlot({
           <Suspense
             fallback={<span className="viewer-block__loading" aria-hidden="true" />}
           >
-            <Component block={block as never} mode={mode} />
+            <Component block={block as never} mode={mode} label={label} />
           </Suspense>
         ) : (
           <p className="viewer-block__unbound" data-unbound="true">
