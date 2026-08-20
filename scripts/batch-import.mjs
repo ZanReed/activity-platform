@@ -491,11 +491,33 @@ export async function loadPipeline() {
 // PostgREST, over plain fetch
 // =============================================================================
 
-function makeDb(url, key) {
+/**
+ * True for a legacy `service_role` / `anon` key, which IS a JWT.
+ *
+ * Supabase now issues two generations of key, both on the dashboard's API Keys
+ * page, and they are sent DIFFERENTLY:
+ *
+ *   legacy  service_role / anon    a JWT ("eyJ…")   apikey + Authorization: Bearer
+ *   new     sb_secret_… / sb_publishable_…          apikey ONLY
+ *
+ * The new keys are not JWTs, so putting one in `Authorization: Bearer` makes
+ * the platform try to parse it as a JWT and REJECT the request — the docs call
+ * this out precisely because "many Supabase clients do by default". This
+ * script did too, until 2026-08-21.
+ */
+function isJwtKey(key) {
+    return key.startsWith('eyJ');
+}
+
+export function makeDb(url, key) {
     const base = `${url.replace(/\/$/, '')}/rest/v1`;
+    // `apikey` always; `Authorization` only when the key can survive being
+    // parsed as a JWT. Sending both unconditionally is what breaks a modern
+    // secret key, and it fails as a 401 that reads like a bad credential
+    // rather than a mis-sent one.
     const headers = {
         apikey: key,
-        Authorization: `Bearer ${key}`,
+        ...(isJwtKey(key) ? { Authorization: `Bearer ${key}` } : {}),
         'Content-Type': 'application/json',
     };
 
@@ -613,8 +635,12 @@ async function main() {
                 (hasDbUrl
                     ? '\n\n  SUPABASE_DB_URL is set, and it is NOT this key. That one is a Postgres\n' +
                       '  connection string used by `pnpm verify:auth` via psql. This script speaks\n' +
-                      '  PostgREST over HTTP and needs the service-role JWT (it starts "eyJ"):\n' +
-                      '  Supabase dashboard -> Project Settings -> API -> service_role.'
+                      '  PostgREST over HTTP and needs a key that bypasses RLS, from the\n' +
+                      '  dashboard under Settings -> API Keys. EITHER generation works:\n' +
+                      '    - a new secret key   (sb_secret_…)   preferred; sent on apikey only\n' +
+                      '    - the legacy key     (service_role, "eyJ…")\n' +
+                      '  Do NOT use a publishable/anon key — it is bound by RLS and this script\n' +
+                      '  writes rows it does not own.'
                     : ''),
         );
     }

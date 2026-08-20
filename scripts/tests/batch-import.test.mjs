@@ -42,6 +42,7 @@ import {
     describeChanges,
     findMarkdownFiles,
     loadPipeline,
+    makeDb,
     planIdentity,
     titleFromPath,
 } from '../batch-import.mjs';
@@ -383,6 +384,65 @@ test('§C findMarkdownFiles yields sorted POSIX-relative paths and skips dotdirs
         // P7: the run owns its residue end to end.
         await rm(root, { recursive: true, force: true });
     }
+});
+
+// =============================================================================
+// §E — credential handling (both Supabase key generations)
+// =============================================================================
+
+test('§E a NEW secret key is sent on apikey ONLY, never Authorization', async () => {
+    // Supabase issues two key generations from one dashboard page and they are
+    // sent differently. The new `sb_secret_…` keys are NOT JWTs, so putting one
+    // in `Authorization: Bearer` makes the platform try to parse it as a JWT
+    // and reject the request — which surfaces as a 401 that reads like a bad
+    // credential rather than a mis-sent one. The docs call this out precisely
+    // because "many Supabase clients do by default"; this script did too, until
+    // 2026-08-21.
+    const seen = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, init = {}) => {
+        seen.push({ url: String(url), headers: init.headers ?? {} });
+        return new Response(JSON.stringify([]), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+    try {
+        const db = makeDb('https://stub.example.com', 'sb_secret_abc123');
+        await db.existingFor('owner-1');
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].headers.apikey, 'sb_secret_abc123');
+    assert.equal(
+        seen[0].headers.Authorization,
+        undefined,
+        'a non-JWT key must not ride in Authorization — the platform rejects it',
+    );
+});
+
+test('§E a LEGACY service_role JWT still gets both headers', async () => {
+    // The other generation, unchanged. Existing setups must keep working.
+    const seen = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, init = {}) => {
+        seen.push(init.headers ?? {});
+        return new Response(JSON.stringify([]), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+    try {
+        const db = makeDb('https://stub.example.com', 'eyJhbGciOi.payload.sig');
+        await db.existingFor('owner-1');
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+
+    assert.equal(seen[0].apikey, 'eyJhbGciOi.payload.sig');
+    assert.equal(seen[0].Authorization, 'Bearer eyJhbGciOi.payload.sig');
 });
 
 // =============================================================================
