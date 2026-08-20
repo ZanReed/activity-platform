@@ -601,7 +601,22 @@ async function main() {
     const url = process.env.SUPABASE_URL ?? '';
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
     if (!url || !key) {
-        usage('Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (see .env.supabase.example).');
+        // NAME THE CONFUSION, because .env.supabase holds two credentials that
+        // look interchangeable and are not (hit 2026-08-21). SUPABASE_DB_URL is
+        // a Postgres connection string for psql — it drives verify-runner.mjs.
+        // This script talks PostgREST over HTTP, which needs the service-role
+        // JWT. A message that only said "missing key" would send someone
+        // looking at the credential they already have.
+        const hasDbUrl = Boolean(process.env.SUPABASE_DB_URL);
+        usage(
+            'Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (see .env.supabase.example).' +
+                (hasDbUrl
+                    ? '\n\n  SUPABASE_DB_URL is set, and it is NOT this key. That one is a Postgres\n' +
+                      '  connection string used by `pnpm verify:auth` via psql. This script speaks\n' +
+                      '  PostgREST over HTTP and needs the service-role JWT (it starts "eyJ"):\n' +
+                      '  Supabase dashboard -> Project Settings -> API -> service_role.'
+                    : ''),
+        );
     }
 
     const root = resolve(args.folder);
