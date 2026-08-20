@@ -1,6 +1,10 @@
 # The viewer numbering surface — problem numbers on the student page
 
-> **Status:** RULED — full `/plan-eng-review` 2026-08-20 (scope gate + 4 sections,
+> **Status:** ✅ **BUILT 2026-08-20 — V1–V6, V8, V9 shipped; V7 is an author
+> action (Linux print baselines).** Reviewed twice before building: full
+> `/plan-eng-review` and then `/plan-devex-review`.
+>
+> **Status (as ruled):** RULED — full `/plan-eng-review` 2026-08-20 (scope gate + 4 sections,
 > decisions D2–D10). Scope ruled MAXIMAL at the complexity gate ("full
 > completeness for this project, short-term pain long-term gain"), then narrowed
 > once during the review: **`number` is OUT** (D5) and the walk-DRY refactor is
@@ -391,10 +395,12 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       drift gate's failure output — and revealed it was dumping 81KB of base64
       sourcemap, now suppressed for generated bundles; and a probe gate added to
       ci.yml turned the parity guard red, then green on revert.
-- [ ] **V8 (P2, human: ~1h / CC: ~10min)** — docs — TODOS 1b closed, the two new
-      TODOs added (D9, D10), STATE updated, the `printExpectations.ts`
-      cannot-declare-yet note replaced, `problem-answer-key.md`'s E7 correction
-      annotated as resolved.
+- [x] **V8 (P2) — SHIPPED 2026-08-20** — docs — TODOS 1b closed (finding kept
+      in full; its generalisable lesson recorded), T7's blocked half marked
+      unblocked, a third TODO added for the twice-emitted `data-block-type`
+      (it cost time four times in one session), STATE updated with the slice and
+      V7's runbook, the `printExpectations.ts` cannot-declare-yet note replaced
+      at V6, and `problem-answer-key.md`'s E7 correction flipped to RESOLVED.
 
 **Sequencing:** **V9 first** (it makes every other task's "Verify:" line
 checkable), then V1 → V2 → V3 → {V4, V5, V6} → V7. V8 last.
