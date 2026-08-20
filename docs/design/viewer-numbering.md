@@ -1,7 +1,6 @@
 # The viewer numbering surface — problem numbers on the student page
 
-> **Status:** ✅ **BUILT 2026-08-20 — V1–V6, V8, V9 shipped; V7 is an author
-> action (Linux print baselines).** Reviewed twice before building: full
+> **Status:** ✅ **COMPLETE 2026-08-20 — V1–V9 all shipped.** Reviewed twice before building: full
 > `/plan-eng-review` and then `/plan-devex-review`.
 >
 > **Status (as ruled):** RULED — full `/plan-eng-review` 2026-08-20 (scope gate + 4 sections,
@@ -355,17 +354,21 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       group mechanism they actually ship, in the commit that ships it (P5).
       `SANITIZER_REV` re-checked and still `1-87a5e78b` — a11y prose is not a
       sanitize declaration — though the bundles moved and were regenerated.
-- [ ] **V7 (P1, author action)** — regenerate the print baselines on Linux (N10)
-      via `workflow_dispatch`; commit the artifact. CI print-gates is red until
-      this lands. **The full sequence, because the plan previously named one
-      step of seven** (DX review D4): Actions → the CI workflow → Run workflow →
-      tick `update_print_baselines` → wait → download + unzip the artifact into
-      `packages/app/e2e/print-baselines.e2e.ts-snapshots/` → commit.
-      **⚠ RULED at D4: the red window is ACCEPTED, not engineered away.** A
-      short-lived branch would have kept `main` green, and that was declined.
-      So the mitigation is a STATE note, and it must be specific enough to be
-      actionable: record the run id of the expected-red print-gates run, so a
-      later session can tell the known red from a new one instead of assuming.
+- [x] **V7 (P1) — DONE 2026-08-20.** Baselines regenerated on Linux via
+      `workflow_dispatch` (run 32346119173) and committed. Three images moved —
+      `fill_in_blank` and `problem` +12px, `ordering` shifted — the gutter
+      reaching paper. The expected print-gates red is cleared.
+      **Two things came out of it worth keeping.** (1) `numbering/prints` only
+      ever covered the `?type=X&variant=N` route; the baselines use
+      `?type=X&mode=print`, a different code path that had NO assertion that a
+      number was on the page at all. That gap is now closed by a DOM assertion
+      in `print-baselines.e2e.ts` — 22/22 in CI. (2) Only 3 of 12 numbered
+      types' images changed, twice, across independent runs, while the number
+      demonstrably renders. The suspect is the suite's `maxDiffPixelRatio: 0.01`
+      (~10k pixels of slack), filed in TODOS with the observation nobody has
+      made yet: every artifact returns the CHECKED-OUT file for unchanged
+      images, so CI's actual render for `multiple_choice` has never been seen.
+      Numbering itself is guarded by two DOM assertions no tolerance can absorb.
 - [x] **V9 (P1) — SHIPPED 2026-08-20, ahead of V1** — repo DX
       (DX review D3) — add `pnpm verify` running exactly CI's `check` job
       (typecheck · lint · test · build · `scripts/check-perf-budget.mjs` ·

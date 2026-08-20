@@ -28,19 +28,9 @@ PASS
 
 **⏭ Author cleanup owed (P7):** delete the throwaway activity `51c1ed89-7e40-4610-8524-2c1d0635a719`. Its prompt is harmless but it is residue, and P7 says the run owns it end to end.
 
-**⏭ V7 — REGENERATE THE PRINT BASELINES (the viewer numbering slice). CI's print-gates job is RED until this lands, and that red is EXPECTED.**
+**✅ V7 DONE — the print baselines are regenerated and committed (run 32346119173).** The expected print-gates red is cleared; the next CI run should be fully green. Three images moved (`fill_in_blank` +12px, `problem` +12px, `ordering` shifted) — the number gutter reaching paper.
 
-~10 of the 22 committed screenshot baselines legitimately change now that questions carry numbers. They are Linux/CI-authoritative (ruling S5-7), so regenerating them is a manual job:
-
-1. GitHub → Actions → the **CI** workflow → **Run workflow** → tick **`update_print_baselines`**.
-2. Wait, then download the **print-baselines** artifact.
-3. Unzip it into `packages/app/e2e/print-baselines.e2e.ts-snapshots/` and commit.
-
-**📌 THE EXPECTED-RED RUN IDS, recorded 2026-08-20 as promised:** **32331190746** (at `8091671`) and **32338855323** (at `6c228f6`). Both show the identical shape — `print gates` FAILURE, and `typecheck · lint · test · build · bundle` + `perf budget lane` both SUCCESS. Within print gates: **82 passed, 3 failed**, all three in `print-baselines.e2e.ts` (`problem`, `fill_in_blank`, `ordering`), failing on size (+12px) or a 0.02 pixel ratio against a 0.01 tolerance — i.e. the number gutter. **Zero failures in print-rules, print-pagination or print-answer-key.** If a future red does not match that shape, it is NOT this.
-
-*(Only 3 of the 12 numbered types' baselines moved, which is fewer than expected and remains unexplained. It is not a missing render: essay renders its number, the grid computes `40px 148.5px` with content shifted 48px and no overlap, and all 20 numbered blocks render in the ALL fixture. The baselines are not the guard for numbering either — `numbering/prints` and `numbering-output.test.tsx` are, and both are green.)*
-
-⚠ **Telling the expected red from a real one.** This was accepted deliberately at DX review D4 rather than engineered away (a short-lived branch would have kept `main` green; that was declined). So the mitigation is this note — **when you push, record the run id of the first red print-gates run here**, so a later session can tell the known red from a new one instead of assuming. Everything except the baselines is green: `pnpm verify` 8/8, print-rules 50/50, the a11y lane, and the full unit suite.
+*Two findings came out of it.* (1) `numbering/prints` only covered the `?type=X&variant=N` route, while the baselines use `?type=X&mode=print` — a different code path with no assertion that a number was on the page. Closed by a DOM assertion in `print-baselines.e2e.ts` (22/22 in CI). (2) Only 3 of 12 numbered types' images changed, across two independent runs, while the number demonstrably renders — suspect is the suite's `maxDiffPixelRatio: 0.01`. Filed in TODOS; **numbering itself is guarded by two DOM assertions that no pixel tolerance can absorb**, which is why this did not block.
 
 **⏭ QUEUED: push the answer-key slice, the numbering slice + this STATE commit.** The prior three (`264eddd`, `5187eb9`, `1bc795b`) went up 2026-08-20 at run **32267816673** — **it was still `in_progress` when this session started; check it went green (`gh run list`)** before reading a red on the new push as this slice's fault.
 
