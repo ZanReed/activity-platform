@@ -3,6 +3,33 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## The print baselines' 1% tolerance may be absorbing real layout changes (2026-08-20)
+
+**What:** `print-baselines.e2e.ts` compares with `maxDiffPixelRatio: 0.01`. On a 992-px-wide
+snapshot that is roughly ten thousand pixels of slack — enough, apparently, to absorb a 40px number
+gutter on a sparse block.
+
+**The evidence:** the viewer-numbering slice put a number on twelve block types. Regenerating the
+baselines changed **three** images (`fill_in_blank`, `problem`, `ordering`). The other nine came back
+byte-identical, twice, from two independent CI runs. Yet the number demonstrably renders on that
+exact route: the DOM assertion added to that suite passes 22/22 in CI, and `numbering/prints` passes
+on the variant route. So the render is right and the images did not move.
+
+**Why that matters:** a baseline is supposed to catch what the written rules do not name — "a
+collapsed margin, an overlapping figure, a heading that lost its weight" (the suite's own words). If
+a 40px structural change can pass under the threshold, the suite is less sensitive than it reads,
+and the failure mode is silent: it goes on passing while the page drifts.
+
+**Worth checking first (cheap, and it may dissolve the item):** run the generate job with
+`--update-snapshots=all` so the artifact contains CI's ACTUAL render for every type, rather than the
+checked-out file for the ones judged unchanged. That is the one observation this investigation never
+managed to make — every artifact so far returns the committed image for unchanged files, so nobody
+has actually SEEN what Linux draws for `multiple_choice`. If those renders do contain numbers, the
+tolerance is the culprit and lowering it (or asserting per-block geometry) is the fix.
+
+**Depends on:** nothing. Not urgent — numbering itself is guarded by two DOM assertions that no
+tolerance can absorb, which is why the slice shipped without resolving this.
+
 ## `data-block-type` is emitted TWICE per block, and it keeps costing time (2026-08-20)
 
 **What:** the container's wrapper ([ViewerContainer.tsx:456](packages/viewer/src/container/ViewerContainer.tsx))
