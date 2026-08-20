@@ -1915,8 +1915,9 @@ function parseFadedFence(src: string, ctx: Ctx): JSONContent | null {
 }
 
 // ```columns fence — an authored multi-column (side-by-side) row. Columns are
-// separated by a line that is exactly `---`; every other non-blank line in a
-// segment becomes one block via fenceBodyBlock (a paragraph, a $$…$$ math block,
+// separated by a line that is exactly `---`; an `options:` line anywhere sets
+// ROW-level properties (`ruled` / `unruled`, the gridLines tri-state); every
+// other non-blank line in a segment becomes one block via parseBodyLines (a paragraph, a $$…$$ math block,
 // or a {{blank}} fill-in). 2–6 columns; an empty segment seeds an empty
 // paragraph (a column needs ≥1 block). Emits a strict-grid `row` node directly —
 // wrapBlocksStrict passes it through at the top level while wrapping the bare
@@ -1924,13 +1925,43 @@ function parseFadedFence(src: string, ctx: Ctx): JSONContent | null {
 // content — nested lists/headings — is editor-only; the fence is for simple
 // side-by-side text).
 function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
+    // `gridLines` is a ROW property, so its directive is pulled out BEFORE the
+    // fence is cut into columns — an options line describes the whole row, and
+    // a row has no position inside itself. Recognising it anywhere in the fence
+    // is what makes `options: ruled` mean the same thing above the first `---`
+    // and below the last one, which is the only behaviour an author can
+    // predict without reading this function.
+    //
+    // The tri-state is the point, not a boolean: `ruled` forces the box ON,
+    // `unruled` forces it OFF, and saying nothing stays 'inherit' so the
+    // activity-wide ⚙ toggle governs. A teacher who ruled the whole activity
+    // needs a way to opt ONE row out, and that is what `unruled` is for.
+    let gridLines: 'inherit' | 'on' | 'off' = 'inherit';
+
     // Split into column segments on a `---` divider line.
     const segments: string[][] = [[]];
     for (const rawLine of src.split('\n')) {
-        if (rawLine.trim() === '---') {
+        const trimmed = rawLine.trim();
+        if (trimmed === '---') {
             segments.push([]);
             continue;
         }
+
+        const directive = /^options:\s*(.*)$/i.exec(trimmed);
+        if (directive) {
+            for (const opt of (directive[1] ?? '')
+                .split(',')
+                .map((o) => o.trim().toLowerCase())) {
+                if (opt === 'ruled') gridLines = 'on';
+                else if (opt === 'unruled') gridLines = 'off';
+                else if (opt)
+                    ctx.warnings.add(
+                        `Columns block: unknown option “${opt}” (use ruled or unruled) — ignored.`,
+                    );
+            }
+            continue;
+        }
+
         segments[segments.length - 1]!.push(rawLine);
     }
 
@@ -1959,7 +1990,7 @@ function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
 
     return {
         type: 'row',
-        attrs: { id: '', gridLines: 'inherit' },
+        attrs: { id: '', gridLines },
         content: columns,
     };
 }

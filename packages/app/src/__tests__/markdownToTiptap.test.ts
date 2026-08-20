@@ -2651,6 +2651,62 @@ describe('rich bodies in worked / faded / columns fences', () => {
     });
 });
 
+describe('```columns ruled/unruled option (2026-08-21)', () => {
+    // `Row.gridLines` reached PAPER for the first time the same day this option
+    // landed — it had been a dead declaration since S9 Drop 4 (schema + editor
+    // toolbar, no reader on any student- or printer-facing surface). The render
+    // half is guarded by print e2e (`structure/ruled-grid`); these rows guard
+    // the AUTHORING half, so the fence key and the thing it draws cannot drift.
+
+    it('options: ruled sets the row tri-state to on', () => {
+        const [row] = blocks('```columns\noptions: ruled\nLeft\n---\nRight\n```');
+        expect(row!.type).toBe('row');
+        expect(row!.attrs?.gridLines).toBe('on');
+        expect(row!.content).toHaveLength(2);
+    });
+
+    it('options: unruled sets it to off, so one row can opt OUT', () => {
+        // Not redundant with the default: a teacher who ruled the whole
+        // activity in ⚙ needs a way to exempt a single row, and 'off' is the
+        // only value that outranks the activity setting.
+        const [row] = blocks('```columns\noptions: unruled\nLeft\n---\nRight\n```');
+        expect(row!.attrs?.gridLines).toBe('off');
+    });
+
+    it('saying nothing stays inherit, so ruling remains OPT-IN', () => {
+        // The compatibility row. Every columns fence authored before this
+        // option existed must keep printing exactly as it did.
+        const [row] = blocks('```columns\nLeft\n---\nRight\n```');
+        expect(row!.attrs?.gridLines).toBe('inherit');
+    });
+
+    it('the options line works below the last divider, not just at the top', () => {
+        // It describes the ROW, and a row has no position inside itself. If
+        // this ever regresses, the option silently becomes position-dependent —
+        // the kind of rule an author cannot predict without reading the parser.
+        const [row] = blocks('```columns\nLeft\n---\nRight\noptions: ruled\n```');
+        expect(row!.attrs?.gridLines).toBe('on');
+        // AND it does not leak into the column as a paragraph of literal text.
+        const right = row!.content![1]!;
+        expect(JSON.stringify(right)).not.toContain('options:');
+    });
+
+    it('an unknown option warns and is ignored, never sinking the fence', () => {
+        const { blocks: got, warnings } = convert(
+            '```columns\noptions: nope\nLeft\n---\nRight\n```',
+        );
+        expect(got[0]!.type).toBe('row');
+        expect(got[0]!.attrs?.gridLines).toBe('inherit');
+        expect(warnings.join(' ')).toMatch(/unknown option/i);
+    });
+
+    it('the ruled row survives the schema round trip', () => {
+        const md = '```columns\noptions: ruled\nLeft\n---\nRight\n```';
+        const [row] = roundTrip(md);
+        expect(row!.attrs?.gridLines).toBe('on');
+    });
+});
+
 /** Remove `attrs: {}` so an absent-vs-empty attrs difference is not a failure. */
 function dropEmptyAttrs(nodes: JSONContent[]): JSONContent[] {
     const walk = (node: JSONContent): JSONContent => {

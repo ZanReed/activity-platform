@@ -166,6 +166,10 @@ export const FENCES: FenceSpec[] = [
         blockType: 'row',
         summary: 'a multi-column (side-by-side) row, columns divided by ---',
         example: 'left column\n---\nright column',
+        // ROW-level, not question-level: these set the gridLines tri-state
+        // ('on' / 'off'), which draws the boxed regions a student writes in or
+        // cuts out. Absent = 'inherit', so the activity-wide ⚙ toggle governs.
+        options: ['ruled', 'unruled'],
     },
     {
         tag: 'callout',

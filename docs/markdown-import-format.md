@@ -371,6 +371,12 @@ COLUMNS (a `columns` fence lays blocks out side by side)
   displayed equation, a {{blank}} line becomes a fill-in-the-blank, every other
   line becomes a paragraph. Consecutive - or 1. lines group into ONE list, and
   #/##/### headings and ![alt](https://…) images work inside a column too.
+- An options: line anywhere in the fence sets the WHOLE row:
+    options: ruled          draw a box with dividers between the columns
+    options: unruled        never draw it, even if the activity rules rows
+  Say nothing and the activity-wide setting decides. Reach for ruled when the
+  student writes INSIDE the columns (a T-chart, a two-column proof, a
+  cut-out) — it is boxed regions to write in, not lines to write on.
 
 CALLOUT (a `callout` fence is a tinted note box)
 - ```callout … ``` with an optional variant: line, then the note text:
@@ -728,7 +734,11 @@ The blank: {{2}} is the smallest prime.
 
 - **Columns** — 2 to 6, separated by a `---` line on its own. Fewer than two columns imports as plain text with a warning; more than six is clamped to six (the extras are dropped, with a warning).
 - **Content** — one block per non-blank line inside each column, the same line grammar as `worked`/`faded`: a line that is only `$$…$$` becomes a displayed equation, a line containing a `{{blank}}` becomes a fill-in-the-blank, consecutive `-`/`*` (or `1.`) lines group into **one** list, `#`/`##`/`###` make headings, `![alt](https://…)` on its own line is an image, and every other line becomes a paragraph (with `**bold**`, `*italic*`, `` `code` ``, and `$inline$` math). A blank line ends a list run. An empty column gets a single empty paragraph.
-- **Not here** — nested question fences (`mc`, `match`, `graph`, …) inside a column have no Markdown round-trip; author those in the editor after import. Column widths, grid lines, and reserved work space also default (adjust them in the editor's column toolbar).
+- **`options:`** — a line anywhere in the fence, setting the **whole row** (it describes the row, so its position inside the fence does not matter):
+  - `options: ruled` — draw the ruled grid: a box around the row, a vertical rule between columns, and a horizontal rule between stacked blocks in a column. **Boxed regions to write in or cut out** — not ruled lines to write *on*, which the platform does not have.
+  - `options: unruled` — never draw it, even when the activity-wide setting rules every row. This is how one row opts out.
+  - Say nothing and the row stays `inherit`: **⚙ → Print → grid lines** decides. Ruling is off by default, so an activity that never mentions it is unruled everywhere.
+- **Not here** — nested question fences (`mc`, `match`, `graph`, …) inside a column have no Markdown round-trip; author those in the editor after import. Column widths and reserved work space also default (adjust them in the editor's column toolbar).
 
 ## Callout blocks (```callout fence)
 
