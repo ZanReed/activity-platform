@@ -834,11 +834,14 @@ and the calculator's detailed restrictions.
   glossary entry. It may sit anywhere in the document.
 - **Unknown keys warn rather than fail.** A typo'd key is skipped with a
   message; it never costs you the body content in the same paste.
-- **`role` and *Activity type* are different settings.** `role` is how the
-  activity is used in your sequence (Bank role); *Activity type*
-  (worksheet / exit ticket / warm-up / review) is about **layout**, is set in
-  ⚙ → Settings, and is not importable. Both offer a "review" — they mean
-  different things.
+- **`role` and `type` are different settings, and BOTH are importable.**
+  `role` is how the activity is used in your sequence (the Bank role: lesson /
+  review / practice); `type` is the activity's *format* (worksheet /
+  exit_ticket / warm_up / review) — see the settings table above. Both
+  vocabularies offer a "review" and they mean different things, which is the
+  whole reason they are named apart. *(This bullet said `type` was "not
+  importable" until 2026-08-20 — true before the settings slice, false after
+  it, and it contradicted the table 30 lines above. Corrected.)*
 
 ## Reference sheet (```reference fence)
 
