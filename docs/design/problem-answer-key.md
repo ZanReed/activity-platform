@@ -141,13 +141,17 @@
 > panel inherits `--vw-color-ink` instead (unreadable in dark mode otherwise, and
 > the print token layer already forces every ink to pure black).
 >
-> **And one the T7 sweep found, which touches E7 itself:** "Numbers render on
-> screen and on paper from the one existing numbering walk" is **false for the
-> viewer** — it renders no problem number for ANY block type, because the walk
-> that rendered them belonged to the retired renderer. E7's registry change is
-> still right (it is the correct declaration, and the editor's gutter honours
-> it); what it cannot do on its own is put a number on a printed worksheet.
-> That surface is now a recorded slice of its own.
+> **And one the T7 sweep found, which touches E7 itself — now RESOLVED.**
+> "Numbers render on screen and on paper from the one existing numbering walk"
+> was **false for the viewer**: it rendered no problem number for ANY block
+> type, because the walk that rendered them belonged to the retired renderer.
+> E7's registry change was still right (the correct declaration, honoured by
+> the editor's gutter); what it could not do on its own was put a number on a
+> printed worksheet. **[viewer-numbering.md](viewer-numbering.md) built that
+> surface on 2026-08-20 (V1–V6 + V9), so E7's premise is now true** —
+> short_answer and essay wear numbers 19 and 20 in the fixture worksheet, on
+> screen and on paper, and a guard binds the declaration to rendered output so
+> it cannot quietly stop being true again.
 
 - [x] **T1 (P1, human: ~3h / CC: ~25min)** — schema+registry — `answer`/`solution` on ShortAnswerBlock+EssayBlock; strip entries; `numbered:'always'`; tombstone on `problem`. Verify: schema tests + sanitize units + leak fixture red-then-green.
 - [x] **T2 (P1, human: ~4h / CC: ~30min)** — editor — Tiptap attrs + serialize both directions + read-only display (E10). Verify: round-trip tests.

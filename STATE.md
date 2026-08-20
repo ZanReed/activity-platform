@@ -12,7 +12,17 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **⏭ STILL OWED — the liveness proof, and it is the half that actually observes the behaviour.** A successful deploy proves a new bundle is *running*, not that it *strips*. [scripts/verify-answer-key-strip.mjs](scripts/verify-answer-key-strip.mjs) is the observation (P3: a safeguard nobody has watched fire is not a safeguard); its header carries the five-minute recipe. **Read it as a WIRE check, not a page check** — the student surface never renders `answer` even when served, so a clean-looking page proves nothing. Two legs: leg 1 proves the probe activity really is the probe, leg 2 is the safety property. **Until it passes, treat publishing an answer-bearing activity as unproven rather than safe** — the risk is now low (the correct bundle is live and its unit + handler tests are green) but it is untested against the real function. Clear the sentinel activity afterwards (P7) and record the result here.
 
-**⏭ QUEUED: push the answer-key slice + this STATE commit.** The prior three (`264eddd`, `5187eb9`, `1bc795b`) went up 2026-08-20 at run **32267816673** — **it was still `in_progress` when this session started; check it went green (`gh run list`)** before reading a red on the new push as this slice's fault.
+**⏭ V7 — REGENERATE THE PRINT BASELINES (the viewer numbering slice). CI's print-gates job is RED until this lands, and that red is EXPECTED.**
+
+~10 of the 22 committed screenshot baselines legitimately change now that questions carry numbers. They are Linux/CI-authoritative (ruling S5-7), so regenerating them is a manual job:
+
+1. GitHub → Actions → the **CI** workflow → **Run workflow** → tick **`update_print_baselines`**.
+2. Wait, then download the **print-baselines** artifact.
+3. Unzip it into `packages/app/e2e/print-baselines.e2e.ts-snapshots/` and commit.
+
+⚠ **Telling the expected red from a real one.** This was accepted deliberately at DX review D4 rather than engineered away (a short-lived branch would have kept `main` green; that was declined). So the mitigation is this note — **when you push, record the run id of the first red print-gates run here**, so a later session can tell the known red from a new one instead of assuming. Everything except the baselines is green: `pnpm verify` 8/8, print-rules 50/50, the a11y lane, and the full unit suite.
+
+**⏭ QUEUED: push the answer-key slice, the numbering slice + this STATE commit.** The prior three (`264eddd`, `5187eb9`, `1bc795b`) went up 2026-08-20 at run **32267816673** — **it was still `in_progress` when this session started; check it went green (`gh run list`)** before reading a red on the new push as this slice's fault.
 
 **✅ 0037 IS APPLIED LIVE — the ordering gate is DISCHARGED.** Tool-read 2026-08-18: `0037` in `schema_migrations`, both columns present, `publish_activity` carries the stamp, **0 GIN indexes** (the D12 deferral held). The author ran `pnpm verify:auth --target live` = **verify-0037 11 passed / 0 failed**.
 
@@ -65,10 +75,28 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — NEXT BUILD: the batch importer, then the pilot (the answer-key slice is built)
+## Current focus — NEXT BUILD: the batch importer, then the pilot
 
 **The build queue to the catalogue, in order (each gates the next):**
-1. **✅ The answer-key slice — BUILT (T1–T6 complete; T7 partially, see below).** [problem-answer-key.md](docs/design/problem-answer-key.md) rulings E1–E10, shipped this session. Both traps the review pinned were real and both are now pinned by tests: the serialize round-trip (`serialize.test.ts`, three legs — import → save → **reload → resave**, plus the whole-pipeline pin in `markdownToTiptap.test.ts` that starts at the fence and ends at the second save), and the coverage-guard **contract amendment** (`answerKey.test.ts` now asserts **keyed ⊇ auto-gradable** with its own bound — a keyed type may not be static — and pins `self_explanation` as a NAMED exclusion). **The deploy gate is live and BLOCKING — see Pending author actions.** Two things the design did not anticipate, both found while building and both fixed here: (a) **the editor's numbering bridge did not know these blocks**, so `numbered:'always'` would have shifted every question number after a short_answer down by one — `PM_NAME_TO_SCHEMA_TYPE` gained both, and the parity test that file had *claimed* for months now exists (`problemNumbering.test.ts`, policy P11); (b) **`ANSWER_KEY_INK` is an SVG stroke colour, not a text colour** — applied to the key panel it was nearly invisible in dark mode, and the print token layer already forces every ink to pure black, so the panel inherits `--vw-color-ink` on both surfaces instead.
+0. **✅ The viewer numbering slice — BUILT 2026-08-20 (V1–V6 + V9; V7 is an author action).**
+   [viewer-numbering.md](docs/design/viewer-numbering.md), eng-reviewed (D2–D10) then DX-reviewed
+   (D1–D4). **The viewer had rendered no problem number for ANY block type since the renderer died
+   at S9 Drop 4** — the registry declaration and its guard survived the deletion, so the contract
+   read as honoured for four months. Shipped: a pure `buildNumbering` walk → id-keyed map, rendered
+   by the SHARED block wrapper (grid declared once; the renderer's per-type version shipped
+   number_line and data_plot without it, twice), all three label modes, `labelFields` on the last
+   three numbered blocks with the save-path chain closed, sub-part lettering, and the number
+   announced once from a labelled group.
+   **The load-bearing piece is the guard** (`numbering-output.test.tsx`): it binds `numbered:'always'`
+   to RENDERED OUTPUT. Proven against the original bug — with the render path removed,
+   `registry.test.ts` reports 43 passed (green, as it was) and the new guard reports 3 failed,
+   naming all eight types. **Generalisable:** when a package is deleted, its surviving DECLARATIONS
+   need a consumer audit; a guard comparing two declarations outlives the implementation and then
+   reads as coverage.
+   **⏭ V7 is yours:** regenerate the Linux print baselines — see Pending author actions.
+   Also shipped alongside: **`pnpm verify`** (DX D3) — CI's whole check job in one command.
+
+1. **✅ The answer-key slice — BUILT (T1–T6 complete; T7 fully done, see below).** [problem-answer-key.md](docs/design/problem-answer-key.md) rulings E1–E10, shipped this session. Both traps the review pinned were real and both are now pinned by tests: the serialize round-trip (`serialize.test.ts`, three legs — import → save → **reload → resave**, plus the whole-pipeline pin in `markdownToTiptap.test.ts` that starts at the fence and ends at the second save), and the coverage-guard **contract amendment** (`answerKey.test.ts` now asserts **keyed ⊇ auto-gradable** with its own bound — a keyed type may not be static — and pins `self_explanation` as a NAMED exclusion). **The deploy gate is live and BLOCKING — see Pending author actions.** Two things the design did not anticipate, both found while building and both fixed here: (a) **the editor's numbering bridge did not know these blocks**, so `numbered:'always'` would have shifted every question number after a short_answer down by one — `PM_NAME_TO_SCHEMA_TYPE` gained both, and the parity test that file had *claimed* for months now exists (`problemNumbering.test.ts`, policy P11); (b) **`ANSWER_KEY_INK` is an SVG stroke colour, not a text colour** — applied to the key panel it was nearly invisible in dark mode, and the print token layer already forces every ink to pure black, so the panel inherits `--vw-color-ink` on both surfaces instead.
 
 **T7 (the P2 sweep) ran too, and it found the bigger one.** Shipped: a universal `printExpectations` row (the written key never prints on a student worksheet, its non-vacuity pair named in `print-answer-key.e2e.ts`) and an a11y row scanning the **post-check** worksheet — a state that lane had never scanned, and where this slice's new solution-disclosure DOM lives. Both verified in a real browser (a11y 1 passed, print-rules 50 passed, print-answer-key 10 passed).
 
@@ -77,17 +105,6 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 3. **The pilot** — 2–3 real activities round-tripped end to end (paste → file → publish → key print → outline) BEFORE the other ~147 are written.
 
 **The author is pre-authoring the catalogue as markdown files in a separate folder.** The import format is therefore the builder-AI's entire vocabulary; docs/markdown-import-format.md embeds the canonical prompt (regenerate that block from the constant with a function replacer — `$$` in a String.replace replacement inserts a literal `$`).
-
-## Prior focus — the ```meta fence carries SETTINGS (the builder's briefing)
-
-**Trigger: the author is pre-authoring the whole catalogue as markdown in a separate folder, with an AI.** That makes the import prompt the builder's entire vocabulary — anything not importable is a per-activity drawer visit across ~150 activities. Two gaps closed 2026-08-19:
-
-1. **`title:`** — without it every import landed as "Untitled activity". One manual rename per activity was the single largest mechanical cost of the workflow. Never-clobber with the placeholder as the unset test.
-2. **Five settings keys** — `type` (worksheet/exit_ticket/warm_up/review), `submission` (single/locked/free), `revision` (free/locked), `feedback` (immediate/on_check), `calculator` (off/scientific/graphing). Each is a decision the builder is already making implicitly while writing; each one unimported was a drawer visit. Enum values fold spaces/hyphens and ignore case, so "Exit Ticket" reaches `exit_ticket`.
-
-**The fence now carries 10 keys and one rule: never-clobber (D16).** "Unset" is per-field — the create-time placeholder for title, the SCHEMA DEFAULT for course and the four settings, absent for unit, null for role, undefined for calculator. Tags still union. Anything skipped is reported under the editor header.
-
-**Deliberately still editor-only, and why:** print layout + typography (nested, and you can't yet tell whether the defaults are wrong); the calculator's detailed restrictions (trig/logs/regression/expression caps — `calculator: graphing` covers the real case). **Deliberately REFUSED:** `skills` (inert by Bank ruling A4 — STATE warns against a piecemeal surface) and `gradingMode` (inert in Phase 1; importing it would let the builder write something the platform ignores, which is worse than not offering it).
 
 ## Earlier focus — the check-prune slice (0035) is BUILT; the rollup deliberately WAITS
 

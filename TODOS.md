@@ -3,6 +3,28 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## `data-block-type` is emitted TWICE per block, and it keeps costing time (2026-08-20)
+
+**What:** the container's wrapper ([ViewerContainer.tsx:456](packages/viewer/src/container/ViewerContainer.tsx))
+and most block components' own roots BOTH carry `data-block-type`. `[data-block-type="X"]` therefore
+matches two nested elements, and "the block" is ambiguous in every selector built on it.
+
+**Why record it rather than tolerate it:** it cost time four separate times in one session. The print
+harness already carries a paragraph explaining that BLOCK_ROOT is ambiguous "by construction" and
+tries every candidate; a live browser check for a nested-gutter leak matched the wrapper and briefly
+looked like a real bug; and the new `numbering/prints` rule failed on its first run purely because
+variant scoping targets the component root (which carries `data-variant`) while the number lives on
+the wrapper. Each was resolved in minutes — which is the point. It is a recurring tax, not a one-off.
+
+**Options:** (a) drop the attribute from component roots and let the wrapper own it — smallest
+change, but touches every component and the many selectors assuming the inner one; (b) give the
+wrapper a distinct `data-block-wrapper` and narrow existing selectors deliberately; (c) leave it and
+keep paying, which is defensible since the harness already compensates and nothing is broken.
+
+**Depends on:** nothing, but it wants a quiet slice — the print gate, the a11y lane and several
+component tests all select on this attribute, so the blast radius is wide even though the change is
+shallow.
+
 ## The `number` override is an ORPHAN FIELD — wire it or delete it (eng review D9, 2026-08-20)
 
 **What:** `number: z.number().int().positive().optional()` sits on 8 block schemas
@@ -51,15 +73,14 @@ leak suites, regenerate both bundles, verify `SANITIZER_REV` is unmoved.
 
 Left open deliberately by [problem-answer-key.md](docs/design/problem-answer-key.md); T1–T6 shipped.
 
-**1. ✅ T7 — DONE for everything that is implementable; ONE HALF IS BLOCKED, see the next item.**
+**1. ✅ T7 — FULLY DONE** (the blocked half is unblocked; see 1b).
 Shipped 2026-08-20: a `printExpectations.ts` universal row (the written answer key never prints on a
 student worksheet, with its non-vacuity pair named in `print-answer-key.e2e.ts`), and an a11y row
 that scans the **post-check** worksheet — a state this lane had never scanned at all, and which is
 where the answer-key slice's new solution-disclosure DOM lives. Both verified in a real browser.
 
-**1b. ⚠ THE VIEWER RENDERS NO PROBLEM NUMBER FOR ANY BLOCK TYPE — a gap the renderer's retirement
-left open, found while doing T7 (2026-08-20).** This is the blocked half of T7 and it is much wider
-than the answer-key slice.
+**1b. ✅ RESOLVED 2026-08-20 — the viewer renders no problem number for any block type.**
+*(Kept in full because the finding is the useful part; the fix is recorded at the end.)*
 
 *The finding, verified in the dev harness:* `fill_in_blank`, `multiple_choice`, `matching`,
 `ordering`, `number_line` and `faded_worked_example` all declare `numbered: 'always'` in the
@@ -77,6 +98,24 @@ the stated premise that "numbers render on screen and on paper from the one exis
 walk". That premise is false for this surface. Paper-first workflows are the reason the slice
 exists — a printed worksheet whose questions have no numbers cannot be marked against a key, and
 the scan-grading arc's paper→block mapping has nothing to key on.
+
+**✅ BUILT — [viewer-numbering.md](docs/design/viewer-numbering.md), eng-reviewed (D2–D10) and
+DX-reviewed, shipped as V1–V6 + V9 on 2026-08-20.** A pure `buildNumbering` walk producing an
+id-keyed map, rendered by the SHARED block wrapper so the grid is declared once and every numbered
+type inherits it — including types that do not exist yet. All three label modes honoured, sub-part
+lettering back, the number announced once from a labelled group.
+
+**The part that matters most is the guard.** `numbering-output.test.tsx` binds `numbered:'always'`
+to RENDERED OUTPUT instead of to another declaration. Proven against the original bug: with the
+render path removed, `registry.test.ts` reports 43 passed — green, exactly as it was for four
+months — while the new guard reports 3 failed, naming all eight types.
+
+**The generalisable lesson, recorded because it outlives this item:** when a package is deleted, its
+surviving DECLARATIONS need a consumer audit. A guard comparing two declarations outlives the
+implementation that made them true, and is then worse than no guard, because it reads as coverage.
+
+**Still owed — V7:** regenerate the 22 Linux print baselines (~10 change) via `workflow_dispatch`
+and commit the artifact. CI's print-gates job is red until it lands, and that red is EXPECTED.
 
 *What the work is (its own slice, not a sweep):* give the viewer a numbering pass over the served
 document — sequence walk, the three `label` modes (`number` / `custom` / `none`, already in the

@@ -5,6 +5,23 @@ Archived completed-work narratives, moved out of STATE.md to keep it readable. N
 ---
 
 
+
+## Archived from STATE.md 2026-08-20 (the viewer-numbering session)
+
+Complete when archived; moved out to hold STATE.md at its ~150-line budget.
+
+### Prior focus — the ```meta fence carries SETTINGS (the builder's briefing)
+
+**Trigger: the author is pre-authoring the whole catalogue as markdown in a separate folder, with an AI.** That makes the import prompt the builder's entire vocabulary — anything not importable is a per-activity drawer visit across ~150 activities. Two gaps closed 2026-08-19:
+
+1. **`title:`** — without it every import landed as "Untitled activity". One manual rename per activity was the single largest mechanical cost of the workflow. Never-clobber with the placeholder as the unset test.
+2. **Five settings keys** — `type` (worksheet/exit_ticket/warm_up/review), `submission` (single/locked/free), `revision` (free/locked), `feedback` (immediate/on_check), `calculator` (off/scientific/graphing). Each is a decision the builder is already making implicitly while writing; each one unimported was a drawer visit. Enum values fold spaces/hyphens and ignore case, so "Exit Ticket" reaches `exit_ticket`.
+
+**The fence now carries 10 keys and one rule: never-clobber (D16).** "Unset" is per-field — the create-time placeholder for title, the SCHEMA DEFAULT for course and the four settings, absent for unit, null for role, undefined for calculator. Tags still union. Anything skipped is reported under the editor header.
+
+**Deliberately still editor-only, and why:** print layout + typography (nested, and you can't yet tell whether the defaults are wrong); the calculator's detailed restrictions (trig/logs/regression/expression caps — `calculator: graphing` covers the real case). **Deliberately REFUSED:** `skills` (inert by Bank ruling A4 — STATE warns against a piecemeal surface) and `gradingMode` (inert in Phase 1; importing it would let the builder write something the platform ignores, which is worse than not offering it).
+
+
 ## Archived from STATE.md 2026-08-20 (the answer-key slice's session)
 
 Both narratives below were complete when they were archived; they moved out of STATE.md to keep it
