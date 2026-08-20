@@ -86,6 +86,54 @@
   min-height: var(--activity-cell-min-height, 0);
 }
 
+/* ---- Ruled grid (Row.gridLines) -------------------------------------------
+   PORTED from the retired renderer (S9 Drop 4), attribute name and geometry
+   unchanged, so a document authored before the deletion rules exactly as it
+   used to. The field survived that deletion in the schema, the editor toolbar
+   and serialize — with no reader on any surface a student or a printer sees —
+   until 2026-08-21.
+
+   It boxes the whole row, draws a vertical rule between cells and a horizontal
+   rule between the stacked blocks inside a cell: regions to write in or cut out
+   on paper. The gap collapses to 0 so a single hairline sits between regions
+   rather than empty space, and the cells take their own padding back.
+
+   Renders in EVERY output (screen and print alike), like the columns
+   themselves — the renderer's choice, kept: a teacher previewing a ruled sheet
+   on screen should see the sheet they will hand out.
+
+   Colours come from the viewer's own tokens rather than the renderer's
+   hardcoded slate hexes, so the ruling follows the theme and survives the print
+   layer's ink override into real black on paper. */
+.viewer-row[data-grid-lines='true'] {
+  gap: 0;
+  border: 1px solid var(--vw-color-line);
+  /* Override the unruled default (align-items: start). Ruled cells must stretch
+     to the row's full height or the between-cell divider stops where its own
+     content ends, leaving a stub. Stretch also gives equal-height boxed
+     regions, which is the point of a ruled grid on paper. */
+  align-items: stretch;
+}
+
+.viewer-row[data-grid-lines='true'] > .viewer-column {
+  padding: 0.75rem;
+  border-left: 1px solid var(--vw-color-line);
+}
+
+.viewer-row[data-grid-lines='true'] > .viewer-column:first-child {
+  border-left: none;
+}
+
+/* Horizontal rule between stacked blocks in one cell. The rule sits BETWEEN
+   blocks, never above the first, so :first-child stays flush. Symmetric
+   padding with the block's own top margin zeroed keeps the rule centred in
+   even space instead of doubled against a margin. */
+.viewer-row[data-grid-lines='true'] > .viewer-column > * + * {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--vw-color-line-strong);
+}
+
 /* Per-block footprint (width fraction + align). Consuming a custom property
    instead of declaring a width lets the phone breakpoint relax it; auto margins
    centre by default, and the align attribute zeroes one side. Only horizontal
@@ -1231,8 +1279,16 @@
   /* Problem spacing and reserved work space, per the teacher's configuration.
      Scoped to the QUESTION category so prose keeps its own rhythm — spacing
      between problems is what a teacher is asking for, not air after every
-     paragraph. A single problem can override the work space with its own
-     value; that is ordinary custom-property inheritance, not a special case. */
+     paragraph.
+
+     A single problem overrides the work space with its own value by shadowing
+     `--print-work-space` on its wrapper — ordinary custom-property
+     inheritance, not a special case. That sentence stood here as a CLAIM from
+     S9 Drop 4 until 2026-08-21, describing the renderer's behaviour after the
+     renderer was deleted: the schema field existed, this comment described it,
+     and nothing set the property. `blockStyle` in container/layoutStyles.ts
+     emits it now, and printExpectations binds it to computed style so the
+     claim cannot rot back into a claim (policy P11). */
   [data-block-category='question'] {
     margin-top: var(--print-problem-spacing, 1.25rem);
     margin-bottom: var(--print-problem-spacing, 1.25rem);

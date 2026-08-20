@@ -307,7 +307,7 @@ test.describe('structural print rules', () => {
         expect(value).toBe('auto');
     });
 
-    test('structure/reserved-work-space — an authored floor reaches paper', async ({ page }) => {
+    test('structure/reserved-work-space — an authored COLUMN floor reaches paper', async ({ page }) => {
         await page.goto('/dev/viewer?type=paragraph&columns=1');
         const narrow = page.locator('.viewer-column').nth(1);
         await expect(narrow).toBeAttached();
@@ -317,6 +317,117 @@ test.describe('structural print rules', () => {
         );
         // 8rem of reserved room to work in, not a collapsed cell.
         expect(parseFloat(minHeight)).toBeGreaterThan(100);
+    });
+
+    // ---- The two fields that were DEAD DECLARATIONS until 2026-08-21 --------
+    // Both shipped in the schema, were honoured by the editor and round-tripped
+    // by serialize, and were read by NOTHING on a student- or printer-facing
+    // surface: their implementations were the renderer's and died with it at S9
+    // Drop 4. These two specs are the reason that cannot happen again quietly —
+    // they assert COMPUTED STYLE, so a future deletion of the render path goes
+    // red here rather than passing on a surviving declaration.
+
+    test('structure/per-problem-work-space — a problem overrides the activity work space', async ({
+        page,
+    }) => {
+        // The fixture sets workSpace on ONE block and leaves the activity
+        // default at 0. That is the anti-vacuity design: a pass cannot come
+        // from the activity-wide value, because there isn't one.
+        await page.goto('/dev/viewer?type=multiple_choice&workspace=1');
+        await page.emulateMedia({ media: 'print' });
+
+        const blocks = page.locator(
+            '.viewer-block[data-block-category="question"]',
+        );
+        const overridden = blocks.first();
+        await expect(overridden).toBeAttached();
+
+        const padding = await overridden.evaluate(
+            (el) => getComputedStyle(el).paddingBottom,
+        );
+        // 4rem of hand-working room below this one problem.
+        expect(parseFloat(padding)).toBeGreaterThan(50);
+
+        // THE PAIR THAT MAKES IT NON-VACUOUS: a question that did NOT override
+        // gets the activity default (0), so the two must differ. Without this,
+        // a stylesheet that padded every question would pass the row above and
+        // the per-problem override would still be dead.
+        const count = await blocks.count();
+        if (count > 1) {
+            const plain = await blocks
+                .nth(count - 1)
+                .evaluate((el) => getComputedStyle(el).paddingBottom);
+            expect(parseFloat(plain)).toBeLessThan(parseFloat(padding));
+        }
+    });
+
+    test('structure/ruled-grid — an explicitly ruled row draws its box and dividers', async ({
+        page,
+    }) => {
+        await page.goto('/dev/viewer?type=multiple_choice&ruled=on');
+        await page.emulateMedia({ media: 'print' });
+
+        const row = page.locator('.viewer-row[data-grid-lines="true"]');
+        await expect(row).toBeAttached();
+
+        const box = await row.evaluate((el) => {
+            const cs = getComputedStyle(el);
+            return {
+                borderStyle: cs.borderTopStyle,
+                borderWidth: parseFloat(cs.borderTopWidth),
+                gap: parseFloat(cs.columnGap || '0'),
+                alignItems: cs.alignItems,
+            };
+        });
+        expect(box.borderStyle).toBe('solid');
+        expect(box.borderWidth).toBeGreaterThan(0);
+        // The gap collapses so ONE hairline sits between regions, not a gutter.
+        expect(box.gap).toBe(0);
+        // Ruled cells stretch, or a short cell leaves a stub divider.
+        expect(box.alignItems).toBe('stretch');
+
+        // The divider between cells: present on the second column, absent on
+        // the first (a rule BETWEEN regions, not a double border on the box).
+        const cols = row.locator('> .viewer-column');
+        const firstLeft = await cols
+            .nth(0)
+            .evaluate((el) => parseFloat(getComputedStyle(el).borderLeftWidth));
+        const secondLeft = await cols
+            .nth(1)
+            .evaluate((el) => parseFloat(getComputedStyle(el).borderLeftWidth));
+        expect(firstLeft).toBe(0);
+        expect(secondLeft).toBeGreaterThan(0);
+    });
+
+    test('structure/ruled-grid — an inherit row resolves against the activity default', async ({
+        page,
+    }) => {
+        // The other half of the tri-state, and the half a teacher actually
+        // uses: one toggle in ⚙ rules every row that did not opt out. A spec
+        // that only covered `gridLines: 'on'` would leave the resolution
+        // function itself unasserted.
+        await page.goto('/dev/viewer?type=multiple_choice&ruled=inherit');
+        await page.emulateMedia({ media: 'print' });
+        await expect(
+            page.locator('.viewer-row[data-grid-lines="true"]'),
+        ).toBeAttached();
+    });
+
+    test('structure/ruled-grid — an unruled row is untouched', async ({ page }) => {
+        // The negative that keeps ruling OPT-IN. Every activity authored before
+        // this slice must print exactly as it did, so the attribute is absent
+        // and the row keeps its normal gutter.
+        await page.goto('/dev/viewer?type=multiple_choice&columns=1');
+        await page.emulateMedia({ media: 'print' });
+
+        await expect(
+            page.locator('.viewer-row[data-grid-lines="true"]'),
+        ).toHaveCount(0);
+        const gap = await page
+            .locator('.viewer-row')
+            .first()
+            .evaluate((el) => parseFloat(getComputedStyle(el).columnGap || '0'));
+        expect(gap).toBeGreaterThan(0);
     });
 });
 

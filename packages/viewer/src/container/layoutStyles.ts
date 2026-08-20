@@ -9,6 +9,10 @@
 //   Column.minHeight  — reserved work space in rem: a floor, never a cap.
 //   Block width/align — a width FRACTION of the container plus where the
 //                       narrowed block sits.
+//   Block workSpace   — reserved hand-working space below ONE problem (2026-08-21).
+//                       Added late because it arrived in the viewer as a DEAD
+//                       DECLARATION: the schema carried it, the print CSS
+//                       claimed to honour it, and nothing ever set the property.
 //
 // Every one of them was dropped on the floor before this: a teacher's 2:1 split
 // rendered 50/50 and a half-width figure rendered full width. That is a silent
@@ -43,6 +47,13 @@ export interface ColumnLayout {
 export interface BlockLayout {
   readonly width?: number | undefined;
   readonly align?: 'left' | 'center' | 'right' | undefined;
+  /**
+   * Reserved hand-working space below THIS problem, in rem — the per-problem
+   * override of `meta.print.workSpace`. Declared on fill_in_blank, ordering,
+   * matching and multiple_choice; absent everywhere else and on every block the
+   * teacher did not size.
+   */
+  readonly workSpace?: number | undefined;
 }
 
 /** Trim float artifacts (0.33 * 100 → 33.000000000000004) while keeping real
@@ -94,10 +105,32 @@ export function columnStyle(column: ColumnLayout): CSSProperties {
  * has nothing to align within.
  */
 export function blockStyle(block: BlockLayout): CSSProperties {
-  if (block.width === undefined) return {};
-  return {
-    '--activity-block-width': `${formatNumber(block.width * 100)}%`,
-  } as CSSProperties;
+  const style: Record<string, string> = {};
+
+  if (block.width !== undefined) {
+    style['--activity-block-width'] = `${formatNumber(block.width * 100)}%`;
+  }
+
+  // The per-problem work-space override, as ordinary custom-property
+  // inheritance: PrintDocumentLayer seeds `--print-work-space` on the worksheet
+  // root and this shadows it for one block, which the print rule
+  // `[data-block-category='question'] { padding-bottom: var(--print-work-space) }`
+  // then reads. Same mechanism the retired renderer used, and its own tests
+  // pinned the emitted `style="--print-work-space:3rem"`.
+  //
+  // BUT DECLARED ONCE, not per block type. The renderer emitted this from FOUR
+  // separate block renderers (fill-in-blank, matching, multiple-choice,
+  // ordering), which is the "any new type must remember to join this list"
+  // shape ruling N2 removed for numbering — and the same shape that let this
+  // whole field arrive in the viewer as a dead declaration. A type that gains
+  // `workSpace` later inherits this for free.
+  //
+  // Inert on screen: nothing outside `@media print` reads the property.
+  if (block.workSpace !== undefined) {
+    style['--print-work-space'] = `${formatNumber(block.workSpace)}rem`;
+  }
+
+  return style as CSSProperties;
 }
 
 /** `data-block-align` for a sized block, or undefined.
@@ -113,4 +146,25 @@ export function blockAlign(block: BlockLayout): 'left' | 'right' | undefined {
 /** Whether a block carries any authored footprint at all. */
 export function isSized(block: BlockLayout): boolean {
   return block.width !== undefined;
+}
+
+/**
+ * Resolve a row's tri-state ruled-grid setting against the activity-wide
+ * default, ported verbatim from the retired renderer's `resolveGridLines`.
+ *
+ *   'on'      → always ruled
+ *   'off'     → never ruled
+ *   'inherit' → whatever `meta.print.gridLines` says (default false)
+ *
+ * Ruled grids are OPT-IN: the schema's activity default is false, so a document
+ * that never mentions grid lines is unruled everywhere, which is what every
+ * existing activity expects.
+ */
+export function resolveGridLines(
+  gridLines: 'inherit' | 'on' | 'off' | undefined,
+  activityDefault: boolean,
+): boolean {
+  if (gridLines === 'on') return true;
+  if (gridLines === 'off') return false;
+  return activityDefault;
 }

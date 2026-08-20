@@ -3,11 +3,32 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
-## Two print fields are DEAD DECLARATIONS: block `workSpace` and row `gridLines` (2026-08-21)
+## ✅ RENDER DONE 2026-08-21 — the two dead print fields now reach paper; the IMPORT SYNTAX is what remains
 
-**What:** The schema, the editor and the round trip all carry these two fields. **The viewer
-renders neither**, so neither reaches paper. Wire them, then expose the import syntax that was the
-original ask.
+**✅ The render half shipped.** `blockStyle` emits `--print-work-space` on the block wrapper, and
+`ViewerContainer` emits `data-grid-lines="true"` on a row whose tri-state resolves on. Four e2e specs
+run green in a real browser (per-problem override with its non-vacuity pair, ruled `on`, ruled
+`inherit`, and the unruled negative). **No print baselines moved** — verified rather than assumed: no
+fixture authors either field, so both features are inert on every baseline.
+
+**⏭ WHAT REMAINS: the import syntax, and it has an open design fork.** `work:` is a clean fence key
+for ```mc / ```match / ```order — but **`fill_in_blank` has no fence.** It is produced by a `{{…}}`
+inside a paragraph, so there is nowhere to hang a key, and it is the most common numbered problem on
+a worksheet. Shipping `work:` on three of the four types would give the format a confusing contract
+("works everywhere except the one you use most"). Candidate shapes, none chosen:
+(a) a trailing `work: 4` line that attaches to the PREVIOUS block — a new grammar concept the format
+does not have; (b) an inline suffix in the blank spec — wrong scope, since workSpace is a block
+property and a paragraph can hold several blanks; (c) leave fill_in_blank to the activity-level ⚙
+default and document the asymmetry. **Decide before building.**
+
+The ```columns `ruled` option is independent and has no fork — it can ship on its own.
+
+**⚠ AND A NAMING TRAP WORTH READING BEFORE PROMISING THIS TO ANYONE: `gridLines` is not ruled
+writing lines.** It draws a BOX with dividers between cells — "boxed regions to write in or cut out
+on paper", in the retired renderer's own words. Notebook-style horizontal lines to write ON do not
+exist anywhere in this codebase. If that is what someone asked for, it is a separate (small) print
+treatment — most likely a repeating gradient over the reserved work space — and it needs its own
+authored option, which means a schema change and the usual bundle regeneration.
 
 **The evidence, all verified 2026-08-21 by reading the render path:**
 - **`workSpace` per block** — declared on `fill-in-blank.ts:43`, `ordering.ts:44`, `matching.ts:77`

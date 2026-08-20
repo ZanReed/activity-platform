@@ -49,9 +49,12 @@ export function PrintPageRule({ print }: PrintDocumentLayerProps): ReactElement 
  *
  * Inert on screen: nothing outside `@media print` consumes them, so setting
  * them on the worksheet root costs a student nothing until they print.
- * `workSpace` seeds an activity-wide default that a single problem can override
- * with its own value, which is ordinary custom-property inheritance rather than
- * a special case.
+ *
+ * `workSpace` seeds an activity-wide default that a single problem overrides by
+ * shadowing `--print-work-space` on its own wrapper — ordinary custom-property
+ * inheritance rather than a special case. The overriding half is emitted by
+ * `blockStyle` (container/layoutStyles.ts); it did not exist between S9 Drop 4
+ * and 2026-08-21, during which this sentence described the deleted renderer.
  */
 export function printVars(print: PrintConfig): CSSProperties {
   return {

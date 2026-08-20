@@ -68,6 +68,7 @@ import {
   blockStyle,
   blockAlign,
   isSized,
+  resolveGridLines,
   type BlockLayout,
 } from './layoutStyles.js';
 
@@ -349,6 +350,18 @@ export function ViewerContainer({
                 className="viewer-row"
                 data-row-id={row.id}
                 data-column-count={row.columns.length}
+                // RULED GRID (2026-08-21). `Row.gridLines` shipped in the
+                // schema, was honoured by the editor toolbar and round-tripped
+                // by serialize — and no surface a STUDENT or a PRINTER sees
+                // ever read it, because the implementation was the renderer's
+                // and died with it at S9 Drop 4. Attribute name and CSS are
+                // ported from that renderer (`data-grid-lines="true"`), so a
+                // document authored before the deletion rules exactly as it
+                // used to. Emitted only when the resolved tri-state is on, so
+                // an unruled row's DOM is byte-identical to before.
+                {...(resolveGridLines(row.gridLines, print.gridLines)
+                  ? { 'data-grid-lines': 'true' }
+                  : {})}
                 style={rowStyle(row.columns)}
               >
                 {row.columns.map((column) => (

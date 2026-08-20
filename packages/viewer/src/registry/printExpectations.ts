@@ -684,7 +684,22 @@ export const structuralPrintRoster: readonly {
   // the app package) refuses a declared id with no test, in both directions.
   {
     id: 'structure/reserved-work-space',
-    rule: 'An authored reserved work-space floor reaches paper — the teacher sized the answer area on purpose.',
+    // NARROWED 2026-08-21 (policy P9 — when a check's lesson is "this was
+    // vacuous", re-run the lesson over the fix). This rule read as "an authored
+    // work-space floor reaches paper", which sounds like it covers BOTH the
+    // column floor and the per-problem override. Its e2e only ever asserted
+    // `.viewer-column` min-height — and the per-problem override was a dead
+    // declaration for four months underneath a rule that claimed it. Two
+    // mechanisms, two rules, two specs.
+    rule: "A COLUMN's authored work-space floor (Column.minHeight) reaches paper — the teacher sized the answer area on purpose.",
+  },
+  {
+    id: 'structure/per-problem-work-space',
+    rule: 'A PROBLEM that overrides the activity work space reaches paper with its own value — the override shadows --print-work-space on the block wrapper, and was a dead declaration from S9 Drop 4 until 2026-08-21.',
+  },
+  {
+    id: 'structure/ruled-grid',
+    rule: 'A row the teacher ruled draws its box and dividers, resolving the tri-state against meta.print.gridLines — boxed regions to write in or cut out. Ported from the retired renderer; unread by any student-facing surface between S9 Drop 4 and 2026-08-21.',
   },
   {
     id: 'structure/section-flow',

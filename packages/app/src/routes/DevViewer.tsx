@@ -218,6 +218,48 @@ export default function DevViewer() {
       ];
     }
 
+    // ---- The two 2026-08-21 print fields, each of which arrived in the viewer
+    // as a DEAD DECLARATION (schema + editor, no reader on any surface a
+    // student or a printer sees). Both fixtures exist so the print lane can
+    // assert RENDERED OUTPUT rather than the declaration.
+    //
+    // `workspace=1` — the PER-PROBLEM override. Deliberately set on ONE block
+    // with the activity default left at 0, so a passing assertion cannot come
+    // from the activity-wide value (the vacuity that would make this fixture
+    // worthless).
+    if (params.get('workspace') === '1') {
+      const first = next.sections[0]?.rows[0]?.columns[0]?.blocks[0] as
+        | Record<string, unknown>
+        | undefined;
+      if (first) first.workSpace = 4;
+    }
+
+    // `ruled=on` — an explicit per-row override. `ruled=inherit` — the row says
+    // 'inherit' and the ACTIVITY default turns it on, which is the other half
+    // of the tri-state and the half a teacher actually uses (one toggle in ⚙).
+    const ruled = params.get('ruled');
+    if (ruled === 'on' || ruled === 'inherit') {
+      if (ruled === 'inherit') {
+        next.meta.print = { ...next.meta.print, gridLines: true };
+      }
+      const allBlocks = next.sections.flatMap((sec) =>
+        sec.rows.flatMap((row) => row.columns.flatMap((col) => col.blocks)),
+      );
+      next.sections[0]!.rows = [
+        {
+          id: 'row-ruled',
+          gridLines: ruled === 'on' ? 'on' : 'inherit',
+          columns: [
+            { id: 'col-ruled-a', blocks: [structuredClone(allBlocks[0])] },
+            {
+              id: 'col-ruled-b',
+              blocks: [structuredClone(allBlocks[1] ?? allBlocks[0])],
+            },
+          ],
+        } as never,
+      ];
+    }
+
     return next as unknown as SanitizedActivityDocument;
   }, [doc, font]);
 
