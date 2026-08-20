@@ -97,8 +97,12 @@ if (process.argv.includes('--snippet')) {
   // shows the instructions, and `--snippet | pbcopy` puts ONLY runnable code on
   // the clipboard. There is deliberately no top-level `await`, so this is valid
   // in any JS context — which is also what lets `node --check` verify it.
+  // `--activity <id>` bakes the id in, so there is nothing to hand-edit in the
+  // console. One less place to get it wrong, and a wrong id fails as leg-1
+  // vacuity rather than as something scarier.
+  const bakedId = arg('activity') ?? 'PASTE_THE_ACTIVITY_ID_HERE';
   const snippet = `(async () => {
-  const ACTIVITY_ID = 'PASTE_THE_ACTIVITY_ID_HERE';
+  const ACTIVITY_ID = '${bakedId}';
   const SENTINEL = '${SENTINEL}';
 
   const key = Object.keys(localStorage).find((k) => /^sb-.*-auth-token$/.test(k));
@@ -146,9 +150,17 @@ if (process.argv.includes('--snippet')) {
 `;
   console.error(
     'Copy the JavaScript on stdout into the DevTools console of the SIGNED-IN app,\n' +
-      'with the throwaway sentinel activity published, and replace\n' +
-      "PASTE_THE_ACTIVITY_ID_HERE with its id (the <id> in /a/<id>).\n\n" +
-      '  straight to the clipboard:  node scripts/verify-answer-key-strip.mjs --snippet | pbcopy\n',
+      'with the throwaway sentinel activity published.\n\n' +
+      (arg('activity')
+        ? `  activity id baked in: ${bakedId}\n`
+        : '  no --activity given, so replace PASTE_THE_ACTIVITY_ID_HERE by hand.\n') +
+      '\n  to the clipboard:  node scripts/verify-answer-key-strip.mjs \\\n' +
+      '                       --snippet --activity <id> | pbcopy\n\n' +
+      '⚠ THE SENTINEL MUST BE IN THE BLOCK\'S `answer` FIELD, not its prompt.\n' +
+      '  The importer only produces that field once the answer-key slice is\n' +
+      '  DEPLOYED to the SPA — an older build swallows the `answer:` line into\n' +
+      '  the prompt as plain text, and the proof then reports a leak that is\n' +
+      '  really the prompt being served correctly. Check before trusting a FAIL.\n',
   );
   process.stdout.write(snippet);
   process.exit(0);
