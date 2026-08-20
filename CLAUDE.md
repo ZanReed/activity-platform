@@ -17,7 +17,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 
 ## Commands
 
-`pnpm test` (all packages) · `pnpm typecheck` · `pnpm build` · `pnpm bundle:viewer-server` / `pnpm bundle:grading-server` (the two committed Edge Function bundles) · `pnpm --filter @activity/<pkg> <cmd>` for one package.
+**`pnpm verify`** — CI's whole `check` job in one command (typecheck · lint · test · build · perf budgets · budget script tests · both bundle-drift checks); `--bail` stops at the first failure. **Run it before handing off — "green here" means "green in CI's check job".** It prints the browser lanes it does NOT cover. · `pnpm test` (all packages) · `pnpm typecheck` · `pnpm build` · `pnpm bundle:viewer-server` / `pnpm bundle:grading-server` (the two committed Edge Function bundles) · `pnpm --filter @activity/<pkg> <cmd>` for one package.
 
 ## Division of labor (Claude vs author)
 

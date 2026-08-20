@@ -909,3 +909,58 @@ Two amendments made at ratification: P2 carries an "or documents why it diverges
 **Sign-in-failure screens are cause-agnostic (T1/P1/P3).** GoTrue never forwards a trigger's raise text to the OAuth callback — it redirects with a generic `server_error` — so the refusal screen keys on error PRESENCE and says "We couldn't sign you in," with school-account guidance only on student entry points (`/join/:code`, the viewer gate); Home, the shared entry, gets the generic frame. The retry ALWAYS passes `prompt=select_account`: without it Google silently reuses the rejected account and the retry loops. The wire strings that DO reach clients verbatim (join_class's, via PostgREST) live once in `authContract.json` — client matcher, migration text, e2e stubs, and the verify runner all derive from it (grep-pin on the defining migration + live `pg_proc.prosrc` pin in verify-0027).
 
 **The verify workflow became one command (DX D4/X1/X2).** `pnpm verify:auth --target live|local` runs the full README-mandated grant-surgery regression set (verify-0027 + the four older scripts, all migrated to `@section` markers) over psql with per-assertion PASS/FAIL; the verify-0025 rollback-raise idiom is classified as the GREEN path. verify-0013-0014 §E (live dashboard signups) is superseded for trigger changes by verify-0027 §D's real-trigger rolled-back inserts; the off-domain OAuth case is the runbook's Probe 2. Cutover gate C2 (idle sign-out wiring) closed early: the watcher runs on the student Home and StudentViewer (banner chain arm 0) with the s1:9 e2e proving prompt→escalation at production values via Playwright's clock.
+
+## A guard must bind to OUTPUT, not to another declaration (2026-08-20, viewer-numbering V6; generalises the P1 policy)
+
+**The instance.** The registry declared `numbered: 'always'` for nine block
+types, and `tests/registry.test.ts` guarded that declaration — against
+`block-predicates.ts`. Declaration versus declaration. Both sides stayed
+perfectly consistent while the thing that made them true was deleted: the
+renderer's `renderNumberGutter` died with `packages/renderer` at S9 Drop 4, the
+viewer never inherited the job, and **for four months every numbered type
+declared itself numbered and drew nothing, with a green suite.**
+
+**The rule.** When a package is deleted, its surviving DECLARATIONS need a
+consumer audit. A guard comparing two declarations outlives the implementation
+and is then *worse* than no guard, because it reads as coverage and stops
+anyone looking. This is policy P1 ("a primitive is not delivered until something
+calls it") one layer up: the primitive had a caller — another declaration.
+
+**The shape of the fix**, if this recurs: assert against rendered output, in the
+real container, for the real fixture. `numbering-output.test.tsx` is the worked
+example, and it was validated by reproducing the bug — with the render path
+removed, `registry.test.ts` reports 43 passed while it reports 3 failed, naming
+every affected type.
+
+**The sibling case, same week.** `serialize.ts`'s `LABELED_BLOCK_TYPES` was a
+hand-typed set read by both save directions with no test binding it to
+anything — add `label` to a ninth type, forget the set, and the editor offers
+the setting while every autosave discards it, silently. It is now DERIVED from
+the schema (`Block.options.filter(o => 'label' in o.shape)`), so it cannot be
+forgotten. **A set you must remember to join will eventually not be joined**;
+this codebase has now paid for that three times (the renderer's per-type
+numbering grid, `numbered`, and this set).
+
+## The numbering surface lives in the shared block wrapper (2026-08-20, viewer-numbering N1/N2/N3)
+
+- **N1 — numbering is a pure pass producing an id-keyed map**, computed once per
+  document, never a counter incremented during render. The dead renderer's
+  `ctx.nextProblemNumber()` was safe in a synchronous string build and would not
+  be here: `BlockSlot`s render under Suspense, lazy types resolve out of order,
+  and concurrent rendering may restart a subtree — so a render-order counter
+  yields numbers that depend on scheduling. Same id-keyed shape as the
+  answer-key channel, so there is one idiom for "per-block data computed beside
+  the document", not two.
+- **N2 — the gutter renders in the shared wrapper**, with the grid declared
+  once on `.viewer-block[data-block-number]`. The renderer put it per block type
+  and its own comment records the cost: `number_line` and `data_plot` shipped
+  without joining the list, rendering a 760px-wide number on its own row. Every
+  numbered type now inherits the layout, including types that do not exist yet.
+- **N3 — exclusions are structural, not flagged.** The reference panel is never
+  walked and nested child blocks are never descended into, so a formula sheet
+  and a faded example's steps are unnumbered because their ids are absent from
+  the map — not because a prop was remembered at a call site.
+- **a11y (D3)** — the number is announced ONCE, from the wrapper's labelled
+  group. Per-component accessible names were rejected: ~10 edits, no answer for
+  a numbered block with no focusable control, and a ten-radio question would say
+  "problem 3" ten times.

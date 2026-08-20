@@ -83,3 +83,13 @@ coverage/
 .claude/*
 !.claude/skills/
 .gstack/
+
+# Print baselines are LINUX-AUTHORITATIVE (ruling S5-7): macOS font rasterisation
+# differs enough to fail against Linux-authored images for no reason a human
+# would call a defect. But running the suite locally SILENTLY WRITES 22
+# `-darwin.png` files (Playwright creates a missing snapshot rather than
+# failing), and committing them would create a second, non-authoritative set
+# that nothing compares against. Ignore them so a local run cannot leak into a
+# commit. Regenerate the real ones with the manual `update_print_baselines`
+# workflow — see docs/design/viewer-numbering.md V7.
+packages/app/e2e/**/*-darwin.png

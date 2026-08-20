@@ -88,6 +88,17 @@ PASS
 ## Current focus — NEXT BUILD: the batch importer, then the pilot
 
 **The build queue to the catalogue, in order (each gates the next):**
+
+**⏭ NEXT: the batch importer.** Brief written and ready to hand off:
+[batch-importer-BRIEF.md](docs/design/batch-importer-BRIEF.md). It carries the
+inherited pipeline (`getMarkdownImporter` → `wrapBlocksStrict` →
+`tiptapToActivity` → upsert, DOM-free and verified) and the five traps this
+month has already paid for. **It also names the one decision that must be ruled
+before any code:** "upsert keyed on filename" has nowhere to go — verified live
+2026-08-20, `activities` has no filename/source column and its only unique key
+is `(owner_id, slug)`. Reusing `slug` needs no migration but breaks on retitling;
+a `source_path` column is honest identity but costs a migration and drags in the
+ordering rules. Start with `/plan-eng-review` on the brief.
 0. **✅ The viewer numbering slice — BUILT 2026-08-20 (V1–V6 + V9; V7 is an author action).**
    [viewer-numbering.md](docs/design/viewer-numbering.md), eng-reviewed (D2–D10) then DX-reviewed
    (D1–D4). **The viewer had rendered no problem number for ANY block type since the renderer died
