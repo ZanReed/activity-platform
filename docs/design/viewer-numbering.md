@@ -288,7 +288,7 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       So the mitigation is a STATE note, and it must be specific enough to be
       actionable: record the run id of the expected-red print-gates run, so a
       later session can tell the known red from a new one instead of assuming.
-- [ ] **V9 (P1, human: ~1h / CC: ~10min, INDEPENDENT — land first)** — repo DX
+- [x] **V9 (P1) — SHIPPED 2026-08-20, ahead of V1** — repo DX
       (DX review D3) — add `pnpm verify` running exactly CI's `check` job
       (typecheck · lint · test · build · `scripts/check-perf-budget.mjs` ·
       `node --test scripts/tests/*.test.mjs` · both bundle-drift checks), plus a
@@ -297,7 +297,26 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       README's Common commands, and cross-reference ci.yml ↔ package.json so the
       two cannot drift silently. **Why it is first:** every "Verify:" line in
       this plan is untrustworthy until "green locally" and "green in CI" mean
-      the same thing. README documents 6 of CI's 9 gates today.
+      the same thing.
+      **What shipped:** `scripts/verify-local.mjs` — 8 gates in CI's order, with
+      the build env READ FROM ci.yml rather than retyped (a fourth hand-typed
+      copy of `VITE_SUPABASE_URL` would have been a new drift source in the very
+      script whose job is parity), `--bail`, and a failure report naming the CI
+      step plus the single re-run command. Plus `test:e2e:print` — deliberately
+      WITHOUT `PRINT_BASELINES=1`, so the Linux-authoritative baselines skip
+      locally instead of failing on macOS font rasterisation (confirmed: 63
+      passed, 22 skipped).
+      **Beyond the original scope, deliberately:** a cross-referencing comment is
+      too weak a hold for a hand-maintained mirror of CI — the same defect shape
+      as D2, and it would have been hypocritical to ship it one commit after
+      raising that finding. `scripts/tests/verify-parity.test.mjs` now fails when
+      a check-job gate is not covered by `pnpm verify`, when `pnpm verify` names
+      a step CI no longer has, or when a setup exemption goes stale. Script tests
+      54 → 58.
+      **Both paths liveness-proven (P3):** a forced bundle drift exercised the
+      drift gate's failure output — and revealed it was dumping 81KB of base64
+      sourcemap, now suppressed for generated bundles; and a probe gate added to
+      ci.yml turned the parity guard red, then green on revert.
 - [ ] **V8 (P2, human: ~1h / CC: ~10min)** — docs — TODOS 1b closed, the two new
       TODOs added (D9, D10), STATE updated, the `printExpectations.ts`
       cannot-declare-yet note replaced, `problem-answer-key.md`'s E7 correction

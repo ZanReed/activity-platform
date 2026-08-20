@@ -19,6 +19,10 @@ on:
         default: false
 
 jobs:
+  # ⚠ THE GATES IN THIS JOB ARE MIRRORED BY `pnpm verify`
+  # (scripts/verify-local.mjs), which exists so a contributor can ask "would CI
+  # pass?" in one command instead of learning the answer from a red run. Add a
+  # gate here and add it there — the script says the same thing in its footer.
   check:
     name: typecheck · lint · test · build · bundle
     runs-on: ubuntu-latest
@@ -196,6 +200,11 @@ jobs:
       # It belongs on Linux only: macOS font rasterisation differs enough to
       # fail against Linux-authored images for no reason a human would call a
       # defect (S5-7), so local `playwright test print-` still skips them.
+      # Locally this lane is `pnpm --filter @activity/app test:e2e:print`, which
+      # is the same file-prefix match WITHOUT PRINT_BASELINES — that is
+      # deliberate, and it is why the two spellings differ: the baseline suite
+      # skips unless the flag is set, so a macOS run compares nothing instead of
+      # failing Linux-authored images on font rasterisation (S5-7, above).
       - name: Print gates
         env:
           PRINT_BASELINES: '1'

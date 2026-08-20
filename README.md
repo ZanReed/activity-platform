@@ -53,17 +53,21 @@ editor behavior (dev builds only).
 
 | Command | What it does |
 |---|---|
+| **`pnpm verify`** | **Everything CI's `check` job gates on, in one command** — typecheck, lint, test, build, perf budgets, budget script tests, and both bundle-drift checks. Run this before pushing; "green here" means "green in CI's check job". `--bail` stops at the first failure. It does NOT cover the browser jobs, and says so when it passes. |
 | `pnpm test` | Run all package tests once |
 | `pnpm test:watch` | Re-run tests on file change |
 | `pnpm typecheck` | Type-check all packages without emitting |
 | `pnpm lint` | Lint all packages (currently the app) |
 | `pnpm build` | Build all packages |
-| `pnpm bundle:viewer-server` | Bundle the read-API server code → `supabase/functions/_shared/viewer-server.bundle.js` |
-| `pnpm bundle:grading-server` | Bundle the grading engine → `supabase/functions/_shared/grading-server.bundle.js` |
+| `pnpm bundle:viewer-server` | Bundle the read-API server code → `supabase/functions/_shared/viewer-server.bundle.js`. **CI regenerates and diffs this** — a schema or sanitize change that does not commit the new bundle fails the build. |
+| `pnpm bundle:grading-server` | Bundle the grading engine → `supabase/functions/_shared/grading-server.bundle.js`. **Also diffed by CI**, same rule. |
+| `node scripts/check-perf-budget.mjs` | The S8 size gates against the built SPA (needs `pnpm build` first). Budgets + reasoning: `scripts/perf-budgets.mjs`. |
+| `node --test scripts/tests/*.test.mjs` | The root-script guard suite (perf budgets, e2e origins, supabase stub pin, verify-runner, data-map coverage). |
 | `pnpm deploy:get-activity` | Redeploy `get-activity` with the required `--no-verify-jwt` flag baked in (run `bundle:viewer-server` first) |
 | `pnpm deploy:check` | Redeploy `check-activity` — no flag; `verify_jwt` stays true (run `bundle:grading-server` first) |
 
 | `pnpm clean` | Remove all `dist/` directories |
+| `pnpm --filter @activity/app test:e2e:print` | The print gates (rules · pagination · answer key). Screenshot baselines are Linux-authoritative and skip locally by design (S5-7) — CI runs the same match with `PRINT_BASELINES=1`. |
 | `pnpm --filter @activity/app test:e2e:<lane>` | One Playwright lane: `editor` (200+ /playground specs, reuses your dev server) · `student` (signed-in stubs, own pinned-env server) · `sw` (built worker via preview) · `perf` (throttled timings, same preview) · `a11y` (axe + the four real-browser gap rows, student dev server) · `integration` (real local Supabase stack — needs Docker; see the lane's preflight) |
 
 (`deploy:publish`, `deploy:ingest`, `deploy:feedback`, and `deploy:train` died at S9 Drops 1+3 with their functions — publish is a direct RPC and the anonymous submission wire is demolished. Two functions remain.)

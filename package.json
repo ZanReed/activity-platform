@@ -11,6 +11,7 @@
     "deploy:get-activity": "supabase functions deploy get-activity --no-verify-jwt",
     "deploy:check": "supabase functions deploy check-activity",
     "backfill:census": "node --env-file-if-exists=.env.supabase scripts/backfill-census.js",
+    "verify": "node scripts/verify-local.mjs",
     "verify:auth": "node scripts/verify-runner.mjs",
     "test": "pnpm -r test",
     "test:watch": "pnpm -r test:watch",
