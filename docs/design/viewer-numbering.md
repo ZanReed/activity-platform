@@ -259,6 +259,17 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       (D8) — Tiptap attr on the three nodes, the three types added to
       `LABELED_BLOCK_TYPES`, `numberingGroup` attached in their descriptors.
       Verify: **import → save → reload → resave round-trip per link. CRITICAL.**
+      **⚠ PLUS the CLASS fix (DX review D2):** `LABELED_BLOCK_TYPES`
+      ([serialize.ts:304](../../packages/app/src/lib/serialize.ts)) is a
+      hand-maintained set read by both save directions (`:336`, `:347`) and
+      **no test references it** — verified by grep. The round-trip tests prove
+      the three types this slice adds; they say nothing about the ninth. Either
+      DERIVE the set from the schema (every Block option whose shape carries a
+      `label` key) or add a guard that fails when a `labelFields`-bearing block
+      is missing from it. Same pattern `registry.test.ts` uses against the Block
+      union and `export-reachability.test.mjs` uses against callers. **This is
+      the same shape as the bug that caused this whole slice** — the renderer's
+      "any new numbered block type must join this list" was forgotten twice.
 - [ ] **V5 (P2, human: ~4h / CC: ~15min)** — sub-part lettering in
       `FillInBlank.tsx` (N7) + unit rows for all four branches.
 - [ ] **V6 (P1, human: ~4h / CC: ~15min)** — **the guard that would have caught
@@ -268,13 +279,59 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       and the a11y e2e row that T7 could not write, and the D7 story amendments.
 - [ ] **V7 (P1, author action)** — regenerate the print baselines on Linux (N10)
       via `workflow_dispatch`; commit the artifact. CI print-gates is red until
-      this lands.
+      this lands. **The full sequence, because the plan previously named one
+      step of seven** (DX review D4): Actions → the CI workflow → Run workflow →
+      tick `update_print_baselines` → wait → download + unzip the artifact into
+      `packages/app/e2e/print-baselines.e2e.ts-snapshots/` → commit.
+      **⚠ RULED at D4: the red window is ACCEPTED, not engineered away.** A
+      short-lived branch would have kept `main` green, and that was declined.
+      So the mitigation is a STATE note, and it must be specific enough to be
+      actionable: record the run id of the expected-red print-gates run, so a
+      later session can tell the known red from a new one instead of assuming.
+- [ ] **V9 (P1, human: ~1h / CC: ~10min, INDEPENDENT — land first)** — repo DX
+      (DX review D3) — add `pnpm verify` running exactly CI's `check` job
+      (typecheck · lint · test · build · `scripts/check-perf-budget.mjs` ·
+      `node --test scripts/tests/*.test.mjs` · both bundle-drift checks), plus a
+      `test:e2e:print` lane script so the ninth gate stops being a bare
+      `playwright test print-` prefix living only in ci.yml. Document both in
+      README's Common commands, and cross-reference ci.yml ↔ package.json so the
+      two cannot drift silently. **Why it is first:** every "Verify:" line in
+      this plan is untrustworthy until "green locally" and "green in CI" mean
+      the same thing. README documents 6 of CI's 9 gates today.
 - [ ] **V8 (P2, human: ~1h / CC: ~10min)** — docs — TODOS 1b closed, the two new
       TODOs added (D9, D10), STATE updated, the `printExpectations.ts`
       cannot-declare-yet note replaced, `problem-answer-key.md`'s E7 correction
       annotated as resolved.
 
-**Sequencing:** V1 → V2 → V3 → {V4, V5, V6} → V7. V8 last.
+**Sequencing:** **V9 first** (it makes every other task's "Verify:" line
+checkable), then V1 → V2 → V3 → {V4, V5, V6} → V7. V8 last.
+
+## 7b. Developer perspective (DX review, 2026-08-20)
+
+The developer this plan serves is **the next session picking up V1–V9 cold** —
+as likely an AI session as the author, since CLAUDE.md / STATE.md / TODOS.md
+already exist as an onboarding surface. Traced against the real repo:
+
+> I read the plan. V1 says "regenerate BOTH bundles; verify `SANITIZER_REV` did
+> not move." I run `pnpm bundle:viewer-server` — it prints a size and exits 0.
+> Did the rev move? The script does not say.
+>
+> I finish V1–V4. I run `pnpm test`, `pnpm typecheck`, `pnpm lint` — green,
+> exactly what README's Common commands lists. I push. CI comes back red on
+> **perf budgets**, **budget script tests**, and **print gates** — three gates
+> the README never mentioned. I learn the definition of done from a YAML file.
+>
+> Then V7. The plan says "regenerate via `workflow_dispatch`." Which workflow?
+> I have to know to tick an input, download a zip, unzip it to the right path,
+> and commit. Meanwhile CI is red and looks broken.
+
+| Stage | Friction | Ruling |
+|---|---|---|
+| Orient (CLAUDE.md → STATE → plan) | none — the strongest part of this repo's DX | ok |
+| Implement V1–V4 | link 3 has no guard | **fixed** (V4, D2) |
+| Verify locally | README documents 6 of CI's 9 gates | **fixed** (V9, D3) |
+| V7 baselines | 7 steps, 1 documented; red looks like broken | **accepted** (D4) — runbook written, red window kept |
+| Hand off | none — STATE/TODOS discipline is established | ok |
 
 ## 8. Worktree parallelization strategy
 
@@ -319,16 +376,26 @@ shared ancestor is V1's schema change, which all three wait on.
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | clean | 5 issues, 1 critical gap (handled) |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
-| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 1 | clean | score 5/10 → 8/10, 3 findings, 2 fixed 1 accepted |
 
 - **Scope:** challenged at the complexity gate (12 files / 2 new modules).
   Author ruled MAXIMAL, then narrowed twice during review (D5 cut `number`,
   D6 deferred the walk refactor).
+- **DX:** contributor-scoped (the developer is the next session, not an external
+  adopter — the competitive-benchmark and magical-moment passes were declined as
+  having no honest subject here). Initial 5/10 → 8/10.
+  **Fixed:** the unguarded `LABELED_BLOCK_TYPES` set → V4's class fix;
+  no command meaning "CI would pass" → V9's `pnpm verify`.
+  **Accepted as-is:** V7's expected-red CI window, mitigated by a STATE note
+  carrying the run id rather than by a branch.
+  Remaining 2 points: the red window (by choice) and `bundle:*` still not
+  reporting whether `SANITIZER_REV` moved.
 - **Outside voice:** SKIPPED — Codex not installed, and the session carries a
   standing rule against dispatching the Agent tool unprompted. Install for
   cross-model coverage: `npm install -g @openai/codex`.
-- **VERDICT:** ENG CLEARED — ready to implement. V6 is the load-bearing task:
-  it binds `numbered` to rendered output and closes the P1 gap that let this
-  surface go missing for four months.
+- **VERDICT:** ENG + DX CLEARED — ready to implement, **starting with V9**.
+  V6 remains the load-bearing task: it binds `numbered` to rendered output and
+  closes the P1 gap that let this surface go missing for four months. V4's class
+  fix is its sibling — the same "remember to join this list" defect, one file over.
 
 NO UNRESOLVED DECISIONS
