@@ -90,6 +90,39 @@
    instead of declaring a width lets the phone breakpoint relax it; auto margins
    centre by default, and the align attribute zeroes one side. Only horizontal
    margins are touched, so each block keeps its own vertical rhythm. */
+/* ---- The problem number (viewer-numbering N2) ------------------------------
+   ONE grid, declared once, inherited by every numbered type — including types
+   that do not exist yet. The retired renderer declared this per block type and
+   its own comment records what that cost: number_line and data_plot shipped
+   without joining the list, so their number rendered as a full-width line with
+   the digit flung to the right margin, 760px wide, on its own row above the
+   canvas. A rule of the form "any new numbered type must remember to join this
+   list" is a rule that gets forgotten, and it was, twice.
+
+   The attribute is present only when the block HAS a label, so an unnumbered
+   block keeps its previous layout exactly — no grid, no gutter, no shift. */
+.viewer-block[data-block-number] {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: var(--space-2);
+  align-items: start;
+}
+
+.viewer-block__number {
+  font-weight: 600;
+  text-align: right;
+  padding-right: 0.25rem;
+  color: var(--vw-color-ink);
+}
+
+/* A custom label ("Warm-up") reads as a tag, not a count — it is out of
+   sequence, and looking like a number would misrepresent it. Lighter and
+   italic, the same distinction the renderer drew. */
+.viewer-block__number[data-label-kind='custom'] {
+  font-weight: 500;
+  font-style: italic;
+}
+
 .viewer-block--sized {
   width: var(--activity-block-width, 100%);
   margin-left: auto;

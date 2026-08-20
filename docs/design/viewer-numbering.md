@@ -274,10 +274,22 @@ it. That is why D8 made it a CRITICAL pin rather than ordinary coverage.
       `scripts/tests/export-reachability.test.mjs` enforces P1 (a primitive is
       not delivered until something calls it), and V3 is the caller. The tests
       import the module path directly.
-- [ ] **V3 (P1, human: ~1d / CC: ~25min)** — `ViewerContainer` — `useMemo` the
-      map, thread to `BlockSlot`, render the gutter with `role="group"` +
-      `aria-labelledby` (N8); CSS grid on `.viewer-block[data-block-number]`
-      (screen + print). Verify: component tests, print-rules e2e.
+- [x] **V3 (P1) — SHIPPED 2026-08-20** — `ViewerContainer` — `useMemo` the map
+      (third instance of the memo-a-pure-walk pattern, beside `indexDocument`
+      and `collectDefinitions`), thread it to `BlockSlot`, render the gutter
+      with `role="group"` + `aria-labelledby` (N8/D3); grid CSS on
+      `.viewer-block[data-block-number]`, screen + print.
+      **Measured in the browser rather than eyeballed, because the renderer's
+      failure here was geometric:** all 20 numbered blocks in the ALL fixture
+      are `display:grid`, the number is **40px on every one** (never the 760px
+      full-width row that shipped on number_line and data_plot), and it sits on
+      the same row as, and left of, the body — for every numbered type at once,
+      which is the payoff of putting it in the shared wrapper. Sequence reads
+      1–20 including short_answer (19), essay (20) and faded_worked_example
+      counting **once** at 18. The 18 unnumbered blocks kept `display:block`
+      with zero leaked gutters and no `role="group"`. Print mode: all 20 render,
+      none hidden — numbers reach paper, which is the point of the slice.
+      Viewer tests 1158 → 1172; print lane 63 passed / 22 skipped.
 - [ ] **V4 (P1, human: ~1d / CC: ~20min)** — **the `label` chain, links 2-4**
       (D8) — Tiptap attr on the three nodes, the three types added to
       `LABELED_BLOCK_TYPES`, `numberingGroup` attached in their descriptors.

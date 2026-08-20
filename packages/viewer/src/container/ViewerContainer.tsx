@@ -38,6 +38,7 @@ import {
 } from 'react';
 import type { ComponentType } from 'react';
 import { blockRegistry, familyOf } from '../registry/registry.js';
+import { buildNumbering, type ResolvedLabel } from '../numbering/numbering.js';
 import { resolveBlockComponent } from '../registry/resolveComponent.js';
 import type { BlockComponentProps, BlockType } from '../registry/types.js';
 import type {
@@ -173,6 +174,11 @@ export function ViewerContainer({
 }: ViewerContainerProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
   const index = useMemo(() => indexDocument(doc), [doc]);
+  // The page numbers, computed ONCE per document rather than counted during
+  // render (ruling N1 — see numbering.ts for why a render-order counter is
+  // unsafe under Suspense/concurrent rendering). Third instance of the
+  // memo-a-pure-walk-over-doc pattern in this component.
+  const numbering = useMemo(() => buildNumbering(doc), [doc]);
   // meta.print survives sanitization untouched (it carries no answer key), so
   // the served document is a complete description of how it should print.
   const print = doc.meta.print;
@@ -360,6 +366,7 @@ export function ViewerContainer({
                         resetKey={versionId}
                         resolveComponent={resolveComponent}
                         onCrash={handleCrash}
+                        label={numbering[(block as { id: string }).id]}
                       />
                     ))}
                   </div>
@@ -420,6 +427,13 @@ interface BlockSlotProps {
   resetKey?: string;
   resolveComponent: (type: BlockType) => ComponentType<BlockComponentProps> | null;
   onCrash: (crash: BlockCrash) => void;
+  /**
+   * What this block shows in its number slot, or undefined for "nothing".
+   * The REFERENCE-PANEL slot below never passes it, which is the whole of the
+   * exclusion (ruling N3): a formula sheet cannot be numbered because its
+   * blocks are not in the numbering map and this prop is not threaded there.
+   */
+  label?: ResolvedLabel;
 }
 
 function BlockSlot({
@@ -428,6 +442,7 @@ function BlockSlot({
   resetKey,
   resolveComponent,
   onCrash,
+  label,
 }: BlockSlotProps) {
   const type = (block as { type: string }).type as BlockType;
   const id = (block as { id: string }).id;
@@ -439,6 +454,9 @@ function BlockSlot({
   // familyOf resolves display-mode instances to static — a display graph is
   // not gradable, so a crash there is not a grading shortfall.
   const gradable = familyOf(block as never) !== 'static';
+  // Stable per block id — aria-labelledby needs a document-unique target, and
+  // useId would change identity across a remount the resetKey forces.
+  const numberId = `blocknum-${id}`;
 
   return (
     <BlockBoundary
@@ -458,7 +476,34 @@ function BlockSlot({
         data-block-family={familyOf(block as never)}
         data-block-align={blockAlign(layout)}
         style={blockStyle(layout)}
+        // THE NUMBER LIVES ON THE WRAPPER, ONCE (ruling N2). The retired
+        // renderer put its gutter inside each block renderer and the
+        // two-column grid in each block type's CSS rule — and its own comment
+        // records number_line and data_plot shipping without that grid, so the
+        // number rendered 760px wide on its own line. A rule that says "any new
+        // numbered type must remember to join this list" WILL be forgotten. The
+        // grid is declared once here instead, and every numbered type inherits
+        // it, including types that do not exist yet.
+        {...(label ? { 'data-block-number': label.kind } : {})}
+        // ANNOUNCED ONCE, FROM HERE (ruling D3). Per-component accessible names
+        // would need ~10 component edits, have no answer for a numbered block
+        // with no focusable control, and would make a ten-radio multiple choice
+        // say "problem 3" ten times. A labelled group says it once on entry,
+        // for every type. Controls keep their own within-block detail.
+        {...(label ? { role: 'group', 'aria-labelledby': numberId } : {})}
       >
+        {label ? (
+          // aria-hidden: the group's accessible name already carries this text,
+          // so exposing the span too would announce the number twice.
+          <span
+            className="viewer-block__number"
+            id={numberId}
+            data-label-kind={label.kind}
+            aria-hidden="true"
+          >
+            {label.kind === 'number' ? `${label.n}.` : label.text}
+          </span>
+        ) : null}
         {Component ? (
           // Suspense only matters for lazy bindings; eager ones never suspend,
           // which is exactly why D16 keeps the common blocks eager.
