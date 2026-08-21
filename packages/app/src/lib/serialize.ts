@@ -50,6 +50,9 @@ import type {
     OrderedListBlock,
     ListItem,
     FillInBlankBlock,
+    TableBlock,
+    TableCell,
+    TableColumnAlign,
     Row,
     Column,
     ImageBlock,
@@ -446,6 +449,9 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
 
         case 'callout':
             return tiptapCalloutToActivity(node);
+
+        case 'table':
+            return tiptapTableToActivity(node);
 
         case 'image':
             return tiptapImageToActivity(node);
@@ -1543,23 +1549,7 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
             return null;
 
         case 'table':
-            // TOLERATED, NOT EDITABLE — deliberately, for one slice.
-            //
-            // The table block ships in three steps (docs/design/table-block.md):
-            // schema + viewer + server first, the editor next, the importer
-            // last. This case is what makes step one landable: the Block union
-            // is exhaustive here, so without it the app does not compile.
-            //
-            // It is SAFE only because of that ordering: nothing can put a table
-            // into a draft until the editor (step two) or the importer (step
-            // three) exists, so there is no document for this branch to drop.
-            // The moment the editor slice lands, this returns a real node — and
-            // if you are reading this AFTER that slice shipped, this case is a
-            // bug, not a placeholder.
-            console.warn(
-                `[serialize] No Tiptap mapping for table yet; block omitted from editor view.`,
-            );
-            return null;
+            return activityTableToTiptap(block);
 
         default: {
             const _exhaustive: never = block;
@@ -1862,6 +1852,120 @@ function activityInlineNodeToTiptap(node: InlineNode): JSONContent {
         case 'hard_break':
             return { type: 'hardBreak' };
     }
+}
+
+// ---------------------------------------------------------------------------
+// Table — the flatten/unflatten pair (docs/design/table-block.md R5 / 1B)
+// ---------------------------------------------------------------------------
+// The editor wraps each cell's inline content in a `tableCellPara` node so that
+// prosemirror-tables sees the BLOCK content its selection, paste and repair
+// paths are written against. The schema holds the inline run directly. These
+// two functions are the whole of that difference: the wrapper is minted going
+// in and flattened away coming out, so the stored shape is exactly
+// `content: FillInBlankInline[]` and nothing downstream ever learns the editor
+// has a wrapper at all.
+//
+// A cell's content is therefore the ONE place in this file where a node is
+// created that has no schema counterpart. If a round-trip ever leaks a
+// `tableCellPara` into a stored document, this pair is where to look.
+
+/** Editor cell → the schema's inline run, wrapper removed. */
+function tiptapTableCellToActivity(cell: JSONContent): FillInBlankInline[] {
+    const inline = (cell.content ?? []).flatMap((child) =>
+        // Tolerant of a missing wrapper (a hand-built fixture, a paste the
+        // schema repaired): take the child's own content when it is the
+        // wrapper, and the child itself when it is already inline.
+        child.type === 'tableCellPara' ? (child.content ?? []) : [child],
+    );
+    return tiptapFillInBlankInlineToActivity(inline);
+}
+
+function tiptapTableToActivity(node: JSONContent): TableBlock {
+    const rows = (node.content ?? [])
+        .filter((row) => row.type === 'tableRow')
+        .map((row) => ({
+            id: crypto.randomUUID(),
+            cells: (row.content ?? [])
+                .filter((cell) => cell.type === 'tableCell')
+                .map((cell) => ({
+                    id: crypto.randomUUID(),
+                    content: tiptapTableCellToActivity(cell),
+                })),
+        }));
+
+    const block: TableBlock = {
+        id: crypto.randomUUID(),
+        type: 'table',
+        headerRow: node.attrs?.headerRow !== false,
+        headerColumn: node.attrs?.headerColumn === true,
+        showCellLabels: node.attrs?.showCellLabels !== false,
+        rows,
+    };
+
+    // Optional-no-default, like every other carried-through field: only emit
+    // the key when the document actually has alignment, so a table authored
+    // without it re-serializes byte-identically.
+    const aligns = node.attrs?.columnAligns;
+    if (Array.isArray(aligns)) {
+        const valid = aligns.filter(
+            (a): a is TableColumnAlign =>
+                a === 'left' || a === 'center' || a === 'right',
+        );
+        if (valid.length > 0) block.columnAligns = valid;
+    }
+    return block;
+}
+
+/** Schema table → editor nodes, wrapper minted. */
+function activityTableToTiptap(block: TableBlock): JSONContent {
+    const cellNode = (cell: TableCell): JSONContent => {
+        const inline = activityFillInBlankInlineToTiptap(cell.content);
+        return {
+            type: 'tableCell',
+            content: [
+                // Omit `content` on an empty cell rather than sending `[]`:
+                // Tiptap materializes the empty wrapper itself, and an explicit
+                // empty array is a shape the round-trip comparison would have
+                // to special-case.
+                inline.length > 0
+                    ? { type: 'tableCellPara', content: inline }
+                    : { type: 'tableCellPara' },
+            ],
+        };
+    };
+
+    // THE TWO EMPTY-SHAPE GUARDS. The schema admits `rows: []` and a row with
+    // no cells (authored-empty is a teacher mid-edit, not corruption — the same
+    // posture the grading walk takes). The EDITOR's content expressions do not:
+    // `table` is `tableRow+` and a row is `tableCell+`, so an empty one is not
+    // a valid ProseMirror document and throws on mount. Seeding a minimal shape
+    // is the existing precedent for exactly this (see the column-cell seeding
+    // below), and it is why a stored empty table opens as a 1x1 rather than
+    // taking the editor down.
+    const rows =
+        block.rows.length > 0
+            ? block.rows
+            : [{ id: crypto.randomUUID(), cells: [] }];
+
+    return {
+        type: 'table',
+        attrs: {
+            id: block.id,
+            headerRow: block.headerRow,
+            headerColumn: block.headerColumn,
+            showCellLabels: block.showCellLabels,
+            ...(block.columnAligns && block.columnAligns.length > 0
+                ? { columnAligns: block.columnAligns }
+                : {}),
+        },
+        content: rows.map((row) => ({
+            type: 'tableRow',
+            content: (row.cells.length > 0
+                ? row.cells
+                : [{ id: crypto.randomUUID(), content: [] }]
+            ).map(cellNode),
+        })),
+    };
 }
 
 function activityFillInBlankInlineToTiptap(

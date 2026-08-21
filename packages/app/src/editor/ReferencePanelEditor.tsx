@@ -30,6 +30,7 @@ import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
 import { Callout } from './extensions/Callout';
+import { Table, TableRow, TableCell, TableCellPara } from './extensions/Table';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlankPopoverHost from './components/BlankPopoverHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
@@ -120,6 +121,20 @@ export default function ReferencePanelEditor({
             ShortAnswer,
             Essay,
             Callout,
+            // Table: the same registered-only-for-the-schema story — the column
+            // content expression names it as of the table drop, so this
+            // constrained schema must be able to build it. All FOUR nodes are
+            // needed, not just `table`: a content expression that names a node
+            // whose own expression names another (`tableRow+` → `tableCell+` →
+            // `tableCellPara`) fails to compile on the first missing link, and
+            // the failure reads as "no node type 'tableHeader' found" three
+            // levels from the edit that caused it. The reference toolbar never
+            // offers a table (it is not referenceSafe) — a formula sheet is a
+            // place to LOOK something up, not a place to answer a question.
+            Table,
+            TableRow,
+            TableCell,
+            TableCellPara,
             Image,
             // GraphFigure is genuinely AUTHORABLE here (unlike the registered-
             // only-for-the-schema question blocks above): a static coordinate-

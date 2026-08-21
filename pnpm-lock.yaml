@@ -86,6 +86,9 @@ importers:
       '@tiptap/extension-superscript':
         specifier: ^3.23.4
         version: 3.23.4(@tiptap/core@3.23.1(@tiptap/pm@3.23.1))(@tiptap/pm@3.23.1)
+      '@tiptap/extension-table':
+        specifier: 3.23.4
+        version: 3.23.4(@tiptap/core@3.23.1(@tiptap/pm@3.23.1))(@tiptap/pm@3.23.1)
       '@tiptap/extension-underline':
         specifier: ^3.23.4
         version: 3.23.4(@tiptap/core@3.23.1(@tiptap/pm@3.23.1))
@@ -1884,6 +1887,12 @@ packages:
       '@tiptap/core': 3.23.4
       '@tiptap/pm': 3.23.4
 
+  '@tiptap/extension-table@3.23.4':
+    resolution: {integrity: sha512-TRh6JMTRYXCWpwavGt3aAHH2f51ZzkhurfW3XvrURG3It8MvfuuY1xB1xba1ss5c0QLWlrKx6GVaSXrUCdFLlg==}
+    peerDependencies:
+      '@tiptap/core': 3.23.4
+      '@tiptap/pm': 3.23.4
+
   '@tiptap/extension-text@3.23.1':
     resolution: {integrity: sha512-k1Ki9bBV6mLz1mFP+Laqh1YHJ2MY0P8XzaMqpkgMndEBIJQ3XcpWQc5bfAlRnYcOI9ZXDbAgQ8CwgArxHmQWCQ==}
     peerDependencies:
@@ -2467,6 +2476,7 @@ packages:
   eslint@9.39.4:
     resolution: {integrity: sha512-XoMjdBOwe/esVgEvLmNsD3IRHkm7fbKIUGvrleloJXUZgDHig2IPWNniv+GwjyJXzuNqVjlr5+4yVUZjycJwfQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -5527,6 +5537,11 @@ snapshots:
       '@tiptap/pm': 3.23.1
 
   '@tiptap/extension-superscript@3.23.4(@tiptap/core@3.23.1(@tiptap/pm@3.23.1))(@tiptap/pm@3.23.1)':
+    dependencies:
+      '@tiptap/core': 3.23.1(@tiptap/pm@3.23.1)
+      '@tiptap/pm': 3.23.1
+
+  '@tiptap/extension-table@3.23.4(@tiptap/core@3.23.1(@tiptap/pm@3.23.1))(@tiptap/pm@3.23.1)':
     dependencies:
       '@tiptap/core': 3.23.1(@tiptap/pm@3.23.1)
       '@tiptap/pm': 3.23.1

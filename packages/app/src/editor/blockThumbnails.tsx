@@ -379,6 +379,23 @@ const callout = thumb(
     </>
 );
 
+// A 2x3 grid with a header row and one accented cell — the "complete the table"
+// shape the block exists for, rather than an empty grid that could be any
+// layout primitive.
+const table = thumb(
+    <>
+        <rect x={12} y={12} width={72} height={34} rx={3} fill="none" stroke={INK} />
+        {/* header row: filled, so the axis reads at thumbnail size */}
+        <rect x={12} y={12} width={72} height={11} fill={SOFT} stroke={INK} />
+        {/* column divider + row dividers */}
+        <line x1={48} y1={12} x2={48} y2={46} stroke={INK} />
+        <line x1={12} y1={23} x2={84} y2={23} stroke={INK} />
+        <line x1={12} y1={34.5} x2={84} y2={34.5} stroke={INK} />
+        {/* one answerable cell */}
+        <rect x={52} y={37} width={28} height={6} rx={2} fill={ACCENT_BG} stroke={ACCENT} />
+    </>
+);
+
 // Keyed by slashMenuItems title. Parity with the pickable catalogue is
 // guard-tested; a lookup miss renders a card without a preview (never throws).
 export const blockThumbnails: Record<string, ReactElement> = {
@@ -404,6 +421,7 @@ export const blockThumbnails: Record<string, ReactElement> = {
     'Short answer': shortAnswer,
     Essay: essay,
     Callout: callout,
+    Table: table,
 };
 
 // The first-run "Start here" starter cards (StartHere.tsx). "A question" and

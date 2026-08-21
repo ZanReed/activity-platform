@@ -24,6 +24,34 @@ replaced with wrapped ones.
 **The invariant that spans all four (T3): both functions are deployed and verified BEFORE the first
 table block exists in any draft — whichever path writes it, the editor OR `import:batch`.**
 
+## The editor e2e lane is RED, and CI has never run it
+
+**What:** `e2e/advanced-drawer.e2e.ts` → *"a toggle simple setting flips in place;
+no Advanced button"* fails: it selects a `fadedWorkedExample`, asserts its command
+bar has no **Advanced** button, and finds one. Fix the assertion or the bar,
+whichever is actually wrong — then decide whether the lane joins CI.
+
+**Why it went unseen:** `.github/workflows/ci.yml` runs `playwright test print-`
+and `--project=perf --project=sw --project=student --project=a11y`. It never runs
+`--project=chromium`, which is the **221-spec editor lane** — the biggest browser
+suite in the repo and the only coverage for the authoring surface. A red spec
+there is invisible to every push. Found 2026-08-21 while building the table
+editor slice; **proved pre-existing** by running the same spec in a clean
+worktree at `a54d391`, before any of that slice's changes.
+
+**Pros:** the authoring surface stops being the one lane nobody watches.
+**Cons:** it is ~1.5 min of browser time per push, and it needs a dev server
+rather than the built dist the other lanes share — which is probably why it was
+left out. A cheaper option is a nightly or a manual dispatch.
+
+**Also worth knowing:** `e2e/blank-signifier.e2e.ts` → *"⌘⇧B / Ctrl⇧B inserts a
+blank and opens its popover focused"* is **flaky under parallel load** — it fails
+in a full-lane run and passes in isolation and on re-run. If the lane joins CI,
+that flake will need addressing first or it becomes the reason people ignore the
+lane.
+
+**Depends on:** nothing.
+
 ## A general walk-descent guard for nested-content blocks
 
 **What:** A fixture-driven guard asserting that every registered block type's authored in-band ids

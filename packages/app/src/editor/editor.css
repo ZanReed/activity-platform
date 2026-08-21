@@ -4207,3 +4207,50 @@ img.mc-block__figure-preview {
     color: var(--ed-text-strong); /* slate-700 */
     font-style: italic;
 }
+
+/* ---------------------------------------------------------------------------
+ * Table block (docs/design/table-block.md, editor slice)
+ * ---------------------------------------------------------------------------
+ * The editor draws the same grid the viewer and the printed page do, because a
+ * table is one of the few blocks where the AUTHOR is laying out a shape rather
+ * than typing prose: if the editor's rows do not line up, the teacher cannot
+ * tell whether the worksheet's will.
+ *
+ * Header styling is driven from the BLOCK's attrs, not from a per-cell node
+ * (there is no tableHeader node here — see extensions/Table.ts §2). So the
+ * first row is bold only when the block says `data-header-row`, and the first
+ * cell of each row only when it says `data-header-column`. A transposed table
+ * therefore looks transposed while you edit it.
+ */
+.ProseMirror table {
+    border-collapse: collapse;
+    margin: 0.5rem 0;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.ProseMirror table td {
+    border: 1px solid var(--ed-slate-300);
+    padding: 0.375rem 0.5rem;
+    vertical-align: top;
+}
+
+/* An empty cell still needs to be clickable and to hold its row's height. */
+.ProseMirror table td > p[data-cell-para] {
+    margin: 0;
+    min-height: 1.25em;
+}
+
+.ProseMirror table[data-header-row='true'] tr:first-child > td,
+.ProseMirror table[data-header-column='true'] tr > td:first-child {
+    background: var(--ed-slate-50, rgb(248 250 252));
+    font-weight: 600;
+}
+
+/* The cell the caret is in — prosemirror-tables' own selection class for
+ * multi-cell selections, plus a plain focus tint so a one-cell caret is
+ * findable in a dense grid. */
+.ProseMirror table td.selectedCell {
+    background: var(--ed-blue-50, rgb(239 246 255));
+    outline: 1px solid var(--ed-blue-500, rgb(59 130 246));
+}

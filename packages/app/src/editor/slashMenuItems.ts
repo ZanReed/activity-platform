@@ -1,6 +1,7 @@
 import type { Editor, Range } from '@tiptap/core';
 import type { LucideIcon } from 'lucide-react';
 import {
+    Table as TableIcon,
     Sigma,
     SquareSplitHorizontal,
     Columns2,
@@ -282,6 +283,29 @@ export const slashMenuItems: SlashMenuItem[] = [
         icon: SquarePen,
         command: ({ editor, range }) => {
             begin(editor, range).insertFadedWorkedExample().run();
+        },
+    },
+    {
+        title: 'Table',
+        description:
+            'A grid of rows and columns. Cells can hold blanks, so "complete the table" works.',
+        keywords: [
+            'table',
+            'grid',
+            'rows',
+            'columns',
+            'chart',
+            'data',
+            'rates',
+            't-chart',
+            'x y',
+            'input output',
+        ],
+        group: 'Structure',
+        subgroup: 'Instructional',
+        icon: TableIcon,
+        command: ({ editor, range }) => {
+            begin(editor, range).insertActivityTable().run();
         },
     },
     {

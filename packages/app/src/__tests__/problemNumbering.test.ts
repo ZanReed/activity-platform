@@ -68,14 +68,12 @@ describe('the editor numbering bridge ↔ the schema numbering rule', () => {
         // has to be acknowledged when it ends.
         //
         //   problem — permanent; no editor mapping, ever.
-        //   table   — TEMPORARY. The table block ships schema+viewer first and
-        //             the editor next (docs/design/table-block.md). When that
-        //             slice adds the `table` node, this list drops to
-        //             ['problem'] and the bridge entry becomes mandatory.
+        //   (table was here through Slice 1 and lifted itself when the editor
+        //    slice added the node — which is what the derivation above is for.)
         const exempt = numberedTypes
             .filter((type) => !hasEditorNode(type))
             .sort();
-        expect(exempt).toEqual(['problem', 'table']);
+        expect(exempt).toEqual(['problem']);
     });
 
     it('the bridge names no type the schema does not have', () => {

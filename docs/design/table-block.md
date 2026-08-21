@@ -278,7 +278,7 @@ Slice 1  SCHEMA + VIEWER + SERVER  ✅ SHIPPED 2026-08-21 (2 author actions: dep
   │    verify list_edge_functions             ← T3 GATE: before Slice 2 push
   └─ README checklist star fix (§1f)
 
-Slice 2  EDITOR  (push only after T3 gate discharged)
+Slice 2  EDITOR  ✅ SHIPPED 2026-08-21 (T3 gate discharged first: both functions live)
   ├─ R6 measurement + policy → TableKit (or hand-rolled)
   ├─ R5 nodes + tableCellPara wrap + serialize flatten/unflatten
   ├─ D7.1 paste hardening · D7.2 blank-id dedup
@@ -351,6 +351,57 @@ Also: `serialize.ts` gained `case 'table' → null` (the union is exhaustive the
 not compile without it). It is safe ONLY because of the slice order — nothing can put a table in a
 draft until Slice 2 or 3 — and it says so in a comment that calls itself a bug if read later.
 
+**AS BUILT — Slice 2, 2026-08-21.** R6's measurement decided it, exactly as
+pre-committing intended: `@tiptap/extension-table` costs **+15.2 KiB gz**
+(265.9 → 281.1 against a 292 cap). Not over 285, so no pivot to hand-rolled;
+**10.9 KiB of headroom survives**, a hair above D7.6's ~10 KiB threshold, so
+neither the cap raise nor the lazy split fired. Recorded in the budget ledger
+with the note that the NEXT `@tiptap/*` family bump is the one to measure before,
+not after — and that when the margin does go, R6 already chose the lazy-chunk
+branch, so it needs doing rather than re-deciding.
+
+Four departures from the stock kit, each forced by making the editor able to
+express exactly what the schema can express and nothing more:
+
+1. **Cells hold one `tableCellPara`, not `block+`** (R5/1B as planned) — and the
+   wrapper is minted and flattened in `serialize.ts`, so no `tableCellPara` ever
+   reaches a stored document (pinned by Q15).
+2. **No `tableHeader` node is registered** — NOT in the plan, and it follows from
+   R1b. Stock TableKit registers one, which would let a document express a header
+   cell in the middle of a table; the schema deliberately cannot say that, because
+   header-ness is two booleans on the block. A pasted `<th>` parses into an
+   ordinary cell instead. This forced a second edit the plan did not predict:
+   the stock row's content is `(tableCell | tableHeader)*`, and an unregistered
+   name in a content expression is a hard schema-build error, so `TableRow` is
+   extended to `tableCell+`.
+3. **colspan/rowspan are pinned to 1** (D7.1) rather than removed — removing them
+   breaks prosemirror-tables' TableMap outright. `parseHTML` forces 1 and
+   `renderHTML` emits nothing, so a merged paste can never render merged while
+   saving unmerged, and fixTables repairs the ragged row. Q12 pastes a real
+   merged Sheets-shaped table and asserts all three properties.
+4. **The reference-panel editor needed all FOUR nodes**, not just `table`. Its
+   constrained schema shares the `column` content expression, and a node whose own
+   expression names another fails on the first missing link — the error surfaces
+   three levels from the edit that caused it.
+
+**D7.2 was a real, pre-existing defect and the fix is general.** Blank ids are
+preserved by serialize (correctly — they are response keys) and `duplicateBlock`
+copies node JSON verbatim, so duplicating ANY blank-bearing block already minted
+two blanks claiming one key: the viewer renders both inputs from
+`responses.blanks[id]`, so typing in one fills the other, and nothing throws.
+Tables only change the odds, by making "duplicate this row" routine. Fixed as a
+document-level repair pass (`BlankIdUniqueness`) rather than a paste handler,
+because a duplicate can arrive by paste, Duplicate, a table row command, or an
+undo — guarding the document covers the ones nobody has written yet. It
+deliberately ignores EMPTY ids: an empty id is not a collision, serialize mints
+one at save, and firing on every fresh insertion would replace a node under a
+live NodeSelection for no benefit.
+
+**One thing this slice did NOT touch, and a caller should know:** the editor lane
+was already red before it started (`advanced-drawer.e2e.ts`, proved in a clean
+worktree at `a54d391`), and CI has never run that lane at all. Filed in TODOS.md
+rather than fixed here.
+
 ## 7. Test matrix (ruling 5A — the plan's test requirements)
 
 **Forced automatically by existing guards** (do not re-write): registry entry, fixture-per-variant,
@@ -368,12 +419,12 @@ leak scan over the new fixtures, block-predicates agreement, format-doc/prompt/i
 | Q7 ✅ | 1 | Blankless table renders unnumbered, no check chrome (2A bound to rendered output) | component |
 | Q8 ✅ | 1 | Print: blank cell neutralizes to writing line; no break inside table; aligns honored | print gate + baseline |
 | Q9 ✅ | 1 | a11y: cell blank named by row+col headers; letter fallback | a11y lane |
-| Q10 | 2 | Blank popover opens from single host inside a cell; edit persists on immediate close (flushAll) | e2e editor |
-| Q11 | 2 | Drag-reorder table above AND below other blocks | e2e editor |
-| Q12 | 2 | External HTML paste (merged Sheets table) → unmerged, schema-legal cells; span attrs stripped | e2e editor |
-| Q13 | 2 | Enter-in-cell does not split the cell's single paragraph illegally | e2e editor |
-| Q14 | 2 | Row duplication remints blank ids (uniqueness pin) | unit/e2e |
-| Q15 | 2 | Cell with text+math+blank+marks round-trips byte-identical through flatten/unflatten | unit |
+| Q10 ✅ | 2 | Blank popover opens from single host inside a cell; edit persists on immediate close (flushAll) | e2e editor |
+| Q11 ✅ | 2 | Drag-reorder table above AND below other blocks | e2e editor |
+| Q12 ✅ | 2 | External HTML paste (merged Sheets table) → unmerged, schema-legal cells; span attrs stripped | e2e editor |
+| Q13 ✅ | 2 | Enter-in-cell does not split the cell's single paragraph illegally | e2e editor |
+| Q14 ✅ | 2 | Row duplication remints blank ids (uniqueness pin) | unit/e2e |
+| Q15 ✅ | 2 | Cell with text+math+blank+marks round-trips byte-identical through flatten/unflatten | unit |
 | Q16 | 3 | Pipe table → table node; fence form sets header axes; alignment stored | unit |
 | Q17 | 3 | `{{blank}}` in a td → BlankToken in cell content | unit |
 | Q18 | 3 | Stray `\|` in prose stays a paragraph (probe case pinned) | unit |

@@ -10,7 +10,11 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **No Edge Function deploy and no bundle regeneration were owed** — nothing in schema, the viewer's sanitize/registry source, the viewer server, or graph-kit's scorers changed; both drift guards pass. Compliance moved in the same commit (`data-map.md` → `2026-08-20-draft-5`, range 0038, explicit "adds no personal data" per the 0027/0035 precedent).
 
-**⏳ TWO AUTHOR ACTIONS FROM THE TABLE ARC'S SLICE 1 (schema + viewer + server), and the FIRST ONE GATES THE NEXT SLICE.**
+**✅ SLICE 1's TWO AUTHOR ACTIONS ARE BOTH DISCHARGED, and Slice 2 (the editor) has shipped on top of them.** The functions were verified live by tool-read before Slice 2 began — `get-activity` **v22 / verify_jwt:false**, `check-activity` **v18 / verify_jwt:true**, both deployed 2026-08-21 13:26 UTC, seconds apart and after the Slice 1 commit — so the capability-before-content gate (T3) is genuinely discharged rather than assumed. The print baseline is committed.
+
+**⏭ NO AUTHOR ACTION IS OWED BY SLICE 2.** No schema change (the block type landed in Slice 1), so no bundle regeneration and no redeploy; both drift guards pass. The one thing to know is a NEW DEPENDENCY: `@tiptap/extension-table@3.23.4`, pinned to the installed `@tiptap/*` family per CLAUDE.md's don't-mix rule.
+
+*(Superseded — the original Slice 1 wording:)*
 
 **(1) DEPLOY BOTH EDGE FUNCTIONS — `pnpm deploy:get-activity` and `pnpm deploy:check`, then verify with `list_edge_functions`.** The schema gained a block type, so both committed bundles moved and `SANITIZER_REV` moved with them (`1-87a5e78b` → `1-07e6311d`, which orphans stale read-cache rows once the new get-activity is live — the mechanism working). ⚠ **This is the arc's capability-before-content gate (T3): both functions must be live BEFORE the first table block exists in any draft, whichever path writes it — the editor slice's push OR an `import:batch` run.** An old bundle meeting a table-bearing document hits the sanitizer's fail-closed throw, which is a live 500 on activity open. Nothing can produce a table yet (the editor has no table node and the importer still degrades them), so there is no rush — but the editor slice must not be pushed until this is done. `pnpm deploy:check` takes **no** `--no-verify-jwt`.
 

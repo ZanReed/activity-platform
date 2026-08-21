@@ -48,6 +48,8 @@ import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
 import { Definition } from './extensions/Definition';
 import { Callout } from './extensions/Callout';
+import { Table, TableRow, TableCell, TableCellPara } from './extensions/Table';
+import { BlankIdUniqueness } from './extensions/BlankIdUniqueness';
 
 export interface EditorExtensionOptions {
     // Activity-wide default a columns block's gridLines:'inherit' resolves to
@@ -162,6 +164,17 @@ export function buildEditorExtensions({
         // Callout — a tinted note box (info/warning/success/note). Pure content;
         // the renderer already emits it, this makes the schema block authorable.
         Callout,
+        // Table — prosemirror-tables via @tiptap/extension-table, with the three
+        // departures documented in extensions/Table.ts (restricted cell content,
+        // no tableHeader node, spans pinned to 1). TableHeader is deliberately
+        // NOT registered: header-ness is a block attr, not a per-cell node.
+        Table,
+        TableRow,
+        TableCell,
+        TableCellPara,
+        // Keeps every blank's response key unique however a duplicate arrives
+        // (paste, Duplicate, a table row copy). See the extension's header.
+        BlankIdUniqueness,
         // Self-explanation — an ungraded free-text reflection prompt.
         SelfExplanation,
         // Manually-graded free text (Phase 2.6): short_answer + essay. Same

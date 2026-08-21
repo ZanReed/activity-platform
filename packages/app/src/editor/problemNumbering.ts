@@ -1,4 +1,5 @@
 import type { Editor } from '@tiptap/core';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { isPageNumberedType, stepLetter } from '@activity/schema';
 
 // ============================================================================
@@ -49,7 +50,33 @@ export const PM_NAME_TO_SCHEMA_TYPE: Readonly<Record<string, string>> = {
     // the same reason it does on the page.
     shortAnswer: 'short_answer',
     essay: 'essay',
+    // Numbered only when some cell holds a blank — a blankless table is a
+    // stimulus (a chart to READ), not a question. See tableNodeHasBlank.
+    table: 'table',
 };
+
+/**
+ * Does this table node carry a blank in any cell?
+ *
+ * The editor's counterpart to isGradeable's `table` case, and it has to be a
+ * DESCENDANT walk rather than an attrs read: a table's gradable content lives
+ * in its cells, not in a field. (A math_block's gaps ARE an attr, which is why
+ * that one is a one-liner above.) Both sides must agree or the editor and the
+ * printed page disagree about which question is question 4 — the exact defect
+ * this file was written after.
+ */
+function tableNodeHasBlank(node: ProseMirrorNode): boolean {
+    let found = false;
+    node.descendants((child) => {
+        if (found) return false;
+        if (child.type.name === 'blank') {
+            found = true;
+            return false;
+        }
+        return true;
+    });
+    return found;
+}
 
 export function problemNumberAt(editor: Editor, pos: number | undefined): number {
     if (pos === undefined) return 1;
@@ -64,16 +91,32 @@ export function problemNumberAt(editor: Editor, pos: number | undefined): number
             count++;
             return false;
         }
+        if (schemaType === 'table') {
+            // ATOMIC, for the same reason as the faded box: the WHOLE table is
+            // one numbered problem and its blank cells are lettered (a)/(b)
+            // inside it. Nothing within a table is separately numbered, so
+            // descending could only ever find something that should not count.
+            if (!tableNodeHasBlank(node)) return false; // a stimulus; no number
+            const tableLabel = (node.attrs.label as { mode?: string } | undefined)
+                ?.mode;
+            if (tableLabel !== 'none' && tableLabel !== 'custom') count++;
+            return false;
+        }
         const interactionType = (
             node.attrs.interaction as { type?: string } | undefined
         )?.type;
-        // A math_block is numbered only when it carries in-equation gaps.
-        const hasPrompts =
+        // "This block's CONTENT carries gradable items": in-equation gaps for a
+        // math_block, a blank in some cell for a table. The schema's rule takes
+        // one flag for both (isPageNumberedType); each caller computes it from
+        // whatever shape it holds.
+        const hasGradableContent =
             schemaType === 'math_block'
                 ? Array.isArray(node.attrs.prompts) &&
                   node.attrs.prompts.length > 0
-                : undefined;
-        if (!isPageNumberedType(schemaType, interactionType, hasPrompts))
+                : schemaType === 'table'
+                  ? tableNodeHasBlank(node)
+                  : undefined;
+        if (!isPageNumberedType(schemaType, interactionType, hasGradableContent))
             return true;
         // A custom/none label is out-of-sequence: it shows text or nothing and
         // does NOT consume a problem number. Absent attr = auto = counts.

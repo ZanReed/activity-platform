@@ -176,6 +176,22 @@ export const PRECACHE_MAX_BYTES = 100 * 1024;
  *
  * Measured 2026-08-05 (summed gz): katex 75.2 · mathlive 264.0 ·
  * jsxgraph 239.1 · prosemirror 265.2 (two chunks).
+ *
+ * prosemirror RE-MEASURED 2026-08-21: 265.9 → 281.1 when the table block
+ * adopted @tiptap/extension-table (+15.2 for the kit plus this slice's own
+ * nodes). The cap did NOT move, and that was a ruling rather than an oversight:
+ * docs/design/table-block.md's R6 gated adoption on this measurement and
+ * pre-committed what to do with the answer — under ~10 KiB of remaining
+ * headroom, either raise the cap deliberately or split tables into a
+ * lazily-registered chunk.
+ *
+ * 10.9 KiB survives, so neither fired — but it is a HAIR over the line, and
+ * this row has never run this close before. Two things follow. The @tiptap/*
+ * family must be bumped together (CLAUDE.md), so the next family bump is the
+ * one to measure BEFORE, not after. And the next editor feature that reaches
+ * for a ProseMirror plugin should expect to spend the remaining margin, at
+ * which point the lazy-chunk branch of R6 is the answer that was already
+ * chosen — it does not need re-deciding, only doing.
  */
 export const CHUNK_LEDGER = [
     {
