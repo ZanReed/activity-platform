@@ -45,6 +45,7 @@ import {
     makeDb,
     parseArgs,
     planIdentity,
+    rejectUnusableKey,
     titleFromPath,
 } from '../batch-import.mjs';
 
@@ -403,6 +404,33 @@ test('§F a bare `--` is ignored, because pnpm forwards it', () => {
     assert.equal(withSep.folder, '/tmp/cat');
     assert.equal(without.folder, '/tmp/cat');
     assert.deepEqual(withSep, without);
+});
+
+test('§F a publishable key is refused before any work happens', () => {
+    // The dangerous mistake, and the reason it is checked UP FRONT rather than
+    // left to the request: a publishable/anon key does not fail like a bad
+    // password, it makes the database look EMPTY. RLS hides every row, so the
+    // planner would conclude all 150 activities are CREATES and report
+    // something untrue before it reported anything wrong.
+    assert.throws(
+        () => rejectUnusableKey('sb_publishable_abc123'),
+        /PUBLISHABLE key/,
+    );
+});
+
+test('§F an anon JWT is refused by its own payload', () => {
+    const jwt = (role) =>
+        [
+            Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url'),
+            Buffer.from(JSON.stringify({ role })).toString('base64url'),
+            'sig',
+        ].join('.');
+
+    assert.throws(() => rejectUnusableKey(jwt('anon')), /ANON key/);
+    // …and the one that CAN do the job passes untouched, so the guard is not
+    // just "reject everything that looks unfamiliar".
+    assert.doesNotThrow(() => rejectUnusableKey(jwt('service_role')));
+    assert.doesNotThrow(() => rejectUnusableKey('sb_secret_abc123'));
 });
 
 test('§F --dry-run and --owner=x parse in either position', () => {

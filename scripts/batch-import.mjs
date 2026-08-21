@@ -512,6 +512,60 @@ function isJwtKey(key) {
     return key.startsWith('eyJ');
 }
 
+/** Thrown by rejectUnusableKey so the guard stays pure — presentation (and the
+ *  process exit) belongs to the caller, and a test can assert on it. */
+export class UnusableKeyError extends Error {}
+
+/**
+ * Refuse a key that cannot do this job, BEFORE any work happens.
+ *
+ * A publishable / anon key is the dangerous mistake, because it does not fail
+ * like a bad credential — it fails like an empty database. RLS hides every row
+ * the script needs to see, so `existingFor()` returns [] and the planner
+ * concludes that all 150 activities are CREATES. The inserts then fail one by
+ * one, or (worse, on a future schema) some succeed and duplicate a catalogue
+ * that was already there. Either way the run reports something untrue before it
+ * reports anything wrong.
+ *
+ * The two shapes are distinguishable up front, so they are checked up front.
+ * A legacy JWT's role sits in its payload; decode without verifying (we are not
+ * authenticating anything here, just reading the author's own label back to
+ * them) and say plainly which key they pasted.
+ */
+export function rejectUnusableKey(key) {
+    if (key.startsWith('sb_publishable_')) {
+        throw new UnusableKeyError(
+            'That is a PUBLISHABLE key (sb_publishable_…), which is bound by row-level\n' +
+                '  security. This script writes rows it does not own, so it needs the SECRET\n' +
+                '  key from the same dashboard page (sb_secret_…, behind a Reveal button).\n\n' +
+                '  A publishable key would not fail like a bad password — it would make the\n' +
+                '  database look EMPTY, and the run would report every activity as new.',
+        );
+    }
+    if (isJwtKey(key)) {
+        try {
+            const payload = JSON.parse(
+                Buffer.from(key.split('.')[1] ?? '', 'base64url').toString('utf8'),
+            );
+            if (payload.role === 'anon') {
+                throw new UnusableKeyError(
+                    'That is the ANON key (its JWT says role: "anon"), which is bound by\n' +
+                        '  row-level security. This script needs the service_role key, or a new\n' +
+                        '  secret key (sb_secret_…), from Settings -> API Keys.\n\n' +
+                        '  An anon key would make the database look EMPTY rather than erroring,\n' +
+                        '  and the run would report every activity as new.',
+                );
+            }
+        } catch (err) {
+            // A decode failure is NOT a rejection: an unfamiliar-looking key
+            // might be perfectly good, so let the request be the judge. But the
+            // deliberate rejection above must not be swallowed by the same
+            // catch that guards JSON.parse.
+            if (err instanceof UnusableKeyError) throw err;
+        }
+    }
+}
+
 export function makeDb(url, key) {
     const base = `${url.replace(/\/$/, '')}/rest/v1`;
     // `apikey` always; `Authorization` only when the key can survive being
@@ -659,6 +713,13 @@ async function main() {
     const root = resolve(args.folder);
     const rootStat = await stat(root).catch(() => null);
     if (!rootStat?.isDirectory()) usage(`${root} is not a directory.`);
+
+    try {
+        rejectUnusableKey(key);
+    } catch (err) {
+        if (err instanceof UnusableKeyError) usage(err.message);
+        throw err;
+    }
 
     const db = makeDb(url, key);
     const owner = await db.findOwner(args.owner);
@@ -839,5 +900,29 @@ async function main() {
 
 // Only run when invoked directly — the test imports the pure pieces above.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-    await main();
+    // A NETWORK FAILURE IS NOT A CRASH. Without this, a wrong SUPABASE_URL or a
+    // dropped connection prints node's raw `[TypeError: fetch failed]` stack —
+    // which tells an author running a catalogue import nothing about what to do
+    // next, and looks like a bug in the script rather than a problem with the
+    // machine or the config.
+    try {
+        await main();
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const networky =
+            /fetch failed|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN/i.test(
+                message,
+            ) || /fetch failed/i.test(String(err?.cause?.message ?? ''));
+        console.error(
+            `\n${networky ? 'Could not reach Supabase' : 'The import failed'}: ${message}\n`,
+        );
+        if (networky) {
+            console.error(
+                `  Check SUPABASE_URL in .env.supabase (currently ${
+                    process.env.SUPABASE_URL || '<unset>'
+                })\n  and that this machine is online. Nothing was written.\n`,
+            );
+        }
+        process.exit(1);
+    }
 }
