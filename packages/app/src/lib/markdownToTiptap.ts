@@ -205,7 +205,12 @@ export function getMarkdownImporter(): Promise<MarkdownImporter> {
                 // escaping, then parse the placeholdered text.
                 const { text, spans } = extractMath(stripMarkdownFence(markdown));
                 const tokens = md.parse(text, {}) as unknown as MdToken[];
-                return tokensToBlocks(tokens, spans);
+                return tokensToBlocks(tokens, spans, (line) => {
+                    // parseInline returns one 'inline' token whose children are
+                    // the real inline stream mapInline already knows how to walk.
+                    const parsed = md.parseInline(line, {}) as unknown as MdToken[];
+                    return parsed[0]?.children ?? [];
+                });
             };
         })();
     }
@@ -441,14 +446,35 @@ interface Ctx {
     // Activity metadata from a ```meta fence, filled in the same PRE-PASS as
     // definitions. Undefined until a fence supplies something.
     meta?: ImportedMeta;
+    /**
+     * markdown-it's INLINE parse, as a narrow seam.
+     *
+     * Fence bodies are parsed line by line by this file rather than by
+     * markdown-it, so until 2026-08-21 they never saw an emphasis token and
+     * `**bold**` reached the document as four literal asterisks — in ```columns,
+     * ```worked, ```faded, ```reference and ```definitions alike, while the doc
+     * promised bold/italic/code in all of them. Handing the line back to the
+     * real inline parser is what makes the promise true, and reuses mapInline
+     * so a fence and a paragraph mean exactly the same thing by `**x**`.
+     *
+     * A function rather than the MarkdownIt instance: this is the only thing
+     * the mapper needs, and a whole parser on the context invites a second,
+     * divergent parse somewhere down the line.
+     */
+    inline: (text: string) => MdToken[];
 }
 
-function tokensToBlocks(tokens: MdToken[], spans: MathSpan[]): ImportResult {
+function tokensToBlocks(
+    tokens: MdToken[],
+    spans: MathSpan[],
+    inline: (text: string) => MdToken[],
+): ImportResult {
     const ctx: Ctx = {
         warnings: new Set(),
         spans,
         refPanelBlocks: [],
         definitions: new Map(),
+        inline,
     };
     // Pre-pass: collect every ```definitions fence before mapping any body
     // block, so [[term]] resolves in either direction. Scanning markdown-it's
@@ -1191,9 +1217,13 @@ function fenceInline(
         new RegExp(`${MATH_OPEN}(\\d+)${MATH_CLOSE}`, 'g'),
         (_, i: string) => `${MATH_OPEN}${base + Number(i)}${MATH_CLOSE}`,
     );
-    const out: JSONContent[] = [];
-    emitInline(out, remapped, [], allowBlanks, ctx);
-    return out;
+    // Through the REAL inline parser, then mapInline — the same walk a
+    // top-level paragraph gets. Doing it here rather than hand-rolling an
+    // emphasis regex is what keeps `**x**` meaning one thing across the whole
+    // format; the math has already been lifted out into sentinels (private-use
+    // characters markdown-it treats as ordinary text), so no LaTeX reaches
+    // CommonMark escaping.
+    return mapInline(ctx.inline(remapped), ctx, allowBlanks);
 }
 
 // One body block from a worked/faded fence line: a sole $$…$$ line → mathBlock;

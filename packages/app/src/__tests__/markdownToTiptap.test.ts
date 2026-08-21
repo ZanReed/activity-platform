@@ -2652,6 +2652,69 @@ describe('rich bodies in worked / faded / columns fences', () => {
     });
 });
 
+describe('inline marks inside fence bodies (pilot finding, 2026-08-21)', () => {
+    // Fence bodies are parsed line by line by markdownToTiptap rather than by
+    // markdown-it, so they never saw an emphasis token: `**Weight (kg)**` in a
+    // ```columns table header reached the document as four literal asterisks.
+    // The doc had promised bold/italic/code in fence bodies the whole time —
+    // found on paper, by the pilot, in a printed table header.
+    //
+    // The fix routes fenceInline through the REAL inline parser and mapInline,
+    // which is why these rows also assert the things that must NOT change: a
+    // fence line still carries blanks, math, and definitions.
+
+    const marksOf = (node: JSONContent): string[][] =>
+        (node.content ?? []).map((n) => (n.marks ?? []).map((m) => m.type!));
+
+    it('bold works in a ```columns cell — the case the pilot printed wrong', () => {
+        const [row] = blocks('```columns\n**Weight (kg)**\n---\n**Cost ($)**\n```');
+        const firstCell = row!.content![0]!.content![0]!;
+        expect(firstCell.content![0]!.text).toBe('Weight (kg)');
+        expect(marksOf(firstCell)).toEqual([['bold']]);
+    });
+
+    it('bold, italic and code work in ```worked and ```reference too', () => {
+        // It was never a columns bug — every line-parsed fence shared it.
+        const [example] = blocks('```worked\n**b** and *i* and `c`\n```');
+        expect(marksOf(example!.content![0]!)).toEqual([
+            ['bold'],
+            [],
+            ['italic'],
+            [],
+            ['code'],
+        ]);
+
+        const { referencePanel } = convert('```reference\n**Bold line**\n```');
+        expect(marksOf(referencePanel!.blocks[0]!)).toEqual([['bold']]);
+    });
+
+    it('a blank still works beside a mark, in the same line', () => {
+        // The regression that would matter most: faded steps are the reason
+        // fence lines parse blanks at all.
+        const [example] = blocks('```faded\n**Step:** x = {{4}}\n```');
+        const step = example!.content![0]!;
+        expect(step.type).toBe('fillInBlank');
+        expect(step.content!.some((n) => n.type === 'blank')).toBe(true);
+        expect(step.content![0]!.marks?.[0]?.type).toBe('bold');
+    });
+
+    it('math in a fence line still lifts to a math node, not asterisk soup', () => {
+        const [example] = blocks('```worked\nSolve $2x + 3 = 11$ now\n```');
+        const types = example!.content![0]!.content!.map((n) => n.type);
+        expect(types).toContain('mathInline');
+    });
+
+    it('leaves intraword underscores and lone asterisks alone', () => {
+        // CommonMark's own rules, now that the real parser runs here: a
+        // variable name must not become italic, and arithmetic must survive.
+        const [a] = blocks('```worked\nsnake_case_name stays\n```');
+        expect(a!.content![0]!.content![0]!.text).toBe('snake_case_name stays');
+
+        const [b] = blocks('```worked\n2 * 3 = 6\n```');
+        expect(b!.content![0]!.content![0]!.text).toBe('2 * 3 = 6');
+    });
+});
+
 describe('hand-numbering: what the pilot found (2026-08-21)', () => {
     // The doc now tells authors not to write their own question numbers. That
     // guidance is a CLAIM about behaviour, so it gets a test — policy P11.
