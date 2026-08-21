@@ -1,5 +1,10 @@
 # Activity taxonomy — RULED (eng review 2026-08-18)
 
+**Status:** ✅ **SHIPPED AND LIVE** — Drop 1 (migration **0037**, applied + verified
+live 2026-08-18, verify-0037 = 11/0) and Drop 2 (the ` ```meta ` import fence). The
+fence gained `work:` on 2026-08-21 — the first NESTED knob it reaches (`print.workSpace`),
+which this doc's "flat enums only" line deliberately gated on real demand.
+
 > **Status:** RULED — full eng review with outside voice, 2026-08-18. Resolves
 > [free-activity-catalog.md](free-activity-catalog.md) **decision #6** (the last
 > open catalog decision). Trigger: the author's large activity catalogue —

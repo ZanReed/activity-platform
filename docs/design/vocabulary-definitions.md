@@ -9,6 +9,15 @@
 > is likewise a renderer-era concept. The feature is shipped and working; the delivery mechanism
 > described is historical.
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (2026-08-21).** The status line below says
+> "`publish-activity` redeployed … so it reaches a page". **That Edge Function was
+> deleted at S9 Drop 1 (2026-08-14)** along with published static HTML; publishing is
+> now a direct `publish_activity` RPC from `usePublish`, and students read the live
+> viewer at `/a/:id`. The FEATURE (inline vocabulary definitions) shipped and is live —
+> the viewer renders the mark and `printDefinitionGlossary` is its paper surface. Only
+> the delivery mechanism named here is retired; original text intact. Missed by the
+> 2026-08-17 annotation pass.
+
 **Status:** SHIPPED 2026-06-19; `publish-activity` redeployed 2026-07-06, so it reaches a page on its next re-publish. The inline feature is live in `packages/schema` (`DefinitionMark`), the renderer, the runtime sidecar (`runtime/definitions.ts`), and the editor. **The shipped shape is richer than the Stage-9c sketch below:** a definition carries `content` (rich text + inline math, via the shared `InlineRichTextEditor`) + an optional `image` ({src, alt}), not a bare `definition: string` — see the schema's `DefinitionMark` and STATE.md. The rest of this doc keeps the original rationale (why a mark, the data-attribute contract, the tenant-scoped Phase 4 glossary, auto-suggest) — still accurate. Phase 4 (glossary store + implicit reuse + auto-suggest) remains future work.
 
 See ROADMAP.md "Phase 2 — Polish the loop" for the user-visible framing and "Phase 4 — Multi-tenancy" for the glossary extension.

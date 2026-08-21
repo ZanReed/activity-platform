@@ -20,7 +20,7 @@ Work through each item; skip none silently — say "clean" per section in the re
 
 **1. Version constants and version stamps.** Read the truth from source, then grep every doc that quotes it:
 - `ACTIVITY_SCHEMA_VERSION` — `packages/schema/src/upgrade.ts` (currently 2; the document model's version, bumped by an upgrade path).
-- `SANITIZER_REV` — `packages/viewer/src/sanitize/sanitize.ts`. **It is COMPUTED** (`SANITIZER_ALGO_REV` + an fnv1a hash of the spec material), so the check is *inverted*: no doc may pin a literal rev value. A doc quoting one is drift by construction. What docs may say is that a spec change rotates it and orphans the read cache.
+- `SANITIZER_REV` — `packages/viewer/src/sanitize/sanitize.ts`. **It is COMPUTED** (`SANITIZER_ALGO_REV` + an fnv1a hash of the spec material), so the check is *inverted*: no doc may pin a literal rev **UNGUARDED**. ⚠ **Corrected 2026-08-21** — this bullet used to say "no doc may pin a literal rev; a doc quoting one is drift by construction", and that produced a phantom finding. The repo pins the value ON PURPOSE in `packages/viewer/tests/printShuffle.test.ts` so a move cannot happen accidentally (a moved rev means both bundles regenerate and a `get-activity` redeploy is owed). A value quoted alongside that guard, or recorded in HISTORY as an observation, is not drift. An unguarded literal in a live doc still is.
 - `POLICY_VERSION` — `packages/app/src/lib/policyVersion.ts` (in-product, student/teacher-facing).
 - **Doc-local compliance stamps** — `docs/compliance/retention-policy.md` and `data-map.md` each carry their own `draft-N`. These are deliberately separate from `POLICY_VERSION`, and unifying them is **counsel packet Q8**. Check all three are internally consistent and that the divergence is still explicitly recorded rather than accidental.
 - `MATHLIVE_VERSION` — pinned in `mathlive-setup.ts` and **self-guarding**: `packages/app/vite.config.ts`'s `activity:mathlive-fonts` plugin fails the BUILD if the pin drifts from the installed package. Note the guard exists; do not re-verify by hand.
@@ -29,7 +29,7 @@ Work through each item; skip none silently — say "clean" per section in the re
 **2. Bundle sizes and budgets.** `scripts/perf-budgets.mjs` is the ONE home for every ceiling, with its reasoning. Two families:
 - **Edge Function bundles:** `VIEWER_SERVER_MAX_KIB` / `GRADING_SERVER_MAX_KIB` vs the committed `supabase/functions/_shared/*.bundle.js` (`wc -c`). CI guards staleness, not ceiling values — that is this audit's job.
 - **Built SPA:** `node scripts/check-perf-budget.mjs` prints all 16 with their caps (12 until the 2026-08-18 shell-slim slice added four absence-only rows).
-- Flag anything within ~15% of its cap: the budget ladder should be *scheduled*, not discovered mid-feature. **As of 2026-08-18 the shell sits at 156.4 KiB gz against a 172 cap**, after slice 1 of the slimming work shipped and tightened the cap in the same commit; the author then PARKED the ladder (TODOS.md names the one trigger to resume). Prefer flagging a row that has MOVED toward its cap since the last audit over a raw percentage — the headroom policy is ~10%, so a freshly-calibrated row always sits near 90% and a raw threshold flags every healthy row. DECISIONS: "a budget that can only ever loosen is a fossil."
+- Flag anything within ~15% of its cap: the budget ladder should be *scheduled*, not discovered mid-feature. **Read the current numbers from `node scripts/check-perf-budget.mjs`; do not pin one here.** This bullet pinned "156.4 KiB" from 2026-08-18 until the 2026-08-21 audit found it reading 157.4 — a checklist that warns about circulating stale figures, circulating a stale figure. The shell-slim ladder is PARKED (TODOS.md names the one trigger to resume). Prefer flagging a row that has MOVED toward its cap since the last audit over a raw percentage — the headroom policy is ~10%, so a freshly-calibrated row always sits near 90% and a raw threshold flags every healthy row. DECISIONS: "a budget that can only ever loosen is a fossil."
 
 **3. Design-doc status lines.** For each `docs/design/*.md`, read the status header and check it against STATE/HISTORY ship status.
 - ⚠ **Grep for BOTH forms:** `**Status:**` and `**Status: ` (colon inside the bold). The 2026-08-17 audit reported two docs as having *no* status line because its grep only matched the first form — a false positive that cost a finding's credibility. Normalize to `**Status:**` when fixing.
@@ -61,6 +61,35 @@ Work through each item; skip none silently — say "clean" per section in the re
 - Run the drift-guard tests: `node --test scripts/tests/*.test.mjs` (54 across 10 files as of 2026-08-18 — the seven named before, plus skill-references, supabase-stub-pin and e2e-origins) plus the app-side lockstep guards (`markdownImportPrompt`, `blockTypeGuards`, `importFormatRegistry`).
 - Test counts quoted in STATE vs actual `pnpm test`.
 - README deliberately carries no build status — confirm none crept in. Its CI paragraph describes a *mechanism*, which is durable and fine. Confirm the add-a-block-type checklist still matches the real wiring surface.
+
+**9. Declarations without consumers (added 2026-08-21 — the highest-yield sweep this repo has).**
+FIVE instances in two weeks, all the same shape: a schema field or registry
+declaration survives, its implementation does not, and the suite stays green
+because the guard compares two DECLARATIONS rather than checking output.
+
+| what declared it | what had died | found by |
+|---|---|---|
+| registry `numbered: 'always'` (8 types) | the renderer's `isNumberedBlock` | the viewer-numbering slice |
+| `LABELED_BLOCK_TYPES` | — (hand-maintained list) | the answer-key slice |
+| block `workSpace` (4 types) | the renderer's per-block emit | the print-gap triage |
+| `Row.gridLines` | the renderer's `data-grid-lines` | the print-gap triage |
+| `**bold**` in fence bodies | never existed; the doc promised it | **printing a page** |
+
+The sweep: for each field in `packages/schema/src/blocks/*.ts` and each key in
+the viewer registry, grep for a **rendering** consumer — `packages/viewer/src/blocks/`,
+`container/`, or the print CSS. A field read only by the editor, only by
+`serialize.ts`, or only by its own tests is a candidate. Two of the five above
+reached PAPER, so weight print-affecting fields first.
+
+**The tell that this class is present:** a source comment describing behaviour
+in the present tense with no code beside it (`viewer.css` said "a single problem
+can override the work space" for four months while nothing set the property).
+Grep comments for "can override", "is honoured", "resolves to" and check each.
+
+**When you find one, the fix is not just wiring it** — the guard must bind to
+OUTPUT, or it re-rots. `scripts/tests/batch-import.test.mjs` §A (bundles and
+RUNS the pipeline) and the `structure/*` rows in `print-rules.e2e.ts` (assert
+computed style) are the patterns; a grep-for-the-import-string test is not.
 
 ## Report format
 

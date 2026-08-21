@@ -1,5 +1,12 @@
 # The viewer numbering surface — problem numbers on the student page
 
+**Status:** ✅ **BUILT 2026-08-20** — V1–V6 + V9 shipped; V7 (Linux print-baseline
+regeneration) discharged the same day at CI run 32346119173. Eng review D2–D10, then
+DX review D1–D4. The load-bearing artifact is `numbering-output.test.tsx`, which binds
+`numbered:'always'` to RENDERED OUTPUT — proven against the original bug (with the
+render path removed, `registry.test.ts` still reported 43 passed while the new guard
+named all eight types).
+
 > **Status:** ✅ **COMPLETE 2026-08-20 — V1–V9 all shipped.** Reviewed twice before building: full
 > `/plan-eng-review` and then `/plan-devex-review`.
 >

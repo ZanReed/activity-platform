@@ -3,6 +3,72 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## Native TABLE block — ruled (2026-08-21), designed but not built
+
+**What:** A real `table` block. The pilot proved the workaround is workable and
+wrong, and the author's read was "presenting tables is kind of a basic feature."
+This whole vertical spine — rates, proportions, functions, rate of change — is
+table-heavy.
+
+**⚠ THE WORKAROUND'S DEFECT IS STRUCTURAL, not cosmetic — this is the argument.**
+A ruled ` ```columns ` fence prints something that LOOKS like a table (verified
+on paper 2026-08-21, screenshot in the session). It is two adjacent block stacks.
+The divider rule is
+`.viewer-row[data-grid-lines='true'] > .viewer-column > * + *` — drawn **per
+column, independently**. Rows line up only because every cell happens to be one
+line tall; give one cell a label that wraps ("Cost per kilogram ($)") and the
+two columns' dividers desync. **There is no row concept in the DOM, so there is
+nothing holding a row together.**
+
+**RULED D7 (2026-08-21): cells CAN hold a `{{blank}}`.** "Complete the table" is
+a staple Algebra I task; a read-only table would ship the smaller half of the
+feature and leave the spine's most common exercise impossible.
+
+**The architectural key, and why this is cheaper than "new block type + grading":**
+
+```
+FillInBlankInline = TextNode | InlineMathNode | HardBreakNode | BlankToken
+```
+
+Make a **cell's content `FillInBlankInline[]`** and blanks in cells carry stable
+ids that key into the EXISTING `SubmissionResponses.blanks` map. **No new
+response category and no wire-version bump** — the check endpoint, the answer
+key, per-blank aggregation and the teacher's view already speak "blank id →
+answer". CLAUDE.md's standing rule ("when a new response category lands it gets
+its own parallel map") is satisfied by NOT needing one.
+
+**Numbering has a precedent to copy, not invent:** `faded_worked_example` is
+already a container that is ONE numbered problem whose sub-parts are lettered
+(`showStepLabels`, `stepLetter` in `schema/src/step-letter.ts`). A table should
+be the same shape — one problem number for the table, letters on the blank cells
+— rather than consuming a problem number per cell.
+
+**Sketch (not ruled):**
+
+```
+TableBlock { id, type: 'table', caption?, headerRow: boolean,
+             rows: [ { id, cells: [ { id, content: FillInBlankInline[] } ] } ] }
+```
+
+**Scope — README's add-a-block-type checklist is the authority, and it is
+deliberately exhaustive because multiple_choice shipped missing two steps:**
+schema file + `blocks/index.ts` union + factory + ★`ColumnCellBlock`; editor
+extension + NodeView + `slashMenuItems` + ★`Columns.ts` content expression +
+both directions in `serialize.ts`; ★viewer registry entry (family, numbering,
+category, sanitize spec, print treatment, a11y story) + ★fixture per variant +
+component; print: a PrintSpec + `printExpectations` rows + baselines; import:
+**markdown pipe tables**, which the format currently degrades to plain text —
+the natural syntax already exists and authors already type it. Both server
+bundles regenerate (schema change), and `get-activity` + `check-activity`
+redeploy.
+
+**Depends on:** nothing technically. Sequenced after the pilot deliberately, so
+the decision rested on a printed page rather than a guess.
+
+**Do NOT start by writing the schema.** Start with `/plan-eng-review` on a
+design doc — this touches every package, the grading path, and the answer key,
+which is exactly the shape the scope gate exists for.
+
 ## ✅ RENDER DONE 2026-08-21 — the two dead print fields now reach paper; the IMPORT SYNTAX is what remains
 
 **✅ The render half shipped.** `blockStyle` emits `--print-work-space` on the block wrapper, and

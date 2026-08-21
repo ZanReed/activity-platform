@@ -1,5 +1,29 @@
 # Batch importer — handoff brief (not yet designed)
 
+**Status:** ⚰️ **SUPERSEDED 2026-08-20 by [batch-importer.md](batch-importer.md)** — the
+slice is BUILT and proven live. This brief is kept for its trap list, which held up.
+
+> ⚠ **ONE OF THIS BRIEF'S "DO NOT RE-DERIVE" CLAIMS WAS FALSE, and it is the one
+> below marked verified.** "The pipeline exists and is node-safe (verified)" did
+> not survive a real node bundle: `lib/markdownToTiptap.ts` and (via
+> `serialize.ts`) `editor/mathPromptSync.ts` both imported the
+> `@activity/graph-kit` BARREL, whose transitive
+> `import { MathfieldElement } from 'mathlive'` does not exist in mathlive's
+> node/SSR build — four hard esbuild errors. The app suite was green about it
+> because vitest resolves through Vite, which takes mathlive's *browser*
+> condition and externalizes `node_modules`.
+>
+> Fixed with two graph-kit subpath exports; guarded by
+> `scripts/tests/batch-import.test.mjs` §A, which bundles for node and RUNS the
+> pipeline rather than grepping for an import string.
+>
+> **The generalisable lesson, now a memory and a STATE note:** a claim that
+> crosses a session boundary has no test attached to it. When a handoff says
+> "inherited — do NOT re-derive", the first job is to make each claim
+> falsifiable in the environment the new code will actually run in. Two minutes
+> of `esbuild --platform=node` would have caught this before anything was built
+> on top of it.
+
 > Written 2026-08-20 at the end of the numbering session, as the paste-able
 > starting point for the next one. **This is a brief, not a plan.** It carries
 > the decisions already made so they are not re-derived, and names the one

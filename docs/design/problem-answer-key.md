@@ -1,5 +1,11 @@
 # Paper problems, the answer key, and free-response blocks — RULED
 
+**Status:** ✅ **BUILT 2026-08-20** — T1–T7 complete, rulings E1–E10. Both server
+bundles regenerated and both functions redeployed; the liveness proof PASSED against a
+real published sentinel (`SANITIZER_REV` moved `1-f8328527` → `1-87a5e78b`, which
+orphaned the stale read-cache rows by design). See STATE.md for the proof's two legs
+and why the first attempt was a false start worth remembering.
+
 > **Status:** RULED — full /plan-eng-review 2026-08-19 (scope gate + 4 sections +
 > outside voice, 9 interactive decisions E1–E9). **The original design pass's
 > central premise was OVERTURNED at the scope gate**: it proposed reviving the

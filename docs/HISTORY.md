@@ -1090,3 +1090,69 @@ Every slice below is closed and every gate swept; kept here as the arc's index.
 2. **`@supabase/supabase-js` is pinned EXACT** because the stubs mirror internals (`setAuth()` is called ZERO-ARG on SIGNED_OUT; `storage` is constructor-assigned, not a getter). `scripts/tests/supabase-stub-pin.test.mjs` fails the build if the pin, each stub's `AUDITED AGAINST:` line, the installed version, or **the alias itself** stop agreeing.
 3. **The review's §5 item 4 was WRONG and the anti-vacuity row caught it.** "Vitest parity — dissolved by inspection" missed that vitest EXTERNALIZES `node_modules`, so the alias did not apply and every stub assertion would have silently tested the vendor library. Fixed with `test.server.deps.inline` in `vite.config.ts`.
 4. **⚠ And the review's severe finding 1 had a wrong premise, found by measurement.** An apikey-less upload does NOT 401 — it succeeds against the real stack. The header stays (it mirrors the vendor client), but the gate is the **session token** + 0019's `to authenticated` policy, which is what the integration lane's new upload row now fires. Hosted-gateway behavior is unverified on purpose: checking it means writing to production Storage, which is the author's call.
+
+## Archived from STATE 2026-08-21 (drift audit) — discharged author stations
+
+Moved verbatim out of STATE's "Pending author actions" once every item in it was
+closed. Kept because each carries the *reasoning* for a deploy decision, which is
+the part that stops a future session re-deriving it.
+
+**✅ BOTH FUNCTIONS REDEPLOYED 2026-08-20 — the answer-key deploy gate is DISCHARGED on the deploy half.** Tool-read via `list_edge_functions`: **`get-activity` v20, `verify_jwt: false`** (the flag survived the redeploy — it is the only function deployed that way) and **`check-activity` v16, `verify_jwt: true`**, both updated within seconds of each other. So the live read path now knows to strip `answer`/`solution`, and the live grader accepts documents carrying them.
+
+*What moved and why it needed a deploy:* the answer-key slice added `answer` + `solution` to `short_answer`/`essay` and declared both stripped, which moved **`SANITIZER_REV` `1-f8328527` → `1-87a5e78b`** (pinned in `printShuffle.test.ts`). The rev move also orphans every stale read-cache row automatically, so no cache purge is owed. Both bundles were regenerated in the same commit as the schema change.
+
+**✅ THE ANSWER-KEY DEPLOY GATE IS FULLY DISCHARGED — the liveness proof PASSED 2026-08-20.**
+
+Run against a real published sentinel activity (`51c1ed89-7e40-4610-8524-2c1d0635a719`, version `7ffb6a55`), through the deployed `get-activity`, from a signed-in browser session:
+
+```
+
+ok   leg 1 — the served version really is the probe
+
+ok   leg 2 — no answer material on the wire (value AND key absent)
+
+PASS
+
+```
+
+**Why it is a real proof and not a vacuous one.** The published version was checked by SQL BEFORE the run: `short_answer_has_answer_field: true`, the sentinel in the block's `answer` field, and the prompt clean (`"Sentinel probe — delete me."`). So the sentinel could only reach the wire from the field the sanitizer is supposed to strip. Leg 1 independently confirmed the probe was present, so a pass cannot come from an empty document.
+
+*Corroborating evidence collected the same day, all tool-read:* the deployed bundle (v20) carries `sanitize: { strip: ["rubric", "answer", "solution"] }` verbatim for both blocks; `activity_version_reads` held 3 rows all at the OLD rev `1-f8328527`, orphaned by the move to `1-87a5e78b`, so no stale bytes could be served; and of 24 published versions none other contains a free-response block.
+
+⚠ **The first attempt was a false start worth remembering.** The initial sentinel was published from a Pages build that predated the answer-key slice, so the importer did not recognise the `answer:` fence key and swallowed the line into the PROMPT. The proof would have reported "THE ANSWER REACHED THE WIRE" — true, meaningless, and indistinguishable from a real leak. **This proof depends on TWO deploy surfaces**: the Edge Functions (deployed from local source via the CLI) and the SPA importer (deployed from `main` via Pages). They can sit at different versions. `scripts/verify-answer-key-strip.mjs` now warns about this in its header.
+
+**⏭ Author cleanup owed (P7):** delete the throwaway activity `51c1ed89-7e40-4610-8524-2c1d0635a719`. Its prompt is harmless but it is residue, and P7 says the run owns it end to end.
+
+**✅ V7 DONE — the print baselines are regenerated and committed (run 32346119173).** The expected print-gates red is cleared; the next CI run should be fully green. Three images moved (`fill_in_blank` +12px, `problem` +12px, `ordering` shifted) — the number gutter reaching paper.
+
+*Two findings came out of it.* (1) `numbering/prints` only covered the `?type=X&variant=N` route, while the baselines use `?type=X&mode=print` — a different code path with no assertion that a number was on the page. Closed by a DOM assertion in `print-baselines.e2e.ts` (22/22 in CI). (2) Only 3 of 12 numbered types' images changed, across two independent runs, while the number demonstrably renders — suspect is the suite's `maxDiffPixelRatio: 0.01`. Filed in TODOS; **numbering itself is guarded by two DOM assertions that no pixel tolerance can absorb**, which is why this did not block.
+
+**⏭ QUEUED: push the answer-key slice, the numbering slice + this STATE commit.** The prior three (`264eddd`, `5187eb9`, `1bc795b`) went up 2026-08-20 at run **32267816673** — **it was still `in_progress` when this session started; check it went green (`gh run list`)** before reading a red on the new push as this slice's fault.
+
+**✅ 0037 IS APPLIED LIVE — the ordering gate is DISCHARGED.** Tool-read 2026-08-18: `0037` in `schema_migrations`, both columns present, `publish_activity` carries the stamp, **0 GIN indexes** (the D12 deferral held). The author ran `pnpm verify:auth --target live` = **verify-0037 11 passed / 0 failed**.
+
+**✅ RESOLVED: the bundle-drift fix is pushed and CI-GREEN (run 32244556362).** *(What it was:)* Drop 1's `.min(1)` on `ActivityMeta.course` was a SCHEMA change, and its commit claimed "no bundle regeneration" — **that claim was wrong** (the CLAUDE.md rule is unconditional: schema change ⇒ regenerate both server bundles in the same commit). CI's drift guard caught it. Both bundles were regenerated and committed. **Optional, not urgent:** redeploying `get-activity`/`check-activity` would carry the `.min(1)` validation live — nothing requires it (no existing document can have a blank course; the default always applied), so it can ride the next real function change.
+
+*(Previously queued, now closed: `647fb8b` shell slimming slice 1 and `cc24700` the e2e-origins fix are both pushed and CI-green at runs **32048169054** and **32081815982**.)*
+
+**⏭ NOW: nothing is blocked — but ONE THING IS STILL IN FLIGHT, by design.** 0036 is applied live, `verify:auth --target live` = **147/0**, and `7e416f3` is pushed (tool-settled: `git ls-remote` = local HEAD). **⏳ The rollup has not run yet.** 0036 was applied 2026-08-17 ~05:49 UTC, *after* that day's 03:30 nightly, so the newest ledger row (id 16) was written by the OLD v1 function and `analytics_rolled_boundary()` is **still NULL**. **The first v2 run is 2026-08-18 03:30 UTC.**
+
+**What to check on that first run — three observables, all tool-readable:** (1) `analytics_rolled_boundary()` becomes non-NULL (the watermark starts advancing; from here the prune's gate is schedule + dry-run only — see the warning below); (2) the author's `users.rollup_rebuild_needed` flips **true → false** (it is true right now: 0036's `Pacific/Auckland` UPDATE legitimately fired the zone-change trigger, so the self-heal is queued — with 0 checks it recomputes nothing and just clears, which is exactly the NULL-guard path the local matrix caught); (3) the row's `notes` should read `…; self-healed 1 owner(s)`. **If the watermark is still NULL after 03:30 on the 18th, the v2 job did not run — read `cron.job_run_details`, not the registration (P3).**
+
+**⚠ THE COMPLIANCE PACK IS NOW TENSE-CORRECT, and carries a rule (retention-policy `2026-08-18-draft-7`).** draft-6 asserted that the nightly rollup "began advancing the watermark on 2026-08-18" before it had; draft-5 had asserted a fact a cron was about to falsify. Same mistake, opposite directions. **The pack now states mechanisms and schedules, and asserts something HAPPENED only after someone observed it** — and names the check (`select public.analytics_rolled_boundary();`) so a reader never takes it on trust. When the first v2 run is observed, that is the moment to sharpen the wording, not before.
+
+**Live posture confirmed by tool-read 2026-08-17:** 0036 in `schema_migrations`, both rollup tables present, all 6 new functions present, `users.timezone` = `Pacific/Auckland` for the author and NULL (→ Chicago default) for the other three, **0 purge ledger rows, 0 rolled rows, 0 checks**, and **13 analytics ledger rows — exactly the 13 real nightlies, no verify residue** (P7 holds; the live verify's rolled-back transactions consumed sequence ids but left no rows).
+
+⚠ **OPTIONAL, author's call (no recommendation pretends both sides win):** the cron hours. 03:00/03:30 UTC is US Central 21:00 (homework evening) AND NZ 15:00 (school afternoon) — busy for both. Across a 17–18h offset **there is no mutually-quiet hour**; ~09:30/10:00 UTC would favor the US cohort at the cost of NZ-evening rolls. Correctness never depends on the hour (full-day re-rolls are idempotent); the only cost is boundary churn. `cron.alter_job`, author-run SQL if wanted.
+
+⚠ **THE GATE'S CHARACTER CHANGES WHEN 0036 LANDS — the one thing not to misread.** 0035's gate was mechanical: nothing wrote `rolled_through`, so arming was inert. **0036 writes it nightly.** From then on the prune is held disarmed by exactly two things: it is **not scheduled**, and its **dry-run default**. Scheduling `prune_section_checks(false)` would then really delete. The arming checklist in [TODOS.md](TODOS.md) is the only guard from that point, and step 8 (the cron flip) is the first genuinely destructive act in the whole arc.
+
+## Archived from STATE 2026-08-21 — the check-prune / rollup / teacher-grading narrative
+
+## Earlier focus — the check-prune slice (0035) is BUILT; the rollup deliberately WAITS
+
+**Plan + the full ruling trail: [check-retention-and-rollup.md](docs/design/check-retention-and-rollup.md)** (eng review 2026-08-16, D2–D12). The months-parked pruning/rollup entry closed in one day — but NOT as drafted: **the review's outside voice overturned the draft's build-the-rollup-now frame (D10)**. What shipped is the prune, DISARMED, with a schema-encoded arming gate: `prune_section_checks` refuses every row until `analytics_job_runs.rolled_through` is non-NULL, and nothing writes that column until the future rollup does — so arming early is mechanically inert, not merely forbidden (D11). The rollup's design is fully RULED (item grain, per-teacher timezone with `America/Chicago` default + the author's row → `Pacific/Auckland`, 5-min MVCC lag, coalesce-forward watermark, latest-grounded students) and recorded in the plan §5 + the TODOS arming-arc entry — **inherit, don't re-derive**. Trigger for building it: real check growth on the ledger (still 0).
+
+**Three things worth knowing before touching it:** (1) the `section_checks_latest` view is THE definition of "current attempt" — the prune deletes only its complement, and verify-0035 §C(H) pins the queue's equivalence; (2) G12 is clause 2 — a graded check is never a candidate, proven with a real deletion in §C; (3) verify-0035 §A's `rolled_through_never_written` row is DESIGNED to go red when the arming arc lands — flip it there, don't delete it.
+
+**Teacher grading (0034, [teacher-grading.md](docs/design/teacher-grading.md), shipped 2026-08-16)** is live and correct-and-EMPTY: 0 checks, 0 grades. Four doors — `upsert_check_grade` · `release_check_grades` · `get_my_released_feedback` · `list_grading_queue`. **Three things to know before touching it, all recorded in [DECISIONS.md](docs/DECISIONS.md):** `check_grades` has ZERO RLS policies deliberately (the four functions ARE the access surface); maxPoints is denormalized into `criteria` by the SERVER so the student readback never opens the raw document; writes gate on `can_edit_activity` and reads on `can_read_activity` — byte-identical today, but the Activity-Bank landmine is a widening of the READ helper, which must never confer write access to academic records. **Stale means the TEXT changed**, never "a newer check exists" — re-checking to retry auto-graded blanks is a designed feature. Still open by design: the by-student queue view, bulk cap-lifting, rich-text feedback.

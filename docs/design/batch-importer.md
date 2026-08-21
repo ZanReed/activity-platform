@@ -1,6 +1,6 @@
 # Batch importer — a folder of `.md` files as the catalogue's source of truth
 
-**Status: BUILT 2026-08-20.** Eng review the same day (D1–D5). Supersedes
+**Status:** ✅ **BUILT 2026-08-20** — Eng review the same day (D1–D5). Supersedes
 [batch-importer-BRIEF.md](batch-importer-BRIEF.md), which was the handoff note
 this slice started from — read the AS BUILT section below before trusting any
 claim in it.
