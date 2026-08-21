@@ -20,35 +20,30 @@ are pinned to 1 and stripped on paste), nested blocks in cells, a `caption`
 field, and column-scoped `~` grouping. The reasoning is in the design doc's
 §10 — check there before adding any of them.
 
-## Put the editor e2e lane in CI (its red spec is fixed; the lane is green)
+## ✅ The editor e2e lane is IN CI (2026-08-22)
 
-**What:** decide whether `--project=chromium` — the 224-spec editor lane, the
-only browser coverage of the authoring surface — joins CI, and on what cadence.
+`editor-gates` runs `--project=chromium` on every push and PR, reusing the
+`check` job's `app-dist` so the preview server in playwright's webServer array
+does not rebuild the app for a lane that never touches it.
 
-**Status:** the spec that was red is FIXED (2026-08-21). `advanced-drawer.e2e.ts`
-asserted that a `fadedWorkedExample` has no **Advanced** button; that was true
-when written and stopped being true when the viewer-numbering slice gave the box
-a page label under `advanced: [numberingGroup]`. The assertion outlived its
-reason. The no-Advanced property was real, so it moved to `selfExplanation`
-(whose settings genuinely are all simple) and gained a positive pole on faded, so
-neither half can now pass vacuously. **The whole lane is green: 224 passed.**
+Two flake classes were fixed first, and they were different:
 
-**Why it still matters:** `.github/workflows/ci.yml` runs `playwright test print-`
-and `--project=perf --project=sw --project=student --project=a11y`. It has never
-run the editor lane, which is why a stale assertion sat red long enough for
-nobody to know. A green lane nobody runs goes red again.
+- **`blank-signifier.e2e.ts` sampled asynchronous state.** `expect(await
+  blankCount(page))` and a `document.activeElement` probe read once, against a
+  key chord that has to reach the browser, be handled by ProseMirror, re-render,
+  and then have a React effect move focus. Replaced with auto-retrying
+  assertions (`expect.poll`, `toBeFocused`) — the fix is waiting for the state
+  rather than sampling it.
+- **Two `print-rules` specs timed out at the 5s default** waiting on a
+  `/dev/viewer` route the vite DEV server had not compiled yet. Not a spec bug:
+  the editor lane is the only one served by `pnpm dev`, and it is the biggest
+  suite here. The chromium project now sets `expect: { timeout: 15_000 }`, with
+  the reasoning in playwright.config.ts.
 
-**Pros:** the authoring surface stops being the one lane nobody watches.
-**Cons:** ~1.5 min per push, and it needs a dev server rather than the built dist
-the other browser lanes share — probably why it was left out. A nightly or a
-manual dispatch would get most of the value for none of the per-push cost.
-
-**⚠ Do the flake first, or the lane will be ignored:**
-`e2e/blank-signifier.e2e.ts` → *"⌘⇧B / Ctrl⇧B inserts a blank and opens its
-popover focused"* fails under parallel load and passes in isolation and on
-re-run. In CI that reads as a random red.
-
-**Depends on:** nothing.
+Verified by three consecutive clean full-lane runs: 224 passed each. (A fourth,
+earlier run showed six failures and was a harness artifact — consecutive runs
+collided on `--strictPort` before the previous server had released it. Worth
+knowing if you ever loop the lane: free 5174/5175 between runs.)
 
 ## A general walk-descent guard for nested-content blocks
 

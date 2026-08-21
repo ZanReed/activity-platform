@@ -234,8 +234,11 @@ jobs:
   # path's only test lived in the lane CI never ran. Bringing them in was part
   # of the same slice that created the risk.
   #
-  # The editor's 145-case suite deliberately stays out; folding it in is its own
-  # decision with its own runtime cost, unchanged by this job.
+  # The editor's suite used to stay out of CI entirely, with the note that
+  # folding it in was "its own decision with its own runtime cost". That
+  # decision was made on 2026-08-22 and it has its own job below (editor-gates);
+  # what forced it was finding a spec that had been red in that lane long enough
+  # for nobody to know, because nothing ran it.
   # ---------------------------------------------------------------------------
   perf-gates:
     name: perf budget lane (throttled timing · route mount · sw · student · a11y)
@@ -293,6 +296,81 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: perf-gate-traces
+          path: packages/app/test-results/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # The editor lane — the authoring surface, and the biggest browser suite here.
+  #
+  # WHY IT IS IN CI (2026-08-22), and the same argument ruling D11 made for the
+  # sw and student lanes: it was local-only, which made "the editor stays green"
+  # an aspiration rather than a gate. It was not one. `advanced-drawer.e2e.ts`
+  # asserted that a faded worked example has no Advanced button; the
+  # viewer-numbering slice gave the box a page label under exactly that
+  # disclosure, and the assertion sat red for as long as it took someone to run
+  # the lane by hand for an unrelated reason. A 224-spec suite nobody runs is
+  # not coverage, it is a stale opinion.
+  #
+  # IT NEEDS THE DEV SERVER, which is why it is its own job rather than another
+  # --project on perf-gates: the editor specs drive /playground against `pnpm
+  # dev`, while that job's four lanes all want the built dist. Playwright starts
+  # EVERY webServer entry whatever project runs, so this job downloads the same
+  # `app-dist` artifact and sets E2E_SKIP_BUILD — without it the preview server
+  # in that array would build the whole app a second time for a lane that never
+  # touches it.
+  # ---------------------------------------------------------------------------
+  editor-gates:
+    name: editor lane (authoring surface)
+    needs: check
+    runs-on: ubuntu-latest
+    # EXPECT THIS TO BE SLOWER HERE THAN LOCALLY. The specs take ~1.4 min on a
+    # laptop at four workers; Playwright's default is cores/2, so a 2-core runner
+    # gives ONE worker and the same suite runs closer to serial. Budget several
+    # minutes for the specs plus install and the browser download — the bound
+    # covers that without covering a hang (the D22 ruling, applied here from the
+    # start rather than after this job proves it the hard way; print-gates
+    # learned that lesson by hanging for 90 minutes).
+    #
+    # The upside of one worker is that the contention this lane is sensitive to
+    # mostly disappears — see the chromium project's `expect.timeout` in
+    # playwright.config.ts for what that sensitivity is and why it is the dev
+    # server rather than the specs.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Cached + retried; see .github/actions/install-chromium for why.
+      - name: Install Chromium
+        uses: ./.github/actions/install-chromium
+
+      # Not for the editor specs themselves — for the preview server in
+      # playwright.config.ts's webServer array, which starts regardless of
+      # project. Downloading is cheaper than a second build.
+      - name: Download built app
+        uses: actions/download-artifact@v4
+        with:
+          name: app-dist
+          path: packages/app/dist
+
+      - name: Editor lane
+        env:
+          # Serve the downloaded dist; do not rebuild (see playwright.config.ts).
+          E2E_SKIP_BUILD: '1'
+        run: pnpm --filter @activity/app exec playwright test --project=chromium
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editor-gate-traces
           path: packages/app/test-results/
           retention-days: 7
 

@@ -54,13 +54,29 @@ function firstBlankAnswer(page: Page) {
     });
 }
 
-function answerInputFocused(page: Page) {
-    return page.evaluate(() => {
-        const active = document.activeElement;
-        const first = document.querySelector('.blank-edit-popover__input');
-        return Boolean(active) && active === first;
-    });
-}
+/**
+ * The popover's Answer field — the FIRST `.blank-edit-popover__input` (the
+ * popover has several; acceptable-answers and feedback rows share the class).
+ *
+ * Asserted with Playwright's own `toBeFocused`, NOT a `document.activeElement`
+ * probe read once. Focus is set by a React effect that runs after the popover
+ * mounts, so a single read races it — and loses only when the machine is busy,
+ * which is exactly what "flaky under parallel load, green in isolation" means.
+ * An auto-retrying assertion waits for the state instead of sampling it.
+ */
+const answerInput = (page: Page) =>
+    page.locator('.blank-edit-popover__input').first();
+
+/**
+ * The blank count, polled.
+ *
+ * Same reason: a key chord has to reach the browser, be handled by
+ * ProseMirror, and re-render before the document carries the new node.
+ * `expect(await blankCount(page))` samples once and fails on a slow tick;
+ * `expect.poll` retries until it settles or times out.
+ */
+const expectBlankCount = (page: Page, n: number) =>
+    expect.poll(() => blankCount(page)).toBe(n);
 
 test('a focused (even empty) block shows the + Blank button and the {{}} tip', async ({
     page,
@@ -85,9 +101,9 @@ test('clicking + Blank inserts a blank and opens its popover focused', async ({
     await freshBlock(page);
     await page.locator('.fill-in-blank-block__add-blank').click();
 
-    expect(await blankCount(page)).toBe(1);
+    await expectBlankCount(page, 1);
     await expect(page.locator('.blank-edit-popover')).toBeVisible();
-    expect(await answerInputFocused(page)).toBe(true);
+    await expect(answerInput(page)).toBeFocused();
 });
 
 test('⌘⇧B / Ctrl⇧B inserts a blank and opens its popover focused', async ({
@@ -96,9 +112,9 @@ test('⌘⇧B / Ctrl⇧B inserts a blank and opens its popover focused', async (
     await freshBlock(page);
     await page.keyboard.press('ControlOrMeta+Shift+b');
 
-    expect(await blankCount(page)).toBe(1);
+    await expectBlankCount(page, 1);
     await expect(page.locator('.blank-edit-popover')).toBeVisible();
-    expect(await answerInputFocused(page)).toBe(true);
+    await expect(answerInput(page)).toBeFocused();
 });
 
 test('typing an answer then Escape persists it on the blank', async ({ page }) => {
@@ -106,11 +122,15 @@ test('typing an answer then Escape persists it on the blank', async ({ page }) =
     await page.locator('.fill-in-blank-block__add-blank').click();
     await expect(page.locator('.blank-edit-popover')).toBeVisible();
 
-    // The Answer input is focused → type straight into it, then close.
+    // WAIT for the focus rather than assuming it: typing into a field that has
+    // not been focused yet sends the keystrokes to the editor behind the
+    // popover, and the failure then looks like "the answer did not persist"
+    // three lines below rather than like the race it is.
+    await expect(answerInput(page)).toBeFocused();
     await page.keyboard.type('Paris');
     await page.keyboard.press('Escape');
 
-    expect(await firstBlankAnswer(page)).toBe('Paris');
+    await expect.poll(() => firstBlankAnswer(page)).toBe('Paris');
 });
 
 test('⌘⇧B does nothing outside a fill_in_blank (passes through)', async ({
@@ -127,12 +147,16 @@ test('⌘⇧B does nothing outside a fill_in_blank (passes through)', async ({
     });
     await page.locator('.ProseMirror').click();
     await page.keyboard.press('ControlOrMeta+Shift+b');
+    // A NEGATIVE, so polling would pass instantly on a keypress that had not
+    // been handled yet. Wait for the chord to actually reach the editor, then
+    // assert nothing came of it.
+    await expect(page.locator('.blank-edit-popover')).toHaveCount(0);
     expect(await blankCount(page)).toBe(0);
 });
 
 test('regression: {{answer}} still creates a pre-filled blank', async ({ page }) => {
     await freshBlock(page);
     await page.keyboard.type('{{Paris}}');
-    expect(await blankCount(page)).toBe(1);
-    expect(await firstBlankAnswer(page)).toBe('Paris');
+    await expectBlankCount(page, 1);
+    await expect.poll(() => firstBlankAnswer(page)).toBe('Paris');
 });

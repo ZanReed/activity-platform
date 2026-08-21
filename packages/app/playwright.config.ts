@@ -105,6 +105,23 @@ export default defineConfig({
         {
             name: 'chromium',
             use: { ...devices['Desktop Chrome'] },
+            // A LONGER ASSERTION TIMEOUT THAN THE 5s DEFAULT, and the reason is
+            // this lane's server rather than its specs.
+            //
+            // The editor lane runs against `pnpm dev`, and vite compiles modules
+            // ON DEMAND. The first hit of a route pays for that compile, and
+            // this is by far the biggest suite here — 220+ specs across parallel
+            // workers, several of them opening a route nothing has touched yet.
+            // Under that load a cold first paint routinely passes 5s, so
+            // `toBeAttached()` on a page that IS loading correctly times out.
+            //
+            // It is a test-environment artifact, not a product one: a student
+            // gets the built bundle, which is what the perf lane measures with
+            // its own budgets. Raising the ceiling here removes a class of
+            // failure that says "element not found" when it means "vite was
+            // still compiling" — the failure text points at the wrong thing,
+            // which is what makes it expensive.
+            expect: { timeout: 15_000 },
             // The student and service-worker lanes have their own projects and
             // servers; keep them out of the editor lane rather than pointing
             // them at the wrong baseURL. (Omitting the sw entry here ran those
