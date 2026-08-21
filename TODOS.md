@@ -137,6 +137,58 @@ surface untouched. It ships via Pages like any SPA change.
 **Depends on:** nothing. Surfaced while scoping the print-gap feedback (2026-08-21); the import-syntax
 half was the original ask and is blocked on steps 1–3.
 
+## Page breaks and keep-together (author feedback #2, 2026-08-21)
+
+**What:** No import syntax and no per-instance control to force a page break or
+hold a block together. You cannot put the exit ticket / DoL on its own printed
+page, or stop a worked example splitting across a fold. `{checkpoint}` is a
+SECTION break, not a page break.
+
+**Already investigated (2026-08-21) so the next session does not re-derive it:**
+- `Section` is `{ id, title, isCheckpoint, rows }` (`schema/src/document.ts:35`).
+  **`pageBreak: boolean` is a natural sibling to `isCheckpoint`.**
+- `.viewer-section` already carries an explicit `break-before: auto` with the
+  comment *"explicit: flow naturally, never force a page"* (`viewer.css`) — the
+  one line to flip.
+- The import syntax extends an EXISTING parser feature: the `{checkpoint}`
+  heading tag becomes `## Title {checkpoint, pagebreak}`.
+- **Keep-together is mostly already there** — `break-inside: avoid` is declared
+  per block type on the registry's PrintSpec and asserted by
+  `printExpectations`'s `spec/break-inside` row. What is missing is a
+  per-INSTANCE override, which may not be wanted at all.
+
+**Cost:** a schema change, so **both server bundles regenerate and a
+`get-activity` redeploy is owed** — and note the subtle one: zod `.object()`
+STRIPS unknown keys, so a published document carrying `pageBreak` would LOSE it
+on the read path until the new function is live. That is the migration-before-
+deploy rule wearing a different hat.
+
+**Also needs:** a `structure/page-break` roster entry + e2e (the roster
+cross-check refuses a declared id with no spec), and print baselines may move.
+
+## Per-term definition printing (author feedback #6, 2026-08-21)
+
+**What:** The only print path for `[[term]]` pop-ups is the ACTIVITY-WIDE
+`printDefinitionGlossary` toggle — an end-of-worksheet appendix, all or nothing.
+There is no way to author one term to print inline, or as a margin note. Since
+the vocabulary work has the author marking every term, a per-term or margin
+option would matter.
+
+**Already investigated (2026-08-21):** `print.printDefinitionGlossary` is a bare
+boolean on `PrintConfig`, rendered by `viewer/src/print/DefinitionGlossary.tsx`
+and gated in `ViewerContainer.tsx:416`. Definition popovers are `display:none`
+in print, which is why the appendix exists at all.
+
+**Why this one wants a DESIGN PASS before an eng review, unlike page breaks:**
+"margin note" is a real layout question on a two-column-capable worksheet, not a
+boolean. Where does the margin come from — the `@page` margin (currently
+0.5in and author-configurable), a reserved gutter, or a footnote-style block at
+the section end? Each answers a different pedagogical need, and the cheapest
+version (inline expansion on first use) may cover most of it.
+
+**Depends on:** nothing. Both of these were ranked Tier 2 in the 2026-08-21
+print-gap triage — a small schema field plus CSS plus import syntax.
+
 ## The print baselines' 1% tolerance may be absorbing real layout changes (2026-08-20)
 
 **What:** `print-baselines.e2e.ts` compares with `maxDiffPixelRatio: 0.01`. On a 992-px-wide
