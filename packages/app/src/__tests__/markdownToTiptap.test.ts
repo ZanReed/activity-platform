@@ -2881,31 +2881,38 @@ describe('degrade paths mask blank specs (T1)', () => {
         return out.join(' ');
     }
 
-    it('a pipe table degrades without leaking the answer', () => {
-        const text = allText(
-            '| Item | Cost |\n|---|---|\n| Apples | {{3}} |\n',
-        );
+    // TABLES USED TO BE THE VEHICLE HERE and are not any more: a pipe table is a
+    // real block since the import slice, so it no longer degrades at all. The
+    // PROPERTY is unchanged and still load-bearing — every construct that DOES
+    // degrade emits its own source verbatim, and that source can carry an answer
+    // key — so these moved to constructs that still take that path.
+    it('an unknown fence degrades without leaking the answer', () => {
+        const text = allText('```chemistry\nH2O + {{NaCl}}\n```');
         expect(text).not.toContain('{{');
-        expect(text).not.toContain('3');
+        expect(text).not.toContain('NaCl');
         expect(text).toContain('______');
-        // The prose around the blank still survives — this is a mask, not a drop.
-        expect(text).toContain('Apples');
+        // A mask, not a drop: the surrounding text survives.
+        expect(text).toContain('H2O');
     });
 
-    it('an unknown fence — ```table today — degrades without leaking', () => {
-        const text = allText(
-            '```table\nheader: column\n| x | 1 |\n| y | {{7}} |\n```',
-        );
-        expect(text).not.toContain('{{');
-        expect(text).not.toContain('7');
+    it('a code block degrades without leaking', () => {
+        const text = allText('```\nanswer = {{42}}\n```');
+        expect(text).not.toContain('42');
         expect(text).toContain('______');
     });
+
+    // (No raw-HTML case: the importer runs markdown-it with `html: false`, so a
+    //  `<div>…</div>` is never an html_block — it is ordinary paragraph text, and
+    //  a `{{…}}` inside it becomes a REAL blank rather than degraded source. The
+    //  html_block branch still masks, and still should, but it is unreachable
+    //  from this configuration and a test asserting otherwise would be pinning a
+    //  path that cannot run.)
 
     it('masks every sigil form the blank grammar accepts', () => {
         // Numeric, math, interchangeable, and alternates-with-hint — each would
         // print its answer verbatim if the mask keyed off a narrower pattern.
         const text = allText(
-            '```table\n{{=3.14 +- 0.01}} {{==2a}} {{~x+2}} {{Paris | ?capital}}\n```',
+            '```chemistry\n{{=3.14 +- 0.01}} {{==2a}} {{~x+2}} {{Paris | ?capital}}\n```',
         );
         expect(text).not.toContain('3.14');
         expect(text).not.toContain('2a');
@@ -2918,7 +2925,7 @@ describe('degrade paths mask blank specs (T1)', () => {
         // Empty canonical is not a blank (parseBlankSpec returns null), so the
         // mask must not claim it either — the mask and the parser agree by
         // construction because they share parseBlankSpec.
-        const text = allText('```table\n{{   }}\n```');
+        const text = allText('```chemistry\n{{   }}\n```');
         expect(text).toContain('{{');
     });
 
@@ -2928,10 +2935,208 @@ describe('degrade paths mask blank specs (T1)', () => {
         const text = allText('```worked\nTitle\n---\nStep {{x+2}}\n```');
         expect(text).toContain('{{x+2}}');
     });
+});
 
-    it('warns that the table degraded, and says the re-import upgrades it', () => {
-        const { warnings } = convert('| a | b |\n|---|---|\n| 1 | 2 |\n');
-        expect(warnings.join(' ')).toMatch(/Re-import/i);
+// =============================================================================
+// Table import (Q16–Q19) — the frozen contract, made real
+// -----------------------------------------------------------------------------
+// R11 froze two authored forms before the block existed, so ~150 catalogue
+// files could be written against a contract that would not move. These pin that
+// the contract is honoured, and Q19 pins the promise that made freezing worth
+// anything: a table written while the block was still being built upgrades in
+// place on a re-import, with no re-authoring.
+// =============================================================================
+
+describe('Q16 — a bare pipe table imports as a table', () => {
+    const table = (md: string): JSONContent => {
+        const [first] = blocks(md);
+        expect(first?.type).toBe('table');
+        return first!;
+    };
+    const cellTexts = (node: JSONContent): string[][] =>
+        (node.content ?? []).map((row) =>
+            (row.content ?? []).map((cell) => {
+                const out: string[] = [];
+                const walk = (n: JSONContent) => {
+                    if (typeof n.text === 'string') out.push(n.text);
+                    (n.content ?? []).forEach(walk);
+                };
+                walk(cell);
+                return out.join('');
+            }),
+        );
+
+    it('reads the rows and drops the delimiter row', () => {
+        const node = table('| Kilograms | Cost |\n|---|---|\n| 1 | 4.50 |\n| 2 | 9.00 |');
+        expect(cellTexts(node)).toEqual([
+            ['Kilograms', 'Cost'],
+            ['1', '4.50'],
+            ['2', '9.00'],
+        ]);
+    });
+
+    it('marks the header ROW, which is the only axis GFM can express', () => {
+        const node = table('| a | b |\n|---|---|\n| 1 | 2 |');
+        expect(node.attrs?.headerRow).toBe(true);
+        expect(node.attrs?.headerColumn).toBe(false);
+    });
+
+    it('reads alignment from the delimiter row colons', () => {
+        const node = table('| a | b | c |\n|:---|:---:|---:|\n| 1 | 2 | 3 |');
+        expect(node.attrs?.columnAligns).toEqual(['left', 'center', 'right']);
+    });
+
+    it('leaves columnAligns ABSENT when no colon was authored', () => {
+        const node = table('| a | b |\n|---|---|\n| 1 | 2 |');
+        expect(node.attrs?.columnAligns).toBeUndefined();
+    });
+
+    it('keeps the table rectangular when a row is short or long', () => {
+        const node = table('| a | b | c |\n|---|---|---|\n| 1 |\n| 1 | 2 | 3 | 4 |');
+        const widths = (node.content ?? []).map((row) => (row.content ?? []).length);
+        expect(new Set(widths).size).toBe(1);
+    });
+
+    it('imports with NO warnings — the format\'s normal path', () => {
+        expect(convert('| a | b |\n|---|---|\n| 1 | 2 |').warnings).toEqual([]);
+    });
+
+    it('a cell keeps its marks and its inline math', () => {
+        const node = table('| **bold** | $x^2$ |\n|---|---|\n| 1 | 2 |');
+        const headerCells = node.content?.[0]?.content ?? [];
+        const flat = JSON.stringify(headerCells);
+        expect(flat).toContain('"bold"');
+        expect(flat).toContain('mathInline');
+    });
+});
+
+describe('Q16b — the ```table fence moves the header axis', () => {
+    const fenceTable = (body: string): JSONContent => {
+        const [first] = blocks('```table\n' + body + '\n```');
+        expect(first?.type).toBe('table');
+        return first!;
+    };
+
+    it('header: column puts the headers down the left', () => {
+        const node = fenceTable('header: column\n| x | 1 | 2 |\n| y | 5 | 8 |');
+        expect(node.attrs?.headerColumn).toBe(true);
+        expect(node.attrs?.headerRow).toBe(false);
+    });
+
+    it('header: both and header: none are honoured', () => {
+        expect(fenceTable('header: both\n| a | b |').attrs?.headerColumn).toBe(true);
+        expect(fenceTable('header: both\n| a | b |').attrs?.headerRow).toBe(true);
+        expect(fenceTable('header: none\n| a | b |').attrs?.headerRow).toBe(false);
+        expect(fenceTable('header: none\n| a | b |').attrs?.headerColumn).toBe(false);
+    });
+
+    it('an unknown header value warns and falls back to row', () => {
+        const { blocks: out, warnings } = convert(
+            '```table\nheader: diagonal\n| a | b |\n```',
+        );
+        expect(out[0]?.attrs?.headerRow).toBe(true);
+        expect(warnings.join(' ')).toMatch(/unknown header/i);
+    });
+
+    it('a fence with no rows degrades rather than emitting an empty table', () => {
+        const { blocks: out, warnings } = convert('```table\nheader: row\n```');
+        expect(out[0]?.type).toBe('paragraph');
+        expect(warnings.join(' ')).toMatch(/at least one row/i);
+    });
+
+    it('THE TWO FORMS AGREE on identical content', () => {
+        // The bare path walks markdown-it tokens; the fence path splits text.
+        // Different delimiting, one cell pipeline — and if they ever diverge,
+        // an author who reached for the fence to move a header would silently
+        // get different content too.
+        const bare = blocks('| a | $x^2$ |\n|---|---:|\n| 1 | {{2}} |')[0];
+        const fenced = blocks(
+            '```table\nheader: row\n| a | $x^2$ |\n|---|---:|\n| 1 | {{2}} |\n```',
+        )[0];
+        expect(dropEmptyAttrs([fenced!])).toEqual(dropEmptyAttrs([bare!]));
+    });
+});
+
+describe('Q17 — a blank in a cell is a real blank', () => {
+    it('{{answer}} inside a td becomes a blank node in that cell', () => {
+        const [node] = blocks('| kg | cost |\n|---|---|\n| 2 | {{=9.00}} |');
+        const flat: JSONContent[] = [];
+        const walk = (n: JSONContent) => {
+            flat.push(n);
+            (n.content ?? []).forEach(walk);
+        };
+        walk(node!);
+        const blank = flat.find((n) => n.type === 'blank');
+        expect(blank).toBeDefined();
+        expect(blank!.attrs?.answer).toBe('9.00');
+        // The sigil survived the trip: a numeric cell grades numerically.
+        expect(blank!.attrs?.answerType).toBe('numeric');
+    });
+
+    it('every blank sigil works in a cell exactly as in prose', () => {
+        const [node] = blocks(
+            '| a | b |\n|---|---|\n| {{==2a}} | {{Paris \\| ?starts with P}} |',
+        );
+        const flat = JSON.stringify(node);
+        expect(flat).toContain('"math"');
+        expect(flat).toContain('starts with P');
+    });
+});
+
+describe('Q18 — a stray pipe in prose is still prose', () => {
+    it('a sentence containing | does not become a table', () => {
+        const out = blocks('the set {a | b} is written with a pipe');
+        expect(out[0]?.type).not.toBe('table');
+    });
+
+    it('an escaped pipe inside a cell stays one cell', () => {
+        const [node] = blocks('| a | b |\n|---|---|\n| x \\| y | 2 |');
+        const cells = node!.content?.[1]?.content ?? [];
+        expect(cells.length).toBe(2);
+        expect(JSON.stringify(cells[0])).toContain('x | y');
+    });
+});
+
+describe('Q19 — CRITICAL: a table written before the block existed upgrades', () => {
+    // THE PROMISE THAT MADE FREEZING THE CONTRACT WORTH ANYTHING. Between the
+    // freeze and this slice, a pipe table imported as one masked paragraph — the
+    // structure stayed in the .md file, and re-running the importer was supposed
+    // to turn it into a real table with no re-authoring. This is that, pinned:
+    // the SAME source that used to degrade now produces a table carrying the
+    // answers the mask was hiding.
+    const SOURCE = '| Kilograms | Cost ($) |\n|---|---:|\n| 2 | {{=9.00}} |\n';
+
+    it('the same markdown that degraded now imports as a real table', () => {
+        const out = blocks(SOURCE);
+        expect(out[0]?.type).toBe('table');
+        // Not a paragraph of masked text any more.
+        expect(JSON.stringify(out)).not.toContain('______');
+    });
+
+    it('the answer the mask was hiding is now a gradeable key', () => {
+        const flat: JSONContent[] = [];
+        const walk = (n: JSONContent) => {
+            flat.push(n);
+            (n.content ?? []).forEach(walk);
+        };
+        blocks(SOURCE).forEach(walk);
+        expect(flat.find((n) => n.type === 'blank')?.attrs?.answer).toBe('9.00');
+    });
+
+    it('and it survives the round trip into a stored document', () => {
+        // The upgrade is only real if it PERSISTS: the importer writes
+        // draft_content, so the table has to survive serialize as a table.
+        const doc = tiptapToActivity(wrapBlocksStrict(blocks(SOURCE)), META);
+        const stored = doc.sections[0]!.rows[0]!.columns[0]!.blocks[0] as {
+            type: string;
+            rows: { cells: { content: { type: string }[] }[] }[];
+        };
+        expect(stored.type).toBe('table');
+        // Header + one body row: the delimiter row is a separator, not content.
+        expect(stored.rows.length).toBe(2);
+        expect(stored.rows[0]!.cells.length).toBe(2);
+        const hasBlank = JSON.stringify(stored).includes('"blank"');
+        expect(hasBlank).toBe(true);
     });
 });
 

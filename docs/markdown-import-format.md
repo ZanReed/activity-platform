@@ -40,8 +40,8 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```explain ` fenced block | an **ungraded self-explanation** prompt (see below) |
 | a ` ```shortanswer ` fenced block | a **graded short-answer** question (rubric optional; see below) |
 | a ` ```essay ` fenced block | a **graded essay** question (word-count target + rubric optional; see below) |
-| a **pipe table** (`\| x \| y \|` + `\|---\|---\|`) | a **table** — cells may hold `{{blanks}}` (see below) ⏳ |
-| a ` ```table ` fenced block | a table whose **headers run down the left** (`header: column`) — see below ⏳ |
+| a **pipe table** (`\| x \| y \|` + `\|---\|---\|`) | a **table** — cells may hold `{{blanks}}` (see below) |
+| a ` ```table ` fenced block | a table whose **headers run down the left** (`header: column`) — see below |
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
 | a ` ```callout ` fenced block | a **tinted note box** — info / warning / success / note (see below) |
 | a ` ```meta ` fenced block | the activity's **metadata and settings** — title, course, unit, tags, Bank role, type, submission/revision mode, feedback, calculator — not a body block (see below) |
@@ -74,8 +74,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 ## Not supported (degrades to plain text, with a warning)
 
 Fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. **Any answer inside a degraded construct is masked to `______`** — a `{{3}}` never survives as visible text, so a degraded block can be published without leaking its key.
-
-**Tables are a special case (⏳ above): the syntax below is FINAL and safe to write today**, but the table *block* has not shipped yet, so a table currently imports as one plain paragraph (answers masked). Your file keeps the real table, and one re-import upgrades every table in place once the block lands — see [Tables](#tables-table-fence). (Callouts import via the ` ```callout ` fence and columns via ` ```columns ` — see below. Lists, headings and images *inside* a worked/faded example or a column **do** import as of 2026-08-21 — see the fence sections.)
+ (Callouts import via the ` ```callout ` fence and columns via ` ```columns ` — see below. Lists, headings and images *inside* a worked/faded example or a column **do** import as of 2026-08-21 — see the fence sections.)
 
 ## Worked example
 
@@ -765,13 +764,6 @@ solution: Undo the operations in the reverse order they were applied.
 - Neither block is auto-scored; both show up under "Written responses" in the submissions dashboard for grading. Both are **numbered** on screen and on paper, like every other question a teacher marks.
 
 ## Tables (```table fence)
-
-> ⏳ **Frozen syntax, not yet live.** Everything in this section is the final
-> contract — write it now and it will never need rewriting. Until the table
-> block ships, a table imports as one plain paragraph **with every answer
-> masked to `______`**, and the import warns you. The structure stays in your
-> markdown file, so re-running the import after the block lands upgrades every
-> table in place. Nothing you write today is wasted, and nothing leaks.
 
 ### The ordinary case — a pipe table
 

@@ -3,26 +3,22 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
-## Native TABLE block — ✅ ENG-REVIEWED 2026-08-21, ready to build
+## ✅ Native TABLE block — BUILT 2026-08-21 (all four slices)
 
-**Read [docs/design/table-block.md](docs/design/table-block.md), not a summary of it.** The design
-is ruled in fifteen decisions (five from the review, four cross-model tension amendments, six
-adopted outside-voice additions) and the pre-review sketch that lived here is SUPERSEDED — it
-carried a `caption` field that was cut, no header booleans, and bare-inline cells that the review
-replaced with wrapped ones.
+Schema, viewer, server, editor and import all shipped; see
+[docs/design/table-block.md](docs/design/table-block.md) and read each slice's
+**AS BUILT** note, not the plan above it — five rulings changed shape at build
+time and T4 changed outright (it could not call `publish_activity`, which
+authorizes on `auth.uid()`; it reports instead, via `pnpm report:stale`).
 
-**Build order — four slices, and Slice 0 is the one the catalogue is waiting on:**
+**What is left is author-side and routine**, recorded in STATE.md: re-run
+`import:batch` to upgrade the catalogue's tables in place, then `report:stale`
+to find the published ones worth refreshing.
 
-0. **FREEZE (buildable now, unblocks bulk authoring)** — the import contract (bare GFM pipe table +
-   an optional ` ```table ` fence carrying `header: row|column|both|none`), the format doc + AI
-   prompt, the degrade-branch **blank mask** (⚠ the degrade currently emits literal `{{answer}}` to
-   students — see the doc's §1d), and the importer's drift fingerprint.
-1. **SCHEMA + VIEWER + SERVER** — then ⟪AUTHOR⟫ deploys both Edge Functions.
-2. **EDITOR** — pushed only after that deploy is verified.
-3. **IMPORT MAPPING + UPGRADE** — plus the scoped republish script.
-
-**The invariant that spans all four (T3): both functions are deployed and verified BEFORE the first
-table block exists in any draft — whichever path writes it, the editor OR `import:batch`.**
+**Deliberately NOT built, and still not planned:** merged cells (colspan/rowspan
+are pinned to 1 and stripped on paste), nested blocks in cells, a `caption`
+field, and column-scoped `~` grouping. The reasoning is in the design doc's
+§10 — check there before adding any of them.
 
 ## The editor e2e lane is RED, and CI has never run it
 

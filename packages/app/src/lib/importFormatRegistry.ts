@@ -172,6 +172,13 @@ export const FENCES: FenceSpec[] = [
         options: ['ruled', 'unruled'],
     },
     {
+        tag: 'table',
+        blockType: 'table',
+        summary:
+            'a table whose headers are NOT across the top (header: row | column | both | none) — a bare pipe table needs no fence',
+        example: 'header: column\n| x | 1 | 2 |\n| y | 5 | {{8}} |',
+    },
+    {
         tag: 'callout',
         blockType: 'callout',
         summary: 'a tinted note box (info / warning / success / note)',

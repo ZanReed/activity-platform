@@ -641,6 +641,11 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 if (cols) return [cols];
                 return [rawTextParagraph(node.token.content)];
             }
+            if ((node.token.info ?? '').trim() === 'table') {
+                const table = parseTableFence(node.token.content, ctx);
+                if (table) return [table];
+                return [rawTextParagraph(node.token.content)];
+            }
             if ((node.token.info ?? '').trim() === 'callout') {
                 const callout = parseCalloutFence(node.token.content, ctx);
                 if (callout) return [callout];
@@ -703,16 +708,27 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
             // Unwrap: emit the quote's inner blocks directly.
             return mapBlocks(node.children, ctx);
 
-        case 'table_open':
-            // The FROZEN table contract (docs/design/table-block.md R11) is
-            // already writable: a pipe table authored today keeps its full
-            // structure IN THE FILE and upgrades in place on a re-import once
-            // the table block ships. Until then it degrades to one paragraph —
-            // with its blank specs masked, so a degraded table published in the
-            // meantime cannot show the answer key.
+        case 'table_open': {
+            // A real table since the import slice (R11). The masked degrade this
+            // replaced is gone — but note what it BOUGHT: every pipe table
+            // written against the frozen contract while the block was still
+            // being built is upgraded in place by re-running the importer, with
+            // no re-authoring, because the structure never left the .md file.
+            const table = parseTableTokens(node, ctx);
+            if (table) {
+                // markdown-it consumes the delimiter row and re-emits its
+                // colons as `style="text-align:…"` on each cell — so the bare
+                // path reads alignment from those attrs while the fence path
+                // reads the colons directly. Same GFM rule, two spellings of
+                // it; tableFormsAgree pins that they land on the same answer.
+                const aligns = alignsFromTokenTable(node);
+                if (aligns) {
+                    (table.attrs as Record<string, unknown>).columnAligns = aligns;
+                }
+                return [table];
+            }
             ctx.warnings.add(
-                'Tables aren’t imported as tables yet — imported as plain text with ' +
-                    'answers hidden. Re-import once the table block ships to upgrade them.',
+                'Table: could not read any rows — imported as plain text.',
             );
             return [
                 {
@@ -720,6 +736,7 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                     content: textRun(maskBlankSpecs(collectText(node))),
                 },
             ];
+        }
 
         case 'html_block':
             ctx.warnings.add('Raw HTML isn’t supported — imported as plain text.');
@@ -1971,6 +1988,242 @@ function parseCalloutFence(src: string, ctx: Ctx): JSONContent | null {
         attrs: { id: '', variant },
         content: fenceInline(bodyLines.join(' '), ctx, false),
     };
+}
+
+// =============================================================================
+// Tables — a bare GFM pipe table, and the ```table fence for a moved header axis
+// -----------------------------------------------------------------------------
+// Plan + rulings: docs/design/table-block.md R11 (frozen 2026-08-21, amended by
+// T2). Two authored forms, and the reason there are two:
+//
+//   A BARE PIPE TABLE is the syntax authors already type, GitHub already
+//   renders, and markdown-it already parses — so it is the normal way to write
+//   one and needs no fence at all.
+//
+//   THE ```table FENCE exists because GFM cannot say "the headers run down the
+//   LEFT". Algebra tables are as often transposed (x down the side, y across)
+//   as not, and the a11y naming needs to know which axis carries the labels.
+//   `header: row | column | both | none` says it; everything else about the
+//   fence body is the same pipe syntax.
+//
+// TWO ENTRY POINTS, ONE CELL PIPELINE. The bare form arrives as markdown-it
+// tokens (thead/tbody/tr/td with inline children already parsed); the fence
+// form arrives as raw text, because a fence body is opaque to markdown-it. So
+// the ROW/CELL delimiting differs and the CELL CONTENT path does not: both end
+// at mapInline/fenceInline with blanks enabled, which is what keeps `**bold**`,
+// `$math$` and `{{answer}}` meaning the same thing inside a cell as outside
+// one. tableFormsAgree in the test file pins that the two produce identical
+// output for identical content — the guard against the two paths drifting.
+// =============================================================================
+
+/** GFM's delimiter row: `|---|:--:|---:|`. Its colons are the alignment. */
+const DELIMITER_ROW_RE = /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/;
+
+/**
+ * Split one pipe row into its cell texts.
+ *
+ * `\|` is GFM's escape for a literal pipe inside a cell, so the split is on
+ * pipes NOT preceded by a backslash, and the escape is removed afterwards —
+ * otherwise a cell reading "a \| b" would become two cells and silently
+ * re-shape the table.
+ */
+function splitPipeRow(line: string): string[] {
+    const trimmed = line.trim().replace(/^\|/, '').replace(/\|\s*$/, '');
+    return trimmed
+        .split(/(?<!\\)\|/)
+        .map((cell) => cell.replace(/\\\|/g, '|').trim());
+}
+
+/** Per-column alignment from a delimiter row, or null when it carries none. */
+function alignsFromDelimiter(line: string): ('left' | 'center' | 'right')[] | null {
+    const cells = splitPipeRow(line);
+    let authored = false;
+    const aligns = cells.map((cell) => {
+        const left = cell.startsWith(':');
+        const right = cell.endsWith(':');
+        if (left || right) authored = true;
+        if (left && right) return 'center' as const;
+        if (right) return 'right' as const;
+        return 'left' as const;
+    });
+    // NO colons anywhere → the author expressed no alignment, so the attr stays
+    // absent and the table re-serializes byte-identically (the schema's
+    // optional-no-default discipline).
+    return authored ? aligns : null;
+}
+
+/** Per-column alignment for a BARE table, from markdown-it's own cell attrs. */
+function alignsFromTokenTable(
+    node: TokNode,
+): ('left' | 'center' | 'right')[] | null {
+    let firstRow: TokNode | null = null;
+    const findRow = (n: TokNode) => {
+        if (firstRow) return;
+        if (n.token.type === 'tr_open') {
+            firstRow = n;
+            return;
+        }
+        n.children.forEach(findRow);
+    };
+    findRow(node);
+    if (!firstRow) return null;
+
+    let authored = false;
+    const aligns: ('left' | 'center' | 'right')[] = [];
+    for (const cell of (firstRow as TokNode).children) {
+        if (cell.token.type !== 'th_open' && cell.token.type !== 'td_open') continue;
+        const style = attrGet(cell.token, 'style') ?? '';
+        if (style.includes('text-align:center')) {
+            aligns.push('center');
+            authored = true;
+        } else if (style.includes('text-align:right')) {
+            aligns.push('right');
+            authored = true;
+        } else {
+            // markdown-it emits `text-align:left` for `:---` and NO style at
+            // all for `---`, so an explicit left is authored and a bare one is
+            // not — which is what keeps an unaligned table's attr absent.
+            if (style.includes('text-align:left')) authored = true;
+            aligns.push('left');
+        }
+    }
+    return authored ? aligns : null;
+}
+
+/** The header axis a ```table fence asked for. */
+interface TableHeaderAxis {
+    headerRow: boolean;
+    headerColumn: boolean;
+}
+
+/** Build the editor node from already-resolved cell content. */
+function tableNode(
+    rows: JSONContent[][][],
+    axis: TableHeaderAxis,
+    aligns: ('left' | 'center' | 'right')[] | null,
+): JSONContent {
+    // RECTANGULAR, always. GFM drops cells past the header's width and pads
+    // short rows, and this format has no merged cells at all (they are not
+    // supported and not planned), so a ragged table is always an authoring
+    // slip rather than an intent.
+    const width = Math.max(...rows.map((cells) => cells.length), 1);
+    return {
+        type: 'table',
+        attrs: {
+            id: '',
+            headerRow: axis.headerRow,
+            headerColumn: axis.headerColumn,
+            showCellLabels: true,
+            ...(aligns ? { columnAligns: aligns.slice(0, width) } : {}),
+        },
+        content: rows.map((cells) => ({
+            type: 'tableRow',
+            content: Array.from({ length: width }, (_, i) => {
+                const content = cells[i] ?? [];
+                return {
+                    type: 'tableCell',
+                    content: [
+                        content.length > 0
+                            ? { type: 'tableCellPara', content }
+                            : { type: 'tableCellPara' },
+                    ],
+                };
+            }),
+        })),
+    };
+}
+
+/**
+ * A bare GFM pipe table, from markdown-it's own token tree.
+ *
+ * The inline content of every cell is already parsed here, so this walks
+ * tokens rather than text and hands each cell's children to mapInline with
+ * blanks LIVE — a `{{9.00}}` in a cell is a blank exactly as it is in prose.
+ */
+function parseTableTokens(node: TokNode, ctx: Ctx): JSONContent | null {
+    const rows: JSONContent[][][] = [];
+    let sawHeader = false;
+
+    const visitRow = (rowNode: TokNode) => {
+        const cells: JSONContent[][] = [];
+        for (const cellNode of rowNode.children) {
+            if (cellNode.token.type !== 'th_open' && cellNode.token.type !== 'td_open') {
+                continue;
+            }
+            const inline = findInline(cellNode);
+            cells.push(inline ? mapInline(inline.children ?? [], ctx, true) : []);
+        }
+        if (cells.length > 0) rows.push(cells);
+    };
+
+    const walk = (n: TokNode) => {
+        if (n.token.type === 'thead_open') sawHeader = true;
+        if (n.token.type === 'tr_open') {
+            visitRow(n);
+            return;
+        }
+        n.children.forEach(walk);
+    };
+    walk(node);
+
+    if (rows.length === 0) return null;
+    // markdown-it only parses a table WITH a delimiter row, and GFM requires the
+    // row above it to be the header — so a bare pipe table always has one.
+    return tableNode(rows, { headerRow: sawHeader, headerColumn: false }, null);
+}
+
+/**
+ * The ```table fence: the same pipe syntax, plus a `header:` axis.
+ *
+ * Alignment is read here (not in the token path) because the fence body is raw
+ * text: markdown-it never saw the delimiter row, so its colons are ours to
+ * interpret. The bare form gets its alignment the same way — see the caller.
+ */
+function parseTableFence(src: string, ctx: Ctx): JSONContent | null {
+    let axis: TableHeaderAxis = { headerRow: true, headerColumn: false };
+    let aligns: ('left' | 'center' | 'right')[] | null = null;
+    const rows: JSONContent[][][] = [];
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (line.length === 0) continue;
+
+        const directive = /^header:\s*(.*)$/i.exec(line);
+        if (directive) {
+            const value = (directive[1] ?? '').trim().toLowerCase();
+            if (value === 'row') axis = { headerRow: true, headerColumn: false };
+            else if (value === 'column') axis = { headerRow: false, headerColumn: true };
+            else if (value === 'both') axis = { headerRow: true, headerColumn: true };
+            else if (value === 'none') axis = { headerRow: false, headerColumn: false };
+            else
+                ctx.warnings.add(
+                    `Table block: unknown header “${value}” (use row, column, both, or none) — used row.`,
+                );
+            continue;
+        }
+
+        // The delimiter row is a SEPARATOR, never content: it carries the
+        // alignment and then disappears, exactly as it does in a bare table.
+        if (DELIMITER_ROW_RE.test(line) && line.includes('-')) {
+            aligns = alignsFromDelimiter(line);
+            continue;
+        }
+
+        if (!line.includes('|')) {
+            ctx.warnings.add(
+                `Table block: “${line}” is not a table row (rows look like “| a | b |”) — ignored.`,
+            );
+            continue;
+        }
+
+        rows.push(splitPipeRow(line).map((cell) => fenceInline(cell, ctx, true)));
+    }
+
+    if (rows.length === 0) {
+        ctx.warnings.add('Table block: needs at least one row — imported as plain text.');
+        return null;
+    }
+    return tableNode(rows, axis, aligns);
 }
 
 // ```worked / ```faded fences — a worked example (or its faded, fill-in

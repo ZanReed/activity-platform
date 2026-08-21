@@ -574,8 +574,10 @@ describe('doc worked example ↔ converter', () => {
 // =============================================================================
 
 describe('documented "not supported" list ↔ converter', () => {
+    // TABLES LEFT THIS LIST 2026-08-21 when the table block's import slice
+    // landed — a pipe table is now a real `table` node, and the assertion below
+    // that no `table` type survives would be exactly backwards for it.
     const cases: { name: string; md: string }[] = [
-        { name: 'tables', md: '| a | b |\n| - | - |\n| 1 | 2 |' },
         { name: 'fenced code blocks', md: '```\ncode\n```' },
         { name: 'blockquotes', md: '> quoted' },
         { name: 'links', md: 'see [docs](https://example.com)' },
@@ -585,13 +587,15 @@ describe('documented "not supported" list ↔ converter', () => {
         const result = convert(md);
         // never an unsupported block type; never throws (we got here)
         const types = new Set(flatten(result.blocks).map((n) => n.type));
+        // Everything here degrades to prose, so no structural node should
+        // appear — `table` is the nearest one this converter can emit.
         expect(types.has('table')).toBe(false);
         expect(result.warnings.length).toBeGreaterThan(0);
     });
 
     it('the doc actually lists these as unsupported', () => {
         const lower = DOC.toLowerCase();
-        for (const word of ['tables', 'code blocks', 'blockquotes', 'links']) {
+        for (const word of ['code blocks', 'blockquotes', 'links']) {
             expect(lower).toContain(word);
         }
     });

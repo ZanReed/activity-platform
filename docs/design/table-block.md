@@ -1,6 +1,6 @@
 # The native TABLE block
 
-**Status:** ✅ **ENG-REVIEWED 2026-08-21 — CLEAR (AMENDED), build next.** Fifteen rulings: five from
+**Status:** ✅ **BUILT 2026-08-21 — all four slices shipped.** (Was: ENG-REVIEWED — CLEAR (AMENDED), build next.) Read each slice's **AS BUILT** note before citing the plan above it: five rulings changed shape at build time, and T4 changed outright. Fifteen rulings: five from
 the review proper (1B wrapped cells · 2A derived gradability · 3A deploy ordering · 4A caption cut ·
 5A full test matrix), four cross-model tension amendments from the outside voice (T1 degrade-mask ·
 T2 ```table fence · T3 capability-before-content · T4 republish script), and six adopted
@@ -284,7 +284,7 @@ Slice 2  EDITOR  ✅ SHIPPED 2026-08-21 (T3 gate discharged first: both function
   ├─ D7.1 paste hardening · D7.2 blank-id dedup
   └─ R7 slash menu + Columns expression + representativeBlock
 
-Slice 3  IMPORT MAPPING + UPGRADE
+Slice 3  IMPORT MAPPING + UPGRADE  ✅ SHIPPED 2026-08-21 (author: re-run import:batch, then report:stale)
   ├─ table_open → table node (replaces T1's masked degrade)
   ├─ CRITICAL regression pin: degraded imports upgrade on re-run
   ├─ ⟪AUTHOR⟫ upgrading import:batch run   ← T3 GATE already satisfied
@@ -425,13 +425,58 @@ leak scan over the new fixtures, block-predicates agreement, format-doc/prompt/i
 | Q13 ✅ | 2 | Enter-in-cell does not split the cell's single paragraph illegally | e2e editor |
 | Q14 ✅ | 2 | Row duplication remints blank ids (uniqueness pin) | unit/e2e |
 | Q15 ✅ | 2 | Cell with text+math+blank+marks round-trips byte-identical through flatten/unflatten | unit |
-| Q16 | 3 | Pipe table → table node; fence form sets header axes; alignment stored | unit |
-| Q17 | 3 | `{{blank}}` in a td → BlankToken in cell content | unit |
-| Q18 | 3 | Stray `\|` in prose stays a paragraph (probe case pinned) | unit |
-| **Q19** | 3 | **CRITICAL regression: previously-degraded (masked) import upgrades to a table node on re-run; file-wins report names the change** | unit |
+| Q16 ✅ | 3 | Pipe table → table node; fence form sets header axes; alignment stored | unit |
+| Q17 ✅ | 3 | `{{blank}}` in a td → BlankToken in cell content | unit |
+| Q18 ✅ | 3 | Stray `\|` in prose stays a paragraph (probe case pinned) | unit |
+| **Q19 ✅** | 3 | **CRITICAL regression: previously-degraded (masked) import upgrades to a table node on re-run; file-wins report names the change** | unit |
 | Q20 ✅ | 0 | T1 mask: degraded table shows underline, never `{{…}}`; warning retained | unit |
 | Q21 ✅ | 0 | D7.4: drifted draft refuses without `--force`, named in output | unit |
-| Q22 | 3 | T4 script: dry-run lists exactly already-published+changed rows; never touches never-published drafts | unit |
+| Q22 ✅ | 3 | T4 script: dry-run lists exactly already-published+changed rows; never touches never-published drafts | unit |
+
+**AS BUILT — Slice 3, 2026-08-21. THE ARC IS COMPLETE.** Both frozen forms
+import: a bare GFM pipe table (markdown-it's own tokens) and the ` ```table `
+fence carrying `header: row|column|both|none` (text splitting, because a fence
+body is opaque to markdown-it). Two entry points, ONE cell pipeline — both end at
+`mapInline`/`fenceInline` with blanks live, and a test pins that they produce
+identical output for identical content, which is the guard against the two paths
+drifting. Alignment comes from the delimiter row's colons on both, and stays
+ABSENT when no colon was authored. Verified through the real esbuild-bundled node
+pipeline, not only vitest: zero warnings, schema-valid, both tables correct, no
+mask residue.
+
+**T4 COULD NOT BE BUILT AS RULED, and the reason is structural.** The plan had a
+script republishing through `publish_activity`. That RPC authorizes via
+`can_edit_activity`, which is `owner_id = auth.uid()` — and the importer runs on
+a service-role key, which bypasses RLS precisely BECAUSE it has no `auth.uid()`.
+So the RPC raises 'Not authorized' for any script, every time, by design. The
+author ruled the amendment (2026-08-21): **report, do not republish**.
+`scripts/stale-publications.mjs` (`pnpm report:stale`) names exactly which
+published activities are serving content older than their own file, turning
+"audit 150 activities" into "republish these three". The rejected alternative was
+a SECURITY DEFINER republish callable by the service key — a SECOND writer of
+publish-truth, which is the exact thing 0037's header forbids, traded for a
+handful of clicks.
+
+Its load-bearing subtlety: block ids are re-minted on every import, so comparing
+raw documents would report every publication stale on every run — a report that
+cries wolf is a report nobody reads. `contentSignature` strips structural ids
+before comparing, but deliberately KEEPS blank ids, because a blank id is the
+response key and a change there is a real change.
+
+Two smaller corrections the plan did not predict:
+
+1. **The Slice 0 mask tests had to move, not die.** They used tables as their
+   vehicle; tables no longer degrade. The PROPERTY still matters for every
+   construct that does, so they were re-pointed at unknown fences and code
+   blocks. One case was deleted outright: raw HTML is unreachable as a degrade
+   path because the importer runs markdown-it with `html: false`, so a `{{…}}`
+   inside a `<div>` becomes a real blank rather than degraded source — a test
+   asserting otherwise would have pinned a path that cannot run.
+2. **The doc's "not supported" list and the capability inventory's fence COUNT**
+   both had to move. The count ("the complete set is 13") was already wrong by
+   five; it is now a pointer to `importFormatRegistry.FENCES`, which is bound to
+   the parser in both directions — a count in prose is a claim needing its own
+   guard (P11).
 
 ## 8. Failure modes (per new codepath)
 

@@ -616,3 +616,146 @@ test('§G --force parses in either position', () => {
     assert.equal(parseArgs(['--force', 'folder', '--owner=a@b.c']).force, true);
     assert.equal(parseArgs(['folder', '--owner', 'a@b.c']).force, false);
 });
+
+// =============================================================================
+// §H — the stale-publication report (T4, amended at build 2026-08-21)
+// -----------------------------------------------------------------------------
+// The importer writes DRAFTS, so an already-published activity keeps serving its
+// old snapshot after an upgrade import. This report is what turns "audit 150
+// activities" into "republish these three".
+//
+// The load-bearing test is the FIRST one. Block ids are re-minted on every
+// import (CLAUDE.md: never diff serialized ActivityDocuments), so a naive
+// comparison reports EVERY published activity stale, every run — a report that
+// cries wolf is a report nobody reads, and it would send the author republishing
+// a whole catalogue for nothing.
+// =============================================================================
+
+import { contentSignature, planRepublish } from '../stale-publications.mjs';
+
+const doc = (title, extra = {}) => ({
+    schemaVersion: 2,
+    meta: { title },
+    sections: [
+        {
+            id: 'sec-1',
+            rows: [
+                {
+                    id: 'row-1',
+                    columns: [
+                        {
+                            id: 'col-1',
+                            blocks: [
+                                {
+                                    id: 'blk-1',
+                                    type: 'table',
+                                    rows: [
+                                        {
+                                            id: 'r1',
+                                            cells: [
+                                                {
+                                                    id: 'c1',
+                                                    content: [
+                                                        { type: 'text', text: 'kg', marks: [] },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                    ...extra,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
+});
+
+test('§H re-minted ids do NOT make a publication look stale', () => {
+    const published = doc('Rates');
+    // The same document after a re-import: every structural id is different.
+    const reimported = JSON.parse(JSON.stringify(published));
+    reimported.sections[0].id = 'sec-9';
+    reimported.sections[0].rows[0].id = 'row-9';
+    reimported.sections[0].rows[0].columns[0].id = 'col-9';
+    reimported.sections[0].rows[0].columns[0].blocks[0].id = 'blk-9';
+    reimported.sections[0].rows[0].columns[0].blocks[0].rows[0].id = 'r9';
+    reimported.sections[0].rows[0].columns[0].blocks[0].rows[0].cells[0].id = 'c9';
+
+    assert.equal(contentSignature(published), contentSignature(reimported));
+});
+
+test('§H a real content change DOES', () => {
+    assert.notEqual(contentSignature(doc('Rates')), contentSignature(doc('Ratios')));
+});
+
+test('§H a BLANK id is not stripped — it is the response key', () => {
+    const withBlank = (blankId) =>
+        doc('Rates', {
+            rows: [
+                {
+                    id: 'r1',
+                    cells: [
+                        { id: 'c1', content: [{ type: 'blank', id: blankId, answer: '9' }] },
+                    ],
+                },
+            ],
+        });
+    // Two documents identical except for which gap a student's answers attach
+    // to are NOT the same publication.
+    assert.notEqual(
+        contentSignature(withBlank('b-1')),
+        contentSignature(withBlank('b-2')),
+    );
+});
+
+test('§H the plan names exactly the published-and-changed rows', () => {
+    const rows = [
+        {
+            source_path: 'stale.md',
+            status: 'published',
+            published_content: doc('Old title'),
+            draft_content: doc('New title'),
+        },
+        {
+            source_path: 'current.md',
+            status: 'published',
+            published_content: doc('Same'),
+            draft_content: doc('Same'),
+        },
+        {
+            source_path: 'draft-only.md',
+            status: 'draft',
+            published_content: null,
+            draft_content: doc('Never published'),
+        },
+        // A hand-authored activity: no source_path, so not the importer's to
+        // chase in either direction — the same rule planIdentity follows.
+        {
+            source_path: null,
+            status: 'published',
+            published_content: doc('Old'),
+            draft_content: doc('Newer'),
+        },
+    ];
+
+    const { stale, current, unpublished } = planRepublish(rows);
+    assert.deepEqual(stale.map((r) => r.source_path), ['stale.md']);
+    assert.deepEqual(current.map((r) => r.source_path), ['current.md']);
+    assert.deepEqual(unpublished.map((r) => r.source_path), ['draft-only.md']);
+});
+
+test('§H a published row with no snapshot is reported as unpublished, not stale', () => {
+    const { stale, unpublished } = planRepublish([
+        {
+            source_path: 'weird.md',
+            status: 'published',
+            published_content: null,
+            draft_content: doc('X'),
+        },
+    ]);
+    assert.equal(stale.length, 0);
+    assert.equal(unpublished.length, 1);
+});

@@ -67,24 +67,27 @@ finding.
   `{{answer|alt}}` blanks and `{checkpoint}` heading suffix
   (`markdownToTiptap.ts:16–28`).
 - Recognized fence tags dispatch in `mapBlock` (`markdownToTiptap.ts:275–359`).
-  **The complete set is 13:** `graph`, `mc`, `match`, `order`, `dataplot`,
-  `numberline`, `objectives`, `explain`, `worked`, `faded`, `shortanswer`,
-  `essay`, `columns`. Every other fence → plain text with a warning.
+  **The authoritative set is `importFormatRegistry.FENCES`**, bound to the
+  parser in BOTH directions by `importFormatRegistry.test.ts` (it scrapes this
+  file for `node.token.info === '<tag>'` and asserts set equality). A count
+  written here instead would be a claim needing its own guard — policy P11 —
+  and this one was wrong (it said 13 while `callout`, `reference`,
+  `definitions`, `meta` and now `table` had landed). Every unregistered fence →
+  plain text with a warning naming the tag.
 - Anything unsupported (blockquotes, links, raw HTML, other code
   fences, strikethrough) degrades to text with a human-readable warning; never
   throws (`markdownToTiptap.ts:355–389`, `604–623`). **Every degrade path masks
   blank specs** (`maskBlankSpecs`, 2026-08-21): degraded source is emitted
   verbatim, so an unmasked `{{3}}` reached the student's screen and the printed
   page — see docs/design/table-block.md §1d.
-- **Tables are a documented FROZEN syntax, not a plain gap** (table-block eng
-  review R11, 2026-08-21): a GFM pipe table, plus a ` ```table ` fence carrying
-  `header: row|column|both|none` for a non-default header axis, with `{{…}}`
-  blanks live in cells. The syntax is final and safe to author against today;
-  the table BLOCK has not shipped, so a table still degrades to masked plain
-  text and upgrades in place on a re-import once it does. The fence is
-  deliberately absent from `importFormatRegistry.FENCES` until then — that
-  registry indexes what the parser actually dispatches, and its guard test
-  requires a registered fence's example to import with no warnings.
+- **Tables import as tables** (table-block R11, live 2026-08-21): a GFM pipe
+  table, plus a ` ```table ` fence carrying `header: row|column|both|none` for a
+  non-default header axis, with `{{…}}` blanks live in cells and alignment read
+  from the delimiter row's colons. Two entry points (markdown-it tokens for the
+  bare form, text splitting for the fence body) converging on one cell pipeline;
+  a test pins that both forms produce identical output for identical content.
+  ` ```table ` is registered in `importFormatRegistry.FENCES`, which its guard
+  holds to an example that must import with zero warnings.
 
 **Three artifacts must stay in sync** (per `markdownImportPrompt.ts:8–10`):
 the parser (`markdownToTiptap.ts`), the prompt (`markdownImportPrompt.ts`), and
