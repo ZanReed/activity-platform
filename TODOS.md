@@ -3,71 +3,47 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
-## Native TABLE block — ruled (2026-08-21), designed but not built
+## Native TABLE block — ✅ ENG-REVIEWED 2026-08-21, ready to build
 
-**What:** A real `table` block. The pilot proved the workaround is workable and
-wrong, and the author's read was "presenting tables is kind of a basic feature."
-This whole vertical spine — rates, proportions, functions, rate of change — is
-table-heavy.
+**Read [docs/design/table-block.md](docs/design/table-block.md), not a summary of it.** The design
+is ruled in fifteen decisions (five from the review, four cross-model tension amendments, six
+adopted outside-voice additions) and the pre-review sketch that lived here is SUPERSEDED — it
+carried a `caption` field that was cut, no header booleans, and bare-inline cells that the review
+replaced with wrapped ones.
 
-**⚠ THE WORKAROUND'S DEFECT IS STRUCTURAL, not cosmetic — this is the argument.**
-A ruled ` ```columns ` fence prints something that LOOKS like a table (verified
-on paper 2026-08-21, screenshot in the session). It is two adjacent block stacks.
-The divider rule is
-`.viewer-row[data-grid-lines='true'] > .viewer-column > * + *` — drawn **per
-column, independently**. Rows line up only because every cell happens to be one
-line tall; give one cell a label that wraps ("Cost per kilogram ($)") and the
-two columns' dividers desync. **There is no row concept in the DOM, so there is
-nothing holding a row together.**
+**Build order — four slices, and Slice 0 is the one the catalogue is waiting on:**
 
-**RULED D7 (2026-08-21): cells CAN hold a `{{blank}}`.** "Complete the table" is
-a staple Algebra I task; a read-only table would ship the smaller half of the
-feature and leave the spine's most common exercise impossible.
+0. **FREEZE (buildable now, unblocks bulk authoring)** — the import contract (bare GFM pipe table +
+   an optional ` ```table ` fence carrying `header: row|column|both|none`), the format doc + AI
+   prompt, the degrade-branch **blank mask** (⚠ the degrade currently emits literal `{{answer}}` to
+   students — see the doc's §1d), and the importer's drift fingerprint.
+1. **SCHEMA + VIEWER + SERVER** — then ⟪AUTHOR⟫ deploys both Edge Functions.
+2. **EDITOR** — pushed only after that deploy is verified.
+3. **IMPORT MAPPING + UPGRADE** — plus the scoped republish script.
 
-**The architectural key, and why this is cheaper than "new block type + grading":**
+**The invariant that spans all four (T3): both functions are deployed and verified BEFORE the first
+table block exists in any draft — whichever path writes it, the editor OR `import:batch`.**
 
-```
-FillInBlankInline = TextNode | InlineMathNode | HardBreakNode | BlankToken
-```
+## A general walk-descent guard for nested-content blocks
 
-Make a **cell's content `FillInBlankInline[]`** and blanks in cells carry stable
-ids that key into the EXISTING `SubmissionResponses.blanks` map. **No new
-response category and no wire-version bump** — the check endpoint, the answer
-key, per-blank aggregation and the teacher's view already speak "blank id →
-answer". CLAUDE.md's standing rule ("when a new response category lands it gets
-its own parallel map") is satisfied by NOT needing one.
+**What:** A fixture-driven guard asserting that every registered block type's authored in-band ids
+(blank tokens, math gaps) equal what the four walks actually return — the general form of the
+table-specific quartet in [table-block.md](docs/design/table-block.md) §7 (Q1–Q3).
 
-**Numbering has a precedent to copy, not invent:** `faded_worked_example` is
-already a container that is ONE numbered problem whose sub-parts are lettered
-(`showStepLabels`, `stepLetter` in `schema/src/step-letter.ts`). A table should
-be the same shape — one problem number for the table, letters on the blank cells
-— rather than consuming a problem number per cell.
+**Why:** `looksLikeBlockArray` ([blockIndex.ts:107](packages/viewer/src/container/blockIndex.ts))
+descends into nested content only while the nested records DON'T carry both an `id` and a `type`.
+Give a future block's sub-records a `type` and three of the four walks silently skip it: the
+sanitizer still strips (it never stops), so nothing leaks — the answer is simply **never graded**.
+`walk.ts`'s header calls that "the worst kind" of failure. The table arc pins its own case; nothing
+pins the next one, and PDF import plus any grouped-question type will both meet this.
 
-**Sketch (not ruled):**
+**Pros:** turns a silent tripwire into a build failure, once, for every future type.
+**Cons:** the general version needs a real fixture-roster harness — more than a one-line assertion.
 
-```
-TableBlock { id, type: 'table', caption?, headerRow: boolean,
-             rows: [ { id, cells: [ { id, content: FillInBlankInline[] } ] } ] }
-```
+**Where to start:** the table quartet, once Slice 1 lands — it is this guard's worked example.
+Then generalize over `registeredBlockTypes` × the authored fixtures.
 
-**Scope — README's add-a-block-type checklist is the authority, and it is
-deliberately exhaustive because multiple_choice shipped missing two steps:**
-schema file + `blocks/index.ts` union + factory + ★`ColumnCellBlock`; editor
-extension + NodeView + `slashMenuItems` + ★`Columns.ts` content expression +
-both directions in `serialize.ts`; ★viewer registry entry (family, numbering,
-category, sanitize spec, print treatment, a11y story) + ★fixture per variant +
-component; print: a PrintSpec + `printExpectations` rows + baselines; import:
-**markdown pipe tables**, which the format currently degrades to plain text —
-the natural syntax already exists and authors already type it. Both server
-bundles regenerate (schema change), and `get-activity` + `check-activity`
-redeploy.
-
-**Depends on:** nothing technically. Sequenced after the pilot deliberately, so
-the decision rested on a printed page rather than a guess.
-
-**Do NOT start by writing the schema.** Start with `/plan-eng-review` on a
-design doc — this touches every package, the grading path, and the answer key,
-which is exactly the shape the scope gate exists for.
+**Depends on:** the table block's Slice 1.
 
 ## ✅ RENDER DONE 2026-08-21 — the two dead print fields now reach paper; the IMPORT SYNTAX is what remains
 
