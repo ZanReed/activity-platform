@@ -72,7 +72,39 @@ export function contentSignature(document) {
     return canonicalJson(strip(document));
 }
 
-/** Split the owner's rows into stale / current / unpublished. */
+/**
+ * Fixed-size batches.
+ *
+ * `id=in.(…)` goes in the URL, and a 150-activity catalogue is ~5.5 KB of uuids
+ * — close enough to the usual 8 KB request-line ceiling that "it works today"
+ * is not a plan. Batching is three lines and the worry goes away.
+ */
+export function chunk(items, size) {
+    const out = [];
+    for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+    return out;
+}
+
+/**
+ * Split the owner's rows into stale / current / unpublished.
+ *
+ * ⚠ A NULL DRAFT ON A PUBLISHED ACTIVITY MEANS "NOTHING PENDING", NOT "STALE".
+ * `publish_activity` ends with `draft_content = null` (0037), so a fully
+ * published activity HAS no draft — that is the resting state, not a defect.
+ * Treating absent-draft as "differs from published" (which a naive signature
+ * compare does, since null signs as "null") would flag every fully published
+ * activity in the catalogue as needing republishing, every run. That is not a
+ * near-miss: it is the difference between a report worth reading and one that
+ * says "republish everything" and gets ignored.
+ *
+ * Found by checking the logic against the live corpus rather than against the
+ * hand-built fixtures below — which had a published row with no SNAPSHOT, and
+ * not the far commoner published row with no DRAFT.
+ *
+ * So the real signal is simply: a published activity has pending changes when it
+ * HAS a draft again. The signature compare then removes the false positive where
+ * an editor session autosaved a draft identical to what is already published.
+ */
 export function planRepublish(rows) {
     const stale = [];
     const current = [];
@@ -86,8 +118,14 @@ export function planRepublish(rows) {
             unpublished.push(row);
             continue;
         }
+        // No draft = nothing pending = what a freshly published activity looks
+        // like. See the header.
+        if (row.draft_content === null || row.draft_content === undefined) {
+            current.push(row);
+            continue;
+        }
         const published = contentSignature(row.published_content);
-        const draft = contentSignature(row.draft_content ?? null);
+        const draft = contentSignature(row.draft_content);
         if (published === draft) current.push(row);
         else stale.push(row);
     }
@@ -154,18 +192,36 @@ async function main() {
     if (users.length > 1) throw new Error(`--owner ${owner} matched more than one user`);
     const user = users[0];
 
-    // The published snapshot rides along as an embedded row: one request, and
-    // the content compared is the one the student is actually served.
     const rows = await call(
         `/activities?owner_id=eq.${user.id}&deleted_at=is.null` +
-            '&select=id,slug,title,status,source_path,draft_content,' +
-            'published:activity_versions!activities_current_version_id_fkey(content)',
+            '&select=id,slug,title,status,source_path,draft_content,current_version_id',
     );
+
+    // TWO PLAIN QUERIES, NOT A POSTGREST EMBED. The embed form
+    // (`published:activity_versions!<constraint>(content)`) needs a DISAMBIGUATING
+    // HINT, because there are two foreign keys between these tables
+    // (activities.current_version_id -> versions, and versions.activity_id ->
+    // activities). That hint is a constraint NAME living in a migration —
+    // `activities_current_version_fk`, which is not the name PostgREST's default
+    // convention would suggest, and not the one this script guessed first. A
+    // wrong hint fails at RUNTIME with a 400 that no test here can see, because
+    // these tests are pure functions over hand-built rows and never touch a
+    // server. Fetching the versions by id removes the whole class: no hint, no
+    // relationship cache, nothing that breaks when a constraint is renamed.
+    const versionIds = rows
+        .map((row) => row.current_version_id)
+        .filter((id) => typeof id === 'string');
+    const contentById = new Map();
+    for (const batch of chunk(versionIds, 50)) {
+        const versions = await call(
+            `/activity_versions?id=in.(${batch.join(',')})&select=id,content`,
+        );
+        for (const version of versions) contentById.set(version.id, version.content);
+    }
+
     const shaped = rows.map((row) => ({
         ...row,
-        published_content: Array.isArray(row.published)
-            ? (row.published[0]?.content ?? null)
-            : (row.published?.content ?? null),
+        published_content: contentById.get(row.current_version_id) ?? null,
     }));
 
     const { stale, current, unpublished } = planRepublish(shaped);

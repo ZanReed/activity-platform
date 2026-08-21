@@ -633,7 +633,7 @@ test('§G --force parses in either position', () => {
 // a whole catalogue for nothing.
 // =============================================================================
 
-import { contentSignature, planRepublish } from '../stale-publications.mjs';
+import { chunk, contentSignature, planRepublish } from '../stale-publications.mjs';
 
 const repoRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
@@ -778,4 +778,59 @@ test('§H the report script actually RUNS — its main guard fires', () => {
     const result = spawnSync(process.execPath, [script], { encoding: 'utf8' });
     assert.equal(result.status, 2, 'expected the usage exit code');
     assert.match(result.stderr, /Missing --owner/);
+});
+
+test('§H chunk batches the version-id lookup', () => {
+    // `id=in.(…)` rides in the URL; a 150-activity catalogue is ~5.5 KB of
+    // uuids, close enough to the usual 8 KB request-line ceiling that batching
+    // is cheaper than finding out.
+    assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+    assert.deepEqual(chunk([], 50), []);
+    assert.equal(chunk(Array.from({ length: 150 }, (_, i) => i), 50).length, 3);
+});
+
+test('§H a published activity with NO draft is up to date, not stale', () => {
+    // publish_activity ends with `draft_content = null` (0037), so this is what
+    // a fully published activity looks like at rest. A naive signature compare
+    // signs null as "null", finds it different from the snapshot, and reports
+    // the whole published catalogue as needing republishing — which is how a
+    // report becomes noise. Caught against the live corpus, where the pilot's
+    // one published activity is exactly this shape.
+    const { stale, current } = planRepublish([
+        {
+            source_path: 'published-clean.md',
+            status: 'published',
+            published_content: doc('Rates'),
+            draft_content: null,
+        },
+    ]);
+    assert.equal(stale.length, 0);
+    assert.deepEqual(current.map((r) => r.source_path), ['published-clean.md']);
+});
+
+test('§H a draft that merely re-saved the SAME content is not stale either', () => {
+    // An editor session can autosave a draft identical to what is published.
+    // Having a draft is the signal; differing from the snapshot is the test.
+    const { stale, current } = planRepublish([
+        {
+            source_path: 'reopened.md',
+            status: 'published',
+            published_content: doc('Rates'),
+            draft_content: doc('Rates'),
+        },
+    ]);
+    assert.equal(stale.length, 0);
+    assert.equal(current.length, 1);
+});
+
+test('§H a draft that CHANGED is stale — the case the report exists for', () => {
+    const { stale } = planRepublish([
+        {
+            source_path: 'upgraded.md',
+            status: 'published',
+            published_content: doc('Rates'),
+            draft_content: doc('Rates with a table'),
+        },
+    ]);
+    assert.deepEqual(stale.map((r) => r.source_path), ['upgraded.md']);
 });
