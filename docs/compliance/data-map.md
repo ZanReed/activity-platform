@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-20-draft-5`. Mirrors migrations 0001–**0038**, verified
+> Version `2026-08-21-draft-6`. Mirrors migrations 0001–**0039**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,18 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-6` (2026-08-21) — 0039 adds NO personal data.** The table-block
+> slice's drift guard adds one column, `activities.source_fingerprint`: a
+> sha256 of the activity's own `draft_content` as the batch importer last wrote
+> it, used to tell an app-side edit from an untouched draft before the importer
+> overwrites it. It is a hash of ACTIVITY CONTENT the author wrote, holds no
+> person reference and no student-derived data, and is never read by the app or
+> served to anyone. NULL for every activity not written by the importer. No new
+> table, no new retention question, and no change to any existing row below —
+> so `retention-policy.md` does not move either (the 0038 precedent). Stated
+> explicitly rather than by silence, per 0027 / 0035 / 0038 — the range moves
+> to 0039 on that basis.
 >
 > **`draft-5` (2026-08-20) — 0038 adds NO personal data.** The batch-importer
 > slice adds one column, `activities.source_path`: the path of the `.md` file an

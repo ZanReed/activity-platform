@@ -22,8 +22,12 @@
 //                             or list item carrying one becomes a fillInBlank.
 //   - heading ending {checkpoint} → a checkpoint `sectionBreak` (title = the
 //                             heading text). Plain headings stay heading blocks.
-// `{`, `}`, `|` aren't markdown-special (tables off), so markdown-it passes
-// them straight through as text and the two grammars never collide. Math `$…$`
+// `{`, `}` aren't markdown-special, so markdown-it passes
+// them straight through as text and the two grammars never collide. (`|` IS
+// special: markdown-it's default preset has GFM tables ON, so a pipe row plus a
+// `|---|` delimiter row parses as a real table — see the `table_open` branch,
+// which degrades it for now. A stray `|` in prose still needs the delimiter row
+// to become a table, so it stays text.) Math `$…$`
 // is likewise plain text to markdown-it and resolved here, with a Pandoc-style
 // guard so currency ("$5 and $10") isn't mistaken for math.
 //
@@ -408,6 +412,41 @@ const MATH_PLACEHOLDER_SUB = `${MATH_OPEN}(?<mathIdx>\\d+)${MATH_CLOSE}`;
 // The inner run forbids brackets, so definitions never nest.
 const DEFINITION_SUB = '\\[\\[(?<defInner>[^\\[\\]]+)\\]\\]';
 
+// -----------------------------------------------------------------------------
+// Blank masking on the DEGRADE paths
+// -----------------------------------------------------------------------------
+// Every unsupported construct in this file degrades by emitting its own SOURCE
+// as literal text (rawTextParagraph, and the table branch's collectText). That
+// source carries the ANSWER KEY: `{{3}}` reaches the student's screen and the
+// printed page verbatim. Found at the table block's eng review (2026-08-21,
+// outside voice #1) on the table branch — and it is NOT table-specific. An
+// unknown fence (```table, today), a code block, raw HTML, and every
+// failed-parse fallback in the fence dispatch all take the same path, which is
+// why the mask lives in the degrade EMITTERS rather than on the table branch.
+//
+// The predicate is parseBlankSpec, not the regex alone, so this masks exactly
+// what the importer would have turned into a blank: a sentinel the parser keeps
+// as literal text (empty canonical) stays literal here too. The regex is
+// BLANK_SUB itself — the same source the live tokenizer uses, never a retyped
+// copy, so the mask cannot fall behind the grammar it hides.
+//
+// This is a degrade-path concern ONLY. A `{{…}}` that stays literal by design
+// (a ```worked example's body, where blanks are not live) never routes through
+// these emitters and is untouched.
+const MASKED_BLANK = '______'; // ~the schema's default blank width (~6ch)
+
+function maskBlankSpecs(text: string): string {
+    return text.replace(new RegExp(BLANK_SUB, 'g'), (whole, ...rest) => {
+        const groups = rest[rest.length - 1] as
+            | { blankCanon?: string; blankAlts?: string }
+            | undefined;
+        if (typeof groups !== 'object' || groups === null) return whole;
+        return parseBlankSpec(groups.blankCanon ?? '', groups.blankAlts ?? '')
+            ? MASKED_BLANK
+            : whole;
+    });
+}
+
 function inlineMatcher(allowBlanks: boolean): RegExp {
     // Math placeholders + definitions resolve in ANY inline context; blanks only
     // where a blank is allowed (paragraphs / list items, not headings).
@@ -632,9 +671,23 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 if (parseReferenceFence(node.token.content, ctx)) return [];
                 return [rawTextParagraph(node.token.content)];
             }
-            ctx.warnings.add(
-                'Code blocks aren’t supported yet — imported as plain text.',
-            );
+            // Name the tag. An unrecognized fence is nearly always a REAL
+            // authoring intent the importer does not carry yet (```table today),
+            // and "Code blocks aren't supported" sends the author looking for a
+            // code block they never wrote. Deliberately NOT a dispatch branch
+            // per tag: importFormatRegistry.test.ts scrapes this file for
+            // `node.token.info === '<tag>'` and requires every scraped tag to be
+            // a registered, working fence — so a tag-specific branch here would
+            // have to claim a capability that does not exist yet.
+            {
+                const tag = (node.token.info ?? '').trim();
+                ctx.warnings.add(
+                    tag.length > 0
+                        ? `The \`\`\`${tag} fence isn’t imported yet — imported as plain ` +
+                              'text, with any answers hidden.'
+                        : 'Code blocks aren’t supported yet — imported as plain text.',
+                );
+            }
             return [rawTextParagraph(node.token.content)];
         }
         case 'code_block':
@@ -651,10 +704,22 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
             return mapBlocks(node.children, ctx);
 
         case 'table_open':
+            // The FROZEN table contract (docs/design/table-block.md R11) is
+            // already writable: a pipe table authored today keeps its full
+            // structure IN THE FILE and upgrades in place on a re-import once
+            // the table block ships. Until then it degrades to one paragraph —
+            // with its blank specs masked, so a degraded table published in the
+            // meantime cannot show the answer key.
             ctx.warnings.add(
-                'Tables aren’t supported yet — imported as plain text.',
+                'Tables aren’t imported as tables yet — imported as plain text with ' +
+                    'answers hidden. Re-import once the table block ships to upgrade them.',
             );
-            return [{ type: 'paragraph', content: textRun(collectText(node)) }];
+            return [
+                {
+                    type: 'paragraph',
+                    content: textRun(maskBlankSpecs(collectText(node))),
+                },
+            ];
 
         case 'html_block':
             ctx.warnings.add('Raw HTML isn’t supported — imported as plain text.');
@@ -1149,8 +1214,14 @@ function collectText(node: TokNode): string {
 
 // A paragraph from raw multi-line text (code fence / HTML fallback), preserving
 // line breaks as hardBreaks.
+//
+// THE ONE CHOKE POINT for degraded source, and therefore where blank specs are
+// masked: every `return [rawTextParagraph(node.token.content)]` in the fence
+// dispatch is a fallback emitting author source verbatim. Masking here covers
+// all of them — including the ones that do not exist yet — instead of asking
+// each new degrade branch to remember (see maskBlankSpecs).
 function rawTextParagraph(text: string): JSONContent {
-    const lines = text.replace(/\n+$/, '').split('\n');
+    const lines = maskBlankSpecs(text).replace(/\n+$/, '').split('\n');
     const content: JSONContent[] = [];
     lines.forEach((line, i) => {
         if (i > 0) content.push({ type: 'hardBreak' });

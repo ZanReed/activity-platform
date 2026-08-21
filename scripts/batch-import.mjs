@@ -105,6 +105,7 @@
 // =============================================================================
 
 import { build } from 'esbuild';
+import { createHash } from 'node:crypto';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -117,6 +118,61 @@ const repo = resolve(__dirname, '..');
 // exercise it with no database and no filesystem. The decisions that matter
 // (create vs update vs orphan) live here on purpose; main() below is plumbing.
 // =============================================================================
+
+/**
+ * A key-sorted serialization of any JSON value.
+ *
+ * WHY SORTED (0039's header has the long version): the fingerprint compares a
+ * document we serialized in JS against the same document after a round trip
+ * through `jsonb`, and jsonb does NOT preserve key order. Hashing
+ * JSON.stringify output directly would therefore report drift on every row of
+ * every run — a guard that cries wolf is a guard the author disables.
+ */
+export function canonicalJson(value) {
+    if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+    if (value !== null && typeof value === 'object') {
+        const keys = Object.keys(value).sort();
+        return `{${keys
+            .map((k) => `${JSON.stringify(k)}:${canonicalJson(value[k])}`)
+            .join(',')}}`;
+    }
+    // undefined can appear as an object value; JSON.stringify drops those keys,
+    // and so must this — otherwise the two sides disagree about a field that
+    // was never sent.
+    return value === undefined ? 'null' : JSON.stringify(value);
+}
+
+/** The stored-draft fingerprint (0039). Null document → null, never a hash of
+ *  the string "null" — an absent draft has no fingerprint to compare. */
+export function fingerprintDocument(document) {
+    if (document === null || document === undefined) return null;
+    return createHash('sha256').update(canonicalJson(document)).digest('hex');
+}
+
+/**
+ * Which planned updates were edited IN THE APP since the importer last wrote
+ * them (D7.4) — the rows where "the file wins" would destroy real work.
+ *
+ * Returns { safe, drifted }. A row whose `source_fingerprint` is NULL is SAFE:
+ * it predates the guard (or predates 0039), so there is nothing to compare and
+ * refusing it would block a catalogue that was imported before this existed.
+ * Those rows get a fingerprint written on this run, which is how the guard arms
+ * itself without a backfill.
+ */
+export function splitDriftedUpdates(updates, { force = false } = {}) {
+    const safe = [];
+    const drifted = [];
+    for (const entry of updates) {
+        const stored = entry.row.source_fingerprint ?? null;
+        const current = fingerprintDocument(entry.row.draft_content ?? null);
+        if (stored !== null && current !== null && stored !== current && !force) {
+            drifted.push(entry);
+        } else {
+            safe.push(entry);
+        }
+    }
+    return { safe, drifted };
+}
 
 /**
  * Split the world into creates, updates and orphans.
@@ -607,7 +663,7 @@ export function makeDb(url, key) {
         existingFor(ownerId) {
             return call(
                 `/activities?owner_id=eq.${ownerId}&deleted_at=is.null` +
-                    '&select=id,source_path,title,tags,pedagogical_role,draft_content',
+                    '&select=id,source_path,title,tags,pedagogical_role,draft_content,source_fingerprint',
             );
         },
 
@@ -636,6 +692,7 @@ export function parseArgs(argv) {
     const positional = [];
     let owner = process.env.BATCH_IMPORT_OWNER ?? null;
     let dryRun = false;
+    let force = false;
 
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
@@ -648,26 +705,30 @@ export function parseArgs(argv) {
         // ever calls argv.includes(), never reads a positional.)
         if (arg === '--') continue;
         if (arg === '--dry-run') dryRun = true;
+        else if (arg === '--force') force = true;
         else if (arg === '--owner') owner = argv[++i] ?? null;
         else if (arg.startsWith('--owner=')) owner = arg.slice('--owner='.length);
         else if (arg.startsWith('--')) throw new Error(`unknown flag ${arg}`);
         else positional.push(arg);
     }
 
-    return { folder: positional[0] ?? null, owner, dryRun };
+    return { folder: positional[0] ?? null, owner, dryRun, force };
 }
 
 function usage(message) {
     console.error(`
 ${message}
 
-  pnpm import:batch <folder> --owner <email|uuid> [--dry-run]
+  pnpm import:batch <folder> --owner <email|uuid> [--dry-run] [--force]
 
   <folder>     the catalogue folder; every .md under it is imported, keyed on
                its path RELATIVE to this folder
   --owner      whose activities these are. Required — there is no sensible
                default, and guessing would write to the wrong teacher
   --dry-run    report what WOULD change; write nothing
+  --force      overwrite even activities that were edited in the app since
+               their last import. Without it those files are refused and named
+               (their app-side edits would be destroyed -- the file wins)
 
   Credentials come from .env.supabase (cp .env.supabase.example .env.supabase).
 `);
@@ -726,13 +787,34 @@ async function main() {
 
     console.log(`\ncatalogue : ${root}`);
     console.log(`owner     : ${owner.email} (${owner.id})`);
-    console.log(`mode      : ${args.dryRun ? 'DRY RUN — nothing will be written' : 'WRITE'}\n`);
+    console.log(
+        `mode      : ${args.dryRun ? 'DRY RUN — nothing will be written' : 'WRITE'}` +
+            `${args.force ? ' · --force (app-side edits WILL be overwritten)' : ''}\n`,
+    );
 
-    const [files, existing, pipeline] = await Promise.all([
-        findMarkdownFiles(root),
-        db.existingFor(owner.id),
-        loadPipeline(),
-    ]);
+    let files, existing, pipeline;
+    try {
+        [files, existing, pipeline] = await Promise.all([
+            findMarkdownFiles(root),
+            db.existingFor(owner.id),
+            loadPipeline(),
+        ]);
+    } catch (err) {
+        // 0039 adds the drift guard's column. Refuse up front with the fix
+        // rather than letting the run proceed with the guard silently absent —
+        // a safeguard nobody can see is not a safeguard (policy P3), and this
+        // one exists to stop the author's own work being overwritten.
+        if (/source_fingerprint/.test(err.message)) {
+            usage(
+                'The database is missing `activities.source_fingerprint`, which this\n' +
+                    '  importer needs to tell an app-side edit from an unchanged draft.\n\n' +
+                    '  Apply migration 0039 and re-run:\n' +
+                    '    supabase db push',
+            );
+            return;
+        }
+        throw err;
+    }
 
     // The row shape convertOne wants: draft meta lifted out of draft_content so
     // the never-clobber merge can see the course/settings an unpublished
@@ -744,6 +826,14 @@ async function main() {
     }));
 
     const { creates, updates, orphans } = planIdentity(files, enriched);
+
+    // D7.4 — an activity edited IN THE APP since its last import is refused,
+    // because "the file wins" would silently destroy that editing. Rows with no
+    // recorded fingerprint (everything imported before 0039) pass through and
+    // get one written, so the guard arms itself without a backfill.
+    const { safe: updatable, drifted } = splitDriftedUpdates(updates, {
+        force: args.force,
+    });
 
     const skipped = [];
     const warned = [];
@@ -761,7 +851,7 @@ async function main() {
         }
     }
 
-    for (const { file, row } of updates) {
+    for (const { file, row } of updatable) {
         try {
             const markdown = await readFile(file.absolute, 'utf8');
             const converted = convertOne(pipeline, markdown, row, file.sourcePath);
@@ -776,9 +866,20 @@ async function main() {
     console.log(
         `found ${files.length} file${files.length === 1 ? '' : 's'} · ` +
             `${plannedCreates.length} to create · ${plannedUpdates.length} to update · ` +
+            `${drifted.length} edited in the app · ` +
             `${orphans.length} orphan${orphans.length === 1 ? '' : 's'} · ` +
             `${skipped.length} skipped\n`,
     );
+
+    if (drifted.length) {
+        console.log(
+            'REFUSED — edited in the app since the last import (the file would\n' +
+                'overwrite that work). Re-export or fold the changes into the .md,\n' +
+                'or pass --force to overwrite them:',
+        );
+        for (const { file } of drifted) console.log(`  refused  ${file.sourcePath}`);
+        console.log('');
+    }
 
     for (const { file, converted } of plannedCreates) {
         console.log(`  create  ${file.sourcePath}  →  “${converted.title}”`);
@@ -821,7 +922,9 @@ async function main() {
             }
         }
         console.log('\nDRY RUN — nothing was written.\n');
-        process.exit(skipped.length > 0 ? 1 : 0);
+        // A refusal is an outcome that needs the author's attention, exactly like
+        // a skip — a dry run that reported refusals must not exit clean.
+        process.exit(skipped.length > 0 || drifted.length > 0 ? 1 : 0);
     }
 
     // ---- write --------------------------------------------------------------
@@ -838,6 +941,9 @@ async function main() {
                 title: converted.title,
                 tags: converted.tags,
                 pedagogical_role: converted.pedagogicalRole,
+                // D7.4: fingerprint what we WROTE, so the next run can tell an
+                // app-side edit from an untouched draft.
+                source_fingerprint: fingerprintDocument(converted.document),
                 updated_at: new Date().toISOString(),
             });
             updated++;
@@ -864,6 +970,10 @@ async function main() {
                         draft_content: converted.document,
                         tags: converted.tags,
                         pedagogical_role: converted.pedagogicalRole,
+                        // D7.4: a row is guarded from the moment it exists —
+                        // otherwise the very first app edit after a create is
+                        // the one the guard cannot see.
+                        source_fingerprint: fingerprintDocument(converted.document),
                     },
                 ]);
                 created++;
@@ -882,7 +992,10 @@ async function main() {
         }
     }
 
-    console.log(`\ncreated ${created} · updated ${updated} · skipped ${skipped.length}`);
+    console.log(
+        `\ncreated ${created} · updated ${updated} · ` +
+            `refused ${drifted.length} · skipped ${skipped.length}`,
+    );
     if (skipped.length) {
         console.log('\nskipped:');
         for (const { file, error } of skipped) {

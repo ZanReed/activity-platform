@@ -40,6 +40,8 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```explain ` fenced block | an **ungraded self-explanation** prompt (see below) |
 | a ` ```shortanswer ` fenced block | a **graded short-answer** question (rubric optional; see below) |
 | a ` ```essay ` fenced block | a **graded essay** question (word-count target + rubric optional; see below) |
+| a **pipe table** (`\| x \| y \|` + `\|---\|---\|`) | a **table** — cells may hold `{{blanks}}` (see below) ⏳ |
+| a ` ```table ` fenced block | a table whose **headers run down the left** (`header: column`) — see below ⏳ |
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
 | a ` ```callout ` fenced block | a **tinted note box** — info / warning / success / note (see below) |
 | a ` ```meta ` fenced block | the activity's **metadata and settings** — title, course, unit, tags, Bank role, type, submission/revision mode, feedback, calculator — not a body block (see below) |
@@ -71,7 +73,9 @@ The importer is deterministic, additive, and never destructive: anything it does
 
 ## Not supported (degrades to plain text, with a warning)
 
-Tables, fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. (Callouts import via the ` ```callout ` fence and columns via ` ```columns ` — see below. Lists, headings and images *inside* a worked/faded example or a column **do** import as of 2026-08-21 — see the fence sections.)
+Fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. **Any answer inside a degraded construct is masked to `______`** — a `{{3}}` never survives as visible text, so a degraded block can be published without leaking its key.
+
+**Tables are a special case (⏳ above): the syntax below is FINAL and safe to write today**, but the table *block* has not shipped yet, so a table currently imports as one plain paragraph (answers masked). Your file keeps the real table, and one re-import upgrades every table in place once the block lands — see [Tables](#tables-table-fence). (Callouts import via the ` ```callout ` fence and columns via ` ```columns ` — see below. Lists, headings and images *inside* a worked/faded example or a column **do** import as of 2026-08-21 — see the fence sections.)
 
 ## Worked example
 
@@ -360,6 +364,31 @@ SHORT ANSWER / ESSAY (a `shortanswer` or `essay` fence is a graded free-text que
 - Both are teacher-graded — there is no auto-scored key.
   Use ```explain instead when the reflection should be ungraded.
 
+TABLES (a pipe table; cells can hold blanks)
+- Write an ordinary GitHub pipe table. The first row is the header row:
+    | Kilograms | Cost ($) |
+    |---|---:|
+    | 1 | 4.50 |
+    | 2 | {{=9.00}} |
+- Blanks work in a cell exactly as in prose, with every sigil ({{=…}} numeric,
+  {{==…}} math, ?hint, !wrong :: message). The whole table is ONE numbered
+  problem whose blank cells are lettered (a), (b), … — do not number them.
+- Colons in the delimiter row set alignment: |---:| right, |:---:| centred.
+  Right-align numeric columns.
+- Use a ```table fence ONLY when the headers are not across the top:
+    ```table
+    header: column
+    | x | 1 | 2 | 3 |
+    | y | 5 | {{8}} | {{11}} |
+    ```
+  header: takes row (the default), column, both, or none. A plain pipe table
+  is the normal way to write a table — reach for the fence only to move the
+  header axis.
+- Order-independent blanks ({{~…}}) pair by READING ORDER (left to right, then
+  down), so two blanks stacked in the same column are NOT a pair.
+- No merged cells; every row has the same number of cells. A cell holds one
+  line — no lists, no images. A caption is a paragraph above the table.
+
 COLUMNS (a `columns` fence lays blocks out side by side)
 - ```columns … ``` with columns divided by a line that is only ---, then one
   block per line inside each column:
@@ -482,7 +511,7 @@ OTHER
 - Don't use tables, blockquotes, links, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  ```columns, ```callout, ```definitions, ```meta, and ```reference — only the
+  ```columns, ```callout, ```definitions, ```meta, ```table, and ```reference — only the
   single
   outer block that wraps the whole reply and those fences are allowed;
   anything unsupported imports as plain text.
@@ -734,6 +763,82 @@ solution: Undo the operations in the reverse order they were applied.
   A continuation line belongs to whichever of `prompt:`, `answer:` or `solution:` came last, so **write the prompt first and the keys after it**. (`starter:`, `words:` and `rubric:` are single-line and don't capture the lines beneath them.)
 - **Points come from the rubric, never from `answer:`.** `answer:` says *what* is correct; each `rubric:` line says *how many points* its criterion is worth. A question with no rubric is worth **1 point**.
 - Neither block is auto-scored; both show up under "Written responses" in the submissions dashboard for grading. Both are **numbered** on screen and on paper, like every other question a teacher marks.
+
+## Tables (```table fence)
+
+> ⏳ **Frozen syntax, not yet live.** Everything in this section is the final
+> contract — write it now and it will never need rewriting. Until the table
+> block ships, a table imports as one plain paragraph **with every answer
+> masked to `______`**, and the import warns you. The structure stays in your
+> markdown file, so re-running the import after the block lands upgrades every
+> table in place. Nothing you write today is wasted, and nothing leaks.
+
+### The ordinary case — a pipe table
+
+Write a GitHub-style pipe table. The first row is the header row.
+
+```markdown
+| Kilograms | Cost ($) |
+|---|---|
+| 1 | 4.50 |
+| 2 | {{=9.00}} |
+| 3 | {{=13.50}} |
+```
+
+Becomes one **table** — a single numbered problem whose blank cells are lettered
+(a), (b), … rather than each consuming a problem number.
+
+**Blanks work in cells exactly as they do in prose** — every sigil applies
+(`{{=…}}` numeric, `{{==…}}` math, `?hint`, `!wrong :: message`). Prefer a
+numeric blank for a numeric cell, same as anywhere else.
+
+### Headers down the left — the ```table fence
+
+A pipe table always puts its headers across the top. Many algebra tables are
+transposed (`x` down the left, `y` across), and some have no headers at all.
+Wrap the same pipe rows in a ` ```table ` fence and say which axis carries them:
+
+```markdown
+```table
+header: column
+| x | 1 | 2 | 3 |
+| y | 5 | {{8}} | {{11}} |
+```
+```
+
+`header:` takes `row` (the default — same as a bare pipe table), `column`,
+`both`, or `none`.
+
+Use the fence **only** when you need a non-default header axis; a plain pipe
+table is the normal way to write one.
+
+### Column alignment
+
+The delimiter row's colons carry through to the printed page — `|---:|` is a
+right-aligned column, `|:---:|` centred, `|:---|` or `|---|` left.
+
+```markdown
+| Step | Value |
+|:---|---:|
+| Start | 12.50 |
+```
+
+Right-align numeric columns; it is what makes a table of figures readable on
+paper.
+
+### Watch for
+
+- **Order-independent blanks (`~`) group by READING ORDER**, left to right then
+  top to bottom — the same rule as anywhere else, but worth stating because a
+  table makes columns look like groups. Two blanks that sit one above the other
+  in the same column are **not** adjacent, so `{{~…}}` will not pair them. It
+  pairs cells that are side by side in the same row, or the last cell of a row
+  with the first cell of the next.
+- **Merged cells are not supported** and are not planned. Every row has the same
+  number of cells.
+- **Cells hold a single line** of text, math, and blanks — no lists, no images,
+  no paragraph breaks inside a cell.
+- **A caption** is just a paragraph above the table.
 
 ## Columns blocks (```columns fence)
 

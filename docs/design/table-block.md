@@ -262,7 +262,7 @@ amendment naming the refresh-vs-publish distinction.
 ## 6. Build plan — four slices (D2 ruling)
 
 ```
-Slice 0  FREEZE (buildable NOW — unblocks catalogue authoring)
+Slice 0  FREEZE  ✅ SHIPPED 2026-08-21 (author action: `supabase db push` for 0039)
   ├─ format doc + AI prompt: both table forms, header: key, alignment,
   │    {{blank}}-in-cell, R3 row-major note        (drift guard forces the trio)
   ├─ T1  degrade-branch masks {{…}} + fix :25 comment
@@ -291,6 +291,36 @@ Slice 3  IMPORT MAPPING + UPGRADE
   └─ T4 republish script (dry-run first; ⟪AUTHOR⟫ runs it)
 ```
 
+**AS BUILT — Slice 0, 2026-08-21.** Three things the plan did not predict, all
+found while building and all recorded here rather than in a commit message:
+
+1. **The leak was wider than the outside voice found.** T1 was written as a fix
+   to the `table_open` branch. In fact EVERY degrade path ends at
+   `rawTextParagraph(node.token.content)` — unknown fences (```table itself),
+   code blocks, raw HTML, and each fence parser's failed-parse fallback — and
+   all of them emitted author source verbatim. The mask therefore went into the
+   degrade EMITTERS (`maskBlankSpecs`, keyed on `parseBlankSpec` so it hides
+   exactly what would have become a blank), which covers the paths that do not
+   exist yet. Proven through the real esbuild-bundled node pipeline, not only
+   vitest — this repo has a documented trap where vitest is green about code
+   that cannot run under node.
+2. **The drift guard forbids registering ```table before Slice 3.**
+   `importFormatRegistry.test.ts` scrapes the parser for
+   `node.token.info === '<tag>'` and requires every scraped tag to be a
+   registered fence whose example imports with **no warnings**. So the fence is
+   taught in the doc + prompt (and named in the prompt's allowlist, which is
+   phrased as a prohibition) while deliberately staying out of `FENCES`. It
+   joins the registry in Slice 3, when it can honour the contract. A
+   tag-specific dispatch branch would have to claim a capability that does not
+   exist — so the unknown-fence warning was made to name its tag instead.
+3. **D7.4 needed a migration (0039).** The fingerprint cannot be file-derived —
+   `tiptapToActivity` re-mints UUIDs every call — so it records what the
+   importer WROTE and compares against what is THERE NOW, which is stored state.
+   It hashes a KEY-SORTED serialization because `jsonb` does not preserve key
+   order; without that the guard would report drift on every row of every run
+   and be switched off within a day. NULL means "no fingerprint yet", so the
+   guard self-arms on first re-import instead of needing a backfill.
+
 ## 7. Test matrix (ruling 5A — the plan's test requirements)
 
 **Forced automatically by existing guards** (do not re-write): registry entry, fixture-per-variant,
@@ -318,8 +348,8 @@ leak scan over the new fixtures, block-predicates agreement, format-doc/prompt/i
 | Q17 | 3 | `{{blank}}` in a td → BlankToken in cell content | unit |
 | Q18 | 3 | Stray `\|` in prose stays a paragraph (probe case pinned) | unit |
 | **Q19** | 3 | **CRITICAL regression: previously-degraded (masked) import upgrades to a table node on re-run; file-wins report names the change** | unit |
-| Q20 | 0 | T1 mask: degraded table shows underline, never `{{…}}`; warning retained | unit |
-| Q21 | 0 | D7.4: drifted draft refuses without `--force`, named in output | unit |
+| Q20 ✅ | 0 | T1 mask: degraded table shows underline, never `{{…}}`; warning retained | unit |
+| Q21 ✅ | 0 | D7.4: drifted draft refuses without `--force`, named in output | unit |
 | Q22 | 3 | T4 script: dry-run lists exactly already-published+changed rows; never touches never-published drafts | unit |
 
 ## 8. Failure modes (per new codepath)

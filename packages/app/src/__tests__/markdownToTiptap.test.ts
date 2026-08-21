@@ -2860,6 +2860,81 @@ describe('```columns ruled/unruled option (2026-08-21)', () => {
     });
 });
 
+// =============================================================================
+// Q20 — blank masking on the degrade paths (table-block eng review, T1)
+// -----------------------------------------------------------------------------
+// Every unsupported construct degrades by emitting its own SOURCE as literal
+// text, and that source carries the answer key. These pin that a degraded
+// construct can never show one — on screen or on paper — while the FILE keeps
+// the real spec for the eventual upgrading re-import.
+// =============================================================================
+
+describe('degrade paths mask blank specs (T1)', () => {
+    /** All text emitted by an import, flattened. */
+    function allText(md: string): string {
+        const out: string[] = [];
+        const walk = (n: JSONContent) => {
+            if (typeof n.text === 'string') out.push(n.text);
+            (n.content ?? []).forEach(walk);
+        };
+        convert(md).blocks.forEach(walk);
+        return out.join(' ');
+    }
+
+    it('a pipe table degrades without leaking the answer', () => {
+        const text = allText(
+            '| Item | Cost |\n|---|---|\n| Apples | {{3}} |\n',
+        );
+        expect(text).not.toContain('{{');
+        expect(text).not.toContain('3');
+        expect(text).toContain('______');
+        // The prose around the blank still survives — this is a mask, not a drop.
+        expect(text).toContain('Apples');
+    });
+
+    it('an unknown fence — ```table today — degrades without leaking', () => {
+        const text = allText(
+            '```table\nheader: column\n| x | 1 |\n| y | {{7}} |\n```',
+        );
+        expect(text).not.toContain('{{');
+        expect(text).not.toContain('7');
+        expect(text).toContain('______');
+    });
+
+    it('masks every sigil form the blank grammar accepts', () => {
+        // Numeric, math, interchangeable, and alternates-with-hint — each would
+        // print its answer verbatim if the mask keyed off a narrower pattern.
+        const text = allText(
+            '```table\n{{=3.14 +- 0.01}} {{==2a}} {{~x+2}} {{Paris | ?capital}}\n```',
+        );
+        expect(text).not.toContain('3.14');
+        expect(text).not.toContain('2a');
+        expect(text).not.toContain('x+2');
+        expect(text).not.toContain('Paris');
+        expect(text).not.toContain('capital');
+    });
+
+    it('leaves a sentinel the PARSER would keep literal alone', () => {
+        // Empty canonical is not a blank (parseBlankSpec returns null), so the
+        // mask must not claim it either — the mask and the parser agree by
+        // construction because they share parseBlankSpec.
+        const text = allText('```table\n{{   }}\n```');
+        expect(text).toContain('{{');
+    });
+
+    it('does NOT touch a literal {{…}} outside a degrade path', () => {
+        // A ```worked body keeps `{{…}}` literal BY DESIGN (the example shows
+        // the answer). That is a parse path, not a degrade path.
+        const text = allText('```worked\nTitle\n---\nStep {{x+2}}\n```');
+        expect(text).toContain('{{x+2}}');
+    });
+
+    it('warns that the table degraded, and says the re-import upgrades it', () => {
+        const { warnings } = convert('| a | b |\n|---|---|\n| 1 | 2 |\n');
+        expect(warnings.join(' ')).toMatch(/Re-import/i);
+    });
+});
+
 /** Remove `attrs: {}` so an absent-vs-empty attrs difference is not a failure. */
 function dropEmptyAttrs(nodes: JSONContent[]): JSONContent[] {
     const walk = (node: JSONContent): JSONContent => {

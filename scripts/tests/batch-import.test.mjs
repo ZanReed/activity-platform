@@ -38,14 +38,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
+    canonicalJson,
     convertOne,
     describeChanges,
     findMarkdownFiles,
+    fingerprintDocument,
     loadPipeline,
     makeDb,
     parseArgs,
     planIdentity,
     rejectUnusableKey,
+    splitDriftedUpdates,
     titleFromPath,
 } from '../batch-import.mjs';
 
@@ -520,4 +523,96 @@ test('§D describeChanges renders field moves and tag deltas', () => {
     assert.match(lines[0], /title.*“Old”.*→.*“New”/);
     assert.match(lines[1], /unit.*<unset>.*→.*“Unit 3”/);
     assert.equal(lines[2], 'tags   +a  -b');
+});
+
+// =============================================================================
+// §G — the drift guard (D7.4, migration 0039)
+// -----------------------------------------------------------------------------
+// "THE FILE WINS" is the importer's headline property and its sharpest edge: an
+// activity edited in the app after import is silently clobbered by the next
+// run. Before this, the only thing preventing that was a sentence in a design
+// doc. These bind the mechanism that replaced the sentence.
+//
+// The subtle one is §G's first test. The fingerprint compares a document we
+// serialized here against the same document after a round trip through `jsonb`,
+// which does NOT preserve key order — so a naive JSON.stringify hash would
+// report drift on every row of every run, and the guard would be switched off
+// within a day of shipping.
+// =============================================================================
+
+test('§G the fingerprint survives jsonb key reordering', () => {
+    const written = { meta: { title: 'A', course: 'B' }, sections: [{ id: 'x' }] };
+    // What jsonb hands back: same value, different key order.
+    const readBack = { sections: [{ id: 'x' }], meta: { course: 'B', title: 'A' } };
+    assert.equal(canonicalJson(written), canonicalJson(readBack));
+    assert.equal(fingerprintDocument(written), fingerprintDocument(readBack));
+});
+
+test('§G the fingerprint changes when the content actually changes', () => {
+    const a = { meta: { title: 'A' } };
+    const b = { meta: { title: 'B' } };
+    assert.notEqual(fingerprintDocument(a), fingerprintDocument(b));
+});
+
+test('§G an absent draft has no fingerprint (never a hash of "null")', () => {
+    assert.equal(fingerprintDocument(null), null);
+    assert.equal(fingerprintDocument(undefined), null);
+});
+
+test('§G an untouched draft is updatable; an app-edited one is REFUSED', () => {
+    const doc = { meta: { title: 'Factoring' }, sections: [] };
+    const untouched = {
+        file: { sourcePath: 'a.md' },
+        row: { draft_content: doc, source_fingerprint: fingerprintDocument(doc) },
+    };
+    const edited = {
+        file: { sourcePath: 'b.md' },
+        // The author fixed a typo in the app: the stored fingerprint is now of
+        // a draft that no longer exists.
+        row: {
+            draft_content: { meta: { title: 'Factoring Quadratics' }, sections: [] },
+            source_fingerprint: fingerprintDocument(doc),
+        },
+    };
+
+    const { safe, drifted } = splitDriftedUpdates([untouched, edited]);
+    assert.deepEqual(
+        safe.map((e) => e.file.sourcePath),
+        ['a.md'],
+    );
+    assert.deepEqual(
+        drifted.map((e) => e.file.sourcePath),
+        ['b.md'],
+    );
+});
+
+test('§G --force overwrites a drifted row, deliberately', () => {
+    const doc = { meta: { title: 'X' } };
+    const edited = {
+        file: { sourcePath: 'b.md' },
+        row: { draft_content: { meta: { title: 'Y' } }, source_fingerprint: fingerprintDocument(doc) },
+    };
+    const { safe, drifted } = splitDriftedUpdates([edited], { force: true });
+    assert.equal(drifted.length, 0);
+    assert.equal(safe.length, 1);
+});
+
+test('§G a row with NO recorded fingerprint is allowed — the guard self-arms', () => {
+    // Every row imported before 0039 is in this state. Refusing them would
+    // block a catalogue that predates the guard; allowing them (and writing a
+    // fingerprint on this run) arms it without a backfill.
+    const { safe, drifted } = splitDriftedUpdates([
+        {
+            file: { sourcePath: 'legacy.md' },
+            row: { draft_content: { meta: { title: 'Legacy' } }, source_fingerprint: null },
+        },
+    ]);
+    assert.equal(drifted.length, 0);
+    assert.equal(safe.length, 1);
+});
+
+test('§G --force parses in either position', () => {
+    assert.equal(parseArgs(['folder', '--owner', 'a@b.c', '--force']).force, true);
+    assert.equal(parseArgs(['--force', 'folder', '--owner=a@b.c']).force, true);
+    assert.equal(parseArgs(['folder', '--owner', 'a@b.c']).force, false);
 });

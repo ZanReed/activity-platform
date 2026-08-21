@@ -70,9 +70,21 @@ finding.
   **The complete set is 13:** `graph`, `mc`, `match`, `order`, `dataplot`,
   `numberline`, `objectives`, `explain`, `worked`, `faded`, `shortanswer`,
   `essay`, `columns`. Every other fence → plain text with a warning.
-- Anything unsupported (tables, blockquotes, links, raw HTML, other code
+- Anything unsupported (blockquotes, links, raw HTML, other code
   fences, strikethrough) degrades to text with a human-readable warning; never
-  throws (`markdownToTiptap.ts:355–389`, `604–623`).
+  throws (`markdownToTiptap.ts:355–389`, `604–623`). **Every degrade path masks
+  blank specs** (`maskBlankSpecs`, 2026-08-21): degraded source is emitted
+  verbatim, so an unmasked `{{3}}` reached the student's screen and the printed
+  page — see docs/design/table-block.md §1d.
+- **Tables are a documented FROZEN syntax, not a plain gap** (table-block eng
+  review R11, 2026-08-21): a GFM pipe table, plus a ` ```table ` fence carrying
+  `header: row|column|both|none` for a non-default header axis, with `{{…}}`
+  blanks live in cells. The syntax is final and safe to author against today;
+  the table BLOCK has not shipped, so a table still degrades to masked plain
+  text and upgrades in place on a re-import once it does. The fence is
+  deliberately absent from `importFormatRegistry.FENCES` until then — that
+  registry indexes what the parser actually dispatches, and its guard test
+  requires a registered fence's example to import with no warnings.
 
 **Three artifacts must stay in sync** (per `markdownImportPrompt.ts:8–10`):
 the parser (`markdownToTiptap.ts`), the prompt (`markdownImportPrompt.ts`), and
