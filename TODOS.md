@@ -20,31 +20,33 @@ are pinned to 1 and stripped on paste), nested blocks in cells, a `caption`
 field, and column-scoped `~` grouping. The reasoning is in the design doc's
 §10 — check there before adding any of them.
 
-## The editor e2e lane is RED, and CI has never run it
+## Put the editor e2e lane in CI (its red spec is fixed; the lane is green)
 
-**What:** `e2e/advanced-drawer.e2e.ts` → *"a toggle simple setting flips in place;
-no Advanced button"* fails: it selects a `fadedWorkedExample`, asserts its command
-bar has no **Advanced** button, and finds one. Fix the assertion or the bar,
-whichever is actually wrong — then decide whether the lane joins CI.
+**What:** decide whether `--project=chromium` — the 224-spec editor lane, the
+only browser coverage of the authoring surface — joins CI, and on what cadence.
 
-**Why it went unseen:** `.github/workflows/ci.yml` runs `playwright test print-`
-and `--project=perf --project=sw --project=student --project=a11y`. It never runs
-`--project=chromium`, which is the **221-spec editor lane** — the biggest browser
-suite in the repo and the only coverage for the authoring surface. A red spec
-there is invisible to every push. Found 2026-08-21 while building the table
-editor slice; **proved pre-existing** by running the same spec in a clean
-worktree at `a54d391`, before any of that slice's changes.
+**Status:** the spec that was red is FIXED (2026-08-21). `advanced-drawer.e2e.ts`
+asserted that a `fadedWorkedExample` has no **Advanced** button; that was true
+when written and stopped being true when the viewer-numbering slice gave the box
+a page label under `advanced: [numberingGroup]`. The assertion outlived its
+reason. The no-Advanced property was real, so it moved to `selfExplanation`
+(whose settings genuinely are all simple) and gained a positive pole on faded, so
+neither half can now pass vacuously. **The whole lane is green: 224 passed.**
+
+**Why it still matters:** `.github/workflows/ci.yml` runs `playwright test print-`
+and `--project=perf --project=sw --project=student --project=a11y`. It has never
+run the editor lane, which is why a stale assertion sat red long enough for
+nobody to know. A green lane nobody runs goes red again.
 
 **Pros:** the authoring surface stops being the one lane nobody watches.
-**Cons:** it is ~1.5 min of browser time per push, and it needs a dev server
-rather than the built dist the other lanes share — which is probably why it was
-left out. A cheaper option is a nightly or a manual dispatch.
+**Cons:** ~1.5 min per push, and it needs a dev server rather than the built dist
+the other browser lanes share — probably why it was left out. A nightly or a
+manual dispatch would get most of the value for none of the per-push cost.
 
-**Also worth knowing:** `e2e/blank-signifier.e2e.ts` → *"⌘⇧B / Ctrl⇧B inserts a
-blank and opens its popover focused"* is **flaky under parallel load** — it fails
-in a full-lane run and passes in isolation and on re-run. If the lane joins CI,
-that flake will need addressing first or it becomes the reason people ignore the
-lane.
+**⚠ Do the flake first, or the lane will be ignored:**
+`e2e/blank-signifier.e2e.ts` → *"⌘⇧B / Ctrl⇧B inserts a blank and opens its
+popover focused"* fails under parallel load and passes in isolation and on
+re-run. In CI that reads as a random red.
 
 **Depends on:** nothing.
 

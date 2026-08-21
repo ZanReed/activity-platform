@@ -109,14 +109,23 @@ test('Advanced opens the overflow (word count + rubric)', async ({ page }) => {
     expect(await attrOfFirst(page, 'essay', 'wordMin')).toBe(150);
 });
 
-test('a toggle simple setting flips in place; no Advanced button', async ({
+test('a toggle simple setting flips in place, without opening the drawer', async ({
     page,
 }) => {
+    // THE SUBJECT IS THE TOGGLE: a `simple` setting acts from the bar itself and
+    // never opens the Advanced drawer. That is what this test is for.
+    //
+    // It also USED to assert "…and faded has no Advanced button", which was true
+    // when written and stopped being true when the viewer-numbering slice gave
+    // the box a page label (blockControls' `advanced: [numberingGroup]` — the
+    // box has always been ONE numbered problem, and that group is what lets a
+    // teacher relabel it "Warm-up" or unnumber it). The assertion outlived its
+    // reason and sat red in a lane CI never runs. The no-Advanced property is
+    // real and still worth pinning, so it moved to a block that actually has
+    // only simple settings — see the test below.
     await insertAndSelect(page, 'insertFadedWorkedExample', 'fadedWorkedExample');
     await gear(page).click();
     const bar = page.locator(BAR);
-    // Faded has only a toggle → no Advanced disclosure.
-    await expect(bar.getByRole('button', { name: 'Advanced' })).toHaveCount(0);
     const toggle = bar.getByRole('button', { name: 'Show step labels' });
     await expect(toggle).toBeVisible();
     await expect(toggle).toHaveAttribute('aria-pressed', 'true'); // default on
@@ -124,8 +133,36 @@ test('a toggle simple setting flips in place; no Advanced button', async ({
     expect(await attrOfFirst(page, 'fadedWorkedExample', 'showStepLabels')).toBe(
         false,
     );
-    // Flipping does NOT open a drawer.
+    // Flipping does NOT open a drawer — the whole point of a `simple` setting.
     await expect(page.locator(DRAWER)).toHaveCount(0);
+    // The toggle reports its new state in place, still in the bar.
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('a block whose settings are ALL simple shows no Advanced disclosure', async ({
+    page,
+}) => {
+    // The other half of the contract the faded test used to carry: the
+    // disclosure appears only when a block HAS advanced settings. self
+    // explanation's only setting is its placeholder, so it must not show one.
+    // Bound to the descriptor rather than to a hunch — blockControls declares
+    // `simple: [placeholderField]` and no `advanced` for this type.
+    await insertAndSelect(page, 'insertSelfExplanation', 'selfExplanation');
+    await gear(page).click();
+    const bar = page.locator(BAR);
+    await expect(bar.getByRole('button', { name: 'Placeholder' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Advanced' })).toHaveCount(0);
+});
+
+test('a block WITH advanced settings shows the disclosure', async ({ page }) => {
+    // The positive pole, so the test above cannot pass by the button simply
+    // never rendering anywhere. Faded is the case that changed: its numbering
+    // group lives under Advanced.
+    await insertAndSelect(page, 'insertFadedWorkedExample', 'fadedWorkedExample');
+    await gear(page).click();
+    await expect(
+        page.locator(BAR).getByRole('button', { name: 'Advanced' }),
+    ).toHaveCount(1);
 });
 
 test('the rubric (a custom field) lives under Advanced and edits the node', async ({

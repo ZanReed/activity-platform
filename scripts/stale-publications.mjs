@@ -37,6 +37,8 @@
 // reason batch-import.mjs talks HTTP directly.
 // =============================================================================
 
+import { pathToFileURL } from 'node:url';
+
 import { canonicalJson } from './batch-import.mjs';
 
 /**
@@ -193,7 +195,14 @@ async function main() {
     );
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// pathToFileURL, NOT `file://${argv[1]}` — this repo's checkout path contains a
+// space, so the naive form compares an unencoded path against an encoded URL,
+// never matches, and the script exits 0 having printed NOTHING. That is worse
+// than a crash here: a report that silently prints nothing reads exactly like
+// "nothing to republish". Caught the first time it ran (2026-08-21);
+// batch-import.mjs had it right and this copied the wrong idiom. §H spawns the
+// script to prove main() actually fires.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     main().catch((err) => {
         console.error(`\n${err.message}\n`);
         process.exit(1);

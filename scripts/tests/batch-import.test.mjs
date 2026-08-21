@@ -35,7 +35,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 import {
     canonicalJson,
@@ -633,6 +635,8 @@ test('§G --force parses in either position', () => {
 
 import { contentSignature, planRepublish } from '../stale-publications.mjs';
 
+const repoRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
+
 const doc = (title, extra = {}) => ({
     schemaVersion: 2,
     meta: { title },
@@ -758,4 +762,20 @@ test('§H a published row with no snapshot is reported as unpublished, not stale
     ]);
     assert.equal(stale.length, 0);
     assert.equal(unpublished.length, 1);
+});
+
+test('§H the report script actually RUNS — its main guard fires', () => {
+    // THE BUG THIS EXISTS FOR: the guard was `import.meta.url ===
+    // \`file://${process.argv[1]}\``, and this repo's path contains a space, so
+    // the unencoded left side never equalled the percent-encoded right side.
+    // main() never ran, the script exited 0, and it printed NOTHING — which
+    // reads exactly like "no stale publications" to whoever ran it.
+    //
+    // So this does not test the expression; it RUNS the script and demands it
+    // speak. Invoked with no --owner, so it takes the usage path and needs no
+    // credentials and no network.
+    const script = join(repoRoot, 'scripts/stale-publications.mjs');
+    const result = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+    assert.equal(result.status, 2, 'expected the usage exit code');
+    assert.match(result.stderr, /Missing --owner/);
 });
