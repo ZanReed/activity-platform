@@ -541,6 +541,43 @@
   font-size: var(--type-meta);
 }
 
+/* Tables. The grid IS the block: a real <table> with collapsed borders, so a
+   row is held together by one element rather than by two columns' rules
+   happening to line up (the ```columns workaround's structural defect). */
+.viewer-table {
+  overflow-x: auto;
+}
+
+.viewer-table__grid {
+  border-collapse: collapse;
+  max-width: 100%;
+  width: 100%;
+}
+
+.viewer-table__cell {
+  border: 1px solid var(--vw-color-line-strong);
+  padding: var(--space-2);
+  text-align: left;
+  vertical-align: top;
+}
+
+/* Author-set column alignment. Right-aligned number columns are what makes a
+   table of figures readable, which is why this is authored data. */
+.viewer-table__cell[data-align='center'] {
+  text-align: center;
+}
+
+.viewer-table__cell[data-align='right'] {
+  text-align: right;
+}
+
+/* Header cells are <th>; weight and a tinted ground carry the distinction on
+   screen, and the border style carries it on paper (grayscale-safe). */
+.viewer-table__grid th.viewer-table__cell {
+  background: var(--vw-color-raised);
+  font-weight: 700;
+}
+
 /* Multiple choice: full-row targets, so the whole option is tappable. */
 .viewer-mc__fieldset {
   border: none;
@@ -1487,6 +1524,7 @@
   [data-block-type='problem'],
   [data-block-type='self_explanation'],
   [data-block-type='short_answer'],
+  [data-block-type='table'],
   [data-block-type='worked_example'] {
     break-inside: avoid;
   }
@@ -1530,6 +1568,46 @@
   math-field::part(virtual-keyboard-toggle),
   math-field::part(menu-toggle) {
     display: none;
+  }
+
+  /* ---- Treatment: data-table ----------------------------------------------
+
+     The grid prints as ink rules, and a blank cell becomes a writing line
+     INSIDE its cell. The width cap is the ruled R9 decision: a table wider than
+     the page is capped and its type shrinks, never clipped (half a table is
+     worse than a small one) and never rotated (a page a student has to turn
+     sideways to write on). */
+  .viewer-table {
+    overflow-x: visible;
+  }
+
+  .viewer-table__grid {
+    max-width: 100%;
+    table-layout: fixed;
+  }
+
+  .viewer-table__cell {
+    border: 1px solid var(--vw-color-ink) !important;
+    color: var(--vw-color-ink) !important;
+    overflow-wrap: break-word;
+  }
+
+  .viewer-table__grid th.viewer-table__cell {
+    /* The tinted ground is a screen affordance; on paper the weight and the
+       rule carry the header, so it survives a grayscale photocopier. */
+    background: none !important;
+  }
+
+  /* A blank in a cell is a writing line, not a boxed field — the
+     underline-blanks behaviour scoped inside the grid. min-width is dropped:
+     an 8ch floor inside a narrow column would overflow the cell it sits in. */
+  .viewer-table__cell .viewer-blank__input {
+    background: none !important;
+    border: none !important;
+    border-bottom: 1px solid var(--vw-color-ink) !important;
+    border-radius: 0;
+    min-width: 0;
+    width: 100%;
   }
 
   /* ---- Treatment: choice-letters ------------------------------------------

@@ -29,6 +29,7 @@ import { GraphFigureBlock } from './graph-figure.js';
 import { FadedWorkedExampleBlock } from './faded-worked-example.js';
 import { SelfExplanationBlock } from './self-explanation.js';
 import { ShortAnswerBlock, EssayBlock } from './free-response.js';
+import { TableBlock } from './table.js';
 
 export const Block = z.discriminatedUnion('type', [
   ParagraphBlock,
@@ -53,6 +54,7 @@ export const Block = z.discriminatedUnion('type', [
   ShortAnswerBlock,
   EssayBlock,
   GraphFigureBlock,
+  TableBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -116,6 +118,14 @@ export {
   Rubric,
   RubricCriterion,
 } from './free-response.js';
+export {
+  TableBlock,
+  TableRow,
+  TableCell,
+  TableColumnAlign,
+  tableBlankIds,
+} from './table.js';
+export type { TableBlankSource } from './table.js';
 export {
   AxisConfig,
   PointInteraction,

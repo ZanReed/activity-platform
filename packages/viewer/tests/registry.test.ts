@@ -43,12 +43,26 @@ const numberedUngradable = (type: string) =>
   isPageNumberedType(type, 'display', false);
 
 // Minimal instances for the instance-level predicates. isGradeable reads only
-// `type`, `interaction.type`, and `prompts`, so these probes are sufficient —
-// and the cast is confined to this test.
+// `type`, `interaction.type`, `prompts`, and — since the table block — a cell
+// blank, so these probes carry EVERY gradability signal at once (and the
+// ungradable probe carries each one switched off). A conditional type that adds
+// a new signal must add it here too, or it silently probes as ungradable and
+// this file reports a family disagreement that is really a stale probe.
+// The cast is confined to this test.
 const gradableProbe = (type: BlockType): Block =>
-  ({ type, interaction: { type: 'plot_point' }, prompts: [{}] }) as unknown as Block;
+  ({
+    type,
+    interaction: { type: 'plot_point' },
+    prompts: [{}],
+    rows: [{ id: 'r', cells: [{ id: 'c', content: [{ type: 'blank', id: 'b' }] }] }],
+  }) as unknown as Block;
 const ungradableProbe = (type: BlockType): Block =>
-  ({ type, interaction: { type: 'display' }, prompts: [] }) as unknown as Block;
+  ({
+    type,
+    interaction: { type: 'display' },
+    prompts: [],
+    rows: [{ id: 'r', cells: [{ id: 'c', content: [] }] }],
+  }) as unknown as Block;
 
 describe('registry coverage (the T1 guard)', () => {
   it('has exactly one entry per schema block type — no missing, no stale', () => {
@@ -140,6 +154,7 @@ describe('a11y stories (ruling 6.1A)', () => {
         'ordering',
         'self_explanation',
         'short_answer',
+        'table',
       ].sort(),
     );
   });
@@ -287,6 +302,7 @@ describe('print declarations (faithful to the baseline print layer)', () => {
         'problem',
         'self_explanation',
         'short_answer',
+      'table',
         'worked_example',
       ].sort(),
     );

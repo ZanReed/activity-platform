@@ -326,6 +326,52 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
       },
     ],
   });
+  // A table whose CELLS carry answer material. The point of this entry is the
+  // depth: the blank sits inside rows[].cells[].content[], two levels below any
+  // field the sanitizer's declared strips name, and it is caught only because
+  // the in-band walk descends unconditionally. Sentinels in the answer, the
+  // alternates, the hint and the mistake feedback, so each channel is proven.
+  put('table', {
+    id: uuid(),
+    type: 'table',
+    headerRow: true,
+    headerColumn: false,
+    showCellLabels: true,
+    rows: [
+      {
+        id: uuid(),
+        cells: [
+          { id: uuid(), content: [text('kg')] },
+          { id: uuid(), content: [text('cost')] },
+        ],
+      },
+      {
+        id: uuid(),
+        cells: [
+          { id: uuid(), content: [text('2')] },
+          {
+            id: uuid(),
+            content: [
+              {
+                type: 'blank',
+                id: uuid(),
+                answer: STR,
+                acceptableAnswers: [STR],
+                tolerance: NUM,
+                // NOT a sentinel: `hint` SURVIVES sanitization deliberately (it
+                // shapes the input before any check), exactly as on a prose
+                // blank — the fill_in_blank fixture's HINT_SURVIVES marker is
+                // the same statement. Putting RELEASABLE here would assert the
+                // opposite contract, and the leak suite says so immediately.
+                hint: [text('HINT_SURVIVES')],
+                mistakeFeedback: [{ match: STR, feedback: sentinelInline() }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
   put('faded_worked_example', {
     id: uuid(),
     type: 'faded_worked_example',

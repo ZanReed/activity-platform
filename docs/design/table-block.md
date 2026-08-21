@@ -269,7 +269,7 @@ Slice 0  FREEZE  ✅ SHIPPED 2026-08-21 (author action: `supabase db push` for 0
   ├─ D7.4 import fingerprint + refuse-on-drift (--force)
   └─ bundle capability-inventory §4.B update (TODOS.md item, bundled here)
 
-Slice 1  SCHEMA + VIEWER + SERVER
+Slice 1  SCHEMA + VIEWER + SERVER  ✅ SHIPPED 2026-08-21 (2 author actions: deploy both functions · generate the table print baseline)
   ├─ TableBlock + factory + isGradeable('table') + D7.5 lettering helper
   ├─ registry entry + component + fixtures + a11y + numbering
   ├─ R9 print treatment + printExpectations + baselines
@@ -321,6 +321,36 @@ found while building and all recorded here rather than in a commit message:
    and be switched off within a day. NULL means "no fingerprint yet", so the
    guard self-arms on first re-import instead of needing a backfill.
 
+**AS BUILT — Slice 1, 2026-08-21.** The quartet holds: `tests/tableWalks.test.ts` proves the
+grading walk, the client index and the answer-key extract each return a cell blank's key, and it
+DEMONSTRATES the landmine (give rows a `type` and the grading walk skips the table while the
+sanitizer still strips — nothing leaks, nothing is graded, no alarm sounds). Four corrections the
+plan did not anticipate:
+
+1. **`tableBlankIds` takes a STRUCTURAL shape, not `TableBlock`.** The viewer receives the
+   sanitized projection, whose blank tokens have had `answer`/`acceptableAnswers` stripped and are
+   therefore not assignable to the authored type. That non-assignability IS the answer-key
+   guarantee showing up in the type system, so the helper asks for `{rows?: {cells?: {content?:
+   {type?, id?}[]}[]}[]}` and serves the authored document, the served one and the printed key from
+   one implementation.
+2. **It also had to become defensive.** `isGradeable` runs inside render-path helpers
+   (`familyOf`/`categoryOf`/`pageLabel`) that are called against hollow blocks; a predicate that
+   throws there takes the page down to answer "is this gradable?". Caught by the registry guard.
+3. **The integrity gate needed a table case after all.** A malformed BLANK in a cell was already
+   flagged by the in-band walk (no new code, as designed), but a malformed SKELETON — `rows:
+   'nope'`, a `cells` object — yielded no keys at all, so the section would "check" successfully
+   with the student's table answers unscored. That is the failure the gate exists for, one level
+   down from the section-level `rows` check. It adds no inventory, only problems.
+4. **The editor's numbering-bridge guard demanded an exemption, so it was made SELF-REMOVING.**
+   A table is page-numbered but has no editor node until Slice 2, and a hand-listed exemption would
+   have outlived its reason (this repo's most-repeated defect). The exemption is now DERIVED from
+   whether the editor's ProseMirror schema has the node, with a loud roster test naming the
+   temporary state — so Slice 2 lifts it automatically and has to acknowledge it.
+
+Also: `serialize.ts` gained `case 'table' → null` (the union is exhaustive there, so Slice 1 does
+not compile without it). It is safe ONLY because of the slice order — nothing can put a table in a
+draft until Slice 2 or 3 — and it says so in a comment that calls itself a bug if read later.
+
 ## 7. Test matrix (ruling 5A — the plan's test requirements)
 
 **Forced automatically by existing guards** (do not re-write): registry entry, fixture-per-variant,
@@ -331,13 +361,13 @@ leak scan over the new fixtures, block-predicates agreement, format-doc/prompt/i
 
 | # | Slice | Test | Kind |
 |---|---|---|---|
-| Q1–Q3 | 1 | R1 quartet: grading walk / client index / answer-key extract each return a cell blank's key from a table fixture | unit |
-| Q4 | 1 | `isGradeable('table')`: blank-in-cell ⇒ gradable; blankless ⇒ static (both poles) | unit |
-| Q5 | 1 | `interchangeableWithPrevious` spans a row boundary row-major (both orders accepted, (2,2) rejected) | unit |
-| Q6 | 1 | Malformed cell content hits the integrity gate (present-with-wrong-shape ⇒ problem row) | unit |
-| Q7 | 1 | Blankless table renders unnumbered, no check chrome (2A bound to rendered output) | component |
-| Q8 | 1 | Print: blank cell neutralizes to writing line; no break inside table; aligns honored | print gate + baseline |
-| Q9 | 1 | a11y: cell blank named by row+col headers; letter fallback | a11y lane |
+| Q1–Q3 ✅ | 1 | R1 quartet: grading walk / client index / answer-key extract each return a cell blank's key from a table fixture | unit |
+| Q4 ✅ | 1 | `isGradeable('table')`: blank-in-cell ⇒ gradable; blankless ⇒ static (both poles) | unit |
+| Q5 ✅ | 1 | `interchangeableWithPrevious` spans a row boundary row-major (both orders accepted, (2,2) rejected) | unit |
+| Q6 ✅ | 1 | Malformed cell content hits the integrity gate (present-with-wrong-shape ⇒ problem row) | unit |
+| Q7 ✅ | 1 | Blankless table renders unnumbered, no check chrome (2A bound to rendered output) | component |
+| Q8 ✅ | 1 | Print: blank cell neutralizes to writing line; no break inside table; aligns honored | print gate + baseline |
+| Q9 ✅ | 1 | a11y: cell blank named by row+col headers; letter fallback | a11y lane |
 | Q10 | 2 | Blank popover opens from single host inside a cell; edit persists on immediate close (flushAll) | e2e editor |
 | Q11 | 2 | Drag-reorder table above AND below other blocks | e2e editor |
 | Q12 | 2 | External HTML paste (merged Sheets table) → unmerged, schema-legal cells; span attrs stripped | e2e editor |

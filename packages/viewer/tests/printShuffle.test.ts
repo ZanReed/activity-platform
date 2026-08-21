@@ -280,7 +280,15 @@ describe('the declaration is where it is for a reason', () => {
     // and a get-activity redeploy must be queued (CLAUDE.md's deploy rule, and
     // ruling E5.4's ordering constraint: no answer-bearing activity may be
     // published before that redeploy is verified live).
-    expect(SANITIZER_REV).toBe('1-87a5e78b');
+    //
+    // MOVED AGAIN 2026-08-21, deliberately: '1-87a5e78b' → '1-07e6311d'. The
+    // table block added a registry entry whose sanitize spec declares
+    // `inlineBlankSecrets` — a sanitize-spec change, so the rev moving is again
+    // the mechanism working. Both server bundles are regenerated in the same
+    // commit, and the get-activity redeploy is queued as a pending author
+    // action under the arc's capability-before-content gate (no table can reach
+    // a draft until both functions are live, whichever path writes it).
+    expect(SANITIZER_REV).toBe('1-07e6311d');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

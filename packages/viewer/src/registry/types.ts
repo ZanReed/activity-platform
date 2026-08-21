@@ -137,7 +137,8 @@ export type PrintTreatment =
   | 'letter-bank' /* matching: lettered bank + write-the-letter line per item */
   | 'number-boxes' /* ordering: write-in sequence box per row */
   | 'static-svg' /* interactive canvas prints its server-rendered fallback SVG */
-  | 'writing-box'; /* free text: bordered hand-writing area */
+  | 'writing-box' /* free text: bordered hand-writing area */
+  | 'data-table'; /* table: ruled grid; blank cells neutralize to writing lines */
 
 export interface PrintSpec {
   /** break-inside: avoid — the block stays whole across page/column breaks.

@@ -1542,6 +1542,25 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
             );
             return null;
 
+        case 'table':
+            // TOLERATED, NOT EDITABLE — deliberately, for one slice.
+            //
+            // The table block ships in three steps (docs/design/table-block.md):
+            // schema + viewer + server first, the editor next, the importer
+            // last. This case is what makes step one landable: the Block union
+            // is exhaustive here, so without it the app does not compile.
+            //
+            // It is SAFE only because of that ordering: nothing can put a table
+            // into a draft until the editor (step two) or the importer (step
+            // three) exists, so there is no document for this branch to drop.
+            // The moment the editor slice lands, this returns a real node — and
+            // if you are reading this AFTER that slice shipped, this case is a
+            // bug, not a placeholder.
+            console.warn(
+                `[serialize] No Tiptap mapping for table yet; block omitted from editor view.`,
+            );
+            return null;
+
         default: {
             const _exhaustive: never = block;
             return _exhaustive;

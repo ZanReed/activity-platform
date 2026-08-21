@@ -443,6 +443,45 @@ function visit(
       inv.ordering.push({ blockId: id, authoredOrder: items.map((i) => String(i.id)) });
       break;
     }
+    case 'table': {
+      // A table contributes NO per-type inventory: its gradable content is
+      // blank tokens, already collected (and gated) by the in-band walk above,
+      // wherever in the cells they sit. That is the whole design.
+      //
+      // What that walk cannot see is a SKELETON present with the wrong shape.
+      // `rows: 'nope'`, or a `cells` object, simply yields no keys — so the
+      // section "checks" successfully while the student's table answers go
+      // unscored and unreported. That is the same worst-case the section-level
+      // rows check guards against, one level down, and the reason this case
+      // exists at all despite adding nothing to the inventory.
+      if (bad(block.rows, isArrayV)) {
+        problems.push(`block ${id}: rows is not an array`);
+      }
+      if (Array.isArray(block.rows)) {
+        for (const row of block.rows) {
+          if (!isPlainObject(row)) {
+            problems.push(`block ${id}: a row that is not an object`);
+            continue;
+          }
+          const cells = (row as Record<string, unknown>).cells;
+          if (bad(cells, isArrayV)) {
+            problems.push(`block ${id}: a row whose cells is not an array`);
+            continue;
+          }
+          for (const cell of Array.isArray(cells) ? cells : []) {
+            if (!isPlainObject(cell)) {
+              problems.push(`block ${id}: a cell that is not an object`);
+              continue;
+            }
+            if (bad((cell as Record<string, unknown>).content, isArrayV)) {
+              problems.push(`block ${id}: a cell whose content is not an array`);
+            }
+          }
+        }
+      }
+      break;
+    }
+
     default:
       if (FREE_TEXT_TYPES.has(type)) {
         inv.freeText.push(id);

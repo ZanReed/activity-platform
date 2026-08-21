@@ -38,6 +38,7 @@ import FillInBlank from '../blocks/FillInBlank.js';
 import Ordering from '../blocks/Ordering.js';
 import Matching from '../blocks/Matching.js';
 import WorkedExample from '../blocks/WorkedExample.js';
+import Table from '../blocks/Table.js';
 import FadedWorkedExample from '../blocks/FadedWorkedExample.js';
 
 /**
@@ -69,6 +70,10 @@ export const blockBindings: Partial<
   essay: { loading: 'eager', component: Essay as never },
   worked_example: { loading: 'eager', component: WorkedExample as never },
   faded_worked_example: { loading: 'eager', component: FadedWorkedExample as never },
+  // Eager: a table is text and inputs in a <table> — no canvas, no kit, no
+  // weight worth a lazy boundary, and it sits inline with prose where a
+  // Suspense fallback would flash.
+  table: { loading: 'eager', component: Table as never },
   // The lazy tier: every canvas block pulls graph-kit (and JSXGraph) behind
   // it, which is exactly the weight that tier exists for.
   interactive_graph: {

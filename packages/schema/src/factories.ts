@@ -45,6 +45,7 @@ import type {
   ShortAnswerBlock,
   EssayBlock,
   GraphFigureBlock,
+  TableBlock,
   HeadingLevel,
   CalloutVariant,
 } from './blocks/index.js';
@@ -100,6 +101,25 @@ export function createFadedWorkedExampleBlock(): FadedWorkedExampleBlock {
     title: 'Guided practice',
     content: [],
     showStepLabels: true,
+  };
+}
+
+export function createTableBlock(): TableBlock {
+  // A 2x2 starter with a header row — the smallest thing that reads as a table
+  // rather than as a list, and the shape a teacher edits down or out from.
+  // Blankless, so a freshly inserted table is a stimulus and pulls no problem
+  // number until the teacher puts a blank in a cell (ruling 2A).
+  const cell = () => ({ id: uuid(), content: [] });
+  return {
+    id: uuid(),
+    type: 'table',
+    headerRow: true,
+    headerColumn: false,
+    showCellLabels: true,
+    rows: [
+      { id: uuid(), cells: [cell(), cell()] },
+      { id: uuid(), cells: [cell(), cell()] },
+    ],
   };
 }
 

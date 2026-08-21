@@ -14,8 +14,10 @@
 // =============================================================================
 
 import { describe, expect, it } from 'vitest';
+import { getSchema } from '@tiptap/core';
 import { Block, isPageNumberedType } from '@activity/schema';
 import { PM_NAME_TO_SCHEMA_TYPE } from '../editor/problemNumbering';
+import { buildEditorExtensions } from '../editor/editorExtensions';
 
 const schemaTypes = Block.options.map((option) => option.shape.type.value);
 
@@ -27,20 +29,53 @@ const numberedTypes = schemaTypes.filter((type) =>
 
 // `problem` is page-numbered in the schema but has NO editor mapping at all
 // (serialize drops it; see its tombstone), so it can never appear in a
-// ProseMirror document and needs no bridge entry.
-const NO_EDITOR_FORM = new Set(['problem']);
+// ProseMirror document and needs no bridge entry. It never will.
+const PERMANENTLY_NO_EDITOR_FORM = new Set(['problem']);
+
+// A numbered type the editor cannot yet REPRESENT is unreachable for the same
+// reason — but during a multi-slice build that is a TEMPORARY state, and a
+// hand-listed exemption that outlived it would be exactly the silent
+// mis-numbering this file exists to prevent. So the exemption is DERIVED from
+// the editor's own ProseMirror schema instead of listed: the moment a slice
+// adds the node, the exemption evaporates on its own and the guard below starts
+// demanding the bridge entry. The roster test underneath keeps the temporary
+// state visible rather than quiet.
+const editorSchema = getSchema(buildEditorExtensions());
+const pmNameFor = (schemaType: string) =>
+    schemaType.replace(/_([a-z])/g, (_full, c: string) => c.toUpperCase());
+const hasEditorNode = (schemaType: string) =>
+    editorSchema.nodes[pmNameFor(schemaType)] !== undefined;
 
 describe('the editor numbering bridge ↔ the schema numbering rule', () => {
     it('every numbered schema type has a bridge entry', () => {
         const mapped = new Set(Object.values(PM_NAME_TO_SCHEMA_TYPE));
         for (const type of numberedTypes) {
-            if (NO_EDITOR_FORM.has(type)) continue;
+            if (PERMANENTLY_NO_EDITOR_FORM.has(type)) continue;
+            if (!hasEditorNode(type)) continue;
             expect(
                 mapped.has(type),
                 `${type} is page-numbered but problemNumbering.ts cannot see it — ` +
                     'the editor would skip it and mis-number every question after it',
             ).toBe(true);
         }
+    });
+
+    it('only the types we KNOW have no editor form are exempt', () => {
+        // The exemption above is derived, which makes it self-healing but also
+        // silent. This is the loud half: it names exactly which numbered types
+        // the editor cannot represent today, so a surprise exemption (someone
+        // renamed a node) fails here, and a temporary one (a block mid-build)
+        // has to be acknowledged when it ends.
+        //
+        //   problem — permanent; no editor mapping, ever.
+        //   table   — TEMPORARY. The table block ships schema+viewer first and
+        //             the editor next (docs/design/table-block.md). When that
+        //             slice adds the `table` node, this list drops to
+        //             ['problem'] and the bridge entry becomes mandatory.
+        const exempt = numberedTypes
+            .filter((type) => !hasEditorNode(type))
+            .sort();
+        expect(exempt).toEqual(['problem', 'table']);
     });
 
     it('the bridge names no type the schema does not have', () => {

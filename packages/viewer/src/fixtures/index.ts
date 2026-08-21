@@ -432,6 +432,77 @@ function authoredRawByType(
       },
     ],
   });
+  put('table', {
+    id: fid(),
+    type: 'table',
+    // A rates table — the exact shape the pilot's Algebra I activities were
+    // faking with a ```columns fence, and the reason this block exists.
+    // headerRow + a right-aligned number column, two blanks so the sub-part
+    // letters (a)/(b) are exercised, and real answer keys so the sanitizer
+    // visibly strips something (the fixtures' realism guard).
+    headerRow: true,
+    headerColumn: true,
+    columnAligns: ['left', 'right'],
+    showCellLabels: true,
+    rows: [
+      {
+        id: fid(),
+        cells: [
+          { id: fid(), content: [text('Kilograms')] },
+          { id: fid(), content: [text('Cost ($)')] },
+        ],
+      },
+      {
+        id: fid(),
+        cells: [
+          { id: fid(), content: [text('1')] },
+          { id: fid(), content: [text('4.50')] },
+        ],
+      },
+      {
+        id: fid(),
+        cells: [
+          { id: fid(), content: [text('2')] },
+          {
+            id: fid(),
+            content: [
+              {
+                type: 'blank',
+                id: fid(),
+                answer: '9.00',
+                acceptableAnswers: ['9', '9.0'],
+                answerType: 'numeric',
+                width: 6,
+                hint: [text('Twice one kilogram.')],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: fid(),
+        cells: [
+          { id: fid(), content: [text('3')] },
+          {
+            id: fid(),
+            content: [
+              {
+                type: 'blank',
+                id: fid(),
+                answer: '13.50',
+                acceptableAnswers: ['13.5'],
+                answerType: 'numeric',
+                width: 6,
+                mistakeFeedback: [
+                  { match: '9.00', feedback: [text('That is the cost of 2 kg.')] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
   put('faded_worked_example', {
     id: fid(),
     type: 'faded_worked_example',

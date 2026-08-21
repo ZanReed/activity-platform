@@ -268,6 +268,56 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     },
   ],
 
+  'data-table': [
+    {
+      id: 'table/grid-ruled',
+      rule:
+        'The table prints as a ruled grid. This is the whole reason the block ' +
+        'exists: the ```columns workaround drew its dividers PER COLUMN, so a ' +
+        'cell whose label wrapped desynced the two columns\' rules. A real ' +
+        'border on the cell is what holds a row together on paper.',
+      target: '.viewer-table__cell',
+      // Solid: the plain grid rule. The border-STYLE vocabulary carries meaning
+      // for callouts (variant in grayscale); a table's rules mean only "cell".
+      expect: { kind: 'boxed', style: 'solid' },
+    },
+    {
+      id: 'table/blank-bare-underline',
+      rule:
+        'A blank cell neutralizes to a bare writing line, exactly as a blank ' +
+        'in prose does — the underline-blanks behaviour, scoped inside a cell.',
+      target: '.viewer-table__cell .viewer-blank__input',
+      expect: { kind: 'bare-underline' },
+    },
+    {
+      id: 'table/no-verdict-fill',
+      rule:
+        'Correct/incorrect fills are neutralized — a printed worksheet has no ' +
+        'scored state to convey.',
+      target: '.viewer-table__cell .viewer-blank__input',
+      expect: {
+        kind: 'computed',
+        property: 'background-color',
+        oneOf: ['transparent', 'rgba(0, 0, 0, 0)'],
+      },
+    },
+    {
+      id: 'table/ink-not-paper',
+      rule: 'Cell text and rules print as ink, never as a screen-theme tint.',
+      target: '.viewer-table__cell',
+      expect: { kind: 'ink-not-paper' },
+    },
+    {
+      id: 'table/capped-width',
+      rule:
+        'A table wider than the page is capped rather than clipped or rotated ' +
+        '(ruling R9): the author\'s decision, not a discovery made in a ' +
+        'classroom with half a table missing.',
+      target: '.viewer-table__grid',
+      expect: { kind: 'max-width-capped' },
+    },
+  ],
+
   'choice-letters': [
     {
       id: 'mc/inputs-hidden',

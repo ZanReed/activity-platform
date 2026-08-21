@@ -103,6 +103,11 @@ export {
   Rubric,
   RubricCriterion,
   GraphFigureBlock,
+  TableBlock,
+  TableRow,
+  TableCell,
+  TableColumnAlign,
+  tableBlankIds,
 } from './blocks/index.js';
 export type { HeadingLevel, CalloutVariant } from './blocks/index.js';
 
@@ -216,6 +221,7 @@ export {
   createWorkedExampleBlock,
   createFadedWorkedExampleBlock,
   createGraphFigureBlock,
+  createTableBlock,
   createSelfExplanationBlock,
   createShortAnswerBlock,
   createEssayBlock,

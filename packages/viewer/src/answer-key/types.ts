@@ -162,6 +162,10 @@ export const ANSWER_KEY_COVERAGE: Readonly<
     // viewer-only improvement rather than assert it on both surfaces.
     note: 'renderer printed empty gaps; the viewer fills them (viewer-only)',
   },
+  // A table's cell blanks ARE blank tokens, found by the same unconditional
+  // in-band walk that finds them in prose — no per-type extractor, and none
+  // wanted: the day a new block embeds blanks, its key is already correct.
+  table: { via: 'in-band' },
   multiple_choice: { via: 'extractor' },
   matching: { via: 'extractor' },
   ordering: { via: 'extractor' },

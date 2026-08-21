@@ -49,6 +49,7 @@ import {
     createShortAnswerBlock,
     createEssayBlock,
     createBlankToken,
+    createTableBlock,
     Block,
 } from '@activity/schema';
 import { activityToTiptap } from '../lib/serialize';
@@ -163,6 +164,19 @@ function representativeBlock(type: string): Block {
             const block = createEssayBlock();
             block.prompt = [{ type: 'text', text: 'Write an essay.', marks: [] }];
             block.wordCountHint = { min: 200, max: 300 };
+            return block;
+        }
+        case 'table': {
+            // A blank-bearing table: the guard's job is to prove the editor can
+            // HOLD what the schema allows, so a hollow one would be vacuous.
+            // Serializes to null for now (see serialize.ts's `case 'table'`),
+            // which this guard reads as "no editor mapping" and skips — the
+            // same path callout and problem take.
+            const block = createTableBlock();
+            const [first] = block.rows;
+            if (first?.cells[1]) {
+                first.cells[1].content = [createBlankToken('9.00')];
+            }
             return block;
         }
         default:

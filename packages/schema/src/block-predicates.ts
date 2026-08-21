@@ -29,6 +29,7 @@
 // =============================================================================
 
 import type { Block } from './blocks/index.js';
+import { tableBlankIds } from './blocks/table.js';
 import type { BlockLabel } from './label.js';
 
 // The schema block types that always draw a "Problem N" (the display-graph
@@ -59,7 +60,13 @@ const ALWAYS_NUMBERED_TYPES: ReadonlySet<string> = new Set([
 export function isPageNumberedType(
   type: string,
   interactionType?: string,
-  hasPrompts?: boolean,
+  // "This block's CONTENT carries gradable items" — Model A gaps for a
+  // math_block, a blank in some cell for a table. One flag rather than one per
+  // type: both ask the same question, and the two call sites that answer it
+  // (isPageNumbered here, problemNumberAt in the editor) each compute it from
+  // whatever shape they hold. Named `hasPrompts` until the table block joined
+  // (2026-08-21) and needed the identical rule.
+  hasGradableContent?: boolean,
 ): boolean {
   if (ALWAYS_NUMBERED_TYPES.has(type)) return true;
   // Only a graded interaction is numbered; a display (static) chart is ungraded
@@ -69,7 +76,12 @@ export function isPageNumberedType(
   }
   // A math_block is numbered only when it carries Model A in-equation gaps; a
   // plain display equation is ungraded content.
-  if (type === 'math_block') return hasPrompts === true;
+  if (type === 'math_block') return hasGradableContent === true;
+  // A table is numbered only when some cell holds a blank. A blankless table is
+  // a stimulus — a rates chart to READ — and numbering it would consume a
+  // worksheet number for something nobody answers. Derived from content, never
+  // from a flag, so deleting the last blank cannot leave a phantom question.
+  if (type === 'table') return hasGradableContent === true;
   return false;
 }
 
@@ -83,11 +95,13 @@ export function isPageNumbered(block: Block): boolean {
     'interaction' in block
       ? (block.interaction as { type?: string } | undefined)?.type
       : undefined;
-  const hasPrompts =
+  const hasGradableContent =
     block.type === 'math_block'
       ? (block.prompts?.length ?? 0) > 0
-      : undefined;
-  return isPageNumberedType(block.type, interactionType, hasPrompts);
+      : block.type === 'table'
+        ? tableBlankIds(block).length > 0
+        : undefined;
+  return isPageNumberedType(block.type, interactionType, hasGradableContent);
 }
 
 // What a block shows in its number slot on the page, and whether it consumes a
@@ -138,6 +152,13 @@ export function isGradeable(block: Block): boolean {
     case 'math_block':
       // Model A in-equation gaps. Optional + no default, so guard the length.
       return (block.prompts?.length ?? 0) > 0;
+    // A table is a QUESTION exactly when some cell holds a blank, and a
+    // stimulus otherwise (docs/design/table-block.md, ruling 2A). Derived from
+    // content rather than an authored flag: a flag can drift, and every drift
+    // is either a phantom question in the check payload or a real one that
+    // never gets numbered. This is the math_block rule, verbatim.
+    case 'table':
+      return tableBlankIds(block).length > 0;
     // A scaffold container whose faded steps are themselves gradeable.
     case 'faded_worked_example':
       return true;

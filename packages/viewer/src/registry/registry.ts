@@ -410,6 +410,40 @@ export const blockRegistry: BlockRegistry = {
     print: { breakInside: 'avoid', treatment: 'bordered-box' },
   },
 
+  table: {
+    type: 'table',
+    // DUAL-NATURED, resolved per instance rather than declared per type: a
+    // table whose cells hold blanks is a question; a blankless one is a
+    // stimulus (a rates chart to READ). familyOf()/categoryOf() route through
+    // isGradeable, which answers from CONTENT — the math_block precedent, and
+    // the reason there is no authored `interactive` flag to drift.
+    family: 'auto_gradable',
+    interactivity: 'interactive',
+    category: 'question',
+    numbered: 'when_gradable',
+    analyticsKey: 'table',
+    // Cells are NOT blocks, so `childBlocks` would be a category error here.
+    // The cell blanks are in-band content of THIS block: the deep strip walks
+    // them unconditionally (it never stops at nested arrays), and this flag is
+    // the declaration + the type projection that says so.
+    sanitize: { strip: [], inlineBlankSecrets: true },
+    print: { breakInside: 'avoid', treatment: 'data-table' },
+    a11y: {
+      story:
+        'The table is a real <table> with <th> cells on whichever axis the ' +
+        'author marked (headerRow / headerColumn), so a screen reader ' +
+        'announces a blank cell with its row and column headers — "Kilograms ' +
+        '2, Cost, blank" — which is the information a sighted student reads ' +
+        'off the grid. Each blank is a text input in tab order, reading order ' +
+        'left to right then down. On a multi-blank table the input also ' +
+        'carries its sub-part letter ("Part b"), matching the (b) marker ' +
+        'printed beside it; that marker is aria-hidden so it is not announced ' +
+        'twice. The PROBLEM number is announced once by the block wrapper, ' +
+        'never repeated per cell (viewer-numbering D3). Verdicts announce via ' +
+        'the shared state-pill aria-live region.',
+    },
+  },
+
   self_explanation: {
     type: 'self_explanation',
     family: 'recorded',

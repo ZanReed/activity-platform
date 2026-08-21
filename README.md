@@ -113,7 +113,7 @@ Three rules. Violating any of them rots the architecture.
 
 **Adding a new block type is mechanical, but it touches every package — and more places than the obvious ones.** The multiple-choice block shipped missing two of these (couldn't be placed in columns, wasn't indexed there — fixed in `3ffb6d4`), so the checklist below is deliberately exhaustive, and the starred items are enforced by structural guard tests that fail until you do them.
 
-*Schema:* a new file under `packages/schema/src/blocks/`, registered in `blocks/index.ts`'s discriminated union; a factory in `packages/schema/src/factories.ts`; ★ added to `ColumnCellBlock` in `blocks/columns.ts` (guard: `schema/tests/columns.test.ts`).
+*Schema:* a new file under `packages/schema/src/blocks/`, registered in `blocks/index.ts`'s discriminated union AND re-exported from `src/index.ts` (the package barrel enumerates its exports — a type missing there is invisible to every consumer); a factory in `packages/schema/src/factories.ts`. *(The old ★ `ColumnCellBlock` step is GONE: columns stopped being a block at the universal-container arc, so `Column.blocks` is `Block[]` and every new block type is column-legal in the schema for free. The EDITOR half of that star is still real — see below.)*
 
 *(The renderer's add-a-block-type steps died with the package at S9 Drop 4. `isNumberedBlock` lives in `@activity/schema` `block-predicates.ts`; its editor mirror is `problemNumberAt` in `app/src/editor/problemNumbering.ts` — these two must still agree, guarded by `schema/tests/block-predicates.test.ts`.)*
 

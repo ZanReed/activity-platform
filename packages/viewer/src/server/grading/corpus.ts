@@ -829,6 +829,16 @@ export const CORPUS_COVERAGE: Record<
       'blank path BLANK_CASES pins (answerType math, both equivalence modes). ' +
       'A promptless math_block is static and takes no input.',
   },
+  table: {
+    how: 'shared-scorer',
+    why:
+      'A table\'s gradable content is blank tokens sitting in cells, collected ' +
+      'by the SAME deep walk that finds them in prose (rows and cells carry no ' +
+      '`type`, so looksLikeBlockArray does not stop the descent) and scored by ' +
+      'the same path BLANK_CASES pins. The claim that the walk actually reaches ' +
+      'them is bound to OUTPUT rather than asserted here — see the quartet in ' +
+      'tests/tableWalks.test.ts, which is the guard this row depends on.',
+  },
   faded_worked_example: {
     how: 'shared-scorer',
     why:
