@@ -43,6 +43,7 @@ import {
     findMarkdownFiles,
     loadPipeline,
     makeDb,
+    parseArgs,
     planIdentity,
     titleFromPath,
 } from '../batch-import.mjs';
@@ -384,6 +385,38 @@ test('§C findMarkdownFiles yields sorted POSIX-relative paths and skips dotdirs
         // P7: the run owns its residue end to end.
         await rm(root, { recursive: true, force: true });
     }
+});
+
+// =============================================================================
+// §F — argument parsing
+// =============================================================================
+
+test('§F a bare `--` is ignored, because pnpm forwards it', () => {
+    // Documented as `pnpm import:batch -- <folder>` on day one, which fails:
+    // pnpm passes the separator THROUGH rather than consuming it, so '--'
+    // arrived where the folder should be and the run died with "unknown flag".
+    // Both spellings work now — the docs lead with the bare form, and the
+    // separator every habit types is tolerated.
+    const withSep = parseArgs(['--', '/tmp/cat', '--owner', 'me@example.com']);
+    const without = parseArgs(['/tmp/cat', '--owner', 'me@example.com']);
+
+    assert.equal(withSep.folder, '/tmp/cat');
+    assert.equal(without.folder, '/tmp/cat');
+    assert.deepEqual(withSep, without);
+});
+
+test('§F --dry-run and --owner=x parse in either position', () => {
+    const a = parseArgs(['--dry-run', '/tmp/cat', '--owner=me@example.com']);
+    assert.equal(a.folder, '/tmp/cat');
+    assert.equal(a.owner, 'me@example.com');
+    assert.equal(a.dryRun, true);
+});
+
+test('§F an unknown flag still fails loudly', () => {
+    // The separator became forgiving; a typo'd flag must NOT — silently
+    // ignoring --dryrun would write to the live database on a run the author
+    // believed was a rehearsal.
+    assert.throws(() => parseArgs(['/tmp/cat', '--dryrun']), /unknown flag/);
 });
 
 // =============================================================================

@@ -12,8 +12,11 @@
 // ---- Run --------------------------------------------------------------------
 //
 //   cp .env.supabase.example .env.supabase        # once; gitignored
-//   pnpm import:batch -- ~/catalogue --owner me@example.com --dry-run
-//   pnpm import:batch -- ~/catalogue --owner me@example.com
+//   pnpm import:batch ~/catalogue --owner me@example.com --dry-run
+//   pnpm import:batch ~/catalogue --owner me@example.com
+//
+// (A leading `--` is tolerated too — pnpm forwards it rather than consuming
+// it, so both `pnpm import:batch --  ~/catalogue` and the bare form work.)
 //
 // Service-role credentials, so it runs author-side only. It writes exclusively
 // to `activities` rows owned by --owner; it cannot touch student work, and it
@@ -575,13 +578,21 @@ export function makeDb(url, key) {
 // main
 // =============================================================================
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
     const positional = [];
     let owner = process.env.BATCH_IMPORT_OWNER ?? null;
     let dryRun = false;
 
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
+        // A bare `--` is the conventional end-of-flags separator, and pnpm
+        // passes it straight THROUGH to the script rather than eating it — so
+        // `pnpm import:batch -- ~/catalogue` arrives here with '--' sitting
+        // where the folder should be. Ignoring it costs nothing and makes both
+        // invocations work, which matters because every doc and every habit
+        // says to type it. (backfill-census.js is immune by accident: it only
+        // ever calls argv.includes(), never reads a positional.)
+        if (arg === '--') continue;
         if (arg === '--dry-run') dryRun = true;
         else if (arg === '--owner') owner = argv[++i] ?? null;
         else if (arg.startsWith('--owner=')) owner = arg.slice('--owner='.length);
@@ -596,7 +607,7 @@ function usage(message) {
     console.error(`
 ${message}
 
-  pnpm import:batch -- <folder> --owner <email|uuid> [--dry-run]
+  pnpm import:batch <folder> --owner <email|uuid> [--dry-run]
 
   <folder>     the catalogue folder; every .md under it is imported, keyed on
                its path RELATIVE to this folder
