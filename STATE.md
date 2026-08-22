@@ -26,7 +26,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 ⚠ **"No real student data exists yet" is NO LONGER TRUE** — one real second account is enrolled. It is the author's own throwaway, so the compliance answers stay cheap to change, but the sentence that made them free has expired.
 
-⚠ **One standing watch-note (the retry-log discipline):** the a11y **gap-2 keyboard row** flaked ONCE (run 31852826598) and has not recurred in the **seventeen** green runs since (latest 32048169054, the shell-slim slice). Instrumented in `e6b2872` so a second sighting names where focus actually is. **A second sighting is conclusive — fix then, not before. Read the flaky COUNT on every run, not the conclusion.**
+⚠ **THE a11y GAP-2 ROW HAS NOW FLAKED A SECOND TIME (2026-08-22, local), which the note below said would be conclusive.** It failed once during the choice-figures slice's first full a11y run, then passed **3/3** afterwards (twice in-lane, once isolated with `-g`). ⚠ **The instrumented output was NOT captured before it went green again** — so the one thing `e6b2872` was added to tell us (where focus actually was) is still unknown, and the next sighting must be captured before re-running. Prior history: flaked once at run 31852826598, then seventeen green runs (latest 32048169054). **It is now a fix-it item, not a watch item** — but it needs one captured failure to be fixable. **Read the flaky COUNT on every run, not the conclusion.**
 
 **Archived to [HISTORY.md](docs/HISTORY.md):** all S9 author stations, the station HEADs (OV-DX-9), the closed gate-9 ledger, and this session's 0034 apply + purge-liveness + CI narrative.
 
@@ -42,7 +42,16 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — the TABLE BLOCK IS DONE; next is authoring the catalogue
+## Current focus — TWO S9 ORPHANS ARE FIXED; next is authoring the catalogue
+
+**✅ CHOICE FIGURES AND NESTED LISTS NOW REACH STUDENTS (2026-08-22, `b8c5fac` +
+`900fe51`).** Two of the five orphan classes the day's drift audit filed, both
+silent content loss. Plan, rulings and AS-BUILT:
+[choice-figures-and-nested-lists.md](docs/design/choice-figures-and-nested-lists.md).
+**One author action is owed: the Linux print baselines** (`PRINT_BASELINES=1` on
+Linux; the suite skips without it, so CI stays green). Three orphan classes stay
+open in TODOS — the graph feedback knobs, the student calculator, and
+`isCheckpoint` + the flow modes — each needing a wire-or-delete ruling.
 
 **Everything that was blocking bulk authoring has shipped.** The batch importer
 (0038, `source_path` identity, file-wins re-runs), the drift guard (0039), the

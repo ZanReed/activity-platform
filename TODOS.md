@@ -100,6 +100,30 @@ becomes a live content-loss bug of exactly the class the orphan sweep found.
 **Depends on:** the choice-figures slice landing (it introduces the dynamic-import
 pattern convergence would reuse).
 
+## printShuffle's non-identity assertion is a coin flip (2026-08-22)
+
+`printShuffle.test.ts` → "a version rearranges MC choices; version 1 already
+differs from authored" asserts that a SEEDED shuffle is never the identity
+permutation. That is not a property of the code; it is luck, and the odds are a
+function of how many choices the fixtures happen to have.
+
+**It fired for real.** Adding the figure-bearing multiple_choice fixture
+changed the deterministic `fid()` sequence, hence every downstream block id,
+hence every seed — and with a 3-choice and a 2-choice block the chance that
+BOTH shuffle to identity is 1 in 12. It came up. Giving the new fixture four
+choices (which ruling A6 wanted anyway) moved it to roughly 1 in 144 and the
+row is green, but **nothing was fixed** — the next fixture that shifts the id
+sequence rolls the dice again, and the failure reads as "shuffling is broken"
+rather than "we were unlucky".
+
+**The fix is to assert the property that is actually true**: over the seed
+space, a shuffle is not the identity *for most seeds* — or pick the assertion
+seed deliberately rather than inheriting whatever the fixture ids produce. Do
+NOT "fix" it by adding choices to fixtures; that is what is holding it up now
+and it is the same coin, weighted.
+
+**Depends on:** nothing.
+
 ## The matching interaction the registry already claims — drag / select-then-place (2026-08-22)
 
 Filed by the choice-figures design review (D5/A3) as the honest fix it decided
@@ -125,7 +149,7 @@ interaction must keep both properties or the letters stop matching the bank.
 **Depends on:** the choice-figures slice landing first (it makes the case
 concrete and adds the fixtures a drag interaction would need to test against).
 
-## S9 left FIVE MORE ORPHAN CLASSES — the full-schema sweep (drift audit 2026-08-22, §9)
+## S9 left FIVE MORE ORPHAN CLASSES — **TWO FIXED 2026-08-22, THREE OPEN** (drift audit §9)
 
 The 2026-08-22 full audit swept **every** field in `packages/schema/src` (~180)
 against the viewer's rendering set and the grading server. Everything below has
@@ -140,7 +164,7 @@ guards; it never walked the schema's comments or the editor's controls.
 delete it end to end (schema + editor control + importer key + doc).** Ranked by
 what reaches paper/screen as CONTENT LOSS first:
 
-1. **Choice and item figures never render** — ✅ **PLANNED 2026-08-22**, design-reviewed: [choice-figures-and-nested-lists.md](docs/design/choice-figures-and-nested-lists.md) — `MultipleChoiceOption.image`/`.graph`,
+1. ~~**Choice and item figures never render**~~ — ✅ **FIXED 2026-08-22** (`b8c5fac` + `900fe51`): [choice-figures-and-nested-lists.md](docs/design/choice-figures-and-nested-lists.md) — `MultipleChoiceOption.image`/`.graph`,
    `MatchingItem.image`/`.graph`, `MatchingTarget.image`/`.graph`
    (`multiple-choice.ts:63-64`, `matching.ts:42-51`). The editor authors them
    (`MultipleChoiceView.tsx`), the importer accepts `graph: <spec>` and a
@@ -148,7 +172,7 @@ what reaches paper/screen as CONTENT LOSS first:
    `MultipleChoice.tsx`/`Matching.tsx` render only `.content`. A "which graph
    shows…" question publishes with blank choices, on screen AND on paper. No
    viewer fixture carries one, so no test could notice. **Print-affecting.**
-2. **Nested lists drop their children** — ✅ **PLANNED 2026-08-22**, same doc — `ListItem.children` (`list.ts:25`;
+2. ~~**Nested lists drop their children**~~ — ✅ **FIXED 2026-08-22**, same doc — `ListItem.children` (`list.ts:25`;
    also `DefinitionListItem.children`). `serialize.ts` emits them from Tiptap's
    native nesting; `BulletList.tsx`/`OrderedList.tsx` map `items[].content`
    only. Any indented sub-list a teacher types is flattened for students.

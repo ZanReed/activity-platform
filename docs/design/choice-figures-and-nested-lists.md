@@ -1,6 +1,6 @@
 # Choice figures + nested lists — wiring two S9 orphans
 
-**Status:** 🟢 **PLAN — RULED + DESIGN-REVIEWED + ENG-REVIEWED 2026-08-22 (design 5/10 → 9/10; eng review corrected 3 premises, 0 unresolved). CLEARED to build; no code yet.**
+**Status:** ✅ **BUILT 2026-08-22 — T0–T9b shipped and verified in the running app. Two author actions outstanding (print baselines, T12 docs).** Ruled + design-reviewed (5/10 → 9/10) + eng-reviewed (3 premises corrected), 0 unresolved.
 
 Wires two of the five orphan classes the 2026-08-22 drift audit filed
 (TODOS.md → "S9 left FIVE MORE ORPHAN CLASSES"). Both are **content loss**: a
@@ -237,6 +237,54 @@ whether an authored field renders.
 - Multi-paragraph list items: `serialize.ts:1160` keeps only the first paragraph.
 - `DefinitionListItem.children` on the **on-screen** definition path (the print
   glossary renders it; the popover path needs its own check).
+
+## AS BUILT (2026-08-22)
+
+Shipped in `b8c5fac` (components, CSS, guards) and `900fe51` (fixtures).
+**`pnpm verify` 8/8; viewer suite 1241; print e2e 68; student 45; a11y 13.**
+
+**Measured in the running app, not inferred.** The text question computes
+`display: block`; the figure question computes `grid` with two 317px columns
+and **four drawn SVGs**; each figure is **176px — exactly `--vw-figure-cap`**.
+Nested lists compute `disc` then `circle` at depths 1 and 2, the child inside
+its parent `<li>`.
+
+**E1 held, and this is the number that proves it.** Shell JS moved
+**158.5 → 159.2 KiB gz** (cap 172) — the component, not the engine. The engine
+lives in its own `graph-svg-*.js` chunk and appears **zero times** in the shell
+entry, checked by grepping the built bundle. A static import would have cost
+~5.8 KiB of the 13.5 KiB that was left.
+
+**Shell CSS moved 12.4 → 12.8 KiB against a 14.0 cap** — 1.2 KiB of headroom
+now, worth knowing before the next stylesheet-heavy slice.
+
+### What the guards caught that review did not
+
+- **One of my own tests was VACUOUS**, and the mutation run is what found it.
+  The alt-promotion test was written with `alt: 'a parabola'`, so it passed
+  with the A4 branch reverted — a non-empty alt names the control on its own
+  and the branch never ran. `ChoiceImage.alt` defaults to `''`, which is the
+  case that actually produces an unnamed radio; that is the case now pinned.
+  Policy P9, applied to the fix rather than to the original defect.
+- **`kind: 'line'` is not a drawable kind.** Component tests build raw objects
+  that never meet the schema, so the engine counted a shape it could not draw
+  and the assertion passed. The FIXTURES, which parse, caught it.
+- **`put()` replaces rather than appends** — a second `put('multiple_choice')`
+  silently deleted the primary fixture.
+- **The print answer-key oracle assumed one instance per type.**
+- Three project guards fired and were right: tokens vocabulary sync,
+  export-reachability refusing a barrel export only tests use, and both
+  bundle-drift gates once the registry changed.
+
+### Still owed
+
+- **T11 — the Linux print baselines.** CI-authoritative, cannot be generated
+  on macOS: `PRINT_BASELINES=1 pnpm --filter @activity/app exec playwright
+  test print-baselines --update-snapshots` on Linux, then **read the images
+  before pinning them** (table-arc precedent). The baseline suite SKIPS without
+  that env var, so CI stays green meanwhile.
+- **T12 — the doc corrections** (`markdown-import-format.md:607`/`:630`, the
+  dead-renderer comment in `multiple-choice.ts`).
 
 ## Eng-review amendments (2026-08-22, 4 decisions)
 

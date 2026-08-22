@@ -39,9 +39,15 @@ export type ChoiceImage = z.infer<typeof ChoiceImage>;
 
 // Optional static graph on a choice ("which graph shows…"). Reuses the
 // interactive-graph vocabulary (AxisConfig + display Drawables) but is
-// rendered server-side as inline SVG by the renderer's graph-svg engine —
-// never the interactive kit. Consequence: `expression` drawables need the
-// kit's parser and are NOT drawn; the editor doesn't offer them here.
+// drawn as inline SVG by graph-kit's kit-free `static-svg` engine — never the
+// interactive kit. The viewer renders it in `blocks/ChoiceFigure.tsx`, which
+// imports that engine LAZILY (multiple_choice is an eager binding, so a static
+// import would put the engine in the student shell). Consequence: `expression`
+// drawables need the kit's parser and are NOT drawn; the editor doesn't offer
+// them here. *(Until 2026-08-22 this said "the renderer's graph-svg engine" —
+// a package deleted at S9 Drop 4, which is why nothing rendered these for
+// eight days while the field, the editor control and the importer all lived
+// on. See docs/design/choice-figures-and-nested-lists.md.)*
 export const ChoiceGraph = z.object({
   axis: AxisConfig,
   drawables: z.array(Drawable).default([]),
