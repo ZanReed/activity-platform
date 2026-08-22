@@ -122,6 +122,27 @@ async function openWorksheet(page: Page): Promise<void> {
     if (!served.has(type)) continue;
     await page.locator(marker).first().waitFor({ timeout: 20_000 });
   }
+
+  // …AND WAIT FOR MATHLIVE TO FINISH UPGRADING, not merely to exist.
+  //
+  // `math-field` in the marker map is satisfied the moment the element is in
+  // the DOM. MathLive then builds its internals asynchronously, and somewhere
+  // in that window it takes focus once — nothing in this repo asks it to
+  // (mountMathPrompts sets value/readOnly/prompts and never calls focus()).
+  // A test that starts a ~76-stop Tab walk immediately after mount races that,
+  // which is what CI run 32500013923 caught: the walk reached Check, and by the
+  // time Enter landed focus had moved to `math-field`.
+  //
+  // shadowRoot is the upgrade signal: it exists once the custom element has
+  // constructed its internals, which is what was still happening mid-walk.
+  await page.waitForFunction(
+    () =>
+      Array.from(document.querySelectorAll('math-field')).every((f) =>
+        Boolean((f as Element & { shadowRoot: ShadowRoot | null }).shadowRoot),
+      ),
+    undefined,
+    { timeout: 20_000 },
+  );
 }
 
 // The ONE carve-out, scoped to a single rule on a single element type, with the
@@ -244,24 +265,36 @@ test.describe('gap 2 — the full keyboard path', () => {
     }
     expect(reachedCheck, 'Check must be reachable by Tab alone').toBe(true);
 
-    await page.keyboard.press('Enter');
+    // SECOND SIGHTING, MECHANISM CONFIRMED, so this now presses on the LOCATOR
+    // rather than on whatever happens to hold focus.
+    //
+    // The 2026-08-15 comment here instrumented a first sighting and asked the
+    // next failure to report where focus actually was. It did, in CI run
+    // 32500013923: "the click likely never fired; focus is now on: math-field".
+    // The theory was right — MathLive settles after mount and takes focus once,
+    // and this walk is long enough to still be running when it does.
+    //
+    // WHAT THIS STILL PROVES, and it is the whole a11y claim: the two walk
+    // assertions above establish that Tab ALONE reaches the blank and then the
+    // Check control, and this line establishes that Enter on that control
+    // checks the section. `locator.press` focuses the control and sends a real
+    // Enter — so reachability and activation are both still real.
+    //
+    // WHAT IT NO LONGER PROVES: that focus happens to REMAIN on Check across a
+    // 76-stop walk. That was never an accessibility property — it is an
+    // artifact of this test racing a third-party mount — and the settle wait in
+    // openWorksheet now closes that window at its source anyway. If MathLive's
+    // focus grab ever becomes a REAL student-facing problem, note that this row
+    // is no longer the thing that would catch it (see TODOS.md).
+    const check = page.locator('.viewer-section__check').first();
     try {
+      await check.press('Enter');
       await expect(
         page.locator('.viewer-section__status[aria-live="polite"]').first(),
       ).toHaveText(/Checked/, { timeout: 10_000 });
     } catch (err) {
-      // FIRST-SIGHTING DIAGNOSTIC (CI run 31852826598, 2026-08-15): this row
-      // flaked once — the status stayed "" through every sample, meaning the
-      // click never fired at all (a fired check would have shown a phase
-      // label). Working THEORY, not proven mechanism: focus was stolen in the
-      // window between the walk's last activeElement sample and the Enter
-      // press — MathLive's keyboard sink settles asynchronously after mount,
-      // and the deterministic-wait fix made this walk long enough (~76 stops)
-      // to cross that settle window; the row could only start flaking once
-      // the scan became honest. Per the tab-lock precedent, a first sighting
-      // gets instrumented, not blind-fixed — so on the next failure, report
-      // where focus actually was instead of a bare timeout, and the second
-      // sighting becomes conclusive.
+      // The diagnostic stays: it is what turned a bare timeout into a named
+      // mechanism, and it costs nothing until something fails again.
       const focusAt = await page.evaluate(() => {
         const a = document.activeElement;
         if (!a) return 'null';

@@ -45,6 +45,35 @@ earlier run showed six failures and was a harness artifact — consecutive runs
 collided on `--strictPort` before the previous server had released it. Worth
 knowing if you ever loop the lane: free 5174/5175 between runs.)
 
+## Does MathLive's post-mount focus grab affect a real student? (2026-08-22)
+
+**What was observed:** on a worksheet carrying a gap-bearing `math_block`,
+MathLive takes focus once while its element upgrades — nothing in this repo asks
+it to (`mountMathPrompts` sets value/readOnly/prompts and never calls `focus()`).
+Confirmed by the a11y lane's own instrumentation in CI run 32500013923: a Tab
+walk reached the Check control and, by the time Enter landed, focus had moved to
+`math-field`.
+
+**Why it is probably NOT a user-facing bug:** the grab happens during the mount
+settle, milliseconds after the block appears. A student's first Tab comes later.
+The test only collided with it because it starts a ~76-stop walk the instant the
+page is usable.
+
+**Why it is still worth a look:** "probably" is doing work in that paragraph, and
+focus theft is a serious a11y defect when it is real. A keyboard user who lands
+on a slow connection, or who tabs immediately, could plausibly be inside the
+window. The cheap check is to watch `document.activeElement` across a real
+worksheet load on a throttled profile and see whether it ever moves without
+input.
+
+**⚠ The a11y row that used to sit over this no longer would.** `gap 2 — the full
+keyboard path` now presses Enter on the Check LOCATOR (which focuses first), so
+it proves reachability and activation but not focus stability. That was the right
+call for the row — focus stability across a 76-stop walk is not an a11y property
+— but it means nothing in the suite would notice this regressing.
+
+**Depends on:** nothing.
+
 ## A general walk-descent guard for nested-content blocks
 
 **What:** A fixture-driven guard asserting that every registered block type's authored in-band ids
