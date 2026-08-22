@@ -17,6 +17,10 @@
 // =============================================================================
 
 import { describe, expect, it } from 'vitest';
+// Deep import, not the barrel: this is an internal helper with no consumer
+// outside these guards, and export-reachability (policy P1) is right to
+// refuse a barrel export that nothing in the product calls.
+import { resolveBreakInside } from '../src/registry/printExpectations.js';
 import {
   blockRegistry,
   registeredBlockTypes,
@@ -105,7 +109,10 @@ describe('printExpectations — coherence with the registry', () => {
       ).toEqual({
         kind: 'computed',
         property: 'break-inside',
-        oneOf: [blockRegistry[type].print.breakInside],
+        // Resolved through the same helper the builder uses, so a conditional
+        // spec is checked against the branch it actually resolves to rather
+        // than against a string that is not a CSS value.
+        oneOf: [resolveBreakInside(blockRegistry[type].print.breakInside, {})],
       });
     }
   });

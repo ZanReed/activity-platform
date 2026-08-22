@@ -119,6 +119,31 @@ export interface PrintCheck {
 export interface PrintInstanceContext {
   readonly variant?: string;
   readonly interaction?: string;
+  /**
+   * Does THIS instance carry choice/item/target figures?
+   *
+   * Widened for ruling A9: matching's page-break behaviour depends on its
+   * CONTENT, not just its type, so the check has to know which branch it is
+   * asserting or it can only ever prove one of them.
+   */
+  readonly figures?: boolean;
+}
+
+/**
+ * Resolve a possibly-conditional `breakInside` to the concrete CSS value this
+ * instance must actually compute to.
+ *
+ * The conditional exists so the registry keeps telling the truth (E3). That is
+ * only worth anything if the CHECK resolves it the same way the stylesheet
+ * does — otherwise the declaration is honest and the gate is vacuous, which is
+ * the failure this project has already paid for twice.
+ */
+export function resolveBreakInside(
+  declared: 'avoid' | 'auto' | 'avoid-unless-figures',
+  ctx: PrintInstanceContext,
+): 'avoid' | 'auto' {
+  if (declared !== 'avoid-unless-figures') return declared;
+  return ctx.figures ? 'auto' : 'avoid';
 }
 
 // -----------------------------------------------------------------------------
@@ -545,12 +570,16 @@ export function printExpectations(
 ): readonly PrintCheck[] {
   const spec = blockRegistry[type].print;
 
+  const breakInside = resolveBreakInside(spec.breakInside, ctx);
   const derived: PrintCheck[] = [
     {
       id: 'spec/break-inside',
-      rule: `PrintSpec declares break-inside: ${spec.breakInside} for ${type}.`,
+      rule:
+        spec.breakInside === 'avoid-unless-figures'
+          ? `PrintSpec declares break-inside: ${spec.breakInside} for ${type}; this instance ${ctx.figures ? 'HAS' : 'has no'} figures, so it must compute to ${breakInside}.`
+          : `PrintSpec declares break-inside: ${spec.breakInside} for ${type}.`,
       target: BLOCK_ROOT,
-      expect: { kind: 'computed', property: 'break-inside', oneOf: [spec.breakInside] },
+      expect: { kind: 'computed', property: 'break-inside', oneOf: [breakInside] },
     },
   ];
 

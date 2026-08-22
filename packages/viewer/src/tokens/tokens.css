@@ -176,6 +176,15 @@
   --gutter-equation: 2rem;
   --touch-target: 44px;   /* 6.1A floor for tap targets */
 
+  /* Choice/item/target figure caps (A2 + A10). Named rather than inlined so the
+   * screen rule, the print rule and the editor's own preview cannot drift apart
+   * — the editor's defaultChoiceAxis comment already assumed ~11rem, and a
+   * number repeated in three files is how that assumption stops being true.
+   * 1.75in on paper is what makes four of them fit one page: measured, four
+   * stacked take 76% of the printable column against 38% gridded. */
+  --vw-figure-cap: 11rem;
+  --vw-figure-cap-print: 1.75in;
+
   /* ---- Radii -------------------------------------------------------------*/
   --vw-radius-sm: 3px;       /* blanks */
   --vw-radius-md: 4px;       /* images, small chips */

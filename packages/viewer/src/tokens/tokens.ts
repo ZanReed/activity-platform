@@ -80,6 +80,8 @@ export const staticTokens = [
   '--gutter-problem',
   '--gutter-equation',
   '--touch-target',
+  '--vw-figure-cap',
+  '--vw-figure-cap-print',
   '--vw-radius-sm',
   '--vw-radius-md',
   '--vw-radius-lg',

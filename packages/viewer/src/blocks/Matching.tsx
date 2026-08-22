@@ -18,6 +18,8 @@
 import { useId } from 'react';
 import type { MatchingBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
+import { ChoiceFigure } from './ChoiceFigure.js';
+import { allHaveFigures, figureIsSoleContent } from './figureSlot.js';
 import { choiceLetter } from './paperAffordances.js';
 import { seededShuffle } from '../sanitize/shuffle.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
@@ -58,6 +60,9 @@ export default function Matching({
   // The key pairs item id → TARGET ID. The letter a teacher writes is a fact
   // about the order the bank is being rendered in — which the shuffle above
   // has just decided — so it is derived here rather than stored.
+  // Drives both the bank's grid and its conditional breakability (A9).
+  const bankHasFigures = allHaveFigures(targets);
+
   const answerKey = useBlockAnswerKey(block.id);
   const letterByTargetId = new Map(
     targets.map((target, i) => [target.id, choiceLetter(i)]),
@@ -69,13 +74,29 @@ export default function Matching({
       data-block-type="matching"
       data-block-id={block.id}
       data-phase={phase}
+      // A9/E3: the BLOCK's page-break behaviour is conditional on its content,
+      // and the registry declares it as such. The marker is what lets the
+      // stylesheet resolve the same branch the PrintSpec does.
+      {...(bankHasFigures ? { 'data-has-figures': 'true' } : {})}
     >
       <p className="viewer-matching__prompt">
         <InlineContent nodes={block.prompt} />
       </p>
 
-      {/* The lettered bank, so prose and print can refer to "B". */}
-      <ul className="viewer-matching__bank">
+      {/* The lettered bank, so prose and print can refer to "B".
+
+          A9: once the bank holds FIGURES it also grids, and it stops being
+          unbreakable. Five 1.75in targets is ~9.5in of content in a 10in
+          printable column, plus the prompt and the items below it — and
+          `break-inside: avoid` on a box that cannot fit is worse than one that
+          breaks, because the browser then flings the whole bank onto its own
+          page and strands the items that reference it on a different sheet.
+          The registry's print declaration is CONDITIONAL for the same reason
+          (eng review E3): a declaration the page stops honouring is the exact
+          pattern that produced the orphan fields. */}
+      <ul
+        className="viewer-matching__bank"
+        {...(bankHasFigures ? { 'data-figure-layout': 'grid' } : {})}>
         {targets.map((target, i) => (
           <li
             key={target.id}
@@ -87,7 +108,17 @@ export default function Matching({
             data-target-id={target.id}
           >
             <span className="viewer-matching__letter">{choiceLetter(i)}.</span>{' '}
-            <InlineContent nodes={target.content} />
+            {/* The target had no wrapper element at all before this — its
+                content sat bare in the <li>. The figure needs one. */}
+            <span className="viewer-matching__target-content">
+              <InlineContent nodes={target.content} />
+              <ChoiceFigure
+                owner={target}
+                blockId={block.id}
+                letterLabel={choiceLetter(i)}
+                isSoleContent={figureIsSoleContent(target)}
+              />
+            </span>
           </li>
         ))}
       </ul>
@@ -103,6 +134,11 @@ export default function Matching({
             <li key={item.id} className="viewer-matching__item" data-item-id={item.id}>
               <label htmlFor={selectId} className="viewer-matching__item-label">
                 <InlineContent nodes={item.content} />
+                <ChoiceFigure
+                  owner={item}
+                  blockId={block.id}
+                  isSoleContent={figureIsSoleContent(item)}
+                />
               </label>
               {/* The paper convention: a blank line to write the target's
                   letter on. The <select> beside it is the screen answer and is

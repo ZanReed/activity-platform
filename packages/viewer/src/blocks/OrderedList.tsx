@@ -1,22 +1,18 @@
 // =============================================================================
 // blocks/OrderedList.tsx — static content (S3)
 // -----------------------------------------------------------------------------
-// Numbering comes from the <ol>, not from rendered text, so it stays correct
-// when items are added and is announced as an ordered list.
+// Real <ol>/<li>. The numbers are the browser's own list-counter, NOT the
+// activity's problem numbering: `numbered: 'never'` in the registry, and
+// `pageLabel` does not label these, so an ordered list restarts per block and
+// participates in nothing.
+//
+// Rendering lives in NestedList — see BulletList for why it is shared.
 // =============================================================================
 
 import type { OrderedListBlock } from '@activity/schema';
-import { InlineContent } from '../inline/InlineContent.js';
 import type { BlockComponentProps } from '../registry/types.js';
+import { NestedList } from './NestedList.js';
 
 export default function OrderedList({ block }: BlockComponentProps<OrderedListBlock>) {
-  return (
-    <ol className="viewer-list viewer-list--ordered" data-block-type="ordered_list">
-      {block.items.map((item) => (
-        <li key={item.id} className="viewer-list__item">
-          <InlineContent nodes={item.content} />
-        </li>
-      ))}
-    </ol>
-  );
+  return <NestedList block={block} />;
 }

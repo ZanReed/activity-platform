@@ -276,7 +276,9 @@ export const blockRegistry: BlockRegistry = {
     numbered: 'always',
     analyticsKey: 'matching',
     sanitize: { strip: ['key', 'solution'] },
-    print: { breakInside: 'avoid', treatment: 'letter-bank' },
+    // A9/E3: conditional, and declared as such — the bank drops its
+    // unbreakability once it holds figures. See PrintSpec.breakInside.
+    print: { breakInside: 'avoid-unless-figures', treatment: 'letter-bank' },
     a11y: {
       story:
         'Pointer drag with a keyboard select-then-place grammar underneath: ' +

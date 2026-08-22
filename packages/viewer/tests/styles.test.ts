@@ -17,6 +17,10 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+// Deep import, not the barrel: this is an internal helper with no consumer
+// outside these guards, and export-reachability (policy P1) is right to
+// refuse a barrel export that nothing in the product calls.
+import { resolveBreakInside } from '../src/registry/printExpectations.js';
 import {
   colorTokens,
   staticTokens,
@@ -202,12 +206,25 @@ describe('the print stylesheet agrees with the registry it mirrors', () => {
   };
 
   it('gives break-inside:avoid to exactly the types whose PrintSpec declares it', () => {
+    // Resolved, not string-matched: `avoid-unless-figures` defaults to avoid,
+    // so the CSS is right to pin matching in the blanket rule — the figures
+    // branch is a separate override, asserted below.
     const fromRegistry = new Set(
       registeredBlockTypes.filter(
-        (type) => blockRegistry[type].print.breakInside === 'avoid',
+        (type) => resolveBreakInside(blockRegistry[type].print.breakInside, {}) === 'avoid',
       ),
     );
     expect([...declaredAvoid()].sort()).toEqual([...fromRegistry].sort());
+  });
+
+  it('ships the conditional break override for the figures branch (A9)', () => {
+    // The declaration says matching relaxes to `auto` once it holds figures.
+    // If the stylesheet never says so, the registry is lying and the block
+    // stays unbreakable — five 1.75in targets in a 10in column with nowhere
+    // to break. This is the assertion that makes the conditional real.
+    expect(print).toMatch(
+      /\[data-block-type='matching'\]\[data-has-figures\][^{]*\{[^}]*break-inside:\s*auto/,
+    );
   });
 
   it('does not pin any type that declares auto (the old blanket rule did)', () => {

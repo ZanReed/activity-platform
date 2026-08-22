@@ -8,6 +8,10 @@
 // =============================================================================
 
 import { describe, expect, it } from 'vitest';
+// Deep import, not the barrel: this is an internal helper with no consumer
+// outside these guards, and export-reachability (policy P1) is right to
+// refuse a barrel export that nothing in the product calls.
+import { resolveBreakInside } from '../src/registry/printExpectations.js';
 import {
   Block,
   GraphInteraction,
@@ -271,8 +275,13 @@ describe('print declarations (faithful to the baseline print layer)', () => {
   // types have a key", guarded for vacuity in answerKey.test.ts.)
 
   it('break-inside:avoid covers every block that must stay whole on a page', () => {
+    // `avoid-unless-figures` (matching, ruling A9) DEFAULTS to avoid — the
+    // conditional only relaxes it for an instance carrying figures. Resolving
+    // rather than string-matching is what keeps this list meaning "blocks that
+    // stay whole on an ordinary page"; the figures branch is asserted
+    // separately, below.
     const avoid = registeredBlockTypes.filter(
-      (type) => blockRegistry[type].print.breakInside === 'avoid',
+      (type) => resolveBreakInside(blockRegistry[type].print.breakInside, {}) === 'avoid',
     );
     // WAS pinned to the baseline print CSS including its gaps — math_block,
     // data_plot and self_explanation were absent because the renderer's rule
@@ -322,5 +331,19 @@ describe('print declarations (faithful to the baseline print layer)', () => {
         `${type} can separate its prompt from its writing box on paper`,
       ).toBe('avoid');
     }
+  });
+
+  it('the conditional break DEFAULTS to avoid and relaxes only with figures', () => {
+    // The other half of A9/E3, and the reason the conditional was declared in
+    // the registry rather than left as a quiet stylesheet override: a
+    // declaration is only worth something if BOTH its branches are asserted.
+    // Without this, `avoid-unless-figures` would be indistinguishable from
+    // plain `avoid` to every guard in the suite.
+    expect(resolveBreakInside('avoid-unless-figures', {})).toBe('avoid');
+    expect(resolveBreakInside('avoid-unless-figures', { figures: false })).toBe('avoid');
+    expect(resolveBreakInside('avoid-unless-figures', { figures: true })).toBe('auto');
+    // Unconditional values are returned untouched whatever the context says.
+    expect(resolveBreakInside('avoid', { figures: true })).toBe('avoid');
+    expect(resolveBreakInside('auto', { figures: false })).toBe('auto');
   });
 });

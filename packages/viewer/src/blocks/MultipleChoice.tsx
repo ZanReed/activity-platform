@@ -25,6 +25,8 @@
 import { useId } from 'react';
 import type { MultipleChoiceBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
+import { ChoiceFigure } from './ChoiceFigure.js';
+import { allHaveFigures, figureIsSoleContent } from './figureSlot.js';
 import { choiceLetter } from './paperAffordances.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useViewer } from '../container/context.js';
@@ -72,10 +74,20 @@ export default function MultipleChoice({
           <InlineContent nodes={block.prompt} />
         </legend>
 
-        <ul className="viewer-mc__choices">
+        {/* A6: the grid applies only when EVERY choice carries a figure.
+            Measured on a real page box — four 1.75in graphs stacked take 76% of
+            the printable column against 38% gridded, and the block is
+            break-inside:avoid, so stacked meant one question per sheet. A mixed
+            question stays stacked: a grid cell of bare text beside cells of
+            graphs reads as ragged, and a vertical list is how options scan. */}
+        <ul
+          className="viewer-mc__choices"
+          {...(allHaveFigures(block.choices) ? { 'data-figure-layout': 'grid' } : {})}
+        >
           {block.choices.map((choice, index) => {
             const isSelected = selected.includes(choice.id);
             const isKeyed = keyedCorrect.has(choice.id);
+            const soleContent = figureIsSoleContent(choice);
             return (
               <li
                 key={choice.id}
@@ -113,8 +125,20 @@ export default function MultipleChoice({
                   >
                     {choiceLetter(index)}
                   </span>
+                  {/* A7: the figure sits BELOW the choice text, and the letter
+                      stays to the left in both layouts — on paper the letter IS
+                      the answer, so it must not move between arrangements.
+                      A1: it lives INSIDE the label, so clicking the graph
+                      selects the choice, which is what a student does
+                      unprompted on a "which graph shows…" question. */}
                   <span className="viewer-mc__choice-content">
                     <InlineContent nodes={choice.content} />
+                    <ChoiceFigure
+                      owner={choice}
+                      blockId={block.id}
+                      letterLabel={choiceLetter(index)}
+                      isSoleContent={soleContent}
+                    />
                   </span>
                 </label>
               </li>

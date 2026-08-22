@@ -390,6 +390,55 @@
   margin-top: var(--space-1);
 }
 
+/* ---- Nested lists (B1/B3) ------------------------------------------------ *
+ * `ListItem.children` was authored, saved, published and reloaded intact for
+ * eight days while every student saw it flattened — the renderer that drew it
+ * died at S9 Drop 4 and nothing replaced it. These rules are the other half of
+ * that fix; without them a nested list renders with the same marker and no
+ * spacing at every depth, which reads as one flat list with odd indentation.
+ *
+ * Markers are stated EXPLICITLY rather than left to the browser, per the
+ * standing rule above: the viewer must look the same wherever it is mounted,
+ * so it never relies on a host page's defaults. The cascade is the
+ * word-processor convention a teacher already expects.
+ *
+ * Deliberately NOT the (a)/(b) sub-part alphabet from FillInBlank and Table:
+ * in this product `(a)` means "a gradeable sub-part slot", and a decorative
+ * sub-bullet is not that. Overloading it would make the paper ambiguous. */
+.viewer-list--bullet[data-depth='2'] {
+  list-style: circle outside;
+}
+
+.viewer-list--bullet[data-depth='3'] {
+  list-style: square outside;
+}
+
+.viewer-list--ordered[data-depth='2'] {
+  list-style: lower-alpha outside;
+}
+
+.viewer-list--ordered[data-depth='3'] {
+  list-style: lower-roman outside;
+}
+
+/* A nested list is a sibling of its item's text inside the same <li>, so it
+ * gets neither the item-to-item margin nor any top spacing of its own. Both
+ * gaps are real: without this a sub-list crowds the line it belongs to. */
+.viewer-list__item > .viewer-list {
+  margin-top: var(--space-1);
+}
+
+/* B3: the indent stops compounding past level 3 — the same depth the marker
+ * cascade resets at, so there is one rule with one reset point. Depth is
+ * unbounded by schema, editor, importer and serializer alike, and teachers
+ * paste four- and five-deep outlines out of lesson plans; left to compound, a
+ * level-6 item starts ~1.5in in and its text column shrinks toward a
+ * one-word-per-line ribbon on paper. The editor never shows that failure
+ * because it does not use the print column width. */
+.viewer-list[data-depth='3'] .viewer-list {
+  padding-left: 0;
+}
+
 .viewer-callout {
   border-left: 3px solid;
   border-radius: var(--vw-radius-lg);
@@ -615,6 +664,96 @@
 
 .viewer-mc__choice + .viewer-mc__choice {
   margin-top: var(--space-2);
+}
+
+/* ---- Choice figures (A1/A2/A6/A8) --------------------------------------- *
+ * The figure lives INSIDE the label so clicking the graph selects the choice,
+ * which is what a student does unprompted on a "which graph shows…" question.
+ * That forces the label to stop being a single centred row: a 2in figure
+ * centred against the letter stretches the row and drags the letter to its
+ * middle. The content column becomes a column; the letter stays top-aligned
+ * beside it, in the same place in both arrangements — on paper the letter IS
+ * the answer, so it must not move. */
+.viewer-mc__label:has(.viewer-choice-figure),
+.viewer-matching__item-label:has(.viewer-choice-figure) {
+  align-items: flex-start;
+}
+
+.viewer-mc__choice-content,
+.viewer-matching__target-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.viewer-choice-figure {
+  display: block;
+  width: 100%;
+  max-width: var(--vw-figure-cap);
+}
+
+/* The box is reserved BEFORE the engine chunk resolves, so the figure fades
+ * into a space that was always its size instead of shoving the choices below
+ * it down the page. This is what makes the lazy import free. */
+.viewer-choice-figure__img,
+.viewer-choice-figure__graph,
+.viewer-choice-figure__placeholder {
+  aspect-ratio: 1 / 1;
+  display: block;
+  width: 100%;
+}
+
+.viewer-choice-figure__img {
+  border-radius: var(--vw-radius-md);
+  object-fit: contain;
+}
+
+.viewer-choice-figure__graph svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.viewer-choice-figure__placeholder {
+  background: var(--vw-color-raised);
+  border-radius: var(--vw-radius-md);
+}
+
+/* A8: a failed image is never a browser broken-image glyph. Whatever is on
+ * screen at print time is what prints, and a student cannot act on a broken
+ * icon — the alt text at least describes what is missing. Dashed, because
+ * border STYLE survives grayscale where colour does not. */
+.viewer-choice-figure__failed {
+  align-items: center;
+  aspect-ratio: 1 / 1;
+  border: 1px dashed var(--vw-color-line);
+  border-radius: var(--vw-radius-md);
+  color: var(--vw-color-ink-muted);
+  display: flex;
+  font-size: var(--type-meta);
+  justify-content: center;
+  padding: var(--space-2);
+  text-align: center;
+  width: 100%;
+}
+
+/* A6: two columns only when EVERY option carries a figure. Four stacked
+ * figures take 76% of a printable page against 38% gridded, and the block is
+ * break-inside:avoid, so stacked means one question per sheet. */
+.viewer-mc__choices[data-figure-layout='grid'],
+.viewer-matching__bank[data-figure-layout='grid'] {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.viewer-mc__choices[data-figure-layout='grid'] .viewer-mc__choice + .viewer-mc__choice {
+  margin-top: 0;
+}
+
+.viewer-mc__choices[data-figure-layout='grid'] .viewer-mc__label {
+  height: 100%;
 }
 
 /* Matching: a lettered bank above, one select per item. */
@@ -910,6 +1049,14 @@
    edge-to-edge paper, stacked columns, full-width controls. */
 
 @media (max-width: 480px) {
+  /* A10: a fixed two-column figure grid on a 375px phone yields ~170px cells —
+   * a coordinate graph too small to read a slope from, which is the only thing
+   * the question asks. Collapse at the breakpoint matching already uses. */
+  .viewer-mc__choices[data-figure-layout='grid'],
+  .viewer-matching__bank[data-figure-layout='grid'] {
+    grid-template-columns: 1fr;
+  }
+
   .viewer {
     padding: var(--space-3) 0;
   }
@@ -1654,6 +1801,26 @@
     break-inside: avoid;
   }
 
+  /* A9. The rule above is right for a text bank and fatal for a figure one:
+   * five 1.75in targets is ~9.5in of content in a 10in printable column, plus
+   * the prompt and the items below it. An unbreakable box that cannot fit is
+   * worse than one that breaks — the browser flings the whole bank onto its own
+   * page and strands the items that reference it on a different sheet. The
+   * registry declares this conditionality rather than letting the stylesheet
+   * quietly contradict it (eng review E3). */
+  .viewer-matching__bank[data-figure-layout='grid'] {
+    break-inside: auto;
+  }
+
+  /* …and the BLOCK itself, which is what actually holds the page. Matching is
+   * in the avoid list above (correctly: its default branch is avoid), so this
+   * is the conditional half of `breakInside: 'avoid-unless-figures'`. Without
+   * it the bank could break internally while the block around it still could
+   * not, which fixes nothing. */
+  [data-block-type='matching'][data-has-figures] {
+    break-inside: auto;
+  }
+
   .viewer-matching__item,
   .viewer-matching__item[data-state='correct'],
   .viewer-matching__item[data-state='incorrect'] {
@@ -1710,6 +1877,21 @@
   .viewer-image__img,
   .viewer-figure__svg {
     max-width: 100%;
+  }
+
+  /* A2/A10: the paper cap on a choice figure. Without it four 400px-square
+   * graphs inside a break-inside:avoid block simply do not fit a page — the
+   * measurement that drove the grid ruling assumed this cap. */
+  .viewer-choice-figure {
+    max-width: var(--vw-figure-cap-print);
+  }
+
+  /* Once an item row is tall, "align to the bottom" means the bottom of the
+   * FIGURE, so the write-on line detaches from the words it answers. The
+   * existing letter-line print check asserts the border, not the position, so
+   * this would have regressed silently. */
+  .viewer-matching__item:has(.viewer-choice-figure) .viewer-matching__letter-line {
+    align-self: flex-start;
   }
 
   /* ---- Treatment: bordered-box --------------------------------------------

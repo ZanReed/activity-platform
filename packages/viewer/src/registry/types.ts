@@ -144,7 +144,23 @@ export interface PrintSpec {
   /** break-inside: avoid — the block stays whole across page/column breaks.
    * Declared FAITHFUL to the current baseline print CSS (T8 parity gate
    * compares against it); known oddities are commented on the entries. */
-  readonly breakInside: 'avoid' | 'auto';
+  /**
+   * Page-break behaviour.
+   *
+   * `'avoid-unless-figures'` exists because ruling A9 made matching's bank
+   * CONDITIONAL on its content: unbreakable is right for a text bank and fatal
+   * for a figure one (five 1.75in targets is ~9.5in of content in a 10in
+   * printable column, and a box that can neither fit nor break gets flung onto
+   * a page of its own, stranding the items that reference it).
+   *
+   * It is declared here rather than left as a quiet stylesheet override
+   * BECAUSE this repo's most expensive defect class is a declaration that
+   * outlives what it describes — eight orphaned schema fields, and five docs
+   * citing a deleted package. A registry that says `'avoid'` while the page
+   * does something else is the same bug wearing a different hat, and the print
+   * gate would have kept asserting the declared rule and passing.
+   */
+  readonly breakInside: 'avoid' | 'auto' | 'avoid-unless-figures';
   readonly treatment: PrintTreatment;
   /** Never strand this block at a page bottom (headings). */
   readonly keepWithNext?: boolean;
