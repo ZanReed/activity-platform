@@ -1,6 +1,6 @@
 # Choice figures + nested lists — wiring two S9 orphans
 
-**Status:** ✅ **BUILT 2026-08-22 — T0–T9b shipped and verified in the running app. Two author actions outstanding (print baselines, T12 docs).** Ruled + design-reviewed (5/10 → 9/10) + eng-reviewed (3 premises corrected), 0 unresolved.
+**Status:** ✅ **COMPLETE 2026-08-22 — all 17 tasks done, baselines pinned, CI green. Nothing outstanding.** Ruled + design-reviewed (5/10 → 9/10) + eng-reviewed (3 premises corrected), 0 unresolved.
 
 Wires two of the five orphan classes the 2026-08-22 drift audit filed
 (TODOS.md → "S9 left FIVE MORE ORPHAN CLASSES"). Both are **content loss**: a
@@ -454,10 +454,10 @@ P3 is a follow-up.
   - Surfaced by: E4/P-2. Only the print e2e reads `fixtures/index.ts`, so this lands last and churns the baselines once
   - Images use `data:` URIs (print e2e blocks network)
 - [ ] **T10 (P2)** — print — Add list + choice-figure checks to `printExpectations.ts`; `prose` currently asserts **nothing**
-- [ ] **T11 (P2)** — print baselines — Regenerate the Linux baselines for `multiple-choice`, `matching`, `bullet-list`, `ordered-list`. **Read before pinning** (table-arc precedent). Cannot be done on macOS
-- [ ] **T12 (P2)** — docs — Fix `markdown-import-format.md:607`/`:630` (per-choice graphs ARE importable), the dead-renderer comment at `multiple-choice.ts:40-44`, and document the importer's nested-under-a-problem drop
-- [ ] **T13 (P3)** — TODOS — File the matching drag/select-then-place arc (A3's honest fix, and it retires the registry's false a11y claim)
-- [ ] **T14 (P3)** — TODOS — File the SVG-engine convergence (`GraphFigure.tsx` → `renderGraphSvg`)
+- [x] **T11 (P2)** — print baselines — ✅ done via the manual CI job (run 32578933002); 3 of 23 changed, read before pinning. **Not doable on macOS** — see the T11 note above
+- [x] **T12 (P2)** — docs — ✅ done in `79e6f13` (import-format `:607`/`:630` corrected, dead-renderer comment replaced)
+- [x] **T13 (P3)** — TODOS — ✅ filed (A3's honest fix, and it retires the registry's false a11y claim)
+- [x] **T14 (P3)** — TODOS — ✅ filed (`GraphFigure.tsx` → `renderGraphSvg`)
   - Surfaced by: E2/CQ-2. Two engines, one job; the smaller silently drops curves. Net +4.3 KiB gz, out of scope here — **but a fork with a documented reason to exist becomes folklore unless the reason is filed**
 
 ## GSTACK REVIEW REPORT
