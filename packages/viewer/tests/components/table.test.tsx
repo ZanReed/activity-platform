@@ -135,6 +135,61 @@ describe('Q9 — a blank in a cell is announceable', () => {
   });
 });
 
+describe('showCellLabels — the toggle, bound to rendered OUTPUT', () => {
+    // THIS FIELD SHIPPED WITHOUT A CONSUMER (found by the 2026-08-22 drift
+    // audit, §9). It was declared in schema, defaulted, round-tripped by
+    // serialize, written by the importer and promised in the design doc, and no
+    // renderer read it — so a teacher who switched it off still got (a)/(b).
+    // Sixth instance of that class in two weeks.
+    //
+    // So these assert the DOM, at both poles. A test comparing the schema field
+    // to the editor attr, or to the importer's output, would have passed the
+    // whole time the field did nothing — which is exactly how the previous five
+    // survived.
+    it('renders the markers when it is on', () => {
+        const { container } = harness(
+            <Table block={ratesTable({ blanks: true }) as never} label={numberLabel} mode="screen" />,
+        );
+        expect(container.querySelectorAll('.viewer-blank__sublabel').length).toBe(2);
+    });
+
+    it('renders NO markers when it is off', () => {
+        const off = { ...ratesTable({ blanks: true }), showCellLabels: false };
+        const { container } = harness(
+            <Table block={off as never} label={numberLabel} mode="screen" />,
+        );
+        expect(container.querySelectorAll('.viewer-blank__sublabel').length).toBe(0);
+    });
+
+    it('hides them on PAPER too, not only on screen', () => {
+        // The reason a teacher reaches for the toggle is writing room on a
+        // printed sheet — if it only worked on screen the field would be
+        // useless for its stated purpose, and if it only worked on paper the
+        // two surfaces would disagree about what the gaps are called.
+        const off = { ...ratesTable({ blanks: true }), showCellLabels: false };
+        const { container } = harness(
+            <Table block={off as never} label={numberLabel} mode="print" />,
+        );
+        expect(container.querySelectorAll('.viewer-blank__sublabel').length).toBe(0);
+    });
+
+    it('keeps every blank ADDRESSABLE without the marker', () => {
+        // Hiding a visual marker must not remove the only handle a
+        // screen-reader user has on the field. With letters off the accessible
+        // name falls through to position, and the row/column headers stay.
+        const off = { ...ratesTable({ blanks: true }), showCellLabels: false };
+        const { container } = harness(
+            <Table block={off as never} label={numberLabel} mode="screen" />,
+        );
+        const names = Array.from(container.querySelectorAll('input')).map((i) =>
+            i.getAttribute('aria-label'),
+        );
+        expect(names[0]).toBe('2, Cost ($), Blank 1 of 2');
+        expect(names[1]).toBe('3, Cost ($), Blank 2 of 2');
+        for (const n of names) expect(n).not.toContain('Part');
+    });
+});
+
 describe('Q7 — a blankless table is a stimulus, not a question', () => {
   it('renders no inputs at all', () => {
     const { container } = harness(

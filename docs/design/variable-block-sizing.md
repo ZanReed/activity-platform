@@ -1,5 +1,7 @@
 # Variable block sizing — design
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (2026-08-22 drift audit).** This document references `RUNTIME.md` and/or the published-page runtime as live. Both died with `packages/renderer` at **S9 Drop 4 (2026-08-14)** — there are no published HTML pages, and the viewer at `/a/:id` is the only student surface. The reasoning below is kept intact as the record of how this shipped; read every runtime reference as historical.
+
 **Status:** ✅ **COMPLETE** (2026-06-12/13). Drops 1 (foundation), 3 (image width + free height + crop), 4 (cell work-space floor) shipped and deployed; Drop 2 (column drag-resize) was built then cancelled by the author in favor of width presets. This was the strategic goal the structural-columns container was built toward: differing-width/height blocks, **reflow-safe sizing only, no free canvas**.
 
 ## Scope (author-approved)

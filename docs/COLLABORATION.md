@@ -43,7 +43,7 @@ Specific friction patterns where unstated assumptions have caused loops:
 
 - **"Pilot error not popover error."** Mid-session diagnosis of editor blank screen turned out to be a wrong-URL typo (`/activity` vs `/activities`), not a code bug. When the symptoms don't make sense given the recent changes, ask "are you in the state you think you're in?" before diving into code.
 
-- **Documentation lags code, deliberately or otherwise.** STATE.md and RUNTIME.md are updated AT END of stages, not at the end of each session. The "vital context for future Claude" framing matters here — these docs are the bridge between chat sessions.
+- **Documentation lags code, deliberately or otherwise.** STATE.md is updated AT END of stages, not at the end of each session. (RUNTIME.md stood here until S9 Drop 4 deleted it with `packages/renderer`; there is no second doc to update.) The "vital context for future Claude" framing matters here — these docs are the bridge between chat sessions.
 
 - **Closeout pattern: write a bug report for any deferred bug in a format that can seed a new chat.** Done at end of Stage 13.5 for the disappearing-block bug. Lets the deferred issue actually get picked up rather than rotting in a TODO.
 

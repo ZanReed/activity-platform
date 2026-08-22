@@ -6,7 +6,7 @@
 
 **What is DEAD:** the `grades` table and `can_grade_submission` (dropped by migration 0034 — 0029 had emptied them and kept them only until the successor slice re-decided), the Submissions dashboard and `lib/submissions`/`lib/grades` (deleted at S9 Drop 3), and `get-feedback` — which was deleted at Drop 3 **and had never worked**: it served bodiless 200s its entire life (arguments to `jsonResponse` swapped), so released feedback never reached a published page. ⚠ **Do not treat decision 2 or 4 below as reference implementations.** Grading is now checks-native: grades key on `section_checks` rows through four audited RPCs (0034), and the student readback goes through PostgREST, not an Edge Function.
 
-The arc that opens the platform to subjects whose assessments aren't auto-gradable. Slice 1 shipped the student half (free-text capture into the wire-v9 `freeResponses` map — see [RUNTIME.md](../../packages/renderer/RUNTIME.md) "Free-text blocks"). This doc designs the grading half.
+The arc that opens the platform to subjects whose assessments aren't auto-gradable. Slice 1 shipped the student half (free-text capture into the wire-v9 `freeResponses` map — see ~~RUNTIME.md "Free-text blocks"~~ — that file died with `packages/renderer` at S9 Drop 4 (2026-08-14); the surviving contract is the viewer's `free-response` registry entry + component). This doc designs the grading half.
 
 ## Decisions (author-approved 2026-07-13)
 

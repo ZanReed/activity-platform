@@ -117,7 +117,7 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * is the same ~10% headroom policy applied to the new measurement:
  * 156.4 × 1.1 ≈ 172.
  *
- * Measured 2026-08-18: 156.4 KiB gz. (The 150 target is now ~6 KiB away; the
+ * Measured 2026-08-22: 158.5 KiB gz. (The 150 target is ~8 KiB away; the
  * next rung of the ladder is the zod audit — see TODOS.md.)
  */
 export const SHELL_JS_GZ_KIB = 172;

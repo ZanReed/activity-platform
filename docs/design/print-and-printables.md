@@ -1,5 +1,7 @@
 # print-and-printables.md
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (2026-08-22 drift audit).** This document references `RUNTIME.md` and/or the published-page runtime as live. Both died with `packages/renderer` at **S9 Drop 4 (2026-08-14)** — there are no published HTML pages, and the viewer at `/a/:id` is the only student surface. The reasoning below is kept intact as the record of how this shipped; read every runtime reference as historical.
+
 Design doc for **print as an authored feature** — teacher-configurable, classroom-ready printables generated from the same `ActivityDocument` that produces the interactive web activity.
 
 Companion to STATE.md (where things are), ROADMAP.md (where things are going), and RUNTIME.md (the published-page runtime). This doc is *captured ahead of implementation* — same role as `interactive-graph-block.md` and `vocabulary-definitions.md`.

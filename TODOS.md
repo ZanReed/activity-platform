@@ -74,6 +74,21 @@ call for the row — focus stability across a 76-stop walk is not an a11y proper
 
 **Depends on:** nothing.
 
+## The drift-audit skill misses a fourth `Status:` spelling (2026-08-22)
+
+**What:** `.claude/skills/drift-audit`'s §3 greps two forms — `**Status:**` and
+`**Status: `. There are four in `docs/design/`: those two, plus `> **Status:**`
+(inside a blockquote — `activities-list-surface.md`) and `Status: **VALUE**`
+(colon outside the bold — `dark-mode.md`).
+
+**Why it matters:** the blockquote form produced a FALSE POSITIVE in the
+2026-08-22 audit — a doc reported as having no status line while carrying one.
+The skill already warns about exactly this class from 2026-08-17 ("a false
+positive that cost a finding's credibility") and then repeated it in a new form.
+
+**Fix:** widen the grep to `^>\? *\*\*Status` plus the colon-outside variant, and
+normalize the two outliers when those docs are next touched.
+
 ## A general walk-descent guard for nested-content blocks
 
 **What:** A fixture-driven guard asserting that every registered block type's authored in-band ids

@@ -66,7 +66,22 @@ export default function Table({
   // Sub-part letters appear on the same terms as fill_in_blank's (ruling N7):
   // a numbered problem with more than one gap. A single-blank table has nothing
   // to tell apart, and an out-of-sequence label (custom/none) is not numbered.
-  const letterBlanks = label?.kind === 'number' && blankIds.length >= 2;
+  //
+  // …AND the author can switch them off. `showCellLabels` mirrors
+  // faded_worked_example's `showStepLabels`, which hides its markers on EVERY
+  // surface rather than only on paper — so this does too. The reason a teacher
+  // reaches for it is writing room on a printed sheet, but a marker that shows
+  // on screen and not on paper would make the screen and the sheet disagree
+  // about what the gaps are called, which is worse than either choice alone.
+  //
+  // The accessible name does NOT disappear with the marker: with letters off it
+  // falls through to "Blank 2 of 4" below, so a screen-reader user can still
+  // tell the gaps apart. Hiding a visual marker must never remove the only way
+  // a non-visual reader has to address a field.
+  const letterBlanks =
+    block.showCellLabels !== false &&
+    label?.kind === 'number' &&
+    blankIds.length >= 2;
 
   const headerTexts = {
     // Column headers: the top row's cells, when the author marked one.
