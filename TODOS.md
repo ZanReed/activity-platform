@@ -74,6 +74,31 @@ call for the row — focus stability across a 76-stop walk is not an a11y proper
 
 **Depends on:** nothing.
 
+## The matching interaction the registry already claims — drag / select-then-place (2026-08-22)
+
+Filed by the choice-figures design review (D5/A3) as the honest fix it decided
+NOT to ship in that slice.
+
+**Two divergences, one arc.** (1) `registry.ts:280` declares matching's a11y
+story as *"Pointer drag with a keyboard select-then-place grammar underneath:
+target cards are focusable, Space/Enter lifts, arrows choose a dock, Space/Enter
+places, Escape cancels. Every move narrates to a visually-hidden aria-live
+region."* `Matching.tsx` implements a plain `<select>` and says so in its own
+header. **The registry describes an interaction that does not exist** — the same
+declaration-without-implementation class as the orphan fields, one level up.
+(2) Once per-choice figures ship, the `<select>` becomes actively bad for the
+question type matching exists for: a graph target means read the bank, memorise
+"graph B", scroll to the item, open a dropdown, pick "B".
+
+**Worth knowing before starting:** the paper experience is already fine (write
+the letter on the line), so this is a SCREEN-only fix — do not let it grow into
+a print change. Targets are shuffled client-side with a block-id seed
+(`Matching.tsx:56`) and letters derive from rendered position, so any new
+interaction must keep both properties or the letters stop matching the bank.
+
+**Depends on:** the choice-figures slice landing first (it makes the case
+concrete and adds the fixtures a drag interaction would need to test against).
+
 ## S9 left FIVE MORE ORPHAN CLASSES — the full-schema sweep (drift audit 2026-08-22, §9)
 
 The 2026-08-22 full audit swept **every** field in `packages/schema/src` (~180)
@@ -89,7 +114,7 @@ guards; it never walked the schema's comments or the editor's controls.
 delete it end to end (schema + editor control + importer key + doc).** Ranked by
 what reaches paper/screen as CONTENT LOSS first:
 
-1. **Choice and item figures never render** — `MultipleChoiceOption.image`/`.graph`,
+1. **Choice and item figures never render** — ✅ **PLANNED 2026-08-22**, design-reviewed: [choice-figures-and-nested-lists.md](docs/design/choice-figures-and-nested-lists.md) — `MultipleChoiceOption.image`/`.graph`,
    `MatchingItem.image`/`.graph`, `MatchingTarget.image`/`.graph`
    (`multiple-choice.ts:63-64`, `matching.ts:42-51`). The editor authors them
    (`MultipleChoiceView.tsx`), the importer accepts `graph: <spec>` and a
@@ -97,7 +122,7 @@ what reaches paper/screen as CONTENT LOSS first:
    `MultipleChoice.tsx`/`Matching.tsx` render only `.content`. A "which graph
    shows…" question publishes with blank choices, on screen AND on paper. No
    viewer fixture carries one, so no test could notice. **Print-affecting.**
-2. **Nested lists drop their children** — `ListItem.children` (`list.ts:25`;
+2. **Nested lists drop their children** — ✅ **PLANNED 2026-08-22**, same doc — `ListItem.children` (`list.ts:25`;
    also `DefinitionListItem.children`). `serialize.ts` emits them from Tiptap's
    native nesting; `BulletList.tsx`/`OrderedList.tsx` map `items[].content`
    only. Any indented sub-list a teacher types is flattened for students.
@@ -112,7 +137,7 @@ what reaches paper/screen as CONTENT LOSS first:
    invokes, which makes `graph-kit/src/mistakes.ts` (the classifier catalogue)
    production-unreachable. `GraphSettings.tsx` still exposes all of it.
    Contrast: BLANK-level `mistakeFeedback` IS live (`grading/blanks.ts`).
-4. **The student calculator no longer exists** — `ActivityDocument.calculator`
+4. **The student calculator no longer exists** *(status corrected 2026-08-22: `calculator-tool.md`, STATE and ROADMAP no longer claim it is live)* — `ActivityDocument.calculator`
    (`document.ts:305-347`). `mountCalculator`'s only callers are the editor's
    config-drawer preview and `/dev/calculator`; the student summon was the
    runtime's. `calculator-tool.md`, STATE's status row and ROADMAP 2.7's
