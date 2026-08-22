@@ -37,6 +37,10 @@ import {
 } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import {
+    reloadOnceForStaleBuild,
+    clearStaleBuildGuard,
+} from '../lib/swRegistration';
+import {
     activityToTiptap,
     tiptapToActivity,
     referencePanelToTiptap,
@@ -148,6 +152,18 @@ function Shell({ children }: { children: ReactNode }) {
  * and reporting where. The full issue list still goes to the console for the
  * cases where the first one is not the interesting one.
  */
+/**
+ * Both stored-document parses take the same recovery: try ONE reload in case
+ * this build is stale, and only report the failure if that has already been
+ * spent. Shared so the draft path and the published path cannot drift — they
+ * fail for the identical reason and a fix applied to one of them is a bug.
+ *
+ * @returns true when a reload is in flight; the caller must stop.
+ */
+function recoveredByReload(): boolean {
+    return reloadOnceForStaleBuild();
+}
+
 function describeParseFailure(error: { issues: { path: (string | number)[]; message: string }[] }): string {
     console.error('[activity] stored document failed schema validation', error.issues);
     const first = error.issues[0];
@@ -292,6 +308,7 @@ export default function ActivityEditor() {
             if (row.draft_content !== null) {
                 const parsed = ActivityDocument.safeParse(row.draft_content);
                 if (!parsed.success) {
+                    if (recoveredByReload()) return;
                     setLoadState({
                         status: 'error',
                         message:
@@ -323,6 +340,7 @@ export default function ActivityEditor() {
                 const versionRow = versionData as ActivityVersionLoadRow;
                 const parsed = ActivityDocument.safeParse(versionRow.content);
                 if (!parsed.success) {
+                    if (recoveredByReload()) return;
                     setLoadState({
                         status: 'error',
                         message:
@@ -335,6 +353,13 @@ export default function ActivityEditor() {
             } else {
                 doc = createEmptyDocument({ title: row.title });
             }
+
+            // A document that PARSED means this build can read it, so release
+            // the single reload retry for the next deploy to use. Mirrors the
+            // chunk recovery clearing its own guard on a healthy `load` — a
+            // guard that is never cleared spends itself once and then never
+            // helps again.
+            clearStaleBuildGuard();
 
             // The strict-grid doc requires at least one (sectionBreak | row); a
             // brand-new activity serializes to content: [] — substitute the

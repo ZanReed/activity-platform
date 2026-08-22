@@ -58,6 +58,10 @@ import {
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
 import { supabase } from '../lib/supabase';
+import {
+    reloadOnceForStaleBuild,
+    clearStaleBuildGuard,
+} from '../lib/swRegistration';
 import { buildFoldableDocument } from '../lib/foldable';
 import { useAutosave } from '../lib/useAutosave';
 import { PrintSettingsBody } from '../components/ActivityConfigDrawer';
@@ -176,9 +180,20 @@ export default function ActivityPrint() {
             // hint that it is simply older than this build.
             try {
                 const { doc } = upgradeActivityDocument(raw);
+                // Parsed, so this build can read it: release the single reload
+                // retry for the next deploy (see swRegistration).
+                clearStaleBuildGuard();
                 setLoadState({ status: 'ready', doc });
                 setPrint(doc.meta.print);
             } catch {
+                // SAME CAUSE AS THE EDITOR ROUTE, and it has to be handled in
+                // both or Print becomes the dead end the editor stopped being:
+                // a page load served the precached index.html after a deploy
+                // that added a block type, so THIS BUILD's schema cannot read a
+                // document that is perfectly valid. One reload adopts the new
+                // build; if that has already been spent, the message below is
+                // the honest answer.
+                if (reloadOnceForStaleBuild()) return;
                 setLoadState({
                     status: 'error',
                     message: "This activity's content could not be read.",

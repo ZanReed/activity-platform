@@ -17,8 +17,19 @@
 //    did nothing. Vite raises `vite:preloadError` for exactly this case, and
 //    the only real fix is to reload into the new HTML.
 //
-// The reload is guarded by a session flag so a genuinely broken deploy cannot
-// put a student in a reload loop, which would be worse than the dead button.
+// 3. RECOVER FROM A STORED DOCUMENT THE OLD BUILD CANNOT READ. Same cause,
+//    different symptom, found on a teacher 2026-08-22. index.html is the one
+//    PRECACHED file (assets are cached by hashed name, where a hit can never be
+//    stale), so a page load served the old index.html loads an entirely old,
+//    self-consistent build. If a deploy added a BLOCK TYPE, that build's schema
+//    does not know it, and `ActivityDocument.safeParse` rejects the whole
+//    document — the editor shows "malformed" for an activity whose stored bytes
+//    are perfectly valid. Unlike the chunk case there is no browser event to
+//    listen for: the failure is a zod result, so the CALLER reports it here.
+//
+// Both reloads are guarded by their own session flag so a genuinely broken
+// deploy — or a genuinely broken document — cannot put anyone in a reload loop,
+// which would be worse than the dead button or the error page.
 // =============================================================================
 
 const RELOAD_GUARD_KEY = 'activity-viewer:reloaded-for-stale-chunk';
@@ -76,6 +87,59 @@ export function installStaleChunkRecovery(
       window.removeEventListener('load', onLoad);
     },
   };
+}
+
+const STALE_DOC_GUARD_KEY = 'activity-viewer:reloaded-for-stale-build';
+
+export interface StaleBuildReloadOptions {
+  /** Injectable for the same reason the chunk recovery injects it: jsdom
+   * cannot spy a real location.reload. */
+  reload?: () => void;
+}
+
+/**
+ * A stored document failed to parse — reload ONCE in case this build is stale.
+ *
+ * WHEN THIS IS THE RIGHT ANSWER, and why it is not a guess: a document reaching
+ * this app was validated when it was saved AND again when it was published (the
+ * importer validates too). So "the schema rejects it" overwhelmingly means the
+ * SCHEMA is old, not that the document is bad — and the schema is old exactly
+ * when index.html came from the precache after a deploy that added a block type.
+ * One reload adopts the new build, because the worker has already installed it
+ * by then (autoUpdate + skipWaiting + clientsClaim).
+ *
+ * WHEN IT IS NOT, and why that stays safe: if the document really is malformed,
+ * the reload happens once, the second parse fails the same way, the guard is
+ * set, and the caller shows its error — now with the failing field's path.
+ * The cost of being wrong is one page load; the cost of NOT doing it is a
+ * teacher being told their content is corrupt when it is not.
+ *
+ * @returns true when a reload was triggered (the caller should render nothing
+ *          further), false when the guard has already been spent.
+ */
+export function reloadOnceForStaleBuild(
+  options: StaleBuildReloadOptions = {},
+): boolean {
+  const store = safeSession();
+  if (store?.getItem(STALE_DOC_GUARD_KEY)) return false;
+  // NO SESSION STORAGE → DO NOTHING, and note that this DIVERGES from the
+  // chunk recovery above, which reloads anyway. The divergence is the point:
+  // a preloadError fires when a student opens something lazy, so an unguarded
+  // reload there costs one extra load. This trigger is a parse failure during
+  // PAGE LOAD, so without a guard every load would reload — an infinite loop,
+  // and the teacher could never reach the error message either. Refusing leaves
+  // them with a real error they can act on.
+  if (!store) return false;
+  store.setItem(STALE_DOC_GUARD_KEY, '1');
+  (options.reload ?? (() => window.location.reload()))();
+  return true;
+}
+
+/** Clear the stale-build guard once a document has parsed. Called on a healthy
+ * load so a LATER deploy gets its own single retry, exactly as the chunk
+ * recovery clears its own guard on `load`. */
+export function clearStaleBuildGuard(): void {
+  safeSession()?.removeItem(STALE_DOC_GUARD_KEY);
 }
 
 /**

@@ -130,6 +130,9 @@ beforeEach(() => {
     h.row.current = { id: ACTIVITY_ID, title: 'T', draft_content: authored(), current_version_id: null };
     h.loadError.current = null;
     h.version.current = null;
+    // The stale-build retry is session-scoped, so a spent guard would leak
+    // between cases and quietly turn the reload assertions vacuous.
+    window.sessionStorage.clear();
 });
 afterEach(cleanup);
 
@@ -162,7 +165,24 @@ describe('loading', () => {
         expect(await screen.findByText('Activity not found')).toBeInTheDocument();
     });
 
+    // THE STALE-BUILD RETRY SITS IN FRONT OF THESE TWO (2026-08-22). A document
+    // this build cannot read is FAR more often a stale build than bad data —
+    // index.html is precached, so a load after a deploy that added a block type
+    // runs an old schema against a valid document. So the first failure reloads
+    // once, and the message below is what a teacher sees when that retry has
+    // already been spent, i.e. when the content really is unreadable.
+    //
+    // These cases spend the guard up front so they keep testing the message.
+    // The reload itself is the case after them.
+    function spendStaleBuildRetry() {
+        window.sessionStorage.setItem(
+            'activity-viewer:reloaded-for-stale-build',
+            '1',
+        );
+    }
+
     it('reports unreadable content instead of rendering a broken sheet', async () => {
+        spendStaleBuildRetry();
         h.row.current = {
             id: ACTIVITY_ID, title: 'T',
             draft_content: { schemaVersion: 1, nope: true },
@@ -174,9 +194,38 @@ describe('loading', () => {
         ).toBeInTheDocument();
     });
 
+    it('tries ONE reload first, in case this build is simply stale', async () => {
+        // The teacher-facing point of the whole mechanism: after a deploy that
+        // adds a block type, a precached index.html renders a perfectly valid
+        // activity unreadable. Reloading adopts the new build; telling the
+        // teacher their content is broken sends them to re-author it.
+        const reload = vi.fn();
+        const original = Object.getOwnPropertyDescriptor(window, 'location');
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            value: { ...window.location, reload },
+        });
+        try {
+            h.row.current = {
+                id: ACTIVITY_ID, title: 'T',
+                draft_content: { schemaVersion: 1, nope: true },
+                current_version_id: null,
+            };
+            renderRoute();
+            await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+            // And it does NOT also show the error — the page is on its way out.
+            expect(
+                screen.queryByText("This activity's content could not be read."),
+            ).toBeNull();
+        } finally {
+            if (original) Object.defineProperty(window, 'location', original);
+        }
+    });
+
     it('goes through the upgrade seam, so unversioned content fails honestly (D23C)', async () => {
         // No schemaVersion at all: the seam rejects it by name rather than the
         // parser rejecting it for some deeper reason.
+        spendStaleBuildRetry();
         h.row.current = {
             id: ACTIVITY_ID, title: 'T',
             draft_content: { meta: {}, sections: [] },

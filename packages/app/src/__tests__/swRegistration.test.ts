@@ -14,7 +14,11 @@
 // =============================================================================
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { installStaleChunkRecovery } from '../lib/swRegistration';
+import {
+    installStaleChunkRecovery,
+    reloadOnceForStaleBuild,
+    clearStaleBuildGuard,
+} from '../lib/swRegistration';
 
 function firePreloadError(): boolean {
     // Vite's real event is cancelable; preventDefault is how we stop it
@@ -107,5 +111,84 @@ describe('stale-chunk recovery', () => {
         } finally {
             if (original) Object.defineProperty(window, 'sessionStorage', original);
         }
+    });
+});
+
+// =============================================================================
+// Stale-BUILD recovery — the sibling of the chunk case (2026-08-22)
+// -----------------------------------------------------------------------------
+// Found on a real teacher. index.html is the one PRECACHED file, so a load
+// served from that precache after a deploy runs an entirely old, self-consistent
+// build. If the deploy added a block type, that build's schema rejects a
+// document whose stored bytes are perfectly valid, and the editor said
+// "malformed" — which reads as "your content is corrupt" rather than "reload".
+//
+// The reload is the fix; as with the chunk case, the GUARD is the part worth
+// testing. This trigger is more dangerous than that one: it fires during page
+// LOAD, so an unguarded reload is an infinite loop rather than one wasted fetch.
+// =============================================================================
+
+describe('stale-build recovery', () => {
+    beforeEach(() => {
+        window.sessionStorage.clear();
+    });
+
+    it('reloads once when a stored document will not parse', () => {
+        const reload = vi.fn();
+        expect(reloadOnceForStaleBuild({ reload })).toBe(true);
+        expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT reload a second time — a genuinely bad document must not loop', () => {
+        const reload = vi.fn();
+        reloadOnceForStaleBuild({ reload });
+        expect(reloadOnceForStaleBuild({ reload })).toBe(false);
+        expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns false the second time, so the caller shows its real error', () => {
+        // The contract the route depends on: true means "a reload is in flight,
+        // render nothing"; false means "this document really is broken, say so".
+        reloadOnceForStaleBuild({ reload: vi.fn() });
+        expect(reloadOnceForStaleBuild({ reload: vi.fn() })).toBe(false);
+    });
+
+    it('a parsed document clears the guard, so a LATER deploy gets its own retry', () => {
+        const reload = vi.fn();
+        reloadOnceForStaleBuild({ reload });
+        clearStaleBuildGuard();
+        expect(reloadOnceForStaleBuild({ reload })).toBe(true);
+        expect(reload).toHaveBeenCalledTimes(2);
+    });
+
+    it('REFUSES without sessionStorage — deliberately unlike the chunk case', () => {
+        // The chunk recovery reloads anyway, because its trigger is a student
+        // opening something lazy and the cost of being wrong is one load. This
+        // trigger fires on every page load, so no guard means no escape: the
+        // teacher would never even reach the error message.
+        const original = Object.getOwnPropertyDescriptor(window, 'sessionStorage');
+        Object.defineProperty(window, 'sessionStorage', {
+            configurable: true,
+            get() {
+                throw new Error('blocked');
+            },
+        });
+        const reload = vi.fn();
+        try {
+            expect(reloadOnceForStaleBuild({ reload })).toBe(false);
+            expect(reload).not.toHaveBeenCalled();
+        } finally {
+            if (original) Object.defineProperty(window, 'sessionStorage', original);
+        }
+    });
+
+    it('uses its OWN guard key — the two recoveries must not swallow each other', () => {
+        // Sharing a key would mean a chunk reload spends the build retry (and
+        // vice versa), so whichever failure came first would mask the other.
+        const reload = vi.fn();
+        reloadOnceForStaleBuild({ reload });
+        const keys = Object.keys(window.sessionStorage);
+        expect(keys).toContain('activity-viewer:reloaded-for-stale-build');
+        expect(keys).not.toContain('activity-viewer:reloaded-for-stale-chunk');
     });
 });
