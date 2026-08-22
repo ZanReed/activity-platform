@@ -74,6 +74,32 @@ call for the row — focus stability across a 76-stop walk is not an a11y proper
 
 **Depends on:** nothing.
 
+## Converge the two SVG engines — `GraphFigure.tsx` -> `renderGraphSvg` (2026-08-22)
+
+Filed by the choice-figures ENG review (E2/CQ-2), which deliberately did NOT do
+it in that slice.
+
+**The repo has two kit-free SVG engines for one job**, and they have already
+diverged: `renderGraphSvg` (`graph-kit/src/static-svg/graph-svg.ts`, 400 viewBox,
+fixed grayscale-safe palette, arrow markers, draws curves at 96 samples,
+**5.07 KiB gz**) and `GraphFigure.tsx` (`packages/viewer/src/blocks/`, 320
+viewBox + 8 pad, `currentColor` with opacity, **returns `null` for `curve` AND
+`expression`**, 883 B gz).
+
+**The size gap is not efficiency, it is missing capability** — which is why the
+eng review refused to reuse the small one for choice figures. Anything rendered
+through `GraphFigure` today silently loses curve drawables. **Nobody has checked
+whether a real `graph_figure` block has ever authored a curve**; that check is
+the first task here, and if the answer is yes, this stops being cleanup and
+becomes a live content-loss bug of exactly the class the orphan sweep found.
+
+**Convergence is +4.3 KiB gz net in the EAGER shell** (`graph_figure` is
+`loading:'eager'`), so it is gated on the shell-slim ladder resuming, or on
+`graph_figure` moving to a lazy binding. Do not treat it as free cleanup.
+
+**Depends on:** the choice-figures slice landing (it introduces the dynamic-import
+pattern convergence would reuse).
+
 ## The matching interaction the registry already claims — drag / select-then-place (2026-08-22)
 
 Filed by the choice-figures design review (D5/A3) as the honest fix it decided

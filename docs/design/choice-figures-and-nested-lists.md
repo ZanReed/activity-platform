@@ -1,6 +1,6 @@
 # Choice figures + nested lists — wiring two S9 orphans
 
-**Status:** 🟢 **PLAN — RULED + DESIGN-REVIEWED 2026-08-22 (5/10 → 9/10, 0 unresolved). Ready to build; no code yet.**
+**Status:** 🟢 **PLAN — RULED + DESIGN-REVIEWED + ENG-REVIEWED 2026-08-22 (design 5/10 → 9/10; eng review corrected 3 premises, 0 unresolved). CLEARED to build; no code yet.**
 
 Wires two of the five orphan classes the 2026-08-22 drift audit filed
 (TODOS.md → "S9 left FIVE MORE ORPHAN CLASSES"). Both are **content loss**: a
@@ -30,6 +30,18 @@ Therefore: no schema change · no sanitize-spec change · **`SANITIZER_REV` does
 not move** · no `bundle:viewer-server` / `bundle:grading-server` · no
 `get-activity` redeploy · no read-cache orphaning · no migration · no author
 deploy station.
+
+⚠ **AMENDED BY ENG REVIEW 2026-08-22 — one branch of the "no bundle" claim was
+wrong.** `registry.ts` **IS** inside the committed viewer-server bundle (grep the
+bundle: `choice-letters` and `letter-bank`, the MC and matching `print.treatment`
+values, are both present; `printExpectations.ts` is correctly excluded and says so
+in its own header, the V9 888 KiB → 21 MB lesson). `SANITIZER_REV` hashes only
+`registeredBlockTypes` + each entry's **`sanitize`** sub-object
+(`computeSanitizerRev`, `sanitize.ts:67-78`), so a `print:` change does **not**
+move the rev — no cache orphaning, no `get-activity` redeploy. **But E2 makes a
+registry `print:` change necessary, so `pnpm bundle:viewer-server` MUST run and
+the regenerated bundle be committed in the same commit, or CI's drift gate
+fails.** Everything else in the paragraph above holds.
 
 The one non-local cost: touching the MC / matching / list **fixtures** changes
 their Linux print baselines, which are CI-authoritative and cannot be
@@ -226,6 +238,92 @@ whether an authored field renders.
 - `DefinitionListItem.children` on the **on-screen** definition path (the print
   glossary renders it; the popover path needs its own check).
 
+## Eng-review amendments (2026-08-22, 4 decisions)
+
+Every one came from checking a claim against code rather than trusting it.
+
+**E1. The engine loads ON DEMAND, not statically** (D10; corrects the plan's
+premise). `bindings.ts` has **19 eager bindings and 4 lazy** — `multiple_choice`
+and `matching` are BOTH `loading: 'eager'`, so a static import of
+`graph-kit/static-svg` lands in the **student shell**, not a block chunk.
+Measured: the engine is **5.07 KiB gz** (13,965 B minified) against `shell JS`
+at **158.5 / 172.0 KiB** — **38% of the remaining headroom**, while the
+shell-slim ladder is parked. So: dynamic `import()` inside the figure component,
+mirroring `kitSurfaces.ts:91`; a document walk that preloads when any choice
+carries a graph; and a pending marker `printReadiness.ts` can wait on.
+**A8's reserved box already removes the layout-shift objection** — the two
+rulings compose.
+
+⚠ **The preload trigger must be DERIVED, not hand-listed** (policy P4).
+`kitPreload.ts` derives its set from `sanitize.deriveQuestionShape`, bonded by
+`rosterBonds.test.ts`. MC/matching must NOT set that flag (they need no shape
+from the key), so the choice-figure trigger is a **document walk**, not a
+registry flag and not a second hand-maintained roster.
+
+**E2. `GraphFigure.tsx` is NOT a substitute, and the fork stays** (D10). It is
+only 883 B gz because it **returns `null` for `curve` and `expression`
+drawables** (`GraphFigure.tsx:110-111`). Reusing it would render an empty box
+for "which graph shows y = x²" — silent content loss, the exact class this slice
+fixes. Convergence (make `GraphFigure` render via `renderGraphSvg`) is the right
+long-term move and is filed in TODOS; it is **not** free (+4.3 KiB gz net) and
+is out of scope here. **A fork with a documented reason to exist is worse than
+an accidental one if the reason is never written down** — hence this paragraph.
+
+**E3. The registry's print declaration becomes conditional, and both branches
+are asserted** (D11). A9 makes matching's `breakInside` depend on content while
+`registry.ts:283` declares `'avoid'` unconditionally. Left alone that is a
+declaration outliving its implementation — **this repo's signature bug class,
+one level up from the fields being fixed**, and the print check would keep
+asserting the declared rule and passing. So the print vocabulary learns
+content-conditional `breakInside`, the checks cover with-figures AND
+without-figures, and the viewer-server bundle is regenerated in the same commit.
+
+**E4. Tests build their own documents; shared fixtures change LAST** (D12).
+E1 makes the figure asynchronous, so every figure test needs an explicit wait —
+and critically, **an absence assertion can pass merely by looking too early**,
+which is a test passing for the wrong reason (policy P9, and the sw-lane lesson:
+"a lane that passes because of what is ABSENT from the machine is not passing,
+it is unobserved"). Only the print e2e reads `fixtures/index.ts`, so component
+tests use inline documents and the shared fixtures land in **one final commit
+with a single Linux baseline regeneration** instead of four.
+
+### One more vacuity trap, named so it cannot be walked into
+
+`querySelector('.viewer-mc__figure') !== null` **passes against an empty
+`<div>`.** The guard asserts CONTENT: the `img[src]` resolves, and the SVG
+carries `data-drawables="N"` — the assertion `print-twins.test.tsx:14-17`
+already makes. Then mutation-test it: revert the wiring, record which cases go
+red.
+
+### Figure data path
+
+```
+  ChoiceGraph {axis, drawables}          ChoiceImage {src, alt}
+        │                                       │
+        │  (already past the sanitizer:         │
+        │   deny-list strips correct/           │
+        │   feedback/solution only)             │
+        ▼                                       ▼
+  ┌───────────────────────── <ChoiceFigure> ─────────────────────────┐
+  │  ONE component, used by MultipleChoice, Matching item AND target │
+  │  (mirrors the editor's shared FigureHolder / ChoiceFigureEditor) │
+  │  · the single dangerouslySetInnerHTML audit point                │
+  │  · box reserved via aspect-ratio (A8) before anything arrives    │
+  └───────┬──────────────────────────────────────────┬───────────────┘
+          │ graph                                    │ image
+          ▼                                          ▼
+   await import('@activity/graph-kit/static-svg')   <img loading=lazy>
+   renderGraphSvg(axis, drawables,                   │ onError
+     blockId + '-' + choiceId)  ← ids are            ▼
+     document-global; namespace or                  alt text in a
+     clipPath/marker ids collide                    dashed box (A8)
+          │
+          ▼
+   preload walk: document contains a choice graph?
+     → warm the chunk + set a pending marker printReadiness waits on
+       (otherwise paper records the moment before it arrived)
+```
+
 ## What already exists — reuse, don't reinvent
 
 | Existing | Use it for |
@@ -252,10 +350,19 @@ aesthetic; a measuring instrument. Regenerate it if the caps change.
 Synthesized from the review's findings. P1 blocks ship; P2 lands same branch;
 P3 is a follow-up.
 
-- [ ] **T1 (P1)** — viewer/blocks — Render the choice figure in `MultipleChoice.tsx`
+- [ ] **T0 (P1)** — viewer/blocks — **`<ChoiceFigure>`: ONE shared component** (image + graph, dynamic engine import, reserved box, error state, accessible naming)
+  - Surfaced by: CQ-1 (DRY — the editor already shares `FigureHolder`/`ChoiceFigureEditor`); E1; A4; A8
+  - Files: new `packages/viewer/src/blocks/ChoiceFigure.tsx`
+  - **The single `dangerouslySetInnerHTML` audit point.** Carries the ASCII data-path diagram in its header
+  - Verify: content assertions (`img[src]`, `svg[data-drawables]`), not existence
+- [ ] **T0b (P1)** — viewer/blocks — Preload walk + print-readiness marker for choice graphs
+  - Surfaced by: E1. **Derive the trigger by document walk — NOT a registry flag, NOT a second roster** (policy P4)
+  - Files: `packages/viewer/src/blocks/kitPreload.ts` (or a sibling), `packages/viewer/src/print/printReadiness.ts`
+  - Verify: a document with a choice graph warms the chunk; print waits on the marker
+- [ ] **T1 (P1)** — viewer/blocks — Mount `<ChoiceFigure>` in `MultipleChoice.tsx`
   - Surfaced by: the orphan itself; A1/A5/A7
   - Files: `packages/viewer/src/blocks/MultipleChoice.tsx`
-  - Verify: new component test asserts the `<img>`/`<svg>` in the DOM, absent when unauthored
+  - Verify: component test asserts figure CONTENT, absent when unauthored (**await a settled signal — an absence assertion can pass by looking too early**, E4)
 - [ ] **T2 (P1)** — viewer/blocks — Render item + target figures in `Matching.tsx`
   - Surfaced by: A3; note the target has no wrapper element today (`Matching.tsx:90`)
   - Files: `packages/viewer/src/blocks/Matching.tsx`
@@ -263,38 +370,52 @@ P3 is a follow-up.
   - Surfaced by: A2/A6/A10; the `align-items:center` collision
   - Files: `packages/viewer/src/tokens/tokens.css`, `packages/viewer/src/styles/viewer.css`
   - Verify: `print-rules.e2e.ts` computed-style rows; must not trip `mc/no-tap-floor`
-- [ ] **T4 (P1)** — viewer/blocks — Loading + error states for choice images
+- [ ] **T4 (P1)** — viewer/blocks — Loading + error states (folded into T0's component)
   - Surfaced by: A8. **Invisible to the print gate (network blocked) — needs its own component test**
 - [ ] **T5 (P1)** — viewer/blocks — Accessible naming for figure-only choices
   - Surfaced by: A4. Verify with an axe assertion, not by inspection
-- [ ] **T6 (P1)** — viewer/styles — Matching bank: grid + breakable when it holds figures
-  - Surfaced by: A9
+- [ ] **T6 (P1)** — viewer/styles + registry — Matching bank: grid + conditional break, **declaration made conditional**
+  - Surfaced by: A9 + E3. Extend the print vocabulary so `breakInside` can be content-conditional; assert BOTH branches
+  - Files: `packages/viewer/src/styles/viewer.css`, `packages/viewer/src/registry/registry.ts`, `printExpectations.ts`
+  - ⚠ **Registry change ⇒ `pnpm bundle:viewer-server` + commit the bundle in the SAME commit** (E3; CI drift gate). `SANITIZER_REV` does not move, so no redeploy
 - [ ] **T7 (P1)** — viewer/blocks — Recurse `item.children` in `BulletList.tsx` / `OrderedList.tsx`
   - Surfaced by: feature 2. Copy `DefinitionGlossary.tsx:65-89`
 - [ ] **T8 (P1)** — viewer/styles — Nested list CSS: marker cascade, nested top spacing, indent cap past level 3
   - Surfaced by: B1/B3, and the two spacing gaps (no top margin on a nested list; sibling margin does not cross the nesting boundary)
-- [ ] **T9 (P1)** — viewer/fixtures + tests — Fixtures for every new case, guards bound to output, **mutation-tested**
+- [ ] **T9 (P1)** — viewer/tests — Guards bound to output, **mutation-tested**, on INLINE documents
   - Cases: figure+text, figure-only, image+graph (image wins), broken image, nested bullet, nested ordered, depth 4
+  - **Assert content, never existence** (`.viewer-mc__figure !== null` passes against an empty div — T-1)
+  - Mutation test: revert the wiring, record which cases flip red (the `4a50b00` bar)
+- [ ] **T9b (P1, LAST)** — viewer/fixtures — Add the shared fixtures, in ONE commit
+  - Surfaced by: E4/P-2. Only the print e2e reads `fixtures/index.ts`, so this lands last and churns the baselines once
   - Images use `data:` URIs (print e2e blocks network)
 - [ ] **T10 (P2)** — print — Add list + choice-figure checks to `printExpectations.ts`; `prose` currently asserts **nothing**
 - [ ] **T11 (P2)** — print baselines — Regenerate the Linux baselines for `multiple-choice`, `matching`, `bullet-list`, `ordered-list`. **Read before pinning** (table-arc precedent). Cannot be done on macOS
 - [ ] **T12 (P2)** — docs — Fix `markdown-import-format.md:607`/`:630` (per-choice graphs ARE importable), the dead-renderer comment at `multiple-choice.ts:40-44`, and document the importer's nested-under-a-problem drop
 - [ ] **T13 (P3)** — TODOS — File the matching drag/select-then-place arc (A3's honest fix, and it retires the registry's false a11y claim)
+- [ ] **T14 (P3)** — TODOS — File the SVG-engine convergence (`GraphFigure.tsx` → `renderGraphSvg`)
+  - Surfaced by: E2/CQ-2. Two engines, one job; the smaller silently drops curves. Net +4.3 KiB gz, out of scope here — **but a fork with a documented reason to exist becomes folklore unless the reason is filed**
 
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
-| Codex Review | `/codex review` | Independent 2nd opinion | 1 | issues_found (2026-08-21, prior plan) | stale for this plan |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | clean (2026-08-21, prior plan) | 15 issues, 0 critical — **predates this plan** |
-| Design Review | `/plan-design-review` | UI/UX gaps | 1 | **clean (2026-08-22)** | score 5/10 → 9/10, 9 decisions |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | not applicable — no product-direction question |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | not run for this plan |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | **clean (2026-08-22)** | 6 architecture + 3 code-quality + 3 test + 2 perf findings; 4 decisions; **3 plan premises corrected** |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | clean (2026-08-22) | score 5/10 → 9/10, 9 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 1 | clean (2026-08-20, prior plan) | stale for this plan |
 
-**VERDICT:** DESIGN CLEARED. The eng-review row is CLEAR but was logged against
-`166cfe2` (the table arc) — it predates this plan and does not cover it. This
-change is viewer-only with no schema, sanitize, bundle or deploy surface, so the
-architectural exposure is small; run `/plan-eng-review` before building if you
-want the required gate to actually cover this work.
+**VERDICT:** ENG + DESIGN CLEARED — ready to implement.
+
+The eng review earned its place by falsifying three claims the plan asserted:
+(1) block components are lazy — **false**, 19 of 23 bindings are eager including
+both blocks being changed, which turned a free import into 38% of the shell's
+remaining headroom; (2) the small in-shell SVG engine is a drop-in substitute —
+**false**, it returns `null` for curve drawables, so it would have reintroduced
+silent content loss inside the slice fixing silent content loss; (3) no bundle
+regeneration is needed — **false in one branch**, `registry.ts` ships inside the
+committed viewer-server bundle, though `SANITIZER_REV` genuinely does not move
+so no redeploy is owed.
 
 NO UNRESOLVED DECISIONS
