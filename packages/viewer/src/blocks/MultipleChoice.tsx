@@ -50,6 +50,7 @@ export default function MultipleChoice({
   const result = resultFor(block.id);
   const solution = solutionFor(block.id);
   const disabled = mode === 'print';
+  const figureLayout = allHaveFigures(block.choices);
 
   const toggle = (choiceId: string) => {
     if (block.multiSelect) {
@@ -68,6 +69,11 @@ export default function MultipleChoice({
       data-block-type="multiple_choice"
       data-block-id={block.id}
       data-phase={phase}
+      // Mirrors matching's marker: it makes a figure-bearing INSTANCE
+      // addressable, which the print gate needs — the roster renders one
+      // instance at a time and a figure rule pointed at the text-only one
+      // reports "no element matched" rather than anything true.
+      {...(figureLayout ? { 'data-has-figures': 'true' } : {})}
     >
       <fieldset className="viewer-mc__fieldset">
         <legend className="viewer-mc__prompt">
@@ -82,7 +88,7 @@ export default function MultipleChoice({
             graphs reads as ragged, and a vertical list is how options scan. */}
         <ul
           className="viewer-mc__choices"
-          {...(allHaveFigures(block.choices) ? { 'data-figure-layout': 'grid' } : {})}
+          {...(figureLayout ? { 'data-figure-layout': 'grid' } : {})}
         >
           {block.choices.map((choice, index) => {
             const isSelected = selected.includes(choice.id);

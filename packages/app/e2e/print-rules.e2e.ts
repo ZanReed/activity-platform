@@ -141,7 +141,8 @@ test.describe('print rules — variants that change a printed rule', () => {
     });
 
     for (const entry of variantPrintRoster) {
-        const label = entry.ctx.variant ?? entry.ctx.interaction ?? 'base';
+        const label =
+            entry.ctx.variant ?? entry.ctx.interaction ?? (entry.ctx.figures ? 'figures' : 'base');
         test(`${entry.type}/${label} — ${entry.why}`, async ({ page }) => {
             await loadViewerSurface(page, entry.type, entry.ctx);
             // The harness renders EVERY variant of a type at once, so the check
@@ -153,7 +154,20 @@ test.describe('print rules — variants that change a printed rule', () => {
                 ? `[data-block-type="${entry.type}"][data-interaction="${entry.ctx.interaction}"]`
                 : entry.ctx.variant
                   ? `[data-block-type="${entry.type}"][data-variant="${entry.ctx.variant}"]`
-                  : undefined;
+                  : entry.ctx.figures
+                    ? // Same reason as the two above: the harness renders every
+                      // instance of a type at once, and a figure rule pointed at
+                      // the text-only instance reports "no element matched"
+                      // rather than anything true.
+                      //
+                      // Scoped to the `.viewer-block` WRAPPER, not the block
+                      // root: the problem number lives in the wrapper's gutter
+                      // (ViewerContainer renders `.viewer-block__number` as a
+                      // sibling of the block), so a root-scoped selector would
+                      // drop `numbering/prints` and report the number missing
+                      // from a page that plainly has it.
+                      `.viewer-block:has([data-block-type="${entry.type}"][data-has-figures])`
+                    : undefined;
             const viewer = await runPrintChecks({
                 page,
                                 type: entry.type,

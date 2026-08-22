@@ -570,6 +570,40 @@ export function printExpectations(
 ): readonly PrintCheck[] {
   const spec = blockRegistry[type].print;
 
+  // Figure checks are INSTANCE-scoped, never per-type: the primary
+  // multiple_choice fixture carries no figures, so an unconditional rule here
+  // reports "no element matched" against it — a check that fails for the wrong
+  // reason. `variantPrintRoster` supplies the figure-bearing instance.
+  //
+  // Both halves matter and neither is obvious. The block-level graph twins are
+  // hidden on SCREEN by `[data-print-svg]` and revealed only in print, so the
+  // easiest way to build a choice figure is to reuse that machinery and ship
+  // something that renders on paper only — hence the visibility rule. And
+  // without a cap, four 400px-square graphs inside a break-inside:avoid block
+  // do not fit a page at all (A2).
+  const figureChecks: readonly PrintCheck[] = ctx.figures
+    ? [
+        {
+          id: 'figure/prints',
+          rule: 'An authored choice figure is ON the printed page — it IS the question.',
+          target: '.viewer-choice-figure',
+          expect: { kind: 'visible' },
+        },
+        {
+          id: 'figure/capped',
+          // ⚠ ASSERTS THE VALUE, not merely "a cap exists". `max-width-capped`
+          // was the obvious spelling and it is VACUOUS here: the screen rule
+          // already caps this element at 11rem, so the check passed with the
+          // print cap deleted — proven by mutation, not by reading. 1.75in is
+          // 168px at 96dpi, and it is the number that makes four figures fit a
+          // page; 11rem (176px) does not.
+          rule: 'A choice figure caps at the PAPER size that lets four fit one page (1.75in = 168px).',
+          target: '.viewer-choice-figure',
+          expect: { kind: 'computed', property: 'max-width', oneOf: ['168px'] },
+        },
+      ]
+    : [];
+
   const breakInside = resolveBreakInside(spec.breakInside, ctx);
   const derived: PrintCheck[] = [
     {
@@ -666,6 +700,7 @@ export function printExpectations(
     ...UNIVERSAL_CHECKS,
     ...treatment,
     ...(TYPE_CHECKS[type] ?? []),
+    ...figureChecks,
     ...perInstance,
   ];
 }
@@ -706,6 +741,11 @@ export const variantPrintRoster: readonly {
   readonly ctx: PrintInstanceContext;
   readonly why: string;
 }[] = [
+  {
+    type: 'multiple_choice',
+    ctx: { figures: true },
+    why: 'the figure instance prints its graphs, capped so four fit a page',
+  },
   { type: 'callout', ctx: { variant: 'info' }, why: 'solid border style' },
   { type: 'callout', ctx: { variant: 'warning' }, why: 'dashed border style' },
   { type: 'callout', ctx: { variant: 'success' }, why: 'double border style' },

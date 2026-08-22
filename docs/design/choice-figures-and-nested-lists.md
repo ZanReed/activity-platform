@@ -1,6 +1,6 @@
 # Choice figures + nested lists — wiring two S9 orphans
 
-**Status:** ✅ **COMPLETE 2026-08-22 — all 17 tasks done, baselines pinned, CI green. Nothing outstanding.** Ruled + design-reviewed (5/10 → 9/10) + eng-reviewed (3 premises corrected), 0 unresolved.
+**Status:** ✅ **COMPLETE 2026-08-22 — all 17 tasks done, baselines pinned, print rules asserted, CI green.** Ruled + design-reviewed (5/10 → 9/10) + eng-reviewed (3 premises corrected), 0 unresolved.
 
 Wires two of the five orphan classes the 2026-08-22 drift audit filed
 (TODOS.md → "S9 left FIVE MORE ORPHAN CLASSES"). Both are **content loss**: a
@@ -260,6 +260,14 @@ now, worth knowing before the next stylesheet-heavy slice.
 
 ### What the guards caught that review did not
 
+- **A SECOND vacuous check, found the same way.** T10's paper-cap rule was first
+  written as `max-width-capped` — the obvious spelling — and it passed with the
+  print cap DELETED, because the screen rule already caps the same element at
+  11rem. It proved "a cap exists", not "the paper cap applies". It now asserts
+  the computed value (168px = 1.75in) and dies under that mutation. Two
+  vacuous guards in one slice, both found by mutation and neither by reading:
+  that is the argument for mutation-testing every guard this repo adds.
+
 - **One of my own tests was VACUOUS**, and the mutation run is what found it.
   The alt-promotion test was written with `alt: 'a parabola'`, so it passed
   with the A4 branch reverted — a non-empty alt names the control on its own
@@ -414,46 +422,46 @@ aesthetic; a measuring instrument. Regenerate it if the caps change.
 Synthesized from the review's findings. P1 blocks ship; P2 lands same branch;
 P3 is a follow-up.
 
-- [ ] **T0 (P1)** — viewer/blocks — **`<ChoiceFigure>`: ONE shared component** (image + graph, dynamic engine import, reserved box, error state, accessible naming)
+- [x] **T0 (P1)** — viewer/blocks — **`<ChoiceFigure>`: ONE shared component** (image + graph, dynamic engine import, reserved box, error state, accessible naming)
   - Surfaced by: CQ-1 (DRY — the editor already shares `FigureHolder`/`ChoiceFigureEditor`); E1; A4; A8
   - Files: new `packages/viewer/src/blocks/ChoiceFigure.tsx`
   - **The single `dangerouslySetInnerHTML` audit point.** Carries the ASCII data-path diagram in its header
   - Verify: content assertions (`img[src]`, `svg[data-drawables]`), not existence
-- [ ] **T0b (P1)** — viewer/blocks — Preload walk + print-readiness marker for choice graphs
+- [x] **T0b (P1)** — viewer/blocks — Preload walk + print-readiness marker for choice graphs
   - Surfaced by: E1. **Derive the trigger by document walk — NOT a registry flag, NOT a second roster** (policy P4)
   - Files: `packages/viewer/src/blocks/kitPreload.ts` (or a sibling), `packages/viewer/src/print/printReadiness.ts`
   - Verify: a document with a choice graph warms the chunk; print waits on the marker
-- [ ] **T1 (P1)** — viewer/blocks — Mount `<ChoiceFigure>` in `MultipleChoice.tsx`
+- [x] **T1 (P1)** — viewer/blocks — Mount `<ChoiceFigure>` in `MultipleChoice.tsx`
   - Surfaced by: the orphan itself; A1/A5/A7
   - Files: `packages/viewer/src/blocks/MultipleChoice.tsx`
   - Verify: component test asserts figure CONTENT, absent when unauthored (**await a settled signal — an absence assertion can pass by looking too early**, E4)
-- [ ] **T2 (P1)** — viewer/blocks — Render item + target figures in `Matching.tsx`
+- [x] **T2 (P1)** — viewer/blocks — Render item + target figures in `Matching.tsx`
   - Surfaced by: A3; note the target has no wrapper element today (`Matching.tsx:90`)
   - Files: `packages/viewer/src/blocks/Matching.tsx`
-- [ ] **T3 (P1)** — viewer/styles — Figure CSS: caps as tokens, the conditional grid, the label's flex-to-column change, mobile collapse
+- [x] **T3 (P1)** — viewer/styles — Figure CSS: caps as tokens, the conditional grid, the label's flex-to-column change, mobile collapse
   - Surfaced by: A2/A6/A10; the `align-items:center` collision
   - Files: `packages/viewer/src/tokens/tokens.css`, `packages/viewer/src/styles/viewer.css`
   - Verify: `print-rules.e2e.ts` computed-style rows; must not trip `mc/no-tap-floor`
-- [ ] **T4 (P1)** — viewer/blocks — Loading + error states (folded into T0's component)
+- [x] **T4 (P1)** — viewer/blocks — Loading + error states (folded into T0's component)
   - Surfaced by: A8. **Invisible to the print gate (network blocked) — needs its own component test**
-- [ ] **T5 (P1)** — viewer/blocks — Accessible naming for figure-only choices
+- [x] **T5 (P1)** — viewer/blocks — Accessible naming for figure-only choices
   - Surfaced by: A4. Verify with an axe assertion, not by inspection
-- [ ] **T6 (P1)** — viewer/styles + registry — Matching bank: grid + conditional break, **declaration made conditional**
+- [x] **T6 (P1)** — viewer/styles + registry — Matching bank: grid + conditional break, **declaration made conditional**
   - Surfaced by: A9 + E3. Extend the print vocabulary so `breakInside` can be content-conditional; assert BOTH branches
   - Files: `packages/viewer/src/styles/viewer.css`, `packages/viewer/src/registry/registry.ts`, `printExpectations.ts`
   - ⚠ **Registry change ⇒ `pnpm bundle:viewer-server` + commit the bundle in the SAME commit** (E3; CI drift gate). `SANITIZER_REV` does not move, so no redeploy
-- [ ] **T7 (P1)** — viewer/blocks — Recurse `item.children` in `BulletList.tsx` / `OrderedList.tsx`
+- [x] **T7 (P1)** — viewer/blocks — Recurse `item.children` in `BulletList.tsx` / `OrderedList.tsx`
   - Surfaced by: feature 2. Copy `DefinitionGlossary.tsx:65-89`
-- [ ] **T8 (P1)** — viewer/styles — Nested list CSS: marker cascade, nested top spacing, indent cap past level 3
+- [x] **T8 (P1)** — viewer/styles — Nested list CSS: marker cascade, nested top spacing, indent cap past level 3
   - Surfaced by: B1/B3, and the two spacing gaps (no top margin on a nested list; sibling margin does not cross the nesting boundary)
-- [ ] **T9 (P1)** — viewer/tests — Guards bound to output, **mutation-tested**, on INLINE documents
+- [x] **T9 (P1)** — viewer/tests — Guards bound to output, **mutation-tested**, on INLINE documents
   - Cases: figure+text, figure-only, image+graph (image wins), broken image, nested bullet, nested ordered, depth 4
   - **Assert content, never existence** (`.viewer-mc__figure !== null` passes against an empty div — T-1)
   - Mutation test: revert the wiring, record which cases flip red (the `4a50b00` bar)
-- [ ] **T9b (P1, LAST)** — viewer/fixtures — Add the shared fixtures, in ONE commit
+- [x] **T9b (P1, LAST)** — viewer/fixtures — Add the shared fixtures, in ONE commit
   - Surfaced by: E4/P-2. Only the print e2e reads `fixtures/index.ts`, so this lands last and churns the baselines once
   - Images use `data:` URIs (print e2e blocks network)
-- [ ] **T10 (P2)** — print — Add list + choice-figure checks to `printExpectations.ts`; `prose` currently asserts **nothing**
+- [x] **T10 (P2)** — print — ✅ done: instance-scoped `figure/prints` + `figure/capped` checks, addressed via a `figures: true` roster row. **`figure/capped` asserts the VALUE (168px), not `max-width-capped`** — that spelling was vacuous, proven by mutation
 - [x] **T11 (P2)** — print baselines — ✅ done via the manual CI job (run 32578933002); 3 of 23 changed, read before pinning. **Not doable on macOS** — see the T11 note above
 - [x] **T12 (P2)** — docs — ✅ done in `79e6f13` (import-format `:607`/`:630` corrected, dead-renderer comment replaced)
 - [x] **T13 (P3)** — TODOS — ✅ filed (A3's honest fix, and it retires the registry's false a11y claim)
