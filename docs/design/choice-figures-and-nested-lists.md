@@ -278,11 +278,30 @@ now, worth knowing before the next stylesheet-heavy slice.
 
 ### Still owed
 
-- **T11 — the Linux print baselines.** CI-authoritative, cannot be generated
-  on macOS: `PRINT_BASELINES=1 pnpm --filter @activity/app exec playwright
-  test print-baselines --update-snapshots` on Linux, then **read the images
-  before pinning them** (table-arc precedent). The baseline suite SKIPS without
-  that env var, so CI stays green meanwhile.
+- **T11 — the Linux print baselines.** ⚠ **DO NOT run the update command on
+  macOS.** Playwright suffixes snapshots by platform, so on a Mac it does not
+  update `*-chromium-linux.png` at all — it silently WRITES A NEW
+  `*-chromium-darwin.png` set, reports 23 green, and changes nothing that CI
+  reads. (`.gitignore:95` already ignores `-darwin.png`, so the repo
+  anticipated this; the run is wasted, not harmful. Tried 2026-08-22.)
+
+  **The route is the manual CI job**, which exists for exactly this and uploads
+  an artifact rather than committing — "CI never commits its own snapshots",
+  matching the table-arc rule that the images are READ before they are pinned:
+
+  ```
+  gh workflow run ci.yml --ref main -f update_print_baselines=true
+  ```
+
+  Then download the `print-baselines` artifact, **look at the four changed
+  pages** (multiple_choice, bullet_list, ordered_list, and matching if its
+  wrapper shifted anything), and commit those `-linux.png` files.
+
+  ⚠ **CI's `print-gates` job runs the baseline comparison** (`PRINT_BASELINES:
+  '1'`, ci.yml:210), so it goes RED on the push that lands the new fixtures and
+  stays red until the regenerated baselines are committed. That is the gate
+  working, not a defect — but it means the red run is expected and should not
+  be chased.
 - **T12 — the doc corrections** (`markdown-import-format.md:607`/`:630`, the
   dead-renderer comment in `multiple-choice.ts`).
 
