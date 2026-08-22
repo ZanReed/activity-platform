@@ -149,6 +149,40 @@ interaction must keep both properties or the letters stop matching the bank.
 **Depends on:** the choice-figures slice landing first (it makes the case
 concrete and adds the fixtures a drag interaction would need to test against).
 
+## A SIXTH ORPHAN THE AUDIT MISSED — the reference panel has no SCREEN surface (2026-08-23)
+
+Found while investigating the calculator, which is its twin.
+
+`ViewerContainer.tsx:275` renders `doc.referencePanel` **only** when
+`print.printReferencePanel` is set, into a static `.viewer-reference-print`
+box. There is no screen surface at all. The collapsible drag-resizable
+bottom-bar toolbar ROADMAP describes was the published-page runtime's and died
+at S9 Drop 4 with everything else.
+
+**Consequence for a teacher today:** author a formula chart in the reference
+panel, leave the print checkbox unticked (it is not on by default), and the
+content is authored, stored, sanitized, censused — and seen by nobody, ever.
+
+⚠ **The 2026-08-22 audit's §9 sweep MISSED this**, and then made it worse: it
+"corrected" ROADMAP's dead "live on published pages" to "live in the viewer"
+without checking whether the viewer had picked the surface up. It had not.
+That is a half-fix, and the drift-audit skill's own §9 note says a half-fix
+comes back — this one came back in a day. **The sweep only walked
+`packages/schema/src/blocks/`; `ActivityDocument`'s top-level fields
+(`referencePanel`, `calculator`) were never in its scope.** Widen it.
+
+**It shares ONE fix with the calculator.** Both are floating tools in the same
+bottom cluster, both need the same host component, and the z-ladder they were
+designed against is fully orphaned — `--z-tools`, `--z-reference`,
+`--z-calculator` have **zero** `var()` consumers across viewer + app.
+DECISIONS.md:193-195 still specifies the cluster: summon hides while open,
+Esc/× closes, focus returns to the button, `role="dialog"` non-modal,
+reference anchors bottom-LEFT so an open calculator (bottom-right) never
+collides.
+
+**Depends on:** the calculator ruling — decide them together or the survivor is
+a one-tool "cluster" that re-strands the same tokens.
+
 ## S9 left FIVE MORE ORPHAN CLASSES — **TWO FIXED 2026-08-22, THREE OPEN** (drift audit §9)
 
 The 2026-08-22 full audit swept **every** field in `packages/schema/src` (~180)
