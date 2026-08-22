@@ -208,7 +208,20 @@ function authoredRawByType(
     id: fid(),
     type: 'bullet_list',
     items: [
-      { id: fid(), content: [text('Positive slope: rises left to right')] },
+      {
+        id: fid(),
+        content: [text('Positive slope: rises left to right')],
+        // NESTED, deliberately: the flattening bug was invisible to every
+        // guard precisely because no fixture had children, so nothing the
+        // print gate or the conformance factory rendered could expose it.
+        children: [
+          {
+            id: fid(),
+            type: 'bullet_list',
+            items: [{ id: fid(), content: [text('Steeper line, larger slope')] }],
+          },
+        ],
+      },
       { id: fid(), content: [text('Negative slope: falls left to right')] },
     ],
   });
@@ -216,7 +229,20 @@ function authoredRawByType(
     id: fid(),
     type: 'ordered_list',
     items: [
-      { id: fid(), content: [text('Plot the y-intercept')] },
+      {
+        id: fid(),
+        content: [text('Plot the y-intercept')],
+        // Mixed nesting: the schema allows any list type at any depth, and a
+        // numbered step whose sub-points are bullets is ordinary worksheet
+        // prose. It also exercises the marker cascade's second level.
+        children: [
+          {
+            id: fid(),
+            type: 'bullet_list',
+            items: [{ id: fid(), content: [text('It is the value of y when x = 0')] }],
+          },
+        ],
+      },
       { id: fid(), content: [text('Use the slope to find a second point')] },
     ],
   });
@@ -319,6 +345,93 @@ function authoredRawByType(
       { id: fid(), content: [text('7')], correct: false },
     ],
     solution: [text('The slope is the coefficient of x: 3.')],
+  },
+  // A SECOND instance for the same type — passed to the SAME put() call,
+  // because put() REPLACES (m.set) rather than appends: a second call would
+  // silently drop the primary fixture above, which is exactly what it did on
+  // the first attempt and what the exemplar tests caught.
+  //
+  // The marquee figure case: every choice carries a graph, so this is the
+  // instance that exercises the A6 grid arrangement and the 1.75in paper cap.
+  // Without it the print gate has nothing figure-shaped to measure.
+  {
+    id: fid(),
+    type: 'multiple_choice',
+    prompt: [text('Which graph shows y = 2x?')],
+    choices: [
+      {
+        id: fid(),
+        content: [],
+        correct: true,
+        graph: {
+          axis: {
+          xMin: -5,
+          xMax: 5,
+          yMin: -5,
+          yMax: 5,
+          xGridStep: 1,
+          yGridStep: 1,
+          showGrid: true,
+          snapToGrid: true,
+        },
+          drawables: [{ kind: 'segment', from: [-2, -4], to: [2, 4], color: 'slate' }],
+        },
+      },
+      {
+        id: fid(),
+        content: [],
+        correct: false,
+        graph: {
+          axis: {
+            xMin: -5,
+            xMax: 5,
+            yMin: -5,
+            yMax: 5,
+            xGridStep: 1,
+            yGridStep: 1,
+            showGrid: true,
+            snapToGrid: true,
+          },
+          drawables: [{ kind: 'segment', from: [-4, -2], to: [4, 2], color: 'slate' }],
+        },
+      },
+      {
+        id: fid(),
+        content: [],
+        correct: false,
+        graph: {
+          axis: {
+            xMin: -5,
+            xMax: 5,
+            yMin: -5,
+            yMax: 5,
+            xGridStep: 1,
+            yGridStep: 1,
+            showGrid: true,
+            snapToGrid: true,
+          },
+          drawables: [{ kind: 'segment', from: [-2, 4], to: [2, -4], color: 'slate' }],
+        },
+      },
+      {
+        id: fid(),
+        content: [],
+        correct: false,
+        graph: {
+          axis: {
+            xMin: -5,
+            xMax: 5,
+            yMin: -5,
+            yMax: 5,
+            xGridStep: 1,
+            yGridStep: 1,
+            showGrid: true,
+            snapToGrid: true,
+          },
+          drawables: [{ kind: 'segment', from: [-4, 0], to: [4, 0], color: 'slate' }],
+        },
+      },
+    ],
   });
 
   const matchItemA = fid();

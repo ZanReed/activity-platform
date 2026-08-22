@@ -20,7 +20,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { ANSWER_KEY_COVERAGE, extractBlockAnswerKey } from '@activity/viewer';
-import { authoredBlockFixture } from '@activity/viewer/fixtures';
+import { authoredBlockFixture, authoredVariantFixtures } from '@activity/viewer/fixtures';
 import type { BlockType } from '@activity/viewer';
 
 async function loadViewerKey(page: Page, type: BlockType): Promise<void> {
@@ -69,7 +69,16 @@ test.describe('answer key — every gradable type puts its answer on the page', 
                 ),
             );
 
-        expect(marked).toHaveLength(keyFor('multiple_choice').correctChoiceIds?.length ?? 0);
+        // Summed across EVERY authored instance of the type, not just the
+        // primary one. The harness renders them all, so a per-type oracle that
+        // reads only the first block silently under-counts the moment a second
+        // instance is added — which is exactly what happened when the
+        // figure-bearing multiple_choice fixture landed.
+        const expectedMarks = authoredVariantFixtures('multiple_choice').reduce(
+            (n, block) => n + (extractBlockAnswerKey(block).correctChoiceIds?.length ?? 0),
+            0,
+        );
+        expect(marked).toHaveLength(expectedMarks);
         expect(marked.length).toBeGreaterThan(0);
         // The mark rides the LETTER, which is what survives onto paper — the
         // native control is hidden in print, so marking it would print nothing.

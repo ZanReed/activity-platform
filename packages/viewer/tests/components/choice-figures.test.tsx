@@ -79,7 +79,11 @@ const lineGraph = () => ({
     showGrid: true,
     snapToGrid: true,
   },
-  drawables: [{ kind: 'line', through: [[0, 0], [1, 2]], color: 'slate' }],
+  // A REAL drawable kind. The first draft used `kind: 'line'`, which does not
+  // exist — these tests build raw objects that skip schema validation, so the
+  // engine counted a shape it could never draw and the assertion still passed.
+  // The fixtures, which DO parse, are what caught it.
+  drawables: [{ kind: 'segment', from: [-2, -4], to: [2, 4], color: 'slate' }],
 });
 
 const mcBlock = (choices: unknown[]) => ({
