@@ -39,6 +39,41 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - UX is a priority: performance budget, optimistic autosave, visible state indicators, predictable shortcuts.
 - More in `docs/COLLABORATION.md`.
 
+## Session close-out (run before you hand back; ~2 minutes)
+
+Four questions, **scoped to what THIS session changed** — not a repo sweep. The
+full drift audit is a net for what slips through; this is the part that keeps
+things from slipping in the first place, and it is cheap enough to run always.
+
+Answer each out loud in the final message, including "n/a":
+
+1. **Added or changed a schema field?** Grep it against
+   `packages/viewer/src/blocks/`, `container/`, and the print CSS. A field read
+   only by the editor, only by `serialize.ts`, or only by its own tests is an
+   ORPHAN — the repo's most expensive defect class (eight instances now: the
+   registry `numbered` set, `LABELED_BLOCK_TYPES`, block `workSpace`,
+   `Row.gridLines`, fence `**bold**`, `showCellLabels`, `hasConfidenceRating`,
+   `allowTargetReuse`). Wire it with a guard bound to RENDERED OUTPUT, or do not
+   add the field.
+2. **Touched a migration, a deploy, or a version constant?** Re-read STATE's
+   baseline row live — `list_edge_functions` for flags+versions (the `version`
+   field, NOT the `entrypoint_path` suffix) and
+   `select count(*) from supabase_migrations.schema_migrations` for the range.
+   That row went three migrations and two function versions stale while telling
+   readers "never claim-read".
+3. **Deleted or retired anything?** Grep the repo for surviving references —
+   docs, comments, scripts, skills. A deletion leaves its declarations behind,
+   and a doc naming a dead mechanism reads as live forever (S9 left five docs
+   citing `RUNTIME.md`, two with broken links, for eight days).
+4. **STATE still honest?** Links resolve, under ~150 lines, no fact stated twice
+   with two different numbers, and no standing rule parked in a section that
+   gets replaced next session — those belong HERE, in CLAUDE.md.
+
+**Run the FULL `/drift-audit` on a trigger, not a schedule** — its own trigger
+list is in the skill. Running it every session is the wrong lever: a check that
+reports "clean" eight times running stops being read, and the ninth is the one
+that mattered.
+
 ## Verification policies (ratified 2026-08-06, eng review — rationale in DECISIONS.md → "Eleven verification policies")
 
 P1. **A primitive is not delivered until something calls it** — ship the caller or a tracked xfail; enforced by `scripts/tests/export-reachability.test.mjs` (s1/s3/s4/s6 retros, 8+ instances).

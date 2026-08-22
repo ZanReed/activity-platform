@@ -4,6 +4,44 @@ Compare what the documents claim against what the code does, and the documents a
 
 > **⚠ REWRITTEN 2026-08-17, and the reason is this skill's own cautionary tale.** The original checklist audited `packages/renderer`, `packages/renderer/RUNTIME.md`, `ingest-submission`, `bundle:renderer`, `STORAGE_SCHEMA_VERSION`, the wire-version ladder, and `_shared/graph-kit-manifest.ts` — **every one of them deleted at S9 (2026-08-14) or the D-13 R2 teardown (2026-08-15)**. Three of its eight sections pointed at nothing, which is worse than pointing at nothing loudly: **a section with no target reports "clean" forever.** The 2026-08-17 audit found this only because it read the checklist against the repo before running it. Hence §0 below.
 
+## When to run this (added 2026-08-22 — the schedule question, answered)
+
+**Not every session.** The temptation is real and the failure mode is worse than
+the drift: most sessions produce none, so an audit that reports "clean" eight
+times running stops being read carefully — and the ninth, the one with a finding,
+gets skimmed. Same dynamic as a flaky test. This audit also costs ~30 tool calls,
+live database reads and a full `pnpm verify`; spending that after a five-call
+session buys nothing.
+
+**The cheap half runs every session instead.** CLAUDE.md's *Session close-out* is
+four questions scoped to what that session CHANGED — new schema field, touched
+migration/deploy/constant, deleted anything, STATE still honest. That is where
+most drift is cheapest to catch, because it is caught at the moment it is
+created.
+
+**Run THIS, in full, on a trigger:**
+
+- **After any package, file, or feature DELETION.** The highest-yield trigger by
+  far, and the one this skill exists to remember: S9 deleted `packages/renderer`
+  and left five docs citing `RUNTIME.md` (two with broken links), three sections
+  of this checklist pointing at nothing, and four schema fields whose
+  implementation had gone.
+- **After a schema change lands** — a new block type or field is the moment the
+  §9 orphan class is created.
+- **Before another person touches the repo.** Every doc this finds stale is one
+  they would have believed.
+- **When a session ends with several unrelated arcs** (the 2026-08-22 case: a
+  four-slice feature, a CI change, two flake fixes and an incident).
+- **Otherwise roughly every two weeks**, as a floor rather than a rhythm.
+
+**The audit should be getting CHEAPER.** Every finding converted into a guard
+bound to output is a section that stops producing findings. If a run keeps
+surfacing the same class, that is a signal the guards are not being written — not
+that the audit needs running more often. Watch for the half-fix in particular: on
+2026-08-22 §9 found `hasConfidenceRating`, which eng review A10 had already
+half-acted-on in August (it deleted the print row and left the schema fields, the
+editor control and the wire). **A finding that gets half-acted-on comes back.**
+
 ## Ground rules
 
 - Precedence when sources disagree: **code > STATE.md > ROADMAP.md** (ROADMAP's own charter says so). A doc contradicting code is drift in the doc, not a bug in the code.
@@ -32,7 +70,7 @@ Work through each item; skip none silently — say "clean" per section in the re
 - Flag anything within ~15% of its cap: the budget ladder should be *scheduled*, not discovered mid-feature. **Read the current numbers from `node scripts/check-perf-budget.mjs`; do not pin one here.** This bullet pinned "156.4 KiB" from 2026-08-18 until the 2026-08-21 audit found it reading 157.4 — a checklist that warns about circulating stale figures, circulating a stale figure. The shell-slim ladder is PARKED (TODOS.md names the one trigger to resume). Prefer flagging a row that has MOVED toward its cap since the last audit over a raw percentage — the headroom policy is ~10%, so a freshly-calibrated row always sits near 90% and a raw threshold flags every healthy row. DECISIONS: "a budget that can only ever loosen is a fossil."
 
 **3. Design-doc status lines.** For each `docs/design/*.md`, read the status header and check it against STATE/HISTORY ship status.
-- ⚠ **Grep for BOTH forms:** `**Status:**` and `**Status: ` (colon inside the bold). The 2026-08-17 audit reported two docs as having *no* status line because its grep only matched the first form — a false positive that cost a finding's credibility. Normalize to `**Status:**` when fixing.
+- ⚠ **Grep for ALL FOUR forms:** `**Status:**`, `**Status: ` (colon inside the bold), `> **Status:**` (inside a blockquote — `activities-list-surface.md`), and `Status: **VALUE**` (colon outside the bold — `dark-mode.md`). One expression that covers them: `grep -nE '^>? *\*{0,2}Status:'`. The 2026-08-17 audit reported two docs as having *no* status line because its grep only matched the first form — a false positive that cost a finding's credibility — and the 2026-08-22 audit repeated it in a NEW form, reporting `activities-list-surface.md` as status-less when its line sits in a blockquote. Two audits, same mistake, different spelling: widen the expression rather than adding forms one at a time. Normalize to `**Status:**` when fixing.
 - A shipped feature's doc must say SHIPPED and carry an as-built-deltas note where the implementation diverged (pattern: `vocabulary-definitions.md`, `interactive-graph-block.md`).
 - Watch for status lines that are true about *shipping* while naming a *retired mechanism* as live — the most common drift class in this repo. Annotate per the ground rule.
 - Never delete a superseded doc that other docs cite.

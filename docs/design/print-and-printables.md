@@ -4,6 +4,8 @@
 
 Design doc for **print as an authored feature** — teacher-configurable, classroom-ready printables generated from the same `ActivityDocument` that produces the interactive web activity.
 
+**Status:** ✅ **SHIPPED** — the authored print feature is live (teacher-configurable header/margins/columns/work-space, the answer-key copy, per-block print treatments in the viewer registry, and the print gate that asserts them). Print gaps found by the author's 2026-08-21 review are triaged and filed in TODOS.md, not open here.
+
 Companion to STATE.md (where things are), ROADMAP.md (where things are going), and RUNTIME.md (the published-page runtime). This doc is *captured ahead of implementation* — same role as `interactive-graph-block.md` and `vocabulary-definitions.md`.
 
 ## Status

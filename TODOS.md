@@ -108,20 +108,18 @@ pass flagged them only because the sweep's directory list omitted those
 packages), and block-level `skills`, whose schema comment declares the deferral
 honestly rather than implying a consumer.
 
-## The drift-audit skill misses a fourth `Status:` spelling (2026-08-22)
+## ✅ FIXED 2026-08-22 — the drift-audit skill's `Status:` grep
 
-**What:** `.claude/skills/drift-audit`'s §3 greps two forms — `**Status:**` and
-`**Status: `. There are four in `docs/design/`: those two, plus `> **Status:**`
-(inside a blockquote — `activities-list-surface.md`) and `Status: **VALUE**`
-(colon outside the bold — `dark-mode.md`).
-
-**Why it matters:** the blockquote form produced a FALSE POSITIVE in the
-2026-08-22 audit — a doc reported as having no status line while carrying one.
-The skill already warns about exactly this class from 2026-08-17 ("a false
-positive that cost a finding's credibility") and then repeated it in a new form.
-
-**Fix:** widen the grep to `^>\? *\*\*Status` plus the colon-outside variant, and
-normalize the two outliers when those docs are next touched.
+It matched two of the four spellings in `docs/design/`, so the 2026-08-22 audit
+reported `activities-list-surface.md` as status-less when its line sits inside a
+blockquote — the same false-positive class the skill already carried a warning
+about from 2026-08-17, in a new spelling. Widened to one expression covering all
+four (`^>? *\*{0,2}Status:`), with the two-audits-same-mistake note attached so
+the next gap gets a wider expression rather than a fifth special case. Recovered
+4 of 7 reported false positives; the 3 real ones are `graph-systems.md` and
+`ux-lens.md` (instruments, not feature designs — no status wanted) and
+`print-and-printables.md`, which was a SHIPPED feature with no status line and
+now has one.
 
 ## A general walk-descent guard for nested-content blocks
 
