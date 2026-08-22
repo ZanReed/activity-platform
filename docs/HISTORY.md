@@ -1156,3 +1156,56 @@ PASS
 **Three things worth knowing before touching it:** (1) the `section_checks_latest` view is THE definition of "current attempt" — the prune deletes only its complement, and verify-0035 §C(H) pins the queue's equivalence; (2) G12 is clause 2 — a graded check is never a candidate, proven with a real deletion in §C; (3) verify-0035 §A's `rolled_through_never_written` row is DESIGNED to go red when the arming arc lands — flip it there, don't delete it.
 
 **Teacher grading (0034, [teacher-grading.md](docs/design/teacher-grading.md), shipped 2026-08-16)** is live and correct-and-EMPTY: 0 checks, 0 grades. Four doors — `upsert_check_grade` · `release_check_grades` · `get_my_released_feedback` · `list_grading_queue`. **Three things to know before touching it, all recorded in [DECISIONS.md](docs/DECISIONS.md):** `check_grades` has ZERO RLS policies deliberately (the four functions ARE the access surface); maxPoints is denormalized into `criteria` by the SERVER so the student readback never opens the raw document; writes gate on `can_edit_activity` and reads on `can_read_activity` — byte-identical today, but the Activity-Bank landmine is a widening of the READ helper, which must never confer write access to academic records. **Stale means the TEXT changed**, never "a newer check exists" — re-checking to retry auto-graded blanks is a designed feature. Still open by design: the by-student queue view, bulk cap-lifting, rich-text feedback.
+
+## The TABLE BLOCK arc — built 2026-08-21 → 22 (four slices + one incident)
+
+Archived from STATE at session end. Rulings and every AS-BUILT correction live in
+[table-block.md](design/table-block.md); **read the AS BUILT notes before citing
+the plan above them** — five rulings changed shape at build time and T4 changed
+outright.
+
+**Slice 0 — FREEZE.** The import contract was frozen and documented BEFORE the
+block existed, so ~150 catalogue files could be written against something that
+would not move. Its payoff is pinned by a regression test: the same markdown that
+imported as one masked paragraph in Slice 0 produced a real table in Slice 3, with
+no re-authoring, because the structure never left the `.md` file. It also fixed a
+leak wider than the review found — EVERY degrade path emitted author source
+verbatim, so `{{3}}` reached the printed page from unknown fences, code blocks and
+every failed-parse fallback, not just from tables.
+
+**Slice 1 — schema · viewer · server.** The design's central claim held: four
+existing deep walks already find in-band blanks, so a blank in a table cell needed
+zero new grading code. `tests/tableWalks.test.ts` binds that to OUTPUT and also
+DEMONSTRATES the landmine — give rows a `type` field and three of the four walks
+skip the table while the sanitizer keeps stripping, so nothing leaks and nothing
+is graded and no alarm sounds.
+
+**Slice 2 — editor.** `@tiptap/extension-table` adopted on a pre-committed
+measurement (+15.2 KiB gz, 10.9 KiB of headroom left, so neither the cap raise nor
+the lazy split fired). Three departures from the stock kit, each to stop the
+editor expressing what the schema cannot: restricted cell content, no
+`tableHeader` node (header-ness is a block attr), and colspan/rowspan pinned to 1.
+D7.2 turned out to be a real PRE-EXISTING defect — duplicating any blank-bearing
+block minted two blanks claiming one response key — fixed generally as a
+document-level repair pass.
+
+**Slice 3 — import.** Both frozen forms map: a bare GFM pipe table and the
+```table fence for a moved header axis. T4 could NOT be built as ruled —
+`publish_activity` authorizes on `auth.uid()`, which a service-role key does not
+have — so the author ruled report-over-RPC and `pnpm report:stale` names what to
+republish instead.
+
+**The incident, 2026-08-22.** A teacher saw "The published version of this
+activity is malformed" for a document that was perfectly valid, verified four
+ways. `index.html` is the one precached file, so a load after a deploy that adds a
+block type runs an entirely old, self-consistent build whose schema rejects the
+new type. Fixed both ways: the message now names the failing field, and both
+stored-document routes reload once before reporting. **The durable rule: any
+deploy adding a block type puts every open teacher tab one page load behind.
+Students are unaffected — the student path never zod-parses the served document.**
+
+**Proven on real content.** The pilot's two faked tables (ruled ```columns fences
+standing in for data tables — the defect the arc started from) were rewritten as
+pipe tables and re-imported; `unit-rate.md` is republished and serving a real
+table of 5 rows / 10 cells.
+
