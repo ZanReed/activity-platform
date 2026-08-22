@@ -1,10 +1,11 @@
 # Activities list surface — RULED (design review 2026-08-18)
 
-> **Status:** RULED — full /plan-design-review, 7 passes + wireframes, 2026-08-18
+> **Status:** ✅ BUILT 2026-08-19 (T1–T4; T5–T6 open) — was RULED 2026-08-18
+> (full /plan-design-review, 7 passes + wireframes)
 > (9 decisions, D3–D11, all interactive). The sibling slice the taxonomy eng
 > review deferred; builds the navigation on the taxonomy data that already
-> shipped (tags, publish-truth course/unit, pedagogical_role). No code yet —
-> this doc is the build input. Wireframes (3 explored directions + the ruled
+> shipped (tags, publish-truth course/unit, pedagogical_role). ~~No code yet —
+> this doc is the build input.~~ (built 2026-08-19) Wireframes (3 explored directions + the ruled
 > final) live in `~/.gstack/projects/ZanReed-activity-platform/designs/activities-list-20260818/`.
 
 ## 1. The ruled shape — the list IS the curriculum outline

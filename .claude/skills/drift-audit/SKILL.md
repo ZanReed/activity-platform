@@ -62,7 +62,7 @@ Work through each item; skip none silently — say "clean" per section in the re
 - `POLICY_VERSION` — `packages/app/src/lib/policyVersion.ts` (in-product, student/teacher-facing).
 - **Doc-local compliance stamps** — `docs/compliance/retention-policy.md` and `data-map.md` each carry their own `draft-N`. These are deliberately separate from `POLICY_VERSION`, and unifying them is **counsel packet Q8**. Check all three are internally consistent and that the divergence is still explicitly recorded rather than accidental.
 - `MATHLIVE_VERSION` — pinned in `mathlive-setup.ts` and **self-guarding**: `packages/app/vite.config.ts`'s `activity:mathlive-fonts` plugin fails the BUILD if the pin drifts from the installed package. Note the guard exists; do not re-verify by hand.
-- ⚰ **Dead, do not look for:** `STORAGE_SCHEMA_VERSION`, the published-page wire ladder, `ingest-submission`'s accepted-versions list. `packages/schema/src/submission.ts` still defines wire schemaVersions 1–3 for the **frozen, writer-less `submissions`** table — flag any doc that presents that ladder as a live contract.
+- ⚰ **Dead, do not look for:** `STORAGE_SCHEMA_VERSION`, the published-page wire ladder, `ingest-submission`'s accepted-versions list. `packages/schema/src/submission.ts` still defines wire schemaVersions **1–9** (this bullet said "1–3" until the 2026-08-22 run read the file) for the **frozen, writer-less `submissions`** table — flag any doc that presents that ladder as a live contract.
 
 **2. Bundle sizes and budgets.** `scripts/perf-budgets.mjs` is the ONE home for every ceiling, with its reasoning. Two families:
 - **Edge Function bundles:** `VIEWER_SERVER_MAX_KIB` / `GRADING_SERVER_MAX_KIB` vs the committed `supabase/functions/_shared/*.bundle.js` (`wc -c`). CI guards staleness, not ceiling values — that is this audit's job.
@@ -96,7 +96,7 @@ Work through each item; skip none silently — say "clean" per section in the re
 
 **8. Cross-references, guards, and README durability.**
 - Every `DECISIONS →`, `HISTORY →`, and design-doc link in STATE resolves to a real file/heading.
-- Run the drift-guard tests: `node --test scripts/tests/*.test.mjs` (54 across 10 files as of 2026-08-18 — the seven named before, plus skill-references, supabase-stub-pin and e2e-origins) plus the app-side lockstep guards (`markdownImportPrompt`, `blockTypeGuards`, `importFormatRegistry`).
+- Run the drift-guard tests: `node --test scripts/tests/*.test.mjs` — **read the count from the run, never from here** (this bullet pinned 54, STATE pinned 73, the run on 2026-08-22 said 98) plus the app-side lockstep guards (`markdownImportPrompt`, `blockTypeGuards`, `importFormatRegistry`).
 - Test counts quoted in STATE vs actual `pnpm test`.
 - README deliberately carries no build status — confirm none crept in. Its CI paragraph describes a *mechanism*, which is durable and fine. Confirm the add-a-block-type checklist still matches the real wiring surface.
 
@@ -119,8 +119,19 @@ the viewer registry, grep for a **rendering** consumer — `packages/viewer/src/
 `serialize.ts`, or only by its own tests is a candidate. Two of the five above
 reached PAPER, so weight print-affecting fields first.
 
+**2026-08-22 — the sweep run over EVERY field, not only the new ones, found FIVE
+more classes (choice `image`/`graph`, `ListItem.children`, the graph feedback
+knobs, `ActivityDocument.calculator`, `isCheckpoint` + the flow modes — TODOS.md
+"S9 left FIVE MORE ORPHAN CLASSES").** One cause: the implementation died with
+the renderer/runtime, the declarations did not. So after any DELETION, the
+claims-grep (P5) must also walk (a) `packages/schema/src` comments in the
+present tense, (b) the editor's controls (`ActivityConfigDrawer`, `*Settings`,
+NodeViews) and (c) importer keys — each one is a declaration that can outlive
+its consumer. Run the full-field sweep, not the new-field sweep, on the
+deletion trigger.
+
 **The tell that this class is present:** a source comment describing behaviour
-in the present tense with no code beside it (`viewer.css` said "a single problem
+in the present tense with no code beside it (`packages/viewer/src/styles/viewer.css` — the 2026-08-22 §0 pass found this skill naming `src/viewer.css`, a path that does not exist — said "a single problem
 can override the work space" for four months while nothing set the property).
 Grep comments for "can override", "is honoured", "resolves to" and check each.
 

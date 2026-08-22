@@ -6,13 +6,13 @@ Design doc for **print as an authored feature** — teacher-configurable, classr
 
 **Status:** ✅ **SHIPPED** — the authored print feature is live (teacher-configurable header/margins/columns/work-space, the answer-key copy, per-block print treatments in the viewer registry, and the print gate that asserts them). Print gaps found by the author's 2026-08-21 review are triaged and filed in TODOS.md, not open here.
 
-Companion to STATE.md (where things are), ROADMAP.md (where things are going), and RUNTIME.md (the published-page runtime). This doc is *captured ahead of implementation* — same role as `interactive-graph-block.md` and `vocabulary-definitions.md`.
+Companion to STATE.md (where things are), ROADMAP.md (where things are going)~~, and RUNTIME.md (the published-page runtime)~~ (historical — see annotation). ~~This doc is *captured ahead of implementation* — same role as `interactive-graph-block.md` and `vocabulary-definitions.md`.~~ (historical — see annotation)
 
 ## Status
 
 - ✅ **SHIPPED (Drops A–D, 2026-06) — then RE-PLATFORMED by S5/S5.5 (2026-08-01→03).** The feature landed as designed (worksheet config + journal foldable, entirely client-side; see STATE's status table + HISTORY). The components-as-data re-architecture then moved the whole print surface onto the viewer tree: **S5** built student print mode + the print-rules gate + screenshot baselines, and **S5.5** migrated teacher print — the ActivityPrint route, the answer-key variant (derived at render time, one canonical key per shuffled version), printed versions (`printSeed`), and the foldable (offscreen viewer render → capture → the existing measure/paginate engine). `@activity/renderer` has no print consumer in the app anymore; its print path survives only for published pages until S9. This doc remains the rationale for the FEATURE (what teachers need on paper); the viewer registry's PrintSpec + `printChecks.ts` are the as-built mechanism — where detail conflicts, code wins.
 - *(Original sequencing note: implemented after Stage 16, once the Phase 1 loop closed — which is what happened.)*
-- This doc was written ahead of implementation to preserve design context.
+- ~~This doc was written ahead of implementation to preserve design context.~~ (historical — see annotation)
 - **Not covered here:** the *baseline print stylesheet* — the small `@media print` layer that keeps the already-rendered HTML from looking broken on paper (hide interactive controls, page-break integrity, grayscale safety, sane margins and type). That ships with Stage 11 as part of the runtime work and is deliberately minimal. *This doc is the feature; the baseline is table stakes.*
 
 ## Why this is a feature, not a stylesheet

@@ -1,9 +1,13 @@
 # Graph systems — multi-answer interactive-graph questions (design) — 2026-07-18
 
+**Status:** SHIPPED — both phases BUILT + DEPLOYED 2026-07-18 (see STATUS section below)
+
 `/office-hours` (product framing) + `/plan-eng-review` (architecture) for the
 Group-3 follow-up "multi-answer authoring." Lets a teacher author a graph
 question the student answers with **more than one** boundary — starting with a
 **system of inequalities** (graph 2+ inequalities, shade the intersection).
+
+> ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-22).** This doc names `bundle:renderer` + `upload:graph-kit` (`graph-kit-PAEDPXRK.js`) + `deploy:ingest` + `deploy:publish` as live. `publish-activity` died at S9 Drop 1, `ingest-submission` at Drop 3, `packages/renderer` (with `bundle:renderer`) at Drop 4 (2026-08-14), and the R2 kit upload at the D-13 teardown (2026-08-15). Graph systems now render in the viewer (`packages/viewer/src/blocks/`), the kit builds from the workspace into an app-bundled lazy chunk, grading is server-authoritative in `check-activity`, and the deploy steps are `pnpm bundle:viewer-server`/`bundle:grading-server` + `deploy:get-activity`/`deploy:check`. The text below is left intact as the record of how the feature shipped.
 
 ## STATUS — BOTH PHASES BUILT + DEPLOYED (2026-07-18)
 

@@ -74,6 +74,89 @@ call for the row — focus stability across a 76-stop walk is not an a11y proper
 
 **Depends on:** nothing.
 
+## S9 left FIVE MORE ORPHAN CLASSES — the full-schema sweep (drift audit 2026-08-22, §9)
+
+The 2026-08-22 full audit swept **every** field in `packages/schema/src` (~180)
+against the viewer's rendering set and the grading server. Everything below has
+an editor control, an importer key, or a present-tense schema comment — and NO
+student-facing consumer. **One cause for all five: the implementation lived in
+`packages/renderer` / the published-page runtime and died at S9 Drop 4
+(2026-08-14), while the declarations, the editor knobs and the design docs'
+"✅ live" statuses survived.** The S9 claims-grep (P5) walked the renderer's
+guards; it never walked the schema's comments or the editor's controls.
+
+**Each needs a ruling — wire it (with a guard bound to rendered output) or
+delete it end to end (schema + editor control + importer key + doc).** Ranked by
+what reaches paper/screen as CONTENT LOSS first:
+
+1. **Choice and item figures never render** — `MultipleChoiceOption.image`/`.graph`,
+   `MatchingItem.image`/`.graph`, `MatchingTarget.image`/`.graph`
+   (`multiple-choice.ts:63-64`, `matching.ts:42-51`). The editor authors them
+   (`MultipleChoiceView.tsx`), the importer accepts `graph: <spec>` and a
+   per-choice `![alt](url)` (`markdownToTiptap.ts` ~1542), and
+   `MultipleChoice.tsx`/`Matching.tsx` render only `.content`. A "which graph
+   shows…" question publishes with blank choices, on screen AND on paper. No
+   viewer fixture carries one, so no test could notice. **Print-affecting.**
+2. **Nested lists drop their children** — `ListItem.children` (`list.ts:25`;
+   also `DefinitionListItem.children`). `serialize.ts` emits them from Tiptap's
+   native nesting; `BulletList.tsx`/`OrderedList.tsx` map `items[].content`
+   only. Any indented sub-list a teacher types is flattened for students.
+   **Print-affecting.**
+3. **The interactive-graph feedback knobs are inert end to end** —
+   `partialCredit`, `builtinFeedback`, graph-level `mistakeFeedback`
+   (`interactive-graph.ts:237-260`, all described in the present tense). The
+   registry strips them for students, `server/grading/graphs.ts` reads neither,
+   and `scoreGraphBlock` returns a boolean. The only readers are graph-kit's
+   `runtime.ts` (the dead data-attribute contract — `attachGraphRuntime` has no
+   caller outside graph-kit) and a client-side check path the viewer never
+   invokes, which makes `graph-kit/src/mistakes.ts` (the classifier catalogue)
+   production-unreachable. `GraphSettings.tsx` still exposes all of it.
+   Contrast: BLANK-level `mistakeFeedback` IS live (`grading/blanks.ts`).
+4. **The student calculator no longer exists** — `ActivityDocument.calculator`
+   (`document.ts:305-347`). `mountCalculator`'s only callers are the editor's
+   config-drawer preview and `/dev/calculator`; the student summon was the
+   runtime's. `calculator-tool.md`, STATE's status row and ROADMAP 2.7's
+   done-when all said "live" until this audit corrected them. Wiring it means a
+   viewer summon surface + the lazy chunk on the student path (a perf-budget
+   question); deleting it means the config drawer section and the schema
+   `calculator` object go too.
+5. **Section checkpoints and the activity flow modes** — `Section.isCheckpoint`,
+   `meta.submissionMode`, `meta.revisionMode`, `meta.answerFeedback`,
+   `meta.gradingMode`, `meta.activityType` (`document.ts:38,44-86,234-238`; the
+   comment block describes all five modes in the present tense). Zero hits in
+   `viewer/src` or the server: the viewer renders a Check button on EVERY
+   section (`ViewerContainer.tsx` ~390) and never freezes inputs.
+   `ActivityConfigDrawer.tsx`, `SectionBreakView.tsx`'s checkpoint toggle and
+   the importer's `{checkpoint}` marker all write knobs that do nothing.
+   `gradingMode` has no consumer in ANY package. *(`activityType` is also the
+   field the import-format doc said was "not importable" — the 2026-08-21 fix
+   made it importable into a field nothing reads.)*
+
+**Minor, same class:** `ShortAnswerBlock.placeholder` (`free-response.ts:101` —
+`Essay.tsx` and `SelfExplanation.tsx` honour theirs, `ShortAnswer.tsx` does not);
+`RubricCriterion.description` (written by `RubricEditor.tsx`, read by neither
+`ReleasedFeedbackCard.tsx` nor the teacher grading surface);
+`inlineBlankSecrets` registry key (declared on 4 entries, `sanitize.ts` strips
+blank secrets recursively regardless — over-strip, safe direction, guarded only
+declaration-to-declaration in `registry.test.ts`).
+
+**Comment claims with no code beside them** (fix with the ruling they belong
+to): `registry.ts:37-38` + `FillInBlank.tsx:11` say `hint` survives
+sanitization as "a pre-check affordance the student may open" — nothing in the
+viewer reads `blank.hint` pre-check (not a leak; the stated reason is fiction);
+`document.ts:81-85` "the runtime defaults a missing answerFeedback to
+'immediate'"; `graph-kit/src/index.ts:7,75,98,126,261` and `inline.ts:328`
+cite published pages / the runtime sidecar / `RUNTIME.md`.
+
+**The guard to write once the rulings land:** a test that walks every schema
+field and asserts it is read somewhere under `viewer/src/{blocks,container,
+styles,server}` or `graph-kit/src` — a reachability test in the
+`export-reachability.test.mjs` family (P1), bound to source rather than to a
+hand-maintained list. Until then this list IS the list.
+
+**Depends on:** author rulings per item (wire / delete). Item 1 and 2 are the
+ones a teacher will hit first; item 4 is the one STATE claimed was live.
+
 ## TWO MORE ORPHAN FIELDS — `hasConfidenceRating` and `allowTargetReuse` (2026-08-22)
 
 Found by the drift audit's §9 sweep run across **every** schema field rather

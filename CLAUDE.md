@@ -53,8 +53,7 @@ Answer each out loud in the final message, including "n/a":
    ORPHAN — the repo's most expensive defect class (eight instances now: the
    registry `numbered` set, `LABELED_BLOCK_TYPES`, block `workSpace`,
    `Row.gridLines`, fence `**bold**`, `showCellLabels`, `hasConfidenceRating`,
-   `allowTargetReuse`). Wire it with a guard bound to RENDERED OUTPUT, or do not
-   add the field.
+   `allowTargetReuse`). Wire it with a guard bound to RENDERED OUTPUT — and mutation-test the guard once by reverting the wiring and watching it go red — or do not add the field.
 2. **Touched a migration, a deploy, or a version constant?** Re-read STATE's
    baseline row live — `list_edge_functions` for flags+versions (the `version`
    field, NOT the `entrypoint_path` suffix) and
@@ -127,6 +126,8 @@ P11. **Comments asserting counts or coverage are claims — guard them or don't 
 - **Don't put the publish button in the editor toolbar.** Publish is an activity-level action; the toolbar is for editor-formatting controls. It belongs in the page header next to `SaveIndicator`.
 - **Don't schedule or arm `prune_section_checks` — it is the only function in this repo that deletes student work, and nothing mechanical stops it any more.** Migration 0035 shipped it disarmed behind a schema gate (it refused every row while `analytics_job_runs.rolled_through` was NULL); **0036 writes that watermark nightly, so the gate is GONE.** What holds it back now is only that it is unscheduled and dry-run by default — `prune_section_checks(false)` on a cron really deletes superseded check attempts. Arming is an eight-step checklist in TODOS.md ("The check-rollup ARMING arc") whose blocking steps include **counsel question Q10** and **N green nights of a non-drifting reconciliation pair**. Read the checklist, not a summary of it; and never treat 0035's "mechanically inert" language as still current.
 - **Don't let the compliance pack drift behind a migration that touches personal data.** When a migration adds/removes a personal-data column or a table holding student-derived rows, `docs/compliance/data-map.md` and `docs/compliance/retention-policy.md` are part of that migration's commit — both carry their own version stamps, and both are read by counsel rather than by tests. **`scripts/tests/data-map-coverage.test.mjs` enforces the data-map half** (it sweeps the migrations for person-referencing columns and fails if a table is undocumented, or if the doc's stated migration range falls behind); the **retention-policy half is still prose-only**, so it is a rule here. Do NOT satisfy a failure with a skip list — the doc IS the list. (Drift audit 2026-08-17: retention-policy asserted a production fact that a scheduled job invalidated hours later, and data-map had been silently missing a student-name column since 0001.)
+- **Never seed a CONSUMER domain (`gmail.com`, `outlook.com`, …) into `student_domain`.** One row admits every Google account on earth as a student — the domain fast path is for district domains only. (Stood only in STATE's Gate-4 paragraph until the 2026-08-22 audit; STATE sections get replaced.)
+- **Don't edit a file-backed activity in the app — edit its `.md`.** The batch importer (0039 fingerprint) refuses a file whose draft was hand-edited since its last import and names it; `--force` overrides deliberately. And **publishing clears the draft** (`publish_activity` sets `draft_content = null`), so a published activity with no draft is up to date, not stale — the thing that made the first `report:stale` wrong. Format + traps: `docs/markdown-import-format.md`.
 - **Don't use raw object-storage URLs for student-facing links.** Since S9 Drop 1 the share link is the viewer URL `${origin}/a/${activityId}` (built by `PublishStatus`/`viewerShareUrl`). Don't hand students a storage path, a versioned path, or a backend URL — all wrong abstractions for sharing.
 
 ## gstack
@@ -136,7 +137,7 @@ P11. **Comments asserting counts or coverage are claims — guard them or don't 
 - **Use the `/browse` skill from gstack for all web browsing.** It is a fast headless browser for QA testing, dogfooding, and any web navigation.
 - **Never use `mcp__claude-in-chrome__*` tools.** Route all browser interaction through `/browse` (or the other gstack browser skills) instead.
 
-Available skills: `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/design-shotgun`, `/design-html`, `/review`, `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/browse`, `/connect-chrome`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/setup-deploy`, `/setup-gbrain`, `/retro`, `/investigate`, `/document-release`, `/document-generate`, `/codex`, `/cso`, `/autoplan`, `/plan-devex-review`, `/devex-review`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`, `/learn`.
+Available skills (a subset — `ls ~/.claude/skills/gstack` is the roster): `/context-save`, `/context-restore`, `/spec`, `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/design-shotgun`, `/design-html`, `/review`, `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/browse`, `/connect-chrome`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/setup-deploy`, `/setup-gbrain`, `/retro`, `/investigate`, `/document-release`, `/document-generate`, `/codex`, `/cso`, `/autoplan`, `/plan-devex-review`, `/devex-review`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`, `/learn`.
 
 ## Skill routing
 

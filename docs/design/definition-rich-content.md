@@ -1,5 +1,7 @@
 # Definition rich content — block-level definitions
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-22).** This doc names a `publish-activity` redeploy (four times) and `STORAGE_SCHEMA_VERSION` as live. `publish-activity` died at S9 Drop 1 and `packages/renderer` (with `STORAGE_SCHEMA_VERSION`) at Drop 4 (2026-08-14). Rich definitions reach students through the viewer at `/a/:id` (`packages/viewer/src/blocks/`), and a schema change ships via `pnpm bundle:viewer-server` + `deploy:get-activity`. The text below is left intact as the record of how the feature shipped.
+
 **Status:** COMPLETE 2026-07-27 — all five slices built and browser-verified. Decisions D1–D7
 below are author-ruled. §9 records what the build changed about this design. **Waiting on a
 `publish-activity` redeploy** before rich definitions reach published pages.

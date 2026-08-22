@@ -346,6 +346,10 @@ plan did not anticipate:
    have outlived its reason (this repo's most-repeated defect). The exemption is now DERIVED from
    whether the editor's ProseMirror schema has the node, with a loud roster test naming the
    temporary state — so Slice 2 lifts it automatically and has to acknowledge it.
+5. **R4 `showCellLabels` had NO rendering consumer until 2026-08-22 (`4a50b00`)** — the editor toggle
+   wrote a field nothing read (the ninth orphan of the §9 class). Wired in `packages/viewer/src/blocks/Table.tsx`
+   and now bound by an output test (`packages/viewer/tests/components/table.test.tsx`, mutation-tested: reverting
+   the wiring turns 3 of 4 cases red).
 
 Also: `serialize.ts` gained `case 'table' → null` (the union is exhaustive there, so Slice 1 does
 not compile without it). It is safe ONLY because of the slice order — nothing can put a table in a

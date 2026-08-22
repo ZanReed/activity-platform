@@ -1,5 +1,7 @@
 # Columns as the universal container — design
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-22).** This doc names a slice-5 `publish-activity` deploy, R2-hosted static HTML pages, and the renderer deploy train as live. `publish-activity` died at S9 Drop 1, published HTML pages and `packages/renderer` at Drop 4 (2026-08-14), and the R2 scripts at the D-13 teardown (2026-08-15). Rows-of-columns now render in the viewer's `packages/viewer/src/container/`, publish is the `publish_activity` RPC, and the deploy steps are `pnpm bundle:viewer-server` + `deploy:get-activity`. The text below is left intact as the record of how the feature shipped.
+
 **Status:** ✅ **SLICES 1–5 SHIPPED + MERGED to `main` (`94e1fb0`) + slice 5 `publish-activity` DEPLOYED (2026-07-15).** Slice 6 (Notion-hybrid editor paradigm) is a separate arc — largely BUILT, see [notion-hybrid-editor.md](notion-hybrid-editor.md). NB: the "Option A pragmatic bridge" ruling below was later SUPERSEDED by the strict-grid migration ([strict-grid-editor.md](strict-grid-editor.md), 2026-07-21) — the editor tree now IS the stored rows-of-columns model. The
 schema reshape, renderer, and editor+serialize bridge are all committed and the whole
 monorepo is green (1736 tests); browser-verified on `/playground`. Remaining: merge to

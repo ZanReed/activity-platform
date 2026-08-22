@@ -23,7 +23,7 @@ pnpm install
 pnpm test
 ```
 
-`pnpm test` runs the suites for all five packages. Exact test counts drift as the suite grows, so they aren't pinned here — what matters is that every package's suite passes. Test locations follow a fixed convention:
+`pnpm test` runs the suites for all four packages. Exact test counts drift as the suite grows, so they aren't pinned here — what matters is that every package's suite passes. Test locations follow a fixed convention:
 
 - `@activity/schema` — `tests/` (public-API tests) and `src/__tests__/` (unit tests)
 - `@activity/graph-kit` — `tests/`
@@ -118,6 +118,8 @@ Three rules. Violating any of them rots the architecture.
 *(The renderer's add-a-block-type steps died with the package at S9 Drop 4. `isNumberedBlock` lives in `@activity/schema` `block-predicates.ts`; its editor mirror is `problemNumberAt` in `app/src/editor/problemNumbering.ts` — these two must still agree, guarded by `schema/tests/block-predicates.test.ts`.)*
 
 *Editor:* a Tiptap extension (plus a NodeView for blocks that render interactively) under `packages/app/src/editor/`; one entry in `slashMenuItems.ts` — it drives BOTH the slash menu and the toolbar's "+ Insert" dropdown, so there is no separate toolbar step; ★ the node name added to the `Column` node's content expression in `extensions/Columns.ts` (guard: `app/src/__tests__/blockTypeGuards.test.ts`, which also requires a `representativeBlock` case for the new type); registered in `ReferencePanelEditor.tsx` if the serializer can emit it in panel content (guard: `ActivityConfigDrawer.test.tsx`); both directions in `lib/serialize.ts`.
+
+*Print + server (the places the table block taught us, 2026-08-21 — `git show --stat 76e0831 38d755e ec7ba14 a54d391`):* the print treatment in `packages/viewer/src/registry/printExpectations.ts` and the print CSS in `src/styles/viewer.css` (guarded by the `structure/*` rows in `packages/app/e2e/print-rules.e2e.ts`, which assert COMPUTED style — the only guard class that survives a package deletion); the answer-key extractor types in `src/answer-key/types.ts`; the grading walk in `src/server/grading/walk.ts` + its `corpus.ts` case (a block whose children can hold blanks must be walked or its blanks are silently ungraded); the wire-leak fixture in `src/fixtures/leakFixture.ts`; the Linux print baseline under `packages/app/e2e/print-baselines.e2e.ts-snapshots/` (read it before pinning it); a row in `scripts/perf-budgets.mjs` if the block pulls a new heavy lib; and **both bundles regenerated and committed** (`pnpm bundle:viewer-server`; `pnpm bundle:grading-server` when `server/grading/*` moved) — CI fails on drift. Importer: `lib/importFormatRegistry.ts` (+ `importFormatRegistry.test.ts`, the lockstep guard between `markdownToTiptap.ts`, the copy-paste prompt and `docs/markdown-import-format.md`).
 
 *App plumbing:* ~~`buildActivityIndex` + Submissions dashboard rendering~~ **DEAD at S9 Drop 3** — the Phase 2.6 dashboard and `lib/submissions.ts` were retired whole (the parked teacher-grading slice owns any successor; the viewer registry's conformance factory is the surviving per-type gate). Optionally: the markdown importer (`lib/markdownToTiptap.ts`) + `docs/markdown-import-format.md` + the Copy-AI prompt (their own drift-guard test keeps the three in lockstep).
 

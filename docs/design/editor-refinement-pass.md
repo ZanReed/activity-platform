@@ -1,5 +1,7 @@
 # Editor refinement pass (2026-07-16)
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-22).** This doc names a `publish-activity` redeploy, the renderer honoring `color`, and "no ingest redeploy" as live. `publish-activity` died at S9 Drop 1, `ingest-submission` at Drop 3, and `packages/renderer` at Drop 4 (2026-08-14). Blocks render in `packages/viewer/src/blocks/` (students open `/a/:id`), and a schema/renderer change ships via `pnpm bundle:viewer-server` + `deploy:get-activity`. The text below is left intact as the record of how the feature shipped.
+
 **Status:** ✅ **COMPLETE — all four groups worked through (2026-07-16 → 07-18); arc closed** (drift audit 2026-08-04 added this line). App/editor-only, rode the SPA deploy. Session narratives archived in [HISTORY.md](../HISTORY.md) (2026-07-15 → 07-21 section); spin-off designs that got their own docs: [image-crop.md](image-crop.md) (shipped), [graph-systems.md](graph-systems.md) (shipped). The rulings below remain the record of what was decided and why.
 
 Author feedback list after dogfooding the MC-coherence pass, with Claude's

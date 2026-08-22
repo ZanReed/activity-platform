@@ -1,5 +1,7 @@
 # Dark mode
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-22).** This doc names `packages/renderer/src/runtime/styles.ts` (in the architecture diagram) and a deferred "published-page dark mode" slice as live. `packages/renderer`, its runtime and published pages all died at S9 Drop 4 (2026-08-14). The deferred half is now VIEWER dark mode — the student surface is the viewer at `/a/:id`, so that slice would theme `packages/viewer`, not a published-page `styles.ts`. The text below is left intact as the record of how the feature shipped.
+
 Status: **COMPLETE (chrome + editor) — all 5 slices SHIPPED + verified
 (2026-07-18).** System-pref + explicit toggle both work; editor + chrome fully
 themed; AA-verified; print forced light. Built on the `@theme` token

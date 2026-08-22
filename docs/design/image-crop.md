@@ -1,5 +1,7 @@
 # Image crop mode (design) — 2026-07-17
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-22).** This doc names a `publish-activity` redeploy and a `packages/renderer/src/blocks/image.ts` render path as live. `publish-activity` died at S9 Drop 1 and `packages/renderer` at Drop 4 (2026-08-14). The crop now renders in `packages/viewer/src/blocks/`, students open the viewer at `/a/:id`, and a schema change ships via `pnpm bundle:viewer-server` + `deploy:get-activity`. The text below is left intact as the record of how the feature shipped.
+
 **Status:** ✅ **SHIPPED + DEPLOYED 2026-07-18** (owner CR-J1b PASSED; drift audit 2026-08-04 added this line). Schema `crop {x,y,w,h}` + `srcAspect` (both-or-neither; `height` removed), 2-D crop-mode gesture UI, Crop as command-bar primary; `publish-activity` redeployed (additive, no wire/storage bump). Commits `fbab914` (foundation), `67d2af1`/`20e3dff` (authoring); see [HISTORY.md](../HISTORY.md) 2026-07-18. Where detail below conflicts with code, code wins.
 
 `office-hours` design doc for the Group 3 deferred item "Image crop mode."

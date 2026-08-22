@@ -2,6 +2,8 @@
 
 > **Reconciled 2026-07-13** — see "Design reconciliation" at the end before implementing. The original capture below is intact; the reconciliation section corrects two security-relevant claims and records what shipped in the meantime.
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-22).** This doc names an index over public R2 URLs and client-side grading with answers baked into published HTML as live. Published HTML pages, their R2 hosting, and client-side grading all died at S9 (2026-08-14). The discovery surface is now a viewer route (students open `/a/:id`), publish is the `publish_activity` RPC, and grading is server-authoritative in `check-activity` — answer keys never reach clients pre-check. The text below is left intact as the record of how the feature shipped.
+
 **Status:** design captured, not implemented (2026-06-16). **Target: Phase 2** (author intent — an onboarding lever, see "Why now"). A public, browsable catalog of free activities — initially math, all authored by the platform owner — that any teacher can find and **run as-is**. Captured ahead of implementation in the same role as the sibling OCR designs (`pdf-import.md`, `photo-grading.md`).
 
 Companion to ROADMAP.md (this is the Phase 5 marketplace's *free + discovery* slice, pulled forward into Phase 2) and STATE.md.
@@ -109,7 +111,7 @@ Rulings recorded verbatim-in-spirit; this section is the reference for the imple
 3. **Catalog read surface: YES** — security-definer RPC returning catalog-safe columns only; narrow published-version read policy for print; `can_read_activity` untouched.
 4. **Audience v1: YES** — signed-in (allowlisted) teachers only; RPC written so the later anon flip is a grant.
 5. **Consumer print: YES (full engine)** — full print engine rendering the **published version only, never the draft**; narrow `activity_versions` policy scoped to current versions of listed activities; answer-key variant included.
-6. **Taxonomy: OPEN — tags discussion wanted before the code drop.** Author: tags might be important for navigating a large library. Options to discuss at kickoff:
+6. **Taxonomy: OPEN — tags discussion wanted before the code drop.** **RESOLVED 2026-08-18 → [activity-taxonomy.md](activity-taxonomy.md) (migration 0037).** Author: tags might be important for navigating a large library. Options to discuss at kickoff:
    - **(a) Existing columns only** (course/unit facets) — zero schema; weakest navigation; the original recommendation.
    - **(b) `tags text[]` on the activities row + GIN index** — cheap, flexible, filter/`tsvector`-friendly later. Governance note: in the v1 single-author (then allowlisted-opt-in) era, tag hygiene is a small hand-curated problem; free-text tag sprawl only becomes real when strangers list content — the same moment decision 1's multi-author future arrives.
    - **(c) Controlled vocabulary** (tag table + join, curated list) — the Phase 5 standards-alignment direction; heaviest now, but the migration path from (b) is mechanical (canonicalize + backfill), so (c) can wait.

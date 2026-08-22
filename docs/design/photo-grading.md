@@ -1,5 +1,7 @@
 # Photo-upload answer checking — design
 
+> ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-22).** This doc names the `ingest-submission` pipeline, the renderer runtime's `submission.ts`, and a `STORAGE_SCHEMA_VERSION`-style QR envelope as live. `ingest-submission` died at S9 Drop 3 and `packages/renderer` (with `submission.ts` and `STORAGE_SCHEMA_VERSION`) at Drop 4 (2026-08-14). The downstream a photo path would feed is now `check-activity` + the `section_checks` table (server-authoritative grading); the "Reuse map" below must be re-derived against that at kickoff (policy P10). The text below is left intact as the record of how the feature shipped.
+
 **Status:** design captured, not implemented (2026-06-16). A long-term assessment feature: a student does a printed worksheet by hand, someone photographs it, and the system reads the handwriting and grades it against the activity's answer key. Captured ahead of implementation; the open questions below are resolved at kickoff, not now.
 
 Companion to STATE.md and ROADMAP.md. Sibling design: `pdf-import.md` (the authoring-side OCR feature). Both share the "AI/OCR as a lossy transform feeding a human-review endpoint" shape; neither is ever authoritative.
