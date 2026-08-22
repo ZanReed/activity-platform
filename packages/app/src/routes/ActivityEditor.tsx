@@ -132,6 +132,30 @@ function Shell({ children }: { children: ReactNode }) {
     );
 }
 
+/**
+ * A human-readable reason a stored document failed validation.
+ *
+ * WHY THIS EXISTS. Both messages below used to be bare — "malformed", with no
+ * field, no path, nothing. On 2026-08-22 a published activity showed exactly
+ * that, and answering "which part?" took a database session, a schema audit and
+ * a bundle inspection, because the UI knew the answer and threw it away. Zod
+ * hands us the path and the reason; showing them costs nothing and turns an
+ * hour into a glance.
+ *
+ * The path is deliberately included in the UI, not just the console: this is the
+ * TEACHER's own editor route, the reader owns the document, and "sections.0.
+ * rows.1.columns.0.blocks.3.rows" is the difference between reporting "it broke"
+ * and reporting where. The full issue list still goes to the console for the
+ * cases where the first one is not the interesting one.
+ */
+function describeParseFailure(error: { issues: { path: (string | number)[]; message: string }[] }): string {
+    console.error('[activity] stored document failed schema validation', error.issues);
+    const first = error.issues[0];
+    if (!first) return '';
+    const path = first.path.join('.');
+    return path ? ` (${path}: ${first.message})` : ` (${first.message})`;
+}
+
 export default function ActivityEditor() {
     const { id } = useParams();
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
@@ -270,7 +294,9 @@ export default function ActivityEditor() {
                 if (!parsed.success) {
                     setLoadState({
                         status: 'error',
-                        message: "This activity's saved draft could not be read.",
+                        message:
+                        "This activity's saved draft could not be read." +
+                        describeParseFailure(parsed.error),
                     });
                     return;
                 }
@@ -300,7 +326,8 @@ export default function ActivityEditor() {
                     setLoadState({
                         status: 'error',
                         message:
-                        "The published version of this activity is malformed.",
+                        'The published version of this activity is malformed.' +
+                        describeParseFailure(parsed.error),
                     });
                     return;
                 }
