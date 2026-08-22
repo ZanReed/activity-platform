@@ -74,6 +74,40 @@ call for the row — focus stability across a 76-stop walk is not an a11y proper
 
 **Depends on:** nothing.
 
+## TWO MORE ORPHAN FIELDS — `hasConfidenceRating` and `allowTargetReuse` (2026-08-22)
+
+Found by the drift audit's §9 sweep run across **every** schema field rather
+than only the new ones. Same class as the `number` override below, and the same
+question: **wire it or delete it.**
+
+**1. `hasConfidenceRating` — on SEVEN block types, with nothing anywhere that
+renders it.** The schema describes it in the present tense ("students see a
+3-point confidence selector (unsure / think_so / certain) … before checking"),
+and `submission.ts`'s wire still carries a per-blank confidence. The
+implementation was the RENDERER's and died at S9 Drop 4.
+
+⚠ **The repo already half-knows this.** `printExpectations.ts:728` records that
+eng review A10 (2026-08-06) deleted the `structure/section-confidence` print row
+because "the viewer has no section-confidence feature — the string 'confidence'
+appears nowhere in viewer source outside this file". That review removed the
+print assertion and left the seven schema fields, the editor's settings control,
+and the wire standing. Whichever way this goes, it should go all the way this
+time.
+
+**2. `allowTargetReuse` (matching) — inert in both directions.** The viewer's
+Matching component never restricts docking a target twice, and the grader never
+reads the flag (the key is `itemId → targetId`, so many-to-one already scores
+correctly). So `true` enables nothing and `false` forbids nothing. Off by
+default and the permissive behaviour is the safe one, which is why it has cost
+nothing — but it is an authored knob that does not do what it says.
+
+**Not orphans, checked and cleared in the same sweep:** `tickStep`, `binWidth`,
+`minorTicksPerStep`, `snapToTick`, `maxFrequency`, `correctVertices`,
+`minOverlap` (all consumed by graph-kit and/or the grading server — my first
+pass flagged them only because the sweep's directory list omitted those
+packages), and block-level `skills`, whose schema comment declares the deferral
+honestly rather than implying a consumer.
+
 ## The drift-audit skill misses a fourth `Status:` spelling (2026-08-22)
 
 **What:** `.claude/skills/drift-audit`'s §3 greps two forms — `**Status:**` and
