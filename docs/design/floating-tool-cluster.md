@@ -1,6 +1,6 @@
 # The floating tool cluster — the calculator and the reference panel come back
 
-**Status:** 🔵 **PLAN — ruled C1–C9 + design-reviewed 2026-08-23 (4/10 → 9/10, 0 unresolved). Eng review pending. No code yet.**
+**Status:** 🟢 **PLAN — ruled C1–C13, design-reviewed AND eng-reviewed 2026-08-23. CLEARED to build; no code yet.**
 
 Wires the two FLOATING TOOLS a student lost at S9 Drop 4: the calculator
 (orphan #4 of the 2026-08-22 audit) and the reference panel's screen surface
@@ -19,12 +19,18 @@ re-strands the same tokens.
 |---|---|---|
 | ⚙ → Calculator → "Allow a calculator", graphing mode | yes | **nothing** |
 | `calculator: graphing` in a ```meta``` fence | yes | **nothing** |
-| Reference panel content, print box UNticked | yes | **nothing, ever** |
-| Reference panel content, print box ticked | yes | a static box, on paper only |
+| Reference panel content | yes | **on paper only** — never on screen |
 
-The reference-panel row is the harsh one: the print gate is **not on by
-default**, so the default outcome for authored reference content is that
-nobody sees it.
+⚠ **CORRECTED BY ENG REVIEW (2026-08-23).** This table originally claimed the
+print gate was off by default and therefore "nobody sees it". **Wrong:
+`printReferencePanel` defaults to `true`** (`document.ts:177`), so reference
+content DOES reach paper by default. The orphan is real — there is no screen
+surface at all — but it is "screen-invisible", not "invisible". That is the
+second time this session I asserted something about the reference panel without
+checking it; the first was the ROADMAP half-fix. Both were caught by a review
+rather than by me, which is the argument for running them.
+*(`document.ts:150` also still describes an "on-SCREEN reference toolbar" as
+live — another dead-mechanism comment, fix it with the wiring.)*
 
 **This is not hypothetical.** The live database has one activity —
 `"test build"`, **published, 4 versions** — with `calculator.enabled = true` in
@@ -166,6 +172,50 @@ reason it can: that shape was chosen when the bar owned the bottom edge alone,
 and C6 has just made a full-width bar unnecessary. Accepted cost: genuinely wide
 content (a periodic table) is happier in a bar than a panel.
 
+## Eng-review rulings (2026-08-23, D8–D9 + ARCH findings)
+
+**C10. The screen surface renders STATIC block families only** (D8 — a dormant
+gap C9 would have made live). `ReferencePanel.blocks` is `z.array(Block)`, the
+**full block union**, and `sanitizeActivityDocument` runs `sanitizeBlockMut`
+**only** over `sections → rows → columns → blocks`. Reference-panel blocks get
+only the in-band deep walk, on the strength of a comment asserting those
+surfaces "carry no declared answer keys" — **an assumption, not an
+enforcement**. Harmless while nothing rendered them; C9 renders them. So the
+screen surface renders paragraph / heading / list / image / table / math /
+callout and **skips gradable blocks**, warning at dev time rather than silently
+dropping. Rejected the alternative (extend the sanitizer) because it moves
+`SANITIZER_REV`, orphans the read cache and owes a redeploy — and still leaves
+a graded question sitting in a reference panel, which is a strange thing for a
+student to meet.
+
+⚠ **This is what keeps the "no bundle, no redeploy" claim true.** Fixing the gap
+the other way would have falsified it.
+
+**C11. The nudge is SESSION-scoped, never persisted** (D9). Once per page load
+for an activity carrying reference content. The viewer already persists
+responses to localStorage, so the machinery exists — but a behavioural flag is
+a different KIND of thing from a student's answers, the compliance data map
+documents everything stored about a student, and that map is read by counsel
+rather than by tests. Session scope gets nearly all the discovery benefit and
+adds nothing to the pack. Accepted cost: a student who reloads sees it again.
+
+**C12. The kit seam already exists — use it, do not invent one.** The
+calculator reads **54 `var(--gk-*)` custom properties** and `editor.css:161`
+already sets them from outside. So **C4 (z-index) needs NO graph-kit change**:
+the viewer sets `--gk-*` exactly as the editor does. **C8's two-column restack
+DOES need a kit change**, because layout structure is not expressible as a
+variable — it lands as a documented `sheet`/`compact` mode on the kit, NOT as
+the viewer fighting the kit's injected stylesheet with specificity. Specificity
+wars against a stylesheet the kit injects into `document.head` are the failure
+mode to avoid; it is not the viewer's stylesheet to win against.
+
+**C13. `remembered` is module-level and shared.** The kit's geometry memory
+(`calculator.ts:196-203`) is a module singleton: every mount shares it and
+nothing resets it. Two panels would share one memory, and it **leaks between
+tests**. The cluster must not assume per-panel geometry, and viewer tests that
+mount the calculator need an explicit reset or they will pass or fail based on
+what ran before them.
+
 ## Cluster conventions already specified (DECISIONS.md:193-195)
 
 Inherited, not re-decided: the summon **hides while its panel is open** (they
@@ -204,21 +254,26 @@ no button at all.
 ## Implementation Tasks
 
 - [ ] **T1 (P1)** — viewer — `<ToolCluster>` host: the corner, both summon
-  buttons, single-open state machine (C6), z-ladder bound to the tokens (C4).
+  buttons, single-open state machine (C6), z-ladder bound to the tokens (C4) —
+  **by setting `--gk-*`, which needs no kit change (C12)**.
   Mounts as a sibling after `.viewer-worksheet`; `ViewerContainer` has no chrome
   layer today, so this creates one.
 - [ ] **T2 (P1)** — viewer — Calculator summon + mount. Dynamic import,
   `floating: true`, destroy on unmount, cancelled-mid-load race handled (copy
   `CalculatorPreview`, which already does).
 - [ ] **T3 (P1)** — viewer — Reference panel screen surface (C9), sharing the
-  panel chrome; content-sized height with a cap.
+  panel chrome; content-sized height with a cap. **Static families only (C10)**,
+  gradable blocks skipped with a dev-time warning.
 - [ ] **T4 (P1)** — viewer — Pending state on the summon (C7): `aria-busy`,
   spinner, inert-but-not-disabled. **Only appears on a slow connection, so it
   gets its own test rather than relying on a lane to surface it.**
-- [ ] **T5 (P1)** — viewer/styles — The mobile sheet (C8): pin three edges,
-  grab handle, ~64% height, and override the kit's `min-width` + two-column body.
+- [ ] **T5 (P1)** — viewer/styles **+ graph-kit** — The mobile sheet (C8): pin
+  three edges, grab handle, ~64% height. Geometry via `--gk-*` (C12); the
+  two-column restack lands as a documented `sheet` mode ON THE KIT, not as a
+  specificity war against the stylesheet it injects into `document.head`.
+  **The one graph-kit change in the slice.**
 - [ ] **T6 (P2)** — viewer — First-visit nudge on the reference summon (C7),
-  per-activity state.
+  **session-scoped, nothing persisted (C11)**.
 - [ ] **T7 (P1)** — tests — Output-bound, mutation-tested guards. Not
   sufficient: "the button exists". Must assert that clicking mounts a usable
   panel, that an activity WITHOUT the flag renders no button, that opening one
@@ -230,7 +285,9 @@ no button at all.
   while open" convention** (C6). Policy P5: retiring a rule means auditing every
   comment that cites it. Also update ROADMAP 2.7's done-when and the reference
   panel entry, both currently corrected-but-stale.
-- [ ] **T10 (P3)** — viewer — Dark mode: the kit injects a global stylesheet
+- [ ] **T10 (P2)** — viewer — Reset the kit's module-level `remembered` between
+  viewer tests (C13), or they pass/fail on what ran before them.
+- [ ] **T11 (P3)** — viewer — Dark mode: the kit injects a global stylesheet
   outside the viewer's token scope, so panel chrome will not follow the theme.
 
 ## Out of scope (filed, not fixed)
@@ -244,19 +301,22 @@ no button at all.
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | wire-vs-delete settled by evidence in the plan |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | wire-vs-delete settled by evidence |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | not run |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 0 | **PENDING** | next step |
-| Design Review | `/plan-design-review` | UI/UX gaps | 1 | **clean (2026-08-23)** | score 4/10 → 9/10, 4 decisions, 1 inherited convention retired |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | **clean (2026-08-23)** | 5 architecture findings, 4 rulings (C10–C13); **1 plan premise corrected** |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | clean (2026-08-23) | 4/10 → 9/10, 4 decisions, 1 inherited convention retired |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 1 | clean (2026-08-20, prior plan) | stale for this plan |
 
-**VERDICT:** DESIGN CLEARED — eng review required before implementation.
+**VERDICT:** ENG + DESIGN CLEARED — ready to implement.
 
-The review's load-bearing finding came from building the cluster rather than
-reasoning about it: two panels open occlude **68%** of a Chromebook-height
-viewport and **overlap each other below 896px width**, which retires an
-inherited convention (`summon hides while open`) that only ever made sense when
-both tools shared one corner. The 375px overflow was likewise measured (**482px
-panel, 123px off-screen**), not predicted.
+Both reviews earned their place by falsifying something. The design review
+measured that two open panels occlude **68%** of a Chromebook viewport and
+overlap below 896px, which retired an inherited convention. The eng review
+found that **`printReferencePanel` defaults to `true`**, so the plan's claim
+that reference content reaches nobody was wrong (it reaches paper, never
+screen); that **`ReferencePanel.blocks` accepts the full block union while the
+sanitizer's per-block strips skip that surface**, a dormant gap C9 would have
+made live; and that the **`--gk-*` seam already exists**, so C4 needs no
+graph-kit change at all.
 
 NO UNRESOLVED DECISIONS
