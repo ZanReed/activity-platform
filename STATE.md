@@ -6,28 +6,11 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**⏭ NOTHING IS PENDING FROM THE TABLE ARC. One small item is owed from earlier, and one watch item stands below.**
+**⏭ ONE ITEM IS OWED.** The table arc left nothing pending — 0039 applied, both functions redeployed and tool-verified, the print baseline committed, `unit-rate.md` republished. That narrative is in [HISTORY.md](docs/HISTORY.md); the durable RULES it produced are below and in CLAUDE.md.
 
 **⏳ `.env.supabase` line 23 holds a PRE-RESET database password.** The author rotated it after it was printed to a session transcript, so `pnpm verify:auth --target live` fails until the new connection string is pasted in. Unrelated to the table arc; still owed.
 
-**✅ THE TABLE ARC IS COMPLETE, SHIPPED AND PROVEN ON REAL CONTENT (2026-08-21 → 22).** All four slices, plus the incident that followed. Migrations **0039** applied and verified live; both Edge Functions redeployed and tool-verified BEFORE any table could reach a draft (`get-activity` v22 `verify_jwt:false`, `check-activity` v18 `verify_jwt:true`) — the capability-before-content gate, discharged rather than assumed. The Linux print baseline is committed after being **read**, not just generated. `unit-rate.md` is republished and serving a real table (version 3, tool-confirmed). Narrative archived in [HISTORY.md](docs/HISTORY.md); the rulings and every AS-BUILT correction live in [table-block.md](docs/design/table-block.md) — **read the AS BUILT notes before citing the plan above them, five rulings changed shape at build time and T4 changed outright.**
-
-**⚠ THE INCIDENT WORTH CARRYING FORWARD (2026-08-22): a teacher saw "malformed" for a perfectly valid activity.** `index.html` is the one PRECACHED file, so a page load served from that precache after a deploy runs an entirely old, self-consistent build — and a build whose schema predates a new BLOCK TYPE rejects every document containing one. The data was never wrong; four independent checks confirmed it. **Fixed both ways:** the message now names the failing field, and both stored-document routes reload ONCE before reporting (`reloadOnceForStaleBuild`, the sibling of the existing stale-chunk recovery, with its own guard key). **The generalisable rule: any deploy that adds a block type puts every open teacher tab one page load behind.** Students are unaffected — the student path never zod-parses the served document.
-
-**⏭ WORTH KNOWING FOR THE ~150: the pilot's tables carry NO blanks in cells** — their questions sit below the table, so "complete the table" (ruling D7, the reason cells hold blanks at all) is not yet exercised by real content. It works: `{{=9.00}}` in a cell is a graded blank, lettered (a)/(b) on paper. The first authored one will be the first real test of it.
-
-**✅ P7 residue DISCHARGED**, and **✅ THE ROLLUP IS RUNNING** (observed 2026-08-21: `analytics_rolled_boundary()` non-NULL and advancing, `rollup_rebuild_needed` self-healed to 0 queued; live corpus is still 0 checks / 0 rollup rows, so it is rolling nothing, correctly).
-
 ⚠ **THE CONSEQUENCE IS THE PART TO READ, not the observation.** CLAUDE.md's warning has now fired: 0036 writes the watermark nightly, so **`prune_section_checks`'s schema gate is GONE** and the only things holding it disarmed are that it is **unscheduled** and **dry-run by default**. Arming is the eight-step checklist in [TODOS.md](TODOS.md) (blocking steps include counsel question **Q10** and N green nights of a non-drifting reconciliation pair). Read the checklist, not a summary of it.
-
-*(Discharged and archived to [HISTORY.md](docs/HISTORY.md) on 2026-08-21: the answer-key deploy gate + its liveness proof, V7's print-baseline regeneration, the 0037 ordering gate, the bundle-drift fix, and the 0036 apply narrative.)*
-
-**✅ THE ONE PROOF NO SESSION CAN MAKE — COLLECTED 2026-08-16** (author, real browser, second Google account; tool-confirmed, narrative archived in [HISTORY.md](docs/HISTORY.md)). A stranger's Google account joined class `7NE9M2` end to end: `users` went 3 teachers/0 students → 3 teachers/**1 student**, no `pending` rows remain, and the class's `expected_domain` is null with no `student_domain` row — so that account matched **no** fast path. That discharges the OAuth round trip, the trigger admitting a stranger, and `retryRole` after promotion. *(Repro: `/` → `7NE9M2` → Continue with Google → "You're in ✓".)*
-
-**What the collected proof does NOT cover — read this before citing it:**
-- **Gate 4 is untouched.** What ran was `redeem_join_code`. The **`student_domain` fast path has still never executed live** — no seed, no exercise. It stays deliberately last (see its own item below).
-- **`claim_teacher` has never promoted anyone live.** All 3 teacher rows predate the admission slice (newest 2026-07-29), so the "I'm a teacher" self-serve door — the one D24 is actually about — is still unexercised by a stranger.
-- **✅ Confirmed by the author on the same run:** the brief neutral gate card DID appear between "Joining class…" and "You're in ✓", and read as normal loading rather than an error. Expected and correct — `retryRole()` sets `roleStatus='loading'` in the same batch as the success state. The question this closes is not "does it render" but "does a real person misread it as a failure"; they did not. Leave the sequence alone.
 
 **⚠ D24 counsel read — OWED, and the gate it was meant to hold is ALREADY OPEN (author-accepted risk).** R10/OV-8 ruled teacher self-serve must not reach strangers before counsel read the amended pack. It does: 0033 carried BOTH promotion RPCs and `PendingOnboarding` ships BOTH doors, so applying the migration opened Drop 2 alongside Drop 1. **The author reviewed and accepted the exposure** (unadvertised site, caps of 5 classes / 50 members bound any single bad actor). ⚠ **As of 2026-08-16 the exposure is no longer hypothetical**: a real second account's data now sits in the database under a pack every file marks DRAFT. It is the author's own throwaway account, so nothing is owed to a third party — but the "no real student data" cushion this item leaned on is gone. Concretely: any Google account can sign in → "I'm a teacher" → attest → create classes and read roster emails, under a pack every file marks DRAFT. **✅ The packet is written: [counsel-review-packet.md](docs/compliance/counsel-review-packet.md)** — the draft-2 → draft-3 delta, the live position up front, and ten numbered questions each naming the platform's current position (Q10, added 2026-08-16, asks whether n=1 daily aggregates surviving a purge are retained student data — it gates ARMING the check-prune, nothing sooner). The load-bearing three: Q2 (does an *unverified* educator attestation carry the authorization it asserts), Q4 (is the per-class 13+ assertion defensible when students are never asked their age), Q5 (on what basis is a pending account's data held *before* any teacher vouched). The read itself is the author's; nothing repo-side is owed.
 
@@ -73,7 +56,11 @@ published activities whose page is older than their file.
 proven against real content and its traps are documented in
 [markdown-import-format.md](docs/markdown-import-format.md) — hand-numbering,
 the `mc`/`match` syntax, and now tables. The one capability no real activity
-exercises yet is a blank INSIDE a cell (see Pending author actions).
+exercises yet is a blank INSIDE a cell — the pilot's tables put their
+questions BELOW the table, so "complete the table" (ruling D7, the whole
+reason cells hold blanks) is still unproven on real content. `{{=9.00}}` in
+a cell grades and letters (a)/(b) on paper; the first authored one is the
+first real test.
 
 **Two things a session picking this up should not re-derive:**
 
@@ -90,13 +77,9 @@ document walk duplicated five times, the orphaned `number` override field, the
 check-rollup arming arc, and the parked shell-slimming. All of them will be
 easier to prioritise after 20 activities have said what actually gets in the way.
 
-## Earlier focus — the check-prune slice (0035) is BUILT; the rollup is now RUNNING
+## Earlier focus — the check-prune slice (0035/0036) is BUILT and RUNNING
 
-**Plan + the full ruling trail: [check-retention-and-rollup.md](docs/design/check-retention-and-rollup.md)** (eng review 2026-08-16, D2–D12). The prune shipped DISARMED; 0036 shipped the rollup that writes the watermark, and **that watermark is now advancing** (see Pending author actions). **The arming checklist in [TODOS.md](TODOS.md) is the only thing holding the prune back — read it, not a summary.**
-
-**Three things to know before touching it:** (1) `section_checks_latest` is THE definition of "current attempt" — the prune deletes only its complement, and verify-0035 §C(H) pins the queue's equivalence; (2) G12 is clause 2 — a graded check is never a candidate, proven with a real deletion in §C; (3) verify-0035 §A's `rolled_through_never_written` row is DESIGNED to go red when the arming arc lands — flip it there, don't delete it.
-
-*(The 0035/0036 build narrative and the teacher-grading (0034) detail archived to [HISTORY.md](docs/HISTORY.md) 2026-08-21; DECISIONS.md holds the rulings.)*
+**Plan + rulings: [check-retention-and-rollup.md](docs/design/check-retention-and-rollup.md); the ARMING checklist in [TODOS.md](TODOS.md) is the only thing holding the prune back — read it, not a summary.** Three things before touching it: `section_checks_latest` IS the definition of "current attempt" (the prune deletes only its complement); G12/clause 2 means a graded check is never a candidate; and verify-0035 §A's `rolled_through_never_written` row is DESIGNED to go red when arming lands — flip it there, don't delete it. *(Build narrative archived to [HISTORY.md](docs/HISTORY.md).)*
 
 ## The completed arc — what stays live from it
 
@@ -106,12 +89,7 @@ easier to prioritise after 20 activities have said what actually gets in the way
 
 **Suite — NUMBERS DELIBERATELY NOT PINNED HERE (drift audit 2026-08-21).** This row used to list five per-package counts in the same sentence that told readers to run `pnpm test` instead; four of the five had rotted. **Run `pnpm test` for unit counts and `node --test scripts/tests/*.test.mjs` for the script guards.** What is durable: the print e2e lane, and the editor/student/sw/perf/**a11y** e2e lanes (the four CI lanes run **73** rows — a11y is 11 with the Responses-tab axe row; the local-only integration lane is **9**). Typecheck + lint clean (0 errors); all **16 perf budgets pass**. ✅ **The four CI lanes are 73/73 LOCALLY with the local Supabase stack running** — the configuration that used to be red (see the e2e-origins trap under Standing constraints above). ⚠ **This line does NOT pin the bundle sizes any more** (drift audit 2026-08-17: three different entry-chunk numbers were in circulation across two STATE rows). **`node scripts/check-perf-budget.mjs` prints the real numbers and its caps live in `scripts/perf-budgets.mjs` with their reasoning** — read those, never a doc's copy. Same for test counts: `pnpm test`.
 
-**Editor open remainders (deferred, pre-rewrite arcs; roughly priority-ordered):**
-1. **Focus mode** — needs a caret-tracking ProseMirror plugin; off-by-default, wants its own design+eng pass.
-2. **Input-parity / a11y touch pass** — touch needs a real device; `/` covers the keyboard floor.
-3. **Slice 6.5 smart-defaults** — net-new unvalidated heuristics; own spike, gates nothing.
-4. **⌘⇧↑/↓ keyboard-reorder settle** — snap-motion follow-up (debounce design).
-5. **Chip open:** the slash menu dies under synthetic keyboard input once a query char follows `/` (humans unaffected). **Papercut:** the gutter "+" can overlap the drag grip's lower half on a short block.
+**Editor open remainders** (focus mode, the touch/a11y pass, smart-defaults, the keyboard-reorder settle, and two papercuts) **moved to [TODOS.md](TODOS.md) on 2026-08-22** — they lived only in this section, which is replaced every session.
 
 ## Backlog / candidate arcs
 
@@ -161,14 +139,8 @@ easier to prioritise after 20 activities have said what actually gets in the way
 
 ---
 
-**Last updated:** 2026-08-21 (the pilot RAN — importer proven live end to end; print-gap triage; two dead print declarations found and fixed; rich fence bodies, `work:`, `options: ruled`, and the fence-marks fix shipped; the table block designed and filed).
+**Last updated:** 2026-08-22 — the TABLE BLOCK arc shipped end to end (four slices, proven on real content), the editor e2e lane joined CI after two flake fixes, a stale-build incident was diagnosed and made self-healing, and a drift audit cleared six items.
 
-**The lesson of the day, and it is the same one twice.** Every defect this session found was a CLAIM nobody had tested: the brief's "node-safe (verified)", the print CSS's "a single problem can override the work space", the row `gridLines` the editor still honoured, the doc's promise of `**bold**` in fences, and the format doc's "*Activity type* is not importable". **Five separate places where a declaration outlived — or never had — an implementation, and the suite was green about all of them.** The two that reached PAPER were found by printing a page, not by reading code. Guards bound to OUTPUT are the only ones that survive a package deletion; `scripts/tests/batch-import.test.mjs` §A and the `structure/*` print rows are the pattern to copy. *(Prior entry:)* 2026-08-20 (the batch importer built end to end — migration 0038, `scripts/batch-import.mjs`, the node seam, the meta summary line, 15 script-test rows + 8 app rows; `pnpm verify` = all 8 gates green, script tests 54 → 73). **0038 applied + verified live the same day (8/0) — no author station outstanding; the importer is ready for its first real run.**
-
-**The lesson worth keeping from this slice: when a handoff brief says "inherited — do NOT re-derive", the first job is to make each of its claims falsifiable, not to trust them.** The brief's load-bearing claim was verified-sounding and wrong, and the thing that proved it was a two-minute esbuild run — cheaper than any of the work that would have been built on top of it. Same pattern the shell-slim plan hit on 2026-08-18 with two of its own claims. A claim inherited across a session boundary has no test attached to it; that is exactly what makes it worth testing first.
-
-*(Prior entry:)* 2026-08-18 (shell slimming slice 1 built, pushed, CI-green at 32048169054; then its one leftover red — the sw offline rows — chased to root cause, fixed, pushed and CI-green at 32081815982. The rollup's first v2 run at 03:30 UTC is still the thing to check.)
-
-**Two lessons from the day, both about tests that were passing for the wrong reason.** (1) **The sw offline rows were green in CI because CI has no local Supabase stack** — the stub lanes and the integration lane shared one address they needed to mean opposite things. A lane that passes because of what is ABSENT from the machine is not passing, it is unobserved. Mechanism + the guard now holding it: `packages/app/e2e/helpers/e2eOrigins.ts`. (2) **Two of the shell-slim plan's own claims were wrong, and the tests written to honor them are what found it** — "vitest parity, dissolved by inspection" (vitest externalizes `node_modules`, so the alias never applied) and severe-finding-1's premise (an apikey-less upload does not 401); both written up in that plan's AS BUILT section. **The pattern to keep: when a review's own claims are the input, the build's first job is to make each one falsifiable.**
+**The lesson of the session, and it is the one this repo keeps paying for: a DECLARATION outlives its implementation, and the suite stays green because the guard compares two declarations.** The count reached EIGHT (registry `numbered`, `LABELED_BLOCK_TYPES`, block `workSpace`, `Row.gridLines`, fence `**bold**`, and this week `showCellLabels`, `hasConfidenceRating`, `allowTargetReuse`). Two corollaries earned the hard way: **a guard must bind to rendered OUTPUT** — mutation-test it by reverting the wiring and watching it go red — and **a finding that gets half-acted-on comes back**, as `hasConfidenceRating` did after eng review A10 deleted its print row in August and left the schema fields standing. The per-session close-out in CLAUDE.md exists to catch the next one at the moment it is written rather than at the next audit.
 
 _Prior entries archived in [docs/HISTORY.md](docs/HISTORY.md)._

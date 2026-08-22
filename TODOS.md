@@ -121,6 +121,24 @@ the next gap gets a wider expression rather than a fifth special case. Recovered
 `print-and-printables.md`, which was a SHIPPED feature with no status line and
 now has one.
 
+## Editor open remainders (moved out of STATE 2026-08-22)
+
+Pre-rewrite deferrals that lived only in STATE's "completed arc" section —
+which is replaced every session, so they were one rewrite from vanishing.
+Roughly priority-ordered; none gates anything.
+
+1. **Focus mode** — needs a caret-tracking ProseMirror plugin; off-by-default,
+   wants its own design + eng pass.
+2. **Input-parity / a11y touch pass** — touch needs a real device; `/` covers
+   the keyboard floor today. (Related: the canvas-blocks tab-stop entry below.)
+3. **Slice 6.5 smart-defaults** — net-new unvalidated heuristics; own spike.
+4. **⌘⇧↑/↓ keyboard-reorder settle** — snap-motion follow-up (debounce design).
+   Also filed separately below as its own entry.
+5. **Chip open:** the slash menu dies under synthetic keyboard input once a
+   query char follows `/` — humans unaffected, so this is a test-harness
+   hazard rather than a user bug. **Papercut:** the gutter "+" can overlap the
+   drag grip's lower half on a short block.
+
 ## A general walk-descent guard for nested-content blocks
 
 **What:** A fixture-driven guard asserting that every registered block type's authored in-band ids
