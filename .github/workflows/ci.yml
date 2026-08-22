@@ -30,12 +30,12 @@ jobs:
     # note on print-gates below for why every job carries a bound.
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # pnpm/action-setup reads the version from package.json "packageManager".
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -99,7 +99,7 @@ jobs:
       # The perf job serves THIS dist rather than rebuilding, so the lane
       # measures the exact artifact the budgets above just passed.
       - name: Upload built app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-dist
           path: packages/app/dist
@@ -169,9 +169,9 @@ jobs:
     # without covering a hang.
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -212,7 +212,7 @@ jobs:
 
       - name: Upload failure traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: print-gate-traces
           path: packages/app/test-results/
@@ -249,9 +249,9 @@ jobs:
     # until GitHub's 6-HOUR default kills it (eng-review D22, 2026-08-06).
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -266,7 +266,7 @@ jobs:
       # Reuse the artifact `check` already built and already measured, instead
       # of a third full build per PR.
       - name: Download built app
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: app-dist
           path: packages/app/dist
@@ -285,7 +285,7 @@ jobs:
       # measurement you cannot learn from.
       - name: Upload timing measurements
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: perf-measurements
           path: packages/app/perf-results/
@@ -293,7 +293,7 @@ jobs:
 
       - name: Upload failure traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: perf-gate-traces
           path: packages/app/test-results/
@@ -337,9 +337,9 @@ jobs:
     # server rather than the specs.
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -355,7 +355,7 @@ jobs:
       # playwright.config.ts's webServer array, which starts regardless of
       # project. Downloading is cheaper than a second build.
       - name: Download built app
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: app-dist
           path: packages/app/dist
@@ -368,7 +368,7 @@ jobs:
 
       - name: Upload failure traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: editor-gate-traces
           path: packages/app/test-results/
@@ -385,9 +385,9 @@ jobs:
     # Same bound as print-gates: same browser install, same hazard.
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -405,7 +405,7 @@ jobs:
         run: pnpm --filter @activity/app exec playwright test print-baselines --update-snapshots
 
       - name: Upload baselines
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: print-baselines
           path: packages/app/e2e/**/*.png
