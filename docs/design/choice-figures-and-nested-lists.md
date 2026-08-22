@@ -278,30 +278,27 @@ now, worth knowing before the next stylesheet-heavy slice.
 
 ### Still owed
 
-- **T11 — the Linux print baselines.** ⚠ **DO NOT run the update command on
-  macOS.** Playwright suffixes snapshots by platform, so on a Mac it does not
-  update `*-chromium-linux.png` at all — it silently WRITES A NEW
-  `*-chromium-darwin.png` set, reports 23 green, and changes nothing that CI
-  reads. (`.gitignore:95` already ignores `-darwin.png`, so the repo
-  anticipated this; the run is wasted, not harmful. Tried 2026-08-22.)
+- ~~**T11 — the Linux print baselines.**~~ ✅ **DONE 2026-08-22** (run
+  32578933002, `gh workflow run ci.yml -f update_print_baselines=true`).
+  **3 of 23 changed**, and they were READ before they were pinned:
+  `multiple_choice` 407→879px (the new four-graph question),
+  `bullet_list` and `ordered_list` 250→278px (the sub-bullet line).
+  `matching` was byte-identical, which independently confirms the
+  `__target-content` wrapper shifted nothing.
 
-  **The route is the manual CI job**, which exists for exactly this and uploads
-  an artifact rather than committing — "CI never commits its own snapshots",
-  matching the table-arc rule that the images are READ before they are pinned:
+  What the images show, and the reason reading them mattered: the printed
+  question is genuinely answerable — four distinct graphs in a 2×2 grid,
+  lettered A–D in the same position Q1's letters sit in — and the list
+  cascade renders `•` then indented `◦` on paper, including a bullet child
+  under a numbered parent. Also visible: the questions are now numbered 1./2.
+  where the single-question page was unnumbered. That is correct sequential
+  numbering appearing because the harness document now holds two questions,
+  not a regression.
 
-  ```
-  gh workflow run ci.yml --ref main -f update_print_baselines=true
-  ```
+  ⚠ **Never run the update command locally on macOS** — see the note this
+  replaced: Playwright suffixes snapshots by platform, so it writes a
+  gitignored `-darwin` set, reports green, and updates nothing CI reads.
 
-  Then download the `print-baselines` artifact, **look at the four changed
-  pages** (multiple_choice, bullet_list, ordered_list, and matching if its
-  wrapper shifted anything), and commit those `-linux.png` files.
-
-  ⚠ **CI's `print-gates` job runs the baseline comparison** (`PRINT_BASELINES:
-  '1'`, ci.yml:210), so it goes RED on the push that lands the new fixtures and
-  stays red until the regenerated baselines are committed. That is the gate
-  working, not a defect — but it means the red run is expected and should not
-  be chased.
 - **T12 — the doc corrections** (`markdown-import-format.md:607`/`:630`, the
   dead-renderer comment in `multiple-choice.ts`).
 
