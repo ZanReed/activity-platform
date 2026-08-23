@@ -8,6 +8,25 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **⏭ ONE ITEM IS OWED.** The table arc left nothing pending — 0039 applied, both functions redeployed and tool-verified, the print baseline committed, `unit-rate.md` republished. That narrative is in [HISTORY.md](docs/HISTORY.md); the durable RULES it produced are below and in CLAUDE.md.
 
+**🔴 REDEPLOY `get-activity` — the sanitizer moved, and it is a LEAK FIX.**
+`pnpm deploy:get-activity` (it is the only `--no-verify-jwt` function; the
+script carries that flag). `SANITIZER_REV` moved `1-07e6311d` → **`2-59a68ddc`**
+on 2026-08-23: the per-block strips now cover `referencePanel`, which they never
+did — the panel takes the full `Block` union, so a key-bearing block pasted
+there shipped its answer key to students. **The fix only reaches students once
+the new function is live**, and the leading `2` is a hand-bumped
+`SANITIZER_ALGO_REV` whose whole job is to orphan the read cache, so
+already-cached activities keep serving the OLD output until then.
+⚠ **Reachability, established from code and worth knowing before judging the
+urgency:** the markdown importer CANNOT produce this (its reference-fence
+grammar emits only headings, lists, images, graph figures and paragraphs), and
+the panel toolbar offers no question blocks. The reachable path is a **PASTE**:
+`ReferencePanelEditor` registers MultipleChoice/Matching/Ordering/graph nodes to
+satisfy the column content schema, and `tiptapToReferencePanel` serializes
+whatever is in the doc without filtering. So it needs a teacher to copy a
+question into a reference panel — ordinary, but not accidental. No live activity
+is known to do it; that is worth a look before the redeploy, not after.
+
 **⏳ `.env.supabase` line 23 holds a PRE-RESET database password.** The author rotated it after it was printed to a session transcript, so `pnpm verify:auth --target live` fails until the new connection string is pasted in. Unrelated to the table arc; still owed.
 
 ⚠ **THE CONSEQUENCE IS THE PART TO READ, not the observation.** CLAUDE.md's warning has now fired: 0036 writes the watermark nightly, so **`prune_section_checks`'s schema gate is GONE** and the only things holding it disarmed are that it is **unscheduled** and **dry-run by default**. Arming is the eight-step checklist in [TODOS.md](TODOS.md) (blocking steps include counsel question **Q10** and N green nights of a non-drifting reconciliation pair). Read the checklist, not a summary of it.

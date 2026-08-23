@@ -51,7 +51,12 @@ import type {
 // grant stanzas). Bump SANITIZER_ALGO_REV by hand ONLY when the transform
 // logic itself changes in a way the declarations don't capture.
 
-export const SANITIZER_ALGO_REV = 1;
+// 1 -> 2 (2026-08-23): the per-block strips began covering `referencePanel`
+// as well as the body. This is EXACTLY the case the note above reserves a hand
+// bump for — the transform changed while every sanitize DECLARATION stayed
+// identical, so the computed rev would not have moved and every cached row
+// would have kept serving the leak it was written with.
+export const SANITIZER_ALGO_REV = 2;
 
 /** FNV-1a 32-bit, hex. Tiny, dependency-free, stable across JS runtimes —
  * this is a cache-busting fingerprint, not security material. */
@@ -340,10 +345,19 @@ export function sanitizeBlock(block: Block): SanitizedBlock {
 }
 
 /**
- * Sanitize a full upgraded document (pure). Every body block goes through its
- * registry entry; the in-band deep walk then covers the rest of the document
- * (reference panel, meta) as defense in depth — those surfaces carry no
- * declared answer keys, but a prompted math node must not leak from anywhere.
+ * Sanitize a full upgraded document (pure). Every block the document ships —
+ * body AND reference panel — goes through its registry entry; the in-band deep
+ * walk then covers whatever is left (meta, inline nodes anywhere) as defense in
+ * depth.
+ *
+ * ⚠ The reference panel was NOT in that set until 2026-08-23, and the comment
+ * here asserted the reason it did not need to be: "those surfaces carry no
+ * declared answer keys". That was false. `ReferencePanel.blocks` is
+ * `z.array(Block)` — the SAME full union as section content, multiple choice
+ * and matching included — so a key-bearing block in a panel reached the student
+ * with its key intact, because the deep walk below knows only about blanks and
+ * math prompts. The leak fixture now plants every block type in the panel too,
+ * so this is a wire-scanned property rather than a claim in a comment.
  */
 export function sanitizeActivityDocument(
   doc: ActivityDocument,
@@ -364,8 +378,20 @@ export function sanitizeActivityDocument(
       }
     }
   }
-  // Everything outside the body blocks (meta, referencePanel) — in-band
-  // secrets only; there are no declared strips outside blocks.
+  // The reference panel ships the same Block union the body does, so it gets
+  // the same per-block treatment. Scaffold by intent is not scaffold by SCHEMA.
+  const panel = clone.referencePanel;
+  if (panel !== null && typeof panel === 'object') {
+    const panelBlocks = (panel as { blocks?: unknown }).blocks;
+    if (Array.isArray(panelBlocks)) {
+      for (const block of panelBlocks) {
+        if (block !== null && typeof block === 'object') {
+          sanitizeBlockMut(block as Record<string, unknown>);
+        }
+      }
+    }
+  }
+  // Everything else (meta, and any inline node anywhere) — in-band secrets.
   stripInBandSecrets(clone);
   return clone as unknown as SanitizedActivityDocument;
 }

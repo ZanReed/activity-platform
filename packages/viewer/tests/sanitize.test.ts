@@ -87,6 +87,22 @@ describe('wire-level leak tests (TV4-A)', () => {
     expect(covered).toEqual([...registeredBlockTypes].sort());
   });
 
+  it('plants every block type in the REFERENCE PANEL too (coverage guard)', () => {
+    // The panel takes the same full Block union the body does, and until
+    // 2026-08-23 the per-block strips never ran there — a pasted multiple
+    // choice shipped its `correct` flags to students. The leak tests above
+    // cover that only because the fixture populates the panel, and an empty
+    // panel would make all three of them pass while proving nothing. So the
+    // coverage gets the same treatment as the block-type roster: asserted,
+    // not assumed.
+    const panelBlocks = (doc as unknown as {
+      referencePanel?: { blocks?: { type: string }[] };
+    }).referencePanel?.blocks;
+    expect(panelBlocks, 'the fixture has no reference panel').toBeDefined();
+    const covered = [...new Set(panelBlocks!.map((b) => b.type))].sort();
+    expect(covered).toEqual([...registeredBlockTypes].sort());
+  });
+
   it('covers every interaction variant of the three variant blocks', () => {
     const fixtures = fixturesByType();
     for (const type of ['interactive_graph', 'number_line', 'data_plot'] as const) {
@@ -384,4 +400,11 @@ describe('SANITIZER_REV (the durable cache invalidation key)', () => {
     expect(SANITIZER_REV).toMatch(/^\d+-[0-9a-f]{8}$/);
     expect(SANITIZER_REV).toBe(SANITIZER_REV);
   });
+
+  // THE PIN ITSELF LIVES IN printShuffle.test.ts ('SANITIZER_REV is unmoved by
+  // the print declaration'), which already carries the deliberate move log for
+  // every value it has held. It is a strange address for the canonical pin, but
+  // ONE maintained pin beats two literals for the same constant — this repo's
+  // recurring defect is the same fact stated twice with two different numbers.
+  // Do not add a second `expect(SANITIZER_REV).toBe(...)` here.
 });

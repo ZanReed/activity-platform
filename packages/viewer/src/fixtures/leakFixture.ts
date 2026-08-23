@@ -438,7 +438,21 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
   return m;
 }
 
-/** Assemble every fixture into one parse-valid document (one block per row). */
+/** Assemble every fixture into one parse-valid document (one block per row).
+ *
+ * The blocks go into the section body AND into `referencePanel.blocks`, because
+ * the panel takes the SAME `z.array(Block)` union the body does — the full one,
+ * multiple choice and matching included. That was not a hypothetical: until
+ * 2026-08-23 `sanitizeActivityDocument` ran the per-block strips over the body
+ * only and left the panel to the in-band deep walk, which knows about blanks
+ * and math prompts and nothing else. A teacher who pasted a multiple-choice
+ * into a reference panel shipped its `correct` flags to every student.
+ *
+ * Putting them here rather than adding a bespoke assertion is deliberate: this
+ * suite's whole design is "one document holding everything, scan the wire for
+ * sentinels", so the surface that was missing belongs in the DOCUMENT. Every
+ * existing leak test now covers the panel, and every future secret field
+ * inherits that coverage for free. */
 export function fullyLoadedDocument() {
   const doc = createEmptyDocument({ title: 'Leak fixture' });
   const blocks = [...fixturesByType().values()].flat();
@@ -455,6 +469,13 @@ export function fullyLoadedDocument() {
         })),
       },
     ],
+    referencePanel: {
+      title: 'Reference',
+      // Fresh clones: the sanitizer mutates its own copy, but two references to
+      // ONE object in the pre-sanitize fixture would make the "sentinels are
+      // present before sanitizing" check pass for the wrong reason.
+      blocks: JSON.parse(JSON.stringify(blocks)) as unknown[],
+    },
   };
   // Parse so the fixtures are REAL (defaults filled, shapes verified) — a
   // fixture that drifted from the schema fails here, loudly, not downstream.

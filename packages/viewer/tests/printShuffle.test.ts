@@ -288,7 +288,22 @@ describe('the declaration is where it is for a reason', () => {
     // commit, and the get-activity redeploy is queued as a pending author
     // action under the arc's capability-before-content gate (no table can reach
     // a draft until both functions are live, whichever path writes it).
-    expect(SANITIZER_REV).toBe('1-07e6311d');
+    // MOVED AGAIN 2026-08-23, and this one is a DIFFERENT KIND of move —
+    // '1-07e6311d' → '2-59a68ddc'. Note the leading digit: SANITIZER_ALGO_REV
+    // went 1 → 2 BY HAND. Every move above was a declaration change, where the
+    // hash recomputes itself and the mechanism works unattended. This time the
+    // per-block strips began covering `referencePanel` (a live answer-key leak
+    // — the panel takes the full Block union and the strips had never run
+    // there) while every sanitize declaration stayed byte-identical. So the
+    // computed half would NOT have moved, this pin would NOT have failed, and
+    // every already-cached activity would have gone on serving the leaked key
+    // from the read cache after the fix shipped.
+    //
+    // The lesson for the next person: when a fix changes the TRANSFORM rather
+    // than a declaration, this test staying green is the warning sign, not the
+    // all-clear. Bump SANITIZER_ALGO_REV by hand — that is the only thing that
+    // orphans the cache. Same redeploy discipline as every move above.
+    expect(SANITIZER_REV).toBe('2-59a68ddc');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {
