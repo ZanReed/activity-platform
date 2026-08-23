@@ -40,6 +40,16 @@ export type CheckErrorKind =
   /** The student is checking faster than the ceiling allows. Retry later. */
   | 'rate_limited'
   /**
+   * THIS SECTION IS ALREADY CHECKED AND LOCKED (activity flow modes, T1). The
+   * activity's `submissionMode` is `locked`, the server found a recorded check
+   * for this (student, version, section), and refused a second one. Like
+   * 'stale_client' and 'malformed_document' this must NEVER be shown as "try
+   * again": there is no unlock in v1 — not for the student, not for the
+   * teacher — so a retry cannot ever succeed. It is also the ONLY way a second
+   * device learns about a lock it never saw.
+   */
+  | 'locked'
+  /**
    * THE STORED ACTIVITY IS BROKEN (B8/D10). The server's walk integrity gate
    * refused to grade a structurally broken document. Nothing the student does
    * fixes it — not retrying, not reloading — so this must never fall into the
@@ -175,6 +185,16 @@ export function checkErrorFor(status: number, body: ErrorBody): CheckError {
   }
   if (code === 'rate_limited' || status === 429) {
     return new CheckError('rate_limited', 'Checking too quickly.', status);
+  }
+  // Matched on CODE, not on 409 alone: the code is what the RPC raises, and a
+  // bare status would fold any future conflict into a message that promises no
+  // retry will ever work.
+  if (code === 'section_locked') {
+    return new CheckError(
+      'locked',
+      'This section is already checked and locked.',
+      status,
+    );
   }
   // BEFORE the status branches, like wire_version_mismatch above: the server
   // sends this as a 500, and the `status >= 500` arm below would otherwise

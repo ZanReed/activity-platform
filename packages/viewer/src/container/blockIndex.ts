@@ -43,6 +43,12 @@ const GRAPH_FAMILY: ReadonlySet<string> = new Set([
 
 export interface SectionIndex {
   sectionId: string;
+  /**
+   * The authored `{checkpoint}` marker, carried through from the served
+   * section so the check-group fold (checkGroups.ts) never needs a second walk
+   * of the document to answer "does checking stop here?" (5A).
+   */
+  isCheckpoint: boolean;
   /** Ids to send when checking this section. */
   items: SectionItemIds;
   /** Block ids present in this section, document order (containers included). */
@@ -189,6 +195,7 @@ export function indexDocument(doc: SanitizedActivityDocument): DocumentIndex {
   for (const section of doc.sections) {
     const index: SectionIndex = {
       sectionId: section.id,
+      isCheckpoint: section.isCheckpoint === true,
       items: {},
       blockIds: [],
       unsupported: [],

@@ -131,6 +131,30 @@ export interface ViewerStore {
    * section's 'error' status. */
   checkSection(sectionId: string, items: SectionItemIds): Promise<void>;
 
+  /**
+   * Check a CHECK GROUP: every section since the previous checkpoint (R1).
+   *
+   * N RPCs, not one (ruling 3A) — `section_checks` is per-section and the
+   * server's atomic unit is the section, so a group is a composition rather
+   * than a new wire shape. They fire CONCURRENTLY: the synchronous prelude of
+   * each `checkSection` runs before any await, so every member reaches
+   * 'checking' in the same commit batch — which is what makes the `locked`
+   * freeze happen at PRESS rather than at fire (OV#19).
+   *
+   * Fires exactly the sections it is GIVEN. Retry passes only the unlanded
+   * members (`groupStatus().unlanded`); a deliberate re-check in `free` mode
+   * passes all of them and re-scores the whole group, which is what re-checking
+   * has always meant (7.1A).
+   *
+   * Never throws — each member's failure surfaces as that section's status, and
+   * the group's phase is DERIVED from them (container/checkGroups.ts). A member
+   * that 429s mid-group therefore reads as 'partial', not as a failed group.
+   */
+  checkGroup(
+    sectionIds: readonly string[],
+    itemsBySection: Readonly<Record<string, SectionItemIds>>,
+  ): Promise<void>;
+
   /** Record that a section's last check under-covered (crashed gradable
    * blocks sent no response). Runtime-only state — see ViewerStoreState. */
   recordShortfall(sectionId: string, crashedBlockIds: string[]): void;
@@ -230,7 +254,10 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
     commit({ ...state, responses });
   }
 
-  return {
+  // Named rather than returned inline so `checkGroup` can compose
+  // `checkSection` without `this` — a destructured `const { checkGroup } =
+  // store` would otherwise lose its receiver and throw.
+  const store: ViewerStore = {
     getState: () => state,
 
     subscribe(listener) {
@@ -416,6 +443,19 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
       }
     },
 
+    async checkGroup(sectionIds, itemsBySection) {
+      // Promise.all over the SAME per-section path: no second code path for
+      // grouped checks means idempotency keys, the offline queue, the 2.2A
+      // fingerprint and the shortfall roster all behave identically whether a
+      // section was checked alone or as a group member. `checkSection` never
+      // rejects, so this never rejects either.
+      await Promise.all(
+        sectionIds.map((sectionId) =>
+          store.checkSection(sectionId, itemsBySection[sectionId] ?? {}),
+        ),
+      );
+    },
+
     recordShortfall(sectionId, crashedBlockIds) {
       commit({
         ...state,
@@ -505,4 +545,5 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
       return true;
     },
   };
+  return store;
 }

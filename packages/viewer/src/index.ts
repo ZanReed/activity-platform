@@ -242,6 +242,20 @@ export type {
 // boundary, and the worksheet renderer that owns section checking.
 export { indexDocument } from './container/blockIndex.js';
 export type { DocumentIndex, SectionIndex } from './container/blockIndex.js';
+// Activity flow modes (F1) — the checkpoint fold that decides where Check
+// buttons render and what each one covers.
+export {
+  checkGroups,
+  groupBySection,
+  groupStatus,
+  isSectionFrozen,
+} from './container/checkGroups.js';
+export type {
+  CheckGroup,
+  GroupPhase,
+  GroupStatus,
+  SubmissionMode,
+} from './container/checkGroups.js';
 export { BlockBoundary } from './container/BlockBoundary.js';
 export type { BlockCrash, BlockBoundaryProps } from './container/BlockBoundary.js';
 export { ViewerProvider, useViewer } from './container/context.js';
