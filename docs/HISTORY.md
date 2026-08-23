@@ -1,5 +1,12 @@
 # HISTORY.md
 
+## Archived from STATE 2026-08-23 — the check-prune slice (built and running)
+
+### the check-prune slice (0035/0036) is BUILT and RUNNING
+
+**Plan + rulings: [check-retention-and-rollup.md](docs/design/check-retention-and-rollup.md); the ARMING checklist in [TODOS.md](TODOS.md) is the only thing holding the prune back — read it, not a summary.** Three things before touching it: `section_checks_latest` IS the definition of "current attempt" (the prune deletes only its complement); G12/clause 2 means a graded check is never a candidate; and verify-0035 §A's `rolled_through_never_written` row is DESIGNED to go red when arming lands — flip it there, don't delete it. *(Build narrative archived to [HISTORY.md](docs/HISTORY.md).)*
+
+
 Archived completed-work narratives, moved out of STATE.md to keep it readable. Newest first. These are session logs — durable reasoning lives in docs/DECISIONS.md; current status in STATE.md.
 
 ---

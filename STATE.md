@@ -42,16 +42,34 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — TWO S9 ORPHANS ARE FIXED; next is authoring the catalogue
+## Current focus — the CALCULATOR slice is PLANNED and cleared; a feature-scope conversation is owed first
 
-**✅ CHOICE FIGURES AND NESTED LISTS NOW REACH STUDENTS (2026-08-22, `b8c5fac` +
-`900fe51`).** Two of the five orphan classes the day's drift audit filed, both
-silent content loss. Plan, rulings and AS-BUILT:
+**⏭ NEXT SESSION STARTS HERE: the calculator's FEATURE SCOPE is an open product
+question, and it is upstream of the build.** The plan
+([floating-tool-cluster.md](docs/design/floating-tool-cluster.md)) is ruled,
+design-reviewed and eng-reviewed (calculator only; the reference panel is
+deferred and filed). **But it plans the WIRING, not the feature set.** The
+author has since described a Desmos-shaped target — multiple plotted lines,
+clickable intersections and intercepts, high-school regression, bare arithmetic
+evaluating to a number, variable definitions reused across lines (`a=10` then
+`a*2` → 20), and teacher-level toggles for each. **Several of those may not
+exist in the kit today.** Establish what the shipped widget actually does
+before building the summon around it — wiring a tool that does less than the
+teacher was promised is the orphan pattern again, one level up.
+
+**✅ CALCULATOR SLICE — PLANNED, NOT BUILT (2026-08-23).** Cleared to build once
+the scope question above is answered. Notable: two of the plan's own rulings
+were REVERTED by the completed eng review (C6 and C12), and the first eng-review
+pass reported "clean" while having skipped four of its six steps. Both
+corrections are in the plan's banner.
+
+**✅ CHOICE FIGURES + NESTED LISTS SHIPPED (2026-08-23, CI-green).** Two orphan
+classes closed; guards mutation-tested; Linux print baselines read before
+pinning. Narrative in [HISTORY.md](docs/HISTORY.md); plan +  AS-BUILT in
 [choice-figures-and-nested-lists.md](docs/design/choice-figures-and-nested-lists.md).
-**One author action is owed: the Linux print baselines** (`PRINT_BASELINES=1` on
-Linux; the suite skips without it, so CI stays green). Three orphan classes stay
-open in TODOS — the graph feedback knobs, the student calculator, and
-`isCheckpoint` + the flow modes — each needing a wire-or-delete ruling.
+**Three orphan classes remain open** in TODOS (graph feedback knobs, the flow
+modes, `hasConfidenceRating`/`allowTargetReuse`), each needing a wire-or-delete
+ruling.
 
 **Everything that was blocking bulk authoring has shipped.** The batch importer
 (0038, `source_path` identity, file-wins re-runs), the drift guard (0039), the
@@ -89,19 +107,18 @@ document walk duplicated five times, the orphaned `number` override field, the
 check-rollup arming arc, and the parked shell-slimming. All of them will be
 easier to prioritise after 20 activities have said what actually gets in the way.
 
-## Earlier focus — the check-prune slice (0035/0036) is BUILT and RUNNING
-
-**Plan + rulings: [check-retention-and-rollup.md](docs/design/check-retention-and-rollup.md); the ARMING checklist in [TODOS.md](TODOS.md) is the only thing holding the prune back — read it, not a summary.** Three things before touching it: `section_checks_latest` IS the definition of "current attempt" (the prune deletes only its complement); G12/clause 2 means a graded check is never a candidate; and verify-0035 §A's `rolled_through_never_written` row is DESIGNED to go red when arming lands — flip it there, don't delete it. *(Build narrative archived to [HISTORY.md](docs/HISTORY.md).)*
 
 ## The completed arc — what stays live from it
 
-**The arc is CLOSED — S0 through S9 plus the Admission and Teacher-grading slices.** Framing paragraphs, the slice ledger and the C1–C15 cutover gates are archived in [HISTORY.md](docs/HISTORY.md) (final gate sweep 2026-08-15: 14 closed, 1 standing, gate 4 deferred to the first classroom); rulings in [DECISIONS.md](docs/DECISIONS.md). Nothing in that table is a live decision. What stays live from it:
+**S0–S9 plus Admission and Teacher-grading are CLOSED.** Framing, the slice
+ledger and the C1–C15 cutover gates are in [HISTORY.md](docs/HISTORY.md);
+rulings in [DECISIONS.md](docs/DECISIONS.md). Nothing in that table is a live
+decision. What stays live:
 
-**Timing calibration — RECALIBRATED 2026-08-14 (the gate-9 re-measure, done by the rule).** `TIMING_TARGET_MS` = medians of the 5 post-cutover green runs (pre-auth **992**, worksheet **1135**, math-rendered **1812**; `9b78496`); the 2× ceiling and delta warning derive from these. Recalibrate only by the same rule — median of ≥5 green runs, never local darwin, never a single run. (Both ledgers archived: 08-07/09 in HISTORY, post-cutover above.)
-
+**Timing calibration** — `TIMING_TARGET_MS` = medians of 5 post-cutover green runs (`9b78496`). Recalibrate only by that rule: median of ≥5 green runs, never local darwin, never one run.
 **Suite — NUMBERS DELIBERATELY NOT PINNED HERE (drift audit 2026-08-21).** This row used to list five per-package counts in the same sentence that told readers to run `pnpm test` instead; four of the five had rotted. **Run `pnpm test` for unit counts and `node --test scripts/tests/*.test.mjs` for the script guards.** What is durable: the print e2e lane, and the editor/student/sw/perf/**a11y** e2e lanes (the four CI lanes run **73** rows — a11y is 11 with the Responses-tab axe row; the local-only integration lane is **9**). Typecheck + lint clean (0 errors); all **16 perf budgets pass**. ✅ **The four CI lanes are 73/73 LOCALLY with the local Supabase stack running** — the configuration that used to be red (see the e2e-origins trap under Standing constraints above). ⚠ **This line does NOT pin the bundle sizes any more** (drift audit 2026-08-17: three different entry-chunk numbers were in circulation across two STATE rows). **`node scripts/check-perf-budget.mjs` prints the real numbers and its caps live in `scripts/perf-budgets.mjs` with their reasoning** — read those, never a doc's copy. Same for test counts: `pnpm test`.
-
 **Editor open remainders** (focus mode, the touch/a11y pass, smart-defaults, the keyboard-reorder settle, and two papercuts) **moved to [TODOS.md](TODOS.md) on 2026-08-22** — they lived only in this section, which is replaced every session.
+
 
 ## Backlog / candidate arcs
 
@@ -151,7 +168,13 @@ easier to prioritise after 20 activities have said what actually gets in the way
 
 ---
 
-**Last updated:** 2026-08-22, second entry (full drift audit — 22 files; `supabase/functions/README.md` rewritten for the two-function world after carrying an eight-day-old "rewrite me" tombstone; 11 design docs annotated; ROADMAP and the migrations README caught up to 0039; the audit skill itself corrected in three places; one live fact left for the author — the `display_name` count). *(Earlier the same day:)* the TABLE BLOCK arc shipped end to end (four slices, proven on real content), the editor e2e lane joined CI after two flake fixes, a stale-build incident was diagnosed and made self-healing, and a drift audit cleared six items.
+**Last updated:** 2026-08-23 (the two content-loss orphans SHIPPED and CI-green;
+the calculator slice planned + design-reviewed + eng-reviewed, scope cut to the
+calculator alone; a SIXTH orphan found — the reference panel has no screen
+surface; the reference-panel sanitizer gap found LIVE and filed; CI actions
+bumped to the node24 runtime. ⚠ Two of my own claims were corrected by reviews
+this session — the reference-panel print default, and C6's inference from its
+own measurement.) *(Prior entry:)* 2026-08-22, second entry (full drift audit — 22 files; `supabase/functions/README.md` rewritten for the two-function world after carrying an eight-day-old "rewrite me" tombstone; 11 design docs annotated; ROADMAP and the migrations README caught up to 0039; the audit skill itself corrected in three places; one live fact left for the author — the `display_name` count). *(Earlier the same day:)* the TABLE BLOCK arc shipped end to end (four slices, proven on real content), the editor e2e lane joined CI after two flake fixes, a stale-build incident was diagnosed and made self-healing, and a drift audit cleared six items.
 
 **The lesson of the session, and it is the one this repo keeps paying for: a DECLARATION outlives its implementation, and the suite stays green because the guard compares two declarations.** The count reached EIGHT (registry `numbered`, `LABELED_BLOCK_TYPES`, block `workSpace`, `Row.gridLines`, fence `**bold**`, and this week `showCellLabels`, `hasConfidenceRating`, `allowTargetReuse`). Two corollaries earned the hard way: **a guard must bind to rendered OUTPUT** — mutation-test it by reverting the wiring and watching it go red — and **a finding that gets half-acted-on comes back**, as `hasConfidenceRating` did after eng review A10 deleted its print row in August and left the schema fields standing. The per-session close-out in CLAUDE.md exists to catch the next one at the moment it is written rather than at the next audit.
 
