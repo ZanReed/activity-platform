@@ -17,15 +17,18 @@ there shipped its answer key to students. **The fix only reaches students once
 the new function is live**, and the leading `2` is a hand-bumped
 `SANITIZER_ALGO_REV` whose whole job is to orphan the read cache, so
 already-cached activities keep serving the OLD output until then.
-⚠ **Reachability, established from code and worth knowing before judging the
-urgency:** the markdown importer CANNOT produce this (its reference-fence
-grammar emits only headings, lists, images, graph figures and paragraphs), and
-the panel toolbar offers no question blocks. The reachable path is a **PASTE**:
-`ReferencePanelEditor` registers MultipleChoice/Matching/Ordering/graph nodes to
-satisfy the column content schema, and `tiptapToReferencePanel` serializes
-whatever is in the doc without filtering. So it needs a teacher to copy a
-question into a reference panel — ordinary, but not accidental. No live activity
-is known to do it; that is worth a look before the redeploy, not after.
+✅ **MEASURED against live data 2026-08-23 — there is NO exposure today, so this
+is a correctness fix to ship on the next convenient deploy, not an incident.**
+`0 of 29` published versions carry a `referencePanel` at all. Exactly one DRAFT
+does, holding 3 blocks — `paragraph`, `bullet_list`, `math_block` — none of
+which carries a key. Nothing has ever leaked.
+⚠ **Reachability, from code:** the markdown importer CANNOT produce it (the
+reference-fence grammar emits only headings, lists, images, graph figures and
+paragraphs) and the panel toolbar offers no question blocks. The path is a
+**PASTE** — `ReferencePanelEditor` registers MultipleChoice/Matching/Ordering/
+graph nodes to satisfy the column content schema, and `tiptapToReferencePanel`
+serializes the doc unfiltered. A teacher copying a question into a panel is
+ordinary but not accidental, which is why it had never happened.
 
 **⏳ `.env.supabase` line 23 holds a PRE-RESET database password.** The author rotated it after it was printed to a session transcript, so `pnpm verify:auth --target live` fails until the new connection string is pasted in. Unrelated to the table arc; still owed.
 
