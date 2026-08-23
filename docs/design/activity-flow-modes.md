@@ -1,6 +1,6 @@
 # Activity flow modes — wiring the checkpoint orphan class
 
-**Status:** ✅ **BUILT 2026-08-24** — every task but F11 (the author's live apply + deploy) is landed, green, and mutation-proven. **⚠ READ "AS BUILT" AT THE BOTTOM BEFORE THE PLAN ABOVE IT: five things changed shape at build time and two guards were vacuous on their first draft.** Originally: ENG-REVIEWED + DESIGN-REVIEWED 2026-08-24 — ready to build. Eng: 8 findings + 20 from the outside voice, 4 tensions ruled. Design: 3/10 → 9/10, 8 decisions, 0 unresolved. **Read "What the eng review changed" before the rulings above it; two of the six author rulings were reversed on evidence.** Filed from TODOS → "S9
+**Status:** ✅ **SHIPPED AND LIVE 2026-08-24** — every task including F11 is landed, green, mutation-proven, and verified against the live project. **⚠ READ "AS BUILT" AT THE BOTTOM BEFORE THE PLAN ABOVE IT: five things changed shape at build time and two guards were vacuous on their first draft.** Originally: ENG-REVIEWED + DESIGN-REVIEWED 2026-08-24 — ready to build. Eng: 8 findings + 20 from the outside voice, 4 tensions ruled. Design: 3/10 → 9/10, 8 decisions, 0 unresolved. **Read "What the eng review changed" before the rulings above it; two of the six author rulings were reversed on evidence.** Filed from TODOS → "S9
 left FIVE MORE ORPHAN CLASSES", item 5 (the last content-shaped one).
 
 ## Why now
@@ -425,7 +425,7 @@ applied live before T6 deploys.
 - [x] **F9 (P1, human: ~1 day / CC: ~40 min)** — tests — guards 1–10, each mutation-proven; the rendered-output coverage guard (5) is the load-bearing one
 - [x] **F9b (P1, human: ~half day / CC: ~20 min)** — tests — the D2 copy table is pinned: one assertion per state string, so the vocabulary cannot fracture in implementation
 - [x] **F10 (P2, human: ~2h / CC: ~10 min)** — docs — format doc (`single` ≡ `free`+no markers; `locked`+no markers = one-shot; `immediate` reserved), analytics panel figure → "section checks" (8A), data-map if 0040 touches columns, DECISIONS entry, TODOS: file `immediate` + the teacher unlock (T3)
-- [ ] **F11 (P1, AUTHOR — THE ONLY THING LEFT)** — apply **0040 live**, THEN `pnpm deploy:check`. Ordering is the standing rule; the SPA push follows (OV#10's sequence — no wire bump means no forced reload)
+- [x] **F11 (P1, AUTHOR) — DONE 2026-08-24; verified live, see AS BUILT** — apply **0040 live**, THEN `pnpm deploy:check`. Ordering is the standing rule; the SPA push follows (OV#10's sequence — no wire bump means no forced reload)
 
 ## Failure modes
 
@@ -516,8 +516,8 @@ NO UNRESOLVED DECISIONS
 
 # AS BUILT (2026-08-24)
 
-**This section outranks everything above it.** Every task but F11 is landed and
-green; five things changed shape at build time, two guards were vacuous on
+**This section outranks everything above it.** Every task is landed, green and
+live; five things changed shape at build time, two guards were vacuous on
 their first draft, and one real regression was found in another package.
 
 Commits, in order: `596e36b` (F1+F2) · `d945fba` (F3/F3b/F3c/F3d) · `ab43a64`
@@ -610,13 +610,30 @@ recording: `submissionMode` and `isCheckpoint` each have **two independent
 readers** (the container and the server; `blockIndex` and the fold), so cutting
 one left the other. The mutations were incomplete, not the guards.
 
-## Still open
+## ✅ F11 — SHIPPED AND VERIFIED LIVE (2026-08-24)
 
-- **F11 — the author's, and the ONLY thing left.** Apply **0040 live**, THEN
-  `pnpm deploy:check`. Both bundles are already committed. No wire bump, so no
-  forced reload and no SPA push is required by this slice. After deploying,
-  prove the CODE by grepping the deployed source for `section_locked` —
-  `list_edge_functions` proves flags, never code (CLAUDE.md).
+The author applied 0040 and ran `pnpm deploy:check`. Verified against the live
+project afterwards:
+
+- `schema_migrations` = **40**, max `0040`; `record_check` carries `p_locked`
+  with **exactly one overload**.
+- `check-activity` **v19 → v20**, `ezbr_sha256` `18c59d9…` → `c1f4d77…`,
+  `verify_jwt` still `true`. ⚠ The version moving is not the proof; the proof
+  is the **deployed entrypoint diffed byte-identical against HEAD**, including
+  the `p_locked: args.locked` line added by this slice.
+- **verify-0040 live: 7 PASS, 0 FAIL**, including B2 (the locking check's own
+  retry replays instead of 409ing).
+- **verify-0020 D1/D2/D3 live: pass**, and `service_role` is the only
+  non-postgres grantee — the half a signature change could have broken.
+- **Residue: none.** `section_checks` = 0 before and 0 after.
+
+⚠ **Two honest gaps, neither blocking:** the live verify-0040 run was a faithful
+TRANSCRIPTION of the file's assertions (the MCP path returns no `RAISE NOTICE`,
+so counts came back through a temp table) — the canonical run is the file via
+`pnpm verify:auth --target live`; and verify-0020's BEHAVIOURAL half was not
+re-run after 0040 rewrote the function body. Both are in STATE → Pending.
+
+## Still open
 - **`answerFeedback: 'immediate'`** — filed in TODOS with its three blocking
   design constraints and its expiry mechanism.
 - **A teacher unlock (T3)** — filed in TODOS against the teacher-grading

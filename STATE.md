@@ -6,24 +6,48 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**FIVE ITEMS ARE OWED. ONE IS NEW AND IT IS THE ONLY THING BLOCKING A SHIPPED SLICE.**
+**FOUR ITEMS ARE OWED.** *(The flow-modes slice's F11 is DONE — see the ✅ below.)*
 
-🚀 **F11 — apply migration 0040 live, THEN `pnpm deploy:check`.** That order is
-the standing rule (the function calls a `record_check` signature the migration
-creates). Everything else in the activity-flow-modes slice is landed, green and
-mutation-proven; this is all that is left.
-- **After applying:** `scripts/verify-0040.sql` (expect `7 PASS, 0 FAIL`) **and
-  re-run `scripts/verify-0020.sql`** — its D1/D2 catch a botched signature
-  change leaving a PUBLIC-executable `record_check`. Both are in
-  `AUTH_VERIFY_SET` (so `verify:auth --target live` runs them, once the
-  password below is pasted in).
-- **After deploying:** prove the CODE — grep the deployed source for
-  `section_locked` via `get_edge_function`. A version number is not evidence.
-- **No SPA push is forced**: no wire bump, so no forced reload.
-- ⚠ **Every step was REHEARSED locally**: the integration lane reset the local
-  DB through all 40 migrations and drove the real function against it (10/10);
-  verify-0040 scored 7/0, verify-0020 still 23/0. Unproven is not the problem;
-  unapplied is. Detail: the design doc's AS BUILT.
+✅ **F11 IS DONE — the activity flow modes are LIVE (2026-08-24).** The author
+applied 0040 and deployed `check-activity`; the verification below was run
+against the live project afterwards and is recorded here because the next
+session must not re-do it:
+
+- **0040 applied.** `schema_migrations` = **40**, max `0040`. `record_check` is
+  `(uuid,uuid,uuid,text,jsonb,jsonb,text,integer,integer,boolean)` — **exactly
+  ONE overload**, `p_locked` present.
+- **`check-activity` deployed.** `version` 19 → **20** with a CHANGED
+  `ezbr_sha256` (`18c59d9…` → `c1f4d77…`), `verify_jwt` still **true**.
+  ⚠ The version moving is not the proof (CLAUDE.md); the proof is that the
+  **deployed entrypoint is byte-identical to the committed one**, including the
+  `p_locked: args.locked` line that did not exist before that session
+  (`supabase functions download check-activity --use-api`, diffed against HEAD).
+- **verify-0040 live: 7 PASS, 0 FAIL** — including B2, the one that matters
+  (a lost-response retry of the LOCKING check replays instead of 409ing).
+- **verify-0020's Structure section live: D1, D2, D3 all pass**, plus
+  `service_role` is the ONLY non-postgres grantee. That is the half a signature
+  change could have broken.
+- **P7 residue: NONE.** `section_checks` printed **0 before and 0 after**.
+
+⚠ **TWO THINGS ARE STILL WORTH DOING, neither blocking:**
+1. **Run `scripts/verify-0020.sql` VERBATIM** (all 23 assertions, SQL editor).
+   Only its structural half was re-checked live; the behavioural half (the
+   authorization chain, the rate ceiling) was not re-run after 0040 rewrote the
+   function body. verify-0040's B1 covers the closest case (re-checking still
+   increments) but is not the same thing.
+2. ⚠ **The live verify-0040 run was a faithful TRANSCRIPTION of the file's
+   assertions, not the file itself** — the MCP path returns no `RAISE NOTICE`
+   output, so the counts were surfaced through a temp table instead. Same
+   assertions, same order, same values; but the canonical run is the file, and
+   `pnpm verify:auth --target live` is what runs it. Blocked only on the
+   password below.
+
+⚠ **A `get-activity` redeploy is arguably owed and deliberately NOT flagged as
+urgent.** R4's schema deletion regenerated `viewer-server.bundle.js`, so
+deployed ≠ repo for that function — but the change is inert on the read path
+(zod strips the two dead keys either way, no student-visible difference) and
+`SANITIZER_REV` did not move, so no cache is orphaned. Fold it into the next
+`get-activity` deploy rather than doing one for this.
 
 **⏳ `.env.supabase` line 23 holds a PRE-RESET database password.** The author rotated it after it was printed to a session transcript, so `pnpm verify:auth --target live` fails until the new connection string is pasted in. Unrelated to the table arc; still owed.
 
@@ -37,7 +61,7 @@ mutation-proven; this is all that is left.
 
 **📌 NOT reproducible from migrations: three teacher `display_name`s are NULL by direct data edits** (confirmed 2026-08-22). **Live consequence:** the two accounts created 2026-08-19 through the self-serve door DO carry Google's `full_name`, so anything they publish serves that name to anonymous visitors via `get_activity_public_meta`. Both are the author's test accounts, so nothing is exposed — but this is the first live instance of default-on name attribution, and the fix is a one-row `update … set display_name = null`, **not a migration**. The opt-in control is in Backlog. *(Full history: HISTORY.md → display_name.)*
 
-**Baseline facts — RE-READ LIVE 2026-08-24, never trusted.** Migrations applied **through 0039** (39 rows, `max(version)` = `0039`) — ⚠ **0040 is written, tested and committed but NOT APPLIED; it is the F11 item above** · exactly **TWO** Edge Functions, `get-activity` (`verify_jwt:false`, the only one) + `check-activity` (`true`) — ⚠ **FUNCTION VERSIONS ARE DELIBERATELY NOT PINNED HERE any more.** This row said `v22`/`v18` and went stale for the THIRD time (live was v24 when the 2026-08-23 close-out read it), while instructing readers to never claim-read. Worse, this session proved a version number is not evidence of anything: a real, successful `deploy:get-activity` left `version`, `updated_at` and `ezbr_sha256` all **unchanged**. **Read flags with `list_edge_functions`; prove CODE by grepping the deployed source (`get_edge_function`) for a marker unique to the change** — the rule in CLAUDE.md. · live rows: **6 users** (**5 teachers + 1 student**), **14 activity rows — of which 8 are LIVE and 6 are soft-deleted** (⚠ this row said a bare "14 activities" until 2026-08-24 and read as fourteen usable activities; `deleted_at` splits it 8/6, and 9 rows are `status = 'published'`), 1 class (`7NE9M2`), **0 checks, 0 submissions** (⚠ this row counted `0 grades` until 2026-08-24 — the `grades` TABLE was DROPPED by 0034, which the Status-by-area row below has said all along; a count for a dropped table is not a fact), and the dormant assignment tables still **0/0** · both pg_cron jobs active; `analytics_rolled_boundary()` non-NULL and advancing.
+**Baseline facts — RE-READ LIVE 2026-08-24, never trusted.** Migrations applied **through 0040** (40 rows, `max(version)` = `0040`, re-read live 2026-08-24 after the apply) · exactly **TWO** Edge Functions, `get-activity` (`verify_jwt:false`, the only one) + `check-activity` (`true`) — ⚠ **FUNCTION VERSIONS ARE DELIBERATELY NOT PINNED HERE any more.** This row said `v22`/`v18` and went stale for the THIRD time (live was v24 when the 2026-08-23 close-out read it), while instructing readers to never claim-read. Worse, this session proved a version number is not evidence of anything: a real, successful `deploy:get-activity` left `version`, `updated_at` and `ezbr_sha256` all **unchanged**. **Read flags with `list_edge_functions`; prove CODE by grepping the deployed source (`get_edge_function`) for a marker unique to the change** — the rule in CLAUDE.md. · live rows: **6 users** (**5 teachers + 1 student**), **14 activity rows — of which 8 are LIVE and 6 are soft-deleted** (⚠ this row said a bare "14 activities" until 2026-08-24 and read as fourteen usable activities; `deleted_at` splits it 8/6, and 9 rows are `status = 'published'`), 1 class (`7NE9M2`), **0 checks, 0 submissions** (⚠ this row counted `0 grades` until 2026-08-24 — the `grades` TABLE was DROPPED by 0034, which the Status-by-area row below has said all along; a count for a dropped table is not a fact), and the dormant assignment tables still **0/0** · both pg_cron jobs active; `analytics_rolled_boundary()` non-NULL and advancing.
 
 ⚠ **A dated snapshot rots exactly as fast as an undated one** — this row went three migrations and two function versions stale before the 2026-08-22 audit, while telling readers never to claim-read. The commands are in CLAUDE.md's close-out question 2; run them, don't trust the line above.
 
@@ -64,8 +88,9 @@ mutation-proven; this is all that is left.
 **✅ THE ACTIVITY FLOW MODES SLICE IS BUILT 2026-08-24** —
 [activity-flow-modes.md](docs/design/activity-flow-modes.md). **Read its AS
 BUILT section, not just the plan: five things changed shape at build time.**
-Six commits, `596e36b`..`da30642`. Only **F11** remains and it is the author's
-(top of this file).
+Eight commits, `596e36b`..`43d7c05`. **F11 is DONE — the slice is LIVE** (0040
+applied, `check-activity` at v20, verify-0040 7/0; see Pending for the two
+non-blocking follow-ups).
 
 **What a student gets that they did not have yesterday.** A `{checkpoint}`
 heading now DOES something: its Check covers every section since the previous
@@ -150,7 +175,7 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 | Area | Status |
 |---|---|
 | Stages 9–16 (schema, renderer, runtime, editor, publish flow, submissions dashboard) | Historical — Phase 1 shipped and served its era; the renderer/runtime/publish-HTML/dashboard halves were deliberately DELETED at S9. Schema + editor live on |
-| Database migrations 0001–0039 applied; **0040 written, NOT applied** | ⚠ **0040 (the check lock) is committed, locally rehearsed and OWED — see Pending.** ✅ **0039 applied 2026-08-21** (the importer's fingerprint drift guard; **no `verify-0039.sql` exists** — its proof is the live refusal path the importer exercised on 2026-08-22; tool-read at the 08-22 audit: `schema_migrations` = 39, max `0039`). **0038 applied + verified live 2026-08-20** (batch importer's `source_path`; verify-0038 = 8/0, column + both index predicate clauses tool-read). 0001–0037: **applied + verified live via `verify:auth --target live`** (the registered set is `AUTH_VERIFY_SET` in `scripts/verify-runner.mjs` — this row pinned "12 scripts" against a 14-entry roster until the 2026-08-22 audit, and the roster is **15** since verify-0040 joined — which is exactly why no count is asserted here any more: read the array; 0036 applied 2026-08-17). 0031+0032 were REPRODUCIBILITY migrations; **0033 is the admission slice**; **0034 is checks-native grading**; **0035 is the disarmed check-prune + arming gate**; **0036 writes the watermark that gate reads**. Re-run `verify-0013-0014.sql` + `verify-0017.sql` after any auth/RLS/grant migration |
+| Database migrations 0001–0040 | ✅ **0040 applied + verified live 2026-08-24** (the check lock; verify-0040 = 7/0, and verify-0020's D1–D3 re-run — see Pending for what was NOT re-run). ✅ **0039 applied 2026-08-21** (the importer's fingerprint drift guard; **no `verify-0039.sql` exists** — its proof is the live refusal path the importer exercised on 2026-08-22; tool-read at the 08-22 audit: `schema_migrations` = 39, max `0039`). **0038 applied + verified live 2026-08-20** (batch importer's `source_path`; verify-0038 = 8/0, column + both index predicate clauses tool-read). 0001–0037: **applied + verified live via `verify:auth --target live`** (the registered set is `AUTH_VERIFY_SET` in `scripts/verify-runner.mjs` — this row pinned "12 scripts" against a 14-entry roster until the 2026-08-22 audit, and the roster is **15** since verify-0040 joined — which is exactly why no count is asserted here any more: read the array; 0036 applied 2026-08-17). 0031+0032 were REPRODUCIBILITY migrations; **0033 is the admission slice**; **0034 is checks-native grading**; **0035 is the disarmed check-prune + arming gate**; **0036 writes the watermark that gate reads**. Re-run `verify-0013-0014.sql` + `verify-0017.sql` after any auth/RLS/grant migration |
 | Scheduled jobs (pg_cron) | ✅ Installed 2026-08-05; both jobs active; first fire observed + verified 2026-08-06. **Verify the run, not the registration** |
 | Components-as-data slices S0–S9 | ✅ Complete — see the slice ledger; only author stations remain |
 | Print (baseline CSS → authored feature → viewer print + gate) | ✅ Complete through S5.5; print gates run in CI; sign-off evidence durable at tag `s5.5-print-signoff` |
