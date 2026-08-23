@@ -6,18 +6,9 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**⚠ NEW THIS SESSION — CI's print-gates job is RED, and the red is EXPECTED.**
-The graph-figure convergence added a linear curve to the `graph_figure` fixture
-(it drew a lone point before, which is how a renderer that dropped every LINE
-looked correct for four months), so the Linux print baselines move. Regenerate
-them: **GitHub Actions → CI → Run workflow → tick `update_print_baselines`**
-(`.github/workflows/ci.yml:381-410`), then unzip the `print-baselines` artifact
-over `packages/app/e2e/print-baselines.e2e.ts-snapshots/` and commit. Nothing
-else in that job is broken; every other lane (check, a11y, student,
-print-rules, dark-contrast) is green locally.
-
-**FIVE ITEMS ARE OWED** — the baseline regeneration above, plus the four below,
-none of which are from this session:
+**FOUR ITEMS ARE OWED**, none from this session. *(The print baselines owed
+earlier today were regenerated and committed — run 32644240180 — so CI is green
+again; the graph-figure convergence is fully closed.)*
 the reference-panel leak fix was deployed and **verified by grepping the deployed
 source** on 2026-08-23 (`list_edge_functions` reported `version` 24 unchanged
 across that real deploy and was WRONG — the corrected rule now lives in

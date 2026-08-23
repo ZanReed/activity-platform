@@ -1,6 +1,6 @@
 # Graph-figure convergence — `GraphFigure.tsx` → `renderGraphSvg`
 
-**Status:** ✅ **BUILT 2026-08-23 — T0–T9 done; T10 (print baselines) is the author's.** Eng-reviewed + DX-reviewed (10 eng findings + outside voice + 9 DX decisions, 0 unresolved). Read the AS BUILT section at the bottom, not only the plan above it — three things changed shape at build time.
+**Status:** ✅ **COMPLETE 2026-08-23 — T0–T10 all done, CI green.** Eng-reviewed + DX-reviewed (10 eng findings + outside voice + 9 DX decisions, 0 unresolved). Read the AS BUILT section at the bottom, not only the plan above it — three things changed shape at build time.
 
 Closes the TODOS entry "Converge the two SVG engines" (filed by the
 choice-figures eng review, E2/CQ-2), which 2026-08-23 scoping turned from
@@ -322,7 +322,7 @@ names its file, its command and its lane so no discovery grep is needed.
 - [x] **T9 (P2, human: ~45min / CC: ~5 min)** — docs — choice-figures T0b + E1 corrected; DECISIONS entry; TODOS close; STATE baseline-red note; AS-BUILT section here
   - Surfaced by: D6; TODO ruling
   - Files: `docs/design/choice-figures-and-nested-lists.md`, `docs/DECISIONS.md`, `TODOS.md`, `STATE.md`, this doc
-- [ ] **T10 (P1, AUTHOR STATION — the only step left)** — print baselines regenerated on Linux and committed
+- [x] **T10 (P1, author station) — DONE, run 32644240180** — print baselines regenerated on Linux and committed
   - Surfaced by: D6
   - **Runbook (DX D3):** GitHub Actions → **CI** workflow → *Run workflow* with the **`update_print_baselines`** input ticked (`.github/workflows/ci.yml:381-410`). The job runs `playwright test print-baselines --update-snapshots` and uploads a **`print-baselines`** artifact; unzip it over `packages/app/e2e/print-baselines.e2e.ts-snapshots/` and commit. CI's print-gates job is RED until it lands — that red is expected, and STATE says so.
 
@@ -404,12 +404,17 @@ on rays, no endpoint dots, no point labels, no authored colour. Four rows in
 `graph-figure.test.tsx` pin those, because "it drew something" was never the
 contract.
 
-**Still owed — T10, the author's:** the fixture gained a linear curve, so the
-Linux print baselines move. Regenerate via GitHub Actions → **CI** → *Run
-workflow* with **`update_print_baselines`** ticked (`ci.yml:381-410`), unzip the
-`print-baselines` artifact over
-`packages/app/e2e/print-baselines.e2e.ts-snapshots/`, commit. **CI's print-gates
-job is RED until that lands, and that red is expected.**
+**✅ T10 DONE (run 32644240180).** Exactly ONE of the 23 Linux baselines moved:
+`graph-figure-print-chromium-linux.png`. Nothing else in the sheet shifted,
+which is the surgical result the slice wanted.
+
+**And the paper comparison found a FIFTH silent loss.** The old baseline is a
+bare grid, a lone black dot, and **no tick labels at all** — the hand-rolled
+renderer never drew axis numbers either. A worksheet asking a student to read
+coordinates printed them a grid with no numbers on it, and the committed
+baseline asserted that was correct for four months. It surfaced only here,
+because print is the one surface where both renderers could be compared on the
+same page.
 
 ## GSTACK REVIEW REPORT
 
