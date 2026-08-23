@@ -26,6 +26,10 @@ import {
   createFillInBlankBlock,
   createShortAnswerBlock,
 } from '@activity/schema';
+// The wire version comes from the viewer's own constant (P2) — an e2e route
+// payload that retypes a production constant is a test about a protocol the
+// product does not speak.
+import { CHECK_WIRE_VERSION } from '@activity/viewer';
 import { supabaseStorageKey } from '../helpers/studentSession';
 import {
   INT_OUTSIDER,
@@ -540,4 +544,166 @@ test('the student SEES released feedback on the worksheet (the body reaches the 
   await expect(page.locator('[data-released-feedback]').first()).toContainText(
     'Feedback from your teacher',
   );
+});
+
+// =============================================================================
+// The check LOCK (0040 / activity flow modes, guard 8 / ruling 7A)
+// -----------------------------------------------------------------------------
+// The refusal is a THREE-PART contract and no unit test can prove any of it:
+// the Edge Function must derive `p_locked` from the stored document, the RPC
+// must refuse a second check WITHOUT writing a row, and it must still REPLAY a
+// retry that carries the first check's idempotency key. That last one is the
+// whole reason the refusal sits after the replay lookup (OV#9) — get it wrong
+// and the dominant Chromebook failure (request sent, Wi-Fi drops, response
+// lost) becomes a permanent lockout of work that was already recorded.
+//
+// Driven over HTTP rather than through the UI: this is a server contract, and
+// the UI cannot express "the same idempotency key, twice" at all.
+// =============================================================================
+
+test('a `locked` activity refuses a second check, writes no row, and still replays a retry', async () => {
+  // A second activity, identical except for the one meta field. Published and
+  // shared exactly like the first, so the authorization chain is the real one.
+  const lockedDoc = ActivityDocument.parse({
+    ...checkableDoc(),
+    meta: { ...checkableDoc().meta, submissionMode: 'locked' },
+  });
+  const { data: insertedLocked, error: insertErr } = await teacher.client
+    .from('activities')
+    .insert({
+      owner_id: teacher.session.user.id,
+      title: 'Integration lock',
+      slug: `integration-lock-${Date.now()}`,
+      draft_content: lockedDoc,
+    })
+    .select('id')
+    .single();
+  if (insertErr) throw new Error(insertErr.message);
+  const lockedActivityId = (insertedLocked as { id: string }).id;
+
+  const { error: pubErr } = await teacher.client.rpc('publish_activity', {
+    p_activity_id: lockedActivityId,
+  });
+  if (pubErr) throw new Error(pubErr.message);
+
+  const { data: row, error: readErr } = await teacher.client
+    .from('activities')
+    .select('current_version_id')
+    .eq('id', lockedActivityId)
+    .single();
+  if (readErr) throw new Error(readErr.message);
+  const lockedVersionId = (row as { current_version_id: string }).current_version_id;
+
+  const sectionId = lockedDoc.sections[0]!.id;
+  const blankId = lockedDoc.sections[0]!.rows[0]!.columns[0]!.blocks[0]!.id;
+
+  // The wire version comes from the CONSTANT, never retyped (P2): a hand-typed
+  // number turns a real wire bump into a green test about the wrong protocol.
+  const check = async (idempotencyKey: string, answer: string) =>
+    fetch(`${LOCAL_SUPABASE_URL}/functions/v1/check-activity`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${student.session.access_token}`,
+        apikey: LOCAL_ANON_KEY,
+      },
+      body: JSON.stringify({
+        wireVersion: CHECK_WIRE_VERSION,
+        activityId: lockedActivityId,
+        versionId: lockedVersionId,
+        sectionId,
+        idempotencyKey,
+        responses: { blanks: { [blankId]: answer } },
+      }),
+    });
+
+  const countRows = async (): Promise<number> => {
+    const { count } = await student.client
+      .from('section_checks')
+      .select('id', { count: 'exact', head: true })
+      .eq('activity_version_id', lockedVersionId)
+      .eq('section_id', sectionId);
+    return count ?? 0;
+  };
+
+  // 1. The first check lands normally. Non-vacuity: if this were not 200 every
+  //    assertion below would pass for the wrong reason.
+  const first = await check('lock-key-1', '4');
+  expect(
+    first.status,
+    `the first check of a locked section must succeed; body: ${await first.clone().text()}`,
+  ).toBe(200);
+  expect(await countRows()).toBe(1);
+
+  // 2. A SECOND check — a different key, so genuinely a new attempt — is
+  //    refused, with the code the client maps to copy that never says "try
+  //    again". There is no unlock in v1, so a retry can never succeed.
+  const second = await check('lock-key-2', '5');
+  expect(second.status).toBe(409);
+  const body = (await second.json()) as { details?: { code?: string } };
+  expect(body.details?.code).toBe('section_locked');
+
+  // 3. ...AND NO ROW WAS WRITTEN. A refusal that still records is worse than
+  //    no refusal: the teacher would see two attempts for work the student was
+  //    told was locked after one.
+  expect(await countRows()).toBe(1);
+
+  // 4. THE ONE THAT MATTERS MOST (OV#9). A retry of the FIRST check, carrying
+  //    its original idempotency key, must replay — not 409. If the lock were
+  //    checked before the replay lookup this returns 409 and a student whose
+  //    response was lost in transit is locked out of work already graded.
+  const replay = await check('lock-key-1', '4');
+  expect(
+    replay.status,
+    'the locking check’s own retry was REFUSED — the lock is being checked before the idempotent-replay lookup',
+  ).toBe(200);
+  expect(await countRows()).toBe(1);
+
+  // 5. And `free` is untouched: the original activity — which the row above
+  //    already checked once — still re-checks. Without this control the slice
+  //    could have made EVERY activity locked and steps 1-4 would be just as
+  //    green.
+  //
+  //    ⚠ The section id is read back from the PUBLISHED version, never from
+  //    `checkableDoc()`. That factory mints fresh UUIDs on every call
+  //    (CLAUDE.md says so outright about tiptapToActivity, and
+  //    createEmptyDocument is the same), so a locally-built id names a section
+  //    the stored document does not have — which is a 400 `unknown_section`
+  //    that looks exactly like the failure this assertion is watching for. It
+  //    did, on the first run of this row.
+  const { data: freeVersion } = await teacher.client
+    .from('activities')
+    .select('current_version_id')
+    .eq('id', activityId)
+    .single();
+  const freeVersionId = (freeVersion as { current_version_id: string })
+    .current_version_id;
+  const { data: freeContent } = await teacher.client
+    .from('activity_versions')
+    .select('content')
+    .eq('id', freeVersionId)
+    .single();
+  const freeSectionId = (
+    (freeContent as { content: { sections: Array<{ id: string }> } }).content
+  ).sections[0]!.id;
+
+  const freeAgain = await fetch(`${LOCAL_SUPABASE_URL}/functions/v1/check-activity`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${student.session.access_token}`,
+      apikey: LOCAL_ANON_KEY,
+    },
+    body: JSON.stringify({
+      wireVersion: CHECK_WIRE_VERSION,
+      activityId,
+      versionId: freeVersionId,
+      sectionId: freeSectionId,
+      responses: {},
+    }),
+  });
+  expect(
+    freeAgain.status,
+    `a \`free\` activity was refused a re-check — the lock is not reading submissionMode; body: ${await freeAgain.clone().text()}`,
+  ).toBe(200);
 });

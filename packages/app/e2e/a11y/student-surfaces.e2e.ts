@@ -478,6 +478,51 @@ test.describe('axe — zero WCAG A/AA violations per student surface', () => {
     await expectNoAxeViolations(page);
   });
 
+  // ---- GUARD 6 (activity flow modes) -------------------------------------
+  test('a LOCKED worksheet, frozen after its check', async ({ page }) => {
+    // The freeze is a THIRD state of this surface, and it is the one that
+    // changes the accessibility tree most: an entire fieldset goes disabled
+    // under the student's cursor. The two things that could go wrong are
+    // exactly what this scans for — a disabled region that is unreachable and
+    // unexplained, and a focus position that fell to <body> when the fieldset
+    // the student was standing in went inert (D6).
+    const doc = servedFixtureDocument();
+    await stubActivityApi(page, {
+      document: {
+        ...doc,
+        meta: { ...doc.meta, submissionMode: 'locked' },
+      } as typeof doc,
+    });
+    await signInAs(page);
+    await page.goto(activityUrl());
+    await page.locator('[data-section-id] input[type="text"]').first().waitFor();
+
+    await page.locator('[data-section-id] input[type="text"]').first().fill('42');
+    // D3 — in `locked` the button says what it does and asks first.
+    await page.getByRole('button', { name: /^Check and lock/ }).first().click();
+    await page.getByRole('button', { name: 'Check and lock', exact: true }).click();
+
+    // Non-vacuity FIRST: the freeze really happened, so the scan below is of
+    // the frozen DOM and not of a page where the click did nothing.
+    const group = page.locator('.viewer-check-group').first();
+    await expect(group).toHaveAttribute('data-group-frozen', 'true');
+    await expect(
+      page.locator('.viewer-section__inputs').first(),
+    ).toHaveAttribute('disabled', '');
+
+    // ANNOUNCED — the text is in the live region, once, and it is the
+    // irreversibility sentence rather than the plain "Checked."
+    const status = group.locator('.viewer-section__status[aria-live="polite"]');
+    await expect(status).toHaveText('Checked and locked. You can’t change these answers.');
+
+    // AND THE KEYBOARD KEPT ITS PLACE. Disabling the fieldset drops focus to
+    // <body>; the status region takes it instead, which is also what makes the
+    // announcement land for a user who is already there.
+    await expect(status).toBeFocused();
+
+    await expectNoAxeViolations(page);
+  });
+
   test('the nested-interactive carve-out is still load-bearing', async ({
     page,
   }) => {
