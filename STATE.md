@@ -6,13 +6,24 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**FOUR ITEMS ARE OWED**, none from this session. *(The print baselines owed
-earlier today were regenerated and committed — run 32644240180 — so CI is green
-again; the graph-figure convergence is fully closed.)*
-the reference-panel leak fix was deployed and **verified by grepping the deployed
-source** on 2026-08-23 (`list_edge_functions` reported `version` 24 unchanged
-across that real deploy and was WRONG — the corrected rule now lives in
-CLAUDE.md, which is where a standing rule belongs).
+**FIVE ITEMS ARE OWED. ONE IS NEW AND IT IS THE ONLY THING BLOCKING A SHIPPED SLICE.**
+
+🚀 **F11 — apply migration 0040 live, THEN `pnpm deploy:check`.** That order is
+the standing rule (the function calls a `record_check` signature the migration
+creates). Everything else in the activity-flow-modes slice is landed, green and
+mutation-proven; this is all that is left.
+- **After applying:** `scripts/verify-0040.sql` (expect `7 PASS, 0 FAIL`) **and
+  re-run `scripts/verify-0020.sql`** — its D1/D2 catch a botched signature
+  change leaving a PUBLIC-executable `record_check`. Both are in
+  `AUTH_VERIFY_SET` (so `verify:auth --target live` runs them, once the
+  password below is pasted in).
+- **After deploying:** prove the CODE — grep the deployed source for
+  `section_locked` via `get_edge_function`. A version number is not evidence.
+- **No SPA push is forced**: no wire bump, so no forced reload.
+- ⚠ **Every step was REHEARSED locally**: the integration lane reset the local
+  DB through all 40 migrations and drove the real function against it (10/10);
+  verify-0040 scored 7/0, verify-0020 still 23/0. Unproven is not the problem;
+  unapplied is. Detail: the design doc's AS BUILT.
 
 **⏳ `.env.supabase` line 23 holds a PRE-RESET database password.** The author rotated it after it was printed to a session transcript, so `pnpm verify:auth --target live` fails until the new connection string is pasted in. Unrelated to the table arc; still owed.
 
@@ -26,19 +37,19 @@ CLAUDE.md, which is where a standing rule belongs).
 
 **📌 NOT reproducible from migrations: three teacher `display_name`s are NULL by direct data edits** (confirmed 2026-08-22). **Live consequence:** the two accounts created 2026-08-19 through the self-serve door DO carry Google's `full_name`, so anything they publish serves that name to anonymous visitors via `get_activity_public_meta`. Both are the author's test accounts, so nothing is exposed — but this is the first live instance of default-on name attribution, and the fix is a one-row `update … set display_name = null`, **not a migration**. The opt-in control is in Backlog. *(Full history: HISTORY.md → display_name.)*
 
-**Baseline facts — RE-READ LIVE, never trusted.** Migrations applied **through 0039** (39 files, verified 2026-08-23) · exactly **TWO** Edge Functions, `get-activity` (`verify_jwt:false`, the only one) + `check-activity` (`true`) — ⚠ **FUNCTION VERSIONS ARE DELIBERATELY NOT PINNED HERE any more.** This row said `v22`/`v18` and went stale for the THIRD time (live was v24 when the 2026-08-23 close-out read it), while instructing readers to never claim-read. Worse, this session proved a version number is not evidence of anything: a real, successful `deploy:get-activity` left `version`, `updated_at` and `ezbr_sha256` all **unchanged**. **Read flags with `list_edge_functions`; prove CODE by grepping the deployed source (`get_edge_function`) for a marker unique to the change** — the rule in CLAUDE.md. · live rows: **6 users, 14 activities** (**5 teachers + 1 student** — the row used to say "3 teachers + 1 student + 2 later"; the two 08-19 accounts are teachers; the activity count read 8 in a row dated the SAME DAY — the pilot import moved it), 1 class (`7NE9M2`), **0 checks, 0 submissions** (⚠ this row counted `0 grades` until 2026-08-24 — the `grades` TABLE was DROPPED by 0034, which the Status-by-area row below has said all along; a count for a dropped table is not a fact), and the dormant assignment tables still **0/0** · both pg_cron jobs active; `analytics_rolled_boundary()` non-NULL and advancing.
+**Baseline facts — RE-READ LIVE 2026-08-24, never trusted.** Migrations applied **through 0039** (39 rows, `max(version)` = `0039`) — ⚠ **0040 is written, tested and committed but NOT APPLIED; it is the F11 item above** · exactly **TWO** Edge Functions, `get-activity` (`verify_jwt:false`, the only one) + `check-activity` (`true`) — ⚠ **FUNCTION VERSIONS ARE DELIBERATELY NOT PINNED HERE any more.** This row said `v22`/`v18` and went stale for the THIRD time (live was v24 when the 2026-08-23 close-out read it), while instructing readers to never claim-read. Worse, this session proved a version number is not evidence of anything: a real, successful `deploy:get-activity` left `version`, `updated_at` and `ezbr_sha256` all **unchanged**. **Read flags with `list_edge_functions`; prove CODE by grepping the deployed source (`get_edge_function`) for a marker unique to the change** — the rule in CLAUDE.md. · live rows: **6 users** (**5 teachers + 1 student**), **14 activity rows — of which 8 are LIVE and 6 are soft-deleted** (⚠ this row said a bare "14 activities" until 2026-08-24 and read as fourteen usable activities; `deleted_at` splits it 8/6, and 9 rows are `status = 'published'`), 1 class (`7NE9M2`), **0 checks, 0 submissions** (⚠ this row counted `0 grades` until 2026-08-24 — the `grades` TABLE was DROPPED by 0034, which the Status-by-area row below has said all along; a count for a dropped table is not a fact), and the dormant assignment tables still **0/0** · both pg_cron jobs active; `analytics_rolled_boundary()` non-NULL and advancing.
 
-⚠ **THIS ROW WENT THREE MIGRATIONS AND TWO FUNCTION VERSIONS STALE before the 2026-08-22 audit caught it**, while instructing readers to "never claim-read". A dated snapshot rots exactly as fast as an undated one; what makes it safe is re-reading it, so the commands are: `list_edge_functions` for flags+versions (**read the `version` field, NOT the `entrypoint_path` suffix** — that misread produced a false "verified live" stamp twice), and `select count(*) from supabase_migrations.schema_migrations` for the range.
+⚠ **A dated snapshot rots exactly as fast as an undated one** — this row went three migrations and two function versions stale before the 2026-08-22 audit, while telling readers never to claim-read. The commands are in CLAUDE.md's close-out question 2; run them, don't trust the line above.
 
 ⚠ **"No real student data exists yet" is NO LONGER TRUE** — one real second account is enrolled. It is the author's own throwaway, so the compliance answers stay cheap to change, but the sentence that made them free has expired.
 
-⚠ **THE a11y GAP-2 ROW HAS NOW FLAKED A SECOND TIME (2026-08-22, local), which the note below said would be conclusive.** It failed once during the choice-figures slice's first full a11y run, then passed **3/3** afterwards (twice in-lane, once isolated with `-g`). ⚠ **The instrumented output was NOT captured before it went green again** — so the one thing `e6b2872` was added to tell us (where focus actually was) is still unknown, and the next sighting must be captured before re-running. Prior history: flaked once at run 31852826598, then seventeen green runs (latest 32048169054). **It is now a fix-it item, not a watch item** — but it needs one captured failure to be fixable. **Read the flaky COUNT on every run, not the conclusion.**
+⚠ **The a11y GAP-2 row has flaked TWICE (runs 31852826598 and 2026-08-22 local) and is a fix-it item, not a watch item — but it needs ONE CAPTURED FAILURE to be fixable.** The instrumented output (`e6b2872`) has never been read: both times it went green again before anyone looked. **Capture it before re-running on the next sighting.** Green since: seventeen runs to 32048169054, plus **3/3 local this session** (baseline, with the new locked-freeze row, and under a deliberate mutation). **Read the flaky COUNT on every run, not this conclusion.**
 
 **Archived to [HISTORY.md](docs/HISTORY.md):** all S9 author stations, the station HEADs (OV-DX-9), the closed gate-9 ledger, and this session's 0034 apply + purge-liveness + CI narrative.
 
 ## Standing constraints & watch items (current arc)
 
-- **✅ The R2 graph-kit path is DEAD code-side (S9 Drop 4), and the D-13 teardown RAN 2026-08-15:** the viewer + editor build the kit from the workspace (app-bundled lazy Vite chunk), and the upload scripts + `.env.r2` are deleted — no kit upload is ever needed again, and no script survives to resurrect one. What remains is author-side only: unset the dashboard secrets, shrink `ALLOWED_ORIGINS`, delete the bucket. The 283-object archive is `r2-final-backup-20260815/` (untracked, repo root).
+- **✅ R2 is dead and the D-13 teardown RAN** — the full account (what survives, what the author still owes on the dashboard, where the 283-object archive is) is a STANDING rule and lives in **CLAUDE.md**, not here: this section gets replaced every session and that is not a fact that should expire with it.
 - **Known limitation (stated, not hidden): offline boot needs a token that has not expired.** Expired token + no network ⇒ the pre-auth gate — refreshing needs the network, and reading Supabase's session storage directly in shipped code is a dependency worth refusing. (Offline *reopen* itself is proven as of S9 Drop 5; it had never actually worked before then — `Vary: Origin` defeated `Cache.match`.)
 - **Retention is COMPLETE and proven end to end (0022–0025).** The one thing to know when touching it: **`users.deleted_at` means "account disabled", NOT "retention clock running"** — `join_class` refuses accounts that have it set, so student dormancy is DERIVED live from `class_members`/`classes` (400-day window) and the purge job never writes that column. Don't "simplify" it into a stored flag; that reintroduces a between-terms lockout. "Who is dormant right now" has no column to read — the query is `scripts/verify-0025.sql` section D.
 - **⚠ `purge_soft_deleted` was re-created by 0029** minus its `submissions.student_id` guards (the nightly cron job would have died otherwise). It is live and running; treat it as the current definition.
@@ -48,46 +59,50 @@ CLAUDE.md, which is where a standing rule belongs).
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — a SEVENTH orphan found and closed; next comes from writing activities
+## Current focus — the flow modes are BUILT; one author action ships them
 
-**✅ THE GRAPH-FIGURE CONVERGENCE SHIPPED 2026-08-23** —
-[graph-figure-convergence.md](docs/design/graph-figure-convergence.md). **Read
-its AS BUILT, not just the plan: three things changed shape at build time.**
+**✅ THE ACTIVITY FLOW MODES SLICE IS BUILT 2026-08-24** —
+[activity-flow-modes.md](docs/design/activity-flow-modes.md). **Read its AS
+BUILT section, not just the plan: five things changed shape at build time.**
+Six commits, `596e36b`..`da30642`. Only **F11** remains and it is the author's
+(top of this file).
 
-**It was filed as cleanup and was content loss.** There is no `line` drawable
-kind — a line is `{kind:'curve', family:'linear'}` — and `GraphFigure.tsx`
-skipped curves, so **every line a teacher drew on a formula sheet was an empty
-grid for the student**, while the editor's own preview showed it correctly.
-Zero live instances (the DB holds no `graph_figure`), so nothing was lost.
+**What a student gets that they did not have yesterday.** A `{checkpoint}`
+heading now DOES something: its Check covers every section since the previous
+checkpoint, and **the end of the activity is always a checkpoint**, so no
+section is silently un-checkable. The group is a visible region, because
+otherwise a buttonless section reads as "my work here isn't counted".
+`locked` freezes what it checked — at PRESS, per section — and the server
+refuses the second check from a document-derived flag the browser cannot omit.
+`revisionMode` and `gradingMode` are deleted; `activityType` prints as a label.
 
-**Three findings worth carrying forward:**
-- **Writing an activity is what found it.** Nothing here had ever authored a
-  `graph_figure`; `scripts/graph-figure-test.md` is the first, and the real
-  importer turned a code-read claim into a measurement. The fixture set is not
-  the corpus.
-- **A ticked box is a claim.** `ChoiceFigure.tsx`'s header described a preload
-  and a print-readiness wait, and the design doc ticked that task done. Neither
-  had ever existed. Deleting the lazy seam made them moot rather than owed.
-- **Dark mode broke where no lane could see it** (tick labels 2.36:1, under the
-  3:1 graphics floor). The print gate runs on white, axe skips SVG
-  presentation attributes, jsdom has no computed colour. It took a real
-  browser in a real theme — and one new guard is honestly weaker than its name
-  (the `drawable-count` row counts what the engine was GIVEN), which the row
-  now says outright.
+**Three findings worth carrying forward** (the full ledger is in AS BUILT):
+- **TWO NEW GUARDS WERE VACUOUS ON THEIR FIRST DRAFT** — caught by mutation,
+  not by a passing suite. See the closing note at the bottom of this file;
+  it is the lesson of the session.
+- **A plan's task text can contradict its own rulings, and the rulings win.**
+  F3 said "a per-group `<fieldset disabled>`", but OV#15 calls a 429 mid-group
+  "a PARTIAL LOCK" and guard 9 wants Retry to fire only the unlanded member.
+  Freeze is per SECTION. **Read AS BUILT before trusting a task line.**
+- **D4 assumed a screen surface that did not exist** ("the course/unit line
+  that already renders there" — the top bar rendered the title only).
 
-## The S9 orphan arc (closed 2026-08-22/23) — narrative in HISTORY
+## The S9 orphan arc — closed; narrative in HISTORY
 
-Six content orphans shipped; the narrative moved to
-[HISTORY.md](docs/HISTORY.md) at the 2026-08-23 close-out. What stays LIVE:
+Six content orphans shipped 2026-08-22/23; the flow modes closed a seventh
+class 2026-08-24. What stays LIVE:
 
 - **The calculator's FEATURE SCOPE is ruled** — DECISIONS.md → "Calculator
   feature scope". Intersections/intercepts are OUT on pedagogy grounds; do not
   re-pitch them as cheap.
 - **All three z-tokens have real `var()` consumers**: tools 110 < reference 115
   < calculator 120 < popovers 1000.
-- **THREE orphan classes remain**, all knobs rather than content loss (graph
-  feedback, the flow modes, `hasConfidenceRating`/`allowTargetReuse`) — TODOS
-  carries them; each needs a wire-or-delete ruling.
+- **TWO orphan classes remain**, both knobs rather than content loss (graph
+  feedback, `hasConfidenceRating`/`allowTargetReuse`) — TODOS carries them;
+  each needs a wire-or-delete ruling. ⚠ **The flow-modes fix wrote the
+  reachability guard those entries asked for, but scoped to the flow fields by
+  name** (`scripts/tests/flow-field-readers.test.mjs`) — so these two are still
+  guarded by nothing but that list.
 
 **⏭ THE NEXT REAL INFORMATION COMES FROM WRITING ACTIVITIES, not more code.**
 ~150 markdown files planned in `~/activity-catalogue-pilot/`, currently 3.
@@ -110,22 +125,14 @@ decision. What stays live:
 **Editor open remainders** (focus mode, the touch/a11y pass, smart-defaults, the keyboard-reorder settle, and two papercuts) **moved to [TODOS.md](TODOS.md) on 2026-08-22** — they lived only in this section, which is replaced every session.
 
 
-## The shell budget — the 150 KiB target is MET
+## The shell budget — the ~150 KiB target is MET
 
-**`SHELL_JS_GZ_KIB` tightened 172 → 158 (2026-08-23)** after the zod slice took
-the student's entry chunk **160.5 → 143.2 KiB gz (−17.3)**. **P1A's ~150 KiB
-target is met for the first time.** ⚠ 158 is coincidentally almost the PRE-slice
-measurement (158.5) — the cap did move, and `perf-budgets.mjs` carries the
-derivation so a skimmer does not read it as unchanged.
-
-**`SHELL_CSS_GZ_KIB` raised 14 → 15** earlier the same day at 13.13 measured.
-Reasoning for both is durable and lives in DECISIONS.md → "The shell CSS cap"
-and docs/design/shell-slim-zod.md.
-
-**⏭ NEXT RUNG, if the shell needs one:** the remaining ladder is the router,
-preact/compat, and auth-js (listed but NOT a plan — it runs constantly and is
-security-relevant). None is urgent now, but read the numbers from `node scripts/check-perf-budget.mjs` rather than here — this line has now carried a stale JS figure twice (it read 143.2 until the graph-figure convergence took it to 145.4 on 2026-08-23). CSS has the wider headroom of the two,
-both back inside the ~10% policy.
+**`SHELL_JS_GZ_KIB` 172 → 158 and `SHELL_CSS_GZ_KIB` 14 → 15 (2026-08-23).**
+P1A's target is met for the first time. **Read the real numbers from
+`node scripts/check-perf-budget.mjs`, never from here** — this line has carried
+a stale JS figure twice. Derivations live in `scripts/perf-budgets.mjs` and
+DECISIONS.md → "The shell CSS cap". ⏭ The remaining ladder (router,
+preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ## Backlog / candidate arcs
 
@@ -174,15 +181,31 @@ both back inside the ~10% policy.
 
 ---
 
-**Last updated:** 2026-08-23 (**ALL SIX S9 ORPHANS SHIPPED** — choice figures,
-nested lists, the student calculator, the reference panel's screen surface —
-plus a live answer-key LEAK found and fixed on the way, and the calculator's
-feature scope ruled before any of it was built. ⚠ Three of my own claims were
-corrected this session by reviews, by mutation testing, or by measurement: the
-reference-panel print default, C6's inference from its own measurement, and my
-own "the leak is urgent" before I checked the database and found zero
-instances.)
+**Last updated:** 2026-08-24 (**THE ACTIVITY FLOW MODES ARE BUILT** — check
+groups, the server-enforced lock, two deleted knobs, one printed label; six
+commits, every guard mutation-proven, one author action left. The 2026-08-23
+entry — all six S9 orphans, the live answer-key leak, the calculator scope
+ruling — is archived in HISTORY.)
 
-**The lesson of the session is the SECOND half of the one this repo keeps paying for.** The first half is known: a DECLARATION outlives its implementation, and the suite stays green because the guard compares two declarations (the count reached EIGHT — registry `numbered`, `LABELED_BLOCK_TYPES`, block `workSpace`, `Row.gridLines`, fence `**bold**`, `showCellLabels`, `hasConfidenceRating`, `allowTargetReuse`). **The second half, learned this session: A GUARD OUTLIVES ITS OWN VALIDITY THE SAME WAY.** Three were found vacuous across the arc, two of them pre-existing and years old — `styles.test.ts`'s "no raw box-shadow" looped over ZERO declarations *and* named a token namespace retired when tokens moved behind `--vw-`; the print/preview mirror guarded one direction and left the worse one open (a clean preview with chrome on the paper). **Every one was found by MUTATION, none by a passing suite** — which is what "a guard must bind to rendered OUTPUT and be mutation-tested" is actually for, and why running it on the guards you INHERIT matters as much as on the ones you write. Corollary unchanged: **a finding that gets half-acted-on comes back.**
+**The lesson of the session is the THIRD generation of the one this repo keeps
+paying for, and it is the most uncomfortable yet.** Generation one: a
+DECLARATION outlives its implementation and the suite stays green because the
+guard compares two declarations (eight instances). Generation two, 2026-08-23:
+A GUARD OUTLIVES ITS OWN VALIDITY THE SAME WAY — three found vacuous, every one
+by MUTATION and none by a passing suite. **Generation three, this session: THE
+SLICE WRITTEN TO END THAT DEFECT CLASS COMMITTED IT TWICE, IN ITS OWN NEW
+GUARDS.** The OV#14 solution gate scripted a service that returned no
+solutions, so "nothing is revealed" was true whether the gate existed or not.
+Guard 7 — the reachability net for the orphaned flow fields — matched a bare
+token, so unwiring `doc.meta.submissionMode` left it green, because a
+PARAMETER of that name still appeared. Both were caught by mutation-testing the
+guard on the day it was written, which is the only reason they are a footnote
+rather than the next audit's finding.
+
+**The corollary to carry:** "bind the guard to rendered output" is not a
+property you can check by reading your own test. The test that scripted an
+empty `solutions: {}` LOOKED bound to output — it queried the DOM. What made it
+vacuous was the FIXTURE, one level away. Mutation is the only thing that sees
+that, and it costs about ninety seconds per guard.
 
 _Prior entries archived in [docs/HISTORY.md](docs/HISTORY.md)._

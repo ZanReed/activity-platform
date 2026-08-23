@@ -144,7 +144,73 @@ before it existed is what produced the wrong ruling.) Note the sheet work
 already handled the <480px case; what is left is the DESKTOP default height on
 a short laptop viewport.
 
-## S9 left FIVE MORE ORPHAN CLASSES — **THREE FIXED, TWO OPEN** (drift audit §9)
+## `answerFeedback: 'immediate'` — deferred out of the flow-modes slice (2026-08-24)
+
+Filed by [activity-flow-modes.md](docs/design/activity-flow-modes.md) R3/T2.
+The author ruled it in (Q1: "auto-check when the group is complete"); the eng
+review's outside voice showed it cannot be built inside that slice, and the
+author accepted the deferral. **The field stays in the schema; `on_check` is
+the only live value**; the editor greys the option, the importer warns, and
+`docs/markdown-import-format.md` says "reserved — not yet active".
+
+**Three things it needs that do not exist**, and they are the design work, not
+the implementation:
+
+1. **A COMMIT SEAM.** All eleven input components write to the store per
+   keystroke (`store.ts` setters); there is no blur/commit concept to hang
+   "the completing item committed" on. Building one is a cross-cutting edit of
+   every block. Ruling 4A already settled the semantics — fire on COMMIT,
+   never on input — so the seam is what is missing, not the rule.
+2. **A CLIENT-SIDE "answered".** Only the server scorers know what answered
+   means and they disagree by kind (`grading/graphs.ts` wants "placed them
+   *all*", and the client cannot know "all" because the sanitizer strips the
+   expected count). An ordering left in served order never "has a value".
+3. **A BOUNDED RE-FIRE RULE.** After one auto-check, does the next edit
+   re-fire? Once = no feedback on corrections. Every commit = the row-per-edit
+   cost the deferral exists to avoid. Nobody has designed the middle.
+
+**Already settled for it, do not re-derive:** `immediate` + `locked` is REFUSED
+at authoring (T1) — the server sees one check request either way and cannot
+tell an auto-check from a deliberate press, so it could not treat them
+differently even if we wanted it to. The importer refuses the combination
+today and the editor cannot produce it.
+
+**The expiry mechanism exists**: `scripts/tests/flow-field-readers.test.mjs`
+asserts `answerFeedback` has NO reader under `packages/viewer/src`. The day
+this slice starts, that guard goes red and names the three surfaces whose
+"reserved" copy has to come down with it. **Do not delete the assertion to make
+it pass — move the field into `MUST_BE_READ`.**
+
+**Depends on:** the commit seam, which is its own cross-cutting slice.
+
+## A teacher unlock for `locked` activities (2026-08-24, flow modes T3)
+
+There is **no unlock in v1** — not for the student, not for the teacher. A
+republish mints a new version and every student starts clean on it; that is
+the only unlock there is, and it resets the whole class. The eng review named
+this a P1-class gap and the author accepted shipping without it, on the
+grounds that `locked` is wanted "sparingly". The copy is honest about it: the
+button reads "Check and lock" and confirms with "You won't be able to change
+your answers after this."
+
+**The realistic first request is a single student**, not a class: someone
+checked the wrong section, or a Chromebook froze mid-answer. Republishing to
+fix one student is the wrong tool by two orders of magnitude.
+
+**What it would take:** a teacher-side RPC that deletes (or supersedes) one
+student's `section_checks` rows for one (version, section), which is the FIRST
+teacher-facing write that destroys student work — so it belongs with the
+check-prune's arming discipline, not beside it. ⚠ Read
+`prune_section_checks`'s entry before designing this; it is the only other
+thing in this repo that deletes student work, and its whole story is about how
+a "disarmed" mechanism stops being disarmed.
+
+**Owner slice:** teacher grading (the `section_checks`-bound entry near the
+bottom of this file). **Depends on:** a ruling on whether an unlock deletes
+the attempt or records a new one — the analytics rollup reads these rows, and
+"deleted" and "superseded" are different facts to it.
+
+## S9 left FIVE MORE ORPHAN CLASSES — **FOUR FIXED, ONE OPEN** (drift audit §9)
 
 The 2026-08-22 full audit swept **every** field in `packages/schema/src` (~180)
 against the viewer's rendering set and the grading server. Everything below has
@@ -192,17 +258,18 @@ what reaches paper/screen as CONTENT LOSS first:
    FEATURE SCOPE behind the wiring was ruled first — DECISIONS.md → "Calculator
    feature scope" (intersections/intercepts OUT; cross-row definitions MINIMUM
    only, shipped as T11).
-5. **Section checkpoints and the activity flow modes** — `Section.isCheckpoint`,
-   `meta.submissionMode`, `meta.revisionMode`, `meta.answerFeedback`,
-   `meta.gradingMode`, `meta.activityType` (`document.ts:38,44-86,234-238`; the
-   comment block describes all five modes in the present tense). Zero hits in
-   `viewer/src` or the server: the viewer renders a Check button on EVERY
-   section (`ViewerContainer.tsx` ~390) and never freezes inputs.
-   `ActivityConfigDrawer.tsx`, `SectionBreakView.tsx`'s checkpoint toggle and
-   the importer's `{checkpoint}` marker all write knobs that do nothing.
-   `gradingMode` has no consumer in ANY package. *(`activityType` is also the
-   field the import-format doc said was "not importable" — the 2026-08-21 fix
-   made it importable into a field nothing reads.)*
+5. ~~**Section checkpoints and the activity flow modes**~~ — ✅ **FIXED
+   2026-08-24**: [activity-flow-modes.md](docs/design/activity-flow-modes.md)
+   (plan + AS BUILT). `isCheckpoint` and `submissionMode` drive the check
+   GROUPS and the server-enforced lock (migration 0040); `activityType` is a
+   printed + on-screen label; `revisionMode` and `gradingMode` were DELETED
+   end to end. `answerFeedback` stays declared but deliberately unread —
+   `immediate` is deferred to its own slice (its entry is below), and
+   `scripts/tests/flow-field-readers.test.mjs` fails if that deferral ever
+   ends silently. **That guard is the one this entry asked for**, scoped to
+   the flow fields by name rather than to every schema field (a whole-schema
+   version would go red on `skills`, which is legitimately editor-only, and
+   the fix for that is a skip list — forbidden by the data-map precedent).
 
 **Minor, same class:** `ShortAnswerBlock.placeholder` (`free-response.ts:101` —
 `Essay.tsx` and `SelfExplanation.tsx` honour theirs, `ShortAnswer.tsx` does not);
@@ -220,14 +287,19 @@ viewer reads `blank.hint` pre-check (not a leak; the stated reason is fiction);
 'immediate'"; `graph-kit/src/index.ts:7,75,98,126,261` and `inline.ts:328`
 cite published pages / the runtime sidecar / `RUNTIME.md`.
 
-**The guard to write once the rulings land:** a test that walks every schema
-field and asserts it is read somewhere under `viewer/src/{blocks,container,
-styles,server}` or `graph-kit/src` — a reachability test in the
-`export-reachability.test.mjs` family (P1), bound to source rather than to a
-hand-maintained list. Until then this list IS the list.
+**The guard this entry asked for now exists, PARTLY** —
+`scripts/tests/flow-field-readers.test.mjs`, written with item 5. It covers the
+FLOW fields, not every schema field, and the scoping is deliberate: a
+whole-schema version goes red on `skills` (legitimately editor-and-catalog-only)
+on day one, and the only way to keep it green is a skip list — which the
+data-map precedent forbids, because the list becomes the thing people edit
+instead of the code. ⚠ **So item 3 and the "Minor, same class" fields below are
+still guarded by NOTHING but this list.** Extending the guard to them means
+naming their scope the same way, one ruling at a time.
 
-**Depends on:** author rulings per item (wire / delete). Item 1 and 2 are the
-ones a teacher will hit first; item 4 is the one STATE claimed was live.
+**Depends on:** author rulings per item (wire / delete). Item 3 is the last of
+the five and is not content loss — it is graph feedback knobs the grader never
+reads.
 
 ## TWO MORE ORPHAN FIELDS — `hasConfidenceRating` and `allowTargetReuse` (2026-08-22)
 

@@ -1,6 +1,6 @@
 # Activity flow modes — wiring the checkpoint orphan class
 
-**Status:** ENG-REVIEWED + DESIGN-REVIEWED 2026-08-24 — ready to build. Eng: 8 findings + 20 from the outside voice, 4 tensions ruled. Design: 3/10 → 9/10, 8 decisions, 0 unresolved. **Read "What the eng review changed" before the rulings above it; two of the six author rulings were reversed on evidence.** Filed from TODOS → "S9
+**Status:** ✅ **BUILT 2026-08-24** — every task but F11 (the author's live apply + deploy) is landed, green, and mutation-proven. **⚠ READ "AS BUILT" AT THE BOTTOM BEFORE THE PLAN ABOVE IT: five things changed shape at build time and two guards were vacuous on their first draft.** Originally: ENG-REVIEWED + DESIGN-REVIEWED 2026-08-24 — ready to build. Eng: 8 findings + 20 from the outside voice, 4 tensions ruled. Design: 3/10 → 9/10, 8 decisions, 0 unresolved. **Read "What the eng review changed" before the rulings above it; two of the six author rulings were reversed on evidence.** Filed from TODOS → "S9
 left FIVE MORE ORPHAN CLASSES", item 5 (the last content-shaped one).
 
 ## Why now
@@ -390,42 +390,42 @@ review — a half-landed group reveals nothing until every member lands.)
 Sequenced. T1–T3 are pure and testable before anything renders; T7 must be
 applied live before T6 deploys.
 
-- [ ] **F1 (P1, human: ~2h / CC: ~10 min)** — viewer/container — `checkGroups(index, submissionMode)`: a pure fold over `DocumentIndex.sections` (5A). End of document is always a checkpoint; `single` ignores every flag.
+- [x] **F1 (P1, human: ~2h / CC: ~10 min)** — viewer/container — `checkGroups(index, submissionMode)`: a pure fold over `DocumentIndex.sections` (5A). End of document is always a checkpoint; `single` ignores every flag.
   - Files: `packages/viewer/src/container/blockIndex.ts` (or a sibling in `container/`)
   - Verify: `pnpm --filter @activity/viewer exec vitest run tests/blockIndex.test.ts`
-- [ ] **F2 (P1, human: ~1 day / CC: ~30 min)** — viewer/store — `checkGroup`: fires member sections in parallel, aggregates phase (`checking` / `checked` / `partial`), Retry re-fires only unlanded members (3A). Freeze at PRESS in `locked` (OV#19). Group-scoped solution reveal (OV#14).
+- [x] **F2 (P1, human: ~1 day / CC: ~30 min)** — viewer/store — `checkGroup`: fires member sections in parallel, aggregates phase (`checking` / `checked` / `partial`), Retry re-fires only unlanded members (3A). Freeze at PRESS in `locked` (OV#19). Group-scoped solution reveal (OV#14).
   - Files: `packages/viewer/src/store/store.ts`, `queue.ts`, `persistence.ts`
   - Verify: `tests/store.test.ts` — partial failure, retry, offline queue, regression pin for `free` re-check
-- [ ] **F3 (P1, human: ~2 days / CC: ~50 min)** — viewer/container — render Check per GROUP inside a **visible region** (D1: rule + grouped background, NOT a card); locked freeze via a per-group `<fieldset disabled>` styled as RECORDED not disabled (D5); the `locked` refusal freezes on arrival; locked+crashed disables the button with D2's copy (T4)
+- [x] **F3 (P1, human: ~2 days / CC: ~50 min)** — viewer/container — render Check per GROUP inside a **visible region** (D1: rule + grouped background, NOT a card); locked freeze via a per-group `<fieldset disabled>` styled as RECORDED not disabled (D5); the `locked` refusal freezes on arrival; locked+crashed disables the button with D2's copy (T4)
   - Files: `packages/viewer/src/container/ViewerContainer.tsx`, `styles/viewer.css`
   - Verify: component tests + `pnpm --filter @activity/app exec playwright test --project=student`
-- [ ] **F3b (P1, human: ~half day / CC: ~20 min)** — viewer/container — the `locked` confirm step (D3): button reads "Check and lock", confirm before firing; `free`/`single` unchanged
+- [x] **F3b (P1, human: ~half day / CC: ~20 min)** — viewer/container — the `locked` confirm step (D3): button reads "Check and lock", confirm before firing; `free`/`single` unchanged
   - Verify: component test — Cancel fires no RPC and freezes nothing
-- [ ] **F3c (P1, human: ~half day / CC: ~20 min)** — viewer/container — focus + announcement on freeze (D6): status region `tabindex="-1"`, receives focus, `aria-live="polite"`
+- [x] **F3c (P1, human: ~half day / CC: ~20 min)** — viewer/container — focus + announcement on freeze (D6): status region `tabindex="-1"`, receives focus, `aria-live="polite"`
   - Files: `ViewerContainer.tsx`, `packages/app/e2e/a11y/student-surfaces.e2e.ts`
   - Verify: `pnpm --filter @activity/app exec playwright test --project=a11y`
-- [ ] **F3d (P2, human: ~1 day / CC: ~30 min)** — viewer/styles — sticky group footer under 768px (D7), 44px target, releases when the group scrolls past
+- [x] **F3d (P2, human: ~1 day / CC: ~30 min)** — viewer/styles — sticky group footer under 768px (D7), 44px target, releases when the group scrolls past
   - Verify: `resize_window` to 375px in the student lane; print unaffected
-- [ ] **F4 (P1, human: ~half day / CC: ~20 min)** — viewer/server — derive the lock from `meta.submissionMode`; refuse a second check inside `record_check`, after the replay lookup, same transaction (T1, OV#9). New `CheckErrorKind: 'locked'`.
+- [x] **F4 (P1, human: ~half day / CC: ~20 min)** — viewer/server — derive the lock from `meta.submissionMode`; refuse a second check inside `record_check`, after the replay lookup, same transaction (T1, OV#9). New `CheckErrorKind: 'locked'`.
   - Files: `packages/viewer/src/server/check-activity-handler.ts`, `wire.ts`, `httpCheckService.ts`
   - Verify: `tests/check-activity-handler.test.ts`; **no** `CHECK_WIRE_VERSION` bump (OV#11 — nothing new is sent)
-- [ ] **F5 (P1, human: ~half day / CC: ~20 min)** — supabase — migration **0040**: `record_check` grows the refusal. ⚠ `CREATE OR REPLACE` with a changed signature creates a SECOND overload with default PUBLIC EXECUTE — drop the old signature, re-`revoke`/`grant` (0020:336-339), and re-run verify-0020's grant assertion (OV#10).
+- [x] **F5 (P1, human: ~half day / CC: ~20 min)** — supabase — migration **0040**: `record_check` grows the refusal. ⚠ `CREATE OR REPLACE` with a changed signature creates a SECOND overload with default PUBLIC EXECUTE — drop the old signature, re-`revoke`/`grant` (0020:336-339), and re-run verify-0020's grant assertion (OV#10).
   - Files: `supabase/migrations/0040_*.sql`, `scripts/verify-0040.sql`
   - Verify: `pnpm --filter @activity/app test:e2e:integration` (7A) — write, refuse, replay-does-not-refuse
-- [ ] **F6 (P1, human: ~half day / CC: ~20 min)** — schema — delete `revisionMode` + `gradingMode`; rewrite the flow-mode comment block to this contract (6A); kill the `immediate` default-fallback claim (OV#20)
+- [x] **F6 (P1, human: ~half day / CC: ~20 min)** — schema — delete `revisionMode` + `gradingMode`; rewrite the flow-mode comment block to this contract (6A); kill the `immediate` default-fallback claim (OV#20)
   - Files: `packages/schema/src/document.ts`
   - **Blast radius beyond the obvious four (OV#18):** `scripts/batch-import.mjs:321` (untyped merge — typecheck will NOT catch it), `scripts/seed-e2e-locked.sql`, `seed-test-data.sql`, `applyImportedMeta.ts`, `importMetaSummary.ts`, `factories.ts`, `SectionBreak.ts:10-11`, `docs/design/manual-grading.md`, `capability-inventory.md`
   - Verify: `pnpm bundle:viewer-server && pnpm bundle:grading-server` committed same commit; assert `SANITIZER_REV` unmoved
-- [ ] **F7 (P1, human: ~2h / CC: ~10 min)** — authoring — importer: drop `revision:`/`grading:`; warn on `feedback: immediate` (reserved) and REFUSE `immediate` + `locked` (T1). Editor: remove the two controls, grey `immediate`, and **fix the now-false locked warning** at `ActivityEditor.tsx:838-844` (OV#13 — R1 makes every section checkable, and the leading implicit section can never be a checkpoint, so it would fire on most documents).
+- [x] **F7 (P1, human: ~2h / CC: ~10 min)** — authoring — importer: drop `revision:`/`grading:`; warn on `feedback: immediate` (reserved) and REFUSE `immediate` + `locked` (T1). Editor: remove the two controls, grey `immediate`, and **fix the now-false locked warning** at `ActivityEditor.tsx:838-844` (OV#13 — R1 makes every section checkable, and the leading implicit section can never be a checkpoint, so it would fire on most documents).
   - Files: `packages/app/src/lib/markdownToTiptap.ts`, `components/ActivityConfigDrawer.tsx`, `routes/ActivityEditor.tsx`, `lib/importFormatRegistry.ts`
   - Verify: `pnpm --filter @activity/app test` incl. the importFormatRegistry lockstep guard
-- [ ] **F8 (P2, human: ~2h / CC: ~10 min)** — viewer — `activityType` as TEXT in the existing meta line (D4: `Algebra II · Unit 3 · Exit ticket`, no badge/chip/colour), screen + print; `worksheet` renders nothing (R5)
+- [x] **F8 (P2, human: ~2h / CC: ~10 min)** — viewer — `activityType` as TEXT in the existing meta line (D4: `Algebra II · Unit 3 · Exit ticket`, no badge/chip/colour), screen + print; `worksheet` renders nothing (R5)
   - Files: `ViewerContainer.tsx`, `styles/viewer.css`, `registry/printExpectations.ts`
   - Verify: a print row + `playwright test print-rules`
-- [ ] **F9 (P1, human: ~1 day / CC: ~40 min)** — tests — guards 1–10, each mutation-proven; the rendered-output coverage guard (5) is the load-bearing one
-- [ ] **F9b (P1, human: ~half day / CC: ~20 min)** — tests — the D2 copy table is pinned: one assertion per state string, so the vocabulary cannot fracture in implementation
-- [ ] **F10 (P2, human: ~2h / CC: ~10 min)** — docs — format doc (`single` ≡ `free`+no markers; `locked`+no markers = one-shot; `immediate` reserved), analytics panel figure → "section checks" (8A), data-map if 0040 touches columns, DECISIONS entry, TODOS: file `immediate` + the teacher unlock (T3)
-- [ ] **F11 (P1, AUTHOR)** — apply **0040 live**, THEN `pnpm deploy:check`. Ordering is the standing rule; the SPA push follows (OV#10's sequence — no wire bump means no forced reload)
+- [x] **F9 (P1, human: ~1 day / CC: ~40 min)** — tests — guards 1–10, each mutation-proven; the rendered-output coverage guard (5) is the load-bearing one
+- [x] **F9b (P1, human: ~half day / CC: ~20 min)** — tests — the D2 copy table is pinned: one assertion per state string, so the vocabulary cannot fracture in implementation
+- [x] **F10 (P2, human: ~2h / CC: ~10 min)** — docs — format doc (`single` ≡ `free`+no markers; `locked`+no markers = one-shot; `immediate` reserved), analytics panel figure → "section checks" (8A), data-map if 0040 touches columns, DECISIONS entry, TODOS: file `immediate` + the teacher unlock (T3)
+- [ ] **F11 (P1, AUTHOR — THE ONLY THING LEFT)** — apply **0040 live**, THEN `pnpm deploy:check`. Ordering is the standing rule; the SPA push follows (OV#10's sequence — no wire bump means no forced reload)
 
 ## Failure modes
 
@@ -511,3 +511,113 @@ No critical gaps: every path has a test and a handler; none is silent.
 - **VERDICT:** ENG + DESIGN CLEARED — ready to implement.
 
 NO UNRESOLVED DECISIONS
+
+---
+
+# AS BUILT (2026-08-24)
+
+**This section outranks everything above it.** Every task but F11 is landed and
+green; five things changed shape at build time, two guards were vacuous on
+their first draft, and one real regression was found in another package.
+
+Commits, in order: `596e36b` (F1+F2) · `d945fba` (F3/F3b/F3c/F3d) · `ab43a64`
+(F4+F5) · `dba4d1c` (F6/F7/F8) · `c83c065` (guards 6+8) · `da30642` (guard 7).
+
+## What changed shape from the plan
+
+| # | Plan said | Built | Why |
+|---|---|---|---|
+| 1 | F3: "locked freeze via a per-group `<fieldset disabled>`" | **freeze is PER SECTION** | The plan's own OV#15 calls a 429 mid-group "a PARTIAL LOCK", and guard 9 requires Retry to fire only the unlanded member. Both cannot be true of a whole-group freeze: the sections that recorded a row are locked server-side and must go inert, while the one that wrote nothing must stay editable or Retry cannot work. D5's mechanism and D1's region are unchanged. |
+| 2 | D4: the label joins "the course/unit line that already renders there" on screen | **the screen line had to be CREATED** | On paper `PrintWorksheetHeading` renders `course · unit`; on screen the top bar rendered the TITLE ONLY. There was no line to join. Paper is exactly as ruled; the screen half adds `course · unit · type` to the top bar at the muted token and meta type size, from the same `activityTypeLabel`. |
+| 3 | D1: the group is a visible region | **suppressed for a ONE-section group** | D1's reason is a student scrolling past several buttonless sections. A lone section with its own footer already reads as its own scope, and bracketing it is ornament. This is also what keeps a document with no `{checkpoint}` looking exactly as it did before the slice. |
+| 4 | Guard 7: reachability over `isCheckpoint`, `submissionMode`, `answerFeedback`, `activityType` | **`answerFeedback` is asserted UNREAD** | R3 defers `immediate`, so the viewer's correct behaviour is to read nothing. Requiring a reader would have forced a fake one. Inverting the assertion made the guard two-directional: red if the wired fields are re-orphaned, red if the deferral silently ends. |
+| 5 | F3b: "pressing it opens a confirm" | **the confirm is INLINE, not `window.confirm`** | A native dialog is unstyleable, needs a global stubbed to test, and steals focus to a surface the a11y lane cannot scan. |
+
+## The two vacuous guards, and how they were caught
+
+Both by MUTATION, neither by a passing suite — which is what the rule is for.
+
+1. **The OV#14 solution gate.** The first draft of "a partial group does NOT
+   reveal solutions" scripted a check service returning `solutions: {}`, so
+   "no `.viewer-solution` is rendered" was true whether or not the gate
+   existed. Deleting the gate outright left it green. The service now always
+   returns a real worked answer and the test asserts BOTH directions — hidden
+   while partial, present once the group completes.
+2. **Guard 7 itself.** The first draft matched a bare token, so replacing
+   `doc.meta.submissionMode ?? 'free'` with the literal `'free'` — an unwiring
+   that hands every student the default flow regardless of what their teacher
+   authored — left it green, because `checkGroups.ts` takes `submissionMode`
+   as a PARAMETER and the name still appeared. It now requires a property
+   access.
+
+A third near-vacuity was avoided by measurement rather than by luck:
+`field.disabled` is `false` inside a disabled fieldset — in jsdom **and in
+every real browser**, because the IDL property reflects the control's own
+attribute. The freeze guards assert `:disabled`.
+
+## Regression found in another package
+
+The per-section freeze fieldset moved rows one level deeper in the DOM, and
+`packages/app/src/lib/foldable/capture.ts` selects flow items with
+`.viewer-section > *`. It began returning the fieldset as one giant
+unsplittable flow item, which would have paginated an entire section onto one
+panel of the foldable print layout. Caught by that file's own tests the day the
+fieldset landed. The selector now steps through the fieldset and says why.
+
+## What was verified, and how
+
+Not deferred to the author — all of this ran here:
+
+- `pnpm verify` — all 8 check-job gates.
+- **integration lane 10/10** with `supabase db reset` replaying all 40
+  migrations, so **0040 is proven against a real Postgres**, not just written.
+- `scripts/verify-0040.sql` against that database: **7 PASS, 0 FAIL**.
+- `scripts/verify-0020.sql` re-run after the signature change: **23 PASS, 0
+  FAIL**, including D1 (record_check grants exclude authenticated/anon/PUBLIC)
+  and D2 (DEFINER + pinned search_path) — the two that catch a botched
+  `create or replace` leaving a PUBLIC-executable overload.
+- print lane **69 passed** · student lane **45 passed** · a11y lane **14
+  passed** (13 + guard 6).
+- `SANITIZER_REV` measured before and after: **`2-59a68ddc` both times**,
+  unmoved as R4 predicted. Verified, not assumed.
+
+## Mutation ledger
+
+Every guard was mutation-tested once. Reverted after each.
+
+| Mutation | Result |
+|---|---|
+| drop the implicit end checkpoint | 8 fold rows + **36 component rows** fail, including every guard-5 shape in all three modes |
+| freeze at fire instead of press | 3 store rows fail |
+| remove the `partial` precedence | 3 rows fail (incl. OV#15's 429 row) |
+| never freeze (F3) | 4 rows fail |
+| remove T4's locked+crashed block | 2 rows fail |
+| remove the OV#14 group gate | 1 row fails *(after the guard was fixed — see above)* |
+| remove the D3 confirm | 3 rows fail |
+| read the lock from the CLIENT body | 2 handler rows fail |
+| fold the 409 into the generic 500 | 2 handler rows fail |
+| **move 0040's lock BEFORE the replay lookup** | the integration row fails with its own message — OV#9's entire argument, executable |
+| delete the freeze-focus effect | the a11y row fails on `toBeFocused()`, in a real browser |
+| drop the `exit_ticket` label | 2 rows fail |
+| label `worksheet` (mark the unmarked case) | 4 rows fail |
+| unwire every `submissionMode` reader | guard 7 fails |
+| unwire every `isCheckpoint` reader | guard 7 fails |
+| viewer starts reading `answerFeedback` | guard 7 fails |
+| `revisionMode` returns to the schema | guard 7 fails |
+
+⚠ Two mutations initially "failed to fail" for an HONEST reason worth
+recording: `submissionMode` and `isCheckpoint` each have **two independent
+readers** (the container and the server; `blockIndex` and the fold), so cutting
+one left the other. The mutations were incomplete, not the guards.
+
+## Still open
+
+- **F11 — the author's, and the ONLY thing left.** Apply **0040 live**, THEN
+  `pnpm deploy:check`. Both bundles are already committed. No wire bump, so no
+  forced reload and no SPA push is required by this slice. After deploying,
+  prove the CODE by grepping the deployed source for `section_locked` —
+  `list_edge_functions` proves flags, never code (CLAUDE.md).
+- **`answerFeedback: 'immediate'`** — filed in TODOS with its three blocking
+  design constraints and its expiry mechanism.
+- **A teacher unlock (T3)** — filed in TODOS against the teacher-grading
+  slice, with the warning to read `prune_section_checks` first.

@@ -85,11 +85,17 @@ export default function DevConfigDrawer() {
                         to="#"
                         title="Open the printable worksheet view"
                     />
+                    {/* ⚰ THIS SAID "Submissions" UNTIL 2026-08-24 (8A). The
+                        submissions dashboard died at S9 Drop 3 and the unit of
+                        student work has been the SECTION CHECK ever since —
+                        a harness figure naming a deleted surface teaches the
+                        wrong vocabulary to whoever reads it next, which is the
+                        whole reason this harness exists. */}
                     <HeaderButton
                         icon={<BarChart3 size={18} />}
-                        label="Submissions"
+                        label="Responses"
                         to="#"
-                        title="Open the submissions dashboard (student results)"
+                        title="Open the responses view (student section checks)"
                     />
                     <HeaderButton
                         icon={<ClipboardPaste size={18} />}
