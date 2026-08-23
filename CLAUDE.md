@@ -11,7 +11,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - **docs/DECISIONS.md** — architecture decisions + reasoning, by area. Check before re-deciding anything.
 - **docs/HISTORY.md** — archived completed-work logs.
 - **docs/COLLABORATION.md** — working-with-the-author notes.
-- **docs/design/** — feature designs (print/printables, calculator tool, interactive graph, variable block sizing, vocabulary definitions, PDF import, photo grading, free activity catalog).
+- **docs/design/** — feature designs (print/printables, calculator tool, interactive graph, variable block sizing, vocabulary definitions, PDF import, photo grading, free activity catalog). The two FLOATING TOOLS have their own newer docs, and they outrank `calculator-tool.md` on anything about the student surface: [floating-tool-cluster.md](docs/design/floating-tool-cluster.md) (the calculator's summon + the feature-scope ruling) and [reference-panel-screen-surface.md](docs/design/reference-panel-screen-surface.md).
 - **docs/markdown-import-format.md** — the format the paste-markdown importer accepts (the contract a teacher or an AI assistant writes to; shared target for the future PDF import). Mirrors `packages/app/src/lib/markdownToTiptap.ts` + the copy-paste prompt in `markdownImportPrompt.ts`.
 - **supabase/functions/README.md**, **supabase/migrations/README.md** — Edge Function and DB setup/deploy reference.
 

@@ -841,11 +841,13 @@ export const documentPrintRoster: readonly {
   {
     id: 'document/reference-panel',
     // The old tail — "the screen tool never prints" — asserted a screen
-    // surface that has not existed since S9 Drop 4; the reference panel's
-    // on-screen form is a filed, deferred slice. The calculator IS summonable
-    // on screen again as of this slice, and it is the live instance of the
-    // claim: a floating scaffold contributes nothing to paper.
-    rule: 'The reference panel prints as a static box at the top when the teacher left printReferencePanel on, and not at all when off; a summoned floating tool (the calculator) never prints.',
+    // surface that had not existed since S9 Drop 4. BOTH floating tools are
+    // summonable on screen again as of 2026-08-23 — the calculator and the
+    // reference panel itself — so the claim has two live instances now: a
+    // floating scaffold contributes nothing to paper, whichever one it is.
+    // (This comment asserted the panel's screen form was "a filed, deferred
+    // slice" for the few hours between the two slices landing.)
+    rule: 'The reference panel prints as a static box at the top when the teacher left printReferencePanel on, and not at all when off; a summoned floating tool — the calculator, or the panel’s own on-screen form — never prints.',
   },
   {
     id: 'document/definition-glossary',

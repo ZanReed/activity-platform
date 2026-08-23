@@ -50,7 +50,11 @@ Settled BEFORE building, against a Desmos-shaped target; reasoning in DECISIONS.
 | `a = 10` then `a*2` → 20 | **half** — scope wiring works (`fn(3,{a:10}) = 20`, probed) but the row **plots y=20 with no readout** | **MINIMUM ONLY** → T11; no flag |
 | Per-feature teacher toggles | **exists** — six flags, all read by `readConfig()` | keep; no new flags this arc |
 
-## What a teacher can do today, and what a student gets
+## What a teacher could author BEFORE this slice, and what a student got
+
+*(Present tense at the time of writing; both rows are fixed as of 2026-08-23 — the
+calculator by this slice, the reference panel by its own. Left as the record of
+what the orphan looked like.)*
 
 | Teacher authors | Stored? | Student sees |
 |---|---|---|

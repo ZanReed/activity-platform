@@ -59,7 +59,7 @@ Quality-of-life improvements that make the Phase 1 loop pleasant rather than bar
 
 **User-visible**: Paste a markdown list of problems and get blocks — **shipped early in Phase 1** as a dedicated Import dialog (built fresh on markdown-it, not the bulk-importer port originally imagined; see `docs/markdown-import-format.md`). Upload images directly instead of pasting URLs. Submission viewer shows aggregate per-blank stats ("78% got blank #3 correct") — *rollup shipped (`docs/design/check-retention-and-rollup.md`, 0035/0036, 2026-08-17); the prune stays UNARMED — see CLAUDE.md*. Self-signup with email verification replaces the allowlist for general use, with the allowlist remaining as an admin override for restricted contexts. Section color tinting and a few more block types (table, divider, video embed) earn their way in if teachers ask for them. **✅ 2026-08-22: `table` SHIPPED** (was: earned its way in, 2026-08-21) — the pilot printed a real worksheet and the ruled-columns workaround was judged workable but structurally wrong (dividers are drawn per column, so rows align only by accident). Built across four slices — schema, viewer, server, editor, import — and proven on real content. **The design doc is [table-block.md](docs/design/table-block.md), not TODOS.md**, and its AS BUILT notes outrank the plan above them (five rulings changed shape at build time; T4 changed outright). D7 held: a cell's content is `FillInBlankInline[]`, so blanks ride the EXISTING responses map with no wire bump.
 
-**Reference panel** ✅ **SHIPPED 2026-06-18** (Drops A–C + a resize/scroll-clearance sidecar; ⚠ **the SCREEN half is DEAD** — see the correction note below — was: live on published pages; see STATE and DECISIONS → "Reference panel"): holds reference content students may consult while working — formula charts, periodic tables, vocabulary lists, conversion tables, unit-circle diagrams, sentence-stem prompts, foreign-language verb tables, primary-source excerpts, maps. The teacher edits panel content in a constrained second editor (math, lists, image, columns — no sections or blank-authoring). Architecturally, an optional `referencePanel?: { title?: string, blocks: Block[] }` field on `ActivityDocument` (added Phase 1 Stage 9e as forward-compat) drives both presentations. **As-built diverges from the original sticky-sidebar idea:** on screen it ~~is~~ *was* a collapsible, drag-resizable bottom-bar toolbar (the author's call — it follows the student and fits wide/future content like an associated video); in print it's a static box at the top, gated by `meta.print.printReferencePanel`.
+**Reference panel** ✅ **SHIPPED 2026-06-18** (Drops A–C + a resize/scroll-clearance sidecar; ⚠ **the screen half DIED at S9 Drop 4 and was REBUILT 2026-08-23** — see the correction note below — was: live on published pages; see STATE and DECISIONS → "Reference panel"): holds reference content students may consult while working — formula charts, periodic tables, vocabulary lists, conversion tables, unit-circle diagrams, sentence-stem prompts, foreign-language verb tables, primary-source excerpts, maps. The teacher edits panel content in a constrained second editor (math, lists, image, columns — no sections or blank-authoring). Architecturally, an optional `referencePanel?: { title?: string, blocks: Block[] }` field on `ActivityDocument` (added Phase 1 Stage 9e as forward-compat) drives both presentations. **As-built diverges from the original sticky-sidebar idea:** on screen it ~~is~~ *was* a collapsible, drag-resizable bottom-bar toolbar (the author's call — it follows the student and fits wide/future content like an associated video); in print it's a static box at the top, gated by `meta.print.printReferencePanel`.
 
 > ⚠ **CORRECTION (2026-08-23).** The bottom-bar toolbar was the published-page
 > runtime's and died at S9 Drop 4. `ViewerContainer.tsx:275` renders
@@ -72,12 +72,23 @@ Quality-of-life improvements that make the Phase 1 loop pleasant rather than bar
 > and the deleted sidecar reimplemented drag in ~40 lines; the genuinely shared
 > surface was a corner div and two buttons. **The calculator half SHIPPED alone
 > on 2026-08-23** ([floating-tool-cluster.md](docs/design/floating-tool-cluster.md));
-> the reference panel's screen surface is its own deferred slice, and it now
-> inherits a built corner and a live z-ladder rather than needing either. Its
-> **sanitizer gap (D16) is separate and live today.** *(This line said "live in the viewer" for one day
-> because the 2026-08-22 audit corrected the dead "published pages" half and
-> assumed the viewer had picked the surface up. It had not — a half-fix, which
-> is the failure mode that audit's own skill warns about.)* Reference content is `data-block-category="scaffold"` — doesn't contribute to scoring, doesn't fire checkpoint behavior, prints alongside the activity. Cross-subject use case driver: nearly every K-12 subject has a "students need this reference handy while they work" pattern, and the existing "open another tab" workaround is friction every teacher complains about.
+> the reference panel's screen surface shipped as its OWN slice hours later
+> ([reference-panel-screen-surface.md](docs/design/reference-panel-screen-surface.md)):
+> a bottom-LEFT summon opening a fixed 24rem non-modal panel, wired in
+> `ViewerContainer` behind a `mode === 'screen'` gate, its body a permanently
+> disabled fieldset. It inherited the corner and the z-ladder from the
+> calculator rather than needing either — which is what "they do NOT share one
+> fix" actually looked like in practice. Its **sanitizer gap (D16) was a real
+> answer-key leak and is FIXED** (`SANITIZER_ALGO_REV` 1→2; measured zero live
+> instances; a `get-activity` redeploy is owed before the fix reaches students).
+>
+> *(For the record of how this block got here: the ROADMAP line above said "live
+> in the viewer" for one day, because the 2026-08-22 audit corrected the dead
+> "published pages" half and assumed the viewer had picked the surface up. It
+> had not — a half-fix, which is the failure mode that audit's own skill warns
+> about. The 2026-08-23 audit then caught THIS block claiming the screen surface
+> was still deferred, hours after it shipped. Two audits, two corrections, same
+> paragraph.)* Reference content is `data-block-category="scaffold"` — doesn't contribute to scoring, doesn't fire checkpoint behavior, prints alongside the activity. Cross-subject use case driver: nearly every K-12 subject has a "students need this reference handy while they work" pattern, and the existing "open another tab" workaround is friction every teacher complains about.
 
 **Vocabulary definitions** ✅ **SHIPPED 2026-06-19** (richer than sketched here: rich text + inline math + optional image, not a bare string — see `docs/design/vocabulary-definitions.md` and STATE): teachers can select a word or phrase in the editor and attach an inline definition. Students see the defined term subtly underlined; click or tap (or focus + Enter) opens a popover with the definition. Targets the math-specific vocabulary barrier — "factor" as verb vs. noun, "rational expression," "domain," "coefficient" — that disproportionately gates Algebra II for ELL students and kids who arrived without earlier-grade terminology internalized. Inline-only in Phase 2; the activity-level glossary that lets a teacher define "factor" once and have every marked instance share that definition is a Phase 4 extension of the same mark.
 
