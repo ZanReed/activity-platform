@@ -42,23 +42,23 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — the CALCULATOR slice is PLANNED and cleared; a feature-scope conversation is owed first
+## Current focus — the CALCULATOR slice is PLANNED, scope RULED, cleared to build
 
-**⏭ NEXT SESSION STARTS HERE: the calculator's FEATURE SCOPE is an open product
-question, and it is upstream of the build.** The plan
-([floating-tool-cluster.md](docs/design/floating-tool-cluster.md)) is ruled,
-design-reviewed and eng-reviewed (calculator only; the reference panel is
-deferred and filed). **But it plans the WIRING, not the feature set.** The
-author has since described a Desmos-shaped target — multiple plotted lines,
-clickable intersections and intercepts, high-school regression, bare arithmetic
-evaluating to a number, variable definitions reused across lines (`a=10` then
-`a*2` → 20), and teacher-level toggles for each. **Several of those may not
-exist in the kit today.** Establish what the shipped widget actually does
-before building the summon around it — wiring a tool that does less than the
-teacher was promised is the orphan pattern again, one level up.
+**⏭ NEXT SESSION STARTS HERE: build the calculator slice, T1–T11.** The
+feature-scope question is ANSWERED (2026-08-23) — ground truth was read from
+`packages/graph-kit/src` (one probe run, not inferred from the design doc) and
+ruled feature by feature; table in
+[floating-tool-cluster.md](docs/design/floating-tool-cluster.md) → "Feature
+scope", reasoning in DECISIONS.md → "Calculator feature scope". Short form:
+multi-line plotting, regression, bare arithmetic and all six teacher flags
+already exist and are read end-to-end; **clickable intersections/intercepts are
+OUT** (nothing exists, and it is a solver + interaction-model arc on the wrong
+side of the Tier B pedagogy line); **`a=10` / `a*2 → = 20` ships as the MINIMUM
+only** (new T11, graph-kit, no flag — today that row silently plots y=20, so
+it is also a bug fix). The legal posture (functional twin, visual stranger)
+was promoted from the design doc to DECISIONS.md as a standing rule.
 
-**✅ CALCULATOR SLICE — PLANNED, NOT BUILT (2026-08-23).** Cleared to build once
-the scope question above is answered. Notable: two of the plan's own rulings
+**✅ CALCULATOR SLICE — PLANNED, NOT BUILT (2026-08-23).** Cleared to build. Notable: two of the plan's own rulings
 were REVERTED by the completed eng review (C6 and C12), and the first eng-review
 pass reported "clean" while having skipped four of its six steps. Both
 corrections are in the plan's banner.

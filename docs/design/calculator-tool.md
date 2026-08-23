@@ -36,7 +36,7 @@ The calculator is **built on JSXGraph, self-hosted** — Path B. The platform do
 
 Embedding the real Desmos Calculator API stays a **district-funded escape hatch**: it's the right move only if a paying customer specifically wants real Desmos and is funding the dependency (the API isn't "free" in the way that matters — it ties the product's availability to Desmos's terms and goodwill, a cost that lands precisely at the Phase 4–5 paid tiers). Default is self-built; embed is opt-in and paid for.
 
-**Legal posture — functional twin, visual stranger.** The goal is that students *feel at home* coming from Desmos. That comfort comes from **workflow** familiarity (an expression list, type-and-see graphing, sliders, a table-and-fit regression flow) — which is the non-protectable, functional layer. So the comfort is free and carries no IP risk. What stays clear of Desmos's protected expression: the **name** (never "Desmos" / "College Board" / "SAT" as branding), the **assets** (no copied icons/CSS/SVG/code), and the **skin** (own color identity, own icons, own micro-layout — not a pixel clone of their distinctive palette/typography as a recognizable whole). Be a functional twin; be a visual stranger. Before any commercial launch this should get an hour of a real IP attorney's time, but the principle is settled enough to design against now.
+**Legal posture — functional twin, visual stranger.** Now a standing rule in [DECISIONS.md](../DECISIONS.md) → "Calculator legal posture" (promoted 2026-08-23); the short form: workflow familiarity is free, the Desmos name/assets/skin are not.
 
 ## The shared graphing kit
 

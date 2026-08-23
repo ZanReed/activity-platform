@@ -36,6 +36,20 @@ DECISIONS.md:193-195, and the z-ladder they were designed against —
 anywhere in viewer or app**. Fixing one leaves a one-tool "cluster" and
 re-strands the same tokens.
 
+## Feature scope (ruled 2026-08-23 — ground truth from `packages/graph-kit/src`, not this doc)
+
+Settled BEFORE building, against a Desmos-shaped target; reasoning in DECISIONS.md → "Calculator feature scope".
+
+| Target | Today | Ruling |
+|---|---|---|
+| Multiple lines plottable | **exists** — `expression-list.ts` rows → `board.setPlots` | wire as-is |
+| Click intersections → point | **absent** — hover trace only (`board.ts:390`), no root finder in the kit | **OUT** (solver + interaction model; Tier B pedagogy) |
+| Click x/y intercepts | **absent** — same | **OUT** |
+| Regression | **exists** — `regression.ts` + the Data panel; not tilde (ruled out) | keep |
+| No-variable row → `= value` | **exists** — `kind: 'calculation'` | keep |
+| `a = 10` then `a*2` → 20 | **half** — scope wiring works (`fn(3,{a:10}) = 20`, probed) but the row **plots y=20 with no readout** | **MINIMUM ONLY** → T11; no flag |
+| Per-feature teacher toggles | **exists** — six flags, all read by `readConfig()` | keep; no new flags this arc |
+
 ## What a teacher can do today, and what a student gets
 
 | Teacher authors | Stored? | Student sees |
@@ -324,6 +338,13 @@ Both are now ruled (C7b, C15) and tasked.
   640px viewport and rule on a smaller default. This is the actual occlusion
   lever C6 mistook for a panel-count problem.
 
+- [ ] **T11 (P2)** — **graph-kit** — cross-row definitions, MINIMUM: in
+  `expression-list.ts` classify slider rows first, then retry the calculation
+  branch for variable-bearing x-free rows against the live scope so `a*2`
+  shows `= 20` and plots NOTHING (today it plots a horizontal line — a bug).
+  Not `b = a+1`, not `f(x) =`, not definition-below-use. Test: the readout
+  text AND the absence of a curve item, mutation-tested.
+
 ## NOT in scope (considered and explicitly deferred)
 
 - **The reference panel's screen surface** — deferred to its own slice (D15).
@@ -338,6 +359,7 @@ Both are now ruled (C7b, C15) and tasked.
 - **The first-visit nudge** — dropped with the reference half; it was the most
   speculative item and the only reason the plan needed a persisted-state
   exception.
+- **Clickable intersections / intercepts, chained definitions, named functions** — ruled OUT 2026-08-23 (Feature scope above).
 - **Per-section calculator override** — deferred by the original design.
 - **Reference-panel print behaviour** — unchanged.
 - **The remaining orphan classes** — graph feedback knobs, `isCheckpoint` + the
