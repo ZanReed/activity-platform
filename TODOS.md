@@ -1220,25 +1220,48 @@ offline-restore path is parse-bearing, so "what may become a trust-the-bytes
 read and what must stay validated" is a correctness question with a student's
 saved work on the other side of it, not a size question.
 
+## Z7 — the student path validates NOTHING it is served or restores (2026-08-23)
+
+Surfaced by the zod audit, deliberately NOT bundled into it.
+
+`packages/viewer/src/client/readClient.ts:188` casts the served document
+(`data.activity as SanitizedActivityDocument`).
+`packages/viewer/src/store/documentCache.ts:238-260` `JSON.parse`s the cached
+copy, checks FOUR envelope fields (`activityId`, `versionId`, `title`,
+`versionNum`) and passes `candidate.document` straight through. There is no
+zod parse anywhere on the student path.
+
+**Defensible today:** the served bytes come from our own Edge Function over TLS,
+and the cached bytes are ones we wrote.
+
+**Less obviously right on a SHARED CHROMEBOOK**, which this platform explicitly
+targets and already writes `sweepForeignStorage`, tab locks and a shared-device
+purge for. `localStorage` there is not a trusted store: a corrupted or
+hand-edited cache entry reaches the renderer as a typed object nobody checked.
+
+**THE PRICE OF REVERSING IT IS NOW KNOWN, which is the point of filing it with a
+number: 17.3 KiB gz** on the entry chunk, plus reverting a tightened
+`SHELL_JS_GZ_KIB` and deliberately deleting a ledger row and a shell-absence row.
+That friction is the correct kind — it makes the trade explicit instead of
+accidental. A cheap hand-rolled structural guard (not zod) is the obvious middle
+path if one is wanted.
+
+**Depends on:** nothing. Do NOT satisfy it by re-importing zod into the shell
+without ruling on that trade first.
+
 **THE LADDER'S REMAINING RUNGS** (ruling R7 — each is its own slice,
 deliberately NOT folded into slice 1; and see the stale-list warning above):
-1. **The zod audit.** 🟡 **DESIGN PASS DONE 2026-08-23 —
-   [shell-slim-zod.md](docs/design/shell-slim-zod.md), Z1–Z7 await rulings.**
-   ⚠ **The description that stood here was WRONG and is corrected in that doc:**
-   it said "the offline-restore path is parse-bearing — so this needs real
-   thought about what may become a trust-the-bytes read and what must stay
-   validated." Measured: **the student path contains ZERO zod parses.**
-   `readClient.ts:188` casts the served document; `documentCache.ts` casts the
-   cached body after checking only the envelope. Every parse in the workspace
-   outside tests is an EDITOR path, and those are lazy chunks. So zod is in the
-   shell as IMPORT cost, not validation cost, and there is no trust to trade —
-   which makes this the smallest rung, not the scariest one.
-   The anchor is ONE EDGE (`block-predicates.ts:32` value-imports `tableBlankIds`
-   from a zod schema module); extraction + `"sideEffects": false` took a probe
-   from 19.2 → 0.77 KiB gz with zod ABSENT, and `sideEffects` ALONE was measured
-   and refuted. The trust-posture question the old text imagined is real but
-   separate, and is filed as Z7 — it must not ride this slice, because adding
-   validation would put zod straight back.
+1. ~~**The zod audit.**~~ ✅ **SHIPPED 2026-08-23** —
+   [shell-slim-zod.md](docs/design/shell-slim-zod.md) (design + AS-BUILT).
+   **Entry chunk 160.5 → 143.2 KiB gz (−17.3), zod absent from the shell**, and
+   `SHELL_JS_GZ_KIB` tightened 172 → 158 in the same commit per ruling R6.
+   **P1A's ~150 KiB target is MET.** ⚠ The description that stood here was
+   WRONG — it said the offline-restore path was parse-bearing. The student path
+   contains ZERO zod parses; zod was IMPORT cost, not validation cost. Two
+   conditions were needed and neither was sufficient alone: extracting
+   `tableBlankIds` out of a zod schema module, and `sideEffects: false`. The
+   trust-posture question the old text imagined is real, separate, and filed
+   below.
 2. **The router.** react-router v7's data APIs cost more than this app's route table
    needs; a swap is mechanical but touches every route file.
 3. **Preact/compat.** Largest single win and largest blast radius (Tiptap, floating-ui

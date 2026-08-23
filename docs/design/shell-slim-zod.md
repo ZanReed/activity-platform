@@ -1,6 +1,6 @@
 # Shell-slim rung 1 — getting zod out of the student shell
 
-**Status:** 🟡 **DESIGN PASS — Z1–Z7 await author rulings. Nothing built.**
+**Status:** ✅ **BUILT 2026-08-23 — Z1–Z6 shipped, Z7 filed. Eng-reviewed + outside voice; three of this doc's own claims were corrected. See AS-BUILT.**
 
 The shell-slim ladder's rung 1, unparked 2026-08-23 because both shell budget
 rows fell below the ~10% headroom policy at once and the CSS row has no lever
@@ -47,11 +47,14 @@ Bundled with esbuild, one helper at a time, from the real sources:
 `sanitize/sanitized-types.ts` imports schema **type-only** — free. The app shell
 (`StudentViewer`, `App`, `main`) imports no schema values at all.
 
-**The whole anchor is ONE EDGE.** `block-predicates.ts:32` is
-`import { tableBlankIds } from './blocks/table.js';` — a VALUE import of a pure
-function that happens to live inside a zod schema module. Every other import in
-that file is `import type`. Break that edge and `block-predicates` is zod-free;
-and `blocks/table.ts` is the viewer's only other direct anchor.
+**TWO CONDITIONS, BOTH NECESSARY, NEITHER SUFFICIENT.** ⚠ This paragraph read
+"**the whole anchor is ONE EDGE**" until the outside voice built it and found
+that sentence contradicts this doc's own table above: the extraction ALONE left
+the entry chunk **byte-identical**. The two conditions are (a) the value edge at
+`block-predicates.ts:32` — `import { tableBlankIds } from './blocks/table.js';`,
+the one non-type import in that file — and (b) the bundler being told the
+package is side-effect-free, without which every `z.object({…})` module is
+retained as a presumed side effect. Break one and nothing moves.
 
 ## The measured fix, and the cheap alternative that does NOT work
 
@@ -161,3 +164,125 @@ fire is the vacuity this repo keeps finding.
 Existing coverage that must not break: `packages/schema`'s own suite (368
 tests) exercises `tableBlankIds` and the table schema; the editor's serialize
 path is the heaviest consumer of both.
+
+---
+
+# AS-BUILT (2026-08-23)
+
+**Z1–Z6 shipped. Z7 filed.** Reviewed before building: `/plan-eng-review` (four
+sections) plus an independent outside voice. **The outside voice was worth more
+than the review**, as it was on the calculator slice — it went and BUILT the
+change against the real bundler, which resolved the plan's biggest risk and
+turned up two things that would have been discovered at build time or in CI.
+
+## The measured result
+
+| configuration | entry chunk gz | zod in shell |
+|---|---:|---|
+| HEAD | 160.5 | present |
+| **Z1 alone** | **160.5 (byte-identical)** | present |
+| Z2 alone | 158.0 | present |
+| **Z1 + Z2** | **143.2** | **absent** |
+
+**−17.3 KiB gz**, larger than the plan's ~15 KiB estimate. Confirmed
+independently in this repo after the build: `shell JS 143.2 (cap 158)`,
+`shell is free of zod — absent`, `ledger: zod 16.1 (cap 18)`, 18 budgets pass.
+
+**P1A's ~150 KiB shell target is MET for the first time** (143.2). The paragraph
+in `perf-budgets.mjs` that said the target was ~8 KiB away is now history rather
+than status, and is annotated as such rather than deleted.
+
+## Three of this doc's claims were wrong, and the review caught them
+
+1. **"The whole anchor is ONE EDGE" — OVERSTATED, and it contradicted this
+   doc's own table.** The extraction alone leaves the entry chunk *byte-identical*.
+   Two conditions, both necessary, neither sufficient. A reader following the old
+   headline would have shipped a provable no-op. Corrected in place above.
+
+2. **Z4 was NOT IMPLEMENTABLE as written — it would have turned CI red.** The
+   four `shell is free of …` rows are not a hand-written list; they are
+   `.map()`ed from `CHUNK_LEDGER`, and `scripts/tests/perf-budgets.test.mjs:95`
+   asserts the two name-sets are `deepEqual`. A shell-only zod row fails that
+   test under `pnpm verify`. **The correct shape is strictly better:** a
+   `CHUNK_LEDGER` row caps zod where it actually lives (16.1 KiB in
+   `document-*.js`, cap 18), the shell absence row is then generated for free,
+   and — unlike a bare absence row — a ledger row **self-verifies**, because
+   `check-perf-budget.mjs` fails a row that matches nothing.
+
+3. **The marker had a live false-positive.** A bare `/zod/i` matches a second
+   chunk containing no zod at all: our own `serialize.ts` logs *"failed Zod
+   validation"*, and that string rides `ImagePopoverHost`. The row uses
+   `/ZodError/`, which survives minification because it is a **string literal**
+   (`this.name="ZodError"`), not an identifier. This is the
+   markers-from-internals-never-package-names trap the budget file already
+   documents — armed, this time, by our own prose.
+
+## What the plan missed entirely
+
+**Both committed Edge Function bundles shrink by 84,307 bytes each.** Declaring
+the package side-effect-free lets the bundler drop `packages/schema/src/submission.ts`
+— the only module that differs, 29 → 28. CI fails on bundle drift, so this was a
+guaranteed red build that the plan never mentioned. Both are regenerated and
+committed here.
+
+**Ruled explicitly, because an 82 KiB shrink in a client-shell PR otherwise
+reads as an accident: NO REDEPLOY IS OWED.** The evidence, verified rather than
+assumed — the dropped module is dead code in both functions (neither
+`get-activity` nor `check-activity` references `submissions` or
+`SubmissionResponses`; their only schema imports are `UpgradeError` and
+`upgradeActivityDocument`), `tableBlankIds` appears zero times in either bundle
+before or after, no sanitize declaration changed so `SANITIZER_REV` is untouched,
+and the other 28 schema modules are byte-identical.
+
+## The guard, and the vacuity trap it nearly shipped with
+
+The plan's mutation test was: "add a shell-reachable `import { ActivityDocument }`,
+confirm the budget fails." **That would have passed vacuously.** With
+`sideEffects: false` in force, an UNREFERENCED value import is dropped by rollup,
+so the budget stays green and the mutation proves nothing — the exact P9 failure
+this repo keeps re-finding, and it would have been a guard that had never been
+seen to fire. The mutation must USE the import (call `.safeParse` on something)
+to produce a real red.
+
+## Also fixed in this slice
+
+- `packages/schema/dist/` — a stale `.d.ts` tree from an old `tsc` run, still
+  declaring `tableBlankIds` from `./blocks/table.js`. Inert (nothing resolves to
+  it; `main`/`exports` point at `./src/index.ts`) but it is a declaration
+  surviving a move, which is this repo's named defect class. Removed.
+- `blocks/index.ts` re-exported the function too — a third edge the plan named
+  only two of.
+
+## Checked and clear
+
+- **Offline / service worker: no impact.** The precache is `index.html` only
+  (1 entry, 979 B), and the offline-restore path validates nothing, so there is
+  nothing for the removal to break.
+- **`TableBlankSource` was always a hand-written STRUCTURAL interface**, never
+  derived from the zod schema, so the extraction costs no type checking. The
+  review's worry that the move would sever the type link dissolved on reading it.
+- **`sideEffects: false` safety** — independently re-verified: zero
+  `globalThis`/`window`/`process.env`/`.register(`/`Object.freeze` hits, zero
+  side-effect-only imports of the package anywhere, and zod v3 has no global
+  registry to mutate.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | not run | Not a product change — an import-hygiene slice with no user-visible surface |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | **issues_found (2026-08-23)** | 5 issues across 4 sections; scope accepted as-is (4 files, 0 new services) |
+| Outside Voice | Claude subagent (Codex not installed) | Independent challenge | 1 | **issues_found (2026-08-23)** | 4 material problems + 6 missed items; **built the change against the real bundler** |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | **deliberately skipped** | No UI surface: a function moves between modules, a package.json field, a budget row. Nothing rendered changes |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | not run | — |
+
+**CROSS-MODEL:** No tension — the outside voice confirmed, corrected and
+extended rather than disagreeing. It resolved the review's top finding
+(esbuild-vs-rollup) empirically in the plan's favour, and independently
+confirmed the anchor analysis by a stronger method than the plan used: with
+Z1+Z2 applied, all five zod markers are absent from the entry chunk, which is
+exhaustive — no missed value-import can exist.
+
+**VERDICT:** ENG CLEARED + OUTSIDE VOICE ABSORBED — built, 18 budgets pass.
+
+NO UNRESOLVED DECISIONS

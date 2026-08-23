@@ -123,9 +123,12 @@ export {
   TableRow,
   TableCell,
   TableColumnAlign,
-  tableBlankIds,
 } from './table.js';
-export type { TableBlankSource } from './table.js';
+// From the zod-free module, NOT './table.js' — see table-blank-ids.ts. Routing
+// it through the schema module would put zod back in the student shell for
+// anyone who reaches this barrel.
+export { tableBlankIds } from '../table-blank-ids.js';
+export type { TableBlankSource } from '../table-blank-ids.js';
 export {
   AxisConfig,
   PointInteraction,

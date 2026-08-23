@@ -117,10 +117,31 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * is the same ~10% headroom policy applied to the new measurement:
  * 156.4 × 1.1 ≈ 172.
  *
- * Measured 2026-08-22: 158.5 KiB gz. (The 150 target is ~8 KiB away; the
- * next rung of the ladder is the zod audit — see TODOS.md.)
+ * Measured 2026-08-22: 158.5 KiB gz.
+ *
+ * TIGHTENED AGAIN 2026-08-23 — shell-slimming rung 1 (the zod audit), ruling R6
+ * once more. ⚠ **P1A's ~150 KiB target is MET**, so the paragraph above — "not a
+ * claim that the 150 target was met", "getting to 150 would take deliberate
+ * work" — is now history rather than status. It is left standing because it
+ * records what was true when the pin was set, and because the lever it named
+ * (a lighter auth client) is still the NEXT one, not this one.
+ *
+ * What moved: `tableBlankIds` left blocks/table.ts, and @activity/schema
+ * declared `sideEffects: false`. Together — and ONLY together, each was
+ * measured a no-op alone — zod left the entry chunk entirely:
+ * **160.5 → 143.2 KiB gz, −17.3.** zod was never validation cost on the student
+ * path (nothing there parses; readClient and documentCache both cast); it was
+ * pure import cost. Design + measurements: docs/design/shell-slim-zod.md.
+ *
+ * New cap = the same ~10% policy on the new measurement: 143.2 × 1.1 ≈ 158.
+ *
+ * ⚠ AND THAT NUMBER IS A TRAP FOR A SKIMMER, so read it twice: 158 is almost
+ * exactly the PRE-slice measurement recorded two lines up (158.5 on 08-22). The
+ * cap did move — 172 → 158 — and it moved because the SHELL shrank to 143.2.
+ * A cap that equals a former measurement is a coincidence of arithmetic here,
+ * not a leftover.
  */
-export const SHELL_JS_GZ_KIB = 172;
+export const SHELL_JS_GZ_KIB = 158;
 
 /**
  * The student shell's CSS, gzipped — a SEPARATE row on purpose.
@@ -233,6 +254,26 @@ export const CHUNK_LEDGER = [
         marker: /ReplaceError|ProseMirror/,
         maxGzKiB: 292,
         why: 'The editor. A student must never download this; it is the single biggest reason the S8 route split exists.',
+    },
+    {
+        name: 'zod',
+        // The CLASS NAME, assigned as a STRING LITERAL (`this.name="ZodError"`),
+        // so it survives minification — minifiers rewrite identifiers, never
+        // string contents. NOT the package name: a bare /zod/i already matches a
+        // chunk with no zod in it, because our own serialize.ts logs "failed Zod
+        // validation" and that warning rides ImagePopoverHost. That is the
+        // MARKERS-FROM-INTERNALS trap below, armed by our own prose.
+        marker: /ZodError/,
+        maxGzKiB: 18,
+        // ⚠ HOW TO MUTATION-TEST THIS ROW, because the obvious way is VACUOUS
+        // and was measured so on 2026-08-23. Adding an UNREFERENCED
+        // `import { ActivityDocument } from '@activity/schema'` to a shell file
+        // leaves the row GREEN — `sideEffects: false` lets rollup drop the
+        // import outright, so nothing enters the bundle and the "mutation"
+        // proves nothing. The import must be USED (call `.safeParse` on
+        // something) before the row goes red. A guard verified the lazy way
+        // here would be a guard that has never been seen to fire.
+        why: 'Schema validation. It belongs to the EDITOR — serialize, publish, import and the print preview all parse; the student path parses nothing (readClient and documentCache both cast). It sat in the student shell until 2026-08-23 because one value import in block-predicates.ts reached a module that builds zod schemas at load time. This row caps it where it actually lives and, via SHELL_FORBIDDEN_MARKERS below, asserts it never comes back. See docs/design/shell-slim-zod.md.',
     },
 ];
 

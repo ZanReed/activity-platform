@@ -29,7 +29,10 @@
 // =============================================================================
 
 import type { Block } from './blocks/index.js';
-import { tableBlankIds } from './blocks/table.js';
+// Deliberately NOT './blocks/table.js' — that module builds zod schemas at
+// import time, and this one value edge is what put zod in the student shell
+// (docs/design/shell-slim-zod.md). Keep this pointing at the zod-free module.
+import { tableBlankIds } from './table-blank-ids.js';
 import type { BlockLabel } from './label.js';
 
 // The schema block types that always draw a "Problem N" (the display-graph
