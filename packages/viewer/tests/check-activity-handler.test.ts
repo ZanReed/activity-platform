@@ -95,7 +95,10 @@ interface Harness {
   recorded: () => unknown[];
 }
 
-function harness(over: Partial<CheckActivityDb> = {}, opts: { isCurrent?: boolean } = {}): Harness {
+function harness(
+  over: Partial<CheckActivityDb> = {},
+  opts: { isCurrent?: boolean; submissionMode?: string } = {},
+): Harness {
   let authRan = false;
   let docRead = false;
   const records: unknown[] = [];
@@ -115,7 +118,14 @@ function harness(over: Partial<CheckActivityDb> = {}, opts: { isCurrent?: boolea
     },
     readVersion: async () => {
       docRead = true;
-      return { data: { content: doc }, error: null };
+      return {
+        data: {
+          content: opts.submissionMode
+            ? { ...doc, meta: { ...(doc as { meta?: object }).meta, submissionMode: opts.submissionMode } }
+            : doc,
+        },
+        error: null,
+      };
     },
     recordCheck: async (args) => {
       records.push(args);
@@ -608,5 +618,93 @@ describe('the solutions channel is absent from the persisted row (B9)', () => {
     const persisted = JSON.stringify(h.recorded());
     expect(persisted).not.toContain(RELEASABLE);
     expect(persisted).not.toContain(STR);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// F4 — the server-derived lock (T1, OV#9)
+// -----------------------------------------------------------------------------
+describe('the lock is DERIVED from the stored document, never received', () => {
+  it('passes locked=false for a `free` activity', async () => {
+    const h = harness();
+    const res = await h.handler(post(validBody()));
+    expect(res.status).toBe(200);
+    expect((h.recorded()[0] as { locked: boolean }).locked).toBe(false);
+  });
+
+  it('passes locked=true for a `locked` activity', async () => {
+    const h = harness({}, { submissionMode: 'locked' });
+    const res = await h.handler(post(validBody()));
+    expect(res.status).toBe(200);
+    expect((h.recorded()[0] as { locked: boolean }).locked).toBe(true);
+  });
+
+  it('IGNORES a client-sent lock flag entirely — the OV#8 reason this ruling exists', async () => {
+    // A student's browser can omit any flag it is asked to send, so the flag
+    // is not a control. Both directions are pinned: a client claiming
+    // `locked: true` on a free activity gets false, and a client omitting it
+    // (or sending false) on a locked activity still gets true.
+    const free = harness();
+    await free.handler(post({ ...validBody(), locked: true, lock: true }));
+    expect((free.recorded()[0] as { locked: boolean }).locked).toBe(false);
+
+    const strict = harness({}, { submissionMode: 'locked' });
+    await strict.handler(post({ ...validBody(), locked: false, lock: false }));
+    expect((strict.recorded()[0] as { locked: boolean }).locked).toBe(true);
+  });
+
+  it('maps the RPC refusal to 409 with its own code', async () => {
+    const h = harness(
+      {
+        recordCheck: async () => ({
+          data: null,
+          error: { message: 'section_locked' },
+        }),
+      },
+      { submissionMode: 'locked' },
+    );
+    const res = await h.handler(post(validBody()));
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { details?: { code?: string } };
+    expect(body.details?.code).toBe('section_locked');
+  });
+
+  it('the refusal is NOT dressed as a rate limit or a server error', async () => {
+    const h = harness(
+      {
+        recordCheck: async () => ({
+          data: null,
+          error: { message: 'section_locked' },
+        }),
+      },
+      { submissionMode: 'locked' },
+    );
+    const res = await h.handler(post(validBody()));
+    expect(res.status).not.toBe(429);
+    expect(res.status).not.toBe(500);
+  });
+
+  it('a REPLAY of the locking check still succeeds — the RPC returns it, not a refusal', async () => {
+    // The refusal lives inside record_check AFTER its replay lookup (OV#9).
+    // Modelled here at the port: a replayed row comes back as data, and the
+    // handler must return the original verdicts rather than a 409.
+    const h = harness(
+      {
+        recordCheck: async () => ({
+          data: {
+            check_id: 'c1',
+            attempt_number: 1,
+            verdicts: { 'item-1': { verdict: 'correct' } },
+            replayed: true,
+          },
+          error: null,
+        }),
+      },
+      { submissionMode: 'locked' },
+    );
+    const res = await h.handler(post(validBody()));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: Record<string, unknown> };
+    expect(body.items['item-1']).toEqual({ verdict: 'correct' });
   });
 });

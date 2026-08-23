@@ -96,6 +96,19 @@ export interface CheckActivityDb {
     responses: SectionResponses;
     verdicts: SectionCheckResult['items'];
     idempotencyKey: string | null;
+    /**
+     * This activity's `submissionMode` is `locked`, so a section that already
+     * has a row for this (student, version) must be refused (T1).
+     *
+     * ⚠ DERIVED BY THE SERVER FROM THE STORED DOCUMENT, never received from
+     * the client. The eng review originally ruled the opposite — the client
+     * would send `lock: true` and the server would honour it — and the outside
+     * voice pointed out the obvious: a flag the student's browser sends is a
+     * flag the student's browser can omit. Nothing in the wire changed; the
+     * handler reads `meta.submissionMode` off the raw document it already
+     * loads.
+     */
+    locked: boolean;
   }): Promise<DbResult<RecordCheckResult>>;
 }
 
@@ -439,6 +452,16 @@ export function createCheckActivityHandler(
     }
 
     // ---- Record (atomic with the response the student is about to see) -----
+    //
+    // THE LOCK IS DERIVED HERE, from the document we just loaded (T1). The
+    // refusal itself lives inside `record_check`, after its idempotent-replay
+    // lookup and in the same transaction (OV#9): a lost-response retry of the
+    // locking check must REPLAY, not 409 — otherwise the one failure mode the
+    // idempotency key exists for turns into a permanent lockout of work that
+    // was already recorded.
+    const locked =
+      (upgraded.doc as { meta?: { submissionMode?: unknown } }).meta
+        ?.submissionMode === 'locked';
     const { data: recorded, error: recordError } = await db.recordCheck({
       studentId,
       activityId: request.activityId,
@@ -447,9 +470,19 @@ export function createCheckActivityHandler(
       responses: request.responses,
       verdicts: result.items,
       idempotencyKey,
+      locked,
     });
     if (recordError) {
       const msg = recordError.message ?? '';
+      // 409, and a code of its own. The client maps it to copy that never says
+      // "try again": there is no unlock in v1 — not for the student, not for
+      // the teacher — so a retry can never succeed. It is also the ONLY way a
+      // second device (or a cleared buffer) discovers a lock it never saw.
+      if (msg.includes('section_locked')) {
+        return cors.errorResponse(req, 409, 'This section is already checked and locked', {
+          code: 'section_locked',
+        });
+      }
       if (msg.includes('rate_limited')) {
         return cors.errorResponse(req, 429, 'Too many checks — slow down', {
           code: 'rate_limited',

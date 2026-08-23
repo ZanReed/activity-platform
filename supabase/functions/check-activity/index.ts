@@ -90,6 +90,9 @@ const db: CheckActivityDb = {
         p_responses: args.responses,
         p_verdicts: args.verdicts,
         p_idempotency_key: args.idempotencyKey,
+        // 0040. Derived by the handler from the STORED document's
+        // meta.submissionMode — never sent by the client (T1).
+        p_locked: args.locked,
       })
       .single();
   },

@@ -56,6 +56,7 @@ import {
   checkGroups,
   groupStatus,
   isSectionFrozen,
+  sectionsInGroup,
   type CheckGroup,
   type GroupStatus,
   type SubmissionMode,
@@ -322,14 +323,7 @@ export function ViewerContainer({
     () => Object.fromEntries(doc.sections.map((section) => [section.id, section])),
     [doc],
   );
-  const groupSections = useMemo(() => {
-    const map: Record<string, string[]> = {};
-    for (const group of groups) {
-      const ids = group.sections.map((s) => s.sectionId);
-      for (const id of ids) map[id] = ids;
-    }
-    return map;
-  }, [groups]);
+  const groupSections = useMemo(() => sectionsInGroup(groups), [groups]);
 
   return (
     <ViewerProvider

@@ -83,13 +83,19 @@ export function checkGroups(
   return groups;
 }
 
-/** Section id → the group that checks it. Every section in the document
- * appears exactly once (R1's guarantee); a section with no entry would be one
- * no Check button covers. */
-export function groupBySection(groups: CheckGroup[]): Record<string, CheckGroup> {
-  const map: Record<string, CheckGroup> = {};
+/**
+ * Section id → every section ITS group covers.
+ *
+ * The shape the solution gate wants (OV#14): a block asks "has my whole group
+ * landed?", which is a question about sibling section ids, not about the group
+ * object. Every section in the document appears exactly once (R1's guarantee);
+ * a section with no entry would be one no Check button covers.
+ */
+export function sectionsInGroup(groups: CheckGroup[]): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
   for (const group of groups) {
-    for (const section of group.sections) map[section.sectionId] = group;
+    const ids = group.sections.map((s) => s.sectionId);
+    for (const id of ids) map[id] = ids;
   }
   return map;
 }

@@ -246,8 +246,8 @@ export type { DocumentIndex, SectionIndex } from './container/blockIndex.js';
 // buttons render and what each one covers.
 export {
   checkGroups,
-  groupBySection,
   groupStatus,
+  sectionsInGroup,
   isSectionFrozen,
 } from './container/checkGroups.js';
 export type {

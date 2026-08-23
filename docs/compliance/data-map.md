@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-21-draft-6`. Mirrors migrations 0001–**0039**, verified
+> Version `2026-08-24-draft-7`. Mirrors migrations 0001–**0040**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,18 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-7` (2026-08-24) — 0040 adds NO personal data, and no column at all.**
+> The activity-flow-modes slice changes exactly one function, `record_check`:
+> it grows a `p_locked` parameter (server-derived from the stored document's
+> `meta.submissionMode`, never sent by the client) and refuses a SECOND check
+> for a `(student, activity_version, section)` that already has one. No table,
+> no column, no index, no new person reference, and no change to what
+> `section_checks` stores — the refusal is a `raise exception`, and a refused
+> check writes nothing at all, so the slice can only ever REDUCE the number of
+> student-derived rows retained. `retention-policy.md` does not move either
+> (the 0038/0039 precedent). Stated explicitly rather than by silence, per
+> 0027 / 0035 / 0038 / 0039 — the range moves to 0040 on that basis.
 >
 > **`draft-6` (2026-08-21) — 0039 adds NO personal data.** The table-block
 > slice's drift guard adds one column, `activities.source_fingerprint`: a

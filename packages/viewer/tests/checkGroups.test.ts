@@ -15,7 +15,7 @@
 // =============================================================================
 
 import { describe, expect, it } from 'vitest';
-import { checkGroups, groupBySection } from '../src/container/checkGroups.js';
+import { checkGroups, sectionsInGroup } from '../src/container/checkGroups.js';
 import type { DocumentIndex, SectionIndex } from '../src/container/blockIndex.js';
 
 /** A minimal indexed section — the fold reads only id + isCheckpoint. */
@@ -140,12 +140,12 @@ describe('no section is ever left out of the fold', () => {
   }
 });
 
-describe('groupBySection', () => {
-  it('maps every section to the group whose Check covers it', () => {
+describe('sectionsInGroup', () => {
+  it('maps every section to the sibling ids its Check covers', () => {
     const index = indexOf(section('a'), section('b', true), section('c'));
-    const map = groupBySection(checkGroups(index, 'free'));
-    expect(map.a!.id).toBe('b');
-    expect(map.b!.id).toBe('b');
-    expect(map.c!.id).toBe('c');
+    const map = sectionsInGroup(checkGroups(index, 'free'));
+    expect(map.a).toEqual(['a', 'b']);
+    expect(map.b).toEqual(['a', 'b']);
+    expect(map.c).toEqual(['c']);
   });
 });
