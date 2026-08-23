@@ -8,9 +8,20 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **⏭ ONE ITEM IS OWED.** The table arc left nothing pending — 0039 applied, both functions redeployed and tool-verified, the print baseline committed, `unit-rate.md` republished. That narrative is in [HISTORY.md](docs/HISTORY.md); the durable RULES it produced are below and in CLAUDE.md.
 
-**🔴 REDEPLOY `get-activity` — the sanitizer moved, and it is a LEAK FIX.**
-`pnpm deploy:get-activity` (it is the only `--no-verify-jwt` function; the
-script carries that flag). `SANITIZER_REV` moved `1-07e6311d` → **`2-59a68ddc`**
+**🔴 REDEPLOY `get-activity` — STILL OWED as of 2026-08-23, and the SPA is now
+LIVE AHEAD OF IT.** ⚠ **A `pnpm deploy` attempt did NOT land**: there is no bare
+`deploy` script, so it failed at the shell, and `list_edge_functions` reads
+`get-activity` **v24, `updated_at` unchanged**. The command is
+**`pnpm deploy:get-activity`** (it is the only `--no-verify-jwt` function; the
+script carries that flag), and CLAUDE.md's rule applies — verify with
+`list_edge_functions` after, reading the `version` field.
+**The ordering is now inverted, harmlessly but deliberately worth knowing:** the
+push went out, so the viewer RENDERS reference panels on screen, while the
+served payload still comes from the old sanitizer that never stripped panel
+block keys. Re-measured after the push: **0 of 29 published versions carry a
+`referencePanel` at all** (newest version 2026-08-22), so the exposure is still
+zero — but the safe order was sanitizer-first, and it will be inverted until
+this deploy runs. `SANITIZER_REV` moved `1-07e6311d` → **`2-59a68ddc`**
 on 2026-08-23: the per-block strips now cover `referencePanel`, which they never
 did — the panel takes the full `Block` union, so a key-bearing block pasted
 there shipped its answer key to students. **The fix only reaches students once
