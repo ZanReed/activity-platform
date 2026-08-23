@@ -32,42 +32,48 @@ call for the row — focus stability across a 76-stop walk is not an a11y proper
 
 **Depends on:** nothing.
 
-## Converge the two SVG engines — `GraphFigure.tsx` -> `renderGraphSvg` (2026-08-22)
+## The static-SVG engine's palette is light-only (2026-08-23, convergence follow-on)
 
-Filed by the choice-figures ENG review (E2/CQ-2), which deliberately did NOT do
-it in that slice.
+**What:** `renderGraphSvg` hardcodes grid `#cbd5e1`, axes `#64748b` and tick
+labels `#475569` as presentation ATTRIBUTES (`graph-svg.ts:45-47`). It is the
+print/no-JS renderer and it predates dark mode, so the palette assumes white
+paper.
 
-**The repo has two kit-free SVG engines for one job**, and they have already
-diverged: `renderGraphSvg` (`graph-kit/src/static-svg/graph-svg.ts`, 400 viewBox,
-fixed grayscale-safe palette, arrow markers, draws curves at 96 samples,
-**5.07 KiB gz**) and `GraphFigure.tsx` (`packages/viewer/src/blocks/`, 320
-viewBox + 8 pad, `currentColor` with opacity, **returns `null` for `curve` AND
-`expression`**, 883 B gz).
+**Measured, not argued (2026-08-23, live browser on `#0f172a`):** tick labels
+**2.36:1**, below even the 3:1 floor for graphics, on a figure a student reads
+coordinates off. Axes 3.75:1, grid 12:1 (the grid shouting louder than the data
+drawn on it).
 
-**The size gap is not efficiency, it is missing capability** — which is why the
-eng review refused to reuse the small one for choice figures. Anything rendered
-through `GraphFigure` today silently loses curve drawables.
+**What is already fixed:** the convergence slice re-points the TICK LABELS at
+`--vw-color-ink-muted` in `viewer.css` for both viewer surfaces
+(`.viewer-figure > svg text` and `.viewer-choice-figure__graph svg text`),
+taking them from 2.36:1 to 6.96:1 on dark while leaving light AA. Guarded by
+two rows in `dark-contrast.e2e.ts`, mutation-proven.
 
-✅ **CHECKED 2026-08-23 against the live DB** (`jsonb_path_exists` over
-`activities.draft_content` and `activity_versions.content`, `$.**` so the
-reference panel is covered): **zero `graph_figure` blocks exist anywhere** —
-29 published versions, 7 drafts, none carry one — so nothing has been lost.
-**But the trap is armed, not hypothetical:** `curve` is authorable on BOTH
-surfaces today — `GraphFigureView.tsx` excludes only `expression` from its
-drawable kinds, and a `graph: curve y = x^2` line inside a ```reference fence
-imports as a `curve` drawable with no warning (only `expression` warns). The
-first teacher who draws a parabola on a formula sheet gets an empty grid on
-screen and on paper. Until convergence lands, the cheap guard is to **refuse
-`curve` at both authoring surfaces the way `expression` already is** (editor
-kind filter + importer warning), so the loss is loud at authoring time rather
-than silent at render.
+**What is still open, and why it was NOT fixed in CSS.** The grid and axes keep
+the light palette. That is not a WCAG failure (dark axes measure 3.75:1, over
+the 3:1 graphics floor) but the grid at 12:1 is LOUDER than the data drawn on
+it, which is backwards. It was deliberately not fixed viewer-side: the only
+selector that reaches those groups matches the engine's own hex
+(`g[stroke="#cbd5e1"]`), and `styles.test.ts`'s token-only guard correctly
+refuses a colour literal in `viewer.css`. The fix belongs in the engine.
 
-**Convergence is +4.3 KiB gz net in the EAGER shell** (`graph_figure` is
-`loading:'eager'`), so it is gated on the shell-slim ladder resuming, or on
-`graph_figure` moving to a lazy binding. Do not treat it as free cleanup.
+Also still open: the fix is a VIEWER override of an ENGINE default, so every
+other consumer of `renderGraphSvg` keeps the light-only palette — the editor's
+`GraphFigureView` preview and `ChoiceFigureEditor` thumbnails most obviously,
+which is where a teacher authors in dark mode and sees chrome the student does
+not get.
 
-**Depends on:** the choice-figures slice landing (it introduces the dynamic-import
-pattern convergence would reuse).
+**Where to start:** the kit already solved this for the INTERACTIVE board — it
+consumes `--gk-board-*` as `var(x, fallback)` in inline SVG attributes, so the
+same shape works here (`graph-svg.ts`'s three constants become
+`var(--gk-svg-grid, #cbd5e1)` etc.). ⚠ Verify `var()` actually resolves in a
+presentation attribute in the target browsers before committing to it — the
+viewer's CSS-override approach works precisely because it does not depend on
+that. And whatever ships must keep PRINT black-on-white (tokens.css's
+`@media print` block is what currently guarantees that).
+
+**Depends on:** nothing. Not urgent — the two student-facing surfaces are fixed.
 
 ## The matching interaction the registry already claims — drag / select-then-place (2026-08-22)
 

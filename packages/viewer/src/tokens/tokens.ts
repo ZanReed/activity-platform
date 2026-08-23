@@ -82,6 +82,8 @@ export const staticTokens = [
   '--touch-target',
   '--vw-figure-cap',
   '--vw-figure-cap-print',
+  '--vw-figure-cap-standalone',
+  '--vw-figure-cap-standalone-print',
   '--vw-radius-sm',
   '--vw-radius-md',
   '--vw-radius-lg',

@@ -19,81 +19,60 @@
 //         │   solution — never image or graph)    │
 //         ▼                                       ▼
 //   ┌──────────────────── <ChoiceFigure> ─────────────────────┐
-//   │  box reserved via aspect-ratio BEFORE anything arrives  │
+//   │        rendered synchronously, nothing to wait for       │
 //   └──────┬───────────────────────────────────┬──────────────┘
 //          │ graph                             │ image
 //          ▼                                   ▼
-//   await import('@activity/graph-kit/         <img loading="lazy">
-//                 static-svg')                  │ onError
-//   renderGraphSvg(axis, drawables, uid)        ▼
-//          │                                   alt text in a dashed box
-//          ▼
+//   renderGraphSvg(axis, drawables, uid)       <img loading="lazy">
+//          │  (static import)                   │ onError
+//          ├── '' (degenerate window) ──┐       ▼
+//          ▼                            ▼      alt text in a dashed box
+//   <span dangerouslySetInnerHTML>   "Figure unavailable"
+//                                     data-figure-unavailable="degenerate-axis"
+//
 //   uid = blockId + '-' + ownerId — SVG ids are document-global, so two
 //   choice graphs on one question would collide on clipPath/marker ids.
 //
-// WHY THE ENGINE IS IMPORTED LAZILY, when the component using it is eager.
-// `bindings.ts` is 19 eager bindings to 4 lazy, and `multiple_choice` and
-// `matching` are both EAGER — so a static import of the SVG engine would land
-// in the student shell, not in a block chunk. Measured at review time: the
-// engine is 5.07 KiB gz against a shell budget with 13.5 KiB of headroom, i.e.
-// 38% of the remaining room, for a feature most worksheets never use. So the
-// import is dynamic, mirroring `kitSurfaces.ts`'s chunk boundary.
+// THE ENGINE IS A STATIC IMPORT (ruling 9A, 2026-08-23) — this consciously
+// REVERSES the lazy import this component shipped with (choice-figures E1/T0).
+// The reversal came from measuring what that ruling estimated: the built
+// `graph-svg` chunk is ~3.3 KiB gz, not the 5.07 KiB quoted (that figure was
+// the whole `static-svg` subpath, which a dynamic import pulls as FIVE chunks,
+// number-line and data-plot renderers included, for a choice graph that needs
+// none of them).
 //
-// The usual objection to a lazy figure is the layout jump when it arrives.
-// That is already answered: the box is reserved by `aspect-ratio` before the
-// engine resolves (ruling A8), so nothing reflows — the figure fades into a
-// space that was always its size.
+// What 3.3 KiB bought back: this component used to carry a two-state dance —
+// a cached engine promise, a module-level resident cache, an effect, a
+// reserved placeholder, and a `data-figure-pending` marker for the print path
+// to wait on. All of it is gone. A synchronous figure cannot be captured
+// half-rendered, which matters because the foldable takes `outerHTML` of this
+// DOM (`capture.ts`); a placeholder caught mid-flight became permanent
+// booklet content.
 //
-// PAPER. A lazily-rendered figure could be absent at print time, and paper has
-// no second render. Two things hold that: `choiceFigurePreload` warms the chunk
-// as soon as a document containing a choice graph mounts, and until every
-// figure has resolved this component marks itself `data-figure-pending`, which
-// `printReadiness` waits on — the same DOM-predicate discipline it uses for
-// `[data-math-pending]` (assert the real state, not a proxy that usually
-// agrees with it).
+// ⚠ The header used to claim two mechanisms held paper correct: a
+// `choiceFigurePreload` that warmed the chunk, and a `printReadiness` wait on
+// `[data-figure-pending]`. NEITHER WAS EVER BUILT — `kitPreload.ts` warmed
+// only JSXGraph and `printReadiness` polled only math and images, while the
+// design doc ticked the task done. Both claims are now moot rather than
+// fixed: there is no chunk to warm and no pending state to wait for.
 // =============================================================================
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { renderGraphSvg } from '@activity/graph-kit/static-svg';
 import { VISUALLY_HIDDEN } from './canvasChrome.js';
 import type { ChoiceFigureHolder } from './figureSlot.js';
 
-/** Rendered SVG markup, or `null` while the engine chunk is still loading. */
-type GraphState = { readonly svg: string } | null;
-
-type SvgEngine = typeof import('@activity/graph-kit/static-svg');
-type GraphArgs = Parameters<SvgEngine['renderGraphSvg']>;
+type GraphArgs = Parameters<typeof renderGraphSvg>;
 
 // The cast recovers TUPLE-NESS, not correctness — the same one-argument cast
-// InteractiveGraph.tsx makes at this identical boundary, for the identical
-// reason: the sanitized projection rebuilds object types structurally and
-// tuples do not survive that, so `[number, number]` arrives as `number[]`.
-// The values are already exactly what the renderer wants; only the type
-// widened. Confined to these two arguments.
-function drawGraph(
-  engine: SvgEngine,
-  graph: { axis: unknown; drawables: unknown },
-  uid: string,
-): string {
-  return engine.renderGraphSvg(graph.axis as GraphArgs[0], graph.drawables as GraphArgs[1], uid);
+// InteractiveGraph.tsx and GraphFigure.tsx make at this identical boundary, for
+// the identical reason: the sanitized projection rebuilds object types
+// structurally and tuples do not survive that, so `[number, number]` arrives as
+// `number[]`. The values are already exactly what the renderer wants; only the
+// type widened. Confined to these two arguments.
+function drawGraph(graph: { axis: unknown; drawables: unknown }, uid: string): string {
+  return renderGraphSvg(graph.axis as GraphArgs[0], graph.drawables as GraphArgs[1], uid);
 }
-
-/**
- * The lazily-imported renderer, cached after the first resolve so a question
- * with four graphs pays one import, not four.
- */
-let enginePromise: Promise<SvgEngine> | null = null;
-
-export function loadSvgEngine(): Promise<SvgEngine> {
-  enginePromise ??= import('@activity/graph-kit/static-svg');
-  return enginePromise;
-}
-
-/** True once the engine is resident — lets a caller skip the pending marker. */
-export function svgEngineResident(): boolean {
-  return enginePromise !== null && residentEngine !== null;
-}
-
-let residentEngine: SvgEngine | null = null;
 
 export interface ChoiceFigureProps {
   /** The choice / item / target carrying the optional figure. */
@@ -124,38 +103,22 @@ export function ChoiceFigure({
   // enforce exclusivity, so this only decides an authored-by-hand document.
   const graph = image ? undefined : owner.graph;
 
-  const [rendered, setRendered] = useState<GraphState>(() =>
-    graph && residentEngine
-      ? { svg: drawGraph(residentEngine, graph, `${blockId}-${owner.id}`) }
-      : null,
-  );
+  // Synchronous: the engine is a static import (see the header). '' means the
+  // engine refused a degenerate window, which takes the same legible fallback
+  // the image branch uses rather than rendering a blank.
+  const svg = graph ? drawGraph(graph, `${blockId}-${owner.id}`) : '';
   const [imageFailed, setImageFailed] = useState(false);
-
-  useEffect(() => {
-    if (!graph || rendered) return;
-    let live = true;
-    void loadSvgEngine().then((engine) => {
-      residentEngine = engine;
-      if (!live) return;
-      setRendered({ svg: drawGraph(engine, graph, `${blockId}-${owner.id}`) });
-    });
-    return () => {
-      live = false;
-    };
-  }, [graph, rendered, blockId, owner.id]);
 
   if (!image && !graph) return null;
 
   // The pending marker printReadiness polls. Present only while a graph is
   // genuinely unresolved — an image does not need it (printReadiness already
   // waits on images, and a failed one has a legible fallback).
-  const pending = graph && !rendered ? { 'data-figure-pending': 'true' } : {};
-
   return (
     <span
       className="viewer-choice-figure"
       data-choice-figure={image ? 'image' : 'graph'}
-      {...pending}
+      {...(graph && svg === '' ? { 'data-figure-unavailable': 'degenerate-axis' } : {})}
     >
       {image ? (
         imageFailed ? (
@@ -178,17 +141,20 @@ export function ChoiceFigure({
             onError={() => setImageFailed(true)}
           />
         )
-      ) : rendered ? (
+      ) : svg === '' ? (
+        // The engine refused the window (xMin >= xMax). Same legible failure
+        // as the broken-image branch above, for the same reason: a blank tells
+        // a student nothing and prints as nothing.
+        <span className="viewer-choice-figure__failed" role="img" aria-label="Figure unavailable">
+          Figure unavailable
+        </span>
+      ) : (
         <span
           className="viewer-choice-figure__graph"
           // The ONLY dangerouslySetInnerHTML in the choice surfaces. Input is
           // always renderGraphSvg output, which escapes authored strings.
-          dangerouslySetInnerHTML={{ __html: rendered.svg }}
+          dangerouslySetInnerHTML={{ __html: svg }}
         />
-      ) : (
-        // The reserved box. Same aspect as the figure that will land in it, so
-        // the arrival is a fade, not a jump.
-        <span className="viewer-choice-figure__placeholder" aria-hidden="true" />
       )}
 
       {/* A4, graph branch: renderGraphSvg hardcodes aria-hidden on its <svg>,

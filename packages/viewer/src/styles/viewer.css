@@ -503,9 +503,64 @@
   margin: 0;
 }
 
-.viewer-figure__svg {
+/* The engine's <svg> is a DIRECT child of .viewer-figure (GraphFigure sets the
+ * markup on the figure itself, deliberately — a wrapper element would push the
+ * svg out of reach of the `figure/capped` print rule's `.viewer-figure > svg`
+ * target and the rule would pass by matching nothing). It carries the engine's
+ * own `graph-paper` class, which the viewer does not style: sizing belongs to
+ * the surface, drawing belongs to the engine. */
+.viewer-figure > svg {
   color: var(--vw-color-ink);
   display: block;
+  height: auto;
+  max-width: var(--vw-figure-cap-standalone);
+  width: 100%;
+}
+
+/* THE STATIC-SVG ENGINE'S TICK LABELS ARE A LIGHT-ONLY PALETTE.
+ * `renderGraphSvg` hardcodes its chrome as presentation ATTRIBUTES — grid
+ * #cbd5e1, axes #64748b, tick labels #475569 — chosen for white paper. It is
+ * the print/no-JS renderer and it predates dark mode.
+ *
+ * Measured on the dark surface (#0f172a) before this rule: tick labels
+ * 2.36:1, which fails even the 3:1 floor for graphics, on a figure a student
+ * reads coordinates off. Presentation attributes lose to ANY css rule, so
+ * re-pointing them at the surface's own token costs one selector and no engine
+ * change. Token-based on purpose: print resets that token to black (tokens.css
+ * @media print), so a forced-dark student still prints a legible sheet. Light
+ * moves from ~7.5:1 to 4.76:1, comfortably still AA.
+ *
+ * SCOPED TO TEXT, DELIBERATELY. The grid and axes are left alone: measured,
+ * the dark axes are 3.75:1 (over the 3:1 floor) and the grid is legible, so
+ * neither is a defect — and the only way to reach them from here is a selector
+ * matching the engine's hex (`g[stroke="#cbd5e1"]`), which would put a colour
+ * literal in this file and trip the token-only guard for a change nothing
+ * measured asked for. The grid being LOUDER than the data on dark is a real
+ * design nit; it belongs in the engine, and it is filed in TODOS.
+ *
+ * The DRAWABLES keep the engine's colours everywhere: they carry authored
+ * meaning ("the blue line"), they clear 3:1 on both surfaces, and they must
+ * look the same on paper as on screen. */
+.viewer-figure > svg text,
+.viewer-choice-figure__graph svg text {
+  fill: var(--vw-color-ink-muted);
+}
+
+
+/* A figure the engine could not draw (degenerate axis window). Same legible
+ * failure as a broken choice image — a blank tells a student nothing, and
+ * whatever is on screen at print time is what prints. */
+.viewer-figure--unavailable {
+  align-items: center;
+  aspect-ratio: 1 / 1;
+  border: 1px dashed var(--vw-color-line);
+  border-radius: var(--vw-radius-md);
+  color: var(--vw-color-ink-muted);
+  display: flex;
+  font-size: var(--type-meta);
+  justify-content: center;
+  max-width: var(--vw-figure-cap-standalone);
+  text-align: center;
 }
 
 .viewer-objectives,
@@ -1878,9 +1933,17 @@
 
   /* ---- Treatment: figure --------------------------------------------------- */
 
-  .viewer-image__img,
-  .viewer-figure__svg {
+  .viewer-image__img {
     max-width: 100%;
+  }
+
+  /* The standalone figure on paper. Bounded by the printable column rather
+   * than by the screen cap: a formula-sheet picture is read, not compared, so
+   * it earns more of the page than a choice thumbnail does — but it must still
+   * never overrun the box, which is what `figure/capped` asserts. */
+  .viewer-figure > svg,
+  .viewer-figure--unavailable {
+    max-width: min(100%, var(--vw-figure-cap-standalone-print));
   }
 
   /* A2/A10: the paper cap on a choice figure. Without it four 400px-square

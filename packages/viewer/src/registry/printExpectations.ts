@@ -232,17 +232,22 @@ export const PAPER_COLOURS: readonly string[] = [
 const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] } = {
   prose: [],
 
-  figure: [
-    {
-      id: 'figure/capped',
-      rule: 'A figure is capped so it cannot run off the sheet.',
-      // Capping EVERY figure (not just an interactive canvas) was one of the
-      // improvements the cross-surface gate surfaced before it retired: a wide
-      // static graph_figure could otherwise overrun the page box.
-      target: '.viewer-image__img, .viewer-figure__svg',
-      expect: { kind: 'max-width-capped' },
-    },
-  ],
+  // EMPTY ON PURPOSE — the cap rows live per TYPE, in TYPE_CHECKS below.
+  //
+  // This treatment serves BOTH `image` and `graph_figure`, whose markup has
+  // nothing in common, so the one shared row had to name both selectors:
+  // `.viewer-image__img, .viewer-figure__svg`. A comma-list target is a
+  // VACUITY HAZARD, and this one had gone vacuous: `.viewer-figure__svg` no
+  // longer exists (the converged GraphFigure renders the engine's own `<svg>`
+  // as a direct child), yet the row kept passing because the image half still
+  // matched. A row that can be satisfied by a DIFFERENT type than the one it
+  // is checking is not checking anything.
+  //
+  // Single-selector rows cannot fail this way and need no extra assertion to
+  // prove it: `printChecks.ts` returns `status: 'absent'` when a target
+  // matches zero elements, and `describeFailures` treats absent as a failure.
+  // Non-vacuity is the harness's job; keeping one selector per row is ours.
+  figure: [],
 
   'variant-border-box': [
     // The variant-specific border STYLE is added per-instance below: colour
@@ -459,6 +464,50 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
 // -----------------------------------------------------------------------------
 
 const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
+  image: [
+    {
+      id: 'image/capped',
+      rule: 'A printed image is capped so it cannot run off the sheet.',
+      target: '.viewer-image__img',
+      expect: { kind: 'max-width-capped' },
+    },
+  ],
+  graph_figure: [
+    {
+      // NOT `figure/capped` — that id belongs to the CHOICE figure cap below,
+      // and two rows sharing an id makes a gate report ambiguous.
+      id: 'figure/standalone-capped',
+      rule: 'A standalone graph figure is capped so it cannot run off the sheet.',
+      // A DIRECT child, and the component guarantees it: GraphFigure sets the
+      // engine markup on the <figure> itself rather than on a wrapper, so this
+      // selector cannot be pushed out of reach by an added element.
+      target: '.viewer-figure > svg',
+      expect: { kind: 'max-width-capped' },
+    },
+    {
+      id: 'figure/draws-its-drawables',
+      rule: 'A standalone figure prints drawables — an empty grid where a picture was authored is the content loss this block type shipped with for four months.',
+      // Bound to the engine's OWN output contract, the same `data-drawables`
+      // count the static-svg canvases assert through, so grid lines cannot
+      // satisfy it.
+      //
+      // ⚠ WHAT THIS ROW DOES NOT CATCH, measured rather than assumed. The
+      // count is of drawables the engine was GIVEN, so on a fixture carrying a
+      // curve AND a point, a renderer that silently dropped the curve still
+      // reports a non-zero count and this row PASSES — proven by mutation
+      // 2026-08-23 (filter out `curve`, run this gate: green). It catches
+      // "drew nothing at all", which is what the pre-convergence component did
+      // on a curve-only figure and what a broken engine call would do here.
+      //
+      // The row that catches a DROPPED KIND is
+      // `tests/components/graph-figure.test.tsx`, which asserts the count is
+      // exactly 2 and that both lines are stroked paths. Print gates the page;
+      // the component test gates the drawing. Neither is redundant, and
+      // neither should be described as doing the other's job.
+      target: '.viewer-figure > svg',
+      expect: { kind: 'drawable-count', zero: false },
+    },
+  ],
   interactive_graph: [
     {
       id: 'graph/hand-plottable-cap',

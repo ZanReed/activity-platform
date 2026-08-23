@@ -185,6 +185,16 @@
   --vw-figure-cap: 11rem;
   --vw-figure-cap-print: 1.75in;
 
+  /* The STANDALONE figure (graph_figure on the reference panel) is a different
+   * job from a choice thumbnail and needs its own cap. It is the picture a
+   * student reads FROM — "these two lines are parallel" — not one of four
+   * options compared side by side, so the 11rem above would shrink it 45%
+   * against what it renders at today. Kept as a token rather than a literal so
+   * the screen and print rules cannot drift (the reason the pair above exists).
+   * On paper it is bounded by the printable column, not by a fixed width. */
+  --vw-figure-cap-standalone: 20rem;
+  --vw-figure-cap-standalone-print: 3.25in;
+
   /* ---- Radii -------------------------------------------------------------*/
   --vw-radius-sm: 3px;       /* blanks */
   --vw-radius-md: 4px;       /* images, small chips */

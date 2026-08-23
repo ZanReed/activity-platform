@@ -422,15 +422,31 @@ aesthetic; a measuring instrument. Regenerate it if the caps change.
 Synthesized from the review's findings. P1 blocks ship; P2 lands same branch;
 P3 is a follow-up.
 
-- [x] **T0 (P1)** — viewer/blocks — **`<ChoiceFigure>`: ONE shared component** (image + graph, dynamic engine import, reserved box, error state, accessible naming)
+- [x] **T0 (P1)** — viewer/blocks — **`<ChoiceFigure>`: ONE shared component** (image + graph, ~~dynamic engine import, reserved box~~, error state, accessible naming)
+  - ⚠ **PARTLY REVERSED 2026-08-23.** The dynamic engine import and its reserved
+    box are GONE — the engine is a static import (graph-figure-convergence.md
+    ruling 9A). The measurement that reversed it: the built `graph-svg` chunk is
+    3.3 KiB gz, not the 5.07 KiB this slice costed it with (that figure was the
+    whole `static-svg` subpath, which a dynamic import pulls as five chunks).
+    The shared-component decision itself (CQ-1) stands and was never in question.
   - Surfaced by: CQ-1 (DRY — the editor already shares `FigureHolder`/`ChoiceFigureEditor`); E1; A4; A8
   - Files: new `packages/viewer/src/blocks/ChoiceFigure.tsx`
   - **The single `dangerouslySetInnerHTML` audit point.** Carries the ASCII data-path diagram in its header
   - Verify: content assertions (`img[src]`, `svg[data-drawables]`), not existence
-- [x] **T0b (P1)** — viewer/blocks — Preload walk + print-readiness marker for choice graphs
-  - Surfaced by: E1. **Derive the trigger by document walk — NOT a registry flag, NOT a second roster** (policy P4)
-  - Files: `packages/viewer/src/blocks/kitPreload.ts` (or a sibling), `packages/viewer/src/print/printReadiness.ts`
-  - Verify: a document with a choice graph warms the chunk; print waits on the marker
+- [~] **T0b (P1)** — ⚠ **TICKED HERE, NEVER BUILT — and now MOOT (2026-08-23).**
+  - This box was checked while `choiceFigurePreload` and the `printReadiness`
+    wait on `[data-figure-pending]` did not exist in any form: `kitPreload.ts`
+    warmed only JSXGraph, and `printReadiness.ts` polled math, lazy Suspense
+    fallbacks and images. `ChoiceFigure.tsx`'s header asserted both mechanisms
+    for eight days, which is how it was found — by reading the header while
+    scoping a different slice, not by any test.
+  - **It is moot rather than owed.** [graph-figure-convergence.md](graph-figure-convergence.md)
+    made the SVG engine a static import (ruling 9A, reversing E1/T0 below), so
+    there is no chunk to preload and no pending state to wait for. The work
+    this box described cannot be done because its subject is gone.
+  - **The lesson is the durable part:** a ticked box is a claim, and this repo
+    now has two instances of a claim outliving its implementation in the same
+    component. Verify against RENDERED OUTPUT, never against a checkbox.
 - [x] **T1 (P1)** — viewer/blocks — Mount `<ChoiceFigure>` in `MultipleChoice.tsx`
   - Surfaced by: the orphan itself; A1/A5/A7
   - Files: `packages/viewer/src/blocks/MultipleChoice.tsx`

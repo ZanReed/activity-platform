@@ -136,3 +136,71 @@ for (const theme of ['light', 'dark'] as const) {
         expect(contrast(r['warning-strong'], r['warning-bg'])).toBeGreaterThanOrEqual(AA);
     });
 }
+
+// -----------------------------------------------------------------------------
+// The static-svg figure's CHROME (graph-figure-convergence, T7).
+//
+// `renderGraphSvg` hardcodes its grid, axes and tick labels as presentation
+// ATTRIBUTES in a light-only palette (#cbd5e1 / #64748b / #475569) — it is the
+// print renderer and it predates dark mode. Measured on the dark surface before
+// viewer.css re-pointed them at tokens: tick labels 2.36:1, below even the 3:1
+// floor for graphics, on a figure a student is meant to READ COORDINATES from.
+//
+// This row exists because that failure was invisible to every other lane: the
+// print gate runs on white, the a11y lane runs axe (which does not evaluate SVG
+// presentation attributes against their surface), and the component tests run in
+// jsdom, which has no computed colour at all. It took a real browser in a real
+// theme, which is exactly what this file is.
+//
+// The DRAWABLES are deliberately not asserted here: their colour is authored
+// meaning ("the blue line"), it is identical on paper and on screen by design,
+// and it is the one part of the figure that must not follow the theme.
+for (const theme of ['light', 'dark'] as const) {
+    test(`${theme}: a graph figure's grid chrome is legible on the page`, async ({
+        page,
+    }) => {
+        await page.goto('/dev/viewer?type=graph_figure');
+        const figure = page.locator('.viewer-figure > svg');
+        await expect(figure).toBeVisible();
+
+        const measured = await page.evaluate((t) => {
+            const root = document.documentElement;
+            const prev = root.getAttribute('data-theme');
+            root.setAttribute('data-theme', t);
+
+            const svg = document.querySelector('.viewer-figure > svg')!;
+            const rgb = (s: string): [number, number, number] =>
+                s.match(/\d+(\.\d+)?/g)!.slice(0, 3).map(Number) as [number, number, number];
+
+            // The first opaque ancestor is what the figure actually sits on.
+            let el: HTMLElement | null = svg.parentElement;
+            let bg = 'rgba(0, 0, 0, 0)';
+            while (el && (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent')) {
+                bg = getComputedStyle(el).backgroundColor;
+                el = el.parentElement;
+            }
+
+            const groups = svg.querySelectorAll('g[stroke]');
+            const out = {
+                surface: rgb(bg),
+                label: rgb(getComputedStyle(svg.querySelector('text')!).fill),
+                axis: rgb(getComputedStyle(groups[1]!).stroke),
+            };
+            if (prev) root.setAttribute('data-theme', prev);
+            else root.removeAttribute('data-theme');
+            return out;
+        }, theme);
+
+        // Tick labels are TEXT a student reads, so they carry the full AA bar.
+        expect(
+            contrast(measured.label, measured.surface),
+            `${theme}: tick labels must be readable, not merely present`,
+        ).toBeGreaterThanOrEqual(AA);
+
+        // Axes are a graphical object: the 3:1 floor, not 4.5.
+        expect(
+            contrast(measured.axis, measured.surface),
+            `${theme}: the axes must be distinguishable from the page`,
+        ).toBeGreaterThanOrEqual(3);
+    });
+}

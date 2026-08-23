@@ -689,7 +689,19 @@ function authoredRawByType(
     id: fid(),
     type: 'graph_figure',
     axis: { xMin: -5, xMax: 5, yMin: -5, yMax: 5 },
-    drawables: [{ kind: 'point', at: [0, -1] }],
+    // A LINE and a point, deliberately. A line is `{kind:'curve', family:
+    // 'linear'}` — there is no `line` kind — and the pre-convergence renderer
+    // skipped every curve, so this fixture drew a lone dot on an empty grid
+    // and every fixture-driven lane (print rules, baselines, a11y, dark
+    // contrast) agreed that was correct. The curve is what makes those lanes
+    // exercise the path that carried the bug.
+    drawables: [
+      {
+        kind: 'curve',
+        model: { family: 'linear', slope: 1, intercept: 2, slopeTolerance: 0.1, interceptTolerance: 0.1 },
+      },
+      { kind: 'point', at: [0, -1] },
+    ],
   });
 
   return m;

@@ -1,6 +1,6 @@
 # Graph-figure convergence — `GraphFigure.tsx` → `renderGraphSvg`
 
-**Status:** ENG-REVIEWED + DX-REVIEWED 2026-08-23 (10 eng findings + outside voice + 8 DX decisions, 0 unresolved) — ready to build.
+**Status:** ✅ **BUILT 2026-08-23 — T0–T9 done; T10 (print baselines) is the author's.** Eng-reviewed + DX-reviewed (10 eng findings + outside voice + 9 DX decisions, 0 unresolved). Read the AS BUILT section at the bottom, not only the plan above it — three things changed shape at build time.
 
 Closes the TODOS entry "Converge the two SVG engines" (filed by the
 choice-figures eng review, E2/CQ-2), which 2026-08-23 scoping turned from
@@ -284,47 +284,132 @@ names its file, its command and its lane so no discovery grep is needed.
   - **⚠ Trap for whoever re-runs the import:** `import:batch` reports every DB row whose `source_path` is absent from the folder you point it at, so importing a one-file folder lists the author's real catalogue as orphans. That is D2 working (report, never act — nothing was changed), not a problem. Point it at the real catalogue folder, or ignore the orphan list on a scratch run.
   - Not done, deliberately: **no DB row was written and nothing was published.** The dry run plus the render proof answered the question without leaving residue (policy P7). Import for real only if the browser-level print check is wanted after T1.
 
-- [ ] **T1 (P1, human: ~3h / CC: ~12 min)** — viewer/blocks — Rewrite `GraphFigure.tsx` on a static `renderGraphSvg` import; wrapper `role=img`; `''` → fallback with `data-figure-unavailable`; delete the false header
+- [x] **T1 (P1, human: ~3h / CC: ~12 min)** — viewer/blocks — Rewrite `GraphFigure.tsx` on a static `renderGraphSvg` import; wrapper `role=img`; `''` → fallback with `data-figure-unavailable`; delete the false header
   - Surfaced by: Step 0 finding; rulings 9A, 5A, 6A, DX D7
   - Files: `packages/viewer/src/blocks/GraphFigure.tsx`
   - Verify: `pnpm --filter @activity/viewer exec vitest run tests/components/GraphFigure.test.tsx`
-- [ ] **T2 (P1, human: ~2h / CC: ~8 min)** — viewer/blocks — `ChoiceFigure.tsx`: delete the lazy loader, effect, placeholder, marker and header claims; redraw the ASCII diagram; `''` → fallback
+- [x] **T2 (P1, human: ~2h / CC: ~8 min)** — viewer/blocks — `ChoiceFigure.tsx`: delete the lazy loader, effect, placeholder, marker and header claims; redraw the ASCII diagram; `''` → fallback
   - Surfaced by: P11 finding #1; rulings 9A, 6A, DX D8
   - Files: `packages/viewer/src/blocks/ChoiceFigure.tsx`
   - **Claims-grep before committing (policy P5, DX D8):** `grep -rn "loadSvgEngine\|svgEngineResident\|data-figure-pending\|choiceFigurePreload" packages docs --include='*.ts' --include='*.tsx' --include='*.md' | grep -v node_modules | grep -v /dist/` must return only the choice-figures design doc's corrected T0b line.
   - Verify: `node --test scripts/tests/export-reachability.test.mjs` + `pnpm --filter @activity/viewer exec vitest run tests/components/choice-figures.test.tsx`
-- [ ] **T3 (P1, human: ~1h / CC: ~5 min)** — viewer/styles — `--vw-figure-cap-standalone` (20rem) + print variant; `.viewer-figure svg` rule
+- [x] **T3 (P1, human: ~1h / CC: ~5 min)** — viewer/styles — `--vw-figure-cap-standalone` (20rem) + print variant; `.viewer-figure svg` rule
   - Surfaced by: OV-a
   - Files: `packages/viewer/src/tokens/tokens.css`, `packages/viewer/src/styles/viewer.css`
   - Verify: `pnpm --filter @activity/app exec playwright test print-rules`
-- [ ] **T4 (P1, human: ~1.5h / CC: ~6 min)** — viewer/registry — `graph_figure` row gets `drawable-count {zero:false}`; split `figure/capped` into two single-selector rows (no new counting code — cite `printChecks.ts:76-83`/`:256`)
+- [x] **T4 (P1, human: ~1.5h / CC: ~6 min)** — viewer/registry — `graph_figure` row gets `drawable-count {zero:false}`; split `figure/capped` into two single-selector rows (no new counting code — cite `printChecks.ts:76-83`/`:256`)
   - Surfaced by: OV-d, OV-e; rulings 4A, DX D6
   - Files: `packages/viewer/src/registry/printExpectations.ts`
   - Verify: `pnpm --filter @activity/app exec playwright test print-rules` — an `absent` outcome fails the row
-- [ ] **T5 (P1, human: ~30min / CC: ~3 min)** — viewer/fixtures — `graph_figure` fixture gains a linear `curve` beside its point
+- [x] **T5 (P1, human: ~30min / CC: ~3 min)** — viewer/fixtures — `graph_figure` fixture gains a linear `curve` beside its point
   - Surfaced by: D5.3
   - Files: `packages/viewer/src/fixtures/index.ts`
   - Verify: `pnpm --filter @activity/viewer test` (blockIndex + T4's count reads 2)
-- [ ] **T6 (P2, human: ~20min / CC: ~2 min)** — viewer/print — delete `mode="print"` + the `as never` cast at `DefinitionGlossary.tsx:133`
+- [x] **T6 (P2, human: ~20min / CC: ~2 min)** — viewer/print — delete `mode="print"` + the `as never` cast at `DefinitionGlossary.tsx:133`
   - Surfaced by: OV-c
   - Files: `packages/viewer/src/print/DefinitionGlossary.tsx`
   - Verify: `pnpm typecheck`
-- [ ] **T7 (P2, human: ~1h / CC: ~6 min)** — app/e2e — verify the engine palette on the dark theme in a real browser, then add a figure row to `dark-contrast.e2e.ts`
+- [x] **T7 (P2, human: ~1h / CC: ~6 min)** — app/e2e — verify the engine palette on the dark theme in a real browser, then add a figure row to `dark-contrast.e2e.ts`
   - Surfaced by: OV-b
   - Files: `packages/app/e2e/dark-contrast.e2e.ts`
   - **Lane:** `dark-contrast.e2e.ts` runs in the **chromium** project (`playwright.config.ts:106`, `testIgnore` excludes only student/sw/perf/a11y/integration), i.e. the `editor-gates` CI job on every push.
   - Verify: `pnpm --filter @activity/app exec playwright test dark-contrast --project=chromium`
-- [ ] **T8 (P1, human: ~30min / CC: ~3 min)** — scripts — record the perf delta and the mutation proof; prove no bundle drift
+- [x] **T8 (P1, human: ~30min / CC: ~3 min)** — scripts — record the perf delta and the mutation proof; prove no bundle drift
   - Surfaced by: ruling 9A; OV-11; DX D4
   - Verify: `node scripts/check-perf-budget.mjs` before/after (numbers in the commit message) · `pnpm bundle:viewer-server` then `git diff --stat` shows zero · `pnpm verify`
   - **Mutation proof, recorded not just run (DX D4):** revert the curve case in `GraphFigure.tsx`, run T1's command, and paste the failing line into the commit message and the AS-BUILT note — the shape `numbering-output.test.tsx` established.
   - **Dogfood proof (DX D9):** re-open T0's activity and confirm the two parallel lines now draw on one grid, on screen and in the print preview. The before/after pair goes in the AS-BUILT note. This is the only proof that crosses the importer → viewer boundary.
-- [ ] **T9 (P2, human: ~45min / CC: ~5 min)** — docs — choice-figures T0b + E1 corrected; DECISIONS entry; TODOS close; STATE baseline-red note; AS-BUILT section here
+- [x] **T9 (P2, human: ~45min / CC: ~5 min)** — docs — choice-figures T0b + E1 corrected; DECISIONS entry; TODOS close; STATE baseline-red note; AS-BUILT section here
   - Surfaced by: D6; TODO ruling
   - Files: `docs/design/choice-figures-and-nested-lists.md`, `docs/DECISIONS.md`, `TODOS.md`, `STATE.md`, this doc
-- [ ] **T10 (P1, author station)** — print baselines regenerated on Linux and committed
+- [ ] **T10 (P1, AUTHOR STATION — the only step left)** — print baselines regenerated on Linux and committed
   - Surfaced by: D6
   - **Runbook (DX D3):** GitHub Actions → **CI** workflow → *Run workflow* with the **`update_print_baselines`** input ticked (`.github/workflows/ci.yml:381-410`). The job runs `playwright test print-baselines --update-snapshots` and uploads a **`print-baselines`** artifact; unzip it over `packages/app/e2e/print-baselines.e2e.ts-snapshots/` and commit. CI's print-gates job is RED until it lands — that red is expected, and STATE says so.
+
+## AS BUILT (2026-08-23)
+
+**The fix is one component calling the one engine.** `GraphFigure.tsx` lost its
+hand-rolled SVG and now calls `renderGraphSvg` through a static import;
+`ChoiceFigure.tsx` lost the lazy loader, the resident cache, the effect, the
+reserved box and the pending marker. Both take a legible "Figure unavailable"
+fallback when the engine refuses a degenerate window.
+
+**Three things changed shape from the plan. Read these, not the plan above.**
+
+1. **`mode` is REQUIRED, so OV-c was half wrong.** The outside voice reported
+   that `DefinitionGlossary.tsx:133` passed a `mode="print"` prop
+   `GraphFigure` never accepted, and the plan said to delete it. Deleting it is
+   a **type error**: `mode` is a required field of `BlockComponentProps`
+   (`registry/types.ts:222`). The component ignores it — that part was right —
+   but the prop is part of the shared contract. It stays, with a comment saying
+   why the glossary passes `"print"` deliberately rather than by inheritance.
+
+2. **The `drawable-count` print row is weaker than its name.** It counts
+   drawables the engine was GIVEN, so on the fixture (a curve AND a point) a
+   renderer that silently dropped the curve still reports a non-zero count and
+   the row PASSES — proven by mutation, not reasoned about. The row that
+   catches a dropped KIND is `graph-figure.test.tsx`, which asserts the count
+   is exactly 2 and both lines are stroked paths. The row's comment now says
+   what it does and does not catch, rather than implying it covers both.
+
+3. **Dark mode was broken, and the plan only asked us to look.** T7 said
+   "verify in the browser". Measured on `#0f172a`: tick labels **2.36:1**,
+   below even the 3:1 floor for graphics, on a figure a student reads
+   coordinates off. Invisible to every other lane — the print gate runs on
+   white, axe does not evaluate SVG presentation attributes against their
+   surface, and jsdom has no computed colour at all. Fixed in `viewer.css` by
+   re-pointing the engine's tick labels at `--vw-color-ink-muted` (now
+   **6.96:1** dark, 4.76:1 light, both AA).
+
+   **Scoped to TEXT after two rejected attempts, both rejected on
+   measurement.** Re-pointing the grid at `--vw-color-line` put it at 1.22:1
+   (themed, practically invisible); `--vw-color-ink-faint` dropped the LIGHT
+   axes to 2.56:1, under the graphics floor. The version that survived left
+   grid and axes alone entirely: measured, dark axes are 3.75:1 (over the
+   floor) and the grid is legible, so **neither was a defect** — and the only
+   way to restyle them from CSS is a selector matching the engine's hex
+   (`g[stroke="#cbd5e1"]`), which trips the repo's token-only guard. That
+   guard caught the attempt, correctly. The grid being louder than the data on
+   dark is a real design nit, it belongs in the ENGINE, and it is filed.
+
+**Measured, all recorded rather than estimated:**
+
+| | before | after |
+|---|---|---|
+| shell JS (entry chunk, gz) | 143.2 KiB | **145.4 KiB** (cap 158.0) |
+| dark tick-label contrast | 2.36:1 | **6.96:1** |
+| light grid / axes contrast | 1.48 / 4.76 | **unchanged** |
+| `pnpm bundle:viewer-server` drift | — | **zero** (the "no regeneration" claim, verified) |
+
+The +2.2 KiB is under the +3.4 the review predicted, because the hand-rolled
+engine left in the same change and the subpath's number-line/data-plot siblings
+tree-shook out — the thing OV#2 warned might not happen.
+
+**Every guard was mutation-proven, and the output is recorded so nobody re-runs it:**
+
+- Revert the fix (filter `curve` out before rendering) → `graph-figure.test.tsx`
+  reports **3 failed | 8 passed**, naming the parallel lines, the parabola and
+  the colour rows. Restored: 11 passed.
+- Wrap the svg in a span (breaking the direct-child contract) →
+  `print-rules` fails with **"no element matched `.viewer-figure > svg`"**,
+  which is `printChecks.ts`'s `absent` status doing exactly the non-vacuity job
+  the DX review said it would (D6), with no extra counting code.
+- Remove the label token re-point → the **dark** `dark-contrast` row fails and
+  the **light** one stays green, which is the correct asymmetry: the engine's
+  palette was designed for white.
+
+**What T0 found that changed the tests.** Beyond the curve bug, the old
+renderer silently degraded the drawables that supposedly worked: no arrowheads
+on rays, no endpoint dots, no point labels, no authored colour. Four rows in
+`graph-figure.test.tsx` pin those, because "it drew something" was never the
+contract.
+
+**Still owed — T10, the author's:** the fixture gained a linear curve, so the
+Linux print baselines move. Regenerate via GitHub Actions → **CI** → *Run
+workflow* with **`update_print_baselines`** ticked (`ci.yml:381-410`), unzip the
+`print-baselines` artifact over
+`packages/app/e2e/print-baselines.e2e.ts-snapshots/`, commit. **CI's print-gates
+job is RED until that lands, and that red is expected.**
 
 ## GSTACK REVIEW REPORT
 

@@ -129,9 +129,13 @@ function GlossaryBlock({ block }: { block: DefinitionBlock }): ReactElement | nu
     case 'graph_figure':
       // The kit-free static figure — the reason graph_figure exists apart from
       // a display graph, and what makes it printable at all.
-      return (
-        <GraphFigure block={block as GraphFigureBlock as never} mode="print" />
-      );
+      // `mode` is REQUIRED by BlockComponentProps, and this call site is the
+      // glossary, which only ever renders on paper — so it says so, rather
+      // than passing a value it inherited. GraphFigure itself ignores `mode`
+      // (it renders identical markup on both surfaces; the print differences
+      // are CSS), but the prop is part of the shared component contract and
+      // dropping it is a type error, not a cleanup.
+      return <GraphFigure block={block as GraphFigureBlock as never} mode="print" />;
 
     default:
       return null;

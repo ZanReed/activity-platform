@@ -1009,3 +1009,51 @@ numbering grid, `numbered`, and this set).
   group. Per-component accessible names were rejected: ~10 edits, no answer for
   a numbered block with no focusable control, and a ten-radio question would say
   "problem 3" ten times.
+
+## The static-SVG engine is EAGER, and one renderer serves every figure (2026-08-23, graph-figure convergence 9A)
+
+**Reverses** the choice-figures ruling E1/T0 (2026-08-22), which imported the
+engine dynamically. Twenty-four hours is a short half-life for an architecture
+decision, so the reason it moved matters more than the decision.
+
+**What was wrong underneath.** The viewer had TWO kit-free SVG engines for one
+job: `renderGraphSvg` (graph-kit) and a hand-rolled one inside
+`GraphFigure.tsx` that skipped `curve` drawables. **There is no `line` drawable
+kind** — a line is `{kind:'curve', model:{family:'linear'}}` — so the second
+engine dropped every line a teacher drew on a formula sheet, on screen and on
+paper, while the editor's own preview (always `renderGraphSvg`) showed it
+correctly. Its header called this "a guard against future drift, not a live
+gap". It was a live gap for four months. Nothing caught it because the only
+fixture authored a lone point and the registry's tests compared declarations to
+declarations.
+
+**Why eager, against D16's "eager statics, lazy heavies".** D16 was written for
+20+ KiB heavies. The built `graph-svg` chunk is **3,254 B gz** — the 5.07 KiB
+that justified the lazy ruling was the whole `static-svg` subpath, which a
+dynamic import pulls as FIVE chunks (number-line and data-plot renderers
+included) for a figure that needs one. Measured cost of going static:
+**+2.2 KiB gz** on a 143.2 KiB shell under a 158 cap, because the hand-rolled
+engine left in the same change.
+
+What 2.2 KiB bought: the deletion of a pending marker, a print-readiness wait,
+a preload walk, a reset-on-failure retry, an extracted loader module, an
+offline e2e row, and a perf absence row — six mechanisms that existed only to
+manage a seam. **A synchronous figure cannot be captured half-rendered**, which
+is load-bearing because the foldable takes `outerHTML` of this DOM: a
+placeholder caught mid-flight became permanent booklet content.
+
+**The generalisable half.** Two of those six mechanisms were documented as
+BUILT (`ChoiceFigure.tsx`'s header, the design doc's ticked T0b) and had never
+existed. Deleting the seam made a false claim moot rather than owed — the
+cheapest way to discharge documentation debt is sometimes to remove its
+subject. But the reason the claim survived eight days is the ordinary one: it
+was prose, and prose is not a guard.
+
+**Chrome follows the theme; drawables do not.** The engine hardcodes its grid,
+axes and tick labels as presentation attributes in a light-only palette. On
+the dark surface that put tick labels at **2.36:1**, below even the 3:1 floor
+for graphics, on a figure students read coordinates off. `viewer.css`
+re-points those three at surface tokens (presentation attributes lose to any
+CSS rule, so this costs one selector and no engine change), with tokens chosen
+so **light mode does not move**. The DRAWABLES keep the engine's colours:
+they carry authored meaning, and they must look the same on paper as on screen.
