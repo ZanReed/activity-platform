@@ -114,7 +114,16 @@ Work through each item; skip none silently — say "clean" per section in the re
 
 **6. Deploy-state and migration sync.**
 - `supabase/config.toml` is the authoritative per-function `verify_jwt` record; confirm it lists exactly the functions in `supabase/functions/` and that its prose header does not contradict its own entries (its opener claimed "three anonymous functions" against two entries until 2026-08-17).
-- Verify live flags/versions with `list_edge_functions` — **read the `version` field, NOT the `entrypoint_path` suffix beside it.** That misread produced a false "verified live" stamp twice.
+- Verify live FLAGS with `list_edge_functions` — read the `version` field, NOT
+  the `entrypoint_path` suffix beside it (that misread produced a false
+  "verified live" stamp twice). ⚠ **But `version` does NOT prove the code
+  changed, and 2026-08-23 is the third generation of this trap:** a successful
+  `deploy:get-activity` left `version` 24, `updated_at` byte-identical and
+  `ezbr_sha256` unchanged, and an audit concluded "not deployed" twice on that
+  evidence before grepping the deployed source and finding the change live.
+  **To verify CODE, `get_edge_function` and grep for a marker unique to the
+  change** — a bumped constant, a new identifier, plus the ABSENCE of a string
+  the old version carried. Treat an unmoved version as no information at all.
 - Migrations named in docs vs `supabase/migrations/`; migration *ranges* claimed by the compliance pack (see §7).
 - ⚰ **Dead:** kit-manifest sync, R2 upload ordering, ingest-before-republish. Nothing uploads anywhere.
 

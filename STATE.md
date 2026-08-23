@@ -8,38 +8,15 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **⏭ ONE ITEM IS OWED.** The table arc left nothing pending — 0039 applied, both functions redeployed and tool-verified, the print baseline committed, `unit-rate.md` republished. That narrative is in [HISTORY.md](docs/HISTORY.md); the durable RULES it produced are below and in CLAUDE.md.
 
-**🔴 REDEPLOY `get-activity` — STILL OWED as of 2026-08-23, and the SPA is now
-LIVE AHEAD OF IT.** ⚠ **A `pnpm deploy` attempt did NOT land**: there is no bare
-`deploy` script, so it failed at the shell, and `list_edge_functions` reads
-`get-activity` **v24, `updated_at` unchanged**. The command is
-**`pnpm deploy:get-activity`** (it is the only `--no-verify-jwt` function; the
-script carries that flag), and CLAUDE.md's rule applies — verify with
-`list_edge_functions` after, reading the `version` field.
-**The ordering is now inverted, harmlessly but deliberately worth knowing:** the
-push went out, so the viewer RENDERS reference panels on screen, while the
-served payload still comes from the old sanitizer that never stripped panel
-block keys. Re-measured after the push: **0 of 29 published versions carry a
-`referencePanel` at all** (newest version 2026-08-22), so the exposure is still
-zero — but the safe order was sanitizer-first, and it will be inverted until
-this deploy runs. `SANITIZER_REV` moved `1-07e6311d` → **`2-59a68ddc`**
-on 2026-08-23: the per-block strips now cover `referencePanel`, which they never
-did — the panel takes the full `Block` union, so a key-bearing block pasted
-there shipped its answer key to students. **The fix only reaches students once
-the new function is live**, and the leading `2` is a hand-bumped
-`SANITIZER_ALGO_REV` whose whole job is to orphan the read cache, so
-already-cached activities keep serving the OLD output until then.
-✅ **MEASURED against live data 2026-08-23 — there is NO exposure today, so this
-is a correctness fix to ship on the next convenient deploy, not an incident.**
-`0 of 29` published versions carry a `referencePanel` at all. Exactly one DRAFT
-does, holding 3 blocks — `paragraph`, `bullet_list`, `math_block` — none of
-which carries a key. Nothing has ever leaked.
-⚠ **Reachability, from code:** the markdown importer CANNOT produce it (the
-reference-fence grammar emits only headings, lists, images, graph figures and
-paragraphs) and the panel toolbar offers no question blocks. The path is a
-**PASTE** — `ReferencePanelEditor` registers MultipleChoice/Matching/Ordering/
-graph nodes to satisfy the column content schema, and `tiptapToReferencePanel`
-serializes the doc unfiltered. A teacher copying a question into a panel is
-ordinary but not accidental, which is why it had never happened.
+**✅ `get-activity` REDEPLOYED AND VERIFIED LIVE 2026-08-23 — the reference-panel
+leak fix is serving.** Proven by grepping the DEPLOYED source (`get_edge_function`):
+`SANITIZER_ALGO_REV = 2` and the `clone.referencePanel` strip loop are present,
+and the old "no declared strips outside blocks" comment is gone.
+⚠ **`list_edge_functions` said otherwise and was WRONG** — across this real
+deploy `version` stayed **24**, `updated_at` and `ezbr_sha256` were byte-identical,
+and a session concluded "the deploy did not land" twice on that evidence. The
+standing rule in CLAUDE.md is corrected: flags come from `list_edge_functions`,
+CODE comes from grepping the deployed source for a marker unique to the change.
 
 **⏳ `.env.supabase` line 23 holds a PRE-RESET database password.** The author rotated it after it was printed to a session transcript, so `pnpm verify:auth --target live` fails until the new connection string is pasted in. Unrelated to the table arc; still owed.
 
