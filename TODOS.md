@@ -94,6 +94,30 @@ interaction must keep both properties or the letters stop matching the bank.
 **Depends on:** the choice-figures slice landing first (it makes the case
 concrete and adds the fixtures a drag interaction would need to test against).
 
+## Reject a degenerate axis window at the authoring surfaces (eng review 2026-08-23, ruling 6A follow-on)
+
+**What:** A zod `refine` on `AxisConfig` (`xMax > xMin`, `yMax > yMin`) plus an
+inline error in the editor's axis NumCells and a warning from the importer's
+`axis:` line, so a teacher cannot publish a window the engine refuses to draw.
+
+**Why:** `renderGraphSvg` returns `''` for a degenerate window
+(`graph-svg.ts:513`). The graph-figure convergence slice makes the VIEWER show
+"Figure unavailable" in that case (ruling 6A) — a net, not a fix. The schema
+accepts the bad window, the editor's four NumCells do not cross-validate, and the
+importer parses four numbers without ordering them.
+
+**Pros:** one rule in the schema covers every block that carries an axis
+(`interactive_graph`, `number_line`, `graph_figure`, choice graphs).
+**Cons:** a SCHEMA change — both server bundles regenerate and `get-activity`
+is owed a redeploy; and any document already holding a bad window would fail
+to parse on the read path, so check the corpus first (`jsonb_path_exists` over
+`$.** ? (@.xMin >= @.xMax)`).
+
+**Depends on:** ride the next schema-changing slice; never stand alone.
+**Where to start:** `packages/schema/src/graph-primitives.ts` (AxisConfig),
+the axis NumCells in `packages/app/src/editor/components/`, and
+`parseChoiceGraph` / the `axis:` branch in `markdownToTiptap.ts` (~2470).
+
 ## Measure the calculator's default size against a real viewport (2026-08-23)
 
 The successor to a ruling that was wrong. The design review measured "two open
