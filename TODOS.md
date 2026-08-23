@@ -149,9 +149,29 @@ interaction must keep both properties or the letters stop matching the bank.
 **Depends on:** the choice-figures slice landing first (it makes the case
 concrete and adds the fixtures a drag interaction would need to test against).
 
-## The reference-panel SANITIZER GAP is live today (2026-08-23) — P1
+## ~~The reference-panel SANITIZER GAP is live today~~ ✅ FIXED + DEPLOYED 2026-08-23
 
-**Not dormant. Not theoretical. Open right now.**
+⚠ **This entry said "Not dormant. Not theoretical. Open right now." and stayed a
+P1 for several hours after it was fixed** — caught by the session close-out, not
+by the drift audit that ran in between. A closed P1 left open is worse than an
+open one: the next reader triages it first.
+
+**What shipped:** `sanitizeActivityDocument` now runs the per-block strips over
+`referencePanel.blocks` too, and **`SANITIZER_ALGO_REV` was hand-bumped 1 → 2** —
+the rev is computed from sanitize DECLARATIONS, none of which changed, so without
+the hand bump every cached row would have kept serving the leak after the fix
+shipped. Deployed and **verified by grepping the deployed source**, not by a
+version number. Measured exposure at the time: **0 of 29 published versions
+carried a reference panel at all**, so nothing had ever leaked.
+
+**What remains, and it is a PRODUCT question rather than a security one:** the
+editor still accepts a pasted question into a panel (the node types are
+registered to satisfy the column content schema). Its key no longer ships and the
+panel body is a permanently disabled fieldset, so it cannot be answered. Whether
+the editor should REFUSE the paste is unruled, with zero live instances.
+
+*(Original filing below, kept because its analysis of the registration is still
+accurate.)*
 
 `ReferencePanelEditor.tsx:96-110` deliberately registers `MultipleChoice`,
 `Matching`, `Ordering` and `InteractiveGraph` so pasted content parses. And
