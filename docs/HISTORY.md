@@ -1237,7 +1237,7 @@ table of 5 rows / 10 cells.
 fourth S9 orphan is closed: an activity with `calculator.enabled` now renders a
 summon in the student viewer, and clicking it mounts the real kit. Plan +
 AS-BUILT in
-[floating-tool-cluster.md](docs/design/floating-tool-cluster.md); the feature
+[floating-tool-cluster.md](design/floating-tool-cluster.md); the feature
 scope behind it (intersections/intercepts OUT, cross-row definitions MINIMUM
 only) is ruled in DECISIONS.md → "Calculator feature scope".
 
@@ -1257,7 +1257,7 @@ is closed.** A non-empty `referencePanel` now shows a bottom-LEFT summon opening
 a fixed 24rem non-modal panel; × or Escape closes it and focus returns.
 R1–R8 ruled as recommended — no drag in v1 (C5 already holds drag is an
 enhancement), no new teacher flag, no first-visit nudge. Plan + AS-BUILT:
-[reference-panel-screen-surface.md](docs/design/reference-panel-screen-surface.md).
+[reference-panel-screen-surface.md](design/reference-panel-screen-surface.md).
 Two things worth carrying: the panel's body is a **permanently disabled
 fieldset** (a pasted question CAN reach a panel, and on screen a student could
 answer a block that is in no section — never checked, never submitted), and
@@ -1274,9 +1274,30 @@ mutation testing, which is the whole argument for it: **21 mutations, all red**
 after those fixes.
 
 **✅ CHOICE FIGURES + NESTED LISTS SHIPPED (2026-08-23)** — narrative in
-[HISTORY.md](docs/HISTORY.md), AS-BUILT in
-[choice-figures-and-nested-lists.md](docs/design/choice-figures-and-nested-lists.md).
+[HISTORY.md](HISTORY.md), AS-BUILT in
+[choice-figures-and-nested-lists.md](design/choice-figures-and-nested-lists.md).
 **Three orphan classes remain open** in TODOS (graph feedback knobs, the flow
 modes, `hasConfidenceRating`/`allowTargetReuse`) — each needs a wire-or-delete
 ruling; the calculator's was "wire".
 
+
+
+## STATE 'last updated' entries, archived 2026-08-23
+
+Moved out of STATE.md, which says on its own last line that prior entries live
+here — they were sitting inline in the same paragraph that said so.
+
+*(Prior entry:)* 2026-08-22, second entry (full drift audit — 22 files; `supabase/functions/README.md` rewritten for the two-function world after carrying an eight-day-old "rewrite me" tombstone; 11 design docs annotated; ROADMAP and the migrations README caught up to 0039; the audit skill itself corrected in three places; one live fact left for the author — the `display_name` count). *(Earlier the same day:)* the TABLE BLOCK arc shipped end to end (four slices, proven on real content), the editor e2e lane joined CI after two flake fixes, a stale-build incident was diagnosed and made self-healing, and a drift audit cleared six items.
+
+
+## D24 and the display_name edits — archaeology moved out of STATE (2026-08-23)
+
+STATE keeps the OWED ACTION for each; the history that explains how each got there lives here.
+
+### D24
+
+**⚠ D24 counsel read — OWED, and the gate it was meant to hold is ALREADY OPEN (author-accepted risk).** R10/OV-8 ruled teacher self-serve must not reach strangers before counsel read the amended pack. It does: 0033 carried BOTH promotion RPCs and `PendingOnboarding` ships BOTH doors, so applying the migration opened Drop 2 alongside Drop 1. **The author reviewed and accepted the exposure** (unadvertised site, caps of 5 classes / 50 members bound any single bad actor). ⚠ **As of 2026-08-16 the exposure is no longer hypothetical**: a real second account's data now sits in the database under a pack every file marks DRAFT. It is the author's own throwaway account, so nothing is owed to a third party — but the "no real student data" cushion this item leaned on is gone. Concretely: any Google account can sign in → "I'm a teacher" → attest → create classes and read roster emails, under a pack every file marks DRAFT. **✅ The packet is written: [counsel-review-packet.md](compliance/counsel-review-packet.md)** — the draft-2 → draft-3 delta, the live position up front, and ten numbered questions each naming the platform's current position (Q10, added 2026-08-16, asks whether n=1 daily aggregates surviving a purge are retained student data — it gates ARMING the check-prune, nothing sooner). The load-bearing three: Q2 (does an *unverified* educator attestation carry the authorization it asserts), Q4 (is the per-class 13+ assertion defensible when students are never asked their age), Q5 (on what basis is a pending account's data held *before* any teacher vouched). The read itself is the author's; nothing repo-side is owed.
+
+### display_name
+
+**📌 NOT reproducible from migrations: the ORIGINAL three teacher `display_name`s are NULL by a direct data edit** — ✅ confirmed by the author 2026-08-22 (05-05, 05-05, 07-29 rows all NULL). **But the predicted consequence has now happened: the two teacher accounts created 2026-08-19 through the self-serve door (0033) DO carry Google's `full_name`**, so any activity they publish serves that name to anonymous visitors via `get_activity_public_meta`. They are the author's own test accounts, so nothing is exposed today — but this is the first live instance of the default-on name attribution, and the "show nothing until the teacher opts in" control in Backlog is now the fix for a real row, not a hypothetical. Clearing them is the same one-row `update … set display_name = null`, not a migration. 0021's backfill NULLed the two rows holding emails; the author then ruled (2026-08-04) the third — a 2026-07-29 account where Google DID supply `full_name` — should be NULL too. That row was outside 0021's scope by design, so it was cleared with a one-row UPDATE, **not a migration**. Consequence: a restored-from-migrations database would NOT reproduce this, and **a brand-new teacher signing in with a Google account that has a `full_name` will publish that name**. See the name-appearance design signal in Backlog.

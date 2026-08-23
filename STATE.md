@@ -6,29 +6,23 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**⏭ ONE ITEM IS OWED.** The table arc left nothing pending — 0039 applied, both functions redeployed and tool-verified, the print baseline committed, `unit-rate.md` republished. That narrative is in [HISTORY.md](docs/HISTORY.md); the durable RULES it produced are below and in CLAUDE.md.
-
-**✅ `get-activity` REDEPLOYED AND VERIFIED LIVE 2026-08-23 — the reference-panel
-leak fix is serving.** Proven by grepping the DEPLOYED source (`get_edge_function`):
-`SANITIZER_ALGO_REV = 2` and the `clone.referencePanel` strip loop are present,
-and the old "no declared strips outside blocks" comment is gone.
-⚠ **`list_edge_functions` said otherwise and was WRONG** — across this real
-deploy `version` stayed **24**, `updated_at` and `ezbr_sha256` were byte-identical,
-and a session concluded "the deploy did not land" twice on that evidence. The
-standing rule in CLAUDE.md is corrected: flags come from `list_edge_functions`,
-CODE comes from grepping the deployed source for a marker unique to the change.
+**FOUR ITEMS ARE OWED**, listed below. Nothing from this session is among them:
+the reference-panel leak fix was deployed and **verified by grepping the deployed
+source** on 2026-08-23 (`list_edge_functions` reported `version` 24 unchanged
+across that real deploy and was WRONG — the corrected rule now lives in
+CLAUDE.md, which is where a standing rule belongs).
 
 **⏳ `.env.supabase` line 23 holds a PRE-RESET database password.** The author rotated it after it was printed to a session transcript, so `pnpm verify:auth --target live` fails until the new connection string is pasted in. Unrelated to the table arc; still owed.
 
 ⚠ **THE CONSEQUENCE IS THE PART TO READ, not the observation.** CLAUDE.md's warning has now fired: 0036 writes the watermark nightly, so **`prune_section_checks`'s schema gate is GONE** and the only things holding it disarmed are that it is **unscheduled** and **dry-run by default**. Arming is the eight-step checklist in [TODOS.md](TODOS.md) (blocking steps include counsel question **Q10** and N green nights of a non-drifting reconciliation pair). Read the checklist, not a summary of it.
 
-**⚠ D24 counsel read — OWED, and the gate it was meant to hold is ALREADY OPEN (author-accepted risk).** R10/OV-8 ruled teacher self-serve must not reach strangers before counsel read the amended pack. It does: 0033 carried BOTH promotion RPCs and `PendingOnboarding` ships BOTH doors, so applying the migration opened Drop 2 alongside Drop 1. **The author reviewed and accepted the exposure** (unadvertised site, caps of 5 classes / 50 members bound any single bad actor). ⚠ **As of 2026-08-16 the exposure is no longer hypothetical**: a real second account's data now sits in the database under a pack every file marks DRAFT. It is the author's own throwaway account, so nothing is owed to a third party — but the "no real student data" cushion this item leaned on is gone. Concretely: any Google account can sign in → "I'm a teacher" → attest → create classes and read roster emails, under a pack every file marks DRAFT. **✅ The packet is written: [counsel-review-packet.md](docs/compliance/counsel-review-packet.md)** — the draft-2 → draft-3 delta, the live position up front, and ten numbered questions each naming the platform's current position (Q10, added 2026-08-16, asks whether n=1 daily aggregates surviving a purge are retained student data — it gates ARMING the check-prune, nothing sooner). The load-bearing three: Q2 (does an *unverified* educator attestation carry the authorization it asserts), Q4 (is the per-class 13+ assertion defensible when students are never asked their age), Q5 (on what basis is a pending account's data held *before* any teacher vouched). The read itself is the author's; nothing repo-side is owed.
+**⚠ D24 counsel read — OWED.** The packet is written: [counsel-review-packet.md](docs/compliance/counsel-review-packet.md) — ten numbered questions, each naming the platform's current position. The load-bearing three: **Q2** (does an *unverified* educator attestation carry the authorization it asserts), **Q4** (is the per-class 13+ assertion defensible when students are never asked their age), **Q5** (on what basis is a pending account's data held before any teacher vouched). **Q10** gates ARMING the check-prune and nothing sooner. ⚠ **The gate this was meant to hold is ALREADY OPEN and the author accepted that risk** — any Google account can self-serve to teacher, and a real second account's data now sits in the DB under a pack every file marks DRAFT (the author's own throwaway, so nothing is owed to a third party). The read is the author's; nothing repo-side is owed. *(How it got open: HISTORY.md → D24.)*
 
 **Gate 4 — seed `student_domain` + live-verify the trigger's student branch** (deliberately LAST; needs a real district domain). Prerequisite MET (0027 live). ⚠ Never seed a consumer domain — the rule now lives in CLAUDE.md → Things NOT to do.
 
 **P8 boomerang — still uncollected, deliberately.** The duration datapoints for a multi-station apply day were voided by construction for the 0027 run (two password resets, a pooler lockout, no Docker, an unplanned migration mid-station, a materially faster author across the run). **The slot stays open for the NEXT representative multi-station day.**
 
-**📌 NOT reproducible from migrations: the ORIGINAL three teacher `display_name`s are NULL by a direct data edit** — ✅ confirmed by the author 2026-08-22 (05-05, 05-05, 07-29 rows all NULL). **But the predicted consequence has now happened: the two teacher accounts created 2026-08-19 through the self-serve door (0033) DO carry Google's `full_name`**, so any activity they publish serves that name to anonymous visitors via `get_activity_public_meta`. They are the author's own test accounts, so nothing is exposed today — but this is the first live instance of the default-on name attribution, and the "show nothing until the teacher opts in" control in Backlog is now the fix for a real row, not a hypothetical. Clearing them is the same one-row `update … set display_name = null`, not a migration. 0021's backfill NULLed the two rows holding emails; the author then ruled (2026-08-04) the third — a 2026-07-29 account where Google DID supply `full_name` — should be NULL too. That row was outside 0021's scope by design, so it was cleared with a one-row UPDATE, **not a migration**. Consequence: a restored-from-migrations database would NOT reproduce this, and **a brand-new teacher signing in with a Google account that has a `full_name` will publish that name**. See the name-appearance design signal in Backlog.
+**📌 NOT reproducible from migrations: three teacher `display_name`s are NULL by direct data edits** (confirmed 2026-08-22). **Live consequence:** the two accounts created 2026-08-19 through the self-serve door DO carry Google's `full_name`, so anything they publish serves that name to anonymous visitors via `get_activity_public_meta`. Both are the author's test accounts, so nothing is exposed — but this is the first live instance of default-on name attribution, and the fix is a one-row `update … set display_name = null`, **not a migration**. The opt-in control is in Backlog. *(Full history: HISTORY.md → display_name.)*
 
 **Baseline facts — RE-READ LIVE 2026-08-22 (this row is dated on purpose; re-read it, never trust it).** Migrations applied **through 0039** · exactly **TWO** Edge Functions — `get-activity` **v22** (`verify_jwt:false`, the only one) + `check-activity` **v18** (`true`) · live rows: **6 users, 14 activities** (**5 teachers + 1 student** — the row used to say "3 teachers + 1 student + 2 later"; the two 08-19 accounts are teachers; the activity count read 8 in a row dated the SAME DAY — the pilot import moved it), 1 class (`7NE9M2`), **0 checks, 0 grades, 0 submissions**, and the dormant assignment tables still **0/0** · both pg_cron jobs active; `analytics_rolled_boundary()` non-NULL and advancing.
 
@@ -76,20 +70,8 @@ live from it:
   feedback, the flow modes, `hasConfidenceRating`/`allowTargetReuse`) — TODOS
   carries them; each needs a wire-or-delete ruling.
 
-**⚠ THREE guards were found VACUOUS across the arc, two of them pre-existing and
-years old** — `styles.test.ts`'s "no raw box-shadow" (looped over zero
-declarations AND named a retired token namespace) and the print/preview mirror
-(guarded only one direction; the unguarded one is the worse one — a clean
-preview with chrome on the paper). The third was my own. **All were caught by
-mutation testing and none by a passing suite**, which is the whole argument for
-the guard bar: a green check that never ran is worse than no check.
-
-**Everything that was blocking bulk authoring has shipped.** The batch importer
-(0038, `source_path` identity, file-wins re-runs), the drift guard (0039), the
-frozen markdown contract, and the native table block across schema · viewer ·
-server · editor · import. `pnpm import:batch <folder> --owner <email>` — always
-`--dry-run` first — and `pnpm report:stale --owner <email>` afterwards to find
-published activities whose page is older than their file.
+**Nothing blocks bulk authoring.** `pnpm import:batch <folder> --owner <email>`
+(always `--dry-run` first), then `pnpm report:stale --owner <email>`.
 
 **⏭ THE NEXT REAL INFORMATION COMES FROM WRITING ACTIVITIES, not from more code.**
 ~150 markdown files in `~/activity-catalogue-pilot/`, currently 3. The format is
@@ -102,20 +84,11 @@ reason cells hold blanks) is still unproven on real content. `{{=9.00}}` in
 a cell grades and letters (a)/(b) on paper; the first authored one is the
 first real test.
 
-**Two things a session picking this up should not re-derive** (both now standing rules in CLAUDE.md → Things NOT to do, because this section gets replaced):
-
-- **The importer refuses a file whose draft was hand-edited in the app** since
-  its last import (the 0039 fingerprint), naming it. `--force` overrides
-  deliberately. So: edit the `.md`, not the app, for anything file-backed.
-- **Publishing clears the draft** (`publish_activity` sets `draft_content =
-  null`), which is why a published activity with no draft is up to date rather
-  than stale — the thing that made the first `report:stale` implementation wrong.
-
 **The backlog is large and none of it is table-related** — 20+ items in
 [TODOS.md](TODOS.md). The ones that look most load-bearing from here: **the
-orphan classes S9 left behind** (TODOS → "S9 left FIVE MORE ORPHAN CLASSES";
-choice figures, nested lists and the calculator are now CLOSED — the reference
-panel's screen surface and three knob classes remain), the
+orphan classes S9 left behind** (TODOS → "S9 left FIVE MORE ORPHAN CLASSES" —
+ALL SIX content orphans are CLOSED as of 2026-08-23; three KNOB classes remain),
+the
 document walk duplicated five times, the orphaned `number` override field, the
 check-rollup arming arc, and the parked shell-slimming. All of them will be
 easier to prioritise after 20 activities have said what actually gets in the way.
@@ -186,15 +159,14 @@ both back inside the ~10% policy.
 
 ## Open questions / deferred decisions
 
-- **Empty fill_in_blank drag handle attachment** — whether `definingForContent: true` changed the handles-only-on-non-empty behavior is unverified; re-test during a drag-reorder pass. Minor.
-- **Blank popover: one-click switch between chips** — deferred design decision, no data loss. Needs a dedicated design pass (FocusTrap/selection entanglement).
-- **Section metadata panel** — SectionBreakView's inline title/checkpoint UI is adequate; an editor-level panel remains optional.
-- **Responsive `--blank-width` sizing** — deferred from Stage 11.
-- **`skills` editing UI** — the field round-trips everywhere, only the editing control is missing. Don't add piecemeal without the per-skill-analytics scope.
-- **UX validation with 2–3 other teachers** on the editor patterns before classroom adoption.
-- **Post-success edit edge case** — locked/single paths briefly write-then-remove the persistence blob (wasteful but correct). Low priority.
-- **Multi-tenancy / governance when a teacher leaves a district** — Phase 4; helpers are designed for it.
-- **Media storage/privacy posture** (Phase 2.8), **annotation coordinate space** (Phase 2.9) — each decided at its phase start.
+- **UX validation with 2–3 other teachers** on the editor patterns before
+  classroom adoption. The one that gates classroom use; the rest are dormant.
+- **`skills` editing UI** — the field round-trips everywhere, only the editing
+  control is missing. Don't add piecemeal without the per-skill-analytics scope.
+- **Decided at their phase start, not now:** media storage/privacy posture (2.8),
+  annotation coordinate space (2.9), multi-tenancy when a teacher leaves a
+  district (Phase 4 — the helpers are already designed for it).
+- **Five dormant editor papercuts** moved to [TODOS.md](TODOS.md) 2026-08-23 — none blocks anything.
 
 ---
 
@@ -205,7 +177,7 @@ feature scope ruled before any of it was built. ⚠ Three of my own claims were
 corrected this session by reviews, by mutation testing, or by measurement: the
 reference-panel print default, C6's inference from its own measurement, and my
 own "the leak is urgent" before I checked the database and found zero
-instances.) *(Prior entry:)* 2026-08-22, second entry (full drift audit — 22 files; `supabase/functions/README.md` rewritten for the two-function world after carrying an eight-day-old "rewrite me" tombstone; 11 design docs annotated; ROADMAP and the migrations README caught up to 0039; the audit skill itself corrected in three places; one live fact left for the author — the `display_name` count). *(Earlier the same day:)* the TABLE BLOCK arc shipped end to end (four slices, proven on real content), the editor e2e lane joined CI after two flake fixes, a stale-build incident was diagnosed and made self-healing, and a drift audit cleared six items.
+instances.)
 
 **The lesson of the session is the SECOND half of the one this repo keeps paying for.** The first half is known: a DECLARATION outlives its implementation, and the suite stays green because the guard compares two declarations (the count reached EIGHT — registry `numbered`, `LABELED_BLOCK_TYPES`, block `workSpace`, `Row.gridLines`, fence `**bold**`, `showCellLabels`, `hasConfidenceRating`, `allowTargetReuse`). **The second half, learned this session: A GUARD OUTLIVES ITS OWN VALIDITY THE SAME WAY.** Three were found vacuous across the arc, two of them pre-existing and years old — `styles.test.ts`'s "no raw box-shadow" looped over ZERO declarations *and* named a token namespace retired when tokens moved behind `--vw-`; the print/preview mirror guarded one direction and left the worse one open (a clean preview with chrome on the paper). **Every one was found by MUTATION, none by a passing suite** — which is what "a guard must bind to rendered OUTPUT and be mutation-tested" is actually for, and why running it on the guards you INHERIT matters as much as on the ones you write. Corollary unchanged: **a finding that gets half-acted-on comes back.**
 

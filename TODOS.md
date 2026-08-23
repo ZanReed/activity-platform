@@ -1160,6 +1160,27 @@ fallback-window number directly.
 from a binary into three options by the S8 outside voice (2026-08-05, ruling D7); option 3
 built and measured the same day.
 
+## Five dormant editor papercuts (moved out of STATE 2026-08-23)
+
+They sat in STATE's "Open questions" for weeks. **None blocks anything**, and
+STATE is a "where am I" snapshot with a ~150-line budget, so a list that never
+changes belongs here. Recorded with enough context to act without archaeology.
+
+1. **Empty `fill_in_blank` drag-handle attachment** — whether
+   `definingForContent: true` changed the handles-only-on-non-empty behaviour is
+   UNVERIFIED. Re-test during a drag-reorder pass. Minor.
+2. **Blank popover: one-click switch between chips** — a deferred design
+   decision, no data loss either way. Needs its own pass: FocusTrap and
+   selection are entangled here, which is why it was deferred rather than done.
+3. **Section metadata panel** — `SectionBreakView`'s inline title/checkpoint UI
+   is adequate; an editor-level panel stays optional. Do not build it because it
+   "feels missing".
+4. **Responsive `--blank-width` sizing** — deferred from Stage 11.
+5. **Post-success edit edge case** — the locked/single paths briefly
+   write-then-remove the persistence blob. Wasteful but CORRECT; low priority.
+
+**Depends on:** nothing. Each is independent.
+
 ## The student shell's size ladder — TARGET MET (2026-08-23), ladder open
 
 **⚖ THE ~150 KiB gz TARGET IS MET.** Two rungs shipped: slice 1 (the Supabase
