@@ -144,6 +144,63 @@ before it existed is what produced the wrong ruling.) Note the sheet work
 already handled the <480px case; what is left is the DESKTOP default height on
 a short laptop viewport.
 
+## ⚠ verify-0036's behavioural matrix CANNOT PASS ON LIVE — and it is arming evidence (2026-08-24)
+
+Found by the first `pnpm verify:auth --target live` run in a while. **The
+rollup is CORRECT; the verify script is not runnable against live.** Live:
+`167 passed, 1 failed`, and this is the one.
+
+**The mechanism, measured rather than guessed:**
+
+| | value |
+|---|---|
+| live watermark (`analytics_rolled_boundary()`) | `2026-08-23 03:25:00Z` |
+| newest fixture the script inserts | `2026-08-22 22:00:00Z` (yesterday + 22h) |
+| watermark past ALL fixtures? | **yes** |
+| result | `run_analytics_maintenance()` rolls nothing → `VERIFY FAIL E: expected 1 Chicago day / 3 checks, got 0 / 0` |
+
+The script dates its three fixture checks relative to `date_trunc('day', now())
+- 1 day`. On a freshly reset LOCAL database the watermark is NULL, so the
+fixtures are ahead of it and everything rolls — **20 passed, 0 failed locally,
+today.** On live, 0036's nightly pg_cron job has been stamping the watermark
+for days, so it sits ahead of every fixture and the rollup correctly skips
+them. This is not flakiness and it will not self-heal: it fails every time,
+structurally, on any database whose cron has run.
+
+**WHY THIS MATTERS MORE THAN A BROKEN TEST.** CLAUDE.md and the arming
+checklist list **"N green nights of a non-drifting reconciliation pair"** as a
+BLOCKING step before `prune_section_checks` may be armed — and verify-0036 is
+the script that demonstrates the rollup is trustworthy. Right now that
+demonstration cannot be produced on the database it needs to be true of. Treat
+this as an arming-arc blocker, not as test hygiene.
+
+**The fix is NOT "re-date the fixtures later".** The three timestamps are
+carefully chosen so that yesterday-20:00Z is a Chicago afternoon but an
+Auckland morning of the NEXT date — that day-split IS section D's whole point,
+and it is the reason the author's US/NZ timezone question has an answer.
+Re-dating relative to the watermark destroys it, because the post-watermark
+window on live can be any few hours wide and may not span a day boundary in
+either zone.
+
+**The shape that probably works:** the section already runs inside a
+transaction that is deliberately rolled back (`@expect-error EXPECTED
+ROLLBACK`), so it can REWIND `analytics_job_runs.rolled_through` inside that
+transaction, insert the fixtures at their carefully-chosen instants, roll,
+assert, and roll back. That keeps the timezone property and works on any
+database. ⚠ Needs care: it writes to the table the arming gate reads, so the
+rollback has to be proven, not assumed (P7), and the residue check has to print
+before AND after.
+
+**Not caused by the flow-modes slice** — verify-0036 inserts into
+`section_checks` directly and never calls `record_check`; 0040 changed only
+`record_check`. Ruled out before this was filed.
+
+**Residue check:** none. The failure raises, which aborts the transaction —
+live `section_checks` = 0 and `check_rollup_daily` = 0, printed after two runs.
+
+**Depends on:** nothing technically; but the fix touches the check-rollup arc,
+so read the arming checklist before editing.
+
 ## `answerFeedback: 'immediate'` — deferred out of the flow-modes slice (2026-08-24)
 
 Filed by [activity-flow-modes.md](docs/design/activity-flow-modes.md) R3/T2.
