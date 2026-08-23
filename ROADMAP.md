@@ -26,7 +26,7 @@ An interactive math activity platform for K–12 educators that starts as a smal
 | **2** | Polish the loop | ~~Markdown import~~ (shipped early in Phase 1), ~~image upload~~, ~~reference panel~~, ~~vocabulary definitions~~, ~~multiple choice~~ + ~~numeric blanks~~ (2026-07-10), ~~matching + ordering~~ (2026-07-10), ~~number-line + data-plot question blocks~~ (2026-07-12), better submission analytics, self-signup, ~~table block~~ (2026-08-21, table-block.md), ~~batch importer~~ (2026-08-20, batch-importer.md, 0038/0039), ~~taxonomy/tags~~ (2026-08-18, activity-taxonomy.md, 0037), ~~activities outline/list surface~~ (2026-08-19, activities-list-surface.md), ~~dark mode~~ (2026-07, editor UX pass), ~~viewer numbering + answer key~~ (2026-08-20) |
 | **2.5** | Parameterized problems | Template-based variants (authoring-time, then runtime) |
 | **2.6** | Manual grading + rubrics | Teacher-graded items (essays, short answer, open response) with multi-criterion rubrics ✅ re-platformed 2026-08-16 (teacher-grading.md, 0034) |
-| **2.7** | Graphing track (calculator + interactive graphing) | ✅ **Substantially shipped 2026-07** — calculator (scientific → graphing → regression → expression list) and graded graph blocks (point/function/inequality/ray/segment/region + static display), one shared kit, all live. Remaining: stats beyond regression, further advanced stages |
+| **2.7** | Graphing track (calculator + interactive graphing) | ✅ **Substantially shipped 2026-07** — calculator (scientific → graphing → regression → expression list) and graded graph blocks (point/function/inequality/ray/segment/region + static display), one shared kit, all live. ⚠ The calculator's STUDENT surface died at S9 Drop 4 and was rebuilt 2026-08-23 (the tool cluster); feature scope ruled then — intersections/intercepts OUT. Remaining: stats beyond regression, further advanced stages |
 | **2.8** | Media submissions | Audio, video, file uploads — student-generated multimedia responses |
 | **2.9** | Annotation responses | Highlight, label, identify-the-error questions over passages and images |
 | **3** | Classroom integration | "Assign in Classroom," roster-based identity, grade passback |
@@ -65,9 +65,16 @@ Quality-of-life improvements that make the Phase 1 loop pleasant rather than bar
 > runtime's and died at S9 Drop 4. `ViewerContainer.tsx:275` renders
 > `doc.referencePanel` **only** when `print.printReferencePanel` is set — so on
 > screen a student sees no reference panel at all, and a teacher who did not
-> tick the print box has authored content no one will ever see. Same orphan
-> class as the calculator, and the two share one fix (the floating-tool
-> cluster). Filed in TODOS. *(This line said "live in the viewer" for one day
+> tick the print box has authored content no one will ever see. Filed in TODOS.
+> ⚠ **UPDATED 2026-08-23: "the two share one fix" was WRONG and is retracted.**
+> The eng review found the shared-host argument false — DECISIONS.md forbids the
+> reference panel using the graph-kit for chrome ("would cost hundreds of KiB"),
+> and the deleted sidecar reimplemented drag in ~40 lines; the genuinely shared
+> surface was a corner div and two buttons. **The calculator half SHIPPED alone
+> on 2026-08-23** ([floating-tool-cluster.md](docs/design/floating-tool-cluster.md));
+> the reference panel's screen surface is its own deferred slice, and it now
+> inherits a built corner and a live z-ladder rather than needing either. Its
+> **sanitizer gap (D16) is separate and live today.** *(This line said "live in the viewer" for one day
 > because the 2026-08-22 audit corrected the dead "published pages" half and
 > assumed the viewer had picked the surface up. It had not — a half-fix, which
 > is the failure mode that audit's own skill warns about.)* Reference content is `data-block-category="scaffold"` — doesn't contribute to scoring, doesn't fire checkpoint behavior, prints alongside the activity. Cross-subject use case driver: nearly every K-12 subject has a "students need this reference handy while they work" pattern, and the existing "open another tab" workaround is friction every teacher complains about.
