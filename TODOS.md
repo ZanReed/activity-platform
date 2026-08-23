@@ -58,30 +58,6 @@ becomes a live content-loss bug of exactly the class the orphan sweep found.
 **Depends on:** the choice-figures slice landing (it introduces the dynamic-import
 pattern convergence would reuse).
 
-## printShuffle's non-identity assertion is a coin flip (2026-08-22)
-
-`printShuffle.test.ts` → "a version rearranges MC choices; version 1 already
-differs from authored" asserts that a SEEDED shuffle is never the identity
-permutation. That is not a property of the code; it is luck, and the odds are a
-function of how many choices the fixtures happen to have.
-
-**It fired for real.** Adding the figure-bearing multiple_choice fixture
-changed the deterministic `fid()` sequence, hence every downstream block id,
-hence every seed — and with a 3-choice and a 2-choice block the chance that
-BOTH shuffle to identity is 1 in 12. It came up. Giving the new fixture four
-choices (which ruling A6 wanted anyway) moved it to roughly 1 in 144 and the
-row is green, but **nothing was fixed** — the next fixture that shifts the id
-sequence rolls the dice again, and the failure reads as "shuffling is broken"
-rather than "we were unlucky".
-
-**The fix is to assert the property that is actually true**: over the seed
-space, a shuffle is not the identity *for most seeds* — or pick the assertion
-seed deliberately rather than inheriting whatever the fixture ids produce. Do
-NOT "fix" it by adding choices to fixtures; that is what is holding it up now
-and it is the same coin, weighted.
-
-**Depends on:** nothing.
-
 ## The matching interaction the registry already claims — drag / select-then-place (2026-08-22)
 
 Filed by the choice-figures design review (D5/A3) as the honest fix it decided

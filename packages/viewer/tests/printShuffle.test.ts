@@ -40,6 +40,11 @@ import type { SanitizedActivityDocument } from '../src/index.js';
 
 const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
 
+/** Versions 2..25 — the seed space the "a different seed rearranges" rows walk. */
+const OTHER_VERSIONS = Array.from({ length: 24 }, (_, i) => i + 2);
+
+const isEqual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
 /** Every block of a type, flattened out of a document. */
 function blocksOfType(doc: SanitizedActivityDocument, type: string) {
   const out: Array<Record<string, unknown>> = [];
@@ -124,14 +129,30 @@ describe('seeding', () => {
     );
   });
 
-  it('a different version rearranges the sheet', () => {
+  it('a different version rearranges the sheet, for most versions', () => {
+    // NOT "version 2 differs from version 1". Two seeds are two independent
+    // non-identity deals, and nothing stops them coinciding — on a two-item
+    // block they ALWAYS do (there is only one non-identity order). Asserting
+    // a single pair is a dice roll whose odds move every time a fixture
+    // changes the id sequence; it came up tails once (TODOS, 2026-08-22).
+    // The property that is actually true: across the seed space, a different
+    // seed usually rearranges.
     const doc = sanitizedFixtureDocument();
-    const v1 = applyPrintShuffles(doc, printSeed(ACTIVITY, 1));
-    const v2 = applyPrintShuffles(doc, printSeed(ACTIVITY, 2));
+    const v1 = blocksOfType(
+      applyPrintShuffles(doc, printSeed(ACTIVITY, 1)),
+      'ordering',
+    ).map(itemIds);
 
-    expect(blocksOfType(v2, 'ordering').map(itemIds)).not.toEqual(
-      blocksOfType(v1, 'ordering').map(itemIds),
+    const sameAsV1 = OTHER_VERSIONS.filter((v) =>
+      isEqual(
+        blocksOfType(applyPrintShuffles(doc, printSeed(ACTIVITY, v)), 'ordering').map(itemIds),
+        v1,
+      ),
     );
+    expect(
+      sameAsV1.length,
+      `versions ${sameAsV1.join(', ')} reprinted version 1's ordering arrangement`,
+    ).toBeLessThan(OTHER_VERSIONS.length / 2);
   });
 
   it('sub-seeds per block, so two questions never share an arrangement', () => {
@@ -177,16 +198,26 @@ describe('print versions (S5.5 T9/T10)', () => {
       (block.choices as Array<{ id: string }>).map((c) => c.id),
     );
 
-  it('a version rearranges MC choices; version 1 already differs from authored', () => {
+  it('version 1 already differs from authored, and other versions mostly differ from it', () => {
     const doc = sanitizedFixtureDocument();
-    const v1 = applyPrintShuffles(doc, printSeed(ACTIVITY, 1));
-    const v2 = applyPrintShuffles(doc, printSeed(ACTIVITY, 2));
+    const v1 = choiceIds(applyPrintShuffles(doc, printSeed(ACTIVITY, 1)));
 
     // Every printed sheet shuffles — including the default one. A teacher who
-    // never opens the version selector still should not hand out two identical
-    // sheets to neighbours.
-    expect(choiceIds(v1)).not.toEqual(choiceIds(doc));
-    expect(choiceIds(v2)).not.toEqual(choiceIds(v1));
+    // never opens the version selector still should not hand out the authored
+    // order. This half is a GUARANTEE (seededShuffle never deals the identity,
+    // pinned below), so one seed is enough to pin it.
+    expect(v1).not.toEqual(choiceIds(doc));
+
+    // This half is NOT a guarantee — see the ordering test above for why a
+    // single v2-vs-v1 pair is a coin flip — so it is asserted over the seed
+    // space, not for one pair.
+    const sameAsV1 = OTHER_VERSIONS.filter((v) =>
+      isEqual(choiceIds(applyPrintShuffles(doc, printSeed(ACTIVITY, v))), v1),
+    );
+    expect(
+      sameAsV1.length,
+      `versions ${sameAsV1.join(', ')} reprinted version 1's choice arrangement`,
+    ).toBeLessThan(OTHER_VERSIONS.length / 2);
   });
 
   it('lockChoiceOrder keeps a question in its authored order (D17A)', () => {
