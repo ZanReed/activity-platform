@@ -34,6 +34,18 @@ created.
   four-slice feature, a CI change, two flake fixes and an incident).
 - **Otherwise roughly every two weeks**, as a floor rather than a rhythm.
 
+**2026-08-23 — the trigger list earned its keep, in the newest way yet.** The run
+after a two-slice session found FIVE drift items and **every one had been created
+in that same session**, hours earlier: four docs and one SOURCE comment saying
+the reference panel's screen surface was dead or deferred, written before the
+slice that shipped it. Nothing in the older repo had drifted at all. Two of the
+five were in a paragraph that a PREVIOUS audit had already corrected once. So the
+highest-yield trigger is not only DELETION — it is **any session that both
+changes reality and writes about it**, because the writing races the shipping and
+the docs lose. Corollary for the report: rank self-created drift first; it is the
+freshest, the most confidently wrong, and the least likely to be caught by
+anyone else.
+
 **The audit should be getting CHEAPER.** Every finding converted into a guard
 bound to output is a section that stops producing findings. If a run keeps
 surfacing the same class, that is a signal the guards are not being written — not
@@ -70,6 +82,23 @@ Work through each item; skip none silently — say "clean" per section in the re
 - Flag anything within ~15% of its cap: the budget ladder should be *scheduled*, not discovered mid-feature. **Read the current numbers from `node scripts/check-perf-budget.mjs`; do not pin one here.** This bullet pinned "156.4 KiB" from 2026-08-18 until the 2026-08-21 audit found it reading 157.4 — a checklist that warns about circulating stale figures, circulating a stale figure. The shell-slim ladder is PARKED (TODOS.md names the one trigger to resume). Prefer flagging a row that has MOVED toward its cap since the last audit over a raw percentage — the headroom policy is ~10%, so a freshly-calibrated row always sits near 90% and a raw threshold flags every healthy row. DECISIONS: "a budget that can only ever loosen is a fossil."
 
 **3. Design-doc status lines.** For each `docs/design/*.md`, read the status header and check it against STATE/HISTORY ship status.
+- ⚠ **NOT EVERY doc in `docs/design/` IS A FEATURE DOC.** `ux-lens.md` is a
+  reusable review INSTRUMENT; it has no ship status because it never ships.
+  **Three consecutive audits have now reported it as status-less** (2026-08-17,
+  2026-08-22 in a different spelling, 2026-08-23) — the finding is a false
+  positive every time, and a checklist that reliably produces one trains its
+  reader to skim. Classify first: a doc describing a PROCEDURE the team runs is
+  out of scope for this section; a doc describing a FEATURE the product has is
+  in it.
+- ⚠ **"Cites a dead mechanism" is NOT drift when recording the death is the
+  doc's job.** The naive grep (`on R2`, `ingest-submission`, `publish-activity`,
+  `upload:graph-kit`, …) flags three docs that are all correct:
+  `s9-cutover.md` — whose entire purpose is to specify the deletions;
+  `manual-grading.md` — whose status line is explicitly ⚰️ SUPERSEDED and says
+  why; and `strict-grid-editor.md` — which makes a NEGATIVE historical claim
+  ("NO `publish-activity` redeploy"). Before flagging, ask what the sentence is
+  DOING: asserting the mechanism is live (drift), or recording that it died or
+  was never needed (not drift). Annotate only the first kind.
 - ⚠ **Grep for ALL FOUR forms:** `**Status:**`, `**Status: ` (colon inside the bold), `> **Status:**` (inside a blockquote — `activities-list-surface.md`), and `Status: **VALUE**` (colon outside the bold — `dark-mode.md`). One expression that covers them: `grep -nE '^>? *\*{0,2}Status:'`. The 2026-08-17 audit reported two docs as having *no* status line because its grep only matched the first form — a false positive that cost a finding's credibility — and the 2026-08-22 audit repeated it in a NEW form, reporting `activities-list-surface.md` as status-less when its line sits in a blockquote. Two audits, same mistake, different spelling: widen the expression rather than adding forms one at a time. Normalize to `**Status:**` when fixing.
 - A shipped feature's doc must say SHIPPED and carry an as-built-deltas note where the implementation diverged (pattern: `vocabulary-definitions.md`, `interactive-graph-block.md`).
 - Watch for status lines that are true about *shipping* while naming a *retired mechanism* as live — the most common drift class in this repo. Annotate per the ground rule.
