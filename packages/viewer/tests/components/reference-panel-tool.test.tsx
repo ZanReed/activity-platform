@@ -193,6 +193,16 @@ describe('ReferencePanelTool — reference material is not answerable', () => {
     // Bound to the rendered control, not to the fieldset's attribute: a
     // `disabled` that the browser does not actually apply to descendants would
     // pass an attribute check and fail a student.
+    //
+    // ⚠ If you ever check this by hand in a browser, do NOT read
+    // `input.disabled`. That IDL property reflects the element's OWN disabled
+    // attribute and ignores an ancestor fieldset entirely, so it returns false
+    // on a control the browser is genuinely refusing to activate — it reported
+    // exactly that during this slice's browser pass and looked like a live bug
+    // for a minute. `input.matches(':disabled')` accounts for the ancestor, and
+    // a real .click() leaving `checked` unchanged is the ground truth. jest-dom's
+    // toBeDisabled() below walks the ancestors correctly, which is why it agreed
+    // with the browser and the hand-probe did not.
     expect(screen.getByRole('radio')).toBeDisabled();
   });
 });
