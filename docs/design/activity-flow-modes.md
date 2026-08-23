@@ -1,6 +1,6 @@
 # Activity flow modes — wiring the checkpoint orphan class
 
-**Status:** ENG-REVIEWED 2026-08-24 (8 findings + outside voice: 20 findings, 4 tensions all ruled, 0 unresolved) — awaiting design review, then build. **Read "What the eng review changed" before the rulings above it; two of the six author rulings were reversed on evidence.** Filed from TODOS → "S9
+**Status:** ENG-REVIEWED + DESIGN-REVIEWED 2026-08-24 — ready to build. Eng: 8 findings + 20 from the outside voice, 4 tensions ruled. Design: 3/10 → 9/10, 8 decisions, 0 unresolved. **Read "What the eng review changed" before the rulings above it; two of the six author rulings were reversed on evidence.** Filed from TODOS → "S9
 left FIVE MORE ORPHAN CLASSES", item 5 (the last content-shaped one).
 
 ## Why now
@@ -294,6 +294,97 @@ pilot files exist only to test features); `locked` is wanted "sparingly";
 everything the system will support must exist before the ~150-file corpus
 is authored, so it is written against real behaviour.
 
+## The student-facing design (design review 2026-08-24, D1–D8)
+
+The eng review settled the mechanics. This settles what a student SEES, which
+the plan had left almost entirely unspecified (3/10 at intake). Calibrated
+against the viewer's existing tokens and `statusLabel`'s copy doctrine — the
+failure KIND decides the sentence, and never tell a student to retry when
+retrying cannot work (`ViewerContainer.tsx:116-140`).
+
+### D1 — A check group is a VISIBLE region, not an inference
+
+R1 removes the Check button from most sections. Without a visual boundary a
+student scrolls past two buttonless sections and reasonably concludes their
+work there is not counted.
+
+```
+ ┌─ region rule (subtle left border, --vw-color-line) ─────────────┐
+ │  Warm up                    ← no button, visibly inside         │
+ │  Reading a rate table       ← no button, visibly inside         │
+ │  ────────────────────────────────────────────────────────────   │
+ │  [ Check these 3 sections ]   status line                       │
+ └─────────────────────────────────────────────────────────────────┘
+```
+
+**Not a card.** A rule plus grouped background, no border-box, no radius, no
+shadow — app-UI rules: calm surface hierarchy, minimal chrome, cards only when
+the card IS the interaction. The button names its scope so the region and the
+words agree.
+
+### D2 — The five new states, in `statusLabel`'s voice
+
+| State | What the student sees | Notes |
+|---|---|---|
+| group checked (`free`) | "Checked." | today's sentence, unchanged |
+| group checked (`locked`) | "Checked and locked. You can't change these answers." | states the irreversibility once, at the moment it becomes true |
+| lock refused (server 409) | "Already checked and locked." | new `CheckErrorKind: 'locked'`. **Never "try again"** — retrying cannot work, and today this case would fall through to exactly that |
+| partial group | "Checked 2 of 3 — one part didn't send." + Retry | names what is pending; solutions stay hidden until the group completes |
+| locked + crashed block | button disabled: "One question can't be checked yet." | T4: no RPC fires, nothing freezes |
+| offline press (`locked`) | "Locked. Will check when you're back online." | freeze is immediate (press-time), the check follows |
+
+### D3 — In `locked` mode, the button tells the truth and asks first
+
+Q4 ruled "Check" everywhere. **Amended for `locked` only:** the same word for
+a safe repeatable action and a one-way door is the design error. The eng review
+confirmed there is NO unlock — not for the student, not for the teacher.
+
+- Button reads **"Check and lock"**.
+- Pressing it opens a confirm: *"Check and lock these 3 sections? You won't be
+  able to change your answers after this."* → Cancel / Check and lock.
+- `free` and `single` keep the plain "Check" with no confirm.
+
+### D4 — `activityType` is text in the meta line, not a badge
+
+`Algebra II · Unit 3 · Exit ticket` — same type, same colour token as the
+course/unit line that already renders there, on screen and on paper.
+`worksheet` (the default) renders nothing. No chip, no colour, no radius: a
+badge is ornamental chrome on a surface whose job is the questions, and it
+would be meaningless in grayscale.
+
+### D5 — A frozen group reads as RECORDED, not BROKEN
+
+`<fieldset disabled>` alone inherits the browser's grey, which is the visual
+language of "unavailable" — a student who deliberately locked their work
+should feel completion, not breakage.
+
+- Inputs keep ink at reduced emphasis (`--vw-color-ink-muted`), **not** browser grey.
+- The region rule from D1 stays; the footer carries D2's locked sentence.
+- No new component. Tokens named here so the engineer cannot inherit the default.
+
+### D6 — Focus and announcement on freeze
+
+Disabling the fieldset the student is standing in drops focus to the body.
+
+- The group's status region takes `tabindex="-1"` and **receives focus** on freeze.
+- `aria-live="polite"` announces "Checked and locked. 3 sections."
+- A row in the a11y lane pins it (that lane already scans the post-check worksheet).
+
+### D7 — Sticky group footer under 768px
+
+A three-section group on a 375px screen puts the only button two screens away.
+Under 768px the group's footer (button + status) pins to the bottom of the
+viewport while the student is inside that group, releasing when it scrolls
+past. 44px touch target. No change at Chromebook width and above; print is
+unaffected (footers do not print).
+
+### D8 — A locked group DOES reveal its solutions
+
+Same as `free`. The lock is a commitment device, and the worked explanation is
+what the student gets for committing; withholding it would make locking purely
+punitive at the moment they are most invested. (Still group-scoped per the eng
+review — a half-landed group reveals nothing until every member lands.)
+
 ## Implementation Tasks
 
 Sequenced. T1–T3 are pure and testable before anything renders; T7 must be
@@ -305,9 +396,16 @@ applied live before T6 deploys.
 - [ ] **F2 (P1, human: ~1 day / CC: ~30 min)** — viewer/store — `checkGroup`: fires member sections in parallel, aggregates phase (`checking` / `checked` / `partial`), Retry re-fires only unlanded members (3A). Freeze at PRESS in `locked` (OV#19). Group-scoped solution reveal (OV#14).
   - Files: `packages/viewer/src/store/store.ts`, `queue.ts`, `persistence.ts`
   - Verify: `tests/store.test.ts` — partial failure, retry, offline queue, regression pin for `free` re-check
-- [ ] **F3 (P1, human: ~1 day / CC: ~30 min)** — viewer/container — render Check per GROUP; locked freeze via a per-group `<fieldset disabled>`; the `locked` refusal freezes on arrival; locked+crashed disables the button with copy (T4)
+- [ ] **F3 (P1, human: ~2 days / CC: ~50 min)** — viewer/container — render Check per GROUP inside a **visible region** (D1: rule + grouped background, NOT a card); locked freeze via a per-group `<fieldset disabled>` styled as RECORDED not disabled (D5); the `locked` refusal freezes on arrival; locked+crashed disables the button with D2's copy (T4)
   - Files: `packages/viewer/src/container/ViewerContainer.tsx`, `styles/viewer.css`
   - Verify: component tests + `pnpm --filter @activity/app exec playwright test --project=student`
+- [ ] **F3b (P1, human: ~half day / CC: ~20 min)** — viewer/container — the `locked` confirm step (D3): button reads "Check and lock", confirm before firing; `free`/`single` unchanged
+  - Verify: component test — Cancel fires no RPC and freezes nothing
+- [ ] **F3c (P1, human: ~half day / CC: ~20 min)** — viewer/container — focus + announcement on freeze (D6): status region `tabindex="-1"`, receives focus, `aria-live="polite"`
+  - Files: `ViewerContainer.tsx`, `packages/app/e2e/a11y/student-surfaces.e2e.ts`
+  - Verify: `pnpm --filter @activity/app exec playwright test --project=a11y`
+- [ ] **F3d (P2, human: ~1 day / CC: ~30 min)** — viewer/styles — sticky group footer under 768px (D7), 44px target, releases when the group scrolls past
+  - Verify: `resize_window` to 375px in the student lane; print unaffected
 - [ ] **F4 (P1, human: ~half day / CC: ~20 min)** — viewer/server — derive the lock from `meta.submissionMode`; refuse a second check inside `record_check`, after the replay lookup, same transaction (T1, OV#9). New `CheckErrorKind: 'locked'`.
   - Files: `packages/viewer/src/server/check-activity-handler.ts`, `wire.ts`, `httpCheckService.ts`
   - Verify: `tests/check-activity-handler.test.ts`; **no** `CHECK_WIRE_VERSION` bump (OV#11 — nothing new is sent)
@@ -321,10 +419,11 @@ applied live before T6 deploys.
 - [ ] **F7 (P1, human: ~2h / CC: ~10 min)** — authoring — importer: drop `revision:`/`grading:`; warn on `feedback: immediate` (reserved) and REFUSE `immediate` + `locked` (T1). Editor: remove the two controls, grey `immediate`, and **fix the now-false locked warning** at `ActivityEditor.tsx:838-844` (OV#13 — R1 makes every section checkable, and the leading implicit section can never be a checkpoint, so it would fire on most documents).
   - Files: `packages/app/src/lib/markdownToTiptap.ts`, `components/ActivityConfigDrawer.tsx`, `routes/ActivityEditor.tsx`, `lib/importFormatRegistry.ts`
   - Verify: `pnpm --filter @activity/app test` incl. the importFormatRegistry lockstep guard
-- [ ] **F8 (P2, human: ~2h / CC: ~10 min)** — viewer — `activityType` as a label beside the title, screen + print; `worksheet` renders nothing (R5)
+- [ ] **F8 (P2, human: ~2h / CC: ~10 min)** — viewer — `activityType` as TEXT in the existing meta line (D4: `Algebra II · Unit 3 · Exit ticket`, no badge/chip/colour), screen + print; `worksheet` renders nothing (R5)
   - Files: `ViewerContainer.tsx`, `styles/viewer.css`, `registry/printExpectations.ts`
   - Verify: a print row + `playwright test print-rules`
 - [ ] **F9 (P1, human: ~1 day / CC: ~40 min)** — tests — guards 1–10, each mutation-proven; the rendered-output coverage guard (5) is the load-bearing one
+- [ ] **F9b (P1, human: ~half day / CC: ~20 min)** — tests — the D2 copy table is pinned: one assertion per state string, so the vocabulary cannot fracture in implementation
 - [ ] **F10 (P2, human: ~2h / CC: ~10 min)** — docs — format doc (`single` ≡ `free`+no markers; `locked`+no markers = one-shot; `immediate` reserved), analytics panel figure → "section checks" (8A), data-map if 0040 touches columns, DECISIONS entry, TODOS: file `immediate` + the teacher unlock (T3)
 - [ ] **F11 (P1, AUTHOR)** — apply **0040 live**, THEN `pnpm deploy:check`. Ordering is the standing rule; the SPA push follows (OV#10's sequence — no wire bump means no forced reload)
 
@@ -349,7 +448,14 @@ No critical gaps: every path has a test and a handler; none is silent.
   original promise; nothing asks for it.
 - Per-blank server checks — R3's reason.
 - Teacher grading, released feedback, attempts UI — the parked slice.
-- Print changes — none; checkpoints are screen-only by construction.
+- Print changes — none; checkpoints are screen-only by construction (the
+  `activityType` label is the one exception and it prints as plain text, D4).
+- **A student-facing unlock, and a teacher unlock** — there is none in v1;
+  republish is the only unlock and it resets every student. Filed in TODOS.
+- **A badge/chip component** — rejected at D4; the system has none and this
+  did not earn the first one.
+- **Section navigation** — `activityType`'s original promise; still nothing
+  asks for it, and D1's region gives the structure a student actually needs.
 
 ## What already exists (reused, not rebuilt)
 
@@ -363,6 +469,12 @@ No critical gaps: every path has a test and a handler; none is silent.
   behind it, so a retry replays rather than 409s.
 - **The `{checkpoint}` grammar and the ```meta keys** — already write the
   right fields; only `revision:`/`grading:` are removed.
+- **`statusLabel`'s copy doctrine** (`ViewerContainer.tsx:116-140`) — D2's five
+  sentences extend it rather than starting a second vocabulary.
+- **The `--vw-*` token set** — D1 and D5 name existing tokens; no new ones.
+- **The a11y lane's post-check scan** — D6's row extends a scan that exists.
+- **`.viewer-section__footer/check/status`** — the group footer is these,
+  re-scoped; no new component.
 
 ## Worktree parallelization
 
@@ -391,11 +503,11 @@ No critical gaps: every path has a test and a handler; none is silent.
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 8 review findings + 20 outside-voice; 0 critical gaps; 4 cross-model tensions, all ruled |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | pending (requested) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 8 issues + 20 outside-voice, 0 critical gaps, 4 tensions ruled |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR (FULL) | score: 3/10 → 9/10, 8 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
-- **CROSS-MODEL:** the outside voice overturned the review's own central finding (1A "server enforces a client-sent lock flag" → T1 "derive the lock from the document"), which deleted a wire bump, migration 0040's column and a persistence-schema problem; and showed R3 (`immediate`) had no commit seam to build on, deferring it to its own slice. Two of the six original author rulings (Q1, Q6) were reversed on that evidence. The slice got smaller.
-- **VERDICT:** ENG CLEARED — ready for the design review, then implement.
+- **CROSS-MODEL:** the eng review's outside voice overturned that review's own central ruling (a server-enforced lock flag the student controls → derive the lock from the document), deleting a wire bump, a migration column and a persistence problem; it also deferred `immediate` for want of a commit seam. The design review then reversed one author ruling (Q4's "Check everywhere") for `locked` only, because the same word cannot serve a repeatable action and a one-way door.
+- **VERDICT:** ENG + DESIGN CLEARED — ready to implement.
 
 NO UNRESOLVED DECISIONS
