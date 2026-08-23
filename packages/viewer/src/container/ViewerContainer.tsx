@@ -351,6 +351,7 @@ export function ViewerContainer({
         title={doc.meta.title}
         course={doc.meta.course}
         unit={doc.meta.unit}
+        activityType={doc.meta.activityType}
         version={printVersion}
       />
 

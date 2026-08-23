@@ -35,9 +35,68 @@ For the hard rules distilled from these (standing constraints, things NOT to do)
 - **`Editor` exposes `onUpdate(json)` callback prop** as the single hook for "react to doc changes."
 - **JSON inspector lives in `Playground.tsx`, not `Editor.tsx`.** Standard "lift state up."
 - **Serialize layer pattern:** `serialize.ts` in `@activity/app/src/lib/`, exports `tiptapToActivity` / `activityToTiptap`. The renderer never touches this file.
-- **Three submission modes:** `single` (no checkpoints), `locked` (checkpoints freeze on check), `free` (checkpoints allow revision). Activity-level field on `ActivityMeta`, default `free`. Per-section checkpoints — tied to section boundaries.
-- **Two revision modes:** `free` (revise + resubmit) and `locked` (no revision/resubmit). Activity-level, default `free`. Separate from submissionMode — `single` mode ignores `revisionMode`.
+- **Three submission modes:** `single` (no checkpoints), `locked` (checkpoints freeze on check), `free` (checkpoints allow revision). Activity-level field on `ActivityMeta`, default `free`. Per-section checkpoints — tied to section boundaries. **⚠ SUPERSEDED IN PART 2026-08-24 — see "Activity flow modes" below for what each value now means and what a checkpoint now covers.**
+- ~~**Two revision modes.**~~ ⚰ `revisionMode` was DELETED 2026-08-24 (activity flow modes, R4): it governed resubmission after a final submit, and there has been no submit since S9.
 - **Attempt tracking:** each resubmit is a new `submissions` row with incremented server-derived `attempt_number`. Teacher dashboard has toggle: all attempts vs best score + count.
+
+### Activity flow modes (2026-08-24) — [design](design/activity-flow-modes.md)
+
+Six authored knobs described how an activity flows for a student and **none was
+read by anything**: their implementations died with `packages/renderer` at S9
+and the declarations survived. The slice made three real and deleted two.
+
+- **A checkpoint is where checking happens, and it checks everything since the
+  last one (R1).** A `{checkpoint}` section's Check covers every section since
+  the previous checkpoint, inclusive, and **the end of the activity is always a
+  checkpoint**. Without that second half a trailing non-checkpoint section's
+  answers would never be checked and never recorded, silently — the defect
+  class this repo keeps paying for. A document with no marker at all degrades
+  to exactly one Check at the end.
+- **The check group is a VISIBLE region (D1), not an inference.** R1 removes
+  most Check buttons; without a boundary a student scrolls past two buttonless
+  sections and reasonably concludes the work there is not counted. A rule plus
+  a grouped background — deliberately not a card, and suppressed entirely for a
+  one-section group, where the section already reads as its own scope.
+- **`locked` is enforced by the SERVER, derived from the DOCUMENT (T1).** The
+  eng review first ruled the client would send a `lock` flag; the outside voice
+  pointed out that a flag the browser sends is a flag the browser can omit. The
+  handler reads `meta.submissionMode` off the document it already loads, and
+  the refusal lives inside `record_check` **after** its idempotent-replay
+  lookup (OV#9) — otherwise a lost-response retry of the locking check becomes
+  a permanent lockout of work already recorded.
+- **Freeze at PRESS, not at fire (OV#19), and per SECTION, not per group.**
+  Press-time means an offline press freezes immediately and the queued check
+  grades exactly the frozen values. Per-section is what makes a partly-landed
+  group honest: the members that recorded a row are locked, the one that 429'd
+  wrote nothing and must stay editable so Retry can work.
+- **There is NO unlock (T3).** Not for the student, not for the teacher. A
+  republish mints a new version and resets every student — the only unlock
+  there is. This is why the button reads **"Check and lock" and confirms
+  first** (D3), breaking Q4's "Check everywhere" for `locked` alone: the same
+  word cannot serve a safe repeatable action and a one-way door.
+- **Solutions reveal per GROUP (OV#14); verdicts do not.** A half-landed group
+  would otherwise hand out one section's worked answers while another is still
+  editable. Verdicts describe work that DID land, so withholding them would
+  make a landed section look unchecked. A locked group still reveals (D8) — the
+  lock is a commitment device, not a punishment.
+- **`activityType` is a LABEL (R5).** Its schema comment claimed it drove
+  layout and section navigation; the viewer has one layout and no navigation,
+  and it is not the catalog facet either (that is `pedagogical_role`, 0037). It
+  renders as text beside course/unit, on screen and on paper; `worksheet` is
+  the unmarked default and renders nothing.
+- **`answerFeedback: 'immediate'` is DEFERRED, not built (R3/T2).** Three
+  things it needs do not exist: a commit seam (all eleven input components
+  write per keystroke), a client-side notion of "answered" (only the server
+  scorers know, and the sanitizer strips the expected count), and a bounded
+  re-fire rule. `immediate` + `locked` is refused at authoring, because the
+  server cannot tell an auto-check from a press.
+- **`revisionMode` and `gradingMode` DELETED (R4).** The first had no referent
+  without a submit. The second is derived, not authored: the server records
+  free text as "your teacher will review" and grades everything else from block
+  types, so `manual` on an all-MC activity was a lie. Per-block grading
+  metadata is the right grain and belongs to the teacher-grading slice. Old
+  documents carrying either field parse fine — zod `.object()` strips unknown
+  keys.
 
 ### Runtime architecture (Stages 11–12)
 
@@ -123,10 +182,10 @@ For the hard rules distilled from these (standing constraints, things NOT to do)
 
 - **Activity metadata was already persisted before Stage 15.** `ActivityEditor` held the full `ActivityMeta` in state and round-tripped it through `draft_content`; only `title` had a control. The other fields loaded and saved back unchanged. So adding pickers was pure wiring to `setMeta` — `changeKey` already fingerprinted meta, so autosave needed no change.
 - **Activity settings live in a collapsible disclosure under the title, NOT a modal/gear-drawer.** Discoverability-beats-elegance (same reasoning as the static toolbar over BubbleMenu). Always-visible label, expand for the three pickers.
-- **`revisionMode` control is disabled (not hidden) in single mode**, with "Not used in single-submit mode." helper text. Hiding it would make the submissionMode↔revisionMode coupling invisible; disabling makes it legible.
-- **`gradingMode` gets no picker in Phase 1.** It's inert (manual/mixed treated as auto until Phase 2.6 per-block grading lands). Surfacing a control would imply functionality that doesn't exist. Add it when manual-graded block types arrive.
+- ~~**`revisionMode` control is disabled (not hidden) in single mode.**~~ ⚰ Both the control and the field were DELETED 2026-08-24 (R4).
+- ~~**`gradingMode` gets no picker in Phase 1.**~~ ⚰ The field was DELETED 2026-08-24 (R4). The decision aged into its own answer: a knob with no picker, inert for four phases, describing something the server decides per block.
 - **`activityType` picker is included even though renderer presentation-branching is Phase 2.** It has a real near-term consumer: Stage 16's dashboard filters on it.
-- **Locked-mode checkpoint validation WARNS, does not block save.** Blocking save mid-edit is hostile. An amber inline banner (continuous, not just at publish) fires whenever locked mode coexists with any non-checkpoint section. The implicit leading section (content before the first `sectionBreak`) counts as non-checkpoint. Resolves open-question #258.
+- ~~**Locked-mode checkpoint validation WARNS, does not block save.**~~ ⚰ The banner was DELETED 2026-08-24 (OV#13). Its premise — that a non-checkpoint section left students unable to lock their work — stopped being true at R1, where a checkpoint's Check covers every section since the previous one and the end of the activity is always a checkpoint. And because the implicit leading section can never be a checkpoint, it fired on nearly every locked document: a warning that is always on is a warning nobody reads. The Settings button's amber dot survives with an honest meaning — locked mode is on.
 - **FillInBlank block-field UI is an inline NodeView footer disclosure, NOT a popover.** Mirrors SectionBreakView's inline-controls pattern and sidesteps the per-chip-popover hazards documented in Stage 13.5. The blank-token popover stays for per-blank fields; block-level fields (solution, confidence) get the footer. The footer stays hidden for a plain/unselected/unconfigured problem to keep long worksheets uncluttered (shown when `selected || settingsOpen || isConfigured`). It's `contentEditable={false}` so ProseMirror doesn't treat it as block content; the solution textarea `stopPropagation`s keydown so editor shortcuts don't fire while typing.
 - **`solution` was a plain multiline string in Phase 1; Phase 2 upgraded it to inline rich text + math** (now `InlineNode[]`, authored via `InlineRichTextEditor` in the footer — see Current focus).
 - **`skills` editing UI deferred to Phase 2** (the schema scheduled it there). The attr round-trips through the node and serialize so data survives, but no control surfaces it. Don't add a skills tag-input without revisiting Phase 2 scope.

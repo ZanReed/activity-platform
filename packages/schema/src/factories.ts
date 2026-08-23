@@ -356,11 +356,9 @@ export function createEmptyDocument(meta: Partial<ActivityMeta> = {}): ActivityD
       course: meta.course ?? 'Algebra II',
       ...(meta.unit !== undefined && { unit: meta.unit }),
       submissionMode: meta.submissionMode ?? 'free',
-      revisionMode: meta.revisionMode ?? 'free',
       activityType: meta.activityType ?? 'worksheet',
       answerFeedback: meta.answerFeedback ?? 'on_check',
       skills: meta.skills ?? [],
-      gradingMode: 'auto',
       // Derive the full default print config from the schema (DRY — avoids
       // re-listing every print default here, where it would silently drift
       // from PrintConfig). Callers can override via meta.print.

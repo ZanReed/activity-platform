@@ -17,7 +17,7 @@ import { topLevelRowAt } from '../strictGrid';
 // If a teacher wants to title or check the first section, they insert a
 // section_break at the top of the document. Stage 15 will add a proper
 // activity-properties panel that covers first-section metadata alongside
-// submissionMode / revisionMode / activityType / skills.
+// submissionMode / activityType / skills.
 // =============================================================================
 
 declare module '@tiptap/core' {

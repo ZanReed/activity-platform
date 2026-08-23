@@ -154,7 +154,6 @@ export interface ImportedMeta {
     // (calculator restrictions, print layout, typography) stay editor-only
     // until something actually demands them.
     submissionMode?: ActivityMeta['submissionMode'];
-    revisionMode?: ActivityMeta['revisionMode'];
     activityType?: ActivityMeta['activityType'];
     answerFeedback?: ActivityMeta['answerFeedback'];
     /**
@@ -2647,14 +2646,21 @@ function parseMetaFence(src: string, ctx: Ctx): void {
                 if (v) meta.submissionMode = v;
                 break;
             }
+            // ⚰ RETIRED KEYS, named rather than swept into the default arm's
+            // "isn't a recognized key". A file written against the old format
+            // deserves a sentence that says what happened to its setting, not
+            // one implying a typo. `revision:` governed resubmission after a
+            // final submit — and there is no submit — and `grading:` was never
+            // a fence key at all, but it is listed in the same breath in the
+            // docs it is being removed from (R4).
             case 'revisionmode':
-            case 'revision': {
-                const v = metaEnum(
-                    'revision mode', value, ['free', 'locked'] as const, ctx,
+            case 'revision':
+            case 'gradingmode':
+            case 'grading':
+                ctx.warnings.add(
+                    `Meta: “${key}” was removed — re-checking is governed by “submission” (free / locked / single), and grading is decided per question by what kind it is. Ignored.`,
                 );
-                if (v) meta.revisionMode = v;
                 break;
-            }
             case 'type':
             case 'activitytype': {
                 const v = metaEnum(
@@ -2671,7 +2677,16 @@ function parseMetaFence(src: string, ctx: Ctx): void {
                     'answer feedback', value,
                     ['immediate', 'on_check'] as const, ctx,
                 );
-                if (v) meta.answerFeedback = v;
+                if (!v) break;
+                // `immediate` is RESERVED, not active (R3). Accepted so a file
+                // written for it keeps parsing, but the author is told plainly
+                // rather than left to discover it from behaviour.
+                if (v === 'immediate') {
+                    ctx.warnings.add(
+                        'Meta: feedback “immediate” is reserved and not active yet — this activity will behave as “on_check” (correctness appears when the student checks).',
+                    );
+                }
+                meta.answerFeedback = v;
                 break;
             }
             case 'calculator': {
@@ -2708,9 +2723,23 @@ function parseMetaFence(src: string, ctx: Ctx): void {
             }
             default:
                 ctx.warnings.add(
-                    `Meta: “${key}” isn’t a recognized key (title, course, unit, tags, role, type, submission, revision, feedback, calculator) and was skipped.`,
+                    `Meta: “${key}” isn’t a recognized key (title, course, unit, tags, role, type, submission, feedback, calculator, work) and was skipped.`,
                 );
         }
+    }
+    // ⚠ REFUSED COMBINATION (T1), checked after the whole fence because key
+    // order is the author's. `immediate` means the viewer auto-checks; `locked`
+    // means the first check of a section freezes it and the server refuses a
+    // second. Together they would freeze a student's work the instant they
+    // finished typing an answer — and the server has no way to tell an
+    // auto-check from a deliberate press, so it could not treat the two
+    // differently even if we wanted it to. The feedback setting yields, because
+    // it is the reserved one.
+    if (meta.answerFeedback === 'immediate' && meta.submissionMode === 'locked') {
+        ctx.warnings.add(
+            'Meta: feedback “immediate” cannot be combined with submission “locked” — automatic checking would lock each section the moment it was answered. Feedback was left as “on_check”.',
+        );
+        meta.answerFeedback = 'on_check';
     }
     if (Object.keys(meta).length > 0) ctx.meta = meta;
 }

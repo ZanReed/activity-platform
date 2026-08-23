@@ -16,6 +16,7 @@ import {
   PrintPageRule,
   PrintHeaderRow,
   PrintWorksheetHeading,
+  activityTypeLabel,
   printVars,
 } from '../../src/container/PrintDocumentLayer.js';
 import { ViewerContainer } from '../../src/container/ViewerContainer.js';
@@ -242,6 +243,52 @@ describe('the worksheet says what it is on paper', () => {
         expect(
             container.querySelector('.viewer-print-heading__meta')?.textContent,
         ).toBe('Algebra II · Unit 4');
+    });
+
+    // ---- D4/R5: activityType is a LABEL, printed as plain text -------------
+    it('joins the activity type onto the same meta line', () => {
+        const { container } = render(
+            <PrintWorksheetHeading
+                title="Quiz 3"
+                course="Algebra II"
+                unit="Unit 3"
+                activityType="exit_ticket"
+            />,
+        );
+        expect(
+            container.querySelector('.viewer-print-heading__meta')?.textContent,
+        ).toBe('Algebra II · Unit 3 · Exit ticket');
+    });
+
+    it('renders NOTHING for `worksheet` — the unmarked default', () => {
+        // A label on every sheet trains a reader to skip the line the marked
+        // cases need them to read.
+        const { container } = render(
+            <PrintWorksheetHeading title="Quiz 3" course="Algebra II" activityType="worksheet" />,
+        );
+        expect(
+            container.querySelector('.viewer-print-heading__meta')?.textContent,
+        ).toBe('Algebra II');
+    });
+
+    it('carries no badge, chip, colour or radius — it is text (D4)', () => {
+        const { container } = render(
+            <PrintWorksheetHeading title="Q" activityType="warm_up" />,
+        );
+        const meta = container.querySelector('.viewer-print-heading__meta')!;
+        expect(meta.textContent).toBe('Warm-up');
+        // One text node in the shared meta paragraph, not an element of its own:
+        // a nested span would be the seam a badge later grows from.
+        expect(meta.children).toHaveLength(0);
+        expect(meta.tagName).toBe('P');
+    });
+
+    it('labels every marked type, and nothing else', () => {
+        expect(activityTypeLabel('exit_ticket')).toBe('Exit ticket');
+        expect(activityTypeLabel('warm_up')).toBe('Warm-up');
+        expect(activityTypeLabel('review')).toBe('Review');
+        expect(activityTypeLabel('worksheet')).toBeUndefined();
+        expect(activityTypeLabel(undefined)).toBeUndefined();
     });
 
     it('omits the meta line when there is nothing to say', () => {

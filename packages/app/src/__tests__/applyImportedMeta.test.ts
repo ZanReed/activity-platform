@@ -153,17 +153,15 @@ describe('applyImportedMeta — activity settings', () => {
         const out = applyImportedMeta(
             {
                 submissionMode: 'locked',
-                revisionMode: 'locked',
                 activityType: 'exit_ticket',
-                answerFeedback: 'immediate',
+                answerFeedback: 'on_check',
                 calculatorMode: 'graphing',
             },
             fresh,
         );
         expect(out.meta.submissionMode).toBe('locked');
-        expect(out.meta.revisionMode).toBe('locked');
         expect(out.meta.activityType).toBe('exit_ticket');
-        expect(out.meta.answerFeedback).toBe('immediate');
+        expect(out.meta.answerFeedback).toBe('on_check');
         expect(out.calculator?.enabled).toBe(true);
         expect(out.calculator?.restrictions.mode).toBe('graphing');
         expect(out.warnings).toEqual([]);
@@ -174,7 +172,6 @@ describe('applyImportedMeta — activity settings', () => {
     // value, so an absence test could never let the fence set them.
     it('treats each schema default as unset', () => {
         expect(freshMeta.submissionMode).toBe('free');
-        expect(freshMeta.revisionMode).toBe('free');
         expect(freshMeta.activityType).toBe('worksheet');
         expect(freshMeta.answerFeedback).toBe('on_check');
     });

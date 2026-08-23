@@ -90,7 +90,7 @@ export { applyPrintShuffles, printSeed } from './print/printShuffle.js';
 // measures captured blocks in a SEPARATE document (T5) and has to rebuild the
 // `.viewer` wrapper they were laid out inside — without these vars every
 // measured height is wrong, and wrong heights are mis-paginated panels.
-export { printVars } from './container/PrintDocumentLayer.js';
+export { printVars, activityTypeLabel } from './container/PrintDocumentLayer.js';
 export type { AnswerKeyProviderProps } from './answer-key/context.js';
 export { ANSWER_KEY_COVERAGE, ANSWER_KEY_INK } from './answer-key/types.js';
 export type {

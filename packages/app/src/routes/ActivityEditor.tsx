@@ -92,24 +92,6 @@ type LoadState =
 const UUID_RE =
 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Locked mode relies on per-section "Check this section" buttons to freeze
-// answers; a section that isn't a checkpoint has no such button, so students
-// in that section can never lock. Walk the Tiptap doc and report whether any
-// section lacks a checkpoint. The leading run before the first sectionBreak
-// forms an implicit section with no checkpoint affordance, so its presence
-// counts. Mirrors splitTiptapBlocksIntoSections in serialize.ts.
-function hasNonCheckpointSection(tiptap: JSONContent): boolean {
-    const nodes = tiptap.content ?? [];
-    if (nodes.length === 0) return false;
-    if (nodes[0]?.type !== 'sectionBreak') return true;
-    for (const n of nodes) {
-        if (n.type === 'sectionBreak' && n.attrs?.isCheckpoint !== true) {
-            return true;
-        }
-    }
-    return false;
-}
-
 // Reconstitute a ReferencePanel from the panel editor's Tiptap JSON + the title
 // field, or undefined when the panel is effectively empty (no title and no real
 // content) so an empty scaffold is never persisted. Called only at save time —
@@ -683,12 +665,19 @@ export default function ActivityEditor() {
         if (!meta) return null;
         if (!id) return null;
 
-        // Locked mode with an unlockable section — drives the inline banner
-        // (primary cue, never hidden in the drawer) and the Settings button's
-        // amber dot (secondary cue).
-        const lockedWarning =
-            meta.submissionMode === 'locked' &&
-            hasNonCheckpointSection(tiptapJson ?? loadState.tiptap);
+        // ⚰ THE "unlockable section" WARNING IS GONE (OV#13, 2026-08-24), and
+        // its premise with it. It said a non-checkpoint section left students
+        // "no way to lock their work" — true of the renderer, false since R1:
+        // a checkpoint's Check covers every section since the previous one and
+        // the END OF THE ACTIVITY IS ALWAYS A CHECKPOINT, so every section is
+        // checkable. Worse, the leading run before the first sectionBreak can
+        // never be a checkpoint, so the banner fired on nearly every locked
+        // document — a warning that is always on is a warning nobody reads.
+        //
+        // The amber dot survives with an honest meaning: locked mode is ON.
+        // It is irreversible for the student and the author wants it used
+        // sparingly, so a standing cue on the Settings button is worth its ink.
+        const lockedMode = meta.submissionMode === 'locked';
 
         // Mirrors panelFromEditor's emptiness test: a title or any non-empty
         // block counts as content (drives the Reference button's dot).
@@ -723,7 +712,7 @@ export default function ActivityEditor() {
             }
             calculatorEnabled={calculator?.enabled ?? false}
             referenceHasContent={referenceHasContent}
-            settingsWarning={lockedWarning}
+            settingsWarning={lockedMode}
             />
             <span
             aria-hidden="true"
@@ -834,15 +823,6 @@ export default function ActivityEditor() {
             aria-label="Activity title"
             className="mt-4 w-full bg-transparent text-2xl font-bold text-ink placeholder:text-faint focus:outline-none"
             />
-
-            {lockedWarning && (
-                <div className="mt-3 rounded-md border border-warning-border-2 bg-warning-bg px-3 py-2 text-xs text-warning-strong">
-                Locked mode freezes answers when a section is checked, but at
-                least one section isn't a checkpoint — students there have no
-                way to lock their work. Mark every section as a checkpoint, or
-                switch to free or single mode.
-                </div>
-            )}
 
             <div className="mb-6" />
 

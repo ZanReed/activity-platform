@@ -88,7 +88,7 @@ export function applyImportedMeta(
      * course/DEFAULT_COURSE test above — these fields always HAVE a value, so
      * an absence test could never let the fence set them.
      */
-    const applySetting = <K extends 'submissionMode' | 'revisionMode' | 'activityType' | 'answerFeedback'>(
+    const applySetting = <K extends 'submissionMode' | 'activityType' | 'answerFeedback'>(
         key: K,
         incoming: ActivityMeta[K] | undefined,
         schemaDefault: ActivityMeta[K],
@@ -178,7 +178,6 @@ export function applyImportedMeta(
     }
 
     applySetting('submissionMode', imported.submissionMode, 'free', 'submission mode');
-    applySetting('revisionMode', imported.revisionMode, 'free', 'revision mode');
     applySetting('activityType', imported.activityType, 'worksheet', 'activity type');
     applySetting('answerFeedback', imported.answerFeedback, 'on_check', 'answer feedback');
 

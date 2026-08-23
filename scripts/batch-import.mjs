@@ -314,11 +314,13 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath) {
         const priorCourse = prior.course ?? pipeline.DEFAULT_COURSE;
 
         // `??` throughout: absent means "leave it alone", never "reset it".
+        // ⚠ UNTYPED MERGE — `pnpm typecheck` covers none of this file, so a
+        // schema field removed here is removed by hand or not at all. OV#18
+        // named this exact line when `revisionMode` was deleted (R4).
         const computed = {
             title: fence.title ?? priorTitle,
             course: fence.course ?? priorCourse,
             submissionMode: fence.submissionMode ?? prior.submissionMode ?? 'free',
-            revisionMode: fence.revisionMode ?? prior.revisionMode ?? 'free',
             activityType: fence.activityType ?? prior.activityType ?? 'worksheet',
             answerFeedback: fence.answerFeedback ?? prior.answerFeedback ?? 'on_check',
         };

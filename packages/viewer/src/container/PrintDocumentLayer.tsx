@@ -21,7 +21,11 @@
 // =============================================================================
 
 import type { CSSProperties, ReactElement } from 'react';
-import type { PrintConfig, PrintHeader } from '@activity/schema';
+import type { ActivityMeta, PrintConfig, PrintHeader } from '@activity/schema';
+
+/** The authored activity type (R5). Aliased so the two consumers of
+ * `activityTypeLabel` name one type rather than re-spelling the union. */
+export type ActivityTypeValue = ActivityMeta['activityType'];
 
 export interface PrintDocumentLayerProps {
   readonly print: PrintConfig;
@@ -77,20 +81,31 @@ export function printVars(print: PrintConfig): CSSProperties {
  *
  * `course · unit` mirrors the renderer's separator exactly, so a teacher who
  * prints from either surface gets the same line.
+ *
+ * ACTIVITY TYPE JOINS THAT LINE AS PLAIN TEXT (activity flow modes, D4/R5).
+ * Not a badge, not a chip, no colour and no radius: this surface's job is the
+ * questions, the system has no badge component and this did not earn the
+ * first one, and a coloured pill is meaningless in the grayscale a worksheet
+ * is actually photocopied in. `worksheet` is the unmarked default and renders
+ * nothing — a label on every sheet is a label nobody reads.
  */
 export function PrintWorksheetHeading({
   title,
   course,
   unit,
+  activityType,
   version,
 }: {
   readonly title: string;
   readonly course?: string | undefined;
   readonly unit?: string | undefined;
+  readonly activityType?: ActivityTypeValue | undefined;
   /** 1-based print version, when a teacher printed more than one arrangement. */
   readonly version?: number | undefined;
 }): ReactElement | null {
-  const meta = [course, unit].filter((part): part is string => Boolean(part));
+  const meta = [course, unit, activityTypeLabel(activityType)].filter(
+    (part): part is string => Boolean(part),
+  );
   if (!title && meta.length === 0 && version === undefined) return null;
   return (
     <header className="viewer-print-heading">
@@ -112,6 +127,30 @@ export function PrintWorksheetHeading({
       )}
     </header>
   );
+}
+
+/**
+ * The teacher's word for what this activity IS, or undefined for "say nothing".
+ *
+ * ONE source for both surfaces (D4 renders this on screen and on paper), so
+ * the two cannot drift into "Exit ticket" here and "Exit Ticket" there.
+ * `worksheet` is the unmarked default: it is what most activities are, and
+ * stamping the obvious on every sheet trains a reader to skip the line the
+ * marked cases need them to read.
+ */
+export function activityTypeLabel(
+  activityType: ActivityTypeValue | undefined,
+): string | undefined {
+  switch (activityType) {
+    case 'exit_ticket':
+      return 'Exit ticket';
+    case 'warm_up':
+      return 'Warm-up';
+    case 'review':
+      return 'Review';
+    default:
+      return undefined;
+  }
 }
 
 /** 1 → A, 2 → B, … wrapping past 26 (no worksheet has 27 versions). */

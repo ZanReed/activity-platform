@@ -34,6 +34,7 @@ import { MARKS, markOnce, preloadGraphKitIfNeeded, preloadMathIfNeeded } from '@
 import { useParams } from 'react-router';
 import {
   PrintButton,
+  activityTypeLabel,
   ToolCluster,
   ViewerContainer,
   ViewerLoadError,
@@ -552,11 +553,28 @@ export default function StudentViewer() {
 
   if (!store) return <Skeleton slow={false} onRetry={() => setAttempt((n) => n + 1)} />;
 
+  // course · unit · type. `activityTypeLabel` is the viewer's, shared with the
+  // printed heading (D4) so the two surfaces cannot drift into "Exit ticket"
+  // here and "Exit Ticket" on paper.
+  const servedMeta = state.served.document.meta;
+  const topbarMeta = [
+    servedMeta.course,
+    servedMeta.unit,
+    activityTypeLabel(servedMeta.activityType),
+  ].filter((part): part is string => Boolean(part));
+
 
   return (
     <>
       <header className="viewer-topbar">
         <h1>{state.served.title}</h1>
+        {/* D4 — the same meta line the printed sheet carries, in the same
+            words, from the same function. Plain text at the muted token: no
+            chip, no colour, no radius. `worksheet` is the unmarked default and
+            contributes nothing, so most activities render no line at all. */}
+        {topbarMeta.length > 0 ? (
+          <p className="viewer-topbar__meta">{topbarMeta.join(' · ')}</p>
+        ) : null}
         {/* Ruling 7.3A wants this in the completion panel and the chip menu;
             neither exists yet, so it lives in the bar that does (S5-3). The
             action is the same one those will call. */}

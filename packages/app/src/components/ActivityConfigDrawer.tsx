@@ -73,20 +73,19 @@ const SETTINGS_LABEL_CLASS =
     'text-xs font-semibold uppercase tracking-wide text-muted';
 const SETTINGS_HELP_CLASS = 'mt-1 text-xs text-muted';
 
+// The help text describes what the STUDENT gets, in the teacher's words. Each
+// line is the flow-modes contract (R1/R2) rather than the pre-slice fiction
+// these strings carried — "one submit at the end" named a submit that has not
+// existed since S9.
 const SUBMISSION_MODE_HELP: Record<ActivityMeta['submissionMode'], string> = {
-    single: 'One submit at the end — no per-section checkpoints.',
-    locked: 'Per-section checkpoints; answers freeze once a section is checked.',
-    free: 'Per-section checkpoints; students can revise and re-check freely.',
-};
-
-const REVISION_MODE_HELP: Record<ActivityMeta['revisionMode'], string> = {
-    free: 'Students can revise and resubmit after the final submit.',
-    locked: 'Final submit is final — no resubmissions.',
+    single: 'One Check at the very end, covering the whole activity. Section checkpoints are ignored.',
+    locked: 'A Check at each checkpoint — and answers freeze once checked. There is no undo, and a re-publish is the only way to reset a class.',
+    free: 'A Check at each checkpoint, covering everything since the last one. Students can re-check as often as they like.',
 };
 
 const ANSWER_FEEDBACK_HELP: Record<ActivityMeta['answerFeedback'], string> = {
-    immediate: 'Each blank turns green/red as soon as the student leaves it.',
-    on_check: 'Correctness stays hidden until the student checks the section or submits.',
+    immediate: 'Not available yet — this activity will behave as “Reveal on check”.',
+    on_check: 'Correctness stays hidden until the student presses Check.',
 };
 
 const ACTIVITY_TYPE_LABELS: Record<ActivityMeta['activityType'], string> = {
@@ -197,6 +196,11 @@ export function ConfigButtons({
     onToggle: (key: ConfigKey) => void;
     calculatorEnabled: boolean;
     referenceHasContent: boolean;
+    /** This activity is in `locked` submission mode. A standing cue rather
+     * than a defect warning: locked is irreversible for the student — there is
+     * no unlock, and a re-publish resets the whole class — so it is worth
+     * seeing without opening the drawer. (It replaced a real warning that had
+     * become permanently, wrongly true; see ActivityEditor.) */
     settingsWarning: boolean;
 }) {
     return (
@@ -208,8 +212,8 @@ export function ConfigButtons({
                 dot={settingsWarning ? 'amber' : undefined}
                 title={
                     settingsWarning
-                        ? 'Activity settings — see the locked-mode warning below'
-                        : 'Submission, revision, and feedback settings'
+                        ? 'Activity settings — this activity locks answers when a student checks'
+                        : 'Submission, activity type, and feedback settings'
                 }
                 onClick={() => onToggle('settings')}
                 dataConfigButton="settings"
@@ -363,12 +367,19 @@ export function ConfigDrawer({
 // Section bodies — the strips' former contents, chrome-free.
 // =============================================================================
 
-// Activity-level metadata controls. submissionMode / revisionMode /
-// activityType all already round-trip through draft_content; this panel just
-// surfaces them. revisionMode is inert in single mode (the schema ignores it),
-// so its control is disabled there with explanatory text. gradingMode is
-// omitted — it's inert in Phase 1 (manual/mixed treated as auto), so a picker
-// would imply behavior that doesn't exist yet. skills UI is deferred to Phase 2.
+// Activity-level metadata controls. submissionMode / activityType /
+// answerFeedback round-trip through draft_content; this panel surfaces them.
+//
+// ⚰ revisionMode and gradingMode had controls here until 2026-08-24 (activity
+// flow modes, R4) and were DELETED from the schema in the same slice — one
+// governed resubmission after a submit that does not exist, the other claimed
+// to choose a grading style the server decides per block. Don't re-add them.
+// skills UI is still deferred to Phase 2.
+//
+// `immediate` answer feedback is RESERVED, not active (R3): the option stays
+// selectable-looking nowhere — it is disabled, and its help line says what the
+// activity will actually do — because the field survives in the schema and a
+// document may already carry it.
 function ActivitySettingsBody({
     meta,
     onChange,
@@ -378,7 +389,6 @@ function ActivitySettingsBody({
     onChange: (next: ActivityMeta) => void;
     taxonomy: RowTaxonomy;
 }) {
-    const singleMode = meta.submissionMode === 'single';
 
     // meta.unit is optional: a blank field means "no unit", which must be the
     // ABSENT key, not an empty string. The publish stamp mirrors the document
@@ -496,33 +506,6 @@ function ActivitySettingsBody({
             </div>
 
             <div>
-                <label className={SETTINGS_LABEL_CLASS} htmlFor="revision-mode">
-                    Revision mode
-                </label>
-                <select
-                    id="revision-mode"
-                    className={SELECT_CLASS}
-                    value={meta.revisionMode}
-                    disabled={singleMode}
-                    onChange={(e) =>
-                        onChange({
-                            ...meta,
-                            revisionMode: e.target
-                                .value as ActivityMeta['revisionMode'],
-                        })
-                    }
-                >
-                    <option value="free">Allow resubmit</option>
-                    <option value="locked">No resubmit</option>
-                </select>
-                <p className={SETTINGS_HELP_CLASS}>
-                    {singleMode
-                        ? 'Not used in single-submit mode.'
-                        : REVISION_MODE_HELP[meta.revisionMode]}
-                </p>
-            </div>
-
-            <div>
                 <label className={SETTINGS_LABEL_CLASS} htmlFor="activity-type">
                     Activity type
                 </label>
@@ -567,7 +550,9 @@ function ActivitySettingsBody({
                     }
                 >
                     <option value="on_check">Reveal on check</option>
-                    <option value="immediate">Immediate self-check</option>
+                    <option value="immediate" disabled>
+                        Immediate self-check (not available yet)
+                    </option>
                 </select>
                 <p className={SETTINGS_HELP_CLASS}>
                     {ANSWER_FEEDBACK_HELP[meta.answerFeedback]}

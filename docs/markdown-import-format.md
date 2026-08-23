@@ -44,7 +44,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```table ` fenced block | a table whose **headers run down the left** (`header: column`) — see below |
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
 | a ` ```callout ` fenced block | a **tinted note box** — info / warning / success / note (see below) |
-| a ` ```meta ` fenced block | the activity's **metadata and settings** — title, course, unit, tags, Bank role, type, submission/revision mode, feedback, calculator — not a body block (see below) |
+| a ` ```meta ` fenced block | the activity's **metadata and settings** — title, course, unit, tags, Bank role, type, submission mode, feedback, calculator — not a body block (see below) |
 | a ` ```reference ` fenced block | the activity's **reference panel** (formula sheet students summon; prints at the top) — not a body block (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
@@ -462,7 +462,6 @@ ACTIVITY METADATA (optional, once, anywhere in the reply)
     role: lesson
     type: exit_ticket
     submission: locked
-    revision: locked
     feedback: on_check
     calculator: graphing
     ```
@@ -486,15 +485,16 @@ ACTIVITY SETTINGS (optional, same ```meta fence)
     This is the activity's FORMAT. It is separate from role, which is where
     the activity sits in your sequence — both offer a "review".
 - submission: single | locked | free   (default free)
-    single = one submit at the end, no per-section checks.
-    locked = per-section checkpoints, answers freeze once checked.
-    free   = per-section checkpoints, students may revise and re-check.
-- revision: free | locked   (default free) — may they resubmit after the
-    final submit? Ignored in single mode.
-- feedback: immediate | on_check   (default on_check)
-    immediate = each blank turns green/red as the student leaves it.
-    on_check  = correctness stays hidden until they check the section.
-    Use immediate for practice; on_check for anything quiz-like.
+    A Check appears at every section you marked {checkpoint}, and it
+    covers everything since the PREVIOUS checkpoint. The end of the
+    activity is always a checkpoint, so nothing is ever left unchecked.
+    free   = as above; students may re-check as often as they like.
+    locked = as above, but answers FREEZE when a group is checked.
+             There is no undo — for the student or the teacher.
+    single = ignore every {checkpoint}; one Check at the very end.
+- feedback: on_check   (default, and the only value that does anything)
+    on_check  = correctness stays hidden until the student presses Check.
+    immediate is RESERVED and not active yet; do not set it.
 - calculator: off | scientific | graphing   (default off)
 - work: 3 lines        blank writing room under EVERY problem (default none).
     Also takes 1in / 2.5cm / a plain number of rem. Use it on any sheet the
@@ -935,15 +935,21 @@ case-insensitively with spaces and hyphens folded to underscores, so
 | Key | Values (default first) | What it decides |
 |---|---|---|
 | `type` | `worksheet`, `exit_ticket`, `warm_up`, `review` | The activity's **format**. Separate from `role`, which is where it sits in your sequence — both vocabularies offer a "review". |
-| `submission` | `free`, `locked`, `single` | `free` = per-section checkpoints, students revise and re-check freely. `locked` = checkpoints, but answers freeze once a section is checked. `single` = one submit at the end, no checkpoints. |
-| `revision` | `free`, `locked` | May students resubmit after the final submit? Ignored in `single` mode. |
-| `feedback` | `on_check`, `immediate` | `immediate` turns each blank green/red as the student leaves it; `on_check` hides correctness until they check the section. Practice wants `immediate`; anything quiz-like wants `on_check`. |
+| `submission` | `free`, `locked`, `single` | Where the **Check** buttons go and what each one covers. A Check appears at every `{checkpoint}` section and covers **everything since the previous checkpoint** — and the end of the activity is always a checkpoint, so no section is ever left unchecked. `free` = students may re-check as often as they like. `locked` = the same buttons, but answers **freeze** when a group is checked, and there is **no undo** — not for the student, not for you; re-publishing is the only reset and it resets the whole class. `single` = ignore every `{checkpoint}`; one Check at the very end. (`single` is exactly `free` with no markers — it is kept because it states the intent plainly.) |
+| `feedback` | `on_check` | `on_check` hides correctness until the student presses Check. **`immediate` is reserved and not active yet** — the importer accepts it with a warning and the activity behaves as `on_check`. It cannot be combined with `submission: locked` at all: automatic checking would lock each section the moment it was answered. |
 | `calculator` | `off`, `scientific`, `graphing` | Whether the calculator tool is available, and which kind. Finer restrictions (trig, logs, regression models, expression caps) stay in ⚙ → Calculator. |
 | `work` | `3 lines` (default none) | **Blank writing room under every problem on paper.** Also accepts `1in`, `2.5cm`, `4mm` or a plain number (rem). One line is about 8mm — between college- and wide-ruled. Without it a printed worksheet gives the student nowhere to work. |
 
-Typical pairings: an exit ticket or quiz is `submission: locked` +
-`feedback: on_check`; a practice sheet is `submission: free` +
-`feedback: immediate`.
+Typical pairings: an exit ticket or quiz is `submission: locked` (use it
+sparingly — it cannot be undone); a practice sheet is `submission: free`,
+which is the default and needs no key at all.
+
+⚰ **`revision:` and `grading:` were removed 2026-08-24.** `revision` asked
+whether students could resubmit after a final submit, and there is no submit —
+re-checking is what `submission` governs. `grading` claimed to choose who
+scores the activity, which is decided per question by what kind of question it
+is. A file still carrying either gets a warning naming it, and imports fine
+otherwise.
 
 **Still editor-only** (no import syntax, set in ⚙): the rest of print layout
 (paper size, margins, columns, font size, problem spacing, the printed header),

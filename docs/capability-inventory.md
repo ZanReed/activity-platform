@@ -365,12 +365,17 @@ Legend for **Import**: ✅ importable · ⚠️ partially importable · ❌ edit
 None of these are expressible in pasted markdown; they live in
 `ActivityMeta` (`document.ts:212–224`) and are set in the editor:
 
-- `submissionMode` (`single` / `locked` / `free`), `revisionMode`,
-  `gradingMode` (`auto`/`manual`/`mixed`, inert in Phase 1), `activityType`.
-- **`answerFeedback`** (`immediate` / `on_check`) — schema default `on_check`;
-  **runtime back-compat default for a missing field is `immediate`**
-  (`document.ts:82–86`; `blanks.ts:320–325`). Intentional asymmetry, documented
-  in the schema — **not a bug**, but worth knowing it exists.
+- `submissionMode` (`free` / `locked` / `single`) and `activityType` — both
+  LIVE in the viewer since 2026-08-24 ([activity flow modes](design/activity-flow-modes.md)).
+  `submissionMode` decides where Check buttons go and whether a checked group
+  freezes; `activityType` renders as a label beside course/unit.
+  ⚰ `revisionMode` and `gradingMode` were DELETED in that slice (R4).
+- **`answerFeedback`** (`on_check`; `immediate` RESERVED) — `on_check` is the
+  only live value and the treatment for a missing field. ⚠ **The old note here
+  claimed the runtime back-compat default for a missing field was `immediate`
+  — that described `packages/renderer`'s runtime, deleted at S9 Drop 4, and was
+  corrected 2026-08-24 (OV#20).** There is no asymmetry left: missing means
+  `on_check`, same as the schema default.
 - `skills`, `typography` (font + base size), full **print** layer
   (`PrintConfig`, `document.ts:160–171`: paper size, margins, work-space,
   columns [dormant], header fields), **reference panel** (`document.ts:245–249`),

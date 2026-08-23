@@ -28,10 +28,17 @@ import { Row } from './layout.js';
 // blocks; a columned region is a multi-column row. Sections are organizational
 // only — they don't constrain content beyond holding rows.
 //
-// isCheckpoint marks this section as having a "Check this section" button at
-// its bottom in the published HTML. Only meaningful when the activity's
-// submissionMode is 'locked' or 'free' (ignored in 'single' mode — no
-// checkpoint buttons render anywhere).
+// isCheckpoint is the `{checkpoint}` marker, and it is where CHECKING HAPPENS
+// (activity flow modes, R1). A checkpoint section's Check covers EVERY SECTION
+// SINCE THE PREVIOUS CHECKPOINT, inclusive — not just itself — and THE END OF
+// THE ACTIVITY IS ALWAYS A CHECKPOINT, so no trailing section is ever left
+// un-checkable and a document with no marker at all degrades to exactly one
+// Check at the end. Ignored entirely when submissionMode is 'single'.
+//
+// The fold that turns these into check groups is
+// packages/viewer/src/container/checkGroups.ts; the guard that binds it to
+// rendered output is tests/components/check-groups.test.tsx (a Check button
+// exists in the DOM for every section, in every mode).
 export const Section = z.object({
   id: z.string().uuid(),
                                 title: z.string().optional(),
@@ -43,47 +50,60 @@ export type Section = z.infer<typeof Section>;
 // Meta: the activity's title, course, unit, etc. Not used in rendering of
 // the body — drives the published HTML's <title> and header banner.
 //
-// submissionMode controls the student-facing flow:
-//   'single' — one submit at the end, no checkpoints (the original Phase 1 model)
-//   'locked' — per-section checkpoints; inputs freeze after each section is checked
-//   'free'   — per-section checkpoints; student can revise any checked section freely
+// submissionMode controls the student-facing flow. Two real behaviours and one
+// authoring convenience (activity flow modes, R2):
+//   'free'   (default) — checkpoints per R1; a group may be re-checked freely
+//   'locked' — checkpoints per R1; a group's inputs FREEZE the moment its
+//              check is pressed, and the SERVER refuses a second check for a
+//              section that already has one (record_check's p_locked, 0040 —
+//              derived from THIS field, never from anything the client sends).
+//              ⚠ There is no unlock in v1: not for the student, not for the
+//              teacher. A republish mints a new version and resets everyone,
+//              and that is the only unlock there is.
+//   'single' — no mid-activity checkpoints; the end-of-activity Check is the
+//              only one. Redundant with 'free' + no markers under R1, and kept
+//              because it says the intent plainly at authoring time.
 //
-// revisionMode controls post-submission behavior:
-//   'free'   — after final submit, student can revise and resubmit (new attempt row)
-//   'locked' — final submit is final; no resubmissions
-// revisionMode is ignored when submissionMode === 'single'.
+// activityType is a LABEL (R5): it renders as text beside course/unit, on
+// screen and on paper — "Exit ticket" / "Warm-up" / "Review"; 'worksheet' is
+// the unmarked default and renders nothing. It drives no layout. It used to
+// claim it did ("an exit_ticket renders as a single-page focused layout; a
+// worksheet renders with full section navigation") and that was never built in
+// the viewer, which has ONE layout and no section navigation. It is also NOT
+// the catalog facet — that is `pedagogical_role` (0037), a different axis on
+// purpose (see packages/app/src/lib/pedagogicalRole.ts).
 //
-// gradingMode controls who scores the activity:
-//   'auto'   — Phase 1 default. Runtime computes scores client-side from
-//              answer keys baked into the published HTML.
-//   'manual' — Phase 2.6+. No auto-scoring; submissions land in the
-//              teacher dashboard pending rubric application.
-//   'mixed'  — Phase 2.6+. Some blocks auto-graded, some manually graded
-//              (e.g., 5 MC questions + 1 essay). Final score combines both.
-// Inert in Phase 1 — no manual-graded block types exist yet, so the
-// runtime treats 'manual'/'mixed' the same as 'auto' until Phase 2.6
-// lands per-block grading metadata. Field exists now so existing stored
-// documents parse cleanly when those block types arrive.
+// answerFeedback controls WHEN a correct/incorrect signal becomes visible:
+//   'on_check'  — hidden until the student checks. THE ONLY LIVE VALUE, and
+//                 the treatment for a missing field.
+//   'immediate' — RESERVED, NOT YET ACTIVE (R3, deferred to its own slice).
+//                 The editor greys it, the importer warns, and the viewer
+//                 treats it as 'on_check'. It is not built because nothing to
+//                 hang it on exists yet: all eleven input components write to
+//                 the store per keystroke, so there is no commit seam; only
+//                 the server scorers know what "answered" means (the sanitizer
+//                 strips the expected count, so the client cannot know an
+//                 ordering or a graph is complete); and the re-fire rule after
+//                 a correction is undesigned. `immediate` + `locked` is
+//                 refused at authoring, because the server cannot tell an
+//                 auto-check from a press.
 //
-// activityType drives presentation: an exit_ticket renders as a single-page
-// focused layout; a worksheet renders with full section navigation; etc.
+// ⚠ THE OLD "the runtime defaults a MISSING answerFeedback to 'immediate'"
+// NOTE IS DEAD (OV#20). It described `packages/renderer`'s runtime, which was
+// deleted at S9 Drop 4. Missing means 'on_check', the same as the schema
+// default — there is no longer a back-compat fallback that differs.
 //
-// answerFeedback controls WHEN a blank's correct/incorrect signal (the
-// green/red border + aria-invalid + targeted mistake feedback) becomes
-// visible to the student:
-//   'immediate' — the blank self-checks on blur, so the student sees
-//                 correct/incorrect as soon as they leave the field. A
-//                 self-check practice experience.
-//   'on_check'  — correctness is hidden until the student checks the section
-//                 (locked/free) or submits (single). An assessment-style
-//                 experience that doesn't leak answers before the gate.
-// Orthogonal to submissionMode — any checkpoint behavior can pair with
-// either feedback timing (the same reason revisionMode is its own field).
-// Default 'on_check': the checkpoint model implies "answer, then check",
-// and leaking correctness on blur undercut that. NOTE the runtime defaults a
-// MISSING answerFeedback (activities published before this field existed) to
-// 'immediate', preserving their original behavior — the schema default and
-// the runtime back-compat fallback differ on purpose.
+// ⚰ revisionMode and gradingMode were DELETED in the activity-flow-modes slice
+// (R4, 2026-08-24) and must not come back speculatively. revisionMode governed
+// "after final submit, may the student resubmit" — and there is no submit in
+// the viewer, so it had no referent; re-checking is submissionMode's job.
+// gradingMode is DERIVED, not authored: the server already records free text as
+// "your teacher will review" and grades everything else purely from block
+// types, so 'manual' on an all-MC activity would be a lie and 'auto' on an
+// essay would be ignored. When per-block grading metadata lands (the
+// teacher-grading slice's own design says it needs it), it lands at the BLOCK
+// grain, not here. Old stored documents carrying either field parse fine —
+// zod .object() strips unknown keys, so they vanish on the next save.
 //
 // skills is an array of universal skill tags describing what the activity
 // teaches. Action-oriented, framework-neutral: "simplifying rational
@@ -235,8 +255,6 @@ export const ActivityMeta = z.object({
                                      course: z.string().min(1).default('Algebra II'),
                                      unit: z.string().optional(),
                                      submissionMode: z.enum(['single', 'locked', 'free']).default('free'),
-                                     revisionMode: z.enum(['free', 'locked']).default('free'),
-                                     gradingMode: z.enum(['auto', 'manual', 'mixed']).default('auto'),
                                      activityType: z.enum(['worksheet', 'exit_ticket', 'warm_up', 'review']).default('worksheet'),
                                      answerFeedback: z.enum(['immediate', 'on_check']).default('on_check'),
                                      skills: z.array(z.string()).default([]),

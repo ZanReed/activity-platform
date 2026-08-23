@@ -209,9 +209,9 @@ export const FENCES: FenceSpec[] = [
         // guard probes instead.
         blockType: 'meta',
         summary:
-            'activity metadata AND settings — title, course, unit, tags, Bank role, activity type, submission/revision mode, answer feedback, calculator, work space — as plain `key: value` lines; applied only where the activity has no value yet, so a paste never overwrites anything you set by hand',
+            'activity metadata AND settings — title, course, unit, tags, Bank role, activity type, submission mode, answer feedback, calculator, work space — as plain `key: value` lines; applied only where the activity has no value yet, so a paste never overwrites anything you set by hand',
         example:
-            'title: Factoring Trinomials\ncourse: Algebra I\nunit: Quadratics\ntags: factoring, vertex form\nrole: lesson\ntype: exit_ticket\nsubmission: locked\nrevision: locked\nfeedback: on_check\ncalculator: graphing\nwork: 3 lines',
+            'title: Factoring Trinomials\ncourse: Algebra I\nunit: Quadratics\ntags: factoring, vertex form\nrole: lesson\ntype: exit_ticket\nsubmission: locked\nfeedback: on_check\ncalculator: graphing\nwork: 3 lines',
         meta: true,
     },
 ];

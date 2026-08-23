@@ -3,8 +3,11 @@
 // -----------------------------------------------------------------------------
 // Public-API tests (import from '@activity/schema' via ../src/index.js). Covers
 // the schema-default surface that the document/submission/inline files don't:
-//   - ActivityMeta flow + feedback fields (submissionMode, revisionMode,
-//     activityType, answerFeedback, skills)
+//   - ActivityMeta flow + feedback fields (submissionMode, activityType,
+//     answerFeedback, skills). `revisionMode` and `gradingMode` were DELETED
+//     2026-08-24 (activity flow modes, R4) — the rows below assert they are
+//     STRIPPED rather than merely absent, because the back-compat claim is
+//     that old stored documents carrying them still parse.
 //   - Section.isCheckpoint
 //   - ProblemBlock optional solution + skills default
 //   - FillInBlankBlock optional solution + hasConfidenceRating + skills default
@@ -36,24 +39,37 @@ describe('ActivityMeta — flow + feedback fields', () => {
   it('applies defaults for the flow fields when only title is provided', () => {
     const parsed = ActivityMeta.parse({ title: 'Test Activity' });
     expect(parsed.submissionMode).toBe('free');
-    expect(parsed.revisionMode).toBe('free');
     expect(parsed.activityType).toBe('worksheet');
     expect(parsed.skills).toEqual([]);
     // New activities hide correctness until a section check / submit.
     expect(parsed.answerFeedback).toBe('on_check');
   });
 
+  // ⚰ R4 (2026-08-24). The deletion's back-compat claim, asserted rather than
+  // asserted-by-prose: a document authored before the deletion still PARSES,
+  // and the dead keys are dropped on the way through. If either field were
+  // ever re-added speculatively, this row goes red and says why.
+  it('strips the deleted revisionMode / gradingMode instead of rejecting them', () => {
+    const parsed = ActivityMeta.parse({
+      title: 'An activity authored before R4',
+      submissionMode: 'locked',
+      revisionMode: 'locked',
+      gradingMode: 'manual',
+    });
+    expect(parsed.submissionMode).toBe('locked');
+    expect('revisionMode' in parsed).toBe(false);
+    expect('gradingMode' in parsed).toBe(false);
+  });
+
   it('accepts explicit values for all flow fields', () => {
     const parsed = ActivityMeta.parse({
       title: 'Exit Ticket: Rational Expressions',
       submissionMode: 'locked',
-      revisionMode: 'locked',
       activityType: 'exit_ticket',
       answerFeedback: 'immediate',
       skills: ['simplifying rational expressions', 'polynomial division'],
     });
     expect(parsed.submissionMode).toBe('locked');
-    expect(parsed.revisionMode).toBe('locked');
     expect(parsed.activityType).toBe('exit_ticket');
     expect(parsed.answerFeedback).toBe('immediate');
     expect(parsed.skills).toHaveLength(2);
@@ -165,7 +181,6 @@ describe('Factories — schema-valid output for the new fields', () => {
     expect(doc.meta.title).toBe('My Activity');
     expect(doc.meta.submissionMode).toBe('locked');
     expect(doc.meta.activityType).toBe('exit_ticket');
-    expect(doc.meta.revisionMode).toBe('free'); // default preserved
     expect(doc.meta.skills).toEqual([]); // default preserved
     expect(() => ActivityDocument.parse(doc)).not.toThrow();
   });

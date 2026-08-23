@@ -37,7 +37,6 @@ const LABELS: Record<string, string> = {
     unit: 'unit',
     pedagogicalRole: 'role',
     submissionMode: 'submission mode',
-    revisionMode: 'revision mode',
     activityType: 'activity type',
     answerFeedback: 'answer feedback',
     calculatorMode: 'calculator',

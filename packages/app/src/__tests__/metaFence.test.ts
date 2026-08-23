@@ -106,17 +106,54 @@ describe('```meta fence', () => {
     it('reads every settings key', () => {
         const r = convert(
             fence(
-                'type: exit_ticket\nsubmission: locked\nrevision: locked\nfeedback: on_check\ncalculator: graphing',
+                'type: exit_ticket\nsubmission: locked\nfeedback: on_check\ncalculator: graphing',
             ),
         );
         expect(r.meta).toEqual({
             activityType: 'exit_ticket',
             submissionMode: 'locked',
-            revisionMode: 'locked',
             answerFeedback: 'on_check',
             calculatorMode: 'graphing',
         });
         expect(r.warnings).toEqual([]);
+    });
+
+    // ⚰ R4 (2026-08-24). A file written against the old format gets a sentence
+    // that says what happened to its setting — NOT the default arm's "isn't a
+    // recognized key", which reads as a typo and sends the author looking for
+    // one. Both spellings, both keys.
+    it('names the retired revision / grading keys instead of calling them typos', () => {
+        for (const line of [
+            'revision: locked',
+            'revisionmode: locked',
+            'grading: manual',
+            'gradingmode: manual',
+        ]) {
+            const r = convert(fence(line));
+            const warnings = [...r.warnings];
+            expect(warnings).toHaveLength(1);
+            expect(warnings[0]).toContain('was removed');
+            expect(warnings[0]).not.toContain('isn’t a recognized key');
+            expect(r.meta?.submissionMode).toBeUndefined();
+        }
+    });
+
+    // R3 — `immediate` is RESERVED. Accepted so an old file keeps parsing, but
+    // the author is told rather than left to infer it from behaviour.
+    it('warns that feedback “immediate” is reserved and not active', () => {
+        const r = convert(fence('feedback: immediate'));
+        expect(r.meta?.answerFeedback).toBe('immediate');
+        expect([...r.warnings].join(' ')).toContain('reserved');
+    });
+
+    // T1 — the combination the SERVER cannot enforce, so authoring refuses it.
+    // The server sees one check request either way and cannot tell an
+    // auto-check from a deliberate press.
+    it('refuses feedback “immediate” together with submission “locked”', () => {
+        const r = convert(fence('submission: locked\nfeedback: immediate'));
+        expect(r.meta?.submissionMode).toBe('locked');
+        expect(r.meta?.answerFeedback).toBe('on_check');
+        expect([...r.warnings].join(' ')).toContain('cannot be combined');
     });
 
     // An AI (or a human) writing "Exit Ticket" should land on the enum, not a
@@ -136,13 +173,12 @@ describe('```meta fence', () => {
     it('accepts the long-form key spellings too', () => {
         const r = convert(
             fence(
-                'activitytype: review\nsubmissionmode: single\nrevisionmode: locked\nanswerfeedback: immediate',
+                'activitytype: review\nsubmissionmode: single\nanswerfeedback: on_check',
             ),
         );
         expect(r.meta?.activityType).toBe('review');
         expect(r.meta?.submissionMode).toBe('single');
-        expect(r.meta?.revisionMode).toBe('locked');
-        expect(r.meta?.answerFeedback).toBe('immediate');
+        expect(r.meta?.answerFeedback).toBe('on_check');
         expect(r.warnings).toEqual([]);
     });
 

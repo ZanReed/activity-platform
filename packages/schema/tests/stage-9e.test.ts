@@ -20,35 +20,13 @@ const sectionWith = (content: unknown[]) => ({
 });
 
 describe('Stage 9e — schema additions', () => {
-    describe('ActivityMeta.gradingMode', () => {
-        it('defaults to "auto" when omitted', () => {
-            const doc = ActivityDocument.parse({
-                schemaVersion: 2,
-                meta: { title: 'Test' },
-                sections: [],
-            });
-            expect(doc.meta.gradingMode).toBe('auto');
-        });
-
-        it('accepts each valid value', () => {
-            for (const value of ['auto', 'manual', 'mixed'] as const) {
-                const doc = ActivityDocument.parse({
-                    schemaVersion: 2,
-                    meta: { title: 'Test', gradingMode: value },
-                    sections: [],
-                });
-                expect(doc.meta.gradingMode).toBe(value);
-            }
-        });
-
-        it('rejects unknown values', () => {
-            expect(() => ActivityDocument.parse({
-                schemaVersion: 2,
-                meta: { title: 'Test', gradingMode: 'partial' },
-                sections: [],
-            })).toThrow();
-        });
-    });
+    // ⚰ `ActivityMeta.gradingMode` was DELETED 2026-08-24 (activity flow modes,
+    // R4). It was never authored truthfully: the server records free text as
+    // "your teacher will review" and grades everything else purely from block
+    // types, so 'manual' on an all-MC activity was a lie and 'auto' on an essay
+    // was ignored. Per-block grading metadata is the right grain and belongs to
+    // the teacher-grading slice. The strip-not-reject back-compat guarantee is
+    // pinned in stage-9a.test.ts.
 
     describe('ActivityDocument.referencePanel', () => {
         it('is absent on documents that do not provide it', () => {

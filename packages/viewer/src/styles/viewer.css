@@ -1128,6 +1128,16 @@
   cursor: default;
 }
 
+/* D4 — `Algebra II · Unit 3 · Exit ticket`. Deliberately the SAME type and
+   token as the printed heading's meta line, and deliberately NOT a badge:
+   the surface's job is the questions, the system has no chip component, and
+   a coloured pill is meaningless in the grayscale a worksheet is copied in. */
+.viewer-topbar__meta {
+  color: var(--vw-color-ink-muted);
+  font-size: var(--type-meta);
+  margin: var(--space-1) 0 0;
+}
+
 .viewer-topbar__row {
   align-items: center;
   display: flex;
