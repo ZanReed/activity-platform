@@ -6,7 +6,18 @@ A living "where am I" snapshot. Update at the end of each work session — repla
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**FOUR ITEMS ARE OWED**, listed below. Nothing from this session is among them:
+**⚠ NEW THIS SESSION — CI's print-gates job is RED, and the red is EXPECTED.**
+The graph-figure convergence added a linear curve to the `graph_figure` fixture
+(it drew a lone point before, which is how a renderer that dropped every LINE
+looked correct for four months), so the Linux print baselines move. Regenerate
+them: **GitHub Actions → CI → Run workflow → tick `update_print_baselines`**
+(`.github/workflows/ci.yml:381-410`), then unzip the `print-baselines` artifact
+over `packages/app/e2e/print-baselines.e2e.ts-snapshots/` and commit. Nothing
+else in that job is broken; every other lane (check, a11y, student,
+print-rules, dark-contrast) is green locally.
+
+**FIVE ITEMS ARE OWED** — the baseline regeneration above, plus the four below,
+none of which are from this session:
 the reference-panel leak fix was deployed and **verified by grepping the deployed
 source** on 2026-08-23 (`list_edge_functions` reported `version` 24 unchanged
 across that real deploy and was WRONG — the corrected rule now lives in
@@ -46,53 +57,55 @@ CLAUDE.md, which is where a standing rule belongs).
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — the S9 ORPHAN ARC IS CLOSED; next comes from writing activities
+## Current focus — a SEVENTH orphan found and closed; next comes from writing activities
 
-**✅ ALL SIX S9 ORPHANS ARE SHIPPED (2026-08-22/23).** Choice figures, nested
-lists, the student calculator, and the reference panel's screen surface — plus a
-live answer-key leak found on the way. Narratives in
-[HISTORY.md](docs/HISTORY.md); each has an AS-BUILT in its design doc
-([calculator](docs/design/floating-tool-cluster.md),
-[reference panel](docs/design/reference-panel-screen-surface.md),
-[choice figures](docs/design/choice-figures-and-nested-lists.md)). What stays
-live from it:
+**✅ THE GRAPH-FIGURE CONVERGENCE SHIPPED 2026-08-23** —
+[graph-figure-convergence.md](docs/design/graph-figure-convergence.md). **Read
+its AS BUILT, not just the plan: three things changed shape at build time.**
+
+**It was filed as cleanup and was content loss.** There is no `line` drawable
+kind — a line is `{kind:'curve', family:'linear'}` — and `GraphFigure.tsx`
+skipped curves, so **every line a teacher drew on a formula sheet was an empty
+grid for the student**, while the editor's own preview showed it correctly.
+Zero live instances (the DB holds no `graph_figure`), so nothing was lost.
+
+**Three findings worth carrying forward:**
+- **Writing an activity is what found it.** Nothing here had ever authored a
+  `graph_figure`; `scripts/graph-figure-test.md` is the first, and the real
+  importer turned a code-read claim into a measurement. The fixture set is not
+  the corpus.
+- **A ticked box is a claim.** `ChoiceFigure.tsx`'s header described a preload
+  and a print-readiness wait, and the design doc ticked that task done. Neither
+  had ever existed. Deleting the lazy seam made them moot rather than owed.
+- **Dark mode broke where no lane could see it** (tick labels 2.36:1, under the
+  3:1 graphics floor). The print gate runs on white, axe skips SVG
+  presentation attributes, jsdom has no computed colour. It took a real
+  browser in a real theme — and one new guard is honestly weaker than its name
+  (the `drawable-count` row counts what the engine was GIVEN), which the row
+  now says outright.
+
+## The S9 orphan arc (closed 2026-08-22/23) — narrative in HISTORY
+
+Six content orphans shipped; the narrative moved to
+[HISTORY.md](docs/HISTORY.md) at the 2026-08-23 close-out. What stays LIVE:
 
 - **The calculator's FEATURE SCOPE is ruled** — DECISIONS.md → "Calculator
   feature scope". Intersections/intercepts are OUT on pedagogy grounds; do not
   re-pitch them as cheap.
-- **All three z-tokens now have real `var()` consumers.** The ladder is load-
-  bearing again: tools 110 < reference 115 < calculator 120 < popovers 1000.
-- **A pasted question can reach a reference panel.** Its key no longer ships,
-  and the panel body is a permanently disabled fieldset so it cannot be
-  answered. Whether the EDITOR should refuse the paste is an open product
-  question with zero live instances.
+- **All three z-tokens have real `var()` consumers**: tools 110 < reference 115
+  < calculator 120 < popovers 1000.
 - **THREE orphan classes remain**, all knobs rather than content loss (graph
   feedback, the flow modes, `hasConfidenceRating`/`allowTargetReuse`) — TODOS
   carries them; each needs a wire-or-delete ruling.
 
-**Nothing blocks bulk authoring.** `pnpm import:batch <folder> --owner <email>`
-(always `--dry-run` first), then `pnpm report:stale --owner <email>`.
-
-**⏭ THE NEXT REAL INFORMATION COMES FROM WRITING ACTIVITIES, not from more code.**
-~150 markdown files in `~/activity-catalogue-pilot/`, currently 3. The format is
-proven against real content and its traps are documented in
-[markdown-import-format.md](docs/markdown-import-format.md) — hand-numbering,
-the `mc`/`match` syntax, and now tables. The one capability no real activity
-exercises yet is a blank INSIDE a cell — the pilot's tables put their
-questions BELOW the table, so "complete the table" (ruling D7, the whole
-reason cells hold blanks) is still unproven on real content. `{{=9.00}}` in
-a cell grades and letters (a)/(b) on paper; the first authored one is the
-first real test.
-
-**The backlog is large and none of it is table-related** — 20+ items in
-[TODOS.md](TODOS.md). The ones that look most load-bearing from here: **the
-orphan classes S9 left behind** (TODOS → "S9 left FIVE MORE ORPHAN CLASSES" —
-ALL SIX content orphans are CLOSED as of 2026-08-23; three KNOB classes remain),
-the
-document walk duplicated five times, the orphaned `number` override field, the
-check-rollup arming arc, and the parked shell-slimming. All of them will be
-easier to prioritise after 20 activities have said what actually gets in the way.
-
+**⏭ THE NEXT REAL INFORMATION COMES FROM WRITING ACTIVITIES, not more code.**
+~150 markdown files planned in `~/activity-catalogue-pilot/`, currently 3.
+`pnpm import:batch <folder> --owner <email>` (always `--dry-run` first), then
+`pnpm report:stale --owner <email>`. Two capabilities no real activity
+exercises yet: a blank INSIDE a table cell (ruling D7's whole reason), and —
+as of 2026-08-23 — a `graph_figure`, whose first author was a test file that
+immediately found a four-month-old content-loss bug. **That is the pattern to
+expect: the corpus finds what the fixtures cannot.**
 
 ## The completed arc — what stays live from it
 

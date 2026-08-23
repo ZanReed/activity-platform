@@ -1,5 +1,58 @@
 # HISTORY.md
 
+## Archived from STATE 2026-08-23 (late) — the S9 orphan arc's closing narrative
+
+Moved at the graph-figure convergence close-out, when STATE went over its
+~150-line budget. The live residue (calculator scope, the z-ladder, the three
+remaining knob orphans) stayed in STATE; this is the completed-work half.
+
+## The S9 orphan arc (closed 2026-08-22/23)
+
+**✅ ALL SIX S9 ORPHANS ARE SHIPPED (2026-08-22/23).** Choice figures, nested
+lists, the student calculator, and the reference panel's screen surface — plus a
+live answer-key leak found on the way. Narratives in
+[HISTORY.md](HISTORY.md); each has an AS-BUILT in its design doc
+([calculator](design/floating-tool-cluster.md),
+[reference panel](design/reference-panel-screen-surface.md),
+[choice figures](design/choice-figures-and-nested-lists.md)). What stays
+live from it:
+
+- **The calculator's FEATURE SCOPE is ruled** — DECISIONS.md → "Calculator
+  feature scope". Intersections/intercepts are OUT on pedagogy grounds; do not
+  re-pitch them as cheap.
+- **All three z-tokens now have real `var()` consumers.** The ladder is load-
+  bearing again: tools 110 < reference 115 < calculator 120 < popovers 1000.
+- **A pasted question can reach a reference panel.** Its key no longer ships,
+  and the panel body is a permanently disabled fieldset so it cannot be
+  answered. Whether the EDITOR should refuse the paste is an open product
+  question with zero live instances.
+- **THREE orphan classes remain**, all knobs rather than content loss (graph
+  feedback, the flow modes, `hasConfidenceRating`/`allowTargetReuse`) — TODOS
+  carries them; each needs a wire-or-delete ruling.
+
+**Nothing blocks bulk authoring.** `pnpm import:batch <folder> --owner <email>`
+(always `--dry-run` first), then `pnpm report:stale --owner <email>`.
+
+**⏭ THE NEXT REAL INFORMATION COMES FROM WRITING ACTIVITIES, not from more code.**
+~150 markdown files in `~/activity-catalogue-pilot/`, currently 3. The format is
+proven against real content and its traps are documented in
+[markdown-import-format.md](markdown-import-format.md) — hand-numbering,
+the `mc`/`match` syntax, and now tables. The one capability no real activity
+exercises yet is a blank INSIDE a cell — the pilot's tables put their
+questions BELOW the table, so "complete the table" (ruling D7, the whole
+reason cells hold blanks) is still unproven on real content. `{{=9.00}}` in
+a cell grades and letters (a)/(b) on paper; the first authored one is the
+first real test.
+
+**The backlog is large and none of it is table-related** — 20+ items in
+[TODOS.md](../TODOS.md). The ones that look most load-bearing from here: **the
+orphan classes S9 left behind** (TODOS → "S9 left FIVE MORE ORPHAN CLASSES" —
+ALL SIX content orphans are CLOSED as of 2026-08-23; three KNOB classes remain),
+the
+document walk duplicated five times, the orphaned `number` override field, the
+check-rollup arming arc, and the parked shell-slimming. All of them will be
+easier to prioritise after 20 activities have said what actually gets in the way.
+
 ## Archived from TODOS 2026-08-23 — ten resolved entries (TODOS housekeeping)
 
 Moved verbatim so TODOS holds only open work. Each was marked ✅/⚰/resolved in
