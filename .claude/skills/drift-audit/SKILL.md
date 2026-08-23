@@ -78,7 +78,12 @@ Work through each item; skip none silently — say "clean" per section in the re
 
 **2. Bundle sizes and budgets.** `scripts/perf-budgets.mjs` is the ONE home for every ceiling, with its reasoning. Two families:
 - **Edge Function bundles:** `VIEWER_SERVER_MAX_KIB` / `GRADING_SERVER_MAX_KIB` vs the committed `supabase/functions/_shared/*.bundle.js` (`wc -c`). CI guards staleness, not ceiling values — that is this audit's job.
-- **Built SPA:** `node scripts/check-perf-budget.mjs` prints all 16 with their caps (12 until the 2026-08-18 shell-slim slice added four absence-only rows).
+- **Built SPA:** `node scripts/check-perf-budget.mjs` prints every row with its
+  cap. ⚠ **DO NOT PIN THE ROW COUNT HERE — this bullet has now circulated a stale
+  one twice** (it said 12, then 16; the 2026-08-23 run read 18 after the zod
+  ledger + shell-absence rows landed). A checklist that warns about stale figures
+  while carrying one is the exact failure §0 exists for. Read the count from the
+  run; the caps and their reasoning live in `scripts/perf-budgets.mjs`.
 - Flag anything within ~15% of its cap: the budget ladder should be *scheduled*, not discovered mid-feature. **Read the current numbers from `node scripts/check-perf-budget.mjs`; do not pin one here.** This bullet pinned "156.4 KiB" from 2026-08-18 until the 2026-08-21 audit found it reading 157.4 — a checklist that warns about circulating stale figures, circulating a stale figure. The shell-slim ladder is PARKED (TODOS.md names the one trigger to resume). Prefer flagging a row that has MOVED toward its cap since the last audit over a raw percentage — the headroom policy is ~10%, so a freshly-calibrated row always sits near 90% and a raw threshold flags every healthy row. DECISIONS: "a budget that can only ever loosen is a fossil."
 
 **3. Design-doc status lines.** For each `docs/design/*.md`, read the status header and check it against STATE/HISTORY ship status.

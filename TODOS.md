@@ -1160,39 +1160,32 @@ fallback-window number directly.
 from a binary into three options by the S8 outside voice (2026-08-05, ruling D7); option 3
 built and measured the same day.
 
-## Get the student shell toward the 150 KiB gz target — SLICE 1 SHIPPED, then PARKED
+## The student shell's size ladder — TARGET MET (2026-08-23), ladder open
 
-**⚖ RULED 2026-08-18 (author, same day slice 1 landed): STOP THE LADDER HERE.** One rung
-climbed, and the ladder is parked again — not because the remaining rungs are hard, but
-because nothing currently justifies their cost. Do not start rung 2 without the trigger
-below. This entry is a ledger again, as it was between 2026-08-15 and slice 1.
+**⚖ THE ~150 KiB gz TARGET IS MET.** Two rungs shipped: slice 1 (the Supabase
+sub-clients, 2026-08-18) and rung 1 (the zod audit, 2026-08-23). **Do not read a
+byte figure out of this entry** — it has now produced stale numbers in two
+consecutive drift audits, because the writing races the shipping and the writing
+loses. **`node scripts/check-perf-budget.mjs` prints every row with its cap; the
+caps and their reasoning live in `scripts/perf-budgets.mjs`.** That is the only
+current source, and this entry deliberately no longer competes with it.
 
-**The four reasons, recorded so the next session does not re-litigate them:**
-1. **150 was never measured.** Ruling P1A *sketched* "~≤150 KiB gz"; `perf-budgets.mjs`
-   says so in its own comment. Chasing the last ~6 KiB is chasing a number nobody
-   derived from a device.
-2. **Timing already beats its targets with room.** The throttled Chromebook-class lane
-   at the time of the ruling: pre-auth 785 ms vs the 992 ms committed target (−21%),
-   worksheet 870 vs 1135 (−23%), math-rendered 1604 vs 1812. The shell is not the
-   bottleneck, so 6 KiB buys nothing a student would feel.
-3. **The pressure that started slice 1 is gone.** It ran because the shell sat at ~96%
-   of cap and the next shell-touching feature would have hit it. It now sits at ~91% of
-   a *tighter* cap. Headroom is real again AND the budget is honest again — which was
-   the actual win, more than the bytes.
-4. **Slice 1 was uniquely cheap; the remaining rungs are not.** It deleted code that
-   never executed: zero behavior change, zero risk to the student path. Every rung left
-   trades correctness or blast radius for bytes — see the list below.
+**⚑ WHAT IS ACTUALLY OPEN.** Both shell rows sit inside the ~10% headroom policy
+again, so nothing forces a rung right now. The remaining candidates are listed
+below and are NOT ranked — slice 1's own rule applies: each shipped slice changes
+the composition of the entry chunk, so run a FRESH sourcemap attribution before
+picking one (P10). The list was derived against a shell two slices heavier and is
+stale by construction.
 
-**⚑ THE TRIGGER TO RESUME — one thing, and it is not a byte count.** A real measurement
-on real school hardware showing the SHELL is the bottleneck (the field-measurement entry
-in this file). That is what should decide whether 150 means anything. Absent it, the
-honest close is "re-baseline deliberately", not "chase the last rung".
-
-**⚑ AND IF YOU DO RESUME: do not pick rung 2 off the list below.** Slice 1 changed the
-composition of the entry chunk, so P10 applies — run a FRESH sourcemap attribution of the
-current 156.4 KiB first and let it name the next lever. The list below was derived
-against the 177.6 KiB shell and is already one slice stale. (Slice 1's own attribution is
-what replaced the folklore 168 number; do it the same way.)
+**⚑ THE TRIGGER, unchanged and still not a byte count:** a real measurement on
+real school hardware showing the SHELL is the bottleneck (the field-measurement
+entry in this file). The 2026-08-18 ruling's reasoning — timing already beats its
+targets with room, and the shell is not what a student waits on — was never
+refuted; it was simply overtaken when the budget rows tightened. Its fourth point
+still holds and is the one to carry forward: **slice 1 and rung 1 were both
+uniquely cheap because they deleted code that never executed** (dead sub-clients;
+an import that was never a parse). Every rung left trades correctness or blast
+radius for bytes.
 
 **SHIPPED — slice 1, the Supabase sub-clients (2026-08-18):**
 [shell-slim-supabase.md](docs/design/shell-slim-supabase.md). `@supabase/realtime-js`
@@ -1203,51 +1196,13 @@ one storage caller, `lib/uploadImage.ts`, makes its two calls as raw `fetch`.
 file's own budget policy warns about). Guarded by four absence rows in
 `scripts/check-perf-budget.mjs` and by `scripts/tests/supabase-stub-pin.test.mjs`.
 
-**⏰ THE PARK EXPIRED 2026-08-23 — this is now a SCHEDULING decision, not a
-backlog item.** Both shell rows have fallen below the ~10% headroom policy at
-once: **JS 160.5 / 172 (7.2%)** and **CSS 13.13 / 15 after a deliberate raise**.
-The CSS row has no lever left — measured, the stylesheet is not fat (743 rules,
-12 repeated bodies, zero editor CSS in the student entry) and its one real
-saving, lazy print CSS at ~2 KiB gz, was refused because Ctrl+P bypasses the
-readiness barrier and paper is a first-class surface. **So the JS ladder is the
-only lever the shell has, and it is parked.**
-
-That is the whole argument for picking a rung now rather than at the next
-feature: `scripts/perf-budgets.mjs` says the ladder should be *scheduled, not
-discovered mid-feature*, and at 7.2% it gets discovered inside the next slice.
-**Rung 1 (the zod audit) needs a DESIGN PASS before any code** — the
-offline-restore path is parse-bearing, so "what may become a trust-the-bytes
-read and what must stay validated" is a correctness question with a student's
-saved work on the other side of it, not a size question.
-
-## Z7 — the student path validates NOTHING it is served or restores (2026-08-23)
-
-Surfaced by the zod audit, deliberately NOT bundled into it.
-
-`packages/viewer/src/client/readClient.ts:188` casts the served document
-(`data.activity as SanitizedActivityDocument`).
-`packages/viewer/src/store/documentCache.ts:238-260` `JSON.parse`s the cached
-copy, checks FOUR envelope fields (`activityId`, `versionId`, `title`,
-`versionNum`) and passes `candidate.document` straight through. There is no
-zod parse anywhere on the student path.
-
-**Defensible today:** the served bytes come from our own Edge Function over TLS,
-and the cached bytes are ones we wrote.
-
-**Less obviously right on a SHARED CHROMEBOOK**, which this platform explicitly
-targets and already writes `sweepForeignStorage`, tab locks and a shared-device
-purge for. `localStorage` there is not a trusted store: a corrupted or
-hand-edited cache entry reaches the renderer as a typed object nobody checked.
-
-**THE PRICE OF REVERSING IT IS NOW KNOWN, which is the point of filing it with a
-number: 17.3 KiB gz** on the entry chunk, plus reverting a tightened
-`SHELL_JS_GZ_KIB` and deliberately deleting a ledger row and a shell-absence row.
-That friction is the correct kind — it makes the trade explicit instead of
-accidental. A cheap hand-rolled structural guard (not zod) is the obvious middle
-path if one is wanted.
-
-**Depends on:** nothing. Do NOT satisfy it by re-importing zod into the shell
-without ruling on that trade first.
+**⏰ THE PARK EXPIRED 2026-08-23 and rung 1 SHIPPED the same day** — the entry
+above is the current state; this line is kept only to record that the park had a
+trigger and the trigger fired (both shell rows fell under the ~10% policy at once,
+and the CSS row had no lever left, so the JS ladder was the only one). Rung 1 then
+took the shell under the 150 target. ⚠ The numbers that stood here were stale
+within hours of being written — see the entry above for why this section no longer
+carries any.
 
 **THE LADDER'S REMAINING RUNGS** (ruling R7 — each is its own slice,
 deliberately NOT folded into slice 1; and see the stale-list warning above):

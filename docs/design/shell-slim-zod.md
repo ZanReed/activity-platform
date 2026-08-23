@@ -246,10 +246,18 @@ to produce a real red.
 
 ## Also fixed in this slice
 
-- `packages/schema/dist/` — a stale `.d.ts` tree from an old `tsc` run, still
-  declaring `tableBlankIds` from `./blocks/table.js`. Inert (nothing resolves to
-  it; `main`/`exports` point at `./src/index.ts`) but it is a declaration
-  surviving a move, which is this repo's named defect class. Removed.
+- `packages/schema/dist/` — it held a stale `.d.ts` tree from an old `tsc` run,
+  still declaring `tableBlankIds` from `./blocks/table.js`: a declaration
+  surviving a move, this repo's named defect class. Inert either way (nothing
+  resolves to it; `main`/`exports` point at `./src/index.ts`).
+  ⚠ **CORRECTED by the 2026-08-23 drift audit — "Removed" was the wrong verb and
+  the wrong fix.** `dist/` is gitignored BUILD OUTPUT, so `pnpm build` recreates
+  it and a deletion never sticks. What actually resolved the staleness is that
+  the rebuild regenerated it against the new sources — it now correctly declares
+  `export { tableBlankIds } from '../table-blank-ids.js'`. The durable lesson is
+  the opposite of the one first written here: a stale build artifact is fixed by
+  REBUILDING, not by deleting, and it will go stale again the moment sources move
+  without one.
 - `blocks/index.ts` re-exported the function too — a third edge the plan named
   only two of.
 
