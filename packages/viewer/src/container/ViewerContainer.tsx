@@ -33,10 +33,11 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from 'react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { blockRegistry, familyOf } from '../registry/registry.js';
 import { buildNumbering, type ResolvedLabel } from '../numbering/numbering.js';
 import { resolveBlockComponent } from '../registry/resolveComponent.js';
@@ -51,6 +52,14 @@ import type { SectionStatus } from '../store/persistence.js';
 import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
 import { ViewerProvider } from './context.js';
 import { indexDocument, type SectionIndex } from './blockIndex.js';
+import {
+  checkGroups,
+  groupStatus,
+  isSectionFrozen,
+  type CheckGroup,
+  type GroupStatus,
+  type SubmissionMode,
+} from './checkGroups.js';
 import { DefinitionGlossary } from '../print/DefinitionGlossary.js';
 import {
   ensureActivityFontLoaded,
@@ -113,27 +122,50 @@ export interface ViewerContainerProps {
  * nested gets one React.lazy identity, not two (A14). */
 const defaultResolve = resolveBlockComponent;
 
-function statusLabel(status: SectionStatus | undefined): string {
-  switch (status?.phase) {
+/**
+ * What the group's status line says (D2). Extends `statusLabel`'s doctrine
+ * rather than starting a second vocabulary: THE FAILURE KIND DECIDES THE
+ * SENTENCE, and a student is never told to try again when retrying cannot
+ * work. The five new sentences are the flow-mode slice's whole copy surface
+ * and are pinned one-per-assertion in the component suite (F9b), so the
+ * vocabulary cannot fracture across the two call sites that render it.
+ */
+function groupStatusLabel(status: GroupStatus, locked: boolean): string {
+  // 'locked' is checked before the phase in the two places it can appear
+  // (a wholly-refused group reads 'error', a partly-refused one reads
+  // 'partial'). It is the one kind that must never inherit retry copy: there
+  // is no unlock in v1, not for the student and not for the teacher.
+  if (status.kind === 'locked' && status.phase !== 'checked') {
+    return 'Already checked and locked.';
+  }
+  switch (status.phase) {
     case 'checking':
       return 'Checking…';
     case 'pending':
-      // Not an error and not a request to do anything — a promise the queue
-      // keeps on its own (TV3-A). Same words as the block-level pill so the
-      // student meets one vocabulary, not two.
-      return 'Will check when you’re back online.';
+      // The freeze already happened (at press), so a locked group says so
+      // first — otherwise the student reads "we'll check later" while their
+      // inputs are inert and concludes something broke.
+      return locked
+        ? 'Locked. Will check when you’re back online.'
+        : 'Will check when you’re back online.';
     case 'checked':
-      // Only when the answers moved during the outage: silence here would let
-      // a student wonder whether the verdict covers what they typed after
-      // pressing Check (ruling 2.2A).
+      // Locked outranks the 2.2A notice, which cannot co-occur anyway: a
+      // locked group freezes at press, so its answers cannot move while
+      // queued. Stated once, at the moment it becomes true.
+      if (locked) return 'Checked and locked. You can’t change these answers.';
       return status.answersChangedWhileQueued
         ? 'Checked your latest answers.'
         : 'Checked.';
+    case 'partial': {
+      const total = status.landed.length + status.unlanded.length;
+      const missing = status.unlanded.length;
+      return `Checked ${status.landed.length} of ${total} — ${
+        missing === 1 ? 'one part' : `${missing} parts`
+      } didn’t send.`;
+    }
     case 'error':
-      // The failure KIND decides the sentence (S4 T8). "Try again" is the right
-      // words only when trying again could work; telling a student to retry
-      // against a stale tab or an expired session sends them into a loop that
-      // cannot end, which is worse than a blunt instruction that does.
+      // The section-level taxonomy, unchanged (S4 T8). Every sentence here
+      // predates this slice; only the reachability is new.
       switch (status.kind) {
         case 'stale_client':
           return 'This page is out of date — reload to keep checking.';
@@ -160,6 +192,14 @@ function statusLabel(status: SectionStatus | undefined): string {
     default:
       return '';
   }
+}
+
+/** The button's words. It NAMES ITS SCOPE (D1) so the visible region and the
+ * label agree — a student who sees three sections inside one rule and a button
+ * that says only "Check" has to guess which of the three it covers. */
+function checkButtonLabel(sectionCount: number, locked: boolean): string {
+  const verb = locked ? 'Check and lock' : 'Check';
+  return sectionCount > 1 ? `${verb} these ${sectionCount} sections` : verb;
 }
 
 export function ViewerContainer({
@@ -211,22 +251,41 @@ export function ViewerContainer({
     [onCrash],
   );
 
-  const shortfallFor = useCallback(
-    (section: SectionIndex): CheckShortfall => ({
-      sectionId: section.sectionId,
-      crashedBlockIds: section.blockIds.filter(
-        (id) => crashed[id]?.gradable === true,
-      ),
-    }),
+  const crashedGradableIn = useCallback(
+    (section: SectionIndex): string[] =>
+      section.blockIds.filter((id) => crashed[id]?.gradable === true),
     [crashed],
   );
 
-  const handleCheck = useCallback(
-    async (section: SectionIndex) => {
-      const shortfall = shortfallFor(section);
-      await store.checkSection(section.sectionId, section.items);
-      if (shortfall.crashedBlockIds.length > 0) {
-        onCheckShortfall?.(shortfall);
+  const shortfallFor = useCallback(
+    (section: SectionIndex): CheckShortfall => ({
+      sectionId: section.sectionId,
+      crashedBlockIds: crashedGradableIn(section),
+    }),
+    [crashedGradableIn],
+  );
+
+  /**
+   * Fire a check group: `sections` is what the button covers, `only` narrows it
+   * to the Retry set (3A — a partial group re-fires just its unlanded members;
+   * a deliberate `free` re-check passes them all and re-scores everything).
+   *
+   * The shortfall roster is taken BEFORE the await, per member, exactly as the
+   * per-section path did — the crash roster describes this render, and reading
+   * it after N round-trips would report a different one.
+   */
+  const handleCheckGroup = useCallback(
+    async (sections: readonly SectionIndex[], only?: readonly string[]) => {
+      const firing = only
+        ? sections.filter((s) => only.includes(s.sectionId))
+        : sections;
+      const shortfalls = firing.map((s) => shortfallFor(s));
+      await store.checkGroup(
+        firing.map((s) => s.sectionId),
+        Object.fromEntries(firing.map((s) => [s.sectionId, s.items])),
+      );
+      for (const shortfall of shortfalls) {
+        if (shortfall.crashedBlockIds.length > 0) onCheckShortfall?.(shortfall);
       }
     },
     [shortfallFor, store, onCheckShortfall],
@@ -242,8 +301,42 @@ export function ViewerContainer({
     return map;
   }, [index]);
 
+  // THE FLOW MODE (R1/R2). `submissionMode` survives sanitization untouched,
+  // so the served document is a complete description of how it flows —
+  // exactly like meta.print above. `locked` is derived from the SAME field the
+  // server derives its refusal from (T1), which is why nothing here sends a
+  // flag the student's browser could omit.
+  const submissionMode: SubmissionMode = doc.meta.submissionMode ?? 'free';
+  const locked = submissionMode === 'locked';
+  const groups = useMemo(
+    () => checkGroups(index, submissionMode),
+    [index, submissionMode],
+  );
+  // sectionId → every section its group's Check covers. Solutions are revealed
+  // per GROUP, not per section (OV#14): under 3A a half-landed group would
+  // otherwise show section 1's worked solutions while section 2 is still
+  // editable — an answer key for work not yet committed.
+  // The served sections by id — the groups carry INDEXES (ids + item ids), and
+  // the render needs the document's own rows.
+  const sectionById = useMemo(
+    () => Object.fromEntries(doc.sections.map((section) => [section.id, section])),
+    [doc],
+  );
+  const groupSections = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const group of groups) {
+      const ids = group.sections.map((s) => s.sectionId);
+      for (const id of ids) map[id] = ids;
+    }
+    return map;
+  }, [groups]);
+
   return (
-    <ViewerProvider store={store} sectionByBlock={sectionByBlock}>
+    <ViewerProvider
+      store={store}
+      sectionByBlock={sectionByBlock}
+      groupSections={groupSections}
+    >
     <div
       className="viewer"
       data-viewer-mode={mode}
@@ -353,99 +446,100 @@ export function ViewerContainer({
           Canvas-based surfaces (graphs) are not form controls, so the CSS
           companion rule handles those. */}
       <fieldset className="viewer-worksheet" disabled={readOnly}>
-      {doc.sections.map((section) => {
-        const sectionIndex = index.bySection[section.id];
-        const status = state.sections[section.id];
-        const shortfall = sectionIndex
-          ? shortfallFor(sectionIndex)
-          : { sectionId: section.id, crashedBlockIds: [] };
-        const uncovered = shortfall.crashedBlockIds.length;
-
-        return (
-          <section
-            key={section.id}
-            className="viewer-section"
-            data-section-id={section.id}
-            data-section-phase={status?.phase ?? 'unchecked'}
-            aria-label={section.title ?? undefined}
-          >
-            {section.title ? (
-              <h2 className="viewer-section__title">{section.title}</h2>
-            ) : null}
-
-            {section.rows.map((row) => (
-              <div
-                key={row.id}
-                className="viewer-row"
-                data-row-id={row.id}
-                data-column-count={row.columns.length}
-                // RULED GRID (2026-08-21). `Row.gridLines` shipped in the
-                // schema, was honoured by the editor toolbar and round-tripped
-                // by serialize — and no surface a STUDENT or a PRINTER sees
-                // ever read it, because the implementation was the renderer's
-                // and died with it at S9 Drop 4. Attribute name and CSS are
-                // ported from that renderer (`data-grid-lines="true"`), so a
-                // document authored before the deletion rules exactly as it
-                // used to. Emitted only when the resolved tri-state is on, so
-                // an unruled row's DOM is byte-identical to before.
-                {...(resolveGridLines(row.gridLines, print.gridLines)
-                  ? { 'data-grid-lines': 'true' }
-                  : {})}
-                style={rowStyle(row.columns)}
+      {/* CHECK GROUPS, not sections (R1). One region per group, each holding
+          every section since the previous checkpoint plus the single Check
+          that covers them. Extracted into its own component so each region
+          owns its own hooks (the freeze-focus effect, the confirm state) —
+          rendering them from a loop in here would need one ref array and one
+          state map keyed by group id, which is the same thing wearing a
+          disguise. */}
+      {groups.map((group) => (
+        <CheckGroupRegion
+          key={group.id}
+          group={group}
+          mode={mode}
+          locked={locked}
+          sections={state.sections}
+          crashedIn={crashedGradableIn}
+          onCheck={handleCheckGroup}
+        >
+          {group.sections.map((sectionIndex) => {
+            const section = sectionById[sectionIndex.sectionId];
+            if (!section) return null;
+            const status = state.sections[section.id];
+            const frozen = locked && isSectionFrozen(status);
+            return (
+              <section
+                key={section.id}
+                className="viewer-section"
+                data-section-id={section.id}
+                data-section-phase={status?.phase ?? 'unchecked'}
+                {...(frozen ? { 'data-section-frozen': 'true' } : {})}
+                aria-label={section.title ?? undefined}
               >
-                {row.columns.map((column) => (
-                  <div
-                    key={column.id}
-                    className="viewer-column"
-                    data-column-id={column.id}
-                    style={columnStyle(column)}
-                  >
-                    {column.blocks.map((block) => (
-                      <BlockSlot
-                        key={(block as { id: string }).id}
-                        block={block}
-                        mode={mode}
-                        resetKey={versionId}
-                        resolveComponent={resolveComponent}
-                        onCrash={handleCrash}
-                        label={numbering[(block as { id: string }).id]}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            ))}
-
-            {mode === 'screen' ? (
-              <div className="viewer-section__footer">
-                <button
-                  type="button"
-                  className="viewer-section__check"
-                  disabled={status?.phase === 'checking'}
-                  onClick={() => {
-                    if (sectionIndex) void handleCheck(sectionIndex);
-                  }}
-                >
-                  Check
-                </button>
-                <p className="viewer-section__status" aria-live="polite">
-                  {statusLabel(status)}
-                </p>
-                {uncovered > 0 ? (
-                  <p
-                    className="viewer-section__shortfall"
-                    data-shortfall-count={uncovered}
-                  >
-                    {uncovered === 1
-                      ? '1 question in this section couldn’t be checked.'
-                      : `${uncovered} questions in this section couldn’t be checked.`}
-                  </p>
+                {section.title ? (
+                  <h2 className="viewer-section__title">{section.title}</h2>
                 ) : null}
-              </div>
-            ) : null}
-          </section>
-        );
-      })}
+
+                {/* THE FREEZE IS PER SECTION, not per group — and that is the
+                    honest granularity, not a shortcut. A group whose members
+                    half-landed is a PARTIAL LOCK (OV#15): the sections that
+                    recorded a row are locked server-side and must stop
+                    accepting input, while the one that 429'd wrote nothing and
+                    must stay editable so Retry can work. Freezing the whole
+                    group would strand that member; freezing none would leave
+                    committed work editable. Same `<fieldset disabled>` idiom
+                    the readOnly wrapper uses, so a block type that does not
+                    exist yet cannot forget to honour it. */}
+                <fieldset className="viewer-section__inputs" disabled={frozen}>
+                  {section.rows.map((row) => (
+                    <div
+                      key={row.id}
+                      className="viewer-row"
+                      data-row-id={row.id}
+                      data-column-count={row.columns.length}
+                      // RULED GRID (2026-08-21). `Row.gridLines` shipped in the
+                      // schema, was honoured by the editor toolbar and round-tripped
+                      // by serialize — and no surface a STUDENT or a PRINTER sees
+                      // ever read it, because the implementation was the renderer's
+                      // and died with it at S9 Drop 4. Attribute name and CSS are
+                      // ported from that renderer (`data-grid-lines="true"`), so a
+                      // document authored before the deletion rules exactly as it
+                      // used to. Emitted only when the resolved tri-state is on, so
+                      // an unruled row's DOM is byte-identical to before.
+                      {...(resolveGridLines(row.gridLines, print.gridLines)
+                        ? { 'data-grid-lines': 'true' }
+                        : {})}
+                      style={rowStyle(row.columns)}
+                    >
+                      {row.columns.map((column) => (
+                        <div
+                          key={column.id}
+                          className="viewer-column"
+                          data-column-id={column.id}
+                          style={columnStyle(column)}
+                        >
+                          {column.blocks.map((block) => (
+                            <BlockSlot
+                              key={(block as { id: string }).id}
+                              block={block}
+                              mode={mode}
+                              resetKey={versionId}
+                              resolveComponent={resolveComponent}
+                              onCrash={handleCrash}
+                              label={numbering[(block as { id: string }).id]}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </fieldset>
+              </section>
+            );
+          })}
+        </CheckGroupRegion>
+      ))}
       </fieldset>
 
       {/* The paper surface for inline vocabulary definitions. On screen a
@@ -460,6 +554,167 @@ export function ViewerContainer({
       ) : null}
     </div>
     </ViewerProvider>
+  );
+}
+
+// =============================================================================
+// CheckGroupRegion — the visible check group (D1/D3/D5/D6/D7)
+// -----------------------------------------------------------------------------
+// R1 removes the Check button from most sections. Without a visible boundary a
+// student scrolls past two buttonless sections and reasonably concludes the
+// work there is not counted — so the group is a REGION, not an inference
+// (D1). A rule plus a grouped background, deliberately NOT a card: the
+// worksheet's surface hierarchy is already sections-as-paper on a page field,
+// and a second card around them would read as a third level of nesting for
+// something that is really just a bracket.
+// =============================================================================
+
+interface CheckGroupRegionProps {
+  group: CheckGroup;
+  mode: 'screen' | 'print';
+  locked: boolean;
+  sections: Record<string, SectionStatus>;
+  crashedIn: (section: SectionIndex) => string[];
+  onCheck: (
+    sections: readonly SectionIndex[],
+    only?: readonly string[],
+  ) => Promise<void>;
+  children: ReactNode;
+}
+
+function CheckGroupRegion({
+  group,
+  mode,
+  locked,
+  sections,
+  crashedIn,
+  onCheck,
+  children,
+}: CheckGroupRegionProps) {
+  const ids = group.sections.map((s) => s.sectionId);
+  const status = groupStatus(ids, sections);
+  const frozen = locked && group.sections.every((s) => isSectionFrozen(sections[s.sectionId]));
+  // The confirm step is INLINE rather than window.confirm (D3): a native
+  // dialog is unstyleable, untestable without stubbing a global, and on a
+  // Chromebook it steals focus to a surface the a11y lane cannot scan.
+  const [confirming, setConfirming] = useState(false);
+
+  // D6 — DISABLING THE FIELDSET THE STUDENT IS STANDING IN DROPS FOCUS TO THE
+  // BODY. Without this the keyboard user's place in the document is simply
+  // gone at the exact moment they committed their work. The status region
+  // takes it instead, and being an aria-live region it also says what
+  // happened.
+  const statusRef = useRef<HTMLParagraphElement>(null);
+  const wasFrozen = useRef(frozen);
+  useEffect(() => {
+    if (frozen && !wasFrozen.current) statusRef.current?.focus();
+    wasFrozen.current = frozen;
+  }, [frozen]);
+
+  const crashed = group.sections.flatMap((s) => crashedIn(s));
+  // T4 — in `locked` a group containing a crashed gradable block DOES NOT
+  // FIRE. `free`/`single` keep the existing fire-then-report path
+  // (fire unconditionally, then report the shortfall beside the status),
+  // because there the student can check again once the block recovers.
+  // Freezing around an ungraded block would trap an answer with no way back.
+  const blockedByCrash = locked && crashed.length > 0;
+  const uncovered = crashed.length;
+
+  // Retry re-fires only what did not land (3A); every other press covers the
+  // whole group.
+  const retrying = status.phase === 'partial';
+  const label = retrying
+    ? 'Retry'
+    : checkButtonLabel(group.sections.length, locked);
+
+  const fire = () => {
+    setConfirming(false);
+    void onCheck(group.sections, retrying ? status.unlanded : undefined);
+  };
+
+  // Once a locked group is frozen there is nothing left to press — and no
+  // unlock exists to offer. The status line carries the whole story.
+  const showButton = !frozen;
+
+  return (
+    <div
+      className="viewer-check-group"
+      data-check-group={group.id}
+      data-group-phase={status.phase}
+      data-group-sections={group.sections.length}
+      {...(frozen ? { 'data-group-frozen': 'true' } : {})}
+    >
+      {children}
+      {mode === 'screen' ? (
+        <div className="viewer-section__footer viewer-check-group__footer">
+          {showButton && !confirming ? (
+            <button
+              type="button"
+              className="viewer-section__check"
+              disabled={status.phase === 'checking' || blockedByCrash}
+              onClick={() => {
+                // D3 — THE ONE PLACE Q4's "Check everywhere" IS BROKEN, and
+                // deliberately. The same word cannot serve a safe repeatable
+                // action and a one-way door: there is no unlock in v1, not for
+                // the student and not for the teacher, and a republish is the
+                // only one there is — which resets every student.
+                if (locked && !retrying) setConfirming(true);
+                else fire();
+              }}
+            >
+              {label}
+            </button>
+          ) : null}
+          {confirming ? (
+            <div className="viewer-check-group__confirm" role="group">
+              <p className="viewer-check-group__confirm-text">
+                {group.sections.length > 1
+                  ? `Check and lock these ${group.sections.length} sections? You won’t be able to change your answers after this.`
+                  : 'Check and lock this section? You won’t be able to change your answers after this.'}
+              </p>
+              <button
+                type="button"
+                className="viewer-check-group__cancel"
+                onClick={() => setConfirming(false)}
+              >
+                Cancel
+              </button>
+              {/* The confirm's own fire button. It carries the primary
+                  button's class for appearance and a second class for
+                  IDENTITY — a guard asking "how many Check buttons are in this
+                  document?" must not count a confirmation step as one. */}
+              <button
+                type="button"
+                className="viewer-section__check viewer-check-group__confirm-fire"
+                onClick={fire}
+              >
+                Check and lock
+              </button>
+            </div>
+          ) : null}
+          <p
+            className="viewer-section__status"
+            ref={statusRef}
+            tabIndex={-1}
+            aria-live="polite"
+          >
+            {blockedByCrash
+              ? 'One question can’t be checked yet.'
+              : groupStatusLabel(status, locked)}
+          </p>
+          {uncovered > 0 && !blockedByCrash ? (
+            <p
+              className="viewer-section__shortfall"
+              data-shortfall-count={uncovered}
+            >
+              {uncovered === 1
+                ? '1 question in this section couldn’t be checked.'
+                : `${uncovered} questions in this section couldn’t be checked.`}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

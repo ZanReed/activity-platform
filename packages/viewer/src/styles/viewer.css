@@ -194,6 +194,92 @@
   margin-right: 0;
 }
 
+/* ---- Check groups (activity flow modes, D1/D5) -----------------------------
+   R1 gives ONE Check to every section since the previous checkpoint, which
+   means most sections lose their button. Without a visible boundary a student
+   scrolls past two buttonless sections and reasonably concludes the work there
+   is not counted — so the group is a REGION (D1).
+
+   DELIBERATELY NOT A CARD: no border-box, no radius, no shadow. The worksheet
+   is already paper-cards on a page field; a third surface around them would
+   read as another level of nesting for what is really a bracket. A rule plus a
+   grouped background is the whole vocabulary.
+
+   The chrome is suppressed for a ONE-SECTION group. D1's reason is a student
+   scrolling past several buttonless sections; a lone section with its own
+   footer already reads as its own scope, and bracketing it would be ornament.
+   That is also what keeps a document with no `{checkpoint}` markers looking
+   exactly as it did before this slice. */
+
+.viewer-check-group {
+  margin: 0 auto var(--space-6);
+  max-width: var(--measure);
+}
+
+.viewer-check-group:not([data-group-sections='1']) {
+  background: var(--vw-color-raised);
+  border-left: 2px solid var(--vw-color-line-strong);
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+
+.viewer-check-group .viewer-section {
+  margin-left: 0;
+  margin-right: 0;
+  max-width: none;
+}
+
+/* The per-section freeze fieldset is pure structure: a browser fieldset brings
+   its own border, margin and padding, and any of them here would shift the
+   worksheet the moment `locked` was authored. */
+.viewer-section__inputs {
+  border: 0;
+  margin: 0;
+  min-width: 0; /* fieldsets floor at min-content otherwise, breaking columns */
+  padding: 0;
+}
+
+/* D5 — A FROZEN GROUP READS AS RECORDED, NOT BROKEN. `<fieldset disabled>`
+   alone inherits the browser's grey, which is the visual language of
+   "unavailable"; a student who deliberately locked their work should feel
+   completion. Ink at reduced emphasis, full opacity, and the region rule
+   stays — the footer's sentence carries the meaning. */
+.viewer-section__inputs:disabled {
+  color: var(--vw-color-ink-muted);
+  opacity: 1;
+}
+
+.viewer-section__inputs:disabled :where(input, textarea, select, button) {
+  color: var(--vw-color-ink-muted);
+  opacity: 1;
+}
+
+/* D3 — the confirm step, inline rather than a native dialog. */
+.viewer-check-group__confirm {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.viewer-check-group__confirm-text {
+  color: var(--vw-color-ink);
+  flex-basis: 100%;
+  font-size: var(--type-small);
+  margin: 0;
+}
+
+.viewer-check-group__cancel {
+  background: transparent;
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-lg);
+  color: var(--vw-color-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--type-small);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-6);
+}
+
 /* ---- Section footer: the check control ------------------------------------ */
 
 .viewer-section__footer {
@@ -226,6 +312,10 @@
 .viewer-section__check:disabled {
   cursor: default;
   opacity: 0.6;
+}
+
+.viewer-check-group__footer {
+  margin-top: var(--space-4);
 }
 
 .viewer-section__status,
@@ -1144,6 +1234,28 @@
     width: 100%;
   }
 
+  /* D7 — A THREE-SECTION GROUP ON A 375px SCREEN PUTS THE ONLY BUTTON TWO
+     SCREENS AWAY. `position: sticky` with `bottom: 0` pins the footer to the
+     viewport while the student is inside that group and releases it when the
+     group scrolls past — no scroll listener, no measurement, and it degrades
+     to a normal footer wherever sticky is unsupported. Above this breakpoint
+     (Chromebook width and up) nothing changes, and print is unaffected: the
+     footer does not print at all. */
+  .viewer-check-group__footer {
+    background: var(--vw-color-paper);
+    border-top: 1px solid var(--vw-color-line-strong);
+    bottom: 0;
+    margin-left: calc(var(--space-4) * -1);
+    margin-right: calc(var(--space-4) * -1);
+    padding: var(--space-3) var(--space-4);
+    position: sticky;
+  }
+
+  .viewer-check-group:not([data-group-sections='1']) {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+
   .viewer-matching__item {
     align-items: stretch;
     flex-direction: column;
@@ -1413,6 +1525,7 @@
    photocopy. */
 :where([data-viewer-mode='print']) .viewer-banner,
 :where([data-viewer-mode='print']) .viewer-topbar,
+:where([data-viewer-mode='print']) .viewer-check-group__footer,
 :where([data-viewer-mode='print']) .viewer-section__footer,
 :where([data-viewer-mode='print']) .viewer-section__status,
 :where([data-viewer-mode='print']) .viewer-section__shortfall,
@@ -1499,6 +1612,17 @@
   .viewer-section {
     border: none;
     break-before: auto; /* explicit: flow naturally, never force a page */
+    margin: 0;
+    max-width: none;
+    padding: 0;
+  }
+
+  /* Checkpoints are a SCREEN concept (R1) — the worksheet prints exactly as it
+     did before this slice, so the group leaves no rule, band or padding on
+     paper. Its footer is already in the never-prints list below. */
+  .viewer-check-group {
+    background: none;
+    border: none;
     margin: 0;
     max-width: none;
     padding: 0;
@@ -1689,6 +1813,7 @@
 
   /* ---- Interactive chrome never prints ------------------------------------ */
 
+  .viewer-check-group__footer,
   .viewer-section__footer,
   .viewer-section__status,
   .viewer-section__shortfall,

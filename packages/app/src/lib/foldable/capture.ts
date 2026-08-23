@@ -113,10 +113,25 @@ export function cloneDocumentStyles(doc: Document = document): string {
  * Section titles come through as flow items (they are content). The section
  * footer comes through too and is dropped later: print mode gives it no height,
  * and whether something has height is a question only layout can answer.
+ * (Since the flow-modes slice the Check footer belongs to the GROUP and is not
+ * rendered at all in print mode, so it no longer reaches here — the dropping
+ * step stays because it costs nothing and this function has no way to know
+ * which mode produced the DOM it was handed.)
+ *
+ * ⚠ THE SELECTOR STEPS THROUGH `.viewer-section__inputs`, and must keep doing
+ * so. That fieldset is the flow-modes freeze mechanism (a `locked` group's
+ * inputs go inert inside it); it is pure structure, never a flow item, and its
+ * children are the rows. A plain `.viewer-section > *` returned the fieldset
+ * itself as one giant unsplittable item, which paginated an entire section
+ * onto one panel — caught by this file's own tests the day the fieldset
+ * landed.
  */
 export function flattenViewerBlocks(root: ParentNode): HTMLElement[] {
   return Array.from(
-    root.querySelectorAll<HTMLElement>('.viewer-section > *'),
+    root.querySelectorAll<HTMLElement>(
+      '.viewer-section > *:not(.viewer-section__inputs),' +
+        '.viewer-section > .viewer-section__inputs > *',
+    ),
   );
 }
 

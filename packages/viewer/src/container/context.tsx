@@ -66,6 +66,12 @@ export interface ViewerProviderProps {
   /** blockId → sectionId. The container passes its index; tests can pass a
    * literal map (or omit it for a single-section harness). */
   sectionByBlock?: Record<string, string>;
+  /**
+   * sectionId → every section its CHECK GROUP covers (R1/OV#14). Omitted means
+   * "each section is its own group", which is what a single-section harness
+   * and /dev/viewer want and is exactly the pre-slice behaviour.
+   */
+  groupSections?: Record<string, string[]>;
   /** Fallback section for blocks absent from the map — the single-section
    * case tests and /dev/viewer use. */
   defaultSectionId?: string;
@@ -75,6 +81,7 @@ export interface ViewerProviderProps {
 export function ViewerProvider({
   store,
   sectionByBlock = {},
+  groupSections = {},
   defaultSectionId,
   children,
 }: ViewerProviderProps) {
@@ -106,11 +113,26 @@ export function ViewerProvider({
       solutionFor: (blockId) => {
         const status = statusOf(blockId);
         if (status?.phase !== 'checked') return undefined;
+        // SOLUTIONS ARE REVEALED PER GROUP, NOT PER SECTION (OV#14). Under
+        // ruling 3A a group is N independent RPCs, so a half-landed group
+        // would otherwise show the first section's worked solutions while the
+        // second is still editable — an answer key handed out for work the
+        // student has not yet committed. Verdicts are deliberately NOT gated
+        // this way: they describe work that DID land, and withholding them
+        // would leave a landed section looking unchecked.
+        const sectionId = sectionOf(blockId);
+        const siblings = sectionId ? groupSections[sectionId] : undefined;
+        if (
+          siblings &&
+          !siblings.every((id) => state.sections[id]?.phase === 'checked')
+        ) {
+          return undefined;
+        }
         return status.result.solutions[blockId];
       },
       feedbackFor: (blockId) => state.releasedFeedback[blockId],
     };
-  }, [store, state, sectionByBlock, defaultSectionId]);
+  }, [store, state, sectionByBlock, groupSections, defaultSectionId]);
 
   return <ViewerContext.Provider value={value}>{children}</ViewerContext.Provider>;
 }
