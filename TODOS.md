@@ -46,10 +46,21 @@ viewBox + 8 pad, `currentColor` with opacity, **returns `null` for `curve` AND
 
 **The size gap is not efficiency, it is missing capability** — which is why the
 eng review refused to reuse the small one for choice figures. Anything rendered
-through `GraphFigure` today silently loses curve drawables. **Nobody has checked
-whether a real `graph_figure` block has ever authored a curve**; that check is
-the first task here, and if the answer is yes, this stops being cleanup and
-becomes a live content-loss bug of exactly the class the orphan sweep found.
+through `GraphFigure` today silently loses curve drawables.
+
+✅ **CHECKED 2026-08-23 against the live DB** (`jsonb_path_exists` over
+`activities.draft_content` and `activity_versions.content`, `$.**` so the
+reference panel is covered): **zero `graph_figure` blocks exist anywhere** —
+29 published versions, 7 drafts, none carry one — so nothing has been lost.
+**But the trap is armed, not hypothetical:** `curve` is authorable on BOTH
+surfaces today — `GraphFigureView.tsx` excludes only `expression` from its
+drawable kinds, and a `graph: curve y = x^2` line inside a ```reference fence
+imports as a `curve` drawable with no warning (only `expression` warns). The
+first teacher who draws a parabola on a formula sheet gets an empty grid on
+screen and on paper. Until convergence lands, the cheap guard is to **refuse
+`curve` at both authoring surfaces the way `expression` already is** (editor
+kind filter + importer warning), so the loss is loud at authoring time rather
+than silent at render.
 
 **Convergence is +4.3 KiB gz net in the EAGER shell** (`graph_figure` is
 `loading:'eager'`), so it is gated on the shell-slim ladder resuming, or on
