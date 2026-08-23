@@ -155,7 +155,9 @@ data-path diagram redrawn without the lazy hop.
    baselines) exercises the path that was empty. Bond once that the sanitized
    projection carries `model` through (`sanitize: { strip: [] }`).
 4. **`GraphFigure.test.tsx`** (new): linear curve → a stroked `<path>` inside
-   `.viewer-figure` and `data-drawables="2"`; zero drawables → axes only,
+   `.viewer-figure` and `data-drawables="2"`; **the four losses T0 measured on
+   the drawables that already "worked" — a ray's arrowhead `<marker>`, endpoint
+   dots, a point's label text, and authored colour** (all absent today); zero drawables → axes only,
    `data-drawables="0"`; degenerate axis → "Figure unavailable" carrying
    `data-figure-unavailable="degenerate-axis"`, no `<svg>`;
    wrapper `role="img"` + label present, inner `<svg>` `aria-hidden`.
@@ -273,13 +275,14 @@ names its file, its command and its lane so no discovery grep is needed.
 
 ## Implementation Tasks
 
-- [ ] **T0 (P1, human: ~30min / CC: ~5 min)** — dogfood — Author `scripts/graph-figure-test.md` and import it BEFORE any code change, to see the bug
-  - Surfaced by: DX D9. The fixture (T5) starts at "the viewer receives a document"; this starts at "a teacher types markdown", covering importer → draft → viewer → print, which no automated lane crosses.
-  - Content: a ```reference fence whose body is `title: Formula sheet`, a line of prose, then two back-to-back `graph: line y = 2x + 1` / `graph: line y = 2x - 3` lines (they share ONE grid — the block's stated reason to exist), plus a `graph: curve y = x^2` in a second figure.
-  - Precedent: `scripts/graph-feature-test.md` (the interactive-graph dogfood; it has NO reference fence, which is why `graph_figure` has never been authored in this repo — consistent with the zero-rows DB query).
-  - Run: `pnpm import:batch` (writes a draft; **leave it unpublished** — publishing makes it live at `/a/:id`). **Policy P7:** name the activity so it is obviously a test artifact and record it in STATE's residue note; it is a durable row.
-  - Verify (the RED half): open the activity, summon the reference panel, and confirm the figures render as EMPTY GRIDS. Screenshot it. That screenshot is the before half of T8's proof.
-  - ⚠ If the figures are NOT empty, stop — the premise of this whole plan is wrong and the finding needs re-deriving before any code moves.
+- [x] **T0 (P1) — DONE 2026-08-23. The bug is confirmed against real authored content.**
+  - `scripts/graph-figure-test.md` written: a ```reference fence with four figures — two parallel lines on one grid, a parabola, a shaded half-plane, and the point/segment/ray/region set that never depended on the curve renderer.
+  - **The real importer produces exactly what the finding predicted.** `getMarkdownImporter()` on that file returns four `graphFigure` panel blocks: `[curve, curve]`, `[curve]`, `[curve]`, `[point, segment, ray, polygon]`. Only warning is an unrelated one about a markdown link in the prose.
+  - **The real `GraphFigure` renders NOTHING for the first three.** Rendering each block through the actual component and counting drawn marks (`<path|<polyline|<circle|<polygon>`): figure 1 = **0 marks**, figure 2 = **0 marks**, figure 4 = 2 marks. Two parallel lines and a parabola are empty grids; the point/segment/ray/region figure draws.
+  - **The chain is proven end to end without a DB write.** `pnpm import:batch --dry-run` accepts the file (1 to create, 0 skipped) and `sanitizeBlock` passes the `{family:'linear'}` model through untouched — so nothing between the teacher's markdown and the student's screen loses the curve. The renderer is the only broken link, which is what makes the one-component fix sufficient.
+  - **⚠ BONUS FINDING, folded into T1: even the "always worked" kinds are DEGRADED.** Side-by-side against `renderGraphSvg` on identical blocks, `GraphFigure`'s figure 4 loses the ray's **arrowhead**, the segment's and ray's **endpoint dots**, the point's **label ("A")**, and all **colour** (everything is `currentColor`). So convergence is not only "curves start working" — it fixes four silent losses in the drawables that supposedly worked. Assert the arrowhead `<marker>` and the point label in T1's test.
+  - **⚠ Trap for whoever re-runs the import:** `import:batch` reports every DB row whose `source_path` is absent from the folder you point it at, so importing a one-file folder lists the author's real catalogue as orphans. That is D2 working (report, never act — nothing was changed), not a problem. Point it at the real catalogue folder, or ignore the orphan list on a scratch run.
+  - Not done, deliberately: **no DB row was written and nothing was published.** The dry run plus the render proof answered the question without leaving residue (policy P7). Import for real only if the browser-level print check is wanted after T1.
 
 - [ ] **T1 (P1, human: ~3h / CC: ~12 min)** — viewer/blocks — Rewrite `GraphFigure.tsx` on a static `renderGraphSvg` import; wrapper `role=img`; `''` → fallback with `data-figure-unavailable`; delete the false header
   - Surfaced by: Step 0 finding; rulings 9A, 5A, 6A, DX D7
